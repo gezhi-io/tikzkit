@@ -1,0 +1,22 @@
+{
+  "name": "pure-js-tikz-interpreter",
+  "version": "0.1.0",
+  "description": "A pure JavaScript TikZ semantic interpreter that renders supported TikZ to SVG.",
+  "type": "module",
+  "bin": {
+    "tikz2svg": "./bin/tikz2svg.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "web": "node web/server.js",
+    "real-cases:render": "node scripts/render-real-cases.js",
+    "gallery:audit": "node scripts/gallery-audit.js",
+    "gallery:native": "node scripts/gallery-native.js",
+    "gallery:js": "node scripts/gallery-js.js",
+    "gallery:diff": "python3 scripts/gallery-diff.py"
+  },
+  "dependencies": {
+    "chevrotain": "^11.0.3",
+    "katex": "^0.17.0"
+  }
+}

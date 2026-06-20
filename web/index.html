@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TikZ Block Renderer</title>
+    <link rel="stylesheet" href="/web/styles.css" />
+    <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "chevrotain": "/node_modules/chevrotain/lib/chevrotain.mjs",
+          "katex": "/node_modules/katex/dist/katex.mjs"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="TikZ renderer workspace">
+        <header class="topbar">
+          <div>
+            <h1>TikZ Block Renderer</h1>
+            <p>Use fenced <code>tikz</code> blocks and render them in-page as SVG.</p>
+          </div>
+          <div class="actions">
+            <div class="view-toggle" aria-label="Workspace view">
+              <button id="results-view-button" type="button" class="secondary active">渲染结果</button>
+              <button id="source-view-button" type="button" class="secondary">源码编辑</button>
+            </div>
+            <label class="strict-toggle">
+              <input id="strict-mode" type="checkbox" />
+              Strict
+            </label>
+            <button id="reset-button" type="button" class="secondary">Reset</button>
+            <button id="render-button" type="button">Render</button>
+          </div>
+        </header>
+
+        <div class="panes">
+          <section class="pane editor-pane" aria-label="Markdown editor">
+            <div class="pane-header">
+              <span>Markdown</span>
+              <span id="source-count" class="muted">0 blocks</span>
+            </div>
+            <textarea id="source-input" spellcheck="false"></textarea>
+          </section>
+
+          <section class="pane preview-pane" aria-label="Rendered preview">
+            <div class="pane-header">
+              <span>Preview</span>
+              <span id="status-line" class="muted">Ready</span>
+            </div>
+            <div id="preview" class="preview"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/web/app.js"></script>
+  </body>
+</html>
