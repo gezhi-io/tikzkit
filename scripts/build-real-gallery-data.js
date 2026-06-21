@@ -281,6 +281,32 @@ const TIKZ_BBOX_CASES = [
   }
 ];
 
+const TIKZ_BPMN_CASES = [
+  {
+    title: "BPMN task, events, gateways, and flows",
+    origin: "MacTeX tikz-bpmn",
+    sourceUrl: "https://ctan.org/pkg/tikz-bpmn",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bpmn/tikz-bpmn-doc.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usetikzlibrary{bpmn,positioning}
+\begin{document}
+\begin{tikzpicture}[node distance=1.7cm]
+  \node[start event] (start) {};
+  \node[task, right=of start] (task) {Review};
+  \node[exclusive gateway, right=of task] (gate) {};
+  \node[message start event, below=of task] (msg) {};
+  \node[timer intermediate event, below=of gate] (timer) {};
+  \node[end event, right=of gate] (end) {};
+  \draw[sequence] (start) -- (task);
+  \draw[sequence] (task) -- (gate);
+  \draw[sequence] (gate) -- (end);
+  \draw[message] (msg) -- (timer);
+  \draw[association] (task.south) -- (msg.north);
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -319,7 +345,8 @@ const selected = [
   ...packtCases.slice(0, Math.max(0, fillerCount)),
   ...TIKZ_3DPLOT_CASES,
   ...TIKZ_BAGUA_CASES,
-  ...TIKZ_BBOX_CASES
+  ...TIKZ_BBOX_CASES,
+  ...TIKZ_BPMN_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -335,7 +362,8 @@ await writeFile(
     tikzNetFound: tikzNetCases.length,
     tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length,
     tikzBaguaFound: TIKZ_BAGUA_CASES.length,
-    tikzBboxFound: TIKZ_BBOX_CASES.length
+    tikzBboxFound: TIKZ_BBOX_CASES.length,
+    tikzBpmnFound: TIKZ_BPMN_CASES.length
   }),
   "utf8"
 );

@@ -763,23 +763,32 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://ctan.org/pkg/tikz-bbox",
     "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bbox/pgfmanual-en-library-bbox.tex#bezier-bounding-box",
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepgflibrary{bbox}\n\\begin{document}\n\\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1pt}]\n  \\draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);\n  \\draw (current bounding box.south west) rectangle (current bounding box.north east);\n  \\draw[red,dashed]\n    (0,0) -- (-1,1) node[bullet,label=above:{$(x_a,y_a)$}]{}\n    (2,0) -- (1,2) node[bullet,label=above:{$(x_b,y_b)$}]{};\n  \\path\n    (0,0) node[bullet,label=below:{$(x_0,y_0)$}]{}\n    (2,0) node[bullet,label=below:{$(x_1,y_1)$}]{};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "BPMN task, events, gateways, and flows",
+    "origin": "MacTeX tikz-bpmn",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bpmn",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bpmn/tikz-bpmn-doc.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{bpmn,positioning}\n\\begin{document}\n\\begin{tikzpicture}[node distance=1.7cm]\n  \\node[start event] (start) {};\n  \\node[task, right=of start] (task) {Review};\n  \\node[exclusive gateway, right=of task] (gate) {};\n  \\node[message start event, below=of task] (msg) {};\n  \\node[timer intermediate event, below=of gate] (timer) {};\n  \\node[end event, right=of gate] (end) {};\n  \\draw[sequence] (start) -- (task);\n  \\draw[sequence] (task) -- (gate);\n  \\draw[sequence] (gate) -- (end);\n  \\draw[message] (msg) -- (timer);\n  \\draw[association] (task.south) -- (msg.north);\n\\end{tikzpicture}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 109,
+  "caseCount": 110,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
   "tikzThreeDPlotFound": 4,
   "tikzBaguaFound": 4,
   "tikzBboxFound": 1,
+  "tikzBpmnFound": 1,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
     "Packt GitHub",
     "MacTeX tikz-3dplot",
     "MacTeX tikz-bagua",
-    "MacTeX tikz-bbox"
+    "MacTeX tikz-bbox",
+    "MacTeX tikz-bpmn"
   ]
 };

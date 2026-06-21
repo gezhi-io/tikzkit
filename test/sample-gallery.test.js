@@ -5,20 +5,20 @@ import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { createSampleGallery } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
 
-test("web sample gallery provides 109 real TikZ source blocks", () => {
+test("web sample gallery provides 110 real TikZ source blocks", () => {
   const source = createSampleGallery();
   const parts = splitTikzCodeBlocks(source);
   const tikzParts = parts.filter((part) => part.type === "tikz");
   const petarVCases = REAL_GALLERY_CASES.filter((item) => item.origin === "PetarV-/TikZ");
 
-  assert.equal(tikzParts.length, 109);
-  assert.equal(REAL_GALLERY_CASES.length, 109);
+  assert.equal(tikzParts.length, 110);
+  assert.equal(REAL_GALLERY_CASES.length, 110);
   assert.equal(petarVCases.length, 65);
   assert.match(source, /Case 001/);
   assert.match(source, /Case 100/);
-  assert.match(source, /Case 109/);
+  assert.match(source, /Case 110/);
   assert.match(source, /PetarV-\/TikZ/);
-  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox/);
+  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|MacTeX tikz-bpmn/);
 
   for (const part of tikzParts) {
     const result = tikzToSvg(part.content);
@@ -38,6 +38,7 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.ok(origins.has("MacTeX tikz-3dplot"));
   assert.ok(origins.has("MacTeX tikz-bagua"));
   assert.ok(origins.has("MacTeX tikz-bbox"));
+  assert.ok(origins.has("MacTeX tikz-bpmn"));
   assert.equal(REAL_GALLERY_CASES.every((item) => item.sourceUrl.startsWith("https://")), true);
 });
 

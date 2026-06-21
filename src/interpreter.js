@@ -917,6 +917,9 @@ function addNodeItems(node, ir, env) {
       height: size.height,
       rx: nodeCornerRadius(shape, semantic, size),
       pathPicture: semantic["path picture"],
+      bpmnIcon: semantic["bpmn icon"],
+      bpmnMarker: semantic["bpmn marker"],
+      doubleColor: semantic.double === undefined ? undefined : semantic.double || "white",
       parts: shape === "rectangleSplit" ? rectangleSplitParts(semantic) : undefined,
       partFills: shape === "rectangleSplit" ? rectangleSplitPartFills(semantic) : undefined,
       style: {
@@ -990,6 +993,7 @@ function findLabelDirectionColon(text) {
 
 function labelPointForDirection(direction, point, size, sep) {
   const normalized = String(direction || "above").toLowerCase().replace(/-/g, " ");
+  if (normalized === "center" || normalized === "centre") return roundPoint(point);
   let x = point.x;
   let y = point.y;
   if (normalized.includes("right") || normalized.includes("east")) x += size.width / 2 + sep;
