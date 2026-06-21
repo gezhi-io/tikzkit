@@ -19,6 +19,10 @@ const COLUMN_SEP = {
   tiny: "+0.6em"
 };
 
+const TIKZCD_COMPARE_GRID_SCOPE = String.raw`\begin{scope}[on background layer]
+  \draw[black!45,line width=0.18pt,dash pattern=on 1pt off 1.2pt,step=1cm] ($(current bounding box.south west)+(-1,-1)$) grid ($(current bounding box.north east)+(1,1)$);
+\end{scope}`;
+
 export const tikzCdExtension = {
   name: "tikz-cd",
   phase: "preprocess",
@@ -104,6 +108,7 @@ function renderTikzCd(body, optionsRaw, diagnostics) {
   });
 
   statements.push(...arrows.filter(Boolean));
+  if (options["tikzkit compare grid"]) statements.push(TIKZCD_COMPARE_GRID_SCOPE);
   statements.push("\\end{tikzpicture}");
   return statements.join("\n");
 }
@@ -371,7 +376,7 @@ function renderArrowLabelNodes(arrow, layout = {}) {
         x: start.x + dx * t + normal.x * side * gap,
         y: start.y + dy * t + normal.y * side * gap
       };
-      const options = ["inner sep=0.02cm"];
+      const options = ["tikzcd label", "inner sep=0.02cm"];
       if (label.description) options.push("fill=white");
       return `\\node[${options.join(",")}] at (${fmt(point.x)},${fmt(point.y)}) {${tikzCdLabelText(label.text)}};`;
     })

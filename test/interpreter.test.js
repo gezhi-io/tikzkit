@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
-import { TIKZ_LINE_WIDTHS, lineWidthFromTikzDimension } from "../src/tikz-metrics.js";
+import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromTikzDimension } from "../src/tikz-metrics.js";
 
 test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions", () => {
   const source = String.raw`
@@ -19,11 +19,11 @@ test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions
   assert.equal(interpreted.ir.items.length, 2);
   assert.deepEqual(interpreted.ir.items[0].commands, [
     { type: "moveTo", x: 0, y: 0 },
-    { type: "lineTo", x: 2, y: 0 }
+    { type: "lineTo", x: 20, y: 0 }
   ]);
   assert.deepEqual(interpreted.ir.items[1].commands, [
-    { type: "moveTo", x: 0, y: 1 },
-    { type: "lineTo", x: 2, y: 1 }
+    { type: "moveTo", x: 0, y: 10 },
+    { type: "lineTo", x: 20, y: 10 }
   ]);
   assert.equal(interpreted.ir.items[0].style.stroke, "blue");
   assert.equal(interpreted.ir.items[0].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
@@ -59,6 +59,7 @@ test("maps TikZ dash pattern presets into SVG dash arrays", () => {
   \draw[loosely dashed] (0,3) -- (1,3);
   \draw[dash dot] (0,4) -- (1,4);
   \draw[dash pattern=on 2pt off 1pt on 0.5pt off 1pt] (0,5) -- (1,5);
+  \draw[dotted, very thick] (0,6) -- (1,6);
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
@@ -67,7 +68,7 @@ test("maps TikZ dash pattern presets into SVG dash arrays", () => {
   assert.deepEqual(diagnostics, []);
   assert.deepEqual(dashArrays, [
     [TIKZ_LINE_WIDTHS.default, lineWidthFromTikzDimension("2pt")],
-    [TIKZ_LINE_WIDTHS.default, lineWidthFromTikzDimension("1pt")],
+    [TIKZ_LINE_WIDTHS.thick, lineWidthFromTikzDimension("1pt")],
     [TIKZ_LINE_WIDTHS.thick, lineWidthFromTikzDimension("1pt")],
     [lineWidthFromTikzDimension("3pt"), lineWidthFromTikzDimension("6pt")],
     [
@@ -81,7 +82,8 @@ test("maps TikZ dash pattern presets into SVG dash arrays", () => {
       lineWidthFromTikzDimension("1pt"),
       lineWidthFromTikzDimension("0.5pt"),
       lineWidthFromTikzDimension("1pt")
-    ]
+    ],
+    [TIKZ_LINE_WIDTHS.veryThick, lineWidthFromTikzDimension("2pt")]
   ]);
   assert.equal(ir.items[1].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
 });
@@ -307,8 +309,10 @@ test("keeps multiline math circle nodes close to TikZ text metrics", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.ok(box, "expected circular node box");
+  // Claude: 圆形节点按内容框对角线外接(circumscribe) + 留白，比旧的 max(w,h) 略大，
+  // 保证公式四角不戳出圆外、周边有透气空间（用户明确要求）。上限相应放宽。
   assert.ok(box.width >= 0.8, `expected circle to keep enough room for formula text, got ${box.width}`);
-  assert.ok(box.width <= 1.25, `expected compact TikZ-like formula circle, got ${box.width}`);
+  assert.ok(box.width <= 1.55, `expected formula circle to stay reasonable, got ${box.width}`);
 });
 
 test("supports common node anchor and shift positioning controls", () => {
@@ -327,6 +331,44 @@ test("supports common node anchor and shift positioning controls", () => {
   assert.equal(a.y, 1);
   assert.equal(b.x, 2);
   assert.ok(b.y < 1.7);
+});
+
+test("inherits picture-level font size into inline path labels", () => {
+  const normal = interpretTikz(parseTikz(String.raw`
+\begin{tikzpicture}
+  \draw (0,0) -- (3,0) node[right] {to};
+\end{tikzpicture}`).ast).ir.items.find((item) => item.type === "textNode" && item.text === "to");
+  const scripted = interpretTikz(parseTikz(String.raw`
+\begin{tikzpicture}[font=\scriptsize]
+  \draw (0,0) -- (3,0) node[right] {to};
+\end{tikzpicture}`).ast).ir.items.find((item) => item.type === "textNode" && item.text === "to");
+
+  assert.equal(scripted.style.fontScale, 0.7);
+  assert.ok(scripted.x < normal.x, `expected scriptsize label to sit closer to path end, got ${scripted.x} >= ${normal.x}`);
+});
+
+test("uses TikZ positioning node distance pairs as vertical and horizontal edge gaps", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=1.1cm and 1.6cm,box/.style={draw,minimum width=1.4cm,minimum height=.65cm,align=center}]
+  \node[box] (input) {Input\\$x$};
+  \node[box,right=of input] (encode) {Encode\\$f(x)$};
+  \node[box,right=of encode] (latent) {Latent\\$z$};
+  \node[box,below=of encode] (loss) {Loss\\$\mathcal L$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+  const defaultOuterSep = TIKZ_LINE_WIDTHS.default / TIKZ_UNIT / 2;
+  const horizontalGap = ir.coordinates.encode.x - ir.coordinates.input.x - (boxes.input.width + boxes.encode.width) / 2;
+  const verticalGap = ir.coordinates.encode.y - ir.coordinates.loss.y - (boxes.encode.height + boxes.loss.height) / 2;
+
+  assert.equal(ir.coordinates.input.x, 0);
+  assert.ok(Math.abs(horizontalGap - (1.6 + defaultOuterSep * 2)) < 1e-6, `expected right=of visible gap to include outer sep, got ${horizontalGap}`);
+  assert.ok(Math.abs(verticalGap - (1.1 + defaultOuterSep * 2)) < 1e-6, `expected below=of visible gap to include outer sep, got ${verticalGap}`);
+  assert.equal(ir.coordinates.loss.x, ir.coordinates.encode.x);
+  assert.equal(ir.coordinates.latent.x, ir.coordinates.encode.x * 2);
 });
 
 test("supports diamond node shape and compass anchors", () => {
@@ -426,7 +468,7 @@ test("sizes diamond nodes from hspace and directional inner sep", () => {
   assert.ok(box.height > 4, `expected diamond height to expand around wide text, got ${box.height}`);
 });
 
-test("tikzToSvg emits svg path, marker, y-axis flip, and diagnostics for unsupported syntax", () => {
+test("tikzToSvg emits svg path, inline arrow tip, y-axis flip, and diagnostics for unsupported syntax", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \draw[red, dashed, ->] (0,0) -- (1,1);
@@ -438,8 +480,9 @@ test("tikzToSvg emits svg path, marker, y-axis flip, and diagnostics for unsuppo
   assert.match(result.svg, /<svg[^>]+viewBox=/);
   assert.match(result.svg, /<path[^>]+stroke="red"/);
   assert.match(result.svg, /stroke-dasharray=/);
-  assert.match(result.svg, /marker-end="url\(#arrow-to-/);
-  assert.match(result.svg, /L 100 -100/);
+  assert.doesNotMatch(result.svg, /marker-end=/);
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-to"/);
+  assert.match(result.svg, /L 99\.[0-9]+ -99\.[0-9]+/);
   assert.equal(result.diagnostics.some((d) => d.severity === "warning"), true);
 });
 
@@ -523,6 +566,23 @@ test("keeps arrow endpoints clear of target node interiors", () => {
   assert.ok(Math.abs(endpoint.x - targetWest) < 1e-6, `expected arrow tip on target border, got ${endpoint.x} vs ${targetWest}`);
 });
 
+test("renders dashed double arrows as paired strokes with the label preserved", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \draw[-stealth, double, dashed, thick] (5.5,0) -- node[above] {dropout} (8.6, 0);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path" && item.style.markerEnd);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.style.doubleColor, "white");
+  assert.match(result.svg, /class="tikz-arrowed-path tikz-double-path"/);
+  assert.match(result.svg, /class="tikz-double-outer"/);
+  assert.match(result.svg, /class="tikz-double-inner"/);
+  assert.match(result.svg, /stroke-dasharray=/);
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-stealth"/);
+  assert.match(result.svg, />dropout</);
+});
+
 test("breaks paths around intermediate text node borders", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -604,6 +664,48 @@ test("approximates TikZ bend left and bend right edge arrows as curves", () => {
   assert.equal(arrows[0].commands.at(-1).type, "curveTo");
   assert.equal(arrows[1].commands.at(-1).type, "curveTo");
   assert.notEqual(Math.sign(arrows[0].commands.at(-1).y1), Math.sign(arrows[1].commands.at(-1).y1));
+});
+
+test("uses PGF to-path looseness control distance", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) to[out=0,in=180] (2,0);
+  \draw (0,1) to[out=0,in=180,looseness=2] (2,1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [normal, loose] = ir.items.filter((item) => item.type === "path");
+  const normalCurve = normal.commands.at(-1);
+  const looseCurve = loose.commands.at(-1);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(normalCurve.type, "curveTo");
+  assert.ok(Math.abs(normalCurve.x1 - 0.783) < 1e-6, `expected PGF 0.3915 control arm, got ${normalCurve.x1}`);
+  assert.ok(Math.abs(normalCurve.x2 - 1.217) < 1e-6, `expected mirrored PGF control arm, got ${normalCurve.x2}`);
+  assert.ok(Math.abs(looseCurve.x1 - 1.566) < 1e-6, `expected looseness=2 to double out arm, got ${looseCurve.x1}`);
+  assert.ok(Math.abs(looseCurve.x2 - 0.434) < 1e-6, `expected looseness=2 to double in arm, got ${looseCurve.x2}`);
+});
+
+test("attaches bend edges to the border along the curve tangent, not the chord", () => {
+  // Regression for gallery case 020: with a vertical chord, a bend must move the
+  // departure point onto the bottom edge off the centre line. Chord-based clipping
+  // would leave the arrow on the centre line (start.x == 0) and hook into the corner.
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw, minimum width=2cm, minimum height=1cm] (a) at (0,0) {A};
+  \node[draw, minimum width=2cm, minimum height=1cm] (b) at (0,-3) {B};
+  \draw[-stealth] (a) edge[bend left=45] (b);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [aBox] = ir.items.filter((item) => item.type === "nodeBox");
+  const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
+  const start = arrow.commands[0];
+  const aBottom = aBox.y - aBox.height / 2;
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(start.y - aBottom) < 1e-6, `expected bend to depart from bottom border, got y=${start.y} vs ${aBottom}`);
+  assert.ok(Math.abs(start.x) > 1e-3, `expected bend tangent to shift departure off the chord centre, got x=${start.x}`);
 });
 
 test("applies edge-local snake decoration along bent arrows", () => {
@@ -746,4 +848,45 @@ test("keeps repeated node-attached edges rooted at the source node", () => {
     { type: "moveTo", x: 1.5, y: 0 },
     { type: "moveTo", x: 2, y: 0.5 }
   ]);
+});
+
+test("applies xslant/yslant shear and pt-based yshift in scope transforms", () => {
+  // Claude: 锁定 yslant/xslant 斜切与 yshift 的裸数字按 pt 解析（修复多层网络伪三维图，如 case 043）。
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{scope}[yslant=0.5,xslant=-0.6]
+    \draw (1,0) -- (0,1);
+  \end{scope}
+  \begin{scope}[yshift=28.4527559]
+    \draw (0,0) -- (1,0);
+  \end{scope}
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  assert.equal(diagnostics.length, 0);
+  // xslant=-0.6 / yslant=0.5 把 (x,y) 剪成 (x-0.6y, 0.5x+y)
+  assert.deepEqual(ir.items[0].commands, [
+    { type: "moveTo", x: 1, y: 0.5 },
+    { type: "lineTo", x: -0.6, y: 0.7 }
+  ]);
+  // yshift=28.4527559(裸数字)= 28.45pt = 1cm, 而不是 28.45cm
+  assert.deepEqual(ir.items[1].commands, [
+    { type: "moveTo", x: 0, y: 1 },
+    { type: "lineTo", x: 1, y: 1 }
+  ]);
+});
+
+test("supports per-plot options and polar basis vectors for calibration cases", () => {
+  const source = String.raw`
+\begin{tikzpicture}[x=(30:1),y=(90:1)]
+  \draw[samples=3,variable=\t] plot[domain=0:2] (\t,{\t});
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const plot = ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(plot.commands.length, 3);
+  assert.deepEqual(plot.commands[0], { type: "moveTo", x: 0, y: 0 });
+  assert.deepEqual(plot.commands[2], { type: "lineTo", x: 1.73205, y: 3 });
 });

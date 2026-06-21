@@ -110,6 +110,7 @@ export function normalizeOptions(command, rawOptions, env) {
   const style = defaultStyleForCommand(command);
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
+  let pendingDashPattern;
 
   for (const [key, value] of Object.entries(expanded)) {
     const arrowHints = parseArrowOption(key, value, defaultArrowTip);
@@ -185,11 +186,11 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (key === "dash pattern") {
-      style.dashArray = parseDashPattern(value, style.lineWidth);
+      pendingDashPattern = value;
       continue;
     }
     if (Object.hasOwn(TIKZ_DASH_PATTERN_STYLES, key)) {
-      style.dashArray = parseDashPattern(TIKZ_DASH_PATTERN_STYLES[key], style.lineWidth);
+      pendingDashPattern = TIKZ_DASH_PATTERN_STYLES[key];
       continue;
     }
     if (key === "opacity") {
@@ -209,6 +210,10 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     semantic[key] = value;
+  }
+
+  if (pendingDashPattern !== undefined) {
+    style.dashArray = parseDashPattern(pendingDashPattern, style.lineWidth);
   }
 
   return { style, semantic, options: expanded };
@@ -326,8 +331,14 @@ function parseArrowTipSpec(input) {
   if (!match) return createArrowTip(text);
   const options = match[2] ? parseOptions(match[2]) : {};
   const overrides = {};
-  if (options.width) overrides.width = lineWidthFromTikzDimension(options.width);
-  if (options.length) overrides.length = lineWidthFromTikzDimension(options.length);
+  if (options.width) {
+    overrides.width = lineWidthFromTikzDimension(options.width);
+    overrides.customWidth = true;
+  }
+  if (options.length) {
+    overrides.length = lineWidthFromTikzDimension(options.length);
+    overrides.customLength = true;
+  }
   if (options.color || options.draw) overrides.stroke = normalizeColor(String(options.color || options.draw));
   if (options.fill) overrides.fill = normalizeColor(String(options.fill));
   return createArrowTip(match[1], overrides);

@@ -8,8 +8,17 @@ import {
   TIKZ_MARGIN,
   TIKZ_TEXT_FONT_SIZE,
   TIKZ_UNIT,
-  createArrowTip
+  createArrowTip,
+  lineWidthFromPt
 } from "./tikz-metrics.js";
+
+// Claude: 交给 KaTeX 原生渲染的「带标签花括号」宏（替代文档里 \overmat/\undermat 的 \makebox
+// 盒子展开，见 preprocess.js 的 KATEX_DELEGATED_MACROS）。\overmat{标签}{矩阵}{颜色} 语义就是
+// 在矩阵上方画一个带标签的 \overbrace；这正好是 KaTeX 原生支持的 \overbrace{..}^{..}。
+const KATEX_MACROS = {
+  "\\overmat": "\\overbrace{#2}^{\\color{#3}\\text{#1}}",
+  "\\undermat": "\\underbrace{#2}_{\\color{#3}\\text{#1}}"
+};
 
 export function renderSvg(ir, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -23,11 +32,7 @@ export function renderSvg(ir, options = {}) {
   };
   const viewBox = [format(view.x), format(view.y), format(view.width), format(view.height)].join(" ");
 
-  const arrowMarkerDefs = collectArrowMarkerDefs(ir.items || []);
   const body = [];
-  if (arrowMarkerDefs.length) {
-    body.push(`<defs>${arrowMarkerDefs.map(renderArrowMarkerDef).join("")}</defs>`);
-  }
   const background = options.background === undefined ? "white" : options.background;
   if (background && background !== "none") {
     body.push(
@@ -71,13 +76,14 @@ function renderItem(item, unit, options = {}) {
     const normalized = normalizeTikzText(item.text);
     if (normalized.kind === "image") return renderImagePlaceholder(item, normalized, unit);
     const math = parseMathText(normalized.text);
-    if (math) return renderMathNode(item, { ...math, scale: normalized.scale || 1, color: normalized.color }, unit, options);
-    if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) return renderRichTextNode(item, normalized, unit);
-    return renderPlainTextNode(item, normalized, unit);
+    let rendered;
+    if (math) rendered = renderMathNode(item, { ...math, scale: normalized.scale || 1, color: normalized.color }, unit, options);
+    else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) rendered = renderRichTextNode(item, normalized, unit);
+    else rendered = renderPlainTextNode(item, normalized, unit);
+    // Claude: 把节点的 rotate 作用到最终文本上（见 interpreter 的 nodeRotation）。
+    return wrapNodeRotation(rendered, item, unit);
   }
-  if (item.projected && item.type === "path") {
-    return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
-  }
+  if (item.projected && item.type === "path") return renderPathElement(item, unit);
   if (item.shape === "circle") {
     return `<circle cx="${format(item.cx * unit)}" cy="${format(-item.cy * unit)}" r="${format(
       item.r * unit
@@ -88,9 +94,7 @@ function renderItem(item, unit, options = {}) {
       item.rx * unit
     )}" ry="${format(item.ry * unit)}"${styleAttributes(item.style)} />`;
   }
-  if (item.type === "path") {
-    return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
-  }
+  if (item.type === "path") return renderPathElement(item, unit);
   return "";
 }
 
@@ -262,6 +266,269 @@ function renderPathPictureOverlay(item, unit) {
   return `<path d="M ${format(x1)} ${format(y2)} L ${format(x2)} ${format(y1)} M ${format(x1)} ${format(y1)} L ${format(
     x2
   )} ${format(y2)}" stroke="${stroke}" fill="none" stroke-width="${width}" />`;
+}
+
+function renderPathElement(item, unit) {
+  if (!item.style?.markerStart && !item.style?.markerEnd) {
+    if (item.style?.doubleColor !== undefined) return renderDoublePath(item.commands || [], item.style, unit);
+    return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
+  }
+  return renderArrowedPath(item, unit);
+}
+
+function renderArrowedPath(item, unit) {
+  const style = item.style || {};
+  const terminal = pathTerminalSegments(item.commands || []);
+  const startTip = style.markerStart ? resolveInlineArrowTip(style.markerStart, style) : null;
+  const endTip = style.markerEnd ? resolveInlineArrowTip(style.markerEnd, style) : null;
+  const startShorten = startTip && terminal.first?.shortenable ? startTip.geometry.shorten / unit : 0;
+  const endShorten = endTip && terminal.last?.shortenable ? endTip.geometry.shorten / unit : 0;
+  const commands = shortenPathTerminals(item.commands || [], terminal, startShorten, endShorten);
+  const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
+  const pieces = [
+    pathStyle.doubleColor !== undefined
+      ? renderDoublePath(commands, pathStyle, unit, { lineCap: "butt", lineJoin: "miter", omitWrapper: true })
+      : `<path d="${pathData(commands, unit)}"${styleAttributes(pathStyle, { omitMarkers: true, lineCap: "butt", lineJoin: "miter" })} />`
+  ];
+
+  if (startTip && terminal.first) {
+    pieces.push(renderInlineArrowTip(startTip, terminal.first.start, terminal.first.angle + 180, unit));
+  }
+  if (endTip && terminal.last) {
+    pieces.push(renderInlineArrowTip(endTip, terminal.last.end, terminal.last.angle, unit));
+  }
+  return `<g class="tikz-arrowed-path${pathStyle.doubleColor !== undefined ? " tikz-double-path" : ""}">${pieces.join("")}</g>`;
+}
+
+function renderDoublePath(commands, style = {}, unit, options = {}) {
+  const { outerStyle, innerStyle } = doubleStrokeStyles(style);
+  const data = pathData(commands, unit);
+  const strokeOptions = { omitMarkers: true, lineCap: options.lineCap, lineJoin: options.lineJoin };
+  const paths = [
+    `<path class="tikz-double-outer" d="${data}"${styleAttributes(outerStyle, strokeOptions)} />`,
+    `<path class="tikz-double-inner" d="${data}"${styleAttributes(innerStyle, strokeOptions)} />`
+  ].join("");
+  if (options.omitWrapper) return paths;
+  return `<g class="tikz-double-path">${paths}</g>`;
+}
+
+function doubleStrokeStyles(style = {}) {
+  const lineWidth = Number(style.lineWidth) || 1;
+  const innerWidth = Number.isFinite(style.doubleDistance) ? style.doubleDistance : lineWidthFromPt(0.6);
+  return {
+    outerStyle: {
+      ...style,
+      fill: "none",
+      markerStart: undefined,
+      markerEnd: undefined,
+      lineWidth: lineWidth * 2 + innerWidth
+    },
+    innerStyle: {
+      ...style,
+      stroke: style.doubleColor || "white",
+      fill: "none",
+      markerStart: undefined,
+      markerEnd: undefined,
+      lineWidth: innerWidth
+    }
+  };
+}
+
+function pathTerminalSegments(commands) {
+  let current = null;
+  let currentIndex = -1;
+  let first = null;
+  let last = null;
+  commands.forEach((command, index) => {
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      currentIndex = index;
+      return;
+    }
+    if (!current) return;
+    if (command.type === "lineTo") {
+      const end = { x: command.x, y: command.y };
+      const segment = terminalSegment(current, end, currentIndex, index, true);
+      if (segment) {
+        first ||= segment;
+        last = segment;
+      }
+      current = end;
+      currentIndex = index;
+      return;
+    }
+    if (command.type === "quadTo") {
+      const end = { x: command.x, y: command.y };
+      const control = { x: command.x1, y: command.y1 };
+      const segment = terminalSegment(current, end, currentIndex, index, true, control, control);
+      if (segment) {
+        first ||= segment;
+        last = segment;
+      }
+      current = end;
+      currentIndex = index;
+      return;
+    }
+    if (command.type === "curveTo") {
+      const end = { x: command.x, y: command.y };
+      const segment = terminalSegment(current, end, currentIndex, index, true, { x: command.x1, y: command.y1 }, { x: command.x2, y: command.y2 });
+      if (segment) {
+        first ||= segment;
+        last = segment;
+      }
+      current = end;
+      currentIndex = index;
+    }
+  });
+  return { first, last };
+}
+
+function terminalSegment(start, end, startIndex, commandIndex, shortenable, startControl = end, endControl = start) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (!length) return null;
+  const tangentStart = Math.hypot(startControl.x - start.x, startControl.y - start.y)
+    ? { x: startControl.x - start.x, y: startControl.y - start.y }
+    : { x: dx, y: dy };
+  const tangentEnd = Math.hypot(end.x - endControl.x, end.y - endControl.y)
+    ? { x: end.x - endControl.x, y: end.y - endControl.y }
+    : { x: dx, y: dy };
+  const startLength = Math.hypot(tangentStart.x, tangentStart.y) || length;
+  const endLength = Math.hypot(tangentEnd.x, tangentEnd.y) || length;
+  return {
+    start,
+    end,
+    startIndex,
+    commandIndex,
+    shortenable,
+    ux: dx / length,
+    uy: dy / length,
+    startUx: tangentStart.x / startLength,
+    startUy: tangentStart.y / startLength,
+    endUx: tangentEnd.x / endLength,
+    endUy: tangentEnd.y / endLength,
+    angle: svgAngle(tangentEnd)
+  };
+}
+
+function shortenPathTerminals(commands, terminal, startAmount, endAmount) {
+  if (!startAmount && !endAmount) return commands;
+  const adjusted = commands.map((command) => ({ ...command }));
+  if (startAmount && terminal.first) {
+    const command = adjusted[terminal.first.startIndex];
+    if (command && Number.isFinite(command.x) && Number.isFinite(command.y)) {
+      command.x += (terminal.first.startUx ?? terminal.first.ux) * startAmount;
+      command.y += (terminal.first.startUy ?? terminal.first.uy) * startAmount;
+    }
+  }
+  if (endAmount && terminal.last) {
+    const command = adjusted[terminal.last.commandIndex];
+    if (command && Number.isFinite(command.x) && Number.isFinite(command.y)) {
+      command.x -= (terminal.last.endUx ?? terminal.last.ux) * endAmount;
+      command.y -= (terminal.last.endUy ?? terminal.last.uy) * endAmount;
+    }
+  }
+  return adjusted;
+}
+
+function svgAngle(vector) {
+  return (Math.atan2(-vector.y, vector.x) * 180) / Math.PI;
+}
+
+function resolveInlineArrowTip(tip, style = {}) {
+  const source = typeof tip === "string" ? {} : tip || {};
+  const raw = typeof tip === "string" ? createArrowTip(tip === "arrow" ? "to" : tip) : createArrowTip(tip?.kind, source);
+  const baseStroke = style.stroke === "none" ? "black" : style.stroke || "black";
+  const explicitStroke = source.stroke && source.stroke !== "context-stroke";
+  const fill = raw.fill && raw.fill !== "context-stroke" ? raw.fill : baseStroke;
+  const geometry = inlineArrowGeometry(raw, style, {
+    customLength: usesCustomArrowDimension(source, raw, "length"),
+    customWidth: usesCustomArrowDimension(source, raw, "width")
+  });
+  const openTip = raw.kind === "to" || raw.kind === "hook" || raw.kind === "two-heads";
+  return {
+    kind: raw.kind,
+    geometry,
+    stroke: openTip || explicitStroke ? raw.stroke || baseStroke : "none",
+    fill: openTip ? "none" : fill,
+    strokeWidth: openTip ? style.lineWidth ?? 1 : explicitStroke ? Math.max(0.8, (style.lineWidth ?? 1) * 0.45) : 0
+  };
+}
+
+function usesCustomArrowDimension(source = {}, raw = {}, key) {
+  if (source[`custom${key[0].toUpperCase()}${key.slice(1)}`] || source[`${key}Explicit`]) return true;
+  if (!Number.isFinite(source[key])) return false;
+  const defaultTip = createArrowTip(raw.kind || source.kind || "to");
+  return Math.abs(source[key] - defaultTip[key]) > 1e-6;
+}
+
+function inlineArrowGeometry(tip, style = {}, flags = {}) {
+  const lineWidth = Math.max(0.01, style.lineWidth ?? 1);
+  const lineWidthPt = lineWidth / lineWidthFromPt(1);
+  if (tip.kind === "stealth") {
+    const length = flags.customLength ? tip.length : lineWidthFromPt(3 + 1.25 * lineWidthPt);
+    const halfWidth = flags.customWidth ? tip.width / 2 : length * 0.5;
+    return {
+      path: `M 0 0 L ${format(-length)} ${format(-halfWidth)} L ${format(-length * 0.625)} 0 L ${format(-length)} ${format(halfWidth)} Z`,
+      shorten: length * 0.625
+    };
+  }
+  if (tip.kind === "latex") {
+    const length = flags.customLength ? tip.length : lineWidthFromPt(3.2 + 2.4 * lineWidthPt);
+    const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(1.2 + 0.9 * lineWidthPt);
+    return {
+      path: [
+        `M 0 0`,
+        `C ${format(-length * 0.266)} ${format(-halfWidth * 0.132)} ${format(-length * 0.7)} ${format(-halfWidth * 0.533)} ${format(-length)} ${format(-halfWidth)}`,
+        `L ${format(-length)} ${format(halfWidth)}`,
+        `C ${format(-length * 0.7)} ${format(halfWidth * 0.533)} ${format(-length * 0.266)} ${format(halfWidth * 0.132)} 0 0 Z`
+      ].join(" "),
+      shorten: length * 0.9
+    };
+  }
+  if (tip.kind === "two-heads") {
+    const length = tip.length;
+    const halfWidth = tip.width / 2;
+    return {
+      path: `M 0 0 L ${format(-length * 0.56)} ${format(-halfWidth)} M 0 0 L ${format(-length * 0.56)} ${format(halfWidth)} M ${format(
+        -length * 0.44
+      )} 0 L ${format(-length)} ${format(-halfWidth)} M ${format(-length * 0.44)} 0 L ${format(-length)} ${format(halfWidth)}`,
+      shorten: lineWidth
+    };
+  }
+  if (tip.kind === "hook") {
+    const length = tip.length;
+    const halfWidth = tip.width / 2;
+    return {
+      path: `M 0 0 C ${format(-length * 0.55)} 0 ${format(-length * 0.45)} ${format(halfWidth)} ${format(-length * 0.88)} ${format(
+        halfWidth
+      )} C ${format(-length * 1.18)} ${format(halfWidth)} ${format(-length * 1.18)} ${format(-halfWidth)} ${format(-length * 0.88)} ${format(
+        -halfWidth
+      )}`,
+      shorten: lineWidth
+    };
+  }
+  const back = flags.customLength ? tip.length : lineWidthFromPt(1.600209 + 1.18936 * lineWidthPt);
+  const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(1.67066 + 1.800486 * lineWidthPt);
+  return {
+    path: [
+      `M ${format(-back)} ${format(halfWidth)}`,
+      `C ${format(-back * 0.817)} ${format(halfWidth * 0.4)} ${format(-back * 0.409)} ${format(halfWidth * 0.116)} 0 0`,
+      `C ${format(-back * 0.409)} ${format(-halfWidth * 0.116)} ${format(-back * 0.817)} ${format(-halfWidth * 0.4)} ${format(-back)} ${format(
+        -halfWidth
+      )}`
+    ].join(" "),
+    shorten: lineWidth
+  };
+}
+
+function renderInlineArrowTip(tip, point, angle, unit) {
+  const strokePart = tip.strokeWidth > 0 ? ` stroke="${escapeAttribute(tip.stroke)}" stroke-width="${format(tip.strokeWidth)}"` : ` stroke="none"`;
+  const lineStyle = tip.strokeWidth > 0 ? ` stroke-linecap="round" stroke-linejoin="round"` : "";
+  return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}" d="${tip.geometry.path}" fill="${escapeAttribute(
+    tip.fill
+  )}"${strokePart}${lineStyle} transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})" />`;
 }
 
 function renderTikzquadsNodeBox(item, unit) {
@@ -700,6 +967,16 @@ function renderBpmnSmallGlyph(box, stroke, glyph, className) {
   )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(text)}</text>`;
 }
 
+// Claude: 用一个 <g transform="rotate(...)"> 包住文本，实现 \node[rotate=θ]{...} 的文字旋转。
+// TikZ 的 rotate 是数学坐标系下逆时针为正；而 SVG 的 y 轴向下、rotate 顺时针为正，故取负号。
+// 旋转中心取节点锚点 (item.x, -item.y)，与文本的定位中心一致。
+function wrapNodeRotation(svg, item, unit) {
+  if (!item.rotation) return svg;
+  const cx = format(item.x * unit);
+  const cy = format(-item.y * unit);
+  return `<g transform="rotate(${format(-item.rotation)} ${cx} ${cy})">${svg}</g>`;
+}
+
 function renderPlainTextNode(item, normalized, unit) {
   if (!normalized.color && hasTextColorSegments(normalized.raw)) return renderSegmentedTextNode(item, normalized, unit);
   const lines = (normalized.lines.length ? normalized.lines : [normalized.text]).map(formatTextLine);
@@ -932,7 +1209,8 @@ function renderInlineMathHtml(line) {
         output: "html",
         throwOnError: false,
         strict: "ignore",
-        trust: false
+        trust: false,
+        macros: KATEX_MACROS
       })
     );
     cursor = match.index + match[0].length;
@@ -993,6 +1271,19 @@ function renderImagePlaceholder(item, image, unit) {
   const height = image.height * unit;
   const x = item.x * unit - width / 2;
   const y = -item.y * unit - height / 2;
+  // Claude: 真实折线（如 case 038 的 ReLU 形状）。把归一化坐标映射回框内、按比例绘制；
+  // y 轴翻转(1-y)对应 SVG 向下为正。节点边框由 nodeBox 单独画，这里只画线。
+  if (image.plot === "polyline") {
+    const stroke = escapeAttribute(item.style?.fill || "black");
+    const data = (image.polylines || [])
+      .map((line) =>
+        line
+          .map((point, index) => `${index === 0 ? "M" : "L"} ${format(x + point.x * width)} ${format(y + (1 - point.y) * height)}`)
+          .join(" ")
+      )
+      .join(" ");
+    return `<path d="${data}" stroke="${stroke}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+  }
   if (image.plot === "gaussian") {
     const samples = 44;
     const points = Array.from({ length: samples }, (_unused, index) => {
@@ -1083,9 +1374,17 @@ function renderMathNode(item, math, unit, options = {}) {
   const x = item.x * unit - box.width / 2;
   const y = -item.y * unit - box.height / 2;
   const color = escapeAttribute(math.color || item.style?.fill || "black");
+  const fontStyle = mathFallbackFontStyle(tex);
+  const fontWeight = mathFallbackFontWeight(tex);
+  const subscriptFallback = simpleNumericSubscriptFallback(tex);
+  if (subscriptFallback && options.mathRenderer === "svg-text") {
+    return renderSimpleSubscriptMathFallback(item, subscriptFallback, box.fontSize * 0.9, unit, color, fontStyle, fontWeight);
+  }
   const fallback = `<text x="${format(item.x * unit)}" y="${format(-item.y * unit)}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
     box.fontSize * 0.9
-  )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(mathFallbackText(tex))}</text>`;
+  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(
+    mathFallbackText(tex)
+  )}</text>`;
   if (options.mathRenderer === "svg-text") return fallback;
 
   const html = katex.renderToString(tex, {
@@ -1093,7 +1392,8 @@ function renderMathNode(item, math, unit, options = {}) {
     output: "html",
     throwOnError: false,
     strict: "ignore",
-    trust: false
+    trust: false,
+    macros: KATEX_MACROS
   });
   const foreignObject = `<foreignObject x="${format(x)}" y="${format(
     y
@@ -1109,6 +1409,43 @@ function renderMathNode(item, math, unit, options = {}) {
     TIKZ_FONT_FAMILY
   )};">${html}</div></foreignObject>`;
   return `<switch>${foreignObject}${fallback}</switch>`;
+}
+
+function renderSimpleSubscriptMathFallback(item, parts, baseFontSize, unit, color, fontStyle, fontWeight) {
+  const subFontSize = baseFontSize * 0.7;
+  const x = format(item.x * unit);
+  const y = format(-item.y * unit);
+  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+    baseFontSize
+  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+    TIKZ_FONT_FAMILY
+  )}"><tspan>${escapeText(parts.base)}</tspan><tspan font-size="${format(
+    subFontSize
+  )}" font-style="normal" baseline-shift="sub">${escapeText(parts.subscript)}</tspan></text>`;
+}
+
+function simpleNumericSubscriptFallback(tex) {
+  const raw = String(tex || "")
+    .trim()
+    .replace(/^\\(?:bf|bfseries)\b\s*/, "");
+  const match = raw.match(/^((?:\\[A-Za-z]+(?:\s*\{[^{}]*\})?)|[A-Za-z])\s*_\s*(?:\{([0-9]+)\}|([0-9]+))$/);
+  if (!match) return null;
+  const base = mathFallbackText(match[1]);
+  const subscript = match[2] || match[3];
+  if (!base || !subscript) return null;
+  return { base, subscript };
+}
+
+function mathFallbackFontStyle(tex) {
+  const raw = String(tex || "");
+  if (/\\(?:text|mathrm|operatorname|mathbf|mathsf|mathtt|bf|bfseries)\b/.test(raw)) return "";
+  const fallback = mathFallbackText(raw);
+  if (!/[A-Za-z]/.test(fallback)) return "";
+  return "italic";
+}
+
+function mathFallbackFontWeight(tex) {
+  return /\\(?:bf|bfseries|mathbf|boldsymbol|textbf)\b/.test(String(tex || "")) ? "700" : "";
 }
 
 function normalizeKatexTex(tex) {
@@ -1194,7 +1531,7 @@ function fitRichFontSizeToBox(baseFontSize, fitBox, unit, lines = [""], lineStyl
   return Math.max(6, Math.min(baseFontSize, heightLimit, widthLimit));
 }
 
-function styleAttributes(style = {}) {
+function styleAttributes(style = {}, options = {}) {
   const attrs = [
     ["stroke", style.stroke || "none"],
     ["fill", style.fill || "none"],
@@ -1202,14 +1539,14 @@ function styleAttributes(style = {}) {
   ];
   if (style.dashArray) attrs.push(["stroke-dasharray", style.dashArray.join(" ")]);
   if ((style.stroke || "none") !== "none") {
-    attrs.push(["stroke-linecap", "round"]);
-    attrs.push(["stroke-linejoin", "round"]);
+    attrs.push(["stroke-linecap", options.lineCap || "round"]);
+    attrs.push(["stroke-linejoin", options.lineJoin || "round"]);
   }
   if (Number.isFinite(style.opacity)) attrs.push(["opacity", style.opacity]);
   if (Number.isFinite(style.fillOpacity)) attrs.push(["fill-opacity", style.fillOpacity]);
   if (Number.isFinite(style.strokeOpacity)) attrs.push(["stroke-opacity", style.strokeOpacity]);
-  if (style.markerStart) attrs.push(["marker-start", `url(#${arrowMarkerId(style.markerStart, style)})`]);
-  if (style.markerEnd) attrs.push(["marker-end", `url(#${arrowMarkerId(style.markerEnd, style)})`]);
+  if (!options.omitMarkers && style.markerStart) attrs.push(["marker-start", `url(#${arrowMarkerId(style.markerStart, style)})`]);
+  if (!options.omitMarkers && style.markerEnd) attrs.push(["marker-end", `url(#${arrowMarkerId(style.markerEnd, style)})`]);
   return attrs.map(([key, value]) => ` ${key}="${escapeAttribute(String(value))}"`).join("");
 }
 
@@ -1233,9 +1570,9 @@ function renderArrowMarkerDef(marker) {
           marker.length * 0.22
         )} ${format(marker.width * 0.62)} ${format(marker.length * 0.22)} ${format(marker.width * 0.38)} 0 0 Z`
       : marker.kind === "two-heads"
-        ? `M 0 0 L ${format(marker.length * 0.56)} ${format(halfWidth)} L 0 ${format(marker.width)} Z M ${format(
-            marker.length * 0.42
-          )} 0 L ${format(marker.length)} ${format(halfWidth)} L ${format(marker.length * 0.42)} ${format(marker.width)} Z`
+        ? `M 0 0 L ${format(marker.length * 0.48)} ${format(halfWidth)} L 0 ${format(marker.width)} M ${format(
+            marker.length * 0.44
+          )} 0 L ${format(marker.length)} ${format(halfWidth)} L ${format(marker.length * 0.44)} ${format(marker.width)}`
       : marker.kind === "hook"
         ? `M ${format(marker.length)} ${format(halfWidth)} C ${format(marker.length * 0.45)} ${format(
             halfWidth
@@ -1255,9 +1592,10 @@ function renderArrowMarkerDef(marker) {
             marker.width * 0.44
           )} ${format(marker.length)} ${format(halfWidth)} Z`
       : `M 0 0 L ${format(marker.length)} ${format(halfWidth)} L 0 ${format(marker.width)}`;
-  const fill = marker.kind === "to" || marker.kind === "hook" ? "none" : marker.fill;
+  const openTip = marker.kind === "to" || marker.kind === "hook" || marker.kind === "two-heads";
+  const fill = openTip ? "none" : marker.fill;
   const strokeWidth =
-    marker.kind === "to" || marker.kind === "hook" ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
+    openTip ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
   return `<marker id="${escapeAttribute(marker.id)}" markerWidth="${format(marker.length)}" markerHeight="${format(
     marker.width
   )}" refX="${format(marker.length)}" refY="${format(halfWidth)}" orient="auto-start-reverse" markerUnits="userSpaceOnUse" viewBox="0 0 ${format(

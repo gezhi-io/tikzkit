@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tikzToSvg } from "../src/index.js";
+import { CALIBRATION_CASES, IZAAK_COMPLEX_ROOTS_CASES } from "./gallery-extra-cases.js";
 
 const PACKT_ROOT = "work/packt-tikz-examples";
 const PETARV_ROOT = "work/petarv-tikz";
@@ -157,6 +158,9 @@ const TIKZ_NETWORK_CASES = [
 \begin{tikzpicture}
   \SetVertexStyle[MinSize=.65cm,FillColor=orange!20,LineColor=black,LineWidth=1pt,TextColor=black]
   \SetEdgeStyle[Color=gray,LineWidth=1pt,TextFillColor=white,Arrow=-latex]
+  \SetPlaneStyle[LineColor=blue,LineWidth=.6pt,FillColor=blue!8,FillOpacity=.35,GridColor=blue!30,GridLineWidth=.3pt]
+  \Plane[x=-.35,y=-.35,width=3.85,height=2.35,grid=.5,InBG]
+  \Text[x=1.4,y=2.05,color=blue,fontsize=\small,anchor=south]{tikz-network}
   \Vertex[x=0,y=0,IdAsLabel]{A}
   \Vertex[x=2,y=0,IdAsLabel]{B}
   \Vertex[x=1,y=1.5,label=C,Math,color=blue!20]{C}
@@ -779,7 +783,9 @@ const selected = [
   ...TIKZ_QTREE_CASES,
   ...TIKZQUADS_CASES,
   ...TIKZFXGRAPH_CASES,
-  ...RICH_EXTENSION_CASES
+  ...RICH_EXTENSION_CASES,
+  ...IZAAK_COMPLEX_ROOTS_CASES,
+  ...CALIBRATION_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -808,7 +814,9 @@ await writeFile(
     tikzQtreeFound: TIKZ_QTREE_CASES.length,
     tikzquadsFound: TIKZQUADS_CASES.length,
     tikzfxgraphFound: TIKZFXGRAPH_CASES.length,
-    richExtensionFound: RICH_EXTENSION_CASES.length
+    richExtensionFound: RICH_EXTENSION_CASES.length,
+    izaakComplexRootsFound: IZAAK_COMPLEX_ROOTS_CASES.length,
+    calibrationFound: CALIBRATION_CASES.length
   }),
   "utf8"
 );

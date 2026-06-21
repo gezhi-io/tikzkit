@@ -728,11 +728,13 @@ function parsePathCoordinateName(pathText, index) {
 
 function parsePlotSegment(pathText, index) {
   let cursor = index + "plot".length;
+  const options = parseOptionalOptions(pathText, cursor);
+  cursor = options.end;
   cursor = skipWhitespace(pathText, cursor);
   const target = extractBalanced(pathText, cursor, "(", ")");
   if (!target) return null;
   return {
-    segment: { kind: "plot", coordinate: target.content.trim() },
+    segment: { kind: "plot", coordinate: target.content.trim(), options: options.options },
     end: target.end
   };
 }

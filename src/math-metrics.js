@@ -71,6 +71,12 @@ export function mathTextMetricUnits(line) {
 }
 
 function estimateFormulaParts(tex, scale, metric) {
+  // Claude: 原版完全没有 \begin{matrix} 的尺寸感知 —— 矩阵的宽度按「所有单元格摊平成一行」
+  // 来算（巨宽），高度只按一行算（巨扁），结果 display 矩阵的 SVG 盒子被估成又宽又扁，
+  // 矩阵被压成一条细线。这里先做矩阵感知估算（按行列、支持嵌套），估到了就用它。
+  const matrixBox = estimateMatrixParts(tex, scale, metric);
+  if (matrixBox) return matrixBox;
+
   let width = fallbackWidth(tex, scale, metric);
   let height = 0.26 * scale;
   let depth = 0.09 * scale;
@@ -113,6 +119,121 @@ function estimateFormulaParts(tex, scale, metric) {
 
 function fallbackWidth(tex, scale, metric) {
   return mathTextMetricUnits(mathFallbackText(tex)) * metric.widthFactor * scale + metric.widthPadding;
+}
+
+const MATRIX_ENV_NAMES = ["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "array", "cases"];
+
+// Claude: 估算最外层 matrix/array 环境的盒子。按「矩阵嵌套深度」感知地把内容切成行(\\)和列(&)，
+// 对每个单元格递归调用 estimateFormulaParts（从而正确处理单元格里再嵌套的矩阵/上下花括号标签），
+// 然后行高累加、列宽取各行最大，得到接近真实渲染的尺寸。没有矩阵就返回 null，走原有逻辑。
+function estimateMatrixParts(tex, scale, metric) {
+  const outer = extractOutermostMatrix(tex);
+  if (!outer) return null;
+  const rows = splitMatrixTopLevel(outer.body, "row").map((row) => row.trim()).filter((row) => row.length);
+  if (!rows.length) return null;
+
+  const rowGap = 0.35 * scale;
+  const colGap = 0.6 * scale;
+  let totalHeight = 0;
+  let maxRowWidth = 0;
+  for (const row of rows) {
+    const cells = splitMatrixTopLevel(row, "col");
+    let rowHeight = 0.5 * scale;
+    let rowWidth = 0;
+    for (const cell of cells) {
+      const part = estimateFormulaParts(cell, scale, metric);
+      rowHeight = Math.max(rowHeight, part.height + part.depth);
+      rowWidth += part.width;
+    }
+    rowWidth += colGap * Math.max(0, cells.length - 1);
+    totalHeight += rowHeight + rowGap;
+    maxRowWidth = Math.max(maxRowWidth, rowWidth);
+  }
+  totalHeight = Math.max(totalHeight, 0.6 * scale);
+  // 外层定界符(\left[ \right] 等)的左右留白
+  const width = maxRowWidth + 0.6 * scale;
+  return { width, height: totalHeight / 2 + 0.05 * scale, depth: totalHeight / 2 };
+}
+
+function extractOutermostMatrix(tex) {
+  const text = String(tex);
+  for (let index = 0; index < text.length; index += 1) {
+    const begin = matchEnvToken(text, index, "begin");
+    if (!begin || !MATRIX_ENV_NAMES.includes(begin.env)) continue;
+    let depth = 0;
+    let cursor = index;
+    while (cursor < text.length) {
+      const open = matchEnvToken(text, cursor, "begin");
+      const close = matchEnvToken(text, cursor, "end");
+      if (open && MATRIX_ENV_NAMES.includes(open.env)) {
+        depth += 1;
+        cursor = open.end;
+        continue;
+      }
+      if (close && MATRIX_ENV_NAMES.includes(close.env)) {
+        depth -= 1;
+        if (depth === 0) return { body: text.slice(begin.end, cursor), env: begin.env };
+        cursor = close.end;
+        continue;
+      }
+      cursor += 1;
+    }
+    return null;
+  }
+  return null;
+}
+
+function matchEnvToken(text, index, kind) {
+  if (text[index] !== "\\") return null;
+  const match = text.slice(index).match(new RegExp(`^\\\\${kind}\\{([a-zA-Z*]+)\\}`));
+  if (!match) return null;
+  return { env: match[1].replace(/\*$/, ""), end: index + match[0].length };
+}
+
+// 按矩阵嵌套深度(matrix begin/end)与花括号深度都为 0 时, 才在 \\(行)或 &(列)处切分。
+function splitMatrixTopLevel(body, mode) {
+  const parts = [];
+  let current = "";
+  let envDepth = 0;
+  let brace = 0;
+  let index = 0;
+  while (index < body.length) {
+    const begin = matchEnvToken(body, index, "begin");
+    const end = matchEnvToken(body, index, "end");
+    if (begin && MATRIX_ENV_NAMES.includes(begin.env)) {
+      envDepth += 1;
+      current += body.slice(index, begin.end);
+      index = begin.end;
+      continue;
+    }
+    if (end && MATRIX_ENV_NAMES.includes(end.env)) {
+      envDepth -= 1;
+      current += body.slice(index, end.end);
+      index = end.end;
+      continue;
+    }
+    const char = body[index];
+    if (char === "{") brace += 1;
+    else if (char === "}") brace -= 1;
+    if (envDepth === 0 && brace === 0) {
+      if (mode === "row" && char === "\\" && body[index + 1] === "\\") {
+        parts.push(current);
+        current = "";
+        index += 2;
+        continue;
+      }
+      if (mode === "col" && char === "&") {
+        parts.push(current);
+        current = "";
+        index += 1;
+        continue;
+      }
+    }
+    current += char;
+    index += 1;
+  }
+  parts.push(current);
+  return parts;
 }
 
 function hasSubscript(tex) {

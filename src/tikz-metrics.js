@@ -6,7 +6,7 @@ export const TIKZ_MARGIN = 10;
 export const TIKZ_FONT_FAMILY = "KaTeX_Main, 'Times New Roman', Times, serif";
 export const TIKZ_MONOSPACE_FONT_FAMILY =
   "KaTeX_Typewriter, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
-export const TIKZ_TEXT_FONT_SIZE = 30;
+export const TIKZ_TEXT_FONT_SIZE = lineWidthFromPt(10);
 export const TIKZ_DISPLAY_MATH_FONT_SIZE = 34;
 
 export const TIKZ_LINE_WIDTHS = {
@@ -72,9 +72,9 @@ export const TIKZ_ARROW_TIPS = {
   },
   "two-heads": {
     kind: "two-heads",
-    length: lineWidthFromPt(5.2),
-    width: lineWidthFromPt(3.0),
-    fill: "context-stroke"
+    length: lineWidthFromPt(4.1),
+    width: lineWidthFromPt(2.45),
+    fill: "none"
   },
   hook: {
     kind: "hook",

@@ -1,4 +1,5 @@
 import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
+import { withGalleryDebugGrid } from "../scripts/gallery-debug-grid.js";
 import { buildCaseInsights, diffSeverity } from "./gallery-analysis.js";
 import { createSampleGallery } from "./sample-gallery.js";
 
@@ -84,7 +85,8 @@ function renderTikzFigure(source, options = {}) {
   figure.className = "tikz-figure";
   if (options.caseId) figure.dataset.caseId = options.caseId;
 
-  const result = tikzToSvg(source, options);
+  const renderSource = options.debugGrid === false ? source : withGalleryDebugGrid(source);
+  const result = tikzToSvg(renderSource, options);
   figure.dataset.diagnosticsCount = String(result.diagnostics.length);
   const hasBlockingDiagnostic =
     options.strict && result.diagnostics.some((diagnostic) => diagnostic.severity === "warning" || diagnostic.severity === "error");
@@ -214,6 +216,7 @@ function createAnalysisPanel(source, diagnostics, galleryReport = {}) {
   recommendation.className = "analysis-recommendation";
   recommendation.textContent = insights.recommendation;
   wrapper.append(recommendation);
+  wrapper.append(createUnitMetricsPanel(galleryReport.diff?.unit));
 
   const list = document.createElement("div");
   list.className = "capability-list";
@@ -247,7 +250,8 @@ function createDiagnostics(diagnostics, galleryReport = {}) {
   meta.append(
     statusPill(`${diagnostics.length} diagnostics`, diagnostics.length ? "error" : "ok"),
     statusPill(formatNativeStatus(galleryReport.native), nativeStatusKind(galleryReport.native)),
-    statusPill(formatDiffStatus(galleryReport.diff), diffStatusKind(galleryReport.diff))
+    statusPill(formatDiffStatus(galleryReport.diff), diffStatusKind(galleryReport.diff)),
+    statusPill(formatUnitStatus(galleryReport.diff), unitStatusKind(galleryReport.diff))
   );
   wrapper.append(meta);
 
@@ -322,6 +326,11 @@ function diffStatusKind(row) {
   return row.ok ? "ok" : "error";
 }
 
+function unitStatusKind(row) {
+  if (!row) return galleryReports.loaded ? "missing" : "pending";
+  return row.unit ? "info" : "missing";
+}
+
 function formatNativeStatus(row) {
   if (!row) return galleryReports.loaded ? "native PNG missing" : "native PNG pending";
   if (!row.ok) return "native PNG failed";
@@ -337,6 +346,32 @@ function formatDiffStatus(row) {
   return `native diff ${row.ok ? "pass" : "fail"} · changed ${changed} · mean ${mean}`;
 }
 
+function formatUnitStatus(row) {
+  if (!row) return galleryReports.loaded ? "unit scale missing" : "unit scale pending";
+  if (!row.unit) return "unit scale missing";
+  const unit = row.unit;
+  return `unit ${unit.step || "1cm"} · JS ${formatPx(unit.jsSvgPxPerXUnit)}px · native ${formatPx(unit.nativeRasterPxPerXUnit)}px`;
+}
+
+function createUnitMetricsPanel(unit) {
+  const panel = document.createElement("div");
+  panel.className = "unit-metrics";
+  const title = document.createElement("strong");
+  title.textContent = "单位标尺";
+  const detail = document.createElement("span");
+  if (!unit) {
+    detail.textContent = "还没有生成单位长度报告；重新运行 gallery:js 和 gallery:diff 后会显示每个 case 的 1cm 对比尺度。";
+  } else {
+    detail.textContent = [
+      `${unit.step || "1cm"}: JS ${formatPx(unit.jsSvgPxPerXUnit)}px/${formatPx(unit.jsSvgPxPerYUnit)}px`,
+      `MacTeX @${unit.nativeRasterDpi || 144}dpi ${formatPx(unit.nativeRasterPxPerXUnit)}px/${formatPx(unit.nativeRasterPxPerYUnit)}px`,
+      `对齐后 x/y ${formatPx(unit.compareJsPxPerXUnit)}:${formatPx(unit.compareNativePxPerXUnit)} / ${formatPx(unit.compareJsPxPerYUnit)}:${formatPx(unit.compareNativePxPerYUnit)}`
+    ].join(" · ");
+  }
+  panel.append(title, detail);
+  return panel;
+}
+
 function formatOverallDiffStatus(tikzCount) {
   if (!galleryReports.loaded || galleryReports.diffRows.size === 0) return "";
   const rows = [...galleryReports.diffRows.values()];
@@ -346,6 +381,11 @@ function formatOverallDiffStatus(tikzCount) {
 
 function formatPercent(value) {
   return Number.isFinite(value) ? `${(value * 100).toFixed(2)}%` : "n/a";
+}
+
+function formatPx(value) {
+  if (!Number.isFinite(value)) return "n/a";
+  return value >= 10 ? value.toFixed(1) : value.toFixed(2);
 }
 
 function formatCapabilityStatus(status) {

@@ -1,7 +1,7 @@
 import { TIKZ_MONOSPACE_FONT_FAMILY } from "./tikz-metrics.js";
 
 export function normalizeTikzText(value) {
-  const rawInput = normalizeTextColorTokenArguments(replaceInlineTikzNodes(String(value ?? "")));
+  const rawInput = normalizeTextColorTokenArguments(replaceInlineTikzNodes(stripMinipageWrapper(String(value ?? ""))));
   let text = rawInput.trim();
   const fontFamily = detectTextFontFamily(rawInput);
   const nestedGraphic = parseNestedTikzGraphic(text);
@@ -26,6 +26,7 @@ export function normalizeTikzText(value) {
   text = replaceCommand(text, "scalebox", 2, (args) => args[1]);
   text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
   text = replaceCommand(text, "tikzinlinebox", 2, (args) => args[1]);
+  text = replaceCommand(text, "contour", 2, (args) => args[1]);
   text = replaceCommand(text, "texttt", 1, (args) => args[0]);
   text = replaceCommand(text, "textrm", 1, (args) => args[0]);
   text = replaceCommand(text, "textbf", 1, (args) => args[0]);
@@ -78,6 +79,15 @@ export function normalizeTikzText(value) {
     })),
     lines: styledLines.map((line) => line.text)
   };
+}
+
+// Claude: 一个节点里的 \begin{minipage}[pos]{width}...\end{minipage} 只是「文本盒子」语义，
+// 对纯 JS 渲染没有额外排版意义，却会挡住内部的 \[ ... \] 被识别成数学块（导致整块退化成
+// 逐行文本、把矩阵按 \\ 拆碎）。这里去掉 minipage 的 begin/end 包装，保留其内容。
+function stripMinipageWrapper(source) {
+  return String(source)
+    .replace(/\\begin\s*\{minipage\}\s*(?:\[[^\]]*\])?\s*(?:\{[^{}]*\})?/g, "")
+    .replace(/\\end\s*\{minipage\}/g, "");
 }
 
 function normalizeTextColorTokenArguments(source) {
@@ -167,16 +177,23 @@ function normalizeInlineTikzNodeText(text) {
 
 const FONT_SIZE_SCALES = {
   tiny: 0.42,
-  scriptsize: 0.65,
-  footnotesize: 0.78,
-  small: 0.88,
+  scriptsize: 0.7,
+  footnotesize: 0.8,
+  small: 0.9,
   normalsize: 1,
   large: 1.2,
-  Large: 1.35,
-  LARGE: 1.55,
-  huge: 1.8,
-  Huge: 2.1
+  Large: 1.44,
+  LARGE: 1.728,
+  huge: 2.07,
+  Huge: 2.49
 };
+
+export function fontScaleFromTikzFont(font) {
+  const matches = [...String(font ?? "").matchAll(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b/g)];
+  if (!matches.length) return 1;
+  const size = matches[matches.length - 1][1];
+  return FONT_SIZE_SCALES[size] || 1;
+}
 
 function readLeadingFontSize(text) {
   const match = String(text).trim().match(/^\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b\s*/);
@@ -474,6 +491,15 @@ function parseNestedTikzGraphic(text) {
       lines: []
     };
   }
+  // Claude: 嵌套 tikzpicture 若只是若干 \draw 直线段（如 case 038 的 ReLU 折线
+  // "(0,0)--(0.5,0); (0.49,..)--(0.99,0.496)"），原来的 catch-all 会一律画成钟形(gaussian)占位符。
+  // 这里改成提取真实线段、按比例画出来。复杂的嵌套(含 \node / pgfplots)仍走下面的占位逻辑。
+  const inlineDraw = extractInlineDrawPolylines(source);
+  if (inlineDraw) return inlineDraw;
+  // Claude: 嵌套 tikzpicture 若只是若干 \node{文字}（如 case 019 的 Memory{ROM,RAM}、
+  // case 038 的 {softmax}），把它们的文字抽成多行文本来渲染，而不是一律画成钟形占位符。
+  const nestedNodes = extractNestedNodeText(source);
+  if (nestedNodes) return nestedNodes;
   return {
     kind: "image",
     raw: source,
@@ -482,6 +508,71 @@ function parseNestedTikzGraphic(text) {
     height: 1.05,
     scale: 1,
     plot: "gaussian",
+    lines: []
+  };
+}
+
+function extractNestedNodeText(source) {
+  const text = String(source);
+  if (/\\addplot|\\begin\{axis\}|\bplot\b|\\draw/.test(text) || !/\\node\b/.test(text)) return null;
+  const start = text.indexOf("\\begin{tikzpicture}");
+  const prefix = start > 0 ? text.slice(0, start).trim() : "";
+  const nodeTexts = [];
+  const pattern = /\\node\b[^{}]*\{([^{}]*)\}/g;
+  let match;
+  while ((match = pattern.exec(text))) {
+    const value = match[1].trim();
+    if (value) nodeTexts.push(value);
+  }
+  const lines = [prefix, ...nodeTexts].map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  return {
+    kind: "text",
+    raw: source,
+    text: lines.join("\\\\"),
+    scale: 1,
+    color: null,
+    fontFamily: undefined,
+    lineStyles: lines.map(() => ({})),
+    lines
+  };
+}
+
+// Claude: 从「只含直线段 \draw」的嵌套图里提取折线，归一化到 [0,1]，供渲染器按框比例还原。
+// 含 \node / \addplot / axis / plot 等复杂元素的不在此处理（返回 null，走占位逻辑）。
+function extractInlineDrawPolylines(source) {
+  if (/\\addplot|\\begin\{axis\}|\\node\b|\bplot\b/.test(source)) return null;
+  const draws = String(source).match(/\\draw[^;]*;/g);
+  if (!draws) return null;
+  const polylines = [];
+  for (const draw of draws) {
+    if (!draw.includes("--")) continue;
+    const coords = [...draw.matchAll(/\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/g)].map((match) => ({
+      x: Number(match[1]),
+      y: Number(match[2])
+    }));
+    if (coords.length >= 2) polylines.push(coords);
+  }
+  if (!polylines.length) return null;
+  const all = polylines.flat();
+  const xs = all.map((point) => point.x);
+  const ys = all.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const width = Math.max(0.1, maxX - minX);
+  const height = Math.max(0.1, maxY - minY);
+  const normalized = polylines.map((line) => line.map((point) => ({ x: (point.x - minX) / width, y: (point.y - minY) / height })));
+  return {
+    kind: "image",
+    raw: source,
+    fileName: "inline-tikz-draw",
+    width,
+    height,
+    scale: 1,
+    plot: "polyline",
+    polylines: normalized,
     lines: []
   };
 }

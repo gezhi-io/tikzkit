@@ -13,6 +13,9 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 MAX_COMPARE_SIDE = 1400
 PIXEL_THRESHOLD = 0.02
 MEAN_THRESHOLD = 5 / 255
+JS_STANDARD_PX_PER_TIKZ_UNIT = 100
+NATIVE_RASTER_DPI = 144
+NATIVE_RASTER_PX_PER_TIKZ_UNIT = NATIVE_RASTER_DPI / 2.54
 
 native_rows = {row["id"]: row for row in json.loads(NATIVE_REPORT.read_text())}
 js_rows = {row["id"]: row for row in json.loads(JS_REPORT.read_text())}
@@ -89,8 +92,59 @@ def normalize_pair(native_img, js_img):
             "nativeContentBox": list(native_bbox) if native_bbox else None,
             "jsContentBox": list(js_bbox) if js_bbox else None,
             "compareSize": [width, height],
+            "nativeScale": native_scale,
+            "jsScale": js_side_scale,
         },
     )
+
+
+def finite_number(value):
+    return isinstance(value, (int, float)) and value == value and value not in (float("inf"), float("-inf"))
+
+
+def multiply_or_none(left, right):
+    if not finite_number(left) or not finite_number(right):
+        return None
+    return left * right
+
+
+def ratio_or_none(numerator, denominator):
+    if not finite_number(numerator) or not finite_number(denominator) or denominator == 0:
+        return None
+    return numerator / denominator
+
+
+def build_unit_metrics(js_unit, metadata):
+    if not js_unit:
+        return None
+    x_units = js_unit.get("xTikzUnits")
+    y_units = js_unit.get("yTikzUnits")
+    native_x = multiply_or_none(x_units, NATIVE_RASTER_PX_PER_TIKZ_UNIT)
+    native_y = multiply_or_none(y_units, NATIVE_RASTER_PX_PER_TIKZ_UNIT)
+    js_x = js_unit.get("jsSvgPxPerXUnit")
+    js_y = js_unit.get("jsSvgPxPerYUnit")
+    compare_js_x = multiply_or_none(js_x, metadata.get("jsScale", 1))
+    compare_js_y = multiply_or_none(js_y, metadata.get("jsScale", 1))
+    compare_native_x = multiply_or_none(native_x, metadata.get("nativeScale", 1))
+    compare_native_y = multiply_or_none(native_y, metadata.get("nativeScale", 1))
+    return {
+        "step": js_unit.get("step", "1cm"),
+        "jsStandardPxPerTikzUnit": JS_STANDARD_PX_PER_TIKZ_UNIT,
+        "nativeRasterDpi": NATIVE_RASTER_DPI,
+        "nativeRasterPxPerTikzUnit": NATIVE_RASTER_PX_PER_TIKZ_UNIT,
+        "xTikzUnits": x_units,
+        "yTikzUnits": y_units,
+        "jsSvgPxPerXUnit": js_x,
+        "jsSvgPxPerYUnit": js_y,
+        "nativeRasterPxPerXUnit": native_x,
+        "nativeRasterPxPerYUnit": native_y,
+        "compareJsPxPerXUnit": compare_js_x,
+        "compareJsPxPerYUnit": compare_js_y,
+        "compareNativePxPerXUnit": compare_native_x,
+        "compareNativePxPerYUnit": compare_native_y,
+        "compareXRatio": ratio_or_none(compare_js_x, compare_native_x),
+        "compareYRatio": ratio_or_none(compare_js_y, compare_native_y),
+    }
 
 
 rows = []
@@ -129,6 +183,7 @@ for case_id, native in native_rows.items():
             "changedPixelsRatio": changed / (width * height),
             "meanAbsDiff": mean,
             "diffPath": str(diff_path),
+            "unit": build_unit_metrics(js.get("unit"), metadata),
             **metadata,
         }
     )

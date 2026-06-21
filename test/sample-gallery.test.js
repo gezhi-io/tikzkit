@@ -5,20 +5,20 @@ import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { createSampleGallery } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
 
-test("web sample gallery provides 127 real TikZ source blocks", () => {
+test("web sample gallery provides 139 real TikZ source blocks", () => {
   const source = createSampleGallery();
   const parts = splitTikzCodeBlocks(source);
   const tikzParts = parts.filter((part) => part.type === "tikz");
   const petarVCases = REAL_GALLERY_CASES.filter((item) => item.origin === "PetarV-/TikZ");
 
-  assert.equal(tikzParts.length, 127);
-  assert.equal(REAL_GALLERY_CASES.length, 127);
+  assert.equal(tikzParts.length, 139);
+  assert.equal(REAL_GALLERY_CASES.length, 139);
   assert.equal(petarVCases.length, 65);
   assert.match(source, /Case 001/);
   assert.match(source, /Case 100/);
-  assert.match(source, /Case 127/);
+  assert.match(source, /Case 139/);
   assert.match(source, /PetarV-\/TikZ/);
-  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-network|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|MacTeX tikz-bpmn|MacTeX tikz-cd|MacTeX tikz-decofonts|MacTeX tikz-dimline|MacTeX tikz-ext|MacTeX tikz-feynhand|MacTeX tikz-feynman|MacTeX tikz-palattice|MacTeX tikz-qtree|MacTeX tikzquads|MacTeX tikzfxgraph/);
+  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-network|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|MacTeX tikz-bpmn|MacTeX tikz-cd|MacTeX tikz-decofonts|MacTeX tikz-dimline|MacTeX tikz-ext|MacTeX tikz-feynhand|MacTeX tikz-feynman|MacTeX tikz-palattice|MacTeX tikz-qtree|MacTeX tikzquads|MacTeX tikzfxgraph|Izaak Neutelings complex roots|TikZKit calibration/);
 
   for (const part of tikzParts) {
     const result = tikzToSvg(part.content);
@@ -50,6 +50,8 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.ok(origins.has("MacTeX tikz-qtree"));
   assert.ok(origins.has("MacTeX tikzquads"));
   assert.ok(origins.has("MacTeX tikzfxgraph"));
+  assert.ok(origins.has("Izaak Neutelings complex roots"));
+  assert.ok(origins.has("TikZKit calibration"));
   assert.equal(REAL_GALLERY_CASES.every((item) => item.sourceUrl.startsWith("https://")), true);
 });
 
@@ -65,4 +67,14 @@ test("web CSS does not restyle nested KaTeX SVG accents", () => {
 
   assert.match(css, /\.svg-surface\s*>\s*svg\s*\{/);
   assert.doesNotMatch(css, /\.svg-surface\s+svg\s*\{/);
+});
+
+test("web realtime JS renderer injects the same comparison grid as gallery artifacts", () => {
+  const app = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
+
+  assert.match(app, /import\s+\{\s*withGalleryDebugGrid\s*\}\s+from\s+"..\/scripts\/gallery-debug-grid\.js"/);
+  assert.match(app, /withGalleryDebugGrid\(source\)/);
+  assert.match(app, /tikzToSvg\(renderSource,\s*options\)/);
+  assert.match(app, /formatUnitStatus/);
+  assert.match(app, /createUnitMetricsPanel/);
 });

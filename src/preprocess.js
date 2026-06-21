@@ -1074,12 +1074,12 @@ function expandTkzGraphMacros(source) {
       }
       const vertexAppend = trimmed.match(/^\\tikzset\s*\{\s*VertexStyle\/\.append\s+style\s*=\s*\{([\s\S]*)\}\s*\}\s*$/);
       if (vertexAppend) {
-        vertexStyle = { ...vertexStyle, ...parseOptions(vertexAppend[1].trim()) };
+        vertexStyle = { ...vertexStyle, ...parseTkzVertexStyleOptions(vertexAppend[1].trim(), { append: true }) };
         return "";
       }
       const vertexReplace = trimmed.match(/^\\tikzset\s*\{\s*VertexStyle\/\.style\s*=\s*\{([\s\S]*)\}\s*\}\s*$/);
       if (vertexReplace) {
-        vertexStyle = parseOptions(vertexReplace[1].trim());
+        vertexStyle = parseTkzVertexStyleOptions(vertexReplace[1].trim());
         return "";
       }
       const graphUnit = trimmed.match(/^\\SetGraphUnit\s*\{([^}]*)\}/);
@@ -1126,9 +1126,17 @@ function expandTkzGraphMacros(source) {
 
 // Claude: 把基础顶点样式与当前 VertexStyle 合并成 \node 的选项串。
 function tkzVertexNodeOptions(vertexStyle = {}) {
-  const base = ["draw", "circle", "minimum size=18pt", "inner sep=2pt", "line width=0.5pt"];
+  const base = ["draw", "circle", "minimum size=18pt", "inner sep=2pt", "line width=0.5pt", "fill=white", "text=black"];
   const extra = Object.entries(vertexStyle).map(([key, value]) => (value === true ? key : `${key}=${value}`));
   return [...base, ...extra].join(",");
+}
+
+function parseTkzVertexStyleOptions(raw, { append = false } = {}) {
+  const options = parseOptions(raw);
+  if (append && options.fill === true) {
+    delete options.fill;
+  }
+  return options;
 }
 
 function tkzBaseEdgeStyle(source) {

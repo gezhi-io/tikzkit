@@ -2,6 +2,7 @@ import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
+import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
 
 const outputRoot = "outputs/real-gallery/native";
 await mkdir(outputRoot, { recursive: true });
@@ -13,7 +14,8 @@ for (const [index, item] of REAL_GALLERY_CASES.entries()) {
   const workDir = path.join(outputRoot, id);
   await mkdir(workDir, { recursive: true });
   const texPath = path.join(workDir, "case.tex");
-  await writeFile(texPath, toStandaloneTex(item.source), "utf8");
+  const source = withGalleryDebugGrid(toStandaloneTex(item.source));
+  await writeFile(texPath, source, "utf8");
   const assetFallbacks = await materializeFallbackAssets(item.source, workDir, fallbackAssets);
 
   const latex = spawnSync("xelatex", ["-interaction=nonstopmode", "-halt-on-error", "case.tex"], {

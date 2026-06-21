@@ -22,7 +22,22 @@ test("exposes tikz-network as a built-in extension module", () => {
   assert.equal(tikzNetworkExtension.name, "tikz-network");
   assert.equal(tikzNetworkExtension.phase, "preprocess");
   assert.ok(tikzNetworkExtension.commands.includes("Vertex"));
+  assert.ok(tikzNetworkExtension.commands.includes("Text"));
+  assert.ok(tikzNetworkExtension.commands.includes("Plane"));
   assert.equal(typeof tikzNetworkExtension.preprocess, "function");
+});
+
+test("tikz-network extension expands commands without preprocess helper injection", () => {
+  const expanded = tikzNetworkExtension.preprocess(String.raw`
+\usepackage{tikz-network}
+\begin{tikzpicture}
+\Vertex[x=1,y=2,IdAsLabel]{A}
+\Edge[Direct,label=e](A)(A)
+\end{tikzpicture}`, { diagnostics: [], options: {} });
+
+  assert.match(expanded, /\\node\[[\s\S]*\]\s*\(A\)\s+at\s+\(1,2\)\s+\{A\};/);
+  assert.match(expanded, /\\path\[[\s\S]*-latex[\s\S]*\]\s+\(A\)\s+edge/);
+  assert.doesNotMatch(expanded, /\\Vertex|\\Edge/);
 });
 
 test("expands tikz-network Vertex commands to styled named nodes", () => {
@@ -123,4 +138,31 @@ test("loads tikz-network Vertices and Edges through an injected CSV resolver", (
   const path = ir.items.find((item) => item.type === "path");
   assert.equal(path.style.markerEnd.kind, "latex");
   assert.ok(path.commands.some((command) => command.type === "curveTo"));
+});
+
+test("expands tikz-network Plane and Text commands from the package docs", () => {
+  const { ir, diagnostics } = convert(String.raw`
+\SetPlaneStyle[LineColor=blue,LineWidth=2pt,FillColor=green!20,FillOpacity=.4,GridColor=red,GridLineWidth=.5pt]
+\Plane[x=-.5,y=-.5,width=3,height=2.5,grid=.5,style={dashed}]
+\Text[x=1,y=1,color=red,fontsize=\large,rotation=30,anchor=south]{Layer}`);
+
+  assert.equal(diagnostics.length, 0);
+  const paths = ir.items.filter((item) => item.type === "path");
+  assert.ok(paths.some((item) => item.style.fill === "rgb(204 230 204)" && item.style.opacity === 0.4));
+  assert.ok(paths.some((item) => item.style.stroke === "red"));
+  assert.ok(paths.some((item) => item.style.stroke === "blue" && item.style.dashArray.length > 0));
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Layer" && item.style.fill === "red"));
+});
+
+test("expands tikz-network Layer environments without leaking environment commands", () => {
+  const expanded = tikzNetworkExtension.preprocess(String.raw`
+\usepackage{tikz-network}
+\begin{tikzpicture}
+\begin{Layer}[layer=2]
+  \Vertex[x=1,IdAsLabel]{A}
+\end{Layer}
+\end{tikzpicture}`, { diagnostics: [], options: {} });
+
+  assert.doesNotMatch(expanded, /\\begin\{Layer\}|\\end\{Layer\}/);
+  assert.match(expanded, /\\node\[[\s\S]*\]\s+\(A\)\s+at\s+\(1,0\)\s+\{A\};/);
 });

@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderSvg, tikzToSvg } from "../src/index.js";
 import { mathFallbackText } from "../src/tex-text.js";
+import { createArrowTip, lineWidthFromPt } from "../src/tikz-metrics.js";
+
+function formatted(value) {
+  const rounded = Math.round((value + Number.EPSILON) * 1e6) / 1e6;
+  return String(Object.is(rounded, -0) ? 0 : rounded);
+}
 
 test("renders stable svg for paths, text nodes, circles, and markers", () => {
   const svg = renderSvg({
@@ -106,7 +112,7 @@ test("resolves current bounding box anchors after tight Bezier paths", () => {
   assert.ok(Math.min(...ys) === 0, `expected current bounding box lower edge at curve endpoint y, got ${ys}`);
 });
 
-test("renders distinct SVG marker definitions for TikZ arrow tip styles", () => {
+test("renders TikZ arrow tips as inline paths and shortens stroked path endpoints", () => {
   const svg = renderSvg({
     items: [
       {
@@ -150,17 +156,94 @@ test("renders distinct SVG marker definitions for TikZ arrow tip styles", () => 
     coordinates: {}
   });
 
-  assert.match(svg, /id="arrow-to-/);
-  assert.match(svg, /id="arrow-stealth-/);
-  assert.match(svg, /id="arrow-latex-/);
-  assert.match(svg, /markerUnits="userSpaceOnUse"/);
-  assert.match(svg, /orient="auto-start-reverse"/);
-  assert.match(svg, /marker-start="url\(#arrow-stealth-/);
-  assert.match(svg, /marker-end="url\(#arrow-stealth-[^"]+"/);
+  assert.doesNotMatch(svg, /<marker\b/);
+  assert.doesNotMatch(svg, /marker-end=/);
+  assert.match(svg, /class="tikz-arrowed-path"/);
+  assert.match(svg, /<path d="M 0 0 L 98\.6 0"/);
+  assert.match(svg, /<path class="tikz-arrow-tip tikz-arrow-to"[^>]+C [^>]+transform="translate\(100 0\) rotate\(0\)"/);
+  assert.match(svg, /<path d="M 8\.777371 -100 L 100 -100"/);
+  assert.match(svg, /<path class="tikz-arrow-tip tikz-arrow-stealth"[^>]+transform="translate\(0 -100\) rotate\(180\)"/);
+  assert.match(svg, /<path class="tikz-arrow-tip tikz-arrow-latex"/);
   assert.match(svg, /stroke="orange"/);
   assert.match(svg, /fill="red"/);
-  assert.match(svg, /id="arrow-latex-[^"]+[\s\S]*fill="black"/);
-  assert.match(svg, /markerWidth="35"/);
+});
+
+test("scales default to arrow tips from IR with the current line width", () => {
+  const lineWidth = lineWidthFromPt(1.2);
+  const svg = renderSvg({
+    items: [
+      {
+        type: "path",
+        style: { stroke: "black", fill: "none", lineWidth, markerEnd: createArrowTip("to") },
+        commands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 3, y: 0 }
+        ]
+      }
+    ],
+    coordinates: {}
+  });
+  const tipPath = svg.match(/<path class="tikz-arrow-tip tikz-arrow-to"[^>]+d="([^"]+)"/)?.[1];
+  assert.ok(tipPath, "expected inline to arrow path");
+  const start = tipPath.match(/^M (-?[\d.]+) ([\d.]+)/);
+  assert.ok(start, `expected movable to arrow path, got ${tipPath}`);
+
+  assert.ok(Math.abs(Number(start[1]) + lineWidthFromPt(3.027441)) < 0.01, `expected TikZ-like arrow back, got ${start[1]}`);
+  assert.ok(Math.abs(Number(start[2]) - lineWidthFromPt(3.831243)) < 0.01, `expected TikZ-like arrow height, got ${start[2]}`);
+});
+
+test("uses TikZ butt caps on dashed arrow stems while keeping arrow tips rounded", () => {
+  const svg = renderSvg({
+    items: [
+      {
+        type: "path",
+        style: {
+          stroke: "black",
+          fill: "none",
+          lineWidth: lineWidthFromPt(1.2),
+          dashArray: [lineWidthFromPt(1.2), lineWidthFromPt(2)],
+          markerEnd: createArrowTip("to")
+        },
+        commands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 3, y: 0 }
+        ]
+      }
+    ],
+    coordinates: {}
+  });
+  const stemPath = svg.match(/<g class="tikz-arrowed-path">(<path[^>]+>)/)?.[1];
+  const tipPath = svg.match(/(<path class="tikz-arrow-tip tikz-arrow-to"[^>]+>)/)?.[1];
+
+  assert.ok(stemPath, "expected arrow stem path");
+  assert.ok(tipPath, "expected arrow tip path");
+  assert.match(stemPath, /stroke-linecap="butt"/);
+  assert.match(stemPath, /stroke-linejoin="miter"/);
+  assert.match(tipPath, /stroke-linecap="round"/);
+  assert.match(tipPath, /stroke-linejoin="round"/);
+});
+
+test("shortens curved arrow stems along the terminal tangent", () => {
+  const svg = renderSvg({
+    items: [
+      {
+        type: "path",
+        style: { stroke: "black", fill: "none", lineWidth: lineWidthFromPt(0.4), markerEnd: createArrowTip("latex") },
+        commands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "curveTo", x1: 0.783, y1: 0, x2: 1.217, y2: 0, x: 2, y: 0 }
+        ]
+      }
+    ],
+    coordinates: {}
+  });
+  const stem = svg.match(/<g class="tikz-arrowed-path">(<path[^>]+>)/)?.[1] || "";
+  const endX = Number(stem.match(/ C [^"]+ ([\d.]+) 0"/)?.[1]);
+
+  assert.ok(Number.isFinite(endX), `expected shortened cubic stem, got ${stem}`);
+  assert.ok(endX < 200, `expected curved stem to stop behind arrow tip, got ${endX}`);
+  assert.ok(endX > 180, `expected curved stem to remain near target, got ${endX}`);
+  assert.match(svg, /transform="translate\(200 0\) rotate\(0\)"/);
 });
 
 test("renders a white page background by default for native TikZ raster comparisons", () => {
@@ -193,6 +276,17 @@ test("renders math text nodes through KaTeX inside SVG foreignObject", () => {
   assert.match(svg, /class="katex"/);
   assert.doesNotMatch(svg, /requiredExtensions=/);
   assert.doesNotMatch(svg, /<text[^>]*>\$x\^2 \+ y\^2\$<\/text>/);
+});
+
+test("renders contour-wrapped math labels as plain math content", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node at (0,0) {\contour{white}{$a+\sqrt{b/A}$}};
+\end{tikzpicture}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="katex"/);
+  assert.doesNotMatch(result.svg, /contour/);
 });
 
 test("normalizes common TeX text macros before SVG text rendering", () => {
@@ -296,6 +390,7 @@ test("can render math as plain SVG text for raster comparison tools", () => {
 
   assert.match(svg, /<text /);
   assert.match(svg, /α × x/);
+  assert.match(svg, /font-style="italic"/);
   assert.doesNotMatch(svg, /<foreignObject /);
 });
 
@@ -312,6 +407,19 @@ test("keeps alphabetic math subscripts portable in SVG text fallback", () => {
   assert.equal(text, "α_t-1(s₁)");
   assert.doesNotMatch(svg, /�|ₜ|ᵦ|ₑ|ₕ|ᵢ|ⱼ|ₖ|ₗ|ₘ|ₙ|ₒ|ₚ|ᵣ|ₛ|ᵤ|ᵥ|ₓ/);
   assert.match(svg, /β_t\+2\(s₄\)/);
+});
+
+test("renders simple numeric math subscripts as separate SVG tspans", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$I_{16}$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, new RegExp(`<tspan>I</tspan><tspan[^>]+font-size="${formatted(lineWidthFromPt(10) * 0.9 * 0.7)}"[^>]+baseline-shift="sub">16</tspan>`));
+  assert.doesNotMatch(svg, /I₁₆/);
 });
 
 test("renders mixed text and TeX arrows compactly in SVG text fallback", () => {
@@ -382,8 +490,8 @@ test("uses TikZ-like text scale for SVG text fallbacks", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(plain, /font-size="30"/);
-  assert.match(math, /font-size="27"/);
+  assert.match(plain, new RegExp(`font-size="${formatted(lineWidthFromPt(10))}"`));
+  assert.match(math, new RegExp(`font-size="${formatted(lineWidthFromPt(9))}"`));
 });
 
 test("applies leading TeX font size macros to SVG text scale", () => {
@@ -395,7 +503,7 @@ test("applies leading TeX font size macros to SVG text scale", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /font-size="32\.4"/);
+  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 1.2 * 0.9)}"`));
   assert.doesNotMatch(svg, /\\large/);
 });
 
@@ -445,8 +553,8 @@ test("applies per-line TeX font size macros in KaTeX rich text", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /class="tikz-rich-line"[^>]+font-size:30px/);
-  assert.match(svg, /class="tikz-rich-line"[^>]+font-size:19\.5px/);
+  assert.match(svg, new RegExp(`class="tikz-rich-line"[^>]+font-size:${formatted(lineWidthFromPt(10))}px`));
+  assert.match(svg, new RegExp(`class="tikz-rich-line"[^>]+font-size:${formatted(lineWidthFromPt(7))}px`));
 });
 
 test("normalizes mathcal shorthand before KaTeX rendering", () => {

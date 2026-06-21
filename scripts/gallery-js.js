@@ -3,6 +3,8 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { tikzToSvg } from "../src/index.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
+import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
+import { measureIrGridUnits } from "./gallery-unit-metrics.js";
 
 const outputRoot = "outputs/real-gallery/js";
 await mkdir(outputRoot, { recursive: true });
@@ -10,7 +12,8 @@ await mkdir(outputRoot, { recursive: true });
 const rows = [];
 for (const [index, item] of REAL_GALLERY_CASES.entries()) {
   const id = String(index + 1).padStart(3, "0");
-  const result = tikzToSvg(item.source, { mathRenderer: "svg-text" });
+  const source = withGalleryDebugGrid(item.source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
   const svgPath = path.join(outputRoot, `${id}.svg`);
   const pngPath = path.join(outputRoot, `${id}.png`);
   await writeFile(svgPath, result.svg, "utf8");
@@ -22,6 +25,7 @@ for (const [index, item] of REAL_GALLERY_CASES.entries()) {
     svgPath,
     pngPath,
     ok: raster.status === 0,
+    unit: measureIrGridUnits(result.ir),
     diagnostics: result.diagnostics
   });
 }

@@ -349,6 +349,27 @@ textarea {
   gap: 8px;
 }
 
+.unit-metrics {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-left: 4px solid #175cd3;
+  border-radius: 7px;
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+}
+
+.unit-metrics strong {
+  color: #1d2939;
+  font-size: 12px;
+}
+
+.unit-metrics span {
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .capability-item {
   background: #f8fafc;
   border: 1px solid var(--border);
@@ -414,6 +435,12 @@ figcaption {
   background: #fef3f2;
   border-color: #fecdca;
   color: var(--error);
+}
+
+.status-pill.info {
+  background: #eff8ff;
+  border-color: #b2ddff;
+  color: #175cd3;
 }
 
 .status-pill.pending,

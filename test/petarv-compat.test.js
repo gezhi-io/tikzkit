@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { interpretTikz, parseTikz, renderSvg, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
+import { lineWidthFromPt } from "../src/tikz-metrics.js";
+
+function formatted(value) {
+  const rounded = Math.round((value + Number.EPSILON) * 1e6) / 1e6;
+  return String(Object.is(rounded, -0) ? 0 : rounded);
+}
 
 test("resolves TikZ node anchor coordinates on named nodes", () => {
   const source = String.raw`
@@ -280,9 +286,10 @@ test("renders grouped TeX font declarations as line-level SVG text styling", () 
 
   assert.equal(diagnostics.length, 0);
   assert.match(svg, /font-weight="700"/);
-  assert.match(svg, /font-size="[^"]+"/);
+  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(20.7))}"`));
+  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(7))}"`));
   const dyValues = [...svg.matchAll(/dy="([^"]+)"/g)].map((match) => Number(match[1]));
-  assert.ok(dyValues[1] > 35 && dyValues[1] < 45, `expected TeX-like mixed-size line gap, got ${dyValues[1]}`);
+  assert.ok(dyValues[1] > 45 && dyValues[1] < 55, `expected TeX-like mixed-size line gap, got ${dyValues[1]}`);
   assert.match(svg, />IF</);
   assert.match(svg, />Instruction fetch</);
 });
@@ -480,6 +487,22 @@ test("creates matrix-of-nodes cell anchors and matrix bounding node", () => {
   assert.equal(path.commands.at(-1).type, "closePath");
 });
 
+test("uses TikZ default node padding for matrix-of-nodes digit cells", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \matrix (m) [matrix of nodes,row sep=-\pgflinewidth,nodes={draw}] {
+    0 & 1 \\
+  };
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "m-1-1");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(box.width > 0.38 && box.width < 0.45, `expected native-sized matrix digit width, got ${box.width}`);
+  assert.ok(box.height > 0.43 && box.height < 0.5, `expected native-sized matrix digit height, got ${box.height}`);
+});
+
 test("applies scope-local matrix styles and row node overrides", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -537,7 +560,7 @@ test("treats on background layer scopes as background drawing order", () => {
   assert.ok(backgroundIndex < textIndex, `expected background before text, got ${backgroundIndex} and ${textIndex}`);
 });
 
-test("uses compact boxes for simple matrix-of-nodes cells", () => {
+test("uses TikZ-sized boxes for simple matrix-of-nodes cells", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \matrix (m) [matrix of nodes, row sep=-\pgflinewidth, nodes={draw}] {
@@ -551,8 +574,8 @@ test("uses compact boxes for simple matrix-of-nodes cells", () => {
 
   assert.equal(diagnostics.length, 0);
   assert.equal(boxes.length, 4);
-  assert.ok(boxes.every((box) => box.width < 0.4), `expected compact widths, got ${boxes.map((box) => box.width)}`);
-  assert.ok(boxes.every((box) => box.height < 0.4), `expected compact heights, got ${boxes.map((box) => box.height)}`);
+  assert.ok(boxes.every((box) => box.width > 0.38 && box.width < 0.45), `expected native-sized widths, got ${boxes.map((box) => box.width)}`);
+  assert.ok(boxes.every((box) => box.height > 0.43 && box.height < 0.5), `expected native-sized heights, got ${boxes.map((box) => box.height)}`);
 });
 
 test("fits matrix-of-nodes text inside compact drawn cells", () => {
@@ -573,8 +596,56 @@ test("fits matrix-of-nodes text inside compact drawn cells", () => {
   assert.equal(diagnostics.length, 0);
   assert.equal(text.x, box.x);
   assert.equal(text.y, box.y);
-  assert.ok(fontSize > 18, `expected readable matrix text, got ${fontSize}`);
-  assert.ok(fontSize < box.height * 100, `expected text to fit within ${box.height * 100}px cell height, got ${fontSize}`);
+  assert.ok(Math.abs(fontSize - lineWidthFromPt(10) * 0.72) < 0.01, `expected TikZ-like matrix text size, got ${fontSize}`);
+});
+
+test("renders matrix annotation math fallback with TikZ-like bold and symbol styling", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \matrix (m) [matrix of nodes,row sep=-\pgflinewidth,nodes={draw}] {
+    1 & 0 \\
+  };
+  \node [below= of m-1-1.south] (label) {$\bf I$};
+  \node[anchor=south east, inner sep=0.01em, blue] at (m-1-1.south east) (ann) {\scalebox{.5}{$\times 1$}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const svg = renderSvg(ir, { mathRenderer: "svg-text" });
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "$\\bf I$");
+  const annotation = ir.items.find((item) => item.type === "textNode" && item.text.includes("\\scalebox"));
+  const cell = ir.items.find((item) => item.type === "nodeBox" && item.id === "m-1-1");
+
+  assert.equal(diagnostics.length, 0);
+  assert.match(svg, />I</);
+  assert.match(svg, /font-weight="700"[^>]*>I</);
+  assert.doesNotMatch(svg, /font-style="italic"[^>]*>I</);
+  assert.match(svg, />× 1</);
+  assert.doesNotMatch(svg, /font-style="italic"[^>]*>× 1</);
+  assert.ok(annotation.x > cell.x, `expected scaled annotation near the cell east edge, got ${annotation.x} <= ${cell.x}`);
+  assert.ok(annotation.y < cell.y, `expected scaled annotation near the cell south edge, got ${annotation.y} >= ${cell.y}`);
+  assert.ok(label.y < cell.y - 0.7, `expected below=of label below the cell with TikZ node distance, got ${label.y}`);
+});
+
+test("renders Case 003 style inline I/O labels with TeX-like numeric subscripts", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, fill, inner sep=0.2em] (s1) {};
+  \node[circle, left=2em of s1] (i1) {};
+  \node[circle, right=2em of s1] (o1) {};
+  \draw[-stealth, thick] (i1) --node[above] {$I_{1}$} (s1);
+  \draw[-stealth, thick] (s1) --node[above] {$O_{1}$} (o1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const svg = renderSvg(ir, { mathRenderer: "svg-text" });
+  const labels = ir.items.filter((item) => item.type === "textNode" && /^\$[IO]_/.test(item.text));
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(labels.length, 2);
+  assert.ok(labels.every((label) => label.y > ir.coordinates.s1.y), `expected above labels over the horizontal edges, got ${JSON.stringify(labels)}`);
+  assert.match(svg, /<tspan>I<\/tspan><tspan[^>]+baseline-shift="sub">1<\/tspan>/);
+  assert.match(svg, /<tspan>O<\/tspan><tspan[^>]+baseline-shift="sub">1<\/tspan>/);
+  assert.doesNotMatch(svg, /I₁|O₁/);
 });
 
 test("positions matrices edge-to-edge with TikZ positioning syntax", () => {
@@ -590,7 +661,7 @@ test("positions matrices edge-to-edge with TikZ positioning syntax", () => {
   assert.equal(diagnostics.length, 0);
   assert.ok(ir.coordinates.star.x > ir.coordinates.m.x + 0.5, `star should sit outside m, got ${ir.coordinates.star.x}`);
   assert.ok(ir.coordinates.k.x > ir.coordinates.star.x + 0.4, `k should sit outside star, got ${ir.coordinates.k.x}`);
-  assert.ok(ir.coordinates.k.x < 1.35, `unboxed text nodes should not create excessive spacing, got ${ir.coordinates.k.x}`);
+  assert.ok(ir.coordinates.k.x < 1.55, `unboxed text nodes should not create excessive spacing, got ${ir.coordinates.k.x}`);
 });
 
 test("sizes empty circular nodes from inner sep instead of text defaults", () => {
@@ -607,6 +678,38 @@ test("sizes empty circular nodes from inner sep instead of text defaults", () =>
   assert.equal(box.width, box.height);
 });
 
+test("uses PGF default sep for empty circle positioning chains", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, draw, thick] (A1) {};
+  \node[circle, draw, thick, right=0.5em of A1] (A2) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+  const gap = ir.coordinates.A2.x - ir.coordinates.A1.x;
+  const expectedVisibleDiameter = 2 * Math.hypot(parseDimension(".3333em"), parseDimension(".3333em"));
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(boxes.A1.width - expectedVisibleDiameter) < 0.01, `expected PGF empty circle diameter, got ${boxes.A1.width}`);
+  assert.ok(gap > 0.52 && gap < 0.55, `expected TikZ edge-to-edge positioning gap, got ${gap}`);
+});
+
+test("keeps empty rounded-rectangle minimum widths close to PGF shape sizing", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw, minimum width=15em, minimum height=2em, very thick, rounded rectangle] (box) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "box");
+  const expectedWidth = parseDimension("15em") - 2 * parseDimension(".3333em");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(box.width - expectedWidth) < 0.01, `expected rounded rectangle width near ${expectedWidth}, got ${box.width}`);
+  assert.equal(box.height, parseDimension("2em"));
+});
+
 test("keeps A3C-style rounded math nodes compact and rounded", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -617,7 +720,8 @@ test("keeps A3C-style rounded math nodes compact and rounded", () => {
   const box = ir.items.find((item) => item.type === "nodeBox");
 
   assert.equal(diagnostics.length, 0);
-  assert.ok(box.width < 2.2, `expected compact rounded node width, got ${box.width}`);
+  assert.ok(Math.abs(box.width - 1.8) < 0.08, `expected native-like rounded node width near 1.80cm, got ${box.width}`);
+  assert.ok(Math.abs(box.height - 1.0) < 0.08, `expected native-like rounded node height near 1.00cm, got ${box.height}`);
   assert.ok(box.rx > 0.15, `expected rounded rectangle radius, got ${box.rx}`);
 });
 
@@ -813,7 +917,7 @@ test("normalizes GameBoy matrix and edge label TeX macros", () => {
   assert.match(svg, />⋱</);
   assert.match(svg, />palette</);
   const tinyFontSize = Number(svg.match(/>↓<\/text>[\s\S]*?/) ? svg.match(/<text[^>]*>↓<\/text>/)?.[0].match(/font-size="([^"]+)"/)?.[1] : NaN);
-  assert.ok(tinyFontSize < 13, `expected TikZ tiny arrow labels to stay compact, got ${tinyFontSize}`);
+  assert.ok(Math.abs(tinyFontSize - lineWidthFromPt(10) * 0.42 * 0.9) < 0.01, `expected TikZ tiny arrow labels to stay compact, got ${tinyFontSize}`);
 });
 
 test("normalizes Gene expression inline TikZ labels and xcolor token text", () => {
@@ -1038,16 +1142,23 @@ test("applies tkz EdgeStyle updates to expanded Edge commands", () => {
 
 test("keeps tkz-graph normal vertices at TikZ library size", () => {
   const source = String.raw`
-\begin{tikzpicture}[every node/.style={scale=0.7},font=\tt]
+\begin{tikzpicture}[scale=0.8,every node/.style={scale=0.7},font=\tt]
   \GraphInit[vstyle=Normal]
+  \SetGraphUnit{2.5}
+  \tikzset{VertexStyle/.append  style={fill}}
   \Vertex{ATG}
+  \EA(ATG){TGG}
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
-  const box = ir.items.find((item) => item.type === "nodeBox");
-  const label = ir.items.find((item) => item.type === "textNode");
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "ATG");
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "ATG");
 
   assert.equal(diagnostics.length, 0);
+  assert.ok(ir.coordinates.TGG.x > 1.98 && ir.coordinates.TGG.x < 2.02, `expected picture scale to affect tkz coordinates, got ${ir.coordinates.TGG.x}`);
+  assert.equal(box.style.fill, "white");
+  assert.equal(label.style.fill, "black");
+  assert.ok(label.style.fontScale > 0.68 && label.style.fontScale < 0.72, `expected every node scale on label, got ${label.style.fontScale}`);
   assert.ok(box.width <= parseDimension("18pt") + 0.03, `expected tkz normal vertex size, got ${box.width}`);
   assert.deepEqual(label.fitBox, { width: box.width, height: box.height });
 });

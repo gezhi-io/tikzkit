@@ -14,6 +14,10 @@ function stripTikzCdLabelSize(text) {
   return String(text || "").replace(/^\\(?:small|scriptsize|tiny)\s+/, "");
 }
 
+function arrowTipPath(svg, className) {
+  return svg.match(new RegExp(`<path class="tikz-arrow-tip ${className}"[^>]+>`))?.[0] || "";
+}
+
 test("exposes tikz-cd as a built-in extension module", () => {
   assert.equal(tikzCdExtension.name, "tikz-cd");
   assert.equal(tikzCdExtension.phase, "preprocess");
@@ -102,8 +106,14 @@ test("preserves tikzcd hook and two heads arrow tips from rich gallery case", ()
   const paths = ir.items.filter((item) => item.type === "path");
   assert.ok(paths.some((item) => item.style.markerEnd?.kind === "two-heads"), "missing two heads arrow");
   assert.ok(paths.some((item) => item.style.markerStart?.kind === "hook" && item.style.markerEnd?.kind === "to"), "missing hook arrow");
-  assert.match(svg, /id="arrow-two-heads-/);
-  assert.match(svg, /id="arrow-hook-/);
+  const descriptionBoxes = ir.items.filter((item) => item.type === "nodeBox" && item.style.fill === "white");
+  assert.ok(descriptionBoxes.length >= 2, "description labels should keep white backgrounds");
+  assert.ok(descriptionBoxes.every((box) => box.width < 0.36 && box.height < 0.28), "tikzcd description label backgrounds should be tight");
+  const twoHeadsTip = arrowTipPath(svg, "tikz-arrow-two-heads");
+  assert.match(twoHeadsTip, /class="tikz-arrow-tip tikz-arrow-two-heads"/);
+  assert.match(svg, /class="tikz-arrow-tip tikz-arrow-hook"/);
+  assert.match(twoHeadsTip, /fill="none"/, "two heads should be drawn as an open TikZ-style arrow tip");
+  assert.doesNotMatch(twoHeadsTip, /\sZ(?:\s|")/, "two heads should not render as filled closed triangles");
   assert.ok(paths.some((item) => item.style.dashArray?.length > 0), "missing dashed or dotted edge");
   for (const label of ["$f$", "$g$", "$\\alpha$", "$p$", "$h$", "$k$", "$u$", "$v$", "$\\beta$"]) {
     assert.ok(hasMathText(ir, label), `missing label ${label}`);

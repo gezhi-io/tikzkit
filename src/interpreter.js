@@ -10,8 +10,10 @@ import {
   styleDefinitionsFromOptions,
   stripOuterBraces
 } from "./options.js";
-import { mathFallbackText, normalizeTikzText } from "./tex-text.js";
-import { TIKZ_MONOSPACE_FONT_FAMILY, createArrowTip } from "./tikz-metrics.js";
+import { fontScaleFromTikzFont, mathFallbackText, normalizeTikzText } from "./tex-text.js";
+import { TIKZ_MONOSPACE_FONT_FAMILY, TIKZ_UNIT, createArrowTip } from "./tikz-metrics.js";
+
+const TIKZ_DEFAULT_INNER_SEP = ".3333em";
 
 const BUILTIN_STYLES = {
   "every state": {},
@@ -26,14 +28,15 @@ export function interpretTikz(ast, options = {}) {
   for (const picture of ast.pictures || []) {
     const styles = { ...BUILTIN_STYLES, ...(picture.styles || {}), ...styleDefinitionsFromOptions(picture.options || {}) };
     const pictureOptions = normalizeOptions("path", picture.options || {}, { variables: {}, styles }).options;
+    const pictureTransformEnv = { variables: {} };
     const env = {
       variables: {},
       coordinates: ir.coordinates,
       nodes: {},
       styles,
       namedPaths: {},
-      transform: identityTransform(),
-      canvasScale: 1,
+      transform: composeTransform(identityTransform(), pictureOptions, pictureTransformEnv),
+      canvasScale: transformCanvasScale(pictureOptions, pictureTransformEnv),
       basis: parsePictureBasis(pictureOptions),
       pictureOptions
     };
@@ -50,7 +53,7 @@ export function interpretTikz(ast, options = {}) {
 }
 
 function interpretStatement(statement, env, ir, diagnostics, options) {
-  env.currentBoundingBox = () => computeCurrentBoundingBox(ir);
+  env.currentBoundingBox ||= () => computeCurrentBoundingBox(ir);
   if (statement.type === "unsupported") {
     diagnostics.push(statement.diagnostic);
     return;
@@ -156,16 +159,17 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
   if (visible) {
+    const doubleStyle = doublePathStyle(semantic, env);
     const styledShapes = built.shapes.map((shape) => ({
       ...shape,
       subtype: shape.subtype || subtype,
-      style: { ...style, ...(shape.style || {}) }
+      style: { ...style, ...doubleStyle, ...(shape.style || {}) }
     }));
     for (const shape of styledShapes) {
       ir.items.push(shape);
     }
     if (hasDrawableCommands(built.commands, built.shapes)) {
-      const pathStyle = drawablePathStyle(style, built.styleHints);
+      const pathStyle = drawablePathStyle(style, { ...built.styleHints, ...doubleStyle });
       const item = {
         type: "path",
         subtype: built.styleHints.subtype || subtype,
@@ -394,13 +398,19 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         pending = null;
         continue;
       }
-      const clipped = clipNodeLineEndpoints(currentBase || current, currentNodeRef, to, toNodeRef, env);
-      const curve = edgeCurveSpec(combinedEdgeOptions, clipped.from, clipped.to, env);
+      const edgeFrom = currentBase || current;
+      // Claude: 先按"直线弦"裁一次得到端点角度基准，再判断有没有弯（bend/out-in）。
+      // 有弯时端点要沿曲线"切线方向"重新裁到节点边框，否则箭头会挂在角上（见 case 020 的两条 bend 弧）。
+      const straightClipped = clipNodeLineEndpoints(edgeFrom, currentNodeRef, to, toNodeRef, env);
+      const curve = edgeCurveSpec(combinedEdgeOptions, straightClipped.from, straightClipped.to, env);
+      const clipped = curve
+        ? clipNodeCurveEndpoints(edgeFrom, currentNodeRef, to, toNodeRef, curve, env)
+        : straightClipped;
       if (curve) {
         if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
-        const distance = Math.hypot(clipped.to.x - clipped.from.x, clipped.to.y - clipped.from.y) / 2 || 1;
-        const c1 = polarOffset(clipped.from, curve.out, distance);
-        const c2 = polarOffset(clipped.to, curve.in, distance);
+        const distance = tikzCurveControlDistance(clipped.from, clipped.to);
+        const c1 = polarOffset(clipped.from, curve.out, distance * curve.outLooseness);
+        const c2 = polarOffset(clipped.to, curve.in, distance * curve.inLooseness);
         commands.push({ type: "curveTo", x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y, x: clipped.to.x, y: clipped.to.y });
         flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle);
         lastSegment = { from: clipped.from, to: clipped.to };
@@ -516,7 +526,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       continue;
     }
     if (segment.kind === "plot") {
-      const plot = buildPlot(segment.coordinate, env, pathOptions);
+      const plot = buildPlot(segment.coordinate, env, { ...pathOptions, ...(segment.options || {}) });
       for (const command of plot) commands.push(command);
       current = plot.at(-1) ? { x: plot.at(-1).x, y: plot.at(-1).y } : current;
       currentLocal = null;
@@ -830,20 +840,26 @@ function flushInlinePathNodesAt(pendingInlineNodes, point, nodes, env, pathStyle
 
 function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}) {
   const rawOptions = resolveDynamicOptions(segment.options || {}, env);
-  const expandedOptions = normalizeOptions("node", inlineNodeOptions(rawOptions, pathStyle), env).options;
+  const expandedOptions = normalizeOptions("node", {
+    ...inheritedNodeOptions(env),
+    ...inlineNodeOptions(rawOptions, pathStyle)
+  }, env).options;
   const size = estimateNodeLayoutSize(text, expandedOptions, env);
+  const anchorSize = estimateNodeAnchorSize(text, expandedOptions, env, size);
   if (segment.name) {
     const name = resolveDynamicName(segment.name, env);
     env.nodes[name] = {
       point,
       width: size.width,
       height: size.height,
+      layoutWidth: anchorSize.width,
+      layoutHeight: anchorSize.height,
       shape: nodeShape(expandedOptions),
       shapeData: nodeShapeData(expandedOptions)
     };
     env.coordinates[name] = point;
   }
-  nodes.push({ at: point, text, options: expandedOptions, size, fitTextToBox: shouldFitTextToNodeBox(expandedOptions) });
+  nodes.push({ at: point, text, options: expandedOptions, size, anchorSize, fitTextToBox: shouldFitTextToNodeBox(expandedOptions) });
 }
 
 function inlineNodeOptions(options = {}, pathStyle = {}) {
@@ -858,12 +874,15 @@ function hasExplicitTextColor(options = {}) {
 function createNode(statement, env, ir, diagnostics) {
   const text = substituteTextVariables(statement.text, env.variables);
   const expandedOptions = normalizeOptions("node", {
-    ...resolveDynamicOptions(env.pictureOptions || {}, env),
+    ...inheritedNodeOptions(env),
     ...resolveDynamicOptions(statement.options || {}, env)
   }, env).options;
-  const size = scaleSize(estimateNodeLayoutSize(text, expandedOptions, env), env.canvasScale);
-  const point = resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, size);
-  const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, env);
+  const rawSize = estimateNodeLayoutSize(text, expandedOptions, env);
+  const rawAnchorSize = estimateNodeAnchorSize(text, expandedOptions, env, rawSize);
+  const size = scaleSize(rawSize, env.canvasScale);
+  const anchorSize = scaleSize(rawAnchorSize, env.canvasScale);
+  const point = resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, anchorSize);
+  const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, env, size);
   const name = statement.name
     ? resolveDynamicName(statement.name, env)
     : expandedOptions.name && expandedOptions.name !== true
@@ -875,6 +894,8 @@ function createNode(statement, env, ir, diagnostics) {
     options: expandedOptions,
     name,
     size,
+    anchorSize,
+    displayPoint,
     fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   };
   if (name) {
@@ -882,6 +903,8 @@ function createNode(statement, env, ir, diagnostics) {
       point: displayPoint,
       width: size.width,
       height: size.height,
+      layoutWidth: anchorSize.width,
+      layoutHeight: anchorSize.height,
       shape: nodeShape(expandedOptions),
       shapeData: nodeShapeData(expandedOptions)
     };
@@ -1030,7 +1053,15 @@ function createMatrix(statement, env, ir) {
         env.coordinates[explicitName] = point;
       }
       addNodeItems(
-        { at: point, text: cell.text, options, name: cellName, size: { width: cellWidth, height: cellHeight }, fitTextToBox: true },
+        {
+          at: point,
+          text: cell.text,
+          options,
+          name: cellName,
+          size: { width: cellWidth, height: cellHeight },
+          textFontScale: 0.72,
+          fitTextToBox: true
+        },
         ir,
         env
       );
@@ -1129,16 +1160,16 @@ function nodeRotation(options = {}, env) {
 function addNodeItems(node, ir, env) {
   const { style, semantic } = normalizeOptions("node", node.options || {}, env);
   const rotation = nodeRotation(node.options || {}, env);
-  const point = resolveNodeAnchorPoint(node.at, node.options, node.text, env);
+  const point = node.displayPoint || resolveNodeAnchorPoint(node.at, node.options, node.text, env, node.size);
   const shape = nodeShape(node.options || {});
   const shapeData = nodeShapeData(node.options || {});
-  const size = node.size || scaleSize(estimateNodeSize(node.text, node.options, env), env.canvasScale);
+  const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, env), env.canvasScale);
   const shadedFill =
     semantic.shading === "ball" ? normalizeColor(String(semantic["ball color"] || style.fill || "gray!30")) : null;
   const textStyle = {
     ...style,
     fill: style.textFill || semantic.text || "black",
-    fontScale: env.canvasScale,
+    fontScale: roundNumber(env.canvasScale * (node.textFontScale || nodeFontScale(node.options || {}, env))),
     fontFamily: resolveFontFamily(node.options?.font || env.pictureOptions?.font) || resolveFontFamily(node.text)
   };
   if (style.fill !== "none" || style.stroke !== "none" || semantic.draw || shadedFill) {
@@ -1276,8 +1307,7 @@ function resolvePositioning(options, env, selfSize = { width: 0, height: 0 }) {
 function defaultPositioningDistance(env) {
   // Claude: TikZ positioning 库的默认 node distance 是 1cm（边到边），原来写死成 0.6cm
   // 会让 right=of/below=of 等没显式设距离的节点挤得过近，相邻列的边标签互相碰撞（见 case 004）。
-  const distance = parseDimension(env.pictureOptions?.["node distance"] || "1cm", env.variables);
-  return { x: distance, y: distance };
+  return parsePositioningDistance(env.pictureOptions?.["node distance"] || "1cm", env);
 }
 
 function parsePositioningDistance(value, env) {
@@ -1338,7 +1368,7 @@ function resolvePositioningReference(raw, env) {
   const text = resolveDynamicName(raw, env);
   if (Object.hasOwn(env.nodes, text)) {
     const node = env.nodes[text];
-    return { point: node.point, width: node.width || 0, height: node.height || 0 };
+    return { point: node.point, width: node.layoutWidth || node.width || 0, height: node.layoutHeight || node.height || 0 };
   }
   if (Object.hasOwn(env.coordinates, text)) return { point: env.coordinates[text], width: 0, height: 0 };
   const anchored = resolveAnchoredNodeCoordinate(text, env);
@@ -1349,8 +1379,8 @@ function resolvePositioningReference(raw, env) {
   return null;
 }
 
-function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variables: {} }) {
-  const size = estimateNodeLayoutSize(text, options, env);
+function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variables: {} }, sizeOverride = null) {
+  const size = sizeOverride || estimateNodeLayoutSize(text, options, env);
   const sep = parseDimension(options["inner sep"] || options["outer sep"] || "0.08", env.variables);
   const shift = nodeAnchorShift(options, size, sep, env, nodeRotation(options, env));
   const explicitShift = nodeExplicitShift(options, env);
@@ -1466,6 +1496,22 @@ function clipNodeReferencePoint(ref, point, toward, env) {
   return nodeBorderPoint(ref.node, point, toward, env);
 }
 
+// Claude: 曲线边的端点应落在"离开/进入"切线方向上的边框点，而不是两节点中心连线上的点。
+// out = 从起点离开的角度；in = 进入终点的切线角度（指向控制点 c2 的方向），与控制点计算保持一致。
+function clipNodeCurveEndpoints(from, fromRef, to, toRef, curve, env) {
+  return {
+    from: fromRef ? clipNodeReferenceAlongAngle(fromRef, from, curve.out, env) : roundPoint(from),
+    to: toRef ? clipNodeReferenceAlongAngle(toRef, to, curve.in, env) : roundPoint(to)
+  };
+}
+
+function clipNodeReferenceAlongAngle(ref, center, angleDegrees, env) {
+  if (ref.mode === "anchor") return roundPoint(center);
+  const radians = (angleDegrees * Math.PI) / 180;
+  const toward = { x: center.x + Math.cos(radians), y: center.y + Math.sin(radians) };
+  return nodeBorderPoint(ref.node, center, toward, env);
+}
+
 function updateCurrentMoveTo(commands, point) {
   const command = commands.at(-1);
   if (command?.type === "moveTo") {
@@ -1560,23 +1606,30 @@ function buildSelfLoop(point, nodeRef, direction, options, env) {
 }
 
 function edgeCurveSpec(options = {}, from, to, env) {
+  const looseness = parseLoosenessOption(options.looseness, 1, env);
+  const outLooseness = parseLoosenessOption(options["out looseness"], looseness, env);
+  const inLooseness = parseLoosenessOption(options["in looseness"], looseness, env);
   if (Object.hasOwn(options, "out") || Object.hasOwn(options, "in")) {
     return {
       out: parseAngleOption(options.out, 0, env),
-      in: parseAngleOption(options.in, 180, env)
+      in: parseAngleOption(options.in, 180, env),
+      outLooseness,
+      inLooseness
     };
   }
-  if (Object.hasOwn(options, "bend left")) return bendCurveSpec(options["bend left"], 1, from, to, env);
-  if (Object.hasOwn(options, "bend right")) return bendCurveSpec(options["bend right"], -1, from, to, env);
+  if (Object.hasOwn(options, "bend left")) return bendCurveSpec(options["bend left"], 1, from, to, env, { outLooseness, inLooseness });
+  if (Object.hasOwn(options, "bend right")) return bendCurveSpec(options["bend right"], -1, from, to, env, { outLooseness, inLooseness });
   return null;
 }
 
-function bendCurveSpec(value, direction, from, to, env) {
+function bendCurveSpec(value, direction, from, to, env, looseness = { outLooseness: 1, inLooseness: 1 }) {
   const angle = parseAngleOption(value, 30, env);
   const base = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
   return {
     out: base + direction * angle,
-    in: base + 180 - direction * angle
+    in: base + 180 - direction * angle,
+    outLooseness: looseness.outLooseness,
+    inLooseness: looseness.inLooseness
   };
 }
 
@@ -1584,6 +1637,17 @@ function parseAngleOption(value, fallback, env) {
   if (value === true || value === undefined || value === null || value === "") return fallback;
   const angle = evaluateMath(value, env.variables);
   return Number.isFinite(angle) ? angle : fallback;
+}
+
+function parseLoosenessOption(value, fallback, env) {
+  if (value === true || value === undefined || value === null || value === "") return fallback;
+  const looseness = evaluateMath(value, env.variables);
+  return Number.isFinite(looseness) && looseness > 0 ? looseness : fallback;
+}
+
+function tikzCurveControlDistance(from, to) {
+  const chord = Math.hypot(to.x - from.x, to.y - from.y);
+  return (chord || 1) * 0.3915;
 }
 
 function applyArrowEndpointShortening(commands, style = {}, endpointRefs = {}) {
@@ -1826,24 +1890,55 @@ function scaleSize(size, scale = 1) {
   };
 }
 
+function nodeFontScale(options = {}, env = {}) {
+  return fontScaleFromTikzFont(options.font ?? env.pictureOptions?.font) * nodeOptionScale(options, env);
+}
+
+function nodeOptionScale(options = {}, env = { variables: {} }) {
+  if (options.scale === undefined || options.scale === null || options.scale === true || options.scale === "") return 1;
+  const scale = evaluateMath(options.scale, env.variables);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+function inheritedNodeOptions(env = {}) {
+  const options = { ...(env.pictureOptions || {}) };
+  delete options.scale;
+  delete options.rotate;
+  delete options.xshift;
+  delete options.yshift;
+  delete options.shift;
+  if (env.styles?.["every node"]) options["every node"] = true;
+  return resolveDynamicOptions(options, env);
+}
+
+function scaleTextMetricBox(box, scale = 1) {
+  const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  if (Math.abs(factor - 1) < 1e-9) return box;
+  return {
+    ...box,
+    width: box.width * factor,
+    height: box.height * factor
+  };
+}
+
 function estimateMatrixCellSize(text, options = {}, env = { variables: {} }) {
   if (options.circle || options.shape === "circle") return estimateNodeSize(text, options, env);
 
   const normalized = normalizeTikzText(text);
   if (normalized.kind === "image") return estimateNodeSize(text, options, env);
 
-  const textBox = estimateTextMetricBox(normalized, {
+  const textBox = scaleTextMetricBox(estimateTextMetricBox(normalized, {
     widthFactor: 0.12,
-    lineHeight: 0.22,
-    minHeight: 0.22,
+    lineHeight: 0.24,
+    minHeight: 0.24,
     formulaMinWidth: 0.08,
     formulaWidthPadding: 0
-  });
-  const innerSep = parseDimension(options["inner sep"] ?? "0.03", env.variables);
+  }), nodeFontScale(options, env));
+  const innerSep = parseDimension(options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env.variables);
   const textWidth = options["text width"] ? parseDimension(options["text width"], env.variables) : null;
   const textHeight = options["text height"] ? parseDimension(options["text height"], env.variables) : null;
   const textDepth = options["text depth"] ? parseDimension(options["text depth"], env.variables) : 0;
-  let width = Math.max(0.22, textBox.width + 0.08 + innerSep * 2);
+  let width = Math.max(0.22, textBox.width + 0.06 + innerSep * 2);
   let height = Math.max(0.24, textBox.height + innerSep * 2);
 
   if (Number.isFinite(textWidth)) width = Math.max(0.22, textWidth + innerSep * 2);
@@ -1862,6 +1957,33 @@ function estimateMatrixCellSize(text, options = {}, env = { variables: {} }) {
 function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
   if (nodeUsesBoxSizing(options, env)) return estimateNodeSize(text, options, env);
   return estimateCompactTextSize(text, options, env);
+}
+
+function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
+  const size = visibleSize || estimateNodeLayoutSize(text, options, env);
+  const outerSep = nodeOuterSep(options, env);
+  return {
+    width: roundNumber((Number(size.width) || 0) + outerSep.x * 2),
+    height: roundNumber((Number(size.height) || 0) + outerSep.y * 2)
+  };
+}
+
+function nodeOuterSep(options = {}, env = { variables: {} }) {
+  if (!nodeUsesBoxSizing(options, env)) return { x: 0, y: 0 };
+  const { style } = normalizeOptions("node", options, env);
+  const defaultSep = Math.max(0, (Number(style.lineWidth) || 0) / TIKZ_UNIT / 2);
+  return {
+    x: parseOuterSepDimension(options["outer xsep"] ?? options["outer sep"], defaultSep, env),
+    y: parseOuterSepDimension(options["outer ysep"] ?? options["outer sep"], defaultSep, env)
+  };
+}
+
+function parseOuterSepDimension(value, fallback, env) {
+  if (value === undefined || value === null || value === true || value === "" || String(value).trim() === "auto") {
+    return fallback;
+  }
+  const parsed = parseDimension(value, env.variables);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function nodeUsesBoxSizing(options = {}, env = { variables: {} }) {
@@ -1889,13 +2011,13 @@ function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
   const normalized = normalizeTikzText(text);
   if (normalized.kind === "image") return estimateNodeSize(text, options, env);
 
-  const textBox = estimateTextMetricBox(normalized, {
+  const textBox = scaleTextMetricBox(estimateTextMetricBox(normalized, {
     widthFactor: 0.13,
     lineHeight: 0.18,
     minHeight: 0.18,
     formulaMinWidth: 0.08,
     formulaWidthPadding: 0
-  });
+  }), nodeFontScale(options, env));
   const innerSep = parseDimension(options["inner sep"] ?? "0.08", env.variables);
   const width = Math.max(0.08, textBox.width + innerSep * 2);
   const height = Math.max(0.08, textBox.height + innerSep * 2);
@@ -1904,6 +2026,7 @@ function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
 }
 
 function estimateNodeSize(text, options = {}, env = { variables: {} }) {
+  if (options["tikzcd label"]) return estimateTikzCdLabelSize(text, options, env);
   const normalized = normalizeTikzText(text);
   if (normalized.kind === "image") {
     return {
@@ -1913,11 +2036,12 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   const lines = textMetricLines(normalized);
   const isCircleShape = options.circle || options.shape === "circle";
-  const textBox = estimateTextMetricBox(
+  const textBox = scaleTextMetricBox(estimateTextMetricBox(
     normalized,
     isCircleShape
       ? {
           widthFactor: 0.09,
+          formulaWidthFactor: 0.09,
           lineHeight: 0.32,
           minHeight: 0.28,
           widthPadding: 0.12,
@@ -1925,22 +2049,25 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
         }
       : {
           widthFactor: 0.12,
+          formulaWidthFactor: 0.17,
           lineHeight: 0.32,
           minHeight: 0.28,
           widthPadding: 0.18,
           formulaWidthPadding: 0.14
         }
-  );
+  ), nodeFontScale(options, env));
   textBox.width += explicitHspaceWidth(text, env);
-  const innerXSep = parseDimension(options["inner xsep"] ?? options["inner sep"] ?? "0.08", env.variables);
-  const innerYSep = parseDimension(options["inner ysep"] ?? options["inner sep"] ?? "0.08", env.variables);
-  const innerSep = Math.max(innerXSep, innerYSep);
-  const isEmptyCircle = isCircleShape && lines.every((line) => !line.trim());
+  const innerXSep = parseDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env.variables);
+  const innerYSep = parseDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env.variables);
+  const isEmptyText = lines.every((line) => !line.trim());
+  const isEmptyCircle = isCircleShape && isEmptyText;
   const fixedCircleSize = fixedCircularMinimumSize(options, env);
   const textWidth = options["text width"] ? parseDimension(options["text width"], env.variables) : null;
   // Claude: 空圆里带 cross（⊗ 乘法器/混频符号，如 case 037）若按 inner sep 撑，会小到几乎看不见。
   // 给它一个合理的默认直径，让 ⊗ 有正常大小；普通空圆（如 dropout 节点）仍保持小。
-  const emptyCircleSize = options.cross ? Math.max(0.42, innerSep * 2) : Math.max(0.04, innerSep * 2);
+  const pgfCircleDiameter = 2 * Math.hypot(textBox.width / 2 + innerXSep, textBox.height / 2 + innerYSep);
+  const emptyCircleDiameter = Math.max(parseDimension("1pt", env.variables), 2 * Math.hypot(innerXSep, innerYSep));
+  const emptyCircleSize = options.cross ? Math.max(0.42, emptyCircleDiameter) : emptyCircleDiameter;
   let width = fixedCircleSize ?? (isEmptyCircle
     ? emptyCircleSize
     : textWidth
@@ -1968,8 +2095,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     // 单字符/宽公式的对角线≈宽度、不会无谓变大，把连锁影响降到最低。
     // 只对「没有显式 minimum/固定尺寸、纯靠内容撑」的圆做外接放大；空圆和作者指定了尺寸的圆
     // 保持原样（它们的尺寸是权威的，单字符也已能放下）。
-    const circumscribed =
-      isEmptyCircle || fixedCircleSize !== null ? 0 : Math.hypot(textBox.width, textBox.height) + innerSep * 2;
+    const circumscribed = isEmptyCircle || fixedCircleSize !== null ? 0 : pgfCircleDiameter;
     const diameter = Math.max(width, height, circumscribed);
     width = diameter;
     height = diameter;
@@ -1981,6 +2107,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     height = Math.max(contentHeight + contentWidth * 0.72, contentHeight * 2);
   }
   const shape = nodeShape(options);
+  if (shape === "roundedRectangle" && isEmptyText && options["minimum width"]) {
+    width = Math.max(parseDimension("1pt", env.variables), parseDimension(options["minimum width"], env.variables) - innerXSep * 2);
+  }
   if (shape === "regularPolygon") {
     const diameter = Math.max(width, height) * 1.12;
     width = diameter;
@@ -2010,6 +2139,22 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     width = Math.max(width, parseFiniteDimension(options["base width"], env, 2.2));
     height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.7));
   }
+  return { width: roundNumber(width), height: roundNumber(height) };
+}
+
+function estimateTikzCdLabelSize(text, options = {}, env = { variables: {} }) {
+  const normalized = normalizeTikzText(text);
+  const textBox = scaleTextMetricBox(estimateTextMetricBox(normalized, {
+    widthFactor: 0.1,
+    lineHeight: 0.16,
+    minHeight: 0.13,
+    formulaMinWidth: 0.04,
+    formulaWidthPadding: 0
+  }), nodeFontScale(options, env));
+  const innerXSep = parseDimension(options["inner xsep"] ?? options["inner sep"] ?? "0.015", env.variables);
+  const innerYSep = parseDimension(options["inner ysep"] ?? options["inner sep"] ?? "0.015", env.variables);
+  const width = Math.max(0.08, textBox.width + innerXSep * 2);
+  const height = Math.max(0.08, textBox.height + innerYSep * 2);
   return { width: roundNumber(width), height: roundNumber(height) };
 }
 
@@ -2044,7 +2189,7 @@ function estimateTextMetricBox(normalized, options = {}) {
         displayMode: math.displayMode,
         scale,
         minWidth: options.formulaMinWidth,
-        widthFactor,
+        widthFactor: options.formulaWidthFactor ?? widthFactor,
         widthPadding: options.formulaWidthPadding ?? widthPadding
       });
       return {
@@ -2689,6 +2834,15 @@ function parseBasisVector(value, variables = {}) {
   let text = String(value).trim();
   text = text.replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (text.startsWith("(") && text.endsWith(")")) text = text.slice(1, -1).trim();
+  const polar = text.match(/^(.+):(.+)$/);
+  if (polar) {
+    const angle = (evaluateMath(polar[1], variables) * Math.PI) / 180;
+    const radius = parseDimension(polar[2], variables);
+    return roundPoint({
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius
+    }, 6);
+  }
   const parts = splitTopLevel(text, ",");
   if (parts.length < 2) return null;
   return roundPoint({
@@ -2714,6 +2868,14 @@ function applyTransform(point, transform = identityTransform()) {
   });
 }
 
+function applyTransformVector(point, transform = identityTransform()) {
+  const normalized = normalizeTransform(transform);
+  return roundPoint({
+    x: point.x * normalized.a + point.y * normalized.c,
+    y: point.x * normalized.b + point.y * normalized.d
+  });
+}
+
 export function resolveCoordinate(raw, env, diagnostics = []) {
   let text = substituteTextVariables(String(raw).trim(), env.variables);
   text = text.replace(/^\{([\s\S]*)\}$/, "$1").trim();
@@ -2730,7 +2892,7 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   }
 
   if (text.startsWith("$") && text.endsWith("$")) {
-    return applyTransform(resolveCalc(text.slice(1, -1).trim(), env, diagnostics), env.transform);
+    return resolveCalc(text.slice(1, -1).trim(), env, diagnostics);
   }
   const projection = splitCoordinateProjection(text);
   if (projection) {
@@ -2772,8 +2934,12 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
       return applyTransform(projected, env.transform);
     }
     return applyTransform(roundPoint({
-      x: parseDimension(comma[0], env.variables),
-      y: parseDimension(comma[1], env.variables)
+      ...projectBasisPoint(
+        parseDimension(comma[0], env.variables),
+        parseDimension(comma[1], env.variables),
+        0,
+        env.basis
+      )
     }), env.transform);
   }
   diagnostics.push({ severity: "warning", message: `Unknown coordinate ${raw}` });
@@ -3235,7 +3401,7 @@ function resolveCalc(text, env, diagnostics) {
     const a = resolveCoordinate(interpolationPlusOffset[1], env, diagnostics);
     const t = evaluateMath(interpolationPlusOffset[2], env.variables);
     const b = resolveCoordinate(interpolationPlusOffset[3], env, diagnostics);
-    const offset = resolveCoordinate(interpolationPlusOffset[5], env, diagnostics);
+    const offset = resolveCalcOffset(interpolationPlusOffset[5], env, diagnostics);
     const sign = interpolationPlusOffset[4] === "+" ? 1 : -1;
     return roundPoint({
       x: a.x + (b.x - a.x) * t + sign * offset.x,
@@ -3253,7 +3419,7 @@ function resolveCalc(text, env, diagnostics) {
   const addition = splitCalcAddition(text);
   if (addition) {
     const left = addition.left.includes("!") ? resolveCalc(addition.left, env, diagnostics) : resolveCoordinate(addition.left, env, diagnostics);
-    const right = addition.right.includes("!") ? resolveCalc(addition.right, env, diagnostics) : resolveCoordinate(addition.right, env, diagnostics);
+    const right = addition.right.includes("!") ? resolveCalc(addition.right, env, diagnostics) : resolveCalcOffset(addition.right, env, diagnostics);
     return roundPoint({
       x: left.x + addition.sign * right.x,
       y: left.y + addition.sign * right.y
@@ -3261,6 +3427,39 @@ function resolveCalc(text, env, diagnostics) {
   }
 
   return resolveCoordinate(text, env, diagnostics);
+}
+
+function resolveCalcOffset(text, env, diagnostics) {
+  const raw = String(text || "").trim();
+  const coordinateText = raw.startsWith("(") && raw.endsWith(")") ? raw.slice(1, -1).trim() : raw;
+  if (splitTopLevel(coordinateText, ",").length >= 2 || /^.+:.+$/.test(coordinateText)) {
+    return resolveLocalVectorCoordinate(coordinateText, env, diagnostics);
+  }
+  return resolveCoordinate(coordinateText, env, diagnostics);
+}
+
+function resolveLocalVectorCoordinate(text, env, diagnostics) {
+  const polar = String(text).match(/^(.+):(.+)$/);
+  if (polar) {
+    const angle = (evaluateMath(polar[1], env.variables) * Math.PI) / 180;
+    const radius = parseDimension(polar[2], env.variables);
+    return applyTransformVector(
+      roundPoint({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }),
+      env.transform
+    );
+  }
+  const comma = splitTopLevel(text, ",");
+  if (comma.length >= 2) {
+    const projected = projectBasisPoint(
+      parseDimension(comma[0], env.variables),
+      parseDimension(comma[1], env.variables),
+      comma.length >= 3 ? parseDimension(comma[2], env.variables) : 0,
+      env.basis
+    );
+    return applyTransformVector(projected, env.transform);
+  }
+  diagnostics.push({ severity: "warning", message: `Unknown calc offset ${text}` });
+  return { x: 0, y: 0 };
 }
 
 function splitCalcAddition(text) {
@@ -3374,6 +3573,20 @@ function drawablePathStyle(style, styleHints = {}) {
   const merged = { ...style, ...styleHints };
   if ((merged.markerStart || merged.markerEnd) && merged.stroke === "none") merged.stroke = "black";
   return merged;
+}
+
+function doublePathStyle(semantic = {}, env = { variables: {} }) {
+  if (semantic.double === undefined) return {};
+  const rawColor = semantic.double;
+  if (rawColor === false || String(rawColor).trim().toLowerCase() === "none") return {};
+  const style = {
+    doubleColor: rawColor === true || rawColor === "" ? "white" : normalizeColor(String(rawColor))
+  };
+  if (semantic["double distance"] !== undefined) {
+    const distance = parseDimension(semantic["double distance"], env.variables) * TIKZ_UNIT;
+    if (Number.isFinite(distance) && distance >= 0) style.doubleDistance = distance;
+  }
+  return style;
 }
 
 function isVisiblePath(command, style, semantic, styleHints = {}) {
