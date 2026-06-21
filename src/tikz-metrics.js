@@ -69,6 +69,18 @@ export const TIKZ_ARROW_TIPS = {
     length: lineWidthFromPt(3.0),
     width: lineWidthFromPt(3.0),
     fill: "context-stroke"
+  },
+  "two-heads": {
+    kind: "two-heads",
+    length: lineWidthFromPt(5.2),
+    width: lineWidthFromPt(3.0),
+    fill: "context-stroke"
+  },
+  hook: {
+    kind: "hook",
+    length: lineWidthFromPt(3.6),
+    width: lineWidthFromPt(4.2),
+    fill: "none"
   }
 };
 
@@ -116,6 +128,8 @@ export function lineWidthFromTikzDimension(value, fallback = TIKZ_LINE_WIDTHS.de
 
 function normalizeArrowKind(kind) {
   const text = String(kind || "to").trim().replace(/^>$/, "to").replace(/'/g, "").toLowerCase();
+  if (text.includes("two heads") || text.includes("two-heads") || text.includes("double")) return "two-heads";
+  if (text.includes("hook")) return "hook";
   if (text.includes("stealth")) return "stealth";
   if (text.includes("latex")) return "latex";
   if (text.includes("to")) return "to";

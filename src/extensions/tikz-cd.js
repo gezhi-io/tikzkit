@@ -284,7 +284,20 @@ function applyBareArrowOption(arrow, part) {
     if (part === "equal" || part === "equals") arrow.style.push("double");
     return;
   }
-  if (["hook", "hook'", "tail", "two heads", "rightarrow", "to head", "mapsto", "maps to"].includes(part)) return;
+  if (part === "two heads") {
+    arrow.style = arrow.style.filter((item) => item !== "->");
+    arrow.style.push("-{two heads}");
+    return;
+  }
+  if (part === "hook" || part === "hook'" || part === "tail") {
+    if (!arrow.style.some((item) => item === "hook-" || item === "{hook}-")) arrow.style.push("{hook}-");
+    return;
+  }
+  if (part === "rightarrow" || part === "to head") return;
+  if (part === "mapsto" || part === "maps to") {
+    if (!arrow.style.some((item) => item === "hook-" || item === "{hook}-")) arrow.style.push("{hook}-");
+    return;
+  }
   arrow.style.push(part);
 }
 

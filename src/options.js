@@ -310,11 +310,11 @@ function parseArrowOption(key, value, defaultArrowTip) {
   const customStart = text.match(/^\{([\s\S]+)\}-$/);
   if (customStart) return { markerStart: parseArrowTipSpec(customStart[1]) };
 
-  const namedBoth = text.match(/^([A-Za-z']+)-([A-Za-z']+)$/);
+  const namedBoth = text.match(/^([A-Za-z'][A-Za-z'\s-]*?)-([A-Za-z'][A-Za-z'\s-]*?)$/);
   if (namedBoth) return { markerStart: parseArrowTipSpec(namedBoth[1]), markerEnd: parseArrowTipSpec(namedBoth[2]) };
-  const namedEnd = text.match(/^-([A-Za-z']+)$/);
+  const namedEnd = text.match(/^-([A-Za-z'][A-Za-z'\s-]*?)$/);
   if (namedEnd) return { markerEnd: parseArrowTipSpec(namedEnd[1]) };
-  const namedStart = text.match(/^([A-Za-z']+)-$/);
+  const namedStart = text.match(/^([A-Za-z'][A-Za-z'\s-]*?)-$/);
   if (namedStart) return { markerStart: parseArrowTipSpec(namedStart[1]) };
 
   return null;
@@ -322,7 +322,7 @@ function parseArrowOption(key, value, defaultArrowTip) {
 
 function parseArrowTipSpec(input) {
   const text = stripOuterBraces(String(input || "").trim());
-  const match = text.match(/^([A-Za-z>']+)(?:\[([\s\S]*)\])?$/);
+  const match = text.match(/^([A-Za-z>'\s-]+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
   const options = match[2] ? parseOptions(match[2]) : {};
   const overrides = {};

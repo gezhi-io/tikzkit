@@ -1232,6 +1232,18 @@ function renderArrowMarkerDef(marker) {
       ? `M 0 0 L ${format(marker.length)} ${format(halfWidth)} L 0 ${format(marker.width)} C ${format(
           marker.length * 0.22
         )} ${format(marker.width * 0.62)} ${format(marker.length * 0.22)} ${format(marker.width * 0.38)} 0 0 Z`
+      : marker.kind === "two-heads"
+        ? `M 0 0 L ${format(marker.length * 0.56)} ${format(halfWidth)} L 0 ${format(marker.width)} Z M ${format(
+            marker.length * 0.42
+          )} 0 L ${format(marker.length)} ${format(halfWidth)} L ${format(marker.length * 0.42)} ${format(marker.width)} Z`
+      : marker.kind === "hook"
+        ? `M ${format(marker.length)} ${format(halfWidth)} C ${format(marker.length * 0.45)} ${format(
+            halfWidth
+          )} ${format(marker.length * 0.55)} ${format(marker.width)} ${format(marker.length * 0.12)} ${format(
+            marker.width
+          )} C ${format(-marker.length * 0.18)} ${format(marker.width)} ${format(-marker.length * 0.18)} 0 ${format(
+            marker.length * 0.12
+          )} 0`
       : marker.kind === "latex"
         ? `M ${format(marker.length)} ${format(halfWidth)} C ${format(marker.length * 0.62)} ${format(
             marker.width * 0.56
@@ -1243,8 +1255,9 @@ function renderArrowMarkerDef(marker) {
             marker.width * 0.44
           )} ${format(marker.length)} ${format(halfWidth)} Z`
       : `M 0 0 L ${format(marker.length)} ${format(halfWidth)} L 0 ${format(marker.width)}`;
-  const fill = marker.kind === "to" ? "none" : marker.fill;
-  const strokeWidth = marker.kind === "to" ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
+  const fill = marker.kind === "to" || marker.kind === "hook" ? "none" : marker.fill;
+  const strokeWidth =
+    marker.kind === "to" || marker.kind === "hook" ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
   return `<marker id="${escapeAttribute(marker.id)}" markerWidth="${format(marker.length)}" markerHeight="${format(
     marker.width
   )}" refX="${format(marker.length)}" refY="${format(halfWidth)}" orient="auto-start-reverse" markerUnits="userSpaceOnUse" viewBox="0 0 ${format(

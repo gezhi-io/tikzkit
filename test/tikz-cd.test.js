@@ -73,3 +73,27 @@ test("supports tikzcd aliases, absolute from/to targets, and phantom labels", ()
   assert.equal(ir.items.some((item) => item.type === "path" && item.style.stroke === "none"), false);
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "$\\ulcorner$"));
 });
+
+test("preserves tikzcd hook and two heads arrow tips from rich gallery case", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-cd}
+\begin{document}
+\begin{tikzcd}
+  A \arrow[r, "f"] \arrow[d, "g"'] \arrow[dr, dashed, "\alpha" description] & B \arrow[r, two heads, "p"] \arrow[d, "h"] & C \arrow[d, hook, "k"] \\
+  D \arrow[r, "u"'] & E \arrow[r, "v"'] \arrow[ur, dotted, "\beta" description] & F
+\end{tikzcd}
+\end{document}`);
+  const { ir, diagnostics, svg } = result;
+
+  assert.deepEqual(diagnostics, []);
+  const paths = ir.items.filter((item) => item.type === "path");
+  assert.ok(paths.some((item) => item.style.markerEnd?.kind === "two-heads"), "missing two heads arrow");
+  assert.ok(paths.some((item) => item.style.markerStart?.kind === "hook" && item.style.markerEnd?.kind === "to"), "missing hook arrow");
+  assert.match(svg, /id="arrow-two-heads-/);
+  assert.match(svg, /id="arrow-hook-/);
+  assert.ok(paths.some((item) => item.style.dashArray?.length > 0), "missing dashed or dotted edge");
+  for (const label of ["$f$", "$g$", "$\\alpha$", "$p$", "$h$", "$k$", "$u$", "$v$", "$\\beta$"]) {
+    assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === label), `missing label ${label}`);
+  }
+});
