@@ -91,14 +91,14 @@ function renderTikzCd(body, optionsRaw, diagnostics) {
       const parsed = parseCell(rawCell, { id, row, column, diagnostics });
       const x = roundNumber(columnIndex * columnSep, 6);
       const y = roundNumber(-rowIndex * rowSep, 6);
-      const nodeOptions = ["inner sep=0.08cm"];
+      const nodeOptions = ["inner sep=0.12cm"];
       if (parsed.nodeOptions) nodeOptions.push(parsed.nodeOptions);
       statements.push(`\\node[${nodeOptions.join(",")}] (${name}) at (${fmt(x)},${fmt(y)}) {${tikzCdCellText(parsed.text)}};`);
       for (const alias of parsed.aliases) {
         statements.push(`\\coordinate (${alias}) at (${name});`);
       }
       for (const arrow of parsed.arrows) {
-        arrows.push(renderArrow(arrow, { id, row, column }));
+        arrows.push(renderArrow(arrow, { rowSep, columnSep }));
       }
     });
   });
@@ -333,13 +333,15 @@ function labelOptionsFromText(text) {
   };
 }
 
-function renderArrow(arrow) {
+function renderArrow(arrow, layout = {}) {
   if (arrow.phantom && !arrow.labels.length) return "";
   const style = arrow.phantom ? "" : `[${arrow.style.join(",")}${arrow.bend ? `,${arrow.bend}` : ""}]`;
   const connector = arrow.bend && !arrow.phantom ? "to" : "--";
-  const labels = arrow.labels.map(renderArrowLabel).join(" ");
   const command = arrow.phantom ? "\\path" : "\\draw";
-  return `${command}${style} (${arrow.start}) ${connector} ${labels} (${arrow.target});`;
+  const labelNodes = renderArrowLabelNodes(arrow, layout);
+  const inlineLabels = labelNodes ? "" : arrow.labels.map(renderArrowLabel).join(" ");
+  const path = arrow.phantom ? "" : `${command}${style} (${arrow.start}) ${connector} ${inlineLabels} (${arrow.target});`;
+  return [path, labelNodes].filter(Boolean).join("\n");
 }
 
 function renderArrowLabel(label) {
@@ -348,6 +350,44 @@ function renderArrowLabel(label) {
   if (label.position && label.position !== "0.5") options.push(`pos=${label.position}`);
   if (side) options.push(side);
   return `node[${options.join(",")}] {${tikzCdLabelText(label.text)}}`;
+}
+
+function renderArrowLabelNodes(arrow, layout = {}) {
+  if (!arrow.labels.length) return "";
+  const start = tikzCdCellPosition(arrow.start, layout);
+  const target = tikzCdCellPosition(arrow.target, layout);
+  if (!start || !target) return "";
+  const dx = target.x - start.x;
+  const dy = target.y - start.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const normal = { x: -dy / length, y: dx / length };
+  const gap = 0.11;
+  return arrow.labels
+    .map((label) => {
+      const position = Number(label.position || "0.5");
+      const t = Number.isFinite(position) ? position : 0.5;
+      const side = label.description ? 0 : label.swap ? -1 : 1;
+      const point = {
+        x: start.x + dx * t + normal.x * side * gap,
+        y: start.y + dy * t + normal.y * side * gap
+      };
+      const options = ["inner sep=0.02cm"];
+      if (label.description) options.push("fill=white");
+      return `\\node[${options.join(",")}] at (${fmt(point.x)},${fmt(point.y)}) {${tikzCdLabelText(label.text)}};`;
+    })
+    .join("\n");
+}
+
+function tikzCdCellPosition(name, layout = {}) {
+  const match = String(name || "").match(/^tikzcd-\d+-(\d+)-(\d+)$/);
+  if (!match) return null;
+  const row = Number(match[1]);
+  const column = Number(match[2]);
+  if (!Number.isFinite(row) || !Number.isFinite(column)) return null;
+  return {
+    x: (column - 1) * (layout.columnSep || 0),
+    y: -(row - 1) * (layout.rowSep || 0)
+  };
 }
 
 function targetCell(context, rawTarget) {
@@ -376,11 +416,11 @@ function cellName(id, row, column) {
 
 function tikzCdCellText(text) {
   const trimmed = String(text || "").trim();
-  return trimmed ? wrapMath(trimmed) : "";
+  return trimmed ? `\\small ${wrapMath(trimmed)}` : "";
 }
 
 function tikzCdLabelText(text) {
-  return wrapMath(String(text || "").trim());
+  return `\\tiny ${wrapMath(String(text || "").trim())}`;
 }
 
 function wrapMath(text) {

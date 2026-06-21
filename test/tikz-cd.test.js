@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { tikzCdExtension, tikzToSvg } from "../src/index.js";
 
+function hasMathText(ir, text) {
+  return ir.items.some((item) => item.type === "textNode" && stripTikzCdLabelSize(item.text) === text);
+}
+
+function textNode(ir, text) {
+  return ir.items.find((item) => item.type === "textNode" && stripTikzCdLabelSize(item.text) === text);
+}
+
+function stripTikzCdLabelSize(text) {
+  return String(text || "").replace(/^\\(?:small|scriptsize|tiny)\s+/, "");
+}
+
 test("exposes tikz-cd as a built-in extension module", () => {
   assert.equal(tikzCdExtension.name, "tikz-cd");
   assert.equal(tikzCdExtension.phase, "preprocess");
@@ -22,9 +34,9 @@ test("expands a basic tikzcd environment into matrix nodes and arrows", () => {
   assert.deepEqual(diagnostics, []);
   assert.deepEqual(ir.coordinates["tikzcd-1-1-1"], { x: 0, y: 0 });
   assert.ok(ir.coordinates["tikzcd-1-1-2"].x > 0.5);
-  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "$A$"));
-  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "$B$"));
-  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "$\\phi$"));
+  assert.ok(hasMathText(ir, "$A$"));
+  assert.ok(hasMathText(ir, "$B$"));
+  assert.ok(hasMathText(ir, "$\\phi$"));
   const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
   assert.equal(arrow.style.markerEnd.kind, "to");
   assert.ok(arrow.commands.at(-1).x > arrow.commands[0].x);
@@ -49,7 +61,7 @@ test("supports tikzcd diagonal arrows, labels, swaps, bends, and dashed styles",
   assert.ok(paths.some((item) => item.commands.some((command) => command.type === "curveTo")));
   assert.ok(paths.some((item) => item.style.dashArray?.length > 0));
   for (const label of ["$x$", "$y$", "${(x,y)}$", "$p$", "$q$", "$f$", "$g$"]) {
-    assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === label), `missing label ${label}`);
+    assert.ok(hasMathText(ir, label), `missing label ${label}`);
   }
 });
 
@@ -71,7 +83,7 @@ test("supports tikzcd aliases, absolute from/to targets, and phantom labels", ()
   assert.ok(ir.items.some((item) => item.type === "path" && item.style.stroke === "blue"));
   assert.ok(ir.items.some((item) => item.type === "path" && item.style.stroke === "purple"));
   assert.equal(ir.items.some((item) => item.type === "path" && item.style.stroke === "none"), false);
-  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "$\\ulcorner$"));
+  assert.ok(hasMathText(ir, "$\\ulcorner$"));
 });
 
 test("preserves tikzcd hook and two heads arrow tips from rich gallery case", () => {
@@ -94,6 +106,12 @@ test("preserves tikzcd hook and two heads arrow tips from rich gallery case", ()
   assert.match(svg, /id="arrow-hook-/);
   assert.ok(paths.some((item) => item.style.dashArray?.length > 0), "missing dashed or dotted edge");
   for (const label of ["$f$", "$g$", "$\\alpha$", "$p$", "$h$", "$k$", "$u$", "$v$", "$\\beta$"]) {
-    assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === label), `missing label ${label}`);
+    assert.ok(hasMathText(ir, label), `missing label ${label}`);
   }
+  assert.ok(textNode(ir, "$g$").x < textNode(ir, "$A$").x, "swapped vertical label should be left of the edge");
+  assert.ok(textNode(ir, "$h$").x > textNode(ir, "$B$").x, "vertical label should be right of the edge");
+  assert.ok(textNode(ir, "$f$").y > textNode(ir, "$A$").y, "horizontal label should be above the edge");
+  assert.ok(textNode(ir, "$u$").y < textNode(ir, "$D$").y, "swapped horizontal label should be below the edge");
+  assert.ok(textNode(ir, "$A$").text.startsWith("\\small"), "tikzcd cells should use a compact math size");
+  assert.ok(textNode(ir, "$f$").text.startsWith("\\tiny"), "tikzcd arrow labels should be smaller than cells");
 });
