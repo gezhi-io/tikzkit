@@ -239,6 +239,19 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         ? null
         : resolveLocalCoordinate(segment.raw, env, diagnostics);
       const nodeRef = segment.relative ? null : defaultPathNodeReference(segment.raw, env);
+      // Claude: 形如 \draw rectangle (8,8) / \draw grid (4,4)（没有显式起点）时，TikZ 以局部原点
+      // (0,0) 作为第一个角。原代码因 current 为空直接走下面的 moveTo 分支、把矩形/网格丢掉了
+      // （只剩一个 moveTo）。这里在遇到这类挂起操作且尚无当前点时，先把经过当前变换的局部原点
+      // 设为起点，让后面的 rectangle/grid 分支正常生成图形（变换会把它剪成平行四边形，见 case 047）。
+      if (!current && (pendingValue === "rectangle" || pendingValue === "grid")) {
+        const origin = applyTransform({ x: 0, y: 0 }, env.transform);
+        commands.push({ type: "moveTo", x: origin.x, y: origin.y });
+        current = origin;
+        currentLocal = { x: 0, y: 0 };
+        currentBase = origin;
+        start = origin;
+        startNodeRef = null;
+      }
       if (!current) {
         commands.push({ type: "moveTo", x: point.x, y: point.y });
         current = point;
@@ -1104,8 +1117,18 @@ function createPic(statement, env, ir) {
   });
 }
 
+// Claude: 读取节点自身的 rotate 选项（如 \node[rotate=90]{...}），转成角度。
+// 用于把文字竖排/斜排，见 case 047 的 self-awareness / immunisation 标签。
+function nodeRotation(options = {}, env) {
+  const raw = options.rotate;
+  if (raw === undefined || raw === true || raw === "") return 0;
+  const angle = evaluateMath(raw, env.variables);
+  return Number.isFinite(angle) ? angle : 0;
+}
+
 function addNodeItems(node, ir, env) {
   const { style, semantic } = normalizeOptions("node", node.options || {}, env);
+  const rotation = nodeRotation(node.options || {}, env);
   const point = resolveNodeAnchorPoint(node.at, node.options, node.text, env);
   const shape = nodeShape(node.options || {});
   const shapeData = nodeShapeData(node.options || {});
@@ -1155,6 +1178,7 @@ function addNodeItems(node, ir, env) {
     y: point.y,
     text: node.text,
     style: textStyle,
+    rotation: rotation || undefined,
     fitBox: node.fitTextToBox ? { width: size.width, height: size.height } : undefined
   });
   for (const label of nodeLabels(node.options || {}, point, size, env, textStyle)) {
@@ -1250,7 +1274,9 @@ function resolvePositioning(options, env, selfSize = { width: 0, height: 0 }) {
 }
 
 function defaultPositioningDistance(env) {
-  const distance = parseDimension(env.pictureOptions?.["node distance"] || "0.6", env.variables);
+  // Claude: TikZ positioning 库的默认 node distance 是 1cm（边到边），原来写死成 0.6cm
+  // 会让 right=of/below=of 等没显式设距离的节点挤得过近，相邻列的边标签互相碰撞（见 case 004）。
+  const distance = parseDimension(env.pictureOptions?.["node distance"] || "1cm", env.variables);
   return { x: distance, y: distance };
 }
 
@@ -1326,7 +1352,7 @@ function resolvePositioningReference(raw, env) {
 function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variables: {} }) {
   const size = estimateNodeLayoutSize(text, options, env);
   const sep = parseDimension(options["inner sep"] || options["outer sep"] || "0.08", env.variables);
-  const shift = nodeAnchorShift(options, size, sep, env);
+  const shift = nodeAnchorShift(options, size, sep, env, nodeRotation(options, env));
   const explicitShift = nodeExplicitShift(options, env);
   return roundPoint({
     x: point.x + shift.x + explicitShift.x,
@@ -1334,14 +1360,30 @@ function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variable
   });
 }
 
-function nodeAnchorShift(options = {}, size, sep, env) {
+// Claude: 把向量按角度(度, 数学坐标系逆时针为正)旋转。
+function rotateVector(x, y, degrees) {
+  if (!degrees) return { x, y };
+  const r = (degrees * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  return { x: x * cos - y * sin, y: x * sin + y * cos };
+}
+
+function nodeAnchorShift(options = {}, size, sep, env, rotation = 0) {
   const direction = nodeDirection(options);
   if (direction) {
     const distance = nodeDirectionDistance(options[direction], sep, env);
-    return {
-      x: direction.includes("right") ? size.width / 2 + distance : direction.includes("left") ? -(size.width / 2 + distance) : 0,
-      y: direction.includes("above") ? size.height / 2 + distance : direction.includes("below") ? -(size.height / 2 + distance) : 0
-    };
+    // Claude: above=d 等价于 anchor=south + 沿页面方向移动 d。把它拆成两部分：
+    //   ① gap：间距 d，沿页面方向（不随节点旋转）；
+    //   ② anchor→center 的半尺寸偏移：随节点 rotate 一起旋转。
+    // 否则 \node[above=1em,rotate=90]{...} 的文字会以锚点为中心、旋转后压在路径线上（见 case 047）。
+    // rotation=0 时与原公式逐项相同，保持向后兼容。
+    const gapX = direction.includes("right") ? distance : direction.includes("left") ? -distance : 0;
+    const gapY = direction.includes("above") ? distance : direction.includes("below") ? -distance : 0;
+    const anchorX = direction.includes("right") ? size.width / 2 : direction.includes("left") ? -size.width / 2 : 0;
+    const anchorY = direction.includes("above") ? size.height / 2 : direction.includes("below") ? -size.height / 2 : 0;
+    const rotated = rotateVector(anchorX, anchorY, rotation);
+    return { x: gapX + rotated.x, y: gapY + rotated.y };
   }
 
   const anchor = String(options.anchor || "").trim();
@@ -1896,8 +1938,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const isEmptyCircle = isCircleShape && lines.every((line) => !line.trim());
   const fixedCircleSize = fixedCircularMinimumSize(options, env);
   const textWidth = options["text width"] ? parseDimension(options["text width"], env.variables) : null;
+  // Claude: 空圆里带 cross（⊗ 乘法器/混频符号，如 case 037）若按 inner sep 撑，会小到几乎看不见。
+  // 给它一个合理的默认直径，让 ⊗ 有正常大小；普通空圆（如 dropout 节点）仍保持小。
+  const emptyCircleSize = options.cross ? Math.max(0.42, innerSep * 2) : Math.max(0.04, innerSep * 2);
   let width = fixedCircleSize ?? (isEmptyCircle
-    ? Math.max(0.04, innerSep * 2)
+    ? emptyCircleSize
     : textWidth
       ? textWidth + innerXSep * 2
       : Math.max(0.5, textBox.width + innerXSep * 2));
@@ -1917,7 +1962,15 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     width = Math.max(width, height * count * 0.45);
   }
   if (isCircleShape) {
-    const diameter = Math.max(width, height);
+    // Claude: 圆形节点要外接(包住)内容矩形。原来用 max(w,h) 当直径，会让内容矩形的四个角
+    // 戳出圆外——方形/多行内容(如圆里放公式)因此溢出。正确直径是内容框对角线 √(w²+h²)。
+    // 这里取「max(旧宽,旧高, 文字框对角线 + 内边距)」：方形/多行内容按外接圆放大(修复溢出)，
+    // 单字符/宽公式的对角线≈宽度、不会无谓变大，把连锁影响降到最低。
+    // 只对「没有显式 minimum/固定尺寸、纯靠内容撑」的圆做外接放大；空圆和作者指定了尺寸的圆
+    // 保持原样（它们的尺寸是权威的，单字符也已能放下）。
+    const circumscribed =
+      isEmptyCircle || fixedCircleSize !== null ? 0 : Math.hypot(textBox.width, textBox.height) + innerSep * 2;
+    const diameter = Math.max(width, height, circumscribed);
     width = diameter;
     height = diameter;
   }
@@ -2371,6 +2424,9 @@ function semanticSubtype(options = {}) {
   if (options["tikzquads parallel path"]) return "tikzquads-parallel-connect";
   if (options["tikzquads kind"]) return `tikzquads-${String(options["tikzquads kind"]).trim().replace(/\s+/g, "-")}`;
   if (options["axis mark"]) return "axis-mark";
+  if (options["axis bar"]) return "axis-bar";
+  if (options["axis closed cycle"]) return "axis-closed-cycle";
+  if (options["axis tick"]) return "axis-tick";
   if (options["axis frame"]) return "axis-frame";
   if (options["axis grid"]) return "axis-grid-line";
   if (options["axis line"]) return "axis-line";
@@ -2442,16 +2498,35 @@ function composeTransform(parent, options = {}, env) {
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   const shift = parseTransformShift(options, env);
+  // Claude: 原版完全没处理 TikZ 的 xslant/yslant 斜切变换（多层网络/伪三维图常用）。
+  // xslant=s: (x,y)->(x+s·y, y)；yslant=s: (x,y)->(x, s·x+y)。把斜切折进线性部分(R∘slant)，
+  // 平移仍只用 shift。这样矩形/圆/路径才会被剪成平行四边形，而不是保持轴对齐。
+  const rotateScale = { a: scale * cos, b: scale * sin, c: -scale * sin, d: scale * cos, x: 0, y: 0, scale };
+  const linear = multiplyTransforms(rotateScale, slantTransform(options, env));
   const base = {
-    a: scale * cos,
-    b: scale * sin,
-    c: -scale * sin,
-    d: scale * cos,
+    a: linear.a,
+    b: linear.b,
+    c: linear.c,
+    d: linear.d,
     x: shift.x,
     y: shift.y,
     scale
   };
   return multiplyTransforms(parent, multiplyTransforms(base, tikzExtMirrorTransform(options, env)));
+}
+
+// Claude: 构造 xslant/yslant 的合成斜切矩阵。按该文件里 yslant,xslant 的书写顺序，
+// 等价于 current = yslant_T ∘ xslant_T。无 slant 选项时返回单位阵（不影响既有行为）。
+function slantTransform(options = {}, env) {
+  const xslant = evaluateMath(options.xslant ?? 0, env.variables);
+  const yslant = evaluateMath(options.yslant ?? 0, env.variables);
+  const xs = Number.isFinite(xslant) ? xslant : 0;
+  const ys = Number.isFinite(yslant) ? yslant : 0;
+  if (xs === 0 && ys === 0) return identityTransform();
+  return multiplyTransforms(
+    { a: 1, b: ys, c: 0, d: 1, x: 0, y: 0, scale: 1 },
+    { a: 1, b: 0, c: xs, d: 1, x: 0, y: 0, scale: 1 }
+  );
 }
 
 function transformCanvasScale(options = {}, env) {
@@ -2464,14 +2539,23 @@ function transformCanvasScale(options = {}, env) {
 }
 
 function parseTransformShift(options = {}, env) {
-  let x = options.xshift ? parseDimension(options.xshift, env.variables) : 0;
-  let y = options.yshift ? parseDimension(options.yshift, env.variables) : 0;
+  let x = options.xshift ? parseShiftDimension(options.xshift, env.variables) : 0;
+  let y = options.yshift ? parseShiftDimension(options.yshift, env.variables) : 0;
   if (options.shift) {
     const shifted = parseShift(options.shift, env);
     x += shifted.x;
     y += shifted.y;
   }
   return { x, y };
+}
+
+// Claude: TikZ 的 xshift/yshift 是「维度」，无单位的裸数字默认是 pt（例如 yshift=-120 即 -120pt，
+// 约 -4.22cm），而项目的 parseDimension 对裸数字默认按 cm。这会让 yshift=-120 被当成 -120cm、
+// 把内容抛到极远处。这里：裸数字补上 pt 再解析；带单位(cm/mm/pt..)或含表达式的保持原样。
+function parseShiftDimension(value, variables) {
+  const text = String(value).trim();
+  if (/^[-+]?[\d.]+$/.test(text)) return parseDimension(`${text}pt`, variables);
+  return parseDimension(value, variables);
 }
 
 function tikzExtMirrorTransform(options = {}, env) {
