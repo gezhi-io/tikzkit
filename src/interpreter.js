@@ -391,16 +391,18 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     if (segment.kind === "circle") {
       const center = current || applyTransform({ x: 0, y: 0 }, env.transform);
       const r = parseDimension(segment.radius, env.variables);
+      const commands = circleCommands(center, r, env);
       shapes.push(
         decoratedShape(
           {
             type: "path",
             shape: "circle",
+            projected: usesCustomBasis(env.basis),
             subtype: semanticSubtype(pathOptions),
             cx: center.x,
             cy: center.y,
             r,
-            commands: circleToPath(center.x, center.y, r),
+            commands,
             style: segment.options?.fill ? { fill: "black" } : {}
           },
           effectivePathOptions,
@@ -413,16 +415,18 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const [rxRaw, ryRaw] = segment.radius.split(/\s+and\s+/);
       const rx = parseDimension(segment.options?.["x radius"] || rxRaw, env.variables);
       const ry = parseDimension(segment.options?.["y radius"] || ryRaw || rxRaw, env.variables);
+      const commands = ellipseCommands(current, rx, ry, env);
       shapes.push(
         decoratedShape(
           {
             type: "path",
             shape: "ellipse",
+            projected: usesCustomBasis(env.basis),
             cx: current.x,
             cy: current.y,
             rx,
             ry,
-            commands: ellipseToPath(current.x, current.y, rx, ry)
+            commands
           },
           effectivePathOptions,
           env
@@ -517,6 +521,61 @@ function decoratedShape(shape, pathOptions, env) {
     shape: "decoratedPath",
     commands: applyPathMorphing(shape.commands, pathOptions, env)
   };
+}
+
+function circleCommands(center, r, env) {
+  return usesCustomBasis(env.basis) ? projectLocalPathCommands(circleToPath(0, 0, r), center, env) : circleToPath(center.x, center.y, r);
+}
+
+function ellipseCommands(center, rx, ry, env) {
+  return usesCustomBasis(env.basis)
+    ? projectLocalPathCommands(ellipseToPath(0, 0, rx, ry), center, env)
+    : ellipseToPath(center.x, center.y, rx, ry);
+}
+
+function projectLocalPathCommands(commands, center, env) {
+  return commands.map((command) => {
+    if (command.type === "closePath") return command;
+    if (command.type === "curveTo") {
+      const p1 = projectLocalOffset(command.x1, command.y1, env);
+      const p2 = projectLocalOffset(command.x2, command.y2, env);
+      const p = projectLocalOffset(command.x, command.y, env);
+      return {
+        ...command,
+        x1: roundNumber(center.x + p1.x),
+        y1: roundNumber(center.y + p1.y),
+        x2: roundNumber(center.x + p2.x),
+        y2: roundNumber(center.y + p2.y),
+        x: roundNumber(center.x + p.x),
+        y: roundNumber(center.y + p.y)
+      };
+    }
+    if ("x" in command && "y" in command) {
+      const p = projectLocalOffset(command.x, command.y, env);
+      return { ...command, x: roundNumber(center.x + p.x), y: roundNumber(center.y + p.y) };
+    }
+    return command;
+  });
+}
+
+function projectLocalOffset(x, y, env) {
+  const projected = projectBasisPoint(x, y, 0, env.basis);
+  const transform = normalizeTransform(env.transform);
+  return roundPoint({
+    x: projected.x * transform.a + projected.y * transform.c,
+    y: projected.x * transform.b + projected.y * transform.d
+  });
+}
+
+function usesCustomBasis(basis = parsePictureBasis()) {
+  return (
+    Math.abs((basis.x?.x ?? 1) - 1) > 1e-9 ||
+    Math.abs(basis.x?.y ?? 0) > 1e-9 ||
+    Math.abs(basis.y?.x ?? 0) > 1e-9 ||
+    Math.abs((basis.y?.y ?? 1) - 1) > 1e-9 ||
+    Math.abs(basis.z?.x ?? 0) > 1e-9 ||
+    Math.abs(basis.z?.y ?? 0) > 1e-9
+  );
 }
 
 function flushInlinePathNodes(pendingInlineNodes, from, to, nodes, env, pathStyle = {}) {

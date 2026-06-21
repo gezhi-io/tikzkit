@@ -582,9 +582,10 @@ function parsePathSegments(pathText) {
       }
       continue;
     }
-    if (pathText.startsWith("++(", index) || pathText.startsWith("+(", index)) {
-      const plusLength = pathText.startsWith("++(", index) ? 2 : 1;
-      const coord = extractBalanced(pathText, index + plusLength, "(", ")");
+    if (pathText.startsWith("++", index) || pathText.startsWith("+", index)) {
+      const plusLength = pathText.startsWith("++", index) ? 2 : 1;
+      const coordStart = skipWhitespace(pathText, index + plusLength);
+      const coord = extractBalanced(pathText, coordStart, "(", ")");
       if (coord) {
         segments.push({
           kind: "coordinate",

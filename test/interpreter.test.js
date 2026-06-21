@@ -580,6 +580,23 @@ test("applies snake decoration to ellipse outlines", () => {
   assert.ok(lineCommands.some((command) => Math.abs(Math.abs(command.x) - 0.23) > 0.005));
 });
 
+test("projects path circles through TikZ picture basis vectors", () => {
+  const source = String.raw`
+\begin{tikzpicture}[y={(-0.86cm,0.5cm)},x={(0.86cm,0.5cm)}, z={(0cm,1cm)}]
+  \draw circle (2);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const circle = ir.items.find((item) => item.type === "path" && item.shape === "circle");
+  const points = circle.commands.filter((command) => command.type === "moveTo" || command.type === "curveTo");
+  const xs = points.map((command) => command.x);
+  const ys = points.map((command) => command.y);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 3.3, `expected projected circle width to follow x/y basis, got ${xs}`);
+  assert.ok(Math.max(...ys) - Math.min(...ys) < 2.2, `expected projected circle height to be compressed, got ${ys}`);
+});
+
 test("approximates zigzag path morphing on decorated edges", () => {
   const source = String.raw`
 \begin{tikzpicture}

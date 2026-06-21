@@ -68,3 +68,18 @@ test("parses compact TikZ arc angle-radius syntax", () => {
   assert.ok(arc);
   assert.deepEqual(arc.options, { "start angle": "0", "end angle": "60", radius: "1" });
 });
+
+test("parses compact relative coordinates after path operators", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (-2,-2) --++ (1,0) -- ++(0,1) --++(1,0);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+  const coordinates = draw.path.segments.filter((segment) => segment.kind === "coordinate");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(coordinates.length, 4);
+  assert.deepEqual(coordinates.map((segment) => segment.relative || "absolute"), ["absolute", "update", "update", "update"]);
+});

@@ -70,6 +70,9 @@ function renderItem(item, unit, options = {}) {
     if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) return renderRichTextNode(item, normalized, unit);
     return renderPlainTextNode(item, normalized, unit);
   }
+  if (item.projected && item.type === "path") {
+    return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
+  }
   if (item.shape === "circle") {
     return `<circle cx="${format(item.cx * unit)}" cy="${format(-item.cy * unit)}" r="${format(
       item.r * unit
@@ -722,6 +725,12 @@ function computeBounds(items) {
     if (item.type === "nodeBox") {
       include(item.x - item.width / 2, item.y - item.height / 2);
       include(item.x + item.width / 2, item.y + item.height / 2);
+    } else if (item.projected && item.type === "path") {
+      for (const command of item.commands || []) {
+        if ("x" in command && "y" in command) include(command.x, command.y);
+        if ("x1" in command && "y1" in command) include(command.x1, command.y1);
+        if ("x2" in command && "y2" in command) include(command.x2, command.y2);
+      }
     } else if (item.shape === "circle") {
       include(item.cx - item.r, item.cy - item.r);
       include(item.cx + item.r, item.cy + item.r);
