@@ -428,13 +428,19 @@ function parsePathSegments(pathText) {
     index = skipWhitespace(pathText, index);
     if (index >= pathText.length) break;
 
+    const extOperator = parseExtendedPathOperator(pathText, index);
+    if (extOperator) {
+      segments.push(extOperator.segment);
+      index = extOperator.end;
+      continue;
+    }
     if (pathText.startsWith("--", index)) {
-      segments.push({ kind: "operator", value: "--" });
+      segments.push({ kind: "operator", value: "--", options: {} });
       index += 2;
       continue;
     }
     if (pathText.startsWith("|-", index) || pathText.startsWith("-|", index)) {
-      segments.push({ kind: "operator", value: pathText.slice(index, index + 2) });
+      segments.push({ kind: "operator", value: pathText.slice(index, index + 2), options: {} });
       index += 2;
       continue;
     }
@@ -556,6 +562,14 @@ function parsePathSegments(pathText) {
       }
       continue;
     }
+    if (pathText.startsWith("arc to", index) && isTokenBoundary(pathText[index + "arc to".length] || "")) {
+      const parsed = parseArcToSegment(pathText, index);
+      if (parsed) {
+        segments.push(parsed.segment);
+        index = parsed.end;
+        continue;
+      }
+    }
     if (startsKeyword(pathText, index, "arc")) {
       index += "arc".length;
       index = skipWhitespace(pathText, index);
@@ -609,6 +623,45 @@ function parsePathSegments(pathText) {
     index = next;
   }
   return segments.filter((segment) => segment.kind !== "unknown" || segment.raw);
+}
+
+function parseExtendedPathOperator(pathText, index) {
+  for (const value of ["|-|", "-|-", "r-ud", "r-du", "r-lr", "r-rl"]) {
+    if (!pathText.startsWith(value, index)) continue;
+    let cursor = skipWhitespace(pathText, index + value.length);
+    const options = parseOptionalOptions(pathText, cursor);
+    if (options.raw) cursor = options.end;
+    return {
+      segment: { kind: "operator", value, options: options.options || {} },
+      end: cursor
+    };
+  }
+  return null;
+}
+
+function parseArcToSegment(pathText, index) {
+  let cursor = index + "arc to".length;
+  cursor = skipWhitespace(pathText, cursor);
+  const options = parseOptionalOptions(pathText, cursor);
+  cursor = skipWhitespace(pathText, options.end);
+  const nodes = [];
+  while (startsKeyword(pathText, cursor, "node")) {
+    const node = parseInlineNodeSegment(pathText, cursor);
+    if (!node) break;
+    nodes.push(node.segment);
+    cursor = skipWhitespace(pathText, node.end);
+  }
+  const to = extractBalanced(pathText, cursor, "(", ")");
+  if (!to) return null;
+  return {
+    segment: {
+      kind: "arcTo",
+      options: options.options || {},
+      nodes,
+      to: to.content.trim()
+    },
+    end: to.end
+  };
 }
 
 function parseCurveSegment(pathText, index) {
@@ -953,6 +1006,10 @@ function startsKeyword(text, index, keyword) {
   const before = text[index - 1];
   const after = text[index + keyword.length];
   return !/[A-Za-z]/.test(before || "") && !/[A-Za-z]/.test(after || "");
+}
+
+function isTokenBoundary(char) {
+  return !/[A-Za-z]/.test(char || "");
 }
 
 function nextTokenEnd(text, index) {

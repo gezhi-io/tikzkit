@@ -54,8 +54,9 @@ function renderItem(item, unit, options = {}) {
         (item.width / 2) * unit
       )}" ry="${format((item.height / 2) * unit)}"${styleAttributes(item.style)} />`, unit);
     }
+    if (item.shape === "circleCrossSplit") return renderNodeBoxWithOverlay(item, renderCircleCrossSplitNodeBox(item, unit), unit);
     if (item.shape === "diamond") return renderNodeBoxWithOverlay(item, renderDiamondNodeBox(item, unit), unit);
-    if (["regularPolygon", "star", "trapezium", "cloud"].includes(item.shape)) {
+    if (["regularPolygon", "star", "trapezium", "cloud", "superellipse"].includes(item.shape)) {
       return renderNodeBoxWithOverlay(item, renderLibraryShapeNodeBox(item, unit), unit);
     }
     if (item.shape === "rectangleSplit") return renderRectangleSplit(item, unit);
@@ -90,6 +91,22 @@ function renderItem(item, unit, options = {}) {
     return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
   }
   return "";
+}
+
+function renderCircleCrossSplitNodeBox(item, unit) {
+  const cx = item.x * unit;
+  const cy = -item.y * unit;
+  const rx = (item.width / 2) * unit;
+  const ry = (item.height / 2) * unit;
+  const stroke = item.style?.stroke || "black";
+  const width = item.style?.lineWidth || 1;
+  return `<g class="tikz-node-shape tikz-node-circleCrossSplit"><ellipse cx="${format(cx)}" cy="${format(cy)}" rx="${format(rx)}" ry="${format(
+    ry
+  )}"${styleAttributes(item.style)} /><path d="M ${format(cx - rx)} ${format(cy)} L ${format(cx + rx)} ${format(cy)} M ${format(
+    cx
+  )} ${format(cy - ry)} L ${format(cx)} ${format(cy + ry)}" fill="none" stroke="${escapeAttribute(stroke)}" stroke-width="${format(
+    width
+  )}" /></g>`;
 }
 
 function renderDiamondNodeBox(item, unit) {
@@ -131,7 +148,22 @@ function nodeShapeCommands(item) {
   if (item.shape === "cloud") {
     return cloudNodeCommands(center, halfWidth, halfHeight);
   }
+  if (item.shape === "superellipse") {
+    return superellipseNodeCommands(center, halfWidth, halfHeight);
+  }
   return closedPolygonCommands(rectangleNodePoints(center, halfWidth, halfHeight));
+}
+
+function superellipseNodeCommands(center, halfWidth, halfHeight) {
+  const k = 0.42;
+  return [
+    { type: "moveTo", x: center.x, y: center.y + halfHeight },
+    { type: "curveTo", x1: center.x + halfWidth * k, y1: center.y + halfHeight, x2: center.x + halfWidth, y2: center.y + halfHeight * k, x: center.x + halfWidth, y: center.y },
+    { type: "curveTo", x1: center.x + halfWidth, y1: center.y - halfHeight * k, x2: center.x + halfWidth * k, y2: center.y - halfHeight, x: center.x, y: center.y - halfHeight },
+    { type: "curveTo", x1: center.x - halfWidth * k, y1: center.y - halfHeight, x2: center.x - halfWidth, y2: center.y - halfHeight * k, x: center.x - halfWidth, y: center.y },
+    { type: "curveTo", x1: center.x - halfWidth, y1: center.y + halfHeight * k, x2: center.x - halfWidth * k, y2: center.y + halfHeight, x: center.x, y: center.y + halfHeight },
+    { type: "closePath" }
+  ];
 }
 
 function closedPolygonCommands(points) {

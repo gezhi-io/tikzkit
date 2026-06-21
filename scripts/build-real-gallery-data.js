@@ -329,6 +329,36 @@ const TIKZ_DIMLINE_CASES = [
   }
 ];
 
+const TIKZ_EXT_CASES = [
+  {
+    title: "Core tikz-ext paths, mirrors, and shapes",
+    origin: "MacTeX tikz-ext",
+    sourceUrl: "https://ctan.org/pkg/tikz-ext",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-ext/tikz-ext-manual.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usetikzlibrary{ext.paths.ortho,ext.paths.arcto,ext.topaths.arcthrough,ext.transformations.mirror,ext.shapes.superellipse,ext.shapes.circlecrosssplit}
+\begin{document}
+\begin{tikzpicture}[very thick]
+  \coordinate[label=below left:$A$] (A) at (0,0);
+  \coordinate[label=above right:$B$] (B) at (3,2);
+  \coordinate[label=above:$C$] (C) at (1,2.6);
+  \draw[help lines,step=.5] (-.5,-1) grid (4.8,3.2);
+  \draw[blue,-latex] (A) -|- node[pos=.5,above] {hvh} (B);
+  \draw[red,-latex] (0,-.55) |-| node[pos=.5,right] {vhv} (3,1.4);
+  \draw[green!60!black,-latex] (A) r-ud node[pos=.5,above] {ud} (B);
+  \draw[purple] (A) arc to[radius=2.5,clockwise] node[midway,below] {arc to} (B);
+  \draw[orange,fill=orange!20] (A) to[ext/arc through={clockwise,(C)}] (B) -- (arc through center) -- cycle;
+  \node[draw,shape=superellipse,fill=blue!10,minimum width=1.5cm,minimum height=.75cm] at (4.1,1.65) {super};
+  \node[draw,shape=circle cross split,fill=yellow!15,minimum size=.95cm] at (4.1,.25) {};
+  \draw[dashed] (1.5,-.9) -- (1.5,3.1);
+  \begin{scope}[ext/xmirror=1.5]
+    \draw[teal,dashed,-latex] (0,.25) .. controls (.5,1.05) .. (1,.75);
+  \end{scope}
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -571,6 +601,7 @@ const selected = [
   ...TIKZ_CD_CASES,
   ...TIKZ_DECOFONTS_CASES,
   ...TIKZ_DIMLINE_CASES,
+  ...TIKZ_EXT_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -593,6 +624,7 @@ await writeFile(
     tikzCdFound: TIKZ_CD_CASES.length,
     tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length,
     tikzDimlineFound: TIKZ_DIMLINE_CASES.length,
+    tikzExtFound: TIKZ_EXT_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"

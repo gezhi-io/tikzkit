@@ -168,7 +168,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       const pathStyle = drawablePathStyle(style, built.styleHints);
       const item = {
         type: "path",
-        subtype,
+        subtype: built.styleHints.subtype || subtype,
         tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
         style: pathStyle,
         commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
@@ -224,10 +224,12 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       continue;
     }
     if (segment.kind === "operator") {
-      pending = segment.value;
+      pending = { value: segment.value, options: segment.options || {} };
       continue;
     }
     if (segment.kind === "coordinate") {
+      const pendingValue = pending?.value ?? pending;
+      const pendingOptions = pending?.options || {};
       const point = segment.relative ? resolveRelativeCoordinate(segment.raw, current, env, diagnostics) : resolveCoordinate(segment.raw, env, diagnostics);
       if (pendingPlotMark) {
         shapes.push(buildPlotMark(point, pendingPlotMark, pathStyle));
@@ -246,14 +248,14 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         start = point;
         startNodeRef = nodeRef;
         endNodeRef = nodeRef;
-      } else if (pending === "grid") {
+      } else if (pendingValue === "grid") {
         shapes.push(...buildGrid(current, point, effectivePathOptions));
         current = point;
         currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
-      } else if (pending === "rectangle") {
+      } else if (pendingValue === "rectangle") {
         const corners =
           currentLocal && localPoint
             ? transformedRectangleCorners(currentLocal, localPoint, env.transform)
@@ -271,7 +273,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         currentBase = point;
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
-      } else if (pending === "--") {
+      } else if (pendingValue === "--") {
         const clipped = clipNodeLineEndpoints(currentBase || current, currentNodeRef, point, nodeRef, env);
         if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         commands.push({ type: "lineTo", x: clipped.to.x, y: clipped.to.y });
@@ -283,8 +285,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         currentBase = point;
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
-      } else if (pending === "|-" || pending === "-|") {
-        const elbow = pending === "|-"
+      } else if (pendingValue === "|-" || pendingValue === "-|") {
+        const elbow = pendingValue === "|-"
           ? { x: (currentBase || current).x, y: point.y }
           : { x: point.x, y: (currentBase || current).y };
         const first = clipNodeLineEndpoints(currentBase || current, currentNodeRef, elbow, null, env);
@@ -296,6 +298,18 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         lastSegment = { from: first.from, to: first.to };
         pendingInlineNodes = [];
         current = second.to;
+        currentLocal = localPoint || point;
+        currentBase = point;
+        currentNodeRef = nodeRef;
+        endNodeRef = nodeRef;
+      } else if (isTikzExtOrthoOperator(pendingValue)) {
+        styleHints.subtype = "tikz-ext-ortho";
+        const polyline = tikzExtOrthoPolyline(pendingValue, currentBase || current, point, pendingOptions, env);
+        const drawn = drawPolyline(commands, polyline, currentNodeRef, nodeRef, env);
+        flushInlinePathNodes(pendingInlineNodes, drawn.from, drawn.to, nodes, env, pathStyle);
+        lastSegment = { from: drawn.from, to: drawn.to };
+        pendingInlineNodes = [];
+        current = drawn.to;
         currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
@@ -335,6 +349,24 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       Object.assign(styleHints, edgeStyleHintsFromOptions(combinedEdgeOptions, env));
       Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
       const loopDirection = loopDirectionFromOptions(combinedEdgeOptions);
+      const arcThrough = parseTikzExtArcThrough(combinedEdgeOptions);
+      if (arcThrough) {
+        styleHints.subtype = "tikz-ext-arc";
+        const through = resolveCoordinate(arcThrough.through, env, diagnostics);
+        const arc = tikzExtArcThroughCommands(currentBase || current, through, to, arcThrough, env);
+        if (arc.center) env.coordinates[`arc through center${arcThrough.suffix || ""}`] = arc.center;
+        commands.push(...arc.commands);
+        flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, nodes, env, pathStyle);
+        lastSegment = { from: currentBase || current, to };
+        pendingInlineNodes = [];
+        current = to;
+        currentLocal = null;
+        currentBase = to;
+        currentNodeRef = toNodeRef;
+        endNodeRef = toNodeRef;
+        pending = null;
+        continue;
+      }
       if (loopDirection && pointsAlmostEqual(currentBase || current, to)) {
         const loop = buildSelfLoop(currentBase || current, currentNodeRef, loopDirection, combinedEdgeOptions, env);
         if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, loop.start);
@@ -371,6 +403,29 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       currentBase = to;
       currentNodeRef = toNodeRef;
       endNodeRef = toNodeRef;
+      pending = null;
+      continue;
+    }
+    if (segment.kind === "arcTo" && current) {
+      styleHints.subtype = "tikz-ext-arc";
+      if (segment.nodes?.length) {
+        for (const labelNode of segment.nodes) {
+          pendingInlineNodes.push({
+            ...labelNode,
+            text: substituteTextVariables(labelNode.text, env.variables)
+          });
+        }
+      }
+      const to = resolveCoordinate(segment.to, env, diagnostics);
+      const arc = tikzExtArcToCommands(currentBase || current, to, { ...pathOptions, ...segment.options }, env);
+      commands.push(...arc.commands);
+      flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, nodes, env, pathStyle);
+      lastSegment = { from: currentBase || current, to };
+      pendingInlineNodes = [];
+      current = to;
+      currentLocal = null;
+      currentBase = to;
+      currentNodeRef = null;
       pending = null;
       continue;
     }
@@ -499,6 +554,164 @@ function inlineNodePathPoint(options = {}, lastSegment) {
     x: lastSegment.from.x + (lastSegment.to.x - lastSegment.from.x) * t,
     y: lastSegment.from.y + (lastSegment.to.y - lastSegment.from.y) * t
   });
+}
+
+function isTikzExtOrthoOperator(value) {
+  return ["|-|", "-|-", "r-ud", "r-du", "r-lr", "r-rl"].includes(value);
+}
+
+function tikzExtOrthoPolyline(operator, from, to, options = {}, env) {
+  const distance = tikzExtOrthoDistance(operator, options, env);
+  if (operator === "-|-") {
+    const midX = tikzExtMiddleCoordinate(from.x, to.x, options["hvh distance"] ?? options["distance"], options["hvh ratio"] ?? options["ratio"], env);
+    return [from, { x: midX, y: from.y }, { x: midX, y: to.y }, to].map(roundPoint);
+  }
+  if (operator === "|-|") {
+    const midY = tikzExtMiddleCoordinate(from.y, to.y, options["vhv distance"] ?? options["distance"], options["vhv ratio"] ?? options["ratio"], env);
+    return [from, { x: from.x, y: midY }, { x: to.x, y: midY }, to].map(roundPoint);
+  }
+  if (operator === "r-ud") return [from, { x: from.x, y: from.y + distance }, { x: to.x, y: from.y + distance }, to].map(roundPoint);
+  if (operator === "r-du") return [from, { x: from.x, y: from.y - distance }, { x: to.x, y: from.y - distance }, to].map(roundPoint);
+  if (operator === "r-lr") return [from, { x: from.x - distance, y: from.y }, { x: from.x - distance, y: to.y }, to].map(roundPoint);
+  if (operator === "r-rl") return [from, { x: from.x + distance, y: from.y }, { x: from.x + distance, y: to.y }, to].map(roundPoint);
+  return [from, to].map(roundPoint);
+}
+
+function tikzExtMiddleCoordinate(start, end, distanceRaw, ratioRaw, env) {
+  if (distanceRaw !== undefined && distanceRaw !== null && distanceRaw !== true && distanceRaw !== "") {
+    const text = String(distanceRaw).replace(/\s+/g, "");
+    const parsed = parseDimension(text.replace(/^\+\-/, "-").replace(/^\+/, ""), env.variables);
+    if (Number.isFinite(parsed)) return parsed < 0 ? end + parsed : start + parsed;
+  }
+  const ratio = evaluateMath(ratioRaw ?? 0.5, env.variables);
+  const t = Number.isFinite(ratio) ? ratio : 0.5;
+  return start + (end - start) * t;
+}
+
+function tikzExtOrthoDistance(operator, options = {}, env) {
+  const key = operator === "r-ud" ? "ud distance" : operator === "r-du" ? "du distance" : operator === "r-lr" ? "lr distance" : "rl distance";
+  const raw = options[key] ?? options["udlr distance"] ?? options["distance"] ?? ".5cm";
+  const parsed = parseDimension(String(raw).replace(/\s+/g, ""), env.variables);
+  return Number.isFinite(parsed) ? Math.abs(parsed) : 0.5;
+}
+
+function drawPolyline(commands, points, startNodeRef, endNodeRef, env) {
+  let firstFrom = points[0];
+  let lastTo = points.at(-1);
+  for (let index = 1; index < points.length; index += 1) {
+    const from = points[index - 1];
+    const to = points[index];
+    const clipped = clipNodeLineEndpoints(from, index === 1 ? startNodeRef : null, to, index === points.length - 1 ? endNodeRef : null, env);
+    if (index === 1) {
+      firstFrom = clipped.from;
+      if (shouldBreakAtNodeExit(startNodeRef)) moveToNodeExit(commands, clipped.from);
+    }
+    commands.push({ type: "lineTo", x: clipped.to.x, y: clipped.to.y });
+    lastTo = clipped.to;
+  }
+  return { from: firstFrom, to: lastTo };
+}
+
+function parseTikzExtArcThrough(options = {}) {
+  const value = options["ext/arc through"] ?? options["arc through"];
+  if (value === undefined || value === null || value === false) return null;
+  const text = stripOuterBraces(value === true ? "" : String(value)).trim();
+  const parts = splitTopLevel(text);
+  let through = "";
+  let clockwise = false;
+  let suffix = "";
+  for (const part of parts.length ? parts : [text]) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (/^clockwise$/i.test(trimmed)) {
+      clockwise = true;
+      continue;
+    }
+    if (/^counter clockwise$/i.test(trimmed)) {
+      clockwise = false;
+      continue;
+    }
+    const suffixMatch = trimmed.match(/^center suffix\s*=\s*(.+)$/);
+    if (suffixMatch) {
+      suffix = suffixMatch[1].trim();
+      continue;
+    }
+    const throughMatch = trimmed.match(/^through\s*=\s*(.+)$/);
+    through = throughMatch ? throughMatch[1].trim() : trimmed;
+  }
+  return { through: through || "(0,0)", clockwise, suffix };
+}
+
+function tikzExtArcToCommands(from, to, options = {}, env) {
+  const chord = Math.hypot(to.x - from.x, to.y - from.y);
+  if (chord < 1e-9) return { commands: [], center: from };
+  let radius = parseDimension(options.radius ?? options["x radius"] ?? options["y radius"] ?? "1cm", env.variables);
+  if (!Number.isFinite(radius) || radius <= 0) radius = 1;
+  radius = Math.max(radius, chord / 2 + 1e-6);
+  const midpoint = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+  const h = Math.sqrt(Math.max(0, radius * radius - (chord * chord) / 4));
+  const nx = -(to.y - from.y) / chord;
+  const ny = (to.x - from.x) / chord;
+  const clockwise = tikzBoolean(options.clockwise);
+  const large = tikzBoolean(options.large);
+  const sign = clockwise === large ? -1 : 1;
+  const center = { x: midpoint.x + nx * h * sign, y: midpoint.y + ny * h * sign };
+  return { commands: arcSampleCommands(center, from, to, clockwise, large), center: roundPoint(center) };
+}
+
+function tikzExtArcThroughCommands(from, through, to, options = {}, env) {
+  const center = circleCenterThroughPoints(from, through, to);
+  if (!center) return { commands: [{ type: "lineTo", x: to.x, y: to.y }], center: null };
+  const clockwise = options.clockwise;
+  return { commands: arcSampleCommands(center, from, to, clockwise, false, through), center: roundPoint(center) };
+}
+
+function circleCenterThroughPoints(a, b, c) {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (Math.abs(d) < 1e-9) return null;
+  const ax = a.x * a.x + a.y * a.y;
+  const bx = b.x * b.x + b.y * b.y;
+  const cx = c.x * c.x + c.y * c.y;
+  return {
+    x: (ax * (b.y - c.y) + bx * (c.y - a.y) + cx * (a.y - b.y)) / d,
+    y: (ax * (c.x - b.x) + bx * (a.x - c.x) + cx * (b.x - a.x)) / d
+  };
+}
+
+function arcSampleCommands(center, from, to, clockwise = false, large = false, through = null) {
+  const start = Math.atan2(from.y - center.y, from.x - center.x);
+  let end = Math.atan2(to.y - center.y, to.x - center.x);
+  if (through) {
+    const throughAngle = Math.atan2(through.y - center.y, through.x - center.x);
+    const ccwContains = angleBetweenCcw(throughAngle, start, end);
+    clockwise = !ccwContains;
+  }
+  let delta = end - start;
+  if (clockwise && delta > 0) delta -= Math.PI * 2;
+  if (!clockwise && delta < 0) delta += Math.PI * 2;
+  if (large && Math.abs(delta) < Math.PI) delta += (clockwise ? -1 : 1) * Math.PI * 2;
+  if (!large && Math.abs(delta) > Math.PI) delta -= (clockwise ? -1 : 1) * Math.PI * 2;
+  const radius = Math.hypot(from.x - center.x, from.y - center.y);
+  const steps = Math.max(8, Math.ceil(Math.abs(delta) / (Math.PI / 16)));
+  const commands = [];
+  for (let index = 1; index <= steps; index += 1) {
+    const angle = start + (delta * index) / steps;
+    commands.push({
+      type: "lineTo",
+      x: roundNumber(center.x + Math.cos(angle) * radius),
+      y: roundNumber(center.y + Math.sin(angle) * radius)
+    });
+  }
+  if (commands.length) commands[commands.length - 1] = { type: "lineTo", x: to.x, y: to.y };
+  return commands;
+}
+
+function angleBetweenCcw(angle, start, end) {
+  const tau = Math.PI * 2;
+  const normalize = (value) => ((value % tau) + tau) % tau;
+  const a = normalize(angle - start);
+  const b = normalize(end - start);
+  return a <= b;
 }
 
 function resolveLocalCoordinate(raw, env, diagnostics) {
@@ -1344,7 +1557,7 @@ function nodeBorderPoint(node, center, toward, env) {
   const halfWidth = (Number(node.width) || 0) / 2;
   const halfHeight = (Number(node.height) || 0) / 2;
   if (halfWidth <= 0 || halfHeight <= 0) return roundPoint(center);
-  if (node.shape === "circle") {
+  if (node.shape === "circle" || node.shape === "circleCrossSplit") {
     const radius = Math.max(halfWidth, halfHeight);
     return roundPoint({ x: center.x + (dx / distance) * radius, y: center.y + (dy / distance) * radius });
   }
@@ -1374,9 +1587,11 @@ function nodeShape(options = {}) {
   const shape = normalizeShapeName(options.shape);
   if (options["rectangle split"]) return "rectangleSplit";
   if (options.circle || shape === "circle") return "circle";
+  if (options["circle cross split"] || shape === "circle cross split") return "circleCrossSplit";
   if (options.ellipse || shape === "ellipse") return "ellipse";
   if (options.diamond || shape === "diamond") return "diamond";
-  if (options["rounded rectangle"] || shape === "rounded rectangle") return "roundedRectangle";
+  if (options["rounded rectangle"] || shape === "rounded rectangle" || shape === "rectangle with rounded corners") return "roundedRectangle";
+  if (options.superellipse || shape === "superellipse") return "superellipse";
   if (options["regular polygon"] || shape === "regular polygon") return "regularPolygon";
   if (options.star || shape === "star") return "star";
   if (options.trapezium || shape === "trapezium") return "trapezium";
@@ -1406,6 +1621,7 @@ function numberOption(value, fallback) {
 
 function nodeCornerRadius(shape, semantic, size) {
   if (shape === "roundedRectangle") return roundNumber(Math.min(size.width, size.height) * 0.45);
+  if (shape === "superellipse") return roundNumber(Math.min(size.width, size.height) * 0.28);
   if (semantic["rounded corners"]) return 0.08;
   return 0;
 }
@@ -2143,7 +2359,7 @@ function composeTransform(parent, options = {}, env) {
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   const shift = parseTransformShift(options, env);
-  return multiplyTransforms(parent, {
+  const base = {
     a: scale * cos,
     b: scale * sin,
     c: -scale * sin,
@@ -2151,7 +2367,8 @@ function composeTransform(parent, options = {}, env) {
     x: shift.x,
     y: shift.y,
     scale
-  });
+  };
+  return multiplyTransforms(parent, multiplyTransforms(base, tikzExtMirrorTransform(options, env)));
 }
 
 function transformCanvasScale(options = {}, env) {
@@ -2172,6 +2389,55 @@ function parseTransformShift(options = {}, env) {
     y += shifted.y;
   }
   return { x, y };
+}
+
+function tikzExtMirrorTransform(options = {}, env) {
+  const xMirror = options["ext/xmirror"] ?? options["ext/xMirror"] ?? options["ext/mirror x"] ?? options["ext/Mirror x"];
+  const yMirror = options["ext/ymirror"] ?? options["ext/yMirror"] ?? options["ext/mirror y"] ?? options["ext/Mirror y"];
+  const lineMirror = options["ext/mirror"] ?? options["ext/Mirror"];
+  if (lineMirror !== undefined && lineMirror !== true && lineMirror !== "") {
+    const parsed = parseMirrorLine(lineMirror, env);
+    if (parsed) return mirrorLineTransform(parsed.a, parsed.b);
+  }
+  if (xMirror !== undefined) {
+    const point = mirrorReferencePoint(xMirror, env);
+    return { a: -1, b: 0, c: 0, d: 1, x: 2 * point.x, y: 0, scale: 1 };
+  }
+  if (yMirror !== undefined) {
+    const point = mirrorReferencePoint(yMirror, env);
+    return { a: 1, b: 0, c: 0, d: -1, x: 0, y: 2 * point.y, scale: 1 };
+  }
+  return identityTransform();
+}
+
+function mirrorReferencePoint(value, env) {
+  if (value === true || value === "") return { x: 0, y: 0 };
+  const text = String(value).trim();
+  if (text.startsWith("(")) return resolveCoordinate(text, { ...env, transform: identityTransform() }, []);
+  const scalar = parseDimension(text, env.variables);
+  return Number.isFinite(scalar) ? { x: scalar, y: scalar } : { x: 0, y: 0 };
+}
+
+function parseMirrorLine(value, env) {
+  const text = stripOuterBraces(String(value || "").trim());
+  const parts = text.split(/\s*--\s*/);
+  const a = mirrorReferencePoint(parts[0] || "(0,0)", env);
+  const b = parts[1] ? mirrorReferencePoint(parts[1], env) : { x: 0, y: 0 };
+  if (Math.hypot(b.x - a.x, b.y - a.y) < 1e-9) return null;
+  return { a, b };
+}
+
+function mirrorLineTransform(a, b) {
+  const angle = Math.atan2(b.y - a.y, b.x - a.x);
+  const cos = Math.cos(2 * angle);
+  const sin = Math.sin(2 * angle);
+  return multiplyTransforms(
+    { a: 1, b: 0, c: 0, d: 1, x: a.x, y: a.y, scale: 1 },
+    multiplyTransforms(
+      { a: cos, b: sin, c: sin, d: -cos, x: 0, y: 0, scale: 1 },
+      { a: 1, b: 0, c: 0, d: 1, x: -a.x, y: -a.y, scale: 1 }
+    )
+  );
 }
 
 function composePgfTransform(parent, statement, env) {
@@ -2454,7 +2720,7 @@ function angleAnchor(node, angle, halfWidth, halfHeight) {
   const radians = (angle * Math.PI) / 180;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
-  if (node.shape === "circle") {
+  if (node.shape === "circle" || node.shape === "circleCrossSplit") {
     const radius = Math.max(halfWidth, halfHeight);
     return roundPoint({ x: node.point.x + cos * radius, y: node.point.y + sin * radius });
   }

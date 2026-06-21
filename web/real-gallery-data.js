@@ -800,6 +800,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-dimline}\n\\usetikzlibrary{calc}\n\\begin{document}\n\\begin{tikzpicture}[scale=.75]\n  \\draw[fill=blue!8,draw=blue!50,rounded corners=2pt,line width=.8pt] (0,0) rectangle (2.5,4);\n  \\draw[fill=white,draw=black,line width=.7pt] (.5,1.1) rectangle (2,2.9);\n  \\coordinate (A) at (2.7,0);\n  \\coordinate (B) at (2.7,4);\n  \\dimline[color=blue,line style={line width=.7pt},label style={right=0.5ex,font=\\small},extension start length=.35,extension end length=.35]{(A)}{(B)}{$4.0$}\n  \\dimline[color=red,line style={line width=.7pt},label style={above=0.5ex,font=\\small},extension start length=0,extension end length=0]{(.5,2)}{(2,2)}{$d=1.5$}\n  \\dimline[label style={above=0.5ex,fill=blue!10,font=\\small},extension start path={(0,4.45) (0,4.15) (.5,3.9)},extension end path={(2.5,4.45) (2.5,4.15) (2,3.9)},extension start style={draw=green!60!black},extension end style={draw=green!60!black}]{(0,4.45)}{(2.5,4.45)}{custom}\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "Core tikz-ext paths, mirrors, and shapes",
+    "origin": "MacTeX tikz-ext",
+    "sourceUrl": "https://ctan.org/pkg/tikz-ext",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-ext/tikz-ext-manual.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{ext.paths.ortho,ext.paths.arcto,ext.topaths.arcthrough,ext.transformations.mirror,ext.shapes.superellipse,ext.shapes.circlecrosssplit}\n\\begin{document}\n\\begin{tikzpicture}[very thick]\n  \\coordinate[label=below left:$A$] (A) at (0,0);\n  \\coordinate[label=above right:$B$] (B) at (3,2);\n  \\coordinate[label=above:$C$] (C) at (1,2.6);\n  \\draw[help lines,step=.5] (-.5,-1) grid (4.8,3.2);\n  \\draw[blue,-latex] (A) -|- node[pos=.5,above] {hvh} (B);\n  \\draw[red,-latex] (0,-.55) |-| node[pos=.5,right] {vhv} (3,1.4);\n  \\draw[green!60!black,-latex] (A) r-ud node[pos=.5,above] {ud} (B);\n  \\draw[purple] (A) arc to[radius=2.5,clockwise] node[midway,below] {arc to} (B);\n  \\draw[orange,fill=orange!20] (A) to[ext/arc through={clockwise,(C)}] (B) -- (arc through center) -- cycle;\n  \\node[draw,shape=superellipse,fill=blue!10,minimum width=1.5cm,minimum height=.75cm] at (4.1,1.65) {super};\n  \\node[draw,shape=circle cross split,fill=yellow!15,minimum size=.95cm] at (4.1,.25) {};\n  \\draw[dashed] (1.5,-.9) -- (1.5,3.1);\n  \\begin{scope}[ext/xmirror=1.5]\n    \\draw[teal,dashed,-latex] (0,.25) .. controls (.5,1.05) .. (1,.75);\n  \\end{scope}\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -844,7 +851,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 120,
+  "caseCount": 121,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -856,6 +863,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzCdFound": 1,
   "tikzDecofontsFound": 1,
   "tikzDimlineFound": 1,
+  "tikzExtFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -868,6 +876,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-bpmn",
     "MacTeX tikz-cd",
     "MacTeX tikz-decofonts",
-    "MacTeX tikz-dimline"
+    "MacTeX tikz-dimline",
+    "MacTeX tikz-ext"
   ]
 };

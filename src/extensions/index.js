@@ -3,6 +3,7 @@ import { tikzBpmnExtension } from "./tikz-bpmn.js";
 import { tikzCdExtension } from "./tikz-cd.js";
 import { tikzDecofontsExtension } from "./tikz-decofonts.js";
 import { tikzDimlineExtension } from "./tikz-dimline.js";
+import { tikzExtExtension } from "./tikz-ext.js";
 import { tikzNetworkExtension } from "./tikz-network.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
 
@@ -13,7 +14,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzBpmnExtension,
   tikzCdExtension,
   tikzDecofontsExtension,
-  tikzDimlineExtension
+  tikzDimlineExtension,
+  tikzExtExtension
 ];
 
 export function applyPreprocessExtensions(source, context = {}) {

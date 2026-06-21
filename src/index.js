@@ -8,6 +8,7 @@ export { tikzBpmnExtension } from "./extensions/tikz-bpmn.js";
 export { tikzCdExtension } from "./extensions/tikz-cd.js";
 export { tikzDecofontsExtension } from "./extensions/tikz-decofonts.js";
 export { tikzDimlineExtension } from "./extensions/tikz-dimline.js";
+export { tikzExtExtension } from "./extensions/tikz-ext.js";
 export { tikzNetworkExtension } from "./extensions/tikz-network.js";
 export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
 

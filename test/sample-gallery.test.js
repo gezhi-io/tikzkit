@@ -5,20 +5,20 @@ import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { createSampleGallery } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
 
-test("web sample gallery provides 120 real TikZ source blocks", () => {
+test("web sample gallery provides 121 real TikZ source blocks", () => {
   const source = createSampleGallery();
   const parts = splitTikzCodeBlocks(source);
   const tikzParts = parts.filter((part) => part.type === "tikz");
   const petarVCases = REAL_GALLERY_CASES.filter((item) => item.origin === "PetarV-/TikZ");
 
-  assert.equal(tikzParts.length, 120);
-  assert.equal(REAL_GALLERY_CASES.length, 120);
+  assert.equal(tikzParts.length, 121);
+  assert.equal(REAL_GALLERY_CASES.length, 121);
   assert.equal(petarVCases.length, 65);
   assert.match(source, /Case 001/);
   assert.match(source, /Case 100/);
-  assert.match(source, /Case 120/);
+  assert.match(source, /Case 121/);
   assert.match(source, /PetarV-\/TikZ/);
-  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-network|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|MacTeX tikz-bpmn|MacTeX tikz-cd|MacTeX tikz-decofonts|MacTeX tikz-dimline/);
+  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-network|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|MacTeX tikz-bpmn|MacTeX tikz-cd|MacTeX tikz-decofonts|MacTeX tikz-dimline|MacTeX tikz-ext/);
 
   for (const part of tikzParts) {
     const result = tikzToSvg(part.content);
@@ -43,6 +43,7 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.ok(origins.has("MacTeX tikz-cd"));
   assert.ok(origins.has("MacTeX tikz-decofonts"));
   assert.ok(origins.has("MacTeX tikz-dimline"));
+  assert.ok(origins.has("MacTeX tikz-ext"));
   assert.equal(REAL_GALLERY_CASES.every((item) => item.sourceUrl.startsWith("https://")), true);
 });
 
