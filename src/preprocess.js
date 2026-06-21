@@ -13,6 +13,7 @@ const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "node", "coo
 export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
   let expanded = stripTexComments(String(source));
+  expanded = stripTikzLibraryDeclarations(expanded);
   const colorResult = collectColorDefinitions(expanded);
   expanded = replaceDefinedColorUses(colorResult.source, colorResult.colors);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
@@ -51,6 +52,10 @@ function stripTexComments(source) {
     output += char;
   }
   return output;
+}
+
+function stripTikzLibraryDeclarations(source) {
+  return String(source).replace(/\\usetikzlibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
 }
 
 function collectColorDefinitions(source) {

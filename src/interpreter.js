@@ -606,7 +606,13 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}) {
   const size = estimateNodeLayoutSize(text, expandedOptions, env);
   if (segment.name) {
     const name = resolveDynamicName(segment.name, env);
-    env.nodes[name] = { point, width: size.width, height: size.height, shape: nodeShape(expandedOptions) };
+    env.nodes[name] = {
+      point,
+      width: size.width,
+      height: size.height,
+      shape: nodeShape(expandedOptions),
+      shapeData: nodeShapeData(expandedOptions)
+    };
     env.coordinates[name] = point;
   }
   nodes.push({ at: point, text, options: expandedOptions, size, fitTextToBox: shouldFitTextToNodeBox(expandedOptions) });
@@ -648,7 +654,8 @@ function createNode(statement, env, ir, diagnostics) {
       point: displayPoint,
       width: size.width,
       height: size.height,
-      shape: nodeShape(expandedOptions)
+      shape: nodeShape(expandedOptions),
+      shapeData: nodeShapeData(expandedOptions)
     };
     env.coordinates[name] = displayPoint;
   }
@@ -775,11 +782,23 @@ function createMatrix(statement, env, ir) {
         "minimum width": `${cellWidth}`,
         "minimum height": `${cellHeight}`
       };
-      env.nodes[cellName] = { point, width: cellWidth, height: cellHeight, shape: nodeShape(options) };
+      env.nodes[cellName] = {
+        point,
+        width: cellWidth,
+        height: cellHeight,
+        shape: nodeShape(options),
+        shapeData: nodeShapeData(options)
+      };
       env.coordinates[cellName] = point;
       if (cell.explicitName) {
         const explicitName = resolveDynamicName(cell.explicitName, env);
-        env.nodes[explicitName] = { point, width: cellWidth, height: cellHeight, shape: nodeShape(options) };
+        env.nodes[explicitName] = {
+          point,
+          width: cellWidth,
+          height: cellHeight,
+          shape: nodeShape(options),
+          shapeData: nodeShapeData(options)
+        };
         env.coordinates[explicitName] = point;
       }
       addNodeItems(
@@ -874,6 +893,7 @@ function addNodeItems(node, ir, env) {
   const { style, semantic } = normalizeOptions("node", node.options || {}, env);
   const point = resolveNodeAnchorPoint(node.at, node.options, node.text, env);
   const shape = nodeShape(node.options || {});
+  const shapeData = nodeShapeData(node.options || {});
   const size = node.size || scaleSize(estimateNodeSize(node.text, node.options, env), env.canvasScale);
   const shadedFill =
     semantic.shading === "ball" ? normalizeColor(String(semantic["ball color"] || style.fill || "gray!30")) : null;
@@ -888,6 +908,7 @@ function addNodeItems(node, ir, env) {
       type: "nodeBox",
       id: node.name,
       shape,
+      shapeData,
       x: point.x,
       y: point.y,
       width: size.width,
@@ -1329,6 +1350,13 @@ function nodeBorderPoint(node, center, toward, env) {
     const factor = distance / (Math.abs(dx) / halfWidth + Math.abs(dy) / halfHeight);
     return roundPoint({ x: center.x + (dx / distance) * factor, y: center.y + (dy / distance) * factor });
   }
+  if (node.shape === "cloud") {
+    const factor = 1 / Math.sqrt((dx * dx) / (halfWidth * halfWidth) + (dy * dy) / (halfHeight * halfHeight));
+    return roundPoint({ x: center.x + dx * factor, y: center.y + dy * factor });
+  }
+  if (polygonNodeShape(node.shape)) {
+    return polygonBorderPoint(center, toward, nodePolygonPoints(node, center, halfWidth, halfHeight));
+  }
   const xScale = Math.abs(dx) > 1e-12 ? halfWidth / Math.abs(dx) : Number.POSITIVE_INFINITY;
   const yScale = Math.abs(dy) > 1e-12 ? halfHeight / Math.abs(dy) : Number.POSITIVE_INFINITY;
   const factor = Math.min(xScale, yScale);
@@ -1337,12 +1365,37 @@ function nodeBorderPoint(node, center, toward, env) {
 }
 
 function nodeShape(options = {}) {
+  const shape = normalizeShapeName(options.shape);
   if (options["rectangle split"]) return "rectangleSplit";
-  if (options.circle || options.shape === "circle") return "circle";
-  if (options.ellipse || options.shape === "ellipse") return "ellipse";
-  if (options.diamond || options.shape === "diamond") return "diamond";
-  if (options["rounded rectangle"] || options.shape === "rounded rectangle") return "roundedRectangle";
+  if (options.circle || shape === "circle") return "circle";
+  if (options.ellipse || shape === "ellipse") return "ellipse";
+  if (options.diamond || shape === "diamond") return "diamond";
+  if (options["rounded rectangle"] || shape === "rounded rectangle") return "roundedRectangle";
+  if (options["regular polygon"] || shape === "regular polygon") return "regularPolygon";
+  if (options.star || shape === "star") return "star";
+  if (options.trapezium || shape === "trapezium") return "trapezium";
+  if (options.cloud || shape === "cloud") return "cloud";
   return "rectangle";
+}
+
+function nodeShapeData(options = {}) {
+  return {
+    regularPolygonSides: Math.max(3, Math.round(numberOption(options["regular polygon sides"], 5))),
+    starPoints: Math.max(3, Math.round(numberOption(options["star points"], 5))),
+    starPointRatio: Math.max(1.05, numberOption(options["star point ratio"], 1.5)),
+    trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
+    trapeziumRightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60)
+  };
+}
+
+function normalizeShapeName(value) {
+  return String(value || "").trim().toLowerCase().replace(/-/g, " ");
+}
+
+function numberOption(value, fallback) {
+  if (value === undefined || value === null || value === true || value === "") return fallback;
+  const parsed = evaluateMath(String(value));
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function nodeCornerRadius(shape, semantic, size) {
@@ -1605,6 +1658,24 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const contentHeight = height;
     width = contentWidth + contentHeight;
     height = Math.max(contentHeight + contentWidth * 0.72, contentHeight * 2);
+  }
+  const shape = nodeShape(options);
+  if (shape === "regularPolygon") {
+    const diameter = Math.max(width, height) * 1.12;
+    width = diameter;
+    height = diameter;
+  }
+  if (shape === "star") {
+    const diameter = Math.max(width, height) * 1.35;
+    width = diameter;
+    height = diameter;
+  }
+  if (shape === "trapezium") {
+    width += Math.max(0.25, height * 0.45);
+  }
+  if (shape === "cloud") {
+    width *= 1.28;
+    height *= 1.18;
   }
   return { width: roundNumber(width), height: roundNumber(height) };
 }
@@ -2366,6 +2437,14 @@ function angleAnchor(node, angle, halfWidth, halfHeight) {
     const scale = 1 / (Math.abs(cos) / halfWidth + Math.abs(sin) / halfHeight);
     return roundPoint({ x: node.point.x + cos * scale, y: node.point.y + sin * scale });
   }
+  if (node.shape === "cloud") {
+    const scale = 1 / Math.sqrt((cos * cos) / (halfWidth * halfWidth) + (sin * sin) / (halfHeight * halfHeight));
+    return roundPoint({ x: node.point.x + cos * scale, y: node.point.y + sin * scale });
+  }
+  if (polygonNodeShape(node.shape)) {
+    const toward = { x: node.point.x + cos, y: node.point.y + sin };
+    return polygonBorderPoint(node.point, toward, nodePolygonPoints(node, node.point, halfWidth, halfHeight));
+  }
   const xScale = Math.abs(cos) > 1e-12 ? halfWidth / Math.abs(cos) : Number.POSITIVE_INFINITY;
   const yScale = Math.abs(sin) > 1e-12 ? halfHeight / Math.abs(sin) : Number.POSITIVE_INFINITY;
   const scale = Math.min(xScale, yScale);
@@ -2383,6 +2462,104 @@ function diamondAnchorCoordinate(node, anchor, halfWidth, halfHeight) {
   if (anchor === "south east") return roundPoint({ x: node.point.x + halfWidth / 2, y: node.point.y - halfHeight / 2 });
   if (anchor === "south west") return roundPoint({ x: node.point.x - halfWidth / 2, y: node.point.y - halfHeight / 2 });
   return roundPoint(node.point);
+}
+
+function polygonNodeShape(shape) {
+  return shape === "regularPolygon" || shape === "star" || shape === "trapezium";
+}
+
+function nodePolygonPoints(node, center, halfWidth, halfHeight) {
+  const data = node.shapeData || {};
+  if (node.shape === "regularPolygon") {
+    return regularPolygonPoints(center, halfWidth, halfHeight, data.regularPolygonSides || 5, 90);
+  }
+  if (node.shape === "star") {
+    return starPolygonPoints(center, halfWidth, halfHeight, data.starPoints || 5, data.starPointRatio || 1.5);
+  }
+  if (node.shape === "trapezium") {
+    return trapeziumPoints(center, halfWidth, halfHeight, data);
+  }
+  return rectanglePoints(center, halfWidth, halfHeight);
+}
+
+function regularPolygonPoints(center, halfWidth, halfHeight, sides, startAngle = 90) {
+  return Array.from({ length: sides }, (_unused, index) => {
+    const angle = ((startAngle + (360 * index) / sides) * Math.PI) / 180;
+    return {
+      x: center.x + Math.cos(angle) * halfWidth,
+      y: center.y + Math.sin(angle) * halfHeight
+    };
+  });
+}
+
+function starPolygonPoints(center, halfWidth, halfHeight, points, ratio) {
+  const total = points * 2;
+  const innerRatio = 1 / ratio;
+  return Array.from({ length: total }, (_unused, index) => {
+    const outer = index % 2 === 0;
+    const angle = ((90 + (360 * index) / total) * Math.PI) / 180;
+    const scale = outer ? 1 : innerRatio;
+    return {
+      x: center.x + Math.cos(angle) * halfWidth * scale,
+      y: center.y + Math.sin(angle) * halfHeight * scale
+    };
+  });
+}
+
+function trapeziumPoints(center, halfWidth, halfHeight, data = {}) {
+  const left = Math.max(10, Math.min(170, data.trapeziumLeftAngle || 60));
+  const right = Math.max(10, Math.min(170, data.trapeziumRightAngle || 60));
+  const leftInset = Math.cos((left * Math.PI) / 180) * halfHeight * 0.7;
+  const rightInset = Math.cos((right * Math.PI) / 180) * halfHeight * 0.7;
+  return [
+    { x: center.x - halfWidth + leftInset, y: center.y + halfHeight },
+    { x: center.x + halfWidth - rightInset, y: center.y + halfHeight },
+    { x: center.x + halfWidth + rightInset, y: center.y - halfHeight },
+    { x: center.x - halfWidth - leftInset, y: center.y - halfHeight }
+  ];
+}
+
+function rectanglePoints(center, halfWidth, halfHeight) {
+  return [
+    { x: center.x - halfWidth, y: center.y + halfHeight },
+    { x: center.x + halfWidth, y: center.y + halfHeight },
+    { x: center.x + halfWidth, y: center.y - halfHeight },
+    { x: center.x - halfWidth, y: center.y - halfHeight }
+  ];
+}
+
+function polygonBorderPoint(center, toward, points) {
+  const direction = { x: toward.x - center.x, y: toward.y - center.y };
+  const candidates = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const a = points[index];
+    const b = points[(index + 1) % points.length];
+    const hit = raySegmentIntersection(center, direction, a, b);
+    if (hit && hit.t >= -1e-9) candidates.push(hit);
+  }
+  candidates.sort((a, b) => a.t - b.t);
+  return candidates[0] ? roundPoint(candidates[0].point) : roundPoint(center);
+}
+
+function raySegmentIntersection(origin, direction, a, b) {
+  const edge = { x: b.x - a.x, y: b.y - a.y };
+  const denom = cross(direction, edge);
+  if (Math.abs(denom) < 1e-12) return null;
+  const delta = { x: a.x - origin.x, y: a.y - origin.y };
+  const t = cross(delta, edge) / denom;
+  const u = cross(delta, direction) / denom;
+  if (t < -1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+  return {
+    t,
+    point: {
+      x: origin.x + direction.x * t,
+      y: origin.y + direction.y * t
+    }
+  };
+}
+
+function cross(a, b) {
+  return a.x * b.y - a.y * b.x;
 }
 
 function projectBasisPoint(x, y, z, basis = parsePictureBasis()) {

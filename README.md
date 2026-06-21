@@ -126,6 +126,7 @@ Current support is pragmatic and growing. Highlights:
 - PGFPlots subset: common `axis`, `addplot`, function sampling, coordinates, labels, legends, middle axes.
 - 3D subset: TikZ `x=`, `y=`, `z=` basis projection.
 - TeX-lite macros: common `\def`, `\newcommand`, `\foreach`, `\pgfmathsetmacro`.
+- Built-in TikZ libraries: `\usetikzlibrary{shapes}` style declarations are treated as core library imports; common `shapes.geometric` and `shapes.symbols` nodes such as regular polygons, stars, trapezia, and clouds render as SVG paths with node-border anchors.
 - Extension-backed libraries: `tikz-network`, `tikz-3dplot`, and `tikz-bagua` subsets, plus small compatibility layers for selected graph-style macros.
 
 Unsupported or partially supported syntax should produce diagnostics instead of silently disappearing.
@@ -151,6 +152,8 @@ Generated files go under `outputs/real-gallery/`.
 ## Extension System
 
 Extensions are normal ESM objects. The first stable hook is `preprocess`, which receives source text before parsing and returns rewritten TikZ source. This is the right layer for LaTeX/TikZ packages that define higher-level commands, because the extension can translate those commands into the core TikZ subset that the parser already understands.
+
+TikZ libraries are different from extensions. A `\usetikzlibrary{...}` declaration enables built-in TikZ/PGF semantics; when the feature belongs to core drawing behavior, such as `shapes`, it should be implemented inside the parser/interpreter/renderer rather than as a source-rewriting extension.
 
 Built-in extensions live in:
 

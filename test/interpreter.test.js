@@ -354,6 +354,48 @@ test("supports diamond node shape and compass anchors", () => {
   assert.ok(path.commands.at(-1).y > 0 && path.commands.at(-1).y < path.commands[0].y);
 });
 
+test("supports built-in TikZ shapes library geometric and symbol nodes", () => {
+  const source = String.raw`
+\usetikzlibrary{shapes}
+\begin{tikzpicture}
+  \node[regular polygon, regular polygon sides=5, draw, minimum size=1cm] (p) at (0,0) {P};
+  \node[star, star points=6, draw, right=1.8cm of p] (s) {S};
+  \node[trapezium, trapezium left angle=70, trapezium right angle=110, draw, right=1.8cm of s] (t) {T};
+  \node[cloud, draw, right=1.8cm of t] (c) {C};
+  \draw (p.east) -- (s.west) -- (t.north) -- (c.180);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const boxes = result.ir.items.filter((item) => item.type === "nodeBox");
+  const shapes = boxes.map((item) => item.shape);
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(shapes, ["regularPolygon", "star", "trapezium", "cloud"]);
+  assert.equal(path.commands.length, 4);
+  assert.ok(path.commands[0].x > boxes[0].x, `expected regular polygon east anchor on right border`);
+  assert.ok(path.commands[1].x < boxes[1].x, `expected star west anchor on left border`);
+  assert.ok(path.commands[2].y > boxes[2].y, `expected trapezium north anchor above center`);
+  assert.match(result.svg, /class="tikz-node-shape tikz-node-regularPolygon"/);
+  assert.match(result.svg, /class="tikz-node-shape tikz-node-star"/);
+  assert.match(result.svg, /class="tikz-node-shape tikz-node-trapezium"/);
+  assert.match(result.svg, /class="tikz-node-shape tikz-node-cloud"/);
+});
+
+test("treats usetikzlibrary declarations as built-in library imports", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \usetikzlibrary{shapes}
+  \node[star, draw] (s) at (0,0) {S};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const box = result.ir.items.find((item) => item.type === "nodeBox");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(box.shape, "star");
+});
+
 test("keeps text, mid, and base anchors distinct inside nodes", () => {
   const source = String.raw`
 \begin{tikzpicture}
