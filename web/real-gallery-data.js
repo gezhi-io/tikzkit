@@ -835,6 +835,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usepackage{tikz-qtree}\n\\begin{document}\n\\begin{tikzpicture}[level distance=40pt,sibling distance=18pt]\n\\Tree [.S [.NP [.Det the ] [.N cat ] ]\n          [.VP [.V sat ]\n               [.PP [.P on ]\n                    [.NP \\edge[roof]; {a very soft mat} ] ] ] ]\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "Tikzquads quadripoles and load line",
+    "origin": "MacTeX tikzquads",
+    "sourceUrl": "https://ctan.org/pkg/tikzquads",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikzquads/tikzquads.tex",
+    "source": "\\documentclass[crop,tikz]{standalone}\n\\usepackage{circuitikz}\n\\usepackage{tikzquads}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node[Quad,I1=$I_a$,V2=$V_b$,label top center=$Q_a$] (Qa) at (0,0) {$Q_a$};\n  \\node[Quad,I1=$I_b$,V2=$V_o$,label bottom center=$Q_b$] (Qb) at (0,-2) {$Q_b$};\n  \\QuadParConnect[right,down,spacing=.15]{Qa}{Qb}\n  \\node[Black Box,I1=$I_L$,V1=$V_L$,label top center=Load] (Load) at (3.3,-1) {};\n  \\draw[->] (Qa.2+) -- (Load.1+);\n  \\draw[->] (Load.1-) -- (Qa.2-);\n  \\node[PG load line,x axis=$V$,y axis=$I$,x val=$V_{th}$,y val=$I_N$] at (6,-1) {};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -879,7 +886,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 125,
+  "caseCount": 126,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -896,6 +903,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzFeynmanFound": 1,
   "tikzPalatticeFound": 1,
   "tikzQtreeFound": 1,
+  "tikzquadsFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -913,6 +921,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-feynhand",
     "MacTeX tikz-feynman",
     "MacTeX tikz-palattice",
-    "MacTeX tikz-qtree"
+    "MacTeX tikz-qtree",
+    "MacTeX tikzquads"
   ]
 };

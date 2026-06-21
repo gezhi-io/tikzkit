@@ -477,6 +477,29 @@ const TIKZ_QTREE_CASES = [
   }
 ];
 
+const TIKZQUADS_CASES = [
+  {
+    title: "Tikzquads quadripoles and load line",
+    origin: "MacTeX tikzquads",
+    sourceUrl: "https://ctan.org/pkg/tikzquads",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikzquads/tikzquads.tex",
+    source: String.raw`\documentclass[crop,tikz]{standalone}
+\usepackage{circuitikz}
+\usepackage{tikzquads}
+\begin{document}
+\begin{tikzpicture}
+  \node[Quad,I1=$I_a$,V2=$V_b$,label top center=$Q_a$] (Qa) at (0,0) {$Q_a$};
+  \node[Quad,I1=$I_b$,V2=$V_o$,label bottom center=$Q_b$] (Qb) at (0,-2) {$Q_b$};
+  \QuadParConnect[right,down,spacing=.15]{Qa}{Qb}
+  \node[Black Box,I1=$I_L$,V1=$V_L$,label top center=Load] (Load) at (3.3,-1) {};
+  \draw[->] (Qa.2+) -- (Load.1+);
+  \draw[->] (Load.1-) -- (Qa.2-);
+  \node[PG load line,x axis=$V$,y axis=$I$,x val=$V_{th}$,y val=$I_N$] at (6,-1) {};
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -724,6 +747,7 @@ const selected = [
   ...TIKZ_FEYNMAN_CASES,
   ...TIKZ_PALATTICE_CASES,
   ...TIKZ_QTREE_CASES,
+  ...TIKZQUADS_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -751,6 +775,7 @@ await writeFile(
     tikzFeynmanFound: TIKZ_FEYNMAN_CASES.length,
     tikzPalatticeFound: TIKZ_PALATTICE_CASES.length,
     tikzQtreeFound: TIKZ_QTREE_CASES.length,
+    tikzquadsFound: TIKZQUADS_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"

@@ -59,6 +59,7 @@ function renderItem(item, unit, options = {}) {
     if (["regularPolygon", "star", "trapezium", "cloud", "superellipse"].includes(item.shape)) {
       return renderNodeBoxWithOverlay(item, renderLibraryShapeNodeBox(item, unit), unit);
     }
+    if (["tikzquadsQuad", "tikzquadsBlackBox", "tikzquadsPgLoadLine"].includes(item.shape)) return renderTikzquadsNodeBox(item, unit);
     if (item.shape === "rectangleSplit") return renderRectangleSplit(item, unit);
     return renderNodeBoxWithOverlay(item, `<rect x="${format((item.x - item.width / 2) * unit)}" y="${format(
       -(item.y + item.height / 2) * unit
@@ -261,6 +262,226 @@ function renderPathPictureOverlay(item, unit) {
   return `<path d="M ${format(x1)} ${format(y2)} L ${format(x2)} ${format(y1)} M ${format(x1)} ${format(y1)} L ${format(
     x2
   )} ${format(y2)}" stroke="${stroke}" fill="none" stroke-width="${width}" />`;
+}
+
+function renderTikzquadsNodeBox(item, unit) {
+  if (item.shape === "tikzquadsPgLoadLine") return renderTikzquadsPgLoadLine(item, unit);
+  const cx = item.x * unit;
+  const cy = -item.y * unit;
+  const hw = (item.width / 2) * unit;
+  const hh = (item.height / 2) * unit;
+  const terminal = Math.max(5, hw * (item.shape === "tikzquadsBlackBox" ? 0.26 : 0.18));
+  const left = cx - hw + terminal;
+  const right = item.shape === "tikzquadsBlackBox" ? cx + hw - terminal * 0.35 : cx + hw - terminal;
+  const top = cy - hh;
+  const bottom = cy + hh;
+  const portY = hh * 0.32;
+  const stroke = escapeAttribute(item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black");
+  const fill = escapeAttribute(item.style?.fill || "none");
+  const lineWidth = format(item.style?.lineWidth || 1);
+  const group = [`<g class="tikz-node-shape tikz-node-${escapeAttribute(item.shape)}">`];
+  group.push(
+    `<rect x="${format(left)}" y="${format(top)}" width="${format(right - left)}" height="${format(
+      bottom - top
+    )}" fill="${fill}" stroke="${stroke}" stroke-width="${lineWidth}" />`
+  );
+  group.push(renderTikzquadsPorts(item, { cx, cy, hw, hh, left, right, portY, terminal, stroke, lineWidth }));
+  group.push(renderTikzquadsInternals(item, { cx, cy, hw, hh, left, right, portY, stroke, lineWidth }));
+  group.push(renderTikzquadsLabels(item, { cx, cy, hw, hh, left, right, portY, stroke }));
+  group.push("</g>");
+  return group.filter(Boolean).join("");
+}
+
+function renderTikzquadsPorts(item, box) {
+  const { cx, cy, hw, left, right, portY, stroke, lineWidth } = box;
+  const leftOuter = cx - hw;
+  const pieces = [
+    `<path d="M ${format(leftOuter)} ${format(cy - portY)} L ${format(left)} ${format(cy - portY)} M ${format(leftOuter)} ${format(
+      cy + portY
+    )} L ${format(left)} ${format(cy + portY)}" fill="none" stroke="${stroke}" stroke-width="${lineWidth}" />`,
+    renderTikzquadsPolarity(leftOuter + (left - leftOuter) * 0.55, cy - portY + 6, stroke, 1),
+    renderTikzquadsPolarity(leftOuter + (left - leftOuter) * 0.55, cy + portY - 6, stroke, -1),
+    renderTikzquadsArrow(leftOuter + (left - leftOuter) * 0.55, cy - portY, -1, stroke)
+  ];
+  if (item.shape === "tikzquadsQuad") {
+    const rightOuter = cx + hw;
+    pieces.push(
+      `<path d="M ${format(right)} ${format(cy - portY)} L ${format(rightOuter)} ${format(cy - portY)} M ${format(right)} ${format(
+        cy + portY
+      )} L ${format(rightOuter)} ${format(cy + portY)}" fill="none" stroke="${stroke}" stroke-width="${lineWidth}" />`,
+      renderTikzquadsPolarity(rightOuter - (rightOuter - right) * 0.55, cy - portY + 6, stroke, 1),
+      renderTikzquadsPolarity(rightOuter - (rightOuter - right) * 0.55, cy + portY - 6, stroke, -1),
+      renderTikzquadsArrow(rightOuter - (rightOuter - right) * 0.55, cy - portY, 1, stroke),
+      `<path d="M ${format(left)} ${format(cy + portY)} L ${format(right)} ${format(cy + portY)}" fill="none" stroke="${stroke}" stroke-width="${format(
+        Math.max(0.5, Number(lineWidth) * 0.55)
+      )}" stroke-dasharray="1.1 1.4" />`
+    );
+  }
+  return pieces.join("");
+}
+
+function renderTikzquadsPolarity(x, y, stroke, sign) {
+  const size = 3.2;
+  const horizontal = `M ${format(x - size)} ${format(y)} L ${format(x + size)} ${format(y)}`;
+  const vertical = sign > 0 ? ` M ${format(x)} ${format(y - size)} L ${format(x)} ${format(y + size)}` : "";
+  return `<path d="${horizontal}${vertical}" fill="none" stroke="${stroke}" stroke-width="0.8" />`;
+}
+
+function renderTikzquadsArrow(x, y, direction, stroke) {
+  const tip = direction > 0 ? x + 6 : x - 6;
+  const tail = direction > 0 ? x - 5 : x + 5;
+  const wing = direction > 0 ? -1 : 1;
+  return `<path d="M ${format(tail)} ${format(y)} L ${format(tip)} ${format(y)} M ${format(tip)} ${format(y)} L ${format(
+    tip + wing * 4
+  )} ${format(y - 3)} M ${format(tip)} ${format(y)} L ${format(tip + wing * 4)} ${format(y + 3)}" fill="none" stroke="${stroke}" stroke-width="0.8" />`;
+}
+
+function renderTikzquadsInternals(item, box) {
+  const kind = String(item.tikzquadsKind || "").toLowerCase();
+  const { cx, cy, hw, hh, left, right, portY, stroke, lineWidth } = box;
+  if (kind === "quad" || kind === "black box") return "";
+  if (kind === "thevenin") {
+    const x = (left + right) / 2;
+    return [
+      renderTikzquadsResistor(x, cy - portY * 0.52, hw * 0.18, stroke, lineWidth),
+      renderTikzquadsVoltageSource(x, cy + portY * 0.52, Math.min(hw, hh) * 0.15, stroke, lineWidth)
+    ].join("");
+  }
+  if (kind === "norton") {
+    const x = (left + right) / 2;
+    return [
+      renderTikzquadsResistor(x - hw * 0.12, cy, hw * 0.16, stroke, lineWidth, true),
+      renderTikzquadsCurrentSource(x + hw * 0.14, cy, Math.min(hw, hh) * 0.15, stroke, lineWidth)
+    ].join("");
+  }
+  if (!kind.startsWith("quad ")) return "";
+  const leftX = left + (right - left) * 0.32;
+  const rightX = right - (right - left) * 0.32;
+  const mode = kind.replace(/^quad\s+/, "");
+  const leftBlock = mode === "y" || mode === "g" ? renderTikzquadsShunt(leftX, cy, portY, stroke, lineWidth) : renderTikzquadsSeries(leftX, cy, portY, stroke, lineWidth);
+  const rightBlock = mode === "z" || mode === "h" ? renderTikzquadsSeries(rightX, cy, portY, stroke, lineWidth) : renderTikzquadsShunt(rightX, cy, portY, stroke, lineWidth);
+  return `${leftBlock}${rightBlock}`;
+}
+
+function renderTikzquadsSeries(x, cy, portY, stroke, lineWidth) {
+  return [
+    renderTikzquadsResistor(x, cy - portY * 0.52, 9, stroke, lineWidth),
+    renderTikzquadsVoltageSource(x, cy + portY * 0.52, 6, stroke, lineWidth)
+  ].join("");
+}
+
+function renderTikzquadsShunt(x, cy, portY, stroke, lineWidth) {
+  return [
+    renderTikzquadsResistor(x - 5, cy, 8, stroke, lineWidth, true),
+    renderTikzquadsCurrentSource(x + 8, cy, 6, stroke, lineWidth)
+  ].join("");
+}
+
+function renderTikzquadsResistor(x, y, size, stroke, lineWidth, vertical = false) {
+  if (vertical) {
+    return `<rect x="${format(x - size * 0.35)}" y="${format(y - size)}" width="${format(size * 0.7)}" height="${format(
+      size * 2
+    )}" fill="white" stroke="${stroke}" stroke-width="${lineWidth}" />`;
+  }
+  return `<rect x="${format(x - size)}" y="${format(y - size * 0.35)}" width="${format(size * 2)}" height="${format(
+    size * 0.7
+  )}" fill="white" stroke="${stroke}" stroke-width="${lineWidth}" />`;
+}
+
+function renderTikzquadsVoltageSource(x, y, radius, stroke, lineWidth) {
+  return `<g><circle cx="${format(x)}" cy="${format(y)}" r="${format(radius)}" fill="white" stroke="${stroke}" stroke-width="${lineWidth}" />${renderTikzquadsPolarity(
+    x,
+    y - radius * 0.35,
+    stroke,
+    1
+  )}${renderTikzquadsPolarity(x, y + radius * 0.45, stroke, -1)}</g>`;
+}
+
+function renderTikzquadsCurrentSource(x, y, radius, stroke, lineWidth) {
+  return `<g><circle cx="${format(x)}" cy="${format(y)}" r="${format(radius)}" fill="white" stroke="${stroke}" stroke-width="${lineWidth}" />${renderTikzquadsArrow(
+    x,
+    y + radius * 0.1,
+    1,
+    stroke
+  )}</g>`;
+}
+
+function renderTikzquadsLabels(item, box) {
+  const labels = tikzquadsLabelPositions(item, box);
+  return labels
+    .filter((label) => label.text !== undefined && label.text !== null && label.text !== "")
+    .map((label) => renderTikzquadsText(label.text, label.x, label.y, label.anchor || "middle", label.size || 9, box.stroke))
+    .join("");
+}
+
+function tikzquadsLabelPositions(item, box) {
+  const o = item.tikzquadsOptions || {};
+  const kind = String(item.tikzquadsKind || "").toLowerCase();
+  const { cx, cy, hw, hh, left, right, portY } = box;
+  if (item.shape === "tikzquadsBlackBox") {
+    const labels = [
+      { text: o.I1 ?? "$I_1$", x: left - 4, y: cy - portY - 10, anchor: "end" },
+      { text: o.V1 ?? "$V_1$", x: left - 6, y: cy, anchor: "end" }
+    ];
+    if (kind === "thevenin") labels.push({ text: o.Zth ?? "$Z_{th}$", x: cx, y: cy - portY * 0.52 - 8 }, { text: o.Vth ?? "$V_{th}$", x: cx, y: cy + portY * 0.52 + 12 });
+    if (kind === "norton") labels.push({ text: o.Yn ?? "$Y_N$", x: cx - hw * 0.1, y: cy - 14 }, { text: o.In ?? "$I_N$", x: cx + hw * 0.16, y: cy + 14 });
+    return labels;
+  }
+  const labels = [
+    { text: o.I1 ?? "$I_1$", x: left - 4, y: cy - portY - 10, anchor: "end" },
+    { text: o.V1 ?? "$V_1$", x: left - 6, y: cy, anchor: "end" },
+    { text: o.I2 ?? "$I_2$", x: right + 4, y: cy - portY - 10, anchor: "start" },
+    { text: o.V2 ?? "$V_2$", x: right + 6, y: cy, anchor: "start" }
+  ];
+  const prefix = kind.endsWith(" y") ? "Y" : kind.endsWith(" g") ? "G" : kind.endsWith(" h") ? "H" : kind.endsWith(" z") ? "Z" : "";
+  if (prefix) {
+    labels.push(
+      { text: o[`${prefix}11`] ?? `$${prefix}_{11}$`, x: left + (right - left) * 0.28, y: cy - hh * 0.18 },
+      { text: o[`${prefix}12`] ?? `$${prefix}_{12}$`, x: left + (right - left) * 0.43, y: cy + hh * 0.18 },
+      { text: o[`${prefix}21`] ?? `$${prefix}_{21}$`, x: right - (right - left) * 0.43, y: cy - hh * 0.18 },
+      { text: o[`${prefix}22`] ?? `$${prefix}_{22}$`, x: right - (right - left) * 0.28, y: cy + hh * 0.18 }
+    );
+  }
+  return labels;
+}
+
+function renderTikzquadsPgLoadLine(item, unit) {
+  const cx = item.x * unit;
+  const cy = -item.y * unit;
+  const hw = (item.width / 2) * unit;
+  const hh = (item.height / 2) * unit;
+  const stroke = escapeAttribute(item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black");
+  const lineWidth = format(item.style?.lineWidth || 1);
+  const left = cx - hw * 0.78;
+  const right = cx + hw * 0.78;
+  const bottom = cy + hh * 0.72;
+  const top = cy - hh * 0.72;
+  const o = item.tikzquadsOptions || {};
+  return [
+    `<g class="tikz-node-shape tikz-node-${escapeAttribute(item.shape)}">`,
+    `<path d="M ${format(left)} ${format(bottom)} L ${format(right)} ${format(bottom)} M ${format(left)} ${format(bottom)} L ${format(
+      left
+    )} ${format(top)} M ${format(left)} ${format(top)} L ${format(left - 3)} ${format(top + 7)} M ${format(left)} ${format(top)} L ${format(
+      left + 3
+    )} ${format(top + 7)} M ${format(right)} ${format(bottom)} L ${format(right - 7)} ${format(bottom - 3)} M ${format(right)} ${format(
+      bottom
+    )} L ${format(right - 7)} ${format(bottom + 3)} M ${format(left)} ${format(top + hh * 0.2)} L ${format(right - hw * 0.18)} ${format(
+      bottom
+    )}" fill="none" stroke="${stroke}" stroke-width="${lineWidth}" stroke-linecap="round" />`,
+    renderTikzquadsText(o["x axis"] ?? "$V$", right + 9, bottom + 2, "start", 9, stroke),
+    renderTikzquadsText(o["y axis"] ?? "$I$", left - 3, top - 7, "end", 9, stroke),
+    renderTikzquadsText(o["x val"] ?? "$V_{th}$", right - 5, bottom - 8, "end", 8, stroke),
+    renderTikzquadsText(o["y val"] ?? "$I_N$", left + 5, top + 9, "start", 8, stroke),
+    "</g>"
+  ].join("");
+}
+
+function renderTikzquadsText(text, x, y, anchor, size, fill) {
+  return `<text x="${format(x)}" y="${format(y)}" fill="${escapeAttribute(fill)}" text-anchor="${escapeAttribute(
+    anchor
+  )}" dominant-baseline="middle" font-size="${format(size)}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(
+    String(text)
+  )}</text>`;
 }
 
 function renderDoubleNodeOutline(item, unit) {

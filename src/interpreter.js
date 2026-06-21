@@ -1133,6 +1133,8 @@ function addNodeItems(node, ir, env) {
       pathPicture: semantic["path picture"],
       bpmnIcon: semantic["bpmn icon"],
       bpmnMarker: semantic["bpmn marker"],
+      tikzquadsKind: semantic["tikzquads kind"],
+      tikzquadsOptions: tikzquadsNodeOptions(semantic),
       doubleColor: semantic.double === undefined ? undefined : semantic.double || "white",
       parts: shape === "rectangleSplit" ? rectangleSplitParts(semantic) : undefined,
       partFills: shape === "rectangleSplit" ? rectangleSplitPartFills(semantic) : undefined,
@@ -1344,6 +1346,8 @@ function nodeAnchorShift(options = {}, size, sep, env) {
 
   const anchor = String(options.anchor || "").trim();
   if (!anchor) return { x: 0, y: 0 };
+  const customAnchor = customNodeLocalAnchor(nodeShape(options), anchor, size);
+  if (customAnchor) return { x: -customAnchor.x, y: -customAnchor.y };
   return {
     x: anchor.includes("west") ? size.width / 2 + sep : anchor.includes("east") ? -(size.width / 2 + sep) : 0,
     y: anchor.includes("south") ? size.height / 2 + sep : anchor.includes("north") ? -(size.height / 2 + sep) : 0
@@ -1586,6 +1590,9 @@ function nodeBorderPoint(node, center, toward, env) {
 
 function nodeShape(options = {}) {
   const shape = normalizeShapeName(options.shape);
+  if (shape === "tikzquads quad") return "tikzquadsQuad";
+  if (shape === "tikzquads black box") return "tikzquadsBlackBox";
+  if (shape === "tikzquads pg load line") return "tikzquadsPgLoadLine";
   if (options["rectangle split"]) return "rectangleSplit";
   if (options.circle || shape === "circle") return "circle";
   if (options["circle cross split"] || shape === "circle cross split") return "circleCrossSplit";
@@ -1608,6 +1615,44 @@ function nodeShapeData(options = {}) {
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
     trapeziumRightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60)
   };
+}
+
+function tikzquadsNodeOptions(semantic = {}) {
+  const keys = [
+    "Z11",
+    "Z12",
+    "Z21",
+    "Z22",
+    "Y11",
+    "Y12",
+    "Y21",
+    "Y22",
+    "G11",
+    "G12",
+    "G21",
+    "G22",
+    "H11",
+    "H12",
+    "H21",
+    "H22",
+    "I1",
+    "I2",
+    "V1",
+    "V2",
+    "In",
+    "Yn",
+    "Vth",
+    "Zth",
+    "x axis",
+    "y axis",
+    "x val",
+    "y val"
+  ];
+  const result = {};
+  for (const key of keys) {
+    if (semantic[key] !== undefined) result[key] = semantic[key];
+  }
+  return result;
 }
 
 function normalizeShapeName(value) {
@@ -1899,6 +1944,18 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   if (shape === "cloud") {
     width *= 1.28;
     height *= 1.18;
+  }
+  if (shape === "tikzquadsQuad") {
+    width = Math.max(width, parseFiniteDimension(options["base width"], env, 2.35));
+    height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.42));
+  }
+  if (shape === "tikzquadsBlackBox") {
+    width = Math.max(width, parseFiniteDimension(options["base width"], env, 1.35));
+    height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.42));
+  }
+  if (shape === "tikzquadsPgLoadLine") {
+    width = Math.max(width, parseFiniteDimension(options["base width"], env, 2.2));
+    height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.7));
   }
   return { width: roundNumber(width), height: roundNumber(height) };
 }
@@ -2311,6 +2368,8 @@ function resolveRelativeCoordinate(raw, current, env, diagnostics) {
 }
 
 function semanticSubtype(options = {}) {
+  if (options["tikzquads parallel path"]) return "tikzquads-parallel-connect";
+  if (options["tikzquads kind"]) return `tikzquads-${String(options["tikzquads kind"]).trim().replace(/\s+/g, "-")}`;
   if (options["axis mark"]) return "axis-mark";
   if (options["axis frame"]) return "axis-frame";
   if (options["axis grid"]) return "axis-grid-line";
@@ -2728,6 +2787,8 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   if (Number.isFinite(angle)) {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
+  const customAnchor = customNodeLocalAnchor(node.shape, anchor, { width, height });
+  if (customAnchor) return roundPoint({ x: node.point.x + customAnchor.x, y: node.point.y + customAnchor.y });
   if (node.shape === "diamond") {
     return diamondAnchorCoordinate(node, anchor, halfWidth, halfHeight);
   }
@@ -2738,6 +2799,65 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   if (anchor.includes("north")) y += halfHeight;
   if (anchor.includes("south")) y -= halfHeight;
   return roundPoint({ x, y });
+}
+
+function customNodeLocalAnchor(shape, anchorRaw, size) {
+  const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ");
+  const halfWidth = (Number(size.width) || 0) / 2;
+  const halfHeight = (Number(size.height) || 0) / 2;
+  if (shape === "tikzquadsQuad") {
+    const portY = halfHeight * 0.32;
+    const innerX = halfWidth * 0.76;
+    const textY = halfHeight * 0.56;
+    const anchors = {
+      "1+": { x: -halfWidth, y: portY },
+      "1-": { x: -halfWidth, y: -portY },
+      "2+": { x: halfWidth, y: portY },
+      "2-": { x: halfWidth, y: -portY },
+      "inner 1+": { x: -innerX, y: portY },
+      "inner 1-": { x: -innerX, y: -portY },
+      "inner 2+": { x: innerX, y: portY },
+      "inner 2-": { x: innerX, y: -portY },
+      "top left": { x: -innerX, y: textY },
+      "top center": { x: 0, y: textY },
+      "top right": { x: innerX, y: textY },
+      "bottom left": { x: -innerX, y: -textY },
+      "bottom center": { x: 0, y: -textY },
+      "bottom right": { x: innerX, y: -textY },
+      "inner top left": { x: -innerX, y: portY + halfHeight * 0.12 },
+      "inner top center": { x: 0, y: portY + halfHeight * 0.12 },
+      "inner top right": { x: innerX, y: portY + halfHeight * 0.12 },
+      "inner bottom left": { x: -innerX, y: -portY - halfHeight * 0.12 },
+      "inner bottom center": { x: 0, y: -portY - halfHeight * 0.12 },
+      "inner bottom right": { x: innerX, y: -portY - halfHeight * 0.12 }
+    };
+    return anchors[anchor] || null;
+  }
+  if (shape === "tikzquadsBlackBox") {
+    const portY = halfHeight * 0.32;
+    const innerX = halfWidth * 0.7;
+    const textY = halfHeight * 0.56;
+    const anchors = {
+      "1+": { x: -halfWidth, y: portY },
+      "1-": { x: -halfWidth, y: -portY },
+      "inner 1+": { x: -innerX, y: portY },
+      "inner 1-": { x: -innerX, y: -portY },
+      "top left": { x: -innerX, y: textY },
+      "top center": { x: 0, y: textY },
+      "top right": { x: innerX, y: textY },
+      "bottom left": { x: -innerX, y: -textY },
+      "bottom center": { x: 0, y: -textY },
+      "bottom right": { x: innerX, y: -textY },
+      "inner top left": { x: -innerX, y: portY + halfHeight * 0.12 },
+      "inner top center": { x: 0, y: portY + halfHeight * 0.12 },
+      "inner top right": { x: innerX, y: portY + halfHeight * 0.12 },
+      "inner bottom left": { x: -innerX, y: -portY - halfHeight * 0.12 },
+      "inner bottom center": { x: 0, y: -portY - halfHeight * 0.12 },
+      "inner bottom right": { x: innerX, y: -portY - halfHeight * 0.12 }
+    };
+    return anchors[anchor] || null;
+  }
+  return null;
 }
 
 function angleAnchor(node, angle, halfWidth, halfHeight) {

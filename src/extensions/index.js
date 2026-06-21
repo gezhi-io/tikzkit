@@ -9,6 +9,7 @@ import { tikzFeynmanExtension } from "./tikz-feynman.js";
 import { tikzNetworkExtension } from "./tikz-network.js";
 import { tikzPalatticeExtension } from "./tikz-palattice.js";
 import { tikzQtreeExtension } from "./tikz-qtree.js";
+import { tikzquadsExtension } from "./tikzquads.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
 
 export const BUILTIN_EXTENSIONS = [
@@ -23,7 +24,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzFeynhandExtension,
   tikzFeynmanExtension,
   tikzPalatticeExtension,
-  tikzQtreeExtension
+  tikzQtreeExtension,
+  tikzquadsExtension
 ];
 
 export function applyPreprocessExtensions(source, context = {}) {
