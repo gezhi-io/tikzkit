@@ -807,6 +807,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{ext.paths.ortho,ext.paths.arcto,ext.topaths.arcthrough,ext.transformations.mirror,ext.shapes.superellipse,ext.shapes.circlecrosssplit}\n\\begin{document}\n\\begin{tikzpicture}[very thick]\n  \\coordinate[label=below left:$A$] (A) at (0,0);\n  \\coordinate[label=above right:$B$] (B) at (3,2);\n  \\coordinate[label=above:$C$] (C) at (1,2.6);\n  \\draw[help lines,step=.5] (-.5,-1) grid (4.8,3.2);\n  \\draw[blue,-latex] (A) -|- node[pos=.5,above] {hvh} (B);\n  \\draw[red,-latex] (0,-.55) |-| node[pos=.5,right] {vhv} (3,1.4);\n  \\draw[green!60!black,-latex] (A) r-ud node[pos=.5,above] {ud} (B);\n  \\draw[purple] (A) arc to[radius=2.5,clockwise] node[midway,below] {arc to} (B);\n  \\draw[orange,fill=orange!20] (A) to[ext/arc through={clockwise,(C)}] (B) -- (arc through center) -- cycle;\n  \\node[draw,shape=superellipse,fill=blue!10,minimum width=1.5cm,minimum height=.75cm] at (4.1,1.65) {super};\n  \\node[draw,shape=circle cross split,fill=yellow!15,minimum size=.95cm] at (4.1,.25) {};\n  \\draw[dashed] (1.5,-.9) -- (1.5,3.1);\n  \\begin{scope}[ext/xmirror=1.5]\n    \\draw[teal,dashed,-latex] (0,.25) .. controls (.5,1.05) .. (1,.75);\n  \\end{scope}\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "FeynHand vertices and propagators",
+    "origin": "MacTeX tikz-feynhand",
+    "sourceUrl": "https://ctan.org/pkg/tikz-feynhand",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-feynhand/tikz-feynhand.userguide.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-feynhand}\n\\begin{document}\n\\begin{tikzpicture}\n\\begin{feynhand}\n  \\vertex [particle] (e1) at (0,1.2) {$e^-$};\n  \\vertex [particle] (e2) at (0,-1.2) {$e^+$};\n  \\vertex [dot] (v1) at (1,0) {};\n  \\vertex [ringdot] (v2) at (2.35,0) {};\n  \\vertex [blob] (b) at (3.65,1.05) {};\n  \\vertex [crossdot] (x) at (3.65,-1.05) {};\n  \\propag [fer, blue, mom={$p$}] (e1) to [edge label=$k$] (v1);\n  \\propag [antfer, red] (e2) to (v1);\n  \\propag [pho, orange] (v1) to [out=20, in=160] (v2);\n  \\propag [glu, green] (v2) to (b);\n  \\propag [sca, purple] (v2) to [edge label'=$m$] (x);\n  \\propag [chabos, top] (b) to (x);\n\\end{feynhand}\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -851,7 +858,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 121,
+  "caseCount": 122,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -864,6 +871,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzDecofontsFound": 1,
   "tikzDimlineFound": 1,
   "tikzExtFound": 1,
+  "tikzFeynhandFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -877,6 +885,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-cd",
     "MacTeX tikz-decofonts",
     "MacTeX tikz-dimline",
-    "MacTeX tikz-ext"
+    "MacTeX tikz-ext",
+    "MacTeX tikz-feynhand"
   ]
 };

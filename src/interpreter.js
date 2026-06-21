@@ -1122,6 +1122,7 @@ function addNodeItems(node, ir, env) {
     ir.items.push({
       type: "nodeBox",
       id: node.name,
+      subtype: semanticSubtype({ ...node.options, ...semantic }),
       shape,
       shapeData,
       x: point.x,
@@ -2329,6 +2330,15 @@ function semanticSubtype(options = {}) {
   if (options["dimline line"]) return "dimline-line";
   if (options["dimline extension"]) return "dimline-extension";
   if (options["dimline tick"]) return "dimline-tick";
+  if (options["feynhand particle"]) return "feynhand-particle";
+  if (options["feynhand dot"]) return "feynhand-dot";
+  if (options["feynhand blob"]) return "feynhand-blob";
+  if (options["feynhand fermion"]) return "feynhand-fermion";
+  if (options["feynhand gluon"]) return "feynhand-gluon";
+  if (options["feynhand boson"]) return "feynhand-boson";
+  if (options["feynhand scalar"]) return "feynhand-scalar";
+  if (options["feynhand ghost"]) return "feynhand-ghost";
+  if (options["feynhand majorana"]) return "feynhand-majorana";
   return undefined;
 }
 
@@ -3125,6 +3135,7 @@ function addArrowMarkerAt(position, body, flat, item, ir) {
   const point = pointAtLength(flat, position);
   ir.items.push({
     type: "marker",
+    subtype: /feynhand momentum/.test(String(body)) ? "feynhand-momentum" : undefined,
     kind: tip.kind,
     tip,
     x: roundNumber(point.x),

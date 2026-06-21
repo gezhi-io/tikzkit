@@ -359,6 +359,35 @@ const TIKZ_EXT_CASES = [
   }
 ];
 
+const TIKZ_FEYNHAND_CASES = [
+  {
+    title: "FeynHand vertices and propagators",
+    origin: "MacTeX tikz-feynhand",
+    sourceUrl: "https://ctan.org/pkg/tikz-feynhand",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-feynhand/tikz-feynhand.userguide.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-feynhand}
+\begin{document}
+\begin{tikzpicture}
+\begin{feynhand}
+  \vertex [particle] (e1) at (0,1.2) {$e^-$};
+  \vertex [particle] (e2) at (0,-1.2) {$e^+$};
+  \vertex [dot] (v1) at (1,0) {};
+  \vertex [ringdot] (v2) at (2.35,0) {};
+  \vertex [blob] (b) at (3.65,1.05) {};
+  \vertex [crossdot] (x) at (3.65,-1.05) {};
+  \propag [fer, blue, mom={$p$}] (e1) to [edge label=$k$] (v1);
+  \propag [antfer, red] (e2) to (v1);
+  \propag [pho, orange] (v1) to [out=20, in=160] (v2);
+  \propag [glu, green] (v2) to (b);
+  \propag [sca, purple] (v2) to [edge label'=$m$] (x);
+  \propag [chabos, top] (b) to (x);
+\end{feynhand}
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -602,6 +631,7 @@ const selected = [
   ...TIKZ_DECOFONTS_CASES,
   ...TIKZ_DIMLINE_CASES,
   ...TIKZ_EXT_CASES,
+  ...TIKZ_FEYNHAND_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -625,6 +655,7 @@ await writeFile(
     tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length,
     tikzDimlineFound: TIKZ_DIMLINE_CASES.length,
     tikzExtFound: TIKZ_EXT_CASES.length,
+    tikzFeynhandFound: TIKZ_FEYNHAND_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"
