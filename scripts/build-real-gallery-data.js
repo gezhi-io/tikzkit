@@ -307,6 +307,29 @@ const TIKZ_BPMN_CASES = [
   }
 ];
 
+const TIKZ_CD_CASES = [
+  {
+    title: "Commutative diagram pullback square",
+    origin: "MacTeX tikz-cd",
+    sourceUrl: "https://ctan.org/pkg/tikz-cd",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-cd/tikz-cd-doc.tex#real-life-examples",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-cd}
+\begin{document}
+\begin{tikzcd}
+  T
+  \arrow[drr, bend left, "x"]
+  \arrow[ddr, bend right, "y"]
+  \arrow[dr, dotted, "{(x,y)}" description] & & \\
+    & X \times_Z Y \arrow[r, "p"] \arrow[d, "q"]
+      & X \arrow[d, "f"] \\
+    & Y \arrow[r, "g"]
+      & Z
+\end{tikzcd}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -346,7 +369,8 @@ const selected = [
   ...TIKZ_3DPLOT_CASES,
   ...TIKZ_BAGUA_CASES,
   ...TIKZ_BBOX_CASES,
-  ...TIKZ_BPMN_CASES
+  ...TIKZ_BPMN_CASES,
+  ...TIKZ_CD_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -363,7 +387,8 @@ await writeFile(
     tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length,
     tikzBaguaFound: TIKZ_BAGUA_CASES.length,
     tikzBboxFound: TIKZ_BBOX_CASES.length,
-    tikzBpmnFound: TIKZ_BPMN_CASES.length
+    tikzBpmnFound: TIKZ_BPMN_CASES.length,
+    tikzCdFound: TIKZ_CD_CASES.length
   }),
   "utf8"
 );
