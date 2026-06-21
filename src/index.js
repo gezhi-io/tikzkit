@@ -3,6 +3,7 @@ export { interpretTikz } from "./interpreter.js";
 export { renderSvg } from "./renderer-svg.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
 export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/index.js";
+export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
 export { tikzNetworkExtension } from "./extensions/tikz-network.js";
 export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
 

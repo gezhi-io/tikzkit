@@ -728,19 +728,49 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
     "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotdrawarc",
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-3dplot}\n\\begin{document}\n\\tdplotsetmaincoords{60}{110}\n\\pgfmathsetmacro{\\rvec}{.8}\n\\pgfmathsetmacro{\\thetavec}{30}\n\\pgfmathsetmacro{\\phivec}{60}\n\\begin{tikzpicture}[scale=5,tdplot_main_coords]\n  \\coordinate (O) at (0,0,0);\n  \\draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};\n  \\draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};\n  \\draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};\n  \\tdplotsetcoord{P}{\\rvec}{\\thetavec}{\\phivec}\n  \\draw[-stealth,color=red] (O) -- (P);\n  \\draw[dashed,color=red] (O) -- (Pxy);\n  \\draw[dashed,color=red] (P) -- (Pxy);\n  \\tdplotdrawarc{(O)}{0.2}{0}{\\phivec}{anchor=north}{$\\phi$}\n  \\tdplotsetthetaplanecoords{\\phivec}\n  \\tdplotdrawarc[tdplot_rotated_coords]{(0,0,0)}{0.5}{0}{\\thetavec}{anchor=south west}{$\\theta$}\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Taiji symbols",
+    "origin": "MacTeX tikz-bagua",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bagua",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#taiji",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-bagua}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node at (0,0) {\\taiji[2]};\n  \\node at (0.7,0) {\\taiji*[2]};\n  \\node at (1.4,0) {\\xtaiji[2]};\n  \\node at (2.1,0) {\\xtaiji*[2]};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Liangyi and sixiang symbols",
+    "origin": "MacTeX tikz-bagua",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bagua",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#sixiang",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-bagua}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node at (0,0.5) {\\liangyi{1}[1.6]};\n  \\node at (0,0) {\\liangyi{0}[1.6]};\n  \\node at (1,1.2) {$3$};\n  \\node at (1,0.6) {\\sixiang*{3}[1.4]};\n  \\node at (2,1.2) {$2$};\n  \\node at (2,0.6) {\\sixiang*{2}[1.4]};\n  \\node at (3,1.2) {$1$};\n  \\node at (3,0.6) {\\sixiang*{1}[1.4]};\n  \\node at (4,1.2) {$0$};\n  \\node at (4,0.6) {\\sixiang*{0}[1.4]};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Eight trigrams",
+    "origin": "MacTeX tikz-bagua",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bagua",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#bagua",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-bagua}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node at (0,0.55) {$7$};\n  \\node at (0,0) {\\bagua*{7}[1.5]};\n  \\node at (1,0.55) {$6$};\n  \\node at (1,0) {\\bagua*{6}[1.5]};\n  \\node at (2,0.55) {$5$};\n  \\node at (2,0) {\\bagua*{5}[1.5]};\n  \\node at (3,0.55) {$4$};\n  \\node at (3,0) {\\bagua*{4}[1.5]};\n  \\node at (4,0.55) {$3$};\n  \\node at (4,0) {\\bagua*{3}[1.5]};\n  \\node at (5,0.55) {$2$};\n  \\node at (5,0) {\\bagua*{2}[1.5]};\n  \\node at (6,0.55) {$1$};\n  \\node at (6,0) {\\bagua*{1}[1.5]};\n  \\node at (7,0.55) {$0$};\n  \\node at (7,0) {\\bagua*{0}[1.5]};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Six-line hexagrams",
+    "origin": "MacTeX tikz-bagua",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bagua",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#Bagua",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-bagua}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node at (0,0.85) {\\scriptsize 77};\n  \\node at (0,0.5) {\\Bagua[8]{77}[1.4]};\n  \\node at (0.7,0.85) {\\scriptsize 76};\n  \\node at (0.7,0.5) {\\Bagua[8]{76}[1.4]};\n  \\node at (1.4,0.85) {\\scriptsize 75};\n  \\node at (1.4,0.5) {\\Bagua[8]{75}[1.4]};\n  \\node at (2.1,0.85) {\\scriptsize 74};\n  \\node at (2.1,0.5) {\\Bagua[8]{74}[1.4]};\n  \\node at (0,0) {\\scriptsize 67};\n  \\node at (0,-0.35) {\\Bagua[8]{67}[1.4]};\n  \\node at (0.7,0) {\\scriptsize 66};\n  \\node at (0.7,-0.35) {\\Bagua[8]{66}[1.4]};\n  \\node at (1.4,0) {\\scriptsize 65};\n  \\node at (1.4,-0.35) {\\Bagua[8]{65}[1.4]};\n  \\node at (2.1,0) {\\scriptsize 64};\n  \\node at (2.1,-0.35) {\\Bagua[8]{64}[1.4]};\n  \\node at (0,-0.85) {\\scriptsize 57};\n  \\node at (0,-1.2) {\\Bagua[8]{57}[1.4]};\n  \\node at (0.7,-0.85) {\\scriptsize 56};\n  \\node at (0.7,-1.2) {\\Bagua[8]{56}[1.4]};\n  \\node at (1.4,-0.85) {\\scriptsize 55};\n  \\node at (1.4,-1.2) {\\Bagua[8]{55}[1.4]};\n  \\node at (2.1,-0.85) {\\scriptsize 54};\n  \\node at (2.1,-1.2) {\\Bagua[8]{54}[1.4]};\n  \\node at (0,-1.7) {\\scriptsize 47};\n  \\node at (0,-2.05) {\\Bagua[8]{47}[1.4]};\n  \\node at (0.7,-1.7) {\\scriptsize 46};\n  \\node at (0.7,-2.05) {\\Bagua[8]{46}[1.4]};\n  \\node at (1.4,-1.7) {\\scriptsize 45};\n  \\node at (1.4,-2.05) {\\Bagua[8]{45}[1.4]};\n  \\node at (2.1,-1.7) {\\scriptsize 44};\n  \\node at (2.1,-2.05) {\\Bagua[8]{44}[1.4]};\n\\end{tikzpicture}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 104,
+  "caseCount": 108,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
   "tikzThreeDPlotFound": 4,
+  "tikzBaguaFound": 4,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
     "Packt GitHub",
-    "MacTeX tikz-3dplot"
+    "MacTeX tikz-3dplot",
+    "MacTeX tikz-bagua"
   ]
 };

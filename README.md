@@ -126,7 +126,7 @@ Current support is pragmatic and growing. Highlights:
 - PGFPlots subset: common `axis`, `addplot`, function sampling, coordinates, labels, legends, middle axes.
 - 3D subset: TikZ `x=`, `y=`, `z=` basis projection.
 - TeX-lite macros: common `\def`, `\newcommand`, `\foreach`, `\pgfmathsetmacro`.
-- Extension-backed libraries: `tikz-network` subset, plus small compatibility layers for selected graph-style macros.
+- Extension-backed libraries: `tikz-network`, `tikz-3dplot`, and `tikz-bagua` subsets, plus small compatibility layers for selected graph-style macros.
 
 Unsupported or partially supported syntax should produce diagnostics instead of silently disappearing.
 
@@ -163,6 +163,7 @@ Current built-in extension:
 ```text
 src/extensions/tikz-network.js
 src/extensions/tikz-3dplot.js
+src/extensions/tikz-bagua.js
 ```
 
 Extension contract:

@@ -1,7 +1,8 @@
+import { tikzBaguaExtension } from "./tikz-bagua.js";
 import { tikzNetworkExtension } from "./tikz-network.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
 
-export const BUILTIN_EXTENSIONS = [tikzNetworkExtension, tikzThreeDPlotExtension];
+export const BUILTIN_EXTENSIONS = [tikzNetworkExtension, tikzThreeDPlotExtension, tikzBaguaExtension];
 
 export function applyPreprocessExtensions(source, context = {}) {
   const extensions = [...BUILTIN_EXTENSIONS, ...(context.options?.extensions || [])];

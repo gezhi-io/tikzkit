@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseTikz, interpretTikz, tikzToSvg, tikzThreeDPlotExtension } from "../src/index.js";
+import { parseTikz, interpretTikz, tikzBaguaExtension, tikzToSvg, tikzThreeDPlotExtension } from "../src/index.js";
 
 test("allows user-supplied preprocess extensions", () => {
   const source = String.raw`
@@ -66,6 +66,47 @@ test("exposes tikz-3dplot as a built-in extension module", () => {
   assert.equal(tikzThreeDPlotExtension.phase, "preprocess");
   assert.ok(tikzThreeDPlotExtension.commands.includes("tdplotsetmaincoords"));
   assert.equal(typeof tikzThreeDPlotExtension.preprocess, "function");
+});
+
+test("exposes tikz-bagua as a built-in extension module", () => {
+  assert.equal(tikzBaguaExtension.name, "tikz-bagua");
+  assert.equal(tikzBaguaExtension.phase, "preprocess");
+  assert.ok(tikzBaguaExtension.commands.includes("Bagua"));
+  assert.equal(typeof tikzBaguaExtension.preprocess, "function");
+});
+
+test("expands tikz-bagua line symbols into ordinary TikZ strokes", () => {
+  const source = String.raw`
+\usepackage{tikz-bagua}
+\begin{tikzpicture}
+  \node at (0,0) {\liangyi{1}[1.5]};
+  \node at (1,0) {\sixiang*{2}};
+  \node at (2,0) {\bagua{101}};
+  \node at (3,0) {\Bagua[8]{56}[1.2]};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const baguaLines = result.ir.items.filter((item) => item.subtype === "bagua-line");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(baguaLines.length, 12);
+  assert.equal(baguaLines.filter((item) => item.commands.length === 2).length > 0, true);
+  assert.equal(baguaLines.filter((item) => item.commands.length === 4).length > 0, true);
+});
+
+test("expands tikz-bagua taiji symbols into filled circular motifs", () => {
+  const source = String.raw`
+\usepackage{tikz-bagua}
+\begin{tikzpicture}
+  \node at (0,0) {\taiji*[2]};
+  \node at (1,0) {\xtaiji*[2]};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.ir.items.filter((item) => item.subtype === "bagua-taiji-outline").length, 2);
+  assert.equal(result.ir.items.filter((item) => item.subtype === "bagua-taiji-eye").length, 4);
 });
 
 test("expands tikz-3dplot main coordinates into TikZ basis vectors", () => {

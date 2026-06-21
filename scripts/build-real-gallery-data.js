@@ -145,6 +145,119 @@ const TIKZ_3DPLOT_CASES = [
   }
 ];
 
+const TIKZ_BAGUA_CASES = [
+  {
+    title: "Taiji symbols",
+    origin: "MacTeX tikz-bagua",
+    sourceUrl: "https://ctan.org/pkg/tikz-bagua",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#taiji",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-bagua}
+\begin{document}
+\begin{tikzpicture}
+  \node at (0,0) {\taiji[2]};
+  \node at (0.7,0) {\taiji*[2]};
+  \node at (1.4,0) {\xtaiji[2]};
+  \node at (2.1,0) {\xtaiji*[2]};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Liangyi and sixiang symbols",
+    origin: "MacTeX tikz-bagua",
+    sourceUrl: "https://ctan.org/pkg/tikz-bagua",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#sixiang",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-bagua}
+\begin{document}
+\begin{tikzpicture}
+  \node at (0,0.5) {\liangyi{1}[1.6]};
+  \node at (0,0) {\liangyi{0}[1.6]};
+  \node at (1,1.2) {$3$};
+  \node at (1,0.6) {\sixiang*{3}[1.4]};
+  \node at (2,1.2) {$2$};
+  \node at (2,0.6) {\sixiang*{2}[1.4]};
+  \node at (3,1.2) {$1$};
+  \node at (3,0.6) {\sixiang*{1}[1.4]};
+  \node at (4,1.2) {$0$};
+  \node at (4,0.6) {\sixiang*{0}[1.4]};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Eight trigrams",
+    origin: "MacTeX tikz-bagua",
+    sourceUrl: "https://ctan.org/pkg/tikz-bagua",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#bagua",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-bagua}
+\begin{document}
+\begin{tikzpicture}
+  \node at (0,0.55) {$7$};
+  \node at (0,0) {\bagua*{7}[1.5]};
+  \node at (1,0.55) {$6$};
+  \node at (1,0) {\bagua*{6}[1.5]};
+  \node at (2,0.55) {$5$};
+  \node at (2,0) {\bagua*{5}[1.5]};
+  \node at (3,0.55) {$4$};
+  \node at (3,0) {\bagua*{4}[1.5]};
+  \node at (4,0.55) {$3$};
+  \node at (4,0) {\bagua*{3}[1.5]};
+  \node at (5,0.55) {$2$};
+  \node at (5,0) {\bagua*{2}[1.5]};
+  \node at (6,0.55) {$1$};
+  \node at (6,0) {\bagua*{1}[1.5]};
+  \node at (7,0.55) {$0$};
+  \node at (7,0) {\bagua*{0}[1.5]};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Six-line hexagrams",
+    origin: "MacTeX tikz-bagua",
+    sourceUrl: "https://ctan.org/pkg/tikz-bagua",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#Bagua",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-bagua}
+\begin{document}
+\begin{tikzpicture}
+  \node at (0,0.85) {\scriptsize 77};
+  \node at (0,0.5) {\Bagua[8]{77}[1.4]};
+  \node at (0.7,0.85) {\scriptsize 76};
+  \node at (0.7,0.5) {\Bagua[8]{76}[1.4]};
+  \node at (1.4,0.85) {\scriptsize 75};
+  \node at (1.4,0.5) {\Bagua[8]{75}[1.4]};
+  \node at (2.1,0.85) {\scriptsize 74};
+  \node at (2.1,0.5) {\Bagua[8]{74}[1.4]};
+  \node at (0,0) {\scriptsize 67};
+  \node at (0,-0.35) {\Bagua[8]{67}[1.4]};
+  \node at (0.7,0) {\scriptsize 66};
+  \node at (0.7,-0.35) {\Bagua[8]{66}[1.4]};
+  \node at (1.4,0) {\scriptsize 65};
+  \node at (1.4,-0.35) {\Bagua[8]{65}[1.4]};
+  \node at (2.1,0) {\scriptsize 64};
+  \node at (2.1,-0.35) {\Bagua[8]{64}[1.4]};
+  \node at (0,-0.85) {\scriptsize 57};
+  \node at (0,-1.2) {\Bagua[8]{57}[1.4]};
+  \node at (0.7,-0.85) {\scriptsize 56};
+  \node at (0.7,-1.2) {\Bagua[8]{56}[1.4]};
+  \node at (1.4,-0.85) {\scriptsize 55};
+  \node at (1.4,-1.2) {\Bagua[8]{55}[1.4]};
+  \node at (2.1,-0.85) {\scriptsize 54};
+  \node at (2.1,-1.2) {\Bagua[8]{54}[1.4]};
+  \node at (0,-1.7) {\scriptsize 47};
+  \node at (0,-2.05) {\Bagua[8]{47}[1.4]};
+  \node at (0.7,-1.7) {\scriptsize 46};
+  \node at (0.7,-2.05) {\Bagua[8]{46}[1.4]};
+  \node at (1.4,-1.7) {\scriptsize 45};
+  \node at (1.4,-2.05) {\Bagua[8]{45}[1.4]};
+  \node at (2.1,-1.7) {\scriptsize 44};
+  \node at (2.1,-2.05) {\Bagua[8]{44}[1.4]};
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -177,7 +290,13 @@ for (const filePath of packtFiles) {
 
 const tikzNetCases = TIKZ_NET_CASES.filter((item) => isRenderable(item.source));
 const fillerCount = TARGET_COUNT - petarVCases.length - tikzNetCases.length;
-const selected = [...petarVCases, ...tikzNetCases, ...packtCases.slice(0, Math.max(0, fillerCount)), ...TIKZ_3DPLOT_CASES];
+const selected = [
+  ...petarVCases,
+  ...tikzNetCases,
+  ...packtCases.slice(0, Math.max(0, fillerCount)),
+  ...TIKZ_3DPLOT_CASES,
+  ...TIKZ_BAGUA_CASES
+];
 
 if (selected.length < TARGET_COUNT) {
   throw new Error(`Only found ${selected.length} renderable real cases; need ${TARGET_COUNT}`);
@@ -190,7 +309,8 @@ await writeFile(
     petarVFound: petarVCases.length,
     packtFound: packtCases.length,
     tikzNetFound: tikzNetCases.length,
-    tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length
+    tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length,
+    tikzBaguaFound: TIKZ_BAGUA_CASES.length
   }),
   "utf8"
 );

@@ -2023,6 +2023,10 @@ function semanticSubtype(options = {}) {
   if (options["axis line"]) return "axis-line";
   if (options["axis plot"]) return "axis-plot";
   if (options["axis legend"]) return "axis-legend";
+  if (options["bagua line"]) return "bagua-line";
+  if (options["bagua taiji fill"]) return "bagua-taiji-fill";
+  if (options["bagua taiji outline"]) return "bagua-taiji-outline";
+  if (options["bagua taiji eye"]) return "bagua-taiji-eye";
   return undefined;
 }
 
