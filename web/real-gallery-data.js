@@ -702,6 +702,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (tex) [fill=orange, text=white] {TEX};\n  \\node (pdf) [fill={rgb:red,244;green,15;blue,2},\n    text=white, right=of tex] {PDF};\n  \\draw (tex) edge[->] node[font=\\tiny\\ttfamily,above] {pdflatex} (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
   },
   {
+    "title": "Styled directed network with loops",
+    "origin": "MacTeX tikz-network",
+    "sourceUrl": "https://ctan.org/pkg/tikz-network",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-network/tikz-network.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-network}\n\\begin{document}\n\\begin{tikzpicture}\n  \\SetVertexStyle[MinSize=.65cm,FillColor=orange!20,LineColor=black,LineWidth=1pt,TextColor=black]\n  \\SetEdgeStyle[Color=gray,LineWidth=1pt,TextFillColor=white,Arrow=-latex]\n  \\Vertex[x=0,y=0,IdAsLabel]{A}\n  \\Vertex[x=2,y=0,IdAsLabel]{B}\n  \\Vertex[x=1,y=1.5,label=C,Math,color=blue!20]{C}\n  \\Vertex[x=3,y=1.2,label=D,color=green!20]{D}\n  \\Edge[Direct,label=$a$,bend=25,color=red,lw=1.2pt](A)(B)\n  \\Edge[Direct,label=$b$,fontcolor=blue](B)(C)\n  \\Edge[style={dashed},path={A,{1,-.8},C}](A)(C)\n  \\Edge[loopposition=90,loopsize=.45cm,label=L](D)(D)\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "Main coordinate frame",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -784,29 +791,83 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://ctan.org/pkg/tikz-decofonts",
     "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-decofonts/tikz-decofonts-doc.tex",
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-decofonts}\n\\begin{document}\n\\tkzbrush[color=blue]{DECORATION}\n\\tkzink[color=orange,thick=5]{DECORATION}\n\\tkzbicolor[colors=blue/red,style=ndiag]{\\Huge\\sffamily DECORATION}\n\\tkzsurround[color=orange]{$I=\\displaystyle\\int_a^b f(x)\\,\\mathrm{d}x$}\n\\tkzunderline[color=blue,width=1.5pt,height=8mm]{underlining}\n\\tkzcomicbubble[width=3cm,coltxt=red,colframe=teal,colbg=yellow!15,rcorners]{Let's play!}\n\\tkzfittextinarrow[width=4cm,color=teal,txtcolor=yellow]{\\bfseries Demo}\n\\tkzcircledtxt[auto=2,fill=false,rule color=orange]{99}\n\\end{document}"
+  },
+  {
+    "title": "Dimension lines with extension paths",
+    "origin": "MacTeX tikz-dimline",
+    "sourceUrl": "https://ctan.org/pkg/tikz-dimline",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-dimline/tikz-dimline-doc.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-dimline}\n\\usetikzlibrary{calc}\n\\begin{document}\n\\begin{tikzpicture}[scale=.75]\n  \\draw[fill=blue!8,draw=blue!50,rounded corners=2pt,line width=.8pt] (0,0) rectangle (2.5,4);\n  \\draw[fill=white,draw=black,line width=.7pt] (.5,1.1) rectangle (2,2.9);\n  \\coordinate (A) at (2.7,0);\n  \\coordinate (B) at (2.7,4);\n  \\dimline[color=blue,line style={line width=.7pt},label style={right=0.5ex,font=\\small},extension start length=.35,extension end length=.35]{(A)}{(B)}{$4.0$}\n  \\dimline[color=red,line style={line width=.7pt},label style={above=0.5ex,font=\\small},extension start length=0,extension end length=0]{(.5,2)}{(2,2)}{$d=1.5$}\n  \\dimline[label style={above=0.5ex,fill=blue!10,font=\\small},extension start path={(0,4.45) (0,4.15) (.5,3.9)},extension end path={(2.5,4.45) (2.5,4.15) (2,3.9)},extension start style={draw=green!60!black},extension end style={draw=green!60!black}]{(0,4.45)}{(2.5,4.45)}{custom}\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "3D rotated frame with spherical guides",
+    "origin": "MacTeX tikz-3dplot",
+    "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#combined",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-3dplot}\n\\begin{document}\n\\tdplotsetmaincoords{65}{120}\n\\begin{tikzpicture}[scale=3,tdplot_main_coords]\n  \\coordinate (O) at (0,0,0);\n  \\tdplotsetcoord{P}{.9}{45}{65}\n  \\draw[thick,->] (O) -- (1,0,0) node[anchor=north east]{$x$};\n  \\draw[thick,->] (O) -- (0,1,0) node[anchor=north west]{$y$};\n  \\draw[thick,->] (O) -- (0,0,1) node[anchor=south]{$z$};\n  \\draw[-stealth,red,line width=.7pt] (O) -- (P) node[anchor=south west]{$P$};\n  \\draw[dashed,red] (O) -- (Pxy) -- (P);\n  \\draw[dashed,red] (Px) -- (Pxy) -- (Py);\n  \\tdplotdrawarc{(O)}{.25}{0}{65}{anchor=north}{$\\phi$}\n  \\tdplotsetthetaplanecoords{65}\n  \\tdplotdrawarc[tdplot_rotated_coords]{(0,0,0)}{.45}{0}{45}{anchor=south west}{$\\theta$}\n  \\tdplotsetrotatedcoords{55}{25}{35}\n  \\draw[tdplot_rotated_coords,blue,->] (0,0,0) -- (.65,0,0) node[anchor=north]{$x'$};\n  \\draw[tdplot_rotated_coords,blue,->] (0,0,0) -- (0,.65,0) node[anchor=west]{$y'$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Bagua ring composition",
+    "origin": "MacTeX tikz-bagua",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bagua",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#composition",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-bagua}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node at (0,0) {\\taiji*[2.4]};\n  \\node at (0,1.55) {\\bagua*{7}[1.4]};\n  \\node at (1.1,1.1) {\\bagua*{6}[1.4]};\n  \\node at (1.55,0) {\\bagua*{5}[1.4]};\n  \\node at (1.1,-1.1) {\\bagua*{4}[1.4]};\n  \\node at (0,-1.55) {\\bagua*{3}[1.4]};\n  \\node at (-1.1,-1.1) {\\Bagua[8]{56}[1.1]};\n  \\node at (-1.55,0) {\\Bagua[8]{65}[1.1]};\n  \\node at (-1.1,1.1) {\\Bagua[8]{74}[1.1]};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Bezier bounding box control study",
+    "origin": "MacTeX tikz-bbox",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bbox",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bbox/pgfmanual-en-library-bbox.tex#control-points",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepgflibrary{bbox}\n\\begin{document}\n\\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1.2pt}]\n  \\draw[blue,line width=.8pt] (0,0) .. controls (-1.3,1.4) and (.8,2.2) .. (2.4,.2)\n    .. controls (3.1,-.9) and (4.2,1.3) .. (5,.1);\n  \\draw[red,dashed] (0,0) -- (-1.3,1.4) (.8,2.2) -- (2.4,.2)\n    (2.4,.2) -- (3.1,-.9) (4.2,1.3) -- (5,.1);\n  \\path (0,0) node[bullet,label=below:$P_0$]{} (2.4,.2) node[bullet,label=below:$P_1$]{}\n    (5,.1) node[bullet,label=below:$P_2$]{};\n  \\draw[gray] (current bounding box.south west) rectangle (current bounding box.north east);\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "BPMN order flow",
+    "origin": "MacTeX tikz-bpmn",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bpmn",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bpmn/tikz-bpmn-doc.tex#process",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{bpmn,positioning}\n\\begin{document}\n\\begin{tikzpicture}[node distance=1.55cm]\n  \\node[start event] (start) {};\n  \\node[task, right=of start] (pick) {Pick};\n  \\node[exclusive gateway, right=of pick] (ok) {};\n  \\node[manual task, above right=of ok] (fix) {Fix};\n  \\node[task, right=of ok] (ship) {Ship};\n  \\node[data object, below=of pick] (doc) {Order};\n  \\node[end event, right=of ship] (end) {};\n  \\draw[sequence] (start) -- (pick);\n  \\draw[sequence] (pick) -- (ok);\n  \\draw[sequence] (ok) -- node[above]{yes} (ship);\n  \\draw[sequence] (ok) -- node[left]{no} (fix);\n  \\draw[sequence] (fix) -- (ship);\n  \\draw[association] (doc) -- (pick);\n  \\draw[message] (ship) -- (end);\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "TikZ-CD grid with diagonal maps",
+    "origin": "MacTeX tikz-cd",
+    "sourceUrl": "https://ctan.org/pkg/tikz-cd",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-cd/tikz-cd-doc.tex#arrows",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-cd}\n\\begin{document}\n\\begin{tikzcd}\n  A \\arrow[r, \"f\"] \\arrow[d, \"g\"'] \\arrow[dr, dashed, \"\\alpha\" description] & B \\arrow[r, two heads, \"p\"] \\arrow[d, \"h\"] & C \\arrow[d, hook, \"k\"] \\\\\n  D \\arrow[r, \"u\"'] & E \\arrow[r, \"v\"'] \\arrow[ur, dotted, \"\\beta\" description] & F\n\\end{tikzcd}\n\\end{document}"
+  },
+  {
+    "title": "Decorative text sampler",
+    "origin": "MacTeX tikz-decofonts",
+    "sourceUrl": "https://ctan.org/pkg/tikz-decofonts",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-decofonts/tikz-decofonts-doc.tex#sampler",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-decofonts}\n\\begin{document}\n\\tkzbrush[color=purple]{BRUSH}\n\\tkzink[color=teal,thick=4]{INK}\n\\tkzbicolor[colors=orange/blue,style=diag]{\\Large\\sffamily SPLIT}\n\\tkzsurround[color=red]{$E=mc^2$}\n\\tkzunderline[color=green!60!black,width=1pt,height=5mm]{measured underline}\n\\tkzcomicbubble[width=3.4cm,coltxt=blue,colframe=orange,colbg=yellow!15,rcorners]{Rich case}\n\\tkzfittextinarrow[width=4.5cm,color=blue,txtcolor=white]{follow me}\n\\tkzcircledtxt[auto=3,rule color=purple]{OK}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 112,
+  "caseCount": 120,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
+  "tikzNetworkFound": 1,
   "tikzThreeDPlotFound": 4,
   "tikzBaguaFound": 4,
   "tikzBboxFound": 1,
   "tikzBpmnFound": 1,
   "tikzCdFound": 1,
   "tikzDecofontsFound": 1,
+  "tikzDimlineFound": 1,
+  "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
     "Packt GitHub",
+    "MacTeX tikz-network",
     "MacTeX tikz-3dplot",
     "MacTeX tikz-bagua",
     "MacTeX tikz-bbox",
     "MacTeX tikz-bpmn",
     "MacTeX tikz-cd",
-    "MacTeX tikz-decofonts"
+    "MacTeX tikz-decofonts",
+    "MacTeX tikz-dimline"
   ]
 };

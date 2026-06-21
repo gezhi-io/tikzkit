@@ -145,6 +145,31 @@ const TIKZ_3DPLOT_CASES = [
   }
 ];
 
+const TIKZ_NETWORK_CASES = [
+  {
+    title: "Styled directed network with loops",
+    origin: "MacTeX tikz-network",
+    sourceUrl: "https://ctan.org/pkg/tikz-network",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-network/tikz-network.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-network}
+\begin{document}
+\begin{tikzpicture}
+  \SetVertexStyle[MinSize=.65cm,FillColor=orange!20,LineColor=black,LineWidth=1pt,TextColor=black]
+  \SetEdgeStyle[Color=gray,LineWidth=1pt,TextFillColor=white,Arrow=-latex]
+  \Vertex[x=0,y=0,IdAsLabel]{A}
+  \Vertex[x=2,y=0,IdAsLabel]{B}
+  \Vertex[x=1,y=1.5,label=C,Math,color=blue!20]{C}
+  \Vertex[x=3,y=1.2,label=D,color=green!20]{D}
+  \Edge[Direct,label=$a$,bend=25,color=red,lw=1.2pt](A)(B)
+  \Edge[Direct,label=$b$,fontcolor=blue](B)(C)
+  \Edge[style={dashed},path={A,{1,-.8},C}](A)(C)
+  \Edge[loopposition=90,loopsize=.45cm,label=L](D)(D)
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BAGUA_CASES = [
   {
     title: "Taiji symbols",
@@ -281,6 +306,29 @@ const TIKZ_BBOX_CASES = [
   }
 ];
 
+const TIKZ_DIMLINE_CASES = [
+  {
+    title: "Dimension lines with extension paths",
+    origin: "MacTeX tikz-dimline",
+    sourceUrl: "https://ctan.org/pkg/tikz-dimline",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-dimline/tikz-dimline-doc.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-dimline}
+\usetikzlibrary{calc}
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \draw[fill=blue!8,draw=blue!50,rounded corners=2pt,line width=.8pt] (0,0) rectangle (2.5,4);
+  \draw[fill=white,draw=black,line width=.7pt] (.5,1.1) rectangle (2,2.9);
+  \coordinate (A) at (2.7,0);
+  \coordinate (B) at (2.7,4);
+  \dimline[color=blue,line style={line width=.7pt},label style={right=0.5ex,font=\small},extension start length=.35,extension end length=.35]{(A)}{(B)}{$4.0$}
+  \dimline[color=red,line style={line width=.7pt},label style={above=0.5ex,font=\small},extension start length=0,extension end length=0]{(.5,2)}{(2,2)}{$d=1.5$}
+  \dimline[label style={above=0.5ex,fill=blue!10,font=\small},extension start path={(0,4.45) (0,4.15) (.5,3.9)},extension end path={(2.5,4.45) (2.5,4.15) (2,3.9)},extension start style={draw=green!60!black},extension end style={draw=green!60!black}]{(0,4.45)}{(2.5,4.45)}{custom}
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -351,6 +399,134 @@ const TIKZ_DECOFONTS_CASES = [
   }
 ];
 
+const RICH_EXTENSION_CASES = [
+  {
+    title: "3D rotated frame with spherical guides",
+    origin: "MacTeX tikz-3dplot",
+    sourceUrl: "https://ctan.org/pkg/tikz-3dplot",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#combined",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\begin{document}
+\tdplotsetmaincoords{65}{120}
+\begin{tikzpicture}[scale=3,tdplot_main_coords]
+  \coordinate (O) at (0,0,0);
+  \tdplotsetcoord{P}{.9}{45}{65}
+  \draw[thick,->] (O) -- (1,0,0) node[anchor=north east]{$x$};
+  \draw[thick,->] (O) -- (0,1,0) node[anchor=north west]{$y$};
+  \draw[thick,->] (O) -- (0,0,1) node[anchor=south]{$z$};
+  \draw[-stealth,red,line width=.7pt] (O) -- (P) node[anchor=south west]{$P$};
+  \draw[dashed,red] (O) -- (Pxy) -- (P);
+  \draw[dashed,red] (Px) -- (Pxy) -- (Py);
+  \tdplotdrawarc{(O)}{.25}{0}{65}{anchor=north}{$\phi$}
+  \tdplotsetthetaplanecoords{65}
+  \tdplotdrawarc[tdplot_rotated_coords]{(0,0,0)}{.45}{0}{45}{anchor=south west}{$\theta$}
+  \tdplotsetrotatedcoords{55}{25}{35}
+  \draw[tdplot_rotated_coords,blue,->] (0,0,0) -- (.65,0,0) node[anchor=north]{$x'$};
+  \draw[tdplot_rotated_coords,blue,->] (0,0,0) -- (0,.65,0) node[anchor=west]{$y'$};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Bagua ring composition",
+    origin: "MacTeX tikz-bagua",
+    sourceUrl: "https://ctan.org/pkg/tikz-bagua",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#composition",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-bagua}
+\begin{document}
+\begin{tikzpicture}
+  \node at (0,0) {\taiji*[2.4]};
+  \node at (0,1.55) {\bagua*{7}[1.4]};
+  \node at (1.1,1.1) {\bagua*{6}[1.4]};
+  \node at (1.55,0) {\bagua*{5}[1.4]};
+  \node at (1.1,-1.1) {\bagua*{4}[1.4]};
+  \node at (0,-1.55) {\bagua*{3}[1.4]};
+  \node at (-1.1,-1.1) {\Bagua[8]{56}[1.1]};
+  \node at (-1.55,0) {\Bagua[8]{65}[1.1]};
+  \node at (-1.1,1.1) {\Bagua[8]{74}[1.1]};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Bezier bounding box control study",
+    origin: "MacTeX tikz-bbox",
+    sourceUrl: "https://ctan.org/pkg/tikz-bbox",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bbox/pgfmanual-en-library-bbox.tex#control-points",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepgflibrary{bbox}
+\begin{document}
+\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1.2pt}]
+  \draw[blue,line width=.8pt] (0,0) .. controls (-1.3,1.4) and (.8,2.2) .. (2.4,.2)
+    .. controls (3.1,-.9) and (4.2,1.3) .. (5,.1);
+  \draw[red,dashed] (0,0) -- (-1.3,1.4) (.8,2.2) -- (2.4,.2)
+    (2.4,.2) -- (3.1,-.9) (4.2,1.3) -- (5,.1);
+  \path (0,0) node[bullet,label=below:$P_0$]{} (2.4,.2) node[bullet,label=below:$P_1$]{}
+    (5,.1) node[bullet,label=below:$P_2$]{};
+  \draw[gray] (current bounding box.south west) rectangle (current bounding box.north east);
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "BPMN order flow",
+    origin: "MacTeX tikz-bpmn",
+    sourceUrl: "https://ctan.org/pkg/tikz-bpmn",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bpmn/tikz-bpmn-doc.tex#process",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usetikzlibrary{bpmn,positioning}
+\begin{document}
+\begin{tikzpicture}[node distance=1.55cm]
+  \node[start event] (start) {};
+  \node[task, right=of start] (pick) {Pick};
+  \node[exclusive gateway, right=of pick] (ok) {};
+  \node[manual task, above right=of ok] (fix) {Fix};
+  \node[task, right=of ok] (ship) {Ship};
+  \node[data object, below=of pick] (doc) {Order};
+  \node[end event, right=of ship] (end) {};
+  \draw[sequence] (start) -- (pick);
+  \draw[sequence] (pick) -- (ok);
+  \draw[sequence] (ok) -- node[above]{yes} (ship);
+  \draw[sequence] (ok) -- node[left]{no} (fix);
+  \draw[sequence] (fix) -- (ship);
+  \draw[association] (doc) -- (pick);
+  \draw[message] (ship) -- (end);
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "TikZ-CD grid with diagonal maps",
+    origin: "MacTeX tikz-cd",
+    sourceUrl: "https://ctan.org/pkg/tikz-cd",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-cd/tikz-cd-doc.tex#arrows",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-cd}
+\begin{document}
+\begin{tikzcd}
+  A \arrow[r, "f"] \arrow[d, "g"'] \arrow[dr, dashed, "\alpha" description] & B \arrow[r, two heads, "p"] \arrow[d, "h"] & C \arrow[d, hook, "k"] \\
+  D \arrow[r, "u"'] & E \arrow[r, "v"'] \arrow[ur, dotted, "\beta" description] & F
+\end{tikzcd}
+\end{document}`
+  },
+  {
+    title: "Decorative text sampler",
+    origin: "MacTeX tikz-decofonts",
+    sourceUrl: "https://ctan.org/pkg/tikz-decofonts",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-decofonts/tikz-decofonts-doc.tex#sampler",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-decofonts}
+\begin{document}
+\tkzbrush[color=purple]{BRUSH}
+\tkzink[color=teal,thick=4]{INK}
+\tkzbicolor[colors=orange/blue,style=diag]{\Large\sffamily SPLIT}
+\tkzsurround[color=red]{$E=mc^2$}
+\tkzunderline[color=green!60!black,width=1pt,height=5mm]{measured underline}
+\tkzcomicbubble[width=3.4cm,coltxt=blue,colframe=orange,colbg=yellow!15,rcorners]{Rich case}
+\tkzfittextinarrow[width=4.5cm,color=blue,txtcolor=white]{follow me}
+\tkzcircledtxt[auto=3,rule color=purple]{OK}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -387,12 +563,15 @@ const selected = [
   ...petarVCases,
   ...tikzNetCases,
   ...packtCases.slice(0, Math.max(0, fillerCount)),
+  ...TIKZ_NETWORK_CASES,
   ...TIKZ_3DPLOT_CASES,
   ...TIKZ_BAGUA_CASES,
   ...TIKZ_BBOX_CASES,
   ...TIKZ_BPMN_CASES,
   ...TIKZ_CD_CASES,
-  ...TIKZ_DECOFONTS_CASES
+  ...TIKZ_DECOFONTS_CASES,
+  ...TIKZ_DIMLINE_CASES,
+  ...RICH_EXTENSION_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -406,12 +585,15 @@ await writeFile(
     petarVFound: petarVCases.length,
     packtFound: packtCases.length,
     tikzNetFound: tikzNetCases.length,
+    tikzNetworkFound: TIKZ_NETWORK_CASES.length,
     tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length,
     tikzBaguaFound: TIKZ_BAGUA_CASES.length,
     tikzBboxFound: TIKZ_BBOX_CASES.length,
     tikzBpmnFound: TIKZ_BPMN_CASES.length,
     tikzCdFound: TIKZ_CD_CASES.length,
-    tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length
+    tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length,
+    tikzDimlineFound: TIKZ_DIMLINE_CASES.length,
+    richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"
 );

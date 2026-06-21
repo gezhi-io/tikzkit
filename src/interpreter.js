@@ -2110,6 +2110,9 @@ function semanticSubtype(options = {}) {
   if (options["decofonts fit arrow"]) return "decofonts-fit-arrow";
   if (options["decofonts brush"]) return "decofonts-brush";
   if (options["decofonts ink"]) return "decofonts-ink";
+  if (options["dimline line"]) return "dimline-line";
+  if (options["dimline extension"]) return "dimline-extension";
+  if (options["dimline tick"]) return "dimline-tick";
   return undefined;
 }
 
