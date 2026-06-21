@@ -2339,6 +2339,15 @@ function semanticSubtype(options = {}) {
   if (options["feynhand scalar"]) return "feynhand-scalar";
   if (options["feynhand ghost"]) return "feynhand-ghost";
   if (options["feynhand majorana"]) return "feynhand-majorana";
+  if (options["feynman particle"]) return "feynman-particle";
+  if (options["feynman dot"]) return "feynman-dot";
+  if (options["feynman blob"]) return "feynman-blob";
+  if (options["feynman fermion"]) return "feynman-fermion";
+  if (options["feynman gluon"]) return "feynman-gluon";
+  if (options["feynman boson"]) return "feynman-boson";
+  if (options["feynman scalar"]) return "feynman-scalar";
+  if (options["feynman ghost"]) return "feynman-ghost";
+  if (options["feynman majorana"]) return "feynman-majorana";
   return undefined;
 }
 
@@ -3135,7 +3144,11 @@ function addArrowMarkerAt(position, body, flat, item, ir) {
   const point = pointAtLength(flat, position);
   ir.items.push({
     type: "marker",
-    subtype: /feynhand momentum/.test(String(body)) ? "feynhand-momentum" : undefined,
+    subtype: /feynman momentum/.test(String(body))
+      ? "feynman-momentum"
+      : /feynhand momentum/.test(String(body))
+        ? "feynhand-momentum"
+        : undefined,
     kind: tip.kind,
     tip,
     x: roundNumber(point.x),

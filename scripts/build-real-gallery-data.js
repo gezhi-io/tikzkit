@@ -388,6 +388,38 @@ const TIKZ_FEYNHAND_CASES = [
   }
 ];
 
+const TIKZ_FEYNMAN_CASES = [
+  {
+    title: "TikZ-Feynman explicit vertices and propagators",
+    origin: "MacTeX tikz-feynman",
+    sourceUrl: "https://ctan.org/pkg/tikz-feynman",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-feynman/tikz-feynman.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage[compat=1.1.0]{tikz-feynman}
+\begin{document}
+\begin{tikzpicture}
+\begin{feynman}
+  \vertex (i1) at (0,1.2) {\(e^{-}\)};
+  \vertex (i2) at (0,-1.2) {\(e^{+}\)};
+  \vertex [dot] (a) at (1.35,0) {};
+  \vertex [dot] (b) at (3.05,0) {};
+  \vertex (f1) at (4.4,1.2) {\(\mu^{-}\)};
+  \vertex (f2) at (4.4,-1.2) {\(\mu^{+}\)};
+  \vertex (g) at (3.05,1.55) {\(g\)};
+  \vertex (s) at (3.05,-1.55) {\(\tilde q\)};
+  \diagram* {
+    (i1) -- [fermion] (a) -- [photon, edge label=\(\gamma\), momentum'=\(k\)] (b) -- [fermion] (f1),
+    (i2) -- [anti fermion] (a),
+    (b) -- [anti fermion] (f2),
+    (b) -- [gluon] (g),
+    (b) -- [charged scalar, edge label'=\(m\)] (s);
+  };
+\end{feynman}
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -632,6 +664,7 @@ const selected = [
   ...TIKZ_DIMLINE_CASES,
   ...TIKZ_EXT_CASES,
   ...TIKZ_FEYNHAND_CASES,
+  ...TIKZ_FEYNMAN_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -656,6 +689,7 @@ await writeFile(
     tikzDimlineFound: TIKZ_DIMLINE_CASES.length,
     tikzExtFound: TIKZ_EXT_CASES.length,
     tikzFeynhandFound: TIKZ_FEYNHAND_CASES.length,
+    tikzFeynmanFound: TIKZ_FEYNMAN_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"

@@ -5,6 +5,7 @@ import { tikzDecofontsExtension } from "./tikz-decofonts.js";
 import { tikzDimlineExtension } from "./tikz-dimline.js";
 import { tikzExtExtension } from "./tikz-ext.js";
 import { tikzFeynhandExtension } from "./tikz-feynhand.js";
+import { tikzFeynmanExtension } from "./tikz-feynman.js";
 import { tikzNetworkExtension } from "./tikz-network.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
 
@@ -17,7 +18,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzDecofontsExtension,
   tikzDimlineExtension,
   tikzExtExtension,
-  tikzFeynhandExtension
+  tikzFeynhandExtension,
+  tikzFeynmanExtension
 ];
 
 export function applyPreprocessExtensions(source, context = {}) {

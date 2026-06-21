@@ -814,6 +814,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-feynhand}\n\\begin{document}\n\\begin{tikzpicture}\n\\begin{feynhand}\n  \\vertex [particle] (e1) at (0,1.2) {$e^-$};\n  \\vertex [particle] (e2) at (0,-1.2) {$e^+$};\n  \\vertex [dot] (v1) at (1,0) {};\n  \\vertex [ringdot] (v2) at (2.35,0) {};\n  \\vertex [blob] (b) at (3.65,1.05) {};\n  \\vertex [crossdot] (x) at (3.65,-1.05) {};\n  \\propag [fer, blue, mom={$p$}] (e1) to [edge label=$k$] (v1);\n  \\propag [antfer, red] (e2) to (v1);\n  \\propag [pho, orange] (v1) to [out=20, in=160] (v2);\n  \\propag [glu, green] (v2) to (b);\n  \\propag [sca, purple] (v2) to [edge label'=$m$] (x);\n  \\propag [chabos, top] (b) to (x);\n\\end{feynhand}\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "TikZ-Feynman explicit vertices and propagators",
+    "origin": "MacTeX tikz-feynman",
+    "sourceUrl": "https://ctan.org/pkg/tikz-feynman",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-feynman/tikz-feynman.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage[compat=1.1.0]{tikz-feynman}\n\\begin{document}\n\\begin{tikzpicture}\n\\begin{feynman}\n  \\vertex (i1) at (0,1.2) {\\(e^{-}\\)};\n  \\vertex (i2) at (0,-1.2) {\\(e^{+}\\)};\n  \\vertex [dot] (a) at (1.35,0) {};\n  \\vertex [dot] (b) at (3.05,0) {};\n  \\vertex (f1) at (4.4,1.2) {\\(\\mu^{-}\\)};\n  \\vertex (f2) at (4.4,-1.2) {\\(\\mu^{+}\\)};\n  \\vertex (g) at (3.05,1.55) {\\(g\\)};\n  \\vertex (s) at (3.05,-1.55) {\\(\\tilde q\\)};\n  \\diagram* {\n    (i1) -- [fermion] (a) -- [photon, edge label=\\(\\gamma\\), momentum'=\\(k\\)] (b) -- [fermion] (f1),\n    (i2) -- [anti fermion] (a),\n    (b) -- [anti fermion] (f2),\n    (b) -- [gluon] (g),\n    (b) -- [charged scalar, edge label'=\\(m\\)] (s);\n  };\n\\end{feynman}\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -858,7 +865,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 122,
+  "caseCount": 123,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -872,6 +879,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzDimlineFound": 1,
   "tikzExtFound": 1,
   "tikzFeynhandFound": 1,
+  "tikzFeynmanFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -886,6 +894,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-decofonts",
     "MacTeX tikz-dimline",
     "MacTeX tikz-ext",
-    "MacTeX tikz-feynhand"
+    "MacTeX tikz-feynhand",
+    "MacTeX tikz-feynman"
   ]
 };
