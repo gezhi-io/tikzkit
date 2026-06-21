@@ -122,6 +122,22 @@ test("creates marking arrows along a decorated path", () => {
   assert.equal(Math.round(marker.angle), 0);
 });
 
+test("uses parent path style for marking arrows on arc shapes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[-stealth, postaction=decorate,
+    decoration={markings, mark=between positions 0.1 and 1 step 0.1 with {\arrow{stealth}}}]
+    (0,0) arc(180:0:1) arc(-180:0:1);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const markers = result.ir.items.filter((item) => item.type === "marker");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(markers.length > 4, `expected repeated arc markers, got ${markers.length}`);
+  assert.equal(markers.every((marker) => marker.style.stroke === "black"), true);
+});
+
 test("supports coordinate-system projection, path rotation, midway labels, and node labels", () => {
   const source = String.raw`
 \definecolor{olivegreen}{rgb}{0,0.6,0}

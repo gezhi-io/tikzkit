@@ -54,6 +54,97 @@ const TIKZ_NET_CASES = [
   }
 ];
 
+const TIKZ_3DPLOT_CASES = [
+  {
+    title: "Main coordinate frame",
+    origin: "MacTeX tikz-3dplot",
+    sourceUrl: "https://ctan.org/pkg/tikz-3dplot",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotsetmaincoords",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\begin{document}
+\tdplotsetmaincoords{70}{110}
+\begin{tikzpicture}[tdplot_main_coords]
+  \draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};
+  \draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};
+  \draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Rotated coordinate frame",
+    origin: "MacTeX tikz-3dplot",
+    sourceUrl: "https://ctan.org/pkg/tikz-3dplot",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotsetrotatedcoords",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\begin{document}
+\tdplotsetmaincoords{70}{110}
+\begin{tikzpicture}[tdplot_main_coords]
+  \draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};
+  \draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};
+  \draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};
+  \tdplotsetrotatedcoords{60}{40}{30}
+  \draw[thick,color=blue,tdplot_rotated_coords,->] (0,0,0) -- (.7,0,0) node[anchor=north]{$x'$};
+  \draw[thick,color=blue,tdplot_rotated_coords,->] (0,0,0) -- (0,.7,0) node[anchor=west]{$y'$};
+  \draw[thick,color=blue,tdplot_rotated_coords,->] (0,0,0) -- (0,0,.7) node[anchor=south]{$z'$};
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Spherical point projections",
+    origin: "MacTeX tikz-3dplot",
+    sourceUrl: "https://ctan.org/pkg/tikz-3dplot",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotsetcoord",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\begin{document}
+\tdplotsetmaincoords{60}{130}
+\begin{tikzpicture}[scale=2,tdplot_main_coords]
+  \coordinate (O) at (0,0,0);
+  \tdplotsetcoord{P}{.8}{55}{60}
+  \draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};
+  \draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};
+  \draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};
+  \draw[-stealth,color=red] (O) -- (P);
+  \draw[dashed,color=red] (O) -- (Px);
+  \draw[dashed,color=red] (O) -- (Py);
+  \draw[dashed,color=red] (O) -- (Pz);
+  \draw[dashed,color=red] (Px) -- (Pxy);
+  \draw[dashed,color=red] (Py) -- (Pxy);
+  \draw[dashed,color=red] (Pxy) -- (P);
+\end{tikzpicture}
+\end{document}`
+  },
+  {
+    title: "Spherical angle arcs",
+    origin: "MacTeX tikz-3dplot",
+    sourceUrl: "https://ctan.org/pkg/tikz-3dplot",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotdrawarc",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\begin{document}
+\tdplotsetmaincoords{60}{110}
+\pgfmathsetmacro{\rvec}{.8}
+\pgfmathsetmacro{\thetavec}{30}
+\pgfmathsetmacro{\phivec}{60}
+\begin{tikzpicture}[scale=5,tdplot_main_coords]
+  \coordinate (O) at (0,0,0);
+  \draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};
+  \draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};
+  \draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};
+  \tdplotsetcoord{P}{\rvec}{\thetavec}{\phivec}
+  \draw[-stealth,color=red] (O) -- (P);
+  \draw[dashed,color=red] (O) -- (Pxy);
+  \draw[dashed,color=red] (P) -- (Pxy);
+  \tdplotdrawarc{(O)}{0.2}{0}{\phivec}{anchor=north}{$\phi$}
+  \tdplotsetthetaplanecoords{\phivec}
+  \tdplotdrawarc[tdplot_rotated_coords]{(0,0,0)}{0.5}{0}{\thetavec}{anchor=south west}{$\theta$}
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -86,7 +177,7 @@ for (const filePath of packtFiles) {
 
 const tikzNetCases = TIKZ_NET_CASES.filter((item) => isRenderable(item.source));
 const fillerCount = TARGET_COUNT - petarVCases.length - tikzNetCases.length;
-const selected = [...petarVCases, ...tikzNetCases, ...packtCases.slice(0, Math.max(0, fillerCount))];
+const selected = [...petarVCases, ...tikzNetCases, ...packtCases.slice(0, Math.max(0, fillerCount)), ...TIKZ_3DPLOT_CASES];
 
 if (selected.length < TARGET_COUNT) {
   throw new Error(`Only found ${selected.length} renderable real cases; need ${TARGET_COUNT}`);
@@ -95,7 +186,12 @@ if (selected.length < TARGET_COUNT) {
 await mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
 await writeFile(
   OUTPUT_PATH,
-  renderModule(selected, { petarVFound: petarVCases.length, packtFound: packtCases.length, tikzNetFound: tikzNetCases.length }),
+  renderModule(selected, {
+    petarVFound: petarVCases.length,
+    packtFound: packtCases.length,
+    tikzNetFound: tikzNetCases.length,
+    tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length
+  }),
   "utf8"
 );
 process.stdout.write(`Wrote ${selected.length} real gallery cases to ${OUTPUT_PATH}\n`);

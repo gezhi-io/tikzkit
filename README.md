@@ -143,7 +143,7 @@ npm run gallery:diff
 
 Generated files go under `outputs/real-gallery/`.
 
-- `gallery:audit`: renders the configured 100 real cases and reports diagnostics.
+- `gallery:audit`: renders the configured real cases and reports diagnostics.
 - `gallery:native`: uses local TeX tools to build native PNG references.
 - `gallery:js`: renders JS SVG/PNG outputs.
 - `gallery:diff`: compares native and JS PNGs.
@@ -162,6 +162,7 @@ Current built-in extension:
 
 ```text
 src/extensions/tikz-network.js
+src/extensions/tikz-3dplot.js
 ```
 
 Extension contract:

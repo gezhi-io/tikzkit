@@ -5,19 +5,20 @@ import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { createSampleGallery } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
 
-test("web sample gallery provides 100 real TikZ source blocks", () => {
+test("web sample gallery provides 104 real TikZ source blocks", () => {
   const source = createSampleGallery();
   const parts = splitTikzCodeBlocks(source);
   const tikzParts = parts.filter((part) => part.type === "tikz");
   const petarVCases = REAL_GALLERY_CASES.filter((item) => item.origin === "PetarV-/TikZ");
 
-  assert.equal(tikzParts.length, 100);
-  assert.equal(REAL_GALLERY_CASES.length, 100);
+  assert.equal(tikzParts.length, 104);
+  assert.equal(REAL_GALLERY_CASES.length, 104);
   assert.equal(petarVCases.length, 65);
   assert.match(source, /Case 001/);
   assert.match(source, /Case 100/);
+  assert.match(source, /Case 104/);
   assert.match(source, /PetarV-\/TikZ/);
-  assert.match(source, /Packt GitHub|TikZ\.net/);
+  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-3dplot/);
 
   for (const part of tikzParts) {
     const result = tikzToSvg(part.content);
@@ -34,6 +35,7 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.ok(origins.has("PetarV-/TikZ"));
   assert.ok(origins.has("Packt GitHub"));
   assert.ok(origins.has("TikZ.net"));
+  assert.ok(origins.has("MacTeX tikz-3dplot"));
   assert.equal(REAL_GALLERY_CASES.every((item) => item.sourceUrl.startsWith("https://")), true);
 });
 

@@ -24,16 +24,18 @@ export function interpretTikz(ast, options = {}) {
   const ir = { type: "drawing", items: [], backgroundItems: [], coordinates: {} };
 
   for (const picture of ast.pictures || []) {
+    const styles = { ...BUILTIN_STYLES, ...(picture.styles || {}), ...styleDefinitionsFromOptions(picture.options || {}) };
+    const pictureOptions = normalizeOptions("path", picture.options || {}, { variables: {}, styles }).options;
     const env = {
       variables: {},
       coordinates: ir.coordinates,
       nodes: {},
-      styles: { ...BUILTIN_STYLES, ...(picture.styles || {}), ...styleDefinitionsFromOptions(picture.options || {}) },
+      styles,
       namedPaths: {},
       transform: identityTransform(),
       canvasScale: 1,
-      basis: parsePictureBasis(picture.options || {}),
-      pictureOptions: picture.options || {}
+      basis: parsePictureBasis(pictureOptions),
+      pictureOptions
     };
     for (const statement of picture.statements || []) {
       interpretStatement(statement, env, ir, diagnostics, options);
@@ -135,7 +137,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathOptions = { ...options, ...semantic };
   const pathEnv = {
     ...env,
-    transform: shouldApplyStatementTransformToPath(statement) ? composeTransform(env.transform, statement.options || {}, env) : env.transform
+    transform: shouldApplyStatementTransformToPath(statement) ? composeTransform(env.transform, statement.options || {}, env) : env.transform,
+    basis: composeBasis(env.basis, options, env)
   };
   const subtype = semanticSubtype(pathOptions);
 
@@ -152,12 +155,13 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
   if (visible) {
-    for (const shape of built.shapes) {
-      ir.items.push({
-        ...shape,
-        subtype: shape.subtype || subtype,
-        style: { ...style, ...(shape.style || {}) }
-      });
+    const styledShapes = built.shapes.map((shape) => ({
+      ...shape,
+      subtype: shape.subtype || subtype,
+      style: { ...style, ...(shape.style || {}) }
+    }));
+    for (const shape of styledShapes) {
+      ir.items.push(shape);
     }
     if (hasDrawableCommands(built.commands, built.shapes)) {
       const pathStyle = drawablePathStyle(style, built.styleHints);
@@ -170,7 +174,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       ir.items.push(item);
       addDecorationMarkers(item, options, ir);
     }
-    for (const shape of built.shapes) {
+    for (const shape of styledShapes) {
       addDecorationMarkers(shape, options, ir);
     }
   }

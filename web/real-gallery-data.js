@@ -548,6 +548,41 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\begin{document}\n\\begin{tikzpicture}\n  \\draw (4,2) node[draw, color=red, fill=yellow, text=blue] {TikZ};\n\\end{tikzpicture}\n\\end{document}\n"
   },
   {
+    "title": "drawing and positioning nodes / node positioning",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/02-node-positioning.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/02-node-positioning.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{shapes}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (r) at (0,1)   [draw, rectangle] {rectangle};\n  \\node (c) at (1.5,0) [draw, circle]    {circle};\n  \\node (e) at (3,1)   [draw, ellipse]   {ellipse};\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
+    "title": "drawing and positioning nodes / nodes arrows",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/03-nodes-arrows.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/03-nodes-arrows.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{shapes}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (r) at (0,1)   [draw, rectangle] {rectangle};\n  \\node (c) at (1.5,0) [draw, circle]    {circle};\n  \\node (e) at (3,1)   [draw, ellipse]   {ellipse};\n  \\draw[->] (r.east)  -- (e.west);\n  \\draw[->] (r.south) -- (c.north west);\n  \\draw[->] (e.south) -- (c.north east);\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
+    "title": "drawing and positioning nodes / node anchor",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/04-node-anchor.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/04-node-anchor.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\begin{document}\n\\begin{tikzpicture}\n  \\draw[fill=red] (4,2) circle[radius=0.1];\n  \\node at (4,2) [draw, rectangle] {rectangle};\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
+    "title": "drawing and positioning nodes / node anchor south west",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/05-node-anchor-south-west.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/05-node-anchor-south-west.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\begin{document}\n\\begin{tikzpicture}\n  \\draw[fill=red] (4,2) circle[radius=0.1];\n  \\node at (4,2) [draw, rectangle, anchor=south west]\n    {rectangle};\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
+    "title": "drawing and positioning nodes / tikzpeople",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/06-tikzpeople.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/06-tikzpeople.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikzpeople}\n\\usetikzlibrary{shapes}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (student) [graduate, monitor, minimum size=2cm] {};\n  \\node at (student.45) [starburst, draw=red, fill=yellow,\n    starburst point height=0.4cm, line width=1pt,\n    font=\\ttfamily\\scriptsize, inner sep=1.5pt] {error};\n  \\node at (student.130) [cloud callout, cloud puffs=13, aspect=3,\n    anchor=pointer, shading=ball, ball color=darkgray,\n    text=white, font=\\bfseries] {My thesis...!};\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
     "title": "drawing and positioning nodes / circle text",
     "origin": "Packt GitHub",
     "path": "03-drawing-and-positioning-nodes/07-circle-text.tex",
@@ -632,6 +667,27 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=5]{standalone}\n\\usetikzlibrary{shapes,positioning}\n\\tikzset{shape example/.style = {\n    color=black!50, draw, fill=blue!10,\n    inner xsep=0.5cm, inner ysep=0.5cm,\n}}\n\\begin{document}\n\\Huge\n\\begin{tikzpicture}[node distance = 1mm]\n\\node[name=n,shape=diamond,shape example] {\\Huge diamond\\hspace{2.6cm}node};\n\\foreach \\anchor/\\placement in\n  {center/above, text/below, 30/above right,\n     mid/right,\n     base/below,\n     north/above, south/below, east/above right, west/above left,\n     north east/above right, south east/below right, south west/below left,\n       north west/above left}\n    \\draw[shift=(n.\\anchor)] plot[mark=x] coordinates{(0,0)}\n      node[\\placement,label distance = 0mm,inner sep=3pt]\n        {\\scriptsize\\texttt{(n.\\anchor)}};\n\\end{tikzpicture}\n\\end{document}\n"
   },
   {
+    "title": "drawing and positioning nodes / extra 05 node spacing circle",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/extra-05-node-spacing-circle.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/extra-05-node-spacing-circle.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{calc}\n\\newcommand{\\n}{\\sffamily\\Large node n}\n\\newcommand{\\invis}{\\phantom{\\sffamily\\Large node n}}\n\\begin{document}\n\\begin{tikzpicture}[font={\\scriptsize\\ttfamily}]\n% node n\n\\node[draw,circle,outer sep=1cm,inner sep=1cm,color=black!50, draw, fill=blue!10] (n) {{\\n}};\n% label \"shape circle\"\n\\node[above] at ($(n.center)!0.5!(n.north)$) {shape circle};\n\n% dashed helper nodes with same position and (invisible) same text\n\\node[circle,draw,densely dashed,inner sep=0pt,outer sep=0pt] at (n.center) {\\invis};\n\\node[rectangle,draw,densely dashed,inner sep=0pt,outer sep=0pt] at (n.center) {\\invis};\n\\node (o) [rectangle,draw, dashed,inner sep=1cm,outer sep=0pt] at (n.center) {\\invis};\n\n% neighbor node\n\\node[circle,inner sep=0,outer sep=0,draw,right,color=black!50, draw, fill=blue!10] \n    (m) at(n.east) {{\\sffamily\\Large node m}};\n\n% vertical sep\n\\draw[<->,thick,blue] (n.south)\n  --++(0,1cm) node[midway,right]{outer sep};\n\\draw[<->,thick,red] (o.south)\n  -- ++(0,1cm) node[pos=0.3,right]{inner sep};\n\n% horizontal sep\n\\draw[<->,red,thick] (o.east) -- ++(-1cm,0)\n  node[midway,above] {inner} node[midway,below] {sep};\n\\draw[<->,blue,thick] (m.west) -- ++(-1cm,0)\n  node[midway,above] {outer} node[midway,below] {sep};\n\n% some anchors\n\\foreach \\anchor/\\placement in\n  {south west/below left,south/below,north/above,north west/above left,\n     north east/above right,south east/below right,west/left}\n     \\draw[shift=(n.\\anchor)] plot[mark=x] coordinates{(0,0)}\n      node[\\placement,label distance = 0mm,inner sep=3pt] {(n.\\anchor)};\n\\foreach \\anchor/\\placement in\n  {east/right,south/below,north/above}\n     \\draw[shift=(m.\\anchor)] plot[mark=x] coordinates{(0,0)}\n      node[\\placement,label distance = 0mm,inner sep=3pt] {(m.\\anchor)};\n\n% random circle :-)\n\\draw[dashed] (n.center) circle (3.05cm);\n\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
+    "title": "drawing and positioning nodes / extra 05 node spacing rectangle",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/extra-05-node-spacing-rectangle.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/extra-05-node-spacing-rectangle.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{calc}\n\\begin{document}\n\\begin{tikzpicture}[font={\\scriptsize\\ttfamily}]\n\\node[draw,rectangle,outer sep=1cm,inner sep=1cm,color=black!50, draw, fill=blue!10,]\n  (n) {{\\sffamily\\Large node n}};\n\n\\draw[<->,thick,blue] (n.south)\n    --++(0,1cm) node[midway,right]{outer sep};\n\n\\draw[<->,thick,red] (n.south) ++(0,1cm) \n    --++(0,1cm)node[midway,right]{inner sep};\n    \n\\node[,outer sep=0,draw,left,color=black!50, draw, fill=blue!10,] \n    (m) at(n.west) {{\\sffamily\\Large node m}};\n    \n\\draw[<->,blue,thick] (m.east) -- ++(1cm,0) node[midway,above] {outer}\n  node[midway,below] {sep};\n\n\\draw[<->,red,thick] ($(n.west)+(1,0)$) -- ++(1cm,0) node[midway,above] {inner}\n  node[midway,below] {sep};\n\n\\foreach \\anchor/\\placement in\n  {south west/below left,south/below,north/above,north west/above left,\n     north east/above right,south east/below right}\n     \\draw[shift=(n.\\anchor)] plot[mark=x] coordinates{(0,0)}\n      node[\\placement,label distance = 0mm,inner sep=3pt] {(n.\\anchor)};\n\\foreach \\anchor/\\placement in\n  {west/left,south/below,north/above}\n     \\draw[shift=(m.\\anchor)] plot[mark=x] coordinates{(0,0)}\n      node[\\placement,label distance = 0mm,inner sep=3pt] {(m.\\anchor)};\n\\draw[dashed] (n.south west) rectangle (n.north east);\n\\node[above] at ($(n.center)!0.5!(n.north)$) {shape rectangle};\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
+    "title": "drawing and positioning nodes / extra 06 node spacing x y",
+    "origin": "Packt GitHub",
+    "path": "03-drawing-and-positioning-nodes/extra-06-node-spacing-x-y.tex",
+    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/03-drawing-and-positioning-nodes/extra-06-node-spacing-x-y.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usetikzlibrary{calc}\n\\begin{document}\n\\begin{tikzpicture}[font={\\scriptsize\\ttfamily}]\n\\node[draw,rectangle,outer xsep=1cm,outer ysep=0.5cm,inner xsep=1cm,\n  inner ysep=0.5cm,color=black!50, draw, fill=blue!10,] (n) {{\\sffamily\\Large node n}};\n\n\\draw[<->,thick,blue] (n.south)\n    --++(0,0.5cm) node[midway,right]{outer ysep};\n\n\\draw[<->,thick,red] (n.south) ++(0,0.5cm) \n    --++(0,0.5cm)node[midway,right]{inner ysep};\n    \n\\draw[<->,blue,thick] (n.west) -- ++(1cm,0) node[midway,above] {outer}\n  node[midway,below] {xsep};\n\n\\draw[<->,red,thick] ($(n.west)+(1,0)$) -- ++(1cm,0) node[midway,above] {inner}\n  node[midway,below] {xsep};\n\n\\foreach \\anchor/\\placement in\n  {south west/below left,south/below,north/above,north west/above left,\n     north east/above right,south east/below right}\n     \\draw[shift=(n.\\anchor)] plot[mark=x] coordinates{(0,0)}\n      node[\\placement,label distance = 0mm,inner sep=3pt] {(n.\\anchor)};\n\\draw[dashed] (n.south west) rectangle (n.north east);\n\\node[above] at ($(n.center)!0.5!(n.north)$) {shape rectangle};\n\\end{tikzpicture}\n\\end{document}\n"
+  },
+  {
     "title": "drawing edges and arrows / basic edge",
     "origin": "Packt GitHub",
     "path": "04-drawing-edges-and-arrows/01-basic-edge.tex",
@@ -646,71 +702,45 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (tex) [fill=orange, text=white] {TEX};\n  \\node (pdf) [fill={rgb:red,244;green,15;blue,2},\n    text=white, right=of tex] {PDF};\n  \\draw (tex) edge[->] node[font=\\tiny\\ttfamily,above] {pdflatex} (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
   },
   {
-    "title": "drawing edges and arrows / quotes syntax",
-    "origin": "Packt GitHub",
-    "path": "04-drawing-edges-and-arrows/03-quotes-syntax.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/04-drawing-edges-and-arrows/03-quotes-syntax.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning,quotes}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (tex) [fill=orange, text=white] {TEX};\n  \\node (pdf) [fill={rgb:red,244;green,15;blue,2},\n    text=white, right=of tex] {PDF};\n  \\draw (tex)\n    edge[\"pdflatex\" {font=\\ttfamily\\tiny,above},->] (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
+    "title": "Main coordinate frame",
+    "origin": "MacTeX tikz-3dplot",
+    "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotsetmaincoords",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-3dplot}\n\\begin{document}\n\\tdplotsetmaincoords{70}{110}\n\\begin{tikzpicture}[tdplot_main_coords]\n  \\draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};\n  \\draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};\n  \\draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};\n\\end{tikzpicture}\n\\end{document}"
   },
   {
-    "title": "drawing edges and arrows / style definitions",
-    "origin": "Packt GitHub",
-    "path": "04-drawing-edges-and-arrows/04-style-definitions.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/04-drawing-edges-and-arrows/04-style-definitions.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning,quotes}\n\\begin{document}\n\\begin{tikzpicture}[\n    every node/.style={font=\\large,text=white},\n    every edge/.style={draw,->},\n    every edge quotes/.style={auto,font=\\ttfamily\\tiny,text=black,fill=none}\n  ]\n  \\node (tex) [fill=orange] {TEX};\n  \\node (pdf) [fill={rgb:red,244;green,15;blue,2},right=of tex] {PDF};\n  \\draw (tex) edge[\"pdflatex\"] (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
+    "title": "Rotated coordinate frame",
+    "origin": "MacTeX tikz-3dplot",
+    "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotsetrotatedcoords",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-3dplot}\n\\begin{document}\n\\tdplotsetmaincoords{70}{110}\n\\begin{tikzpicture}[tdplot_main_coords]\n  \\draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};\n  \\draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};\n  \\draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};\n  \\tdplotsetrotatedcoords{60}{40}{30}\n  \\draw[thick,color=blue,tdplot_rotated_coords,->] (0,0,0) -- (.7,0,0) node[anchor=north]{$x'$};\n  \\draw[thick,color=blue,tdplot_rotated_coords,->] (0,0,0) -- (0,.7,0) node[anchor=west]{$y'$};\n  \\draw[thick,color=blue,tdplot_rotated_coords,->] (0,0,0) -- (0,0,.7) node[anchor=south]{$z'$};\n\\end{tikzpicture}\n\\end{document}"
   },
   {
-    "title": "drawing edges and arrows / sloped edge texts",
-    "origin": "Packt GitHub",
-    "path": "04-drawing-edges-and-arrows/07-sloped-edge-texts.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/04-drawing-edges-and-arrows/07-sloped-edge-texts.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning,quotes}\n\\begin{document}\n\\begin{tikzpicture}[\n    every node/.style = {font=\\large, text=white},\n    every edge/.style = {draw, ->},\n    every edge quotes/.style = {auto, font=\\ttfamily\\tiny,\n      text=black, fill=none, sloped}]\n  \\node (tex) [fill = orange] {TEX};\n  \\node (pdf) [fill = {rgb:red,244;green,15;blue,2}, right = of tex] {PDF};\n  \\node (dvi) [fill = blue, above = of tex] {DVI};\n  \\node (ps)  [fill = black!60, above = of pdf] {PS};\n  \\draw (tex) edge[\"pdflatex\"] (pdf);\n  \\draw (tex) edge[\"latex\"]    (dvi);\n  \\draw (dvi) edge[\"dvips\"]     (ps);\n  \\draw (ps)  edge[\"ps2pdf\"]   (pdf);\n  \\draw (dvi) edge[\"dvipdfmx\"] (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
+    "title": "Spherical point projections",
+    "origin": "MacTeX tikz-3dplot",
+    "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotsetcoord",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-3dplot}\n\\begin{document}\n\\tdplotsetmaincoords{60}{130}\n\\begin{tikzpicture}[scale=2,tdplot_main_coords]\n  \\coordinate (O) at (0,0,0);\n  \\tdplotsetcoord{P}{.8}{55}{60}\n  \\draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};\n  \\draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};\n  \\draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};\n  \\draw[-stealth,color=red] (O) -- (P);\n  \\draw[dashed,color=red] (O) -- (Px);\n  \\draw[dashed,color=red] (O) -- (Py);\n  \\draw[dashed,color=red] (O) -- (Pz);\n  \\draw[dashed,color=red] (Px) -- (Pxy);\n  \\draw[dashed,color=red] (Py) -- (Pxy);\n  \\draw[dashed,color=red] (Pxy) -- (P);\n\\end{tikzpicture}\n\\end{document}"
   },
   {
-    "title": "drawing edges and arrows / to operation",
-    "origin": "Packt GitHub",
-    "path": "04-drawing-edges-and-arrows/08-to-operation.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/04-drawing-edges-and-arrows/08-to-operation.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (tex) [fill=orange, text=white] {TEX};\n  \\node (pdf) [fill={rgb:red,244;green,15;blue,2},\n    text=white, right=of tex] {PDF};\n  \\draw[->] (tex) to[out=45, in=225, looseness=1.5] (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
-  },
-  {
-    "title": "drawing edges and arrows / customizing arrow",
-    "origin": "Packt GitHub",
-    "path": "04-drawing-edges-and-arrows/09-customizing-arrow.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/04-drawing-edges-and-arrows/09-customizing-arrow.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning,arrows.meta}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (tex) [fill=orange, text=white] {TEX};\n  \\node (pdf) [fill={rgb:red,244;green,15;blue,2},\n    text=white, right=of tex] {PDF};\n  \\draw (tex) edge[very thick, draw=red,\n    -{Stealth[color=orange, fill=red, width=8pt, length=10pt]}]\n    (pdf);\n\\end{tikzpicture}\n\\end{document}\n"
-  },
-  {
-    "title": "using styles and pics / simple nodes edge",
-    "origin": "Packt GitHub",
-    "path": "05-using-styles-and-pics/01-simple-nodes-edge.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/05-using-styles-and-pics/01-simple-nodes-edge.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node (A) {A};\n  \\node[right= 4 cm of A] (B) {B};\n  \\draw (A) edge node [fill=white] {1} (B);\n\\end{tikzpicture}\n\\end{document}\n"
-  },
-  {
-    "title": "using styles and pics / node style",
-    "origin": "Packt GitHub",
-    "path": "05-using-styles-and-pics/02-node-style.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/05-using-styles-and-pics/02-node-style.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node [font = \\sffamily\\bfseries, text = white, shape = circle,\n         ball color = blue] (A) {A};\n\\end{tikzpicture}\n\\end{document}\n"
-  },
-  {
-    "title": "using styles and pics / small graph",
-    "origin": "Packt GitHub",
-    "path": "05-using-styles-and-pics/03-small-graph.tex",
-    "sourceUrl": "https://github.com/PacktPublishing/LaTeX-graphics-with-TikZ/blob/main/05-using-styles-and-pics/03-small-graph.tex",
-    "source": "\\documentclass[border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{positioning}\n\\tikzset{vertex/.style = {font = \\sffamily\\bfseries, text = white,\n      shape = circle, ball color = blue}}\n\\tikzset{bridge/.style = {thick, double = yellow,\n      double distance = 1pt}}\n\\tikzset{number/.style = {font = \\sffamily\\bfseries, text = white,\n      draw, fill = red}}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node[vertex] (A) {A};\n  \\node[vertex, right = 4 cm of A] (B) {B};\n  \\draw (A) edge[bridge] node [number] {1} (B);\n  \\end{tikzpicture}\n\\end{document}\n"
+    "title": "Spherical angle arcs",
+    "origin": "MacTeX tikz-3dplot",
+    "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-3dplot/tikz-3dplot_documentation.tex#tdplotdrawarc",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-3dplot}\n\\begin{document}\n\\tdplotsetmaincoords{60}{110}\n\\pgfmathsetmacro{\\rvec}{.8}\n\\pgfmathsetmacro{\\thetavec}{30}\n\\pgfmathsetmacro{\\phivec}{60}\n\\begin{tikzpicture}[scale=5,tdplot_main_coords]\n  \\coordinate (O) at (0,0,0);\n  \\draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};\n  \\draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};\n  \\draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};\n  \\tdplotsetcoord{P}{\\rvec}{\\thetavec}{\\phivec}\n  \\draw[-stealth,color=red] (O) -- (P);\n  \\draw[dashed,color=red] (O) -- (Pxy);\n  \\draw[dashed,color=red] (P) -- (Pxy);\n  \\tdplotdrawarc{(O)}{0.2}{0}{\\phivec}{anchor=north}{$\\phi$}\n  \\tdplotsetthetaplanecoords{\\phivec}\n  \\tdplotdrawarc[tdplot_rotated_coords]{(0,0,0)}{0.5}{0}{\\thetavec}{anchor=south west}{$\\theta$}\n\\end{tikzpicture}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 100,
+  "caseCount": 104,
   "petarVFound": 65,
-  "packtFound": 128,
+  "packtFound": 148,
   "tikzNetFound": 1,
+  "tikzThreeDPlotFound": 4,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
-    "Packt GitHub"
+    "Packt GitHub",
+    "MacTeX tikz-3dplot"
   ]
 };

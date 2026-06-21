@@ -1,6 +1,7 @@
 import { tikzNetworkExtension } from "./tikz-network.js";
+import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
 
-export const BUILTIN_EXTENSIONS = [tikzNetworkExtension];
+export const BUILTIN_EXTENSIONS = [tikzNetworkExtension, tikzThreeDPlotExtension];
 
 export function applyPreprocessExtensions(source, context = {}) {
   const extensions = [...BUILTIN_EXTENSIONS, ...(context.options?.extensions || [])];

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
+import { parseTikz, interpretTikz, tikzToSvg, tikzThreeDPlotExtension } from "../src/index.js";
 
 test("allows user-supplied preprocess extensions", () => {
   const source = String.raw`
@@ -59,6 +59,69 @@ test("projects common TikZ 3D coordinates using x/y/z picture basis vectors", ()
   assert.deepEqual(blue.commands[1], { type: "lineTo", x: -3.44, y: 0 });
   const zAxis = ir.items.find((item) => item.style.markerEnd?.kind === "to");
   assert.deepEqual(zAxis.commands.at(-1), { type: "lineTo", x: 0, y: 2.5 });
+});
+
+test("exposes tikz-3dplot as a built-in extension module", () => {
+  assert.equal(tikzThreeDPlotExtension.name, "tikz-3dplot");
+  assert.equal(tikzThreeDPlotExtension.phase, "preprocess");
+  assert.ok(tikzThreeDPlotExtension.commands.includes("tdplotsetmaincoords"));
+  assert.equal(typeof tikzThreeDPlotExtension.preprocess, "function");
+});
+
+test("expands tikz-3dplot main coordinates into TikZ basis vectors", () => {
+  const source = String.raw`
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\tdplotsetmaincoords{70}{110}
+\begin{tikzpicture}[tdplot_main_coords]
+  \draw[thick,->] (0,0,0) -- (1,0,0) node[anchor=north east]{$x$};
+  \draw[thick,->] (0,0,0) -- (0,1,0) node[anchor=north west]{$y$};
+  \draw[thick,->] (0,0,0) -- (0,0,1) node[anchor=south]{$z$};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const axes = result.ir.items.filter((item) => item.type === "path" && item.style.markerEnd);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.abs(axes[0].commands.at(-1).x - -0.342) < 0.01);
+  assert.ok(Math.abs(axes[0].commands.at(-1).y - -0.321) < 0.01);
+  assert.ok(Math.abs(axes[2].commands.at(-1).y - 0.94) < 0.01);
+});
+
+test("expands tikz-3dplot spherical coordinate projection helpers", () => {
+  const source = String.raw`
+\usepackage{tikz-3dplot}
+\tdplotsetmaincoords{60}{130}
+\begin{tikzpicture}[tdplot_main_coords]
+  \coordinate (O) at (0,0,0);
+  \tdplotsetcoord{P}{.8}{55}{60}
+  \draw[-stealth,color=red] (O) -- (P);
+  \draw[dashed,color=red] (Pxy) -- (P);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.ir.coordinates.P);
+  assert.ok(result.ir.coordinates.Pxy);
+  assert.notDeepEqual(result.ir.coordinates.P, result.ir.coordinates.Pxy);
+  assert.equal(result.ir.items.filter((item) => item.type === "path").length, 2);
+});
+
+test("expands tikz-3dplot drawarc commands into ordinary paths and labels", () => {
+  const source = String.raw`
+\usepackage{tikz-3dplot}
+\tdplotsetmaincoords{60}{110}
+\begin{tikzpicture}[tdplot_main_coords]
+  \coordinate (O) at (0,0,0);
+  \tdplotdrawarc{(O)}{0.2}{0}{60}{anchor=north}{$\phi$}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.ir.items.some((item) => item.type === "path" && item.shape === "arc"));
+  assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$\\phi$"));
 });
 
 test("expands common TeX-lite def and newcommand macros before TikZ parsing", () => {

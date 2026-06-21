@@ -2,7 +2,7 @@ import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { buildCaseInsights, diffSeverity } from "./gallery-analysis.js";
 import { createSampleGallery } from "./sample-gallery.js";
 
-const sample = createSampleGallery(100);
+const sample = createSampleGallery();
 let galleryReports = {
   diffRows: new Map(),
   nativeRows: new Map(),
