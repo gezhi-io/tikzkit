@@ -1559,6 +1559,9 @@ function normalizeAxisExpression(input, radianTrig) {
     .replace(/\bsqrt\s*\(/g, "Math.sqrt(")
     .replace(/\babs\s*\(/g, "Math.abs(")
     .replace(/\bexp\s*\(/g, "Math.exp(")
+    .replace(/\blog10\s*\(/g, "Math.log10(")
+    .replace(/\bln\s*\(/g, "Math.log(")
+    .replace(/(^|[^.A-Za-z0-9_])log\s*\(/g, "$1Math.log(")
     .replace(/\b(sin|cos|tan)\s*\(/g, trigPrefix);
 }
 

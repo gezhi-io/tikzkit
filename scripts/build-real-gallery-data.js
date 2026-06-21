@@ -500,6 +500,36 @@ const TIKZQUADS_CASES = [
   }
 ];
 
+const TIKZFXGRAPH_CASES = [
+  {
+    title: "Tikzfxgraph wrapped pgfplots graph",
+    origin: "MacTeX tikzfxgraph",
+    sourceUrl: "https://ctan.org/pkg/tikzfxgraph",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikzfxgraph/tikzfxgraph.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage[no domain warning]{tikzfxgraph}
+\begin{document}
+\begin{fxgraph}{
+  linear,
+  x ticks={min=0,max=6.2831853,N=6},
+  y ticks={min=-1.5,max=1.5,N=6},
+  width=7cm,
+  height=4cm,
+  xlabel={$x$},
+  ylabel={$f(x)$},
+  title={fxgraph coordinates}
+}
+  \addplot[blue,thick,mark=none] coordinates {(0,0) (1.5708,1) (3.14159,0) (4.71239,-1) (6.28318,0)};
+  \addlegendentry{$\sin x$}
+  \addplot[red,dashed,mark=none] coordinates {(0,1) (1.5708,0) (3.14159,-1) (4.71239,0) (6.28318,1)};
+  \addlegendentry{$\cos x$}
+\end{fxgraph}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -748,6 +778,7 @@ const selected = [
   ...TIKZ_PALATTICE_CASES,
   ...TIKZ_QTREE_CASES,
   ...TIKZQUADS_CASES,
+  ...TIKZFXGRAPH_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -776,6 +807,7 @@ await writeFile(
     tikzPalatticeFound: TIKZ_PALATTICE_CASES.length,
     tikzQtreeFound: TIKZ_QTREE_CASES.length,
     tikzquadsFound: TIKZQUADS_CASES.length,
+    tikzfxgraphFound: TIKZFXGRAPH_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"

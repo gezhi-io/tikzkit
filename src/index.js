@@ -11,6 +11,7 @@ export { tikzDimlineExtension } from "./extensions/tikz-dimline.js";
 export { tikzExtExtension } from "./extensions/tikz-ext.js";
 export { tikzFeynhandExtension } from "./extensions/tikz-feynhand.js";
 export { tikzFeynmanExtension } from "./extensions/tikz-feynman.js";
+export { tikzfxgraphExtension } from "./extensions/tikzfxgraph.js";
 export { tikzNetworkExtension } from "./extensions/tikz-network.js";
 export { tikzPalatticeExtension } from "./extensions/tikz-palattice.js";
 export { tikzQtreeExtension } from "./extensions/tikz-qtree.js";

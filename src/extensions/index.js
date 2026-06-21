@@ -6,6 +6,7 @@ import { tikzDimlineExtension } from "./tikz-dimline.js";
 import { tikzExtExtension } from "./tikz-ext.js";
 import { tikzFeynhandExtension } from "./tikz-feynhand.js";
 import { tikzFeynmanExtension } from "./tikz-feynman.js";
+import { tikzfxgraphExtension } from "./tikzfxgraph.js";
 import { tikzNetworkExtension } from "./tikz-network.js";
 import { tikzPalatticeExtension } from "./tikz-palattice.js";
 import { tikzQtreeExtension } from "./tikz-qtree.js";
@@ -23,6 +24,7 @@ export const BUILTIN_EXTENSIONS = [
   tikzExtExtension,
   tikzFeynhandExtension,
   tikzFeynmanExtension,
+  tikzfxgraphExtension,
   tikzPalatticeExtension,
   tikzQtreeExtension,
   tikzquadsExtension

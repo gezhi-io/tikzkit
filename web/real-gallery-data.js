@@ -842,6 +842,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[crop,tikz]{standalone}\n\\usepackage{circuitikz}\n\\usepackage{tikzquads}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node[Quad,I1=$I_a$,V2=$V_b$,label top center=$Q_a$] (Qa) at (0,0) {$Q_a$};\n  \\node[Quad,I1=$I_b$,V2=$V_o$,label bottom center=$Q_b$] (Qb) at (0,-2) {$Q_b$};\n  \\QuadParConnect[right,down,spacing=.15]{Qa}{Qb}\n  \\node[Black Box,I1=$I_L$,V1=$V_L$,label top center=Load] (Load) at (3.3,-1) {};\n  \\draw[->] (Qa.2+) -- (Load.1+);\n  \\draw[->] (Load.1-) -- (Qa.2-);\n  \\node[PG load line,x axis=$V$,y axis=$I$,x val=$V_{th}$,y val=$I_N$] at (6,-1) {};\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "Tikzfxgraph wrapped pgfplots graph",
+    "origin": "MacTeX tikzfxgraph",
+    "sourceUrl": "https://ctan.org/pkg/tikzfxgraph",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikzfxgraph/tikzfxgraph.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{pgfplots}\n\\pgfplotsset{compat=1.18}\n\\usepackage[no domain warning]{tikzfxgraph}\n\\begin{document}\n\\begin{fxgraph}{\n  linear,\n  x ticks={min=0,max=6.2831853,N=6},\n  y ticks={min=-1.5,max=1.5,N=6},\n  width=7cm,\n  height=4cm,\n  xlabel={$x$},\n  ylabel={$f(x)$},\n  title={fxgraph coordinates}\n}\n  \\addplot[blue,thick,mark=none] coordinates {(0,0) (1.5708,1) (3.14159,0) (4.71239,-1) (6.28318,0)};\n  \\addlegendentry{$\\sin x$}\n  \\addplot[red,dashed,mark=none] coordinates {(0,1) (1.5708,0) (3.14159,-1) (4.71239,0) (6.28318,1)};\n  \\addlegendentry{$\\cos x$}\n\\end{fxgraph}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -886,7 +893,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 126,
+  "caseCount": 127,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -904,6 +911,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzPalatticeFound": 1,
   "tikzQtreeFound": 1,
   "tikzquadsFound": 1,
+  "tikzfxgraphFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -922,6 +930,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-feynman",
     "MacTeX tikz-palattice",
     "MacTeX tikz-qtree",
-    "MacTeX tikzquads"
+    "MacTeX tikzquads",
+    "MacTeX tikzfxgraph"
   ]
 };
