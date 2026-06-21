@@ -826,11 +826,7 @@ function computeBounds(items) {
       include(item.x - item.width / 2, item.y - item.height / 2);
       include(item.x + item.width / 2, item.y + item.height / 2);
     } else if (item.projected && item.type === "path") {
-      for (const command of item.commands || []) {
-        if ("x" in command && "y" in command) include(command.x, command.y);
-        if ("x1" in command && "y1" in command) include(command.x1, command.y1);
-        if ("x2" in command && "y2" in command) include(command.x2, command.y2);
-      }
+      includePathBounds(item, include);
     } else if (item.shape === "circle") {
       include(item.cx - item.r, item.cy - item.r);
       include(item.cx + item.r, item.cy + item.r);
@@ -862,11 +858,7 @@ function computeBounds(items) {
     } else if (item.type === "marker") {
       include(item.x, item.y);
     } else if (item.type === "path") {
-      for (const command of item.commands || []) {
-        if ("x" in command && "y" in command) include(command.x, command.y);
-        if ("x1" in command && "y1" in command) include(command.x1, command.y1);
-        if ("x2" in command && "y2" in command) include(command.x2, command.y2);
-      }
+      includePathBounds(item, include);
     }
   }
 
@@ -874,6 +866,96 @@ function computeBounds(items) {
   if (bounds.minX === bounds.maxX) bounds.maxX += 1;
   if (bounds.minY === bounds.maxY) bounds.maxY += 1;
   return bounds;
+}
+
+function includePathBounds(item, include) {
+  let current = null;
+  let start = null;
+  for (const command of item.commands || []) {
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      start = current;
+      include(command.x, command.y);
+      continue;
+    }
+    if (command.type === "lineTo") {
+      current = { x: command.x, y: command.y };
+      include(command.x, command.y);
+      continue;
+    }
+    if (command.type === "curveTo") {
+      if (current && item.tightBezierBounds) {
+        includeCubicBezierBounds(current, command, include);
+      } else {
+        if ("x1" in command && "y1" in command) include(command.x1, command.y1);
+        if ("x2" in command && "y2" in command) include(command.x2, command.y2);
+        if ("x" in command && "y" in command) include(command.x, command.y);
+      }
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (command.type === "quadTo") {
+      if ("x1" in command && "y1" in command) include(command.x1, command.y1);
+      if ("x" in command && "y" in command) include(command.x, command.y);
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (command.type === "closePath" && start) {
+      include(start.x, start.y);
+      current = start;
+      continue;
+    }
+    if ("x" in command && "y" in command) {
+      include(command.x, command.y);
+      current = { x: command.x, y: command.y };
+    }
+  }
+}
+
+function includeCubicBezierBounds(from, curve, include) {
+  const p0 = from;
+  const p1 = { x: curve.x1, y: curve.y1 };
+  const p2 = { x: curve.x2, y: curve.y2 };
+  const p3 = { x: curve.x, y: curve.y };
+  include(p0.x, p0.y);
+  include(p3.x, p3.y);
+  for (const t of cubicExtremaParameters(p0.x, p1.x, p2.x, p3.x)) {
+    const point = cubicBezierPoint(p0, p1, p2, p3, t);
+    include(point.x, point.y);
+  }
+  for (const t of cubicExtremaParameters(p0.y, p1.y, p2.y, p3.y)) {
+    const point = cubicBezierPoint(p0, p1, p2, p3, t);
+    include(point.x, point.y);
+  }
+}
+
+function cubicExtremaParameters(p0, p1, p2, p3) {
+  const a = -p0 + 3 * p1 - 3 * p2 + p3;
+  const b = 2 * (p0 - 2 * p1 + p2);
+  const c = p1 - p0;
+  const roots = [];
+  if (Math.abs(a) < 1e-12) {
+    if (Math.abs(b) >= 1e-12) roots.push(-c / b);
+  } else {
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant >= -1e-12) {
+      const sqrt = Math.sqrt(Math.max(0, discriminant));
+      roots.push((-b - sqrt) / (2 * a), (-b + sqrt) / (2 * a));
+    }
+  }
+  return roots.filter((t) => t > 1e-9 && t < 1 - 1e-9);
+}
+
+function cubicBezierPoint(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  const a = mt * mt * mt;
+  const b = 3 * mt * mt * t;
+  const c = 3 * mt * t * t;
+  const d = t * t * t;
+  return {
+    x: p0.x * a + p1.x * b + p2.x * c + p3.x * d,
+    y: p0.y * a + p1.y * b + p2.y * c + p3.y * d
+  };
 }
 
 function format(value) {

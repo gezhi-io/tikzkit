@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderSvg } from "../src/index.js";
+import { renderSvg, tikzToSvg } from "../src/index.js";
 import { mathFallbackText } from "../src/tex-text.js";
 
 test("renders stable svg for paths, text nodes, circles, and markers", () => {
@@ -36,6 +36,74 @@ test("renders stable svg for paths, text nodes, circles, and markers", () => {
   assert.match(svg, /font-family="KaTeX_Main, 'Times New Roman', Times, serif"/);
   assert.match(svg, /M -6 -5 L 6 0 L -6 5 z/);
   assert.match(svg, /rotate\(-45 50 -50\)/);
+});
+
+test("uses tight cubic Bezier extrema when bbox library mode is enabled", () => {
+  const loose = renderSvg({
+    items: [
+      {
+        type: "path",
+        style: { stroke: "black", fill: "none", lineWidth: 1 },
+        commands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "curveTo", x1: -1, y1: 1, x2: 1, y2: 2, x: 2, y: 0 }
+        ]
+      }
+    ]
+  });
+  const tight = renderSvg({
+    items: [
+      {
+        type: "path",
+        tightBezierBounds: true,
+        style: { stroke: "black", fill: "none", lineWidth: 1 },
+        commands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "curveTo", x1: -1, y1: 1, x2: 1, y2: 2, x: 2, y: 0 }
+        ]
+      }
+    ]
+  });
+
+  const looseViewBox = loose.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
+  const tightViewBox = tight.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
+
+  assert.ok(looseViewBox[3] > 200, `expected loose bounds to include control points, got ${looseViewBox}`);
+  assert.ok(tightViewBox[3] < 150, `expected tight bounds to use curve extrema, got ${tightViewBox}`);
+  assert.ok(tightViewBox[2] < looseViewBox[2], `expected tight width to shrink, got ${tightViewBox} vs ${looseViewBox}`);
+});
+
+test("supports PGF bbox library bezier bounding box option from TikZ source", () => {
+  const source = String.raw`
+\usepgflibrary{bbox}
+\begin{tikzpicture}[bezier bounding box]
+  \draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const path = result.ir.items.find((item) => item.type === "path");
+  const viewBox = result.svg.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.tightBezierBounds, true);
+  assert.ok(viewBox[3] < 150, `expected bbox library mode to tighten Bezier viewBox, got ${viewBox}`);
+});
+
+test("resolves current bounding box anchors after tight Bezier paths", () => {
+  const source = String.raw`
+\usepgflibrary{bbox}
+\begin{tikzpicture}[bezier bounding box]
+  \draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);
+  \draw (current bounding box.south west) rectangle (current bounding box.north east);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const rectangle = result.ir.items.filter((item) => item.type === "path").at(-1);
+  const ys = rectangle.commands.filter((command) => "y" in command).map((command) => command.y);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.max(...ys) < 1.3, `expected current bounding box to use tight Bezier max y, got ${ys}`);
+  assert.ok(Math.min(...ys) === 0, `expected current bounding box lower edge at curve endpoint y, got ${ys}`);
 });
 
 test("renders distinct SVG marker definitions for TikZ arrow tip styles", () => {

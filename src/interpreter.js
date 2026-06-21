@@ -50,6 +50,7 @@ export function interpretTikz(ast, options = {}) {
 }
 
 function interpretStatement(statement, env, ir, diagnostics, options) {
+  env.currentBoundingBox = () => computeCurrentBoundingBox(ir);
   if (statement.type === "unsupported") {
     diagnostics.push(statement.diagnostic);
     return;
@@ -168,6 +169,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       const item = {
         type: "path",
         subtype,
+        tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
         style: pathStyle,
         commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
       };
@@ -2101,6 +2103,12 @@ function semanticSubtype(options = {}) {
   return undefined;
 }
 
+function tikzBoolean(value) {
+  if (value === undefined || value === null || value === false) return false;
+  if (value === true || value === "") return true;
+  return !/^(?:false|0|no|off)$/i.test(String(value).trim());
+}
+
 function hasDrawableCommands(commands, shapes) {
   if (commands.length === 0) return false;
   if (commands.length === 1 && commands[0].type === "moveTo" && shapes.length > 0) return false;
@@ -2289,6 +2297,10 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   if (Object.hasOwn(env.coordinates, text)) {
     return roundPoint(env.coordinates[text]);
   }
+  const currentBoundingBoxPoint = resolveCurrentBoundingBoxCoordinate(text, env);
+  if (currentBoundingBoxPoint) {
+    return roundPoint(currentBoundingBoxPoint);
+  }
   if (Object.hasOwn(env.nodes, text)) {
     return roundPoint(env.nodes[text].point);
   }
@@ -2462,6 +2474,147 @@ function diamondAnchorCoordinate(node, anchor, halfWidth, halfHeight) {
   if (anchor === "south east") return roundPoint({ x: node.point.x + halfWidth / 2, y: node.point.y - halfHeight / 2 });
   if (anchor === "south west") return roundPoint({ x: node.point.x - halfWidth / 2, y: node.point.y - halfHeight / 2 });
   return roundPoint(node.point);
+}
+
+function resolveCurrentBoundingBoxCoordinate(text, env) {
+  const match = String(text || "").trim().toLowerCase().match(/^current bounding box(?:\.(.+))?$/);
+  if (!match || typeof env.currentBoundingBox !== "function") return null;
+  const bounds = env.currentBoundingBox();
+  if (!bounds) return null;
+  const anchor = (match[1] || "center").replace(/-/g, " ").trim();
+  const xCenter = (bounds.minX + bounds.maxX) / 2;
+  const yCenter = (bounds.minY + bounds.maxY) / 2;
+  let x = xCenter;
+  let y = yCenter;
+  if (anchor.includes("west")) x = bounds.minX;
+  if (anchor.includes("east")) x = bounds.maxX;
+  if (anchor.includes("south")) y = bounds.minY;
+  if (anchor.includes("north")) y = bounds.maxY;
+  return roundPoint({ x, y });
+}
+
+function computeCurrentBoundingBox(ir) {
+  const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const include = (x, y) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    bounds.minX = Math.min(bounds.minX, x);
+    bounds.minY = Math.min(bounds.minY, y);
+    bounds.maxX = Math.max(bounds.maxX, x);
+    bounds.maxY = Math.max(bounds.maxY, y);
+  };
+  for (const item of [...(ir.backgroundItems || []), ...(ir.items || [])]) {
+    includeItemBounds(item, include);
+  }
+  if (!Number.isFinite(bounds.minX)) return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  return bounds;
+}
+
+function includeItemBounds(item, include) {
+  if (item.type === "nodeBox") {
+    include(item.x - item.width / 2, item.y - item.height / 2);
+    include(item.x + item.width / 2, item.y + item.height / 2);
+    return;
+  }
+  if (item.shape === "circle") {
+    include(item.cx - item.r, item.cy - item.r);
+    include(item.cx + item.r, item.cy + item.r);
+    return;
+  }
+  if (item.shape === "ellipse") {
+    include(item.cx - item.rx, item.cy - item.ry);
+    include(item.cx + item.rx, item.cy + item.ry);
+    return;
+  }
+  if (item.type === "path") {
+    includePathItemBounds(item, include);
+    return;
+  }
+  if (item.type === "marker" || item.type === "textNode") {
+    include(item.x, item.y);
+  }
+}
+
+function includePathItemBounds(item, include) {
+  let current = null;
+  let start = null;
+  for (const command of item.commands || []) {
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      start = current;
+      include(command.x, command.y);
+      continue;
+    }
+    if (command.type === "lineTo") {
+      current = { x: command.x, y: command.y };
+      include(command.x, command.y);
+      continue;
+    }
+    if (command.type === "curveTo") {
+      if (current && item.tightBezierBounds) includeCubicBounds(current, command, include);
+      else {
+        include(command.x1, command.y1);
+        include(command.x2, command.y2);
+        include(command.x, command.y);
+      }
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (command.type === "closePath" && start) {
+      include(start.x, start.y);
+      current = start;
+      continue;
+    }
+    if ("x" in command && "y" in command) {
+      include(command.x, command.y);
+      current = { x: command.x, y: command.y };
+    }
+  }
+}
+
+function includeCubicBounds(from, curve, include) {
+  const p0 = from;
+  const p1 = { x: curve.x1, y: curve.y1 };
+  const p2 = { x: curve.x2, y: curve.y2 };
+  const p3 = { x: curve.x, y: curve.y };
+  include(p0.x, p0.y);
+  include(p3.x, p3.y);
+  for (const t of cubicExtrema(p0.x, p1.x, p2.x, p3.x)) {
+    const point = cubicPoint(p0, p1, p2, p3, t);
+    include(point.x, point.y);
+  }
+  for (const t of cubicExtrema(p0.y, p1.y, p2.y, p3.y)) {
+    const point = cubicPoint(p0, p1, p2, p3, t);
+    include(point.x, point.y);
+  }
+}
+
+function cubicExtrema(p0, p1, p2, p3) {
+  const a = -p0 + 3 * p1 - 3 * p2 + p3;
+  const b = 2 * (p0 - 2 * p1 + p2);
+  const c = p1 - p0;
+  const roots = [];
+  if (Math.abs(a) < 1e-12) {
+    if (Math.abs(b) >= 1e-12) roots.push(-c / b);
+  } else {
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant >= -1e-12) {
+      const sqrt = Math.sqrt(Math.max(0, discriminant));
+      roots.push((-b - sqrt) / (2 * a), (-b + sqrt) / (2 * a));
+    }
+  }
+  return roots.filter((t) => t > 1e-9 && t < 1 - 1e-9);
+}
+
+function cubicPoint(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  const a = mt * mt * mt;
+  const b = 3 * mt * mt * t;
+  const c = 3 * mt * t * t;
+  const d = t * t * t;
+  return {
+    x: p0.x * a + p1.x * b + p2.x * c + p3.x * d,
+    y: p0.y * a + p1.y * b + p2.y * c + p3.y * d
+  };
 }
 
 function polygonNodeShape(shape) {

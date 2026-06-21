@@ -258,6 +258,29 @@ const TIKZ_BAGUA_CASES = [
   }
 ];
 
+const TIKZ_BBOX_CASES = [
+  {
+    title: "Tight Bezier bounding box",
+    origin: "MacTeX tikz-bbox",
+    sourceUrl: "https://ctan.org/pkg/tikz-bbox",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bbox/pgfmanual-en-library-bbox.tex#bezier-bounding-box",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepgflibrary{bbox}
+\begin{document}
+\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1pt}]
+  \draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);
+  \draw (current bounding box.south west) rectangle (current bounding box.north east);
+  \draw[red,dashed]
+    (0,0) -- (-1,1) node[bullet,label=above:{$(x_a,y_a)$}]{}
+    (2,0) -- (1,2) node[bullet,label=above:{$(x_b,y_b)$}]{};
+  \path
+    (0,0) node[bullet,label=below:{$(x_0,y_0)$}]{}
+    (2,0) node[bullet,label=below:{$(x_1,y_1)$}]{};
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -295,7 +318,8 @@ const selected = [
   ...tikzNetCases,
   ...packtCases.slice(0, Math.max(0, fillerCount)),
   ...TIKZ_3DPLOT_CASES,
-  ...TIKZ_BAGUA_CASES
+  ...TIKZ_BAGUA_CASES,
+  ...TIKZ_BBOX_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -310,7 +334,8 @@ await writeFile(
     packtFound: packtCases.length,
     tikzNetFound: tikzNetCases.length,
     tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length,
-    tikzBaguaFound: TIKZ_BAGUA_CASES.length
+    tikzBaguaFound: TIKZ_BAGUA_CASES.length,
+    tikzBboxFound: TIKZ_BBOX_CASES.length
   }),
   "utf8"
 );

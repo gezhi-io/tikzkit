@@ -14,6 +14,7 @@ export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
   let expanded = stripTexComments(String(source));
   expanded = stripTikzLibraryDeclarations(expanded);
+  expanded = stripPgfLibraryDeclarations(expanded);
   const colorResult = collectColorDefinitions(expanded);
   expanded = replaceDefinedColorUses(colorResult.source, colorResult.colors);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
@@ -56,6 +57,10 @@ function stripTexComments(source) {
 
 function stripTikzLibraryDeclarations(source) {
   return String(source).replace(/\\usetikzlibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
+}
+
+function stripPgfLibraryDeclarations(source) {
+  return String(source).replace(/\\usepgflibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
 }
 
 function collectColorDefinitions(source) {

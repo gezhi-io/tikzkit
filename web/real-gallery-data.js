@@ -756,21 +756,30 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://ctan.org/pkg/tikz-bagua",
     "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bagua/tikz-bagua.tex#Bagua",
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-bagua}\n\\begin{document}\n\\begin{tikzpicture}\n  \\node at (0,0.85) {\\scriptsize 77};\n  \\node at (0,0.5) {\\Bagua[8]{77}[1.4]};\n  \\node at (0.7,0.85) {\\scriptsize 76};\n  \\node at (0.7,0.5) {\\Bagua[8]{76}[1.4]};\n  \\node at (1.4,0.85) {\\scriptsize 75};\n  \\node at (1.4,0.5) {\\Bagua[8]{75}[1.4]};\n  \\node at (2.1,0.85) {\\scriptsize 74};\n  \\node at (2.1,0.5) {\\Bagua[8]{74}[1.4]};\n  \\node at (0,0) {\\scriptsize 67};\n  \\node at (0,-0.35) {\\Bagua[8]{67}[1.4]};\n  \\node at (0.7,0) {\\scriptsize 66};\n  \\node at (0.7,-0.35) {\\Bagua[8]{66}[1.4]};\n  \\node at (1.4,0) {\\scriptsize 65};\n  \\node at (1.4,-0.35) {\\Bagua[8]{65}[1.4]};\n  \\node at (2.1,0) {\\scriptsize 64};\n  \\node at (2.1,-0.35) {\\Bagua[8]{64}[1.4]};\n  \\node at (0,-0.85) {\\scriptsize 57};\n  \\node at (0,-1.2) {\\Bagua[8]{57}[1.4]};\n  \\node at (0.7,-0.85) {\\scriptsize 56};\n  \\node at (0.7,-1.2) {\\Bagua[8]{56}[1.4]};\n  \\node at (1.4,-0.85) {\\scriptsize 55};\n  \\node at (1.4,-1.2) {\\Bagua[8]{55}[1.4]};\n  \\node at (2.1,-0.85) {\\scriptsize 54};\n  \\node at (2.1,-1.2) {\\Bagua[8]{54}[1.4]};\n  \\node at (0,-1.7) {\\scriptsize 47};\n  \\node at (0,-2.05) {\\Bagua[8]{47}[1.4]};\n  \\node at (0.7,-1.7) {\\scriptsize 46};\n  \\node at (0.7,-2.05) {\\Bagua[8]{46}[1.4]};\n  \\node at (1.4,-1.7) {\\scriptsize 45};\n  \\node at (1.4,-2.05) {\\Bagua[8]{45}[1.4]};\n  \\node at (2.1,-1.7) {\\scriptsize 44};\n  \\node at (2.1,-2.05) {\\Bagua[8]{44}[1.4]};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Tight Bezier bounding box",
+    "origin": "MacTeX tikz-bbox",
+    "sourceUrl": "https://ctan.org/pkg/tikz-bbox",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-bbox/pgfmanual-en-library-bbox.tex#bezier-bounding-box",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepgflibrary{bbox}\n\\begin{document}\n\\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1pt}]\n  \\draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);\n  \\draw (current bounding box.south west) rectangle (current bounding box.north east);\n  \\draw[red,dashed]\n    (0,0) -- (-1,1) node[bullet,label=above:{$(x_a,y_a)$}]{}\n    (2,0) -- (1,2) node[bullet,label=above:{$(x_b,y_b)$}]{};\n  \\path\n    (0,0) node[bullet,label=below:{$(x_0,y_0)$}]{}\n    (2,0) node[bullet,label=below:{$(x_1,y_1)$}]{};\n\\end{tikzpicture}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 108,
+  "caseCount": 109,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
   "tikzThreeDPlotFound": 4,
   "tikzBaguaFound": 4,
+  "tikzBboxFound": 1,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
     "Packt GitHub",
     "MacTeX tikz-3dplot",
-    "MacTeX tikz-bagua"
+    "MacTeX tikz-bagua",
+    "MacTeX tikz-bbox"
   ]
 };
