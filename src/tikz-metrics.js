@@ -4,6 +4,8 @@ export const TIKZ_UNIT = 100;
 export const TIKZ_MARGIN = 10;
 
 export const TIKZ_FONT_FAMILY = "KaTeX_Main, 'Times New Roman', Times, serif";
+export const TIKZ_MONOSPACE_FONT_FAMILY =
+  "KaTeX_Typewriter, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
 export const TIKZ_TEXT_FONT_SIZE = 30;
 export const TIKZ_DISPLAY_MATH_FONT_SIZE = 34;
 
@@ -61,6 +63,12 @@ export const TIKZ_ARROW_TIPS = {
     length: lineWidthFromPt(4.2),
     width: lineWidthFromPt(3.2),
     fill: "context-stroke"
+  },
+  latex: {
+    kind: "latex",
+    length: lineWidthFromPt(3.0),
+    width: lineWidthFromPt(3.0),
+    fill: "context-stroke"
   }
 };
 
@@ -107,9 +115,9 @@ export function lineWidthFromTikzDimension(value, fallback = TIKZ_LINE_WIDTHS.de
 }
 
 function normalizeArrowKind(kind) {
-  const text = String(kind || "to").trim().replace(/^>$/, "to").toLowerCase();
+  const text = String(kind || "to").trim().replace(/^>$/, "to").replace(/'/g, "").toLowerCase();
   if (text.includes("stealth")) return "stealth";
-  if (text.includes("latex")) return "to";
+  if (text.includes("latex")) return "latex";
   if (text.includes("to")) return "to";
   return text === ">" ? "to" : text || "to";
 }

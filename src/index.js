@@ -2,6 +2,8 @@ export { parseTikz } from "./parser.js";
 export { interpretTikz } from "./interpreter.js";
 export { renderSvg } from "./renderer-svg.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
+export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/index.js";
+export { tikzNetworkExtension } from "./extensions/tikz-network.js";
 
 import { parseTikz } from "./parser.js";
 import { interpretTikz } from "./interpreter.js";

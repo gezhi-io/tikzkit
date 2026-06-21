@@ -1,28 +1,37 @@
-import { circleToPath, flattenPath, pathIntersections, pointAtLength } from "./geometry.js";
+import { circleToPath, ellipseToPath, flattenPath, pathIntersections, pointAtLength } from "./geometry.js";
 import { evaluateMath, parseDimension, roundNumber, roundPoint, substituteTextVariables, substituteVariables } from "./math.js";
+import { estimateFormulaBox, formulaTotalHeight, mathTextMetricUnits, parseMathText } from "./math-metrics.js";
 import {
   edgeStyleHintsFromOptions,
   normalizeColor,
   normalizeOptions,
   parseOptions,
   splitTopLevel,
+  styleDefinitionsFromOptions,
   stripOuterBraces
 } from "./options.js";
 import { mathFallbackText, normalizeTikzText } from "./tex-text.js";
-import { createArrowTip, TIKZ_UNIT } from "./tikz-metrics.js";
+import { TIKZ_MONOSPACE_FONT_FAMILY, createArrowTip } from "./tikz-metrics.js";
+
+const BUILTIN_STYLES = {
+  "every state": {},
+  "state without output": { circle: true, draw: true, "minimum size": "2.5em", "every state": true },
+  state: { "state without output": true }
+};
 
 export function interpretTikz(ast, options = {}) {
   const diagnostics = [];
-  const ir = { type: "drawing", items: [], coordinates: {} };
+  const ir = { type: "drawing", items: [], backgroundItems: [], coordinates: {} };
 
   for (const picture of ast.pictures || []) {
     const env = {
       variables: {},
       coordinates: ir.coordinates,
       nodes: {},
-      styles: {},
+      styles: { ...BUILTIN_STYLES, ...(picture.styles || {}), ...styleDefinitionsFromOptions(picture.options || {}) },
       namedPaths: {},
       transform: identityTransform(),
+      canvasScale: 1,
       basis: parsePictureBasis(picture.options || {}),
       pictureOptions: picture.options || {}
     };
@@ -31,6 +40,10 @@ export function interpretTikz(ast, options = {}) {
     }
   }
 
+  if (ir.backgroundItems.length) {
+    ir.items = [...ir.backgroundItems, ...ir.items];
+  }
+  delete ir.backgroundItems;
   return { ir, diagnostics };
 }
 
@@ -94,8 +107,16 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     const scopedEnv = {
       ...env,
       transform: composeTransform(env.transform, statement.options, env),
-      basis: composeBasis(env.basis, statement.options, env)
+      canvasScale: env.canvasScale * transformCanvasScale(statement.options || {}, env),
+      basis: composeBasis(env.basis, statement.options, env),
+      styles: { ...env.styles, ...styleDefinitionsFromOptions(statement.options || {}) }
     };
+    if (isBackgroundScope(statement.options || {})) {
+      const backgroundIr = { ...ir, items: [], backgroundItems: [] };
+      for (const child of statement.body) interpretStatement(child, scopedEnv, backgroundIr, diagnostics, options);
+      ir.backgroundItems.push(...backgroundIr.backgroundItems, ...backgroundIr.items);
+      return;
+    }
     for (const child of statement.body) interpretStatement(child, scopedEnv, ir, diagnostics, options);
     return;
   }
@@ -104,18 +125,27 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   }
 }
 
+function isBackgroundScope(options = {}) {
+  return String(options.layer || "").trim() === "background" || options["on background layer"] === true;
+}
+
 function interpretPathStatement(statement, env, ir, diagnostics) {
-  const { style, semantic, options } = normalizeOptions(statement.command, statement.options, env);
+  const rawOptions = { ...(env.pictureOptions || {}), ...(statement.options || {}) };
+  const { style, semantic, options } = normalizeOptions(statement.command, rawOptions, env);
   const pathOptions = { ...options, ...semantic };
+  const pathEnv = {
+    ...env,
+    transform: shouldApplyStatementTransformToPath(statement) ? composeTransform(env.transform, statement.options || {}, env) : env.transform
+  };
   const subtype = semanticSubtype(pathOptions);
 
   if (semantic["name intersections"]) {
-    materializeIntersections(semantic["name intersections"], env, diagnostics);
+    materializeIntersections(semantic["name intersections"], pathEnv, diagnostics);
   }
 
-  const built = buildPath(statement.path.segments, env, diagnostics, pathOptions);
+  const built = buildPath(statement.path.segments, pathEnv, diagnostics, pathOptions, style);
   if (semantic["name path"]) {
-    env.namedPaths[String(semantic["name path"]).trim()] = built.commands.length
+    pathEnv.namedPaths[String(semantic["name path"]).trim()] = built.commands.length
       ? built.commands
       : built.shapes.flatMap((shape) => shape.commands || []);
   }
@@ -145,17 +175,32 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     }
   }
   for (const node of built.nodes) {
-    addNodeItems(node, ir, env);
+    addNodeItems(node, ir, pathEnv);
   }
 }
 
-function buildPath(segments, env, diagnostics, pathOptions = {}) {
+function shouldApplyStatementTransformToPath(statement) {
+  if (!isCoordinateNodePlacementPath(statement.path?.segments || [])) return true;
+  const options = statement.options || {};
+  return !(Object.hasOwn(options, "xshift") || Object.hasOwn(options, "yshift") || Object.hasOwn(options, "shift"));
+}
+
+function isCoordinateNodePlacementPath(segments = []) {
+  if (segments.length !== 2) return false;
+  const [coordinate, node] = segments;
+  if (coordinate?.kind !== "coordinate" || node?.kind !== "node" || node.at) return false;
+  const raw = String(coordinate.raw || "").trim();
+  return Boolean(raw && !raw.includes(",") && !raw.includes(":") && !raw.includes("$"));
+}
+
+function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}) {
   const commands = [];
   const shapes = [];
   const nodes = [];
   const styleHints = {};
   const effectivePathOptions = { ...pathOptions };
   let current = null;
+  let currentLocal = null;
   let currentBase = null;
   let currentNodeRef = null;
   let start = null;
@@ -163,18 +208,33 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
   let endNodeRef = null;
   let pending = null;
   let pendingInlineNodes = [];
+  let lastSegment = null;
+  let pendingPlotMark = null;
 
   for (const segment of segments) {
+    if (segment.kind === "unknown") {
+      const mark = String(segment.raw || "").match(/\bplot\s*\[[^\]]*\bmark\s*=\s*([^\],\s]+)[^\]]*\]/);
+      if (mark) pendingPlotMark = mark[1];
+      continue;
+    }
     if (segment.kind === "operator") {
       pending = segment.value;
       continue;
     }
     if (segment.kind === "coordinate") {
       const point = segment.relative ? resolveRelativeCoordinate(segment.raw, current, env, diagnostics) : resolveCoordinate(segment.raw, env, diagnostics);
+      if (pendingPlotMark) {
+        shapes.push(buildPlotMark(point, pendingPlotMark, pathStyle));
+        pendingPlotMark = null;
+      }
+      const localPoint = segment.relative || !shouldResolveAsLocalRectangleCorner(segment.raw)
+        ? null
+        : resolveLocalCoordinate(segment.raw, env, diagnostics);
       const nodeRef = segment.relative ? null : defaultPathNodeReference(segment.raw, env);
       if (!current) {
         commands.push({ type: "moveTo", x: point.x, y: point.y });
         current = point;
+        currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
         start = point;
@@ -183,37 +243,68 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
       } else if (pending === "grid") {
         shapes.push(...buildGrid(current, point, effectivePathOptions));
         current = point;
+        currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
       } else if (pending === "rectangle") {
-        commands.push({ type: "lineTo", x: point.x, y: current.y });
-        commands.push({ type: "lineTo", x: point.x, y: point.y });
-        commands.push({ type: "lineTo", x: current.x, y: point.y });
+        const corners =
+          currentLocal && localPoint
+            ? transformedRectangleCorners(currentLocal, localPoint, env.transform)
+            : [
+                { x: point.x, y: current.y },
+                point,
+                { x: current.x, y: point.y }
+              ];
+        commands.push({ type: "lineTo", x: corners[0].x, y: corners[0].y });
+        commands.push({ type: "lineTo", x: corners[1].x, y: corners[1].y });
+        commands.push({ type: "lineTo", x: corners[2].x, y: corners[2].y });
         commands.push({ type: "closePath" });
         current = point;
+        currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
       } else if (pending === "--") {
         const clipped = clipNodeLineEndpoints(currentBase || current, currentNodeRef, point, nodeRef, env);
-        if (currentNodeRef) updateCurrentMoveTo(commands, clipped.from);
+        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         commands.push({ type: "lineTo", x: clipped.to.x, y: clipped.to.y });
-        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env);
+        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle);
+        lastSegment = { from: clipped.from, to: clipped.to };
         pendingInlineNodes = [];
         current = clipped.to;
+        currentLocal = localPoint || point;
+        currentBase = point;
+        currentNodeRef = nodeRef;
+        endNodeRef = nodeRef;
+      } else if (pending === "|-" || pending === "-|") {
+        const elbow = pending === "|-"
+          ? { x: (currentBase || current).x, y: point.y }
+          : { x: point.x, y: (currentBase || current).y };
+        const first = clipNodeLineEndpoints(currentBase || current, currentNodeRef, elbow, null, env);
+        const second = clipNodeLineEndpoints(elbow, null, point, nodeRef, env);
+        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, first.from);
+        commands.push({ type: "lineTo", x: first.to.x, y: first.to.y });
+        commands.push({ type: "lineTo", x: second.to.x, y: second.to.y });
+        flushInlinePathNodes(pendingInlineNodes, first.from, first.to, nodes, env, pathStyle);
+        lastSegment = { from: first.from, to: first.to };
+        pendingInlineNodes = [];
+        current = second.to;
+        currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
       } else {
-        flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env);
+        flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env, pathStyle);
         pendingInlineNodes = [];
         commands.push({ type: "moveTo", x: point.x, y: point.y });
         current = point;
+        currentLocal = localPoint || point;
         currentBase = point;
         currentNodeRef = nodeRef;
         start = point;
         endNodeRef = nodeRef;
+        lastSegment = null;
       }
       pending = null;
       continue;
@@ -226,24 +317,51 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
     if ((segment.kind === "edge" || segment.kind === "to") && current) {
       const to = resolveCoordinate(segment.to, env, diagnostics);
       const toNodeRef = defaultPathNodeReference(segment.to, env);
-      Object.assign(styleHints, edgeStyleHintsFromOptions(segment.options, env));
-      Object.assign(effectivePathOptions, edgePathOptions(segment.options));
+      if (segment.nodes?.length) {
+        for (const labelNode of segment.nodes) {
+          pendingInlineNodes.push({
+            ...labelNode,
+            text: substituteTextVariables(labelNode.text, env.variables)
+          });
+        }
+      }
+      const combinedEdgeOptions = { ...effectivePathOptions, ...(segment.options || {}) };
+      Object.assign(styleHints, edgeStyleHintsFromOptions(combinedEdgeOptions, env));
+      Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
+      const loopDirection = loopDirectionFromOptions(combinedEdgeOptions);
+      if (loopDirection && pointsAlmostEqual(currentBase || current, to)) {
+        const loop = buildSelfLoop(currentBase || current, currentNodeRef, loopDirection, combinedEdgeOptions, env);
+        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, loop.start);
+        commands.push(...loop.commands);
+        flushInlinePathNodesAt(pendingInlineNodes, loop.labelPoint, nodes, env, pathStyle);
+        lastSegment = { from: loop.start, to: loop.end };
+        pendingInlineNodes = [];
+        current = loop.end;
+        currentBase = to;
+        currentNodeRef = toNodeRef;
+        endNodeRef = toNodeRef;
+        pending = null;
+        continue;
+      }
       const clipped = clipNodeLineEndpoints(currentBase || current, currentNodeRef, to, toNodeRef, env);
-      const curve = edgeCurveSpec(segment.options, clipped.from, clipped.to, env);
+      const curve = edgeCurveSpec(combinedEdgeOptions, clipped.from, clipped.to, env);
       if (curve) {
-        if (currentNodeRef) updateCurrentMoveTo(commands, clipped.from);
+        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         const distance = Math.hypot(clipped.to.x - clipped.from.x, clipped.to.y - clipped.from.y) / 2 || 1;
         const c1 = polarOffset(clipped.from, curve.out, distance);
         const c2 = polarOffset(clipped.to, curve.in, distance);
         commands.push({ type: "curveTo", x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y, x: clipped.to.x, y: clipped.to.y });
-        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env);
+        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle);
+        lastSegment = { from: clipped.from, to: clipped.to };
       } else {
-        if (currentNodeRef) updateCurrentMoveTo(commands, clipped.from);
+        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         commands.push({ type: "lineTo", x: clipped.to.x, y: clipped.to.y });
-        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env);
+        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle);
+        lastSegment = { from: clipped.from, to: clipped.to };
       }
       pendingInlineNodes = [];
       current = clipped.to;
+      currentLocal = null;
       currentBase = to;
       currentNodeRef = toNodeRef;
       endNodeRef = toNodeRef;
@@ -263,7 +381,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
         x: to.x,
         y: to.y
       });
+      lastSegment = { from: current, to };
       current = to;
+      currentLocal = null;
       currentBase = to;
       currentNodeRef = null;
       continue;
@@ -271,43 +391,57 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
     if (segment.kind === "circle") {
       const center = current || applyTransform({ x: 0, y: 0 }, env.transform);
       const r = parseDimension(segment.radius, env.variables);
-      shapes.push({
-        type: "path",
-        shape: "circle",
-        subtype: semanticSubtype(pathOptions),
-        cx: center.x,
-        cy: center.y,
-        r,
-        commands: circleToPath(center.x, center.y, r),
-        style: segment.options?.fill ? { fill: "black" } : {}
-      });
+      shapes.push(
+        decoratedShape(
+          {
+            type: "path",
+            shape: "circle",
+            subtype: semanticSubtype(pathOptions),
+            cx: center.x,
+            cy: center.y,
+            r,
+            commands: circleToPath(center.x, center.y, r),
+            style: segment.options?.fill ? { fill: "black" } : {}
+          },
+          effectivePathOptions,
+          env
+        )
+      );
       continue;
     }
     if (segment.kind === "ellipse" && current) {
       const [rxRaw, ryRaw] = segment.radius.split(/\s+and\s+/);
       const rx = parseDimension(segment.options?.["x radius"] || rxRaw, env.variables);
       const ry = parseDimension(segment.options?.["y radius"] || ryRaw || rxRaw, env.variables);
-      shapes.push({
-        type: "path",
-        shape: "ellipse",
-        cx: current.x,
-        cy: current.y,
-        rx,
-        ry,
-        commands: []
-      });
+      shapes.push(
+        decoratedShape(
+          {
+            type: "path",
+            shape: "ellipse",
+            cx: current.x,
+            cy: current.y,
+            rx,
+            ry,
+            commands: ellipseToPath(current.x, current.y, rx, ry)
+          },
+          effectivePathOptions,
+          env
+        )
+      );
       continue;
     }
     if (segment.kind === "arc" && current) {
       const arc = buildArc(current, segment.options, env);
       shapes.push(arc);
       current = arc.endPoint;
+      currentLocal = null;
       continue;
     }
     if (segment.kind === "plot") {
       const plot = buildPlot(segment.coordinate, env, pathOptions);
       for (const command of plot) commands.push(command);
       current = plot.at(-1) ? { x: plot.at(-1).x, y: plot.at(-1).y } : current;
+      currentLocal = null;
       currentBase = current;
       currentNodeRef = null;
       continue;
@@ -318,18 +452,21 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
         pendingInlineNodes.push({ ...segment, text });
         continue;
       }
-      const point = segment.at ? resolveCoordinate(segment.at, env, diagnostics) : current || applyTransform({ x: 0, y: 0 }, env.transform);
-      addInlinePathNode(segment, text, point, nodes, env);
+      const point = segment.at
+        ? resolveCoordinate(segment.at, env, diagnostics)
+        : inlineNodePathPoint(segment.options, lastSegment) || current || applyTransform({ x: 0, y: 0 }, env.transform);
+      addInlinePathNode(segment, text, point, nodes, env, pathStyle);
       continue;
     }
     if (segment.kind === "close" && start) {
       commands.push({ type: "closePath" });
+      if (current) lastSegment = { from: current, to: start };
       current = start;
       endNodeRef = startNodeRef;
     }
   }
 
-  flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env);
+  flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env, pathStyle);
   return {
     commands: applyPathMorphing(commands, effectivePathOptions, env),
     shapes,
@@ -339,89 +476,228 @@ function buildPath(segments, env, diagnostics, pathOptions = {}) {
   };
 }
 
-function flushInlinePathNodes(pendingInlineNodes, from, to, nodes, env) {
-  if (!pendingInlineNodes.length || !from || !to) return;
-  const point = roundPoint({
-    x: (from.x + to.x) / 2,
-    y: (from.y + to.y) / 2
+function inlineNodePathPoint(options = {}, lastSegment) {
+  if (!lastSegment) return null;
+  let pos = null;
+  if (Object.hasOwn(options, "pos")) pos = Number(options.pos);
+  else if (Object.hasOwn(options, "midway")) pos = 0.5;
+  else if (Object.hasOwn(options, "near start")) pos = 0.25;
+  else if (Object.hasOwn(options, "near end")) pos = 0.75;
+  if (!Number.isFinite(pos)) return null;
+  const t = Math.max(0, Math.min(1, pos));
+  return roundPoint({
+    x: lastSegment.from.x + (lastSegment.to.x - lastSegment.from.x) * t,
+    y: lastSegment.from.y + (lastSegment.to.y - lastSegment.from.y) * t
   });
+}
+
+function resolveLocalCoordinate(raw, env, diagnostics) {
+  return resolveCoordinate(raw, { ...env, transform: identityTransform() }, diagnostics);
+}
+
+function shouldResolveAsLocalRectangleCorner(raw) {
+  let text = String(raw || "").trim();
+  if (text.startsWith("(") && text.endsWith(")")) text = text.slice(1, -1).trim();
+  if (text.startsWith("[")) return false;
+  return text.startsWith("$") || looksLikeExplicitCoordinate(text);
+}
+
+function transformedRectangleCorners(fromLocal, toLocal, transform) {
+  return [
+    applyTransform({ x: toLocal.x, y: fromLocal.y }, transform),
+    applyTransform({ x: toLocal.x, y: toLocal.y }, transform),
+    applyTransform({ x: fromLocal.x, y: toLocal.y }, transform)
+  ];
+}
+
+function decoratedShape(shape, pathOptions, env) {
+  if (!pathOptions.decorate || !shape.commands?.length) return shape;
+  return {
+    ...shape,
+    shape: "decoratedPath",
+    commands: applyPathMorphing(shape.commands, pathOptions, env)
+  };
+}
+
+function flushInlinePathNodes(pendingInlineNodes, from, to, nodes, env, pathStyle = {}) {
+  if (!pendingInlineNodes.length || !from || !to) return;
   for (const segment of pendingInlineNodes) {
-    addInlinePathNode(segment, segment.text, point, nodes, env);
+    const point = inlineNodePathPoint(segment.options, { from, to }) || roundPoint({
+      x: (from.x + to.x) / 2,
+      y: (from.y + to.y) / 2
+    });
+    addInlinePathNode(segment, segment.text, point, nodes, env, pathStyle);
   }
 }
 
-function addInlinePathNode(segment, text, point, nodes, env) {
-  const size = estimateNodeLayoutSize(text, segment.options, env);
+function flushInlinePathNodesAt(pendingInlineNodes, point, nodes, env, pathStyle = {}) {
+  if (!pendingInlineNodes.length || !point) return;
+  for (const segment of pendingInlineNodes) {
+    addInlinePathNode(segment, segment.text, point, nodes, env, pathStyle);
+  }
+}
+
+function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}) {
+  const rawOptions = resolveDynamicOptions(segment.options || {}, env);
+  const expandedOptions = normalizeOptions("node", inlineNodeOptions(rawOptions, pathStyle), env).options;
+  const size = estimateNodeLayoutSize(text, expandedOptions, env);
   if (segment.name) {
     const name = resolveDynamicName(segment.name, env);
-    env.nodes[name] = { point, width: size.width, height: size.height, shape: nodeShape(segment.options) };
+    env.nodes[name] = { point, width: size.width, height: size.height, shape: nodeShape(expandedOptions) };
     env.coordinates[name] = point;
   }
-  nodes.push({ at: point, text, options: segment.options, size });
+  nodes.push({ at: point, text, options: expandedOptions, size, fitTextToBox: shouldFitTextToNodeBox(expandedOptions) });
+}
+
+function inlineNodeOptions(options = {}, pathStyle = {}) {
+  if (!pathStyle.stroke || pathStyle.stroke === "none" || hasExplicitTextColor(options)) return options;
+  return { text: pathStyle.stroke, ...options };
+}
+
+function hasExplicitTextColor(options = {}) {
+  return Object.hasOwn(options, "text") || Object.hasOwn(options, "color");
 }
 
 function createNode(statement, env, ir, diagnostics) {
   const text = substituteTextVariables(statement.text, env.variables);
-  const size = estimateNodeLayoutSize(text, statement.options, env);
-  const point = resolveNodePoint(statement, env, diagnostics, size);
-  const displayPoint = resolveNodeAnchorPoint(point, statement.options, text, env);
-  const name = statement.name ? resolveDynamicName(statement.name, env) : null;
+  const expandedOptions = normalizeOptions("node", {
+    ...resolveDynamicOptions(env.pictureOptions || {}, env),
+    ...resolveDynamicOptions(statement.options || {}, env)
+  }, env).options;
+  const size = scaleSize(estimateNodeLayoutSize(text, expandedOptions, env), env.canvasScale);
+  const point = resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, size);
+  const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, env);
+  const name = statement.name
+    ? resolveDynamicName(statement.name, env)
+    : expandedOptions.name && expandedOptions.name !== true
+      ? resolveDynamicName(String(expandedOptions.name), env)
+      : null;
   const node = {
     at: point,
     text,
-    options: statement.options,
+    options: expandedOptions,
     name,
-    size
+    size,
+    fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   };
   if (name) {
     env.nodes[name] = {
       point: displayPoint,
       width: size.width,
       height: size.height,
-      shape: nodeShape(statement.options)
+      shape: nodeShape(expandedOptions)
     };
     env.coordinates[name] = displayPoint;
   }
   addNodeItems(node, ir, env);
+  if (name && statement.path?.segments?.length) {
+    addNodeAttachedPath(name, statement.path.segments, expandedOptions, env, ir, diagnostics);
+  }
+}
+
+function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) {
+  const rawOptions = { ...(env.pictureOptions || {}), ...(nodeOptions || {}) };
+  const { style, semantic, options } = normalizeOptions("path", rawOptions, env);
+  const pathOptions = { ...options, ...semantic };
+  for (const segment of splitAttachedPathSegments(segments)) {
+    const built = buildPath([{ kind: "coordinate", raw: name }, ...segment], env, diagnostics, pathOptions, style);
+    const visible = isVisiblePath("path", style, semantic, built.styleHints);
+    if (visible && hasDrawableCommands(built.commands, built.shapes)) {
+      const pathStyle = drawablePathStyle(style, built.styleHints);
+      const item = {
+        type: "path",
+        subtype: semanticSubtype(pathOptions),
+        style: pathStyle,
+        commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
+      };
+      ir.items.push(item);
+      addDecorationMarkers(item, options, ir);
+    }
+    for (const node of built.nodes) {
+      addNodeItems(node, ir, env);
+    }
+  }
+}
+
+function splitAttachedPathSegments(segments = []) {
+  if (!segments.every((segment) => segment.kind === "edge" || segment.kind === "to")) return [segments];
+  return segments.map((segment) => [segment]);
 }
 
 function createMatrix(statement, env, ir) {
   const name = statement.name ? resolveDynamicName(statement.name, env) : null;
-  const matrixNodeOptions = statement.options?.nodes ? parseOptions(statement.options.nodes) : {};
+  const matrixOptions = normalizeOptions("node", statement.options || {}, env).options;
+  const matrixNodeOptions = matrixOptions.nodes ? parseOptions(matrixOptions.nodes) : {};
+  const inheritedNodeOptions = matrixInheritedNodeOptions(matrixOptions);
+  const cellBaseOptions = { ...inheritedNodeOptions, ...matrixNodeOptions };
+  const keepEmptyCells = Boolean(matrixOptions["nodes in empty cells"]);
   const rows = splitMatrixRows(statement.body)
-    .map((row) => splitTopLevel(row, "&").map(parseMatrixCell).filter((cell) => cell.text.length || Object.keys(cell.options).length))
+    .map((row) =>
+      splitMatrixCells(row)
+        .map(parseMatrixCell)
+        .filter((cell) => keepEmptyCells || cell.text.length || Object.keys(cell.options).length)
+    )
     .filter((row) => row.length);
   if (!rows.length) return;
 
-  let cellWidth = 0.22;
-  let cellHeight = 0.24;
+  let baseCellWidth = 0.22;
+  let baseCellHeight = 0.24;
   for (const row of rows) {
     for (const cell of row) {
-      const size = estimateMatrixCellSize(cell.text, { ...matrixNodeOptions, ...cell.options }, env);
-      cellWidth = Math.max(cellWidth, size.width);
-      cellHeight = Math.max(cellHeight, size.height);
+      const size = estimateMatrixCellSize(cell.text, { ...cellBaseOptions, ...cell.options }, env);
+      baseCellWidth = Math.max(baseCellWidth, size.width);
+      baseCellHeight = Math.max(baseCellHeight, size.height);
     }
   }
 
-  const colSep = parseFiniteDimension(statement.options["column sep"], env, 0);
-  const rowSep = parseFiniteDimension(statement.options["row sep"], env, 0);
-  const stepX = Math.max(0.1, cellWidth + colSep);
-  const stepY = Math.max(0.1, cellHeight + rowSep);
+  const matrixScale = parseMatrixScale(matrixOptions, env);
+  const cellWidth = roundNumber(baseCellWidth * matrixScale);
+  const cellHeight = roundNumber(baseCellHeight * matrixScale);
+  const colSep = parseFiniteDimension(matrixOptions["column sep"], env, 0) * matrixScale;
+  const rowSep = parseFiniteDimension(matrixOptions["row sep"], env, 0) * matrixScale;
+  const stepX = Math.max(Math.max(0.02, cellWidth * 0.25), cellWidth + colSep);
+  const stepY = Math.max(Math.max(0.02, cellHeight * 0.25), cellHeight + rowSep);
   const cols = Math.max(...rows.map((row) => row.length));
   const totalWidth = cellWidth + (cols - 1) * stepX;
   const totalHeight = cellHeight + (rows.length - 1) * stepY;
+  const matrixInnerSep = parseFiniteDimension(matrixOptions["inner sep"], env, 0) * matrixScale;
+  const boundsWidth = roundNumber(totalWidth + matrixInnerSep * 2);
+  const boundsHeight = roundNumber(totalHeight + matrixInnerSep * 2);
   const origin =
-    resolvePositioning(statement.options || {}, env, { width: totalWidth, height: totalHeight }) ||
+    resolvePositioning(matrixOptions || {}, env, { width: boundsWidth, height: boundsHeight }) ||
     applyTransform({ x: 0, y: 0 }, env.transform);
   const startX = origin.x - ((cols - 1) * stepX) / 2;
   const startY = origin.y + ((rows.length - 1) * stepY) / 2;
 
   if (name) {
-    env.nodes[name] = { point: origin, width: roundNumber(totalWidth), height: roundNumber(totalHeight), shape: "rectangle" };
+    env.nodes[name] = { point: origin, width: boundsWidth, height: boundsHeight, shape: "rectangle" };
     env.coordinates[name] = origin;
   }
 
+  const { style: matrixStyle, semantic: matrixSemantic } = normalizeOptions("node", matrixOptions, env);
+  if (matrixStyle.fill !== "none" || matrixStyle.stroke !== "none" || matrixSemantic.draw) {
+    ir.items.push({
+      type: "nodeBox",
+      shape: nodeShape(matrixOptions),
+      x: origin.x,
+      y: origin.y,
+      width: boundsWidth,
+      height: boundsHeight,
+      rx: nodeCornerRadius(nodeShape(matrixOptions), matrixSemantic, { width: boundsWidth, height: boundsHeight }),
+      style: {
+        stroke: matrixSemantic.draw || matrixStyle.stroke !== "none" ? matrixStyle.stroke || "black" : "none",
+        fill: matrixStyle.fill,
+        lineWidth: matrixStyle.lineWidth || 1,
+        dashArray: matrixStyle.dashArray,
+        opacity: matrixStyle.opacity,
+        fillOpacity: matrixStyle.fillOpacity,
+        strokeOpacity: matrixStyle.strokeOpacity
+      }
+    });
+  }
+
   rows.forEach((row, rowIndex) => {
+    const rowOptions = matrixRowNodeOptions(matrixOptions, rowIndex + 1);
     row.forEach((cell, columnIndex) => {
       if (!name) return;
       const cellName = `${name}-${rowIndex + 1}-${columnIndex + 1}`;
@@ -430,7 +706,8 @@ function createMatrix(statement, env, ir) {
         y: startY - rowIndex * stepY
       });
       const options = {
-        ...matrixNodeOptions,
+        ...cellBaseOptions,
+        ...rowOptions,
         ...cell.options,
         "minimum width": `${cellWidth}`,
         "minimum height": `${cellHeight}`
@@ -449,6 +726,28 @@ function createMatrix(statement, env, ir) {
       );
     });
   });
+}
+
+function matrixRowNodeOptions(matrixOptions = {}, rowNumber) {
+  const rowStyle = matrixOptions[`row ${rowNumber}/.style`];
+  if (rowStyle === undefined || rowStyle === true) return {};
+  const rowOptions = parseOptions(rowStyle);
+  const nodeOptions = rowOptions.nodes ? parseOptions(rowOptions.nodes) : {};
+  return { ...matrixInheritedNodeOptions(rowOptions), ...nodeOptions };
+}
+
+function matrixInheritedNodeOptions(options = {}) {
+  const inherited = {};
+  for (const key of ["text height", "text depth", "font", "text", "align", "text width", "minimum width", "minimum height", "minimum size"]) {
+    if (Object.hasOwn(options, key)) inherited[key] = options[key];
+  }
+  return inherited;
+}
+
+function parseMatrixScale(options = {}, env) {
+  if (options.scale === undefined || options.scale === true || options.scale === "") return 1;
+  const scale = evaluateMath(options.scale, env.variables);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
 function createPic(statement, env, ir) {
@@ -512,23 +811,26 @@ function addNodeItems(node, ir, env) {
   const { style, semantic } = normalizeOptions("node", node.options || {}, env);
   const point = resolveNodeAnchorPoint(node.at, node.options, node.text, env);
   const shape = nodeShape(node.options || {});
-  const size = node.size || estimateNodeSize(node.text, node.options, env);
+  const size = node.size || scaleSize(estimateNodeSize(node.text, node.options, env), env.canvasScale);
   const shadedFill =
     semantic.shading === "ball" ? normalizeColor(String(semantic["ball color"] || style.fill || "gray!30")) : null;
   const textStyle = {
     ...style,
     fill: style.textFill || semantic.text || "black",
-    fontFamily: resolveFontFamily(node.options?.font || env.pictureOptions?.font)
+    fontScale: env.canvasScale,
+    fontFamily: resolveFontFamily(node.options?.font || env.pictureOptions?.font) || resolveFontFamily(node.text)
   };
   if (style.fill !== "none" || style.stroke !== "none" || semantic.draw || shadedFill) {
     ir.items.push({
       type: "nodeBox",
+      id: node.name,
       shape,
       x: point.x,
       y: point.y,
       width: size.width,
       height: size.height,
       rx: nodeCornerRadius(shape, semantic, size),
+      pathPicture: semantic["path picture"],
       parts: shape === "rectangleSplit" ? rectangleSplitParts(semantic) : undefined,
       partFills: shape === "rectangleSplit" ? rectangleSplitPartFills(semantic) : undefined,
       style: {
@@ -550,6 +852,66 @@ function addNodeItems(node, ir, env) {
     style: textStyle,
     fitBox: node.fitTextToBox ? { width: size.width, height: size.height } : undefined
   });
+  for (const label of nodeLabels(node.options || {}, point, size, env, textStyle)) {
+    ir.items.push(label);
+  }
+}
+
+function nodeLabels(options = {}, point, size, env, textStyle = {}) {
+  if (options.label === undefined || options.label === true || options.label === "") return [];
+  const label = parseNodeLabel(options.label);
+  if (!label.text) return [];
+  const sep = parseDimension(options["label distance"] || "0.12", env.variables);
+  const labelPoint = labelPointForDirection(label.direction, point, size, sep);
+  return [
+    {
+      type: "textNode",
+      x: labelPoint.x,
+      y: labelPoint.y,
+      text: label.text,
+      style: textStyle
+    }
+  ];
+}
+
+function parseNodeLabel(value) {
+  let text = String(value || "").trim();
+  text = text.replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  const colon = findLabelDirectionColon(text);
+  if (colon === -1) return { direction: "above", text };
+  return {
+    direction: text.slice(0, colon).trim() || "above",
+    text: text.slice(colon + 1).trim()
+  };
+}
+
+function findLabelDirectionColon(text) {
+  let brace = 0;
+  let bracket = 0;
+  let paren = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") brace += 1;
+    if (char === "}") brace = Math.max(0, brace - 1);
+    if (char === "[") bracket += 1;
+    if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (char === "(") paren += 1;
+    if (char === ")") paren = Math.max(0, paren - 1);
+    if (char === ":" && brace === 0 && bracket === 0 && paren === 0) return index;
+  }
+  return -1;
+}
+
+function labelPointForDirection(direction, point, size, sep) {
+  const normalized = String(direction || "above").toLowerCase().replace(/-/g, " ");
+  let x = point.x;
+  let y = point.y;
+  if (normalized.includes("right") || normalized.includes("east")) x += size.width / 2 + sep;
+  if (normalized.includes("left") || normalized.includes("west")) x -= size.width / 2 + sep;
+  if (normalized.includes("above") || normalized.includes("north")) y += size.height / 2 + sep;
+  if (normalized.includes("below") || normalized.includes("south")) y -= size.height / 2 + sep;
+  if (x === point.x && y === point.y) y += size.height / 2 + sep;
+  return roundPoint({ x, y });
 }
 
 function resolveNodePoint(statement, env, diagnostics, selfSize) {
@@ -571,18 +933,32 @@ function resolvePositioning(options, env, selfSize = { width: 0, height: 0 }) {
     const text = String(value === true ? "" : value).trim();
     const match = text.match(/^(?:(.+?)\s+)?of\s+(.+)$/);
     if (!match) continue;
-    const distance = match[1] ? parseDimension(match[1], env.variables) : defaultPositioningDistance(env);
+    const distance = match[1] ? parsePositioningDistance(match[1], env) : defaultPositioningDistance(env);
     const reference = resolvePositioningReference(match[2], env);
     if (!reference) continue;
-    const dx = positioningDelta(direction, "x", distance, reference, selfSize);
-    const dy = positioningDelta(direction, "y", distance, reference, selfSize);
+    const dx = positioningDelta(direction, "x", distance.x, reference, selfSize);
+    const dy = positioningDelta(direction, "y", distance.y, reference, selfSize);
     return roundPoint({ x: reference.point.x + dx, y: reference.point.y + dy });
   }
   return null;
 }
 
 function defaultPositioningDistance(env) {
-  return parseDimension(env.pictureOptions?.["node distance"] || "0.6", env.variables);
+  const distance = parseDimension(env.pictureOptions?.["node distance"] || "0.6", env.variables);
+  return { x: distance, y: distance };
+}
+
+function parsePositioningDistance(value, env) {
+  const text = String(value || "").trim();
+  const pair = text.match(/^([\s\S]+?)\s+and\s+([\s\S]+)$/);
+  if (pair) {
+    return {
+      y: parseDimension(pair[1], env.variables),
+      x: parseDimension(pair[2], env.variables)
+    };
+  }
+  const distance = parseDimension(text, env.variables);
+  return { x: distance, y: distance };
 }
 
 function positioningDelta(direction, axis, distance, reference, selfSize) {
@@ -598,10 +974,14 @@ function positioningDelta(direction, axis, distance, reference, selfSize) {
 
 function resolveLegacyPositioning(options, env) {
   const directions = {
-    "right of": "right",
-    "left of": "left",
-    "above of": "above",
-    "below of": "below"
+    "right of": { x: 1, y: 0, factor: 1 },
+    "left of": { x: -1, y: 0, factor: 1 },
+    "above of": { x: 0, y: 1, factor: 1 },
+    "below of": { x: 0, y: -1, factor: 1 },
+    "above right of": { x: 1, y: 1, factor: Math.SQRT1_2 },
+    "above left of": { x: -1, y: 1, factor: Math.SQRT1_2 },
+    "below right of": { x: 1, y: -1, factor: Math.SQRT1_2 },
+    "below left of": { x: -1, y: -1, factor: Math.SQRT1_2 }
   };
   for (const [key, direction] of Object.entries(directions)) {
     if (!Object.hasOwn(options, key)) continue;
@@ -609,8 +989,8 @@ function resolveLegacyPositioning(options, env) {
     if (!target) continue;
     const distance = parseDimension(options["node distance"] || env.pictureOptions?.["node distance"] || 1, env.variables);
     return roundPoint({
-      x: target.x + (direction === "right" ? distance : direction === "left" ? -distance : 0),
-      y: target.y + (direction === "above" ? distance : direction === "below" ? -distance : 0)
+      x: target.x + direction.x * distance * direction.factor,
+      y: target.y + direction.y * distance * direction.factor
     });
   }
   return null;
@@ -696,13 +1076,23 @@ function resolveDynamicName(name, env) {
   return substituteTextVariables(String(name || "").trim(), env.variables).trim();
 }
 
+function resolveDynamicOptions(options = {}, env) {
+  const resolved = {};
+  for (const [key, value] of Object.entries(options || {})) {
+    const resolvedKey = substituteTextVariables(String(key), env.variables).trim();
+    const resolvedValue = typeof value === "string" ? substituteTextVariables(value, env.variables) : value;
+    resolved[resolvedKey] = resolvedValue;
+  }
+  return resolved;
+}
+
 function defaultPathNodeReference(raw, env) {
   let text = substituteTextVariables(String(raw || "").trim(), env.variables);
   text = text.replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (text.startsWith("(") && text.endsWith(")")) text = text.slice(1, -1).trim();
   const shifted = parseCoordinateOptionPrefix(text, env);
   if (shifted) text = shifted.coordinate;
-  if (!text || text.startsWith("$") || text.includes(",") || /^-?\d/.test(text)) return null;
+  if (!text || text.startsWith("$") || text.includes(",")) return null;
   const anchored = text.match(/^(.+)\.([^.]+)$/);
   if (anchored) {
     const name = resolveDynamicName(anchored[1], env);
@@ -734,11 +1124,89 @@ function updateCurrentMoveTo(commands, point) {
   }
 }
 
+function moveToNodeExit(commands, point) {
+  const command = commands.at(-1);
+  if (command?.type === "moveTo") {
+    updateCurrentMoveTo(commands, point);
+    return;
+  }
+  commands.push({ type: "moveTo", x: point.x, y: point.y });
+}
+
+function shouldBreakAtNodeExit(ref) {
+  return Boolean(ref && ref.mode !== "anchor");
+}
+
 function edgePathOptions(options = {}) {
   const picked = {};
   if (Object.hasOwn(options, "decorate")) picked.decorate = options.decorate;
   if (Object.hasOwn(options, "decoration")) picked.decoration = options.decoration;
   return picked;
+}
+
+function loopDirectionFromOptions(options = {}) {
+  for (const direction of ["above", "below", "left", "right"]) {
+    if (Object.hasOwn(options, `loop ${direction}`)) return direction;
+  }
+  if (Object.hasOwn(options, "loop")) return "above";
+  return null;
+}
+
+function buildSelfLoop(point, nodeRef, direction, options, env) {
+  const node = nodeRef ? env.nodes[nodeRef] : null;
+  const center = node?.point || point;
+  const halfWidth = Math.max((Number(node?.width) || 0.7) / 2, 0.18);
+  const halfHeight = Math.max((Number(node?.height) || 0.7) / 2, 0.18);
+  const looseness = Math.max(0.7, Math.min(3, Number(options.looseness) || 1));
+  const lift = Math.max(0.42, Math.max(halfWidth, halfHeight) * 1.05) * looseness;
+  const spreadX = Math.max(0.18, halfWidth * 0.62);
+  const spreadY = Math.max(0.18, halfHeight * 0.62);
+  if (direction === "below") {
+    const start = roundPoint({ x: center.x - spreadX, y: center.y - halfHeight });
+    const end = roundPoint({ x: center.x + spreadX, y: center.y - halfHeight });
+    return {
+      start,
+      end,
+      labelPoint: roundPoint({ x: center.x, y: center.y - halfHeight - lift }),
+      commands: [
+        { type: "curveTo", x1: center.x - lift, y1: center.y - halfHeight - lift, x2: center.x + lift, y2: center.y - halfHeight - lift, x: end.x, y: end.y }
+      ]
+    };
+  }
+  if (direction === "left") {
+    const start = roundPoint({ x: center.x - halfWidth, y: center.y + spreadY });
+    const end = roundPoint({ x: center.x - halfWidth, y: center.y - spreadY });
+    return {
+      start,
+      end,
+      labelPoint: roundPoint({ x: center.x - halfWidth - lift, y: center.y }),
+      commands: [
+        { type: "curveTo", x1: center.x - halfWidth - lift, y1: center.y + lift, x2: center.x - halfWidth - lift, y2: center.y - lift, x: end.x, y: end.y }
+      ]
+    };
+  }
+  if (direction === "right") {
+    const start = roundPoint({ x: center.x + halfWidth, y: center.y + spreadY });
+    const end = roundPoint({ x: center.x + halfWidth, y: center.y - spreadY });
+    return {
+      start,
+      end,
+      labelPoint: roundPoint({ x: center.x + halfWidth + lift, y: center.y }),
+      commands: [
+        { type: "curveTo", x1: center.x + halfWidth + lift, y1: center.y + lift, x2: center.x + halfWidth + lift, y2: center.y - lift, x: end.x, y: end.y }
+      ]
+    };
+  }
+  const start = roundPoint({ x: center.x - spreadX, y: center.y + halfHeight });
+  const end = roundPoint({ x: center.x + spreadX, y: center.y + halfHeight });
+  return {
+    start,
+    end,
+    labelPoint: roundPoint({ x: center.x, y: center.y + halfHeight + lift }),
+    commands: [
+      { type: "curveTo", x1: center.x - lift, y1: center.y + halfHeight + lift, x2: center.x + lift, y2: center.y + halfHeight + lift, x: end.x, y: end.y }
+    ]
+  };
 }
 
 function edgeCurveSpec(options = {}, from, to, env) {
@@ -770,93 +1238,12 @@ function parseAngleOption(value, fallback, env) {
 
 function applyArrowEndpointShortening(commands, style = {}, endpointRefs = {}) {
   if (!commands.length || (!style.markerStart && !style.markerEnd)) return commands;
-  const adjusted = commands.map((command) => ({ ...command }));
-  if (style.markerStart && endpointRefs.start) shortenPathStart(adjusted, arrowInset(style.markerStart));
-  if (style.markerEnd && endpointRefs.end) shortenPathEnd(adjusted, arrowInset(style.markerEnd));
-  return adjusted;
+  if (!endpointRefs.start && !endpointRefs.end) return commands;
+  return commands;
 }
 
-function arrowInset(tip) {
-  const normalized = typeof tip === "string" ? createArrowTip(tip === "arrow" ? "to" : tip) : createArrowTip(tip?.kind, tip || {});
-  const length = Number(normalized.length) || 0;
-  return Math.max(0, (length / TIKZ_UNIT) * 0.9);
-}
-
-function shortenPathStart(commands, inset) {
-  if (inset <= 0) return;
-  const startIndex = commands.findIndex((command) => command.type === "moveTo");
-  if (startIndex === -1) return;
-  const start = commandPoint(commands[startIndex]);
-  const next = commands.slice(startIndex + 1).find((command) => commandHasEndPoint(command));
-  if (!next) return;
-  const toward = startTangentPoint(next);
-  const adjusted = movePointToward(start, toward, inset);
-  commands[startIndex].x = adjusted.x;
-  commands[startIndex].y = adjusted.y;
-}
-
-function shortenPathEnd(commands, inset) {
-  if (inset <= 0) return;
-  for (let index = commands.length - 1; index >= 0; index -= 1) {
-    const command = commands[index];
-    if (!commandHasEndPoint(command)) continue;
-    const previous = previousPathPoint(commands, index);
-    if (!previous) return;
-    const toward = endTangentPoint(command, previous);
-    const adjusted = movePointToward(commandPoint(command), toward, inset);
-    command.x = adjusted.x;
-    command.y = adjusted.y;
-    return;
-  }
-}
-
-function commandHasEndPoint(command) {
-  return command && command.type !== "moveTo" && typeof command.x === "number" && typeof command.y === "number";
-}
-
-function commandPoint(command) {
-  return { x: command.x, y: command.y };
-}
-
-function startTangentPoint(command) {
-  if (command.type === "curveTo") return { x: command.x1, y: command.y1 };
-  if (command.type === "quadTo") return { x: command.x1, y: command.y1 };
-  return commandPoint(command);
-}
-
-function endTangentPoint(command, previous) {
-  if (command.type === "curveTo") return { x: command.x2, y: command.y2 };
-  if (command.type === "quadTo") return { x: command.x1, y: command.y1 };
-  return previous;
-}
-
-function previousPathPoint(commands, beforeIndex) {
-  let current = null;
-  let subpathStart = null;
-  for (let index = 0; index < beforeIndex; index += 1) {
-    const command = commands[index];
-    if (command.type === "moveTo") {
-      current = commandPoint(command);
-      subpathStart = current;
-    } else if (commandHasEndPoint(command)) {
-      current = commandPoint(command);
-    } else if (command.type === "closePath" && subpathStart) {
-      current = subpathStart;
-    }
-  }
-  return current;
-}
-
-function movePointToward(point, toward, distance) {
-  const dx = toward.x - point.x;
-  const dy = toward.y - point.y;
-  const length = Math.hypot(dx, dy);
-  if (length < 1e-12) return roundPoint(point);
-  const step = Math.min(distance, length * 0.8);
-  return roundPoint({
-    x: point.x + (dx / length) * step,
-    y: point.y + (dy / length) * step
-  });
+function pointsAlmostEqual(a, b, epsilon = 1e-9) {
+  return Boolean(a && b && Math.abs(a.x - b.x) <= epsilon && Math.abs(a.y - b.y) <= epsilon);
 }
 
 function nodeBorderPoint(node, center, toward, env) {
@@ -864,9 +1251,8 @@ function nodeBorderPoint(node, center, toward, env) {
   const dy = toward.y - center.y;
   const distance = Math.hypot(dx, dy);
   if (distance < 1e-12) return roundPoint(center);
-  const scale = Number.isFinite(env.transform?.scale) ? Math.abs(env.transform.scale) : 1;
-  const halfWidth = ((Number(node.width) || 0) * scale) / 2;
-  const halfHeight = ((Number(node.height) || 0) * scale) / 2;
+  const halfWidth = (Number(node.width) || 0) / 2;
+  const halfHeight = (Number(node.height) || 0) / 2;
   if (halfWidth <= 0 || halfHeight <= 0) return roundPoint(center);
   if (node.shape === "circle") {
     const radius = Math.max(halfWidth, halfHeight);
@@ -875,6 +1261,10 @@ function nodeBorderPoint(node, center, toward, env) {
   if (node.shape === "ellipse") {
     const factor = 1 / Math.sqrt((dx * dx) / (halfWidth * halfWidth) + (dy * dy) / (halfHeight * halfHeight));
     return roundPoint({ x: center.x + dx * factor, y: center.y + dy * factor });
+  }
+  if (node.shape === "diamond") {
+    const factor = distance / (Math.abs(dx) / halfWidth + Math.abs(dy) / halfHeight);
+    return roundPoint({ x: center.x + (dx / distance) * factor, y: center.y + (dy / distance) * factor });
   }
   const xScale = Math.abs(dx) > 1e-12 ? halfWidth / Math.abs(dx) : Number.POSITIVE_INFINITY;
   const yScale = Math.abs(dy) > 1e-12 ? halfHeight / Math.abs(dy) : Number.POSITIVE_INFINITY;
@@ -887,6 +1277,7 @@ function nodeShape(options = {}) {
   if (options["rectangle split"]) return "rectangleSplit";
   if (options.circle || options.shape === "circle") return "circle";
   if (options.ellipse || options.shape === "ellipse") return "ellipse";
+  if (options.diamond || options.shape === "diamond") return "diamond";
   if (options["rounded rectangle"] || options.shape === "rounded rectangle") return "roundedRectangle";
   return "rectangle";
 }
@@ -901,7 +1292,7 @@ function resolveFontFamily(raw) {
   const text = String(raw || "").trim();
   if (!text) return undefined;
   if (/\\(?:tt|ttfamily|texttt)\b|monospace/i.test(text)) {
-    return "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
+    return TIKZ_MONOSPACE_FONT_FAMILY;
   }
   return undefined;
 }
@@ -942,6 +1333,39 @@ function splitMatrixRows(body) {
   return rows;
 }
 
+function splitMatrixCells(row) {
+  const cells = [];
+  let current = "";
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+  for (let index = 0; index < row.length; index += 1) {
+    const char = row[index];
+    if (char === "(") paren += 1;
+    if (char === ")") paren = Math.max(0, paren - 1);
+    if (char === "[") bracket += 1;
+    if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (char === "{") brace += 1;
+    if (char === "}") brace = Math.max(0, brace - 1);
+
+    if (char === "\\" && row[index + 1] === "&" && paren === 0 && bracket === 0 && brace === 0) {
+      cells.push(current.trim());
+      current = "";
+      index += 1;
+      continue;
+    }
+
+    if (char === "&" && paren === 0 && bracket === 0 && brace === 0) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
 function parseMatrixCell(raw) {
   let text = String(raw).trim();
   let options = {};
@@ -967,20 +1391,44 @@ function parseFiniteDimension(value, env, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function scaleSize(size, scale = 1) {
+  const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  if (Math.abs(factor - 1) < 1e-9) return size;
+  return {
+    width: roundNumber((Number(size?.width) || 0) * factor),
+    height: roundNumber((Number(size?.height) || 0) * factor)
+  };
+}
+
 function estimateMatrixCellSize(text, options = {}, env = { variables: {} }) {
-  const hasExplicitSize =
-    options["minimum width"] || options["minimum height"] || options["minimum size"] || options["text width"];
-  if (hasExplicitSize || options.circle || options.shape === "circle") return estimateNodeSize(text, options, env);
+  if (options.circle || options.shape === "circle") return estimateNodeSize(text, options, env);
 
   const normalized = normalizeTikzText(text);
   if (normalized.kind === "image") return estimateNodeSize(text, options, env);
 
-  const lines = textMetricLines(normalized);
-  const scale = normalized.scale || 1;
+  const textBox = estimateTextMetricBox(normalized, {
+    widthFactor: 0.12,
+    lineHeight: 0.22,
+    minHeight: 0.22,
+    formulaMinWidth: 0.08,
+    formulaWidthPadding: 0
+  });
   const innerSep = parseDimension(options["inner sep"] ?? "0.03", env.variables);
-  const maxLineLength = Math.max(...lines.map((line) => line.trim().length), 0);
-  const width = Math.max(0.22, maxLineLength * 0.12 * scale + 0.08 + innerSep * 2);
-  const height = Math.max(0.24, lines.length * 0.22 * scale + innerSep * 2);
+  const textWidth = options["text width"] ? parseDimension(options["text width"], env.variables) : null;
+  const textHeight = options["text height"] ? parseDimension(options["text height"], env.variables) : null;
+  const textDepth = options["text depth"] ? parseDimension(options["text depth"], env.variables) : 0;
+  let width = Math.max(0.22, textBox.width + 0.08 + innerSep * 2);
+  let height = Math.max(0.24, textBox.height + innerSep * 2);
+
+  if (Number.isFinite(textWidth)) width = Math.max(0.22, textWidth + innerSep * 2);
+  if (Number.isFinite(textHeight)) height = Math.max(0.22, textHeight + textDepth + innerSep * 2);
+  if (options["minimum width"]) width = Math.max(width, parseDimension(options["minimum width"], env.variables));
+  if (options["minimum height"]) height = Math.max(height, parseDimension(options["minimum height"], env.variables));
+  if (options["minimum size"]) {
+    const size = parseDimension(options["minimum size"], env.variables);
+    width = Math.max(width, size);
+    height = Math.max(height, size);
+  }
 
   return { width: roundNumber(width), height: roundNumber(height) };
 }
@@ -1007,16 +1455,24 @@ function nodeUsesBoxSizing(options = {}, env = { variables: {} }) {
   );
 }
 
+function shouldFitTextToNodeBox(options = {}) {
+  return Boolean((options.circle || options.shape === "circle") && options["minimum size"]);
+}
+
 function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
   const normalized = normalizeTikzText(text);
   if (normalized.kind === "image") return estimateNodeSize(text, options, env);
 
-  const lines = textMetricLines(normalized);
-  const scale = normalized.scale || 1;
+  const textBox = estimateTextMetricBox(normalized, {
+    widthFactor: 0.13,
+    lineHeight: 0.18,
+    minHeight: 0.18,
+    formulaMinWidth: 0.08,
+    formulaWidthPadding: 0
+  });
   const innerSep = parseDimension(options["inner sep"] ?? "0.08", env.variables);
-  const maxLineLength = Math.max(...lines.map((line) => line.trim().length), 0);
-  const width = Math.max(0.08, maxLineLength * 0.13 * scale + innerSep * 2);
-  const height = Math.max(0.08, lines.length * 0.18 * scale + innerSep * 2);
+  const width = Math.max(0.08, textBox.width + innerSep * 2);
+  const height = Math.max(0.08, textBox.height + innerSep * 2);
 
   return { width: roundNumber(width), height: roundNumber(height) };
 }
@@ -1030,32 +1486,115 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     };
   }
   const lines = textMetricLines(normalized);
-  const scale = normalized.scale || 1;
-  const innerSep = parseDimension(options["inner sep"] ?? "0.08", env.variables);
-  const isEmptyCircle = (options.circle || options.shape === "circle") && lines.every((line) => !line.trim());
-  let width = isEmptyCircle
+  const isCircleShape = options.circle || options.shape === "circle";
+  const textBox = estimateTextMetricBox(
+    normalized,
+    isCircleShape
+      ? {
+          widthFactor: 0.09,
+          lineHeight: 0.32,
+          minHeight: 0.28,
+          widthPadding: 0.12,
+          formulaWidthPadding: 0.08
+        }
+      : {
+          widthFactor: 0.12,
+          lineHeight: 0.32,
+          minHeight: 0.28,
+          widthPadding: 0.18,
+          formulaWidthPadding: 0.14
+        }
+  );
+  textBox.width += explicitHspaceWidth(text, env);
+  const innerXSep = parseDimension(options["inner xsep"] ?? options["inner sep"] ?? "0.08", env.variables);
+  const innerYSep = parseDimension(options["inner ysep"] ?? options["inner sep"] ?? "0.08", env.variables);
+  const innerSep = Math.max(innerXSep, innerYSep);
+  const isEmptyCircle = isCircleShape && lines.every((line) => !line.trim());
+  const fixedCircleSize = fixedCircularMinimumSize(options, env);
+  const textWidth = options["text width"] ? parseDimension(options["text width"], env.variables) : null;
+  let width = fixedCircleSize ?? (isEmptyCircle
     ? Math.max(0.04, innerSep * 2)
-    : Math.max(0.5, Math.max(...lines.map((line) => line.length), 0) * 0.16 * scale + 0.35 + innerSep * 2);
-  let height = isEmptyCircle ? width : Math.max(0.35, lines.length * 0.35 * scale + innerSep * 2);
-  if (options["minimum width"]) width = Math.max(width, parseDimension(options["minimum width"], env.variables));
-  if (options["minimum height"]) height = Math.max(height, parseDimension(options["minimum height"], env.variables));
-  if (options["text width"]) width = Math.max(width, parseDimension(options["text width"], env.variables));
-  if (options["minimum size"]) {
-    const size = parseDimension(options["minimum size"], env.variables);
-    width = Math.max(width, size);
-    height = Math.max(height, size);
+    : textWidth
+      ? textWidth + innerXSep * 2
+      : Math.max(0.5, textBox.width + innerXSep * 2));
+  let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(0.35, textBox.height + innerYSep * 2));
+  if (fixedCircleSize === null) {
+    if (options["minimum width"]) width = Math.max(width, parseDimension(options["minimum width"], env.variables));
+    if (options["minimum height"]) height = Math.max(height, parseDimension(options["minimum height"], env.variables));
+    if (options["minimum size"]) {
+      const size = parseDimension(options["minimum size"], env.variables);
+      width = Math.max(width, size);
+      height = Math.max(height, size);
+    }
   }
   if (options["rectangle split"] && options["rectangle split horizontal"]) {
     const parts = Number(options["rectangle split parts"] || 1);
     const count = Number.isFinite(parts) && parts > 0 ? Math.round(parts) : 1;
     width = Math.max(width, height * count * 0.45);
   }
-  if (options.circle || options.shape === "circle") {
+  if (isCircleShape) {
     const diameter = Math.max(width, height);
     width = diameter;
     height = diameter;
   }
+  if (options.diamond || options.shape === "diamond") {
+    const contentWidth = width;
+    const contentHeight = height;
+    width = contentWidth + contentHeight;
+    height = Math.max(contentHeight + contentWidth * 0.72, contentHeight * 2);
+  }
   return { width: roundNumber(width), height: roundNumber(height) };
+}
+
+function explicitHspaceWidth(text, env = { variables: {} }) {
+  let width = 0;
+  const pattern = /\\hspace\s*\{([^{}]+)\}/g;
+  let match;
+  while ((match = pattern.exec(String(text || "")))) {
+    width += parseDimension(match[1], env.variables);
+  }
+  return Number.isFinite(width) ? width : 0;
+}
+
+function fixedCircularMinimumSize(options = {}, env = { variables: {} }) {
+  if (!(options.circle || options.shape === "circle") || !options["minimum size"]) return null;
+  const size = parseDimension(options["minimum size"], env.variables);
+  return Number.isFinite(size) && size > 0 ? size : null;
+}
+
+function estimateTextMetricBox(normalized, options = {}) {
+  const rawLines = normalized.lines.length ? normalized.lines : String(normalized.text || "").split(/\\\\|\n/);
+  const scale = normalized.scale || 1;
+  const widthFactor = options.widthFactor ?? 0.16;
+  const lineHeight = options.lineHeight ?? 0.35;
+  const minHeight = options.minHeight ?? lineHeight;
+  const widthPadding = options.widthPadding ?? 0;
+  const boxes = rawLines.map((line) => {
+    const text = String(line).trim();
+    const math = parseMathText(text);
+    if (math) {
+      const formula = estimateFormulaBox(math.tex, {
+        displayMode: math.displayMode,
+        scale,
+        minWidth: options.formulaMinWidth,
+        widthFactor,
+        widthPadding: options.formulaWidthPadding ?? widthPadding
+      });
+      return {
+        width: formula.width,
+        height: Math.max(minHeight * scale, formulaTotalHeight(formula))
+      };
+    }
+    const fallback = text.replace(/\$([^$]+)\$/g, (_match, tex) => mathFallbackText(tex));
+    return {
+      width: mathTextMetricUnits(fallback) * widthFactor * scale + widthPadding,
+      height: Math.max(minHeight * scale, lineHeight * scale)
+    };
+  });
+  return {
+    width: Math.max(...boxes.map((box) => box.width), 0),
+    height: boxes.reduce((sum, box) => sum + box.height, 0)
+  };
 }
 
 function textMetricLines(normalized) {
@@ -1065,6 +1604,14 @@ function textMetricLines(normalized) {
     if (/^\$[\s\S]*\$$/.test(text) || /^\\\([\s\S]*\\\)$/.test(text)) return mathFallbackText(text);
     return text.replace(/\$([^$]+)\$/g, (_match, tex) => mathFallbackText(tex));
   });
+}
+
+function maxTextMetricUnits(lines) {
+  return Math.max(...lines.map((line) => textMetricUnits(line)), 0);
+}
+
+function textMetricUnits(line) {
+  return mathTextMetricUnits(line);
 }
 
 function expandForeachValues(values, env) {
@@ -1146,9 +1693,10 @@ function buildArc(current, options, env) {
 }
 
 function applyPathMorphing(commands, pathOptions, env) {
-  if (!pathOptions.decorate || !String(pathOptions.decoration || "").includes("snake")) return commands;
   const decoration = parseOptions(String(pathOptions.decoration || ""));
-  if (!decoration.snake) return commands;
+  if (pathOptions.decorate && decoration.brace) return applyBraceDecoration(commands, decoration, env);
+  const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : null;
+  if (!pathOptions.decorate || !mode) return commands;
   const amplitude = Math.max(0, parseFiniteDimension(decoration.amplitude || "0.04", env, 0.04));
   const segmentLength = Math.max(0.03, parseFiniteDimension(decoration["segment length"] || "0.18", env, 0.18));
   const morphed = [];
@@ -1162,17 +1710,17 @@ function applyPathMorphing(commands, pathOptions, env) {
       continue;
     }
     if (command.type === "lineTo" && current) {
-      appendSnakeLine(morphed, current, { x: command.x, y: command.y }, amplitude, segmentLength);
+      appendMorphedLine(morphed, current, { x: command.x, y: command.y }, amplitude, segmentLength, mode);
       current = { x: command.x, y: command.y };
       continue;
     }
     if (command.type === "curveTo" && current) {
-      appendSnakeCurve(morphed, current, command, amplitude, segmentLength);
+      appendMorphedCurve(morphed, current, command, amplitude, segmentLength, mode);
       current = { x: command.x, y: command.y };
       continue;
     }
     if (command.type === "closePath" && current && start) {
-      appendSnakeLine(morphed, current, start, amplitude, segmentLength);
+      appendMorphedLine(morphed, current, start, amplitude, segmentLength, mode);
       morphed.push(command);
       current = start;
       continue;
@@ -1183,16 +1731,105 @@ function applyPathMorphing(commands, pathOptions, env) {
   return morphed;
 }
 
-function appendSnakeLine(commands, from, to, amplitude, segmentLength) {
-  appendSnakePolyline(commands, [from, to], amplitude, segmentLength);
+function applyBraceDecoration(commands, decoration, env) {
+  const replaced = [];
+  let current = null;
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (command.type === "lineTo" && current) {
+      appendBraceLine(replaced, current, { x: command.x, y: command.y }, decoration, env);
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (!replaced.length && current) replaced.push({ type: "moveTo", x: current.x, y: current.y });
+    replaced.push(command);
+    if ("x" in command) current = { x: command.x, y: command.y };
+  }
+  return replaced.length ? replaced : commands;
 }
 
-function appendSnakeCurve(commands, from, curve, amplitude, segmentLength) {
+function appendBraceLine(commands, from, to, decoration, env) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-12) {
+    commands.push({ type: "moveTo", x: from.x, y: from.y });
+    return;
+  }
+  const raise = parseFiniteDimension(decoration.raise || "0", env, 0);
+  const mirrored = decoration.mirror === true || String(decoration.mirror).trim() === "true";
+  const side = mirrored ? -1 : 1;
+  const ux = dx / length;
+  const uy = dy / length;
+  const nx = -uy * side;
+  const ny = ux * side;
+  const depth = Math.min(0.12, Math.max(0.035, length * 0.18));
+  const offset = (point, normalDistance = raise) => roundPoint({ x: point.x + nx * normalDistance, y: point.y + ny * normalDistance });
+  const along = (t, normalDistance = raise) =>
+    offset({ x: from.x + dx * t, y: from.y + dy * t }, normalDistance);
+  const p0 = offset(from);
+  const p1 = along(0.25, raise + depth * 0.15);
+  const p2 = along(0.5, raise + depth);
+  const p3 = along(0.75, raise + depth * 0.15);
+  const p4 = offset(to);
+  const control = (point, tDelta) =>
+    roundPoint({
+      x: point.x + ux * length * tDelta,
+      y: point.y + uy * length * tDelta
+    });
+
+  commands.push({ type: "moveTo", x: p0.x, y: p0.y });
+  commands.push({
+    type: "curveTo",
+    x1: control(p0, 0.09).x,
+    y1: control(p0, 0.09).y,
+    x2: control(p1, -0.09).x,
+    y2: control(p1, -0.09).y,
+    x: p1.x,
+    y: p1.y
+  });
+  commands.push({
+    type: "curveTo",
+    x1: control(p1, 0.09).x,
+    y1: control(p1, 0.09).y,
+    x2: control(p2, -0.06).x,
+    y2: control(p2, -0.06).y,
+    x: p2.x,
+    y: p2.y
+  });
+  commands.push({
+    type: "curveTo",
+    x1: control(p2, 0.06).x,
+    y1: control(p2, 0.06).y,
+    x2: control(p3, -0.09).x,
+    y2: control(p3, -0.09).y,
+    x: p3.x,
+    y: p3.y
+  });
+  commands.push({
+    type: "curveTo",
+    x1: control(p3, 0.09).x,
+    y1: control(p3, 0.09).y,
+    x2: control(p4, -0.09).x,
+    y2: control(p4, -0.09).y,
+    x: p4.x,
+    y: p4.y
+  });
+}
+
+function appendMorphedLine(commands, from, to, amplitude, segmentLength, mode) {
+  appendMorphedPolyline(commands, [from, to], amplitude, segmentLength, mode);
+}
+
+function appendMorphedCurve(commands, from, curve, amplitude, segmentLength, mode) {
   const flat = flattenPath([{ type: "moveTo", x: from.x, y: from.y }, curve], 0.04);
-  appendSnakePolyline(commands, flat, amplitude, segmentLength);
+  appendMorphedPolyline(commands, flat, amplitude, segmentLength, mode);
 }
 
-function appendSnakePolyline(commands, points, amplitude, segmentLength) {
+function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode) {
   const length = polylineLength(points);
   const to = points.at(-1);
   if (!to) return;
@@ -1204,7 +1841,12 @@ function appendSnakePolyline(commands, points, amplitude, segmentLength) {
   const steps = Math.max(4, cycles * 8);
   for (let index = 1; index <= steps; index += 1) {
     const sample = pointOnPolyline(points, (length * index) / steps);
-    const offset = index === steps ? 0 : amplitude * Math.sin((sample.walked / segmentLength) * Math.PI * 2);
+    const offset =
+      index === steps
+        ? 0
+        : mode === "zigzag"
+          ? amplitude * (Math.floor((sample.walked / segmentLength) * 2) % 2 === 0 ? 1 : -1)
+          : amplitude * Math.sin((sample.walked / segmentLength) * Math.PI * 2);
     commands.push({
       type: "lineTo",
       x: roundNumber(sample.x + sample.normal.x * offset),
@@ -1270,6 +1912,30 @@ function buildPlot(coordinate, env, pathOptions) {
   return commands;
 }
 
+function buildPlotMark(point, mark, pathStyle = {}) {
+  const size = 0.045;
+  const kind = String(mark || "").trim();
+  if (kind !== "x" && kind !== "*") {
+    return {
+      type: "path",
+      shape: "plot-mark",
+      commands: circleToPath(point.x, point.y, size),
+      style: { stroke: pathStyle.stroke || "black", fill: pathStyle.stroke || "black", lineWidth: pathStyle.lineWidth || 1 }
+    };
+  }
+  return {
+    type: "path",
+    shape: "plot-mark",
+    commands: [
+      { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y - size) },
+      { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y + size) },
+      { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y + size) },
+      { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y - size) }
+    ],
+    style: { stroke: pathStyle.stroke || "black", fill: "none", lineWidth: pathStyle.lineWidth || 1 }
+  };
+}
+
 function resolveControlPoint(raw, current, env, diagnostics) {
   const text = String(raw).trim();
   const relative = text.match(/^\+\((.+)\)$/);
@@ -1312,17 +1978,41 @@ function polarOffset(point, angle, distance) {
 }
 
 function composeTransform(parent, options = {}, env) {
-  const scale = evaluateMath(options.scale || 1, env.variables);
-  const shift = parseShift(options.shift || options.xshift || options.yshift, env);
+  const scale = evaluateMath(options.scale || 1, env.variables) * transformCanvasScale(options, env);
+  const rotate = evaluateMath(options.rotate || 0, env.variables);
+  const radians = (Number.isFinite(rotate) ? rotate : 0) * (Math.PI / 180);
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const shift = parseTransformShift(options, env);
   return multiplyTransforms(parent, {
-    a: scale,
-    b: 0,
-    c: 0,
-    d: scale,
+    a: scale * cos,
+    b: scale * sin,
+    c: -scale * sin,
+    d: scale * cos,
     x: shift.x,
     y: shift.y,
     scale
   });
+}
+
+function transformCanvasScale(options = {}, env) {
+  const raw = options["transform canvas"];
+  if (raw === undefined || raw === null || raw === true || raw === "") return 1;
+  const parsed = parseOptions(String(raw));
+  const value = parsed.scale ?? parsed["scale around"] ?? 1;
+  const scale = evaluateMath(value, env.variables);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+function parseTransformShift(options = {}, env) {
+  let x = options.xshift ? parseDimension(options.xshift, env.variables) : 0;
+  let y = options.yshift ? parseDimension(options.yshift, env.variables) : 0;
+  if (options.shift) {
+    const shifted = parseShift(options.shift, env);
+    x += shifted.x;
+    y += shifted.y;
+  }
+  return { x, y };
 }
 
 function composePgfTransform(parent, statement, env) {
@@ -1450,15 +2140,23 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   if (text.startsWith("$") && text.endsWith("$")) {
     return applyTransform(resolveCalc(text.slice(1, -1).trim(), env, diagnostics), env.transform);
   }
+  const projection = splitCoordinateProjection(text);
+  if (projection) {
+    const localEnv = { ...env, transform: identityTransform() };
+    const left = resolveCoordinate(projection.left, localEnv, diagnostics);
+    const right = resolveCoordinate(projection.right, localEnv, diagnostics);
+    const projected = projection.operator === "|-" ? { x: left.x, y: right.y } : { x: right.x, y: left.y };
+    return applyTransform(roundPoint(projected), env.transform);
+  }
   if (Object.hasOwn(env.coordinates, text)) {
-    return applyTransform(env.coordinates[text], env.transform);
+    return roundPoint(env.coordinates[text]);
   }
   if (Object.hasOwn(env.nodes, text)) {
-    return applyTransform(env.nodes[text].point, env.transform);
+    return roundPoint(env.nodes[text].point);
   }
   const anchored = resolveAnchoredNodeCoordinate(text, env);
   if (anchored) {
-    return applyTransform(anchored, env.transform);
+    return roundPoint(anchored);
   }
   const polar = text.match(/^(.+):(.+)$/);
   if (polar) {
@@ -1484,6 +2182,31 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   }
   diagnostics.push({ severity: "warning", message: `Unknown coordinate ${raw}` });
   return { x: 0, y: 0 };
+}
+
+function splitCoordinateProjection(text) {
+  let paren = 0;
+  let brace = 0;
+  let bracket = 0;
+  for (let index = 0; index < text.length - 1; index += 1) {
+    const char = text[index];
+    if (char === "(") paren += 1;
+    if (char === ")") paren = Math.max(0, paren - 1);
+    if (char === "{") brace += 1;
+    if (char === "}") brace = Math.max(0, brace - 1);
+    if (char === "[") bracket += 1;
+    if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (paren || brace || bracket) continue;
+    const operator = text.slice(index, index + 2);
+    if (operator === "|-" || operator === "-|") {
+      return {
+        operator,
+        left: text.slice(0, index).trim(),
+        right: text.slice(index + 2).trim()
+      };
+    }
+  }
+  return null;
 }
 
 function parseCoordinateOptionPrefix(text, env) {
@@ -1522,6 +2245,7 @@ function readBalancedPrefix(text, open, close) {
 }
 
 function resolveAnchoredNodeCoordinate(text, env) {
+  if (looksLikeExplicitCoordinate(text)) return null;
   const dot = text.lastIndexOf(".");
   if (dot <= 0 || dot === text.length - 1) return null;
   const name = text.slice(0, dot).trim();
@@ -1532,16 +2256,27 @@ function resolveAnchoredNodeCoordinate(text, env) {
   return null;
 }
 
+function looksLikeExplicitCoordinate(text) {
+  const value = String(text || "").trim();
+  return value.includes(",") || /^[-+]?(?:\d+\.?\d*|\.\d+)\s*:/.test(value);
+}
+
 function nodeAnchorCoordinate(node, anchorRaw) {
   const anchor = String(anchorRaw || "center").trim().toLowerCase().replace(/-/g, " ");
   const width = Number(node.width) || 0;
   const height = Number(node.height) || 0;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
-  if (!anchor || ["center", "base", "mid"].includes(anchor)) return roundPoint(node.point);
+  if (!anchor || anchor === "center") return roundPoint(node.point);
+  if (anchor === "text") return roundPoint({ x: node.point.x - width * 0.18, y: node.point.y - height * 0.04 });
+  if (anchor === "base") return roundPoint({ x: node.point.x, y: node.point.y - height * 0.08 });
+  if (anchor === "mid") return roundPoint(node.point);
   const angle = Number(anchor);
   if (Number.isFinite(angle)) {
     return angleAnchor(node, angle, halfWidth, halfHeight);
+  }
+  if (node.shape === "diamond") {
+    return diamondAnchorCoordinate(node, anchor, halfWidth, halfHeight);
   }
   let x = node.point.x;
   let y = node.point.y;
@@ -1560,11 +2295,27 @@ function angleAnchor(node, angle, halfWidth, halfHeight) {
     const radius = Math.max(halfWidth, halfHeight);
     return roundPoint({ x: node.point.x + cos * radius, y: node.point.y + sin * radius });
   }
+  if (node.shape === "diamond") {
+    const scale = 1 / (Math.abs(cos) / halfWidth + Math.abs(sin) / halfHeight);
+    return roundPoint({ x: node.point.x + cos * scale, y: node.point.y + sin * scale });
+  }
   const xScale = Math.abs(cos) > 1e-12 ? halfWidth / Math.abs(cos) : Number.POSITIVE_INFINITY;
   const yScale = Math.abs(sin) > 1e-12 ? halfHeight / Math.abs(sin) : Number.POSITIVE_INFINITY;
   const scale = Math.min(xScale, yScale);
   if (!Number.isFinite(scale)) return roundPoint(node.point);
   return roundPoint({ x: node.point.x + cos * scale, y: node.point.y + sin * scale });
+}
+
+function diamondAnchorCoordinate(node, anchor, halfWidth, halfHeight) {
+  if (anchor === "north") return roundPoint({ x: node.point.x, y: node.point.y + halfHeight });
+  if (anchor === "south") return roundPoint({ x: node.point.x, y: node.point.y - halfHeight });
+  if (anchor === "east") return roundPoint({ x: node.point.x + halfWidth, y: node.point.y });
+  if (anchor === "west") return roundPoint({ x: node.point.x - halfWidth, y: node.point.y });
+  if (anchor === "north east") return roundPoint({ x: node.point.x + halfWidth / 2, y: node.point.y + halfHeight / 2 });
+  if (anchor === "north west") return roundPoint({ x: node.point.x - halfWidth / 2, y: node.point.y + halfHeight / 2 });
+  if (anchor === "south east") return roundPoint({ x: node.point.x + halfWidth / 2, y: node.point.y - halfHeight / 2 });
+  if (anchor === "south west") return roundPoint({ x: node.point.x - halfWidth / 2, y: node.point.y - halfHeight / 2 });
+  return roundPoint(node.point);
 }
 
 function projectBasisPoint(x, y, z, basis = parsePictureBasis()) {

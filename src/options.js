@@ -95,6 +95,16 @@ export function parseTikzset(input = "") {
   return styles;
 }
 
+export function styleDefinitionsFromOptions(rawOptions = {}) {
+  const styles = {};
+  for (const [key, value] of Object.entries(rawOptions || {})) {
+    const match = String(key).match(/^(.+?)\/\.style$/);
+    if (!match) continue;
+    styles[match[1].trim()] = parseOptions(value === true ? "" : String(value));
+  }
+  return styles;
+}
+
 export function normalizeOptions(command, rawOptions, env) {
   const expanded = expandStyleOptions(rawOptions, env);
   const style = defaultStyleForCommand(command);
@@ -111,19 +121,21 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (value === true && isColorToken(key)) {
-      if (command === "node") style.textFill = normalizeColor(key);
-      else if (command === "fill") style.fill = normalizeColor(key);
-      else style.stroke = normalizeColor(key);
+      const color = normalizeColor(key);
+      if (command === "node") applyNodeColor(style, color);
+      else if (command === "fill") style.fill = color;
+      else style.stroke = color;
       continue;
     }
     if (key.includes("!")) {
-      if (command === "node") style.textFill = normalizeColor(key);
-      else if (command === "fill") style.fill = normalizeColor(key);
-      else style.stroke = normalizeColor(key);
+      const color = normalizeColor(key);
+      if (command === "node") applyNodeColor(style, color);
+      else if (command === "fill") style.fill = color;
+      else style.stroke = color;
       continue;
     }
     if (key === "draw") {
-      style.stroke = value === true ? "black" : normalizeColor(String(value));
+      style.stroke = value === true ? (style.stroke !== "none" ? style.stroke : style.textFill || "black") : normalizeColor(String(value));
       continue;
     }
     if (key === "fill") {
@@ -131,8 +143,9 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (key === "color") {
-      if (command === "node") style.textFill = normalizeColor(String(value));
-      else style.stroke = normalizeColor(String(value));
+      const color = normalizeColor(String(value));
+      if (command === "node") applyNodeColor(style, color);
+      else style.stroke = color;
       continue;
     }
     if (key === "text") {
@@ -199,6 +212,12 @@ export function normalizeOptions(command, rawOptions, env) {
   }
 
   return { style, semantic, options: expanded };
+}
+
+function applyNodeColor(style, color) {
+  style.textFill = color;
+  if (style.stroke !== "none") style.stroke = color;
+  if (style.fill !== "none") style.fill = color;
 }
 
 export function arrowTipsFromOptions(rawOptions = {}) {
@@ -291,11 +310,11 @@ function parseArrowOption(key, value, defaultArrowTip) {
   const customStart = text.match(/^\{([\s\S]+)\}-$/);
   if (customStart) return { markerStart: parseArrowTipSpec(customStart[1]) };
 
-  const namedBoth = text.match(/^([A-Za-z]+)-([A-Za-z]+)$/);
+  const namedBoth = text.match(/^([A-Za-z']+)-([A-Za-z']+)$/);
   if (namedBoth) return { markerStart: parseArrowTipSpec(namedBoth[1]), markerEnd: parseArrowTipSpec(namedBoth[2]) };
-  const namedEnd = text.match(/^-([A-Za-z]+)$/);
+  const namedEnd = text.match(/^-([A-Za-z']+)$/);
   if (namedEnd) return { markerEnd: parseArrowTipSpec(namedEnd[1]) };
-  const namedStart = text.match(/^([A-Za-z]+)-$/);
+  const namedStart = text.match(/^([A-Za-z']+)-$/);
   if (namedStart) return { markerStart: parseArrowTipSpec(namedStart[1]) };
 
   return null;
@@ -303,7 +322,7 @@ function parseArrowOption(key, value, defaultArrowTip) {
 
 function parseArrowTipSpec(input) {
   const text = stripOuterBraces(String(input || "").trim());
-  const match = text.match(/^([A-Za-z>]+)(?:\[([\s\S]*)\])?$/);
+  const match = text.match(/^([A-Za-z>']+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
   const options = match[2] ? parseOptions(match[2]) : {};
   const overrides = {};
@@ -408,10 +427,22 @@ function expandStyleOptions(rawOptions, env) {
   let expanded = {};
   for (const [key, value] of Object.entries(rawOptions || {})) {
     if (value === true && env.styles[key]) {
-      expanded = { ...expanded, ...expandStyleOptions(env.styles[key], env) };
+      expanded = mergeOptionOrder(expanded, expandStyleOptions(env.styles[key], env));
     } else {
-      expanded[key] = value;
+      setOrderedOption(expanded, key, value);
     }
   }
   return expanded;
+}
+
+function mergeOptionOrder(target, source) {
+  for (const [key, value] of Object.entries(source || {})) {
+    setOrderedOption(target, key, value);
+  }
+  return target;
+}
+
+function setOrderedOption(options, key, value) {
+  if (Object.hasOwn(options, key)) delete options[key];
+  options[key] = value;
 }

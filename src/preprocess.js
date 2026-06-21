@@ -1,4 +1,5 @@
 import { evaluateMath, parseDimension } from "./math.js";
+import { applyPreprocessExtensions } from "./extensions/index.js";
 import { parseOptions, splitTopLevel } from "./options.js";
 import {
   TIKZ_AXIS_CONTAINER_MARGIN,
@@ -17,6 +18,13 @@ export function preprocessTikzSource(source, options = {}) {
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
   expanded = terminatePgfTransformStatements(expanded);
+  expanded = applyPreprocessExtensions(expanded, {
+    diagnostics,
+    options,
+    helpers: {
+      expandTikzNetworkMacros
+    }
+  });
   expanded = expandTkzGraphMacros(expanded);
   expanded = expandTikzScopeEnvironments(expanded, diagnostics);
   expanded = expandTransparentEnvironment(expanded, "pgfonlayer", diagnostics);
@@ -116,6 +124,14 @@ function replaceDefinedColorUses(source, colors) {
   let output = "";
   let index = 0;
   while (index < source.length) {
+    if (source.startsWith("\\textcolor", index)) {
+      const replaced = replaceTextColorName(source, index, colors);
+      if (replaced) {
+        output += replaced.text;
+        index = replaced.end;
+        continue;
+      }
+    }
     if (source[index] === "[") {
       const options = extractBalanced(source, index, "[", "]");
       if (options) {
@@ -128,6 +144,20 @@ function replaceDefinedColorUses(source, colors) {
     index += 1;
   }
   return output;
+}
+
+function replaceTextColorName(source, start, colors) {
+  let index = start + "\\textcolor".length;
+  index = skipWhitespace(source, index);
+  const color = extractBalanced(source, index, "{", "}");
+  if (!color) return null;
+  const name = color.content.trim();
+  const replacement = colors.get(name);
+  if (!replacement) return null;
+  return {
+    text: `${source.slice(start, color.start)}{${replacement}}`,
+    end: color.end
+  };
 }
 
 function replaceColorNames(input, colors) {
@@ -378,9 +408,13 @@ function expandTransparentEnvironment(source, name, diagnostics) {
     }
     output += source.slice(index, beginIndex);
     let cursor = beginIndex + begin.length;
+    let layer = "";
     if (source[cursor] === "{") {
       const layerName = extractBalanced(source, cursor, "{", "}");
-      if (layerName) cursor = layerName.end;
+      if (layerName) {
+        layer = layerName.content.trim();
+        cursor = layerName.end;
+      }
     }
     const endIndex = source.indexOf(end, cursor);
     if (endIndex === -1) {
@@ -388,21 +422,621 @@ function expandTransparentEnvironment(source, name, diagnostics) {
       output += source.slice(beginIndex);
       break;
     }
-    output += source.slice(cursor, endIndex);
+    const body = source.slice(cursor, endIndex);
+    output += layer === "background" ? `{[layer=background]${body}}` : body;
     index = endIndex + end.length;
   }
   return output;
 }
 
+function expandTikzNetworkMacros(source, diagnostics, options = {}) {
+  if (!usesTikzNetwork(source)) return source;
+  const state = createTikzNetworkState();
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    if (source[index] !== "\\") {
+      output += source[index];
+      index += 1;
+      continue;
+    }
+    const command = readCommandName(source, index + 1);
+    if (!command) {
+      output += source[index];
+      index += 1;
+      continue;
+    }
+    if (!TIKZ_NETWORK_COMMANDS.has(command.value)) {
+      output += source.slice(index, command.end);
+      index = command.end;
+      continue;
+    }
+    const expanded = expandTikzNetworkCommand(source, index, command.value, command.end, state, diagnostics, options);
+    if (!expanded) {
+      output += source.slice(index, command.end);
+      index = command.end;
+      continue;
+    }
+    output += expanded.text;
+    index = expanded.end;
+  }
+  return output;
+}
+
+const TIKZ_NETWORK_COMMANDS = new Set([
+  "SetDefaultUnit",
+  "SetDistanceScale",
+  "SetVertexStyle",
+  "SetEdgeStyle",
+  "EdgesInBG",
+  "EdgesNotInBG",
+  "Vertex",
+  "Edge",
+  "Vertices",
+  "Edges"
+]);
+
+function usesTikzNetwork(source) {
+  return /\\usepackage(?:\[[^\]]*\])?\{tikz-network\}|\\(?:SetVertexStyle|SetEdgeStyle|SetDefaultUnit|SetDistanceScale|EdgesInBG|EdgesNotInBG|Vertices|Edges)\b/.test(
+    source
+  );
+}
+
+function createTikzNetworkState() {
+  return {
+    defaultUnit: "cm",
+    distanceScale: 1,
+    edgesInBackground: true,
+    vertexStyle: {
+      shape: "circle",
+      minSize: "0.6cm",
+      lineWidth: "1pt",
+      lineColor: "black",
+      fillColor: "#abd7e6",
+      fillOpacity: "1",
+      textColor: "black",
+      innerSep: "2pt",
+      outerSep: "0pt"
+    },
+    edgeStyle: {
+      arrow: "-latex",
+      lineWidth: "1.5pt",
+      color: "black!75",
+      opacity: "1",
+      textColor: "black"
+    }
+  };
+}
+
+function expandTikzNetworkCommand(source, start, name, afterName, state, diagnostics, options) {
+  if (name === "EdgesInBG") {
+    state.edgesInBackground = true;
+    return { text: "", end: afterName };
+  }
+  if (name === "EdgesNotInBG") {
+    state.edgesInBackground = false;
+    return { text: "", end: afterName };
+  }
+  if (name === "SetDefaultUnit") {
+    const parsed = parseRequiredGroup(source, afterName);
+    if (!parsed) return null;
+    state.defaultUnit = normalizeTikzNetworkUnit(parsed.content, state.defaultUnit);
+    return { text: "", end: parsed.end };
+  }
+  if (name === "SetDistanceScale") {
+    const parsed = parseRequiredGroup(source, afterName);
+    if (!parsed) return null;
+    const scale = Number(parsed.content.trim());
+    if (Number.isFinite(scale)) state.distanceScale = scale;
+    return { text: "", end: parsed.end };
+  }
+  if (name === "SetVertexStyle") {
+    const parsed = parseOptionalOptions(source, afterName);
+    applyTikzNetworkVertexStyle(state, parseOptions(parsed.raw));
+    return { text: "", end: parsed.end };
+  }
+  if (name === "SetEdgeStyle") {
+    const parsed = parseOptionalOptions(source, afterName);
+    applyTikzNetworkEdgeStyle(state, parseOptions(parsed.raw));
+    return { text: "", end: parsed.end };
+  }
+  if (name === "Vertex") {
+    const parsed = parseTikzNetworkVertex(source, afterName, state, diagnostics);
+    return parsed ? { text: parsed.text, end: parsed.end } : null;
+  }
+  if (name === "Edge") {
+    const parsed = parseTikzNetworkEdge(source, afterName, state, diagnostics);
+    return parsed ? { text: parsed.text, end: parsed.end } : null;
+  }
+  if (name === "Vertices" || name === "Edges") {
+    const parsed = parseTikzNetworkCsvCommand(source, afterName, name, state, diagnostics, options);
+    return parsed;
+  }
+  return null;
+}
+
+function parseTikzNetworkVertex(source, afterName, state, diagnostics) {
+  const parsedOptions = parseOptionalOptions(source, afterName);
+  const name = parseRequiredGroup(source, parsedOptions.end);
+  if (!name) {
+    diagnostics.push({ severity: "warning", message: "Could not parse tikz-network Vertex command" });
+    return null;
+  }
+  const vertexId = name.content.trim();
+  const vertexOptions = parseOptions(parsedOptions.raw);
+  return {
+    text: renderTikzNetworkVertex(vertexId, vertexOptions, state),
+    end: name.end
+  };
+}
+
+function renderTikzNetworkVertex(vertexId, options, state) {
+  const x = tikzNetworkCoordinate(options.x, 0, state);
+  const y = tikzNetworkCoordinate(options.y, 0, state);
+  const size = tikzNetworkMeasure(options.size || state.vertexStyle.minSize, state.defaultUnit);
+  const shape = String(options.shape || state.vertexStyle.shape || "circle").trim();
+  const fillColor = tikzNetworkColor(options.color || state.vertexStyle.fillColor, tikzNetworkFlag(options.RGB));
+  const lineColor = tikzNetworkColor(options.linecolor || options.LineColor || state.vertexStyle.lineColor);
+  const fillOpacity = tikzNetworkNumber(options.opacity, state.vertexStyle.fillOpacity);
+  const styleParts = [
+    "draw",
+    shape,
+    `minimum size=${size}`,
+    `inner sep=${state.vertexStyle.innerSep}`,
+    `outer sep=${state.vertexStyle.outerSep}`,
+    `line width=${state.vertexStyle.lineWidth}`,
+    `draw=${lineColor}`,
+    `fill=${fillColor}`,
+    `opacity=${fillOpacity}`,
+    `text=${tikzNetworkColor(options.fontcolor || state.vertexStyle.textColor)}`
+  ];
+  if (options.style) styleParts.push(stripOuterBracesText(options.style));
+  if (tikzNetworkFlag(options.Pseudo)) styleParts.push("opacity=0,text opacity=0,fill opacity=0,draw opacity=0");
+  const label = tikzNetworkVertexLabel(vertexId, options);
+  const text = shouldRenderTikzNetworkVertexLabel(options) ? label : "";
+  if (shouldPlaceTikzNetworkLabelOutside(options)) {
+    return [
+      `\\node[${joinTikzOptions(styleParts)}] (${vertexId}) at (${x},${y}) {};`,
+      renderTikzNetworkExternalLabel(vertexId, label, options, state)
+    ].join("\n");
+  }
+  return `\\node[${joinTikzOptions(styleParts)}] (${vertexId}) at (${x},${y}) {${text}};`;
+}
+
+function tikzNetworkVertexLabel(vertexId, options) {
+  let label = "";
+  if (tikzNetworkFlag(options.IdAsLabel)) label = vertexId;
+  if (options.label !== undefined) label = String(options.label);
+  if (options.Math && label && !/^\$[\s\S]*\$$/.test(label)) label = `$${label}$`;
+  return label;
+}
+
+function shouldRenderTikzNetworkVertexLabel(options) {
+  return !tikzNetworkFlag(options.NoLabel) && (tikzNetworkFlag(options.IdAsLabel) || options.label !== undefined);
+}
+
+function shouldPlaceTikzNetworkLabelOutside(options) {
+  const position = String(options.position || "center").trim();
+  return shouldRenderTikzNetworkVertexLabel(options) && position && position !== "center";
+}
+
+function renderTikzNetworkExternalLabel(vertexId, label, options, state) {
+  const position = String(options.position || "above").trim();
+  const distance = tikzNetworkMeasure(options.distance || "2mm", state.defaultUnit);
+  const shift = tikzNetworkLabelShift(position, distance);
+  const labelOptions = [
+    "draw=none",
+    "fill=none",
+    "inner sep=0",
+    `text=${tikzNetworkColor(options.fontcolor || state.vertexStyle.textColor)}`
+  ];
+  if (options.fontsize) labelOptions.push(`font=${options.fontsize}`);
+  return `\\node[${joinTikzOptions(labelOptions)}] at ([${shift}]${vertexId}.${tikzNetworkAnchorForPosition(position)}) {${label}};`;
+}
+
+function tikzNetworkLabelShift(position, distance) {
+  const direction = String(position || "above").trim();
+  if (direction.includes("below")) return `yshift=-${distance}`;
+  if (direction.includes("left")) return `xshift=-${distance}`;
+  if (direction.includes("right")) return `xshift=${distance}`;
+  return `yshift=${distance}`;
+}
+
+function tikzNetworkAnchorForPosition(position) {
+  const direction = String(position || "above").trim();
+  if (direction.includes("below")) return "south";
+  if (direction.includes("left")) return "west";
+  if (direction.includes("right")) return "east";
+  return "north";
+}
+
+function parseTikzNetworkEdge(source, afterName, state, diagnostics) {
+  const parsedOptions = parseOptionalOptions(source, afterName);
+  let cursor = parsedOptions.end;
+  const from = parseRequiredParen(source, cursor);
+  if (!from) {
+    diagnostics.push({ severity: "warning", message: "Could not parse tikz-network Edge source vertex" });
+    return null;
+  }
+  cursor = from.end;
+  const to = parseRequiredParen(source, cursor);
+  if (!to) {
+    diagnostics.push({ severity: "warning", message: "Could not parse tikz-network Edge target vertex" });
+    return null;
+  }
+  const edgeOptions = parseOptions(parsedOptions.raw);
+  return {
+    text: renderTikzNetworkEdge(from.content.trim(), to.content.trim(), edgeOptions, state),
+    end: to.end
+  };
+}
+
+function renderTikzNetworkEdge(from, to, options, state) {
+  const styleParts = [
+    `line width=${tikzNetworkMeasure(options.lw || state.edgeStyle.lineWidth, state.defaultUnit)}`,
+    `color=${tikzNetworkColor(options.color || state.edgeStyle.color, tikzNetworkFlag(options.RGB))}`,
+    `opacity=${tikzNetworkNumber(options.opacity, state.edgeStyle.opacity)}`
+  ];
+  if (options.style) styleParts.push(stripOuterBracesText(options.style));
+  if (tikzNetworkFlag(options.Direct)) styleParts.push(state.edgeStyle.arrow || "-latex");
+  const edgeStyle = joinTikzOptions(styleParts);
+  const body = options.path
+    ? renderTikzNetworkPathEdge(from, to, options.path, edgeStyle)
+    : from === to
+      ? renderTikzNetworkLoop(from, options, edgeStyle, state)
+      : renderTikzNetworkRegularEdge(from, to, options, edgeStyle, state);
+  if (tikzNetworkFlag(options.NotInBG) || !state.edgesInBackground) return body;
+  return `{[layer=background]${body}}`;
+}
+
+function renderTikzNetworkRegularEdge(from, to, options, edgeStyle, state) {
+  const edgeOptions = [];
+  if (options.bend !== undefined) {
+    const bend = Number(options.bend);
+    if (Number.isFinite(bend) && bend < 0) edgeOptions.push(`bend right=${Math.abs(bend)}`);
+    else edgeOptions.push(`bend left=${options.bend}`);
+  }
+  return `\\path[${edgeStyle}] (${from}) edge[${joinTikzOptions(edgeOptions)}] ${renderTikzNetworkEdgeLabel(options, state)} (${to});`;
+}
+
+function renderTikzNetworkLoop(vertex, options, edgeStyle, state) {
+  const direction = tikzNetworkLoopDirection(options.loopposition);
+  const loopOptions = [`loop ${direction}`];
+  if (options.loopsize) loopOptions.push(`looseness=${tikzNetworkLoopLooseness(options.loopsize)}`);
+  return `\\path[${edgeStyle}] (${vertex}) edge[${joinTikzOptions(loopOptions)}] ${renderTikzNetworkEdgeLabel(options, state)} (${vertex});`;
+}
+
+function renderTikzNetworkPathEdge(from, to, rawPath, edgeStyle) {
+  const points = splitTopLevel(stripOuterBracesText(rawPath), ",").map(tikzNetworkPathPoint).filter(Boolean);
+  const allPoints = [`(${from})`, ...points, `(${to})`];
+  return `\\draw[${edgeStyle}] ${allPoints.join(" -- ")};`;
+}
+
+function tikzNetworkPathPoint(raw) {
+  const text = stripOuterBracesText(raw).trim();
+  if (!text) return null;
+  if (text.startsWith("(") && text.endsWith(")")) return text;
+  if (text.includes(",")) return `(${text})`;
+  return `(${text})`;
+}
+
+function renderTikzNetworkEdgeLabel(options, state) {
+  if (options.label === undefined) return "";
+  let label = String(options.label);
+  if (options.Math && label && !/^\$[\s\S]*\$$/.test(label)) label = `$${label}$`;
+  const nodeOptions = [];
+  if (options.distance !== undefined) nodeOptions.push(`pos=${options.distance}`);
+  if (options.position) nodeOptions.push(options.position);
+  nodeOptions.push("fill=white", "inner sep=1pt", `text=${tikzNetworkColor(options.fontcolor || state.edgeStyle.textColor)}`);
+  return `node[${joinTikzOptions(nodeOptions)}] {${label}}`;
+}
+
+function tikzNetworkLoopDirection(rawAngle) {
+  const angle = normalizeAngle(Number(rawAngle ?? 0));
+  if (angle >= 45 && angle < 135) return "above";
+  if (angle >= 135 && angle < 225) return "left";
+  if (angle >= 225 && angle < 315) return "below";
+  return "right";
+}
+
+function normalizeAngle(angle) {
+  if (!Number.isFinite(angle)) return 0;
+  return ((angle % 360) + 360) % 360;
+}
+
+function tikzNetworkLoopLooseness(value) {
+  const text = String(value || "").trim();
+  if (!text) return 1;
+  const numeric = Number(text.replace(/[A-Za-z]+$/, ""));
+  if (!Number.isFinite(numeric)) return 1;
+  return Math.max(0.7, Math.min(3, numeric * 2));
+}
+
+function parseTikzNetworkCsvCommand(source, afterName, name, state, diagnostics, options) {
+  const parsedOptions = parseOptionalOptions(source, afterName);
+  const file = parseRequiredGroup(source, parsedOptions.end);
+  if (!file) return null;
+  if (typeof options.tikzNetworkFileResolver === "function") {
+    const commandOptions = parseOptions(parsedOptions.raw);
+    const resolved = options.tikzNetworkFileResolver(file.content.trim(), name, commandOptions);
+    if (typeof resolved === "string") {
+      return {
+        text: renderTikzNetworkCsv(resolved, name, state, commandOptions, diagnostics),
+        end: file.end
+      };
+    }
+  }
+  diagnostics.push({
+    severity: "warning",
+    message: `tikz-network ${name} CSV import requires options.tikzNetworkFileResolver: ${file.content.trim()}`
+  });
+  return { text: "", end: file.end };
+}
+
+function renderTikzNetworkCsv(content, command, state, commandOptions, diagnostics) {
+  const rows = parseTikzNetworkCsv(content);
+  if (!rows.length) return "";
+  if (command === "Vertices") {
+    return rows
+      .map((row) => {
+        const id = firstDefined(row.id, row.Id, row.name, row.Name);
+        if (!id) {
+          diagnostics.push({ severity: "warning", message: "tikz-network Vertices CSV row is missing id" });
+          return "";
+        }
+        return renderTikzNetworkVertex(String(id).trim(), { ...commandOptions, ...tikzNetworkVertexRowOptions(row) }, state);
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  if (command === "Edges") {
+    return rows
+      .map((row) => {
+        const from = firstDefined(row.u, row.U, row.source, row.Source, row.from, row.From);
+        const to = firstDefined(row.v, row.V, row.target, row.Target, row.to, row.To);
+        if (!from || !to) {
+          diagnostics.push({ severity: "warning", message: "tikz-network Edges CSV row is missing u/v endpoints" });
+          return "";
+        }
+        return renderTikzNetworkEdge(String(from).trim(), String(to).trim(), { ...commandOptions, ...tikzNetworkEdgeRowOptions(row) }, state);
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+function tikzNetworkVertexRowOptions(row) {
+  return compactObject({
+    x: row.x,
+    y: row.y,
+    label: row.label,
+    size: row.size,
+    opacity: row.opacity,
+    layer: row.layer,
+    style: row.style,
+    shape: row.shape,
+    position: row.position,
+    distance: row.distance,
+    fontcolor: firstDefined(row.fontcolor, row.fontColor, row.FontColor),
+    fontsize: firstDefined(row.fontsize, row.fontSize, row.FontSize),
+    RGB: row.RGB || hasCsvRgbChannels(row),
+    IdAsLabel: csvBoolean(firstDefined(row.IdAsLabel, row.idAsLabel)),
+    NoLabel: csvBoolean(firstDefined(row.NoLabel, row.noLabel)),
+    Math: csvBoolean(row.Math),
+    Pseudo: csvBoolean(row.Pseudo),
+    color: hasCsvRgbChannels(row) ? `${row.R},${row.G},${row.B}` : row.color
+  });
+}
+
+function tikzNetworkEdgeRowOptions(row) {
+  return compactObject({
+    label: row.label,
+    lw: row.lw,
+    path: row.path,
+    color: hasCsvRgbChannels(row) ? `${row.R},${row.G},${row.B}` : row.color,
+    opacity: row.opacity,
+    bend: row.bend,
+    position: row.position,
+    distance: row.distance,
+    loopsize: row.loopsize,
+    loopposition: row.loopposition,
+    loopshape: row.loopshape,
+    style: row.style,
+    fontcolor: firstDefined(row.fontcolor, row.fontColor, row.FontColor),
+    fontsize: firstDefined(row.fontsize, row.fontSize, row.FontSize),
+    RGB: row.RGB || hasCsvRgbChannels(row),
+    Direct: csvBoolean(row.Direct),
+    Math: csvBoolean(row.Math),
+    NotInBG: csvBoolean(row.NotInBG)
+  });
+}
+
+function parseTikzNetworkCsv(content) {
+  const rows = parseCsvRows(content);
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((header) => header.trim());
+  return rows
+    .slice(1)
+    .filter((row) => row.some((cell) => cell.trim()))
+    .map((row) => {
+      const entry = {};
+      headers.forEach((header, index) => {
+        if (!header) return;
+        entry[header] = row[index]?.trim() ?? "";
+      });
+      return entry;
+    });
+}
+
+function parseCsvRows(content) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  const text = String(content || "");
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '"') {
+      if (quoted && text[index + 1] === '"') {
+        cell += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+    if (char === "," && !quoted) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && text[index + 1] === "\n") index += 1;
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+    cell += char;
+  }
+  row.push(cell);
+  rows.push(row);
+  return rows;
+}
+
+function compactObject(object) {
+  const compacted = {};
+  for (const [key, value] of Object.entries(object)) {
+    if (value === undefined || value === null || value === "") continue;
+    compacted[key] = value;
+  }
+  return compacted;
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function hasCsvRgbChannels(row) {
+  return row.R !== undefined && row.G !== undefined && row.B !== undefined;
+}
+
+function csvBoolean(value) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (value === true) return true;
+  const text = String(value).trim().toLowerCase();
+  return !["0", "false", "no", "off"].includes(text);
+}
+
+function tikzNetworkFlag(value) {
+  if (value === undefined || value === null || value === false) return false;
+  if (value === true) return true;
+  const text = String(value).trim().toLowerCase();
+  return !["", "0", "false", "no", "off"].includes(text);
+}
+
+function applyTikzNetworkVertexStyle(state, options) {
+  if (options.Shape) state.vertexStyle.shape = String(options.Shape).trim();
+  if (options.MinSize) state.vertexStyle.minSize = tikzNetworkMeasure(options.MinSize, state.defaultUnit);
+  if (options.LineWidth) state.vertexStyle.lineWidth = String(options.LineWidth).trim();
+  if (options.LineColor) state.vertexStyle.lineColor = tikzNetworkColor(options.LineColor);
+  if (options.FillColor) state.vertexStyle.fillColor = tikzNetworkColor(options.FillColor);
+  if (options.FillOpacity) state.vertexStyle.fillOpacity = String(options.FillOpacity).trim();
+  if (options.TextColor) state.vertexStyle.textColor = tikzNetworkColor(options.TextColor);
+  if (options.InnerSep) state.vertexStyle.innerSep = tikzNetworkMeasure(options.InnerSep, state.defaultUnit);
+  if (options.OuterSep) state.vertexStyle.outerSep = tikzNetworkMeasure(options.OuterSep, state.defaultUnit);
+}
+
+function applyTikzNetworkEdgeStyle(state, options) {
+  if (options.Arrow) state.edgeStyle.arrow = String(options.Arrow).trim();
+  if (options.LineWidth) state.edgeStyle.lineWidth = String(options.LineWidth).trim();
+  if (options.Color) state.edgeStyle.color = tikzNetworkColor(options.Color);
+  if (options.Opacity) state.edgeStyle.opacity = String(options.Opacity).trim();
+  if (options.TextColor) state.edgeStyle.textColor = tikzNetworkColor(options.TextColor);
+}
+
+function tikzNetworkCoordinate(value, fallback, state) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const text = stripOuterBracesText(value).trim();
+  if (!text) return fallback;
+  if (/[A-Za-z]/.test(text)) return text;
+  const number = Number(text);
+  if (Number.isFinite(number)) return roundAxis(number * state.distanceScale);
+  return text;
+}
+
+function tikzNetworkMeasure(value, defaultUnit) {
+  const text = stripOuterBracesText(value).trim();
+  if (!text) return `0${defaultUnit}`;
+  if (/[A-Za-z]/.test(text)) return text;
+  return `${text}${defaultUnit}`;
+}
+
+function tikzNetworkNumber(value, fallback) {
+  const text = value === undefined || value === null || value === "" ? fallback : value;
+  return String(text).trim();
+}
+
+function tikzNetworkColor(value, isRgb = false) {
+  const text = stripOuterBracesText(value ?? "").trim();
+  if (!text) return "black";
+  if (isRgb) {
+    const channels = splitTopLevel(text, ",").map((part) => Number(part.trim()));
+    if (channels.length === 3 && channels.every((channel) => Number.isFinite(channel))) {
+      return `rgb(${channels.map((channel) => Math.round(Math.max(0, Math.min(255, channel)))).join(" ")})`;
+    }
+  }
+  return text;
+}
+
+function normalizeTikzNetworkUnit(value, fallback) {
+  const text = String(value || "").trim();
+  return text || fallback;
+}
+
+function parseRequiredGroup(source, start) {
+  const cursor = skipWhitespace(source, start);
+  return extractBalanced(source, cursor, "{", "}");
+}
+
+function parseRequiredParen(source, start) {
+  const cursor = skipWhitespace(source, start);
+  return extractBalanced(source, cursor, "(", ")");
+}
+
+function stripOuterBracesText(value) {
+  let text = String(value ?? "").trim();
+  while (text.startsWith("{") && text.endsWith("}")) {
+    const balanced = extractBalanced(text, 0, "{", "}");
+    if (!balanced || balanced.end !== text.length) break;
+    text = balanced.content.trim();
+  }
+  return text;
+}
+
+function joinTikzOptions(parts) {
+  return parts.map((part) => String(part || "").trim()).filter(Boolean).join(", ");
+}
+
 function expandTkzGraphMacros(source) {
   let unit = 2.5;
   const positions = new Map();
+  const baseEdgeStyle = tkzBaseEdgeStyle(source);
+  const baseEdgeLabelOptions = tkzBaseEdgeLabelOptions(source);
+  let currentEdgeStyle = baseEdgeStyle || "->";
   return source
     .replace(/\\SetUpEdge\s*\[[\s\S]*?\]/g, "")
     .replace(/\\GraphInit\s*\[[^\]]*?\]/g, "")
     .split(/\r?\n/)
     .map((line) => {
       const trimmed = line.trim();
+      const edgeStyle = trimmed.match(/^\\tikzset\s*\{\s*EdgeStyle\/\.style\s*=\s*\{([\s\S]*)\}\s*\}\s*$/);
+      if (edgeStyle) {
+        currentEdgeStyle = joinTkzOptions([baseEdgeStyle, edgeStyle[1].trim()]) || "->";
+        return line;
+      }
       const graphUnit = trimmed.match(/^\\SetGraphUnit\s*\{([^}]*)\}/);
       if (graphUnit) {
         unit = Number(graphUnit[1]) || unit;
@@ -412,7 +1046,7 @@ function expandTkzGraphMacros(source) {
       if (vertex) {
         const name = vertex[1].trim();
         positions.set(name, { x: 0, y: 0 });
-        return `\\node[draw,circle] (${name}) at (0,0) {${name}};`;
+        return `\\node[draw,circle,minimum size=18pt,inner sep=2pt,line width=0.5pt] (${name}) at (0,0) {${name}};`;
       }
       const relative = trimmed.match(/^\\(NOEA|SOEA|NOWE|SOWE|EA|WE|NO|SO)\s*\(([^)]*)\)\s*\{([^}]*)\}/);
       if (relative) {
@@ -432,15 +1066,54 @@ function expandTkzGraphMacros(source) {
         }[direction];
         const point = { x: base.x + offset.x, y: base.y + offset.y };
         positions.set(name, point);
-        return `\\node[draw,circle] (${name}) at (${point.x},${point.y}) {${name}};`;
+        return `\\node[draw,circle,minimum size=18pt,inner sep=2pt,line width=0.5pt] (${name}) at (${point.x},${point.y}) {${name}};`;
       }
-      const edge = trimmed.match(/^\\Edge(?:\[[^\]]*?\])?\s*\(([^)]*)\)\s*\(([^)]*)\)/);
+      const edge = trimmed.match(/^\\Edge(?:\[([^\]]*?)\])?\s*\(([^)]*)\)\s*\(([^)]*)\)/);
       if (edge) {
-        return `\\draw[->] (${edge[1].trim()}) -- (${edge[2].trim()});`;
+        const edgeOptions = edge[1] ? parseOptions(edge[1]) : {};
+        const edgeLabel = renderTkzGraphEdgeLabel(edgeOptions, baseEdgeLabelOptions);
+        return `\\draw[${currentEdgeStyle}] (${edge[2].trim()}) edge[${currentEdgeStyle}]${edgeLabel} (${edge[3].trim()});`;
       }
       return line;
     })
     .join("\n");
+}
+
+function tkzBaseEdgeStyle(source) {
+  const setup = String(source).match(/\\SetUpEdge\s*\[([\s\S]*?)\]/);
+  if (!setup) return "";
+  const options = parseOptions(setup[1]);
+  const parts = [];
+  if (options.lw) parts.push(`line width=${options.lw}`);
+  if (options.color) parts.push(String(options.color).trim());
+  return joinTkzOptions(parts);
+}
+
+function tkzBaseEdgeLabelOptions(source) {
+  const setup = String(source).match(/\\SetUpEdge\s*\[([\s\S]*?)\]/);
+  if (!setup) return {};
+  const options = parseOptions(setup[1]);
+  return {
+    fill: options.labelcolor,
+    text: options.labeltext
+  };
+}
+
+function renderTkzGraphEdgeLabel(edgeOptions, baseOptions = {}) {
+  if (edgeOptions.label === undefined) return "";
+  const nodeOptions = ["midway"];
+  if (baseOptions.fill) nodeOptions.push(`fill=${baseOptions.fill}`);
+  nodeOptions.push(`text=${baseOptions.text || "black"}`);
+  if (edgeOptions.style) nodeOptions.push(stripOuterBracesText(edgeOptions.style));
+  return ` node[${joinTikzOptions(nodeOptions)}] {${stripOuterBracesText(edgeOptions.label)}}`;
+}
+
+function joinTkzOptions(parts) {
+  return parts
+    .flatMap((part) => String(part || "").split(","))
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
 }
 
 function expandPgfplotsAxes(source, diagnostics, options) {
@@ -525,7 +1198,13 @@ function parseAddplots(body) {
       is3d = true;
       cursor += 1;
     }
+    cursor = skipWhitespace(body, cursor);
     if (body[cursor] === "+") cursor += 1;
+    cursor = skipWhitespace(body, cursor);
+    if (body.startsWith("expression", cursor)) {
+      cursor += "expression".length;
+      cursor = skipWhitespace(body, cursor);
+    }
     const parsedOptions = parseOptionalOptions(body, cursor);
     cursor = parsedOptions.end;
     cursor = skipWhitespace(body, cursor);
@@ -875,12 +1554,22 @@ function normalizeAxisExpression(input, radianTrig) {
 
 function selectPlotColor(options) {
   for (const [key, value] of Object.entries(options || {})) {
-    if (value === true && /^(black|white|red|green|blue|cyan|magenta|yellow|gray|grey|orange|purple|brown|pink)$/.test(key)) {
+    if (value === true && isPlotColorToken(key)) {
       return key;
     }
     if (key === "color" || key === "draw") return `${key}=${value}`;
   }
   return "";
+}
+
+function isPlotColorToken(value) {
+  const text = String(value || "").trim();
+  return (
+    /^(black|white|red|green|blue|cyan|magenta|yellow|gray|grey|orange|purple|brown|pink|violet|lime|teal|olive|lightgray|darkgray)$/i.test(text) ||
+    text.includes("!") ||
+    /^#[0-9a-f]{6}$/i.test(text) ||
+    /^rgb\s*\(/i.test(text)
+  );
 }
 
 function selectPlotStyle(options) {

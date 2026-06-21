@@ -2,6 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 
+test("allows user-supplied preprocess extensions", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \MyDot{A}{1}{2}
+\end{tikzpicture}`;
+  const myExtension = {
+    name: "my-dot",
+    preprocess(input) {
+      return input.replace(/\\MyDot\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}/g, String.raw`\node[circle, draw] ($1) at ($2,$3) {$1};`);
+    }
+  };
+
+  const { ir, diagnostics } = tikzToSvg(source, { extensions: [myExtension] });
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(ir.coordinates.A, { x: 1, y: 2 });
+  assert.ok(ir.items.some((item) => item.type === "nodeBox" && item.id === "A"));
+});
+
 test("renders common PGFPlots axis addplot coordinates, functions, and legends", () => {
   const source = String.raw`
 \documentclass[tikz,border=10pt]{standalone}
@@ -109,6 +128,24 @@ test("evaluates PGFPlots trig format rad before sampling function plots", () => 
 
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(ys, [1, 2, 1, 0, 1]);
+});
+
+test("supports PGFPlots addplot expression keyword before plot options", () => {
+  const source = String.raw`
+\definecolor{olivegreen}{rgb}{0,0.6,0}
+\begin{tikzpicture}
+  \begin{axis}[width=6cm,height=2cm,xmin=0,xmax=1,ymin=-1,ymax=1,domain=0:1,trig format=rad]
+    \addplot expression [no markers, olivegreen, samples=5] {sin(6*pi*x)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const plot = result.ir.items.find((item) => item.subtype === "axis-plot");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(plot, "expected addplot expression to generate an axis plot");
+  assert.equal(plot.style.stroke, "rgb(0 153 0)");
+  assert.equal(plot.commands.length, 5);
 });
 
 test("uses arrowed middle axis lines for PGFPlots middle axes", () => {

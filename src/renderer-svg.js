@@ -1,4 +1,5 @@
 import katex from "katex";
+import { estimateFormulaBox, formulaTotalHeight, parseMathText } from "./math-metrics.js";
 import { mathFallbackText, normalizeTikzText } from "./tex-text.js";
 import {
   TIKZ_ARROW,
@@ -49,16 +50,17 @@ function renderItem(item, unit, options = {}) {
   if (item.type === "marker") return renderMarker(item, unit);
   if (item.type === "nodeBox") {
     if (item.shape === "circle" || item.shape === "ellipse") {
-      return `<ellipse cx="${format(item.x * unit)}" cy="${format(-item.y * unit)}" rx="${format(
+      return renderNodeBoxWithOverlay(item, `<ellipse cx="${format(item.x * unit)}" cy="${format(-item.y * unit)}" rx="${format(
         (item.width / 2) * unit
-      )}" ry="${format((item.height / 2) * unit)}"${styleAttributes(item.style)} />`;
+      )}" ry="${format((item.height / 2) * unit)}"${styleAttributes(item.style)} />`, unit);
     }
+    if (item.shape === "diamond") return renderNodeBoxWithOverlay(item, renderDiamondNodeBox(item, unit), unit);
     if (item.shape === "rectangleSplit") return renderRectangleSplit(item, unit);
-    return `<rect x="${format((item.x - item.width / 2) * unit)}" y="${format(
+    return renderNodeBoxWithOverlay(item, `<rect x="${format((item.x - item.width / 2) * unit)}" y="${format(
       -(item.y + item.height / 2) * unit
     )}" width="${format(item.width * unit)}" height="${format(item.height * unit)}" rx="${format(
       (item.rx || 0) * unit
-    )}"${styleAttributes(item.style)} />`;
+    )}"${styleAttributes(item.style)} />`, unit);
   }
   if (item.type === "textNode") {
     const normalized = normalizeTikzText(item.text);
@@ -84,71 +86,156 @@ function renderItem(item, unit, options = {}) {
   return "";
 }
 
+function renderDiamondNodeBox(item, unit) {
+  const cx = item.x * unit;
+  const cy = -item.y * unit;
+  const hw = (item.width / 2) * unit;
+  const hh = (item.height / 2) * unit;
+  const points = [
+    [cx, cy - hh],
+    [cx + hw, cy],
+    [cx, cy + hh],
+    [cx - hw, cy]
+  ]
+    .map(([x, y]) => `${format(x)},${format(y)}`)
+    .join(" ");
+  return `<polygon points="${points}"${styleAttributes(item.style)} />`;
+}
+
+function renderNodeBoxWithOverlay(item, baseSvg, unit) {
+  const overlay = renderNodeBoxOverlay(item, unit);
+  return overlay ? `<g>${baseSvg}${overlay}</g>` : baseSvg;
+}
+
+function renderNodeBoxOverlay(item, unit) {
+  if (!String(item.pathPicture || "").includes("path picture bounding box")) return "";
+  const x1 = (item.x - item.width / 2) * unit;
+  const x2 = (item.x + item.width / 2) * unit;
+  const y1 = -(item.y + item.height / 2) * unit;
+  const y2 = -(item.y - item.height / 2) * unit;
+  const stroke = escapeAttribute(item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black");
+  const width = format(Math.max(1, item.style?.lineWidth ?? 1));
+  return `<path d="M ${format(x1)} ${format(y2)} L ${format(x2)} ${format(y1)} M ${format(x1)} ${format(y1)} L ${format(
+    x2
+  )} ${format(y2)}" stroke="${stroke}" fill="none" stroke-width="${width}" />`;
+}
+
 function renderPlainTextNode(item, normalized, unit) {
   if (!normalized.color && hasTextColorSegments(normalized.raw)) return renderSegmentedTextNode(item, normalized, unit);
   const lines = (normalized.lines.length ? normalized.lines : [normalized.text]).map(formatTextLine);
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
-  const fontFamily = escapeAttribute(item.style?.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1);
+  const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, lines);
+  const lineStyles = textLineStyles(normalized, lines.length);
   const x = format(item.x * unit);
   const y = format(-item.y * unit);
   if (lines.length <= 1) {
-    return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
-      fontSize
-    )}" font-family="${fontFamily}">${escapeText(lines[0] || "")}</text>`;
+    const lineStyle = lineStyles[0] || {};
+    return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
+      fontSize * (lineStyle.scale || 1)
+    )}"${fontWeightAttribute(lineStyle)} font-family="${fontFamily}">${escapeText(lines[0] || "")}</text>`;
   }
-  const lineHeight = fontSize * 1.15;
-  const startDy = -((lines.length - 1) * lineHeight) / 2;
+  const lineOffsets = baselineOffsets(fontSize, lineStyles);
   const tspans = lines
     .map((line, index) => {
-      const dy = index === 0 ? startDy : lineHeight;
-      return `<tspan x="${x}" dy="${format(dy)}">${escapeText(line)}</tspan>`;
+      const dy = index === 0 ? lineOffsets[0] : lineOffsets[index] - lineOffsets[index - 1];
+      const lineStyle = lineStyles[index] || {};
+      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize)}>${escapeText(line)}</tspan>`;
     })
     .join("");
-  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
     fontSize
   )}" font-family="${fontFamily}">${tspans}</text>`;
+}
+
+function textLineStyles(normalized, count) {
+  const styles = Array.isArray(normalized.lineStyles) ? normalized.lineStyles : [];
+  return Array.from({ length: count }, (_unused, index) => ({
+    scale: Number(styles[index]?.scale) || 1,
+    fontWeight: styles[index]?.fontWeight || null
+  }));
+}
+
+function baselineOffsets(baseFontSize, lineStyles) {
+  if (lineStyles.length <= 1) return [0];
+  const gaps = [];
+  for (let index = 0; index < lineStyles.length - 1; index += 1) {
+    gaps.push(lineBaselineGap(baseFontSize, lineStyles[index], lineStyles[index + 1]));
+  }
+  const total = gaps.reduce((sum, gap) => sum + gap, 0);
+  const offsets = [-total / 2];
+  for (const gap of gaps) offsets.push(offsets.at(-1) + gap);
+  return offsets;
+}
+
+function lineBaselineGap(baseFontSize, first = {}, second = {}) {
+  const firstScale = Number(first.scale) || 1;
+  const secondScale = Number(second.scale) || 1;
+  if (Math.abs(firstScale - secondScale) < 0.05) {
+    return baseFontSize * Math.max(firstScale, secondScale) * 1.15;
+  }
+  return baseFontSize * (firstScale + secondScale) * 0.5;
+}
+
+function lineFontAttributes(lineStyle, baseFontSize) {
+  return `${lineStyle.scale && lineStyle.scale !== 1 ? ` font-size="${format(baseFontSize * lineStyle.scale)}"` : ""}${fontWeightAttribute(lineStyle)}`;
+}
+
+function fontWeightAttribute(lineStyle) {
+  return lineStyle.fontWeight ? ` font-weight="${escapeAttribute(String(lineStyle.fontWeight))}"` : "";
+}
+
+function textFontScale(item) {
+  const scale = Number(item.style?.fontScale);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
 function renderSegmentedTextNode(item, normalized, unit) {
   const lines = splitTextLines(normalized.raw || normalized.text);
   const fallbackLines = (normalized.lines.length ? normalized.lines : lines).map(formatTextLine);
   const color = escapeAttribute(item.style?.fill || "black");
-  const fontFamily = escapeAttribute(item.style?.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1);
+  const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, fallbackLines);
   const x = format(item.x * unit);
   const y = format(-item.y * unit);
   const lineHeight = fontSize * 1.15;
   const startDy = -((lines.length - 1) * lineHeight) / 2;
+  const rects = [];
+  let baseline = 0;
   const tspans = lines
     .map((line, index) => {
       const dy = index === 0 ? startDy : lineHeight;
-      const segments = parseTextColorSegments(line)
+      baseline += dy;
+      const parsedSegments = parseTextColorSegments(line);
+      rects.push(...inlineBoxRects(parsedSegments, item.x * unit, -item.y * unit + baseline, fontSize));
+      const segments = parsedSegments
         .map((segment) => {
           const text = escapeText(formatTextLine(segment.text));
           if (!text) return "";
-          return segment.color ? `<tspan fill="${escapeAttribute(segment.color)}">${text}</tspan>` : text;
+          const fill = segment.background ? "white" : segment.color;
+          return fill ? `<tspan fill="${escapeAttribute(fill)}">${text}</tspan>` : text;
         })
         .join("");
       return `<tspan x="${x}" dy="${format(dy)}">${segments}</tspan>`;
     })
     .join("");
-  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+  const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
     fontSize
   )}" font-family="${fontFamily}">${tspans}</text>`;
+  return rects.length ? `<g>${rects.join("")}${text}</g>` : text;
 }
 
 function hasTextColorSegments(source) {
-  return /\\textcolor\s*\{[^{}]+\}\s*\{[^{}]*\}/.test(String(source || ""));
+  return /\\(?:textcolor|tikzinlinebox)\s*\{[^{}]+\}\s*\{[^{}]*\}/.test(String(source || ""));
 }
 
 function splitTextLines(source) {
   return String(source || "")
     .trim()
     .replace(/\\(?:Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b/g, "")
-    .replace(/\\(?:tt|rm|sf|bfseries|itshape|slshape|scshape)\b/g, "")
+    .replace(/\\(?:tt|rm|sf|bf|bfseries|itshape|slshape|scshape)\b/g, "")
     .split(/\\\\|\n/)
     .map((line) => line.trim())
     .filter((line) => line.length);
@@ -156,16 +243,42 @@ function splitTextLines(source) {
 
 function parseTextColorSegments(line) {
   const segments = [];
-  const pattern = /\\textcolor\s*\{([^{}]+)\}\s*\{([^{}]*)\}/g;
+  const pattern = /\\(textcolor|tikzinlinebox)\s*\{([^{}]+)\}\s*\{([^{}]*)\}/g;
   let cursor = 0;
   let match;
   while ((match = pattern.exec(line))) {
     if (match.index > cursor) segments.push({ text: line.slice(cursor, match.index) });
-    segments.push({ color: match[1].trim(), text: match[2] });
+    const kind = match[1];
+    const color = match[2].trim();
+    const text = match[3];
+    if (kind === "tikzinlinebox") segments.push({ background: color, text });
+    else segments.push({ color, text });
     cursor = match.index + match[0].length;
   }
   if (cursor < line.length) segments.push({ text: line.slice(cursor) });
   return segments.length ? segments : [{ text: line }];
+}
+
+function inlineBoxRects(segments, centerX, baselineY, fontSize) {
+  const charWidth = fontSize * 0.55;
+  const widths = segments.map((segment) => Math.max(segment.text.length * charWidth, segment.background ? fontSize * 0.9 : 0));
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+  const rects = [];
+  let cursor = centerX - totalWidth / 2;
+  segments.forEach((segment, index) => {
+    const width = widths[index];
+    if (segment.background) {
+      const padX = fontSize * 0.12;
+      const height = fontSize * 0.92;
+      rects.push(
+        `<rect x="${format(cursor - padX)}" y="${format(baselineY - height * 0.55)}" width="${format(
+          width + padX * 2
+        )}" height="${format(height)}" fill="${escapeAttribute(segment.background)}" />`
+      );
+    }
+    cursor += width;
+  });
+  return rects;
 }
 
 function formatTextLine(line) {
@@ -185,16 +298,23 @@ function renderRichTextNode(item, normalized, unit) {
   const lines = rawLines.length ? rawLines : normalized.lines.length ? normalized.lines : [normalized.text];
   const fallback = renderPlainTextNode(item, normalized, unit);
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
-  const fontFamily = escapeAttribute(item.style?.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1);
-  const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, lines.map(formatTextLine));
-  const box = estimateRichTextBox(lines, fontSize);
+  const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item);
+  const lineStyles = textLineStyles(normalized, lines.length);
+  const fontSize = fitRichFontSizeToBox(baseFontSize, item.fitBox, unit, lines, lineStyles);
+  const box = estimateRichTextBox(lines, fontSize, lineStyles);
   const x = item.x * unit - box.width / 2;
   const y = -item.y * unit - box.height / 2;
   const htmlLines = lines
-    .map((line) => `<div class="tikz-rich-line">${renderInlineMathHtml(line)}</div>`)
+    .map((line, index) => {
+      const lineStyle = lineStyles[index] || {};
+      const lineFontSize = fontSize * (lineStyle.scale || 1);
+      return `<div class="tikz-rich-line"${fontWeightAttribute(lineStyle)} style="font-size:${format(
+        lineFontSize
+      )}px;">${renderInlineMathHtml(line)}</div>`;
+    })
     .join("");
-  const foreignObject = `<foreignObject requiredExtensions="http://www.w3.org/1999/xhtml" x="${format(x)}" y="${format(
+  const foreignObject = `<foreignObject x="${format(x)}" y="${format(
     y
   )}" width="${format(box.width)}" height="${format(
     box.height
@@ -227,7 +347,7 @@ function renderInlineMathHtml(line) {
   while ((match = pattern.exec(line))) {
     if (match.index > cursor) parts.push(escapeHtml(line.slice(cursor, match.index)));
     parts.push(
-      katex.renderToString(match[1].trim(), {
+      katex.renderToString(normalizeKatexTex(match[1].trim()), {
         displayMode: false,
         output: "html",
         throwOnError: false,
@@ -241,10 +361,22 @@ function renderInlineMathHtml(line) {
   return parts.join("");
 }
 
-function estimateRichTextBox(lines, fontSize) {
+function estimateRichTextBox(lines, fontSize, lineStyles = []) {
   const fallbackLines = lines.map(formatTextLine);
-  const width = Math.max(42, Math.max(...fallbackLines.map((line) => line.length), 0) * fontSize * 0.52 + 18);
-  const height = Math.max(fontSize * 1.15, lines.length * fontSize * 1.12);
+  const width = Math.max(
+    42,
+    Math.max(
+      ...fallbackLines.map((line, index) => {
+        const scale = Number(lineStyles[index]?.scale) || 1;
+        return String(line).length * fontSize * scale * 0.52 + 18;
+      }),
+      0
+    )
+  );
+  const height = Math.max(
+    fontSize * 1.15,
+    lineStyles.reduce((sum, style) => sum + fontSize * (Number(style?.scale) || 1) * 1.12, 0) || lines.length * fontSize * 1.12
+  );
   return { width, height };
 }
 
@@ -281,6 +413,79 @@ function renderImagePlaceholder(item, image, unit) {
   const height = image.height * unit;
   const x = item.x * unit - width / 2;
   const y = -item.y * unit - height / 2;
+  if (image.plot === "gaussian") {
+    const samples = 44;
+    const points = Array.from({ length: samples }, (_unused, index) => {
+      const t = index / (samples - 1);
+      const domain = -3 + t * 6;
+      const value = Math.exp(-domain * domain);
+      return {
+        x: x + width * (0.08 + t * 0.84),
+        y: y + height * (0.82 - value * 0.64)
+      };
+    });
+    const data = points
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${format(point.x)} ${format(point.y)}`)
+      .join(" ");
+    return `<g class="tikz-axis-placeholder"><rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
+      height
+    )}" rx="${format(Math.min(width, height) * 0.05)}" stroke="#111" fill="white" stroke-width="1.2" /><path d="${data}" stroke="black" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></g>`;
+  }
+  if (image.plot === "fm-wave") {
+    const labelHeight = image.label ? Math.max(14, height * 0.28) : 0;
+    const waveHeight = Math.max(18, height - labelHeight);
+    const samples = 120;
+    const points = Array.from({ length: samples }, (_unused, index) => {
+      const t = index / (samples - 1);
+      const carrier = Math.sin(t * Math.PI * 2 * 16 - 2.5 * Math.cos(t * Math.PI * 2));
+      const envelope = 0.35 + 0.65 * Math.sin(t * Math.PI * 2) ** 2;
+      return {
+        x: x + width * (0.04 + t * 0.92),
+        y: y + waveHeight * 0.5 - carrier * envelope * waveHeight * 0.34
+      };
+    });
+    const data = points
+      .map((point, index) => `${index === 0 ? "M" : "L"} ${format(point.x)} ${format(point.y)}`)
+      .join(" ");
+    const label = image.label
+      ? `<text x="${format(item.x * unit)}" y="${format(y + waveHeight + labelHeight * 0.72)}" fill="${escapeAttribute(
+          item.style?.fill || "black"
+        )}" text-anchor="middle" dominant-baseline="middle" font-size="${format(labelHeight * 0.72)}" font-family="${escapeAttribute(
+          TIKZ_FONT_FAMILY
+        )}">${escapeText(image.label)}</text>`
+      : "";
+    return `<g class="tikz-axis-placeholder tikz-fm-wave"><path d="${data}" stroke="black" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />${label}</g>`;
+  }
+  if (image.plot === "wave") {
+    const labelHeight = image.label ? Math.max(12, height * 0.32) : 0;
+    const waveHeight = Math.max(8, height - labelHeight);
+    const waveCount = Math.max(1, Math.round(image.waveCount || 1));
+    const samples = 40;
+    const waves = Array.from({ length: waveCount }, (_unused, waveIndex) => {
+      const bandTop = y + (waveHeight * waveIndex) / waveCount;
+      const bandHeight = waveHeight / waveCount;
+      const waveY = bandTop + bandHeight * 0.5;
+      const points = Array.from({ length: samples }, (_unused2, index) => {
+        const t = index / (samples - 1);
+        return {
+          x: x + width * (0.06 + t * 0.88),
+          y: waveY - Math.sin(t * Math.PI * 4) * bandHeight * 0.28
+        };
+      });
+      const data = points
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${format(point.x)} ${format(point.y)}`)
+        .join(" ");
+      return `<path d="${data}" stroke="black" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+    }).join("");
+    const label = image.label
+      ? `<text x="${format(item.x * unit)}" y="${format(y + waveHeight + labelHeight * 0.72)}" fill="${escapeAttribute(
+          item.style?.fill || "black"
+        )}" text-anchor="middle" dominant-baseline="middle" font-size="${format(labelHeight * 0.75)}" font-family="${escapeAttribute(
+          TIKZ_FONT_FAMILY
+        )}">${escapeText(image.label)}</text>`
+      : "";
+    return `<g class="tikz-image-placeholder tikz-inline-wave">${waves}${label}</g>`;
+  }
   const label = image.fileName.replace(/\.[^.]+$/, "");
   return `<g class="tikz-image-placeholder"><rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
     height
@@ -292,24 +497,25 @@ function renderImagePlaceholder(item, image, unit) {
 }
 
 function renderMathNode(item, math, unit, options = {}) {
-  const box = estimateMathBox(math.tex, math.displayMode, unit, math.scale || 1);
-  box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, unit, [mathFallbackText(math.tex)]);
+  const tex = normalizeKatexTex(math.tex);
+  const box = estimateMathBox(tex, math.displayMode, unit, (math.scale || 1) * textFontScale(item));
+  box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, unit, [mathFallbackText(tex)]);
   const x = item.x * unit - box.width / 2;
   const y = -item.y * unit - box.height / 2;
   const color = escapeAttribute(math.color || item.style?.fill || "black");
   const fallback = `<text x="${format(item.x * unit)}" y="${format(-item.y * unit)}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
     box.fontSize * 0.9
-  )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(mathFallbackText(math.tex))}</text>`;
+  )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(mathFallbackText(tex))}</text>`;
   if (options.mathRenderer === "svg-text") return fallback;
 
-  const html = katex.renderToString(math.tex, {
+  const html = katex.renderToString(tex, {
     displayMode: math.displayMode,
     output: "html",
     throwOnError: false,
     strict: "ignore",
     trust: false
   });
-  const foreignObject = `<foreignObject requiredExtensions="http://www.w3.org/1999/xhtml" x="${format(x)}" y="${format(
+  const foreignObject = `<foreignObject x="${format(x)}" y="${format(
     y
   )}" width="${format(box.width)}" height="${format(
     box.height
@@ -323,6 +529,10 @@ function renderMathNode(item, math, unit, options = {}) {
     TIKZ_FONT_FAMILY
   )};">${html}</div></foreignObject>`;
   return `<switch>${foreignObject}${fallback}</switch>`;
+}
+
+function normalizeKatexTex(tex) {
+  return String(tex || "").replace(/\\mathcal\s*([A-Za-z])/g, String.raw`\mathcal{$1}`);
 }
 
 function renderMarker(item, unit) {
@@ -357,23 +567,11 @@ function pathData(commands, unit) {
     .join(" ");
 }
 
-function parseMathText(value) {
-  const text = String(value).trim();
-  const displayDollar = text.match(/^\$\$([\s\S]+)\$\$$/);
-  if (displayDollar) return { tex: displayDollar[1].trim(), displayMode: true };
-  const inlineDollar = text.match(/^\$([^$]+)\$$/);
-  if (inlineDollar) return { tex: inlineDollar[1].trim(), displayMode: false };
-  const displayBracket = text.match(/^\\\[([\s\S]+)\\\]$/);
-  if (displayBracket) return { tex: displayBracket[1].trim(), displayMode: true };
-  const inlineParen = text.match(/^\\\(([\s\S]+)\\\)$/);
-  if (inlineParen) return { tex: inlineParen[1].trim(), displayMode: false };
-  return null;
-}
-
 function estimateMathBox(tex, displayMode, unit, scale = 1) {
   const fontSize = (displayMode ? TIKZ_DISPLAY_MATH_FONT_SIZE : TIKZ_TEXT_FONT_SIZE) * scale;
-  const width = Math.max(displayMode ? 72 : 42, tex.length * fontSize * 0.62 + 24);
-  const height = (displayMode ? 60 : 34) * scale;
+  const box = estimateFormulaBox(tex, { displayMode, scale });
+  const width = Math.max(displayMode ? 72 : 42, box.width * unit + 12 * scale);
+  const height = Math.max((displayMode ? 46 : 30) * scale, formulaTotalHeight(box) * unit + 8 * scale);
   return {
     fontSize,
     width: Math.min(unit * 8, width),
@@ -391,6 +589,28 @@ function fitFontSizeToBox(baseFontSize, fitBox, unit, lines = [""]) {
   const maxLineLength = Math.max(1, ...lines.map((line) => String(line || "").trim().length));
   const heightLimit = (boxHeight * 0.78) / lineCount;
   const widthLimit = boxWidth / (maxLineLength * 0.62);
+  return Math.max(6, Math.min(baseFontSize, heightLimit, widthLimit));
+}
+
+function fitRichFontSizeToBox(baseFontSize, fitBox, unit, lines = [""], lineStyles = []) {
+  if (!fitBox) return baseFontSize;
+  const boxWidth = Number(fitBox.width) * unit;
+  const boxHeight = Number(fitBox.height) * unit;
+  if (!Number.isFinite(boxWidth) || !Number.isFinite(boxHeight) || boxWidth <= 0 || boxHeight <= 0) return baseFontSize;
+
+  const weightedHeight = Math.max(
+    1,
+    lineStyles.reduce((sum, style) => sum + (Number(style?.scale) || 1), 0) || lines.length
+  );
+  const widthDemand = Math.max(
+    1,
+    ...lines.map((line, index) => {
+      const scale = Number(lineStyles[index]?.scale) || 1;
+      return String(formatTextLine(line) || "").trim().length * scale;
+    })
+  );
+  const heightLimit = (boxHeight * 0.82) / weightedHeight;
+  const widthLimit = boxWidth / (widthDemand * 0.58);
   return Math.max(6, Math.min(baseFontSize, heightLimit, widthLimit));
 }
 
@@ -432,6 +652,16 @@ function renderArrowMarkerDef(marker) {
       ? `M 0 0 L ${format(marker.length)} ${format(halfWidth)} L 0 ${format(marker.width)} C ${format(
           marker.length * 0.22
         )} ${format(marker.width * 0.62)} ${format(marker.length * 0.22)} ${format(marker.width * 0.38)} 0 0 Z`
+      : marker.kind === "latex"
+        ? `M ${format(marker.length)} ${format(halfWidth)} C ${format(marker.length * 0.62)} ${format(
+            marker.width * 0.56
+          )} ${format(marker.length * 0.18)} ${format(marker.width * 0.82)} 0 ${format(marker.width)} C ${format(
+            marker.length * 0.3
+          )} ${format(marker.width * 0.57)} ${format(marker.length * 0.3)} ${format(marker.width * 0.43)} 0 0 C ${format(
+            marker.length * 0.18
+          )} ${format(marker.width * 0.18)} ${format(marker.length * 0.62)} ${format(
+            marker.width * 0.44
+          )} ${format(marker.length)} ${format(halfWidth)} Z`
       : `M 0 0 L ${format(marker.length)} ${format(halfWidth)} L 0 ${format(marker.width)}`;
   const fill = marker.kind === "to" ? "none" : marker.fill;
   const strokeWidth = marker.kind === "to" ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
@@ -508,8 +738,9 @@ function computeBounds(items) {
       const math = parseMathText(normalized.text);
       if (math) {
         const scale = normalized.scale || 1;
-        const width = Math.max(math.displayMode ? 0.72 : 0.42, math.tex.length * 0.16 * scale + 0.24);
-        const height = (math.displayMode ? 0.6 : 0.34) * scale;
+        const box = estimateFormulaBox(math.tex, { displayMode: math.displayMode, scale });
+        const width = box.width + 0.12 * scale;
+        const height = formulaTotalHeight(box) + 0.08 * scale;
         include(item.x - width / 2, item.y - height / 2);
         include(item.x + width / 2, item.y + height / 2);
       } else {

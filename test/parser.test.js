@@ -38,3 +38,33 @@ test("parses calc expressions without splitting path coordinates", () => {
   assert.equal(draw.path.segments[0].kind, "coordinate");
   assert.match(draw.path.segments[0].raw, /\$\(A\)!0\.5!\(B\)\$/);
 });
+
+test("parses TikZ to path options placed before the to keyword", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) [bend left] to (1,0);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+  const toSegment = draw.path.segments.find((segment) => segment.kind === "to");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.ok(toSegment);
+  assert.equal(toSegment.options["bend left"], true);
+});
+
+test("parses compact TikZ arc angle-radius syntax", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (1,0) arc (0:60:1) node at ($(60/2:0.7)$) {$\alpha$};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+  const arc = draw.path.segments.find((segment) => segment.kind === "arc");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.ok(arc);
+  assert.deepEqual(arc.options, { "start angle": "0", "end angle": "60", radius: "1" });
+});

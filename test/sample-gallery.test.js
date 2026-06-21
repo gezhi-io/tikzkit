@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { createSampleGallery } from "../web/sample-gallery.js";
@@ -34,4 +35,18 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.ok(origins.has("Packt GitHub"));
   assert.ok(origins.has("TikZ.net"));
   assert.equal(REAL_GALLERY_CASES.every((item) => item.sourceUrl.startsWith("https://")), true);
+});
+
+test("web entry declares an inline favicon to keep browser console clean", () => {
+  const html = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
+
+  assert.match(html, /<link\s+rel="icon"/);
+  assert.match(html, /href="data:image\/svg\+xml,/);
+});
+
+test("web CSS does not restyle nested KaTeX SVG accents", () => {
+  const css = readFileSync(new URL("../web/styles.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.svg-surface\s*>\s*svg\s*\{/);
+  assert.doesNotMatch(css, /\.svg-surface\s+svg\s*\{/);
 });

@@ -142,13 +142,17 @@ export function pathLength(points) {
 }
 
 export function circleToPath(cx, cy, r) {
+  return ellipseToPath(cx, cy, r, r);
+}
+
+export function ellipseToPath(cx, cy, rx, ry) {
   const k = 0.5522847498307936;
   return [
-    { type: "moveTo", x: cx + r, y: cy },
-    { type: "curveTo", x1: cx + r, y1: cy + k * r, x2: cx + k * r, y2: cy + r, x: cx, y: cy + r },
-    { type: "curveTo", x1: cx - k * r, y1: cy + r, x2: cx - r, y2: cy + k * r, x: cx - r, y: cy },
-    { type: "curveTo", x1: cx - r, y1: cy - k * r, x2: cx - k * r, y2: cy - r, x: cx, y: cy - r },
-    { type: "curveTo", x1: cx + k * r, y1: cy - r, x2: cx + r, y2: cy - k * r, x: cx + r, y: cy },
+    { type: "moveTo", x: cx + rx, y: cy },
+    { type: "curveTo", x1: cx + rx, y1: cy + k * ry, x2: cx + k * rx, y2: cy + ry, x: cx, y: cy + ry },
+    { type: "curveTo", x1: cx - k * rx, y1: cy + ry, x2: cx - rx, y2: cy + k * ry, x: cx - rx, y: cy },
+    { type: "curveTo", x1: cx - rx, y1: cy - k * ry, x2: cx - k * rx, y2: cy - ry, x: cx, y: cy - ry },
+    { type: "curveTo", x1: cx + k * rx, y1: cy - ry, x2: cx + rx, y2: cy - k * ry, x: cx + rx, y: cy },
     { type: "closePath" }
   ];
 }

@@ -37,10 +37,12 @@ export function parseTikz(source, options = {}) {
   }
 
   const pictures = extractTikzPictures(preprocessed.source).map((picture) => {
+    const globalStyles = collectStyleDefinitions(preprocessed.source.slice(0, picture.beginIndex));
     const statements = parseStatements(picture.body, diagnostics);
     return {
       type: "tikzpicture",
       options: parseOptions(picture.optionsRaw),
+      styles: globalStyles,
       body: picture.body,
       statements
     };
@@ -76,6 +78,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\pgftransformcm")) return parsePgfTransformCm(text);
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
   if (text.startsWith("\\tikzset")) return parseTikzsetStatement(text, diagnostics);
+  if (text.startsWith("\\tikzstyle")) return parseTikzstyleStatement(text);
   if (text.startsWith("\\matrix")) return parseMatrix(text);
   if (text.startsWith("\\pic")) return parsePic(text);
   if (text.startsWith("\\toggletrue") || text.startsWith("\\togglefalse") || text.startsWith("\\newtoggle") || text.startsWith("\\color") || text.startsWith("\\braid")) {
@@ -221,6 +224,18 @@ function parseTikzsetStatement(text) {
   };
 }
 
+function parseTikzstyleStatement(text) {
+  const parsed = parseTikzstyleDefinition(text, 0);
+  if (!parsed) return unsupported("tikzstyle", text, "Malformed \\tikzstyle statement");
+  return {
+    type: "tikzset",
+    styles: {
+      [parsed.name]: parseOptions(parsed.options)
+    },
+    raw: text
+  };
+}
+
 function parseMatrix(text) {
   let index = "\\matrix".length;
   let options = {};
@@ -316,12 +331,17 @@ function parseNode(text) {
   index = skipWhitespace(text, beforeLabelOptions.end);
   const label = extractBalanced(text, index, "{", "}");
   if (!label) return unsupported("node", text, "Malformed node text");
+  const trailingPath = text.slice(label.end).trim();
   return {
     type: "node",
     name,
     options,
     at,
     text: label.content,
+    path: trailingPath ? {
+      raw: trailingPath,
+      segments: parsePathSegments(trailingPath)
+    } : null,
     raw: text
   };
 }
@@ -413,6 +433,11 @@ function parsePathSegments(pathText) {
       index += 2;
       continue;
     }
+    if (pathText.startsWith("|-", index) || pathText.startsWith("-|", index)) {
+      segments.push({ kind: "operator", value: pathText.slice(index, index + 2) });
+      index += 2;
+      continue;
+    }
     if (pathText.startsWith("..", index)) {
       const curve = parseCurveSegment(pathText, index);
       if (curve) {
@@ -448,6 +473,26 @@ function parsePathSegments(pathText) {
         segments.push(parsed.segment);
         index = parsed.end;
         continue;
+      }
+    }
+    if (pathText[index] === "[") {
+      const options = parseOptionalOptions(pathText, index);
+      const cursor = skipWhitespace(pathText, options.end);
+      if (options.raw && startsKeyword(pathText, cursor, "to")) {
+        const parsed = parsePathTargetOperation(pathText, cursor, "to", options.options);
+        if (parsed) {
+          segments.push(parsed.segment);
+          index = parsed.end;
+          continue;
+        }
+      }
+      if (options.raw && startsKeyword(pathText, cursor, "edge")) {
+        const parsed = parsePathTargetOperation(pathText, cursor, "edge", options.options);
+        if (parsed) {
+          segments.push(parsed.segment);
+          index = parsed.end;
+          continue;
+        }
       }
     }
     if (startsKeyword(pathText, index, "to")) {
@@ -518,6 +563,22 @@ function parsePathSegments(pathText) {
       if (arcOptions.raw) {
         segments.push({ kind: "arc", options: arcOptions.options });
         index = arcOptions.end;
+        continue;
+      }
+      const compact = extractBalanced(pathText, index, "(", ")");
+      if (compact) {
+        const parts = splitTopLevel(compact.content, ":").map((part) => part.trim());
+        if (parts.length >= 3) {
+          segments.push({
+            kind: "arc",
+            options: {
+              "start angle": parts[0],
+              "end angle": parts[1],
+              radius: parts.slice(2).join(":")
+            }
+          });
+          index = compact.end;
+        }
       }
       continue;
     }
@@ -580,15 +641,22 @@ function parseCurveSegment(pathText, index) {
   };
 }
 
-function parsePathTargetOperation(pathText, index, kind) {
+function parsePathTargetOperation(pathText, index, kind, leadingOptions = {}) {
   let cursor = index + kind.length;
   const options = parseOptionalOptions(pathText, cursor);
   cursor = options.end;
   cursor = skipWhitespace(pathText, cursor);
+  const nodes = [];
+  while (startsKeyword(pathText, cursor, "node")) {
+    const parsedNode = parseInlineNodeSegment(pathText, cursor);
+    if (!parsedNode) break;
+    nodes.push(parsedNode.segment);
+    cursor = skipWhitespace(pathText, parsedNode.end);
+  }
   const target = extractBalanced(pathText, cursor, "(", ")");
   if (!target) return null;
   return {
-    segment: { kind, options: options.options, to: target.content.trim() },
+    segment: { kind, options: { ...leadingOptions, ...options.options }, to: target.content.trim(), nodes },
     end: target.end
   };
 }
@@ -740,15 +808,79 @@ function extractTikzPictures(source) {
     const endIndex = findMatchingEnvironmentEnd(source, cursor, begin, end);
     if (endIndex === -1) break;
     pictures.push({
+      beginIndex,
       optionsRaw: options.raw,
       body: source.slice(cursor, endIndex)
     });
     index = endIndex + end.length;
   }
   if (pictures.length === 0 && source.trim()) {
-    pictures.push({ optionsRaw: "", body: source });
+    pictures.push({ beginIndex: 0, optionsRaw: "", body: source });
   }
   return pictures;
+}
+
+function collectStyleDefinitions(source) {
+  const styles = {};
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith("\\tikzset", index)) {
+      const parsed = parseTikzsetDefinition(source, index);
+      if (parsed) {
+        Object.assign(styles, parsed.styles);
+        index = parsed.end;
+        continue;
+      }
+    }
+    if (source.startsWith("\\tikzstyle", index)) {
+      const parsed = parseTikzstyleDefinition(source, index);
+      if (parsed) {
+        styles[parsed.name] = parseOptions(parsed.options);
+        index = parsed.end;
+        continue;
+      }
+    }
+    index += 1;
+  }
+  return styles;
+}
+
+function parseTikzsetDefinition(source, start) {
+  let index = start + "\\tikzset".length;
+  index = skipWhitespace(source, index);
+  const body = extractBalanced(source, index, "{", "}");
+  if (!body) return null;
+  return {
+    styles: parseTikzset(body.content),
+    end: body.end
+  };
+}
+
+function parseTikzstyleDefinition(source, start) {
+  let index = start + "\\tikzstyle".length;
+  index = skipWhitespace(source, index);
+  let name = null;
+  if (source[index] === "{") {
+    const parsedName = extractBalanced(source, index, "{", "}");
+    if (!parsedName) return null;
+    name = parsedName.content.trim();
+    index = parsedName.end;
+  } else {
+    const match = source.slice(index).match(/^([A-Za-z0-9_./ -]+)/);
+    if (!match) return null;
+    name = match[1].trim();
+    index += match[0].length;
+  }
+  index = skipWhitespace(source, index);
+  if (source[index] !== "=") return null;
+  index = skipWhitespace(source, index + 1);
+  const options = extractBalanced(source, index, "[", "]");
+  if (!name || !options) return null;
+  return {
+    name,
+    options: options.content,
+    end: options.end
+  };
 }
 
 function findMatchingEnvironmentEnd(source, start, begin, end) {
