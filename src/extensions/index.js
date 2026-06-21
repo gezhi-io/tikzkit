@@ -1,6 +1,7 @@
 import { tikzBaguaExtension } from "./tikz-bagua.js";
 import { tikzBpmnExtension } from "./tikz-bpmn.js";
 import { tikzCdExtension } from "./tikz-cd.js";
+import { tikzDecofontsExtension } from "./tikz-decofonts.js";
 import { tikzNetworkExtension } from "./tikz-network.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
 
@@ -9,7 +10,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzThreeDPlotExtension,
   tikzBaguaExtension,
   tikzBpmnExtension,
-  tikzCdExtension
+  tikzCdExtension,
+  tikzDecofontsExtension
 ];
 
 export function applyPreprocessExtensions(source, context = {}) {

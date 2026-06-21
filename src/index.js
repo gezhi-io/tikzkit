@@ -6,6 +6,7 @@ export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/inde
 export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
 export { tikzBpmnExtension } from "./extensions/tikz-bpmn.js";
 export { tikzCdExtension } from "./extensions/tikz-cd.js";
+export { tikzDecofontsExtension } from "./extensions/tikz-decofonts.js";
 export { tikzNetworkExtension } from "./extensions/tikz-network.js";
 export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
 

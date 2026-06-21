@@ -777,11 +777,18 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://ctan.org/pkg/tikz-cd",
     "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-cd/tikz-cd-doc.tex#real-life-examples",
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-cd}\n\\begin{document}\n\\begin{tikzcd}\n  T\n  \\arrow[drr, bend left, \"x\"]\n  \\arrow[ddr, bend right, \"y\"]\n  \\arrow[dr, dotted, \"{(x,y)}\" description] & & \\\\\n    & X \\times_Z Y \\arrow[r, \"p\"] \\arrow[d, \"q\"]\n      & X \\arrow[d, \"f\"] \\\\\n    & Y \\arrow[r, \"g\"]\n      & Z\n\\end{tikzcd}\n\\end{document}"
+  },
+  {
+    "title": "Decorative text effects",
+    "origin": "MacTeX tikz-decofonts",
+    "sourceUrl": "https://ctan.org/pkg/tikz-decofonts",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-decofonts/tikz-decofonts-doc.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-decofonts}\n\\begin{document}\n\\tkzbrush[color=blue]{DECORATION}\n\\tkzink[color=orange,thick=5]{DECORATION}\n\\tkzbicolor[colors=blue/red,style=ndiag]{\\Huge\\sffamily DECORATION}\n\\tkzsurround[color=orange]{$I=\\displaystyle\\int_a^b f(x)\\,\\mathrm{d}x$}\n\\tkzunderline[color=blue,width=1.5pt,height=8mm]{underlining}\n\\tkzcomicbubble[width=3cm,coltxt=red,colframe=teal,colbg=yellow!15,rcorners]{Let's play!}\n\\tkzfittextinarrow[width=4cm,color=teal,txtcolor=yellow]{\\bfseries Demo}\n\\tkzcircledtxt[auto=2,fill=false,rule color=orange]{99}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 111,
+  "caseCount": 112,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -790,6 +797,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzBboxFound": 1,
   "tikzBpmnFound": 1,
   "tikzCdFound": 1,
+  "tikzDecofontsFound": 1,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
@@ -798,6 +806,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-bagua",
     "MacTeX tikz-bbox",
     "MacTeX tikz-bpmn",
-    "MacTeX tikz-cd"
+    "MacTeX tikz-cd",
+    "MacTeX tikz-decofonts"
   ]
 };

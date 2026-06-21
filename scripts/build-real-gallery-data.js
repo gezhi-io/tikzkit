@@ -330,6 +330,27 @@ const TIKZ_CD_CASES = [
   }
 ];
 
+const TIKZ_DECOFONTS_CASES = [
+  {
+    title: "Decorative text effects",
+    origin: "MacTeX tikz-decofonts",
+    sourceUrl: "https://ctan.org/pkg/tikz-decofonts",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-decofonts/tikz-decofonts-doc.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-decofonts}
+\begin{document}
+\tkzbrush[color=blue]{DECORATION}
+\tkzink[color=orange,thick=5]{DECORATION}
+\tkzbicolor[colors=blue/red,style=ndiag]{\Huge\sffamily DECORATION}
+\tkzsurround[color=orange]{$I=\displaystyle\int_a^b f(x)\,\mathrm{d}x$}
+\tkzunderline[color=blue,width=1.5pt,height=8mm]{underlining}
+\tkzcomicbubble[width=3cm,coltxt=red,colframe=teal,colbg=yellow!15,rcorners]{Let's play!}
+\tkzfittextinarrow[width=4cm,color=teal,txtcolor=yellow]{\bfseries Demo}
+\tkzcircledtxt[auto=2,fill=false,rule color=orange]{99}
+\end{document}`
+  }
+];
+
 const petarVFiles = await walkTex(PETARV_ROOT);
 const packtFiles = await walkTex(PACKT_ROOT);
 const petarVCases = [];
@@ -370,7 +391,8 @@ const selected = [
   ...TIKZ_BAGUA_CASES,
   ...TIKZ_BBOX_CASES,
   ...TIKZ_BPMN_CASES,
-  ...TIKZ_CD_CASES
+  ...TIKZ_CD_CASES,
+  ...TIKZ_DECOFONTS_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -388,7 +410,8 @@ await writeFile(
     tikzBaguaFound: TIKZ_BAGUA_CASES.length,
     tikzBboxFound: TIKZ_BBOX_CASES.length,
     tikzBpmnFound: TIKZ_BPMN_CASES.length,
-    tikzCdFound: TIKZ_CD_CASES.length
+    tikzCdFound: TIKZ_CD_CASES.length,
+    tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length
   }),
   "utf8"
 );

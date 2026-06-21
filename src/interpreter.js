@@ -2104,6 +2104,12 @@ function semanticSubtype(options = {}) {
   if (options["bagua taiji fill"]) return "bagua-taiji-fill";
   if (options["bagua taiji outline"]) return "bagua-taiji-outline";
   if (options["bagua taiji eye"]) return "bagua-taiji-eye";
+  if (options["decofonts pixl"]) return "decofonts-pixl";
+  if (options["decofonts surround"]) return "decofonts-surround";
+  if (options["decofonts underline"]) return "decofonts-underline";
+  if (options["decofonts fit arrow"]) return "decofonts-fit-arrow";
+  if (options["decofonts brush"]) return "decofonts-brush";
+  if (options["decofonts ink"]) return "decofonts-ink";
   return undefined;
 }
 
