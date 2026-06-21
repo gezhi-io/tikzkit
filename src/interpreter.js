@@ -2351,6 +2351,8 @@ function semanticSubtype(options = {}) {
   for (const key of Object.keys(options)) {
     if (key.startsWith("palattice ")) return `palattice-${key.slice("palattice ".length).trim().replace(/\s+/g, "-")}`;
   }
+  if (options["qtree roof"]) return "qtree-roof";
+  if (options["qtree edge"]) return "qtree-edge";
   return undefined;
 }
 

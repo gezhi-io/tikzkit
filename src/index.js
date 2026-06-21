@@ -13,6 +13,7 @@ export { tikzFeynhandExtension } from "./extensions/tikz-feynhand.js";
 export { tikzFeynmanExtension } from "./extensions/tikz-feynman.js";
 export { tikzNetworkExtension } from "./extensions/tikz-network.js";
 export { tikzPalatticeExtension } from "./extensions/tikz-palattice.js";
+export { tikzQtreeExtension } from "./extensions/tikz-qtree.js";
 export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
 
 import { parseTikz } from "./parser.js";

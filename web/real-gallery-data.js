@@ -828,6 +828,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage[english]{babel}\n\\usepackage{tikz-palattice}\n\\begin{document}\n\\begin{lattice}\n  \\source{Gun}{0.4}\n  \\drift{0.167}\n  \\quadrupole{Q1}{0.4}\n  \\drift{0.1}\n  \\kicker{K1}{0.12}\n  \\drift{0.2}\n  \\screen{S1}\n  \\drift{0.2}\n  \\cavity{RF}{0.8}\n  \\drift{0.35}\n  \\dipole{B1}{0.65}{45}[r]\n  \\drift{0.25}\n  \\sextupole{SX}{0.25}\n  \\marker{BPM}[0.55]\n  \\rotate{45}\n  \\drift{0.5}[diagnostics]\n  \\savecoordinate{tap}[center]\n  \\goto{tap}\n  \\setangle{0}\n  \\valve{V1}\n  \\completelegend{(0,-1.4)}\n\\end{lattice}\n\\end{document}"
   },
   {
+    "title": "Qtree linguistic syntax tree",
+    "origin": "MacTeX tikz-qtree",
+    "sourceUrl": "https://ctan.org/pkg/tikz-qtree",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-qtree/tikz-qtree-manual.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usepackage{tikz-qtree}\n\\begin{document}\n\\begin{tikzpicture}[level distance=40pt,sibling distance=18pt]\n\\Tree [.S [.NP [.Det the ] [.N cat ] ]\n          [.VP [.V sat ]\n               [.PP [.P on ]\n                    [.NP \\edge[roof]; {a very soft mat} ] ] ] ]\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -872,7 +879,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 124,
+  "caseCount": 125,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -888,6 +895,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzFeynhandFound": 1,
   "tikzFeynmanFound": 1,
   "tikzPalatticeFound": 1,
+  "tikzQtreeFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -904,6 +912,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-ext",
     "MacTeX tikz-feynhand",
     "MacTeX tikz-feynman",
-    "MacTeX tikz-palattice"
+    "MacTeX tikz-palattice",
+    "MacTeX tikz-qtree"
   ]
 };

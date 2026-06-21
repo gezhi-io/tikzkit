@@ -457,6 +457,26 @@ const TIKZ_PALATTICE_CASES = [
   }
 ];
 
+const TIKZ_QTREE_CASES = [
+  {
+    title: "Qtree linguistic syntax tree",
+    origin: "MacTeX tikz-qtree",
+    sourceUrl: "https://ctan.org/pkg/tikz-qtree",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-qtree/tikz-qtree-manual.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usepackage{tikz-qtree}
+\begin{document}
+\begin{tikzpicture}[level distance=40pt,sibling distance=18pt]
+\Tree [.S [.NP [.Det the ] [.N cat ] ]
+          [.VP [.V sat ]
+               [.PP [.P on ]
+                    [.NP \edge[roof]; {a very soft mat} ] ] ] ]
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -703,6 +723,7 @@ const selected = [
   ...TIKZ_FEYNHAND_CASES,
   ...TIKZ_FEYNMAN_CASES,
   ...TIKZ_PALATTICE_CASES,
+  ...TIKZ_QTREE_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -729,6 +750,7 @@ await writeFile(
     tikzFeynhandFound: TIKZ_FEYNHAND_CASES.length,
     tikzFeynmanFound: TIKZ_FEYNMAN_CASES.length,
     tikzPalatticeFound: TIKZ_PALATTICE_CASES.length,
+    tikzQtreeFound: TIKZ_QTREE_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"
