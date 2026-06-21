@@ -821,6 +821,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage[compat=1.1.0]{tikz-feynman}\n\\begin{document}\n\\begin{tikzpicture}\n\\begin{feynman}\n  \\vertex (i1) at (0,1.2) {\\(e^{-}\\)};\n  \\vertex (i2) at (0,-1.2) {\\(e^{+}\\)};\n  \\vertex [dot] (a) at (1.35,0) {};\n  \\vertex [dot] (b) at (3.05,0) {};\n  \\vertex (f1) at (4.4,1.2) {\\(\\mu^{-}\\)};\n  \\vertex (f2) at (4.4,-1.2) {\\(\\mu^{+}\\)};\n  \\vertex (g) at (3.05,1.55) {\\(g\\)};\n  \\vertex (s) at (3.05,-1.55) {\\(\\tilde q\\)};\n  \\diagram* {\n    (i1) -- [fermion] (a) -- [photon, edge label=\\(\\gamma\\), momentum'=\\(k\\)] (b) -- [fermion] (f1),\n    (i2) -- [anti fermion] (a),\n    (b) -- [anti fermion] (f2),\n    (b) -- [gluon] (g),\n    (b) -- [charged scalar, edge label'=\\(m\\)] (s);\n  };\n\\end{feynman}\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "Particle accelerator lattice elements",
+    "origin": "MacTeX tikz-palattice",
+    "sourceUrl": "https://ctan.org/pkg/tikz-palattice",
+    "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-palattice/tikz-palattice_documentation.tex",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage[english]{babel}\n\\usepackage{tikz-palattice}\n\\begin{document}\n\\begin{lattice}\n  \\source{Gun}{0.4}\n  \\drift{0.167}\n  \\quadrupole{Q1}{0.4}\n  \\drift{0.1}\n  \\kicker{K1}{0.12}\n  \\drift{0.2}\n  \\screen{S1}\n  \\drift{0.2}\n  \\cavity{RF}{0.8}\n  \\drift{0.35}\n  \\dipole{B1}{0.65}{45}[r]\n  \\drift{0.25}\n  \\sextupole{SX}{0.25}\n  \\marker{BPM}[0.55]\n  \\rotate{45}\n  \\drift{0.5}[diagnostics]\n  \\savecoordinate{tap}[center]\n  \\goto{tap}\n  \\setangle{0}\n  \\valve{V1}\n  \\completelegend{(0,-1.4)}\n\\end{lattice}\n\\end{document}"
+  },
+  {
     "title": "3D rotated frame with spherical guides",
     "origin": "MacTeX tikz-3dplot",
     "sourceUrl": "https://ctan.org/pkg/tikz-3dplot",
@@ -865,7 +872,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 123,
+  "caseCount": 124,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -880,6 +887,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzExtFound": 1,
   "tikzFeynhandFound": 1,
   "tikzFeynmanFound": 1,
+  "tikzPalatticeFound": 1,
   "richExtensionFound": 6,
   "origins": [
     "PetarV-/TikZ",
@@ -895,6 +903,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-dimline",
     "MacTeX tikz-ext",
     "MacTeX tikz-feynhand",
-    "MacTeX tikz-feynman"
+    "MacTeX tikz-feynman",
+    "MacTeX tikz-palattice"
   ]
 };

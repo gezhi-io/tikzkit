@@ -2348,6 +2348,9 @@ function semanticSubtype(options = {}) {
   if (options["feynman scalar"]) return "feynman-scalar";
   if (options["feynman ghost"]) return "feynman-ghost";
   if (options["feynman majorana"]) return "feynman-majorana";
+  for (const key of Object.keys(options)) {
+    if (key.startsWith("palattice ")) return `palattice-${key.slice("palattice ".length).trim().replace(/\s+/g, "-")}`;
+  }
   return undefined;
 }
 

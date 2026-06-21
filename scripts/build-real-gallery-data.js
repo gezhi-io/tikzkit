@@ -420,6 +420,43 @@ const TIKZ_FEYNMAN_CASES = [
   }
 ];
 
+const TIKZ_PALATTICE_CASES = [
+  {
+    title: "Particle accelerator lattice elements",
+    origin: "MacTeX tikz-palattice",
+    sourceUrl: "https://ctan.org/pkg/tikz-palattice",
+    path: "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-palattice/tikz-palattice_documentation.tex",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage[english]{babel}
+\usepackage{tikz-palattice}
+\begin{document}
+\begin{lattice}
+  \source{Gun}{0.4}
+  \drift{0.167}
+  \quadrupole{Q1}{0.4}
+  \drift{0.1}
+  \kicker{K1}{0.12}
+  \drift{0.2}
+  \screen{S1}
+  \drift{0.2}
+  \cavity{RF}{0.8}
+  \drift{0.35}
+  \dipole{B1}{0.65}{45}[r]
+  \drift{0.25}
+  \sextupole{SX}{0.25}
+  \marker{BPM}[0.55]
+  \rotate{45}
+  \drift{0.5}[diagnostics]
+  \savecoordinate{tap}[center]
+  \goto{tap}
+  \setangle{0}
+  \valve{V1}
+  \completelegend{(0,-1.4)}
+\end{lattice}
+\end{document}`
+  }
+];
+
 const TIKZ_BPMN_CASES = [
   {
     title: "BPMN task, events, gateways, and flows",
@@ -665,6 +702,7 @@ const selected = [
   ...TIKZ_EXT_CASES,
   ...TIKZ_FEYNHAND_CASES,
   ...TIKZ_FEYNMAN_CASES,
+  ...TIKZ_PALATTICE_CASES,
   ...RICH_EXTENSION_CASES
 ];
 
@@ -690,6 +728,7 @@ await writeFile(
     tikzExtFound: TIKZ_EXT_CASES.length,
     tikzFeynhandFound: TIKZ_FEYNHAND_CASES.length,
     tikzFeynmanFound: TIKZ_FEYNMAN_CASES.length,
+    tikzPalatticeFound: TIKZ_PALATTICE_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length
   }),
   "utf8"
