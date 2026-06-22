@@ -1,5 +1,105 @@
 import { mathFallbackText } from "./tex-text.js";
 
+const TEX_PT_PER_CM = 28.45274;
+
+const CMR10_WIDTH_PT = {
+  " ": 3.333,
+  "!": 2.778,
+  "\"": 5,
+  "#": 8.333,
+  "$": 5,
+  "%": 8.333,
+  "&": 7.778,
+  "'": 2.778,
+  "(": 3.889,
+  ")": 3.889,
+  "*": 5,
+  "+": 7.778,
+  ",": 2.778,
+  "-": 3.333,
+  ".": 2.778,
+  "/": 5,
+  "0": 5,
+  "1": 5,
+  "2": 5,
+  "3": 5,
+  "4": 5,
+  "5": 5,
+  "6": 5,
+  "7": 5,
+  "8": 5,
+  "9": 5,
+  ":": 2.778,
+  ";": 2.778,
+  "<": 7.778,
+  "=": 7.778,
+  ">": 7.778,
+  "?": 4.722,
+  "@": 7.778,
+  A: 7.5,
+  B: 7.083,
+  C: 7.222,
+  D: 7.639,
+  E: 6.806,
+  F: 6.528,
+  G: 7.847,
+  H: 7.5,
+  I: 3.611,
+  J: 5.139,
+  K: 7.778,
+  L: 6.25,
+  M: 9.167,
+  N: 7.5,
+  O: 7.778,
+  P: 6.806,
+  Q: 7.778,
+  R: 7.361,
+  S: 5.556,
+  T: 7.222,
+  U: 7.5,
+  V: 7.5,
+  W: 10.278,
+  X: 7.5,
+  Y: 7.5,
+  Z: 6.111,
+  "[": 2.778,
+  "\\": 5,
+  "]": 2.778,
+  "^": 5,
+  "_": 5,
+  "`": 2.778,
+  a: 5,
+  b: 5.556,
+  c: 4.444,
+  d: 5.556,
+  e: 4.444,
+  f: 3.056,
+  g: 5,
+  h: 5.556,
+  i: 2.778,
+  j: 3.056,
+  k: 5.278,
+  l: 2.778,
+  m: 8.333,
+  n: 5.556,
+  o: 5,
+  p: 5.556,
+  q: 5.278,
+  r: 3.922,
+  s: 3.944,
+  t: 3.889,
+  u: 5.556,
+  v: 5.278,
+  w: 7.222,
+  x: 5.278,
+  y: 5.278,
+  z: 4.444,
+  "{": 5,
+  "|": 2.778,
+  "}": 5,
+  "~": 5
+};
+
 const SCRIPT_CHAR_PATTERN =
   /[₀₁₂₃₄₅₆₇₈₉ₐᵦₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ₊₋₌₍₎⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]/u;
 
@@ -40,11 +140,16 @@ export function formulaTotalHeight(box) {
 export function mathTextMetricUnits(line) {
   const chars = [...String(line || "").trim()];
   let units = 0;
-  let superscript = false;
+  let scriptMode = null;
   for (const char of chars) {
     if (char === "\u20d7" || char === "\u0302" || char === "\u0304") continue;
     if (char === "^") {
-      superscript = true;
+      scriptMode = "super";
+      units += 0.1;
+      continue;
+    }
+    if (char === "_") {
+      scriptMode = "sub";
       units += 0.1;
       continue;
     }
@@ -52,9 +157,9 @@ export function mathTextMetricUnits(line) {
       units += 0.45;
       continue;
     }
-    if (superscript) {
+    if (scriptMode) {
       if (/\s/.test(char)) {
-        superscript = false;
+        scriptMode = null;
         units += 0.25;
       } else {
         units += 0.45;
@@ -70,6 +175,15 @@ export function mathTextMetricUnits(line) {
   return units;
 }
 
+export function texTextWidthCm(line, scale = 1) {
+  const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  let widthPt = 0;
+  for (const char of [...String(line || "")]) {
+    widthPt += CMR10_WIDTH_PT[char] ?? (SCRIPT_CHAR_PATTERN.test(char) ? 3.2 : 5);
+  }
+  return (widthPt / TEX_PT_PER_CM) * factor;
+}
+
 function estimateFormulaParts(tex, scale, metric) {
   // Claude: 原版完全没有 \begin{matrix} 的尺寸感知 —— 矩阵的宽度按「所有单元格摊平成一行」
   // 来算（巨宽），高度只按一行算（巨扁），结果 display 矩阵的 SVG 盒子被估成又宽又扁，
@@ -78,8 +192,8 @@ function estimateFormulaParts(tex, scale, metric) {
   if (matrixBox) return matrixBox;
 
   let width = fallbackWidth(tex, scale, metric);
-  let height = 0.26 * scale;
-  let depth = 0.09 * scale;
+  let height = 0.25 * scale;
+  let depth = 0.04 * scale;
 
   for (const fraction of readCommandPairs(tex, ["frac", "dfrac", "tfrac"])) {
     const numerator = estimateFormulaParts(fraction.first, scale * 0.9, metric);
@@ -106,7 +220,7 @@ function estimateFormulaParts(tex, scale, metric) {
     }
   } else if (/[^^]\\?[_^]|^\\?[_^]/.test(tex)) {
     if (hasSuperscript(tex)) height = Math.max(height, 0.34 * scale);
-    if (hasSubscript(tex)) depth = Math.max(depth, 0.14 * scale);
+    if (hasSubscript(tex)) depth = Math.max(depth, 0.085 * scale);
   }
 
   if (/\\(?:int|oint)(?![A-Za-z])/.test(tex)) {

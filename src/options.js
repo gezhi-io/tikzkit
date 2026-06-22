@@ -22,6 +22,57 @@ const NAMED_COLORS = new Set([
   "pink"
 ]);
 
+for (const color of [
+  "aqua",
+  "aquamarine",
+  "blueviolet",
+  "chartreuse",
+  "coral",
+  "cornflowerblue",
+  "crimson",
+  "darkblue",
+  "darkcyan",
+  "darkgray",
+  "darkgreen",
+  "darkgrey",
+  "darkmagenta",
+  "darkorange",
+  "darkred",
+  "darkviolet",
+  "deeppink",
+  "deepskyblue",
+  "fuchsia",
+  "gold",
+  "goldenrod",
+  "greenyellow",
+  "indigo",
+  "lightblue",
+  "lightcyan",
+  "lightgray",
+  "lightgreen",
+  "lightgrey",
+  "lightpink",
+  "lime",
+  "limegreen",
+  "maroon",
+  "navy",
+  "none",
+  "olive",
+  "orchid",
+  "plum",
+  "rebeccapurple",
+  "salmon",
+  "silver",
+  "skyblue",
+  "teal",
+  "transparent",
+  "turquoise",
+  "violet",
+  "yellowgreen"
+]) {
+  NAMED_COLORS.add(color);
+}
+
 export function splitTopLevel(input, delimiter = ",") {
   const parts = [];
   let current = "";
@@ -74,14 +125,22 @@ export function parseOptions(input = "") {
   for (const part of splitTopLevel(input, ",")) {
     const equals = findTopLevel(part, "=");
     if (equals === -1) {
-      options[part.trim()] = true;
+      setParsedOption(options, part.trim(), true);
       continue;
     }
     const key = part.slice(0, equals).trim();
     const value = stripOuterBraces(part.slice(equals + 1).trim());
-    options[key] = value;
+    setParsedOption(options, key, value);
   }
   return options;
+}
+
+function setParsedOption(options, key, value) {
+  if (isRepeatableOption(key) && Object.hasOwn(options, key)) {
+    options[key] = [...optionValues(options[key]), value];
+    return;
+  }
+  options[key] = value;
 }
 
 export function parseTikzset(input = "") {
@@ -111,6 +170,7 @@ export function normalizeOptions(command, rawOptions, env) {
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
   let pendingDashPattern;
+  let pendingDashKey;
 
   for (const [key, value] of Object.entries(expanded)) {
     const arrowHints = parseArrowOption(key, value, defaultArrowTip);
@@ -123,16 +183,12 @@ export function normalizeOptions(command, rawOptions, env) {
     }
     if (value === true && isColorToken(key)) {
       const color = normalizeColor(key);
-      if (command === "node") applyNodeColor(style, color);
-      else if (command === "fill") style.fill = color;
-      else style.stroke = color;
+      applyCurrentColor(style, color, command);
       continue;
     }
     if (key.includes("!")) {
       const color = normalizeColor(key);
-      if (command === "node") applyNodeColor(style, color);
-      else if (command === "fill") style.fill = color;
-      else style.stroke = color;
+      applyCurrentColor(style, color, command);
       continue;
     }
     if (key === "draw") {
@@ -143,18 +199,37 @@ export function normalizeOptions(command, rawOptions, env) {
       style.fill = value === true ? "black" : normalizeColor(String(value));
       continue;
     }
+    if (key === "top color" || key === "bottom color" || key === "middle color") {
+      semantic[key] = normalizeColor(String(value));
+      continue;
+    }
     if (key === "color") {
       const color = normalizeColor(String(value));
-      if (command === "node") applyNodeColor(style, color);
-      else style.stroke = color;
+      applyCurrentColor(style, color, command);
       continue;
     }
     if (key === "text") {
       style.textFill = normalizeColor(String(value));
       continue;
     }
+    if (key === "pattern") {
+      style.pattern = String(value || "").trim();
+      continue;
+    }
+    if (key === "pattern color") {
+      style.patternColor = normalizeColor(String(value));
+      continue;
+    }
     if (key === "line width") {
       style.lineWidth = lineWidthFromTikzDimension(value, style.lineWidth);
+      continue;
+    }
+    if (key === "line cap") {
+      style.lineCap = normalizeLineCap(value);
+      continue;
+    }
+    if (key === "line join") {
+      style.lineJoin = normalizeLineJoin(value);
       continue;
     }
     if (key === "ultra thin") {
@@ -187,10 +262,12 @@ export function normalizeOptions(command, rawOptions, env) {
     }
     if (key === "dash pattern") {
       pendingDashPattern = value;
+      pendingDashKey = key;
       continue;
     }
     if (Object.hasOwn(TIKZ_DASH_PATTERN_STYLES, key)) {
       pendingDashPattern = TIKZ_DASH_PATTERN_STYLES[key];
+      pendingDashKey = key;
       continue;
     }
     if (key === "opacity") {
@@ -214,15 +291,47 @@ export function normalizeOptions(command, rawOptions, env) {
 
   if (pendingDashPattern !== undefined) {
     style.dashArray = parseDashPattern(pendingDashPattern, style.lineWidth);
+    if (style.dashArray) style.dashLineCap = "butt";
   }
 
   return { style, semantic, options: expanded };
+}
+
+function normalizeLineCap(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (text === "round") return "round";
+  if (text === "rect" || text === "square") return "square";
+  return "butt";
+}
+
+function normalizeLineJoin(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (text === "round") return "round";
+  if (text === "bevel") return "bevel";
+  return "miter";
 }
 
 function applyNodeColor(style, color) {
   style.textFill = color;
   if (style.stroke !== "none") style.stroke = color;
   if (style.fill !== "none") style.fill = color;
+}
+
+function applyCurrentColor(style, color, command) {
+  if (command === "node") {
+    applyNodeColor(style, color);
+    return;
+  }
+  if (command === "fill") {
+    style.fill = color;
+    return;
+  }
+  if (command === "filldraw") {
+    style.stroke = color;
+    style.fill = color;
+    return;
+  }
+  style.stroke = color;
 }
 
 export function arrowTipsFromOptions(rawOptions = {}) {
@@ -346,18 +455,18 @@ function parseArrowTipSpec(input) {
 
 function isColorToken(value) {
   const text = String(value).trim();
-  return NAMED_COLORS.has(text) || text.includes("!") || /^#[0-9a-f]{6}$/i.test(text) || /^rgb\s*\(/i.test(text);
+  return isPlainColor(text) || text.includes("!");
 }
 
 export function normalizeColor(value) {
   const text = String(value).trim();
   const rgb = text.match(/^rgb\s*:\s*red\s*,\s*(\d+)\s*;\s*green\s*,\s*(\d+)\s*;\s*blue\s*,\s*(\d+)$/);
   if (rgb) return `rgb(${rgb[1]} ${rgb[2]} ${rgb[3]})`;
-  if (!text.includes("!")) return text;
+  if (!text.includes("!")) return isPlainColor(text) ? text : "black";
   const parts = text.split("!").map((part) => part.trim()).filter(Boolean);
   if (!parts.length) return text;
   let current = colorToRgb(parts[0]);
-  if (!current) return parts[0];
+  if (!current) return isPlainColor(parts[0]) ? parts[0] : "black";
   for (let index = 1; index < parts.length; index += 2) {
     const amount = Number(parts[index]);
     if (!Number.isFinite(amount)) return rgbToCss(current);
@@ -368,11 +477,21 @@ export function normalizeColor(value) {
   return rgbToCss(current);
 }
 
+function isPlainColor(value) {
+  const text = String(value).trim();
+  return (
+    NAMED_COLORS.has(text.toLowerCase()) ||
+    /^#[0-9a-f]{3}(?:[0-9a-f]{3})?(?:[0-9a-f]{2})?$/i.test(text) ||
+    /^rgba?\s*\(/i.test(text) ||
+    /^hsla?\s*\(/i.test(text)
+  );
+}
+
 const BASIC_COLOR_RGB = {
   black: [0, 0, 0],
   white: [255, 255, 255],
   red: [255, 0, 0],
-  green: [0, 128, 0],
+  green: [0, 255, 0],
   blue: [0, 0, 255],
   cyan: [0, 255, 255],
   magenta: [255, 0, 255],
@@ -454,6 +573,24 @@ function mergeOptionOrder(target, source) {
 }
 
 function setOrderedOption(options, key, value) {
+  if (isRepeatableOption(key) && Object.hasOwn(options, key)) {
+    options[key] = [...optionValues(options[key]), ...optionValues(value)];
+    return;
+  }
+  if (key === "nodes" && Object.hasOwn(options, key) && options[key] !== true && value !== true) {
+    const previous = options[key];
+    delete options[key];
+    options[key] = `${previous},${value}`;
+    return;
+  }
   if (Object.hasOwn(options, key)) delete options[key];
   options[key] = value;
+}
+
+function isRepeatableOption(key) {
+  return key === "label" || key === "general shadow";
+}
+
+function optionValues(value) {
+  return Array.isArray(value) ? value : [value];
 }

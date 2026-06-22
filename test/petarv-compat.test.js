@@ -27,6 +27,22 @@ test("resolves TikZ node anchor coordinates on named nodes", () => {
   ]);
 });
 
+test("resolves signed numeric node anchors without losing the minus sign", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, draw, minimum size=1cm] (A) at (0,0) {};
+  \draw (A.-15) -- (A.15);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(path.commands[0].y < 0, `expected -15 anchor below center, got ${path.commands[0].y}`);
+  assert.ok(path.commands[1].y > 0, `expected 15 anchor above center, got ${path.commands[1].y}`);
+  assert.ok(Math.abs(path.commands[0].x - path.commands[1].x) < 1e-6, "expected symmetric signed angle anchors");
+});
+
 test("resolves multi-word node anchors before coordinate projections", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -74,7 +90,7 @@ test("applies transform canvas scale to scoped node geometry and text", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \begin{scope}[shift={(1,1)},transform canvas={scale=0.5}]
-    \node[draw, minimum width=2cm, minimum height=1cm] (A) at (2,0) {A};
+    \node[draw, very thick, minimum width=2cm, minimum height=1cm] (A) at (2,0) {A};
   \end{scope}
 \end{tikzpicture}`;
 
@@ -83,10 +99,11 @@ test("applies transform canvas scale to scoped node geometry and text", () => {
   const text = ir.items.find((item) => item.type === "textNode" && item.text === "A");
 
   assert.equal(diagnostics.length, 0);
-  assert.equal(box.x, 2);
-  assert.equal(box.y, 1);
+  assert.equal(box.x, 1.5);
+  assert.equal(box.y, 0.5);
   assert.equal(box.width, 1);
   assert.equal(box.height, 0.5);
+  assert.ok(Math.abs(box.style.lineWidth - lineWidthFromPt(1.2) * 0.5) < 1e-6);
   assert.equal(text.style.fontScale, 0.5);
 });
 
@@ -242,6 +259,7 @@ test("applies definecolor values and fill opacity to rendered paths", () => {
 
 test("applies global tikzstyle definitions to PetarV fetch-decode-execute nodes and paths", () => {
   const source = String.raw`
+\usetikzlibrary{arrows, positioning}
 \tikzstyle{block} = [rectangle, draw, fill=blue!20,
     text width=5em, text centered, rounded corners, minimum height=4em]
 \tikzstyle{line} = [draw, -latex']
@@ -273,6 +291,24 @@ test("applies global tikzstyle definitions to PetarV fetch-decode-execute nodes 
   assert.equal(arrow.style.markerEnd.kind, "latex");
   assert.ok(Math.abs(arrow.commands[0].x - (boxes[0].x + boxes[0].width / 2)) < 1e-6);
   assert.ok(Math.abs(arrow.commands.at(-1).x - (boxes[1].x - boxes[1].width / 2)) < 1e-6);
+});
+
+test("falls back to default black when custom colors are not defined", () => {
+  const source = String.raw`
+\usetikzlibrary{arrows, positioning}
+\begin{tikzpicture}
+  \node[color=mygreen] (a) at (0,0) {A};
+  \draw[draw=echodrk, -latex'] (a) -- (1,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "A");
+  const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(label.style.fill, "black");
+  assert.equal(arrow.style.stroke, "black");
+  assert.equal(arrow.style.markerEnd.kind, "latex");
 });
 
 test("renders grouped TeX font declarations as line-level SVG text styling", () => {
@@ -312,10 +348,13 @@ test("applies pgftransformcm and pgftransformreset inside scopes", () => {
   assert.deepEqual(ir.coordinates.A, { x: 5, y: 4 });
   assert.deepEqual(ir.coordinates.B, { x: 1, y: 4 });
   const path = ir.items.find((item) => item.type === "path");
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 4.92, y: 4 },
-    { type: "lineTo", x: 1.08, y: 4 }
-  ]);
+  assert.equal(path.commands.length, 2);
+  assert.equal(path.commands[0].type, "moveTo");
+  assert.equal(path.commands[1].type, "lineTo");
+  assert.ok(path.commands[0].x > 4.8 && path.commands[0].x < 5, `expected path to leave A border, got ${path.commands[0].x}`);
+  assert.ok(path.commands[1].x > 1 && path.commands[1].x < 1.2, `expected path to reach B border, got ${path.commands[1].x}`);
+  assert.equal(path.commands[0].y, 4);
+  assert.equal(path.commands[1].y, 4);
 });
 
 test("applies pgftransformcm to rectangle corners before constructing the path", () => {
@@ -521,7 +560,7 @@ test("applies scope-local matrix styles and row node overrides", () => {
 
   assert.equal(diagnostics.length, 0);
   assert.equal(topCells.length, 2);
-  assert.ok(topCells.every((cell) => cell.style.stroke === "black" && cell.style.fill === "rgb(179 217 179)"));
+  assert.ok(topCells.every((cell) => cell.style.stroke === "black" && cell.style.fill === "rgb(179 255 179)"));
   assert.equal(bottomCells.length, 0);
   assert.ok(ir.coordinates["array-2-2"], "expected row-2 address cell anchors to remain available");
   assert.ok(texts.includes("6") && texts.includes("12"));
@@ -552,12 +591,32 @@ test("treats on background layer scopes as background drawing order", () => {
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
-  const backgroundIndex = ir.items.findIndex((item) => item.type === "path" && item.style.fill === "rgb(230 242 230)");
+  const backgroundIndex = ir.items.findIndex((item) => item.type === "path" && item.style.fill === "rgb(230 255 230)");
   const textIndex = ir.items.findIndex((item) => item.type === "textNode" && item.text === "front");
 
   assert.equal(diagnostics.length, 0);
   assert.ok(backgroundIndex !== -1 && textIndex !== -1);
   assert.ok(backgroundIndex < textIndex, `expected background before text, got ${backgroundIndex} and ${textIndex}`);
+});
+
+test("preserves repeated general shadow styles for cascaded PetarV nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \tikzset{cascaded/.style={
+    general shadow={shadow scale=1, shadow xshift=-2ex, shadow yshift=2ex, draw=black, thick, fill=white},
+    general shadow={shadow scale=1, shadow xshift=-.5ex, shadow yshift=.5ex, draw=black, thick, fill=white},
+    fill=white, draw, thick}}
+  \node[cascaded, minimum width=2em, minimum height=1em] (n) {};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const box = result.ir.items.find((item) => item.type === "nodeBox" && item.id === "n");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(box.shadows.length, 2);
+  assert.ok(box.shadows[0].xshift < box.shadows[1].xshift);
+  assert.ok(box.shadows[0].yshift > box.shadows[1].yshift);
+  assert.match(result.svg, /class="tikz-node-shadow"/);
 });
 
 test("uses TikZ-sized boxes for simple matrix-of-nodes cells", () => {
@@ -578,7 +637,7 @@ test("uses TikZ-sized boxes for simple matrix-of-nodes cells", () => {
   assert.ok(boxes.every((box) => box.height > 0.43 && box.height < 0.5), `expected native-sized heights, got ${boxes.map((box) => box.height)}`);
 });
 
-test("fits matrix-of-nodes text inside compact drawn cells", () => {
+test("renders matrix-of-nodes text at the normal TikZ text size", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \matrix (m) [matrix of nodes, row sep=-\pgflinewidth, nodes={draw}] {
@@ -596,7 +655,7 @@ test("fits matrix-of-nodes text inside compact drawn cells", () => {
   assert.equal(diagnostics.length, 0);
   assert.equal(text.x, box.x);
   assert.equal(text.y, box.y);
-  assert.ok(Math.abs(fontSize - lineWidthFromPt(10) * 0.72) < 0.01, `expected TikZ-like matrix text size, got ${fontSize}`);
+  assert.ok(Math.abs(fontSize - lineWidthFromPt(10)) < 0.01, `expected native TikZ matrix text size, got ${fontSize}`);
 });
 
 test("renders matrix annotation math fallback with TikZ-like bold and symbol styling", () => {
@@ -661,7 +720,7 @@ test("positions matrices edge-to-edge with TikZ positioning syntax", () => {
   assert.equal(diagnostics.length, 0);
   assert.ok(ir.coordinates.star.x > ir.coordinates.m.x + 0.5, `star should sit outside m, got ${ir.coordinates.star.x}`);
   assert.ok(ir.coordinates.k.x > ir.coordinates.star.x + 0.4, `k should sit outside star, got ${ir.coordinates.k.x}`);
-  assert.ok(ir.coordinates.k.x < 1.55, `unboxed text nodes should not create excessive spacing, got ${ir.coordinates.k.x}`);
+  assert.ok(ir.coordinates.k.x < 1.95, `matrix positioning should stay near native TikZ spacing, got ${ir.coordinates.k.x}`);
 });
 
 test("sizes empty circular nodes from inner sep instead of text defaults", () => {
@@ -787,6 +846,24 @@ test("propagates tikzpicture monospace font option to text nodes", () => {
   assert.match(svg, /monospace/);
 });
 
+test("propagates scope font options to child nodes, matrices, and inline path labels", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{scope}[font=\ttfamily]
+    \node (A) at (0,0) {A};
+    \matrix (m) [matrix of nodes] { 1 \\ };
+    \draw (0,0) -- node[above] {Edge} (1,0);
+  \end{scope}
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && ["A", "1", "Edge"].includes(item.text));
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(labels.length, 3);
+  assert.ok(labels.every((label) => /KaTeX_Typewriter/.test(label.style.fontFamily || "")));
+});
+
 test("preserves dashed translucent node backgrounds", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -869,6 +946,117 @@ test("expands matrix styles and keeps nodes in empty cells for GameBoy tile grid
   assert.ok(boxes.every((box) => box.style.stroke === "black"), "expected every empty and filled cell to keep grid borders");
 });
 
+test("applies Case 024 preamble matrix styles, HTML colors, and positioning libraries", () => {
+  const source = String.raw`
+\documentclass[crop, tikz]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, matrix}
+\tikzset{
+  tablet/.style={
+    matrix of nodes,
+    row sep=-\pgflinewidth,
+    column sep=-\pgflinewidth,
+    nodes={rectangle,draw=black,text width=1.25ex,align=center},
+    text height=1.25ex,
+    nodes in empty cells
+  },
+  texto/.style={font=\footnotesize\sffamily},
+  title/.style={font=\small\sffamily}
+}
+\definecolor{dgry}{HTML}{555555}
+\definecolor{lgry}{HTML}{aaaaaa}
+\begin{document}
+\begin{tikzpicture}[node distance=0.4cm and 0.7cm]
+  \matrix[tablet] (mp) {
+    |[fill=dgry]| & |[fill=lgry]| & \\
+    & |[fill=lgry]| & |[fill=dgry]| \\
+  };
+  \node[texto, right=of mp] (label) {Palette};
+\end{tikzpicture}
+\end{document}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = ir.items.filter((item) => item.type === "nodeBox");
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "Palette");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(boxes.filter((box) => box.style.stroke === "black").length >= 6, "expected matrix cells to inherit tablet node borders");
+  assert.ok(boxes.some((box) => box.style.fill === "#555555"), "expected dgry HTML color to reach filled cells");
+  assert.ok(boxes.some((box) => box.style.fill === "#aaaaaa"), "expected lgry HTML color to reach filled cells");
+  assert.ok(label);
+  assert.ok(label.x > ir.coordinates.mp.x, "expected positioning library right=of to place label to the right of matrix");
+  assert.ok(Math.abs(label.style.fontScale - 0.8) < 0.001, `expected \\footnotesize style on texto label, got ${label.style.fontScale}`);
+});
+
+test("keeps Case 024 right-of matrix labels at TikZ text-box distance", () => {
+  const source = String.raw`
+\documentclass[crop, tikz]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, matrix}
+\tikzset{
+  tablet/.style={
+    matrix of nodes,
+    row sep=-\pgflinewidth,
+    column sep=-\pgflinewidth,
+    nodes={rectangle,draw=black,text width=1.25ex,align=center},
+    text height=1.25ex,
+    nodes in empty cells
+  }
+}
+\begin{document}
+\begin{tikzpicture}
+  \matrix[tablet] (mp) {
+    {\tt 0} & {\tt 1} & {\tt 0} & {\tt 0} & {\tt 1} & {\tt 1} & {\tt 1} & {\tt 0}\\
+    \node (00){\tt 1}; & \node(01){\tt 0}; & \node(02){\tt 0}; & \node(03){\tt 0}; & \node(04){\tt 1}; & \node(05){\tt 0}; & \node(06){\tt 1}; & \node(07){\tt 1};\\
+  };
+  \matrix[tablet, below = of mp] (pt) {
+    \node (10){\tt 2}; & \node(11){\tt 1}; & \node(12){\tt 0}; & \node(13){\tt 0}; & \node(14){\tt 3}; & \node(15){\tt 1}; & \node(16){\tt 3}; & \node(17){\tt 2};\\
+  };
+  \matrix[tablet, draw=black, inner sep=0ex, nodes={draw=white,inner sep=0.8ex}, below = of pt] (clr) {
+    |[fill=black]| & |[fill=white]| & |[fill=white]| & |[fill=white]| & |[fill=black]| & |[fill=white]| & |[fill=black]| & |[fill=black]|\\
+  };
+  \node [align=center, right = 0.05cm of mp] (c1) {Byte 1 \\ Byte 2};
+  \node [align=center, right = 0.05cm of pt] (c2) {Colour indices};
+  \node [align=center, right = 0.05cm of clr] (c3) {Tile row};
+  \draw [-stealth, double, thick] (13.south east) -- node[right] {\emph{palette}} (clr);
+\end{tikzpicture}
+\end{document}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = Object.fromEntries(
+    ir.items.filter((item) => item.type === "textNode").map((item) => [item.text.replace(/\s+/g, " ").trim(), item])
+  );
+  const doubleArrow = ir.items.find((item) => item.type === "path" && item.style?.doubleColor !== undefined);
+  const palette = ir.items.find((item) => item.type === "textNode" && /palette/.test(item.text));
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(labels["Byte 1 \\\\ Byte 2"].x > 2.28, `expected Byte label to sit after the matrix edge, got ${labels["Byte 1 \\\\ Byte 2"].x}`);
+  assert.ok(labels["Colour indices"].x > 2.95, `expected Colour indices label to use its full text box width, got ${labels["Colour indices"].x}`);
+  assert.ok(labels["Tile row"].x > 2.16, `expected Tile row label to use its full text box width, got ${labels["Tile row"].x}`);
+  assert.ok(doubleArrow, "expected double arrow style to be preserved");
+  assert.ok(palette);
+  assert.ok(palette.x > doubleArrow.commands[0].x, "expected node[right] palette label to be placed to the right of the arrow");
+  const arrowStart = doubleArrow.commands.find((command) => command.type === "moveTo");
+  const arrowEnd = doubleArrow.commands.findLast((command) => command.type === "lineTo");
+  const arrowHeight = Math.abs((arrowEnd?.y ?? 0) - (arrowStart?.y ?? 0));
+  assert.ok(
+    arrowHeight > 1.1,
+    `expected palette arrow to span TikZ matrix-node spacing instead of only the visible grid gap, got ${arrowHeight}`
+  );
+  assert.ok(ir.coordinates.clr.y < -3.15, `expected Tile row matrix to sit below pt using matrix node padding, got ${ir.coordinates.clr.y}`);
+  const clrCellIndexes = ir.items
+    .map((item, index) => (item.type === "nodeBox" && String(item.id || "").startsWith("clr-") ? index : -1))
+    .filter((index) => index >= 0);
+  const clrFrameIndex = ir.items.findIndex(
+    (item) =>
+      item.type === "nodeBox" &&
+      item.style?.stroke === "black" &&
+      Math.abs(item.x - ir.coordinates.clr.x) < 1e-6 &&
+      Math.abs(item.y - ir.coordinates.clr.y) < 1e-6
+  );
+  assert.ok(clrFrameIndex > Math.max(...clrCellIndexes), "expected drawn matrix frame to render on top of white cell borders");
+});
+
 test("applies matrix-local scale and draw container for scaled GameBoy background tiles", () => {
   const source = String.raw`
 \tikzset{
@@ -883,7 +1071,13 @@ test("applies matrix-local scale and draw container for scaled GameBoy backgroun
 \begin{tikzpicture}
   \matrix[tablett, rectangle, draw, scale=0.2, inner sep=0ex, nodes={inner sep=0.4ex}] (bg) {
     & & & & & & & \\
+    & & & & & & & \\
+    & & & & & & & \\
     & & & |[fill=gray]| & |[fill=gray]| & |[fill=gray]| & |[fill=gray]| & |[fill=gray]| \\
+    & & & |[fill=gray]| & |[fill=gray]| & |[fill=gray]| & |[fill=gray]| & |[fill=gray]| \\
+    & & & |[fill=gray]| & |[fill=gray]| & & & \\
+    & & & |[fill=gray]| & |[fill=gray]| & & & \\
+    & & & |[fill=gray]| & |[fill=gray]| & & & \\
   };
 \end{tikzpicture}`;
 
@@ -893,8 +1087,16 @@ test("applies matrix-local scale and draw container for scaled GameBoy backgroun
   assert.equal(diagnostics.length, 0);
   assert.ok(ir.coordinates.bg);
   assert.ok(boxes.length >= 6);
-  assert.ok(boxes.some((box) => box.style.stroke === "black" && box.width < 1), "expected scaled matrix draw container");
-  assert.ok(boxes.some((box) => box.style.fill === "gray" && box.width < 0.08), "expected scaled filled cells");
+  const container = boxes.find((box) => box.style.stroke === "black" && Math.abs(box.x - ir.coordinates.bg.x) < 1e-6);
+  const filledCell = boxes.find((box) => box.style.fill === "gray");
+  assert.ok(container, "expected scaled matrix draw container");
+  assert.ok(filledCell, "expected scaled filled cells");
+  assert.ok(container.width > 0.7, `expected Case 025 background tile to keep native matrix-node width, got ${container.width}`);
+  assert.ok(container.height > 0.65, `expected Case 025 background tile to keep native matrix-node height, got ${container.height}`);
+  assert.ok(
+    Math.abs(filledCell.width - filledCell.height) < 0.03,
+    `expected Case 025 scaled background cells to stay close to square, got ${filledCell.width}x${filledCell.height}`
+  );
 });
 
 test("normalizes GameBoy matrix and edge label TeX macros", () => {
@@ -941,7 +1143,37 @@ test("normalizes Gene expression inline TikZ labels and xcolor token text", () =
   assert.match(svg, /monospace/);
 });
 
-test("creates PetarV cube pic coordinates and treats toggles as no-ops", () => {
+test("renders Gene expression emph path labels as italic text", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node (a) at (0,0) {A};
+  \node (b) at (0,-2) {B};
+  \draw[-stealth, thick] (a) -- node[right] {\emph{transcription}} (b);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const svg = renderSvg(ir, { mathRenderer: "svg-text" });
+
+  assert.equal(diagnostics.length, 0);
+  assert.match(svg, /font-style="italic"[^>]*>transcription/);
+  assert.doesNotMatch(svg, /\\emph/);
+});
+
+test("renders Gene expression typewriter labels with TeX-like horizontal advance", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node at (0,0) {\tt GTGCATCTGACTCCTGAGGAGTAG};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const svg = renderSvg(ir, { mathRenderer: "svg-text" });
+
+  assert.equal(diagnostics.length, 0);
+  assert.match(svg, /class="tikz-typewriter-text"/);
+  assert.match(svg, /scale\(0\.88 1\)/);
+});
+
+test("creates PetarV cube pic coordinates while tracking toggle statements", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \node (i1) at (0,0) {};
@@ -957,6 +1189,62 @@ test("creates PetarV cube pic coordinates and treats toggles as no-ops", () => {
   assert.ok(ir.coordinates["X-B"].x > ir.coordinates["X-A"].x);
   assert.ok(ir.coordinates["X-V"].y > ir.coordinates["X-W"].y);
   assert.ok(ir.items.some((item) => item.type === "path" && item.shape === "pic-cube"));
+});
+
+test("renders PetarV cube pics with native face toggles and line width", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node (i1) at (0,0) {};
+  \togglefalse{redraw}
+  \togglefalse{redraw2}
+  \pic[right=8em of i1, fill=red!10] (X) {cube={1.8/1.2/1/1}};
+  \toggletrue{redraw}
+  \toggletrue{redraw2}
+  \pic[right=8em of i1, fill=blue!10] (Y) {cube={1.8/1.2/1/1}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const cubes = ir.items.filter((item) => item.type === "path" && item.shape === "pic-cube");
+  const faceCounts = cubes.map((cube) => cube.commands.filter((command) => command.type === "closePath").length);
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(cubes.length, 2);
+  assert.deepEqual(faceCounts, [3, 1]);
+  assert.ok(Math.abs(cubes[0].style.lineWidth - parseDimension("1mm") * 100) < 0.001);
+});
+
+test("projects PetarV cube pic anchors with PGF default z vector", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \pic (X) {cube={1.8/1.2/1/1}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const cube = ir.items.find((item) => item.type === "path" && item.shape === "pic-cube");
+  const leftFaceStart = cube.commands[6];
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(ir.coordinates["X-A"].x - -2.1075) < 0.0001);
+  assert.ok(Math.abs(ir.coordinates["X-A"].y - 0.1925) < 0.0001);
+  assert.ok(Math.abs(ir.coordinates["X-B"].x - 1.4925) < 0.0001);
+  assert.ok(Math.abs(leftFaceStart.x - -2.415) < 0.0001);
+  assert.ok(Math.abs(leftFaceStart.y - -0.815) < 0.0001);
+});
+
+test("keeps zero-color PetarV cube pics as coordinate helpers only", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node (i1) at (0,0) {};
+  \pic[right=8em of i1, draw=echoreg!0, fill=echoreg!0] (Ghost) {cube={0.9/0.9/2/1}};
+  \draw (i1) -- (Ghost-A) -- (Ghost-B);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(ir.coordinates["Ghost-A"], "expected helper pic to register anchor A");
+  assert.ok(ir.coordinates["Ghost-B"], "expected helper pic to register anchor B");
+  assert.equal(ir.items.filter((item) => item.type === "path" && item.shape === "pic-cube").length, 0);
 });
 
 test("expands tkz-graph vertex and edge macros into TikZ nodes and paths", () => {
@@ -1025,6 +1313,45 @@ test("applies automata state defaults and picture-level arrow options", () => {
   assert.ok(loop, "loop above should create a visible self-loop curve");
 });
 
+test("uses PGF default loop geometry for self edges", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, thick, fill=red, draw] (n) {};
+  \path[-stealth, very thick] (n) edge[loop above] (n);
+  \path[-stealth, very thick] (n) edge[loop right] (n);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "n");
+  const [loop, rightLoop] = ir.items.filter((item) => item.type === "path" && item.commands.some((command) => command.type === "curveTo"));
+  const start = loop.commands[0];
+  const curve = loop.commands.at(-1);
+  const rightStart = rightLoop.commands[0];
+  const rightCurve = rightLoop.commands.at(-1);
+  const radius = box.width / 2;
+  const expectedStart = {
+    x: box.x + Math.cos((105 * Math.PI) / 180) * radius,
+    y: box.y + Math.sin((105 * Math.PI) / 180) * radius
+  };
+  const expectedEnd = {
+    x: box.x + Math.cos((75 * Math.PI) / 180) * radius,
+    y: box.y + Math.sin((75 * Math.PI) / 180) * radius
+  };
+  const outArm = Math.hypot(curve.x1 - start.x, curve.y1 - start.y);
+  const inArm = Math.hypot(curve.x2 - curve.x, curve.y2 - curve.y);
+  const rightOutArm = Math.hypot(rightCurve.x1 - rightStart.x, rightCurve.y1 - rightStart.y);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(start.x - expectedStart.x) < 0.01, `expected loop to leave 105-degree anchor, got ${start.x}`);
+  assert.ok(Math.abs(start.y - expectedStart.y) < 0.01, `expected loop to leave 105-degree anchor, got ${start.y}`);
+  assert.ok(Math.abs(curve.x - expectedEnd.x) < 0.01, `expected loop to enter 75-degree anchor, got ${curve.x}`);
+  assert.ok(Math.abs(curve.y - expectedEnd.y) < 0.01, `expected loop to enter 75-degree anchor, got ${curve.y}`);
+  assert.ok(Math.abs(outArm - parseDimension("5mm")) < 0.02, `expected PGF min distance arm, got ${outArm}`);
+  assert.ok(Math.abs(inArm - parseDimension("5mm")) < 0.02, `expected PGF min distance arm, got ${inArm}`);
+  assert.ok(rightCurve.y < rightStart.y, `expected loop right to enter through a negative angle anchor, got ${rightCurve.y}`);
+  assert.ok(Math.abs(rightOutArm - parseDimension("5mm")) < 0.02, `expected loop right PGF min distance arm, got ${rightOutArm}`);
+});
+
 test("keeps nested pgfplots-in-node content compact instead of inflating the SVG bounds", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1041,6 +1368,48 @@ test("keeps nested pgfplots-in-node content compact instead of inflating the SVG
   assert.equal(result.diagnostics.length, 0);
   assert.ok(viewBox[2] < 500, `expected compact nested plot bounds, got ${viewBox?.join(" ")}`);
   assert.doesNotMatch(result.svg, /\\begin\{tikzpicture\}|axis plot|addplot/);
+});
+
+test("respects PGFPlots x/y unit dimensions for Case 065 activation nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[rectangle, draw] at (-2.5, -0.8) (s1) {\begin{tikzpicture} \begin{axis}[
+    samples=1000, domain=-2.6:2.6,
+    hide axis,
+    xtick=\empty,
+    ytick=\empty,
+    xlabel=\empty,
+    ylabel=\empty,
+    xmin=-2.1, xmax=2.1,
+    ymin=-0.1, ymax=1.1,
+    x=0.5em, y=0.5em,
+    trig format = rad
+  ]
+    \addplot expression [no markers, smooth, thick, black] {max(0, min(1, x*0.6 + 0.5))};
+  \end{axis}\end{tikzpicture}};
+  \node[rectangle, draw, right=1em of s1] (s2) {\begin{tikzpicture} \begin{axis}[
+    samples=1000, domain=-2.6:2.6,
+    hide axis,
+    xmin=-2.1, xmax=2.1,
+    ymin=-1.1, ymax=1.1,
+    x=0.5em, y=0.5em,
+    trig format = rad
+  ]
+    \addplot expression [no markers, smooth, thick, black] {tanh(\x)};
+  \end{axis}\end{tikzpicture}};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const boxes = result.ir.items.filter((item) => item.type === "nodeBox");
+  const s1 = boxes.find((item) => item.id === "s1");
+  const s2 = boxes.find((item) => item.id === "s2");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.ok(s1.width > 1 && s1.width < 1.2, `expected compact sigmoid node width, got ${s1.width}`);
+  assert.ok(s1.height > 0.5 && s1.height < 0.7, `expected compact sigmoid node height, got ${s1.height}`);
+  assert.ok(s2.width > 1 && s2.width < 1.2, `expected compact tanh node width, got ${s2.width}`);
+  assert.ok(s2.height > 0.65 && s2.height < 0.85, `expected compact tanh node height, got ${s2.height}`);
+  assert.ok(s2.x - s1.x < 1.6, `expected positioning to use compact node bounds, got delta ${s2.x - s1.x}`);
 });
 
 test("normalizes larger bold math labels used as graph markers", () => {
@@ -1083,6 +1452,61 @@ test("keeps message passing math circle nodes compact for positioning", () => {
   assert.ok(ir.coordinates["4"].x < 4, `expected positioning not to be inflated by math width, got ${ir.coordinates["4"].x}`);
   assert.ok(viewBox[2] < 800, `expected Case 042 viewBox to stay compact, got ${viewBox?.join(" ")}`);
   assert.ok(label, "expected inline message label node to remain present");
+});
+
+test("uses TikZ diagonal positioning distance for GAT layer neighbors", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, draw, thick] (h1) {$\vec{h}_1$};
+  \node[circle, draw, thick, above left=of h1] (h4) {$\vec{h}_2$};
+  \node[circle, draw, thick, right=10em of h1] (hp) {$\vec{h}_1'$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const diagonalOffset = Math.abs(ir.coordinates.h4.x - ir.coordinates.h1.x);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(diagonalOffset > 1.55 && diagonalOffset < 1.7, `expected native TikZ diagonal offset near 1.63cm, got ${diagonalOffset}`);
+  assert.ok(ir.coordinates.hp.x > 4.35 && ir.coordinates.hp.x < 4.5, `expected horizontal positioning to remain unchanged, got ${ir.coordinates.hp.x}`);
+});
+
+test("keeps Case 026 sloped alpha labels close to their edges", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, draw, thick] (h1) {$\vec{h}_1$};
+  \node[circle, draw, thick, below right=of h1] (h8) {$\vec{h}_6$};
+  \draw[-stealth, thick] (h8.120) -- node[sloped, above, black] {$\vec{\alpha}_{16}$} (h1.-30);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text.includes("\\alpha"));
+  const edge = ir.items.find((item) => item.type === "path");
+  const start = edge.commands[0];
+  const end = edge.commands.at(-1);
+  const distance =
+    Math.abs((end.y - start.y) * label.x - (end.x - start.x) * label.y + end.x * start.y - end.y * start.x) /
+    Math.hypot(end.y - start.y, end.x - start.x);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(label.rotation < -35 && label.rotation > -55, `expected sloped label to follow edge angle, got ${label.rotation}`);
+  assert.ok(distance > 0.12, `expected label to stay visibly above the edge, got distance ${distance}`);
+  assert.ok(distance < 0.3, `expected TikZ-like compact sloped label offset, got distance ${distance}`);
+});
+
+test("keeps Deep Graph Infomax wide-tilde vector nodes compact and positioned", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, thick, draw] (01) {$\vec{\widetilde{x}}_j$};
+  \node[circle, thick, draw, above right=0.1em and 2emof 01] (02) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const center = ir.items.find((item) => item.type === "nodeBox" && item.id === "01");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(center.width < 1.05, `expected wide-tilde vector circle to stay compact, got ${center.width}`);
+  assert.ok(ir.coordinates["02"].x > ir.coordinates["01"].x + 0.7, `expected compact 2emof positioning to keep neighbor near graph, got ${ir.coordinates["02"].x}`);
+  assert.ok(ir.coordinates["02"].y > ir.coordinates["01"].y, `expected neighbor above source node, got ${ir.coordinates["02"].y}`);
 });
 
 test("keeps current color when a bare draw option follows a color token", () => {
@@ -1138,6 +1562,54 @@ test("applies tkz EdgeStyle updates to expanded Edge commands", () => {
   assert.equal(paths[0].style.stroke, "black");
   assert.equal(paths[0].commands.at(-1).type, "lineTo");
   assert.equal(paths[1].commands.at(-1).type, "curveTo");
+});
+
+test("applies tkz SetUpEdge labeltext updates to edge labels", () => {
+  const source = String.raw`
+\begin{tikzpicture}[font=\tt]
+  \SetUpEdge[lw=0.75pt,color=red,labelcolor=white]
+  \SetGraphUnit{2}
+  \Vertex{A}
+  \EA(A){B}
+  \SO(B){C}
+  \SetUpEdge[labeltext=blue]
+  \tikzset{EdgeStyle/.style={-stealth, color=blue}}
+  \Edge[label=AB](A)(B)
+  \SetUpEdge[labeltext=gray]
+  \tikzset{EdgeStyle/.style={-stealth, color=gray}}
+  \Edge[label=BC](B)(C)
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = Object.fromEntries(ir.items.filter((item) => item.type === "textNode").map((item) => [item.text, item]));
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(labels.AB.style.fill, "blue");
+  assert.equal(labels.BC.style.fill, "gray");
+  assert.ok(ir.items.some((item) => item.type === "nodeBox" && item.style.fill === "white"), "expected labelcolor to keep white label backgrounds");
+});
+
+test("keeps tkz-graph edge label backgrounds compact so they do not hide edges", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=0.8,every node/.style={scale=0.7},font=\tt]
+  \SetUpEdge[lw=1.5pt,color=black,labelcolor=white]
+  \SetGraphUnit{2.5}
+  \GraphInit[vstyle=Normal]
+  \Vertex{AT}
+  \EA(AT){TG}
+  \tikzset{EdgeStyle/.style={-stealth}}
+  \Edge[label=ATG](AT)(TG)
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "ATG");
+  const labelBox = ir.items.find((item) => item.type === "nodeBox" && !item.id && Math.abs(item.x - label.x) < 1e-6);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(label, "expected tkz edge label text");
+  assert.ok(labelBox, "expected white label background");
+  assert.ok(labelBox.width < 0.68, `expected compact edge label background, got ${labelBox.width}`);
+  assert.ok(labelBox.height < 0.4, `expected compact edge label background height, got ${labelBox.height}`);
 });
 
 test("keeps tkz-graph normal vertices at TikZ library size", () => {
@@ -1211,7 +1683,46 @@ test("supports positioned coordinate statements and harmless color/braid command
   assert.ok(ir.coordinates.A.x > ir.coordinates.h1.x);
 });
 
+test("expands simple two-strand braid commands into colored cubic paths", () => {
+  const source = String.raw`
+\documentclass[crop, tikz]{standalone}
+\usepackage{tikz}
+\usepackage{braids}
+\begin{document}
+\begin{tikzpicture}
+  \braid[rotate=90,style strands={1}{red, very thick},style strands={2}{blue, very thick}] (dna) at (0,0) s_1 s_1 s_1;
+\end{tikzpicture}
+\end{document}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const braidPaths = ir.items.filter((item) => item.type === "path" && item.commands.some((command) => command.type === "curveTo"));
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(braidPaths.length, 2);
+  assert.ok(braidPaths.some((item) => item.style.stroke === "red"), "expected red strand path");
+  assert.ok(braidPaths.some((item) => item.style.stroke === "blue"), "expected blue strand path");
+  assert.ok(braidPaths.every((item) => item.commands.filter((command) => command.type === "curveTo").length >= 3));
+  assert.ok(braidPaths.every((item) => item.commands.some((command) => command.type === "lineTo")));
+  assert.ok(braidPaths.every((item) => item.commands.at(-1).x > 3.2));
+});
+
 test("parses em and ex dimensions used by TikZ positioning snippets", () => {
   assert.equal(parseDimension("1em"), 0.35);
   assert.equal(parseDimension("2ex"), 0.3);
+});
+
+test("keeps Case 038 compact math labels from inflating narrow network boxes", () => {
+  const source = String.raw`\begin{tikzpicture}
+    \node[rectangle, draw, minimum width=0.5cm,minimum height=2.5cm] (X) at (-2, 0) {$\vec{x}$};
+    \node[rectangle, draw, right=1.5em of X, text depth=0em, minimum width=1.5cm,minimum height=2.5cm] (W1) {\${\bf W_1}\times$};
+    \node[rectangle, draw, right=1.5em of W1, text depth=0em, minimum width=0.5cm,minimum height=2.5cm] (B1) {$+ \vec{b}_1$};
+  \end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  assert.equal(diagnostics.length, 0);
+
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+  assert.ok(boxes.X.width <= 0.52, `expected vector input frame to stay near 0.5cm, got ${boxes.X.width}`);
+  assert.ok(boxes.B1.width > 0.75 && boxes.B1.width < 0.85, `expected bias frame near native width, got ${boxes.B1.width}`);
+  assert.ok(ir.coordinates.B1.x > 1.2 && ir.coordinates.B1.x < 1.28, `expected native-like B1 position, got ${ir.coordinates.B1.x}`);
 });

@@ -6,8 +6,10 @@ export const TIKZ_MARGIN = 10;
 export const TIKZ_FONT_FAMILY = "KaTeX_Main, 'Times New Roman', Times, serif";
 export const TIKZ_MONOSPACE_FONT_FAMILY =
   "KaTeX_Typewriter, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
+export const TIKZ_SANS_SERIF_FONT_FAMILY = "KaTeX_SansSerif, Arial, Helvetica, sans-serif";
 export const TIKZ_TEXT_FONT_SIZE = lineWidthFromPt(10);
 export const TIKZ_DISPLAY_MATH_FONT_SIZE = 34;
+export const TIKZ_TYPEWRITER_WIDTH_SCALE = 0.88;
 
 export const TIKZ_LINE_WIDTHS = {
   ultraThin: lineWidthFromPt(0.1),
@@ -81,6 +83,30 @@ export const TIKZ_ARROW_TIPS = {
     length: lineWidthFromPt(3.6),
     width: lineWidthFromPt(4.2),
     fill: "none"
+  },
+  "open-circle": {
+    kind: "open-circle",
+    length: lineWidthFromPt(2.5),
+    width: lineWidthFromPt(2.5),
+    fill: "none"
+  },
+  "open-triangle": {
+    kind: "open-triangle",
+    length: lineWidthFromPt(3.2),
+    width: lineWidthFromPt(3.2),
+    fill: "none"
+  },
+  dimline: {
+    kind: "dimline",
+    length: lineWidthFromPt(5),
+    width: lineWidthFromPt(6),
+    fill: "context-stroke"
+  },
+  "dimline reverse": {
+    kind: "dimline reverse",
+    length: lineWidthFromPt(5),
+    width: lineWidthFromPt(6),
+    fill: "context-stroke"
   }
 };
 
@@ -108,6 +134,8 @@ export const TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN = {
   bottom: 0.06
 };
 
+export const TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_X = 1.72;
+export const TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_Y = 1.7;
 export const TIKZ_PGFPLOTS_MIDDLE_AXIS_STACK_SHIFT = 0.45;
 export const TIKZ_PGFPLOTS_MIDDLE_AXIS_STACK_GAP = 0.35;
 
@@ -128,7 +156,11 @@ export function lineWidthFromTikzDimension(value, fallback = TIKZ_LINE_WIDTHS.de
 
 function normalizeArrowKind(kind) {
   const text = String(kind || "to").trim().replace(/^>$/, "to").replace(/'/g, "").toLowerCase();
+  if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
+  if (text === "dimline") return "dimline";
   if (text.includes("two heads") || text.includes("two-heads") || text.includes("double")) return "two-heads";
+  if (text.includes("open circle") || text === "o") return "open-circle";
+  if (text.includes("open triangle")) return "open-triangle";
   if (text.includes("hook")) return "hook";
   if (text.includes("stealth")) return "stealth";
   if (text.includes("latex")) return "latex";

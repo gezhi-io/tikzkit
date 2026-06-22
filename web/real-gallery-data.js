@@ -973,11 +973,165 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://github.com/gezhi-io/tikzkit",
     "path": "calibration/plot-and-basis",
     "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\begin{document}\n\\begin{tikzpicture}[x=(25:1),y=(90:1)]\n  \\draw[->,thick] (0,0) -- (3.4,0) node[right] {$x$};\n  \\draw[->,thick] (0,0) -- (0,2.2) node[above] {$y$};\n  \\draw[blue,very thick,samples=41,variable=\\t] plot[domain=0:3] (\\t,{0.5+0.35*\\t*\\t});\n  \\draw[red,dashed,samples=31,variable=\\t] plot[domain=0:3] (\\t,{1.8-0.35*\\t});\n  \\fill[black] (1,1) circle (0.04) node[above left] {$(1,1)$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - triangle medians altitudes and angle marks",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/geometry/triangle-median-altitude-angle",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\coordinate (A) at (0,0);\n  \\coordinate (B) at (4.2,0);\n  \\coordinate (C) at (1.15,2.9);\n  \\coordinate (M) at ($(B)!0.5!(C)$);\n  \\coordinate (D) at (1.15,0);\n  \\draw[concept main] (A) -- (B) -- (C) -- cycle;\n  \\draw[concept accent] (A) -- (M) node[midway,above] {median};\n  \\draw[concept guide] (C) -- (D) node[midway,right] {altitude};\n  \\draw (D) rectangle ++(.18,.18);\n  \\draw[red] (0.55,0) arc[start angle=0,end angle=68,radius=.55];\n  \\node[red] at (.72,.28) {$\\alpha$};\n  \\node[below left] at (A) {$A$};\n  \\node[below right] at (B) {$B$};\n  \\node[above] at (C) {$C$};\n  \\node[right] at (M) {$M$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - circle tangent chord and central angle",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/geometry/circle-tangent-chord",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\coordinate (O) at (0,0);\n  \\coordinate (A) at (1.8,0);\n  \\coordinate (B) at (.55,1.71);\n  \\draw[concept main] (O) circle (1.8);\n  \\draw[concept accent] (A) -- (B) node[midway,above right] {chord};\n  \\draw[thick] (O) -- (A) node[midway,below] {$r$};\n  \\draw[thick] (O) -- (B);\n  \\draw[red] (.55,0) arc[start angle=0,end angle=72,radius=.55];\n  \\draw[concept guide] (A) -- ++(0,1.7) node[above] {tangent};\n  \\draw (A) rectangle ++(.18,.18);\n  \\fill (O) circle(.035) node[below left] {$O$};\n  \\fill (A) circle(.035) node[below right] {$A$};\n  \\fill (B) circle(.035) node[above] {$B$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - similar triangles and parallel lines",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/geometry/similar-triangles-parallel",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\coordinate (A) at (0,0);\n  \\coordinate (B) at (5,0);\n  \\coordinate (C) at (1.3,3);\n  \\coordinate (D) at ($(A)!0.45!(B)$);\n  \\coordinate (E) at ($(A)!0.45!(C)$);\n  \\draw[concept main] (A) -- (B) -- (C) -- cycle;\n  \\draw[concept accent] (D) -- (E) node[midway,above] {$DE\\parallel BC$};\n  \\node[below left] at (A) {$A$};\n  \\node[below] at (D) {$D$};\n  \\node[below right] at (B) {$B$};\n  \\node[left] at (E) {$E$};\n  \\node[above] at (C) {$C$};\n  \\node at (3.35,1.45) {$\\triangle ADE\\sim\\triangle ABC$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - coordinate distance and midpoint",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/analytic-geometry/distance-midpoint",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.4,0) -- (5,0) node[right] {$x$};\n  \\draw[concept axis] (0,-.4) -- (0,3.4) node[above] {$y$};\n  \\coordinate (A) at (.8,.7);\n  \\coordinate (B) at (4.2,2.7);\n  \\coordinate (M) at ($(A)!0.5!(B)$);\n  \\draw[concept main] (A) -- (B) node[midway,above] {$d$};\n  \\draw[concept guide] (A) -- (.8,0) node[below] {$x_1$};\n  \\draw[concept guide] (B) -- (4.2,0) node[below] {$x_2$};\n  \\draw[concept guide] (A) -- (0,.7) node[left] {$y_1$};\n  \\draw[concept guide] (B) -- (0,2.7) node[left] {$y_2$};\n  \\fill (A) circle(.04) node[above left] {$A$};\n  \\fill (B) circle(.04) node[above] {$B$};\n  \\fill[red] (M) circle(.04) node[below right] {$M$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - parabola focus and directrix",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/conics/parabola-focus-directrix",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-2.4,0) -- (2.4,0) node[right] {$x$};\n  \\draw[concept axis] (0,-.9) -- (0,3.2) node[above] {$y$};\n  \\draw[concept main,samples=61,variable=\\t] plot[domain=-1.9:1.9] (\\t,{0.45*\\t*\\t});\n  \\coordinate (F) at (0,.56);\n  \\draw[concept accent] (-2.2,-.56) -- (2.2,-.56) node[right] {directrix};\n  \\fill[red] (F) circle(.045) node[right] {$F$};\n  \\coordinate (P) at (1.35,.82);\n  \\draw[concept guide] (P) -- (F);\n  \\draw[concept guide] (P) -- (1.35,-.56);\n  \\fill (P) circle(.04) node[above right] {$P$};\n  \\node at (1.35,.25) {$PF=d$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - ellipse and hyperbola comparison",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/conics/ellipse-hyperbola",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-3.2,0) -- (3.2,0) node[right] {$x$};\n  \\draw[concept axis] (0,-1.8) -- (0,1.8) node[above] {$y$};\n  \\draw[concept main] (0,0) ellipse (2.3 and 1.15);\n  \\draw[concept accent,samples=41,variable=\\t] plot[domain=-1.4:1.4] ({sqrt(1+\\t*\\t)},\\t);\n  \\draw[concept accent,samples=41,variable=\\t] plot[domain=-1.4:1.4] ({-sqrt(1+\\t*\\t)},\\t);\n  \\foreach \\x in {-1.6,1.6} \\fill[red] (\\x,0) circle(.04);\n  \\foreach \\x in {-1,1} \\fill[blue] (\\x,0) circle(.04);\n  \\node[blue] at (0,1.45) {ellipse};\n  \\node[red] at (0,-1.45) {hyperbola};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - quadratic roots tangent and vertex",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/functions/quadratic-roots-tangent",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.5,0) -- (4.6,0) node[right] {$x$};\n  \\draw[concept axis] (0,-1.3) -- (0,3.1) node[above] {$y$};\n  \\draw[concept main,samples=61,variable=\\t] plot[domain=.2:4.2] (\\t,{0.55*(\\t-2.2)*(\\t-2.2)-.8});\n  \\coordinate (V) at (2.2,-.8);\n  \\draw[concept guide] (2.2,-1.1) -- (2.2,2.6);\n  \\draw[concept accent] (.7,-.8) -- (3.7,-.8) node[right] {tangent};\n  \\fill[red] (V) circle(.04) node[below] {$V$};\n  \\foreach \\x/\\lab in {1.0/$x_1$,3.4/$x_2$} \\fill (\\x,0) circle(.035) node[above] {\\lab};\n  \\node[blue] at (3.15,2.1) {$y=a(x-h)^2+k$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - absolute value piecewise function",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/functions/absolute-value-piecewise",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-2.4,0) -- (3.2,0) node[right] {$x$};\n  \\draw[concept axis] (0,-.4) -- (0,2.8) node[above] {$y$};\n  \\draw[concept main] (-2,2.4) -- (.6,.2) -- (2.8,2);\n  \\fill[red] (.6,.2) circle(.04) node[below] {vertex};\n  \\draw[concept guide] (.6,.2) -- (.6,0) node[below] {$h$};\n  \\node[blue] at (1.85,2.35) {$y=|x-h|+k$};\n  \\node at (-1.2,1.6) {$-x+h+k$};\n  \\node at (2.1,1.25) {$x-h+k$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - unit circle sine cosine tangent",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/trigonometry/unit-circle-sin-cos",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-1.4,0) -- (1.8,0) node[right] {$x$};\n  \\draw[concept axis] (0,-1.3) -- (0,1.5) node[above] {$y$};\n  \\draw[concept main] (0,0) circle (1);\n  \\coordinate (P) at (.64,.77);\n  \\draw[concept accent] (0,0) -- (P) node[midway,above left] {$1$};\n  \\draw[concept guide] (P) -- (.64,0) node[below] {$\\cos\\theta$};\n  \\draw[concept guide] (P) -- (0,.77) node[left] {$\\sin\\theta$};\n  \\draw[red] (.35,0) arc[start angle=0,end angle=50,radius=.35];\n  \\node[red] at (.45,.2) {$\\theta$};\n  \\draw[thick] (1,-.8) -- (1,1.25) node[above] {tan line};\n  \\fill (P) circle(.04) node[above right] {$P$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - vector addition and projection",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/vectors/vector-addition-projection",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\coordinate (O) at (0,0);\n  \\coordinate (A) at (2.4,.8);\n  \\coordinate (B) at (.9,2.1);\n  \\coordinate (S) at ($(A)+(B)$);\n  \\draw[->,concept main] (O) -- (A) node[midway,below] {$\\vec a$};\n  \\draw[->,concept accent] (O) -- (B) node[midway,left] {$\\vec b$};\n  \\draw[concept guide] (A) -- (S) -- (B);\n  \\draw[->,very thick,green!50!black] (O) -- (S) node[midway,above] {$\\vec a+\\vec b$};\n  \\draw[dashed,red] (B) -- ($(O)!(B)!(A)$) node[midway,right] {projection};\n  \\fill (O) circle(.035) node[below left] {$O$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - cube projection and plane section",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/solid-geometry/cube-plane-section",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[x={(1cm,0cm)},y={(0.45cm,0.32cm)},z={(0cm,1cm)},font=\\scriptsize]\n  \\coordinate (O) at (0,0,0);\n  \\coordinate (A) at (2,0,0);\n  \\coordinate (B) at (2,2,0);\n  \\coordinate (C) at (0,2,0);\n  \\coordinate (D) at (0,0,2);\n  \\coordinate (E) at (2,0,2);\n  \\coordinate (F) at (2,2,2);\n  \\coordinate (G) at (0,2,2);\n  \\draw[concept main] (O)--(A)--(B)--(C)--cycle (D)--(E)--(F)--(G)--cycle (O)--(D) (A)--(E) (B)--(F) (C)--(G);\n  \\draw[fill=red!18,draw=red!70!black,thick] (0,0,1.25) -- (2,0,.55) -- (2,2,1.35) -- (0,2,1.85) -- cycle;\n  \\node at (1,1,2.25) {plane section};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - Venn diagram for set operations",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/sets/venn-union-intersection",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[rounded corners=4pt,thick] (-2,-1.35) rectangle (2.6,1.55);\n  \\fill[blue!25,opacity=.75] (-.55,0) circle (1);\n  \\fill[red!25,opacity=.75] (.55,0) circle (1);\n  \\draw[concept main] (-.55,0) circle (1);\n  \\draw[concept accent] (.55,0) circle (1);\n  \\node at (-1.05,.78) {$A$};\n  \\node at (1.05,.78) {$B$};\n  \\node at (0,0) {$A\\cap B$};\n  \\node at (0,-1.05) {$A\\cup B$};\n  \\node[above left] at (-2,1.55) {$U$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - number line interval operations",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/sets/number-line-intervals",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.5,0) -- (6.3,0) node[right] {$x$};\n  \\foreach \\x/\\lab in {0/$-2$,2/$0$,4/$2$,6/$4$} {\n    \\draw (\\x,.08) -- (\\x,-.08) node[below] {\\lab};\n  }\n  \\draw[blue,very thick] (1,.35) -- (4,.35);\n  \\draw[blue,fill=white,thick] (1,.35) circle(.07);\n  \\fill[blue] (4,.35) circle(.07);\n  \\node[blue] at (2.5,.68) {$(-1,2]$};\n  \\draw[red,very thick] (2,-.35) -- (5,-.35);\n  \\fill[red] (2,-.35) circle(.07);\n  \\draw[red,fill=white,thick] (5,-.35) circle(.07);\n  \\node[red] at (3.5,-.68) {$[0,3)$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - matrix multiplication grid",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/matrices/matrix-multiplication-grid",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\matrix (A) [matrix of nodes,nodes={draw,minimum width=.55cm,minimum height=.45cm},row sep=-\\pgflinewidth,column sep=-\\pgflinewidth]\n  { a & b & c \\\\ d & e & f \\\\ };\n  \\matrix (B) [right=1.2cm of A,matrix of nodes,nodes={draw,minimum width=.55cm,minimum height=.45cm},row sep=-\\pgflinewidth,column sep=-\\pgflinewidth]\n  { p & q \\\\ r & s \\\\ t & u \\\\ };\n  \\matrix (C) [right=1.2cm of B,matrix of nodes,nodes={draw,minimum width=.65cm,minimum height=.45cm},row sep=-\\pgflinewidth,column sep=-\\pgflinewidth]\n  { ap+br+ct & aq+bs+cu \\\\ dp+er+ft & dq+es+fu \\\\ };\n  \\draw[blue,very thick] (A-1-1.north west) rectangle (A-1-3.south east);\n  \\draw[red,very thick] (B-1-1.north west) rectangle (B-3-1.south east);\n  \\draw[green!50!black,very thick] (C-1-1.north west) rectangle (C-1-1.south east);\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - linear transform determinant area",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/matrices/linear-transform-determinant-area",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.3,0) -- (4.2,0) node[right] {$x$};\n  \\draw[concept axis] (0,-.3) -- (0,3) node[above] {$y$};\n  \\draw[fill=blue!12,draw=blue,thick] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;\n  \\draw[fill=red!14,draw=red,thick] (2,0) -- (3.8,.55) -- (3.15,2.55) -- (1.35,2) -- cycle;\n  \\draw[->,thick] (1.25,.5) -- (1.85,.5) node[midway,above] {$T$};\n  \\node at (.5,.5) {$1$};\n  \\node at (2.65,1.25) {$|\\det A|$};\n  \\draw[->,blue] (2,0) -- (3.8,.55) node[midway,below] {$A\\vec e_1$};\n  \\draw[->,red] (2,0) -- (1.35,2) node[midway,left] {$A\\vec e_2$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - probability tree diagram",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/probability/probability-tree",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize,node distance=1.2cm and 1.5cm]\n  \\node[draw,circle,inner sep=2pt] (S) {$S$};\n  \\node[draw,circle,above right=of S] (A) {$A$};\n  \\node[draw,circle,below right=of S] (B) {$B$};\n  \\node[draw,circle,above right=of A] (AC) {$C$};\n  \\node[draw,circle,below right=of A] (AD) {$D$};\n  \\node[draw,circle,above right=of B] (BC) {$C$};\n  \\node[draw,circle,below right=of B] (BD) {$D$};\n  \\draw[-latex,thick] (S) -- node[above] {$p$} (A);\n  \\draw[-latex,thick] (S) -- node[below] {$1-p$} (B);\n  \\draw[-latex] (A) -- node[above] {$q$} (AC);\n  \\draw[-latex] (A) -- node[below] {$1-q$} (AD);\n  \\draw[-latex] (B) -- node[above] {$r$} (BC);\n  \\draw[-latex] (B) -- node[below] {$1-r$} (BD);\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - statistics histogram and boxplot",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/statistics/histogram-boxplot",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.2,0) -- (5.6,0) node[right] {score};\n  \\draw[concept axis] (0,-.2) -- (0,3.1) node[above] {freq};\n  \\foreach \\x/\\h/\\c in {0.3/1.1/blue!20,1.1/2.4/blue!30,1.9/2.8/blue!40,2.7/1.9/blue!30,3.5/.9/blue!20} {\n    \\draw[fill=\\c,draw=blue!70!black] (\\x,0) rectangle ++(.65,\\h);\n  }\n  \\draw[red,thick] (1,-.8) -- (4.4,-.8);\n  \\draw[red,thick,fill=red!10] (1.7,-1.05) rectangle (3.6,-.55);\n  \\draw[red,thick] (2.55,-1.05) -- (2.55,-.55);\n  \\foreach \\x in {1,4.4} \\draw[red,thick] (\\x,-.95) -- (\\x,-.65);\n  \\node[red] at (2.55,-1.35) {boxplot};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - arithmetic and geometric sequences",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/sequences/arithmetic-geometric-sequences",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.3,0) -- (5.8,0) node[right] {$n$};\n  \\draw[concept axis] (0,-.3) -- (0,3.5) node[above] {$a_n$};\n  \\draw[concept main] (.6,.8) -- (1.4,1.15) -- (2.2,1.5) -- (3,1.85) -- (3.8,2.2) -- (4.6,2.55);\n  \\draw[concept accent] (.6,.45) -- (1.4,.65) -- (2.2,.98) -- (3,1.55) -- (3.8,2.45) -- (4.6,3.25);\n  \\foreach \\p in {(.6,.8),(1.4,1.15),(2.2,1.5),(3,1.85),(3.8,2.2),(4.6,2.55)} \\fill[blue] \\p circle(.035);\n  \\foreach \\p in {(.6,.45),(1.4,.65),(2.2,.98),(3,1.55),(3.8,2.45),(4.6,3.25)} \\fill[red] \\p circle(.035);\n  \\node[blue] at (4.1,1.7) {arithmetic};\n  \\node[red] at (3.6,3.15) {geometric};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - linear inequalities feasible region",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/inequalities/linear-programming-region",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.3,0) -- (4.8,0) node[right] {$x$};\n  \\draw[concept axis] (0,-.3) -- (0,4) node[above] {$y$};\n  \\fill[green!18] (.6,.6) -- (3.1,.6) -- (2.35,2.25) -- (1,2.7) -- cycle;\n  \\draw[concept main] (.6,.6) -- (3.8,.6) node[right] {$y\\ge1$};\n  \\draw[concept accent] (.6,3) -- (3.8,.95) node[right] {$2x+3y\\le10$};\n  \\draw[very thick,green!45!black] (.5,2.9) -- (3.3,.25) node[right] {$x+y\\ge3$};\n  \\foreach \\p in {(.6,.6),(3.1,.6),(2.35,2.25),(1,2.7)} \\fill[black] \\p circle(.035);\n  \\node[green!45!black] at (1.85,1.35) {feasible};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - derivative tangent and integral area",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/calculus/derivative-integral-area",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-.3,0) -- (4.2,0) node[right] {$x$};\n  \\draw[concept axis] (0,-.3) -- (0,3.4) node[above] {$y$};\n  \\fill[blue!12] (.5,0) -- (.5,.66) -- (1,.95) -- (1.5,1.28) -- (2,1.65) -- (2.5,2.06) -- (2.5,0) -- cycle;\n  \\draw[concept main,samples=61,variable=\\t] plot[domain=.2:3.6] (\\t,{0.45+0.34*\\t+0.08*\\t*\\t});\n  \\coordinate (P) at (1.8,1.32);\n  \\draw[concept accent] (.7,.86) -- (3.2,2.18) node[right] {tangent};\n  \\draw[red,densely dashed] (P) -- (1.8,0) node[below] {$a$};\n  \\fill[red] (P) circle(.04) node[above left] {$f'(a)$};\n  \\node[blue] at (1.55,.45) {$\\int_a^b f(x)\\,dx$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - polar rose and parametric curve",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/parametric/polar-rose-parametric",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-2.2,0) -- (2.2,0) node[right] {$x$};\n  \\draw[concept axis] (0,-2.1) -- (0,2.1) node[above] {$y$};\n  \\draw[concept guide] (0,0) circle(1);\n  \\draw[concept main,samples=97,variable=\\t] plot[domain=0:6.28] ({cos(3*\\t r)*cos(\\t r)},{cos(3*\\t r)*sin(\\t r)});\n  \\draw[concept accent,samples=61,variable=\\t] plot[domain=0:6.28] ({1.35*cos(\\t r)},{.6*sin(2*\\t r)});\n  \\node[blue] at (-1.35,1.55) {$r=\\cos 3\\theta$};\n  \\node[red] at (1.35,-1.45) {parametric};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Math concept - complex plane modulus argument",
+    "origin": "TikZKit math concept coverage",
+    "sourceUrl": "https://github.com/gezhi-io/tikzkit",
+    "path": "math-concepts/complex-plane/modulus-argument",
+    "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-1.1,0) -- (3.5,0) node[right] {$\\Re$};\n  \\draw[concept axis] (0,-1) -- (0,2.8) node[above] {$\\Im$};\n  \\coordinate (Z) at (2.4,1.7);\n  \\draw[concept main,->] (0,0) -- (Z) node[midway,above left] {$|z|$};\n  \\draw[concept guide] (Z) -- (2.4,0) node[below] {$a$};\n  \\draw[concept guide] (Z) -- (0,1.7) node[left] {$b$};\n  \\draw[red] (.65,0) arc[start angle=0,end angle=35,radius=.65];\n  \\node[red] at (.82,.27) {$\\arg z$};\n  \\fill[red] (Z) circle(.045) node[above right] {$z=a+bi$};\n\\end{tikzpicture}\n\\end{document}"
   }
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 139,
+  "caseCount": 161,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -999,6 +1153,7 @@ export const REAL_GALLERY_SUMMARY = {
   "richExtensionFound": 6,
   "izaakComplexRootsFound": 7,
   "calibrationFound": 5,
+  "mathConceptCoverageFound": 22,
   "origins": [
     "PetarV-/TikZ",
     "TikZ.net",
@@ -1019,6 +1174,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikzquads",
     "MacTeX tikzfxgraph",
     "Izaak Neutelings complex roots",
-    "TikZKit calibration"
+    "TikZKit calibration",
+    "TikZKit math concept coverage"
   ]
 };

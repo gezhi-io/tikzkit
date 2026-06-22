@@ -1,3 +1,6 @@
+import { parseDimension } from "../math.js";
+import { texTextWidthCm } from "../math-metrics.js";
+
 export const tikzQtreeExtension = {
   name: "tikz-qtree",
   phase: "preprocess",
@@ -10,6 +13,7 @@ export const tikzQtreeExtension = {
 
 const LEVEL_DISTANCE = 0.72;
 const SIBLING_DISTANCE = 0.72;
+const NODE_INNER_XSEP = 0.24;
 
 export function expandTikzQtree(source, diagnostics = []) {
   if (!usesTikzQtree(source)) return source;
@@ -27,7 +31,7 @@ export function expandTikzQtree(source, diagnostics = []) {
       index += 1;
       continue;
     }
-    output += renderTree(parsed.tree);
+    output += renderTree(parsed.tree, qtreeLayoutOptions(source, index));
     index = parsed.end;
   }
   return output;
@@ -186,13 +190,14 @@ function node(label, children) {
     x: 0,
     y: 0,
     width: 1,
+    labelWidth: 1,
     edge: null
   };
 }
 
-function renderTree(root) {
+function renderTree(root, layoutOptions = {}) {
   assignIds(root);
-  layoutTree(root);
+  layoutTree(root, layoutOptions);
   const lines = [];
   collectNodes(root, lines);
   collectEdges(root, lines);
@@ -207,26 +212,42 @@ function assignIds(root) {
   });
 }
 
-function layoutTree(root) {
-  let leafIndex = 0;
-  function visit(item, depth) {
-    item.y = -depth * LEVEL_DISTANCE;
-    if (!item.children.length) {
-      item.x = leafIndex * SIBLING_DISTANCE;
-      leafIndex += 1;
-      item.width = 1;
-      return item.x;
-    }
-    const childXs = item.children.map((child) => visit(child, depth + 1));
-    item.x = (childXs[0] + childXs[childXs.length - 1]) / 2;
-    item.width = childXs.length;
-    return item.x;
-  }
-  visit(root, 0);
+function layoutTree(root, layoutOptions = {}) {
+  const levelDistance = positiveNumber(layoutOptions.levelDistance, LEVEL_DISTANCE);
+  const siblingDistance = positiveNumber(layoutOptions.siblingDistance, SIBLING_DISTANCE);
+  measureSubtree(root, 0, { levelDistance, siblingDistance });
   const minX = minNodeX(root);
   walk(root, (item) => {
     item.x -= minX;
   });
+}
+
+function measureSubtree(item, depth, layoutOptions) {
+  item.y = -depth * layoutOptions.levelDistance;
+  item.labelWidth = qtreeLabelWidth(item.label);
+  if (!item.children.length) {
+    item.width = item.labelWidth;
+    item.x = item.width / 2;
+    return item.width;
+  }
+  let cursor = 0;
+  for (const child of item.children) {
+    const childWidth = measureSubtree(child, depth + 1, layoutOptions);
+    shiftSubtree(child, cursor);
+    cursor += childWidth + layoutOptions.siblingDistance;
+  }
+  const childrenWidth = Math.max(0, cursor - layoutOptions.siblingDistance);
+  const width = Math.max(item.labelWidth, childrenWidth);
+  const offset = (width - childrenWidth) / 2;
+  for (const child of item.children) shiftSubtree(child, offset);
+  item.width = width;
+  item.x = (item.children[0].x + item.children[item.children.length - 1].x) / 2;
+  return item.width;
+}
+
+function shiftSubtree(item, dx) {
+  item.x += dx;
+  for (const child of item.children) shiftSubtree(child, dx);
 }
 
 function collectNodes(root, lines) {
@@ -260,7 +281,7 @@ function collectEdges(root, lines) {
 }
 
 function renderRoof(parent, child, label) {
-  const half = Math.max(0.22, String(normalizeLabel(child.label).text || "").length * 0.025);
+  const half = Math.max(0.22, (child.labelWidth || qtreeLabelWidth(child.label)) / 2);
   const top = { x: parent.x, y: displayY(parent) - 0.13 };
   const left = { x: child.x - half, y: displayY(child) + 0.24 };
   const right = { x: child.x + half, y: displayY(child) + 0.24 };
@@ -285,6 +306,92 @@ function nodeRef(item) {
 
 function displayY(item) {
   return item.edge?.options && /roof/.test(item.edge.options) ? item.y - 0.22 : item.y;
+}
+
+function qtreeLayoutOptions(source, treeIndex) {
+  const pictureOptions = enclosingTikzPictureOptions(source, treeIndex);
+  return {
+    levelDistance: parseQtreeDimension(pictureOptions["level distance"], LEVEL_DISTANCE),
+    siblingDistance: parseQtreeDimension(pictureOptions["sibling distance"], SIBLING_DISTANCE)
+  };
+}
+
+function enclosingTikzPictureOptions(source, index) {
+  const begin = source.lastIndexOf("\\begin{tikzpicture}", index);
+  if (begin === -1) return {};
+  const previousEnd = source.lastIndexOf("\\end{tikzpicture}", index);
+  if (previousEnd > begin) return {};
+  let cursor = skipWhitespace(source, begin + "\\begin{tikzpicture}".length);
+  if (source[cursor] !== "[") return {};
+  const options = extractBalanced(source, cursor, "[", "]");
+  return options ? parseOptionList(options.content) : {};
+}
+
+function parseOptionList(input = "") {
+  const result = {};
+  for (const part of splitTopLevelCommas(String(input))) {
+    const text = part.trim();
+    if (!text) continue;
+    const equals = topLevelEquals(text);
+    if (equals === -1) result[text] = true;
+    else result[text.slice(0, equals).trim()] = text.slice(equals + 1).trim();
+  }
+  return result;
+}
+
+function splitTopLevelCommas(input) {
+  const parts = [];
+  let start = 0;
+  let depth = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (char === "{" || char === "[" || char === "(") depth += 1;
+    else if (char === "}" || char === "]" || char === ")") depth = Math.max(0, depth - 1);
+    else if (char === "," && depth === 0) {
+      parts.push(input.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(input.slice(start));
+  return parts;
+}
+
+function topLevelEquals(input) {
+  let depth = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (char === "{" || char === "[" || char === "(") depth += 1;
+    else if (char === "}" || char === "]" || char === ")") depth = Math.max(0, depth - 1);
+    else if (char === "=" && depth === 0) return index;
+  }
+  return -1;
+}
+
+function parseQtreeDimension(value, fallback) {
+  if (value === undefined || value === null || value === true || value === "") return fallback;
+  const parsed = parseDimension(String(value), {});
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function qtreeLabelWidth(label) {
+  const normalized = normalizeLabel(label);
+  const text = normalized.kind === "node" ? normalized.text : normalized.text;
+  const width = texTextWidthCm(cleanQtreeText(text));
+  return Math.max(0.18, width + NODE_INNER_XSEP);
+}
+
+function cleanQtreeText(text) {
+  return String(text || "")
+    .replace(/\$([^$]*)\$/g, "$1")
+    .replace(/\\(?:textbf|textit|emph|mathrm|mathbf)\s*\{([^{}]*)\}/g, "$1")
+    .replace(/\\[A-Za-z]+\b/g, "")
+    .replace(/[{}]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function positiveNumber(value, fallback) {
+  return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function walk(root, callback) {

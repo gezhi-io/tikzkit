@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tikzToSvg } from "../src/index.js";
-import { CALIBRATION_CASES, IZAAK_COMPLEX_ROOTS_CASES } from "./gallery-extra-cases.js";
+import { CALIBRATION_CASES, IZAAK_COMPLEX_ROOTS_CASES, MATH_CONCEPT_COVERAGE_CASES } from "./gallery-extra-cases.js";
 
 const PACKT_ROOT = "work/packt-tikz-examples";
 const PETARV_ROOT = "work/petarv-tikz";
@@ -785,7 +785,8 @@ const selected = [
   ...TIKZFXGRAPH_CASES,
   ...RICH_EXTENSION_CASES,
   ...IZAAK_COMPLEX_ROOTS_CASES,
-  ...CALIBRATION_CASES
+  ...CALIBRATION_CASES,
+  ...MATH_CONCEPT_COVERAGE_CASES
 ];
 
 if (selected.length < TARGET_COUNT) {
@@ -816,7 +817,8 @@ await writeFile(
     tikzfxgraphFound: TIKZFXGRAPH_CASES.length,
     richExtensionFound: RICH_EXTENSION_CASES.length,
     izaakComplexRootsFound: IZAAK_COMPLEX_ROOTS_CASES.length,
-    calibrationFound: CALIBRATION_CASES.length
+    calibrationFound: CALIBRATION_CASES.length,
+    mathConceptCoverageFound: MATH_CONCEPT_COVERAGE_CASES.length
   }),
   "utf8"
 );

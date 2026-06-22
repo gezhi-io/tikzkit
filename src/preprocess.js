@@ -1,11 +1,12 @@
 import { evaluateMath, parseDimension } from "./math.js";
 import { applyPreprocessExtensions } from "./extensions/index.js";
 import { parseOptions, splitTopLevel } from "./options.js";
+import { collectTikzLibraries, stripTikzLibraryDeclarations } from "./tikz-libraries.js";
 import {
   TIKZ_AXIS_CONTAINER_MARGIN,
   TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN,
-  TIKZ_PGFPLOTS_MIDDLE_AXIS_STACK_GAP,
-  TIKZ_PGFPLOTS_MIDDLE_AXIS_STACK_SHIFT
+  TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_X,
+  TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_Y
 } from "./tikz-metrics.js";
 
 const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "node", "coordinate", "foreach"]);
@@ -20,12 +21,14 @@ const KATEX_DELEGATED_MACROS = new Set(["overmat", "undermat"]);
 export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
   let expanded = stripTexComments(String(source));
+  const libraries = collectTikzLibraries(expanded);
   expanded = stripTikzLibraryDeclarations(expanded);
   expanded = stripPgfLibraryDeclarations(expanded);
   const colorResult = collectColorDefinitions(expanded);
   expanded = replaceDefinedColorUses(colorResult.source, colorResult.colors);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
+  expanded = expandBraidMacros(expanded, diagnostics);
   expanded = terminatePgfTransformStatements(expanded);
   expanded = applyPreprocessExtensions(expanded, {
     diagnostics,
@@ -35,7 +38,8 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = expandTikzScopeEnvironments(expanded, diagnostics);
   expanded = expandTransparentEnvironment(expanded, "pgfonlayer", diagnostics);
   expanded = expandPgfplotsAxes(expanded, diagnostics, options);
-  return { source: expanded, diagnostics };
+  expanded = stripTexDocumentShell(expanded);
+  return { source: expanded, diagnostics, libraries };
 }
 
 function stripTexComments(source) {
@@ -59,12 +63,16 @@ function stripTexComments(source) {
   return output;
 }
 
-function stripTikzLibraryDeclarations(source) {
-  return String(source).replace(/\\usetikzlibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
-}
-
 function stripPgfLibraryDeclarations(source) {
   return String(source).replace(/\\usepgflibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
+}
+
+function stripTexDocumentShell(source) {
+  return String(source)
+    .replace(/\\documentclass(?:\[[^\]]*\])?\{[^{}]*\}\s*/g, "")
+    .replace(/\\usepackage(?:\[[^\]]*\])?\{[^{}]*\}\s*/g, "")
+    .replace(/\\begin\{document\}\s*/g, "")
+    .replace(/\\end\{document\}\s*/g, "");
 }
 
 function collectColorDefinitions(source) {
@@ -455,6 +463,125 @@ function expandTransparentEnvironment(source, name, diagnostics) {
     index = endIndex + end.length;
   }
   return output;
+}
+
+function expandBraidMacros(source, diagnostics) {
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    if (!source.startsWith("\\braid", index)) {
+      output += source[index];
+      index += 1;
+      continue;
+    }
+    const parsed = parseBraidCommand(source, index, diagnostics);
+    if (!parsed) {
+      output += source[index];
+      index += 1;
+      continue;
+    }
+    output += parsed.text;
+    index = parsed.end;
+  }
+  return output;
+}
+
+function parseBraidCommand(source, start, diagnostics) {
+  let cursor = start + "\\braid".length;
+  const options = parseOptionalOptions(source, cursor);
+  cursor = options.end;
+  cursor = skipWhitespace(source, cursor);
+  if (source[cursor] === "(") {
+    const name = extractBalanced(source, cursor, "(", ")");
+    if (!name) return null;
+    cursor = name.end;
+  }
+  cursor = skipWhitespace(source, cursor);
+  let at = "0,0";
+  if (source.startsWith("at", cursor)) {
+    cursor = skipWhitespace(source, cursor + 2);
+    const point = extractBalanced(source, cursor, "(", ")");
+    if (!point) return null;
+    at = point.content.trim();
+    cursor = point.end;
+  }
+  const end = source.indexOf(";", cursor);
+  if (end === -1) return null;
+  const word = source.slice(cursor, end).trim();
+  const expanded = expandSimpleTwoStrandBraid(options.raw, at, word);
+  if (!expanded) {
+    diagnostics.push({ severity: "warning", message: "Unsupported complex \\braid command; leaving as no-op compatibility statement" });
+    return { text: source.slice(start, end + 1), end: end + 1 };
+  }
+  return { text: expanded, end: end + 1 };
+}
+
+function expandSimpleTwoStrandBraid(optionsRaw, at, word) {
+  const crossings = [...String(word || "").matchAll(/s\s*_\s*\{?1\}?/g)].length;
+  if (!crossings) return null;
+  const strandStyles = braidStrandStyles(optionsRaw);
+  const redStyle = strandStyles.get(1) || "red, very thick";
+  const blueStyle = strandStyles.get(2) || "blue, very thick";
+  const scopeOptions = `shift={(${at})}`;
+  return `{[${scopeOptions}]
+\\draw[${redStyle}] ${braidStrandPath(crossings, 0)};
+\\draw[${blueStyle}] ${braidStrandPath(crossings, 1)};
+}`;
+}
+
+function braidStrandStyles(optionsRaw) {
+  const styles = new Map();
+  const pattern = /style\s+strands\s*=\s*\{\s*(\d+)\s*\}\s*\{([^{}]*)\}/g;
+  let match;
+  while ((match = pattern.exec(String(optionsRaw || "")))) {
+    styles.set(Number(match[1]), match[2].trim());
+  }
+  return styles;
+}
+
+function braidStrandPath(crossings, startY) {
+  const border = 0.3;
+  const crossingWidth = 0.9;
+  const parts = [
+    `(${formatBraidNumber(0)},${formatBraidNumber(startY)})`,
+    `-- (${formatBraidNumber(border)},${formatBraidNumber(startY)})`
+  ];
+  let y = startY;
+  for (let index = 0; index < crossings; index += 1) {
+    const x = border + index;
+    if (index > 0) parts.push(`-- (${formatBraidNumber(x)},${formatBraidNumber(y)})`);
+    const nextY = y === 0 ? 1 : 0;
+    if (index % 2 === startY) {
+      parts.push(
+        `.. controls (${formatBraidNumber(x + 0.5)},${formatBraidNumber(y)}) and (${formatBraidNumber(
+          x + 0.4
+        )},${formatBraidNumber(nextY)}) .. (${formatBraidNumber(x + crossingWidth)},${formatBraidNumber(nextY)})`
+      );
+    } else {
+      parts.push(
+        `.. controls (${formatBraidNumber(x + 0.2)},${formatBraidNumber(y)}) and (${formatBraidNumber(
+          x + 0.304
+        )},${formatBraidNumber(lerp(y, nextY, 0.16))}) .. (${formatBraidNumber(x + 0.388)},${formatBraidNumber(
+          lerp(y, nextY, 0.352)
+        )})`,
+        `(${formatBraidNumber(x + 0.511)},${formatBraidNumber(lerp(y, nextY, 0.648))})`,
+        `.. controls (${formatBraidNumber(x + 0.596)},${formatBraidNumber(lerp(y, nextY, 0.84))}) and (${formatBraidNumber(
+          x + 0.7
+        )},${formatBraidNumber(nextY)}) .. (${formatBraidNumber(x + crossingWidth)},${formatBraidNumber(nextY)})`
+      );
+    }
+    y = nextY;
+  }
+  parts.push(`-- (${formatBraidNumber(border + crossings + 0.2)},${formatBraidNumber(y)})`);
+  return parts.join(" ");
+}
+
+function lerp(from, to, ratio) {
+  return from + (to - from) * ratio;
+}
+
+function formatBraidNumber(value) {
+  return Number(value).toFixed(4).replace(/\.?0+$/, "");
 }
 
 function expandTikzNetworkMacros(source, diagnostics, options = {}) {
@@ -1051,9 +1178,26 @@ function joinTikzOptions(parts) {
 function expandTkzGraphMacros(source) {
   let unit = 2.5;
   const positions = new Map();
-  const baseEdgeStyle = tkzBaseEdgeStyle(source);
-  const baseEdgeLabelOptions = tkzBaseEdgeLabelOptions(source);
-  let currentEdgeStyle = baseEdgeStyle || "->";
+  const setupEdgeMarkers = [];
+  const preparedSource = String(source).replace(/\\SetUpEdge\s*\[([\s\S]*?)\]/g, (_match, raw) => {
+    const markerIndex = setupEdgeMarkers.push(raw) - 1;
+    return `\n\\tikzkitSetUpEdge{${markerIndex}}\n`;
+  });
+  const edgeSetup = {};
+  const edgeLabelOptions = {};
+  let edgeStyleOverride = "";
+  let currentEdgeStyle = "->";
+  const refreshEdgeStyle = () => {
+    currentEdgeStyle = joinTkzOptions([tkzSetupEdgeStyle(edgeSetup), edgeStyleOverride]) || "->";
+  };
+  const applySetupEdge = (raw) => {
+    const options = parseOptions(raw);
+    if (options.lw !== undefined) edgeSetup.lw = options.lw;
+    if (options.color !== undefined) edgeSetup.color = options.color;
+    if (options.labelcolor !== undefined) edgeLabelOptions.fill = options.labelcolor;
+    if (options.labeltext !== undefined) edgeLabelOptions.text = options.labeltext;
+    refreshEdgeStyle();
+  };
   // Claude: 跟踪 tkz-graph 的 VertexStyle。原代码把每个 \Vertex 都展成固定样式的 node，
   // 完全忽略了 \tikzset{VertexStyle/.append style={fill=red!50}} 这类顶点样式（导致 case 040
   // 的 s/t 顶点该红/蓝却渲染成白色）。这里用一个样式对象累积 .append style（同名键后者覆盖，
@@ -1061,15 +1205,20 @@ function expandTkzGraphMacros(source) {
   let vertexStyle = {};
   const vertexNode = (name, x, y) =>
     `\\node[${tkzVertexNodeOptions(vertexStyle)}] (${name}) at (${x},${y}) {${name}};`;
-  return source
-    .replace(/\\SetUpEdge\s*\[[\s\S]*?\]/g, "")
+  return preparedSource
     .replace(/\\GraphInit\s*\[[^\]]*?\]/g, "")
     .split(/\r?\n/)
     .map((line) => {
       const trimmed = line.trim();
+      const setupEdge = trimmed.match(/^\\tikzkitSetUpEdge\{(\d+)\}$/);
+      if (setupEdge) {
+        applySetupEdge(setupEdgeMarkers[Number(setupEdge[1])] || "");
+        return "";
+      }
       const edgeStyle = trimmed.match(/^\\tikzset\s*\{\s*EdgeStyle\/\.style\s*=\s*\{([\s\S]*)\}\s*\}\s*$/);
       if (edgeStyle) {
-        currentEdgeStyle = joinTkzOptions([baseEdgeStyle, edgeStyle[1].trim()]) || "->";
+        edgeStyleOverride = edgeStyle[1].trim();
+        refreshEdgeStyle();
         return line;
       }
       const vertexAppend = trimmed.match(/^\\tikzset\s*\{\s*VertexStyle\/\.append\s+style\s*=\s*\{([\s\S]*)\}\s*\}\s*$/);
@@ -1116,12 +1265,19 @@ function expandTkzGraphMacros(source) {
       const edge = trimmed.match(/^\\Edge(?:\[([^\]]*?)\])?\s*\(([^)]*)\)\s*\(([^)]*)\)/);
       if (edge) {
         const edgeOptions = edge[1] ? parseOptions(edge[1]) : {};
-        const edgeLabel = renderTkzGraphEdgeLabel(edgeOptions, baseEdgeLabelOptions);
+        const edgeLabel = renderTkzGraphEdgeLabel(edgeOptions, edgeLabelOptions);
         return `\\draw[${currentEdgeStyle}] (${edge[2].trim()}) edge[${currentEdgeStyle}]${edgeLabel} (${edge[3].trim()});`;
       }
       return line;
     })
     .join("\n");
+}
+
+function tkzSetupEdgeStyle(options = {}) {
+  const parts = [];
+  if (options.lw) parts.push(`line width=${options.lw}`);
+  if (options.color) parts.push(String(options.color).trim());
+  return joinTikzOptions(parts);
 }
 
 // Claude: 把基础顶点样式与当前 VertexStyle 合并成 \node 的选项串。
@@ -1139,31 +1295,12 @@ function parseTkzVertexStyleOptions(raw, { append = false } = {}) {
   return options;
 }
 
-function tkzBaseEdgeStyle(source) {
-  const setup = String(source).match(/\\SetUpEdge\s*\[([\s\S]*?)\]/);
-  if (!setup) return "";
-  const options = parseOptions(setup[1]);
-  const parts = [];
-  if (options.lw) parts.push(`line width=${options.lw}`);
-  if (options.color) parts.push(String(options.color).trim());
-  return joinTkzOptions(parts);
-}
-
-function tkzBaseEdgeLabelOptions(source) {
-  const setup = String(source).match(/\\SetUpEdge\s*\[([\s\S]*?)\]/);
-  if (!setup) return {};
-  const options = parseOptions(setup[1]);
-  return {
-    fill: options.labelcolor,
-    text: options.labeltext
-  };
-}
-
 function renderTkzGraphEdgeLabel(edgeOptions, baseOptions = {}) {
   if (edgeOptions.label === undefined) return "";
   const nodeOptions = ["midway"];
   if (baseOptions.fill) nodeOptions.push(`fill=${baseOptions.fill}`);
   nodeOptions.push(`text=${baseOptions.text || "black"}`);
+  nodeOptions.push("inner sep=1pt", "outer sep=0pt");
   if (edgeOptions.style) nodeOptions.push(stripOuterBracesText(edgeOptions.style));
   return ` node[${joinTikzOptions(nodeOptions)}] {${stripOuterBracesText(edgeOptions.label)}}`;
 }
@@ -1179,8 +1316,6 @@ function joinTkzOptions(parts) {
 function expandPgfplotsAxes(source, diagnostics, options) {
   let output = "";
   let index = 0;
-  let currentPictureStart = -1;
-  let axisContext = createAxisContext();
   while (index < source.length) {
     const axisEnvironment = findNextPgfplotsEnvironment(source, index);
     if (!axisEnvironment) {
@@ -1188,11 +1323,6 @@ function expandPgfplotsAxes(source, diagnostics, options) {
       break;
     }
     output += source.slice(index, axisEnvironment.beginIndex);
-    const pictureStart = source.lastIndexOf("\\begin{tikzpicture}", axisEnvironment.beginIndex);
-    if (pictureStart !== currentPictureStart) {
-      currentPictureStart = pictureStart;
-      axisContext = createAxisContext();
-    }
     let cursor = axisEnvironment.beginIndex + axisEnvironment.begin.length;
     const axisOptions = parseOptionalOptions(source, cursor);
     cursor = axisOptions.end;
@@ -1203,15 +1333,17 @@ function expandPgfplotsAxes(source, diagnostics, options) {
       break;
     }
     const body = source.slice(cursor, endIndex);
+    const parsedAxisOptions = parseOptions(axisOptions.raw);
     output += renderAxisAsTikz(
       {
         ...axisEnvironment.defaultOptions,
         ...findContainingTikzPictureOptions(source, axisEnvironment.beginIndex),
-        ...parseOptions(axisOptions.raw)
+        ...parsedAxisOptions,
+        "pgfplots explicit x unit": Object.hasOwn(parsedAxisOptions, "x"),
+        "pgfplots explicit y unit": Object.hasOwn(parsedAxisOptions, "y")
       },
       body,
       options,
-      axisContext,
       diagnostics
     );
     index = endIndex + axisEnvironment.end.length;
@@ -1244,10 +1376,6 @@ function findNextPgfplotsEnvironment(source, start) {
   return best;
 }
 
-function createAxisContext() {
-  return { previousMiddleAxisBottom: null };
-}
-
 function findContainingTikzPictureOptions(source, offset) {
   const begin = "\\begin{tikzpicture}";
   const beginIndex = source.lastIndexOf(begin, offset);
@@ -1258,12 +1386,11 @@ function findContainingTikzPictureOptions(source, offset) {
   return parseOptions(options.raw);
 }
 
-function renderAxisAsTikz(axisOptions, body, options, axisContext, diagnostics = []) {
+function renderAxisAsTikz(axisOptions, body, options, diagnostics = []) {
   const addplots = parseAddplots(body, options, diagnostics);
   const legendEntries = parseLegendEntries(body);
   const ranges = computeAxisRanges(axisOptions, addplots);
   const geometry = createAxisGeometry(axisOptions, ranges);
-  separateStackedMiddleAxis(axisOptions, geometry, axisContext);
   const commands = [renderAxisFrame(geometry)];
   if (axisOptions.grid || String(axisOptions.grid || "").includes("major")) {
     commands.push(...renderAxisGrid(ranges, geometry));
@@ -1294,12 +1421,16 @@ function parseAddplots(body, options = {}, diagnostics = []) {
     }
     cursor = skipWhitespace(body, cursor);
     if (body[cursor] === "+") cursor += 1;
+    const appendCycle = body[cursor - 1] === "+";
     cursor = skipWhitespace(body, cursor);
     if (body.startsWith("expression", cursor)) {
       cursor += "expression".length;
       cursor = skipWhitespace(body, cursor);
     }
     const parsedOptions = parseOptionalOptions(body, cursor);
+    const plotOptions = parseOptions(parsedOptions.raw);
+    if (appendCycle) plotOptions["pgfplots plus"] = true;
+    if (String(parsedOptions.raw || "").trim()) plotOptions["pgfplots explicit options"] = true;
     cursor = parsedOptions.end;
     cursor = skipWhitespace(body, cursor);
     const statementEnd = findStatementEnd(body, cursor);
@@ -1313,7 +1444,7 @@ function parseAddplots(body, options = {}, diagnostics = []) {
         plots.push({
           type: "coordinates",
           is3d,
-          options: parseOptions(parsedOptions.raw),
+          options: plotOptions,
           points: parseCoordinateList(coords.content),
           closedCycle
         });
@@ -1332,7 +1463,7 @@ function parseAddplots(body, options = {}, diagnostics = []) {
           type: "coordinates",
           source: "table",
           is3d,
-          options: parseOptions(parsedOptions.raw),
+          options: plotOptions,
           tableOptions: parseOptions(tableOptions.raw),
           points: parsePgfplotsTablePoints(tableText, parseOptions(tableOptions.raw), diagnostics),
           closedCycle
@@ -1345,7 +1476,7 @@ function parseAddplots(body, options = {}, diagnostics = []) {
         plots.push({
           type: "function",
           is3d,
-          options: parseOptions(parsedOptions.raw),
+          options: plotOptions,
           expression: expression.content.trim(),
           closedCycle
         });
@@ -1458,31 +1589,35 @@ function computeAxisRanges(axisOptions, addplots) {
   const domain = parseDomain(axisOptions.domain || "-1:1");
   const xLog = isLogAxis(axisOptions, "x");
   const yLog = isLogAxis(axisOptions, "y");
+  const hasExplicitXMin = hasAxisBound(axisOptions.xmin);
+  const hasExplicitXMax = hasAxisBound(axisOptions.xmax);
+  const hasExplicitYMin = hasAxisBound(axisOptions.ymin);
+  const hasExplicitYMax = hasAxisBound(axisOptions.ymax);
   let xMin = axisNumber(axisOptions.xmin, xLog ? 1 : domain.start);
   let xMax = axisNumber(axisOptions.xmax, xLog ? 10 : domain.end);
-  let yMin = Number.isFinite(Number(axisOptions.ymin)) ? axisNumber(axisOptions.ymin) : Infinity;
-  let yMax = Number.isFinite(Number(axisOptions.ymax)) ? axisNumber(axisOptions.ymax) : -Infinity;
+  let yMin = hasExplicitYMin ? axisNumber(axisOptions.ymin) : Infinity;
+  let yMax = hasExplicitYMax ? axisNumber(axisOptions.ymax) : -Infinity;
   for (const plot of addplots) {
     if (plot.type === "coordinates") {
       for (const point of plot.points) {
-        xMin = Math.min(xMin, point.x);
-        xMax = Math.max(xMax, point.x);
-        yMin = Math.min(yMin, point.y);
-        yMax = Math.max(yMax, point.y);
+        if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
+        if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
+        if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
+        if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
       }
     }
     if (plot.type === "function") {
       const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || "-1:1");
-      xMin = Math.min(xMin, plotDomain.start);
-      xMax = Math.max(xMax, plotDomain.end);
+      if (!hasExplicitXMin) xMin = Math.min(xMin, plotDomain.start);
+      if (!hasExplicitXMax) xMax = Math.max(xMax, plotDomain.end);
       const samples = axisSamples(plot.options.samples || axisOptions.samples || 25, 80);
       for (let index = 0; index < samples; index += 1) {
         const t = samples === 1 ? 0 : index / (samples - 1);
         const x = plotDomain.start + (plotDomain.end - plotDomain.start) * t;
         const y = evaluateAxisExpression(plot.expression, x, axisOptions);
         if (Number.isFinite(y)) {
-          yMin = Math.min(yMin, y);
-          yMax = Math.max(yMax, y);
+          if (!hasExplicitYMin) yMin = Math.min(yMin, y);
+          if (!hasExplicitYMax) yMax = Math.max(yMax, y);
         }
       }
     }
@@ -1516,14 +1651,21 @@ function computeAxisRanges(axisOptions, addplots) {
   };
 }
 
+function hasAxisBound(value) {
+  return value !== undefined && value !== null && value !== true && String(value).trim() !== "";
+}
+
 function createAxisGeometry(axisOptions, ranges) {
-  const width = parseAxisDimension(axisOptions.width, Math.max(4, Math.min(12, Math.abs(ranges.xMax - ranges.xMin) || 6)));
-  const height = parseAxisDimension(axisOptions.height, Math.max(3, Math.min(8, Math.abs(ranges.yMax - ranges.yMin) || 4)));
+  const scale = axisScaleFactor(axisOptions.scale);
+  const fallbackWidth = Math.max(4, Math.min(12, Math.abs(ranges.xMax - ranges.xMin) || 6));
+  const fallbackHeight = Math.max(3, Math.min(8, Math.abs(ranges.yMax - ranges.yMin) || 4));
+  const xUnitWidth = axisOptions["pgfplots explicit x unit"] ? axisUnitDimension(axisOptions.x, ranges.xMax - ranges.xMin) : null;
+  const yUnitHeight = axisOptions["pgfplots explicit y unit"] ? axisUnitDimension(axisOptions.y, ranges.yMax - ranges.yMin) : null;
+  const requestedWidth = parseAxisDimension(axisOptions.width, xUnitWidth ?? fallbackWidth) * scale;
+  const requestedHeight = parseAxisDimension(axisOptions.height, yUnitHeight ?? fallbackHeight) * scale;
+  const { width, height } = axisPlotAreaSize(axisOptions, requestedWidth, requestedHeight);
   const origin = parseAxisAt(axisOptions.at);
-  if (axisOptions.at && isMiddleAxis(axisOptions)) {
-    origin.y -= height * TIKZ_PGFPLOTS_MIDDLE_AXIS_STACK_SHIFT;
-  }
-  const margin = axisContainerMargin(axisOptions);
+  const margin = scaleAxisMargin(axisContainerMargin(axisOptions), scale);
   const xLog = isLogAxis(axisOptions, "x");
   const yLog = isLogAxis(axisOptions, "y");
   const mappedXMin = axisScaleValue(ranges.xMin, xLog);
@@ -1539,6 +1681,30 @@ function createAxisGeometry(axisOptions, ranges) {
   return { width, height, origin, margin, mapPoint, xLog, yLog };
 }
 
+function axisScaleFactor(raw) {
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function scaleAxisMargin(margin, scale) {
+  return Object.fromEntries(Object.entries(margin).map(([key, value]) => [key, value * scale]));
+}
+
+function axisPlotAreaSize(axisOptions, requestedWidth, requestedHeight) {
+  if (!isMiddleAxis(axisOptions)) return { width: requestedWidth, height: requestedHeight };
+  return {
+    width: Math.max(requestedWidth * 0.5, requestedWidth - TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_X),
+    height: Math.max(requestedHeight * 0.5, requestedHeight - TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_Y)
+  };
+}
+
+function axisUnitDimension(value, span) {
+  const unit = parseDimension(String(value || ""), {});
+  const axisSpan = Math.abs(Number(span));
+  if (!Number.isFinite(unit) || unit <= 0 || !Number.isFinite(axisSpan) || axisSpan <= 0) return null;
+  return unit * axisSpan;
+}
+
 function isLogAxis(axisOptions, axis) {
   return String(axisOptions[`${axis}mode`] || axisOptions[`${axis} scale`] || "").trim().toLowerCase() === "log";
 }
@@ -1546,19 +1712,6 @@ function isLogAxis(axisOptions, axis) {
 function axisScaleValue(value, logMode) {
   if (!logMode) return value;
   return Math.log10(Math.max(1e-12, value));
-}
-
-function separateStackedMiddleAxis(axisOptions, geometry, axisContext) {
-  if (!axisContext || !isMiddleAxis(axisOptions)) return;
-  let outer = axisOuterBounds(geometry);
-  if (axisOptions.at && Number.isFinite(axisContext.previousMiddleAxisBottom)) {
-    const targetTop = axisContext.previousMiddleAxisBottom - TIKZ_PGFPLOTS_MIDDLE_AXIS_STACK_GAP;
-    if (outer.maxY > targetTop) {
-      geometry.origin.y -= outer.maxY - targetTop;
-      outer = axisOuterBounds(geometry);
-    }
-  }
-  axisContext.previousMiddleAxisBottom = outer.minY;
 }
 
 function axisContainerMargin(axisOptions) {
@@ -1647,13 +1800,16 @@ function renderAxisTicks(axisOptions, addplots, ranges, geometry) {
   const xLabels = axisTickLabels(axisOptions.xticklabels, xTicks);
   const yLabels = axisTickLabels(axisOptions.yticklabels, yTicks);
   const tickLength = 0.07;
+  const middleAxis = isMiddleAxis(axisOptions);
+  const yAxis = middleAxis && ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : ranges.yMin;
+  const xAxis = middleAxis && ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : ranges.xMin;
   xTicks.forEach((x, index) => {
-    const base = geometry.mapPoint({ x, y: ranges.yMin });
+    const base = geometry.mapPoint({ x, y: yAxis });
     commands.push(`\\draw[axis tick, black, line width=0.25pt] ${formatAxisPoint(base)} -- ${formatAxisPoint(offsetPoint(base, 0, -tickLength))};`);
     commands.push(`\\node[axis tick label, anchor=north, font=\\scriptsize] at ${formatAxisPoint(offsetPoint(base, 0, -tickLength * 1.8))} {${xLabels[index]}};`);
   });
   yTicks.forEach((y, index) => {
-    const base = geometry.mapPoint({ x: ranges.xMin, y });
+    const base = geometry.mapPoint({ x: xAxis, y });
     commands.push(`\\draw[axis tick, black, line width=0.25pt] ${formatAxisPoint(base)} -- ${formatAxisPoint(offsetPoint(base, -tickLength, 0))};`);
     commands.push(`\\node[axis tick label, anchor=east, font=\\scriptsize] at ${formatAxisPoint(offsetPoint(base, -tickLength * 1.8, 0))} {${yLabels[index]}};`);
   });
@@ -1661,8 +1817,9 @@ function renderAxisTicks(axisOptions, addplots, ranges, geometry) {
 }
 
 function axisTickValues(raw, axis, addplots) {
-  const text = String(raw || "").trim();
+  const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (!text) return [];
+  if (text === "\\empty" || text === "empty") return [];
   if (text === "data") return uniqueAxisValues(addplots.flatMap((plot) => plot.points || []).map((point) => point[axis]));
   return splitBracedList(text).map((part) => axisNumber(part, NaN)).filter(Number.isFinite);
 }
@@ -1711,6 +1868,12 @@ function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex =
       const style = joinOptions(["axis closed cycle", selectPlotFillStyle(plot.options, plotIndex), "draw=none"]);
       commands.push(`\\draw[${style}] ${mappedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
     }
+    if (isAxisCombPlot(axisOptions, plot.options, "y")) {
+      commands.push(...renderAxisComb(plot.points, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
+      if (shouldRenderPlotMarks(plot.options)) commands.push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+      commands.push(...renderNodesNearCoords(plot, axisOptions, geometry));
+      return commands;
+    }
     if (!plot.options["only marks"] && mappedPoints.length) {
       const style = joinOptions(["axis plot", selectPlotStyle(plot.options, plotIndex)]);
       commands.push(`\\draw[${style}] ${axisPlotPointChain(mappedPoints, axisOptions, plot.options)};`);
@@ -1723,22 +1886,41 @@ function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex =
   }
   if (plot.type === "function") {
     const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || `${ranges.xMin}:${ranges.xMax}`);
+    const visibleDomain = clipDomainToAxisRange(plotDomain, ranges);
+    if (!visibleDomain) return [];
     const samples = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSamples || 25, 1200);
-    const points = [];
+    const dataPoints = [];
     for (let index = 0; index < samples; index += 1) {
       const t = samples === 1 ? 0 : index / (samples - 1);
-      const x = plotDomain.start + (plotDomain.end - plotDomain.start) * t;
+      const x = visibleDomain.start + (visibleDomain.end - visibleDomain.start) * t;
       const y = evaluateAxisExpression(plot.expression, x, axisOptions);
-      if (Number.isFinite(y)) points.push(geometry.mapPoint({ x, y }));
+      if (Number.isFinite(y)) dataPoints.push({ x, y });
+    }
+    const points = dataPoints.map((point) => geometry.mapPoint(point));
+    if (isAxisCombPlot(axisOptions, plot.options, "y")) {
+      const commands = renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y");
+      if (shouldRenderPlotMarks(plot.options)) commands.push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+      return commands;
     }
     const style = joinOptions(["axis plot", selectPlotStyle(plot.options, plotIndex)]);
-    return points.length ? [`\\draw[${style}] ${points.map(formatAxisPoint).join(" -- ")};`] : [];
+    return points.length ? [`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`] : [];
   }
   return [];
 }
 
+function clipDomainToAxisRange(domain, ranges) {
+  const start = Math.max(domain.start, ranges.xMin);
+  const end = Math.min(domain.end, ranges.xMax);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return null;
+  return { start, end };
+}
+
 function axisPlotPointChain(points, axisOptions, plotOptions) {
-  if (!isConstPlot(axisOptions, plotOptions) || points.length < 2) return points.map(formatAxisPoint).join(" -- ");
+  if (points.length < 2) return points.map(formatAxisPoint).join(" -- ");
+  if (!isConstPlot(axisOptions, plotOptions) && isSmoothAxisPlot(plotOptions) && points.length >= 3) {
+    return smoothAxisPlotPointChain(points, plotOptions);
+  }
+  if (!isConstPlot(axisOptions, plotOptions)) return points.map(formatAxisPoint).join(" -- ");
   const stepped = [points[0]];
   for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
@@ -1748,6 +1930,43 @@ function axisPlotPointChain(points, axisOptions, plotOptions) {
   return stepped.map(formatAxisPoint).join(" -- ");
 }
 
+function isSmoothAxisPlot(plotOptions = {}) {
+  const value = plotOptions.smooth;
+  if (value === undefined || value === null || value === false) return false;
+  const text = String(value).trim().toLowerCase();
+  return text !== "false" && text !== "0";
+}
+
+function smoothAxisPlotPointChain(points, plotOptions = {}) {
+  const rawTension = evaluateMath(plotOptions.tension ?? 0.5, {});
+  const tension = Number.isFinite(rawTension) && rawTension > 0 ? Math.min(rawTension, 3) : 1;
+  const factor = tension * 0.2775;
+  const parts = [formatAxisPoint(points[0])];
+  let first = points[0];
+  let second = points[1];
+  let firstSupport = { ...first };
+  for (let index = 2; index < points.length; index += 1) {
+    const current = points[index];
+    const support = {
+      x: (current.x - first.x) * factor,
+      y: (current.y - first.y) * factor
+    };
+    const secondSupport = {
+      x: second.x - support.x,
+      y: second.y - support.y
+    };
+    parts.push(`.. controls ${formatAxisPoint(firstSupport)} and ${formatAxisPoint(secondSupport)} .. ${formatAxisPoint(second)}`);
+    firstSupport = {
+      x: second.x + support.x,
+      y: second.y + support.y
+    };
+    first = second;
+    second = current;
+  }
+  parts.push(`.. controls ${formatAxisPoint(firstSupport)} and ${formatAxisPoint(second)} .. ${formatAxisPoint(second)}`);
+  return parts.join(" ");
+}
+
 function isConstPlot(axisOptions, plotOptions) {
   return Boolean(axisOptions["const plot"] || plotOptions["const plot"]);
 }
@@ -1755,6 +1974,29 @@ function isConstPlot(axisOptions, plotOptions) {
 function isAxisBarPlot(axisOptions, plotOptions, axis) {
   const key = axis === "x" ? "xbar" : "ybar";
   return Boolean(axisOptions[key] || plotOptions[key]);
+}
+
+function isAxisCombPlot(axisOptions, plotOptions, axis) {
+  const key = axis === "x" ? "xcomb" : "ycomb";
+  return Boolean(axisOptions[key] || plotOptions[key]);
+}
+
+function renderAxisComb(points, axisOptions, ranges, geometry, plotOptions, plotIndex, orientation) {
+  const commands = [];
+  const style = joinOptions(["axis comb", selectPlotStyle(plotOptions, plotIndex)]);
+  const xBaseline = ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : ranges.xMin;
+  const yBaseline = ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : ranges.yMin;
+  for (const point of points) {
+    const from = orientation === "x" ? geometry.mapPoint({ x: xBaseline, y: point.y }) : geometry.mapPoint({ x: point.x, y: yBaseline });
+    const to = geometry.mapPoint(point);
+    commands.push(`\\draw[${style}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+  }
+  return commands;
+}
+
+function shouldRenderPlotMarks(options = {}) {
+  if (options["no markers"] || String(options.mark || "").trim().toLowerCase() === "none") return false;
+  return Boolean(options["only marks"] || options.scatter || options.mark);
 }
 
 function renderAxisBars(points, axisOptions, geometry, plotOptions, plotIndex, orientation) {
@@ -1787,16 +2029,36 @@ function renderAxisBars(points, axisOptions, geometry, plotOptions, plotIndex, o
 
 function renderPlotMark(point, options, plotIndex) {
   const mark = String(options.mark || (options.scatter ? "*" : "*")).trim().toLowerCase();
-  const color = selectPlotColor(options, plotIndex);
-  const style = joinOptions(["axis mark", color, "fill opacity=1"]);
-  const size = 0.04;
+  const stroke = plotColorValue(selectPlotColor(options, plotIndex));
+  const fill = plotColorValue(selectPlotMarkFillColor(options, plotIndex));
+  const style = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", plotLineWidthOption(options)]);
+  const size = axisMarkRadius(options);
   if (mark === "x" || mark === "+") {
-    return `\\draw[${joinOptions(["axis mark", color, "line width=0.4pt"])}] ${formatAxisPoint(offsetPoint(point, -size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, size))} ${formatAxisPoint(offsetPoint(point, -size, size))} -- ${formatAxisPoint(offsetPoint(point, size, -size))};`;
+    return `\\draw[${joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)])}] ${formatAxisPoint(offsetPoint(point, -size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, size))} ${formatAxisPoint(offsetPoint(point, -size, size))} -- ${formatAxisPoint(offsetPoint(point, size, -size))};`;
   }
   if (mark === "square" || mark === "square*") {
     return `\\draw[${style}] ${formatAxisPoint(offsetPoint(point, -size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, size))} -- ${formatAxisPoint(offsetPoint(point, -size, size))} -- cycle;`;
   }
-  return `\\fill[${style}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+  return `\\draw[${style}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+}
+
+function axisMarkRadius(options = {}) {
+  const raw = options["mark size"] ?? options.markSize ?? "2pt";
+  const text = String(raw ?? "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  const value = /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(text) ? parseDimension(`${text}pt`, {}) : parseDimension(text, {});
+  return Number.isFinite(value) && value > 0 ? value : parseDimension("2pt", {});
+}
+
+function plotLineWidthOption(options = {}) {
+  if (options["line width"]) return `line width=${options["line width"]}`;
+  if (options["ultra thick"]) return "ultra thick";
+  if (options["very thick"]) return "very thick";
+  if (options.thick) return "thick";
+  if (options.semithick) return "semithick";
+  if (options.thin) return "thin";
+  if (options["very thin"]) return "very thin";
+  if (options["ultra thin"]) return "ultra thin";
+  return "";
 }
 
 function renderNodesNearCoords(plot, axisOptions, geometry) {
@@ -1869,7 +2131,8 @@ function axisSamples(raw, maxSamples) {
 function evaluateAxisExpression(expression, x, axisOptions = {}) {
   const trigFormat = String(axisOptions["trig format"] || "").trim().toLowerCase();
   const radianTrig = trigFormat === "rad" || trigFormat === "radians";
-  const substituted = String(expression).replace(/\bx\b/g, `(${x})`);
+  const withHelpers = expandPgfMathHelpers(expression);
+  const substituted = String(withHelpers).replace(/\\x\b/g, `(${x})`).replace(/\bx\b/g, `(${x})`);
   const normalized = normalizeAxisExpression(substituted, radianTrig);
   if (!normalized) return 0;
   if (!/^[0-9+\-*/().,\sA-Za-z]+$/.test(normalized)) {
@@ -1884,6 +2147,14 @@ function evaluateAxisExpression(expression, x, axisOptions = {}) {
   }
 }
 
+function expandPgfMathHelpers(expression) {
+  return String(expression || "").replace(/\bgauss\s*\(\s*([^,()]+)\s*,\s*([^()]+)\)/g, (_match, mean, sigma) => {
+    const mu = mean.trim();
+    const sd = sigma.trim();
+    return `(1/((${sd})*sqrt(2*pi))*exp(-((x-(${mu}))^2)/(2*(${sd})^2)))`;
+  });
+}
+
 function normalizeAxisExpression(input, radianTrig) {
   const trigPrefix = radianTrig ? "Math.$1(" : "Math.$1((Math.PI/180)*";
   return String(input)
@@ -1891,9 +2162,13 @@ function normalizeAxisExpression(input, radianTrig) {
     .replace(/^\{([\s\S]*)\}$/, "$1")
     .replace(/\bpi\b/g, "Math.PI")
     .replace(/\^/g, "**")
+    .replace(/-\s*(\([^()]+\)|[A-Za-z0-9.]+)\s*\*\*\s*(\([^()]+\)|[A-Za-z0-9.]+)/g, "-($1**$2)")
     .replace(/\bsqrt\s*\(/g, "Math.sqrt(")
     .replace(/\babs\s*\(/g, "Math.abs(")
     .replace(/\bexp\s*\(/g, "Math.exp(")
+    .replace(/\bmax\s*\(/g, "Math.max(")
+    .replace(/\bmin\s*\(/g, "Math.min(")
+    .replace(/\btanh\s*\(/g, "Math.tanh(")
     .replace(/\blog10\s*\(/g, "Math.log10(")
     .replace(/\bln\s*\(/g, "Math.log(")
     .replace(/(^|[^.A-Za-z0-9_])log\s*\(/g, "$1Math.log(")
@@ -1903,13 +2178,52 @@ function normalizeAxisExpression(input, radianTrig) {
 const PGFPLOTS_DEFAULT_COLORS = ["blue", "red", "brown!80!black", "black!60!green", "orange", "violet", "cyan", "magenta"];
 
 function selectPlotColor(options, plotIndex = 0) {
+  const explicit = explicitPlotColor(options);
+  if (explicit) return explicit;
+  return plotUsesCycleColor(options) ? PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length] : "black";
+}
+
+function selectPlotMarkFillColor(options, plotIndex = 0) {
+  const explicit = explicitPlotColor(options);
+  const cycle = PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length];
+  if (options["pgfplots plus"]) {
+    if (!explicit || explicit === "black") return pgfplotsMarkFillColor(cycle);
+    return pgfplotsMarkFillColor(explicit);
+  }
+  return explicit || (plotUsesCycleColor(options) ? cycle : "black");
+}
+
+function pgfplotsMarkFillColor(color) {
+  const text = String(color || "").trim();
+  const equals = text.indexOf("=");
+  if (equals !== -1) {
+    const key = text.slice(0, equals);
+    const value = text.slice(equals + 1);
+    return `${key}=${pgfplotsMarkFillColor(value)}`;
+  }
+  if (!text || text.includes("!") || text.startsWith("#") || /^rgb\s*\(/i.test(text)) return text;
+  return `${text}!80!black`;
+}
+
+function explicitPlotColor(options) {
   for (const [key, value] of Object.entries(options || {})) {
+    if (key.startsWith("pgfplots ")) continue;
     if (value === true && isPlotColorToken(key)) {
       return key;
     }
     if (key === "color" || key === "draw") return `${key}=${value}`;
   }
-  return PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length];
+  return "";
+}
+
+function plotColorValue(color) {
+  const text = String(color || "").trim();
+  if (text.startsWith("draw=") || text.startsWith("color=") || text.startsWith("fill=")) return text.split("=").slice(1).join("=");
+  return text;
+}
+
+function plotUsesCycleColor(options = {}) {
+  return Boolean(options["pgfplots plus"] || !options["pgfplots explicit options"]);
 }
 
 function isPlotColorToken(value) {

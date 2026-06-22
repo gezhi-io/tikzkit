@@ -118,6 +118,13 @@ test("preserves tikzcd hook and two heads arrow tips from rich gallery case", ()
   for (const label of ["$f$", "$g$", "$\\alpha$", "$p$", "$h$", "$k$", "$u$", "$v$", "$\\beta$"]) {
     assert.ok(hasMathText(ir, label), `missing label ${label}`);
   }
+  const a = textNode(ir, "$A$");
+  const b = textNode(ir, "$B$");
+  const d = textNode(ir, "$D$");
+  assert.ok(b.x - a.x > 1.25, `tikz-cd column centers should include cell widths, got ${b.x - a.x}`);
+  assert.ok(a.y - d.y > 1, `tikz-cd row centers should include cell heights, got ${a.y - d.y}`);
+  const hookPath = paths.find((item) => item.style.markerStart?.kind === "hook" && item.style.markerEnd?.kind === "to");
+  assert.ok(Math.abs(hookPath.commands.at(-1).y - hookPath.commands[0].y) > 0.5, "hook arrow should keep enough shaft length after matrix spacing");
   assert.ok(textNode(ir, "$g$").x < textNode(ir, "$A$").x, "swapped vertical label should be left of the edge");
   assert.ok(textNode(ir, "$h$").x > textNode(ir, "$B$").x, "vertical label should be right of the edge");
   assert.ok(textNode(ir, "$f$").y > textNode(ir, "$A$").y, "horizontal label should be above the edge");

@@ -131,6 +131,23 @@ Current support is pragmatic and growing. Highlights:
 
 Unsupported or partially supported syntax should produce diagnostics instead of silently disappearing.
 
+## TikZ Library Registry
+
+`\usetikzlibrary{...}` declarations are parsed separately from source-rewriting extensions. The registry lives in:
+
+```text
+src/tikz-libraries.js
+```
+
+`parseTikz(source)` records the resolved library list on both `ast.libraries` and each `tikzpicture.libraries`, while the preprocessor removes the raw declaration before statement parsing. This keeps the LaTeX preamble readable to TikZKit without turning `\usetikzlibrary` into a drawing command.
+
+Current core examples:
+
+- `positioning`: implemented by `src/interpreter.js:resolvePositioning`; supports `node distance=<vertical> and <horizontal>`, `right=of`, `below=of`, and edge-to-edge placement from node bounds.
+- `matrix`: implemented by `src/parser.js:parseMatrix` and `src/interpreter.js:createMatrix`; supports `matrix of nodes`, `row sep`, `column sep`, `nodes={...}`, `nodes in empty cells`, and `m-row-column` cell anchors.
+
+When adding a built-in TikZ library, add its metadata to `src/tikz-libraries.js`, then implement the actual semantics in the parser/interpreter/renderer layer that owns the behavior. When adding a package-style compatibility layer that rewrites custom commands into ordinary TikZ, use an extension under `src/extensions/`.
+
 ## Real Gallery Validation
 
 The project includes scripts for comparing JS output against native MacTeX output:

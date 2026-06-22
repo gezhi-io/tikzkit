@@ -52,8 +52,8 @@ function parseDimlineCommand(source, start, diagnostics) {
 function renderDimline(optionsRaw, [start, end, label]) {
   const options = parseOptions(optionsRaw);
   const color = textOption(options.color, "black");
-  const lineStyle = normalizeStyle(options["line style"], { fallbackArrow: "<->" });
-  const labelStyle = normalizeStyle(options["label style"], { defaultStyle: "fill=white,inner sep=1pt,pos=0.5" });
+  const lineStyle = normalizeStyle(options["line style"], { fallbackArrow: "arrows=dimline-dimline" });
+  const labelStyle = normalizeStyle(options["label style"], { defaultStyle: "fill=white,align=center,sloped=true,pos=0.5" });
   const extensionStyle = normalizeStyle(options["extension style"], { defaultStyle: `draw=${color}!40,line width=0.01pt` });
   const extensionStartStyle = mergeStyles(extensionStyle, normalizeStyle(options["extension start style"]));
   const extensionEndStyle = mergeStyles(extensionStyle, normalizeStyle(options["extension end style"]));
@@ -66,7 +66,6 @@ function renderDimline(optionsRaw, [start, end, label]) {
   const endAngle = numberOption(options["extension end angle"], 90);
 
   const lineOptions = mergeStyles(`draw=${color},dimline line`, lineStyle);
-  const tickOptions = mergeStyles(`draw=${color},dimline tick,line width=0.4pt`, lineStyle.replace(/(?:^|,)\s*<->\s*(?=,|$)/g, ""));
 
   return [
     `\\coordinate (${id}-a) at ${wrapCoordinate(start)};`,
@@ -77,9 +76,7 @@ function renderDimline(optionsRaw, [start, end, label]) {
     endPath
       ? `\\draw[${extensionEndStyle},dimline extension] plot coordinates {${endPath}};`
       : `\\draw[${extensionEndStyle},dimline extension] (${id}-b) -- ${offsetCoordinate(`${id}-b`, `${id}-a`, endLength, endAngle)};`,
-    `\\draw[${lineOptions}] (${id}-a) -- (${id}-b) node[${labelStyle}] {${label}};`,
-    `\\draw[${tickOptions}] (${id}-a) circle (0.025);`,
-    `\\draw[${tickOptions}] (${id}-b) circle (0.025);`
+    `\\draw[${lineOptions}] (${id}-a) -- (${id}-b) node[${labelStyle}] {${label}};`
   ].join("\n");
 }
 
@@ -110,8 +107,10 @@ function normalizeStyle(value, { defaultStyle = "", fallbackArrow = null } = {})
 
 function arrowOption(value) {
   const text = stripOuterBraces(value).trim();
-  if (/reverse/i.test(text)) return "<->";
-  if (/dimline/i.test(text)) return "<->";
+  if (/^dimline\s+reverse\s*-\s*dimline\s+reverse$/i.test(text)) return "dimline reverse-dimline reverse";
+  if (/^dimline\s*-\s*dimline$/i.test(text)) return "dimline-dimline";
+  if (/reverse/i.test(text)) return "dimline reverse-dimline reverse";
+  if (/dimline/i.test(text)) return "dimline-dimline";
   return text || "<->";
 }
 

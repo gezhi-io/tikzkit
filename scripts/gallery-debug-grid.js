@@ -23,7 +23,31 @@ ${TIKZCD_GRID_STYLE}
 }
 
 function injectTikzPictureGrid(source) {
-  return source.replace(/\\end\{tikzpicture\}/g, `${GALLERY_DEBUG_GRID_SCOPE}\n\\end{tikzpicture}`);
+  const begin = String.raw`\begin{tikzpicture}`;
+  const end = String.raw`\end{tikzpicture}`;
+  let output = "";
+  let cursor = 0;
+  let depth = 0;
+  while (cursor < source.length) {
+    const nextBegin = source.indexOf(begin, cursor);
+    const nextEnd = source.indexOf(end, cursor);
+    if (nextBegin === -1 && nextEnd === -1) {
+      output += source.slice(cursor);
+      break;
+    }
+    if (nextBegin !== -1 && (nextEnd === -1 || nextBegin < nextEnd)) {
+      output += source.slice(cursor, nextBegin + begin.length);
+      depth += 1;
+      cursor = nextBegin + begin.length;
+      continue;
+    }
+    output += source.slice(cursor, nextEnd);
+    if (depth === 1) output += GALLERY_DEBUG_GRID_SCOPE;
+    output += end;
+    depth = Math.max(0, depth - 1);
+    cursor = nextEnd + end.length;
+  }
+  return output;
 }
 
 function injectTikzCdGridOption(source) {

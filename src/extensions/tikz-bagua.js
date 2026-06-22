@@ -174,18 +174,22 @@ function expandLineSymbol(bits, { scale }) {
   const factor = num(scale);
   const spacing = bits.length === 6 ? HEXAGRAM_LINE_SPACING : LINE_SPACING;
   const top = ((bits.length - 1) * spacing) / 2;
+  const width = EM * factor;
+  const left = -width / 2;
+  const right = width / 2;
+  const brokenGapStart = left + BROKEN_GAP_START * factor;
+  const brokenGapEnd = left + BROKEN_GAP_END * factor;
+  const lineWidth = LINE_WIDTH;
   return bits
     .split("")
     .map((bit, index) => {
       const y = (top - index * spacing) * factor;
-      const width = EM * factor;
-      const lineWidth = LINE_WIDTH * factor;
       if (bit === "1") {
-        return `\\draw[bagua line,line width=${fmt(lineWidth)}] (0,${fmt(y)}) -- (${fmt(width)},${fmt(y)});`;
+        return `\\draw[bagua line,line width=${fmt(lineWidth)}cm] (${fmt(left)},${fmt(y)}) -- (${fmt(right)},${fmt(y)});`;
       }
-      return `\\draw[bagua line,line width=${fmt(lineWidth)}] (0,${fmt(y)}) -- (${fmt(
-        BROKEN_GAP_START * factor
-      )},${fmt(y)}) (${fmt(BROKEN_GAP_END * factor)},${fmt(y)}) -- (${fmt(width)},${fmt(y)});`;
+      return `\\draw[bagua line,line width=${fmt(lineWidth)}cm] (${fmt(left)},${fmt(y)}) -- (${fmt(
+        brokenGapStart
+      )},${fmt(y)}) (${fmt(brokenGapEnd)},${fmt(y)}) -- (${fmt(right)},${fmt(y)});`;
     })
     .join("\n");
 }

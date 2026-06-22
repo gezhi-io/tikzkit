@@ -2,6 +2,7 @@ export { parseTikz } from "./parser.js";
 export { interpretTikz } from "./interpreter.js";
 export { renderSvg } from "./renderer-svg.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
+export { BUILTIN_TIKZ_LIBRARIES, collectTikzLibraries, resolveTikzLibraries } from "./tikz-libraries.js";
 export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/index.js";
 export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
 export { tikzBpmnExtension } from "./extensions/tikz-bpmn.js";

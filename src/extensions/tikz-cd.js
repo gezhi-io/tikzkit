@@ -19,6 +19,9 @@ const COLUMN_SEP = {
   tiny: "+0.6em"
 };
 
+const TIKZCD_CELL_MIN_WIDTH = 0.58;
+const TIKZCD_CELL_MIN_HEIGHT = 0.5;
+
 const TIKZCD_COMPARE_GRID_SCOPE = String.raw`\begin{scope}[on background layer]
   \draw[black!45,line width=0.18pt,dash pattern=on 1pt off 1.2pt,step=1cm] ($(current bounding box.south west)+(-1,-1)$) grid ($(current bounding box.north east)+(1,1)$);
 \end{scope}`;
@@ -83,26 +86,33 @@ function renderTikzCd(body, optionsRaw, diagnostics) {
   const options = parseOptions(optionsRaw);
   const rowSep = tikzCdSep(options["row sep"] ?? options.sep, ROW_SEP);
   const columnSep = tikzCdSep(options["column sep"] ?? options.sep, COLUMN_SEP);
-  const rows = splitRows(body).map((row) => splitCells(row));
+  const rows = splitRows(body).map((row, rowIndex) =>
+    splitCells(row).map((rawCell, columnIndex) =>
+      parseCell(rawCell, { id, row: rowIndex + 1, column: columnIndex + 1, diagnostics })
+    )
+  );
+  const layout = layoutTikzCdCells(rows, { id, rowSep, columnSep });
   const statements = [`\\begin{tikzpicture}[tikzcd diagram]`];
   const arrows = [];
 
   rows.forEach((cells, rowIndex) => {
-    cells.forEach((rawCell, columnIndex) => {
+    cells.forEach((parsed, columnIndex) => {
       const row = rowIndex + 1;
       const column = columnIndex + 1;
       const name = cellName(id, row, column);
-      const parsed = parseCell(rawCell, { id, row, column, diagnostics });
-      const x = roundNumber(columnIndex * columnSep, 6);
-      const y = roundNumber(-rowIndex * rowSep, 6);
-      const nodeOptions = ["inner sep=0.12cm"];
+      const position = layout.positions.get(name) || { x: columnIndex * columnSep, y: -rowIndex * rowSep };
+      const nodeOptions = [
+        "inner sep=0.12cm",
+        `minimum width=${fmt(layout.columnWidths[columnIndex] || TIKZCD_CELL_MIN_WIDTH)}cm`,
+        `minimum height=${fmt(layout.rowHeights[rowIndex] || TIKZCD_CELL_MIN_HEIGHT)}cm`
+      ];
       if (parsed.nodeOptions) nodeOptions.push(parsed.nodeOptions);
-      statements.push(`\\node[${nodeOptions.join(",")}] (${name}) at (${fmt(x)},${fmt(y)}) {${tikzCdCellText(parsed.text)}};`);
+      statements.push(`\\node[${nodeOptions.join(",")}] (${name}) at (${fmt(position.x)},${fmt(position.y)}) {${tikzCdCellText(parsed.text)}};`);
       for (const alias of parsed.aliases) {
         statements.push(`\\coordinate (${alias}) at (${name});`);
       }
       for (const arrow of parsed.arrows) {
-        arrows.push(renderArrow(arrow, { rowSep, columnSep }));
+        arrows.push(renderArrow(arrow, layout));
       }
     });
   });
@@ -111,6 +121,66 @@ function renderTikzCd(body, optionsRaw, diagnostics) {
   if (options["tikzkit compare grid"]) statements.push(TIKZCD_COMPARE_GRID_SCOPE);
   statements.push("\\end{tikzpicture}");
   return statements.join("\n");
+}
+
+function layoutTikzCdCells(rows, context) {
+  const columnCount = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  const columnWidths = Array.from({ length: columnCount }, () => TIKZCD_CELL_MIN_WIDTH);
+  const rowHeights = rows.map(() => TIKZCD_CELL_MIN_HEIGHT);
+  rows.forEach((cells, rowIndex) => {
+    cells.forEach((cell, columnIndex) => {
+      const size = estimateTikzCdCellSize(cell.text);
+      columnWidths[columnIndex] = Math.max(columnWidths[columnIndex], size.width);
+      rowHeights[rowIndex] = Math.max(rowHeights[rowIndex], size.height);
+    });
+  });
+
+  const xs = [];
+  for (let column = 0; column < columnCount; column += 1) {
+    xs[column] =
+      column === 0
+        ? 0
+        : xs[column - 1] + context.columnSep + columnWidths[column - 1] / 2 + columnWidths[column] / 2;
+  }
+
+  const ys = [];
+  for (let row = 0; row < rows.length; row += 1) {
+    ys[row] =
+      row === 0
+        ? 0
+        : ys[row - 1] - context.rowSep - rowHeights[row - 1] / 2 - rowHeights[row] / 2;
+  }
+
+  const positions = new Map();
+  rows.forEach((cells, rowIndex) => {
+    cells.forEach((_cell, columnIndex) => {
+      positions.set(cellName(context.id, rowIndex + 1, columnIndex + 1), {
+        x: roundNumber(xs[columnIndex], 6),
+        y: roundNumber(ys[rowIndex], 6)
+      });
+    });
+  });
+  return { ...context, positions, columnWidths, rowHeights };
+}
+
+function estimateTikzCdCellSize(text) {
+  const normalized = normalizeCellText(text);
+  if (!normalized) return { width: TIKZCD_CELL_MIN_WIDTH, height: TIKZCD_CELL_MIN_HEIGHT };
+  const width = Math.max(TIKZCD_CELL_MIN_WIDTH, 0.24 + normalized.length * 0.105);
+  const height = Math.max(TIKZCD_CELL_MIN_HEIGHT, /[_^]|\\(?:frac|sum|int|prod)\b/.test(String(text || "")) ? 0.62 : 0.5);
+  return {
+    width: roundNumber(width, 6),
+    height: roundNumber(height, 6)
+  };
+}
+
+function normalizeCellText(text) {
+  return String(text || "")
+    .replace(/\\(?:small|scriptsize|tiny|displaystyle|textstyle)\b/g, "")
+    .replace(/\\(?:times|otimes|oplus|cdot)\b/g, "x")
+    .replace(/\\[A-Za-z]+/g, "x")
+    .replace(/[{}$]/g, "")
+    .replace(/\s+/g, "");
 }
 
 let diagramCounter = 0;
@@ -384,6 +454,7 @@ function renderArrowLabelNodes(arrow, layout = {}) {
 }
 
 function tikzCdCellPosition(name, layout = {}) {
+  if (layout.positions?.has?.(name)) return layout.positions.get(name);
   const match = String(name || "").match(/^tikzcd-\d+-(\d+)-(\d+)$/);
   if (!match) return null;
   const row = Number(match[1]);

@@ -7,6 +7,7 @@ import {
   TIKZ_FONT_FAMILY,
   TIKZ_MARGIN,
   TIKZ_TEXT_FONT_SIZE,
+  TIKZ_TYPEWRITER_WIDTH_SCALE,
   TIKZ_UNIT,
   createArrowTip,
   lineWidthFromPt
@@ -33,6 +34,15 @@ export function renderSvg(ir, options = {}) {
   const viewBox = [format(view.x), format(view.y), format(view.width), format(view.height)].join(" ");
 
   const body = [];
+  const patternDefs = collectPatternDefs(ir.items || []);
+  const ballGradientDefs = collectBallGradientDefs(ir.items || []);
+  const axisGradientDefs = collectAxisGradientDefs(ir.items || []);
+  const defs = [
+    ...patternDefs.map(renderPatternDef),
+    ...ballGradientDefs.map(renderBallGradientDef),
+    ...axisGradientDefs.map(renderAxisGradientDef)
+  ];
+  if (defs.length) body.push(`<defs>${defs.join("")}</defs>`);
   const background = options.background === undefined ? "white" : options.background;
   if (background && background !== "none") {
     body.push(
@@ -64,7 +74,7 @@ function renderItem(item, unit, options = {}) {
     if (["regularPolygon", "star", "trapezium", "cloud", "superellipse"].includes(item.shape)) {
       return renderNodeBoxWithOverlay(item, renderLibraryShapeNodeBox(item, unit), unit);
     }
-    if (["tikzquadsQuad", "tikzquadsBlackBox", "tikzquadsPgLoadLine"].includes(item.shape)) return renderTikzquadsNodeBox(item, unit);
+    if (["tikzquadsQuad", "tikzquadsBlackBox", "tikzquadsPgLoadLine"].includes(item.shape)) return renderTikzquadsNodeBox(item, unit, options);
     if (item.shape === "rectangleSplit") return renderRectangleSplit(item, unit);
     return renderNodeBoxWithOverlay(item, `<rect x="${format((item.x - item.width / 2) * unit)}" y="${format(
       -(item.y + item.height / 2) * unit
@@ -74,10 +84,16 @@ function renderItem(item, unit, options = {}) {
   }
   if (item.type === "textNode") {
     const normalized = normalizeTikzText(item.text);
+    if (normalized.invisible) return "";
     if (normalized.kind === "image") return renderImagePlaceholder(item, normalized, unit);
     const math = parseMathText(normalized.text);
     let rendered;
-    if (math) rendered = renderMathNode(item, { ...math, scale: normalized.scale || 1, color: normalized.color }, unit, options);
+    if (math) rendered = renderMathNode(
+      item,
+      { ...math, scale: normalized.scale || 1, color: normalized.color, explicitFontSize: normalized.explicitFontSize },
+      unit,
+      options
+    );
     else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) rendered = renderRichTextNode(item, normalized, unit);
     else rendered = renderPlainTextNode(item, normalized, unit);
     // Claude: 把节点的 rotate 作用到最终文本上（见 interpreter 的 nodeRotation）。
@@ -243,8 +259,56 @@ function cloudNodeCommands(center, halfWidth, halfHeight) {
 }
 
 function renderNodeBoxWithOverlay(item, baseSvg, unit) {
+  const shadows = renderNodeBoxShadows(item, unit);
   const overlay = renderNodeBoxOverlay(item, unit);
-  return overlay ? `<g>${baseSvg}${overlay}</g>` : baseSvg;
+  const grouped = shadows || overlay ? `<g>${shadows}${baseSvg}${overlay}</g>` : baseSvg;
+  return wrapNodeRotation(grouped, item, unit);
+}
+
+function renderNodeBoxShadows(item, unit) {
+  if (!Array.isArray(item.shadows) || !item.shadows.length) return "";
+  return item.shadows.map((shadow) => renderNodeBoxShadow(item, shadow, unit)).join("");
+}
+
+function renderNodeBoxShadow(item, shadow, unit) {
+  const scale = Number(shadow.scale) > 0 ? Number(shadow.scale) : 1;
+  const shadowItem = {
+    ...item,
+    x: item.x + (Number(shadow.xshift) || 0),
+    y: item.y + (Number(shadow.yshift) || 0),
+    width: item.width * scale,
+    height: item.height * scale,
+    rx: (item.rx || 0) * scale,
+    style: shadow.style || item.style || {}
+  };
+  if (shadowItem.shape === "circle" || shadowItem.shape === "ellipse") {
+    return `<ellipse class="tikz-node-shadow" cx="${format(shadowItem.x * unit)}" cy="${format(-shadowItem.y * unit)}" rx="${format(
+      (shadowItem.width / 2) * unit
+    )}" ry="${format((shadowItem.height / 2) * unit)}"${styleAttributes(shadowItem.style)} />`;
+  }
+  if (shadowItem.shape === "diamond") {
+    const cx = shadowItem.x * unit;
+    const cy = -shadowItem.y * unit;
+    const hw = (shadowItem.width / 2) * unit;
+    const hh = (shadowItem.height / 2) * unit;
+    const points = [
+      [cx, cy - hh],
+      [cx + hw, cy],
+      [cx, cy + hh],
+      [cx - hw, cy]
+    ]
+      .map(([x, y]) => `${format(x)},${format(y)}`)
+      .join(" ");
+    return `<polygon class="tikz-node-shadow" points="${points}"${styleAttributes(shadowItem.style)} />`;
+  }
+  if (["regularPolygon", "star", "trapezium", "cloud", "superellipse"].includes(shadowItem.shape)) {
+    return `<path class="tikz-node-shadow" d="${pathData(nodeShapeCommands(shadowItem), unit)}"${styleAttributes(shadowItem.style)} />`;
+  }
+  return `<rect class="tikz-node-shadow" x="${format((shadowItem.x - shadowItem.width / 2) * unit)}" y="${format(
+    -(shadowItem.y + shadowItem.height / 2) * unit
+  )}" width="${format(shadowItem.width * unit)}" height="${format(shadowItem.height * unit)}" rx="${format(
+    (shadowItem.rx || 0) * unit
+  )}"${styleAttributes(shadowItem.style)} />`;
 }
 
 function renderNodeBoxOverlay(item, unit) {
@@ -271,6 +335,9 @@ function renderPathPictureOverlay(item, unit) {
 function renderPathElement(item, unit) {
   if (!item.style?.markerStart && !item.style?.markerEnd) {
     if (item.style?.doubleColor !== undefined) return renderDoublePath(item.commands || [], item.style, unit);
+    if (item.subtype === "bagua-line") {
+      return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style, { lineCap: "butt", lineJoin: "miter" })} />`;
+    }
     return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
   }
   return renderArrowedPath(item, unit);
@@ -446,13 +513,20 @@ function resolveInlineArrowTip(tip, style = {}) {
     customLength: usesCustomArrowDimension(source, raw, "length"),
     customWidth: usesCustomArrowDimension(source, raw, "width")
   });
-  const openTip = raw.kind === "to" || raw.kind === "hook" || raw.kind === "two-heads";
+  const openTip = raw.kind === "to" || raw.kind === "hook" || raw.kind === "two-heads" || raw.kind === "open-circle" || raw.kind === "open-triangle";
+  const filledStrokedTip = raw.kind === "dimline" || raw.kind === "dimline reverse";
   return {
     kind: raw.kind,
     geometry,
-    stroke: openTip || explicitStroke ? raw.stroke || baseStroke : "none",
+    stroke: openTip || filledStrokedTip || explicitStroke ? raw.stroke || baseStroke : "none",
     fill: openTip ? "none" : fill,
-    strokeWidth: openTip ? style.lineWidth ?? 1 : explicitStroke ? Math.max(0.8, (style.lineWidth ?? 1) * 0.45) : 0
+    strokeWidth: openTip
+      ? style.lineWidth ?? 1
+      : filledStrokedTip
+        ? Math.max(0.2, (style.lineWidth ?? 1) * 0.5)
+        : explicitStroke
+          ? Math.max(0.8, (style.lineWidth ?? 1) * 0.45)
+          : 0
   };
 }
 
@@ -500,17 +574,48 @@ function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (tip.kind === "hook") {
     const length = tip.length;
     const halfWidth = tip.width / 2;
+    const curl = length * 0.34;
     return {
-      path: `M 0 0 C ${format(-length * 0.55)} 0 ${format(-length * 0.45)} ${format(halfWidth)} ${format(-length * 0.88)} ${format(
-        halfWidth
-      )} C ${format(-length * 1.18)} ${format(halfWidth)} ${format(-length * 1.18)} ${format(-halfWidth)} ${format(-length * 0.88)} ${format(
-        -halfWidth
-      )}`,
-      shorten: lineWidth
+      path: `M 0 ${format(halfWidth)} C ${format(curl * 0.55)} ${format(halfWidth)} ${format(curl)} ${format(halfWidth * 0.52)} ${format(
+        curl
+      )} ${format(halfWidth * 0.25)} C ${format(curl)} ${format(halfWidth * 0.05)} ${format(curl * 0.45)} 0 0 0`,
+      shorten: 0
     };
   }
-  const back = flags.customLength ? tip.length : lineWidthFromPt(1.600209 + 1.18936 * lineWidthPt);
-  const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(1.67066 + 1.800486 * lineWidthPt);
+  if (tip.kind === "open-circle") {
+    const radius = tip.width / 2;
+    return {
+      path: `M ${format(-radius)} 0 A ${format(radius)} ${format(radius)} 0 1 0 ${format(radius)} 0 A ${format(radius)} ${format(radius)} 0 1 0 ${format(
+        -radius
+      )} 0`,
+      shorten: radius
+    };
+  }
+  if (tip.kind === "open-triangle") {
+    const length = tip.length;
+    const halfWidth = tip.width / 2;
+    return {
+      path: `M 0 0 L ${format(-length)} ${format(-halfWidth)} L ${format(-length)} ${format(halfWidth)} Z`,
+      shorten: length * 0.72
+    };
+  }
+  if (tip.kind === "dimline" || tip.kind === "dimline reverse") {
+    const scale = lineWidth;
+    const sign = tip.kind === "dimline reverse" ? 1 : -1;
+    return {
+      path: [
+        `M 0 ${format(3 * scale)}`,
+        `L 0 ${format(-3 * scale)}`,
+        `M 0 0`,
+        `L ${format(sign * 7.5 * scale)} ${format(2 * scale)}`,
+        `L ${format(sign * 7.5 * scale)} ${format(-2 * scale)}`,
+        "Z"
+      ].join(" "),
+      shorten: lineWidth * 0.2
+    };
+  }
+  const back = flags.customLength ? tip.length : lineWidthFromPt(0.280535 + 2.289088 * lineWidthPt);
+  const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(0.474889 + 2.796962 * lineWidthPt);
   return {
     path: [
       `M ${format(-back)} ${format(halfWidth)}`,
@@ -531,18 +636,18 @@ function renderInlineArrowTip(tip, point, angle, unit) {
   )}"${strokePart}${lineStyle} transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})" />`;
 }
 
-function renderTikzquadsNodeBox(item, unit) {
-  if (item.shape === "tikzquadsPgLoadLine") return renderTikzquadsPgLoadLine(item, unit);
+function renderTikzquadsNodeBox(item, unit, options = {}) {
+  if (item.shape === "tikzquadsPgLoadLine") return renderTikzquadsPgLoadLine(item, unit, options);
   const cx = item.x * unit;
   const cy = -item.y * unit;
   const hw = (item.width / 2) * unit;
   const hh = (item.height / 2) * unit;
-  const terminal = Math.max(5, hw * (item.shape === "tikzquadsBlackBox" ? 0.26 : 0.18));
+  const terminal = Math.max(5, hw * (item.shape === "tikzquadsBlackBox" ? 5 / 19 : 5 / 33));
   const left = cx - hw + terminal;
-  const right = item.shape === "tikzquadsBlackBox" ? cx + hw - terminal * 0.35 : cx + hw - terminal;
+  const right = cx + hw - terminal;
   const top = cy - hh;
   const bottom = cy + hh;
-  const portY = hh * 0.32;
+  const portY = hh * (5 / 7);
   const stroke = escapeAttribute(item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black");
   const fill = escapeAttribute(item.style?.fill || "none");
   const lineWidth = format(item.style?.lineWidth || 1);
@@ -554,7 +659,7 @@ function renderTikzquadsNodeBox(item, unit) {
   );
   group.push(renderTikzquadsPorts(item, { cx, cy, hw, hh, left, right, portY, terminal, stroke, lineWidth }));
   group.push(renderTikzquadsInternals(item, { cx, cy, hw, hh, left, right, portY, stroke, lineWidth }));
-  group.push(renderTikzquadsLabels(item, { cx, cy, hw, hh, left, right, portY, stroke }));
+  group.push(renderTikzquadsLabels(item, { cx, cy, hw, hh, left, right, portY, stroke }, unit, options));
   group.push("</g>");
   return group.filter(Boolean).join("");
 }
@@ -673,11 +778,11 @@ function renderTikzquadsCurrentSource(x, y, radius, stroke, lineWidth) {
   )}</g>`;
 }
 
-function renderTikzquadsLabels(item, box) {
+function renderTikzquadsLabels(item, box, unit, options = {}) {
   const labels = tikzquadsLabelPositions(item, box);
   return labels
     .filter((label) => label.text !== undefined && label.text !== null && label.text !== "")
-    .map((label) => renderTikzquadsText(label.text, label.x, label.y, label.anchor || "middle", label.size || 9, box.stroke))
+    .map((label) => renderTikzquadsText(label.text, label.x, label.y, label.anchor || "middle", label.size || TIKZ_TEXT_FONT_SIZE, box.stroke, unit, options))
     .join("");
 }
 
@@ -685,21 +790,22 @@ function tikzquadsLabelPositions(item, box) {
   const o = item.tikzquadsOptions || {};
   const kind = String(item.tikzquadsKind || "").toLowerCase();
   const { cx, cy, hw, hh, left, right, portY } = box;
+  const labels = tikzquadsTextAnchorLabels(o, { cx, cy, hw, hh, left, right });
   if (item.shape === "tikzquadsBlackBox") {
-    const labels = [
+    labels.push(
       { text: o.I1 ?? "$I_1$", x: left - 4, y: cy - portY - 10, anchor: "end" },
       { text: o.V1 ?? "$V_1$", x: left - 6, y: cy, anchor: "end" }
-    ];
+    );
     if (kind === "thevenin") labels.push({ text: o.Zth ?? "$Z_{th}$", x: cx, y: cy - portY * 0.52 - 8 }, { text: o.Vth ?? "$V_{th}$", x: cx, y: cy + portY * 0.52 + 12 });
     if (kind === "norton") labels.push({ text: o.Yn ?? "$Y_N$", x: cx - hw * 0.1, y: cy - 14 }, { text: o.In ?? "$I_N$", x: cx + hw * 0.16, y: cy + 14 });
     return labels;
   }
-  const labels = [
+  labels.push(
     { text: o.I1 ?? "$I_1$", x: left - 4, y: cy - portY - 10, anchor: "end" },
     { text: o.V1 ?? "$V_1$", x: left - 6, y: cy, anchor: "end" },
     { text: o.I2 ?? "$I_2$", x: right + 4, y: cy - portY - 10, anchor: "start" },
     { text: o.V2 ?? "$V_2$", x: right + 6, y: cy, anchor: "start" }
-  ];
+  );
   const prefix = kind.endsWith(" y") ? "Y" : kind.endsWith(" g") ? "G" : kind.endsWith(" h") ? "H" : kind.endsWith(" z") ? "Z" : "";
   if (prefix) {
     labels.push(
@@ -712,7 +818,34 @@ function tikzquadsLabelPositions(item, box) {
   return labels;
 }
 
-function renderTikzquadsPgLoadLine(item, unit) {
+function tikzquadsTextAnchorLabels(options, box) {
+  const { cx, cy, hw, hh, left, right } = box;
+  const innerLeft = left + hw / 16;
+  const innerRight = right - hw / 16;
+  const top = cy - hh;
+  const bottom = cy + hh;
+  const topY = top + Math.max(9, hh * 0.14);
+  const bottomY = bottom - Math.max(9, hh * 0.14);
+  const positions = {
+    "label top left": { x: innerLeft, y: topY, anchor: "start" },
+    "label top center": { x: cx, y: topY, anchor: "middle" },
+    "label top right": { x: innerRight, y: topY, anchor: "end" },
+    "label inner top left": { x: innerLeft, y: cy - hh * 0.36, anchor: "start" },
+    "label inner top center": { x: cx, y: cy - hh * 0.36, anchor: "middle" },
+    "label inner top right": { x: innerRight, y: cy - hh * 0.36, anchor: "end" },
+    "label bottom left": { x: innerLeft, y: bottomY, anchor: "start" },
+    "label bottom center": { x: cx, y: bottomY, anchor: "middle" },
+    "label bottom right": { x: innerRight, y: bottomY, anchor: "end" },
+    "label inner bottom left": { x: innerLeft, y: cy + hh * 0.36, anchor: "start" },
+    "label inner bottom center": { x: cx, y: cy + hh * 0.36, anchor: "middle" },
+    "label inner bottom right": { x: innerRight, y: cy + hh * 0.36, anchor: "end" }
+  };
+  return Object.entries(positions)
+    .filter(([key]) => options[key] !== undefined && options[key] !== "")
+    .map(([key, position]) => ({ text: options[key], ...position }));
+}
+
+function renderTikzquadsPgLoadLine(item, unit, options = {}) {
   const cx = item.x * unit;
   const cy = -item.y * unit;
   const hw = (item.width / 2) * unit;
@@ -735,20 +868,53 @@ function renderTikzquadsPgLoadLine(item, unit) {
     )} L ${format(right - 7)} ${format(bottom + 3)} M ${format(left)} ${format(top + hh * 0.2)} L ${format(right - hw * 0.18)} ${format(
       bottom
     )}" fill="none" stroke="${stroke}" stroke-width="${lineWidth}" stroke-linecap="round" />`,
-    renderTikzquadsText(o["x axis"] ?? "$V$", right + 9, bottom + 2, "start", 9, stroke),
-    renderTikzquadsText(o["y axis"] ?? "$I$", left - 3, top - 7, "end", 9, stroke),
-    renderTikzquadsText(o["x val"] ?? "$V_{th}$", right - 5, bottom - 8, "end", 8, stroke),
-    renderTikzquadsText(o["y val"] ?? "$I_N$", left + 5, top + 9, "start", 8, stroke),
+    renderTikzquadsText(o["x axis"] ?? "$V$", right + 9, bottom + 2, "start", TIKZ_TEXT_FONT_SIZE, stroke, unit, options),
+    renderTikzquadsText(o["y axis"] ?? "$I$", left - 3, top - 7, "end", TIKZ_TEXT_FONT_SIZE, stroke, unit, options),
+    renderTikzquadsText(o["x val"] ?? "$V_{th}$", right - 5, bottom - 8, "end", TIKZ_TEXT_FONT_SIZE, stroke, unit, options),
+    renderTikzquadsText(o["y val"] ?? "$I_N$", left + 5, top + 9, "start", TIKZ_TEXT_FONT_SIZE, stroke, unit, options),
     "</g>"
   ].join("");
 }
 
-function renderTikzquadsText(text, x, y, anchor, size, fill) {
-  return `<text x="${format(x)}" y="${format(y)}" fill="${escapeAttribute(fill)}" text-anchor="${escapeAttribute(
-    anchor
-  )}" dominant-baseline="middle" font-size="${format(size)}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(
-    String(text)
-  )}</text>`;
+function renderTikzquadsText(text, x, y, anchor, size = TIKZ_TEXT_FONT_SIZE, fill, unit = TIKZ_UNIT, options = {}) {
+  const normalized = normalizeTikzText(text);
+  const scale = size / TIKZ_TEXT_FONT_SIZE;
+  const math = parseMathText(normalized.text);
+  const color = fill || normalized.color || "black";
+  if (math) {
+    const mathScale = (normalized.scale || 1) * scale;
+    const box = estimateMathBox(normalizeKatexTex(math.tex), math.displayMode, unit, mathScale);
+    const centeredX = textCenterForAnchor(x, anchor, box.width);
+    return renderMathNode(
+      { x: centeredX / unit, y: -y / unit, style: { fill: color, fontScale: scale } },
+      { ...math, scale: normalized.scale || 1, color: normalized.color || color },
+      unit,
+      options
+    );
+  }
+  const lines = normalized.lines.length ? normalized.lines : [normalized.text];
+  const width = estimateTikzquadsTextWidth(lines, size * (normalized.scale || 1));
+  const centeredX = textCenterForAnchor(x, anchor, width);
+  return renderPlainTextNode(
+    {
+      x: centeredX / unit,
+      y: -y / unit,
+      style: { fill: color, fontScale: scale }
+    },
+    normalized,
+    unit
+  );
+}
+
+function textCenterForAnchor(x, anchor, width) {
+  if (anchor === "end") return x - width / 2;
+  if (anchor === "start") return x + width / 2;
+  return x;
+}
+
+function estimateTikzquadsTextWidth(lines, fontSize) {
+  const longest = Math.max(0, ...lines.map((line) => formatTextLine(line).length));
+  return Math.max(fontSize, longest * fontSize * 0.52);
 }
 
 function renderDoubleNodeOutline(item, unit) {
@@ -783,6 +949,7 @@ function renderBpmnIcon(item, unit) {
   if (icon.startsWith("message")) return renderBpmnMessageIcon(box, stroke, fill, width, className);
   if (icon === "timer") return renderBpmnTimerIcon(box, stroke, width, className);
   if (icon.startsWith("signal")) return renderBpmnSignalIcon(box, stroke, fill, width, className);
+  if (icon === "xor") return renderBpmnXorIcon(box, stroke, width, className);
   if (icon === "inclusive") return renderBpmnInclusiveIcon(box, stroke, width, className);
   if (icon === "eventbased") return renderBpmnEventBasedIcon(box, stroke, width, className);
   if (icon.startsWith("compensation")) return renderBpmnCompensationIcon(box, stroke, fill, width, className);
@@ -901,6 +1068,13 @@ function renderBpmnInclusiveIcon(box, stroke, width, className) {
   return `<circle class="${className}" cx="${format(box.cx)}" cy="${format(box.cy)}" r="${format(r)}" stroke="${stroke}" fill="none" stroke-width="${width}" />`;
 }
 
+function renderBpmnXorIcon(box, stroke, width, className) {
+  const r = Math.min(box.width, box.height) * 0.18;
+  return `<path class="${className}" d="M ${format(box.cx - r)} ${format(box.cy - r)} L ${format(box.cx + r)} ${format(box.cy + r)} M ${format(
+    box.cx - r
+  )} ${format(box.cy + r)} L ${format(box.cx + r)} ${format(box.cy - r)}" stroke="${stroke}" fill="none" stroke-width="${width}" stroke-linecap="round" />`;
+}
+
 function renderBpmnEventBasedIcon(box, stroke, width, className) {
   const r = Math.min(box.width, box.height) * 0.29;
   const pentagon = Array.from({ length: 5 }, (_unused, index) => {
@@ -959,12 +1133,30 @@ function renderBpmnDataStoreIcon(box, stroke, width, className) {
 }
 
 function renderBpmnSmallGlyph(box, stroke, glyph, className) {
+  if (glyph === "manual") return renderBpmnManualGlyph(box, stroke, className);
   const text = glyph === "adhoc" ? "~" : glyph === "script" ? "S" : glyph === "service" ? "G" : glyph === "user" ? "U" : glyph === "manual" ? "M" : "|";
   const x = glyph === "pool-label" ? box.x1 + box.width * 0.12 : box.x1 + box.width * 0.18;
   const y = glyph === "pool-label" ? box.cy : box.y1 + box.height * 0.25;
   return `<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${stroke}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
     Math.max(8, Math.min(box.width, box.height) * 0.24)
   )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(text)}</text>`;
+}
+
+function renderBpmnManualGlyph(box, stroke, className) {
+  const scale = Math.min(box.width, box.height) * 0.11;
+  const x = box.x1 + box.width * 0.14;
+  const y = box.y1 + box.height * 0.14;
+  const fingers = [0, 0.28, 0.56, 0.84]
+    .map((offset) => `M ${format(x + scale * offset)} ${format(y + scale * 0.95)} V ${format(y)}`)
+    .join(" ");
+  const palm = [
+    `M ${format(x - scale * 0.12)} ${format(y + scale * 0.92)}`,
+    `L ${format(x + scale * 1.12)} ${format(y + scale * 0.92)}`,
+    `L ${format(x + scale * 1.02)} ${format(y + scale * 1.35)}`,
+    `L ${format(x + scale * 0.12)} ${format(y + scale * 1.35)}`,
+    `Z`
+  ].join(" ");
+  return `<g class="${className}" stroke="${stroke}" fill="none" stroke-width="${format(Math.max(0.65, scale * 0.12))}" stroke-linecap="round" stroke-linejoin="round"><path d="${fingers}"/><path d="${palm}"/></g>`;
 }
 
 // Claude: 用一个 <g transform="rotate(...)"> 包住文本，实现 \node[rotate=θ]{...} 的文字旋转。
@@ -979,38 +1171,53 @@ function wrapNodeRotation(svg, item, unit) {
 
 function renderPlainTextNode(item, normalized, unit) {
   if (!normalized.color && hasTextColorSegments(normalized.raw)) return renderSegmentedTextNode(item, normalized, unit);
-  const lines = (normalized.lines.length ? normalized.lines : [normalized.text]).map(formatTextLine);
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
-  const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item);
+  const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
+  const fontFamily = escapeAttribute(rawFontFamily);
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
+  const formattedLines = sourceLines.map(formatTextLine);
+  const lines = wrapSvgTextLines(formattedLines, item.wrapWidth, unit, baseFontSize);
+  const contentLines = lines.length === formattedLines.length ? sourceLines : lines;
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, lines);
   const lineStyles = textLineStyles(normalized, lines.length);
   const x = format(item.x * unit);
   const y = format(-item.y * unit);
+  const widthScale = typewriterWidthScale(rawFontFamily);
   if (lines.length <= 1) {
     const lineStyle = lineStyles[0] || {};
-    return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
-      fontSize * (lineStyle.scale || 1)
-    )}"${fontWeightAttribute(lineStyle)} font-family="${fontFamily}">${escapeText(lines[0] || "")}</text>`;
+    const lineFontSize = fontSize * (lineStyle.scale || 1);
+    const content = renderSvgTextLineContent(contentLines[0], lines[0] || "", lineFontSize);
+    const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
+      lineFontSize
+    )}"${fontWeightAttribute(lineStyle)}${fontStyleAttribute(lineStyle)} font-family="${fontFamily}">${content}</text>`;
+    return wrapTypewriterWidth(text, item, unit, widthScale);
   }
   const lineOffsets = baselineOffsets(fontSize, lineStyles);
   const tspans = lines
     .map((line, index) => {
       const dy = index === 0 ? lineOffsets[0] : lineOffsets[index] - lineOffsets[index - 1];
       const lineStyle = lineStyles[index] || {};
-      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize)}>${escapeText(line)}</tspan>`;
+      const lineFontSize = fontSize * (lineStyle.scale || 1);
+      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize)}>${renderSvgTextLineContent(
+        contentLines[index],
+        line,
+        lineFontSize
+      )}</tspan>`;
     })
     .join("");
-  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
+  const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
     fontSize
   )}" font-family="${fontFamily}">${tspans}</text>`;
+  return wrapTypewriterWidth(text, item, unit, widthScale);
 }
 
 function textLineStyles(normalized, count) {
   const styles = Array.isArray(normalized.lineStyles) ? normalized.lineStyles : [];
   return Array.from({ length: count }, (_unused, index) => ({
     scale: Number(styles[index]?.scale) || 1,
-    fontWeight: styles[index]?.fontWeight || null
+    fontWeight: styles[index]?.fontWeight || null,
+    fontStyle: styles[index]?.fontStyle || normalized.fontStyle || null
   }));
 }
 
@@ -1036,27 +1243,61 @@ function lineBaselineGap(baseFontSize, first = {}, second = {}) {
 }
 
 function lineFontAttributes(lineStyle, baseFontSize) {
-  return `${lineStyle.scale && lineStyle.scale !== 1 ? ` font-size="${format(baseFontSize * lineStyle.scale)}"` : ""}${fontWeightAttribute(lineStyle)}`;
+  return `${lineStyle.scale && lineStyle.scale !== 1 ? ` font-size="${format(baseFontSize * lineStyle.scale)}"` : ""}${fontWeightAttribute(
+    lineStyle
+  )}${fontStyleAttribute(lineStyle)}`;
 }
 
 function fontWeightAttribute(lineStyle) {
   return lineStyle.fontWeight ? ` font-weight="${escapeAttribute(String(lineStyle.fontWeight))}"` : "";
 }
 
-function textFontScale(item) {
-  const scale = Number(item.style?.fontScale);
+function fontStyleAttribute(lineStyle) {
+  return lineStyle.fontStyle ? ` font-style="${escapeAttribute(String(lineStyle.fontStyle))}"` : "";
+}
+
+function textFontScale(item, normalized = null) {
+  const key = normalized?.explicitFontSize ? item.style?.fontSizeBaseScale : item.style?.fontScale;
+  const scale = Number(key);
   return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+function wrapSvgTextLines(lines, wrapWidth, unit, fontSize) {
+  const width = Number(wrapWidth) * unit;
+  if (!Number.isFinite(width) || width <= 0) return lines;
+  const maxChars = Math.max(1, Math.floor(width / Math.max(1, fontSize * 0.49)));
+  return lines.flatMap((line) => wrapSvgTextLine(line, maxChars));
+}
+
+function wrapSvgTextLine(line, maxChars) {
+  const text = String(line || "").trim();
+  if (!text || text.length <= maxChars || !/\s/.test(text)) return [text];
+  const output = [];
+  let current = "";
+  for (const word of text.split(/\s+/)) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= maxChars || !current) {
+      current = next;
+    } else {
+      output.push(current);
+      current = word;
+    }
+  }
+  if (current) output.push(current);
+  return output.length ? output : [text];
 }
 
 function renderSegmentedTextNode(item, normalized, unit) {
   const lines = splitTextLines(normalized.raw || normalized.text);
   const fallbackLines = (normalized.lines.length ? normalized.lines : lines).map(formatTextLine);
   const color = escapeAttribute(item.style?.fill || "black");
-  const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item);
+  const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
+  const fontFamily = escapeAttribute(rawFontFamily);
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, fallbackLines);
   const x = format(item.x * unit);
   const y = format(-item.y * unit);
+  const widthScale = typewriterWidthScale(rawFontFamily);
   const lineHeight = fontSize * 1.15;
   const startDy = -((lines.length - 1) * lineHeight) / 2;
   const rects = [];
@@ -1081,7 +1322,18 @@ function renderSegmentedTextNode(item, normalized, unit) {
   const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
     fontSize
   )}" font-family="${fontFamily}">${tspans}</text>`;
-  return rects.length ? `<g>${rects.join("")}${text}</g>` : text;
+  return wrapTypewriterWidth(rects.length ? `<g>${rects.join("")}${text}</g>` : text, item, unit, widthScale);
+}
+
+function typewriterWidthScale(fontFamily) {
+  const text = String(fontFamily || "");
+  return /(?:Typewriter|mono|Menlo|Monaco|Consolas|Courier)/i.test(text) ? TIKZ_TYPEWRITER_WIDTH_SCALE : 1;
+}
+
+function wrapTypewriterWidth(svg, item, unit, scale) {
+  if (!Number.isFinite(scale) || Math.abs(scale - 1) < 1e-6) return svg;
+  const cx = format(item.x * unit);
+  return `<g class="tikz-typewriter-text" transform="translate(${cx} 0) scale(${format(scale)} 1) translate(${format(-item.x * unit)} 0)">${svg}</g>`;
 }
 
 function hasTextColorSegments(source) {
@@ -1144,6 +1396,39 @@ function formatTextLine(line) {
   return String(line).replace(/\$([^$]+)\$/g, (_match, tex) => mathFallbackText(tex));
 }
 
+function renderSvgTextLineContent(sourceLine, formattedLine, fontSize) {
+  const source = String(sourceLine ?? formattedLine ?? "").trim();
+  const math = parseMathText(source);
+  if (math) return renderSvgMathFallbackContent(normalizeKatexTex(math.tex), fontSize);
+  if (/\$[^$]+\$/.test(source)) return renderInlineSvgMathContent(source, formattedLine, fontSize);
+  return escapeText(formattedLine ?? source);
+}
+
+function renderInlineSvgMathContent(source, formattedLine, fontSize) {
+  const parts = [];
+  const pattern = /\$([^$]+)\$/g;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(source))) {
+    if (match.index > cursor) parts.push(escapeText(formatTextLine(source.slice(cursor, match.index))));
+    parts.push(renderSvgMathFallbackContent(normalizeKatexTex(match[1].trim()), fontSize));
+    cursor = match.index + match[0].length;
+  }
+  if (!parts.length) return escapeText(formattedLine ?? source);
+  if (cursor < source.length) parts.push(escapeText(formatTextLine(source.slice(cursor))));
+  return parts.join("");
+}
+
+function renderSvgMathFallbackContent(tex, fontSize) {
+  const simple = simpleNumericSubscriptFallback(tex);
+  if (simple) return renderSimpleSubscriptContent(simple, fontSize);
+  const scripted = scriptedMathFallback(tex, { allowSimpleScripts: true });
+  if (scripted) return renderScriptedSegmentsContent(scripted, fontSize);
+  const mixed = mixedAlphabeticSubscriptFallback(tex);
+  if (mixed) return renderMixedSubscriptContent(mixed, fontSize);
+  return escapeText(mathFallbackText(tex));
+}
+
 function hasInlineMath(normalized) {
   const source = String(normalized.raw || normalized.text || "");
   return /\$[^$]+\$/.test(source);
@@ -1156,7 +1441,7 @@ function renderRichTextNode(item, normalized, unit) {
   const fallback = renderPlainTextNode(item, normalized, unit);
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item);
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
   const lineStyles = textLineStyles(normalized, lines.length);
   const fontSize = fitRichFontSizeToBox(baseFontSize, item.fitBox, unit, lines, lineStyles);
   const box = estimateRichTextBox(lines, fontSize, lineStyles);
@@ -1267,8 +1552,9 @@ function renderRectangleSplit(item, unit) {
 }
 
 function renderImagePlaceholder(item, image, unit) {
-  const width = image.width * unit;
-  const height = image.height * unit;
+  const scale = imagePlaceholderScale(item, image);
+  const width = image.width * unit * scale;
+  const height = image.height * unit * scale;
   const x = item.x * unit - width / 2;
   const y = -item.y * unit - height / 2;
   // Claude: 真实折线（如 case 038 的 ReLU 形状）。把归一化坐标映射回框内、按比例绘制；
@@ -1282,7 +1568,31 @@ function renderImagePlaceholder(item, image, unit) {
           .join(" ")
       )
       .join(" ");
-    return `<path d="${data}" stroke="${stroke}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+    const labelHeight = Number(image.labelHeight || 0) * unit;
+    const label = image.label
+      ? `<text x="${format(item.x * unit)}" y="${format(y + height - labelHeight / 2)}" fill="${stroke}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+          Math.max(10, labelHeight * 0.9)
+        )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(image.label)}</text>`
+      : "";
+    return `<g class="tikz-image-placeholder tikz-inline-polyline"><path d="${data}" stroke="${stroke}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />${label}</g>`;
+  }
+  if (image.plot === "boxed-text") {
+    const stroke = escapeAttribute(item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black");
+    const fill = escapeAttribute(item.style?.fill && item.style.fill !== "black" ? item.style.fill : "none");
+    const cx = item.x * unit;
+    const cy = -item.y * unit;
+    const rotate = Number(image.rotate) || 0;
+    const labelRotate = rotate ? ` transform="rotate(${format(-rotate)} ${format(cx)} ${format(cy)})"` : "";
+    const label = image.label
+      ? `<text x="${format(cx)}" y="${format(cy)}" fill="${escapeAttribute(
+          item.style?.fill || "black"
+        )}" text-anchor="middle" dominant-baseline="middle" font-size="${format(TIKZ_TEXT_FONT_SIZE)}" font-family="${escapeAttribute(
+          TIKZ_FONT_FAMILY
+        )}"${labelRotate}>${escapeText(image.label)}</text>`
+      : "";
+    return `<g class="tikz-image-placeholder tikz-boxed-text"><rect x="${format(x)}" y="${format(y)}" width="${format(
+      width
+    )}" height="${format(height)}" stroke="${stroke}" fill="${fill}" stroke-width="${format(lineWidthFromPt(0.4))}" />${label}</g>`;
   }
   if (image.plot === "gaussian") {
     const samples = 44;
@@ -1298,9 +1608,21 @@ function renderImagePlaceholder(item, image, unit) {
     const data = points
       .map((point, index) => `${index === 0 ? "M" : "L"} ${format(point.x)} ${format(point.y)}`)
       .join(" ");
-    return `<g class="tikz-axis-placeholder"><rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
-      height
-    )}" rx="${format(Math.min(width, height) * 0.05)}" stroke="#111" fill="white" stroke-width="1.2" /><path d="${data}" stroke="black" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></g>`;
+    const grid = image.grid ? renderAxisPlaceholderGrid(x, y, width, height, unit) : "";
+    const axisLeft = x + width * 0.08;
+    const axisRight = x + width * 0.92;
+    const axisTop = y + height * 0.08;
+    const axisBase = y + height * 0.82;
+    const fillData = `M ${format(points[0].x)} ${format(axisBase)} ${data} L ${format(points.at(-1).x)} ${format(axisBase)} Z`;
+    const fill = gaussianPlaceholderFill(image.raw);
+    const axisData = `M ${format(axisLeft)} ${format(axisBase)} L ${format(axisRight)} ${format(axisBase)} M ${format(axisLeft)} ${format(
+      axisBase
+    )} L ${format(axisLeft)} ${format(axisTop)}`;
+    const axisArrows = [
+      `M ${format(axisRight)} ${format(axisBase)} l ${format(-width * 0.035)} ${format(-height * 0.018)} l 0 ${format(height * 0.036)} Z`,
+      `M ${format(axisLeft)} ${format(axisTop)} l ${format(-width * 0.018)} ${format(height * 0.035)} l ${format(width * 0.036)} 0 Z`
+    ].join(" ");
+    return `<g class="tikz-axis-placeholder tikz-gaussian">${grid}<path class="tikz-gaussian-fill" d="${fillData}" fill="${fill}" stroke="none" /><path d="${data}" stroke="black" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /><path class="tikz-gaussian-axis" d="${axisData}" stroke="black" fill="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-gaussian-axis-arrows" d="${axisArrows}" fill="black" stroke="none" /></g>`;
   }
   if (image.plot === "fm-wave") {
     const labelHeight = image.label ? Math.max(14, height * 0.28) : 0;
@@ -1367,18 +1689,66 @@ function renderImagePlaceholder(item, image, unit) {
   )}" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(label)}</text></g>`;
 }
 
+function imagePlaceholderScale(item, image = {}) {
+  const imageScale = Number(image.scale);
+  const nodeScale = Number(item?.style?.fontScale);
+  const scale = (Number.isFinite(imageScale) && imageScale > 0 ? imageScale : 1) * (Number.isFinite(nodeScale) && nodeScale > 0 ? nodeScale : 1);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+function renderAxisPlaceholderGrid(x, y, width, height, unit) {
+  const step = Math.max(6, unit * 0.2);
+  const stroke = "rgb(140 140 140)";
+  const lines = [];
+  for (let gx = x + step; gx < x + width - 1e-6; gx += step) {
+    lines.push(`M ${format(gx)} ${format(y)} L ${format(gx)} ${format(y + height)}`);
+  }
+  for (let gy = y + step; gy < y + height - 1e-6; gy += step) {
+    lines.push(`M ${format(x)} ${format(gy)} L ${format(x + width)} ${format(gy)}`);
+  }
+  if (!lines.length) return "";
+  return `<path class="tikz-axis-grid" d="${lines.join(" ")}" stroke="${stroke}" fill="none" stroke-width="0.45" stroke-dasharray="1 1.2" />`;
+}
+
+function gaussianPlaceholderFill(raw) {
+  const text = String(raw || "");
+  if (/fill\s*=\s*red\b/i.test(text)) return "rgb(255 230 230)";
+  if (/fill\s*=\s*(?:blue|echodrk)\b/i.test(text)) return "rgb(230 246 250)";
+  return "rgb(238 238 238)";
+}
+
 function renderMathNode(item, math, unit, options = {}) {
   const tex = normalizeKatexTex(math.tex);
-  const box = estimateMathBox(tex, math.displayMode, unit, (math.scale || 1) * textFontScale(item));
+  const box = estimateMathBox(tex, math.displayMode, unit, (math.scale || 1) * textFontScale(item, math));
   box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, unit, [mathFallbackText(tex)]);
   const x = item.x * unit - box.width / 2;
   const y = -item.y * unit - box.height / 2;
   const color = escapeAttribute(math.color || item.style?.fill || "black");
   const fontStyle = mathFallbackFontStyle(tex);
   const fontWeight = mathFallbackFontWeight(tex);
+  const fractionFallback = simpleFractionFallback(tex);
+  if (fractionFallback && options.mathRenderer === "svg-text") {
+    return renderFractionMathFallback(item, fractionFallback, box.fontSize * 0.9, unit, color, fontStyle, fontWeight);
+  }
   const subscriptFallback = simpleNumericSubscriptFallback(tex);
   if (subscriptFallback && options.mathRenderer === "svg-text") {
     return renderSimpleSubscriptMathFallback(item, subscriptFallback, box.fontSize * 0.9, unit, color, fontStyle, fontWeight);
+  }
+  const scriptedFallback = scriptedMathFallback(tex);
+  if (scriptedFallback && options.mathRenderer === "svg-text") {
+    return renderScriptedMathFallback(item, scriptedFallback, box.fontSize * 0.9, unit, color, fontStyle, fontWeight);
+  }
+  const mixedSubscriptFallback = mixedAlphabeticSubscriptFallback(tex);
+  if (mixedSubscriptFallback && options.mathRenderer === "svg-text") {
+    return renderMixedSubscriptMathFallback(item, mixedSubscriptFallback, box.fontSize * 0.9, unit, color, fontStyle, fontWeight);
+  }
+  const styledScriptFallback = styledScriptedMathFallback(tex);
+  if (styledScriptFallback && options.mathRenderer === "svg-text") {
+    return renderScriptedMathFallback(item, styledScriptFallback, box.fontSize * 0.9, unit, color, fontStyle, fontWeight);
+  }
+  const tensorMatrixFallback = tensorMatrixFallbackParts(tex);
+  if (tensorMatrixFallback && options.mathRenderer === "svg-text") {
+    return renderTensorMatrixFallback(item, tensorMatrixFallback, box.fontSize * 0.82, unit, color);
   }
   const fallback = `<text x="${format(item.x * unit)}" y="${format(-item.y * unit)}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
     box.fontSize * 0.9
@@ -1411,6 +1781,121 @@ function renderMathNode(item, math, unit, options = {}) {
   return `<switch>${foreignObject}${fallback}</switch>`;
 }
 
+function tensorMatrixFallbackParts(tex) {
+  const source = String(tex || "");
+  if (!/\\(?:overmat|undermat)\b/.test(source) || !/\\begin\{matrix\}/.test(source)) return null;
+  const blocks = [];
+  const pattern = /\\(overmat|undermat)\s*\{([\s\S]*?)\}\s*\{([\s\S]*?\\end\{matrix\})\s*\}\s*\{([^{}]*)\}/g;
+  let match;
+  while ((match = pattern.exec(source))) {
+    const matrix = parseSmallMatrixBody(match[3]);
+    if (!matrix.length) continue;
+    blocks.push({
+      labelPosition: match[1] === "overmat" ? "top" : "bottom",
+      label: formatTextLine(match[2]).replace(/\$/g, "").trim(),
+      color: tensorMatrixColor(match[4]),
+      matrix
+    });
+  }
+  return blocks.length >= 2 ? blocks.slice(0, 4) : null;
+}
+
+function parseSmallMatrixBody(source) {
+  const match = String(source || "").match(/\\begin\{matrix\}([\s\S]*?)\\end\{matrix\}/);
+  if (!match) return [];
+  return match[1]
+    .split(/\\\\/)
+    .map((row) =>
+      row
+        .split("&")
+        .map((cell) => mathFallbackText(cell).trim())
+        .filter(Boolean)
+    )
+    .filter((row) => row.length);
+}
+
+function tensorMatrixColor(value) {
+  const raw = String(value || "").trim();
+  if (/^#?[0-9a-f]{6}$/i.test(raw)) return raw.startsWith("#") ? raw : `#${raw}`;
+  if (/echodrk/i.test(raw)) return "#0099cc";
+  if (/red/i.test(raw)) return "red";
+  if (/gray|grey/i.test(raw)) return "gray";
+  return "black";
+}
+
+function renderTensorMatrixFallback(item, blocks, baseFontSize, unit, color) {
+  const cx = item.x * unit;
+  const cy = -item.y * unit;
+  const fontSize = Math.max(6, Math.min(14, baseFontSize));
+  const cell = fontSize * 0.82;
+  const labelHeight = fontSize * 1.05;
+  const matrixWidth = cell * 3.25;
+  const matrixHeight = cell * 3.05;
+  const blockWidth = matrixWidth + fontSize * 0.9;
+  const blockHeight = matrixHeight + labelHeight + fontSize * 0.35;
+  const gapX = fontSize * 1.1;
+  const gapY = fontSize * 0.75;
+  const prefixWidth = fontSize * 2.1;
+  const gridWidth = blockWidth * 2 + gapX;
+  const gridHeight = blockHeight * 2 + gapY;
+  const totalWidth = prefixWidth + gridWidth + fontSize * 0.8;
+  const startX = cx - totalWidth / 2;
+  const startY = cy - gridHeight / 2;
+  const parts = [
+    `<g class="tikz-tensor-matrix" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}" fill="${color}">`,
+    `<text x="${format(startX)}" y="${format(cy)}" text-anchor="start" dominant-baseline="middle" font-size="${format(
+      fontSize * 1.2
+    )}">M =</text>`,
+    `<path d="M ${format(startX + prefixWidth - fontSize * 0.2)} ${format(startY - fontSize * 0.1)} L ${format(
+      startX + prefixWidth - fontSize * 0.55
+    )} ${format(startY - fontSize * 0.1)} L ${format(startX + prefixWidth - fontSize * 0.55)} ${format(startY + gridHeight + fontSize * 0.1)} L ${format(
+      startX + prefixWidth - fontSize * 0.2
+    )} ${format(startY + gridHeight + fontSize * 0.1)} M ${format(startX + totalWidth - fontSize * 0.45)} ${format(startY - fontSize * 0.1)} L ${format(
+      startX + totalWidth - fontSize * 0.1
+    )} ${format(startY - fontSize * 0.1)} L ${format(startX + totalWidth - fontSize * 0.1)} ${format(
+      startY + gridHeight + fontSize * 0.1
+    )} L ${format(startX + totalWidth - fontSize * 0.45)} ${format(startY + gridHeight + fontSize * 0.1)}" stroke="${color}" fill="none" stroke-width="${format(
+      Math.max(0.55, fontSize * 0.08)
+    )}" />`
+  ];
+  blocks.forEach((block, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const x = startX + prefixWidth + col * (blockWidth + gapX);
+    const y = startY + row * (blockHeight + gapY);
+    parts.push(renderTensorMatrixBlock(block, x, y, { fontSize, cell, matrixWidth, matrixHeight, blockWidth, labelHeight }));
+  });
+  parts.push("</g>");
+  return parts.join("");
+}
+
+function renderTensorMatrixBlock(block, x, y, metrics) {
+  const { fontSize, cell, matrixWidth, matrixHeight, blockWidth, labelHeight } = metrics;
+  const matrixX = x + (blockWidth - matrixWidth) / 2;
+  const matrixY = y + (block.labelPosition === "top" ? labelHeight : 0);
+  const labelY = block.labelPosition === "top" ? y + labelHeight * 0.42 : matrixY + matrixHeight + labelHeight * 0.55;
+  const stroke = escapeAttribute(block.color || "black");
+  const parts = [
+    `<text x="${format(x + blockWidth / 2)}" y="${format(labelY)}" fill="${stroke}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+      fontSize * 0.72
+    )}">${escapeText(block.label)}</text>`,
+    `<rect x="${format(matrixX)}" y="${format(matrixY)}" width="${format(matrixWidth)}" height="${format(matrixHeight)}" fill="none" stroke="${stroke}" stroke-width="${format(
+      Math.max(0.45, fontSize * 0.055)
+    )}" />`
+  ];
+  const rows = block.matrix;
+  rows.forEach((row, rowIndex) => {
+    row.forEach((cellText, colIndex) => {
+      parts.push(
+        `<text x="${format(matrixX + cell * (0.58 + colIndex))}" y="${format(matrixY + cell * (0.62 + rowIndex))}" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+          fontSize * 0.78
+        )}">${escapeText(cellText)}</text>`
+      );
+    });
+  });
+  return `<g class="tikz-tensor-matrix-block">${parts.join("")}</g>`;
+}
+
 function renderSimpleSubscriptMathFallback(item, parts, baseFontSize, unit, color, fontStyle, fontWeight) {
   const subFontSize = baseFontSize * 0.7;
   const x = format(item.x * unit);
@@ -1424,11 +1909,188 @@ function renderSimpleSubscriptMathFallback(item, parts, baseFontSize, unit, colo
   )}" font-style="normal" baseline-shift="sub">${escapeText(parts.subscript)}</tspan></text>`;
 }
 
+function renderFractionMathFallback(item, parts, baseFontSize, unit, color, fontStyle, fontWeight) {
+  const fractionFontSize = baseFontSize * 0.78;
+  const x = item.x * unit;
+  const y = -item.y * unit;
+  const numerator = renderFractionPartContent(parts.numerator, fractionFontSize);
+  const denominator = renderFractionPartContent(parts.denominator, fractionFontSize);
+  const width = Math.max(
+    fractionTextWidth(parts.numerator, fractionFontSize),
+    fractionTextWidth(parts.denominator, fractionFontSize),
+    fractionFontSize * 0.9
+  );
+  const commonTextAttrs = `fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+    fractionFontSize
+  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+    TIKZ_FONT_FAMILY
+  )}"`;
+  return `<g class="tikz-fraction"><text x="${format(x)}" y="${format(y - fractionFontSize * 0.42)}" ${commonTextAttrs}>${numerator}</text><line x1="${format(
+    x - width / 2
+  )}" y1="${format(y + fractionFontSize * 0.08)}" x2="${format(x + width / 2)}" y2="${format(
+    y + fractionFontSize * 0.08
+  )}" stroke="${color}" stroke-width="${format(Math.max(0.45, fractionFontSize * 0.055))}" /><text x="${format(
+    x
+  )}" y="${format(y + fractionFontSize * 0.58)}" ${commonTextAttrs}>${denominator}</text></g>`;
+}
+
+function renderFractionPartContent(tex, fontSize) {
+  const mixed = mixedAlphabeticSubscriptFallback(tex);
+  if (mixed) {
+    const subFontSize = fontSize * 0.7;
+    return mixed
+      .map((segment) => {
+        if (segment.kind === "text") return `<tspan>${escapeText(segment.text)}</tspan>`;
+        return `<tspan>${escapeText(segment.base)}</tspan><tspan font-size="${format(
+          subFontSize
+        )}" font-style="normal" baseline-shift="sub">${escapeText(segment.subscript)}</tspan>`;
+      })
+      .join("");
+  }
+  const scripted = scriptedMathFallback(tex);
+  if (scripted) {
+    const scriptFontSize = fontSize * 0.66;
+    return scripted
+      .map((segment) => {
+        if (segment.kind === "text") return `<tspan>${escapeText(segment.text)}</tspan>`;
+        return `<tspan>${escapeText(segment.base)}</tspan>${
+          segment.superscript
+            ? `<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super">${renderNestedScriptText(
+                segment.superscript,
+                scriptFontSize
+              )}</tspan>`
+            : ""
+        }${
+          segment.subscript
+            ? `<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="sub">${renderNestedScriptText(
+                segment.subscript,
+                scriptFontSize
+              )}</tspan>`
+            : ""
+        }`;
+      })
+      .join("");
+  }
+  return `<tspan>${escapeText(mathFallbackText(tex))}</tspan>`;
+}
+
+function fractionTextWidth(tex, fontSize) {
+  return Math.max(1, mathFallbackText(tex).length) * fontSize * 0.56;
+}
+
+function renderMixedSubscriptMathFallback(item, segments, baseFontSize, unit, color, fontStyle, fontWeight) {
+  const x = format(item.x * unit);
+  const y = format(-item.y * unit);
+  const content = renderMixedSubscriptContent(segments, baseFontSize);
+  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+    baseFontSize
+  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+    TIKZ_FONT_FAMILY
+  )}">${content}</text>`;
+}
+
+function renderScriptedMathFallback(item, segments, baseFontSize, unit, color, fontStyle, fontWeight) {
+  const x = format(item.x * unit);
+  const y = format(-item.y * unit);
+  const content = renderScriptedSegmentsContent(segments, baseFontSize);
+  return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+    baseFontSize
+  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+    TIKZ_FONT_FAMILY
+  )}">${content}</text>`;
+}
+
+function renderSimpleSubscriptContent(parts, baseFontSize) {
+  const subFontSize = baseFontSize * 0.7;
+  return `<tspan>${escapeText(parts.base)}</tspan><tspan font-size="${format(
+    subFontSize
+  )}" font-style="normal" baseline-shift="sub">${escapeText(parts.subscript)}</tspan>`;
+}
+
+function renderMixedSubscriptContent(segments, baseFontSize) {
+  const subFontSize = baseFontSize * 0.7;
+  return segments
+    .map((segment) => {
+      if (segment.kind === "text") return escapeText(segment.text);
+      return `<tspan>${escapeText(segment.base)}</tspan><tspan font-size="${format(
+        subFontSize
+      )}" font-style="normal" baseline-shift="sub">${escapeText(segment.subscript)}</tspan>`;
+    })
+    .join("");
+}
+
+function renderScriptedSegmentsContent(segments, baseFontSize) {
+  const scriptFontSize = baseFontSize * 0.66;
+  return segments
+    .map((segment) => {
+      if (segment.kind === "text") return escapeText(segment.text);
+      if (segment.kind === "bold") return `<tspan font-weight="700" font-style="normal">${escapeText(segment.text)}</tspan>`;
+      const base = `<tspan>${escapeText(segment.base)}</tspan>`;
+      if (segment.superscript && segment.subscript) {
+        const backtrack = Math.max(0, estimateScriptTextWidth(segment.superscript, scriptFontSize));
+        return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super">${renderNestedScriptText(
+          segment.superscript,
+          scriptFontSize
+        )}</tspan><tspan dx="${format(-backtrack)}" font-size="${format(
+          scriptFontSize
+        )}" font-style="normal" baseline-shift="sub">${renderNestedScriptText(segment.subscript, scriptFontSize)}</tspan>`;
+      }
+      if (segment.superscript) {
+        return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super">${renderNestedScriptText(
+          segment.superscript,
+          scriptFontSize
+        )}</tspan>`;
+      }
+      return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="sub">${renderNestedScriptText(
+        segment.subscript,
+        scriptFontSize
+      )}</tspan>`;
+    })
+    .join("");
+}
+
+function estimateScriptTextWidth(text, fontSize) {
+  return String(text || "").length * fontSize * 0.52;
+}
+
+function simpleFractionFallback(tex) {
+  const raw = String(tex || "")
+    .trim()
+    .replace(/^\\(?:bf|bfseries)\b\s*/, "");
+  const command = raw.match(/^\\(?:frac|dfrac|tfrac)\b/);
+  if (!command) return null;
+  let cursor = skipInlineWhitespace(raw, command[0].length);
+  const numerator = readBalancedGroup(raw, cursor);
+  if (!numerator) return null;
+  cursor = skipInlineWhitespace(raw, numerator.end);
+  const denominator = readBalancedGroup(raw, cursor);
+  if (!denominator) return null;
+  cursor = skipInlineWhitespace(raw, denominator.end);
+  if (cursor !== raw.length) return null;
+  return { numerator: numerator.content, denominator: denominator.content };
+}
+
+function renderNestedScriptText(text, fontSize) {
+  const raw = String(text || "");
+  const nestedFontSize = fontSize * 0.74;
+  let output = "";
+  let cursor = 0;
+  const pattern = /_([A-Za-z0-9+\-=()]+)/g;
+  let match;
+  while ((match = pattern.exec(raw))) {
+    output += escapeText(raw.slice(cursor, match.index));
+    output += `<tspan font-size="${format(nestedFontSize)}" baseline-shift="sub">${escapeText(match[1])}</tspan>`;
+    cursor = pattern.lastIndex;
+  }
+  output += escapeText(raw.slice(cursor));
+  return output;
+}
+
 function simpleNumericSubscriptFallback(tex) {
   const raw = String(tex || "")
     .trim()
     .replace(/^\\(?:bf|bfseries)\b\s*/, "");
-  const match = raw.match(/^((?:\\[A-Za-z]+(?:\s*\{[^{}]*\})?)|[A-Za-z])\s*_\s*(?:\{([0-9]+)\}|([0-9]+))$/);
+  const match = raw.match(/^((?:\\[A-Za-z]+(?:\s*\{[^{}]*\})?)|[A-Za-z])\s*_\s*(?:\{([A-Za-z0-9]+)\}|([A-Za-z0-9]+))$/);
   if (!match) return null;
   const base = mathFallbackText(match[1]);
   const subscript = match[2] || match[3];
@@ -1436,16 +2098,268 @@ function simpleNumericSubscriptFallback(tex) {
   return { base, subscript };
 }
 
+function mixedAlphabeticSubscriptFallback(tex) {
+  const raw = String(tex || "")
+    .trim()
+    .replace(/^\\(?:bf|bfseries)\b\s*/, "");
+  const pattern = /((?:\\[A-Za-z]+(?:\s*\{[^{}]*\})?)|[A-Za-z])\s*_\s*(?:\{([A-Za-z])\}|([A-Za-z]))|([A-Za-z])\s*_\s*\{([A-Za-z]{2,})\}/g;
+  const segments = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = pattern.exec(raw))) {
+    const before = raw.slice(lastIndex, match.index);
+    const beforeText = mathFallbackText(before);
+    if (beforeText) segments.push({ kind: "text", text: beforeText });
+    const base = mathFallbackText(match[1] || match[4]);
+    const subscript = match[2] || match[3] || match[5];
+    if (!base || !subscript) return null;
+    segments.push({ kind: "subscript", base, subscript });
+    lastIndex = pattern.lastIndex;
+  }
+  if (!segments.some((segment) => segment.kind === "subscript")) return null;
+  const afterText = mathFallbackText(raw.slice(lastIndex));
+  if (afterText) segments.push({ kind: "text", text: afterText });
+  return segments;
+}
+
+function scriptedMathFallback(tex, options = {}) {
+  const raw = String(tex || "")
+    .trim()
+    .replace(/^\\(?:bf|bfseries)\b\s*/, "");
+  const segments = [];
+  let cursor = 0;
+  let lastIndex = 0;
+  let hasScript = false;
+  let hasSuperscript = false;
+  let hasCommandScriptValue = false;
+  let hasAccentBaseScript = false;
+  while (cursor < raw.length) {
+    const atom = readMathScriptAtom(raw, cursor);
+    if (!atom) {
+      cursor += 1;
+      continue;
+    }
+    let next = atom.end;
+    let subscript = null;
+    let superscript = null;
+    for (let i = 0; i < 2; i += 1) {
+      next = skipInlineWhitespace(raw, next);
+      const marker = raw[next];
+      if (marker !== "_" && marker !== "^") break;
+      const script = readMathScriptValue(raw, next + 1);
+      if (!script) break;
+      if (marker === "_") subscript = script.value;
+      else {
+        superscript = script.value;
+        hasSuperscript = true;
+      }
+      if (/^\\[A-Za-z]+/.test(script.value)) hasCommandScriptValue = true;
+      next = script.end;
+    }
+    if (!subscript && !superscript) {
+      cursor = atom.end;
+      continue;
+    }
+    const before = mathFallbackText(raw.slice(lastIndex, cursor));
+    if (before) segments.push({ kind: "text", text: before });
+    const base = mathFallbackText(atom.source);
+    if (!base) return null;
+    if (subscript && isAccentMathAtom(atom.source)) hasAccentBaseScript = true;
+    segments.push({
+      kind: "script",
+      base,
+      subscript: subscript ? mathScriptFallbackText(subscript) : null,
+      superscript: superscript ? mathScriptFallbackText(superscript) : null
+    });
+    hasScript = true;
+    lastIndex = next;
+    cursor = next;
+  }
+  if (!hasScript || (!options.allowSimpleScripts && !hasSuperscript && !hasCommandScriptValue && !hasAccentBaseScript)) return null;
+  const after = mathFallbackText(raw.slice(lastIndex));
+  if (after) segments.push({ kind: "text", text: after });
+  return segments;
+}
+
+function styledScriptedMathFallback(tex) {
+  const raw = String(tex || "")
+    .trim()
+    .replace(/^\\(?:bf|bfseries)\b\s*/, "");
+  const segments = [];
+  let cursor = 0;
+  let lastIndex = 0;
+  let matched = false;
+  while (cursor < raw.length) {
+    const bold = readScopedBoldSegment(raw, cursor);
+    if (bold) {
+      const before = mathFallbackSegmentText(raw.slice(lastIndex, cursor));
+      if (before) segments.push({ kind: "text", text: before });
+      if (bold.text) segments.push({ kind: "bold", text: bold.text });
+      lastIndex = bold.end;
+      cursor = bold.end;
+      matched = true;
+      continue;
+    }
+    const atom = readMathScriptAtom(raw, cursor);
+    if (!atom) {
+      cursor += 1;
+      continue;
+    }
+    let next = atom.end;
+    let subscript = null;
+    let superscript = null;
+    for (let i = 0; i < 2; i += 1) {
+      next = skipInlineWhitespace(raw, next);
+      const marker = raw[next];
+      if (marker !== "_" && marker !== "^") break;
+      const script = readMathScriptValue(raw, next + 1);
+      if (!script) break;
+      if (marker === "_") subscript = script.value;
+      else superscript = script.value;
+      next = script.end;
+    }
+    if (!subscript && !superscript) {
+      cursor = atom.end;
+      continue;
+    }
+    const before = mathFallbackSegmentText(raw.slice(lastIndex, cursor));
+    if (before) segments.push({ kind: "text", text: before });
+    const base = mathFallbackText(atom.source);
+    if (!base) return null;
+    segments.push({
+      kind: "script",
+      base,
+      subscript: subscript ? mathScriptFallbackText(subscript) : null,
+      superscript: superscript ? mathScriptFallbackText(superscript) : null
+    });
+    lastIndex = next;
+    cursor = next;
+    matched = true;
+  }
+  if (!matched) return null;
+  const after = mathFallbackSegmentText(raw.slice(lastIndex));
+  if (after) segments.push({ kind: "text", text: after });
+  return segments;
+}
+
+function mathFallbackSegmentText(source) {
+  const raw = String(source || "");
+  const fallback = mathFallbackText(raw);
+  if (!fallback) return "";
+  const leading = /^\s/.test(raw) ? " " : "";
+  const trailing = /\s$/.test(raw) ? " " : "";
+  return `${leading}${fallback}${trailing}`;
+}
+
+function readScopedBoldSegment(raw, start) {
+  if (raw[start] === "{") {
+    const group = readBalancedGroup(raw, start);
+    const content = group?.content.trim() || "";
+    if (!/^\\(?:bf|bfseries)\b/.test(content)) return null;
+    const text = mathFallbackText(group.content);
+    return text ? { text, end: group.end } : null;
+  }
+  const command = raw.slice(start).match(/^\\(?:mathbf|boldsymbol|textbf)\b\s*/);
+  if (!command) return null;
+  const group = readBalancedGroup(raw, start + command[0].length);
+  if (!group) return null;
+  const text = mathFallbackText(group.content);
+  return text ? { text, end: group.end } : null;
+}
+
+function readMathScriptAtom(raw, start) {
+  const char = raw[start];
+  if (!char || /\s/.test(char)) return null;
+  if (char === "{") {
+    const group = readBalancedGroup(raw, start);
+    if (!group || !/^\\(?:bf|bfseries|mathbf|boldsymbol)\b/.test(group.content.trim())) return null;
+    return { source: raw.slice(start, group.end), end: group.end };
+  }
+  const command = raw.slice(start).match(/^\\[A-Za-z]+/);
+  if (command) {
+    let end = start + command[0].length;
+    if (mathAtomCommandTakesGroup(command[0]) && raw[end] === "{") {
+      const group = readBalancedGroup(raw, end);
+      if (group) end = group.end;
+    }
+    return { source: raw.slice(start, end), end };
+  }
+  if (/[A-Za-z]/.test(char)) {
+    let end = start + 1;
+    if (raw[end] === "'") end += 1;
+    return { source: raw.slice(start, end), end };
+  }
+  return null;
+}
+
+function mathAtomCommandTakesGroup(command) {
+  return /^\\(?:vec|overrightarrow|mathbf|boldsymbol|mathcal|mathrm|textrm|texttt|textbf|emph)$/.test(command);
+}
+
+function isAccentMathAtom(source) {
+  return /^\\(?:vec|overrightarrow|widetilde|tilde)\b/.test(String(source || "").trim());
+}
+
+function readMathScriptValue(raw, start) {
+  let cursor = skipInlineWhitespace(raw, start);
+  if (raw[cursor] === "{") {
+    const group = readBalancedGroup(raw, cursor);
+    if (!group) return null;
+    return { value: group.content, end: group.end };
+  }
+  const command = raw.slice(cursor).match(/^\\[A-Za-z]+/);
+  if (command) return { value: command[0], end: cursor + command[0].length };
+  if (!raw[cursor]) return null;
+  return { value: raw[cursor], end: cursor + 1 };
+}
+
+function readBalancedGroup(raw, start) {
+  if (raw[start] !== "{") return null;
+  let depth = 0;
+  for (let index = start; index < raw.length; index += 1) {
+    const char = raw[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return { content: raw.slice(start + 1, index), end: index + 1 };
+    }
+  }
+  return null;
+}
+
+function skipInlineWhitespace(raw, start) {
+  let cursor = start;
+  while (/\s/.test(raw[cursor] || "")) cursor += 1;
+  return cursor;
+}
+
+function mathScriptFallbackText(value) {
+  return mathFallbackText(value).replace(/^_/, "");
+}
+
 function mathFallbackFontStyle(tex) {
   const raw = String(tex || "");
-  if (/\\(?:text|mathrm|operatorname|mathbf|mathsf|mathtt|bf|bfseries)\b/.test(raw)) return "";
+  if (/\\(?:text|mathrm|operatorname|mathsf|mathtt)\b/.test(raw) || hasWholeMathBoldCommand(raw)) return "";
   const fallback = mathFallbackText(raw);
   if (!/[A-Za-z]/.test(fallback)) return "";
   return "italic";
 }
 
 function mathFallbackFontWeight(tex) {
-  return /\\(?:bf|bfseries|mathbf|boldsymbol|textbf)\b/.test(String(tex || "")) ? "700" : "";
+  return hasWholeMathBoldCommand(tex) ? "700" : "";
+}
+
+function hasWholeMathBoldCommand(tex) {
+  const raw = String(tex || "")
+    .trim()
+    .replace(/^\$\$([\s\S]*)\$\$$/, "$1")
+    .replace(/^\$([\s\S]*)\$$/, "$1")
+    .trim();
+  return /^(?:\\(?:bf|bfseries)\b|\\(?:mathbf|boldsymbol|textbf)\s*\{[\s\S]*\}\s*$)/.test(raw);
 }
 
 function normalizeKatexTex(tex) {
@@ -1457,9 +2371,7 @@ function renderMarker(item, unit) {
   const y = -item.y * unit;
   const angle = -item.angle;
   const fill = escapeAttribute(item.style?.fill || "black");
-  return `<path d="${TIKZ_ARROW.standalonePath}" fill="${fill}" transform="translate(${format(x)} ${format(
-    y
-  )}) rotate(${format(angle)} ${format(x)} ${format(y)})" />`;
+  return `<path d="${TIKZ_ARROW.standalonePath}" fill="${fill}" transform="translate(${format(x)} ${format(y)}) rotate(${format(angle)})" />`;
 }
 
 function pathData(commands, unit) {
@@ -1532,15 +2444,22 @@ function fitRichFontSizeToBox(baseFontSize, fitBox, unit, lines = [""], lineStyl
 }
 
 function styleAttributes(style = {}, options = {}) {
+  const fill = style.pattern
+    ? `url(#${patternId(style)})`
+    : style.shading === "ball"
+      ? `url(#${ballGradientId(style)})`
+      : style.shading === "axis"
+        ? `url(#${axisGradientId(style)})`
+      : svgPaint(style.fill || "none");
   const attrs = [
-    ["stroke", style.stroke || "none"],
-    ["fill", style.fill || "none"],
+    ["stroke", svgPaint(style.stroke || "none")],
+    ["fill", fill],
     ["stroke-width", style.lineWidth ?? 1]
   ];
   if (style.dashArray) attrs.push(["stroke-dasharray", style.dashArray.join(" ")]);
   if ((style.stroke || "none") !== "none") {
-    attrs.push(["stroke-linecap", options.lineCap || "round"]);
-    attrs.push(["stroke-linejoin", options.lineJoin || "round"]);
+    attrs.push(["stroke-linecap", options.lineCap || style.lineCap || (style.dashArray ? style.dashLineCap || "butt" : "butt")]);
+    attrs.push(["stroke-linejoin", options.lineJoin || style.lineJoin || "miter"]);
   }
   if (Number.isFinite(style.opacity)) attrs.push(["opacity", style.opacity]);
   if (Number.isFinite(style.fillOpacity)) attrs.push(["fill-opacity", style.fillOpacity]);
@@ -1548,6 +2467,151 @@ function styleAttributes(style = {}, options = {}) {
   if (!options.omitMarkers && style.markerStart) attrs.push(["marker-start", `url(#${arrowMarkerId(style.markerStart, style)})`]);
   if (!options.omitMarkers && style.markerEnd) attrs.push(["marker-end", `url(#${arrowMarkerId(style.markerEnd, style)})`]);
   return attrs.map(([key, value]) => ` ${key}="${escapeAttribute(String(value))}"`).join("");
+}
+
+function svgPaint(value) {
+  const text = String(value ?? "").trim();
+  if (text.toLowerCase() === "green") return "rgb(0 255 0)";
+  return text;
+}
+
+function collectPatternDefs(items) {
+  const defs = new Map();
+  for (const item of items || []) {
+    if (!item.style?.pattern) continue;
+    const id = patternId(item.style);
+    defs.set(id, {
+      id,
+      kind: String(item.style.pattern).trim(),
+      color: item.style.patternColor || item.style.stroke || "black"
+    });
+  }
+  return [...defs.values()];
+}
+
+function renderPatternDef(def) {
+  const color = escapeAttribute(svgPaint(def.color || "black"));
+  const path = patternPathData(def.kind);
+  return `<pattern id="${escapeAttribute(def.id)}" patternUnits="userSpaceOnUse" width="8" height="8"><path d="${path}" stroke="${color}" stroke-width="0.7" fill="none" /></pattern>`;
+}
+
+function collectBallGradientDefs(items) {
+  const defs = new Map();
+  for (const item of items || []) {
+    if (item.style?.shading !== "ball") continue;
+    const id = ballGradientId(item.style);
+    defs.set(id, {
+      id,
+      color: item.style.ballColor || item.style.fill || "gray"
+    });
+  }
+  return [...defs.values()];
+}
+
+function renderBallGradientDef(def) {
+  const base = svgPaint(def.color || "gray");
+  const mid = ballMidColor(base);
+  const dark = ballDarkColor(base);
+  return `<radialGradient id="${escapeAttribute(def.id)}" cx="30%" cy="29%" r="62%" fx="25%" fy="23%"><stop offset="0%" stop-color="white" /><stop offset="14%" stop-color="${escapeAttribute(
+    mid
+  )}" /><stop offset="58%" stop-color="${escapeAttribute(base)}" /><stop offset="100%" stop-color="${escapeAttribute(dark)}" /></radialGradient>`;
+}
+
+function collectAxisGradientDefs(items) {
+  const defs = new Map();
+  for (const item of items || []) {
+    if (item.style?.shading !== "axis") continue;
+    const id = axisGradientId(item.style);
+    defs.set(id, {
+      id,
+      topColor: item.style.topColor || "white",
+      bottomColor: item.style.bottomColor || item.style.fill || "black"
+    });
+  }
+  return [...defs.values()];
+}
+
+function renderAxisGradientDef(def) {
+  const top = svgPaint(def.topColor || "white");
+  const bottom = svgPaint(def.bottomColor || "black");
+  return `<linearGradient id="${escapeAttribute(def.id)}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="${escapeAttribute(
+    top
+  )}" /><stop offset="100%" stop-color="${escapeAttribute(bottom)}" /></linearGradient>`;
+}
+
+function axisGradientId(style = {}) {
+  const top = String(style.topColor || "white").trim();
+  const bottom = String(style.bottomColor || style.fill || "black").trim();
+  const key = `${top}-${bottom}`
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase() || "axis";
+  return `tikz-axis-${key}`;
+}
+
+function ballGradientId(style = {}) {
+  const color = String(style.ballColor || style.fill || "gray")
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase() || "gray";
+  return `tikz-ball-${color}`;
+}
+
+function ballMidColor(color) {
+  const rgb = paintToRgb(color);
+  if (!rgb) return color;
+  return rgbToCss(mixRgb(rgb, [255, 255, 255], 0.45));
+}
+
+function ballDarkColor(color) {
+  const rgb = paintToRgb(color);
+  if (!rgb) return color;
+  return rgbToCss(mixRgb(rgb, [0, 0, 0], 0.48));
+}
+
+function paintToRgb(color) {
+  const text = svgPaint(color).trim().toLowerCase();
+  const named = {
+    black: [0, 0, 0],
+    white: [255, 255, 255],
+    red: [255, 0, 0],
+    green: [0, 255, 0],
+    blue: [0, 0, 255],
+    yellow: [255, 255, 0],
+    orange: [255, 165, 0],
+    gray: [128, 128, 128],
+    grey: [128, 128, 128]
+  };
+  if (named[text]) return named[text];
+  const rgb = text.match(/^rgb\((\d+)\s+(\d+)\s+(\d+)\)$/);
+  if (rgb) return rgb.slice(1).map(Number);
+  const hex = text.match(/^#([0-9a-f]{6})$/i);
+  if (hex) {
+    return [hex[1].slice(0, 2), hex[1].slice(2, 4), hex[1].slice(4, 6)].map((part) => Number.parseInt(part, 16));
+  }
+  return null;
+}
+
+function mixRgb(base, target, amount) {
+  const clamped = Math.max(0, Math.min(1, amount));
+  return base.map((channel, index) => Math.round(channel * clamped + target[index] * (1 - clamped)));
+}
+
+function rgbToCss(rgb) {
+  return `rgb(${rgb.map((channel) => Math.max(0, Math.min(255, Math.round(channel)))).join(" ")})`;
+}
+
+function patternPathData(kind) {
+  const normalized = String(kind || "").toLowerCase().replace(/-/g, " ").trim();
+  if (normalized === "north west lines") return "M 0 -4 L 12 8 M -4 0 L 8 12";
+  return "M -4 8 L 8 -4 M 0 12 L 12 0";
+}
+
+function patternId(style = {}) {
+  const kind = String(style.pattern || "lines").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lines";
+  const color = String(style.patternColor || style.stroke || "black").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "black";
+  return `tikz-pattern-${kind}-${color}`;
 }
 
 function collectArrowMarkerDefs(items) {
@@ -1663,14 +2727,16 @@ function computeBounds(items) {
       include(item.cx + item.rx, item.cy + item.ry);
     } else if (item.type === "textNode") {
       const normalized = normalizeTikzText(item.text);
+      if (normalized.invisible) continue;
       if (normalized.kind === "image") {
-        include(item.x - normalized.width / 2, item.y - normalized.height / 2);
-        include(item.x + normalized.width / 2, item.y + normalized.height / 2);
+        const scale = imagePlaceholderScale(item, normalized);
+        include(item.x - (normalized.width * scale) / 2, item.y - (normalized.height * scale) / 2);
+        include(item.x + (normalized.width * scale) / 2, item.y + (normalized.height * scale) / 2);
         continue;
       }
       const math = parseMathText(normalized.text);
       if (math) {
-        const scale = normalized.scale || 1;
+        const scale = (normalized.scale || 1) * textFontScale(item, normalized);
         const box = estimateFormulaBox(math.tex, { displayMode: math.displayMode, scale });
         const width = box.width + 0.12 * scale;
         const height = formulaTotalHeight(box) + 0.08 * scale;
@@ -1678,8 +2744,9 @@ function computeBounds(items) {
         include(item.x + width / 2, item.y + height / 2);
       } else {
         const lines = (normalized.lines.length ? normalized.lines : [normalized.text]).map(formatTextLine);
-        const width = Math.max(...lines.map((line) => line.length), 0) * 0.15 * (normalized.scale || 1);
-        const height = lines.length * 0.35 * (normalized.scale || 1);
+        const scale = (normalized.scale || 1) * textFontScale(item, normalized);
+        const width = Math.max(...lines.map((line) => line.length), 0) * 0.15 * scale;
+        const height = lines.length * 0.35 * scale;
         include(item.x - width / 2, item.y - height / 2);
         include(item.x + width / 2, item.y + height / 2);
       }

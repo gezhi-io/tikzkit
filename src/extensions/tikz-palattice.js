@@ -2,7 +2,23 @@ export const tikzPalatticeExtension = {
   name: "tikz-palattice",
   phase: "preprocess",
   description: "Expands practical tikz-palattice lattice environments into ordinary TikZ paths and labels.",
-  commands: ["lattice", "drift", "dipole", "quadrupole", "sextupole", "kicker", "cavity", "marker"],
+  commands: [
+    "lattice",
+    "drift",
+    "dipole",
+    "quadrupole",
+    "sextupole",
+    "kicker",
+    "corrector",
+    "cavity",
+    "solenoid",
+    "source",
+    "screen",
+    "valve",
+    "marker",
+    "legend",
+    "completelegend"
+  ],
   preprocess(source, context = {}) {
     return expandTikzPalattice(String(source), context.diagnostics || []);
   }
@@ -24,14 +40,16 @@ const LEGEND_TEXT = {
   dipole: "Dipole",
   quadrupole: "Quadrupole",
   sextupole: "Sextupole",
-  kicker: "Kicker",
   corrector: "Corrector",
-  solenoid: "Solenoid",
+  kicker: "Kicker",
   cavity: "Cavity",
+  solenoid: "Solenoid",
   source: "Source",
   screen: "Screen",
   valve: "Valve"
 };
+
+const LEGEND_ORDER = ["dipole", "quadrupole", "sextupole", "corrector", "kicker", "cavity", "solenoid", "source", "screen", "valve"];
 
 export function expandTikzPalattice(source, diagnostics = []) {
   if (!usesTikzPalattice(source)) return source;
@@ -90,7 +108,7 @@ function renderLattice(body, scale, options, diagnostics) {
     angle: 0,
     index: 0,
     labelSide: -1,
-    labelDistance: 0.45 * scale,
+    labelDistance: 0.35 * 2 * scale,
     labelRotation: 0,
     saved: new Map(),
     lastCenter: { x: 0, y: 0 },
@@ -212,13 +230,13 @@ function parseRectangleElement(source, start, command, state, generated) {
   const name = args.required[0];
   const length = finiteNumber(args.required[1], 0.1);
   const config = ELEMENTS.get(command) || { color: "gray", height: 0.3 };
-  const height = finiteNumber(args.optional[0], config.height);
+  const height = finiteNumber(args.optional[0], config.height) * state.unit;
   const from = point(state);
   const to = advance(state, length, 0);
   const center = midpoint(from, to);
   generated.push(drawLine(from, to, driftOptions(state)));
-  if (command === "source") generated.push(drawSource(from, to, height * state.scale, elementOptions(command, config.color, state)));
-  else generated.push(drawRectangle(from, to, height * state.scale, elementOptions(command, config.color, state)));
+  if (command === "source") generated.push(drawSource(from, to, height, elementOptions(command, config.color, state)));
+  else generated.push(drawRectangle(from, to, height, elementOptions(command, config.color, state)));
   generated.push(labelNode(center, name, state));
   state.seen.add(command);
   return { end: args.end };
@@ -230,7 +248,7 @@ function parseDipole(source, start, state, generated) {
   const name = args.required[0];
   const length = finiteNumber(args.required[1], 0.1);
   const bend = finiteNumber(args.required[2], 0);
-  const height = finiteNumber(args.optional[1], 0.6) * state.scale;
+  const height = finiteNumber(args.optional[1], 0.6) * state.unit;
   const from = point(state);
   const travelAngle = state.angle + bend / 2;
   const to = advance(state, length, bend);
@@ -264,12 +282,12 @@ function parseValve(source, start, state, generated) {
   const args = readArguments(source, start, "valve", 1, 1);
   if (!args) return null;
   const name = args.required[0];
-  const length = finiteNumber(args.optional[0], 0.05);
+  const length = finiteNumber(args.optional[0], 0.01);
   const from = point(state);
   const to = advance(state, length, 0);
   const center = midpoint(from, to);
   generated.push(drawLine(from, to, driftOptions(state)));
-  generated.push(drawRectangle(from, to, 0.15 * state.scale, elementOptions("valve", "gray", state)));
+  generated.push(drawRectangle(from, to, 0.15 * state.unit, valveOptions(state)));
   generated.push(labelNode(center, name, state));
   state.seen.add("valve");
   return { end: args.end };
@@ -279,11 +297,11 @@ function parseMarker(source, start, state, generated) {
   const args = readArguments(source, start, "marker", 1, 1);
   if (!args) return null;
   const name = args.required[0];
-  const len = finiteNumber(args.optional[0], 0.35) * state.scale;
+  const len = finiteNumber(args.optional[0], 0.35) * state.unit;
   const p = point(state);
   generated.push(drawLine(p, add(p, vector(state.angle - 90, len)), markerOptions(state)));
   generated.push(drawLine(p, add(p, vector(state.angle + 90, len)), markerOptions(state)));
-  generated.push(labelNode(add(p, vector(state.angle + state.labelSide * 90, len + state.labelDistance)), name, state));
+  generated.push(labelNodeAt(add(p, vector(state.angle - state.labelSide * 90, len + state.labelDistance * 0.5)), name, state, labelAnchor(state, true)));
   state.seen.add("marker");
   return { end: args.end };
 }
@@ -299,7 +317,7 @@ function parseAngleCommand(source, start, state, mode) {
 function parseSetLabelDistance(source, start, state) {
   const args = readArguments(source, start, "setlabeldistance", 1, 0);
   if (!args) return null;
-  state.labelDistance = finiteNumber(args.required[0], 0.45) * state.scale;
+  state.labelDistance = finiteNumber(args.required[0], 0.35) * state.unit;
   return { end: args.end };
 }
 
@@ -356,24 +374,35 @@ function parseLegend(source, start, state, generated, complete) {
   const command = complete ? "completelegend" : "legend";
   const args = readArguments(source, start, command, 1, 1);
   if (!args) return null;
-  const origin = parseCoordinate(args.required[0]) || { x: state.x, y: state.y - 1.5 };
+  const parsedOrigin = parseCoordinate(args.required[0]);
+  const origin = parsedOrigin ? scalePoint(parsedOrigin, state.unit) : { x: state.x, y: state.y - 1.5 * state.unit };
   const scale = finiteNumber(args.optional[0], 1);
-  const keys = complete ? Object.keys(LEGEND_TEXT) : [...state.seen].filter((key) => key !== "marker" && key !== "beamdump");
-  let y = origin.y;
+  const keys = complete
+    ? LEGEND_ORDER
+    : LEGEND_ORDER.filter((key) => state.seen.has(key) && key !== "marker" && key !== "beamdump");
+  const iconWidth = 0.4 * scale;
+  const iconHeight = 0.3 * scale;
+  const rowStep = 0.48 * scale;
+  const textX = origin.x + 0.5 * scale;
+  const frameLeft = origin.x - 0.32 * scale;
+  const frameTop = origin.y + 0.18 * scale;
+  const frameRight = origin.x + 2.25 * scale;
+  let y = origin.y - iconHeight / 2;
   for (const key of keys) {
-    const color = defaultColor(key, state);
-    const boxFrom = { x: origin.x, y };
-    const boxTo = { x: origin.x + 0.45 * scale, y };
-    generated.push(drawRectangle(boxFrom, boxTo, 0.22 * scale, elementOptions(key, color, state)));
-    generated.push(`\\node[anchor=west,font=\\scriptsize] at (${fmt(origin.x + 0.62 * scale)},${fmt(y)}) {${state.legendText[key] || key}};`);
-    y -= 0.32 * scale;
+    generated.push(legendIcon(key, { x: origin.x, y }, iconWidth, iconHeight, state));
+    generated.push(`\\node[anchor=west,font=\\normalsize] at (${fmt(textX)},${fmt(y)}) {${state.legendText[key] || key}};`);
+    y -= rowStep;
   }
   for (const entry of state.customLegend) {
     const style = entry.style || "fill=white";
-    generated.push(drawRectangle({ x: origin.x, y }, { x: origin.x + 0.45 * scale, y }, 0.22 * scale, `draw,${style},palattice legend`));
-    generated.push(`\\node[anchor=west,font=\\scriptsize] at (${fmt(origin.x + 0.62 * scale)},${fmt(y)}) {${entry.name}};`);
-    y -= 0.32 * scale;
+    generated.push(legendRectangle({ x: origin.x, y }, iconWidth, iconHeight, `draw,${style},palattice legend custom`));
+    generated.push(`\\node[anchor=west,font=\\normalsize] at (${fmt(textX)},${fmt(y)}) {${entry.name}};`);
+    y -= rowStep;
   }
+  const frameBottom = y + rowStep - iconHeight / 2 - 0.18 * scale;
+  generated.push(
+    `\\draw[draw=black,fill=none,line width=0.4pt,rounded corners=2pt,palattice legend frame] (${fmt(frameLeft)},${fmt(frameBottom)}) rectangle (${fmt(frameRight)},${fmt(frameTop)});`
+  );
   return { end: args.end };
 }
 
@@ -480,8 +509,58 @@ function drawSource(from, to, height, options) {
 
 function labelNode(center, text, state) {
   const offset = add(center, vector(state.angle + state.labelSide * 90, state.labelDistance));
+  return labelNodeAt(offset, text, state, labelAnchor(state, false));
+}
+
+function labelNodeAt(pointValue, text, state, anchor = "center") {
   const rotate = state.labelRotation ? `,rotate=${fmt(state.labelRotation)}` : "";
-  return `\\node[font=\\scriptsize${rotate},palattice label] at (${fmt(offset.x)},${fmt(offset.y)}) {${text}};`;
+  return `\\node[font=\\normalsize,anchor=${anchor}${rotate},palattice label] at (${fmt(pointValue.x)},${fmt(pointValue.y)}) {${text}};`;
+}
+
+function labelAnchor(state, marker = false) {
+  const angle = normalizeAngle(state.angle);
+  const positiveSide = state.labelSide > 0;
+  if (marker) return positiveSide ? anchorForNegativeMarker(angle) : anchorForPositiveMarker(angle);
+  return positiveSide ? anchorForNorthLabel(angle) : anchorForSouthLabel(angle);
+}
+
+function anchorForSouthLabel(angle) {
+  if (angle > 330) return "north";
+  if (angle > 210) return "east";
+  if (angle > 150) return "south";
+  if (angle > 30) return "west";
+  return "north";
+}
+
+function anchorForNorthLabel(angle) {
+  if (angle > 330) return "south";
+  if (angle > 210) return "west";
+  if (angle > 150) return "north";
+  if (angle > 30) return "east";
+  return "south";
+}
+
+function anchorForPositiveMarker(angle) {
+  if (angle > 330) return "south";
+  if (angle > 210) return "west";
+  if (angle > 150) return "north";
+  if (angle > 30) return "east";
+  return "south";
+}
+
+function anchorForNegativeMarker(angle) {
+  if (angle > 330) return "north";
+  if (angle > 210) return "east";
+  if (angle > 150) return "south";
+  if (angle > 30) return "west";
+  return "north";
+}
+
+function normalizeAngle(angle) {
+  let normalized = Number(angle) || 0;
+  while (normalized < 0) normalized += 360;
+  while (normalized > 360) normalized -= 360;
+  return normalized;
 }
 
 function driftOptions(state) {
@@ -496,7 +575,54 @@ function markerOptions(state) {
 
 function elementOptions(kind, fallbackColor, state) {
   const color = defaultColor(kind, state) || fallbackColor;
-  return ["draw=black", `fill=${color}`, "line width=0.8pt", `palattice ${kind}`].join(",");
+  return ["draw=black", "top color=white", `bottom color=${color}`, "line width=0.8pt", `palattice ${kind}`].join(",");
+}
+
+function valveOptions(state) {
+  const color = defaultColor("valve", state) || "gray";
+  return ["draw=none", `top color=${color}`, `bottom color=${color}`, "line width=0.8pt", "palattice valve"].join(",");
+}
+
+function legendIcon(kind, center, width, height, state) {
+  if (kind === "source") return legendSource(center, width, height, legendElementOptions(kind, state));
+  if (kind === "screen") return legendScreen(center, Math.min(width, height) / 2, legendElementOptions(kind, state));
+  if (kind === "valve") return legendValve(center, width);
+  return legendRectangle(center, width, height, legendElementOptions(kind, state));
+}
+
+function legendElementOptions(kind, state) {
+  return elementOptions(kind, defaultColor(kind, state), state)
+    .replace("line width=0.8pt", "line width=0.4pt")
+    .replace(`palattice ${kind}`, `palattice legend ${kind}`);
+}
+
+function legendRectangle(center, width, height, options) {
+  const left = center.x - width / 2;
+  const right = center.x + width / 2;
+  const top = center.y + height / 2;
+  const bottom = center.y - height / 2;
+  return `\\draw[${options}] (${fmt(left)},${fmt(top)}) -- (${fmt(right)},${fmt(top)}) -- (${fmt(right)},${fmt(bottom)}) -- (${fmt(left)},${fmt(bottom)}) -- cycle;`;
+}
+
+function legendSource(center, width, height, options) {
+  const left = center.x - width / 2;
+  const right = center.x + width / 2;
+  const top = center.y + height / 2;
+  const bottom = center.y - height / 2;
+  return `\\draw[${options}] (${fmt(left)},${fmt(top)}) -- (${fmt(right)},${fmt(top)}) -- (${fmt(center.x)},${fmt(bottom)}) -- cycle;`;
+}
+
+function legendScreen(center, radius, options) {
+  const slash = radius * 0.7071;
+  return [
+    `\\draw[${options}] (${fmt(center.x)},${fmt(center.y)}) circle (${fmt(radius)});`,
+    `\\draw[${options}] (${fmt(center.x - slash)},${fmt(center.y - slash)}) -- (${fmt(center.x + slash)},${fmt(center.y + slash)});`
+  ].join("\n");
+}
+
+function legendValve(center, width) {
+  const half = width * 0.42;
+  return `\\draw[draw=gray,fill=none,line width=0.4pt,palattice legend valve] (${fmt(center.x - half)},${fmt(center.y)}) -- (${fmt(center.x + half)},${fmt(center.y)});`;
 }
 
 function defaultColor(kind, state) {

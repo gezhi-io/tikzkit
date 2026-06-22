@@ -28,7 +28,7 @@ test("cli converts tikz and tex inputs to svg files", async () => {
   await execFileAsync(process.execPath, ["bin/tikz2svg.js", tex, "-o", out2]);
 
   assert.match(await readFile(out1, "utf8"), /<svg/);
-  assert.match(await readFile(out2, "utf8"), /stroke="green"/);
+  assert.match(await readFile(out2, "utf8"), /stroke="rgb\(0 255 0\)"/);
 });
 
 test("cli strict mode fails when unsupported syntax is diagnosed", async () => {

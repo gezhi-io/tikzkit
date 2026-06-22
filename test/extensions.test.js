@@ -44,6 +44,21 @@ test("renders common PGFPlots axis addplot coordinates, functions, and legends",
   assert.equal(result.ir.items.filter((item) => item.type === "textNode" && /\$x/.test(item.text)).length, 2);
 });
 
+test("treats PGFPlots \\empty tick lists as no ticks", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[axis lines=middle, xtick=\empty, ytick=\empty, xmin=0, xmax=1, ymin=0, ymax=1]
+    \addplot {x};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.ir.items.filter((item) => item.subtype === "axis-tick").length, 0);
+  assert.equal(result.ir.items.filter((item) => item.type === "textNode" && item.text === "0").length, 0);
+});
+
 test("projects common TikZ 3D coordinates using x/y/z picture basis vectors", () => {
   const source = String.raw`
 \begin{tikzpicture}[y={(-0.86cm,0.5cm)},x={(0.86cm,0.5cm)}, z={(0cm,1cm)}]
@@ -92,6 +107,41 @@ test("expands tikz-bagua line symbols into ordinary TikZ strokes", () => {
   assert.equal(baguaLines.length, 12);
   assert.equal(baguaLines.filter((item) => item.commands.length === 2).length > 0, true);
   assert.equal(baguaLines.filter((item) => item.commands.length === 4).length > 0, true);
+});
+
+test("centers tikz-bagua node symbols and emits visible TikZ line widths", () => {
+  const source = String.raw`
+\usepackage{tikz-bagua}
+\begin{tikzpicture}
+  \node at (0,1.55) {\bagua*{7}[1.4]};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const baguaLines = result.ir.items.filter((item) => item.subtype === "bagua-line");
+  const first = baguaLines[0];
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(baguaLines.length, 3);
+  assert.ok(first.style.lineWidth > 2, `expected visible line width, got ${first.style.lineWidth}`);
+  assert.ok(first.commands[0].x < 0, `expected line to start left of node center, got ${first.commands[0].x}`);
+  assert.ok(first.commands[1].x > 0, `expected line to end right of node center, got ${first.commands[1].x}`);
+  assert.match(result.svg, /stroke-linecap="butt"/);
+});
+
+test("keeps tikz-bagua stroke width independent from symbol scale", () => {
+  const source = String.raw`
+\usepackage{tikz-bagua}
+\begin{tikzpicture}
+  \node at (0,0) {\bagua*{7}[1.4]};
+  \node at (1,0) {\Bagua[8]{56}[1.1]};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const widths = result.ir.items.filter((item) => item.subtype === "bagua-line").map((item) => item.style.lineWidth);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(widths.length > 3);
+  assert.equal(new Set(widths.map((width) => width.toFixed(6))).size, 1);
 });
 
 test("expands tikz-bagua taiji symbols into filled circular motifs", () => {
@@ -234,6 +284,56 @@ test("evaluates PGFPlots trig format rad before sampling function plots", () => 
   assert.deepEqual(ys, [1, 2, 1, 0, 1]);
 });
 
+test("evaluates PGFPlots exp expressions with exponent syntax", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=6cm,height=2cm,xmin=-3,xmax=3,ymin=0,ymax=1,domain=-3:3]
+    \addplot[black, samples=5, mark=none] {exp(-x^2)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const plot = result.ir.items.find((item) => item.subtype === "axis-plot");
+  const ys = plot.commands.map((command) => Math.round(command.y * 1000) / 1000);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.max(...ys) > Math.min(...ys), `expected exp(-x^2) to produce a curve, got ${ys.join(",")}`);
+  assert.ok(ys[2] > ys[0], `expected gaussian peak near x=0, got ${ys.join(",")}`);
+});
+
+test("evaluates PGFPlots gauss helper used by GMHMM gallery nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=4cm,height=3cm,xmin=-2,xmax=2,ymin=0,ymax=1,domain=-2:2]
+    \addplot[fill=red!10, samples=5, mark=none] {gauss(0,0.5)} \closedcycle;
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const plot = result.ir.items.find((item) => item.subtype === "axis-plot");
+  const ys = plot.commands.map((command) => Math.round(command.y * 1000) / 1000);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.max(...ys) > Math.min(...ys), `expected gauss(0,0.5) to produce a curve, got ${ys.join(",")}`);
+  assert.ok(ys[2] > ys[0], `expected gaussian peak near x=0, got ${ys.join(",")}`);
+});
+
+test("applies PGFPlots axis scale to generated geometry", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[scale=0.25,xmin=-2,xmax=2,ymin=0,ymax=1,domain=-2:2]
+    \addplot[black, samples=5, mark=none] {gauss(0,0.5)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const plot = result.ir.items.find((item) => item.subtype === "axis-plot");
+  const xs = plot.commands.map((command) => command.x);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.max(...xs) - Math.min(...xs) < 1.2, `expected scaled axis span near 1cm, got ${Math.max(...xs) - Math.min(...xs)}`);
+});
+
 test("supports PGFPlots addplot expression keyword before plot options", () => {
   const source = String.raw`
 \definecolor{olivegreen}{rgb}{0,0.6,0}
@@ -252,6 +352,44 @@ test("supports PGFPlots addplot expression keyword before plot options", () => {
   assert.equal(plot.commands.length, 5);
 });
 
+test("evaluates PGFPlots max/min and tanh expressions used by activation glyphs", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=4cm,height=2cm,xmin=-2,xmax=2,ymin=-1,ymax=1,domain=-2:2,trig format=rad]
+    \addplot expression [samples=7, mark=none] {max(0, min(1, x*0.6 + 0.5))};
+    \addplot expression [samples=7, mark=none] {tanh(\x)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const plots = result.ir.items.filter((item) => item.subtype === "axis-plot");
+  const ySeries = plots.map((plot) => plot.commands.filter((command) => command.type !== "moveTo").map((command) => command.y));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(plots.length, 2);
+  for (const ys of ySeries) {
+    const spread = Math.max(...ys) - Math.min(...ys);
+    assert.ok(spread > 0.5, `expected activation curve to vary vertically, got ${ys.join(",")}`);
+  }
+});
+
+test("clips PGFPlots function sampling to explicit axis bounds", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=4cm,height=2cm,xmin=-1,xmax=1,ymin=0,ymax=1,domain=-2:2]
+    \addplot expression [samples=9, mark=none] {x*x};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const plot = result.ir.items.find((item) => item.subtype === "axis-plot");
+  const xs = plot.commands.map((command) => command.x);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.min(...xs) >= -0.001, `expected plot to start inside axis, got ${xs.join(",")}`);
+  assert.ok(Math.max(...xs) <= 4.001, `expected plot to end inside axis, got ${xs.join(",")}`);
+});
+
 test("uses arrowed middle axis lines for PGFPlots middle axes", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -268,7 +406,101 @@ test("uses arrowed middle axis lines for PGFPlots middle axes", () => {
   assert.equal(axisLines.every((item) => item.style.markerEnd?.kind === "to"), true);
 });
 
-test("keeps stacked PGFPlots middle axes separated when using at offsets", () => {
+test("uses PGFPlots middle-axis plot area inside declared width and height", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=11cm,height=3.5cm,xmin=0,xmax=11*pi,ymin=-0.5,ymax=7.5,axis lines=middle,xtick=\empty,ytick=\empty]
+    \addplot coordinates {(0,0) (11*pi,7.5)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const axisLines = result.ir.items.filter((item) => item.subtype === "axis-line");
+  const xAxis = axisLines.find((item) => item.commands[0].y === item.commands[1].y);
+  const yAxis = axisLines.find((item) => item.commands[0].x === item.commands[1].x);
+  const xLength = Math.abs(xAxis.commands[1].x - xAxis.commands[0].x);
+  const yLength = Math.abs(yAxis.commands[1].y - yAxis.commands[0].y);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.abs(xLength - 9.28) < 0.01, `expected native-like PGFPlots x-axis length, got ${xLength}`);
+  assert.ok(Math.abs(yLength - 1.8) < 0.01, `expected native-like PGFPlots y-axis length, got ${yLength}`);
+});
+
+test("places PGFPlots middle-axis x tick labels next to the middle x-axis", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=4cm,height=4cm,xmin=0,xmax=4,ymin=-1,ymax=1,axis lines=middle,xtick={1},xticklabels={A}]
+    \addplot coordinates {(0,0) (4,0)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.text === "A");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(label, "expected generated tick label");
+  assert.ok(label.y > 0.65 && label.y < 1.05, `expected x tick label below the middle axis, got y=${label.y}`);
+});
+
+test("renders PGFPlots ycomb function plots as vertical stems with marks", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=4cm,height=2cm,xmin=0,xmax=3,ymin=-1,ymax=1,axis lines=middle,domain=0:3]
+    \addplot+[ycomb,mark=*,samples=4,black,thick] {x-1};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const stems = result.ir.items.filter((item) => item.subtype === "axis-comb");
+  const marks = result.ir.items.filter((item) => item.subtype === "axis-mark");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(stems.length, 4);
+  assert.equal(marks.length, 4);
+  assert.ok(stems.every((stem) => stem.commands.length === 2 && stem.commands[0].x === stem.commands[1].x));
+});
+
+test("respects PGFPlots addplot versus addplot+ cycle color semantics for sampling plots", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=4cm,height=2cm,xmin=0,xmax=3,ymin=-1,ymax=1,axis lines=middle,domain=0:3]
+    \addplot[no markers,thick] {x-1};
+    \addplot+[ycomb,mark=*,samples=4,black,thick] {x-1};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const curve = result.ir.items.find((item) => item.subtype === "axis-plot");
+  const stem = result.ir.items.find((item) => item.subtype === "axis-comb");
+  const mark = result.ir.items.find((item) => item.subtype === "axis-mark");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(curve.style.stroke, "black");
+  assert.equal(stem.style.stroke, "black");
+  assert.equal(mark.style.stroke, "black");
+  assert.equal(mark.style.fill, "rgb(204 0 0)");
+});
+
+test("uses PGFPlots native-ish smooth function plots and mark metrics", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \begin{axis}[width=12.5cm,height=8cm,xmin=0,xmax=16,ymin=-1.1,ymax=1.5,axis lines=middle,domain=0:15]
+    \addplot[no markers,samples=12,smooth,thick] {sin(2*180*x/13)};
+    \addplot+[ycomb,mark=*,samples=4,black,thick] {sin(2*180*x/13)};
+  \end{axis}
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const curve = result.ir.items.find((item) => item.subtype === "axis-plot");
+  const mark = result.ir.items.find((item) => item.subtype === "axis-mark");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(curve.commands.some((command) => command.type === "curveTo"), "expected smooth PGFPlots function to emit cubic segments");
+  assert.ok(mark.r > 0.065 && mark.r < 0.073, `expected default mark size near 2pt, got ${mark.r}`);
+  assert.equal(mark.style.lineWidth, curve.style.lineWidth);
+});
+
+test("respects explicit PGFPlots middle-axis at offsets without extra stack shifting", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \begin{axis}[width=4cm,height=2cm,xmin=0,xmax=1,ymin=-1,ymax=1,axis lines=middle]
@@ -293,12 +525,14 @@ test("keeps stacked PGFPlots middle axes separated when using at offsets", () =>
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(yAxes.length, 3);
-  for (let index = 1; index < yAxes.length; index += 1) {
-    assert.ok(
-      yAxes[index].max < yAxes[index - 1].min - 0.2,
-      `expected separated y axes, got ${JSON.stringify(yAxes)}`
-    );
-  }
+  assert.deepEqual(
+    yAxes.map((axis) => ({ min: Number(axis.min.toFixed(3)), max: Number(axis.max.toFixed(3)) })),
+    [
+      { min: 0, max: 1 },
+      { min: -1.5, max: -0.5 },
+      { min: -3, max: -2 }
+    ]
+  );
 });
 
 test("keeps generated PGFPlots axis label text available for TeX font macro handling", () => {

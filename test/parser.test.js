@@ -83,3 +83,117 @@ test("parses compact relative coordinates after path operators", () => {
   assert.equal(coordinates.length, 4);
   assert.deepEqual(coordinates.map((segment) => segment.relative || "absolute"), ["absolute", "update", "update", "update"]);
 });
+
+test("parses TikZ sine and cosine path operators", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) sin (1,1) cos (2,0);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(draw.path.segments, [
+    { kind: "coordinate", raw: "0,0" },
+    { kind: "sineCosine", op: "sin", to: "1,1" },
+    { kind: "sineCosine", op: "cos", to: "2,0" }
+  ]);
+});
+
+test("parses TikZ child tree syntax attached to node statements", () => {
+  const source = String.raw`
+\begin{tikzpicture}[grow=up, level 1/.style={sibling distance=30mm}]
+  \node[align=center](root){root}
+    child{node{right leaf}}
+    child{node[align=center]{left\\branch}
+      child{node{deep}}
+    };
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const root = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(root.type, "node");
+  assert.equal(root.children.length, 2);
+  assert.equal(root.children[0].node.text, "right leaf");
+  assert.equal(root.children[1].node.options.align, "center");
+  assert.equal(root.children[1].children[0].node.text, "deep");
+});
+
+test("preserves repeated node label options instead of overwriting them", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[label=above:Graphics,label=left:Design,label=below:Typography,label=right:Coding] {TikZ};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const node = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(node.options.label, ["above:Graphics", "left:Design", "below:Typography", "right:Coding"]);
+});
+
+test("parses plot smooth coordinates as a single plot segment", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node (A) at (0,0) {};
+  \node (B) at (2,0) {};
+  \draw[-stealth] plot [smooth, tension=1] coordinates { (A.east) ([xshift=1em,yshift=1em]A.east) (B.west) };
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[2];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(draw.path.segments.length, 1);
+  assert.equal(draw.path.segments[0].kind, "plotCoordinates");
+  assert.deepEqual(draw.path.segments[0].coordinates, ["A.east", "[xshift=1em,yshift=1em]A.east", "B.west"]);
+  assert.equal(draw.path.segments[0].options.smooth, true);
+  assert.equal(draw.path.segments[0].options.tension, "1");
+});
+
+test("records preamble TikZ libraries and style definitions for matrix/positioning cases", () => {
+  const source = String.raw`
+\documentclass[crop,tikz]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning, matrix}
+\tikzset{
+  tablet/.style={
+    matrix of nodes,
+    row sep=-\pgflinewidth,
+    column sep=-\pgflinewidth,
+    nodes={rectangle,draw=black,text width=1.25ex,align=center},
+    text height=1.25ex,
+    nodes in empty cells
+  },
+  texto/.style={font=\footnotesize\sffamily},
+  title/.style={font=\small\sffamily}
+}
+\definecolor{dgry}{HTML}{555555}
+\definecolor{lgry}{HTML}{aaaaaa}
+\begin{document}
+\begin{tikzpicture}[node distance=0.4cm and 0.7cm]
+  \matrix[tablet] (mp) { |[fill=dgry]| & |[fill=lgry]| \\ };
+  \node[texto, right=of mp] {Palette};
+\end{tikzpicture}
+\end{document}`;
+
+  const result = parseTikz(source);
+  const picture = result.ast.pictures[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(result.ast.libraries.map((library) => library.name), ["positioning", "matrix"]);
+  assert.deepEqual(picture.libraries.map((library) => library.name), ["positioning", "matrix"]);
+  assert.equal(result.ast.libraries[0].status, "builtin");
+  assert.match(result.ast.libraries[0].implementedBy, /resolvePositioning/);
+  assert.equal(picture.styles.tablet["matrix of nodes"], true);
+  assert.equal(picture.styles.tablet["row sep"], "-\\pgflinewidth");
+  assert.equal(picture.styles.tablet.nodes, "rectangle,draw=black,text width=1.25ex,align=center");
+  assert.equal(picture.styles.texto.font, "\\footnotesize\\sffamily");
+  assert.equal(picture.styles.title.font, "\\small\\sffamily");
+  assert.doesNotMatch(result.ast.source, /\\documentclass|\\begin\{document\}|\\usetikzlibrary|\\definecolor/);
+  assert.match(result.ast.source, /fill=#555555/);
+  assert.match(result.ast.source, /fill=#aaaaaa/);
+});

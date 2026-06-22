@@ -148,7 +148,7 @@ test("expands tikz-network Plane and Text commands from the package docs", () =>
 
   assert.equal(diagnostics.length, 0);
   const paths = ir.items.filter((item) => item.type === "path");
-  assert.ok(paths.some((item) => item.style.fill === "rgb(204 230 204)" && item.style.opacity === 0.4));
+  assert.ok(paths.some((item) => item.style.fill === "rgb(204 255 204)" && item.style.opacity === 0.4));
   assert.ok(paths.some((item) => item.style.stroke === "red"));
   assert.ok(paths.some((item) => item.style.stroke === "blue" && item.style.dashArray.length > 0));
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Layer" && item.style.fill === "red"));

@@ -47,13 +47,17 @@ test("provides core tikz-bpmn task, event, gateway, and connector styles", () =>
   assert.ok(Math.abs(nodeBox(ir, "start").width - parseDimension("1.5em")) < 1e-6);
   assert.equal(nodeBox(ir, "end").style.lineWidth, TIKZ_LINE_WIDTHS.ultraThick);
   assert.equal(nodeBox(ir, "xor").shape, "diamond");
+  assert.equal(nodeBox(ir, "xor").bpmnIcon, "xor");
+  assert.ok(Math.abs(nodeBox(ir, "xor").width - parseDimension("1.5em")) < 1e-6);
+  assert.ok(Math.abs(nodeBox(ir, "xor").height - parseDimension("1.5em")) < 1e-6);
   assert.equal(nodeBox(ir, "and").shape, "diamond");
-  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text.includes("\\texttimes")));
+  assert.equal(ir.items.some((item) => item.type === "textNode" && item.text.includes("\\texttimes")), false);
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text.includes("+")));
 
   const paths = ir.items.filter((item) => item.type === "path");
   assert.equal(paths[0].style.markerEnd.kind, "to");
-  assert.equal(paths[1].style.markerEnd.kind, "to");
+  assert.equal(paths[1].style.markerStart.kind, "open-circle");
+  assert.equal(paths[1].style.markerEnd.kind, "open-triangle");
   assert.ok(paths[1].style.dashArray.length > 0);
   assert.ok(paths[2].style.dashArray.length > 0);
 });
@@ -65,7 +69,8 @@ test("renders common tikz-bpmn event and task icons as node overlays", () => {
 \node[signal end event] (signal) at (2,0) {};
 \node[subprocess] (sub) at (0,-1.5) {Sub};
 \node[loop task] (loop) at (2,-1.5) {Loop};
-\node[data object] (data) at (4,-1.5) {};`);
+\node[manual task] (manual) at (4,-1.5) {Manual};
+\node[data object] (data) at (6,-1.5) {};`);
 
   assert.deepEqual(diagnostics, []);
   assert.equal(nodeBox(ir, "msg").bpmnIcon, "message");
@@ -77,5 +82,7 @@ test("renders common tikz-bpmn event and task icons as node overlays", () => {
   assert.equal(nodeBox(ir, "data").bpmnIcon, "data-object");
   assert.match(svg, /tikz-bpmn-icon tikz-bpmn-message/);
   assert.match(svg, /tikz-bpmn-icon tikz-bpmn-timer/);
+  assert.match(svg, /tikz-bpmn-icon tikz-bpmn-manual/);
+  assert.doesNotMatch(svg, /class="tikz-bpmn-icon tikz-bpmn-manual"[^>]*>M<\/text>/);
   assert.match(svg, /tikz-bpmn-marker tikz-bpmn-subprocess/);
 });

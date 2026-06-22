@@ -27,6 +27,7 @@ const TikzLexer = new Lexer([
 export function parseTikz(source, options = {}) {
   const preprocessed = preprocessTikzSource(source, options);
   const diagnostics = [...preprocessed.diagnostics];
+  const libraries = preprocessed.libraries || [];
   const lexed = TikzLexer.tokenize(preprocessed.source);
   for (const error of lexed.errors) {
     diagnostics.push({
@@ -43,6 +44,7 @@ export function parseTikz(source, options = {}) {
       type: "tikzpicture",
       options: parseOptions(picture.optionsRaw),
       styles: globalStyles,
+      libraries,
       body: picture.body,
       statements
     };
@@ -54,6 +56,7 @@ export function parseTikz(source, options = {}) {
       source: preprocessed.source,
       originalSource: source,
       tokenCount: lexed.tokens.length,
+      libraries,
       pictures
     },
     diagnostics
@@ -293,7 +296,7 @@ function parsePic(text) {
   };
 }
 
-function parseNode(text) {
+function parseNode(text, diagnostics = []) {
   let index = "\\node".length;
   const parsedOptions = parseOptionalOptions(text, index);
   index = parsedOptions.end;
@@ -332,18 +335,66 @@ function parseNode(text) {
   const label = extractBalanced(text, index, "{", "}");
   if (!label) return unsupported("node", text, "Malformed node text");
   const trailingPath = text.slice(label.end).trim();
+  const treeChildren = parseNodeTreeChildren(trailingPath, diagnostics);
   return {
     type: "node",
     name,
     options,
     at,
     text: label.content,
-    path: trailingPath ? {
-      raw: trailingPath,
-      segments: parsePathSegments(trailingPath)
-    } : null,
+    children: treeChildren.children,
+    path: treeChildren.children.length && !treeChildren.rest
+      ? null
+      : trailingPath
+        ? {
+            raw: treeChildren.rest || trailingPath,
+            segments: parsePathSegments(treeChildren.rest || trailingPath)
+          }
+        : null,
     raw: text
   };
+}
+
+function parseNodeTreeChildren(text, diagnostics = []) {
+  const children = [];
+  let index = 0;
+  while (true) {
+    index = skipWhitespace(text, index);
+    if (!text.startsWith("child", index)) break;
+    const child = parseNodeTreeChild(text, index, diagnostics);
+    if (!child) break;
+    children.push(child.child);
+    index = child.end;
+  }
+  return {
+    children,
+    rest: text.slice(index).trim()
+  };
+}
+
+function parseNodeTreeChild(text, start, diagnostics = []) {
+  let index = start + "child".length;
+  const parsedOptions = parseOptionalOptions(text, index);
+  index = skipWhitespace(text, parsedOptions.end);
+  const body = extractBalanced(text, index, "{", "}");
+  if (!body) return null;
+  const childNode = parseNodeTreeChildBody(body.content, diagnostics);
+  if (!childNode) return null;
+  return {
+    child: {
+      options: parsedOptions.options,
+      node: childNode,
+      children: childNode.children || []
+    },
+    end: body.end
+  };
+}
+
+function parseNodeTreeChildBody(body, diagnostics = []) {
+  const text = body.trim();
+  if (text.startsWith("\\node")) return parseNode(text, diagnostics);
+  if (text.startsWith("node")) return parseNode(`\\${text}`, diagnostics);
+  return null;
 }
 
 function parseScope(text, diagnostics) {
@@ -517,6 +568,14 @@ function parsePathSegments(pathText) {
         continue;
       }
     }
+    if (startsKeyword(pathText, index, "sin") || startsKeyword(pathText, index, "cos")) {
+      const parsed = parseSineCosineSegment(pathText, index);
+      if (parsed) {
+        segments.push(parsed.segment);
+        index = parsed.end;
+        continue;
+      }
+    }
     if (startsKeyword(pathText, index, "node")) {
       const parsed = parseInlineNodeSegment(pathText, index);
       if (parsed) {
@@ -625,6 +684,22 @@ function parsePathSegments(pathText) {
   return segments.filter((segment) => segment.kind !== "unknown" || segment.raw);
 }
 
+function parseSineCosineSegment(pathText, index) {
+  const op = startsKeyword(pathText, index, "sin") ? "sin" : startsKeyword(pathText, index, "cos") ? "cos" : null;
+  if (!op) return null;
+  let cursor = skipWhitespace(pathText, index + op.length);
+  const target = extractBalanced(pathText, cursor, "(", ")");
+  if (!target) return null;
+  return {
+    segment: {
+      kind: "sineCosine",
+      op,
+      to: target.content.trim()
+    },
+    end: target.end
+  };
+}
+
 function parseExtendedPathOperator(pathText, index) {
   for (const value of ["|-|", "-|-", "r-ud", "r-du", "r-lr", "r-rl"]) {
     if (!pathText.startsWith(value, index)) continue;
@@ -731,12 +806,39 @@ function parsePlotSegment(pathText, index) {
   const options = parseOptionalOptions(pathText, cursor);
   cursor = options.end;
   cursor = skipWhitespace(pathText, cursor);
+  if (startsKeyword(pathText, cursor, "coordinates")) {
+    cursor += "coordinates".length;
+    cursor = skipWhitespace(pathText, cursor);
+    const body = extractBalanced(pathText, cursor, "{", "}");
+    if (!body) return null;
+    return {
+      segment: { kind: "plotCoordinates", coordinates: parsePlotCoordinateList(body.content), options: options.options },
+      end: body.end
+    };
+  }
   const target = extractBalanced(pathText, cursor, "(", ")");
   if (!target) return null;
   return {
     segment: { kind: "plot", coordinate: target.content.trim(), options: options.options },
     end: target.end
   };
+}
+
+function parsePlotCoordinateList(text) {
+  const coordinates = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    cursor = skipWhitespace(text, cursor);
+    if (text[cursor] !== "(") {
+      cursor += 1;
+      continue;
+    }
+    const coordinate = extractBalanced(text, cursor, "(", ")");
+    if (!coordinate) break;
+    coordinates.push(coordinate.content.trim());
+    cursor = coordinate.end;
+  }
+  return coordinates;
 }
 
 function parseInlineNodeSegment(pathText, index) {
