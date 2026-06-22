@@ -772,13 +772,6 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepgflibrary{bbox}\n\\begin{document}\n\\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1pt}]\n  \\draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);\n  \\draw (current bounding box.south west) rectangle (current bounding box.north east);\n  \\draw[red,dashed]\n    (0,0) -- (-1,1) node[bullet,label=above:{$(x_a,y_a)$}]{}\n    (2,0) -- (1,2) node[bullet,label=above:{$(x_b,y_b)$}]{};\n  \\path\n    (0,0) node[bullet,label=below:{$(x_0,y_0)$}]{}\n    (2,0) node[bullet,label=below:{$(x_1,y_1)$}]{};\n\\end{tikzpicture}\n\\end{document}"
   },
   {
-    "title": "Bayesian PCA graphical model",
-    "origin": "jluttine/tikz-bayesnet",
-    "sourceUrl": "https://github.com/jluttine/tikz-bayesnet",
-    "path": "models/model_pca.tex+factor-gate",
-    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{bayesnet,positioning}\n\\begin{document}\n\\begin{tikzpicture}[node distance=1.15cm and 1.45cm]\n  \\node[obs] (y) {$y_{mn}$};\n  \\node[latent, above=of y, xshift=-1.2cm] (w) {$\\mathbf{w}_m$};\n  \\node[latent, above=of y, xshift=1.2cm] (x) {$\\mathbf{x}_n$};\n  \\node[latent, right=2cm of y] (tau) {$\\tau$};\n  \\node[const, left=of w] (alpha) {$\\alpha$};\n  \\factor[right=of y] {fy} {$\\mathcal{N}$} {x,w,tau} {y};\n  \\edge {alpha} {w};\n  \\factoredge {x,w,tau} {fy} {y};\n  \\plate {yx} {(x)(y)} {$N$};\n  \\plate {yw} {(w)(y)(yx.north west)(yx.south west)} {$M$};\n  \\gate {observed} {(fy)(y)} {tau};\n\\end{tikzpicture}\n\\end{document}"
-  },
-  {
     "title": "BPMN task, events, gateways, and flows",
     "origin": "MacTeX tikz-bpmn",
     "sourceUrl": "https://ctan.org/pkg/tikz-bpmn",
@@ -791,13 +784,6 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://ctan.org/pkg/tikz-cd",
     "path": "/usr/local/texlive/2025/texmf-dist/doc/latex/tikz-cd/tikz-cd-doc.tex#real-life-examples",
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz-cd}\n\\begin{document}\n\\begin{tikzcd}\n  T\n  \\arrow[drr, bend left, \"x\"]\n  \\arrow[ddr, bend right, \"y\"]\n  \\arrow[dr, dotted, \"{(x,y)}\" description] & & \\\\\n    & X \\times_Z Y \\arrow[r, \"p\"] \\arrow[d, \"q\"]\n      & X \\arrow[d, \"f\"] \\\\\n    & Y \\arrow[r, \"g\"]\n      & Z\n\\end{tikzcd}\n\\end{document}"
-  },
-  {
-    "title": "Convolutional encoder-decoder architecture",
-    "origin": "jettan/tikz_cnn",
-    "sourceUrl": "https://github.com/jettan/tikz_cnn",
-    "path": "main.tex#networkLayer",
-    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usepackage{ifthen}\n\\usepackage[]{fp}\n\\usetikzlibrary{matrix,patterns,spy,fit,calc}\n\\FPset{totalOffset}{0}\n\\begin{document}\n\\begin{tikzpicture}\n\\newcommand{\\networkLayer}[9]{\n  \\xdef\\totalOffset{\\totalOffset}\n  \\ifthenelse{\\equal{#8} {start}}{\\FPset{totalOffset}{0}}{}\n  \\FPeval\\currentOffset{0+(totalOffset)+(#3)}\n  \\def\\hw{#1}\n  \\def\\b{0.02}\n  \\def\\c{#2}\n  \\def\\x{\\currentOffset}\n  \\def\\y{#4}\n  \\def\\z{#5}\n  \\def\\inText{#7}\n  \\coordinate (#8_front) at  (\\x+\\c,\\z,\\y);\n  \\coordinate (#8_back) at   (\\x,\\z,\\y);\n  \\coordinate (#8_top) at    (\\x+\\c/2,\\z+\\hw/2,\\y);\n  \\coordinate (#8_bottom) at (\\x+\\c/2,\\z-\\hw/2,\\y);\n  \\coordinate (blr) at (\\c+\\x,-\\hw/2+\\z,-\\hw/2+\\y);\n  \\coordinate (bur) at (\\c+\\x,\\hw/2+\\z,-\\hw/2+\\y);\n  \\coordinate (bul) at (0+\\x,\\hw/2+\\z,-\\hw/2+\\y);\n  \\coordinate (fll) at (0+\\x,-\\hw/2+\\z,\\hw/2+\\y);\n  \\coordinate (flr) at (\\c+\\x,-\\hw/2+\\z,\\hw/2+\\y);\n  \\coordinate (fur) at (\\c+\\x,\\hw/2+\\z,\\hw/2+\\y);\n  \\coordinate (ful) at (0+\\x,\\hw/2+\\z,\\hw/2+\\y);\n  \\ifthenelse{\\equal{#9} {}}{}{\\foreach \\val in #9 \\draw[line width=0.3mm] (\\val)--(#8_back);}\n  \\draw[line width=0.3mm](blr) -- (bur) -- (bul);\n  \\draw[line width=0.3mm](fll) -- (flr) node[midway,below] {\\inText} -- (fur) -- (ful) -- (fll);\n  \\draw[line width=0.3mm](blr) -- (flr);\n  \\draw[line width=0.3mm](bur) -- (fur);\n  \\draw[line width=0.3mm](bul) -- (ful);\n  \\filldraw[#6] ($(fll)+(\\b,\\b,0)$) -- ($(flr)+(-\\b,\\b,0)$) -- ($(fur)+(-\\b,-\\b,0)$) -- ($(ful)+(\\b,-\\b,0)$) -- ($(fll)+(\\b,\\b,0)$);\n  \\filldraw[#6] ($(ful)+(\\b,0,-\\b)$) -- ($(fur)+(-\\b,0,-\\b)$) -- ($(bur)+(-\\b,0,\\b)$) -- ($(bul)+(\\b,0,\\b)$);\n  \\ifthenelse {\\equal{#6} {}}{}{\\filldraw[#6] ($(flr)+(0,\\b,-\\b)$) -- ($(blr)+(0,\\b,\\b)$) -- ($(bur)+(0,-\\b,\\b)$) -- ($(fur)+(0,-\\b,-\\b)$);}\n  \\FPeval\\totalOffset{0+(currentOffset)+\\c}\n}\n\\networkLayer{2.4}{0.08}{0.0}{0.0}{0.0}{color=gray!70}{input}{start}{}\n\\networkLayer{2.4}{0.18}{0.55}{0.0}{0.0}{color=white}{conv}{}{}\n\\networkLayer{1.7}{0.35}{0.12}{0.0}{0.0}{color=white}{pool}{mid}{}\n\\networkLayer{1.0}{0.45}{0.8}{0.0}{-1.05}{color=green!50}{skip}{skip}{{mid_front}}\n\\networkLayer{1.0}{0.45}{-0.45}{0.0}{1.05}{color=green!50}{skip}{top}{{mid_front}}\n\\networkLayer{1.0}{0.45}{1.2}{0.0}{0.0}{color=blue!50}{sum}{sum}{{skip_front,top_front}}\n\\networkLayer{1.7}{0.35}{0.18}{0.0}{0.0}{color=white}{deconv}{}{}\n\\networkLayer{2.4}{0.12}{0.7}{0.0}{0.0}{color=red!40}{mask}{out}{}\n\\end{tikzpicture}\n\\end{document}"
   },
   {
     "title": "Decorative text effects",
@@ -1141,6 +1127,20 @@ export const REAL_GALLERY_CASES = [
     "sourceUrl": "https://github.com/gezhi-io/tikzkit",
     "path": "math-concepts/complex-plane/modulus-argument",
     "source": "\\documentclass[tikz,border=8pt]{standalone}\n\\usetikzlibrary{calc,positioning,matrix}\n\\tikzset{\n  concept axis/.style={->,thick},\n  concept guide/.style={densely dashed,black!45},\n  concept main/.style={very thick,blue!70!black},\n  concept accent/.style={very thick,red!70!black},\n  concept region/.style={fill=blue!12,draw=blue!60!black,thick}\n}\n\\begin{document}\n\\begin{tikzpicture}[font=\\scriptsize]\n  \\draw[concept axis] (-1.1,0) -- (3.5,0) node[right] {$\\Re$};\n  \\draw[concept axis] (0,-1) -- (0,2.8) node[above] {$\\Im$};\n  \\coordinate (Z) at (2.4,1.7);\n  \\draw[concept main,->] (0,0) -- (Z) node[midway,above left] {$|z|$};\n  \\draw[concept guide] (Z) -- (2.4,0) node[below] {$a$};\n  \\draw[concept guide] (Z) -- (0,1.7) node[left] {$b$};\n  \\draw[red] (.65,0) arc[start angle=0,end angle=35,radius=.65];\n  \\node[red] at (.82,.27) {$\\arg z$};\n  \\fill[red] (Z) circle(.045) node[above right] {$z=a+bi$};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Bayesian PCA graphical model",
+    "origin": "jluttine/tikz-bayesnet",
+    "sourceUrl": "https://github.com/jluttine/tikz-bayesnet",
+    "path": "models/model_pca.tex+factor-gate",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{bayesnet,positioning}\n\\begin{document}\n\\begin{tikzpicture}[node distance=1.15cm and 1.45cm]\n  \\node[obs] (y) {$y_{mn}$};\n  \\node[latent, above=of y, xshift=-1.2cm] (w) {$\\mathbf{w}_m$};\n  \\node[latent, above=of y, xshift=1.2cm] (x) {$\\mathbf{x}_n$};\n  \\node[latent, right=2cm of y] (tau) {$\\tau$};\n  \\node[const, left=of w] (alpha) {$\\alpha$};\n  \\factor[right=of y] {fy} {$\\mathcal{N}$} {x,w,tau} {y};\n  \\edge {alpha} {w};\n  \\factoredge {x,w,tau} {fy} {y};\n  \\plate {yx} {(x)(y)} {$N$};\n  \\plate {yw} {(w)(y)(yx.north west)(yx.south west)} {$M$};\n  \\gate {observed} {(fy)(y)} {tau};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
+    "title": "Convolutional encoder-decoder architecture",
+    "origin": "jettan/tikz_cnn",
+    "sourceUrl": "https://github.com/jettan/tikz_cnn",
+    "path": "main.tex#networkLayer",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usepackage{ifthen}\n\\usepackage[]{fp}\n\\usetikzlibrary{matrix,patterns,spy,fit,calc}\n\\FPset{totalOffset}{0}\n\\begin{document}\n\\begin{tikzpicture}\n\\newcommand{\\networkLayer}[9]{\n  \\xdef\\totalOffset{\\totalOffset}\n  \\ifthenelse{\\equal{#8} {start}}{\\FPset{totalOffset}{0}}{}\n  \\FPeval\\currentOffset{0+(totalOffset)+(#3)}\n  \\def\\hw{#1}\n  \\def\\b{0.02}\n  \\def\\c{#2}\n  \\def\\x{\\currentOffset}\n  \\def\\y{#4}\n  \\def\\z{#5}\n  \\def\\inText{#7}\n  \\coordinate (#8_front) at  (\\x+\\c,\\z,\\y);\n  \\coordinate (#8_back) at   (\\x,\\z,\\y);\n  \\coordinate (#8_top) at    (\\x+\\c/2,\\z+\\hw/2,\\y);\n  \\coordinate (#8_bottom) at (\\x+\\c/2,\\z-\\hw/2,\\y);\n  \\coordinate (blr) at (\\c+\\x,-\\hw/2+\\z,-\\hw/2+\\y);\n  \\coordinate (bur) at (\\c+\\x,\\hw/2+\\z,-\\hw/2+\\y);\n  \\coordinate (bul) at (0+\\x,\\hw/2+\\z,-\\hw/2+\\y);\n  \\coordinate (fll) at (0+\\x,-\\hw/2+\\z,\\hw/2+\\y);\n  \\coordinate (flr) at (\\c+\\x,-\\hw/2+\\z,\\hw/2+\\y);\n  \\coordinate (fur) at (\\c+\\x,\\hw/2+\\z,\\hw/2+\\y);\n  \\coordinate (ful) at (0+\\x,\\hw/2+\\z,\\hw/2+\\y);\n  \\ifthenelse{\\equal{#9} {}}{}{\\foreach \\val in #9 \\draw[line width=0.3mm] (\\val)--(#8_back);}\n  \\draw[line width=0.3mm](blr) -- (bur) -- (bul);\n  \\draw[line width=0.3mm](fll) -- (flr) node[midway,below] {\\inText} -- (fur) -- (ful) -- (fll);\n  \\draw[line width=0.3mm](blr) -- (flr);\n  \\draw[line width=0.3mm](bur) -- (fur);\n  \\draw[line width=0.3mm](bul) -- (ful);\n  \\filldraw[#6] ($(fll)+(\\b,\\b,0)$) -- ($(flr)+(-\\b,\\b,0)$) -- ($(fur)+(-\\b,-\\b,0)$) -- ($(ful)+(\\b,-\\b,0)$) -- ($(fll)+(\\b,\\b,0)$);\n  \\filldraw[#6] ($(ful)+(\\b,0,-\\b)$) -- ($(fur)+(-\\b,0,-\\b)$) -- ($(bur)+(-\\b,0,\\b)$) -- ($(bul)+(\\b,0,\\b)$);\n  \\ifthenelse {\\equal{#6} {}}{}{\\filldraw[#6] ($(flr)+(0,\\b,-\\b)$) -- ($(blr)+(0,\\b,\\b)$) -- ($(bur)+(0,-\\b,\\b)$) -- ($(fur)+(0,-\\b,-\\b)$);}\n  \\FPeval\\totalOffset{0+(currentOffset)+\\c}\n}\n\\networkLayer{2.4}{0.08}{0.0}{0.0}{0.0}{color=gray!70}{input}{start}{}\n\\networkLayer{2.4}{0.18}{0.55}{0.0}{0.0}{color=white}{conv}{}{}\n\\networkLayer{1.7}{0.35}{0.12}{0.0}{0.0}{color=white}{pool}{mid}{}\n\\networkLayer{1.0}{0.45}{0.8}{0.0}{-1.05}{color=green!50}{skip}{skip}{{mid_front}}\n\\networkLayer{1.0}{0.45}{-0.45}{0.0}{1.05}{color=green!50}{skip}{top}{{mid_front}}\n\\networkLayer{1.0}{0.45}{1.2}{0.0}{0.0}{color=blue!50}{sum}{sum}{{skip_front,top_front}}\n\\networkLayer{1.7}{0.35}{0.18}{0.0}{0.0}{color=white}{deconv}{}{}\n\\networkLayer{2.4}{0.12}{0.7}{0.0}{0.0}{color=red!40}{mask}{out}{}\n\\end{tikzpicture}\n\\end{document}"
   }
 ];
 
@@ -1178,10 +1178,8 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-3dplot",
     "MacTeX tikz-bagua",
     "MacTeX tikz-bbox",
-    "jluttine/tikz-bayesnet",
     "MacTeX tikz-bpmn",
     "MacTeX tikz-cd",
-    "jettan/tikz_cnn",
     "MacTeX tikz-decofonts",
     "MacTeX tikz-dimline",
     "MacTeX tikz-ext",
@@ -1193,6 +1191,8 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikzfxgraph",
     "Izaak Neutelings complex roots",
     "TikZKit calibration",
-    "TikZKit math concept coverage"
+    "TikZKit math concept coverage",
+    "jluttine/tikz-bayesnet",
+    "jettan/tikz_cnn"
   ]
 };

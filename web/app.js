@@ -1,15 +1,12 @@
 import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { withGalleryDebugGrid } from "../scripts/gallery-debug-grid.js";
 import { buildCaseInsights, diffSeverity } from "./gallery-analysis.js";
+import { createEmptyGalleryReportIndexes, createGalleryReportIndexes, reportForCase } from "./gallery-report-matching.js";
 import { createSampleGallery } from "./sample-gallery.js";
+import { REAL_GALLERY_CASES } from "./real-gallery-data.js";
 
 const sample = createSampleGallery();
-let galleryReports = {
-  diffRows: new Map(),
-  nativeRows: new Map(),
-  loaded: false,
-  error: ""
-};
+let galleryReports = createEmptyGalleryReportIndexes();
 
 const input = document.querySelector("#source-input");
 const preview = document.querySelector("#preview");
@@ -58,9 +55,10 @@ function renderEditor() {
     ...parts.map((part) => {
       if (part.type !== "tikz") return renderPart(part);
       tikzIndex += 1;
+      const galleryCase = REAL_GALLERY_CASES[tikzIndex - 1];
       return renderTikzFigure(part.content, {
         strict: strictMode.checked,
-        galleryReport: reportForIndex(tikzIndex),
+        galleryReport: reportForCase(tikzIndex, galleryCase, galleryReports),
         caseId: String(tikzIndex).padStart(3, "0")
       });
     })
@@ -278,19 +276,9 @@ async function loadGalleryReports() {
       fetchJson("/outputs/real-gallery/diff/report.json"),
       fetchJson("/outputs/real-gallery/native/report.json")
     ]);
-    galleryReports = {
-      diffRows: new Map((diffRows || []).map((row) => [row.id, row])),
-      nativeRows: new Map((nativeRows || []).map((row) => [row.id, row])),
-      loaded: Boolean(diffRows || nativeRows),
-      error: ""
-    };
+    galleryReports = createGalleryReportIndexes(diffRows, nativeRows);
   } catch (error) {
-    galleryReports = {
-      diffRows: new Map(),
-      nativeRows: new Map(),
-      loaded: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
+    galleryReports = createEmptyGalleryReportIndexes(error instanceof Error ? error.message : String(error));
   }
   renderEditor();
 }
@@ -299,14 +287,6 @@ async function fetchJson(url) {
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) return null;
   return response.json();
-}
-
-function reportForIndex(index) {
-  const id = String(index).padStart(3, "0");
-  return {
-    diff: galleryReports.diffRows.get(id),
-    native: galleryReports.nativeRows.get(id)
-  };
 }
 
 function statusPill(text, kind) {

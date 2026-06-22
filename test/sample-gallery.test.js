@@ -62,6 +62,14 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.equal(REAL_GALLERY_CASES.every((item) => item.sourceUrl.startsWith("https://")), true);
 });
 
+test("web sample gallery appends new extension cases without shifting native comparison ids", () => {
+  assert.equal(REAL_GALLERY_CASES[110].origin, "MacTeX tikz-bpmn");
+  assert.equal(REAL_GALLERY_CASES[111].origin, "MacTeX tikz-cd");
+  assert.equal(REAL_GALLERY_CASES[112].origin, "MacTeX tikz-decofonts");
+  assert.equal(REAL_GALLERY_CASES.at(-2).origin, "jluttine/tikz-bayesnet");
+  assert.equal(REAL_GALLERY_CASES.at(-1).origin, "jettan/tikz_cnn");
+});
+
 test("web entry declares an inline favicon to keep browser console clean", () => {
   const html = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
 
