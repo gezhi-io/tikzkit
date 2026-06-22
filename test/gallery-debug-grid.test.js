@@ -66,8 +66,12 @@ test("uses rendered text node extents for current bounding box debug grids", () 
   assert.ok(Math.max(...xs) >= 1.9, `expected grid to include image right extent, got ${Math.max(...xs)}`);
 });
 
-test("keeps Case 122 scaled 3d debug grid as native-style corner nails", () => {
-  const source = withGalleryDebugGrid(REAL_GALLERY_CASES[121].source);
+test("keeps scaled 3d debug grid as native-style corner nails", () => {
+  const caseItem = REAL_GALLERY_CASES.find(
+    (item) => item.origin === "MacTeX tikz-3dplot" && item.path.endsWith("#combined")
+  );
+  assert.ok(caseItem, "expected rich tikz-3dplot combined gallery case");
+  const source = withGalleryDebugGrid(caseItem.source);
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });
   const gridLines = result.ir.items.filter((item) => item.subtype === "grid-line");
   const verticals = gridLines.filter((line) => line.commands[0].x === line.commands[1].x);

@@ -560,6 +560,33 @@ const TIKZ_BPMN_CASES = [
   }
 ];
 
+const TIKZ_BAYESNET_CASES = [
+  {
+    title: "Bayesian PCA graphical model",
+    origin: "jluttine/tikz-bayesnet",
+    sourceUrl: "https://github.com/jluttine/tikz-bayesnet",
+    path: "models/model_pca.tex+factor-gate",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{bayesnet,positioning}
+\begin{document}
+\begin{tikzpicture}[node distance=1.15cm and 1.45cm]
+  \node[obs] (y) {$y_{mn}$};
+  \node[latent, above=of y, xshift=-1.2cm] (w) {$\mathbf{w}_m$};
+  \node[latent, above=of y, xshift=1.2cm] (x) {$\mathbf{x}_n$};
+  \node[latent, right=2cm of y] (tau) {$\tau$};
+  \node[const, left=of w] (alpha) {$\alpha$};
+  \factor[right=of y] {fy} {$\mathcal{N}$} {x,w,tau} {y};
+  \edge {alpha} {w};
+  \factoredge {x,w,tau} {fy} {y};
+  \plate {yx} {(x)(y)} {$N$};
+  \plate {yw} {(w)(y)(yx.north west)(yx.south west)} {$M$};
+  \gate {observed} {(fy)(y)} {tau};
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_CD_CASES = [
   {
     title: "Commutative diagram pullback square",
@@ -772,6 +799,7 @@ const selected = [
   ...TIKZ_3DPLOT_CASES,
   ...TIKZ_BAGUA_CASES,
   ...TIKZ_BBOX_CASES,
+  ...TIKZ_BAYESNET_CASES,
   ...TIKZ_BPMN_CASES,
   ...TIKZ_CD_CASES,
   ...TIKZ_DECOFONTS_CASES,
@@ -804,6 +832,7 @@ await writeFile(
     tikzThreeDPlotFound: TIKZ_3DPLOT_CASES.length,
     tikzBaguaFound: TIKZ_BAGUA_CASES.length,
     tikzBboxFound: TIKZ_BBOX_CASES.length,
+    tikzBayesnetFound: TIKZ_BAYESNET_CASES.length,
     tikzBpmnFound: TIKZ_BPMN_CASES.length,
     tikzCdFound: TIKZ_CD_CASES.length,
     tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length,

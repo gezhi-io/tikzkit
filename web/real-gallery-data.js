@@ -772,6 +772,13 @@ export const REAL_GALLERY_CASES = [
     "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepgflibrary{bbox}\n\\begin{document}\n\\begin{tikzpicture}[bezier bounding box,bullet/.style={circle,fill,inner sep=1pt}]\n  \\draw (0,0) .. controls (-1,1) and (1,2) .. (2,0);\n  \\draw (current bounding box.south west) rectangle (current bounding box.north east);\n  \\draw[red,dashed]\n    (0,0) -- (-1,1) node[bullet,label=above:{$(x_a,y_a)$}]{}\n    (2,0) -- (1,2) node[bullet,label=above:{$(x_b,y_b)$}]{};\n  \\path\n    (0,0) node[bullet,label=below:{$(x_0,y_0)$}]{}\n    (2,0) node[bullet,label=below:{$(x_1,y_1)$}]{};\n\\end{tikzpicture}\n\\end{document}"
   },
   {
+    "title": "Bayesian PCA graphical model",
+    "origin": "jluttine/tikz-bayesnet",
+    "sourceUrl": "https://github.com/jluttine/tikz-bayesnet",
+    "path": "models/model_pca.tex+factor-gate",
+    "source": "\\documentclass[tikz,border=10pt]{standalone}\n\\usepackage{tikz}\n\\usetikzlibrary{bayesnet,positioning}\n\\begin{document}\n\\begin{tikzpicture}[node distance=1.15cm and 1.45cm]\n  \\node[obs] (y) {$y_{mn}$};\n  \\node[latent, above=of y, xshift=-1.2cm] (w) {$\\mathbf{w}_m$};\n  \\node[latent, above=of y, xshift=1.2cm] (x) {$\\mathbf{x}_n$};\n  \\node[latent, right=2cm of y] (tau) {$\\tau$};\n  \\node[const, left=of w] (alpha) {$\\alpha$};\n  \\factor[right=of y] {fy} {$\\mathcal{N}$} {x,w,tau} {y};\n  \\edge {alpha} {w};\n  \\factoredge {x,w,tau} {fy} {y};\n  \\plate {yx} {(x)(y)} {$N$};\n  \\plate {yw} {(w)(y)(yx.north west)(yx.south west)} {$M$};\n  \\gate {observed} {(fy)(y)} {tau};\n\\end{tikzpicture}\n\\end{document}"
+  },
+  {
     "title": "BPMN task, events, gateways, and flows",
     "origin": "MacTeX tikz-bpmn",
     "sourceUrl": "https://ctan.org/pkg/tikz-bpmn",
@@ -1131,7 +1138,7 @@ export const REAL_GALLERY_CASES = [
 ];
 
 export const REAL_GALLERY_SUMMARY = {
-  "caseCount": 161,
+  "caseCount": 162,
   "petarVFound": 65,
   "packtFound": 148,
   "tikzNetFound": 1,
@@ -1139,6 +1146,7 @@ export const REAL_GALLERY_SUMMARY = {
   "tikzThreeDPlotFound": 4,
   "tikzBaguaFound": 4,
   "tikzBboxFound": 1,
+  "tikzBayesnetFound": 1,
   "tikzBpmnFound": 1,
   "tikzCdFound": 1,
   "tikzDecofontsFound": 1,
@@ -1162,6 +1170,7 @@ export const REAL_GALLERY_SUMMARY = {
     "MacTeX tikz-3dplot",
     "MacTeX tikz-bagua",
     "MacTeX tikz-bbox",
+    "jluttine/tikz-bayesnet",
     "MacTeX tikz-bpmn",
     "MacTeX tikz-cd",
     "MacTeX tikz-decofonts",

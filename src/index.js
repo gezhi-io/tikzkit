@@ -5,6 +5,7 @@ export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
 export { BUILTIN_TIKZ_LIBRARIES, collectTikzLibraries, resolveTikzLibraries } from "./tikz-libraries.js";
 export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/index.js";
 export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
+export { tikzBayesnetExtension } from "./extensions/tikz-bayesnet.js";
 export { tikzBpmnExtension } from "./extensions/tikz-bpmn.js";
 export { tikzCdExtension } from "./extensions/tikz-cd.js";
 export { tikzDecofontsExtension } from "./extensions/tikz-decofonts.js";

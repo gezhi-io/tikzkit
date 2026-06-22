@@ -94,6 +94,11 @@ const BUILTIN_LIBRARY_SUPPORT = {
     implementedBy: "src/extensions/tikz-bpmn.js",
     features: ["BPMN task/gateway/event style expansion"]
   },
+  bayesnet: {
+    status: "extension",
+    implementedBy: "src/extensions/tikz-bayesnet.js",
+    features: ["latent/obs/det/factor styles", "\\edge and \\factoredge", "\\factor, \\plate, \\gate, \\vgate, \\hgate"]
+  },
   cd: {
     status: "extension",
     implementedBy: "src/extensions/tikz-cd.js",

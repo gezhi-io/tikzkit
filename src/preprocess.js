@@ -32,6 +32,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = terminatePgfTransformStatements(expanded);
   expanded = applyPreprocessExtensions(expanded, {
     diagnostics,
+    libraries,
     options
   });
   expanded = expandTkzGraphMacros(expanded);

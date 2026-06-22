@@ -2853,6 +2853,29 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const pgfCircleDiameter = 2 * Math.hypot(textBox.width / 2 + innerXSep, textBox.height / 2 + innerYSep);
   const emptyCircleDiameter = Math.max(parseDimension("1pt", env.variables), 2 * Math.hypot(innerXSep, innerYSep));
   const emptyCircleSize = options.cross ? Math.max(0.42, emptyCircleDiameter) : emptyCircleDiameter;
+  const textHeight = options["text height"] ? parseDimension(options["text height"], env.variables) : NaN;
+  const textDepth = options["text depth"] ? parseDimension(options["text depth"], env.variables) : 0;
+  const emptyNodeShape = nodeShape(options);
+  if (
+    isEmptyText &&
+    !isCircleShape &&
+    !["roundedRectangle", "rectangleSplit"].includes(emptyNodeShape) &&
+    (options["minimum width"] || options["minimum height"] || options["minimum size"] || options["text width"] || options["text height"])
+  ) {
+    let emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    let emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    if (options["minimum width"]) emptyWidth = Math.max(emptyWidth, parseDimension(options["minimum width"], env.variables));
+    if (options["minimum height"]) emptyHeight = Math.max(emptyHeight, parseDimension(options["minimum height"], env.variables));
+    if (options["minimum size"]) {
+      const size = parseDimension(options["minimum size"], env.variables);
+      emptyWidth = Math.max(emptyWidth, size);
+      emptyHeight = Math.max(emptyHeight, size);
+    }
+    return {
+      width: roundNumber(Math.max(0.02, emptyWidth)),
+      height: roundNumber(Math.max(0.02, emptyHeight))
+    };
+  }
   let width = fixedCircleSize ?? (isEmptyCircle
     ? emptyCircleSize
     : textWidth
