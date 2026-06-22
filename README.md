@@ -166,6 +166,21 @@ Generated files go under `outputs/real-gallery/`.
 - `gallery:js`: renders JS SVG/PNG outputs.
 - `gallery:diff`: compares native and JS PNGs.
 
+The local web app at `http://127.0.0.1:5173/` exposes already-added external
+corpora from the top toolbar's `案例集` selector. The core gallery stays as the
+default fast view; Janosh, f0nzie, Walmes, and circuitikz cases are loaded on
+demand through local `/api/corpora` endpoints so the page does not eagerly render
+every corpus at startup.
+
+Additional corpus audits:
+
+```bash
+npm run f0nzie:audit
+npm run janosh:audit
+npm run walmes:audit
+npm run circuitikz:audit
+```
+
 ## Extension System
 
 Extensions are normal ESM objects. The first stable hook is `preprocess`, which receives source text before parsing and returns rewritten TikZ source. This is the right layer for LaTeX/TikZ packages that define higher-level commands, because the extension can translate those commands into the core TikZ subset that the parser already understands.

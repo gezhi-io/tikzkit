@@ -25,6 +25,13 @@
             <p>Use fenced <code>tikz</code> blocks and render them in-page as SVG.</p>
           </div>
           <div class="actions">
+            <label class="gallery-select">
+              <span>案例集</span>
+              <select id="gallery-source-select">
+                <option value="core">核心 gallery</option>
+              </select>
+            </label>
+            <span id="gallery-source-status" class="muted">core</span>
             <div class="view-toggle" aria-label="Workspace view">
               <button id="results-view-button" type="button" class="secondary active">渲染结果</button>
               <button id="source-view-button" type="button" class="secondary">源码编辑</button>

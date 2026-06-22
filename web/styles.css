@@ -27,7 +27,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -115,6 +116,25 @@ code {
   align-items: center;
   display: flex;
   gap: 10px;
+}
+
+.gallery-select {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 13px;
+  font-weight: 650;
+  gap: 7px;
+}
+
+.gallery-select select {
+  background: #fbfcfe;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--ink);
+  max-width: 230px;
+  min-height: 34px;
+  padding: 6px 30px 6px 10px;
 }
 
 .view-toggle {

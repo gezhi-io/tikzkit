@@ -1,11 +1,14 @@
 import { REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY } from "./real-gallery-data.js";
 
 export function createSampleGallery(count = REAL_GALLERY_CASES.length) {
-  const cases = REAL_GALLERY_CASES.slice(0, count);
+  return createGalleryMarkdown(REAL_GALLERY_CASES.slice(0, count), REAL_GALLERY_SUMMARY);
+}
+
+export function createGalleryMarkdown(cases, summary = {}) {
   const sections = [
-    `Real TikZ gallery: ${cases.length} fenced TikZ blocks from public TikZ example repositories, TikZ.net, and MacTeX docs.`,
+    `Real TikZ gallery: ${cases.length} fenced TikZ blocks from public TikZ example repositories, TikZ.net, MacTeX docs, and loaded corpus libraries.`,
     `Sources: ${formatOrigins(
-      REAL_GALLERY_SUMMARY.origins
+      summary.origins || [...new Set(cases.map((item) => item.origin))]
     )}. The gallery is used as a live regression surface for parser diagnostics and MacTeX visual comparison reports.`
   ];
 

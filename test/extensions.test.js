@@ -21,6 +21,24 @@ test("allows user-supplied preprocess extensions", () => {
   assert.ok(ir.items.some((item) => item.type === "nodeBox" && item.id === "A"));
 });
 
+test("treats circuitikz environments as TikZ picture aliases", () => {
+  const source = String.raw`
+\documentclass[border=4mm]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american]
+  \draw (0,0) -- (2,0);
+\end{circuitikz}
+\end{document}`;
+
+  const result = tikzToSvg(source);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.ast.pictures.length, 1);
+  assert.equal(result.ast.pictures[0].options.american, true);
+  assert.equal(result.ir.items.some((item) => item.type === "path"), true);
+});
+
 test("renders common PGFPlots axis addplot coordinates, functions, and legends", () => {
   const source = String.raw`
 \documentclass[tikz,border=10pt]{standalone}

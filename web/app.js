@@ -2,11 +2,14 @@ import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { withGalleryDebugGrid } from "../scripts/gallery-debug-grid.js";
 import { buildCaseInsights, diffSeverity } from "./gallery-analysis.js";
 import { createEmptyGalleryReportIndexes, createGalleryReportIndexes, reportForCase } from "./gallery-report-matching.js";
-import { createSampleGallery } from "./sample-gallery.js";
-import { REAL_GALLERY_CASES } from "./real-gallery-data.js";
+import { createGalleryMarkdown, createSampleGallery } from "./sample-gallery.js";
+import { REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY } from "./real-gallery-data.js";
 
-const sample = createSampleGallery();
 let galleryReports = createEmptyGalleryReportIndexes();
+let activeCases = REAL_GALLERY_CASES;
+let activeSummary = REAL_GALLERY_SUMMARY;
+let activeSample = createSampleGallery();
+let activeCorpusId = "core";
 
 const input = document.querySelector("#source-input");
 const preview = document.querySelector("#preview");
@@ -15,24 +18,28 @@ const resetButton = document.querySelector("#reset-button");
 const strictMode = document.querySelector("#strict-mode");
 const sourceCount = document.querySelector("#source-count");
 const statusLine = document.querySelector("#status-line");
+const gallerySourceSelect = document.querySelector("#gallery-source-select");
+const gallerySourceStatus = document.querySelector("#gallery-source-status");
 const resultsViewButton = document.querySelector("#results-view-button");
 const sourceViewButton = document.querySelector("#source-view-button");
 const workspace = document.querySelector(".workspace");
 
-input.value = sample;
+input.value = activeSample;
 renderButton.addEventListener("click", renderEditor);
 resetButton.addEventListener("click", () => {
-  input.value = sample;
+  input.value = activeSample;
   renderEditor();
 });
 input.addEventListener("input", debounce(renderEditor, 180));
 strictMode.addEventListener("change", renderEditor);
+gallerySourceSelect.addEventListener("change", loadSelectedGallerySource);
 resultsViewButton.addEventListener("click", () => setWorkspaceView("results"));
 sourceViewButton.addEventListener("click", () => setWorkspaceView("source"));
 preview.addEventListener("click", handlePreviewClick);
 
 setWorkspaceView("results");
 renderEditor();
+loadCorpusOptions();
 loadGalleryReports();
 renderTikzBlocks(document);
 
@@ -55,10 +62,10 @@ function renderEditor() {
     ...parts.map((part) => {
       if (part.type !== "tikz") return renderPart(part);
       tikzIndex += 1;
-      const galleryCase = REAL_GALLERY_CASES[tikzIndex - 1];
+      const galleryCase = activeCases[tikzIndex - 1];
       return renderTikzFigure(part.content, {
         strict: strictMode.checked,
-        galleryReport: reportForCase(tikzIndex, galleryCase, galleryReports),
+        galleryReport: activeCorpusId === "core" ? reportForCase(tikzIndex, galleryCase, galleryReports) : {},
         caseId: String(tikzIndex).padStart(3, "0")
       });
     })
@@ -68,6 +75,60 @@ function renderEditor() {
     0
   );
   statusLine.textContent = `${tikzCount} rendered · ${totalDiagnostics} diagnostics${formatOverallDiffStatus(tikzCount)}`;
+}
+
+async function loadCorpusOptions() {
+  try {
+    const payload = await fetchJson("/api/corpora");
+    const corpora = payload?.corpora || [];
+    for (const corpus of corpora) {
+      const option = document.createElement("option");
+      option.value = corpus.id;
+      option.disabled = !corpus.available;
+      option.textContent = `${corpus.label} (${corpus.available ? corpus.expectedCount : "missing"})`;
+      gallerySourceSelect.append(option);
+    }
+    gallerySourceStatus.textContent = `core · ${REAL_GALLERY_CASES.length} cases`;
+  } catch (error) {
+    gallerySourceStatus.textContent = `corpus list failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
+async function loadSelectedGallerySource() {
+  const selected = gallerySourceSelect.value || "core";
+  gallerySourceSelect.disabled = true;
+  gallerySourceStatus.textContent = selected === "core" ? "loading core" : `loading ${selected}`;
+  try {
+    if (selected === "core") {
+      setActiveGallerySource("core", REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY, "core gallery");
+      return;
+    }
+    const payload = await fetchJson(`/api/corpora/${encodeURIComponent(selected)}`);
+    if (!payload?.available) {
+      gallerySourceStatus.textContent = `${selected} corpus missing`;
+      return;
+    }
+    setActiveGallerySource(
+      payload.id,
+      payload.cases || [],
+      { origins: [payload.origin], caseCount: payload.cases?.length || 0 },
+      payload.label
+    );
+  } catch (error) {
+    gallerySourceStatus.textContent = `load failed: ${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    gallerySourceSelect.disabled = false;
+  }
+}
+
+function setActiveGallerySource(id, cases, summary, label) {
+  activeCorpusId = id;
+  activeCases = cases;
+  activeSummary = summary;
+  activeSample = id === "core" ? createSampleGallery() : createGalleryMarkdown(activeCases, activeSummary);
+  input.value = activeSample;
+  gallerySourceStatus.textContent = `${label} · ${activeCases.length} cases`;
+  renderEditor();
 }
 
 function renderPart(part) {

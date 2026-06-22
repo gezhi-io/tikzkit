@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { listWebCorpora, loadWebCorpus } from "./corpus-gallery-server.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 5173);
@@ -19,6 +20,23 @@ const contentTypes = {
 const server = createServer(async (request, response) => {
   const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
   const pathname = url.pathname === "/" ? "/web/index.html" : decodeURIComponent(url.pathname);
+
+  if (pathname === "/api/corpora") {
+    writeJson(response, { corpora: listWebCorpora() });
+    return;
+  }
+
+  const corpusMatch = pathname.match(/^\/api\/corpora\/([A-Za-z0-9_-]+)$/);
+  if (corpusMatch) {
+    const corpus = await loadWebCorpus(corpusMatch[1]);
+    if (!corpus) {
+      writeJson(response, { error: "Unknown corpus" }, 404);
+      return;
+    }
+    writeJson(response, corpus);
+    return;
+  }
+
   const filePath = path.resolve(root, `.${pathname}`);
 
   if (!filePath.startsWith(root)) {
@@ -40,6 +58,14 @@ const server = createServer(async (request, response) => {
     response.end("Not found");
   }
 });
+
+function writeJson(response, value, status = 200) {
+  response.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store"
+  });
+  response.end(`${JSON.stringify(value)}\n`);
+}
 
 server.listen(port, "127.0.0.1", () => {
   process.stdout.write(`TikZ renderer available at http://127.0.0.1:${port}\n`);

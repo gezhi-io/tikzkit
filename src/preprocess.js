@@ -44,6 +44,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = expandTikzScopeEnvironments(expanded, diagnostics);
   expanded = expandTransparentEnvironment(expanded, "pgfonlayer", diagnostics);
   expanded = expandPgfplotsAxes(expanded, diagnostics, options);
+  expanded = normalizeTikzPictureAliases(expanded);
   expanded = stripTexDocumentShell(expanded);
   return { source: expanded, diagnostics, libraries };
 }
@@ -81,6 +82,12 @@ function stripTexDocumentShell(source) {
     .replace(/\\usepackage(?:\[[^\]]*\])?\{[^{}]*\}\s*/g, "")
     .replace(/\\begin\{document\}\s*/g, "")
     .replace(/\\end\{document\}\s*/g, "");
+}
+
+function normalizeTikzPictureAliases(source) {
+  return String(source)
+    .replace(/\\begin\{circuitikz\}/g, "\\begin{tikzpicture}")
+    .replace(/\\end\{circuitikz\}/g, "\\end{tikzpicture}");
 }
 
 function collectColorDefinitions(source) {

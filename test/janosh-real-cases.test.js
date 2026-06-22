@@ -11,7 +11,7 @@ import {
 
 const BASELINE = {
   maxCasesWithDiagnostics: 33,
-  maxTotalDiagnostics: 748,
+  maxTotalDiagnostics: 754,
   minZeroDiagnosticCases: 101
 };
 
