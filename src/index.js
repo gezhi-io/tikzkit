@@ -8,6 +8,7 @@ export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
 export { tikzBayesnetExtension } from "./extensions/tikz-bayesnet.js";
 export { tikzBpmnExtension } from "./extensions/tikz-bpmn.js";
 export { tikzCdExtension } from "./extensions/tikz-cd.js";
+export { tikzCnnExtension } from "./extensions/tikz-cnn.js";
 export { tikzDecofontsExtension } from "./extensions/tikz-decofonts.js";
 export { tikzDimlineExtension } from "./extensions/tikz-dimline.js";
 export { tikzExtExtension } from "./extensions/tikz-ext.js";

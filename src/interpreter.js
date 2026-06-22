@@ -3603,6 +3603,9 @@ function semanticSubtype(options = {}) {
   if (options["dimline line"]) return "dimline-line";
   if (options["dimline extension"]) return "dimline-extension";
   if (options["dimline tick"]) return "dimline-tick";
+  if (options["tikz-cnn-edge"]) return "tikz-cnn-edge";
+  if (options["tikz-cnn-face"]) return "tikz-cnn-face";
+  if (options["tikz-cnn-connection"]) return "tikz-cnn-connection";
   if (options["feynhand particle"]) return "feynhand-particle";
   if (options["feynhand dot"]) return "feynhand-dot";
   if (options["feynhand blob"]) return "feynhand-blob";

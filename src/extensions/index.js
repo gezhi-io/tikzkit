@@ -2,6 +2,7 @@ import { tikzBaguaExtension } from "./tikz-bagua.js";
 import { tikzBayesnetExtension } from "./tikz-bayesnet.js";
 import { tikzBpmnExtension } from "./tikz-bpmn.js";
 import { tikzCdExtension } from "./tikz-cd.js";
+import { tikzCnnExtension } from "./tikz-cnn.js";
 import { tikzDecofontsExtension } from "./tikz-decofonts.js";
 import { tikzDimlineExtension } from "./tikz-dimline.js";
 import { tikzExtExtension } from "./tikz-ext.js";
@@ -21,6 +22,7 @@ export const BUILTIN_EXTENSIONS = [
   tikzBayesnetExtension,
   tikzBpmnExtension,
   tikzCdExtension,
+  tikzCnnExtension,
   tikzDecofontsExtension,
   tikzDimlineExtension,
   tikzExtExtension,

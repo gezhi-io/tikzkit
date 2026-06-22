@@ -14,15 +14,15 @@ test("web sample gallery provides real TikZ source blocks plus math concept cove
   const mathConceptCategories = new Set(mathConceptCases.map((item) => item.path.split("/")[1]));
 
   assert.equal(tikzParts.length, REAL_GALLERY_CASES.length);
-  assert.equal(REAL_GALLERY_CASES.length, 162);
+  assert.equal(REAL_GALLERY_CASES.length, 163);
   assert.equal(petarVCases.length, 65);
   assert.ok(mathConceptCases.length >= 20);
   assert.ok(mathConceptCategories.size >= 10);
   assert.match(source, /Case 001/);
   assert.match(source, /Case 100/);
-  assert.match(source, /Case 162/);
+  assert.match(source, /Case 163/);
   assert.match(source, /PetarV-\/TikZ/);
-  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-network|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|jluttine\/tikz-bayesnet|MacTeX tikz-bpmn|MacTeX tikz-cd|MacTeX tikz-decofonts|MacTeX tikz-dimline|MacTeX tikz-ext|MacTeX tikz-feynhand|MacTeX tikz-feynman|MacTeX tikz-palattice|MacTeX tikz-qtree|MacTeX tikzquads|MacTeX tikzfxgraph|Izaak Neutelings complex roots|TikZKit calibration|TikZKit math concept coverage/);
+  assert.match(source, /Packt GitHub|TikZ\.net|MacTeX tikz-network|MacTeX tikz-3dplot|MacTeX tikz-bagua|MacTeX tikz-bbox|jluttine\/tikz-bayesnet|MacTeX tikz-bpmn|MacTeX tikz-cd|jettan\/tikz_cnn|MacTeX tikz-decofonts|MacTeX tikz-dimline|MacTeX tikz-ext|MacTeX tikz-feynhand|MacTeX tikz-feynman|MacTeX tikz-palattice|MacTeX tikz-qtree|MacTeX tikzquads|MacTeX tikzfxgraph|Izaak Neutelings complex roots|TikZKit calibration|TikZKit math concept coverage/);
 
   for (const part of tikzParts) {
     const result = tikzToSvg(part.content);
@@ -46,6 +46,7 @@ test("web sample gallery is sourced from repository and website examples", () =>
   assert.ok(origins.has("jluttine/tikz-bayesnet"));
   assert.ok(origins.has("MacTeX tikz-bpmn"));
   assert.ok(origins.has("MacTeX tikz-cd"));
+  assert.ok(origins.has("jettan/tikz_cnn"));
   assert.ok(origins.has("MacTeX tikz-decofonts"));
   assert.ok(origins.has("MacTeX tikz-dimline"));
   assert.ok(origins.has("MacTeX tikz-ext"));

@@ -17,6 +17,11 @@ const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "node", "coo
 // 所以这里在收集宏定义时「吃掉」它们的 \newcommand 定义但**不做 JS 展开**，让 \overmat{..}{..}{..}
 // 原样保留到数学块里，交给 KaTeX 的 macros 选项处理。
 const KATEX_DELEGATED_MACROS = new Set(["overmat", "undermat"]);
+const EXTENSION_DELEGATED_MACROS = new Set(["networkLayer"]);
+
+function isDelegatedMacro(name) {
+  return KATEX_DELEGATED_MACROS.has(name) || EXTENSION_DELEGATED_MACROS.has(name);
+}
 
 export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
@@ -239,8 +244,8 @@ function collectMacroDefinitions(source, macros, diagnostics) {
     if (source.startsWith("\\def\\", index)) {
       const parsed = parseDefMacro(source, index);
       if (parsed) {
-        // Claude: 委托给 KaTeX 的宏只「吃掉」定义、不进入 JS 展开表（见 KATEX_DELEGATED_MACROS）。
-        if (!KATEX_DELEGATED_MACROS.has(parsed.name)) macros.set(parsed.name, parsed.macro);
+        // Delegated macros are consumed here but left for KaTeX or preprocess extensions to interpret.
+        if (!isDelegatedMacro(parsed.name)) macros.set(parsed.name, parsed.macro);
         index = parsed.end;
         continue;
       }
@@ -248,7 +253,7 @@ function collectMacroDefinitions(source, macros, diagnostics) {
     if (source.startsWith("\\newcommand", index) || source.startsWith("\\renewcommand", index)) {
       const parsed = parseNewCommandMacro(source, index);
       if (parsed) {
-        if (!KATEX_DELEGATED_MACROS.has(parsed.name)) macros.set(parsed.name, parsed.macro);
+        if (!isDelegatedMacro(parsed.name)) macros.set(parsed.name, parsed.macro);
         index = parsed.end;
         continue;
       }

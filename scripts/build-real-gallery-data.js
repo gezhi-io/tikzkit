@@ -587,6 +587,66 @@ const TIKZ_BAYESNET_CASES = [
   }
 ];
 
+const TIKZ_CNN_CASES = [
+  {
+    title: "Convolutional encoder-decoder architecture",
+    origin: "jettan/tikz_cnn",
+    sourceUrl: "https://github.com/jettan/tikz_cnn",
+    path: "main.tex#networkLayer",
+    source: String.raw`\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usepackage{ifthen}
+\usepackage[]{fp}
+\usetikzlibrary{matrix,patterns,spy,fit,calc}
+\FPset{totalOffset}{0}
+\begin{document}
+\begin{tikzpicture}
+\newcommand{\networkLayer}[9]{
+  \xdef\totalOffset{\totalOffset}
+  \ifthenelse{\equal{#8} {start}}{\FPset{totalOffset}{0}}{}
+  \FPeval\currentOffset{0+(totalOffset)+(#3)}
+  \def\hw{#1}
+  \def\b{0.02}
+  \def\c{#2}
+  \def\x{\currentOffset}
+  \def\y{#4}
+  \def\z{#5}
+  \def\inText{#7}
+  \coordinate (#8_front) at  (\x+\c,\z,\y);
+  \coordinate (#8_back) at   (\x,\z,\y);
+  \coordinate (#8_top) at    (\x+\c/2,\z+\hw/2,\y);
+  \coordinate (#8_bottom) at (\x+\c/2,\z-\hw/2,\y);
+  \coordinate (blr) at (\c+\x,-\hw/2+\z,-\hw/2+\y);
+  \coordinate (bur) at (\c+\x,\hw/2+\z,-\hw/2+\y);
+  \coordinate (bul) at (0+\x,\hw/2+\z,-\hw/2+\y);
+  \coordinate (fll) at (0+\x,-\hw/2+\z,\hw/2+\y);
+  \coordinate (flr) at (\c+\x,-\hw/2+\z,\hw/2+\y);
+  \coordinate (fur) at (\c+\x,\hw/2+\z,\hw/2+\y);
+  \coordinate (ful) at (0+\x,\hw/2+\z,\hw/2+\y);
+  \ifthenelse{\equal{#9} {}}{}{\foreach \val in #9 \draw[line width=0.3mm] (\val)--(#8_back);}
+  \draw[line width=0.3mm](blr) -- (bur) -- (bul);
+  \draw[line width=0.3mm](fll) -- (flr) node[midway,below] {\inText} -- (fur) -- (ful) -- (fll);
+  \draw[line width=0.3mm](blr) -- (flr);
+  \draw[line width=0.3mm](bur) -- (fur);
+  \draw[line width=0.3mm](bul) -- (ful);
+  \filldraw[#6] ($(fll)+(\b,\b,0)$) -- ($(flr)+(-\b,\b,0)$) -- ($(fur)+(-\b,-\b,0)$) -- ($(ful)+(\b,-\b,0)$) -- ($(fll)+(\b,\b,0)$);
+  \filldraw[#6] ($(ful)+(\b,0,-\b)$) -- ($(fur)+(-\b,0,-\b)$) -- ($(bur)+(-\b,0,\b)$) -- ($(bul)+(\b,0,\b)$);
+  \ifthenelse {\equal{#6} {}}{}{\filldraw[#6] ($(flr)+(0,\b,-\b)$) -- ($(blr)+(0,\b,\b)$) -- ($(bur)+(0,-\b,\b)$) -- ($(fur)+(0,-\b,-\b)$);}
+  \FPeval\totalOffset{0+(currentOffset)+\c}
+}
+\networkLayer{2.4}{0.08}{0.0}{0.0}{0.0}{color=gray!70}{input}{start}{}
+\networkLayer{2.4}{0.18}{0.55}{0.0}{0.0}{color=white}{conv}{}{}
+\networkLayer{1.7}{0.35}{0.12}{0.0}{0.0}{color=white}{pool}{mid}{}
+\networkLayer{1.0}{0.45}{0.8}{0.0}{-1.05}{color=green!50}{skip}{skip}{{mid_front}}
+\networkLayer{1.0}{0.45}{-0.45}{0.0}{1.05}{color=green!50}{skip}{top}{{mid_front}}
+\networkLayer{1.0}{0.45}{1.2}{0.0}{0.0}{color=blue!50}{sum}{sum}{{skip_front,top_front}}
+\networkLayer{1.7}{0.35}{0.18}{0.0}{0.0}{color=white}{deconv}{}{}
+\networkLayer{2.4}{0.12}{0.7}{0.0}{0.0}{color=red!40}{mask}{out}{}
+\end{tikzpicture}
+\end{document}`
+  }
+];
+
 const TIKZ_CD_CASES = [
   {
     title: "Commutative diagram pullback square",
@@ -802,6 +862,7 @@ const selected = [
   ...TIKZ_BAYESNET_CASES,
   ...TIKZ_BPMN_CASES,
   ...TIKZ_CD_CASES,
+  ...TIKZ_CNN_CASES,
   ...TIKZ_DECOFONTS_CASES,
   ...TIKZ_DIMLINE_CASES,
   ...TIKZ_EXT_CASES,
@@ -835,6 +896,7 @@ await writeFile(
     tikzBayesnetFound: TIKZ_BAYESNET_CASES.length,
     tikzBpmnFound: TIKZ_BPMN_CASES.length,
     tikzCdFound: TIKZ_CD_CASES.length,
+    tikzCnnFound: TIKZ_CNN_CASES.length,
     tikzDecofontsFound: TIKZ_DECOFONTS_CASES.length,
     tikzDimlineFound: TIKZ_DIMLINE_CASES.length,
     tikzExtFound: TIKZ_EXT_CASES.length,
