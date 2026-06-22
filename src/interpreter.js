@@ -29,7 +29,14 @@ export function interpretTikz(ast, options = {}) {
   for (const picture of ast.pictures || []) {
     const styles = { ...BUILTIN_STYLES, ...(picture.styles || {}), ...styleDefinitionsFromOptions(picture.options || {}) };
     const pictureOptions = normalizeOptions("path", picture.options || {}, { variables: {}, styles }).options;
-    const pictureTransformEnv = { variables: {} };
+    const pictureBasis = parsePictureBasis(pictureOptions);
+    const pictureTransformEnv = {
+      variables: {},
+      coordinates: ir.coordinates,
+      nodes: {},
+      basis: pictureBasis,
+      transform: identityTransform()
+    };
     const env = {
       variables: {},
       coordinates: ir.coordinates,
@@ -41,7 +48,7 @@ export function interpretTikz(ast, options = {}) {
       toggles: {},
       transform: composeTransform(identityTransform(), pictureOptions, pictureTransformEnv),
       canvasScale: transformCanvasScale(pictureOptions, pictureTransformEnv),
-      basis: parsePictureBasis(pictureOptions),
+      basis: pictureBasis,
       pictureOptions
     };
     for (const statement of picture.statements || []) {

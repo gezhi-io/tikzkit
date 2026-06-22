@@ -14,6 +14,7 @@
     "gallery:native": "node scripts/gallery-native.js",
     "gallery:js": "node scripts/gallery-js.js",
     "gallery:diff": "python3 scripts/gallery-diff.py",
+    "f0nzie:audit": "node scripts/f0nzie-audit.js",
     "walmes:audit": "node scripts/walmes-audit.js"
   },
   "dependencies": {

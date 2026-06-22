@@ -179,6 +179,24 @@ test("expands tikz-3dplot main coordinates into TikZ basis vectors", () => {
   assert.ok(Math.abs(axes[2].commands.at(-1).y - 0.94) < 0.01);
 });
 
+test("supports tikz-3dplot rotated coordinates on picture options", () => {
+  const source = String.raw`
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-3dplot}
+\tdplotsetmaincoords{60}{125}
+\tdplotsetrotatedcoords{0}{0}{0}
+\begin{tikzpicture}[scale=5,tdplot_rotated_coords]
+  \draw (0,0,0) -- (1,0,0);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+
+  assert.deepEqual(result.diagnostics, []);
+  const path = result.ir.items.find((item) => item.type === "path");
+  assert.ok(path);
+  assert.equal(path.commands.at(-1).type, "lineTo");
+});
+
 test("expands tikz-3dplot spherical coordinate projection helpers", () => {
   const source = String.raw`
 \usepackage{tikz-3dplot}
