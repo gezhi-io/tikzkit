@@ -13,7 +13,8 @@
     "gallery:audit": "node scripts/gallery-audit.js",
     "gallery:native": "node scripts/gallery-native.js",
     "gallery:js": "node scripts/gallery-js.js",
-    "gallery:diff": "python3 scripts/gallery-diff.py"
+    "gallery:diff": "python3 scripts/gallery-diff.py",
+    "walmes:audit": "node scripts/walmes-audit.js"
   },
   "dependencies": {
     "chevrotain": "^11.0.3",

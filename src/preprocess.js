@@ -65,7 +65,9 @@ function stripTexComments(source) {
 }
 
 function stripPgfLibraryDeclarations(source) {
-  return String(source).replace(/\\usepgflibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
+  return String(source)
+    .replace(/\\usepgflibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "")
+    .replace(/\\usepgfplotslibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
 }
 
 function stripTexDocumentShell(source) {
@@ -265,6 +267,8 @@ function parseDefMacro(source, start) {
   const name = readCommandName(source, index);
   if (!name || BUILTIN_MACROS.has(name.value)) return null;
   index = name.end;
+  const delimited = parseParenSemicolonDefMacro(source, index, name.value);
+  if (delimited) return delimited;
   let argCount = 0;
   while (source[index] === "#") {
     const digit = Number(source[index + 1]);
@@ -278,6 +282,25 @@ function parseDefMacro(source, start) {
   return {
     name: name.value,
     macro: { name: name.value, argCount, body: body.content },
+    end: body.end
+  };
+}
+
+function parseParenSemicolonDefMacro(source, start, name) {
+  let index = start;
+  if (source[index] !== "(") return null;
+  const signature = extractBalanced(source, index, "(", ")");
+  if (!signature) return null;
+  index = skipWhitespace(source, signature.end);
+  if (source[index] !== ";") return null;
+  index = skipWhitespace(source, index + 1);
+  const body = extractBalanced(source, index, "{", "}");
+  if (!body) return null;
+  const argNumbers = [...signature.content.matchAll(/#([1-9])/g)].map((match) => Number(match[1]));
+  const argCount = argNumbers.length ? Math.max(...argNumbers) : 0;
+  return {
+    name,
+    macro: { name, argCount, body: body.content, delimited: "parenSemicolon" },
     end: body.end
   };
 }
@@ -317,11 +340,21 @@ function parseNewCommandMacro(source, start) {
   }
   const body = extractBalanced(source, index, "{", "}");
   if (!body) return null;
+  const usedArgCount = countReferencedMacroArguments(body.content);
+  if (usedArgCount === 0) argCount = 0;
   return {
     name,
     macro: { name, argCount, defaults, body: body.content },
     end: body.end
   };
+}
+
+function countReferencedMacroArguments(body) {
+  let maxArg = 0;
+  for (const match of String(body).matchAll(/#([1-9])/g)) {
+    maxArg = Math.max(maxArg, Number(match[1]));
+  }
+  return maxArg;
 }
 
 function expandMacroPass(source, macros) {
@@ -343,29 +376,45 @@ function expandMacroPass(source, macros) {
     let cursor = name.end;
     const args = [];
     let canExpand = true;
-    for (let argIndex = 0; argIndex < macro.argCount; argIndex += 1) {
+    if (macro.delimited === "parenSemicolon") {
       cursor = skipWhitespace(source, cursor);
-      if (macro.defaults?.[argIndex] !== undefined) {
-        if (source[cursor] === "[") {
-          const optionalArg = extractBalanced(source, cursor, "[", "]");
-          if (!optionalArg) {
-            canExpand = false;
-            break;
-          }
-          args.push(optionalArg.content);
-          cursor = optionalArg.end;
-        } else {
-          args.push(macro.defaults[argIndex]);
-        }
-        continue;
-      }
-      const arg = extractBalanced(source, cursor, "{", "}");
-      if (!arg) {
+      const invocation = source[cursor] === "(" ? extractBalanced(source, cursor, "(", ")") : null;
+      if (!invocation) {
         canExpand = false;
-        break;
+      } else {
+        const semicolon = skipWhitespace(source, invocation.end);
+        if (source[semicolon] !== ";") {
+          canExpand = false;
+        } else {
+          args.push(...splitTopLevel(invocation.content, ",").map((part) => part.trim()));
+          cursor = semicolon + 1;
+        }
       }
-      args.push(arg.content);
-      cursor = arg.end;
+    } else {
+      for (let argIndex = 0; argIndex < macro.argCount; argIndex += 1) {
+        cursor = skipWhitespace(source, cursor);
+        if (macro.defaults?.[argIndex] !== undefined) {
+          if (source[cursor] === "[") {
+            const optionalArg = extractBalanced(source, cursor, "[", "]");
+            if (!optionalArg) {
+              canExpand = false;
+              break;
+            }
+            args.push(optionalArg.content);
+            cursor = optionalArg.end;
+          } else {
+            args.push(macro.defaults[argIndex]);
+          }
+          continue;
+        }
+        const arg = extractBalanced(source, cursor, "{", "}");
+        if (!arg) {
+          canExpand = false;
+          break;
+        }
+        args.push(arg.content);
+        cursor = arg.end;
+      }
     }
     if (!canExpand) {
       output += source.slice(index, name.end);

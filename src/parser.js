@@ -78,13 +78,26 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\foreach")) return parseForeach(text, diagnostics);
   if (text.startsWith("\\coordinate")) return parseCoordinateStatement(text, diagnostics);
   if (text.startsWith("\\pgfmathsetmacro")) return parsePgfMath(text, diagnostics);
+  if (text.startsWith("\\pgfmathtruncatemacro")) return parsePgfMathTruncate(text, diagnostics);
   if (text.startsWith("\\pgftransformcm")) return parsePgfTransformCm(text);
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
   if (text.startsWith("\\tikzset")) return parseTikzsetStatement(text, diagnostics);
   if (text.startsWith("\\tikzstyle")) return parseTikzstyleStatement(text);
   if (text.startsWith("\\matrix")) return parseMatrix(text);
   if (text.startsWith("\\pic")) return parsePic(text);
-  if (text.startsWith("\\toggletrue") || text.startsWith("\\togglefalse") || text.startsWith("\\newtoggle") || text.startsWith("\\color") || text.startsWith("\\braid")) {
+  if (
+    text.startsWith("\\toggletrue") ||
+    text.startsWith("\\togglefalse") ||
+    text.startsWith("\\newtoggle") ||
+    text.startsWith("\\color") ||
+    text.startsWith("\\definecolor") ||
+    text.startsWith("\\clip") ||
+    text.startsWith("\\pgfplotsset") ||
+    text.startsWith("\\pgfplotstableread") ||
+    text.startsWith("\\pgfplotstabletypeset") ||
+    text.startsWith("\\def") ||
+    text.startsWith("\\braid")
+  ) {
     return { type: "noop", raw: text };
   }
   if (text.startsWith("\\node")) return parseNode(text, diagnostics);
@@ -193,6 +206,17 @@ function parsePgfMath(text) {
   };
 }
 
+function parsePgfMathTruncate(text) {
+  const match = text.match(/^\\pgfmathtruncatemacro\s*\{\\?([^}]+)\}\s*\{([^}]*)\}/);
+  if (!match) return unsupported("pgfmathtruncatemacro", text, "Malformed \\pgfmathtruncatemacro statement");
+  return {
+    type: "pgfmathtruncatemacro",
+    name: match[1].trim(),
+    expression: match[2].trim(),
+    raw: text
+  };
+}
+
 function parsePgfTransformCm(text) {
   let index = "\\pgftransformcm".length;
   const args = [];
@@ -243,6 +267,7 @@ function parseMatrix(text) {
   let index = "\\matrix".length;
   let options = {};
   let name = null;
+  let at = null;
 
   const beforeNameOptions = parseOptionalOptions(text, index);
   options = { ...options, ...beforeNameOptions.options };
@@ -259,11 +284,24 @@ function parseMatrix(text) {
   options = { ...options, ...afterNameOptions.options };
   index = skipWhitespace(text, afterNameOptions.end);
 
+  if (text.startsWith("at", index)) {
+    index = skipWhitespace(text, index + 2);
+    const coord = parseCoordinateArgument(text, index);
+    if (!coord) return unsupported("matrix", text, "Malformed \\matrix coordinate");
+    at = coord.content.trim();
+    index = skipWhitespace(text, coord.end);
+  }
+
+  const afterAtOptions = parseOptionalOptions(text, index);
+  options = { ...options, ...afterAtOptions.options };
+  index = skipWhitespace(text, afterAtOptions.end);
+
   const body = extractBalanced(text, index, "{", "}");
   if (!body) return unsupported("matrix", text, "Malformed \\matrix statement");
   return {
     type: "matrix",
     name,
+    at,
     options,
     body: body.content,
     raw: text
@@ -927,7 +965,12 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\togglefalse") ||
     text.startsWith("\\newtoggle") ||
     text.startsWith("\\color") ||
+    text.startsWith("\\definecolor") ||
     text.startsWith("\\pgfmathsetmacro") ||
+    text.startsWith("\\pgfmathtruncatemacro") ||
+    text.startsWith("\\pgfplotsset") ||
+    text.startsWith("\\pgfplotstableread") ||
+    text.startsWith("\\pgfplotstabletypeset") ||
     text.startsWith("\\tikzset") ||
     text.startsWith("{")
   );

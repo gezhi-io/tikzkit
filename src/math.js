@@ -1,12 +1,12 @@
 export function substituteVariables(input, variables = {}) {
-  return String(input).replace(/\\([A-Za-z@]\w*)/g, (_match, name) => {
+  return String(input).replace(/\\([A-Za-z@]+)/g, (_match, name) => {
     if (Object.hasOwn(variables, name)) return String(variables[name]);
     return "0";
   });
 }
 
 export function substituteTextVariables(input, variables = {}) {
-  return String(input).replace(/\\([A-Za-z@]\w*)/g, (match, name) => {
+  return String(input).replace(/\\([A-Za-z@]+)/g, (match, name) => {
     if (Object.hasOwn(variables, name)) return String(variables[name]);
     return match;
   });

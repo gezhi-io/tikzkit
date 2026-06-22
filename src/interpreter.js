@@ -83,6 +83,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     env.variables[statement.name] = evaluateMath(statement.expression, env.variables);
     return;
   }
+  if (statement.type === "pgfmathtruncatemacro") {
+    env.variables[statement.name] = Math.trunc(evaluateMath(statement.expression, env.variables));
+    return;
+  }
   if (statement.type === "pgftransformcm") {
     env.transform = composePgfTransform(env.transform, statement, env);
     return;
@@ -105,7 +109,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     return;
   }
   if (statement.type === "matrix") {
-    createMatrix(statement, env, ir);
+    createMatrix(statement, env, ir, diagnostics);
     return;
   }
   if (statement.type === "pic") {
@@ -178,7 +182,7 @@ function isScopeDefinitionOption(key) {
 }
 
 function interpretPathStatement(statement, env, ir, diagnostics) {
-  const rawOptions = { ...(env.pictureOptions || {}), ...(statement.options || {}) };
+  const rawOptions = resolveDynamicOptions({ ...(env.pictureOptions || {}), ...(statement.options || {}) }, env);
   const normalized = normalizeOptions(statement.command, rawOptions, env);
   const style = scaleCanvasStyle(normalized.style, env);
   const { semantic, options } = normalized;
@@ -1236,7 +1240,7 @@ function splitAttachedPathSegments(segments = []) {
   return segments.map((segment) => [segment]);
 }
 
-function createMatrix(statement, env, ir) {
+function createMatrix(statement, env, ir, diagnostics = []) {
   const name = statement.name ? resolveDynamicName(statement.name, env) : null;
   const matrixOptions = normalizeOptions("node", statement.options || {}, env).options;
   const matrixNodeOptions = matrixOptions.nodes ? parseOptions(matrixOptions.nodes) : {};
@@ -1281,6 +1285,7 @@ function createMatrix(statement, env, ir) {
   const layoutWidth = roundNumber(totalWidth + layoutInnerXSep * 2);
   const layoutHeight = roundNumber(totalHeight + layoutInnerYSep * 2);
   const origin =
+    (statement.at ? resolveCoordinate(statement.at, env, diagnostics) : null) ||
     resolvePositioning(matrixOptions || {}, env, { width: layoutWidth, height: layoutHeight }) ||
     applyTransform({ x: 0, y: 0 }, env.transform);
   const startX = origin.x - ((cols - 1) * stepX) / 2;
