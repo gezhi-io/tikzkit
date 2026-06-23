@@ -978,6 +978,20 @@ test("renders combined math subscript and superscript groups as SVG tspans", () 
   assert.doesNotMatch(svg, /\^1|μ_id|O'₀/);
 });
 
+test("adds TeX-like operator spacing in scripted SVG math fallback labels", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$y=A(x-a)^2+b$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /<tspan dx="[^"]+"[^>]*>=<\/tspan>/);
+  assert.match(svg, /<tspan dx="[^"]+"[^>]*>\+<\/tspan>/);
+  assert.doesNotMatch(svg, />y=A\(x-a\)<\/tspan>/);
+});
+
 test("renders mixed text and TeX arrows compactly in SVG text fallback", () => {
   const svg = renderSvg(
     {

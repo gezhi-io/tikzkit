@@ -2039,9 +2039,10 @@ function renderMixedSubscriptContent(segments, baseFontSize) {
 
 function renderScriptedSegmentsContent(segments, baseFontSize) {
   const scriptFontSize = baseFontSize * 0.66;
+  const operatorSpacing = segments.some((segment) => segment.operatorSpacing);
   return segments
     .map((segment) => {
-      if (segment.kind === "text") return escapeText(segment.text);
+      if (segment.kind === "text") return operatorSpacing ? renderMathOperatorSpacedText(segment.text, baseFontSize) : escapeText(segment.text);
       if (segment.kind === "bold") return `<tspan font-weight="700" font-style="normal">${escapeText(segment.text)}</tspan>`;
       const base = `<tspan>${escapeText(segment.base)}</tspan>`;
       if (segment.superscript && segment.subscript) {
@@ -2063,6 +2064,20 @@ function renderScriptedSegmentsContent(segments, baseFontSize) {
         segment.subscript,
         scriptFontSize
       )}</tspan>`;
+    })
+    .join("");
+}
+
+function renderMathOperatorSpacedText(text, baseFontSize) {
+  const source = String(text || "");
+  if (!/[=+]/.test(source)) return escapeText(source);
+  const spacing = Math.max(1.5, baseFontSize * 0.12);
+  return [...source]
+    .map((char) => {
+      if (char === "=" || char === "+") {
+        return `<tspan dx="${format(spacing)}" font-style="normal">${escapeText(char)}</tspan><tspan dx="${format(spacing)}"></tspan>`;
+      }
+      return escapeText(char);
     })
     .join("");
 }
@@ -2151,6 +2166,7 @@ function scriptedMathFallback(tex, options = {}) {
   let hasSuperscript = false;
   let hasCommandScriptValue = false;
   let hasAccentBaseScript = false;
+  let hasParenthesizedSuperscript = false;
   while (cursor < raw.length) {
     const atom = readMathScriptAtom(raw, cursor);
     if (!atom) {
@@ -2183,17 +2199,24 @@ function scriptedMathFallback(tex, options = {}) {
     const base = mathFallbackText(atom.source);
     if (!base) return null;
     if (subscript && isAccentMathAtom(atom.source)) hasAccentBaseScript = true;
+    if (superscript && atom.parenthesized) hasParenthesizedSuperscript = true;
     segments.push({
       kind: "script",
       base,
       subscript: subscript ? mathScriptFallbackText(subscript) : null,
-      superscript: superscript ? mathScriptFallbackText(superscript) : null
+      superscript: superscript ? mathScriptFallbackText(superscript) : null,
+      operatorSpacing: Boolean(superscript && atom.parenthesized)
     });
     hasScript = true;
     lastIndex = next;
     cursor = next;
   }
-  if (!hasScript || (!options.allowSimpleScripts && !hasSuperscript && !hasCommandScriptValue && !hasAccentBaseScript)) return null;
+  if (
+    !hasScript ||
+    (!options.allowSimpleScripts && !hasSuperscript && !hasCommandScriptValue && !hasAccentBaseScript && !hasParenthesizedSuperscript)
+  ) {
+    return null;
+  }
   const after = mathFallbackText(raw.slice(lastIndex));
   if (after) segments.push({ kind: "text", text: after });
   return segments;
@@ -2293,6 +2316,11 @@ function readMathScriptAtom(raw, start) {
     if (!group || !/^\\(?:bf|bfseries|mathbf|boldsymbol)\b/.test(group.content.trim())) return null;
     return { source: raw.slice(start, group.end), end: group.end };
   }
+  if (char === "(") {
+    const end = readBalancedParenthesis(raw, start);
+    const next = end ? skipInlineWhitespace(raw, end) : null;
+    if (end && (raw[next] === "_" || raw[next] === "^")) return { source: raw.slice(start, end), end, parenthesized: true };
+  }
   const command = raw.slice(start).match(/^\\[A-Za-z]+/);
   if (command) {
     let end = start + command[0].length;
@@ -2306,6 +2334,19 @@ function readMathScriptAtom(raw, start) {
     let end = start + 1;
     if (raw[end] === "'") end += 1;
     return { source: raw.slice(start, end), end };
+  }
+  return null;
+}
+
+function readBalancedParenthesis(raw, start) {
+  let depth = 0;
+  for (let index = start; index < raw.length; index += 1) {
+    const char = raw[index];
+    if (char === "(") depth += 1;
+    if (char === ")") {
+      depth -= 1;
+      if (depth === 0) return index + 1;
+    }
   }
   return null;
 }
