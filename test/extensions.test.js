@@ -247,7 +247,15 @@ test("expands tikz-3dplot drawarc commands into ordinary paths and labels", () =
   const result = tikzToSvg(source);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(result.ir.items.some((item) => item.type === "path" && item.shape === "arc"));
+  assert.ok(
+    result.ir.items.some(
+      (item) =>
+        item.type === "path" &&
+        item.commands?.length > 8 &&
+        item.commands.some((command) => command.type === "lineTo"),
+    ),
+    "expected tdplotdrawarc to expand into a sampled path",
+  );
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$\\phi$"));
 });
 

@@ -309,9 +309,19 @@ textarea {
 
 .svg-surface > svg {
   display: block;
+  height: auto;
   max-height: 460px;
   max-width: 100%;
   overflow: visible;
+}
+
+.svg-surface.compare-scaled > svg {
+  flex: 0 0 auto;
+}
+
+.svg-surface > svg.compare-transform-scaled {
+  transform: scale(var(--tikz-js-compare-scale));
+  transform-origin: center;
 }
 
 .image-surface {

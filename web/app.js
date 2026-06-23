@@ -1,6 +1,7 @@
 import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
 import { withGalleryDebugGrid } from "../scripts/gallery-debug-grid.js";
 import { buildCaseInsights, diffSeverity } from "./gallery-analysis.js";
+import { jsCompareScale } from "./gallery-compare-scale.js";
 import { createEmptyGalleryReportIndexes, createGalleryReportIndexes, reportForCase } from "./gallery-report-matching.js";
 import { createGalleryMarkdown, createSampleGallery } from "./sample-gallery.js";
 import { REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY } from "./real-gallery-data.js";
@@ -211,8 +212,9 @@ function panel(view, child, active = false) {
 function createComparePanel(result, galleryReport, options = {}) {
   const grid = document.createElement("div");
   grid.className = "compare-grid";
+  const compareScale = jsCompareScale(galleryReport.diff);
   grid.append(
-    comparePane("JS SVG", createRenderPanel(result, options)),
+    comparePane("JS SVG", createRenderPanel(result, { ...options, compareScale })),
     comparePane("MacTeX PNG", createImagePanel("MacTeX native PNG", galleryReport.native?.pngPath))
   );
   return grid;
@@ -235,8 +237,41 @@ function createRenderPanel(result, options = {}) {
     surface.innerHTML = `<div class="error-state">Strict mode stopped this block.</div>`;
   } else {
     surface.innerHTML = result.svg;
+    applySvgCompareScale(surface, options.compareScale);
   }
   return surface;
+}
+
+function applySvgCompareScale(surface, scale) {
+  const safeScale = Number(scale);
+  if (!Number.isFinite(safeScale) || safeScale <= 0 || safeScale === 1) return;
+  const svg = surface.querySelector(":scope > svg");
+  if (!svg) return;
+  surface.classList.add("compare-scaled");
+  surface.dataset.compareScale = formatScale(safeScale);
+  const viewBox = parseSvgViewBox(svg.getAttribute("viewBox"));
+  if (!viewBox) {
+    svg.style.setProperty("--tikz-js-compare-scale", formatScale(safeScale));
+    svg.classList.add("compare-transform-scaled");
+    return;
+  }
+  svg.style.width = `${formatScale(viewBox.width * safeScale)}px`;
+  svg.style.height = `${formatScale(viewBox.height * safeScale)}px`;
+}
+
+function parseSvgViewBox(value) {
+  const numbers = String(value || "")
+    .trim()
+    .split(/[,\s]+/)
+    .map(Number);
+  if (numbers.length !== 4 || numbers.some((number) => !Number.isFinite(number))) return null;
+  const [, , width, height] = numbers;
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
+function formatScale(value) {
+  return String(Number(value).toFixed(6)).replace(/\.?0+$/, "");
 }
 
 function createImagePanel(title, path) {

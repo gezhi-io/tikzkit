@@ -195,27 +195,73 @@ function expandLineSymbol(bits, { scale }) {
 }
 
 function expandTaiji({ variant, starred, scale }) {
-  const radius = TAIJI_RADIUS * num(scale);
-  const half = radius / 2;
-  const eye = radius / Math.E / 4;
-  const curve = variant === "xtaiji"
-    ? `(0,${fmt(-radius)}) arc (270:90:${fmt(half)}) arc (-90:90:${fmt(half)}) arc (90:-90:${fmt(radius)})`
-    : `(0,${fmt(-radius)}) .. controls (${fmt(radius * 0.88)},${fmt(-radius * 0.45)}) and (${fmt(
-        radius * 0.88
-      )},${fmt(radius * 0.45)}) .. (0,${fmt(radius)}) arc (90:-90:${fmt(radius)})`;
-  const eyes = starred
-    ? [
-        `\\fill[white,bagua taiji eye] (0,${fmt(-half)}) circle (${fmt(eye)});`,
-        `\\fill[black,bagua taiji eye] (0,${fmt(half)}) circle (${fmt(eye)});`
-      ].join("\n")
-    : "";
+  const factor = TAIJI_RADIUS * num(scale);
+  const points = variant === "xtaiji" ? sampleModernTaijiPoints(factor) : sampleClassicTaijiPoints(factor);
+  const radius = factor;
+  const eye = (0.25 / Math.E) * factor;
+  const eyes = starred ? taijiEyes(variant, factor, eye) : "";
   return [
-    `\\fill[black,bagua taiji fill] ${curve} -- cycle;`,
+    `\\fill[black,bagua taiji fill] ${polygonPath(points)} -- cycle;`,
     `\\draw[bagua taiji outline] (0,0) circle (${fmt(radius)});`,
     eyes
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function sampleClassicTaijiPoints(scale) {
+  const points = [];
+  for (let angle = 0; angle <= 180; angle += 3) {
+    const t = angle / 180;
+    const radians = deg(angle - 90);
+    points.push([t * Math.cos(radians) * scale, t * Math.sin(radians) * scale]);
+  }
+  points.push(...arcPoints(0, 0, 1, 90, -90, scale).slice(1));
+  for (let angle = 0; angle <= 180; angle += 3) {
+    const t = angle / 180;
+    const radians = deg(angle + 90);
+    points.push([t * Math.cos(radians) * scale, t * Math.sin(radians) * scale]);
+  }
+  return points;
+}
+
+function sampleModernTaijiPoints(scale) {
+  return [
+    ...arcPoints(0, -0.5, 0.5, -90, 90, scale),
+    ...arcPoints(0, 0.5, 0.5, -90, 90, scale).slice(1),
+    ...arcPoints(0, 0, 1, 90, -90, scale).slice(1)
+  ];
+}
+
+function arcPoints(cx, cy, radius, startDeg, endDeg, scale) {
+  const delta = endDeg >= startDeg ? 3 : -3;
+  const points = [];
+  for (let angle = startDeg; delta > 0 ? angle <= endDeg : angle >= endDeg; angle += delta) {
+    const radians = deg(angle);
+    points.push([(cx + Math.cos(radians) * radius) * scale, (cy + Math.sin(radians) * radius) * scale]);
+  }
+  if (points.length === 0 || Math.abs(points.at(-1)[0] - (cx + Math.cos(deg(endDeg)) * radius) * scale) > 1e-9) {
+    const radians = deg(endDeg);
+    points.push([(cx + Math.cos(radians) * radius) * scale, (cy + Math.sin(radians) * radius) * scale]);
+  }
+  return points;
+}
+
+function polygonPath(points) {
+  return points.map(([x, y]) => `(${fmt(x)},${fmt(y)})`).join(" -- ");
+}
+
+function taijiEyes(variant, scale, eye) {
+  if (variant === "xtaiji") {
+    return [
+      `\\fill[white,bagua taiji eye] (0,${fmt(-0.5 * scale)}) circle (${fmt(eye)});`,
+      `\\fill[black,bagua taiji eye] (0,${fmt(0.5 * scale)}) circle (${fmt(eye)});`
+    ].join("\n");
+  }
+  return [
+    `\\fill[black,bagua taiji eye] (${fmt(0.25 * scale)},${fmt((0.25 / Math.PI) * scale)}) circle (${fmt(eye)});`,
+    `\\fill[white,bagua taiji eye] (${fmt(-0.25 * scale)},${fmt((-0.25 / Math.PI) * scale)}) circle (${fmt(eye)});`
+  ].join("\n");
 }
 
 function parseOptionalScale(source, cursor) {
@@ -269,6 +315,10 @@ function skipWhitespace(source, index) {
 
 function num(value) {
   return evaluateMath(String(value || "1"));
+}
+
+function deg(value) {
+  return (value * Math.PI) / 180;
 }
 
 function fmt(value) {

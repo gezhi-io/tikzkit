@@ -25,6 +25,7 @@ coverage/
 .vite/
 .cache/
 .parcel-cache/
+.playwright-cli/
 
 # Generated TikZ/gallery artifacts
 outputs/
@@ -50,4 +51,3 @@ work/
 *.synctex.gz
 *.toc
 *.xdv
-

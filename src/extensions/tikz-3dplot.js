@@ -25,17 +25,20 @@ function expandTikzThreeDPlot(source, diagnostics = []) {
   current = collectPgfMathMacros(current, variables);
   let mainBasis = tdplotMainBasis(0, 0);
   let rotatedBasis = null;
+  let rotatedMainBasis = null;
   let rotatedOrigin = "(0,0,0)";
 
   current = replaceCommand(current, "tdplotsetmaincoords", 2, (args) => {
     mainBasis = tdplotMainBasis(num(args[0], variables), num(args[1], variables));
     rotatedBasis = null;
+    rotatedMainBasis = null;
     rotatedOrigin = "(0,0,0)";
     return `\\tikzset{tdplot_main_coords/.style={${basisStyle(mainBasis)}}}`;
   });
 
   current = replaceCommand(current, "tdplotsetrotatedcoords", 3, (args) => {
-    rotatedBasis = tdplotRotatedBasis(mainBasis, num(args[0], variables), num(args[1], variables), num(args[2], variables));
+    rotatedMainBasis = tdplotRotatedMainBasis(num(args[0], variables), num(args[1], variables), num(args[2], variables));
+    rotatedBasis = combineRotatedBasis(mainBasis, rotatedMainBasis);
     return `\\tikzset{tdplot_rotated_coords/.style={${basisStyle(rotatedBasis)},shift=${rotatedOrigin}}}`;
   });
 
@@ -53,18 +56,20 @@ function expandTikzThreeDPlot(source, diagnostics = []) {
 
   current = replaceCommand(current, "tdplotsetthetaplanecoords", 1, (args) => {
     rotatedOrigin = "(0,0,0)";
-    rotatedBasis = tdplotRotatedBasis(mainBasis, 270 + num(args[0], variables), 270, 0);
+    rotatedMainBasis = tdplotRotatedMainBasis(270 + num(args[0], variables), 270, 0);
+    rotatedBasis = combineRotatedBasis(mainBasis, rotatedMainBasis);
     return `\\tikzset{tdplot_rotated_coords/.style={${basisStyle(rotatedBasis)},shift=${rotatedOrigin}}}`;
   });
 
   current = replaceCommand(current, "tdplotsetrotatedthetaplanecoords", 1, (args) => {
     rotatedOrigin = "(0,0,0)";
-    rotatedBasis = tdplotRotatedBasis(mainBasis, 270, 270, num(args[0], variables));
+    rotatedMainBasis = tdplotRotatedMainBasis(270, 270, num(args[0], variables));
+    rotatedBasis = combineRotatedBasis(mainBasis, rotatedMainBasis);
     return `\\tikzset{tdplot_rotated_coords/.style={${basisStyle(rotatedBasis)},shift=${rotatedOrigin}}}`;
   });
 
   current = replaceCommand(current, "tdplotsetcoord", 4, (args) => expandSetCoord(args, variables));
-  current = replaceTdplotDrawArc(current, variables, diagnostics);
+  current = replaceTdplotDrawArc(current, variables, diagnostics, () => ({ rotatedMainBasis }));
   return replaceKnownVariables(current, variables);
 }
 
@@ -95,7 +100,7 @@ function expandSetCoord(args, variables) {
   ].join("\n");
 }
 
-function replaceTdplotDrawArc(source, variables, diagnostics) {
+function replaceTdplotDrawArc(source, variables, diagnostics, basisProvider) {
   let output = "";
   let index = 0;
   while (index < source.length) {
@@ -135,20 +140,80 @@ function replaceTdplotDrawArc(source, variables, diagnostics) {
       index += 1;
       continue;
     }
-    output += expandDrawArc(options, args, variables);
+    output += expandDrawArc(options, args, variables, basisProvider());
     index = cursor;
   }
   return output;
 }
 
-function expandDrawArc(options, args, variables) {
+function expandDrawArc(options, args, variables, bases = {}) {
   const [center, radiusRaw, startRaw, endRaw, labelOptions, label] = args;
-  const radius = fmt(num(radiusRaw, variables));
-  const start = fmt(num(startRaw, variables));
-  const end = fmt(num(endRaw, variables));
-  const mid = fmt((num(startRaw, variables) + num(endRaw, variables)) / 2);
-  const node = label ? `\\path[${options}] ${center} + (${mid}:${radius}) node[${labelOptions}]{${label}};` : "";
-  return `${node}\n\\draw[${options}] ${center} + (${start}:${radius}) arc (${start}:${end}:${radius});`;
+  const radius = num(radiusRaw, variables);
+  const start = num(startRaw, variables);
+  const end = num(endRaw, variables);
+  const basis = /tdplot_rotated_coords/.test(options) && bases.rotatedMainBasis ? bases.rotatedMainBasis : identityBasis3d();
+  const drawOptions = stripTdplotCoordinateOptions(options);
+  const points = arcMainCoordinatePoints(center, radius, start, end, basis, variables);
+  const mid = (start + end) / 2;
+  const labelPoint = arcMainCoordinatePoint(center, radius, mid, basis, variables);
+  const node = label ? `\\path ${labelPoint} node[${labelOptions}]{${label}};` : "";
+  return `${node}\n\\draw[${drawOptions}] ${points.join(" -- ")};`;
+}
+
+function arcMainCoordinatePoints(center, radius, start, end, basis, variables) {
+  const step = end >= start ? 3 : -3;
+  const points = [];
+  for (let angle = start; step > 0 ? angle <= end : angle >= end; angle += step) {
+    points.push(arcMainCoordinatePoint(center, radius, angle, basis, variables));
+  }
+  if (!points.length || Math.abs((end - start) % 3) > 1e-9) points.push(arcMainCoordinatePoint(center, radius, end, basis, variables));
+  return points;
+}
+
+function arcMainCoordinatePoint(center, radius, angleDeg, basis, variables) {
+  const angle = deg(angleDeg);
+  const local = {
+    x: radius * Math.cos(angle),
+    y: radius * Math.sin(angle),
+    z: 0
+  };
+  const offset = transformRotatedToMain(local, basis);
+  const parsedCenter = parseMainCoordinateCenter(center, basis, variables);
+  if (parsedCenter) return formatMainCoordinate(add3(parsedCenter, offset));
+  return `($${center}+${formatMainCoordinate(offset)}$)`;
+}
+
+function parseMainCoordinateCenter(center, basis, variables) {
+  const text = String(center || "").trim().replace(/^\((.*)\)$/, "$1");
+  const parts = text.split(",").map((part) => part.trim());
+  if (parts.length < 2 || parts.length > 3) return null;
+  const values = parts.map((part) => num(part, variables));
+  if (values.some((value) => !Number.isFinite(value))) return null;
+  return transformRotatedToMain({ x: values[0] || 0, y: values[1] || 0, z: values[2] || 0 }, basis);
+}
+
+function add3(a, b) {
+  return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+}
+
+function formatMainCoordinate(point) {
+  return `(${fmt(point.x)},${fmt(point.y)},${fmt(point.z)})`;
+}
+
+function transformRotatedToMain(point, basis) {
+  return {
+    x: basis.x.x * point.x + basis.y.x * point.y + basis.z.x * point.z,
+    y: basis.x.y * point.x + basis.y.y * point.y + basis.z.y * point.z,
+    z: basis.x.z * point.x + basis.y.z * point.y + basis.z.z * point.z
+  };
+}
+
+function stripTdplotCoordinateOptions(options) {
+  return String(options || "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "tdplot_main_coords" && part !== "tdplot_rotated_coords")
+    .join(",");
 }
 
 function tdplotMainBasis(thetaDeg, phiDeg) {
@@ -165,7 +230,7 @@ function tdplotMainBasis(thetaDeg, phiDeg) {
   };
 }
 
-function tdplotRotatedBasis(main, alphaDeg, betaDeg, gammaDeg) {
+function tdplotRotatedMainBasis(alphaDeg, betaDeg, gammaDeg) {
   const alpha = deg(alphaDeg);
   const beta = deg(betaDeg);
   const gamma = deg(gammaDeg);
@@ -175,7 +240,7 @@ function tdplotRotatedBasis(main, alphaDeg, betaDeg, gammaDeg) {
   const cosBeta = Math.cos(beta);
   const sinGamma = Math.sin(gamma);
   const cosGamma = Math.cos(gamma);
-  const euler = {
+  return {
     x: {
       x: cosAlpha * cosBeta * cosGamma - sinAlpha * sinGamma,
       y: sinAlpha * cosBeta * cosGamma + cosAlpha * sinGamma,
@@ -192,10 +257,21 @@ function tdplotRotatedBasis(main, alphaDeg, betaDeg, gammaDeg) {
       z: cosBeta
     }
   };
+}
+
+function combineRotatedBasis(main, euler) {
   return {
     x: combineBasis(main, euler.x),
     y: combineBasis(main, euler.y),
     z: combineBasis(main, euler.z)
+  };
+}
+
+function identityBasis3d() {
+  return {
+    x: { x: 1, y: 0, z: 0 },
+    y: { x: 0, y: 1, z: 0 },
+    z: { x: 0, y: 0, z: 1 }
   };
 }
 
