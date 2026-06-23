@@ -614,7 +614,7 @@ function setOrderedOption(options, key, value) {
 }
 
 function isRepeatableOption(key) {
-  return key === "label" || key === "general shadow";
+  return key === "label" || key === "general shadow" || key === "evaluate";
 }
 
 function optionValues(value) {

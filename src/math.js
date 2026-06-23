@@ -15,7 +15,7 @@ export function substituteTextVariables(input, variables = {}) {
 export function evaluateMath(input, variables = {}) {
   const substituted = normalizeMathExpression(substituteVariables(input, variables));
   if (!substituted) return 0;
-  if (!/^[0-9+\-*/().,\sMathsqrtincostapPI]+$/.test(substituted)) {
+  if (!/^[0-9+\-*/().,\sMathsqrtincostapPIu]+$/.test(substituted)) {
     const numeric = Number(substituted);
     return Number.isFinite(numeric) ? numeric : 0;
   }
@@ -60,6 +60,7 @@ function normalizeMathExpression(input) {
     .replace(/^\{([\s\S]*)\}$/, "$1")
     .replace(/\bpi\b/g, "Math.PI")
     .replace(/\^/g, "**")
+    .replace(/\bint\s*\(/g, "Math.trunc(")
     .replace(/\bsqrt\s*\(/g, "Math.sqrt(")
     .replace(/\b(sin|cos|tan)\s*\(([^()]*)\s+r\s*\)/g, "Math.$1($2)")
     .replace(/(?<!\.)\bsin\s*\(/g, "Math.sin((Math.PI/180)*")

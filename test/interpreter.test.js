@@ -29,6 +29,35 @@ test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions
   assert.equal(interpreted.ir.items[0].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
 });
 
+test("interprets foreach count and evaluate options in dynamic coordinate names", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \coordinate (n-3-1) at (0,0);
+  \coordinate (n-3-2) at (1,0);
+  \coordinate (n-3-4) at (0,1);
+  \coordinate (n-3-5) at (1,1);
+  \foreach \i [count=\j from 1] in {3} \draw (n-\i-1) -- node[midway] {\j} (n-\i-2);
+  \foreach \k [evaluate=\k as \m using {int(\k+1)}] in {4} \draw (n-3-\k) -- (n-3-\m);
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const paths = interpreted.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual([...parsed.diagnostics, ...interpreted.diagnostics], []);
+  assert.deepEqual(paths.map((path) => path.commands), [
+    [
+      { type: "moveTo", x: 0, y: 0 },
+      { type: "lineTo", x: 1, y: 0 }
+    ],
+    [
+      { type: "moveTo", x: 0, y: 1 },
+      { type: "lineTo", x: 1, y: 1 }
+    ]
+  ]);
+  assert.ok(interpreted.ir.items.some((item) => item.type === "textNode" && item.text === "1"));
+});
+
 test("maps TikZ stroke presets and explicit dimensions into SVG stroke units", () => {
   const source = String.raw`
 \begin{tikzpicture}

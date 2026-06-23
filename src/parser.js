@@ -136,11 +136,11 @@ function parseStatement(statement, diagnostics) {
 }
 
 function parseForeach(text, diagnostics) {
-  const match = text.match(/^\\foreach\s+(.+?)\s+in\s*/);
-  if (!match) {
+  const header = parseForeachHeader(text);
+  if (!header) {
     return unsupported("foreach", text, "Malformed \\foreach statement");
   }
-  let index = match[0].length;
+  let index = header.end;
   const list = extractBalanced(text, index, "{", "}");
   if (!list) return unsupported("foreach", text, "Malformed \\foreach value list");
   index = list.end;
@@ -149,10 +149,8 @@ function parseForeach(text, diagnostics) {
   if (!body) {
     return {
       type: "foreach",
-      variables: match[1]
-        .split("/")
-        .map((part) => part.trim().replace(/^\\/, ""))
-        .filter(Boolean),
+      variables: header.variables,
+      options: header.options,
       values: splitTopLevel(list.content, ","),
       body: parseStatements(text.slice(index), diagnostics),
       raw: text
@@ -160,13 +158,62 @@ function parseForeach(text, diagnostics) {
   }
   return {
     type: "foreach",
-    variables: match[1]
-      .split("/")
-      .map((part) => part.trim().replace(/^\\/, ""))
-      .filter(Boolean),
+    variables: header.variables,
+    options: header.options,
     values: splitTopLevel(list.content, ","),
     body: parseStatements(body.content, diagnostics),
     raw: text
+  };
+}
+
+function parseForeachHeader(text) {
+  if (!text.startsWith("\\foreach")) return null;
+  let index = skipWhitespace(text, "\\foreach".length);
+  const inIndex = findForeachInKeyword(text, index);
+  if (inIndex < 0) return null;
+  const header = parseForeachVariablesAndOptions(text.slice(index, inIndex).trim());
+  if (!header.variables.length) return null;
+  return {
+    ...header,
+    end: skipWhitespace(text, inIndex + "in".length)
+  };
+}
+
+function findForeachInKeyword(text, index) {
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+  for (let cursor = index; cursor < text.length; cursor += 1) {
+    const char = text[cursor];
+    if (char === "(") paren += 1;
+    if (char === ")") paren = Math.max(0, paren - 1);
+    if (char === "[") bracket += 1;
+    if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (char === "{") brace += 1;
+    if (char === "}") brace = Math.max(0, brace - 1);
+    if (paren || bracket || brace) continue;
+    if (startsKeyword(text, cursor, "in")) return cursor;
+  }
+  return -1;
+}
+
+function parseForeachVariablesAndOptions(header) {
+  let variablesRaw = header;
+  let options = {};
+  for (let index = 0; index < header.length; index += 1) {
+    if (header[index] !== "[") continue;
+    const parsed = extractBalanced(header, index, "[", "]");
+    if (!parsed) break;
+    variablesRaw = `${header.slice(0, index)} ${header.slice(parsed.end)}`.trim();
+    options = parseOptions(parsed.content);
+    break;
+  }
+  return {
+    variables: variablesRaw
+      .split("/")
+      .map((part) => part.trim().replace(/^\\/, ""))
+      .filter(Boolean),
+    options
   };
 }
 

@@ -76,6 +76,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     return;
   }
   if (statement.type === "foreach") {
+    let foreachIndex = 0;
     for (const values of expandForeachValues(statement.values, env)) {
       const childVariables = { ...env.variables };
       const valueText = stripOuterBraces(values.trim());
@@ -83,8 +84,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
       statement.variables.forEach((name, index) => {
         childVariables[name] = rawParts[index] ?? values.trim();
       });
+      applyForeachOptions(childVariables, statement.options || {}, foreachIndex, env);
       const childEnv = { ...env, variables: childVariables };
       for (const child of statement.body) interpretStatement(child, childEnv, ir, diagnostics, options);
+      foreachIndex += 1;
     }
     return;
   }
@@ -3175,6 +3178,30 @@ function expandForeachValues(values, env) {
     }
   }
   return expanded;
+}
+
+function applyForeachOptions(variables, options = {}, foreachIndex = 0, env = { variables: {} }) {
+  applyForeachCountOption(variables, options.count, foreachIndex, env);
+  const evaluateOptions = Array.isArray(options.evaluate) ? options.evaluate : options.evaluate !== undefined ? [options.evaluate] : [];
+  for (const spec of evaluateOptions) applyForeachEvaluateOption(variables, spec, env);
+}
+
+function applyForeachCountOption(variables, spec, foreachIndex, env) {
+  if (spec === undefined || spec === null || spec === false) return;
+  const text = stripOuterBraces(String(spec === true ? "" : spec)).trim();
+  const match = text.match(/^\\?([A-Za-z@]+)(?:\s+from\s+([\s\S]+))?$/);
+  if (!match) return;
+  const start = match[2] ? evaluateMath(match[2], { ...env.variables, ...variables }) : 1;
+  variables[match[1]] = roundNumber((Number.isFinite(start) ? start : 1) + foreachIndex);
+}
+
+function applyForeachEvaluateOption(variables, spec, env) {
+  if (spec === undefined || spec === null || spec === false) return;
+  const text = stripOuterBraces(String(spec === true ? "" : spec)).trim();
+  const match = text.match(/^\\?([A-Za-z@]+)\s+as\s+\\?([A-Za-z@]+)\s+using\s+\{?([\s\S]*?)\}?$/);
+  if (!match) return;
+  const expression = match[3].trim();
+  variables[match[2]] = roundNumber(evaluateMath(expression, { ...env.variables, ...variables }));
 }
 
 function buildGrid(from, to, pathOptions, env = {}) {
