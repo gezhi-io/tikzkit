@@ -176,12 +176,19 @@ startup.
 Additional corpus audits:
 
 ```bash
+npm run awesome-tikz:audit
 npm run f0nzie:audit
 npm run janosh:audit
 npm run walmes:audit
 npm run circuitikz:audit
 npm run structural-analysis:audit
 ```
+
+`awesome-tikz:audit` is a catalog/roadmap audit rather than a render corpus:
+`maphy-psd/awesome-TikZ` is an awesome-list repository with no local
+`.tex`/`.tikz` examples, so the script parses its README resources and maps the
+entries that TikZKit already supports as core, extension, corpus, or compatibility
+subsets.
 
 ## Extension System
 
