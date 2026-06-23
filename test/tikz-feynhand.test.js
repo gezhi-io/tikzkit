@@ -41,3 +41,24 @@ test("expands common tikz-feynhand vertices and propagators", () => {
   assert.ok(result.ir.items.some((item) => item.type === "path" && item.subtype === "feynhand-scalar"));
   assert.ok(result.ir.items.some((item) => item.type === "marker" && item.subtype === "feynhand-momentum"));
 });
+
+test("keeps feynhand snake propagators wavy when arrow markings are also present", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-feynhand}
+\begin{document}
+\begin{tikzpicture}
+\begin{feynhand}
+  \vertex [blob] (b) at (0,1) {};
+  \vertex [crossdot] (x) at (0,-1) {};
+  \propag [chabos, top] (b) to (x);
+\end{feynhand}
+\end{tikzpicture}
+\end{document}`);
+  const boson = result.ir.items.find((item) => item.type === "path" && item.subtype === "feynhand-boson");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(boson, "expected charged boson path");
+  assert.ok(boson.commands.length > 8, `expected charged boson to keep snake decoration, got ${boson.commands.length} commands`);
+  assert.ok(result.ir.items.some((item) => item.type === "marker" && item.subtype === "feynhand-momentum"), "expected marking arrow on charged boson");
+});

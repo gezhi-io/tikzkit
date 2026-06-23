@@ -1352,6 +1352,23 @@ test("uses PGF default loop geometry for self edges", () => {
   assert.ok(Math.abs(rightOutArm - parseDimension("5mm")) < 0.02, `expected loop right PGF min distance arm, got ${rightOutArm}`);
 });
 
+test("honors PGF loop distance option for self edges", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, thick, fill=red, draw] (n) {};
+  \path[-stealth, very thick] (n) edge[loop,out=135,in=45,distance=8mm] (n);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const loop = ir.items.find((item) => item.type === "path" && item.commands.some((command) => command.type === "curveTo"));
+  const start = loop.commands[0];
+  const curve = loop.commands.at(-1);
+  const outArm = Math.hypot(curve.x1 - start.x, curve.y1 - start.y);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(outArm - parseDimension("8mm")) < 0.02, `expected loop distance=8mm arm, got ${outArm}`);
+});
+
 test("keeps nested pgfplots-in-node content compact instead of inflating the SVG bounds", () => {
   const source = String.raw`
 \begin{tikzpicture}

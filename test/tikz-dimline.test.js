@@ -54,3 +54,27 @@ test("matches tikz-dimline default sloped labels and custom dimline arrows", () 
   const labelBox = result.ir.items.find((item) => item.type === "nodeBox" && item.x === label.x && item.y === label.y);
   assert.equal(labelBox?.rotation, label.rotation);
 });
+
+test("matches Case 114 dimline labels and custom extension paths", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz-dimline}
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \draw[fill=blue!8,draw=blue!50,rounded corners=2pt,line width=.8pt] (0,0) rectangle (2.5,4);
+  \draw[fill=white,draw=black,line width=.7pt] (.5,1.1) rectangle (2,2.9);
+  \dimline[color=red,line style={line width=.7pt},label style={above=0.5ex,font=\small},extension start length=0,extension end length=0]{(.5,2)}{(2,2)}{$d=1.5$}
+  \dimline[label style={above=0.5ex,fill=blue!10,font=\small},extension start path={(0,4.45) (0,4.15) (.5,3.9)},extension end path={(2.5,4.45) (2.5,4.15) (2,3.9)},extension start style={draw=green!60!black},extension end style={draw=green!60!black}]{(0,4.45)}{(2.5,4.45)}{custom}
+\end{tikzpicture}
+\end{document}`);
+
+  const redLabel = result.ir.items.find((item) => item.type === "textNode" && item.text === "$d=1.5$");
+  const greenExtensions = result.ir.items.filter((item) => item.subtype === "dimline-extension" && item.style.stroke === "rgb(0 153 0)");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(redLabel, "expected red interior dimension label");
+  assert.equal(redLabel.style.fill, "red");
+  assert.ok(redLabel.y > 1.5, `expected red label above the interior dimension line after scale, got ${redLabel.y}`);
+  assert.equal(greenExtensions.length, 2);
+  assert.ok(greenExtensions.every((path) => path.commands.length === 3), "custom extension paths should preserve their three-point bends");
+});

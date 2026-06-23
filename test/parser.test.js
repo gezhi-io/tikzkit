@@ -135,6 +135,23 @@ test("preserves repeated node label options instead of overwriting them", () => 
   assert.deepEqual(node.options.label, ["above:Graphics", "left:Design", "below:Typography", "right:Coding"]);
 });
 
+test("splits node statements with bracket-like math text before following draw commands", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[blue] at (2.5,.68) {$(-1,2]$};
+  \draw[red] (2,-.35) -- (5,-.35);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const statements = result.ast.pictures[0].statements;
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(statements.length, 2);
+  assert.equal(statements[0].type, "node");
+  assert.equal(statements[1].type, "path");
+  assert.equal(statements[1].command, "draw");
+});
+
 test("parses plot smooth coordinates as a single plot segment", () => {
   const source = String.raw`
 \begin{tikzpicture}

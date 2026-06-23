@@ -69,6 +69,27 @@ test("supports tikzcd diagonal arrows, labels, swaps, bends, and dashed styles",
   }
 });
 
+test("uses native-like default column spacing for real-life tikzcd pullback diagrams", () => {
+  const { ir, diagnostics } = tikzToSvg(String.raw`
+\begin{tikzcd}
+  T
+  \arrow[drr, bend left, "x"]
+  \arrow[ddr, bend right, "y"]
+  \arrow[dr, dotted, "{(x,y)}" description] & & \\
+    & X \times_Z Y \arrow[r, "p"] \arrow[d, "q"]
+      & X \arrow[d, "f"] \\
+    & Y \arrow[r, "g"]
+      & Z
+\end{tikzcd}`);
+
+  assert.deepEqual(diagnostics, []);
+  const t = textNode(ir, "$T$");
+  const pullback = textNode(ir, "$X \\times_Z Y$");
+  const x = textNode(ir, "$X$");
+  assert.ok(pullback.x - t.x > 1.65, `expected default tikzcd columns to breathe like native TikZ, got ${pullback.x - t.x}`);
+  assert.ok(x.x - pullback.x > 1.55, `expected right column spacing near native TikZ, got ${x.x - pullback.x}`);
+});
+
 test("supports tikzcd aliases, absolute from/to targets, and phantom labels", () => {
   const { ir, diagnostics } = tikzToSvg(String.raw`
 \begin{tikzcd}

@@ -531,10 +531,24 @@ function rgbToCss(rgb) {
 
 export function stripOuterBraces(value) {
   const text = String(value).trim();
-  if (text.startsWith("{") && text.endsWith("}")) {
+  if (text.startsWith("{") && text.endsWith("}") && outerBracesWrapWholeText(text)) {
     return text.slice(1, -1).trim();
   }
   return text;
+}
+
+function outerBracesWrapWholeText(text) {
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && index < text.length - 1) return false;
+    }
+    if (depth < 0) return false;
+  }
+  return depth === 0;
 }
 
 function defaultStyleForCommand(command) {

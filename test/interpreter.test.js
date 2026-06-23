@@ -676,6 +676,20 @@ test("renders repeated TikZ node labels with every label style", () => {
   assert.ok(Math.abs(labels.Graphics.style.fontScale - 0.5) < 1e-6, `expected every label scale, got ${labels.Graphics.style.fontScale}`);
 });
 
+test("inherits path color into labels attached to inline path nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[red,dashed] (0,0) -- (1,1) node[circle,fill,inner sep=1pt,label=above:{$P$}]{};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "{$P$}");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(label, "expected attached label text");
+  assert.equal(label.style.fill, "red");
+});
+
 test("supports common node anchor and shift positioning controls", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1436,4 +1450,33 @@ test("supports per-plot options and polar basis vectors for calibration cases", 
   assert.equal(plot.commands.length, 3);
   assert.deepEqual(plot.commands[0], { type: "moveTo", x: 0, y: 0 });
   assert.deepEqual(plot.commands[2], { type: "lineTo", x: 1.73205, y: 3 });
+});
+
+test("samples PGF plot expressions with radian trig suffixes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[samples=9,variable=\t] plot[domain=0:6.28318530718] ({cos(3*\t r)*cos(\t r)},{cos(3*\t r)*sin(\t r)});
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const plot = ir.items.find((item) => item.type === "path");
+  const ys = plot.commands.map((command) => Math.abs(command.y || 0));
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(plot.commands.length, 9);
+  assert.ok(Math.max(...ys) > 0.45, `expected radian polar plot to produce petals, got ${JSON.stringify(plot.commands)}`);
+});
+
+test("treats bare directional node offsets as TeX points", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \coordinate (A) at (0,0);
+  \path (A) node[right=5] {pt};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "pt");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(label.x > 0.1 && label.x < 0.7, `expected right=5 to be a small pt offset, got ${label.x}`);
 });

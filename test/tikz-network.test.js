@@ -76,6 +76,16 @@ test("supports tikz-network RGB vertex colors and global vertex style", () => {
   assert.equal(nodeBox(ir, "B").style.fill, "green");
 });
 
+test("keeps tikz-network vertex labels from inflating the vertex shape", () => {
+  const { ir, diagnostics } = convert(String.raw`
+\SetVertexStyle[MinSize=.65cm]
+\Vertex[x=1,label=LongLabel]{D}`);
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(nodeBox(ir, "D").width - parseDimension(".65cm")) < 1e-6);
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "LongLabel"));
+});
+
 test("expands tikz-network Edge commands with direction, labels, bends, and paths", () => {
   const { ir, diagnostics } = convert(String.raw`
 \Vertex{A}
@@ -113,6 +123,18 @@ test("supports tikz-network edge style defaults and self loops", () => {
   assert.ok(paths[0].style.lineWidth > parseDimension("1pt"));
   assert.ok(paths[1].commands.some((command) => command.type === "curveTo"));
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "L"));
+});
+
+test("maps tikz-network loopposition loopshape and loopsize to PGF loop geometry", () => {
+  const expanded = tikzNetworkExtension.preprocess(String.raw`
+\usepackage{tikz-network}
+\begin{tikzpicture}
+\Vertex[x=3,y=1.2,label=D,color=green!20]{D}
+\Edge[loopposition=90,loopsize=.45cm,label=L](D)(D)
+\end{tikzpicture}`, { diagnostics: [], options: {} });
+
+  assert.match(expanded, /edge\s*\[in=45,\s*out=135,\s*loop,\s*distance=\.45cm/);
+  assert.doesNotMatch(expanded, /looseness=/);
 });
 
 test("loads tikz-network Vertices and Edges through an injected CSV resolver", () => {

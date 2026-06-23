@@ -482,6 +482,19 @@ test("renders contour-wrapped math labels as plain math content", () => {
   assert.doesNotMatch(result.svg, /contour/);
 });
 
+test("keeps square root symbols readable in SVG math text fallback", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$a-\sqrt{b/A}$`, style: { fill: "red" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /√\(b\/A\)/);
+  assert.doesNotMatch(svg, /sqrtb\/A/);
+});
+
 test("normalizes common TeX text macros before SVG text rendering", () => {
   const svg = renderSvg({
     items: [

@@ -13,6 +13,8 @@ Do not treat a case as complete because it has zero diagnostics. A case is compl
 
 If a user asks whether a case is fixed, you must answer from actual native-vs-JS evidence, not from tests alone. Tests prove regressions are guarded; they do not prove visual compatibility.
 
+If native/JS comparison grid lines are present, use them. A mismatch that is visible on the grid is a real bug even when `meanAbsDiff` looks small. Do not claim progress from diff metrics alone.
+
 ## Completion Gates
 
 For each case or feature batch:
@@ -25,10 +27,12 @@ For each case or feature batch:
 2. **Compare against native**
    - Generate or inspect MacTeX native PNG when available.
    - Generate JS SVG/PNG.
+   - Generate a native/JS/diff contact sheet with `npm run gallery:sheet -- <ids...>` or an equivalent script.
    - Open or screenshot the native image, JS image, and diff image before making a completion claim.
    - Read the affected row from `outputs/real-gallery/diff/report.json` when it exists.
    - Record visible differences: missing elements, wrong coordinates, font/size drift, line width, dash style, color, layer order, arrow tip, anchor clipping, text placement.
-   - If the diff row is `ok: false`, do not say the case is fixed. Say it is improved, list the remaining differences, and keep working unless the user explicitly stops.
+   - If any obvious geometry, text, arrow, color, layer, or clipping mismatch remains visible on the sheet, do not say the case is fixed even if tests pass.
+   - If the diff row is `ok: false`, do not say the case is fixed unless you inspected the sheet and the only remaining difference is known noise explicitly accepted by the user. Say it is improved, list the remaining differences, and keep working unless the user explicitly stops.
 
 3. **Find the shared root cause**
    - Prefer shared fixes in coordinate transforms, node metrics, shape anchors, arrow tips, style parsing, color handling, text rendering, or extension preprocessing.
@@ -48,7 +52,8 @@ For each case or feature batch:
    - Run `npm test` when practical.
    - Run `npm run gallery:audit` for gallery-wide diagnostics.
    - For visual work, regenerate JS/native/diff artifacts for the affected case when practical.
-   - Open the refreshed native, JS, and diff images. The final response must mention whether the visual diff passed or failed.
+   - Run `npm run gallery:sheet -- <ids...>` after regeneration and inspect the generated sheet.
+   - Open the refreshed native, JS, and diff images. The final response must mention whether the visual comparison was inspected and whether visible differences remain.
 
 7. **Record status**
    - Update the relevant worklog, especially `docs/pgfplots-compatibility.md` when PGFPlots is involved.
@@ -95,6 +100,7 @@ A feature/case can be called done only when:
 - Existing broad tests pass, or any skipped broader check is explicitly explained.
 - The real gallery still renders.
 - The native/JS/diff images have been inspected after the latest change.
-- The affected diff row is within threshold, or the user explicitly accepts the remaining visual difference.
+- The affected contact sheet has no visible mismatch in geometry, text, arrows, colors, line styles, layer order, or clipping.
+- The affected diff row is within threshold, or the user explicitly accepts the remaining visual difference after seeing/being told the visible remainder.
 
 If the last bullet is not true, do not use words like "fixed", "done", "complete", or "delivered" for that case. Use "improved" and continue with the next concrete root cause.

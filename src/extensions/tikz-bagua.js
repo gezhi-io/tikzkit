@@ -227,7 +227,7 @@ function sampleClassicTaijiPoints(scale) {
 
 function sampleModernTaijiPoints(scale) {
   return [
-    ...arcPoints(0, -0.5, 0.5, -90, 90, scale),
+    ...arcPoints(0, -0.5, 0.5, 270, 90, scale),
     ...arcPoints(0, 0.5, 0.5, -90, 90, scale).slice(1),
     ...arcPoints(0, 0, 1, 90, -90, scale).slice(1)
   ];

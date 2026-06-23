@@ -13,7 +13,7 @@ const ROW_SEP = {
 const COLUMN_SEP = {
   huge: "+4.8em",
   large: "+3.6em",
-  normal: "+2.4em",
+  normal: "+3.2em",
   scriptsize: "+1.8em",
   small: "+1.2em",
   tiny: "+0.6em"

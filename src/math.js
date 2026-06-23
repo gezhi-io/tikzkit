@@ -61,7 +61,8 @@ function normalizeMathExpression(input) {
     .replace(/\bpi\b/g, "Math.PI")
     .replace(/\^/g, "**")
     .replace(/\bsqrt\s*\(/g, "Math.sqrt(")
-    .replace(/\bsin\s*\(/g, "Math.sin((Math.PI/180)*")
-    .replace(/\bcos\s*\(/g, "Math.cos((Math.PI/180)*")
-    .replace(/\btan\s*\(/g, "Math.tan((Math.PI/180)*");
+    .replace(/\b(sin|cos|tan)\s*\(([^()]*)\s+r\s*\)/g, "Math.$1($2)")
+    .replace(/(?<!\.)\bsin\s*\(/g, "Math.sin((Math.PI/180)*")
+    .replace(/(?<!\.)\bcos\s*\(/g, "Math.cos((Math.PI/180)*")
+    .replace(/(?<!\.)\btan\s*\(/g, "Math.tan((Math.PI/180)*");
 }

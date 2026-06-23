@@ -340,7 +340,7 @@ function feynmanEdgeOptions(rawOptions) {
 
   if (momentum) nodes.push(`node[pos=0.62,${momentumPrime ? "below" : "above"}] {${momentum}}`);
   if (arrowPositions.length) {
-    draw.push("postaction={decorate}", `decoration={markings, ${arrowPositions.map(marking).join(", ")}}`);
+    draw.push(`postaction={decorate,decoration={markings, ${arrowPositions.map(marking).join(", ")}}}`);
   }
   draw.push(`feynman ${subtype}`);
   return {

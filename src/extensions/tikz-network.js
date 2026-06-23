@@ -376,9 +376,12 @@ function renderRegularEdge(from, to, options, edgeStyle, state) {
 }
 
 function renderLoop(vertex, options, edgeStyle, state) {
-  const direction = loopDirection(options.loopposition);
-  const loopOptions = [`loop ${direction}`];
-  if (options.loopsize) loopOptions.push(`looseness=${loopLooseness(options.loopsize)}`);
+  const loopPosition = numericOption(options.loopposition, 0);
+  const loopShape = numericOption(options.loopshape, 90);
+  const inAngle = round(loopPosition - loopShape / 2);
+  const outAngle = round(loopPosition + loopShape / 2);
+  const loopOptions = [`in=${inAngle}`, `out=${outAngle}`, "loop"];
+  if (options.loopsize) loopOptions.push(`distance=${measure(options.loopsize, state.defaultUnit)}`);
   return `\\path[${edgeStyle}] (${vertex}) edge[${joinOptions(loopOptions)}] ${renderEdgeLabel(options, state)} (${vertex});`;
 }
 
@@ -718,27 +721,10 @@ function anchorForPosition(position) {
   return "north";
 }
 
-function loopDirection(rawAngle) {
-  const angle = normalizeAngle(Number(rawAngle ?? 0));
-  if (angle >= 45 && angle < 135) return "above";
-  if (angle >= 135 && angle < 225) return "left";
-  if (angle >= 225 && angle < 315) return "below";
-  return "right";
-}
-
-// Claude: 这是把 tikz-network 的 loopsize（自环的物理尺寸，如 .45cm）粗略地映射成
-// TikZ 的 looseness（曲线松紧系数），公式 numeric*2 再夹到 [0.7, 3] 纯属经验近似，
-// 并不是真正按尺寸还原自环大小。同理 loopposition 只被 loopDirection() 量化成 4 个方向，
-// loopshape 选项则被直接忽略。自环的视觉效果因此只是「形似」，不精确。
-function loopLooseness(value) {
-  const numeric = Number(String(value || "").trim().replace(/[A-Za-z]+$/, ""));
-  if (!Number.isFinite(numeric)) return 1;
-  return Math.max(0.7, Math.min(3, numeric * 2));
-}
-
-function normalizeAngle(angle) {
-  if (!Number.isFinite(angle)) return 0;
-  return ((angle % 360) + 360) % 360;
+function numericOption(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  const numeric = Number(stripOuterBraces(value ?? "").trim());
+  return Number.isFinite(numeric) ? numeric : fallback;
 }
 
 function parseCsv(content) {

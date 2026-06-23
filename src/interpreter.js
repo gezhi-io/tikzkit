@@ -1044,7 +1044,12 @@ function isTruthyTikzOption(value) {
 
 function inlineNodeOptions(options = {}, pathStyle = {}) {
   if (!pathStyle.stroke || pathStyle.stroke === "none" || hasExplicitTextColor(options)) return options;
-  return { text: pathStyle.textFill || pathStyle.stroke, ...options };
+  const inheritedText = pathStyle.textFill || pathStyle.stroke;
+  return {
+    text: inheritedText,
+    "tikzkit inherited path text": inheritedText,
+    ...options
+  };
 }
 
 function hasExplicitTextColor(options = {}) {
@@ -1658,7 +1663,7 @@ function nodeLabels(options = {}, point, size, env, textStyle = {}) {
       x: labelPoint.x,
       y: labelPoint.y,
       text: label.text,
-      style: labelTextStyle(label, env, textStyle)
+      style: labelTextStyle(label, env, textStyle, options)
     });
   }
   return labels;
@@ -1668,20 +1673,26 @@ function optionValueList(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-function labelTextStyle(label, env, fallbackStyle = {}) {
+function labelTextStyle(label, env, fallbackStyle = {}, parentOptions = {}) {
+  const inheritedPathText = parentOptions["tikzkit inherited path text"];
+  const labelOptions = label.options || {};
+  const pathTextOptions = inheritedPathText && !hasExplicitTextColor(labelOptions)
+    ? { text: inheritedPathText }
+    : {};
   const rawLabelOptions = {
     ...inheritedNodeOptions(env),
     "every label": true,
-    ...(label.options || {})
+    ...pathTextOptions,
+    ...labelOptions
   };
-  const { style: rawStyle, semantic, options: labelOptions } = normalizeOptions("node", rawLabelOptions, env);
+  const { style: rawStyle, semantic, options: normalizedLabelOptions } = normalizeOptions("node", rawLabelOptions, env);
   const style = scaleCanvasStyle(rawStyle, env);
   return {
     ...style,
     fill: style.textFill || semantic.text || "black",
-    fontScale: roundNumber(env.canvasScale * nodeFontScale(labelOptions, env)),
-    fontSizeBaseScale: roundNumber(env.canvasScale * nodeOptionScale(labelOptions, env)),
-    fontFamily: resolveFontFamily(label.text) || resolveFontFamily(labelOptions.font || env.pictureOptions?.font) || fallbackStyle.fontFamily
+    fontScale: roundNumber(env.canvasScale * nodeFontScale(normalizedLabelOptions, env)),
+    fontSizeBaseScale: roundNumber(env.canvasScale * nodeOptionScale(normalizedLabelOptions, env)),
+    fontFamily: resolveFontFamily(label.text) || resolveFontFamily(normalizedLabelOptions.font || env.pictureOptions?.font) || fallbackStyle.fontFamily
   };
 }
 
@@ -2063,8 +2074,14 @@ function nodeDirection(options = {}) {
 
 function nodeDirectionDistance(value, fallback, env) {
   if (value === true || value === undefined || value === null || value === "") return fallback;
-  const parsed = parseDimension(value, env.variables);
+  const parsed = parseDimension(normalizeNodeDirectionDistance(value), env.variables);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeNodeDirectionDistance(value) {
+  const text = String(value).trim();
+  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)) return `${text}pt`;
+  return text;
 }
 
 function nodeExplicitShift(options = {}, env) {
@@ -2189,9 +2206,10 @@ function buildSelfLoop(point, nodeRef, direction, options, env) {
   const start = node ? nodeAnchorCoordinate(node, out) : roundPoint(point);
   const end = node ? nodeAnchorCoordinate(node, inAngle) : roundPoint(point);
   const looseness = parseLoosenessOption(options.looseness, 8, env);
-  const minDistance = parseLoopMinDistance(options["min distance"], env);
+  const explicitDistance = explicitLoopDistance(options, env);
+  const minDistance = explicitDistance ?? parseLoopMinDistance(options["min distance"], env);
   const chord = Math.hypot(end.x - start.x, end.y - start.y);
-  const distance = Math.max(chord * 0.3915 * looseness, minDistance);
+  const distance = explicitDistance ?? Math.max(chord * 0.3915 * looseness, minDistance);
   const c1 = polarOffset(start, out, distance);
   const c2 = polarOffset(end, inAngle, distance);
   return {
@@ -2200,6 +2218,13 @@ function buildSelfLoop(point, nodeRef, direction, options, env) {
     labelPoint: cubicPointAt(start, c1, c2, end, 0.5),
     commands: [{ type: "curveTo", x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y, x: end.x, y: end.y }]
   };
+}
+
+function explicitLoopDistance(options, env) {
+  const raw = options.distance ?? options["min distance"];
+  if (raw === undefined || raw === null || raw === true || raw === "") return null;
+  const distance = parseDimension(raw, env.variables) * canvasLengthScale(env);
+  return Number.isFinite(distance) && distance >= 0 ? distance : null;
 }
 
 function parseLoopMinDistance(value, env) {
@@ -3905,7 +3930,7 @@ function applyTransformVector(point, transform = identityTransform()) {
 
 export function resolveCoordinate(raw, env, diagnostics = []) {
   let text = substituteTextVariables(String(raw).trim(), env.variables);
-  text = text.replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  text = stripOuterBraces(text);
   if (/^\+\(.+\)$/.test(text)) text = text.slice(1);
   if (text.startsWith("(") && text.endsWith(")")) text = text.slice(1, -1).trim();
   text = stripOuterBraces(text);
@@ -4620,9 +4645,8 @@ function materializeIntersections(raw, env, diagnostics) {
 }
 
 function addDecorationMarkers(item, options, ir) {
-  const decoration = options.decoration;
-  if (!options.postaction || !String(options.postaction).includes("decorate") || !decoration) return;
-  if (!String(decoration).includes("markings")) return;
+  const decoration = markingsDecorationFromOptions(options);
+  if (!decoration) return;
   const mark = String(decoration).match(/mark\s*=\s*at\s+position\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/);
   const flat = flattenPath(item.commands || []);
   if (mark) {
@@ -4639,6 +4663,16 @@ function addDecorationMarkers(item, options, ir) {
   for (let position = start; position <= end + 1e-9; position += step) {
     addArrowMarkerAt(position, between[4], flat, item, ir);
   }
+}
+
+function markingsDecorationFromOptions(options = {}) {
+  const topLevelDecoration = options.decoration === undefined ? "" : String(options.decoration);
+  if (topLevelDecoration.includes("markings")) return topLevelDecoration;
+  const postaction = options.postaction === undefined ? "" : String(options.postaction);
+  if (!postaction.includes("decorate")) return "";
+  const postOptions = parseOptions(postaction);
+  const nestedDecoration = postOptions.decoration === undefined ? "" : String(postOptions.decoration);
+  return nestedDecoration.includes("markings") ? nestedDecoration : "";
 }
 
 function addArrowMarkerAt(position, body, flat, item, ir) {

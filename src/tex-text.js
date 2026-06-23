@@ -485,6 +485,7 @@ function normalizeMathFallbackAccents(tex) {
     text = replaceCommand(text, "tilde", 1, (args) => `${mathFallbackText(args[0])}̃`);
     text = replaceCommand(text, "vec", 1, (args) => `${mathFallbackText(args[0])}⃗`);
     text = replaceCommand(text, "overrightarrow", 1, (args) => `${mathFallbackText(args[0])}⃗`);
+    text = replaceCommand(text, "sqrt", 1, (args) => `√(${mathFallbackText(args[0])})`);
   } while (text !== previous && /\\(?:widetilde|tilde|vec|overrightarrow)\s*\{/.test(text));
   return text;
 }

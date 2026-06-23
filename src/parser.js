@@ -931,10 +931,11 @@ function splitStatements(body) {
   let brace = 0;
   for (let i = 0; i < body.length; i += 1) {
     const char = body[i];
-    if (char === "(") paren += 1;
-    if (char === ")") paren = Math.max(0, paren - 1);
-    if (char === "[") bracket += 1;
-    if (char === "]") bracket = Math.max(0, bracket - 1);
+    const insideBrace = brace > 0;
+    if (!insideBrace && char === "(") paren += 1;
+    if (!insideBrace && char === ")") paren = Math.max(0, paren - 1);
+    if (!insideBrace && char === "[") bracket += 1;
+    if (!insideBrace && char === "]") bracket = Math.max(0, bracket - 1);
     if (char === "{") brace += 1;
     if (char === "}") brace = Math.max(0, brace - 1);
     current += char;

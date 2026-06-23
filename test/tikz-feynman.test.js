@@ -54,3 +54,26 @@ test("expands feynman environment vertex commands and diagram star edges", () =>
   assert.ok(result.ir.items.some((item) => item.type === "path" && item.subtype === "feynman-majorana"));
   assert.ok(result.ir.items.some((item) => item.type === "path" && item.subtype === "feynman-ghost"));
 });
+
+test("keeps tikz-feynman photon lines wavy when momentum markings are present", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage[compat=1.1.0]{tikz-feynman}
+\begin{document}
+\begin{tikzpicture}
+\begin{feynman}
+  \vertex [dot] (a) at (0,0) {};
+  \vertex [dot] (b) at (2,0) {};
+  \diagram* {
+    (a) -- [photon, edge label=\(\gamma\), momentum'=\(k\)] (b);
+  };
+\end{feynman}
+\end{tikzpicture}
+\end{document}`);
+  const photon = result.ir.items.find((item) => item.type === "path" && item.subtype === "feynman-boson");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(photon, "expected photon path");
+  assert.ok(photon.commands.length > 8, `expected photon to keep snake decoration, got ${photon.commands.length} commands`);
+  assert.ok(result.ir.items.some((item) => item.type === "marker" && item.subtype === "feynman-momentum"), "expected momentum marking on photon");
+});

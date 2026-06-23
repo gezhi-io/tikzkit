@@ -198,7 +198,7 @@ function feynhandPropagOptions(rawOptions, rawEdgeOptions) {
   if (labelPrime) nodes.push(`node[midway,below] {${labelPrime}}`);
   if (momentum) nodes.push(`node[pos=0.62,below] {${momentum}}`);
   if (addArrow || reverseArrow || momentum) {
-    draw.push(`postaction={decorate}`, `decoration={markings, mark=at position 0.5 with {\\arrow{stealth} feynhand momentum${reverseArrow ? " reversed" : ""}}}`);
+    draw.push(`postaction={decorate,decoration={markings, mark=at position 0.5 with {\\arrow{stealth} feynhand momentum${reverseArrow ? " reversed" : ""}}}}`);
   }
 
   draw.push(`feynhand ${subtype}`);
