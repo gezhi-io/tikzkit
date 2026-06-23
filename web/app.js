@@ -40,7 +40,7 @@ preview.addEventListener("click", handlePreviewClick);
 
 setWorkspaceView("results");
 renderEditor();
-loadCorpusOptions();
+loadCorpusOptions().then(() => loadSelectedGallerySource());
 loadGalleryReports();
 renderTikzBlocks(document);
 
@@ -82,38 +82,34 @@ async function loadCorpusOptions() {
   try {
     const payload = await fetchJson("/api/corpora");
     const corpora = payload?.corpora || [];
+    gallerySourceSelect.replaceChildren();
     for (const corpus of corpora) {
       const option = document.createElement("option");
       option.value = corpus.id;
       option.disabled = !corpus.available;
-      option.textContent = `${corpus.label} (${corpus.available ? corpus.expectedCount : "missing"})`;
+      option.textContent = `${corpus.label} (${corpus.available ? `~${corpus.expectedCount}` : "missing"})`;
       gallerySourceSelect.append(option);
     }
-    gallerySourceStatus.textContent = `core · ${REAL_GALLERY_CASES.length} cases`;
+    gallerySourceStatus.textContent = "core · loading merged gallery";
   } catch (error) {
     gallerySourceStatus.textContent = `corpus list failed: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
 async function loadSelectedGallerySource() {
-  const selected = gallerySourceSelect.value || "core";
   gallerySourceSelect.disabled = true;
-  gallerySourceStatus.textContent = selected === "core" ? "loading core" : `loading ${selected}`;
+  gallerySourceStatus.textContent = "loading merged core";
   try {
-    if (selected === "core") {
-      setActiveGallerySource("core", REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY, "core gallery");
-      return;
-    }
-    const payload = await fetchJson(`/api/corpora/${encodeURIComponent(selected)}`);
+    const payload = await fetchJson("/api/corpora/core");
     if (!payload?.available) {
-      gallerySourceStatus.textContent = `${selected} corpus missing`;
+      setActiveGallerySource("core", REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY, "core gallery fallback");
       return;
     }
     setActiveGallerySource(
-      payload.id,
+      "core",
       payload.cases || [],
-      { origins: [payload.origin], caseCount: payload.cases?.length || 0 },
-      payload.label
+      payload.summary || { origins: [payload.origin], caseCount: payload.cases?.length || 0 },
+      "core gallery"
     );
   } catch (error) {
     gallerySourceStatus.textContent = `load failed: ${error instanceof Error ? error.message : String(error)}`;
@@ -126,10 +122,17 @@ function setActiveGallerySource(id, cases, summary, label) {
   activeCorpusId = id;
   activeCases = cases;
   activeSummary = summary;
-  activeSample = id === "core" ? createSampleGallery() : createGalleryMarkdown(activeCases, activeSummary);
+  activeSample = createGalleryMarkdown(activeCases, activeSummary);
   input.value = activeSample;
-  gallerySourceStatus.textContent = `${label} · ${activeCases.length} cases`;
+  gallerySourceStatus.textContent = `${label} · ${formatMergedCaseCount(activeCases.length, activeSummary)}`;
   renderEditor();
+}
+
+function formatMergedCaseCount(count, summary = {}) {
+  const rawCount = Number(summary.rawCaseCount || count);
+  const duplicatesRemoved = Number(summary.duplicatesRemoved || 0);
+  if (duplicatesRemoved > 0) return `${count} cases · ${rawCount} raw · ${duplicatesRemoved} duplicates removed`;
+  return `${count} cases`;
 }
 
 function renderPart(part) {

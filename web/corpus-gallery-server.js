@@ -33,8 +33,9 @@ import {
   hasStructuralAnalysisCorpus,
   loadStructuralAnalysisCases
 } from "../scripts/structural-analysis-real-cases.js";
+import { REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY } from "./real-gallery-data.js";
 
-const CORPORA = [
+const SOURCE_CORPORA = [
   {
     id: "janosh",
     label: "janosh/diagrams",
@@ -88,19 +89,24 @@ const CORPORA = [
 ];
 
 export function listWebCorpora() {
-  return CORPORA.map(({ id, label, origin, root, expectedCount, repositoryUrl, hasCorpus }) => ({
-    id,
-    label,
-    origin,
-    root,
-    expectedCount,
-    repositoryUrl,
-    available: hasCorpus()
-  }));
+  return [
+    {
+      id: "core",
+      label: "Core gallery",
+      origin: "merged core gallery",
+      root: "web/real-gallery-data.js + work/* corpora",
+      expectedCount: expectedMergedCoreCount(),
+      repositoryUrl: "",
+      available: true,
+      merged: true,
+      dedupe: "source"
+    }
+  ];
 }
 
 export async function loadWebCorpus(id) {
-  const corpus = CORPORA.find((item) => item.id === id);
+  if (id === "core") return loadMergedCoreGallery();
+  const corpus = SOURCE_CORPORA.find((item) => item.id === id);
   if (!corpus) return null;
   if (!corpus.hasCorpus()) {
     return {
@@ -125,4 +131,89 @@ export async function loadWebCorpus(id) {
     available: true,
     cases
   };
+}
+
+export function normalizedGallerySourceKey(source = "") {
+  return String(source)
+    .replace(/\r\n?/g, "\n")
+    .replace(/%[^\n]*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function expectedMergedCoreCount() {
+  return (
+    REAL_GALLERY_CASES.length +
+    SOURCE_CORPORA.reduce((sum, corpus) => sum + (corpus.hasCorpus() ? corpus.expectedCount : 0), 0)
+  );
+}
+
+async function loadMergedCoreGallery() {
+  const sources = [
+    {
+      id: "core-static",
+      label: "Generated core gallery",
+      origin: "core gallery",
+      available: true,
+      caseCount: REAL_GALLERY_CASES.length
+    }
+  ];
+  const rawCases = [...REAL_GALLERY_CASES];
+
+  for (const corpus of SOURCE_CORPORA) {
+    if (!corpus.hasCorpus()) {
+      sources.push({
+        id: corpus.id,
+        label: corpus.label,
+        origin: corpus.origin,
+        available: false,
+        caseCount: 0
+      });
+      continue;
+    }
+    const cases = await corpus.loadCases();
+    sources.push({
+      id: corpus.id,
+      label: corpus.label,
+      origin: corpus.origin,
+      available: true,
+      caseCount: cases.length
+    });
+    rawCases.push(...cases);
+  }
+
+  const cases = dedupeGalleryCases(rawCases);
+  const origins = [...new Set(cases.map((item) => item.origin))];
+  return {
+    id: "core",
+    label: "Core gallery",
+    origin: "merged core gallery",
+    root: "web/real-gallery-data.js + work/* corpora",
+    expectedCount: expectedMergedCoreCount(),
+    repositoryUrl: "",
+    available: true,
+    merged: true,
+    dedupe: "source",
+    summary: {
+      ...REAL_GALLERY_SUMMARY,
+      caseCount: cases.length,
+      rawCaseCount: rawCases.length,
+      duplicatesRemoved: rawCases.length - cases.length,
+      origins,
+      sources
+    },
+    cases
+  };
+}
+
+function dedupeGalleryCases(cases) {
+  const seen = new Set();
+  const unique = [];
+  for (const item of cases) {
+    const key = normalizedGallerySourceKey(item.source);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+  return unique;
 }

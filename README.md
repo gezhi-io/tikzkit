@@ -166,12 +166,10 @@ Generated files go under `outputs/real-gallery/`.
 - `gallery:js`: renders JS SVG/PNG outputs.
 - `gallery:diff`: compares native and JS PNGs.
 
-The local web app at `http://127.0.0.1:5173/` exposes already-added external
-corpora from the top toolbar's `案例集` selector. The core gallery stays as the
-default fast view; Janosh, f0nzie, Walmes, circuitikz, and
-hackl/TikZ-StructuralAnalysis cases are loaded on demand through local
-`/api/corpora` endpoints so the page does not eagerly render every corpus at
-startup.
+The local web app at `http://127.0.0.1:5173/` uses one merged core gallery. It
+combines the generated core cases with Janosh, f0nzie, Walmes, circuitikz, and
+hackl/TikZ-StructuralAnalysis corpora, removes duplicate TikZ sources, and loads
+that unified case list through `/api/corpora/core`.
 
 Additional corpus audits:
 
