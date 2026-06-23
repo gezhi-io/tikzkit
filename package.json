@@ -17,6 +17,7 @@
     "circuitikz:audit": "node scripts/circuitikz-audit.js",
     "f0nzie:audit": "node scripts/f0nzie-audit.js",
     "janosh:audit": "node scripts/janosh-audit.js",
+    "structural-analysis:audit": "node scripts/structural-analysis-audit.js",
     "walmes:audit": "node scripts/walmes-audit.js"
   },
   "dependencies": {

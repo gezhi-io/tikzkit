@@ -26,6 +26,13 @@ import {
   hasCircuitikzCorpus,
   loadCircuitikzCases
 } from "../scripts/circuitikz-real-cases.js";
+import {
+  STRUCTURAL_ANALYSIS_EXPECTED_CASE_COUNT,
+  STRUCTURAL_ANALYSIS_REPOSITORY_URL,
+  STRUCTURAL_ANALYSIS_ROOT,
+  hasStructuralAnalysisCorpus,
+  loadStructuralAnalysisCases
+} from "../scripts/structural-analysis-real-cases.js";
 
 const CORPORA = [
   {
@@ -67,6 +74,16 @@ const CORPORA = [
     repositoryUrl: CIRCUITIKZ_REPOSITORY_URL,
     hasCorpus: hasCircuitikzCorpus,
     loadCases: loadCircuitikzCases
+  },
+  {
+    id: "structural-analysis",
+    label: "hackl/TikZ-StructuralAnalysis",
+    origin: "hackl/TikZ-StructuralAnalysis",
+    root: STRUCTURAL_ANALYSIS_ROOT,
+    expectedCount: STRUCTURAL_ANALYSIS_EXPECTED_CASE_COUNT,
+    repositoryUrl: STRUCTURAL_ANALYSIS_REPOSITORY_URL,
+    hasCorpus: hasStructuralAnalysisCorpus,
+    loadCases: loadStructuralAnalysisCases
   }
 ];
 

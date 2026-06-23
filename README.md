@@ -168,9 +168,10 @@ Generated files go under `outputs/real-gallery/`.
 
 The local web app at `http://127.0.0.1:5173/` exposes already-added external
 corpora from the top toolbar's `案例集` selector. The core gallery stays as the
-default fast view; Janosh, f0nzie, Walmes, and circuitikz cases are loaded on
-demand through local `/api/corpora` endpoints so the page does not eagerly render
-every corpus at startup.
+default fast view; Janosh, f0nzie, Walmes, circuitikz, and
+hackl/TikZ-StructuralAnalysis cases are loaded on demand through local
+`/api/corpora` endpoints so the page does not eagerly render every corpus at
+startup.
 
 Additional corpus audits:
 
@@ -179,6 +180,7 @@ npm run f0nzie:audit
 npm run janosh:audit
 npm run walmes:audit
 npm run circuitikz:audit
+npm run structural-analysis:audit
 ```
 
 ## Extension System
@@ -197,6 +199,7 @@ Current built-in extension:
 
 ```text
 src/extensions/tikz-network.js
+src/extensions/stanli.js
 src/extensions/tikz-3dplot.js
 src/extensions/tikz-bagua.js
 src/extensions/tikz-bpmn.js

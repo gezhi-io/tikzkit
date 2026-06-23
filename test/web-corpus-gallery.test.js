@@ -13,6 +13,7 @@ test("web corpus registry exposes already-added external libraries", () => {
   assert.ok(ids.has("f0nzie"));
   assert.ok(ids.has("walmes"));
   assert.ok(ids.has("circuitikz"));
+  assert.ok(ids.has("structural-analysis"));
   assert.equal(corpora.every((item) => item.expectedCount > 0), true);
 });
 
@@ -31,6 +32,24 @@ test("web corpus loader can turn janosh/diagrams into visible TikZ blocks", asyn
   assert.equal(corpus.cases.length, janosh.expectedCount);
   assert.equal(tikzParts.length, janosh.expectedCount);
   assert.match(markdown, /janosh\/diagrams/);
+  assert.match(markdown, /Case 001/);
+});
+
+test("web corpus loader can turn hackl/TikZ-StructuralAnalysis into visible TikZ blocks", async (t) => {
+  const structural = listWebCorpora().find((item) => item.id === "structural-analysis");
+  if (!structural?.available) {
+    t.skip(`StructuralAnalysis corpus not found at ${structural?.root || "work/TikZ-StructuralAnalysis"}`);
+    return;
+  }
+
+  const corpus = await loadWebCorpus("structural-analysis");
+  const markdown = createGalleryMarkdown(corpus.cases, { origins: [corpus.origin] });
+  const tikzParts = splitTikzCodeBlocks(markdown).filter((part) => part.type === "tikz");
+
+  assert.equal(corpus.available, true);
+  assert.equal(corpus.cases.length, structural.expectedCount);
+  assert.equal(tikzParts.length, structural.expectedCount);
+  assert.match(markdown, /hackl\/TikZ-StructuralAnalysis/);
   assert.match(markdown, /Case 001/);
 });
 

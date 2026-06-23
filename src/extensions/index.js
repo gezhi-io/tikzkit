@@ -14,6 +14,7 @@ import { tikzPalatticeExtension } from "./tikz-palattice.js";
 import { tikzQtreeExtension } from "./tikz-qtree.js";
 import { tikzquadsExtension } from "./tikzquads.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
+import { stanliExtension } from "./stanli.js";
 
 export const BUILTIN_EXTENSIONS = [
   tikzNetworkExtension,
@@ -31,7 +32,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzfxgraphExtension,
   tikzPalatticeExtension,
   tikzQtreeExtension,
-  tikzquadsExtension
+  tikzquadsExtension,
+  stanliExtension
 ];
 
 export function applyPreprocessExtensions(source, context = {}) {

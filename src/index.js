@@ -20,6 +20,7 @@ export { tikzPalatticeExtension } from "./extensions/tikz-palattice.js";
 export { tikzQtreeExtension } from "./extensions/tikz-qtree.js";
 export { tikzquadsExtension } from "./extensions/tikzquads.js";
 export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
+export { stanliExtension } from "./extensions/stanli.js";
 
 import { parseTikz } from "./parser.js";
 import { interpretTikz } from "./interpreter.js";
