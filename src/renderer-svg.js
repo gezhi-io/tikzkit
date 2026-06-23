@@ -96,6 +96,7 @@ function renderItem(item, unit, options = {}) {
     );
     else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) rendered = renderRichTextNode(item, normalized, unit);
     else rendered = renderPlainTextNode(item, normalized, unit);
+    rendered = applyTextContour(rendered, normalized.raw || item.text);
     // Claude: 把节点的 rotate 作用到最终文本上（见 interpreter 的 nodeRotation）。
     return wrapNodeRotation(rendered, item, unit);
   }
@@ -1167,6 +1168,23 @@ function wrapNodeRotation(svg, item, unit) {
   const cx = format(item.x * unit);
   const cy = format(-item.y * unit);
   return `<g transform="rotate(${format(-item.rotation)} ${cx} ${cy})">${svg}</g>`;
+}
+
+function applyTextContour(svg, rawText) {
+  const color = readContourColor(rawText);
+  if (!color || !svg.includes("<text")) return svg;
+  const stroke = escapeAttribute(svgPaint(color));
+  return svg.replace(/<text\b(?![^>]*\bstroke=)([^>]*)>/g, `<text stroke="${stroke}" stroke-width="1.4" paint-order="stroke fill" stroke-linejoin="round"$1>`);
+}
+
+function readContourColor(value) {
+  const raw = String(value || "");
+  const match = /\\contour\b/.exec(raw);
+  if (!match) return null;
+  let cursor = skipInlineWhitespace(raw, match.index + match[0].length);
+  const color = readBalancedGroup(raw, cursor);
+  if (!color) return null;
+  return color.content.trim() || null;
 }
 
 function renderPlainTextNode(item, normalized, unit) {

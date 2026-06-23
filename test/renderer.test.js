@@ -482,6 +482,30 @@ test("renders contour-wrapped math labels as plain math content", () => {
   assert.doesNotMatch(result.svg, /contour/);
 });
 
+test("keeps contour outlines on SVG text math fallbacks", () => {
+  const svg = renderSvg(
+    {
+      items: [
+        {
+          type: "textNode",
+          x: 0,
+          y: 0,
+          text: String.raw`\contour{white}{$a+\sqrt{b/A}$}`,
+          style: { fill: "rgb(166 0 0)" }
+        }
+      ],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /stroke="white"/);
+  assert.match(svg, /stroke-width="1\.4"/);
+  assert.match(svg, /paint-order="stroke fill"/);
+  assert.match(svg, /√\(b\/A\)/);
+  assert.doesNotMatch(svg, /contour/);
+});
+
 test("keeps square root symbols readable in SVG math text fallback", () => {
   const svg = renderSvg(
     {
