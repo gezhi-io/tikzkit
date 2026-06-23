@@ -17,6 +17,7 @@
     "gallery:diff": "python3 scripts/gallery-diff.py",
     "gallery:sheet": "python3 scripts/gallery-visual-sheet.py",
     "corpus:render": "node scripts/corpus-render.js",
+    "corpus:sheet": "python3 scripts/corpus-visual-sheet.py",
     "circuitikz:audit": "node scripts/circuitikz-audit.js",
     "f0nzie:audit": "node scripts/f0nzie-audit.js",
     "janosh:audit": "node scripts/janosh-audit.js",

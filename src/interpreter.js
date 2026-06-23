@@ -42,6 +42,8 @@ export function interpretTikz(ast, options = {}) {
       coordinates: ir.coordinates,
       nodes: {},
       styles,
+      randomLists: { ...(picture.randomLists || {}) },
+      randomListCounters: {},
       namedPaths: {},
       chains: initialChains(pictureOptions),
       activeChain: initialActiveChain(pictureOptions),
@@ -92,6 +94,31 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   }
   if (statement.type === "pgfmathtruncatemacro") {
     env.variables[statement.name] = Math.trunc(evaluateMath(statement.expression, env.variables));
+    return;
+  }
+  if (statement.type === "pgfmathdeclarerandomlist") {
+    env.randomLists ||= {};
+    env.randomListCounters ||= {};
+    env.randomLists[statement.name] = statement.values || [];
+    env.randomListCounters[statement.name] = 0;
+    return;
+  }
+  if (statement.type === "pgfmathrandomitem") {
+    env.randomLists ||= {};
+    env.randomListCounters ||= {};
+    const listName = resolveDynamicName(statement.listName, env);
+    const values = env.randomLists[listName] || [];
+    if (!values.length) {
+      diagnostics.push({
+        severity: "warning",
+        message: `Unknown PGF random list ${listName}`
+      });
+      env.variables[statement.name] = "";
+      return;
+    }
+    const index = env.randomListCounters[listName] || 0;
+    env.variables[statement.name] = values[index % values.length];
+    env.randomListCounters[listName] = index + 1;
     return;
   }
   if (statement.type === "pgftransformcm") {

@@ -165,6 +165,26 @@ test("preserves ball shading on path circle and ellipse shapes", () => {
   assert.equal(ellipse.style.fill, "black");
 });
 
+test("interprets PGF random list items and shade ball color paths", () => {
+  const source = String.raw`
+\pgfmathdeclarerandomlist{colors}{{red!80}{teal}}
+\begin{tikzpicture}
+  \pgfmathrandomitem{\randColor}{colors}
+  \shade[ball color=\randColor] (0,0) circle(0.3);
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const { ir, diagnostics } = interpretTikz(parsed.ast);
+  const circle = ir.items.find((item) => item.type === "path" && item.shape === "circle");
+
+  assert.deepEqual([...parsed.diagnostics, ...diagnostics], []);
+  assert.ok(circle);
+  assert.equal(circle.style.stroke, "none");
+  assert.equal(circle.style.shading, "ball");
+  assert.equal(circle.style.ballColor, "rgb(255 51 51)");
+  assert.equal(circle.style.fill, "rgb(255 51 51)");
+});
+
 test("does not promote circle operation fill option to draw path fill", () => {
   const source = String.raw`
 \begin{tikzpicture}

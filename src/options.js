@@ -199,6 +199,15 @@ export function normalizeOptions(command, rawOptions, env) {
       style.fill = value === true ? "black" : normalizeColor(String(value));
       continue;
     }
+    if (key === "shading") {
+      semantic.shading = String(value || "").trim();
+      continue;
+    }
+    if (key === "ball color") {
+      semantic["ball color"] = normalizeColor(String(value));
+      if (!semantic.shading) semantic.shading = "ball";
+      continue;
+    }
     if (key === "top color" || key === "bottom color" || key === "middle color") {
       semantic[key] = normalizeColor(String(value));
       continue;
@@ -560,6 +569,9 @@ function defaultStyleForCommand(command) {
   }
   if (command === "filldraw") {
     return { stroke: "black", fill: "black", lineWidth: TIKZ_LINE_WIDTHS.default };
+  }
+  if (command === "shade") {
+    return { stroke: "none", fill: "black", lineWidth: TIKZ_LINE_WIDTHS.default };
   }
   if (command === "path") {
     return { stroke: "none", fill: "none", lineWidth: TIKZ_LINE_WIDTHS.default };

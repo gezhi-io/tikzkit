@@ -28,6 +28,7 @@ export function parseTikz(source, options = {}) {
   const preprocessed = preprocessTikzSource(source, options);
   const diagnostics = [...preprocessed.diagnostics];
   const libraries = preprocessed.libraries || [];
+  const randomLists = collectPgfMathRandomLists(preprocessed.source);
   const lexed = TikzLexer.tokenize(preprocessed.source);
   for (const error of lexed.errors) {
     diagnostics.push({
@@ -44,6 +45,7 @@ export function parseTikz(source, options = {}) {
       type: "tikzpicture",
       options: parseOptions(picture.optionsRaw),
       styles: globalStyles,
+      randomLists,
       libraries,
       body: picture.body,
       statements
@@ -79,6 +81,8 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\coordinate")) return parseCoordinateStatement(text, diagnostics);
   if (text.startsWith("\\pgfmathsetmacro")) return parsePgfMath(text, diagnostics);
   if (text.startsWith("\\pgfmathtruncatemacro")) return parsePgfMathTruncate(text, diagnostics);
+  if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
+  if (text.startsWith("\\pgfmathrandomitem")) return parsePgfMathRandomItem(text, diagnostics);
   if (text.startsWith("\\pgftransformcm")) return parsePgfTransformCm(text);
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
   if (text.startsWith("\\tikzset")) return parseTikzsetStatement(text, diagnostics);
@@ -105,7 +109,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("{")) return parseBareScope(text, diagnostics);
 
   const command = text.match(/^\\([A-Za-z@]+)/)?.[1];
-  if (["draw", "path", "fill", "filldraw"].includes(command)) {
+  if (["draw", "path", "fill", "filldraw", "shade"].includes(command)) {
     return parsePathCommand(command, text.slice(command.length + 1).trim(), diagnostics);
   }
 
@@ -215,6 +219,87 @@ function parsePgfMathTruncate(text) {
     expression: match[2].trim(),
     raw: text
   };
+}
+
+function parsePgfMathDeclareRandomList(text) {
+  const parsed = parsePgfMathDeclareRandomListAt(text, 0);
+  if (!parsed) return unsupported("pgfmathdeclarerandomlist", text, "Malformed \\pgfmathdeclarerandomlist statement");
+  return {
+    type: "pgfmathdeclarerandomlist",
+    name: parsed.name,
+    values: parsed.values,
+    raw: text
+  };
+}
+
+function parsePgfMathRandomItem(text) {
+  let index = "\\pgfmathrandomitem".length;
+  index = skipWhitespace(text, index);
+  const variable = extractBalanced(text, index, "{", "}");
+  if (!variable) return unsupported("pgfmathrandomitem", text, "Malformed \\pgfmathrandomitem statement");
+  index = skipWhitespace(text, variable.end);
+  const listName = extractBalanced(text, index, "{", "}");
+  if (!listName) return unsupported("pgfmathrandomitem", text, "Malformed \\pgfmathrandomitem statement");
+  return {
+    type: "pgfmathrandomitem",
+    name: variable.content.trim().replace(/^\\/, ""),
+    listName: listName.content.trim(),
+    raw: text
+  };
+}
+
+function collectPgfMathRandomLists(source) {
+  const randomLists = {};
+  let index = 0;
+  while (index < source.length) {
+    const found = source.indexOf("\\pgfmathdeclarerandomlist", index);
+    if (found < 0) break;
+    const parsed = parsePgfMathDeclareRandomListAt(source, found);
+    if (parsed) {
+      randomLists[parsed.name] = parsed.values;
+      index = parsed.end;
+    } else {
+      index = found + "\\pgfmathdeclarerandomlist".length;
+    }
+  }
+  return randomLists;
+}
+
+function parsePgfMathDeclareRandomListAt(source, start) {
+  let index = start + "\\pgfmathdeclarerandomlist".length;
+  index = skipWhitespace(source, index);
+  const name = extractBalanced(source, index, "{", "}");
+  if (!name) return null;
+  index = skipWhitespace(source, name.end);
+  const body = extractBalanced(source, index, "{", "}");
+  if (!body) return null;
+  return {
+    name: name.content.trim(),
+    values: parsePgfMathRandomListValues(body.content),
+    end: body.end
+  };
+}
+
+function parsePgfMathRandomListValues(body) {
+  const values = [];
+  let index = 0;
+  while (index < body.length) {
+    index = skipWhitespace(body, index);
+    if (index >= body.length) break;
+    if (body[index] === "{") {
+      const value = extractBalanced(body, index, "{", "}");
+      if (!value) break;
+      values.push(value.content.trim());
+      index = value.end;
+      continue;
+    }
+    const next = body.indexOf(",", index);
+    const end = next < 0 ? body.length : next;
+    const value = body.slice(index, end).trim();
+    if (value) values.push(value);
+    index = end + 1;
+  }
+  return values;
 }
 
 function parsePgfTransformCm(text) {
@@ -969,6 +1054,8 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\definecolor") ||
     text.startsWith("\\pgfmathsetmacro") ||
     text.startsWith("\\pgfmathtruncatemacro") ||
+    text.startsWith("\\pgfmathdeclarerandomlist") ||
+    text.startsWith("\\pgfmathrandomitem") ||
     text.startsWith("\\pgfplotsset") ||
     text.startsWith("\\pgfplotstableread") ||
     text.startsWith("\\pgfplotstabletypeset") ||
