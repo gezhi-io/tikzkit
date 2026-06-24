@@ -84,6 +84,17 @@ test("web CSS does not restyle nested KaTeX SVG accents", () => {
   assert.doesNotMatch(css, /\.svg-surface\s+svg\s*\{/);
 });
 
+test("web CSS confines oversized SVG renders to their preview surface", () => {
+  const css = readFileSync(new URL("../web/styles.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.svg-surface\s*\{[^}]*overflow:\s*auto/s);
+  assert.match(css, /\.svg-surface\s*\{[^}]*max-width:\s*100%/s);
+  assert.match(css, /\.svg-surface\s*>\s*svg\s*\{[^}]*max-width:\s*100%/s);
+  assert.match(css, /\.case-viewer\s*\{[^}]*min-width:\s*0/s);
+  assert.match(css, /\.case-panel\s*\{[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(css, /\.svg-surface\s+svg\s*\{/);
+});
+
 test("web realtime JS renderer injects the same comparison grid as gallery artifacts", () => {
   const app = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
 

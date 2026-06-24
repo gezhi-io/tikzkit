@@ -234,6 +234,7 @@ textarea {
 .case-viewer {
   display: grid;
   gap: 0;
+  min-width: 0;
 }
 
 .case-toolbar {
@@ -268,6 +269,7 @@ textarea {
 
 .case-panel {
   display: none;
+  min-width: 0;
 }
 
 .case-panel.active {
@@ -303,12 +305,17 @@ textarea {
   align-items: center;
   display: flex;
   justify-content: center;
+  justify-content: safe center;
+  max-width: 100%;
   min-height: 240px;
+  min-width: 0;
+  overflow: auto;
   padding: 22px;
 }
 
 .svg-surface > svg {
   display: block;
+  flex: 0 1 auto;
   height: auto;
   max-height: 460px;
   max-width: 100%;
