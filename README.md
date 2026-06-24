@@ -161,15 +161,19 @@ npm run gallery:diff
 
 Generated files go under `outputs/real-gallery/`.
 
-- `gallery:audit`: renders the configured real cases and reports diagnostics.
-- `gallery:native`: uses local TeX tools to build native PNG references.
-- `gallery:js`: renders JS SVG/PNG outputs.
+- `gallery:audit`: renders the merged core gallery and reports diagnostics.
+- `gallery:native`: uses local TeX tools to build native PNG references for the merged core gallery.
+- `gallery:js`: renders JS SVG/PNG outputs for the merged core gallery.
 - `gallery:diff`: compares native and JS PNGs.
 
 The local web app at `http://127.0.0.1:5173/` uses one merged core gallery. It
 combines the generated core cases with Janosh, f0nzie, Walmes, circuitikz, and
 hackl/TikZ-StructuralAnalysis corpora, removes duplicate TikZ sources, and loads
 that unified case list through `/api/corpora/core`.
+The artifact generators use the same source through `scripts/gallery-case-source.js`.
+If `outputs/real-gallery/native/report.json` or `outputs/real-gallery/js/report.json`
+has fewer rows than the `/api/corpora/core` case count, rerun `gallery:native` and
+`gallery:js`; the reports were generated from an older, smaller case set.
 
 Additional corpus audits:
 

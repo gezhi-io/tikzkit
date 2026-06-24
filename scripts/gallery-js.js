@@ -2,15 +2,16 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { tikzToSvg } from "../src/index.js";
-import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
+import { loadRealGalleryCases } from "./gallery-case-source.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
 import { measureIrGridUnits } from "./gallery-unit-metrics.js";
 
 const outputRoot = "outputs/real-gallery/js";
 await mkdir(outputRoot, { recursive: true });
+const gallery = await loadRealGalleryCases();
 
 const rows = [];
-for (const [index, item] of REAL_GALLERY_CASES.entries()) {
+for (const [index, item] of gallery.cases.entries()) {
   const id = String(index + 1).padStart(3, "0");
   const source = withGalleryDebugGrid(item.source);
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });
@@ -31,4 +32,4 @@ for (const [index, item] of REAL_GALLERY_CASES.entries()) {
 }
 
 await writeFile(path.join(outputRoot, "report.json"), `${JSON.stringify(rows, null, 2)}\n`, "utf8");
-process.stdout.write(`gallery:js wrote ${rows.filter((row) => row.ok).length}/${rows.length} JS PNGs\n`);
+process.stdout.write(`gallery:js ${gallery.id} wrote ${rows.filter((row) => row.ok).length}/${rows.length} JS PNGs\n`);

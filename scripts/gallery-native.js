@@ -1,15 +1,16 @@
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
+import { loadRealGalleryCases } from "./gallery-case-source.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
 
 const outputRoot = "outputs/real-gallery/native";
 await mkdir(outputRoot, { recursive: true });
 const fallbackAssets = await ensureFallbackAssets(path.join(outputRoot, "_assets"));
+const gallery = await loadRealGalleryCases();
 
 const rows = [];
-for (const [index, item] of REAL_GALLERY_CASES.entries()) {
+for (const [index, item] of gallery.cases.entries()) {
   const id = String(index + 1).padStart(3, "0");
   const workDir = path.join(outputRoot, id);
   await mkdir(workDir, { recursive: true });
@@ -45,7 +46,9 @@ for (const [index, item] of REAL_GALLERY_CASES.entries()) {
 }
 
 await writeFile(path.join(outputRoot, "report.json"), `${JSON.stringify(rows, null, 2)}\n`, "utf8");
-process.stdout.write(`gallery:native wrote ${rows.filter((row) => row.ok).length}/${rows.length} native PNGs\n`);
+process.stdout.write(
+  `gallery:native ${gallery.id} wrote ${rows.filter((row) => row.ok).length}/${rows.length} native PNGs\n`
+);
 
 function toStandaloneTex(source) {
   if (/\\documentclass/.test(source)) return source;

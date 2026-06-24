@@ -5,6 +5,7 @@ import { splitTikzCodeBlocks } from "../src/index.js";
 import { createGalleryMarkdown } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
 import { listWebCorpora, loadWebCorpus, normalizedGallerySourceKey } from "../web/corpus-gallery-server.js";
+import { loadRealGalleryCases } from "../scripts/gallery-case-source.js";
 
 test("web corpus registry exposes one merged core gallery", () => {
   const corpora = listWebCorpora();
@@ -85,4 +86,24 @@ test("web app defaults to the merged core gallery API", () => {
   assert.match(app, /fetchJson\("\/api\/corpora"\)/);
   assert.match(app, /fetchJson\("\/api\/corpora\/core"\)/);
   assert.doesNotMatch(app, /fetchJson\(`\/api\/corpora\/\$\{encodeURIComponent\(selected\)\}`\)/);
+});
+
+test("local gallery artifact scripts use the same merged core cases as the web app", async () => {
+  const gallery = await loadRealGalleryCases();
+  const nativeScript = readFileSync(new URL("../scripts/gallery-native.js", import.meta.url), "utf8");
+  const jsScript = readFileSync(new URL("../scripts/gallery-js.js", import.meta.url), "utf8");
+  const auditScript = readFileSync(new URL("../scripts/gallery-audit.js", import.meta.url), "utf8");
+
+  assert.equal(gallery.id, "core");
+  assert.equal(gallery.available, true);
+  assert.ok(gallery.cases.length > REAL_GALLERY_CASES.length);
+  assert.deepEqual(
+    gallery.cases.map((item) => item.source),
+    (await loadWebCorpus("core")).cases.map((item) => item.source)
+  );
+
+  for (const script of [nativeScript, jsScript, auditScript]) {
+    assert.match(script, /loadRealGalleryCases/);
+    assert.doesNotMatch(script, /REAL_GALLERY_CASES/);
+  }
 });
