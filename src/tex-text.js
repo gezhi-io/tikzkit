@@ -37,7 +37,7 @@ export function normalizeTikzText(value) {
   const rawInput = normalizeTextColorTokenArguments(replaceInlineTikzNodes(stripMinipageWrapper(String(value ?? ""))));
   let text = rawInput.trim();
   const fontFamily = detectTextFontFamily(rawInput);
-  const fontStyle = /\\(?:emph|itshape|slshape)\b/.test(rawInput) ? "italic" : null;
+  const fontStyle = /\\(?:emph|textit|itshape|slshape)\b/.test(rawInput) ? "italic" : null;
   const nestedGraphic = parseNestedTikzGraphic(text);
   if (nestedGraphic) return nestedGraphic;
   const image = parseIncludeGraphics(text);
@@ -73,6 +73,7 @@ export function normalizeTikzText(value) {
   text = replaceCommand(text, "textsf", 1, (args) => args[0]);
   text = replaceCommand(text, "textrm", 1, (args) => args[0]);
   text = replaceCommand(text, "textbf", 1, (args) => args[0]);
+  text = replaceCommand(text, "textit", 1, (args) => args[0]);
   text = replaceCommand(text, "emph", 1, (args) => args[0]);
   text = replaceCommand(text, "bm", 1, (args) => args[0]);
   text = replaceCommand(text, "mathbf", 1, (args) => args[0]);
@@ -396,7 +397,7 @@ export function mathFallbackText(tex) {
     .replace(/\\tilde\s*\{([^{}]*)\}/g, (_match, value) => `${value}̃`)
     .replace(/\\tilde\s*([A-Za-z])/g, (_match, value) => `${value}̃`)
     .replace(/\{\s*\\(?:bf|bfseries)\b\s*([^{}]*)\}/g, "$1")
-    .replace(/\\(?:bm|mathbf|boldsymbol|textbf|mathrm|textrm|texttt|emph|vec|overline|underline|mathlarger)\s*\{([^{}]*)\}/g, "$1")
+    .replace(/\\(?:bm|mathbf|boldsymbol|textbf|textit|mathrm|textrm|texttt|emph|vec|overline|underline|mathlarger)\s*\{([^{}]*)\}/g, "$1")
     .replace(/\\boldsymbol\s*(\\[A-Za-z]+)/g, "$1")
     .replace(/\\(?:bf|bfseries|tt|ttfamily|rm|rmfamily|sf|sffamily|normalfont|large|Large|LARGE|Huge|huge|scriptsize|footnotesize|tiny)\b/g, "")
     .replace(/\\times/g, "×")
@@ -417,6 +418,8 @@ export function mathFallbackText(tex) {
     .replace(/\\diamondsuit/g, "♦")
     .replace(/\\heartsuit/g, "♥")
     .replace(/\\spadesuit/g, "♠")
+    .replace(/\\blacktriangleright/g, "▶")
+    .replace(/\\blacktriangleleft/g, "◀")
     .replace(/\\sum\s*(?:\\limits\s*)?_\s*\{([^{}]*)\}\s*\^\s*\{([^{}]*)\}/g, (_match, subscript, superscript) =>
       compactLimitOperator("∑", subscript, superscript)
     )

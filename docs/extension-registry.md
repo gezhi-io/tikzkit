@@ -26,7 +26,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | kind | name | cases | local source | reviewed | next note |
 | --- | --- | ---: | --- | --- | --- |
 | package | circuitikz | 486 | found | no | Needs package compatibility pass |
-| tikzlibrary | calendar | 311 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | tikzmark | 311 | found | no | Needs tikzlibrary compatibility pass |
 | package | verbatim | 50 | found | no | Needs package compatibility pass |
 | package | preview | 33 | found | no | Needs package compatibility pass |
@@ -61,7 +60,8 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | package | pgfplotstable | 314 | found | no | \pgfplotstableread table data usable by addplot table |
 | tikzlibrary | spy | 313 | found | yes | spy using outlines; \spy on ... in node ... at ...; connect spies; clipped magnified simple paths |
 | pgfplotslibrary | groupplots | 312 | found | no | groupplot/nextgroupplot/group size/horizontal sep/vertical sep subset |
-| package | pgfcalendar | 311 | found | no | Package/library declaration compatibility; calendar rendering still minimal |
+| package | pgfcalendar | 311 | found | yes | Package compatibility plus TikZ calendar date expansion via calendar library subset |
+| tikzlibrary | calendar | 311 | found | yes | \calendar dates, week list sunday, month label, day anchors, equals/between/weekend if styles |
 | package | pgfgantt | 311 | found | no | ganttchart/gantttitle/ganttbar/ganttgroup/ganttmilestone subset |
 | tikzlibrary | plotmarks | 311 | found | yes | mark=x; mark=+; mark=*; mark=o; square/triangle subset; mark size |
 | package | amsmath | 38 | found | no | Many formulas are delegated to KaTeX; TeX macro package itself is not interpreted |

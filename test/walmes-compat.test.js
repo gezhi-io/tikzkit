@@ -134,3 +134,19 @@ test("expands Walmes delimited def macros with parenthesized arguments", () => {
   assert.deepEqual(diagnostics, []);
   assert.equal(ir.items.filter((item) => item.shape === "ellipse").length, 2);
 });
+
+test("expands TikZ calendar days into visible date nodes and anchors", () => {
+  const { diagnostics, ir } = convert(String.raw`
+\begin{tikzpicture}[
+  every calendar/.style={week list sunday,month label above centered,day xshift=1em,day yshift=1em,
+    if={(Sunday) [blue!75]}, if={(Saturday) [black!50]}}
+]
+  \calendar (Feb) [dates=2016-02-01 to 2016-02-last] if (equals=02-29) [orange];
+  \draw (Feb-2016-02-29) -- +(1,0);
+\end{tikzpicture}`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates["Feb-2016-02-29"], "expected leap-day coordinate anchor");
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "29" && item.style?.fill === "orange"));
+  assert.ok(ir.items.some((item) => item.type === "path" && item.commands?.length >= 2));
+});

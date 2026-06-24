@@ -195,6 +195,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     };
     return;
   }
+  if (statement.type === "calendar") {
+    createCalendar(statement, env, ir, diagnostics);
+    return;
+  }
   if (statement.type === "matrix") {
     createMatrix(statement, env, ir, diagnostics);
     return;
@@ -1429,6 +1433,355 @@ function splitAttachedPathSegments(segments = []) {
   return segments.map((segment) => [segment]);
 }
 
+function createCalendar(statement, env, ir, diagnostics = []) {
+  const spec = parseCalendarSpec(statement.raw || "");
+  if (!spec) {
+    diagnostics.push({ severity: "warning", message: "Malformed \\calendar statement" });
+    return;
+  }
+  const origin = spec.at
+    ? resolveCoordinate(spec.at, env, diagnostics)
+    : resolvePositioning(spec.options || {}, env) || applyTransform({ x: 0, y: 0 }, env.transform);
+  createCalendarItems(spec, origin, env, ir, diagnostics);
+}
+
+function createCalendarItems(spec, center, env, ir, diagnostics = []) {
+  const layout = calendarLayout(spec, env);
+  if (!layout) {
+    diagnostics.push({ severity: "warning", message: `Unsupported \\calendar dates ${spec.options?.dates || ""}`.trim() });
+    return;
+  }
+  const start = roundPoint({
+    x: center.x - (layout.columns - 1) * layout.dayX / 2,
+    y: center.y + (layout.rowCount - 1) * layout.dayY / 2
+  });
+
+  if (layout.options["month label above centered"] || layout.options["month label above left"] || layout.options["month label above right"]) {
+    const monthPoint = roundPoint({
+      x: start.x + ((layout.columns - 1) * layout.dayX) / 2 - parseDimension("1.5ex", env.variables),
+      y: start.y + layout.dayY * 1.25
+    });
+    addCalendarNode({
+      point: monthPoint,
+      text: calendarMonthText(layout),
+      options: calendarTextNodeOptions(layout.options, { "every month": true }, env)
+    }, ir, env);
+  }
+
+  for (const date of layout.dates) {
+    const point = roundPoint({
+      x: start.x + date.weekdaySunday * layout.dayX,
+      y: start.y - date.row * layout.dayY
+    });
+    const name = spec.name ? `${resolveDynamicName(spec.name, env)}-${date.iso}` : date.iso;
+    const options = calendarDayOptions(layout, date, env);
+    addCalendarNode({ point, text: calendarDayText(layout, date), options, name }, ir, env);
+  }
+}
+
+function addCalendarNode(node, ir, env) {
+  const text = substituteTextVariables(String(node.text ?? ""), env.variables);
+  const expandedOptions = normalizeOptions("node", {
+    ...inheritedNodeOptions(env),
+    ...resolveDynamicOptions(node.options || {}, env)
+  }, env).options;
+  const size = scaleSize(estimateNodeLayoutSize(text, expandedOptions, env), env.canvasScale);
+  const displayPoint = resolveNodeAnchorPoint(node.point, expandedOptions, text, env, size);
+  if (node.name) {
+    env.nodes[node.name] = {
+      point: displayPoint,
+      width: size.width,
+      height: size.height,
+      layoutWidth: size.width,
+      layoutHeight: size.height,
+      shape: nodeShape(expandedOptions),
+      shapeData: nodeShapeData(expandedOptions)
+    };
+    env.coordinates[node.name] = displayPoint;
+  }
+  addNodeItems({ at: node.point, displayPoint, text, options: expandedOptions, name: node.name || null, size }, ir, env);
+}
+
+function estimateCalendarSize(spec, env) {
+  const layout = calendarLayout(spec, env);
+  if (!layout) return { width: 1, height: 1 };
+  return {
+    width: roundNumber(layout.columns * layout.dayX + 0.35),
+    height: roundNumber(layout.rowCount * layout.dayY + layout.dayY * 1.45)
+  };
+}
+
+function calendarLayout(spec, env) {
+  const options = calendarEffectiveOptions(spec, env);
+  const dates = calendarDateRange(options.dates || spec.options?.dates);
+  if (!dates.length) return null;
+  const dayX = parseFiniteDimension(options["day xshift"], env, parseDimension("3.5ex", env.variables));
+  const dayY = parseFiniteDimension(options["day yshift"], env, parseDimension("3ex", env.variables));
+  const first = dates[0];
+  const positioned = dates.map((date) => {
+    const absolute = calendarOrdinal(date.date);
+    const firstAbsolute = calendarOrdinal(first.date);
+    const weekdaySunday = date.date.getUTCDay();
+    const row = Math.floor((first.date.getUTCDay() + (absolute - firstAbsolute)) / 7);
+    return { ...date, weekdaySunday, row };
+  });
+  return {
+    options,
+    conditions: [...calendarConditionsFromOptions(options), ...(spec.conditions || [])],
+    dates: positioned,
+    columns: 7,
+    dayX,
+    dayY,
+    rowCount: Math.max(...positioned.map((date) => date.row)) + 1
+  };
+}
+
+function calendarEffectiveOptions(spec, env) {
+  const normalized = normalizeOptions("node", { "every calendar": true, ...(spec.options || {}) }, env).options;
+  return normalized;
+}
+
+function calendarTextNodeOptions(calendarOptions, extraOptions = {}, env) {
+  const options = { ...calendarOptions, ...extraOptions };
+  for (const key of calendarOnlyOptionKeys()) delete options[key];
+  return options;
+}
+
+function calendarDayOptions(layout, date, env) {
+  let options = calendarTextNodeOptions(layout.options, { "every day": true }, env);
+  for (const condition of layout.conditions) {
+    if (calendarConditionMatches(condition.condition, date)) {
+      options = { ...options, ...(condition.options || {}) };
+    }
+  }
+  return options;
+}
+
+function calendarOnlyOptionKeys() {
+  return [
+    "dates",
+    "if",
+    "day xshift",
+    "day yshift",
+    "month xshift",
+    "month yshift",
+    "month text",
+    "month label above centered",
+    "month label above left",
+    "month label above right",
+    "month label left vertical",
+    "month label right vertical",
+    "week list",
+    "week list sunday",
+    "month list",
+    "tikz@lib@cal@width",
+    "execute before day scope",
+    "execute at begin day scope",
+    "execute after day scope"
+  ];
+}
+
+function calendarConditionsFromOptions(options = {}) {
+  if (options.if === undefined) return [];
+  return optionValueList(options.if).map(parseCalendarIfValue).filter(Boolean);
+}
+
+function parseCalendarIfValue(value) {
+  const text = String(value || "").trim();
+  const condition = extractBalanced(text, 0, "(", ")");
+  if (!condition) return null;
+  let index = calendarSkipWhitespace(text, condition.end);
+  let options = {};
+  if (text[index] === "[") {
+    const parsedOptions = extractBalanced(text, index, "[", "]");
+    if (parsedOptions) options = parseOptions(parsedOptions.content);
+  }
+  return { condition: condition.content.trim(), options };
+}
+
+function calendarConditionMatches(condition, date) {
+  const text = stripOuterBraces(String(condition || "").trim());
+  const lower = text.toLowerCase();
+  if (lower === "sunday" || lower === "monday" || lower === "tuesday" || lower === "wednesday" || lower === "thursday" || lower === "friday" || lower === "saturday") {
+    return lower === date.weekdayName.toLowerCase();
+  }
+  const equals = text.match(/^equals\s*=\s*(.+)$/i);
+  if (equals) return calendarDateSelectorMatches(equals[1], date);
+  const between = text.match(/^between\s*=\s*(.+?)\s+and\s+(.+)$/i);
+  if (between) {
+    const current = calendarComparableDate(date.iso);
+    const start = calendarComparableSelector(between[1], date.iso.slice(0, 4));
+    const end = calendarComparableSelector(between[2], date.iso.slice(0, 4));
+    return start !== null && end !== null && current >= start && current <= end;
+  }
+  const dayOfMonth = text.match(/^day of month\s*=\s*(\d+)$/i);
+  if (dayOfMonth) return date.day === Number(dayOfMonth[1]);
+  return false;
+}
+
+function calendarDateSelectorMatches(selector, date) {
+  const wanted = String(selector || "").trim();
+  return wanted === date.iso || wanted === date.monthDay || `${date.year}-${wanted}` === date.iso;
+}
+
+function calendarComparableSelector(selector, fallbackYear) {
+  const text = String(selector || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return calendarComparableDate(text);
+  if (/^\d{2}-\d{2}$/.test(text)) return calendarComparableDate(`${fallbackYear}-${text}`);
+  return null;
+}
+
+function calendarComparableDate(iso) {
+  return Number(String(iso).replace(/-/g, ""));
+}
+
+function calendarDayText(layout, date) {
+  const template = layout.options["day text"];
+  if (!template || template === true) return String(date.day);
+  return calendarTemplateText(template, date);
+}
+
+function calendarMonthText(layout) {
+  const first = layout.dates[0];
+  const template = layout.options["month text"] || "\\%mt";
+  return calendarTemplateText(template, first);
+}
+
+function calendarTemplateText(template, date) {
+  let text = stripOuterBraces(String(template || ""));
+  text = text.replace(/\\textit\{([^{}]*)\}/g, "$1");
+  text = text.replace(/\\%mt/g, calendarMonthAbbrev(date.month));
+  text = text.replace(/\\%m0/g, String(date.month).padStart(2, "0"));
+  text = text.replace(/\\%m-/g, String(date.month));
+  text = text.replace(/\\%d0/g, String(date.day).padStart(2, "0"));
+  text = text.replace(/\\%d-/g, String(date.day));
+  text = text.replace(/\\%y0/g, String(date.year));
+  return text.trim() || String(date.day);
+}
+
+function calendarMonthAbbrev(month) {
+  return ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][month - 1] || String(month);
+}
+
+function calendarDateRange(rawDates) {
+  const text = String(rawDates || "").trim();
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})\s+to\s+(\d{4})-(\d{2})-(\d{2}|last)$/i);
+  if (!match) return [];
+  const startYear = Number(match[1]);
+  const startMonth = Number(match[2]);
+  const startDay = Number(match[3]);
+  const endYear = Number(match[4]);
+  const endMonth = Number(match[5]);
+  const endDay = match[6].toLowerCase() === "last" ? daysInMonth(endYear, endMonth) : Number(match[6]);
+  const dates = [];
+  let current = Date.UTC(startYear, startMonth - 1, startDay);
+  const end = Date.UTC(endYear, endMonth - 1, endDay);
+  while (current <= end) {
+    const date = new Date(current);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    const monthText = String(month).padStart(2, "0");
+    const dayText = String(day).padStart(2, "0");
+    dates.push({
+      date,
+      year,
+      month,
+      day,
+      iso: `${year}-${monthText}-${dayText}`,
+      monthDay: `${monthText}-${dayText}`,
+      weekdayName: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][date.getUTCDay()]
+    });
+    current += 24 * 60 * 60 * 1000;
+  }
+  return dates;
+}
+
+function calendarOrdinal(date) {
+  return Math.floor(date.getTime() / (24 * 60 * 60 * 1000));
+}
+
+function daysInMonth(year, month) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function parseCalendarSpec(raw) {
+  const text = String(raw || "").trim().replace(/;\s*$/, "");
+  if (!text.startsWith("\\calendar")) return null;
+  let index = "\\calendar".length;
+  let name = null;
+  let at = null;
+  let options = {};
+  const conditions = [];
+  while (index < text.length) {
+    index = calendarSkipWhitespace(text, index);
+    if (text[index] === "(") {
+      const parsedName = extractBalanced(text, index, "(", ")");
+      if (!parsedName) return null;
+      name = parsedName.content.trim();
+      index = parsedName.end;
+      continue;
+    }
+    if (text[index] === "[") {
+      const parsedOptions = extractBalanced(text, index, "[", "]");
+      if (!parsedOptions) return null;
+      options = { ...options, ...parseOptions(parsedOptions.content) };
+      index = parsedOptions.end;
+      continue;
+    }
+    if (calendarStartsWord(text, index, "at")) {
+      index = calendarSkipWhitespace(text, index + 2);
+      if (text[index] !== "(") return null;
+      const parsedAt = extractBalanced(text, index, "(", ")");
+      if (!parsedAt) return null;
+      at = `(${parsedAt.content.trim()})`;
+      index = parsedAt.end;
+      continue;
+    }
+    if (calendarStartsWord(text, index, "if")) {
+      const parsedIf = parseCalendarStatementIf(text, index);
+      if (!parsedIf) return null;
+      conditions.push(parsedIf.condition);
+      index = parsedIf.end;
+      continue;
+    }
+    break;
+  }
+  return { name, at, options, conditions, raw: text };
+}
+
+function parseCalendarStatementIf(text, start) {
+  let index = calendarSkipWhitespace(text, start + 2);
+  if (text[index] !== "(") return null;
+  const condition = extractBalanced(text, index, "(", ")");
+  if (!condition) return null;
+  index = calendarSkipWhitespace(text, condition.end);
+  let options = {};
+  if (text[index] === "[") {
+    const parsedOptions = extractBalanced(text, index, "[", "]");
+    if (!parsedOptions) return null;
+    options = parseOptions(parsedOptions.content);
+    index = parsedOptions.end;
+  }
+  return {
+    condition: { condition: condition.content.trim(), options },
+    end: index
+  };
+}
+
+function calendarStartsWord(text, index, word) {
+  if (!text.startsWith(word, index)) return false;
+  const before = index > 0 ? text[index - 1] : "";
+  const after = text[index + word.length] || "";
+  return !/[A-Za-z]/.test(before) && !/[A-Za-z]/.test(after);
+}
+
+function calendarSkipWhitespace(text, index) {
+  let cursor = index;
+  while (/\s/.test(text[cursor] || "")) cursor += 1;
+  return cursor;
+}
+
 function createMatrix(statement, env, ir, diagnostics = []) {
   const name = statement.name ? resolveDynamicName(statement.name, env) : null;
   const matrixOptions = normalizeOptions("node", statement.options || {}, env).options;
@@ -1440,7 +1793,7 @@ function createMatrix(statement, env, ir, diagnostics = []) {
     .map((row) =>
       splitMatrixCells(row)
         .map(parseMatrixCell)
-        .filter((cell) => keepEmptyCells || cell.text.length || Object.keys(cell.options).length)
+        .filter((cell) => keepEmptyCells || cell.calendar || cell.text.length || Object.keys(cell.options).length)
     )
     .filter((row) => row.length);
   if (!rows.length) return;
@@ -1449,7 +1802,9 @@ function createMatrix(statement, env, ir, diagnostics = []) {
   let baseCellHeight = 0.02;
   for (const row of rows) {
     for (const cell of row) {
-      const size = estimateMatrixCellSize(cell.text, { ...cellBaseOptions, ...cell.options }, env);
+      const size = cell.calendar
+        ? estimateCalendarSize(cell.calendar, env)
+        : estimateMatrixCellSize(cell.text, { ...cellBaseOptions, ...cell.options }, env);
       baseCellWidth = Math.max(baseCellWidth, size.width);
       baseCellHeight = Math.max(baseCellHeight, size.height);
     }
@@ -1521,8 +1876,7 @@ function createMatrix(statement, env, ir, diagnostics = []) {
   rows.forEach((row, rowIndex) => {
     const rowOptions = matrixRowNodeOptions(matrixOptions, rowIndex + 1);
     row.forEach((cell, columnIndex) => {
-      if (!name) return;
-      const cellName = `${name}-${rowIndex + 1}-${columnIndex + 1}`;
+      const cellName = name ? `${name}-${rowIndex + 1}-${columnIndex + 1}` : null;
       const point = roundPoint({
         x: startX + columnIndex * stepX,
         y: startY - rowIndex * stepY
@@ -1534,14 +1888,16 @@ function createMatrix(statement, env, ir, diagnostics = []) {
         "minimum width": `${cellWidth}`,
         "minimum height": `${cellHeight}`
       };
-      env.nodes[cellName] = {
-        point,
-        width: cellWidth,
-        height: cellHeight,
-        shape: nodeShape(options),
-        shapeData: nodeShapeData(options)
-      };
-      env.coordinates[cellName] = point;
+      if (cellName) {
+        env.nodes[cellName] = {
+          point,
+          width: cellWidth,
+          height: cellHeight,
+          shape: nodeShape(options),
+          shapeData: nodeShapeData(options)
+        };
+        env.coordinates[cellName] = point;
+      }
       if (cell.explicitName) {
         const explicitName = resolveDynamicName(cell.explicitName, env);
         env.nodes[explicitName] = {
@@ -1552,6 +1908,10 @@ function createMatrix(statement, env, ir, diagnostics = []) {
           shapeData: nodeShapeData(options)
         };
         env.coordinates[explicitName] = point;
+      }
+      if (cell.calendar) {
+        createCalendarItems(cell.calendar, point, env, ir, diagnostics);
+        return;
       }
       addNodeItems(
         {
@@ -2980,6 +3340,8 @@ function parseMatrixCell(raw) {
       explicitName: nodeMatch[2].trim()
     };
   }
+  const calendar = parseCalendarSpec(text);
+  if (calendar) return { text: "", options, explicitName: null, calendar };
   return { text: stripOuterBraces(text), options, explicitName: null };
 }
 

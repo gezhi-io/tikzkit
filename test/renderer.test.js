@@ -891,6 +891,22 @@ test("renders common TikZ math symbol macros in SVG text fallback", () => {
   assert.doesNotMatch(svg, /pounds|star|boldsymbol/);
 });
 
+test("renders triangle label macros and textit labels without leaking TeX command names", () => {
+  const text = mathFallbackText(String.raw`\blacktriangleright`);
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$\blacktriangleright$ \textit{labest}`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.equal(text, "▶");
+  assert.match(svg, /▶/);
+  assert.match(svg, /labest/);
+  assert.doesNotMatch(svg, /blacktriangleright|textit/);
+});
+
 test("renders playing-card suit macros in SVG text fallback", () => {
   const text = mathFallbackText(String.raw`\clubsuit \diamondsuit \heartsuit \spadesuit`);
   const svg = renderSvg(

@@ -87,6 +87,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
   if (text.startsWith("\\tikzset")) return parseTikzsetStatement(text, diagnostics);
   if (text.startsWith("\\tikzstyle")) return parseTikzstyleStatement(text);
+  if (text.startsWith("\\calendar")) return { type: "calendar", raw: text };
   if (text.startsWith("\\matrix")) return parseMatrix(text);
   if (text.startsWith("\\pic")) return parsePic(text);
   if (text.startsWith("\\spy")) return parseSpy(text);
