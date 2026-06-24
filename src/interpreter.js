@@ -322,7 +322,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const pendingOptions = pending?.options || {};
       const point = segment.relative ? resolveRelativeCoordinate(segment.raw, current, env, diagnostics) : resolveCoordinate(segment.raw, env, diagnostics);
       if (pendingPlotMark) {
-        shapes.push(buildPlotMark(point, pendingPlotMark, pathStyle));
+        shapes.push(buildPlotMark(point, pendingPlotMark, pathStyle, effectivePathOptions, env));
         pendingPlotMark = null;
       }
       const localPoint = segment.relative || !shouldResolveAsLocalRectangleCorner(segment.raw)
@@ -637,7 +637,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const plot = buildPlotCoordinates(segment.coordinates || [], env, diagnostics, { ...pathOptions, ...(segment.options || {}) });
       const mark = segment.options?.mark ?? pathOptions.mark;
       if (mark && String(mark).trim().toLowerCase() !== "none") {
-        shapes.push(...plot.points.map((point) => buildPlotMark(point, mark, pathStyle)));
+        const markOptions = { ...pathOptions, ...(segment.options || {}) };
+        shapes.push(...plot.points.map((point) => buildPlotMark(point, mark, pathStyle, markOptions, env)));
       }
       for (const command of plot.commands) commands.push(command);
       if (plot.points.length) {
@@ -3649,28 +3650,111 @@ function sineCosineCurveCommand(from, to, op) {
   };
 }
 
-function buildPlotMark(point, mark, pathStyle = {}) {
-  const size = 0.045;
-  const kind = String(mark || "").trim();
-  if (kind !== "x" && kind !== "*") {
+function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) {
+  const kind = stripOuterBraces(String(mark || "*")).trim();
+  const size = plotMarkSize(markOptions, env);
+  const markColor = markOptions["mark color"] && markOptions["mark color"] !== true
+    ? normalizeColor(String(markOptions["mark color"]))
+    : pathStyle.stroke || "black";
+  const lineStyle = {
+    stroke: markColor,
+    fill: "none",
+    lineWidth: pathStyle.lineWidth || 1
+  };
+  const filledStyle = {
+    ...lineStyle,
+    fill: markColor
+  };
+
+  if (kind === "*" || kind === "." || kind === "o") {
     return {
       type: "path",
       shape: "plot-mark",
+      mark: kind,
       commands: circleToPath(point.x, point.y, size),
-      style: { stroke: pathStyle.stroke || "black", fill: pathStyle.stroke || "black", lineWidth: pathStyle.lineWidth || 1 }
+      style: kind === "o" ? lineStyle : filledStyle
+    };
+  }
+  if (kind === "+" || kind === "|") {
+    const commands = [
+      { type: "moveTo", x: roundNumber(point.x), y: roundNumber(point.y - size) },
+      { type: "lineTo", x: roundNumber(point.x), y: roundNumber(point.y + size) }
+    ];
+    if (kind === "+") {
+      commands.push(
+        { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y) },
+        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y) }
+      );
+    }
+    return {
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands,
+      style: lineStyle
+    };
+  }
+  if (kind === "-") {
+    return {
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: [
+        { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y) },
+        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y) }
+      ],
+      style: lineStyle
+    };
+  }
+  if (kind === "square" || kind === "square*") {
+    return {
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: [
+        { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y - size) },
+        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y - size) },
+        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y + size) },
+        { type: "lineTo", x: roundNumber(point.x - size), y: roundNumber(point.y + size) },
+        { type: "closePath" }
+      ],
+      style: kind.endsWith("*") ? filledStyle : lineStyle
+    };
+  }
+  if (kind === "triangle" || kind === "triangle*") {
+    const top = polarOffset(point, 90, size);
+    const right = polarOffset(point, -30, size);
+    const left = polarOffset(point, -150, size);
+    return {
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: [
+        { type: "moveTo", x: top.x, y: top.y },
+        { type: "lineTo", x: right.x, y: right.y },
+        { type: "lineTo", x: left.x, y: left.y },
+        { type: "closePath" }
+      ],
+      style: kind.endsWith("*") ? filledStyle : lineStyle
     };
   }
   return {
     type: "path",
     shape: "plot-mark",
+    mark: kind,
     commands: [
       { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y - size) },
       { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y + size) },
       { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y + size) },
       { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y - size) }
     ],
-    style: { stroke: pathStyle.stroke || "black", fill: "none", lineWidth: pathStyle.lineWidth || 1 }
+    style: lineStyle
   };
+}
+
+function plotMarkSize(markOptions = {}, env = {}) {
+  const parsed = parseDimension(markOptions["mark size"] || "2pt", env.variables || {});
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : parseDimension("2pt", env.variables || {});
 }
 
 function resolveControlPoint(raw, current, env, diagnostics) {

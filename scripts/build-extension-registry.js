@@ -160,6 +160,10 @@ const DOC_CANDIDATES = {
 
 const LOCAL_SOURCE_REVIEWED = {
   "tikzlibrary:decorations.pathreplacing": "yes",
+  "tikzlibrary:intersections": "yes",
+  "tikzlibrary:plotmarks": "yes",
+  "tikzlibrary:shadows": "yes",
+  "tikzlibrary:trees": "yes",
   "package:tikz-network": "yes",
   "package:tikz-3dplot": "yes",
   "package:tikz-bagua": "yes",

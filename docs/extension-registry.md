@@ -27,13 +27,9 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | --- | --- | ---: | --- | --- | --- |
 | package | circuitikz | 486 | found | no | Needs package compatibility pass |
 | tikzlibrary | mindmap | 332 | found | no | Needs tikzlibrary compatibility pass |
-| tikzlibrary | shadows | 323 | found | no | Needs tikzlibrary compatibility pass |
-| tikzlibrary | intersections | 321 | found | no | Needs tikzlibrary compatibility pass |
-| tikzlibrary | trees | 318 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | decorations.text | 316 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | spy | 313 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | calendar | 311 | found | no | Needs tikzlibrary compatibility pass |
-| tikzlibrary | plotmarks | 311 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | tikzmark | 311 | found | no | Needs tikzlibrary compatibility pass |
 | package | verbatim | 50 | found | no | Needs package compatibility pass |
 | package | preview | 33 | found | no | Needs package compatibility pass |
@@ -45,6 +41,10 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | tikzlibrary | 3d | 8 | found | no | Needs tikzlibrary compatibility pass |
 | package | contour | 7 | found | no | Needs package compatibility pass |
 | tikzlibrary | shadings | 7 | found | no | Needs tikzlibrary compatibility pass |
+| tikzlibrary | shadows.blur | 7 | found | no | Needs tikzlibrary compatibility pass |
+| package | fontenc | 6 | found | no | Needs package compatibility pass |
+| package | latexsym | 6 | found | no | Needs package compatibility pass |
+| tikzlibrary | fadings | 6 | found | no | Needs tikzlibrary compatibility pass |
 
 
 ## Highest-Priority Partial Entries
@@ -53,10 +53,14 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | --- | --- | ---: | --- | --- | --- |
 | package | pgfplots | 371 | found | no | axis/groupplot/addplot subset, not full PGFPlots engine |
 | tikzlibrary | decorations.pathreplacing | 339 | found | yes | brace path replacement; mirror; raise; amplitude; aspect |
+| tikzlibrary | shadows | 323 | found | yes | general shadow; shadow xshift/yshift; shadow scale; node shadow rendering |
+| tikzlibrary | intersections | 321 | found | yes | name path; name intersections; by; total; line/flattened curve intersections |
+| tikzlibrary | trees | 318 | found | yes | node child trees; grow direction; level distance; sibling distance |
 | package | pgfplotstable | 314 | found | no | \pgfplotstableread table data usable by addplot table |
 | pgfplotslibrary | groupplots | 312 | found | no | groupplot/nextgroupplot/group size/horizontal sep/vertical sep subset |
 | package | pgfcalendar | 311 | found | no | Package/library declaration compatibility; calendar rendering still minimal |
 | package | pgfgantt | 311 | found | no | ganttchart/gantttitle/ganttbar/ganttgroup/ganttmilestone subset |
+| tikzlibrary | plotmarks | 311 | found | yes | mark=x; mark=+; mark=*; mark=o; square/triangle subset; mark size |
 | package | amsmath | 38 | found | no | Many formulas are delegated to KaTeX; TeX macro package itself is not interpreted |
 | package | mathtools | 23 | found | no | Formula display delegated to KaTeX; package-level commands are not complete |
 | package | amssymb | 14 | found | no | Symbols mostly delegated to KaTeX or SVG text fallback |

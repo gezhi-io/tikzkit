@@ -39,10 +39,25 @@ const BUILTIN_LIBRARY_SUPPORT = {
     implementedBy: "src/preprocess.js:expandTransparentEnvironment",
     features: ["pgfonlayer transparency", "background-compatible statements"]
   },
+  intersections: {
+    status: "partial",
+    implementedBy: "src/interpreter.js:materializeIntersections",
+    features: ["name path", "name intersections", "by", "total", "line/flattened curve intersections"]
+  },
   shapes: {
     status: "builtin",
     implementedBy: "src/interpreter.js:nodeShape + nodeShapeData",
     features: ["circle", "rectangle", "ellipse", "diamond", "regular polygon", "star"]
+  },
+  shadows: {
+    status: "partial",
+    implementedBy: "src/interpreter.js:nodeGeneralShadows + src/renderer-svg.js:renderNodeBoxShadow",
+    features: ["general shadow", "shadow xshift/yshift", "shadow scale", "node shadow rendering"]
+  },
+  trees: {
+    status: "partial",
+    implementedBy: "src/interpreter.js:createChildTreeNodes",
+    features: ["node child trees", "grow direction", "level distance", "sibling distance"]
   },
   snakes: {
     status: "builtin",
@@ -68,6 +83,11 @@ const BUILTIN_LIBRARY_SUPPORT = {
     status: "partial",
     implementedBy: "src/interpreter.js:applyBraceDecoration",
     features: ["brace path replacement", "mirror", "raise", "amplitude", "aspect"]
+  },
+  plotmarks: {
+    status: "partial",
+    implementedBy: "src/interpreter.js:buildPlotMark",
+    features: ["mark=x", "mark=+", "mark=*", "mark=o", "square/triangle subset", "mark size"]
   },
   patterns: {
     status: "builtin",

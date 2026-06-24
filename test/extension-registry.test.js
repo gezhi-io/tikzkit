@@ -26,6 +26,11 @@ test("extension registry records implementation and MacTeX source status for key
   assert.equal(byKey.get("tikzlibrary:decorations.pathreplacing")?.localSourceReviewed, "yes");
   assert.match(byKey.get("tikzlibrary:decorations.pathreplacing")?.notes || "", /amplitude/);
 
+  for (const name of ["intersections", "plotmarks", "shadows", "trees"]) {
+    assert.equal(byKey.get(`tikzlibrary:${name}`)?.implementationStatus, "partial");
+    assert.equal(byKey.get(`tikzlibrary:${name}`)?.localSourceReviewed, "yes");
+  }
+
   const cases = byKey.get("package:tikz")?.cases.split(/\s+(?=Case\s+\d+)/) || [];
   assert.equal(new Set(cases).size, cases.length);
 });

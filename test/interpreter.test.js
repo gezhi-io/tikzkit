@@ -1092,6 +1092,30 @@ test("draws plot mark x coordinates as small cross paths", () => {
   assert.ok(mark.commands.every((command) => Math.abs(command.x - 1) < 0.1 && Math.abs(command.y - 2) < 0.1));
 });
 
+test("uses PGF plot mark fill semantics for filled and open circle marks", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[blue, mark size=4pt] plot[mark=*] coordinates{(0,0)}
+    plot[mark=o] coordinates{(1,0)}
+    plot[mark=+] coordinates{(2,0)};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const marks = ir.items.filter((item) => item.shape === "plot-mark");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(marks.length, 3);
+  assert.equal(marks[0].mark, "*");
+  assert.equal(marks[0].style.fill, "blue");
+  assert.ok(marks[0].commands.length > 4, "expected filled circle mark to use circle path commands");
+  assert.equal(marks[1].mark, "o");
+  assert.equal(marks[1].style.fill, "none");
+  assert.ok(marks[1].commands.length > 4, "expected open circle mark to use circle path commands");
+  assert.equal(marks[2].mark, "+");
+  assert.equal(marks[2].commands.length, 4);
+  assert.ok(marks[0].commands.some((command) => Math.abs(command.x) > 0.12), "expected mark size=4pt to enlarge plot marks");
+});
+
 test("substitutes foreach variables used as node option keys", () => {
   const source = String.raw`
 \begin{tikzpicture}
