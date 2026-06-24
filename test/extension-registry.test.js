@@ -10,7 +10,7 @@ test("extension registry records implementation and MacTeX source status for key
   assert.equal(byKey.get("package:circuitikz")?.implementationStatus, "partial");
   assert.equal(byKey.get("package:circuitikz")?.localSourceReviewed, "yes");
   assert.match(byKey.get("package:circuitikz")?.implementedBy || "", /src\/interpreter\.js:appendCircuitikzToSegment/);
-  assert.match(byKey.get("package:circuitikz")?.notes || "", /Case 869 current-shunt bipole slice/);
+  assert.match(byKey.get("package:circuitikz")?.notes || "", /Case 869\/871 current-shunt bipole slice/);
   assert.match(byKey.get("package:circuitikz")?.localSource || "", /circuitikz\.sty$/);
   assert.match(byKey.get("package:circuitikz")?.cases || "", /\bCase 859\b/);
 
@@ -42,7 +42,7 @@ test("extension registry markdown explains the implementation workflow", () => {
   const markdown = readFileSync(new URL("../docs/extension-registry.md", import.meta.url), "utf8");
 
   assert.match(markdown, /Highest-Priority Unsupported Entries/);
-  assert.match(markdown, /\| package \| circuitikz \| 486 \| found \| yes \| Case 869 current-shunt bipole slice/);
+  assert.match(markdown, /\| package \| circuitikz \| 486 \| found \| yes \| Case 869\/871 current-shunt bipole slice/);
   assert.match(markdown, /Open `localSource` and `localDoc`/);
   assert.match(markdown, /Regenerate this registry with `node scripts\/build-extension-registry\.js`/);
 });

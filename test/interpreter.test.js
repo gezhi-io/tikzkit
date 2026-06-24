@@ -1618,6 +1618,45 @@ test("renders the circuitikz current shunt bipoles used by case 869", () => {
   }
 });
 
+test("renders circuitikz flow ornaments used by case 871", () => {
+  const source = String.raw`
+\begin{tikzpicture}[american, voltage shift=0.5]
+  \draw (0,0)
+    to[isource, l=$I_0$, v=$V_0$] (0,3)
+    to[short, -*, f=$I_0$] (2,3)
+    to[R=$R_1$, f>_=$i_1$] (2,0) -- (0,0);
+  \draw (2,3) -- (4,3)
+    to[R=$R_2$, f>_=$i_2$]
+    (4,0) to[short, -*] (2,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const flowArrows = ir.items.filter((item) => item.subtype === "circuitikz-flow-arrow");
+  const labels = ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(flowArrows.length, 3);
+  for (const label of ["$I_0$", "$i_1$", "$i_2$"]) {
+    assert.ok(labels.includes(label), `expected ${label} flow label`);
+  }
+});
+
+test("places inline nodes after rectangle path operations on the rectangle edge", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0.6,2.1) rectangle (4.2,3.8) node[pos=0.5, above]{KCL};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "KCL");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(label);
+  assert.ok(Math.abs(label.x - 2.4) < 1e-6);
+  assert.ok(label.y > 3.0);
+  assert.ok(label.y < 3.8);
+});
+
 test("applies xslant/yslant shear and pt-based yshift in scope transforms", () => {
   // Claude: 锁定 yslant/xslant 斜切与 yshift 的裸数字按 pt 解析（修复多层网络伪三维图，如 case 043）。
   const source = String.raw`

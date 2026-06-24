@@ -441,6 +441,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         commands.push({ type: "lineTo", x: corners[1].x, y: corners[1].y });
         commands.push({ type: "lineTo", x: corners[2].x, y: corners[2].y });
         commands.push({ type: "closePath" });
+        lastSegment = { from: current, to: point };
         current = point;
         currentLocal = localPoint || point;
         currentBase = point;
@@ -868,6 +869,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
   }
   appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env);
   appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
+  appendCircuitikzFlowLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
   appendCircuitikzVoltageLabel(nodes, spec, from, to, geometry, options, env);
 
   return { from: roundPoint(from), to: roundPoint(to), drawnTo: roundPoint(to) };
@@ -1058,6 +1060,25 @@ function appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, o
   addCircuitikzTextNode(nodes, pointNormal(center, geometry.n, side * 0.34 * scale), current.label);
 }
 
+function appendCircuitikzFlowLabel(nodes, shapes, spec, from, to, geometry, options = {}, pathStyle = {}, env = {}) {
+  const flow = circuitikzFlowSpec(options);
+  if (!flow) return;
+  const scale = circuitikzLengthScale(env);
+  const bodyLength = spec.kind === "short" ? 0 : circuitikzBodyLength(spec.kind, geometry.length, env);
+  const leadLength = Math.max(0, (geometry.length - bodyLength) / 2);
+  const segmentStart = spec.kind !== "short" && flow.before
+    ? from
+    : spec.kind !== "short"
+      ? pointAlong(geometry.mid, geometry.u, bodyLength / 2)
+      : from;
+  const segmentLength = spec.kind === "short" ? geometry.length : leadLength;
+  const baseCenter = pointAlong(segmentStart, geometry.u, Math.max(0, segmentLength) * 0.5);
+  const offset = 0.2 * scale;
+  const arrowCenter = pointNormal(baseCenter, geometry.n, flow.side * offset);
+  shapes.push(circuitikzFlowArrowItem(arrowCenter, geometry, flow, pathStyle, env));
+  addCircuitikzTextNode(nodes, pointNormal(baseCenter, geometry.n, flow.side * (offset + 0.22 * scale)), flow.label);
+}
+
 function circuitikzCurrentTriangleItem(center, geometry, pathStyle = {}, env = {}) {
   const scale = circuitikzLengthScale(env);
   const stroke = pathStyle.stroke || "black";
@@ -1085,11 +1106,36 @@ function circuitikzCurrentTriangleItem(center, geometry, pathStyle = {}, env = {
   };
 }
 
+function circuitikzFlowArrowItem(center, geometry, flow, pathStyle = {}, env = {}) {
+  const direction = flow.backward ? { x: -geometry.u.x, y: -geometry.u.y } : geometry.u;
+  const orientedGeometry = { ...geometry, u: direction, n: { x: -direction.y, y: direction.x } };
+  return {
+    ...circuitikzCurrentTriangleItem(center, orientedGeometry, pathStyle, env),
+    subtype: "circuitikz-flow-arrow"
+  };
+}
+
 function circuitikzCurrentSpec(options = {}) {
   for (const [key, value] of Object.entries(options)) {
     if (!/^i(?:[<>_^]*)?$/.test(key)) continue;
     const label = circuitikzLabelValue(value);
     if (label) return { key, label };
+  }
+  return null;
+}
+
+function circuitikzFlowSpec(options = {}) {
+  for (const [key, value] of Object.entries(options)) {
+    if (!/^f(?:[<>_^]*)?$/.test(key)) continue;
+    const label = circuitikzLabelValue(value);
+    if (!label) continue;
+    return {
+      key,
+      label,
+      backward: key.includes("<"),
+      before: /[<>][_^]/.test(key),
+      side: key.includes("_") ? -1 : 1
+    };
   }
   return null;
 }

@@ -49,7 +49,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | kind | name | cases | local source | reviewed | next note |
 | --- | --- | ---: | --- | --- | --- |
-| package | circuitikz | 486 | found | yes | Case 869 current-shunt bipole slice: short wires, R resistor, isource, terminal dots, i/i>_/l/v labels; broader circuitikz still pending |
+| package | circuitikz | 486 | found | yes | Case 869/871 current-shunt bipole slice: short wires, R resistor, isource, terminal dots, i/i>_/f/f>_/l/v labels; broader circuitikz still pending |
 | package | pgfplots | 371 | found | no | axis/groupplot/addplot subset, not full PGFPlots engine |
 | tikzlibrary | decorations.pathreplacing | 339 | found | yes | brace path replacement; mirror; raise; amplitude; aspect |
 | tikzlibrary | mindmap | 332 | found | yes | concept/root/level styles; concept color; grow cyclic; clockwise/counterclockwise from; sibling angle |
