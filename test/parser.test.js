@@ -142,6 +142,23 @@ test("parses TikZ tree options between node text and child branches", () => {
   assert.equal(root.children[1].node.text, "B");
 });
 
+test("parses TikZ spy statements with source and target nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}[spy using outlines={circle, magnification=8, size=2cm, connect spies}]
+  \spy [black] on (3,3) in node [left] at (6,5.5);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const spy = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(spy.type, "spy");
+  assert.deepEqual(spy.options, { black: true });
+  assert.equal(spy.on, "3,3");
+  assert.deepEqual(spy.inOptions, { left: true });
+  assert.equal(spy.at, "6,5.5");
+});
+
 test("preserves repeated node label options instead of overwriting them", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -174,6 +174,35 @@ test("names paths and materializes intersections as coordinates", () => {
   assert.equal(circle.r, 0.1);
 });
 
+test("interprets spy outlines with connected magnified path content", () => {
+  const source = String.raw`
+\begin{tikzpicture}[spy using outlines={circle, magnification=8, size=2cm, connect spies}]
+  \draw[red] (2.9,0) -- (2.9,4);
+  \draw[help lines] (0,0) grid (4,4);
+  \draw (0,0) -- (3,3) -- (3,0);
+  \spy [black] on (3,3) in node [left] at (6,5.5);
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const { ir, diagnostics } = interpretTikz(parsed.ast);
+  const sourceOutline = ir.items.find((item) => item.subtype === "spy-on");
+  const lensOutline = ir.items.find((item) => item.subtype === "spy-in");
+  const connection = ir.items.find((item) => item.subtype === "spy-connection");
+  const magnified = ir.items.filter((item) => item.subtype === "spy-magnified");
+
+  assert.deepEqual([...parsed.diagnostics, ...diagnostics], []);
+  assert.ok(sourceOutline, "expected source spy outline");
+  assert.ok(lensOutline, "expected target spy lens outline");
+  assert.ok(connection, "expected spy connection path");
+  assert.ok(magnified.length >= 2, "expected clipped magnified path content in the lens");
+  assert.equal(sourceOutline.shape, "circle");
+  assert.equal(lensOutline.shape, "circle");
+  assert.ok(Math.abs(sourceOutline.r - 0.125) < 1e-6, `unexpected source outline radius ${sourceOutline.r}`);
+  assert.ok(Math.abs(lensOutline.r - 1) < 1e-6, `unexpected lens radius ${lensOutline.r}`);
+  assert.ok(Math.abs(lensOutline.cx - 5) < 1e-6, `expected left-anchored lens center x=5, got ${lensOutline.cx}`);
+  assert.ok(Math.abs(lensOutline.cy - 5.5) < 1e-6, `expected lens center y=5.5, got ${lensOutline.cy}`);
+});
+
 test("preserves ball shading on path circle and ellipse shapes", () => {
   const source = String.raw`
 \begin{tikzpicture}

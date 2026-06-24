@@ -64,6 +64,11 @@ const BUILTIN_LIBRARY_SUPPORT = {
     implementedBy: "src/interpreter.js:applyConceptNodeOptions + createNodeTreeChildren",
     features: ["concept/root/level styles", "concept color", "grow cyclic", "clockwise/counterclockwise from", "sibling angle"]
   },
+  spy: {
+    status: "partial",
+    implementedBy: "src/parser.js:parseSpy + src/interpreter.js:createSpy",
+    features: ["spy using outlines", "\\spy on ... in node ... at ...", "connect spies", "clipped magnified simple paths"]
+  },
   snakes: {
     status: "builtin",
     implementedBy: "src/interpreter.js:createPathItem",

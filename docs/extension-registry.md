@@ -27,7 +27,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | --- | --- | ---: | --- | --- | --- |
 | package | circuitikz | 486 | found | no | Needs package compatibility pass |
 | tikzlibrary | decorations.text | 316 | found | no | Needs tikzlibrary compatibility pass |
-| tikzlibrary | spy | 313 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | calendar | 311 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | tikzmark | 311 | found | no | Needs tikzlibrary compatibility pass |
 | package | verbatim | 50 | found | no | Needs package compatibility pass |
@@ -45,6 +44,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | package | latexsym | 6 | found | no | Needs package compatibility pass |
 | tikzlibrary | fadings | 6 | found | no | Needs tikzlibrary compatibility pass |
 | package | graphicx | 5 | found | no | Needs package compatibility pass |
+| package | tkz-graph | 5 | found | no | Needs package compatibility pass |
 
 
 ## Highest-Priority Partial Entries
@@ -58,6 +58,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | tikzlibrary | intersections | 321 | found | yes | name path; name intersections; by; total; line/flattened curve intersections |
 | tikzlibrary | trees | 318 | found | yes | node child trees; grow direction; level distance; sibling distance |
 | package | pgfplotstable | 314 | found | no | \pgfplotstableread table data usable by addplot table |
+| tikzlibrary | spy | 313 | found | yes | spy using outlines; \spy on ... in node ... at ...; connect spies; clipped magnified simple paths |
 | pgfplotslibrary | groupplots | 312 | found | no | groupplot/nextgroupplot/group size/horizontal sep/vertical sep subset |
 | package | pgfcalendar | 311 | found | no | Package/library declaration compatibility; calendar rendering still minimal |
 | package | pgfgantt | 311 | found | no | ganttchart/gantttitle/ganttbar/ganttgroup/ganttmilestone subset |
@@ -70,7 +71,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | package | pgf | 4 | found | no | Core PGF-style path/color/math compatibility only |
 | package | pgfmath | 4 | found | no | \pgfmathsetmacro and common expression subset |
 | package | relsize | 4 | found | no | Common size/style macros are normalized, not full relsize semantics |
-| pgflibrary | bbox | 2 | found | no | tight bezier bounding box compatibility for current cases |
 
 
 ## Implementation Workflow

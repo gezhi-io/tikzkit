@@ -164,6 +164,7 @@ const LOCAL_SOURCE_REVIEWED = {
   "tikzlibrary:mindmap": "yes",
   "tikzlibrary:plotmarks": "yes",
   "tikzlibrary:shadows": "yes",
+  "tikzlibrary:spy": "yes",
   "tikzlibrary:trees": "yes",
   "package:tikz-network": "yes",
   "package:tikz-3dplot": "yes",

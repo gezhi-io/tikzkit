@@ -89,6 +89,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\tikzstyle")) return parseTikzstyleStatement(text);
   if (text.startsWith("\\matrix")) return parseMatrix(text);
   if (text.startsWith("\\pic")) return parsePic(text);
+  if (text.startsWith("\\spy")) return parseSpy(text);
   if (
     text.startsWith("\\toggletrue") ||
     text.startsWith("\\togglefalse") ||
@@ -463,6 +464,41 @@ function parsePic(text) {
     name,
     options,
     body: body.content.trim(),
+    raw: text
+  };
+}
+
+function parseSpy(text) {
+  let index = "\\spy".length;
+  const parsedOptions = parseOptionalOptions(text, index);
+  const options = parsedOptions.options;
+  index = skipWhitespace(text, parsedOptions.end);
+  if (!startsKeyword(text, index, "on")) return unsupported("spy", text, "Malformed \\spy statement");
+  index = skipWhitespace(text, index + "on".length);
+  const on = parseCoordinateArgument(text, index);
+  if (!on) return unsupported("spy", text, "Malformed \\spy source coordinate");
+  index = skipWhitespace(text, on.end);
+  if (!startsKeyword(text, index, "in")) return unsupported("spy", text, "Malformed \\spy target node");
+  index = skipWhitespace(text, index + "in".length);
+  if (!startsKeyword(text, index, "node")) return unsupported("spy", text, "Malformed \\spy target node");
+  index = skipWhitespace(text, index + "node".length);
+  const parsedInOptions = parseOptionalOptions(text, index);
+  const inOptions = parsedInOptions.options;
+  index = skipWhitespace(text, parsedInOptions.end);
+  let at = null;
+  if (startsKeyword(text, index, "at")) {
+    index = skipWhitespace(text, index + "at".length);
+    const target = parseCoordinateArgument(text, index);
+    if (!target) return unsupported("spy", text, "Malformed \\spy target coordinate");
+    at = target.content.trim();
+    index = skipWhitespace(text, target.end);
+  }
+  return {
+    type: "spy",
+    options,
+    on: on.content.trim(),
+    inOptions,
+    at,
     raw: text
   };
 }
