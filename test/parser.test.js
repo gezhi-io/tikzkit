@@ -122,6 +122,26 @@ test("parses TikZ child tree syntax attached to node statements", () => {
   assert.equal(root.children[1].children[0].node.text, "deep");
 });
 
+test("parses TikZ tree options between node text and child branches", () => {
+  const source = String.raw`
+\begin{tikzpicture}[mindmap]
+  \node[concept] {Root}
+    [clockwise from=45]
+    child { node[concept] (a) {A} }
+    child { node[concept] (b) {B} };
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const root = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(root.type, "node");
+  assert.deepEqual(root.treeOptions, { "clockwise from": "45" });
+  assert.equal(root.children.length, 2);
+  assert.equal(root.children[0].node.name, "a");
+  assert.equal(root.children[1].node.text, "B");
+});
+
 test("preserves repeated node label options instead of overwriting them", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -379,6 +379,7 @@ function parseTikzsetStatement(text) {
   return {
     type: "tikzset",
     styles: parseTikzset(body.content),
+    styleOptions: parseOptions(body.content),
     raw: text
   };
 }
@@ -512,6 +513,7 @@ function parseNode(text, diagnostics = []) {
     options,
     at,
     text: label.content,
+    treeOptions: treeChildren.options,
     children: treeChildren.children,
     path: treeChildren.children.length && !treeChildren.rest
       ? null
@@ -527,9 +529,21 @@ function parseNode(text, diagnostics = []) {
 
 function parseNodeTreeChildren(text, diagnostics = []) {
   const children = [];
+  let options = {};
   let index = 0;
   while (true) {
     index = skipWhitespace(text, index);
+    if (text[index] === "[") {
+      const beforeOptions = index;
+      const parsedOptions = parseOptionalOptions(text, index);
+      const afterOptions = skipWhitespace(text, parsedOptions.end);
+      if (parsedOptions.raw && text.startsWith("child", afterOptions)) {
+        options = { ...options, ...parsedOptions.options };
+        index = afterOptions;
+        continue;
+      }
+      index = beforeOptions;
+    }
     if (!text.startsWith("child", index)) break;
     const child = parseNodeTreeChild(text, index, diagnostics);
     if (!child) break;
@@ -537,6 +551,7 @@ function parseNodeTreeChildren(text, diagnostics = []) {
     index = child.end;
   }
   return {
+    options,
     children,
     rest: text.slice(index).trim()
   };

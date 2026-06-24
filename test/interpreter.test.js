@@ -284,6 +284,35 @@ test("lays out TikZ node child trees with grow and sibling distances", () => {
   assert.ok(labels.every((label) => typeof label === "string"));
 });
 
+test("renders basic mindmap concept nodes with cyclic child placement", () => {
+  const source = String.raw`
+\begin{tikzpicture}[
+  root concept/.append style={concept color=blue!20,minimum size=2cm},
+  level 1 concept/.append style={sibling angle=45},
+  mindmap
+]
+  \node[concept] {Root concept}
+    [clockwise from=45]
+    child { node[concept] (c1) {child}}
+    child { node[concept] (c2) {child}}
+    child { node[concept] (c3) {child}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = ir.items.filter((item) => item.type === "nodeBox");
+  const texts = ir.items.filter((item) => item.type === "textNode");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(boxes.length, 4);
+  assert.equal(texts.length, 4);
+  assert.equal(boxes.every((box) => box.shape === "circle"), true);
+  assert.equal(boxes[0].style.fill, "rgb(204 204 255)");
+  assert.ok(boxes[0].width >= 1.99 && boxes[0].height >= 1.99);
+  assert.ok(texts.some((item) => item.text === "child" && item.x > 3 && item.y > 1.5));
+  assert.ok(texts.some((item) => item.text === "child" && item.x > 4.5 && Math.abs(item.y) < 0.2));
+  assert.ok(texts.some((item) => item.text === "child" && item.x > 3 && item.y < -1.5));
+});
+
 test("uses monospace text metrics when clipping TikZ child tree edges", () => {
   const source = String.raw`
 \begin{tikzpicture}[font=\tt\scriptsize, grow=up, level 1/.style={sibling distance=30mm}]

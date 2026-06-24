@@ -26,7 +26,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | kind | name | cases | local source | reviewed | next note |
 | --- | --- | ---: | --- | --- | --- |
 | package | circuitikz | 486 | found | no | Needs package compatibility pass |
-| tikzlibrary | mindmap | 332 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | decorations.text | 316 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | spy | 313 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | calendar | 311 | found | no | Needs tikzlibrary compatibility pass |
@@ -45,6 +44,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | package | fontenc | 6 | found | no | Needs package compatibility pass |
 | package | latexsym | 6 | found | no | Needs package compatibility pass |
 | tikzlibrary | fadings | 6 | found | no | Needs tikzlibrary compatibility pass |
+| package | graphicx | 5 | found | no | Needs package compatibility pass |
 
 
 ## Highest-Priority Partial Entries
@@ -53,6 +53,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | --- | --- | ---: | --- | --- | --- |
 | package | pgfplots | 371 | found | no | axis/groupplot/addplot subset, not full PGFPlots engine |
 | tikzlibrary | decorations.pathreplacing | 339 | found | yes | brace path replacement; mirror; raise; amplitude; aspect |
+| tikzlibrary | mindmap | 332 | found | yes | concept/root/level styles; concept color; grow cyclic; clockwise/counterclockwise from; sibling angle |
 | tikzlibrary | shadows | 323 | found | yes | general shadow; shadow xshift/yshift; shadow scale; node shadow rendering |
 | tikzlibrary | intersections | 321 | found | yes | name path; name intersections; by; total; line/flattened curve intersections |
 | tikzlibrary | trees | 318 | found | yes | node child trees; grow direction; level distance; sibling distance |
@@ -70,7 +71,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | package | pgfmath | 4 | found | no | \pgfmathsetmacro and common expression subset |
 | package | relsize | 4 | found | no | Common size/style macros are normalized, not full relsize semantics |
 | pgflibrary | bbox | 2 | found | no | tight bezier bounding box compatibility for current cases |
-| pgflibrary | shapes.multipart | 2 | found | no | rectangle split and selected multipart shape behavior |
 
 
 ## Implementation Workflow

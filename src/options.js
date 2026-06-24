@@ -146,20 +146,30 @@ function setParsedOption(options, key, value) {
 export function parseTikzset(input = "") {
   const styles = {};
   for (const part of splitTopLevel(input, ",")) {
-    const match = part.match(/^(.+?)\/\.style\s*=\s*\{([\s\S]*)\}$/);
+    const match = part.match(/^(.+?)\/\.(style|append\s+style|prefix\s+style)\s*=\s*\{([\s\S]*)\}$/);
     if (match) {
-      styles[match[1].trim()] = parseOptions(match[2]);
+      styles[match[1].trim()] = parseOptions(match[3]);
     }
   }
   return styles;
 }
 
-export function styleDefinitionsFromOptions(rawOptions = {}) {
+export function styleDefinitionsFromOptions(rawOptions = {}, baseStyles = {}) {
   const styles = {};
   for (const [key, value] of Object.entries(rawOptions || {})) {
-    const match = String(key).match(/^(.+?)\/\.style$/);
+    const match = String(key).match(/^(.+?)\/\.(style|append\s+style|prefix\s+style)$/);
     if (!match) continue;
-    styles[match[1].trim()] = parseOptions(value === true ? "" : String(value));
+    const name = match[1].trim();
+    const mode = match[2].replace(/\s+/g, " ");
+    const parsed = parseOptions(value === true ? "" : String(value));
+    if (mode === "style") {
+      styles[name] = parsed;
+      continue;
+    }
+    const existing = styles[name] || baseStyles[name] || {};
+    styles[name] = mode === "append style"
+      ? { ...existing, ...parsed }
+      : { ...parsed, ...existing };
   }
   return styles;
 }

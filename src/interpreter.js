@@ -19,7 +19,53 @@ const PGF_DEFAULT_Z_VECTOR = { x: -0.385, y: -0.385 };
 const BUILTIN_STYLES = {
   "every state": {},
   "state without output": { circle: true, draw: true, "minimum size": "2.5em", "every state": true },
-  state: { "state without output": true }
+  state: { "state without output": true },
+  "every concept": {},
+  concept: { circle: true, "tikzkit concept": true, "every concept": true },
+  "extra concept": { "concept color": "black!50", "level 2 concept": true, concept: true, "every extra concept": true },
+  "every extra concept": {},
+  "concept connection": { "line width": "1mm", "shorten <=": "2mm", "shorten >=": "2mm", "line cap": "round", draw: "black!50" },
+  mindmap: {
+    "tikzkit mindmap": true,
+    "grow cyclic": true,
+    "very thick": true,
+    "outer sep": "0pt",
+    "inner sep": "1pt",
+    "root concept": true,
+    "text centered": true,
+    "segment angle": "20",
+    "every mindmap": true
+  },
+  "every mindmap": {},
+  "root concept": { "minimum size": "4cm", "text width": "3.5cm", font: "\\large" },
+  "level 1 concept": {
+    "minimum size": "2.25cm",
+    "level distance": "5cm",
+    "text width": "2cm",
+    "sibling angle": "60",
+    font: "\\small"
+  },
+  "level 2 concept": {
+    "minimum size": "1.75cm",
+    "level distance": "2.9cm",
+    "text width": "1.5cm",
+    "sibling angle": "60",
+    font: "\\footnotesize"
+  },
+  "level 3 concept": {
+    "minimum size": "1.15cm",
+    "level distance": "2.4cm",
+    "text width": "1cm",
+    "sibling angle": "30",
+    font: "\\tiny"
+  },
+  "level 4 concept": {
+    "minimum size": "0.9cm",
+    "level distance": "1.85cm",
+    "text width": "0.7cm",
+    "sibling angle": "30",
+    font: "\\tiny"
+  }
 };
 
 export function interpretTikz(ast, options = {}) {
@@ -27,8 +73,9 @@ export function interpretTikz(ast, options = {}) {
   const ir = { type: "drawing", items: [], backgroundItems: [], coordinates: {} };
 
   for (const picture of ast.pictures || []) {
-    const styles = { ...BUILTIN_STYLES, ...(picture.styles || {}), ...styleDefinitionsFromOptions(picture.options || {}) };
-    const pictureOptions = normalizeOptions("path", picture.options || {}, { variables: {}, styles }).options;
+    const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
+    const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
+    const pictureOptions = stripStyleDefinitionOptions(normalizeOptions("path", picture.options || {}, { variables: {}, styles }).options);
     const pictureBasis = parsePictureBasis(pictureOptions);
     const pictureTransformEnv = {
       variables: {},
@@ -142,7 +189,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     return;
   }
   if (statement.type === "tikzset") {
-    env.styles = { ...env.styles, ...statement.styles };
+    env.styles = {
+      ...env.styles,
+      ...(statement.styleOptions ? styleDefinitionsFromOptions(statement.styleOptions, env.styles) : statement.styles)
+    };
     return;
   }
   if (statement.type === "matrix") {
@@ -156,7 +206,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   if (statement.type === "node") {
     const node = createNode(statement, env, ir, diagnostics);
     if (node && statement.children?.length) {
-      createNodeTreeChildren(node, statement.children, env, ir, diagnostics, 1);
+      createNodeTreeChildren(node, statement.children, env, ir, diagnostics, 1, statement.treeOptions || {});
     }
     return;
   }
@@ -167,7 +217,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
       canvasScale: env.canvasScale * transformCanvasScale(statement.options || {}, env),
       basis: composeBasis(env.basis, statement.options, env),
       pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, statement.options || {}),
-      styles: { ...env.styles, ...styleDefinitionsFromOptions(statement.options || {}) }
+      styles: { ...env.styles, ...styleDefinitionsFromOptions(statement.options || {}, env.styles) }
     };
     if (isBackgroundScope(statement.options || {})) {
       const backgroundIr = { ...ir, items: [], backgroundItems: [] };
@@ -216,6 +266,15 @@ function isScopeTransformOption(key) {
 
 function isScopeDefinitionOption(key) {
   return /\/\.(?:style|code|append style|prefix style)$/.test(String(key).trim());
+}
+
+function stripStyleDefinitionOptions(options = {}) {
+  const stripped = {};
+  for (const [key, value] of Object.entries(options || {})) {
+    if (isScopeDefinitionOption(key)) continue;
+    stripped[key] = value;
+  }
+  return stripped;
 }
 
 function interpretPathStatement(statement, env, ir, diagnostics) {
@@ -1089,10 +1148,11 @@ function hasExplicitTextColor(options = {}) {
 
 function createNode(statement, env, ir, diagnostics) {
   const text = substituteTextVariables(statement.text, env.variables);
-  const expandedOptions = normalizeOptions("node", {
+  let expandedOptions = normalizeOptions("node", {
     ...inheritedNodeOptions(env),
     ...resolveDynamicOptions(statement.options || {}, env)
   }, env).options;
+  expandedOptions = applyConceptNodeOptions(expandedOptions, env);
   const rawSize = estimateNodeLayoutSize(text, expandedOptions, env);
   const rawAnchorSize = estimateNodeAnchorSize(text, expandedOptions, env, rawSize);
   const rawPositioningSize = estimatePositioningSelfSize(text, expandedOptions, env, rawAnchorSize);
@@ -1145,55 +1205,92 @@ function createNode(statement, env, ir, diagnostics) {
   };
 }
 
-function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics, level = 1) {
+function applyConceptNodeOptions(options = {}, env = {}) {
+  if (!isConceptNodeOptions(options)) return options;
+  const conceptColor = options["concept color"] ?? env.pictureOptions?.["concept color"] ?? "black";
+  const withConcept = { ...options, circle: true };
+  if (withConcept.fill === undefined || withConcept.fill === true) withConcept.fill = conceptColor;
+  if (withConcept.draw === undefined || withConcept.draw === true) withConcept.draw = conceptColor;
+  return withConcept;
+}
+
+function isConceptNodeOptions(options = {}) {
+  return Boolean(options["tikzkit concept"] || options.concept);
+}
+
+function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics, level = 1, treeOptions = {}) {
   if (!parentNode || !children.length) return;
-  const grow = treeGrowDirection(env);
-  const siblingDistance = treeSiblingDistance(level, env);
-  const levelDistance = treeLevelDistance(level, env);
+  const resolvedTreeOptions = resolveDynamicOptions(treeOptions || {}, env);
+  const levelOptions = treeLevelOptions(level, env);
   for (const [index, child] of children.entries()) {
-    const offset = treeChildOffset(index, children.length, siblingDistance, levelDistance, grow);
+    const childTreeOptions = resolveDynamicOptions(child.options || {}, env);
+    const layoutOptions = { ...levelOptions, ...resolvedTreeOptions, ...childTreeOptions };
+    const grow = treeGrowDirection(env, layoutOptions);
+    const siblingDistance = treeSiblingDistance(level, env, layoutOptions);
+    const levelDistance = treeLevelDistance(level, env, layoutOptions);
+    const offset = treeChildOffset(index, children.length, siblingDistance, levelDistance, grow, layoutOptions, env);
     const projected = projectLocalOffset(offset.x, offset.y, env);
     const point = roundPoint({
       x: parentNode.point.x + projected.x,
       y: parentNode.point.y + projected.y
     });
+    const childEnv = {
+      ...env,
+      pictureOptions: {
+        ...(env.pictureOptions || {}),
+        ...levelOptions,
+        ...childTreeOptions
+      }
+    };
     const childNode = createNode(
       {
         ...child.node,
+        options: {
+          ...(child.node.options || {})
+        },
         at: null,
         absolutePoint: point,
         path: null
       },
-      env,
+      childEnv,
       ir,
       diagnostics
     );
     if (!childNode) continue;
-    addTreeEdge(parentNode, childNode, child.options || {}, env, ir);
-    createNodeTreeChildren(childNode, child.children || child.node.children || [], env, ir, diagnostics, level + 1);
+    addTreeEdge(parentNode, childNode, layoutOptions, childEnv, ir);
+    createNodeTreeChildren(childNode, child.children || child.node.children || [], childEnv, ir, diagnostics, level + 1, child.node.treeOptions || {});
   }
 }
 
-function treeGrowDirection(env) {
-  const grow = String(env.pictureOptions?.grow || "down").trim().toLowerCase();
+function treeGrowDirection(env, options = {}) {
+  if (options["grow cyclic"] || env.pictureOptions?.["grow cyclic"] || options["tikzkit mindmap"] || env.pictureOptions?.["tikzkit mindmap"]) {
+    return "cyclic";
+  }
+  const grow = String(options.grow ?? env.pictureOptions?.grow ?? "down").trim().toLowerCase();
   if (["up", "down", "left", "right"].includes(grow)) return grow;
+  const angle = evaluateMath(grow, env.variables);
+  if (Number.isFinite(angle)) return angle;
   return "down";
 }
 
 function treeLevelOptions(level, env) {
-  return {
+  const options = {
     ...(env.styles?.level || {}),
     ...(env.styles?.[`level ${level}`] || {})
   };
+  if (isMindmapOptions(env.pictureOptions || {})) {
+    Object.assign(options, env.styles?.[`level ${level} concept`] || {});
+  }
+  return options;
 }
 
-function treeLevelDistance(level, env) {
-  const options = treeLevelOptions(level, env);
+function treeLevelDistance(level, env, overrides = {}) {
+  const options = { ...treeLevelOptions(level, env), ...overrides };
   return parseTreeDimension(options["level distance"] ?? env.pictureOptions?.["level distance"], "15mm", env);
 }
 
-function treeSiblingDistance(level, env) {
-  const options = treeLevelOptions(level, env);
+function treeSiblingDistance(level, env, overrides = {}) {
+  const options = { ...treeLevelOptions(level, env), ...overrides };
   return parseTreeDimension(options["sibling distance"] ?? env.pictureOptions?.["sibling distance"], "15mm", env);
 }
 
@@ -1203,7 +1300,22 @@ function parseTreeDimension(value, fallback, env) {
   return parseDimension(fallback, env.variables);
 }
 
-function treeChildOffset(index, count, siblingDistance, levelDistance, grow) {
+function treeChildOffset(index, count, siblingDistance, levelDistance, grow, options = {}, env = { variables: {} }) {
+  if (grow === "cyclic") {
+    const angle = cyclicTreeChildAngle(index, count, options, env);
+    const radians = (angle * Math.PI) / 180;
+    return {
+      x: Math.cos(radians) * levelDistance,
+      y: Math.sin(radians) * levelDistance
+    };
+  }
+  if (typeof grow === "number") {
+    const radians = (grow * Math.PI) / 180;
+    return {
+      x: Math.cos(radians) * levelDistance,
+      y: Math.sin(radians) * levelDistance
+    };
+  }
   const siblingOffset = ((count - 1) / 2 - index) * siblingDistance;
   if (grow === "up") return { x: siblingOffset, y: levelDistance };
   if (grow === "left") return { x: -levelDistance, y: siblingOffset };
@@ -1211,9 +1323,36 @@ function treeChildOffset(index, count, siblingDistance, levelDistance, grow) {
   return { x: siblingOffset, y: -levelDistance };
 }
 
+function cyclicTreeChildAngle(index, count, options = {}, env = { variables: {} }) {
+  const siblingAngle = parseTreeAngle(options["sibling angle"] ?? env.pictureOptions?.["sibling angle"], 360 / Math.max(1, count), env);
+  if (options["clockwise from"] !== undefined || env.pictureOptions?.["clockwise from"] !== undefined) {
+    return parseTreeAngle(options["clockwise from"] ?? env.pictureOptions?.["clockwise from"], 90, env) - index * siblingAngle;
+  }
+  if (options["counterclockwise from"] !== undefined || env.pictureOptions?.["counterclockwise from"] !== undefined) {
+    return parseTreeAngle(options["counterclockwise from"] ?? env.pictureOptions?.["counterclockwise from"], 90, env) + index * siblingAngle;
+  }
+  return 90 - (index - (count - 1) / 2) * siblingAngle;
+}
+
+function parseTreeAngle(value, fallback, env) {
+  if (value === undefined || value === null || value === true || value === "") return fallback;
+  const angle = evaluateMath(value, env.variables);
+  return Number.isFinite(angle) ? angle : fallback;
+}
+
+function isMindmapOptions(options = {}) {
+  return Boolean(options.mindmap || options["tikzkit mindmap"] || options["grow cyclic"]);
+}
+
 function addTreeEdge(parentNode, childNode, options, env, ir) {
   const normalized = normalizeOptions("draw", options || {}, env);
   const style = scaleCanvasStyle(normalized.style, env);
+  if (isMindmapOptions(env.pictureOptions || {}) || isMindmapOptions(options || {})) {
+    const conceptColor = options?.["concept color"] ?? env.pictureOptions?.["concept color"];
+    if (conceptColor) style.stroke = normalizeColor(String(conceptColor));
+    style.lineWidth = Math.max(Number(style.lineWidth) || 0, 0.1 * TIKZ_UNIT * canvasLengthScale(env));
+    style.lineCap = "round";
+  }
   const parentClipNode = treeEdgeClipNode(parentNode, env);
   const childClipNode = treeEdgeClipNode(childNode, env);
   const clipped = clipNodeLineEndpoints(

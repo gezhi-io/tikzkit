@@ -59,6 +59,11 @@ const BUILTIN_LIBRARY_SUPPORT = {
     implementedBy: "src/interpreter.js:createChildTreeNodes",
     features: ["node child trees", "grow direction", "level distance", "sibling distance"]
   },
+  mindmap: {
+    status: "partial",
+    implementedBy: "src/interpreter.js:applyConceptNodeOptions + createNodeTreeChildren",
+    features: ["concept/root/level styles", "concept color", "grow cyclic", "clockwise/counterclockwise from", "sibling angle"]
+  },
   snakes: {
     status: "builtin",
     implementedBy: "src/interpreter.js:createPathItem",
