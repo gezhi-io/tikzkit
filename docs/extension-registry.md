@@ -25,7 +25,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | kind | name | cases | local source | reviewed | next note |
 | --- | --- | ---: | --- | --- | --- |
-| package | circuitikz | 486 | found | no | Needs package compatibility pass |
 | tikzlibrary | tikzmark | 311 | found | no | Needs tikzlibrary compatibility pass |
 | package | verbatim | 50 | found | no | Needs package compatibility pass |
 | package | preview | 33 | found | no | Needs package compatibility pass |
@@ -50,6 +49,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | kind | name | cases | local source | reviewed | next note |
 | --- | --- | ---: | --- | --- | --- |
+| package | circuitikz | 486 | found | yes | Case 869 current-shunt bipole slice: short wires, R resistor, isource, terminal dots, i/i>_/l/v labels; broader circuitikz still pending |
 | package | pgfplots | 371 | found | no | axis/groupplot/addplot subset, not full PGFPlots engine |
 | tikzlibrary | decorations.pathreplacing | 339 | found | yes | brace path replacement; mirror; raise; amplitude; aspect |
 | tikzlibrary | mindmap | 332 | found | yes | concept/root/level styles; concept color; grow cyclic; clockwise/counterclockwise from; sibling angle |

@@ -1591,6 +1591,33 @@ test("keeps repeated node-attached edges rooted at the source node", () => {
   ]);
 });
 
+test("renders the circuitikz current shunt bipoles used by case 869", () => {
+  const source = String.raw`
+\begin{tikzpicture}[american, voltage shift=0.5]
+  \draw (0,0)
+    to[isource, l=$I_0$, v=$V_0$] (0,3)
+    to[short, -*, i=$I_0$] (2,3)
+    to[R=$R_1$, i>_=$i_1$] (2,0) -- (0,0);
+  \draw (2,3) -- (4,3)
+    to[R=$R_2$, i>_=$i_2$]
+    (4,0) to[short, -*] (2,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const circuitPaths = ir.items.filter((item) => String(item.subtype || "").startsWith("circuitikz-"));
+  const labels = ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const dots = ir.items.filter((item) => item.subtype === "circuitikz-terminal-dot");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(circuitPaths.some((item) => item.subtype === "circuitikz-isource"), "expected current source symbol");
+  assert.ok(circuitPaths.filter((item) => item.subtype === "circuitikz-resistor").length >= 2, "expected two resistor symbols");
+  assert.ok(circuitPaths.filter((item) => item.subtype === "circuitikz-current-arrow").length >= 3, "expected current arrows");
+  assert.equal(dots.length, 2);
+  for (const label of ["$I_0$", "$V_0$", "$R_1$", "$R_2$", "$i_1$", "$i_2$"]) {
+    assert.ok(labels.includes(label), `expected ${label} label`);
+  }
+});
+
 test("applies xslant/yslant shear and pt-based yshift in scope transforms", () => {
   // Claude: 锁定 yslant/xslant 斜切与 yshift 的裸数字按 pt 解析（修复多层网络伪三维图，如 case 043）。
   const source = String.raw`

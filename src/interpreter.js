@@ -519,6 +519,28 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         }
       }
       const combinedEdgeOptions = { ...effectivePathOptions, ...(segment.options || {}) };
+      const circuitikz = appendCircuitikzToSegment({
+        commands,
+        shapes,
+        nodes,
+        from: currentBase || current,
+        to,
+        options: combinedEdgeOptions,
+        env,
+        pathStyle
+      });
+      if (circuitikz) {
+        flushInlinePathNodes(pendingInlineNodes, circuitikz.from, circuitikz.to, nodes, env, pathStyle);
+        lastSegment = { from: circuitikz.from, to: circuitikz.to };
+        pendingInlineNodes = [];
+        current = circuitikz.drawnTo;
+        currentLocal = null;
+        currentBase = to;
+        currentNodeRef = toNodeRef;
+        endNodeRef = toNodeRef;
+        pending = null;
+        continue;
+      }
       Object.assign(styleHints, edgeStyleHintsFromOptions(combinedEdgeOptions, env));
       Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
       const loopDirection = loopDirectionFromOptions(combinedEdgeOptions);
@@ -823,6 +845,293 @@ function drawPolyline(commands, points, startNodeRef, endNodeRef, env) {
     lastTo = clipped.to;
   }
   return { from: firstFrom, to: lastTo };
+}
+
+function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options = {}, env, pathStyle = {} }) {
+  const spec = circuitikzBipoleSpec(options);
+  if (!spec || !from || !to) return null;
+  const geometry = circuitikzSegmentGeometry(from, to);
+  if (!geometry) return null;
+
+  if (spec.kind === "short") {
+    commands.push({ type: "lineTo", x: to.x, y: to.y });
+  } else if (spec.kind === "resistor") {
+    appendCircuitikzSplitWire(commands, from, to, geometry, circuitikzBodyLength("resistor", geometry.length, env));
+    shapes.push(circuitikzResistorItem(from, to, geometry, pathStyle, env));
+  } else if (spec.kind === "isource") {
+    appendCircuitikzSplitWire(commands, from, to, geometry, circuitikzBodyLength("isource", geometry.length, env));
+    shapes.push(...circuitikzCurrentSourceItems(from, to, geometry, pathStyle, env));
+  }
+
+  for (const terminal of circuitikzTerminalDots(options, from, to)) {
+    shapes.push(circuitikzTerminalDotItem(terminal, pathStyle, env));
+  }
+  appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env);
+  appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
+  appendCircuitikzVoltageLabel(nodes, spec, from, to, geometry, options, env);
+
+  return { from: roundPoint(from), to: roundPoint(to), drawnTo: roundPoint(to) };
+}
+
+function circuitikzBipoleSpec(options = {}) {
+  const resistorLabel = circuitikzFirstLabel(options, ["R", "resistor", "american resistor", "european resistor"]);
+  if (resistorLabel !== null) return { kind: "resistor", label: resistorLabel };
+  const sourceLabel = circuitikzFirstLabel(options, ["isource", "I", "current source", "american current source", "european current source"]);
+  if (sourceLabel !== null) return { kind: "isource", label: circuitikzLabelValue(options.l) || sourceLabel };
+  if (options.short !== undefined) return { kind: "short", label: circuitikzLabelValue(options.l) };
+  return null;
+}
+
+function circuitikzFirstLabel(options = {}, keys = []) {
+  for (const key of keys) {
+    if (options[key] === undefined) continue;
+    return circuitikzLabelValue(options[key]) || "";
+  }
+  return null;
+}
+
+function circuitikzLabelValue(value) {
+  if (value === undefined || value === null || value === true || value === false) return "";
+  return String(value).trim();
+}
+
+function circuitikzSegmentGeometry(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1e-9) return null;
+  const ux = dx / length;
+  const uy = dy / length;
+  return {
+    length,
+    u: { x: ux, y: uy },
+    n: { x: -uy, y: ux },
+    mid: roundPoint({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 })
+  };
+}
+
+function circuitikzLengthScale(env = {}) {
+  const scale = canvasLengthScale(env);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+function circuitikzBodyLength(kind, segmentLength, env = {}) {
+  const scale = circuitikzLengthScale(env);
+  const desired = (kind === "resistor" ? 1.12 : 0.84) * scale;
+  return Math.min(desired, Math.max(0, segmentLength * 0.78));
+}
+
+function appendCircuitikzSplitWire(commands, from, to, geometry, bodyLength) {
+  const half = bodyLength / 2;
+  const start = pointAlong(geometry.mid, geometry.u, -half);
+  const end = pointAlong(geometry.mid, geometry.u, half);
+  commands.push({ type: "lineTo", x: start.x, y: start.y });
+  commands.push({ type: "moveTo", x: end.x, y: end.y });
+  commands.push({ type: "lineTo", x: to.x, y: to.y });
+}
+
+function circuitikzResistorItem(from, to, geometry, pathStyle = {}, env = {}) {
+  const bodyLength = circuitikzBodyLength("resistor", geometry.length, env);
+  const amplitude = 0.21 * circuitikzLengthScale(env);
+  const start = pointAlong(geometry.mid, geometry.u, -bodyLength / 2);
+  const end = pointAlong(geometry.mid, geometry.u, bodyLength / 2);
+  const commands = [{ type: "moveTo", x: start.x, y: start.y }];
+  for (let index = 1; index <= 7; index += 1) {
+    const along = -bodyLength / 2 + (bodyLength * index) / 8;
+    const side = index % 2 === 1 ? 1 : -1;
+    commands.push({
+      type: "lineTo",
+      ...roundPoint({
+        x: geometry.mid.x + geometry.u.x * along + geometry.n.x * amplitude * side,
+        y: geometry.mid.y + geometry.u.y * along + geometry.n.y * amplitude * side
+      })
+    });
+  }
+  commands.push({ type: "lineTo", x: end.x, y: end.y });
+  return {
+    type: "path",
+    subtype: "circuitikz-resistor",
+    style: circuitikzComponentStyle(pathStyle),
+    commands
+  };
+}
+
+function circuitikzCurrentSourceItems(from, to, geometry, pathStyle = {}, env = {}) {
+  const scale = circuitikzLengthScale(env);
+  const radius = 0.42 * scale;
+  const arrowHalf = 0.28 * scale;
+  const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
+  const arrowEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
+  return [
+    {
+      type: "path",
+      subtype: "circuitikz-isource",
+      shape: "circle",
+      cx: geometry.mid.x,
+      cy: geometry.mid.y,
+      r: radius,
+      style: circuitikzComponentStyle(pathStyle),
+      commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
+    },
+    {
+      type: "path",
+      subtype: "circuitikz-isource-arrow",
+      style: circuitikzArrowStyle(pathStyle),
+      commands: [
+        { type: "moveTo", x: arrowStart.x, y: arrowStart.y },
+        { type: "lineTo", x: arrowEnd.x, y: arrowEnd.y }
+      ]
+    }
+  ];
+}
+
+function circuitikzComponentStyle(pathStyle = {}) {
+  const lineWidth = Number(pathStyle.lineWidth) || 1;
+  return {
+    stroke: pathStyle.stroke || "black",
+    fill: "none",
+    lineWidth: roundNumber(lineWidth * 2),
+    lineJoin: "bevel"
+  };
+}
+
+function circuitikzArrowStyle(pathStyle = {}) {
+  const stroke = pathStyle.stroke || "black";
+  return {
+    stroke,
+    fill: "none",
+    lineWidth: roundNumber((Number(pathStyle.lineWidth) || 1) * 2),
+    markerEnd: createArrowTip("latex", { fill: stroke, stroke })
+  };
+}
+
+function circuitikzTerminalDots(options, from, to) {
+  const dots = [];
+  if (options["*-"] !== undefined || options["*-*"] !== undefined) dots.push(roundPoint(from));
+  if (options["-*"] !== undefined || options["*-*"] !== undefined) dots.push(roundPoint(to));
+  return dots;
+}
+
+function circuitikzTerminalDotItem(point, pathStyle = {}, env = {}) {
+  const stroke = pathStyle.stroke || "black";
+  const radius = 0.056 * circuitikzLengthScale(env);
+  return {
+    type: "path",
+    subtype: "circuitikz-terminal-dot",
+    shape: "circle",
+    cx: point.x,
+    cy: point.y,
+    r: radius,
+    style: {
+      stroke,
+      fill: stroke,
+      lineWidth: Number(pathStyle.lineWidth) || 1
+    },
+    commands: circleToPath(point.x, point.y, radius)
+  };
+}
+
+function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {}) {
+  const label = spec.label || "";
+  if (!label) return;
+  const scale = circuitikzLengthScale(env);
+  const offset = (spec.kind === "isource" ? 0.7 : 0.46) * scale;
+  addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label);
+}
+
+function appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options = {}, pathStyle = {}, env = {}) {
+  const current = circuitikzCurrentSpec(options);
+  if (!current) return;
+  const scale = circuitikzLengthScale(env);
+  const bodyLength = spec.kind === "short" ? 0 : circuitikzBodyLength(spec.kind, geometry.length, env);
+  const leadLength = Math.max(0, (geometry.length - bodyLength) / 2);
+  let center = geometry.mid;
+  if (spec.kind !== "short" && leadLength > 0.02) {
+    const before = current.key.includes(">_") || current.key.includes(">^") || current.key.includes("^>") || current.key.includes("_>");
+    center = before
+      ? pointAlong(from, geometry.u, Math.min(leadLength * 0.65, leadLength - 0.08 * scale))
+      : pointAlong(geometry.mid, geometry.u, 0);
+  }
+  const arrowHalf = 0.18 * scale;
+  shapes.push(circuitikzCurrentTriangleItem(pointAlong(center, geometry.u, arrowHalf * 0.25), geometry, pathStyle, env));
+  const side = current.key.includes("_") ? -1 : 1;
+  addCircuitikzTextNode(nodes, pointNormal(center, geometry.n, side * 0.34 * scale), current.label);
+}
+
+function circuitikzCurrentTriangleItem(center, geometry, pathStyle = {}, env = {}) {
+  const scale = circuitikzLengthScale(env);
+  const stroke = pathStyle.stroke || "black";
+  const length = 0.15 * scale;
+  const width = 0.14 * scale;
+  const tip = pointAlong(center, geometry.u, length / 2);
+  const base = pointAlong(center, geometry.u, -length / 2);
+  const left = pointNormal(base, geometry.n, width / 2);
+  const right = pointNormal(base, geometry.n, -width / 2);
+  return {
+    type: "path",
+    subtype: "circuitikz-current-arrow",
+    style: {
+      stroke,
+      fill: stroke,
+      lineWidth: Number(pathStyle.lineWidth) || 1,
+      lineJoin: "miter"
+    },
+    commands: [
+      { type: "moveTo", x: left.x, y: left.y },
+      { type: "lineTo", x: tip.x, y: tip.y },
+      { type: "lineTo", x: right.x, y: right.y },
+      { type: "closePath" }
+    ]
+  };
+}
+
+function circuitikzCurrentSpec(options = {}) {
+  for (const [key, value] of Object.entries(options)) {
+    if (!/^i(?:[<>_^]*)?$/.test(key)) continue;
+    const label = circuitikzLabelValue(value);
+    if (label) return { key, label };
+  }
+  return null;
+}
+
+function appendCircuitikzVoltageLabel(nodes, spec, from, to, geometry, options = {}, env = {}) {
+  const label = circuitikzLabelValue(options.v);
+  if (!label) return;
+  const scale = circuitikzLengthScale(env);
+  const side = -1;
+  const normal = { x: geometry.n.x * side, y: geometry.n.y * side };
+  const signOffset = (spec.kind === "isource" ? 0.28 : 0.38) * scale;
+  const labelOffset = (spec.kind === "isource" ? 0.72 : 0.62) * scale;
+  const along = 0.55 * scale;
+  addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, along), normal, signOffset), "+", { "inner sep": "0pt" });
+  addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, -along), normal, signOffset), "-", { "inner sep": "0pt" });
+  addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, labelOffset), label);
+}
+
+function addCircuitikzTextNode(nodes, point, text, options = {}) {
+  nodes.push({
+    at: point,
+    displayPoint: point,
+    text,
+    options: {
+      "inner sep": "1pt",
+      ...options
+    }
+  });
+}
+
+function pointAlong(point, direction, distance) {
+  return roundPoint({
+    x: point.x + direction.x * distance,
+    y: point.y + direction.y * distance
+  });
+}
+
+function pointNormal(point, normal, distance) {
+  return roundPoint({
+    x: point.x + normal.x * distance,
+    y: point.y + normal.y * distance
+  });
 }
 
 function parseTikzExtArcThrough(options = {}) {
