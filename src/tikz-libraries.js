@@ -94,6 +94,11 @@ const BUILTIN_LIBRARY_SUPPORT = {
     implementedBy: "src/interpreter.js:applyBraceDecoration",
     features: ["brace path replacement", "mirror", "raise", "amplitude", "aspect"]
   },
+  "decorations.text": {
+    status: "partial",
+    implementedBy: "src/interpreter.js:addDecorationTextItems",
+    features: ["text along path", "text={|style|content}", "raise", "midpoint tangent labels"]
+  },
   plotmarks: {
     status: "partial",
     implementedBy: "src/interpreter.js:buildPlotMark",

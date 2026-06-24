@@ -63,6 +63,16 @@ test("renders TikZ green as xcolor pure green instead of CSS named green", () =>
   assert.match(svg, /fill="rgb\(0 255 0\)"/);
 });
 
+test("renders TikZ even odd fill rule for compound paths", () => {
+  const { svg, diagnostics } = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \fill[even odd rule,red!30] circle (2) circle (1);
+\end{tikzpicture}`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(svg, /fill-rule="evenodd"/);
+});
+
 test("renders path ball shading as SVG radial gradients", () => {
   const svg = renderSvg({
     items: [

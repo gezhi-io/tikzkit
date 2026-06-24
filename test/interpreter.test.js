@@ -534,6 +534,53 @@ test("uses brace decoration amplitude for path replacement depth", () => {
   assert.ok(largeDepth > smallDepth * 3, `expected 15pt brace to be visibly deeper than 3pt: ${smallDepth}, ${largeDepth}`);
 });
 
+test("places text decorations along invisible paths", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate, decoration={text along path, text={|\footnotesize\bf\color{white}|Decorated}, raise=0.2cm}]
+    (0,0) -- (4,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(label, "expected decoration text node");
+  assert.equal(label.text, String.raw`\footnotesize\bf Decorated`);
+  assert.equal(label.style.fill, "white");
+  assert.ok(Math.abs(label.x - 2) < 1e-6, `expected midpoint x=2, got ${label.x}`);
+  assert.ok(Math.abs(label.y - 0.2) < 1e-6, `expected raised y=0.2, got ${label.y}`);
+  assert.ok(Math.abs(label.rotation) < 1e-6, `expected horizontal text, got ${label.rotation}`);
+});
+
+test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \newcommand*{\labelstyle}{\footnotesize\bf\color{black}}
+  \newcommand{\makearc}[2]{
+    \pgfmathsetmacro{\astart}{#1+20}
+    \path[decorate, decoration={text along path, text={|\labelstyle|#2}}]
+      (\astart:2) arc (\astart:\astart+20:2);
+  }
+  \foreach \x in {0,60,...,120} {
+    \makearc{\x}{text \x}
+  }
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+  const centers = labels.map((label) => `${label.x.toFixed(3)},${label.y.toFixed(3)}`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 3);
+  assert.deepEqual(labels.map((label) => label.text), [
+    String.raw`\footnotesize\bf text 0`,
+    String.raw`\footnotesize\bf text 60`,
+    String.raw`\footnotesize\bf text 120`
+  ]);
+  assert.equal(new Set(centers).size, 3);
+});
+
 test("offsets inline node labels away from path endpoints", () => {
   const source = String.raw`
 \begin{tikzpicture}

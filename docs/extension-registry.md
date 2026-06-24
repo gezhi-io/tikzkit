@@ -26,7 +26,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | kind | name | cases | local source | reviewed | next note |
 | --- | --- | ---: | --- | --- | --- |
 | package | circuitikz | 486 | found | no | Needs package compatibility pass |
-| tikzlibrary | decorations.text | 316 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | calendar | 311 | found | no | Needs tikzlibrary compatibility pass |
 | tikzlibrary | tikzmark | 311 | found | no | Needs tikzlibrary compatibility pass |
 | package | verbatim | 50 | found | no | Needs package compatibility pass |
@@ -45,6 +44,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | tikzlibrary | fadings | 6 | found | no | Needs tikzlibrary compatibility pass |
 | package | graphicx | 5 | found | no | Needs package compatibility pass |
 | package | tkz-graph | 5 | found | no | Needs package compatibility pass |
+| tikzlibrary | shapes.arrows | 5 | found | no | Needs tikzlibrary compatibility pass |
 
 
 ## Highest-Priority Partial Entries
@@ -57,6 +57,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | tikzlibrary | shadows | 323 | found | yes | general shadow; shadow xshift/yshift; shadow scale; node shadow rendering |
 | tikzlibrary | intersections | 321 | found | yes | name path; name intersections; by; total; line/flattened curve intersections |
 | tikzlibrary | trees | 318 | found | yes | node child trees; grow direction; level distance; sibling distance |
+| tikzlibrary | decorations.text | 316 | found | yes | text along path; text={|style|content}; raise; midpoint tangent labels |
 | package | pgfplotstable | 314 | found | no | \pgfplotstableread table data usable by addplot table |
 | tikzlibrary | spy | 313 | found | yes | spy using outlines; \spy on ... in node ... at ...; connect spies; clipped magnified simple paths |
 | pgfplotslibrary | groupplots | 312 | found | no | groupplot/nextgroupplot/group size/horizontal sep/vertical sep subset |
@@ -70,7 +71,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | package | etoolbox | 4 | found | no | newtoggle/toggletrue/togglefalse/iftoggle subset |
 | package | pgf | 4 | found | no | Core PGF-style path/color/math compatibility only |
 | package | pgfmath | 4 | found | no | \pgfmathsetmacro and common expression subset |
-| package | relsize | 4 | found | no | Common size/style macros are normalized, not full relsize semantics |
 
 
 ## Implementation Workflow

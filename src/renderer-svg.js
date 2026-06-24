@@ -2523,6 +2523,7 @@ function styleAttributes(style = {}, options = {}) {
   if (Number.isFinite(style.opacity)) attrs.push(["opacity", style.opacity]);
   if (Number.isFinite(style.fillOpacity)) attrs.push(["fill-opacity", style.fillOpacity]);
   if (Number.isFinite(style.strokeOpacity)) attrs.push(["stroke-opacity", style.strokeOpacity]);
+  if (style.fillRule) attrs.push(["fill-rule", style.fillRule]);
   if (!options.omitMarkers && style.markerStart) attrs.push(["marker-start", `url(#${arrowMarkerId(style.markerStart, style)})`]);
   if (!options.omitMarkers && style.markerEnd) attrs.push(["marker-end", `url(#${arrowMarkerId(style.markerEnd, style)})`]);
   return attrs.map(([key, value]) => ` ${key}="${escapeAttribute(String(value))}"`).join("");

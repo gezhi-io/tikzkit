@@ -320,6 +320,7 @@ function parseParenSemicolonDefMacro(source, start, name) {
 function parseNewCommandMacro(source, start) {
   const command = source.startsWith("\\renewcommand", start) ? "\\renewcommand" : "\\newcommand";
   let index = start + command.length;
+  if (source[index] === "*") index += 1;
   index = skipWhitespace(source, index);
   let name = null;
   if (source[index] === "{") {

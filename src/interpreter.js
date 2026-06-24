@@ -306,6 +306,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
+  addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
   if (visible) {
     const doubleStyle = doublePathStyle(semantic, env);
     const shadingStyle = pathShadingStyle(style, semantic);
@@ -314,7 +315,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       subtype: shape.subtype || subtype,
       style: { ...style, ...shadingStyle, ...doubleStyle, ...(shape.style || {}) }
     }));
-    for (const shape of styledShapes) {
+    const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype);
+    const shapesToRender = compoundShape ? [compoundShape] : styledShapes;
+    for (const shape of shapesToRender) {
       ir.items.push(shape);
     }
     if (hasDrawableCommands(built.commands, built.shapes)) {
@@ -329,7 +332,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       ir.items.push(item);
       addDecorationMarkers(item, options, ir);
     }
-    for (const shape of styledShapes) {
+    for (const shape of shapesToRender) {
       addDecorationMarkers(shape, options, ir);
     }
   }
@@ -3812,6 +3815,100 @@ function bracePoint(origin, ux, uy, nx, ny, distance, normalDistance) {
   });
 }
 
+function addDecorationTextItems(built, pathOptions, style, ir, env) {
+  const decoration = textAlongPathDecorationFromOptions(pathOptions);
+  if (!decoration) return;
+  const targets = [];
+  if (hasDrawableCommands(built.commands || [], built.shapes || [])) {
+    targets.push({ commands: built.commands, style });
+  }
+  for (const shape of built.shapes || []) {
+    if (shape.commands?.length) targets.push({ commands: shape.commands, style: { ...style, ...(shape.style || {}) } });
+  }
+  for (const target of targets) addDecorationTextItem(target, decoration, pathOptions, ir, env);
+}
+
+function textAlongPathDecorationFromOptions(options = {}) {
+  if (!tikzBoolean(options.decorate)) return null;
+  const decoration = parseOptions(String(options.decoration || ""));
+  return decoration["text along path"] ? decoration : null;
+}
+
+function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
+  const flat = flattenPath(item.commands || [], 0.02);
+  if (flat.length < 2) return;
+  const payload = decorationTextPayload(decoration.text, pathOptions, env);
+  if (!payload.text) return;
+  const point = pointAtLength(flat, 0.5);
+  const angle = Number(point.angle) || 0;
+  const raise = parseFiniteDimension(decoration.raise || "0", env, 0);
+  const radians = (angle * Math.PI) / 180;
+  const nx = -Math.sin(radians);
+  const ny = Math.cos(radians);
+  ir.items.push({
+    type: "textNode",
+    subtype: "decoration-text",
+    text: payload.text,
+    x: roundNumber(point.x + nx * raise),
+    y: roundNumber(point.y + ny * raise),
+    rotation: roundNumber(angle),
+    style: {
+      ...item.style,
+      ...payload.style,
+      fill: visibleTextFill(payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
+      fontFamily: payload.style.fontFamily || resolveFontFamily(pathOptions.font || env.pictureOptions?.font),
+      fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
+    }
+  });
+}
+
+function decorationTextPayload(raw, pathOptions = {}, env = {}) {
+  let text = substituteTextVariables(stripOuterBraces(String(raw ?? "")).trim(), env.variables || {});
+  let styleRaw = "";
+  if (text.startsWith("|")) {
+    const end = text.indexOf("|", 1);
+    if (end !== -1) {
+      styleRaw = text.slice(1, end).trim();
+      text = text.slice(end + 1).trim();
+    }
+  }
+  const style = {};
+  const color = decorationTextColor(styleRaw);
+  if (color) style.fill = normalizeColor(color);
+  const fontFamily = resolveFontFamily(`${styleRaw} ${pathOptions.font || ""}`);
+  if (fontFamily) style.fontFamily = fontFamily;
+  const fontPrefix = decorationTextFontPrefix(styleRaw);
+  return {
+    text: `${fontPrefix}${text}`.trim(),
+    style,
+    fontScale: fontScaleFromTikzFont(styleRaw)
+  };
+}
+
+function decorationTextColor(styleRaw) {
+  const match = String(styleRaw || "").match(/\\color\s*\{([^{}]+)\}/);
+  return match?.[1]?.trim() || null;
+}
+
+function decorationTextFontPrefix(styleRaw) {
+  const commands = [];
+  const raw = String(styleRaw || "");
+  for (const match of raw.matchAll(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny|bf|bfseries|itshape|slshape|sffamily|rmfamily|ttfamily)\b/g)) {
+    commands.push(`\\${match[1]}`);
+  }
+  return commands.length ? `${commands.join("")} ` : "";
+}
+
+function visibleTextFill(...candidates) {
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null || candidate === false) continue;
+    const text = String(candidate).trim();
+    if (!text || text === "none") continue;
+    return candidate;
+  }
+  return "black";
+}
+
 function appendMorphedLine(commands, from, to, amplitude, segmentLength, mode) {
   appendMorphedPolyline(commands, [from, to], amplitude, segmentLength, mode);
 }
@@ -4208,6 +4305,29 @@ function hasDrawableCommands(commands, shapes) {
   if (commands.length === 0) return false;
   if (commands.length === 1 && commands[0].type === "moveTo" && shapes.length > 0) return false;
   return true;
+}
+
+function compoundFillRuleShape(shapes = [], pathOptions = {}, subtype) {
+  if (shapes.length < 2) return null;
+  if (!shapes[0]?.style?.fillRule) return null;
+  if (!shapes.every((shape) => shape?.type === "path" && shape.commands?.length && isClosedPath(shape.commands))) return null;
+  if (!shapes.every((shape) => compatibleCompoundShapeStyle(shapes[0].style || {}, shape.style || {}))) return null;
+  return {
+    type: "path",
+    subtype: shapes[0].subtype || subtype,
+    tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
+    style: { ...(shapes[0].style || {}) },
+    commands: shapes.flatMap((shape) => shape.commands || [])
+  };
+}
+
+function isClosedPath(commands = []) {
+  return commands.some((command) => command.type === "closePath");
+}
+
+function compatibleCompoundShapeStyle(base = {}, candidate = {}) {
+  const keys = ["fill", "stroke", "lineWidth", "fillRule", "fillOpacity", "strokeOpacity", "opacity", "dashArray"];
+  return keys.every((key) => JSON.stringify(base[key] ?? null) === JSON.stringify(candidate[key] ?? null));
 }
 
 function polarOffset(point, angle, distance) {

@@ -209,6 +209,14 @@ export function normalizeOptions(command, rawOptions, env) {
       style.fill = value === true ? "black" : normalizeColor(String(value));
       continue;
     }
+    if (key === "even odd rule") {
+      style.fillRule = "evenodd";
+      continue;
+    }
+    if (key === "nonzero rule") {
+      style.fillRule = "nonzero";
+      continue;
+    }
     if (key === "shading") {
       semantic.shading = String(value || "").trim();
       continue;
