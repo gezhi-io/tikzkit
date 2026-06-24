@@ -64,6 +64,11 @@ const BUILTIN_LIBRARY_SUPPORT = {
     implementedBy: "src/interpreter.js:createPathItem",
     features: ["snake/zigzag approximation"]
   },
+  "decorations.pathreplacing": {
+    status: "partial",
+    implementedBy: "src/interpreter.js:applyBraceDecoration",
+    features: ["brace path replacement", "mirror", "raise", "amplitude", "aspect"]
+  },
   patterns: {
     status: "builtin",
     implementedBy: "src/options.js:normalizeOptions",

@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node --test",
     "web": "node web/server.js",
+    "extension-registry": "node scripts/build-extension-registry.js",
     "awesome-tikz:audit": "node scripts/awesome-tikz-audit.js",
     "real-cases:render": "node scripts/render-real-cases.js",
     "gallery:audit": "node scripts/gallery-audit.js",

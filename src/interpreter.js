@@ -3361,57 +3361,84 @@ function appendBraceLine(commands, from, to, decoration, env) {
   const uy = dy / length;
   const nx = -uy * side;
   const ny = ux * side;
-  const depth = Math.min(0.12, Math.max(0.035, length * 0.18));
-  const offset = (point, normalDistance = raise) => roundPoint({ x: point.x + nx * normalDistance, y: point.y + ny * normalDistance });
-  const along = (t, normalDistance = raise) =>
-    offset({ x: from.x + dx * t, y: from.y + dy * t }, normalDistance);
-  const p0 = offset(from);
-  const p1 = along(0.25, raise + depth * 0.15);
-  const p2 = along(0.5, raise + depth);
-  const p3 = along(0.75, raise + depth * 0.15);
-  const p4 = offset(to);
-  const control = (point, tDelta) =>
-    roundPoint({
-      x: point.x + ux * length * tDelta,
-      y: point.y + uy * length * tDelta
-    });
+  const amplitude = Math.max(0, parseFiniteDimension(decoration.amplitude ?? "2.5pt", env, parseDimension("2.5pt", env.variables)));
+  if (amplitude <= 1e-12) {
+    const p0 = bracePoint(from, ux, uy, nx, ny, 0, raise);
+    const p1 = bracePoint(from, ux, uy, nx, ny, length, raise);
+    commands.push({ type: "moveTo", x: p0.x, y: p0.y });
+    commands.push({ type: "lineTo", x: p1.x, y: p1.y });
+    return;
+  }
 
-  commands.push({ type: "moveTo", x: p0.x, y: p0.y });
-  commands.push({
-    type: "curveTo",
-    x1: control(p0, 0.09).x,
-    y1: control(p0, 0.09).y,
-    x2: control(p1, -0.09).x,
-    y2: control(p1, -0.09).y,
-    x: p1.x,
-    y: p1.y
-  });
-  commands.push({
-    type: "curveTo",
-    x1: control(p1, 0.09).x,
-    y1: control(p1, 0.09).y,
-    x2: control(p2, -0.06).x,
-    y2: control(p2, -0.06).y,
-    x: p2.x,
-    y: p2.y
-  });
-  commands.push({
-    type: "curveTo",
-    x1: control(p2, 0.06).x,
-    y1: control(p2, 0.06).y,
-    x2: control(p3, -0.09).x,
-    y2: control(p3, -0.09).y,
-    x: p3.x,
-    y: p3.y
-  });
-  commands.push({
-    type: "curveTo",
-    x1: control(p3, 0.09).x,
-    y1: control(p3, 0.09).y,
-    x2: control(p4, -0.09).x,
-    y2: control(p4, -0.09).y,
-    x: p4.x,
-    y: p4.y
+  const aspectRaw = evaluateMath(decoration.aspect ?? "0.5", env.variables);
+  const aspect = Number.isFinite(aspectRaw) ? Math.min(0.95, Math.max(0.05, aspectRaw)) : 0.5;
+  const apexDistance = length * aspect;
+  const beforeCurl = Math.min(amplitude, Math.max(0, apexDistance / 2));
+  const afterCurl = Math.min(amplitude, Math.max(0, (length - apexDistance) / 2));
+  const point = (distance, normalOffset) => bracePoint(from, ux, uy, nx, ny, distance, raise + normalOffset);
+  const pushLineTo = (distance, normalOffset) => {
+    const previous = commands.at(-1);
+    const p = point(distance, normalOffset);
+    if (previous && Math.hypot((previous.x ?? 0) - p.x, (previous.y ?? 0) - p.y) < 1e-9) return;
+    commands.push({ type: "lineTo", x: p.x, y: p.y });
+  };
+  const pushCurveTo = (c1Distance, c1Normal, c2Distance, c2Normal, endDistance, endNormal) => {
+    const c1 = point(c1Distance, c1Normal);
+    const c2 = point(c2Distance, c2Normal);
+    const end = point(endDistance, endNormal);
+    commands.push({
+      type: "curveTo",
+      x1: c1.x,
+      y1: c1.y,
+      x2: c2.x,
+      y2: c2.y,
+      x: end.x,
+      y: end.y
+    });
+  };
+
+  const start = point(0, 0);
+  commands.push({ type: "moveTo", x: start.x, y: start.y });
+  pushCurveTo(
+    beforeCurl * 0.15,
+    amplitude * 0.3,
+    beforeCurl * 0.5,
+    amplitude * 0.5,
+    beforeCurl,
+    amplitude * 0.5
+  );
+  pushLineTo(apexDistance - beforeCurl, amplitude * 0.5);
+  pushCurveTo(
+    apexDistance - beforeCurl * 0.5,
+    amplitude * 0.5,
+    apexDistance - beforeCurl * 0.15,
+    amplitude * 0.7,
+    apexDistance,
+    amplitude
+  );
+  pushCurveTo(
+    apexDistance + afterCurl * 0.15,
+    amplitude * 0.7,
+    apexDistance + afterCurl * 0.5,
+    amplitude * 0.5,
+    apexDistance + afterCurl,
+    amplitude * 0.5
+  );
+  pushLineTo(length - afterCurl, amplitude * 0.5);
+  pushCurveTo(
+    length - afterCurl * 0.5,
+    amplitude * 0.5,
+    length - afterCurl * 0.15,
+    amplitude * 0.3,
+    length,
+    0
+  );
+}
+
+function bracePoint(origin, ux, uy, nx, ny, distance, normalDistance) {
+  return roundPoint({
+    x: origin.x + ux * distance + nx * normalDistance,
+    y: origin.y + uy * distance + ny * normalDistance
   });
 }
 

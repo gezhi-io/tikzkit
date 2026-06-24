@@ -458,6 +458,24 @@ test("approximates snakes brace path replacement decorations", () => {
   assert.ok(path.commands.some((command) => command.y < -0.55), "expected mirrored brace cusp below the raised baseline");
 });
 
+test("uses brace decoration amplitude for path replacement depth", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[decorate, decoration={brace, amplitude=3pt}] (0,0) -- (3,0);
+  \draw[decorate, decoration={brace, amplitude=15pt}] (0,-1) -- (3,-1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+  const smallTop = Math.max(...paths[0].commands.map((command) => command.y ?? -Infinity));
+  const largeTop = Math.max(...paths[1].commands.map((command) => command.y ?? -Infinity));
+  const smallDepth = smallTop;
+  const largeDepth = largeTop + 1;
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(largeDepth > smallDepth * 3, `expected 15pt brace to be visibly deeper than 3pt: ${smallDepth}, ${largeDepth}`);
+});
+
 test("offsets inline node labels away from path endpoints", () => {
   const source = String.raw`
 \begin{tikzpicture}
