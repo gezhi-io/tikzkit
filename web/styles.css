@@ -313,7 +313,7 @@ textarea {
   padding: 22px;
 }
 
-.svg-surface > svg {
+.svg-surface > svg.tikz-render-svg {
   display: block;
   flex: 0 1 auto;
   height: auto;
@@ -322,11 +322,11 @@ textarea {
   overflow: visible;
 }
 
-.svg-surface.compare-scaled > svg {
+.svg-surface.compare-scaled > svg.tikz-render-svg {
   flex: 0 0 auto;
 }
 
-.svg-surface > svg.compare-transform-scaled {
+.svg-surface > svg.tikz-render-svg.compare-transform-scaled {
   transform: scale(var(--tikz-js-compare-scale));
   transform-origin: center;
 }

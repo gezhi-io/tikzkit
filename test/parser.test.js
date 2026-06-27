@@ -54,6 +54,27 @@ test("parses TikZ to path options placed before the to keyword", () => {
   assert.equal(toSegment.options["bend left"], true);
 });
 
+test("parses TikZ to path targets written as relative ++ coordinates", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) to[short, o-] ++(1,0) to[R=$R_1$] ++(0,-2);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+  const toSegments = draw.path.segments.filter((segment) => segment.kind === "to");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(toSegments.length, 2);
+  assert.equal(toSegments[0].to, "1,0");
+  assert.equal(toSegments[0].relative, "update");
+  assert.equal(toSegments[0].options.short, true);
+  assert.equal(toSegments[0].options["o-"], true);
+  assert.equal(toSegments[1].to, "0,-2");
+  assert.equal(toSegments[1].relative, "update");
+  assert.equal(toSegments[1].options.R, "$R_1$");
+});
+
 test("parses compact TikZ arc angle-radius syntax", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -67,6 +88,39 @@ test("parses compact TikZ arc angle-radius syntax", () => {
   assert.equal(result.diagnostics.length, 0);
   assert.ok(arc);
   assert.deepEqual(arc.options, { "start angle": "0", "end angle": "60", radius: "1" });
+});
+
+test("parses option-only TikZ pics such as tqft cobordisms", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \pic[tqft/cylinder to prior, name=a, cobordism edge/.style={draw}];
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const pic = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(pic.type, "pic");
+  assert.equal(pic.options["tqft/cylinder to prior"], true);
+  assert.equal(pic.options.name, "a");
+  assert.equal(pic.body, "");
+});
+
+test("parses TikZ pic placement with at coordinates", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \pic[fill=blue] (zm1) at (12,0) {zeitmarker};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const pic = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(pic.type, "pic");
+  assert.equal(pic.name, "zm1");
+  assert.equal(pic.at, "12,0");
+  assert.equal(pic.body, "zeitmarker");
+  assert.equal(pic.options.fill, "blue");
 });
 
 test("parses compact relative coordinates after path operators", () => {
@@ -142,6 +196,26 @@ test("parses TikZ tree options between node text and child branches", () => {
   assert.equal(root.children[1].node.text, "B");
 });
 
+test("parses tree edge-from-parent clauses before nested children", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node {root}
+    child { node (hidden) {hidden edge} edge from parent [draw=none]
+      child { node {grandchild} }
+    };
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const root = result.ast.pictures[0].statements[0];
+  const hidden = root.children[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(hidden.edgeOptions, { draw: "none" });
+  assert.equal(hidden.node.text, "hidden edge");
+  assert.equal(hidden.children.length, 1);
+  assert.equal(hidden.children[0].node.text, "grandchild");
+});
+
 test("parses TikZ spy statements with source and target nodes", () => {
   const source = String.raw`
 \begin{tikzpicture}[spy using outlines={circle, magnification=8, size=2cm, connect spies}]
@@ -172,6 +246,19 @@ test("preserves repeated node label options instead of overwriting them", () => 
   assert.deepEqual(node.options.label, ["above:Graphics", "left:Design", "below:Typography", "right:Coding"]);
 });
 
+test("preserves repeated node pin options instead of overwriting them", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[pin=above:Graphics,pin=left:Design,pin=below:Typography,pin=right:Coding] {TikZ};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const node = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(node.options.pin, ["above:Graphics", "left:Design", "below:Typography", "right:Coding"]);
+});
+
 test("splits node statements with bracket-like math text before following draw commands", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -185,6 +272,23 @@ test("splits node statements with bracket-like math text before following draw c
   assert.equal(result.diagnostics.length, 0);
   assert.equal(statements.length, 2);
   assert.equal(statements[0].type, "node");
+  assert.equal(statements[1].type, "path");
+  assert.equal(statements[1].command, "draw");
+});
+
+test("splits circuitikz setup commands before following draw commands", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \ctikzset{amplifiers/fill=cyan!20, component text=left}
+  \draw (0,0) to[short] ++(1,0);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const statements = result.ast.pictures[0].statements;
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(statements.length, 2);
+  assert.equal(statements[0].type, "noop");
   assert.equal(statements[1].type, "path");
   assert.equal(statements[1].command, "draw");
 });
@@ -206,6 +310,23 @@ test("parses plot smooth coordinates as a single plot segment", () => {
   assert.deepEqual(draw.path.segments[0].coordinates, ["A.east", "[xshift=1em,yshift=1em]A.east", "B.west"]);
   assert.equal(draw.path.segments[0].options.smooth, true);
   assert.equal(draw.path.segments[0].options.tension, "1");
+});
+
+test("parses TikZ plot function segments without treating function parentheses as coordinates", () => {
+  const source = String.raw`
+\begin{tikzpicture}[domain=-0.25:9]
+  \draw[thick] plot[id=x] function{1/(1+exp(-3-0.8*x))} node[right] {$f$};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(draw.path.segments.length, 2);
+  assert.equal(draw.path.segments[0].kind, "plotFunction");
+  assert.equal(draw.path.segments[0].expression, "1/(1+exp(-3-0.8*x))");
+  assert.equal(draw.path.segments[0].options.id, "x");
+  assert.equal(draw.path.segments[1].kind, "node");
 });
 
 test("records preamble TikZ libraries and style definitions for matrix/positioning cases", () => {
@@ -241,7 +362,7 @@ test("records preamble TikZ libraries and style definitions for matrix/positioni
   assert.deepEqual(result.ast.libraries.map((library) => library.name), ["positioning", "matrix"]);
   assert.deepEqual(picture.libraries.map((library) => library.name), ["positioning", "matrix"]);
   assert.equal(result.ast.libraries[0].status, "builtin");
-  assert.match(result.ast.libraries[0].implementedBy, /resolvePositioning/);
+  assert.match(result.ast.libraries[0].implementedBy, /src\/libraries\/positioning\.js/);
   assert.equal(picture.styles.tablet["matrix of nodes"], true);
   assert.equal(picture.styles.tablet["row sep"], "-\\pgflinewidth");
   assert.equal(picture.styles.tablet.nodes, "rectangle,draw=black,text width=1.25ex,align=center");
@@ -250,4 +371,77 @@ test("records preamble TikZ libraries and style definitions for matrix/positioni
   assert.doesNotMatch(result.ast.source, /\\documentclass|\\begin\{document\}|\\usetikzlibrary|\\definecolor/);
   assert.match(result.ast.source, /fill=#555555/);
   assert.match(result.ast.source, /fill=#aaaaaa/);
+});
+
+test("keeps bare bracket matrix delimiters inside node option lists", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node (m1) [matrix of math nodes, left delimiter=[, right delimiter={]}] { a \\ b \\ };
+  \node (m2) [right of=m1, matrix of math nodes, left delimiter=[, right delimiter={]}] { c \\ d \\ };
+  \path[->] (m1.south) edge[bend right=70] node[midway, below] {label} (m2.south);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const statements = result.ast.pictures[0].statements;
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(statements.length, 3);
+  assert.equal(statements[0].type, "node");
+  assert.equal(statements[0].options["left delimiter"], "[");
+  assert.equal(statements[0].options["right delimiter"], "]");
+  assert.equal(statements[1].name, "m2");
+  assert.equal(statements[2].type, "path");
+});
+
+test("records common PGF package and PGFPlots library declarations", () => {
+  const source = String.raw`
+\documentclass[border=4mm]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{pgfcalendar}
+\usepackage{pgfgantt}
+\pgfplotsset{compat=newest}
+\usepgfplotslibrary{groupplots}
+\begin{document}
+\begin{tikzpicture}
+  \draw (0,0) -- (1,1);
+\end{tikzpicture}
+\end{document}`;
+
+  const result = parseTikz(source);
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(result.ast.packages.map((pkg) => pkg.name), [
+    "xcolor",
+    "tikz",
+    "pgfplots",
+    "pgfplotstable",
+    "pgfcalendar",
+    "pgfgantt"
+  ]);
+  assert.deepEqual(result.ast.pgfplotsLibraries.map((library) => library.name), ["groupplots"]);
+  assert.equal(result.ast.pgfplotsLibraries[0].status, "builtin");
+  assert.equal(result.ast.pgfplotsOptions.compat, "newest");
+  assert.doesNotMatch(result.ast.source, /\\usepackage|\\usepgfplotslibrary|\\pgfplotsset/);
+});
+
+test("keeps circuitikz siunitx and RPvoltages package options", () => {
+  const source = String.raw`
+\documentclass[border=4mm]{standalone}
+\usepackage[siunitx,RPvoltages]{circuitikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw (0,0) to[R=2<\ohm>, v=84<\volt>] (2,0);
+\end{tikzpicture}
+\end{document}`;
+
+  const result = parseTikz(source);
+  const circuitikz = result.ast.packages.find((pkg) => pkg.name === "circuitikz");
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.deepEqual(circuitikz?.options, { siunitx: true, RPvoltages: true });
+  assert.equal(circuitikz?.status, "partial");
+  assert.deepEqual(result.ast.pictures[0].packages[0].options, { siunitx: true, RPvoltages: true });
 });

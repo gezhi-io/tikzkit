@@ -26,7 +26,7 @@ test("loads every circuitikz manual snippet from the local corpus", async (t) =>
 
   assert.equal(cases.length, CIRCUITIKZ_EXPECTED_SNIPPET_COUNT);
   assert.equal(cases.every((item) => item.origin === "circuitikz/circuitikz"), true);
-  assert.equal(cases.every((item) => item.source.includes("\\usepackage{circuitikz}")), true);
+  assert.equal(cases.every((item) => item.source.includes("\\usepackage[siunitx,RPvoltages]{circuitikz}")), true);
   assert.equal(cases.every((item) => item.source.includes("\\begin{tikzpicture}")), true);
   assert.equal(cases.every((item) => !item.source.includes("\\begin{circuitikz}")), true);
   assert.equal(cases.every((item) => item.sourceUrl.startsWith(`${CIRCUITIKZ_REPOSITORY_URL}/blob/master/doc/`)), true);

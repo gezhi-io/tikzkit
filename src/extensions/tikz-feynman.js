@@ -18,6 +18,7 @@ export function expandTikzFeynman(source, diagnostics = []) {
   text = expandCommand(text, "\\feynmandiagram", parseFeynmanDiagramCommand, diagnostics);
   text = expandCommand(text, "\\diagram", parseDiagramCommand, diagnostics);
   text = expandCommand(text, "\\vertex", parseVertexCommand, diagnostics);
+  text = wrapInlineFeynmanEquations(text);
   return text;
 }
 
@@ -143,27 +144,46 @@ function parseGraph(body) {
 
 function parseGraphSequence(sequence, graph) {
   let cursor = 0;
-  let previous = readGraphVertex(sequence, cursor);
+  let previous = readGraphVertexSet(sequence, cursor);
   if (!previous) return;
   cursor = previous.end;
-  addGraphNode(graph, previous);
+  for (const vertex of previous.vertices) addGraphNode(graph, vertex);
   while (cursor < sequence.length) {
     cursor = skipWhitespace(sequence, cursor);
     if (!sequence.startsWith("--", cursor)) break;
     cursor = skipWhitespace(sequence, cursor + 2);
     const edgeOptions = readOptional(sequence, cursor, "[", "]");
     cursor = edgeOptions ? skipWhitespace(sequence, edgeOptions.end) : cursor;
-    const next = readGraphVertex(sequence, cursor);
+    const next = readGraphVertexSet(sequence, cursor);
     if (!next) break;
     cursor = next.end;
-    addGraphNode(graph, next);
-    graph.edges.push({
-      from: previous.name,
-      to: next.name,
-      options: edgeOptions?.content || ""
-    });
+    for (const vertex of next.vertices) addGraphNode(graph, vertex);
+    for (const from of previous.vertices) {
+      for (const to of next.vertices) {
+        graph.edges.push({
+          from: from.name,
+          to: to.name,
+          options: edgeOptions?.content || ""
+        });
+      }
+    }
     previous = next;
   }
+}
+
+function readGraphVertexSet(text, start) {
+  let cursor = skipWhitespace(text, start);
+  if (text[cursor] !== "{") {
+    const vertex = readGraphVertex(text, cursor);
+    return vertex ? { vertices: [vertex], end: vertex.end } : null;
+  }
+  const balanced = extractBalanced(text, cursor, "{", "}");
+  if (!balanced) return null;
+  const vertices = splitTopLevel(balanced.content, ",")
+    .map((part) => readGraphVertex(part.trim(), 0))
+    .filter(Boolean);
+  if (!vertices.length) return null;
+  return { vertices, end: balanced.end };
 }
 
 function readGraphVertex(text, start) {
@@ -277,11 +297,11 @@ function feynmanVertexOptions(raw) {
   const parsed = parseOptions(raw || "");
   const parts = splitTopLevel(raw || "").map((part) => part.trim()).filter(Boolean);
   const mapped = [];
-  let kind = parsed.dot ? "dot" : parsed.blob ? "blob" : parsed.particle ? "particle" : "vertex";
+  let kind = parsed["crossed dot"] ? "crossed dot" : parsed.dot ? "dot" : parsed.blob ? "blob" : parsed.particle ? "particle" : "vertex";
   for (const part of parts) {
     const key = optionKey(part);
     const canonical = canonicalToken(key);
-    if (["particle", "dot", "blob"].includes(canonical)) continue;
+    if (["particle", "dot", "blob", "crossed dot"].includes(canonical)) continue;
     mapped.push(part);
   }
   return [...vertexStyle(kind), ...mapped, `feynman ${kind}`].join(",");
@@ -295,6 +315,7 @@ function feynmanVertexText(raw) {
 function vertexStyle(kind) {
   if (kind === "particle") return ["rectangle", "draw=none", "fill=none", "inner sep=0.333em"];
   if (kind === "dot") return ["circle", "draw", "fill", "inner sep=0pt", "minimum size=1.5mm", "line width=0.5pt"];
+  if (kind === "crossed dot") return ["shape=circle cross split", "draw", "fill=none", "inner sep=0pt", "minimum size=3mm", "line width=0.5pt"];
   if (kind === "blob") return ["circle", "draw", "fill", "inner sep=0pt", "minimum size=7.5mm", "line width=0.5pt"];
   return ["coordinate"];
 }
@@ -333,6 +354,12 @@ function feynmanEdgeOptions(rawOptions) {
     }
     if (canonical === "edge label'") {
       nodes.push(`node[midway,below] {${stripOuterBraces(value)}}`);
+      continue;
+    }
+    const bend = feynmanBendModifier(canonical);
+    if (bend) {
+      edge[bend.key] = bend.value;
+      if (bend.looseness && !Object.hasOwn(edge, "looseness")) edge.looseness = bend.looseness;
       continue;
     }
     edge[key] = value || true;
@@ -375,6 +402,16 @@ function propagatorType(name) {
     "charged scalar": { subtype: "scalar", options: ["dashed"], arrows: [{ pos: 0.5 }] },
     "anti charged scalar": { subtype: "scalar", options: ["dashed"], arrows: [{ pos: 0.5, reverse: true }] },
     ghost: { subtype: "ghost", options: ["densely dotted"] }
+  };
+  return map[name] || null;
+}
+
+function feynmanBendModifier(name) {
+  const map = {
+    "half left": { key: "bend left", value: 90, looseness: 1.5 },
+    "half right": { key: "bend right", value: 90, looseness: 1.5 },
+    "quarter left": { key: "bend left", value: 45 },
+    "quarter right": { key: "bend right", value: 45 }
   };
   return map[name] || null;
 }
@@ -470,4 +507,100 @@ function findTopLevelEquals(text) {
 
 function formatNumber(value) {
   return Number(value.toFixed(4)).toString();
+}
+
+function wrapInlineFeynmanEquations(source) {
+  if (source.includes("\\begin{tikzpicture}") || !source.includes("\\raisebox")) return source;
+  const raiseboxes = collectFeynmanRaiseboxes(source);
+  if (!raiseboxes.length) return source;
+  const mathStart = source.lastIndexOf("$", raiseboxes[0].start);
+  const mathEnd = source.indexOf("$", raiseboxes.at(-1).end);
+  if (mathStart < 0 || mathEnd < 0 || mathEnd <= mathStart) return source;
+  const prefix = source.slice(mathStart + 1, raiseboxes[0].start);
+  const picture = inlineFeynmanPicture(prefix, raiseboxes, source);
+  return `${source.slice(0, mathStart)}${picture}${source.slice(mathEnd + 1)}`;
+}
+
+function collectFeynmanRaiseboxes(source) {
+  const boxes = [];
+  let index = 0;
+  while (index < source.length) {
+    const start = source.indexOf("\\raisebox", index);
+    if (start === -1) break;
+    let cursor = skipWhitespace(source, start + "\\raisebox".length);
+    const amount = extractBalanced(source, cursor, "{", "}");
+    if (!amount) {
+      index = start + 1;
+      continue;
+    }
+    cursor = skipWhitespace(source, amount.end);
+    const content = extractBalanced(source, cursor, "{", "}");
+    if (!content) {
+      index = amount.end;
+      continue;
+    }
+    if (/\\(?:node|draw|path)\b|feynman\s/.test(content.content)) {
+      boxes.push({
+        start,
+        end: content.end,
+        amount: amount.content.trim(),
+        body: content.content.trim()
+      });
+    }
+    index = content.end;
+  }
+  return boxes;
+}
+
+function inlineFeynmanPicture(prefix, raiseboxes, source) {
+  const diagramScale = 0.46;
+  let cursor = 0.95;
+  const commands = [
+    "\\begin{tikzpicture}[font=\\normalsize]",
+    `\\node[anchor=east] at (0,0) {${asMathNodeText(prefix)}};`
+  ];
+  for (let index = 0; index < raiseboxes.length; index += 1) {
+    const box = raiseboxes[index];
+    const bounds = feynmanBodyBounds(box.body);
+    const shiftX = cursor - bounds.minX * diagramScale;
+    commands.push(`{[shift={(${formatNumber(shiftX)},0.08)},scale=${diagramScale}]`);
+    commands.push(box.body);
+    commands.push("}");
+    cursor += Math.max(1.1, (bounds.maxX - bounds.minX) * diagramScale) + 0.42;
+    const gap = source.slice(box.end, raiseboxes[index + 1]?.start ?? box.end);
+    if (/\+/.test(gap)) {
+      commands.push(`\\node at (${formatNumber(cursor)},0) {$+$};`);
+      cursor += 0.52;
+    }
+  }
+  commands.push("\\end{tikzpicture}");
+  return commands.join("\n");
+}
+
+function asMathNodeText(text) {
+  const cleaned = String(text || "")
+    .replace(/\\enskip/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.startsWith("$") ? cleaned : `$${cleaned}$`;
+}
+
+function feynmanBodyBounds(body) {
+  const xs = [];
+  const ys = [];
+  const pattern = /\bat\s*\(([^,()]+),([^()]+)\)/g;
+  let match;
+  while ((match = pattern.exec(body))) {
+    const x = Number(match[1].trim());
+    const y = Number(match[2].trim());
+    if (Number.isFinite(x)) xs.push(x);
+    if (Number.isFinite(y)) ys.push(y);
+  }
+  if (!xs.length || !ys.length) return { minX: -1, maxX: 3, minY: -1, maxY: 1 };
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys)
+  };
 }

@@ -1,5 +1,5 @@
 import { createToken, Lexer } from "chevrotain";
-import { parseOptions, parseTikzset, splitTopLevel } from "./options.js";
+import { codeDefinitionsFromOptions, isBareDelimiterOptionBracket, parseOptions, parseTikzset, splitTopLevel } from "./options.js";
 import { preprocessTikzSource } from "./preprocess.js";
 
 const WhiteSpace = createToken({ name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED });
@@ -28,7 +28,12 @@ export function parseTikz(source, options = {}) {
   const preprocessed = preprocessTikzSource(source, options);
   const diagnostics = [...preprocessed.diagnostics];
   const libraries = preprocessed.libraries || [];
+  const packages = preprocessed.packages || [];
+  const pgfplotsLibraries = preprocessed.pgfplotsLibraries || [];
+  const pgfplotsOptions = preprocessed.pgfplotsOptions || {};
   const randomLists = collectPgfMathRandomLists(preprocessed.source);
+  const shadingDefinitions = collectShadingDefinitions(preprocessed.source);
+  const coordinateSystems = collectCoordinateSystemDefinitions(preprocessed.source);
   const lexed = TikzLexer.tokenize(preprocessed.source);
   for (const error of lexed.errors) {
     diagnostics.push({
@@ -39,14 +44,30 @@ export function parseTikz(source, options = {}) {
   }
 
   const pictures = extractTikzPictures(preprocessed.source).map((picture) => {
-    const globalStyles = collectStyleDefinitions(preprocessed.source.slice(0, picture.beginIndex));
+    const prePictureSource = preprocessed.source.slice(0, picture.beginIndex);
+    const globalStyles = collectStyleDefinitions(prePictureSource);
+    const globalCodeHandlers = collectCodeDefinitions(prePictureSource);
+    const globalPics = collectPicDefinitions(prePictureSource);
+    const globalPgfMath = collectPgfMathMacros(prePictureSource);
+    const globalCoordinateSystems = collectCoordinateSystemDefinitions(prePictureSource);
     const statements = parseStatements(picture.body, diagnostics);
     return {
       type: "tikzpicture",
+      beginIndex: picture.beginIndex,
+      bodyEndIndex: picture.bodyEndIndex,
+      endIndex: picture.endIndex,
       options: parseOptions(picture.optionsRaw),
       styles: globalStyles,
+      codeHandlers: globalCodeHandlers,
+      pics: globalPics,
+      coordinateSystems: globalCoordinateSystems,
+      pgfMathMacros: globalPgfMath,
       randomLists,
       libraries,
+      packages,
+      pgfplotsLibraries,
+      pgfplotsOptions,
+      shadings: shadingDefinitions,
       body: picture.body,
       statements
     };
@@ -59,6 +80,11 @@ export function parseTikz(source, options = {}) {
       originalSource: source,
       tokenCount: lexed.tokens.length,
       libraries,
+      packages,
+      pgfplotsLibraries,
+      pgfplotsOptions,
+      shadings: shadingDefinitions,
+      coordinateSystems,
       pictures
     },
     diagnostics
@@ -77,12 +103,26 @@ export function parseStatements(body, diagnostics = []) {
 function parseStatement(statement, diagnostics) {
   const text = statement.trim().replace(/;$/, "").trim();
   if (!text) return null;
+  const fontPrefix = parseLeadingFontSwitches(text);
+  if (fontPrefix) {
+    if (!fontPrefix.rest) {
+      return { type: "font", font: fontPrefix.font, raw: text };
+    }
+    const parsed = parseStatement(fontPrefix.rest, diagnostics);
+    if (parsed) {
+      parsed.leadingFont = [fontPrefix.font, parsed.leadingFont].filter(Boolean).join(" ");
+      parsed.raw = text;
+    }
+    return parsed;
+  }
   if (text.startsWith("\\foreach")) return parseForeach(text, diagnostics);
   if (text.startsWith("\\coordinate")) return parseCoordinateStatement(text, diagnostics);
+  if (text.startsWith("\\pgfmathsetlengthmacro")) return parsePgfMathSetLength(text, diagnostics);
   if (text.startsWith("\\pgfmathsetmacro")) return parsePgfMath(text, diagnostics);
   if (text.startsWith("\\pgfmathtruncatemacro")) return parsePgfMathTruncate(text, diagnostics);
   if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
   if (text.startsWith("\\pgfmathrandomitem")) return parsePgfMathRandomItem(text, diagnostics);
+  if (text.startsWith("\\ifnum")) return parseIfNum(text, diagnostics);
   if (text.startsWith("\\pgftransformcm")) return parsePgfTransformCm(text);
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
   if (text.startsWith("\\tikzset")) return parseTikzsetStatement(text, diagnostics);
@@ -96,7 +136,9 @@ function parseStatement(statement, diagnostics) {
     text.startsWith("\\togglefalse") ||
     text.startsWith("\\newtoggle") ||
     text.startsWith("\\color") ||
+    text.startsWith("\\linespread") ||
     text.startsWith("\\definecolor") ||
+    text.startsWith("\\ctikzset") ||
     text.startsWith("\\clip") ||
     text.startsWith("\\pgfplotsset") ||
     text.startsWith("\\pgfplotstableread") ||
@@ -155,6 +197,7 @@ function parseForeach(text, diagnostics) {
       options: header.options,
       values: splitTopLevel(list.content, ","),
       body: parseStatements(text.slice(index), diagnostics),
+      bodySource: text.slice(index),
       raw: text
     };
   }
@@ -164,6 +207,7 @@ function parseForeach(text, diagnostics) {
     options: header.options,
     values: splitTopLevel(list.content, ","),
     body: parseStatements(body.content, diagnostics),
+    bodySource: body.content,
     raw: text
   };
 }
@@ -219,6 +263,106 @@ function parseForeachVariablesAndOptions(header) {
   };
 }
 
+function parseIfNum(text, diagnostics) {
+  let index = skipWhitespace(text, "\\ifnum".length);
+  const condition = parseIfNumCondition(text, index);
+  if (!condition) return unsupported("ifnum", text, "Malformed \\ifnum conditional");
+  index = condition.end;
+  const branches = splitIfNumBranches(text.slice(index));
+  if (!branches) return unsupported("ifnum", text, "Malformed \\ifnum branches");
+  return {
+    type: "ifnum",
+    left: condition.left,
+    operator: condition.operator,
+    right: condition.right,
+    thenBody: parseStatements(branches.thenSource, diagnostics),
+    elseBody: parseStatements(branches.elseSource, diagnostics),
+    raw: text
+  };
+}
+
+function parseIfNumCondition(text, start) {
+  const left = readIfNumOperand(text, start);
+  if (!left) return null;
+  let index = skipWhitespace(text, left.end);
+  const operator = text[index];
+  if (!["=", "<", ">"].includes(operator)) return null;
+  index = skipWhitespace(text, index + 1);
+  const right = readIfNumOperand(text, index);
+  if (!right) return null;
+  return {
+    left: left.value,
+    operator,
+    right: right.value,
+    end: right.end
+  };
+}
+
+function readIfNumOperand(text, start) {
+  let index = skipWhitespace(text, start);
+  if (text[index] === "{") {
+    const group = extractBalanced(text, index, "{", "}");
+    return group ? { value: group.content.trim(), end: group.end } : null;
+  }
+  if (text[index] === "\\") {
+    const command = readCommandName(text, index + 1);
+    return command ? { value: text.slice(index, command.end), end: command.end } : null;
+  }
+  const begin = index;
+  while (index < text.length && !/[\s<>=]/.test(text[index])) index += 1;
+  if (index === begin) return null;
+  return { value: text.slice(begin, index).trim(), end: index };
+}
+
+function splitIfNumBranches(text) {
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+  let depth = 0;
+  let elseIndex = -1;
+  let fiIndex = -1;
+  let fiEnd = -1;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const topLevel = paren === 0 && bracket === 0 && brace === 0;
+    if (topLevel && char === "\\") {
+      const command = readCommandName(text, index + 1);
+      if (command?.value === "ifnum") {
+        depth += 1;
+        index = command.end - 1;
+        continue;
+      }
+      if (command?.value === "else" && depth === 0 && elseIndex === -1) {
+        elseIndex = index;
+        index = command.end - 1;
+        continue;
+      }
+      if (command?.value === "fi") {
+        if (depth === 0) {
+          fiIndex = index;
+          fiEnd = command.end;
+          break;
+        }
+        depth = Math.max(0, depth - 1);
+        index = command.end - 1;
+        continue;
+      }
+    }
+    if (brace === 0 && char === "(") paren += 1;
+    else if (brace === 0 && char === ")") paren = Math.max(0, paren - 1);
+    else if (brace === 0 && char === "[") bracket += 1;
+    else if (brace === 0 && char === "]") bracket = Math.max(0, bracket - 1);
+    else if (char === "{") brace += 1;
+    else if (char === "}") brace = Math.max(0, brace - 1);
+  }
+  if (fiIndex === -1) return null;
+  return {
+    thenSource: (elseIndex === -1 ? text.slice(0, fiIndex) : text.slice(0, elseIndex)).trim(),
+    elseSource: elseIndex === -1 ? "" : text.slice(elseIndex + "\\else".length, fiIndex).trim(),
+    end: fiEnd
+  };
+}
+
 function parseCoordinateStatement(text) {
   let index = "\\coordinate".length;
   const parsedOptions = parseOptionalOptions(text, index);
@@ -249,25 +393,91 @@ function parseCoordinateStatement(text) {
 }
 
 function parsePgfMath(text) {
-  const match = text.match(/^\\pgfmathsetmacro\s*\{\\?([^}]+)\}\s*\{([^}]*)\}/);
-  if (!match) return unsupported("pgfmathsetmacro", text, "Malformed \\pgfmathsetmacro statement");
+  const parsed = parsePgfMathTargetCommand(text, "\\pgfmathsetmacro");
+  if (!parsed) return unsupported("pgfmathsetmacro", text, "Malformed \\pgfmathsetmacro statement");
   return {
     type: "pgfmathsetmacro",
-    name: match[1].trim(),
-    expression: match[2].trim(),
+    name: parsed.name,
+    expression: parsed.expression,
     raw: text
   };
 }
 
 function parsePgfMathTruncate(text) {
-  const match = text.match(/^\\pgfmathtruncatemacro\s*\{\\?([^}]+)\}\s*\{([^}]*)\}/);
-  if (!match) return unsupported("pgfmathtruncatemacro", text, "Malformed \\pgfmathtruncatemacro statement");
+  const parsed = parsePgfMathTargetCommand(text, "\\pgfmathtruncatemacro");
+  if (!parsed) return unsupported("pgfmathtruncatemacro", text, "Malformed \\pgfmathtruncatemacro statement");
   return {
     type: "pgfmathtruncatemacro",
-    name: match[1].trim(),
-    expression: match[2].trim(),
+    name: parsed.name,
+    expression: parsed.expression,
     raw: text
   };
+}
+
+function parsePgfMathSetLength(text) {
+  const parsed = parsePgfMathTargetCommand(text, "\\pgfmathsetlengthmacro");
+  if (!parsed) return unsupported("pgfmathsetlengthmacro", text, "Malformed \\pgfmathsetlengthmacro statement");
+  return {
+    type: "pgfmathsetlengthmacro",
+    name: parsed.name,
+    expression: parsed.expression,
+    raw: text
+  };
+}
+
+function parsePgfMathTargetCommand(text, command) {
+  let index = command.length;
+  index = skipWhitespace(text, index);
+  let name = null;
+  if (text[index] === "{") {
+    const wrapped = extractBalanced(text, index, "{", "}");
+    if (!wrapped) return null;
+    name = wrapped.content.trim().replace(/^\\/, "");
+    index = wrapped.end;
+  } else if (text[index] === "\\") {
+    const parsedName = readCommandName(text, index + 1);
+    if (!parsedName) return null;
+    name = parsedName.value;
+    index = parsedName.end;
+  }
+  if (!name) return null;
+  index = skipWhitespace(text, index);
+  const expression = extractBalanced(text, index, "{", "}");
+  if (!expression) return null;
+  return {
+    name,
+    expression: expression.content.trim(),
+    end: expression.end
+  };
+}
+
+function collectPgfMathMacros(source) {
+  const macros = [];
+  let index = 0;
+  const commands = [
+    ["\\pgfmathsetmacro", "pgfmathsetmacro"],
+    ["\\pgfmathsetlengthmacro", "pgfmathsetlengthmacro"],
+    ["\\pgfmathtruncatemacro", "pgfmathtruncatemacro"]
+  ];
+  while (index < source.length) {
+    const found = commands
+      .map(([command, type]) => ({ command, type, index: source.indexOf(command, index) }))
+      .filter((entry) => entry.index >= 0)
+      .sort((a, b) => a.index - b.index)[0];
+    if (!found) break;
+    const parsed = parsePgfMathTargetCommand(source.slice(found.index), found.command);
+    if (parsed) {
+      macros.push({
+        type: found.type,
+        name: parsed.name,
+        expression: parsed.expression
+      });
+      index = found.index + parsed.end;
+    } else {
+      index = found.index + found.command.length;
+    }
+  }
+  return macros;
 }
 
 function parsePgfMathDeclareRandomList(text) {
@@ -312,6 +522,78 @@ function collectPgfMathRandomLists(source) {
     }
   }
   return randomLists;
+}
+
+function collectShadingDefinitions(source) {
+  const shadings = {};
+  let index = 0;
+  while (index < source.length) {
+    const found = source.indexOf("\\pgfdeclareradialshading", index);
+    if (found < 0) break;
+    const parsed = parsePgfDeclareRadialShadingAt(source, found);
+    if (parsed) {
+      shadings[parsed.name] = parsed.definition;
+      index = parsed.end;
+    } else {
+      index = found + "\\pgfdeclareradialshading".length;
+    }
+  }
+  return shadings;
+}
+
+function parsePgfDeclareRadialShadingAt(source, start) {
+  let index = start + "\\pgfdeclareradialshading".length;
+  index = skipWhitespace(source, index);
+  const name = extractBalanced(source, index, "{", "}");
+  if (!name) return null;
+  index = skipWhitespace(source, name.end);
+  const center = extractBalanced(source, index, "{", "}");
+  if (!center) return null;
+  index = skipWhitespace(source, center.end);
+  const body = extractBalanced(source, index, "{", "}");
+  if (!body) return null;
+  return {
+    name: name.content.trim(),
+    definition: {
+      type: "radial",
+      center: center.content.trim(),
+      stops: parseRadialShadingStops(body.content)
+    },
+    end: body.end
+  };
+}
+
+function parseRadialShadingStops(body) {
+  const stops = [];
+  const pattern = /color\s*\(\s*([^)]+?)\s*\)\s*=\s*\(\s*([^)]+?)\s*\)/g;
+  for (const match of body.matchAll(pattern)) {
+    const offset = radialShadingOffset(match[1]);
+    const color = radialShadingColor(match[2]);
+    if (!color) continue;
+    stops.push({ offset, ...color });
+  }
+  if (!stops.length) return [];
+  const maxOffset = Math.max(...stops.map((stop) => stop.offset), 1e-9);
+  return stops.map((stop) => ({
+    ...stop,
+    offset: Math.max(0, Math.min(1, stop.offset / maxOffset))
+  }));
+}
+
+function radialShadingOffset(value) {
+  const match = String(value || "").match(/[-+]?\d*\.?\d+/);
+  const number = match ? Number(match[0]) : 0;
+  return Number.isFinite(number) ? Math.max(0, number) : 0;
+}
+
+function radialShadingColor(value) {
+  const text = String(value || "").trim();
+  const transparent = text.match(/^pgftransparent(?:!(\d+(?:\.\d+)?))?$/i);
+  if (transparent) {
+    const opacity = Math.max(0, Math.min(1, Number(transparent[1] ?? 100) / 100));
+    return { color: "black", opacity };
+  }
+  return { color: text, opacity: 1 };
 }
 
 function parsePgfMathDeclareRandomListAt(source, start) {
@@ -381,6 +663,7 @@ function parseTikzsetStatement(text) {
   return {
     type: "tikzset",
     styles: parseTikzset(body.content),
+    pics: parseTikzPics(body.content),
     styleOptions: parseOptions(body.content),
     raw: text
   };
@@ -458,11 +741,38 @@ function parsePic(text) {
   const afterNameOptions = parseOptionalOptions(text, index);
   options = { ...options, ...afterNameOptions.options };
   index = skipWhitespace(text, afterNameOptions.end);
+
+  let at = null;
+  if (text.startsWith("at", index)) {
+    index = skipWhitespace(text, index + 2);
+    const coord = parseCoordinateArgument(text, index);
+    if (!coord) return unsupported("pic", text, "Malformed \\pic coordinate");
+    at = coord.content.trim();
+    index = skipWhitespace(text, coord.end);
+  }
+
+  const afterAtOptions = parseOptionalOptions(text, index);
+  options = { ...options, ...afterAtOptions.options };
+  index = skipWhitespace(text, afterAtOptions.end);
+
   const body = extractBalanced(text, index, "{", "}");
-  if (!body) return unsupported("pic", text, "Malformed \\pic statement");
+  if (!body) {
+    if (skipWhitespace(text, index) >= text.length) {
+      return {
+        type: "pic",
+        name,
+        at,
+        options,
+        body: "",
+        raw: text
+      };
+    }
+    return unsupported("pic", text, "Malformed \\pic statement");
+  }
   return {
     type: "pic",
     name,
+    at,
     options,
     body: body.content.trim(),
     raw: text
@@ -544,15 +854,17 @@ function parseNode(text, diagnostics = []) {
   if (!label) return unsupported("node", text, "Malformed node text");
   const trailingPath = text.slice(label.end).trim();
   const treeChildren = parseNodeTreeChildren(trailingPath, diagnostics);
+  const hasTreeSyntax = treeChildren.children.length || Object.keys(treeChildren.edgeOptions || {}).length;
   return {
     type: "node",
     name,
     options,
     at,
     text: label.content,
+    edgeFromParentOptions: treeChildren.edgeOptions,
     treeOptions: treeChildren.options,
     children: treeChildren.children,
-    path: treeChildren.children.length && !treeChildren.rest
+    path: hasTreeSyntax && !treeChildren.rest
       ? null
       : trailingPath
         ? {
@@ -567,9 +879,33 @@ function parseNode(text, diagnostics = []) {
 function parseNodeTreeChildren(text, diagnostics = []) {
   const children = [];
   let options = {};
+  let edgeOptions = {};
   let index = 0;
+  let guard = 0;
   while (true) {
+    guard += 1;
+    if (guard > 1000) {
+      diagnostics.push({
+        severity: "warning",
+        message: `Stopped parsing TikZ node tree children after too many iterations near: ${text.slice(index, index + 60)}`
+      });
+      break;
+    }
     index = skipWhitespace(text, index);
+    if (!Number.isFinite(index) || index >= text.length) break;
+    const edgeFromParent = parseTreeEdgeFromParent(text, index);
+    if (edgeFromParent) {
+      edgeOptions = { ...edgeOptions, ...edgeFromParent.options };
+      if (!Number.isFinite(edgeFromParent.end) || edgeFromParent.end <= index) {
+        diagnostics.push({
+          severity: "warning",
+          message: `Malformed edge from parent tree clause near: ${text.slice(index, index + 60)}`
+        });
+        break;
+      }
+      index = edgeFromParent.end;
+      continue;
+    }
     if (text[index] === "[") {
       const beforeOptions = index;
       const parsedOptions = parseOptionalOptions(text, index);
@@ -585,12 +921,32 @@ function parseNodeTreeChildren(text, diagnostics = []) {
     const child = parseNodeTreeChild(text, index, diagnostics);
     if (!child) break;
     children.push(child.child);
+    if (!Number.isFinite(child.end) || child.end <= index) break;
     index = child.end;
   }
   return {
     options,
+    edgeOptions,
     children,
     rest: text.slice(index).trim()
+  };
+}
+
+function parseTreeEdgeFromParent(text, start) {
+  const token = "edge from parent";
+  if (!text.startsWith(token, start)) return null;
+  let index = skipWhitespace(text, start + token.length);
+  let options = {};
+  if (text[index] === "[") {
+    const parsedOptions = extractBalanced(text, index, "[", "]");
+    if (parsedOptions) {
+      options = parseOptions(parsedOptions.content);
+      index = skipWhitespace(text, parsedOptions.end);
+    }
+  }
+  return {
+    options,
+    end: index
   };
 }
 
@@ -605,6 +961,7 @@ function parseNodeTreeChild(text, start, diagnostics = []) {
   return {
     child: {
       options: parsedOptions.options,
+      edgeOptions: childNode.edgeFromParentOptions || {},
       node: childNode,
       children: childNode.children || []
     },
@@ -753,6 +1110,10 @@ function parsePathSegments(pathText) {
         index = parsed.end;
         continue;
       }
+      const next = nextDelimiter(pathText, index);
+      segments.push({ kind: "unknown", raw: pathText.slice(index, next).trim() });
+      index = next > index ? next : index + 1;
+      continue;
     }
     if (pathText[index] === "[") {
       const options = parseOptionalOptions(pathText, index);
@@ -899,11 +1260,55 @@ function parsePathSegments(pathText) {
         continue;
       }
     }
+    const macroCoordinate = parseMacroCoordinateSegment(pathText, index);
+    if (macroCoordinate) {
+      segments.push(macroCoordinate.segment);
+      index = macroCoordinate.end;
+      continue;
+    }
     const next = nextDelimiter(pathText, index);
     segments.push({ kind: "unknown", raw: pathText.slice(index, next).trim() });
-    index = next;
+    index = next > index ? next : index + 1;
   }
   return segments.filter((segment) => segment.kind !== "unknown" || segment.raw);
+}
+
+function parseMacroCoordinateSegment(pathText, index) {
+  const match = pathText.slice(index).match(/^\\[A-Za-z@]+/);
+  if (!match) return null;
+  const raw = match[0];
+  if (!isCoordinateMacroFollower(pathText, index + raw.length, raw)) return null;
+  return {
+    segment: { kind: "coordinate", raw },
+    end: index + raw.length
+  };
+}
+
+function isCoordinateMacroFollower(pathText, index, raw) {
+  const cursor = skipWhitespace(pathText, index);
+  if (cursor >= pathText.length) return /^\\[A-Za-z]$/.test(raw);
+  if (
+    pathText.startsWith("--", cursor) ||
+    pathText.startsWith("|-", cursor) ||
+    pathText.startsWith("-|", cursor) ||
+    pathText.startsWith("..", cursor)
+  ) {
+    return true;
+  }
+  return [
+    "rectangle",
+    "grid",
+    "edge",
+    "to",
+    "plot",
+    "sin",
+    "cos",
+    "node",
+    "cycle",
+    "circle",
+    "ellipse",
+    "arc"
+  ].some((keyword) => startsKeyword(pathText, cursor, keyword));
 }
 
 function parseSineCosineSegment(pathText, index) {
@@ -1004,10 +1409,22 @@ function parsePathTargetOperation(pathText, index, kind, leadingOptions = {}) {
     nodes.push(parsedNode.segment);
     cursor = skipWhitespace(pathText, parsedNode.end);
   }
+  let relative = null;
+  if (pathText.startsWith("++", cursor) || pathText.startsWith("+", cursor)) {
+    const plusLength = pathText.startsWith("++", cursor) ? 2 : 1;
+    relative = plusLength === 2 ? "update" : "temporary";
+    cursor = skipWhitespace(pathText, cursor + plusLength);
+  }
   const target = extractBalanced(pathText, cursor, "(", ")");
   if (!target) return null;
   return {
-    segment: { kind, options: { ...leadingOptions, ...options.options }, to: target.content.trim(), nodes },
+    segment: {
+      kind,
+      options: { ...leadingOptions, ...options.options },
+      to: target.content.trim(),
+      nodes,
+      ...(relative ? { relative } : {})
+    },
     end: target.end
   };
 }
@@ -1038,6 +1455,16 @@ function parsePlotSegment(pathText, index) {
       end: body.end
     };
   }
+  if (startsKeyword(pathText, cursor, "function")) {
+    cursor += "function".length;
+    cursor = skipWhitespace(pathText, cursor);
+    const body = extractBalanced(pathText, cursor, "{", "}");
+    if (!body) return null;
+    return {
+      segment: { kind: "plotFunction", expression: body.content.trim(), options: options.options },
+      end: body.end
+    };
+  }
   const target = extractBalanced(pathText, cursor, "(", ")");
   if (!target) return null;
   return {
@@ -1065,28 +1492,42 @@ function parsePlotCoordinateList(text) {
 
 function parseInlineNodeSegment(pathText, index) {
   let cursor = index + "node".length;
-  const options = parseOptionalOptions(pathText, cursor);
-  cursor = options.end;
-  cursor = skipWhitespace(pathText, cursor);
+  let options = {};
   let at = null;
   let name = null;
-  if (startsKeyword(pathText, cursor, "at")) {
-    cursor += "at".length;
+
+  while (cursor < pathText.length) {
     cursor = skipWhitespace(pathText, cursor);
-    const coord = parseCoordinateArgument(pathText, cursor);
-    if (!coord) return null;
-    at = coord.content.trim();
-    cursor = skipWhitespace(pathText, coord.end);
+    if (pathText[cursor] === "[") {
+      const parsedOptions = parseOptionalOptions(pathText, cursor);
+      if (parsedOptions.end === cursor) break;
+      options = { ...options, ...parsedOptions.options };
+      cursor = parsedOptions.end;
+      continue;
+    }
+    if (startsKeyword(pathText, cursor, "at")) {
+      cursor += "at".length;
+      cursor = skipWhitespace(pathText, cursor);
+      const coord = parseCoordinateArgument(pathText, cursor);
+      if (!coord) return null;
+      at = coord.content.trim();
+      cursor = coord.end;
+      continue;
+    }
+    if (pathText[cursor] === "(" && !name) {
+      const parsedName = extractBalanced(pathText, cursor, "(", ")");
+      if (!parsedName) return null;
+      name = parsedName.content.trim() || null;
+      cursor = parsedName.end;
+      continue;
+    }
+    break;
   }
-  if (pathText[cursor] === "(") {
-    const parsedName = extractBalanced(pathText, cursor, "(", ")");
-    name = parsedName?.content.trim() || null;
-    cursor = skipWhitespace(pathText, parsedName?.end || cursor);
-  }
+
   const label = extractBalanced(pathText, cursor, "{", "}");
   if (!label) return null;
   return {
-    segment: { kind: "node", options: options.options, at, name, text: label.content },
+    segment: { kind: "node", options, at, name, text: label.content },
     end: label.end
   };
 }
@@ -1113,17 +1554,30 @@ function splitStatements(body) {
   let paren = 0;
   let bracket = 0;
   let brace = 0;
+  let ifnumDepth = 0;
   for (let i = 0; i < body.length; i += 1) {
     const char = body[i];
     const insideBrace = brace > 0;
+    if (!insideBrace && char === "\\") {
+      const command = readCommandName(body, i + 1);
+      if (command?.value === "ifnum") {
+        ifnumDepth += 1;
+      } else if (command?.value === "fi") {
+        ifnumDepth = Math.max(0, ifnumDepth - 1);
+      }
+    }
     if (!insideBrace && char === "(") paren += 1;
     if (!insideBrace && char === ")") paren = Math.max(0, paren - 1);
+    if (!insideBrace && char === "[" && paren === 0 && isBareDelimiterOptionBracket(current)) {
+      current += char;
+      continue;
+    }
     if (!insideBrace && char === "[") bracket += 1;
     if (!insideBrace && char === "]") bracket = Math.max(0, bracket - 1);
     if (char === "{") brace += 1;
     if (char === "}") brace = Math.max(0, brace - 1);
     current += char;
-    if (char === ";" && paren === 0 && bracket === 0 && brace === 0) {
+    if (char === ";" && paren === 0 && bracket === 0 && brace === 0 && ifnumDepth === 0) {
       statements.push(current);
       current = "";
     } else if (
@@ -1131,6 +1585,7 @@ function splitStatements(body) {
       paren === 0 &&
       bracket === 0 &&
       brace === 0 &&
+      ifnumDepth === 0 &&
       isBraceTerminatedStatement(current) &&
       (nextNonWhitespace(body, i + 1)?.startsWith("\\") || nextNonWhitespace(body, i + 1)?.startsWith("{["))
     ) {
@@ -1143,7 +1598,9 @@ function splitStatements(body) {
 }
 
 function isBraceTerminatedStatement(statement) {
-  const text = statement.trim();
+  const prefixed = parseLeadingFontSwitches(statement.trim());
+  const text = prefixed ? prefixed.rest : statement.trim();
+  if (!text) return false;
   if (text.startsWith("\\foreach")) return hasCompleteBracedForeachBody(text);
   return (
     text.startsWith("\\toggletrue") ||
@@ -1151,16 +1608,58 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\newtoggle") ||
     text.startsWith("\\color") ||
     text.startsWith("\\definecolor") ||
+    text.startsWith("\\linespread") ||
+    text.startsWith("\\pgfmathsetlengthmacro") ||
     text.startsWith("\\pgfmathsetmacro") ||
     text.startsWith("\\pgfmathtruncatemacro") ||
     text.startsWith("\\pgfmathdeclarerandomlist") ||
     text.startsWith("\\pgfmathrandomitem") ||
     text.startsWith("\\pgfplotsset") ||
+    text.startsWith("\\ctikzset") ||
     text.startsWith("\\pgfplotstableread") ||
     text.startsWith("\\pgfplotstabletypeset") ||
     text.startsWith("\\tikzset") ||
     text.startsWith("{")
   );
+}
+
+const FONT_SWITCH_COMMANDS = new Set([
+  "tiny",
+  "scriptsize",
+  "footnotesize",
+  "small",
+  "normalsize",
+  "large",
+  "Large",
+  "LARGE",
+  "huge",
+  "Huge",
+  "sf",
+  "sffamily",
+  "rm",
+  "rmfamily",
+  "tt",
+  "ttfamily",
+  "bf",
+  "bfseries",
+  "it",
+  "itshape"
+]);
+
+function parseLeadingFontSwitches(text) {
+  let cursor = skipWhitespace(String(text || ""), 0);
+  const commands = [];
+  while (String(text || "")[cursor] === "\\") {
+    const command = readCommandName(text, cursor + 1);
+    if (!command || !FONT_SWITCH_COMMANDS.has(command.value)) break;
+    commands.push(text.slice(cursor, command.end));
+    cursor = skipWhitespace(text, command.end);
+  }
+  if (!commands.length) return null;
+  return {
+    font: commands.join(" "),
+    rest: String(text || "").slice(cursor).trim()
+  };
 }
 
 function hasCompleteBracedForeachBody(text) {
@@ -1197,13 +1696,15 @@ function extractTikzPictures(source) {
     if (endIndex === -1) break;
     pictures.push({
       beginIndex,
+      bodyEndIndex: endIndex,
+      endIndex: endIndex + end.length,
       optionsRaw: options.raw,
       body: source.slice(cursor, endIndex)
     });
     index = endIndex + end.length;
   }
   if (pictures.length === 0 && source.trim()) {
-    pictures.push({ beginIndex: 0, optionsRaw: "", body: source });
+    pictures.push({ beginIndex: 0, bodyEndIndex: source.length, endIndex: source.length, optionsRaw: "", body: source });
   }
   return pictures;
 }
@@ -1233,6 +1734,101 @@ function collectStyleDefinitions(source) {
   return styles;
 }
 
+function collectCodeDefinitions(source) {
+  let handlers = {};
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith("\\tikzset", index)) {
+      const parsed = parseTikzsetDefinition(source, index);
+      if (parsed) {
+        handlers = codeDefinitionsFromOptions(parsed.styleOptions || {}, handlers);
+        index = parsed.end;
+        continue;
+      }
+    }
+    index += 1;
+  }
+  return handlers;
+}
+
+function collectPicDefinitions(source) {
+  const pics = {};
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith("\\tikzset", index)) {
+      const parsed = parseTikzsetDefinition(source, index);
+      if (parsed) {
+        Object.assign(pics, parsed.pics);
+        index = parsed.end;
+        continue;
+      }
+    }
+    index += 1;
+  }
+  return pics;
+}
+
+function collectCoordinateSystemDefinitions(source) {
+  const systems = {};
+  let index = 0;
+  while (index < source.length) {
+    const start = source.indexOf("\\tikzdeclarecoordinatesystem", index);
+    if (start === -1) break;
+    const parsed = parseCoordinateSystemDefinition(source, start);
+    if (parsed) {
+      systems[parsed.name] = parsed.definition;
+      index = parsed.end;
+      continue;
+    }
+    index = start + "\\tikzdeclarecoordinatesystem".length;
+  }
+  return systems;
+}
+
+function parseCoordinateSystemDefinition(source, start) {
+  let index = start + "\\tikzdeclarecoordinatesystem".length;
+  index = skipWhitespace(source, index);
+  const name = extractBalanced(source, index, "{", "}");
+  if (!name) return null;
+  index = skipWhitespace(source, name.end);
+  const body = extractBalanced(source, index, "{", "}");
+  if (!body) return null;
+  const point = parseCoordinateSystemPoint(body.content);
+  if (!point) return null;
+  return {
+    name: name.content.trim(),
+    definition: {
+      macros: parseCoordinateSystemMathMacros(body.content),
+      point
+    },
+    end: body.end
+  };
+}
+
+function parseCoordinateSystemMathMacros(body) {
+  const macros = [];
+  const pattern = /\\pgfmathsetmacro\s*(?:\\([A-Za-z@]+)|\{\\?([A-Za-z@]+)\})\s*\{([^{}]*)\}/g;
+  for (const match of body.matchAll(pattern)) {
+    macros.push({
+      name: (match[1] || match[2] || "").trim(),
+      expression: match[3].trim()
+    });
+  }
+  return macros.filter((macro) => macro.name);
+}
+
+function parseCoordinateSystemPoint(body) {
+  const pointxy = body.match(/\\pgfpointxy\s*\{([^{}]*)\}\s*\{([^{}]*)\}/);
+  if (pointxy) {
+    return { kind: "xy", x: pointxy[1].trim(), y: pointxy[2].trim() };
+  }
+  const point = body.match(/\\pgfpoint\s*\{([^{}]*)\}\s*\{([^{}]*)\}/);
+  if (point) {
+    return { kind: "point", x: point[1].trim(), y: point[2].trim() };
+  }
+  return null;
+}
+
 function parseTikzsetDefinition(source, start) {
   let index = start + "\\tikzset".length;
   index = skipWhitespace(source, index);
@@ -1240,8 +1836,19 @@ function parseTikzsetDefinition(source, start) {
   if (!body) return null;
   return {
     styles: parseTikzset(body.content),
+    styleOptions: parseOptions(body.content),
+    pics: parseTikzPics(body.content),
     end: body.end
   };
+}
+
+function parseTikzPics(input = "") {
+  const pics = {};
+  for (const part of splitTopLevel(input, ",")) {
+    const match = part.match(/^(.+?)\/\.pic\s*=\s*\{([\s\S]*)\}$/);
+    if (match) pics[match[1].trim()] = match[2].trim();
+  }
+  return pics;
 }
 
 function parseTikzstyleDefinition(source, start) {
@@ -1293,13 +1900,56 @@ function findMatchingEnvironmentEnd(source, start, begin, end) {
 function parseOptionalOptions(text, start) {
   let index = skipWhitespace(text, start);
   if (text[index] !== "[") return { raw: "", options: {}, end: index };
-  const parsed = extractBalanced(text, index, "[", "]");
+  const parsed = extractOptionalOptionList(text, index);
   if (!parsed) return { raw: "", options: {}, end: index };
   return {
     raw: parsed.content,
     options: parseOptions(parsed.content),
     end: parsed.end
   };
+}
+
+function extractOptionalOptionList(text, start) {
+  if (text[start] !== "[") return null;
+  let paren = 0;
+  let brace = 0;
+  let bracket = 1;
+  let optionPart = "";
+  for (let i = start + 1; i < text.length; i += 1) {
+    const char = text[i];
+    if (brace === 0 && char === "(") paren += 1;
+    if (brace === 0 && char === ")") paren = Math.max(0, paren - 1);
+    if (char === "{") brace += 1;
+    if (char === "}") brace = Math.max(0, brace - 1);
+
+    if (brace === 0 && paren === 0 && char === "[" && isBareDelimiterOptionBracket(optionPart)) {
+      optionPart += char;
+      continue;
+    }
+    if (brace === 0 && paren === 0 && char === "[") {
+      bracket += 1;
+      optionPart += char;
+      continue;
+    }
+    if (brace === 0 && paren === 0 && char === "]") {
+      bracket -= 1;
+      if (bracket === 0) {
+        return {
+          content: text.slice(start + 1, i),
+          start,
+          end: i + 1
+        };
+      }
+      optionPart += char;
+      continue;
+    }
+    if (brace === 0 && paren === 0 && bracket === 1 && char === ",") {
+      optionPart = "";
+    } else {
+      optionPart += char;
+    }
+  }
+  return null;
 }
 
 export function extractBalanced(text, start, open, close) {
@@ -1333,6 +1983,15 @@ function skipWhitespace(text, index) {
   let cursor = index;
   while (/\s/.test(text[cursor] || "")) cursor += 1;
   return cursor;
+}
+
+function readCommandName(text, start) {
+  const match = String(text).slice(start).match(/^[A-Za-z@]+/);
+  if (!match) return null;
+  return {
+    value: match[0],
+    end: start + match[0].length
+  };
 }
 
 function startsKeyword(text, index, keyword) {

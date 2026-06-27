@@ -1,0 +1,53 @@
+export const texPackage = {
+  "name": "geometry",
+  "status": "noop",
+  "implementedBy": "src/preprocess.js:stripTexDocumentShell",
+  "features": [
+    "page geometry ignored for SVG drawing"
+  ],
+  "requires": [],
+  "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/geometry/geometry.sty",
+  "localDoc": null,
+  "caseCount": 36,
+  "caseExamples": [
+    "3d cube color rotated 3d pgf foreach command define",
+    "3d cubes isometric shaded 3d",
+    "class diagram diagram",
+    "doc ml cnn",
+    "elem cube elem geometry foreach",
+    "elem cuboid finer grid elem foreach command",
+    "impact os model layers",
+    "impact supreme court 2 diagram",
+    "mammography bayes diagram",
+    "mind children two mindmap",
+    "mind children two mindmap",
+    "mind computer science mindmap"
+  ],
+  "observedOptions": [
+    "a2paper",
+    "a4paper, margin=1cm",
+    "a4paper,margin=1cm,landscape",
+    "hmargin=1.5cm,vmargin=1cm",
+    "hmargin=2cm,vmargin=1cm",
+    "left=2cm,right=2cm,top=2cm,bottom=2cm",
+    "margin=0.3in",
+    "margin=10mm,landscape",
+    "margin=15mm,landscape",
+    "margin=1cm",
+    "margin=1in",
+    "margin=25mm",
+    "margin=3cm",
+    "paperheight=6in,paperwidth=6in",
+    "paperheight=6in,paperwidth=6in, \n\t\t\t\t\ttop=0.5in, \n\t\t\t\t\tbottom=0.5in, \n\t\t\t\t\tleft=0.5in, \n\t\t\t\t\tright=0.5in",
+    "paperheight=6in,paperwidth=7in,top=0.5in, bottom=0.5in, left=0.5in, right=0.5in",
+    "paperheight=7in,paperwidth=7in, \r\n\t\t\t\t\ttop=0.5in, \r\n\t\t\t\t\tbottom=0.5in, \r\n\t\t\t\t\tleft=0.5in, \r\n\t\t\t\t\tright=0.5in",
+    "paperwidth=210mm,%\n    paperheight=297mm,%\n    tmargin=7.5mm,%\n    rmargin=7.5mm,%\n    bmargin=7.5mm,%\n    lmargin=7.5mm,\n    vscale=1,%\n    hscale=1",
+    "paperwidth=25cm,paperheight=22cm,left=1cm,top=1cm",
+    "paperwidth=4in,paperheight=4in",
+    "top=0.25in",
+    "top=0.25in, bottom=0.25in",
+    "top=1in,bottom=1in,right=1in,left=1in",
+    "top=2.5cm, bottom=2.5cm, right=2.5cm, left=3cm"
+  ],
+  "notes": ""
+};

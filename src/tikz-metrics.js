@@ -90,11 +90,25 @@ export const TIKZ_ARROW_TIPS = {
     width: lineWidthFromPt(2.5),
     fill: "none"
   },
+  circle: {
+    kind: "circle",
+    length: lineWidthFromPt(2.5),
+    width: lineWidthFromPt(2.5),
+    fill: "context-stroke"
+  },
   "open-triangle": {
     kind: "open-triangle",
-    length: lineWidthFromPt(3.2),
-    width: lineWidthFromPt(3.2),
+    length: lineWidthFromPt(6.88),
+    width: lineWidthFromPt(5.84),
     fill: "none"
+  },
+  bar: {
+    kind: "bar",
+    length: 0,
+    width: lineWidthFromPt(4),
+    fill: "none",
+    stroke: "context-stroke",
+    lineWidth: lineWidthFromPt(0.4)
   },
   dimline: {
     kind: "dimline",
@@ -125,6 +139,13 @@ export const TIKZ_AXIS_CONTAINER_MARGIN = {
   right: 0.55,
   top: 0.32,
   bottom: 0.32
+};
+
+export const TIKZ_MIDDLE_AXIS_CONTAINER_MARGIN = {
+  left: 0.04,
+  right: 0.08,
+  top: 0.06,
+  bottom: 0.06
 };
 
 export const TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN = {
@@ -160,7 +181,9 @@ function normalizeArrowKind(kind) {
   if (text === "dimline") return "dimline";
   if (text.includes("two heads") || text.includes("two-heads") || text.includes("double")) return "two-heads";
   if (text.includes("open circle") || text === "o") return "open-circle";
+  if (text === "*" || text === "circle") return "circle";
   if (text.includes("open triangle")) return "open-triangle";
+  if (text.includes("bar")) return "bar";
   if (text.includes("hook")) return "hook";
   if (text.includes("stealth")) return "stealth";
   if (text.includes("latex")) return "latex";

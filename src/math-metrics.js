@@ -1,4 +1,4 @@
-import { mathFallbackText } from "./tex-text.js";
+import { mathFallbackText, readDollarMathSpan, stripTikzHspaceMarkers } from "./tex-text.js";
 
 const TEX_PT_PER_CM = 28.45274;
 
@@ -102,35 +102,89 @@ const CMR10_WIDTH_PT = {
 
 const SCRIPT_CHAR_PATTERN =
   /[₀₁₂₃₄₅₆₇₈₉ₐᵦₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ₊₋₌₍₎⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]/u;
+const WIDE_MATH_ALPHA_CHARS = new Set([...("𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵")]);
+const ZERO_WIDTH_MATH_ACCENTS = new Set(["\u20d7", "\u0302", "\u0303", "\u0304"]);
+const TALL_MATH_ACCENT_BASES = new Set(["b", "d", "f", "h", "k", "l", "t"]);
+const MATH_FONT_SIZE_SCALES = new Map([
+  ["tiny", 0.5],
+  ["scriptsize", 0.7],
+  ["footnotesize", 0.8],
+  ["small", 0.9],
+  ["normalsize", 1],
+  ["large", 1.2],
+  ["Large", 1.44],
+  ["LARGE", 1.728],
+  ["huge", 2.074],
+  ["Huge", 2.488]
+]);
 
 export function parseMathText(value) {
   const text = String(value).trim();
-  const displayDollar = text.match(/^\$\$([\s\S]+)\$\$$/);
-  if (displayDollar) return { tex: displayDollar[1].trim(), displayMode: true };
-  const inlineDollar = text.match(/^\$([^$]+)\$$/);
-  if (inlineDollar) return { tex: inlineDollar[1].trim(), displayMode: false };
+  const dollar = readDollarMathSpan(text, 0);
+  if (dollar && dollar.end === text.length) return parsedMathText(dollar.tex, dollar.displayMode);
   const displayBracket = text.match(/^\\\[([\s\S]+)\\\]$/);
-  if (displayBracket) return { tex: displayBracket[1].trim(), displayMode: true };
+  if (displayBracket) return parsedMathText(displayBracket[1], true);
   const inlineParen = text.match(/^\\\(([\s\S]+)\\\)$/);
-  if (inlineParen) return { tex: inlineParen[1].trim(), displayMode: false };
+  if (inlineParen) return parsedMathText(inlineParen[1], false);
   return null;
 }
 
 export function estimateFormulaBox(tex, options = {}) {
   const displayMode = Boolean(options.displayMode);
-  const scale = Number(options.scale) > 0 ? Number(options.scale) : 1;
-  const minWidth = Number.isFinite(options.minWidth) ? options.minWidth : displayMode ? 0.72 : 0.42;
+  const normalized = leadingMathFontSize(tex);
+  const optionScale = Number(options.scale) > 0 ? Number(options.scale) : 1;
+  const scale = optionScale * normalized.scale;
+  const baseMinWidth = Number.isFinite(options.minWidth) ? options.minWidth : displayMode ? 0.72 : 0.42;
+  const minWidth = baseMinWidth * scale;
   const metric = {
     widthFactor: Number.isFinite(options.widthFactor) ? options.widthFactor : 0.16,
-    widthPadding: Number.isFinite(options.widthPadding) ? options.widthPadding : 0.35 * scale
+    widthPadding: Number.isFinite(options.widthPadding) ? options.widthPadding : 0.35 * scale,
+    texTextMetrics: Boolean(options.texTextMetrics)
   };
-  const compact = estimateFormulaParts(String(tex || "").trim(), scale, metric);
+  const compact = estimateFormulaParts(normalized.tex, scale, metric);
   const displayScale = displayMode ? 1.12 : 1;
   return {
     width: round(Math.max(minWidth, compact.width * displayScale)),
     height: round(compact.height * displayScale),
     depth: round(compact.depth * displayScale)
   };
+}
+
+function parsedMathText(tex, displayMode) {
+  const normalized = leadingMathFontSize(tex);
+  return {
+    tex: normalized.tex,
+    displayMode,
+    scale: normalized.scale,
+    explicitFontSize: normalized.explicitFontSize
+  };
+}
+
+function leadingMathFontSize(tex) {
+  let text = String(tex || "").trim();
+  let scale = 1;
+  let explicitFontSize = null;
+
+  const group = text.startsWith("{") ? readBalanced(text, 0, "{", "}") : null;
+  if (group && group.end === text.length) {
+    const inner = leadingMathFontSize(group.content);
+    if (inner.scale !== 1 || inner.explicitFontSize) return inner;
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const match = text.match(/^\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)(?![A-Za-z])\s*/);
+    if (match) {
+      const nextScale = MATH_FONT_SIZE_SCALES.get(match[1]) || 1;
+      scale *= nextScale;
+      explicitFontSize = match[1];
+      text = text.slice(match[0].length).trim();
+      changed = true;
+    }
+  }
+
+  return { tex: text, scale, explicitFontSize };
 }
 
 export function formulaTotalHeight(box) {
@@ -142,7 +196,7 @@ export function mathTextMetricUnits(line) {
   let units = 0;
   let scriptMode = null;
   for (const char of chars) {
-    if (char === "\u20d7" || char === "\u0302" || char === "\u0304") continue;
+    if (ZERO_WIDTH_MATH_ACCENTS.has(char)) continue;
     if (char === "^") {
       scriptMode = "super";
       units += 0.1;
@@ -155,6 +209,10 @@ export function mathTextMetricUnits(line) {
     }
     if (SCRIPT_CHAR_PATTERN.test(char)) {
       units += 0.45;
+      continue;
+    }
+    if (WIDE_MATH_ALPHA_CHARS.has(char)) {
+      units += 2.05;
       continue;
     }
     if (scriptMode) {
@@ -178,13 +236,30 @@ export function mathTextMetricUnits(line) {
 export function texTextWidthCm(line, scale = 1) {
   const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
   let widthPt = 0;
-  for (const char of [...String(line || "")]) {
-    widthPt += CMR10_WIDTH_PT[char] ?? (SCRIPT_CHAR_PATTERN.test(char) ? 3.2 : 5);
+  const chars = [...stripTikzHspaceMarkers(line)];
+  for (let index = 0; index < chars.length; index += 1) {
+    const char = chars[index];
+    if (ZERO_WIDTH_MATH_ACCENTS.has(char)) continue;
+    if (char === "_") {
+      let consumed = 0;
+      for (let cursor = index + 1; cursor < chars.length && /[A-Za-z0-9+\-=()]/.test(chars[cursor]); cursor += 1) {
+        widthPt += 3.2;
+        consumed += 1;
+      }
+      if (consumed > 0) {
+        index += consumed;
+        continue;
+      }
+    }
+    widthPt += CMR10_WIDTH_PT[char] ?? (SCRIPT_CHAR_PATTERN.test(char) ? 3.2 : WIDE_MATH_ALPHA_CHARS.has(char) ? 8.2 : 5);
   }
   return (widthPt / TEX_PT_PER_CM) * factor;
 }
 
 function estimateFormulaParts(tex, scale, metric) {
+  const tensorMatrixBox = estimateTensorMatrixParts(tex, scale);
+  if (tensorMatrixBox) return tensorMatrixBox;
+
   // Claude: 原版完全没有 \begin{matrix} 的尺寸感知 —— 矩阵的宽度按「所有单元格摊平成一行」
   // 来算（巨宽），高度只按一行算（巨扁），结果 display 矩阵的 SVG 盒子被估成又宽又扁，
   // 矩阵被压成一条细线。这里先做矩阵感知估算（按行列、支持嵌套），估到了就用它。
@@ -223,6 +298,19 @@ function estimateFormulaParts(tex, scale, metric) {
     if (hasSubscript(tex)) depth = Math.max(depth, 0.085 * scale);
   }
 
+  const vectorSubscript = tex.match(/\\vec\s*\{\s*([A-Za-z])[\s\S]*?\}\s*_/);
+  const wideTildeVectorSubscript = tex.match(/\\vec\s*\{\s*\\(?:wide)?tilde\s*\{\s*([A-Za-z])[\s\S]*?\}\s*\}\s*_/);
+  const tallVectorBase = vectorSubscript?.[1] || wideTildeVectorSubscript?.[1];
+  if (tallVectorBase && TALL_MATH_ACCENT_BASES.has(tallVectorBase)) {
+    width = Math.max(width, fallbackWidth(tex, scale, metric) + 0.05 * scale);
+    height = Math.max(height, 0.32 * scale);
+    depth = Math.max(depth, 0.08 * scale);
+  }
+
+  if (/\\(?:wide)?tilde(?![A-Za-z])/.test(tex)) {
+    width = Math.max(width, fallbackWidth(tex, scale, metric) + 0.2 * scale);
+  }
+
   if (/\\(?:int|oint)(?![A-Za-z])/.test(tex)) {
     height = Math.max(height, 0.43 * scale);
     depth = Math.max(depth, hasSubscript(tex) ? 0.24 * scale : 0.16 * scale);
@@ -231,8 +319,61 @@ function estimateFormulaParts(tex, scale, metric) {
   return { width, height, depth };
 }
 
+function estimateTensorMatrixParts(tex, scale) {
+  const text = String(tex || "");
+  if (!/\\(?:overmat|undermat)\b/.test(text) || !/\\begin\{matrix\}/.test(text)) return null;
+  const blocks = readTensorMatrixMetricBlocks(text);
+  if (blocks.length < 2) return null;
+
+  // Keep this in sync with renderer-svg.js renderTensorMatrixFallback: the
+  // anchor box must describe the same compact 2x2 tensor fallback we draw.
+  const font = 0.34 * scale;
+  const cell = font * 0.82;
+  const rowCell = font * 0.94;
+  const labelHeight = font * 0.8;
+  const matrixWidth = cell * 3.25;
+  const matrixHeight = rowCell * 3.05;
+  const bracketPad = font * 0.32;
+  const blockWidth = matrixWidth + bracketPad * 2 + font * 0.2;
+  const blockHeight = matrixHeight + labelHeight + font * 0.42;
+  const gapX = font;
+  const gapY = font * 0.1;
+  const prefixWidth = font * 2.1;
+  const gridWidth = blockWidth * 2 + gapX;
+  const gridHeight = blockHeight * 2 + gapY;
+  return {
+    width: prefixWidth + gridWidth + font * 0.8,
+    height: gridHeight / 2,
+    depth: gridHeight / 2
+  };
+}
+
+function readTensorMatrixMetricBlocks(text) {
+  const blocks = [];
+  const pattern = /\\(overmat|undermat)\b/g;
+  let match;
+  while ((match = pattern.exec(text))) {
+    let cursor = match.index + match[1].length + 1;
+    const label = readBalanced(text, skipWhitespace(text, cursor), "{", "}");
+    if (!label) continue;
+    cursor = label.end;
+    const matrix = readBalanced(text, skipWhitespace(text, cursor), "{", "}");
+    if (!matrix) continue;
+    cursor = matrix.end;
+    const color = readBalanced(text, skipWhitespace(text, cursor), "{", "}");
+    if (!color) continue;
+    blocks.push({ label, matrix, color });
+    pattern.lastIndex = color.end;
+  }
+  return blocks;
+}
+
 function fallbackWidth(tex, scale, metric) {
-  return mathTextMetricUnits(mathFallbackText(tex)) * metric.widthFactor * scale + metric.widthPadding;
+  const fallback = mathFallbackText(tex);
+  const bodyWidth = metric.texTextMetrics
+    ? texTextWidthCm(fallback, scale)
+    : mathTextMetricUnits(fallback) * metric.widthFactor * scale;
+  return bodyWidth + metric.widthPadding;
 }
 
 const MATRIX_ENV_NAMES = ["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "array", "cases"];
@@ -428,6 +569,12 @@ function readBalanced(text, start, open, close) {
     }
   }
   return null;
+}
+
+function skipWhitespace(text, start) {
+  let cursor = start;
+  while (/\s/.test(text[cursor] || "")) cursor += 1;
+  return cursor;
 }
 
 function round(value) {

@@ -3,6 +3,37 @@ export { interpretTikz } from "./interpreter.js";
 export { renderSvg } from "./renderer-svg.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
 export { BUILTIN_TIKZ_LIBRARIES, collectTikzLibraries, resolveTikzLibraries } from "./tikz-libraries.js";
+export {
+  builtinTikzLibraries,
+  knownTikzLibraries,
+  supportedTikzLibraries,
+  tikzLibraryCatalog,
+  calcLibrary,
+  matrixLibrary,
+  positioningLibrary
+} from "./libraries/index.js";
+export {
+  knownTexPackages,
+  mathtoolsPackage,
+  pgfplotsPackage,
+  supportedTexPackages,
+  texPackageCatalog,
+  tikzPackage,
+  xcolorPackage
+} from "./packages/index.js";
+export {
+  addplotCommand,
+  axisCommand,
+  coordinateCommand,
+  drawCommand,
+  knownTikzCommands,
+  nodeCommand,
+  pathCommand,
+  supportedTikzCommands,
+  tikzCommandCatalog,
+  tikzpictureCommand
+} from "./commands/index.js";
+export { collectTexPackages, resolveTexPackage, resolveTexPackages } from "./tex-packages.js";
 export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/index.js";
 export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
 export { tikzBayesnetExtension } from "./extensions/tikz-bayesnet.js";
@@ -20,6 +51,8 @@ export { tikzPalatticeExtension } from "./extensions/tikz-palattice.js";
 export { tikzQtreeExtension } from "./extensions/tikz-qtree.js";
 export { tikzquadsExtension } from "./extensions/tikzquads.js";
 export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
+export { forestExtension } from "./extensions/forest.js";
+export { neuralNetworkExtension } from "./extensions/neuralnetwork.js";
 export { stanliExtension } from "./extensions/stanli.js";
 
 import { parseTikz } from "./parser.js";

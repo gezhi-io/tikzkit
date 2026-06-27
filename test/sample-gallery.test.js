@@ -77,11 +77,14 @@ test("web entry declares an inline favicon to keep browser console clean", () =>
   assert.match(html, /href="data:image\/svg\+xml,/);
 });
 
-test("web CSS does not restyle nested KaTeX SVG accents", () => {
+test("web CSS leaves math internals to the SVG-scoped math stylesheet", () => {
   const css = readFileSync(new URL("../web/styles.css", import.meta.url), "utf8");
 
-  assert.match(css, /\.svg-surface\s*>\s*svg\s*\{/);
+  assert.match(css, /\.svg-surface\s*>\s*svg\.tikz-render-svg\s*\{/);
+  assert.doesNotMatch(css, /\.tikz-render-svg\s+\.tikz-math\s+\.katex\s+svg\s*\{/);
+  assert.doesNotMatch(css, /\.katex\b/);
   assert.doesNotMatch(css, /\.svg-surface\s+svg\s*\{/);
+  assert.doesNotMatch(css, /\.svg-surface\s*>\s*svg\s*\{/);
 });
 
 test("web CSS confines oversized SVG renders to their preview surface", () => {
@@ -89,10 +92,16 @@ test("web CSS confines oversized SVG renders to their preview surface", () => {
 
   assert.match(css, /\.svg-surface\s*\{[^}]*overflow:\s*auto/s);
   assert.match(css, /\.svg-surface\s*\{[^}]*max-width:\s*100%/s);
-  assert.match(css, /\.svg-surface\s*>\s*svg\s*\{[^}]*max-width:\s*100%/s);
+  assert.match(css, /\.svg-surface\s*>\s*svg\.tikz-render-svg\s*\{[^}]*max-width:\s*100%/s);
   assert.match(css, /\.case-viewer\s*\{[^}]*min-width:\s*0/s);
   assert.match(css, /\.case-panel\s*\{[^}]*min-width:\s*0/s);
   assert.doesNotMatch(css, /\.svg-surface\s+svg\s*\{/);
+});
+
+test("web entry does not load global KaTeX CSS for TikZ formulas", () => {
+  const html = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
+
+  assert.doesNotMatch(html, /href="\/node_modules\/katex\/dist\/katex\.min\.css"/);
 });
 
 test("web realtime JS renderer injects the same comparison grid as gallery artifacts", () => {

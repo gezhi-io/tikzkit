@@ -14,6 +14,8 @@ import { tikzPalatticeExtension } from "./tikz-palattice.js";
 import { tikzQtreeExtension } from "./tikz-qtree.js";
 import { tikzquadsExtension } from "./tikzquads.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
+import { forestExtension } from "./forest.js";
+import { neuralNetworkExtension } from "./neuralnetwork.js";
 import { stanliExtension } from "./stanli.js";
 
 export const BUILTIN_EXTENSIONS = [
@@ -33,6 +35,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzPalatticeExtension,
   tikzQtreeExtension,
   tikzquadsExtension,
+  forestExtension,
+  neuralNetworkExtension,
   stanliExtension
 ];
 

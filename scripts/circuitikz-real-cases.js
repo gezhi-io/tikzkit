@@ -9,7 +9,7 @@ export const CIRCUITIKZ_MANUAL_PATH = "doc/circuitikzmanual.tex";
 
 export const CIRCUITIKZ_STANDALONE_WRAPPER = String.raw`\documentclass[border=4mm]{standalone}
 \usepackage{tikz}
-\usepackage{circuitikz}
+\usepackage[siunitx,RPvoltages]{circuitikz}
 \begin{document}
 <>
 \end{document}`;

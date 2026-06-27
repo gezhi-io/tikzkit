@@ -18,10 +18,29 @@ test("injects a one-unit dashed background grid into tikzpicture gallery sources
   assert.ok(gridLines.length >= 4, "expected injected grid lines");
   assert.ok(result.ir.items.indexOf(gridLines[0]) < result.ir.items.findIndex((item) => item.type === "path" && item.subtype !== "grid-line"));
   assert.match(result.svg, /stroke-dasharray=/);
-  assert.match(source, /\\usetikzlibrary\{backgrounds,calc\}/);
+  assert.match(source, /\\usetikzlibrary\{calc\}/);
+  assert.match(source, /\\pgfdeclarelayer\{background\}/);
   assert.match(source, /black!45/);
   assert.match(source, /line width=0\.18pt/);
   assert.match(source, /dash pattern=on 1pt off 1\.2pt/);
+});
+
+test("does not overwrite custom PGF layer lists when injecting gallery grids", () => {
+  const source = withGalleryDebugGrid(String.raw`\documentclass[tikz]{standalone}
+\pgfdeclarelayer{background}
+\pgfdeclarelayer{timeline}
+\pgfsetlayers{background,timeline,main}
+\begin{document}
+\begin{tikzpicture}
+  \begin{pgfonlayer}{timeline}
+    \draw (0,0) -- (1,0);
+  \end{pgfonlayer}
+\end{tikzpicture}
+\end{document}`);
+
+  assert.equal((source.match(/\\pgfsetlayers/g) || []).length, 1);
+  assert.doesNotMatch(source, /\\usetikzlibrary\{backgrounds,calc\}/);
+  assert.match(source, /\\begin\{pgfonlayer\}\{background\}/);
 });
 
 test("injects the same debug grid into tikz-cd gallery sources", () => {
@@ -64,6 +83,27 @@ test("uses rendered text node extents for current bounding box debug grids", () 
 
   assert.ok(Math.min(...xs) <= -1.9, `expected grid to include image left extent, got ${Math.min(...xs)}`);
   assert.ok(Math.max(...xs) >= 1.9, `expected grid to include image right extent, got ${Math.max(...xs)}`);
+});
+
+test("uses wrapped text width for current bounding box debug grids", () => {
+  const source = withGalleryDebugGrid(String.raw`\documentclass[tikz]{standalone}
+\begin{document}
+\begin{tikzpicture}
+  \node[anchor=north,align=left,text width=9cm] at (0,0) {
+    \begin{itemize}
+    \item \lipsum[1]
+    \item \lipsum[2]
+    \end{itemize}
+  };
+\end{tikzpicture}
+\end{document}`);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const gridLines = result.ir.items.filter((item) => item.subtype === "grid-line");
+  const xs = gridLines.flatMap((line) => line.commands.map((command) => command.x).filter((value) => Number.isFinite(value)));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.min(...xs) > -8, `expected grid not to use unwrapped lipsum width, got ${Math.min(...xs)}`);
+  assert.ok(Math.max(...xs) < 8, `expected grid not to use unwrapped lipsum width, got ${Math.max(...xs)}`);
 });
 
 test("keeps scaled 3d debug grid as native-style corner nails", () => {

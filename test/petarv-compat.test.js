@@ -9,6 +9,10 @@ function formatted(value) {
   return String(Object.is(rounded, -0) ? 0 : rounded);
 }
 
+function expectClose(actual, expected, epsilon = 1e-9) {
+  assert.ok(Math.abs(actual - expected) < epsilon, `expected ${actual} to be close to ${expected}`);
+}
+
 test("resolves TikZ node anchor coordinates on named nodes", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -20,11 +24,13 @@ test("resolves TikZ node anchor coordinates on named nodes", () => {
 
   assert.equal(diagnostics.length, 0);
   const path = ir.items.find((item) => item.type === "path");
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 1, y: 2.5 },
-    { type: "lineTo", x: 2, y: 1.5 },
-    { type: "lineTo", x: 0, y: 2 }
-  ]);
+  const outerSep = parseDimension("0.2pt");
+  assert.ok(Math.abs(path.commands[0].x - 1) < 1e-9);
+  assert.ok(Math.abs(path.commands[0].y - (2.5 + outerSep)) < 1e-9);
+  assert.ok(Math.abs(path.commands[1].x - (2 + outerSep)) < 1e-9);
+  assert.ok(Math.abs(path.commands[1].y - (1.5 - outerSep)) < 1e-9);
+  assert.ok(Math.abs(path.commands[2].x - (0 - outerSep)) < 1e-9);
+  assert.ok(Math.abs(path.commands[2].y - 2) < 1e-9);
 });
 
 test("resolves signed numeric node anchors without losing the minus sign", () => {
@@ -52,15 +58,18 @@ test("resolves multi-word node anchors before coordinate projections", () => {
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
+  const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 0, y: 2.5 },
-    { type: "lineTo", x: 2, y: 2.5 },
-    { type: "lineTo", x: 2, y: 1.5 },
-    { type: "lineTo", x: 0, y: 1.5 },
-    { type: "closePath" }
-  ]);
+  expectClose(path.commands[0].x, 0 - outerSep);
+  expectClose(path.commands[0].y, 2.5 + outerSep);
+  expectClose(path.commands[1].x, 2 + outerSep);
+  expectClose(path.commands[1].y, 2.5 + outerSep);
+  expectClose(path.commands[2].x, 2 + outerSep);
+  expectClose(path.commands[2].y, 1.5 - outerSep);
+  expectClose(path.commands[3].x, 0 - outerSep);
+  expectClose(path.commands[3].y, 1.5 - outerSep);
+  assert.deepEqual(path.commands[4], { type: "closePath" });
 });
 
 test("does not reapply scope transforms when constructing rectangles from named anchors", () => {
@@ -75,15 +84,18 @@ test("does not reapply scope transforms when constructing rectangles from named 
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
+  const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 1, y: 3.5 },
-    { type: "lineTo", x: 6, y: 3.5 },
-    { type: "lineTo", x: 6, y: 1.5 },
-    { type: "lineTo", x: 1, y: 1.5 },
-    { type: "closePath" }
-  ]);
+  expectClose(path.commands[0].x, 1 - outerSep);
+  expectClose(path.commands[0].y, 3.5 + outerSep);
+  expectClose(path.commands[1].x, 6 + outerSep);
+  expectClose(path.commands[1].y, 3.5 + outerSep);
+  expectClose(path.commands[2].x, 6 + outerSep);
+  expectClose(path.commands[2].y, 1.5 - outerSep);
+  expectClose(path.commands[3].x, 1 - outerSep);
+  expectClose(path.commands[3].y, 1.5 - outerSep);
+  assert.deepEqual(path.commands[4], { type: "closePath" });
 });
 
 test("applies transform canvas scale to scoped node geometry and text", () => {
@@ -120,7 +132,8 @@ test("applies coordinate-level shifts before node anchor references", () => {
   const path = ir.items.find((item) => item.type === "path");
   assert.ok(path.commands[0].x > -1 && path.commands[0].x < -0.5);
   assert.ok(path.commands[0].y < 0.5 && path.commands[0].y > 0.3);
-  assert.deepEqual(path.commands[1], { type: "lineTo", x: 0.5, y: -0.25 });
+  expectClose(path.commands[1].x, 0.5);
+  expectClose(path.commands[1].y, -0.25 - parseDimension("0.2pt"));
 });
 
 test("substitutes foreach variables in node names and anchor references", () => {
@@ -134,10 +147,11 @@ test("substitutes foreach variables in node names and anchor references", () => 
 
   assert.equal(diagnostics.length, 0);
   const path = ir.items.find((item) => item.type === "path");
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 1.25, y: 0 },
-    { type: "lineTo", x: 2.75, y: 0 }
-  ]);
+  const outerSep = parseDimension("0.2pt");
+  expectClose(path.commands[0].x, 1.25 + outerSep);
+  expectClose(path.commands[0].y, 0);
+  expectClose(path.commands[1].x, 2.75 - outerSep);
+  expectClose(path.commands[1].y, 0);
 });
 
 test("registers node names declared through the name option", () => {
@@ -169,12 +183,13 @@ test("clips default node-to-node paths to shape borders", () => {
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
+  const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 1, y: 0 },
-    { type: "lineTo", x: 3.5, y: 0 }
-  ]);
+  expectClose(path.commands[0].x, 1 + outerSep);
+  expectClose(path.commands[0].y, 0);
+  expectClose(path.commands[1].x, 3.5 - outerSep);
+  expectClose(path.commands[1].y, 0);
 });
 
 test("keeps unbraced foreach bodies attached to the foreach statement", () => {
@@ -289,8 +304,9 @@ test("applies global tikzstyle definitions to PetarV fetch-decode-execute nodes 
   assert.ok(boxes[0].width < 2.8, `expected text width to constrain block width, got ${boxes[0].width}`);
   assert.equal(arrow.style.stroke, "black");
   assert.equal(arrow.style.markerEnd.kind, "latex");
-  assert.ok(Math.abs(arrow.commands[0].x - (boxes[0].x + boxes[0].width / 2)) < 1e-6);
-  assert.ok(Math.abs(arrow.commands.at(-1).x - (boxes[1].x - boxes[1].width / 2)) < 1e-6);
+  const outerSep = parseDimension("0.2pt");
+  assert.ok(Math.abs(arrow.commands[0].x - (boxes[0].x + boxes[0].width / 2 + outerSep)) < 1e-6);
+  assert.ok(Math.abs(arrow.commands.at(-1).x - (boxes[1].x - boxes[1].width / 2 - outerSep)) < 1e-6);
 });
 
 test("falls back to default black when custom colors are not defined", () => {
@@ -392,12 +408,13 @@ test("does not reapply current transforms to named node path references", () => 
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
+  const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 1.6, y: 0.25 },
-    { type: "lineTo", x: 4.4, y: 0.25 }
-  ]);
+  expectClose(path.commands[0].x, 1.6 + outerSep);
+  expectClose(path.commands[0].y, 0.25);
+  expectClose(path.commands[1].x, 4.4 - outerSep);
+  expectClose(path.commands[1].y, 0.25);
 });
 
 test("expands nested TikZ scope environments without leaking begin or end commands", () => {
@@ -766,7 +783,20 @@ test("keeps empty rounded-rectangle minimum widths close to PGF shape sizing", (
 
   assert.equal(diagnostics.length, 0);
   assert.ok(Math.abs(box.width - expectedWidth) < 0.01, `expected rounded rectangle width near ${expectedWidth}, got ${box.width}`);
-  assert.equal(box.height, parseDimension("2em"));
+  expectClose(box.height, parseDimension("2em"));
+});
+
+test("uses PGF-like capsule radius for empty rounded-rectangle layer boxes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw, minimum width=15em, minimum height=2em, very thick, rounded rectangle] (box) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "box");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(box.rx - box.height / 2) < parseDimension("0.1pt"), `expected capsule radius near half-height, got rx=${box.rx}, height=${box.height}`);
 });
 
 test("keeps A3C-style rounded math nodes compact and rounded", () => {
@@ -782,6 +812,28 @@ test("keeps A3C-style rounded math nodes compact and rounded", () => {
   assert.ok(Math.abs(box.width - 1.8) < 0.08, `expected native-like rounded node width near 1.80cm, got ${box.width}`);
   assert.ok(Math.abs(box.height - 1.0) < 0.08, `expected native-like rounded node height near 1.00cm, got ${box.height}`);
   assert.ok(box.rx > 0.15, `expected rounded rectangle radius, got ${box.rx}`);
+});
+
+test("matches native A3C environment and queue node sizing", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[rounded rectangle, draw, thick, align=center] (AN) {Agent $n$\\$(\theta_n', \psi_n')$};
+  \node[rounded rectangle, draw, thick, yshift=8em, xshift=11.9em, align=center] (G) {Global state\\$(\theta, \psi)$};
+  \node[rounded rectangle, draw, thick, align=center] (E1) {Env. 1\\$(\mathcal{T}, \mathcal{R})$};
+  \node[rectangle split, minimum height=0.7cm, rectangle split horizontal, rectangle split parts=8, draw,
+    rectangle split part fill={white, white, white, white, white, white, white, gray}] (q1) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(boxes.AN.width - 1.86) < 0.06, `expected native Agent n node width near 1.86cm, got ${boxes.AN.width}`);
+  assert.ok(Math.abs(boxes.G.width - 2.49) < 0.06, `expected native Global state node width near 2.49cm, got ${boxes.G.width}`);
+  assert.ok(Math.abs(boxes.E1.width - 1.65) < 0.06, `expected native Env node width near 1.65cm, got ${boxes.E1.width}`);
+  assert.ok(Math.abs(boxes.E1.height - 1.01) < 0.06, `expected native Env node height near 1.01cm, got ${boxes.E1.height}`);
+  assert.ok(Math.abs(boxes.q1.width - 3.2) < 0.08, `expected native queue width near 3.20cm, got ${boxes.q1.width}`);
+  assert.ok(Math.abs(boxes.q1.height - 0.714) < 0.04, `expected native queue height near 0.714cm, got ${boxes.q1.height}`);
 });
 
 test("keeps mixed LSTM math labels from inflating positioning boxes", () => {
@@ -844,6 +896,25 @@ test("propagates tikzpicture monospace font option to text nodes", () => {
   assert.equal(diagnostics.length, 0);
   assert.match(text.style.fontFamily, /mono/i);
   assert.match(svg, /monospace/);
+});
+
+test("clips arrows against TeX typewriter text extents", () => {
+  const source = String.raw`
+\begin{tikzpicture}[font=\tt]
+  \node (T) at (0,0) {ACAACG};
+  \node[align=center] (tbl1) at (2.7,0) {\textcolor{red}{AACG}AC\\\textcolor{red}{ACAACG}};
+  \node[align=left] (BWT) at (8.6,0) {(CGAAAC, 2)};
+  \draw[-stealth, very thick] (T) -- (tbl1);
+  \draw[-stealth, very thick] (tbl1) -- (BWT);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(paths[0].commands[0].x - 0.6777) < 0.02, `expected TeX \\tt source east, got ${paths[0].commands[0].x}`);
+  assert.ok(Math.abs(paths[0].commands[1].x - 2.0223) < 0.02, `expected TeX \\tt target west, got ${paths[0].commands[1].x}`);
+  assert.ok(Math.abs(paths[1].commands.at(-1).x - 7.461) < 0.03, `expected wide BWT node west edge, got ${paths[1].commands.at(-1).x}`);
 });
 
 test("propagates scope font options to child nodes, matrices, and inline path labels", () => {
@@ -1313,6 +1384,22 @@ test("applies automata state defaults and picture-level arrow options", () => {
   assert.ok(loop, "loop above should create a visible self-loop curve");
 });
 
+test("applies every-node transform shape to automata node geometry and labels", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=1.3,every node/.style={transform shape}]
+  \node[state] (s) {$s_0$};
+  \draw (s) -- node[above] {$\omega$} ++(1,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const stateBox = ir.items.find((item) => item.type === "nodeBox" && item.id === "s");
+  const textNodes = ir.items.filter((item) => item.type === "textNode");
+
+  assert.equal(diagnostics.length, 0);
+  expectClose(stateBox.width, parseDimension("2.5em") * 1.3, 1e-6);
+  assert.ok(textNodes.every((item) => Math.abs((item.style?.fontScale || 0) - 1.3) < 1e-6));
+});
+
 test("uses PGF default loop geometry for self edges", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1328,7 +1415,7 @@ test("uses PGF default loop geometry for self edges", () => {
   const curve = loop.commands.at(-1);
   const rightStart = rightLoop.commands[0];
   const rightCurve = rightLoop.commands.at(-1);
-  const radius = box.width / 2;
+  const radius = box.width / 2 + parseDimension("0.4pt");
   const expectedStart = {
     x: box.x + Math.cos((105 * Math.PI) / 180) * radius,
     y: box.y + Math.sin((105 * Math.PI) / 180) * radius
@@ -1439,9 +1526,12 @@ test("normalizes larger bold math labels used as graph markers", () => {
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const svg = renderSvg(ir, { mathRenderer: "svg-text" });
   const sigma = ir.items.find((item) => item.type === "nodeBox");
+  const crossFontSize = Number(svg.match(/font-size="([^"]+)"[^>]*>×</)?.[1]);
 
   assert.equal(diagnostics.length, 0);
   assert.ok(sigma.width < 1.2, `expected compact sigma node, got ${sigma.width}`);
+  assert.ok(crossFontSize > 72, `expected nested \\mathlarger marker to be visibly enlarged, got ${crossFontSize}`);
+  assert.match(svg, /font-weight="700"[^>]*>×</);
   assert.match(svg, />Σ</);
   assert.match(svg, />×</);
   assert.doesNotMatch(svg, /mathlarger|boldsymbol|\\bm/);
@@ -1471,7 +1561,7 @@ test("keeps message passing math circle nodes compact for positioning", () => {
   assert.ok(label, "expected inline message label node to remain present");
 });
 
-test("uses TikZ diagonal positioning distance for GAT layer neighbors", () => {
+test("uses diagonal TikZ positioning distance for GAT layer neighbors", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \node[circle, draw, thick] (h1) {$\vec{h}_1$};
@@ -1483,7 +1573,7 @@ test("uses TikZ diagonal positioning distance for GAT layer neighbors", () => {
   const diagonalOffset = Math.abs(ir.coordinates.h4.x - ir.coordinates.h1.x);
 
   assert.equal(diagnostics.length, 0);
-  assert.ok(diagonalOffset > 1.55 && diagonalOffset < 1.7, `expected native TikZ diagonal offset near 1.63cm, got ${diagonalOffset}`);
+  assert.ok(diagonalOffset > 1.61 && diagonalOffset < 1.65, `expected native TikZ diagonal offset near 1.63cm, got ${diagonalOffset}`);
   assert.ok(ir.coordinates.hp.x > 4.35 && ir.coordinates.hp.x < 4.5, `expected horizontal positioning to remain unchanged, got ${ir.coordinates.hp.x}`);
 });
 
@@ -1526,6 +1616,25 @@ test("keeps Deep Graph Infomax wide-tilde vector nodes compact and positioned", 
   assert.ok(ir.coordinates["02"].y > ir.coordinates["01"].y, `expected neighbor above source node, got ${ir.coordinates["02"].y}`);
 });
 
+test("matches Case 016 vector and wide-tilde circle sizing", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, thick, draw] (x) {$\vec{x}_i$};
+  \node[circle, thick, draw] (xt) at (2,0) {$\vec{\widetilde{x}}_j$};
+  \node[circle, thick, draw] (h) at (4,0) {$\vec{h}_i$};
+  \node[circle, thick, draw] (ht) at (6,0) {$\vec{\widetilde{h}}_j$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(boxes.x.width > 0.76 && boxes.x.width < 0.83, `expected native-like x vector circle near 0.80cm, got ${boxes.x.width}`);
+  assert.ok(boxes.xt.width > 0.88 && boxes.xt.width < 0.96, `expected native-like x wide-tilde circle near 0.93cm, got ${boxes.xt.width}`);
+  assert.ok(boxes.h.width > 0.83 && boxes.h.width < 0.91, `expected native-like h vector circle near 0.86cm, got ${boxes.h.width}`);
+  assert.ok(boxes.ht.width > 0.95 && boxes.ht.width < 1.04, `expected native-like h wide-tilde circle near 1.00cm, got ${boxes.ht.width}`);
+});
+
 test("keeps current color when a bare draw option follows a color token", () => {
   const source = String.raw`
 \definecolor{echodrk}{HTML}{0099cc}
@@ -1552,12 +1661,13 @@ test("clips paths between numeric node names to node borders", () => {
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
+  const outerSep = parseDimension("0.2pt");
 
   assert.equal(diagnostics.length, 0);
-  assert.deepEqual(path.commands, [
-    { type: "moveTo", x: 0.5, y: 0 },
-    { type: "lineTo", x: 3.5, y: 0 }
-  ]);
+  expectClose(path.commands[0].x, 0.5 + outerSep);
+  expectClose(path.commands[0].y, 0);
+  expectClose(path.commands[1].x, 3.5 - outerSep);
+  expectClose(path.commands[1].y, 0);
 });
 
 test("applies tkz EdgeStyle updates to expanded Edge commands", () => {
@@ -1629,26 +1739,27 @@ test("keeps tkz-graph edge label backgrounds compact so they do not hide edges",
   assert.ok(labelBox.height < 0.4, `expected compact edge label background height, got ${labelBox.height}`);
 });
 
-test("keeps tkz-graph normal vertices at TikZ library size", () => {
+test("scales tkz-graph normal vertex shape like TikZ node scale", () => {
   const source = String.raw`
 \begin{tikzpicture}[scale=0.8,every node/.style={scale=0.7},font=\tt]
   \GraphInit[vstyle=Normal]
   \SetGraphUnit{2.5}
   \tikzset{VertexStyle/.append  style={fill}}
-  \Vertex{ATG}
-  \EA(ATG){TGG}
+  \Vertex{AT}
+  \EA(AT){TG}
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
-  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "ATG");
-  const label = ir.items.find((item) => item.type === "textNode" && item.text === "ATG");
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "AT");
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "AT");
 
   assert.equal(diagnostics.length, 0);
-  assert.ok(ir.coordinates.TGG.x > 1.98 && ir.coordinates.TGG.x < 2.02, `expected picture scale to affect tkz coordinates, got ${ir.coordinates.TGG.x}`);
+  assert.ok(ir.coordinates.TG.x > 1.98 && ir.coordinates.TG.x < 2.02, `expected picture scale to affect tkz coordinates, got ${ir.coordinates.TG.x}`);
   assert.equal(box.style.fill, "white");
   assert.equal(label.style.fill, "black");
   assert.ok(label.style.fontScale > 0.68 && label.style.fontScale < 0.72, `expected every node scale on label, got ${label.style.fontScale}`);
-  assert.ok(box.width <= parseDimension("18pt") + 0.03, `expected tkz normal vertex size, got ${box.width}`);
+  assert.ok(box.width > parseDimension("15.2pt"), `expected scaled tkz normal vertex width near native TikZ, got ${box.width}`);
+  assert.ok(box.width < parseDimension("15.6pt"), `expected scaled tkz normal vertex width near native TikZ, got ${box.width}`);
   assert.deepEqual(label.fitBox, { width: box.width, height: box.height });
 });
 
@@ -1724,8 +1835,8 @@ test("expands simple two-strand braid commands into colored cubic paths", () => 
 });
 
 test("parses em and ex dimensions used by TikZ positioning snippets", () => {
-  assert.equal(parseDimension("1em"), 0.35);
-  assert.equal(parseDimension("2ex"), 0.3);
+  expectClose(parseDimension("1em"), 10 / 28.4527559);
+  expectClose(parseDimension("2ex"), (2 * 4.30554) / 28.4527559);
 });
 
 test("keeps Case 038 compact math labels from inflating narrow network boxes", () => {

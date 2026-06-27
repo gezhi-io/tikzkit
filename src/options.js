@@ -41,6 +41,8 @@ for (const color of [
   "darkviolet",
   "deeppink",
   "deepskyblue",
+  "dimgray",
+  "dimgrey",
   "fuchsia",
   "gold",
   "goldenrod",
@@ -52,6 +54,7 @@ for (const color of [
   "lightgreen",
   "lightgrey",
   "lightpink",
+  "lightsteelblue",
   "lime",
   "limegreen",
   "maroon",
@@ -83,6 +86,10 @@ export function splitTopLevel(input, delimiter = ",") {
     const char = input[i];
     if (char === "(") paren += 1;
     if (char === ")") paren = Math.max(0, paren - 1);
+    if (char === "[" && paren === 0 && brace === 0 && isBareDelimiterOptionBracket(current)) {
+      current += char;
+      continue;
+    }
     if (char === "[") bracket += 1;
     if (char === "]") bracket = Math.max(0, bracket - 1);
     if (char === "{") brace += 1;
@@ -99,6 +106,12 @@ export function splitTopLevel(input, delimiter = ",") {
     parts.push(current.trim());
   }
   return parts.filter((part) => part.length > 0);
+}
+
+export function isBareDelimiterOptionBracket(prefix = "") {
+  const match = String(prefix).match(/(?:^|,)\s*([^=,{}[\]]+?)\s*=\s*$/);
+  if (!match) return false;
+  return /(?:^|\s)(?:left|right)\s+delimiter$/i.test(match[1].trim());
 }
 
 export function findTopLevel(input, needle) {
@@ -157,6 +170,29 @@ export function parseTikzset(input = "") {
 export function styleDefinitionsFromOptions(rawOptions = {}, baseStyles = {}) {
   const styles = {};
   for (const [key, value] of Object.entries(rawOptions || {})) {
+    const defaultMatch = String(key).match(/^(.+?)\/\.default$/);
+    if (defaultMatch) {
+      const name = defaultMatch[1].trim();
+      const existing = styles[name] || baseStyles[name] || {};
+      styles[name] = {
+        ...existing,
+        __tikzStyleDefault: value === true ? "" : String(value)
+      };
+      continue;
+    }
+    const styleArgsMatch = String(key).match(/^(.+?)\/\.style\s+args$/);
+    if (styleArgsMatch) {
+      const name = styleArgsMatch[1].trim();
+      const parsed = parseStyleArgsDefinition(value === true ? "" : String(value));
+      if (!parsed) continue;
+      const existing = styles[name] || baseStyles[name] || {};
+      styles[name] = {
+        ...existing,
+        __tikzStyleArgsPattern: parsed.pattern,
+        __tikzStyleOptions: parsed.options
+      };
+      continue;
+    }
     const match = String(key).match(/^(.+?)\/\.(style|append\s+style|prefix\s+style)$/);
     if (!match) continue;
     const name = match[1].trim();
@@ -172,6 +208,72 @@ export function styleDefinitionsFromOptions(rawOptions = {}, baseStyles = {}) {
       : { ...parsed, ...existing };
   }
   return styles;
+}
+
+export function codeDefinitionsFromOptions(rawOptions = {}, baseCodeHandlers = {}) {
+  const handlers = { ...(baseCodeHandlers || {}) };
+  for (const [key, value] of Object.entries(rawOptions || {})) {
+    const codeArgsMatch = String(key).match(/^(.+?)\/\.code\s+args$/);
+    if (codeArgsMatch) {
+      const parsed = parseCodeArgsDefinition(value === true ? "" : String(value));
+      if (!parsed) continue;
+      handlers[codeArgsMatch[1].trim()] = parsed;
+      continue;
+    }
+    const codeMatch = String(key).match(/^(.+?)\/\.code$/);
+    if (codeMatch) {
+      handlers[codeMatch[1].trim()] = {
+        pattern: "#1",
+        body: value === true ? "" : String(value)
+      };
+    }
+  }
+  return handlers;
+}
+
+function parseCodeArgsDefinition(raw) {
+  let cursor = 0;
+  const pattern = readBalancedGroup(raw, cursor);
+  if (!pattern) return null;
+  cursor = pattern.end;
+  const body = readBalancedGroup(raw, cursor);
+  if (!body) return null;
+  return {
+    pattern: pattern.content.trim(),
+    body: body.content
+  };
+}
+
+function parseStyleArgsDefinition(raw) {
+  let cursor = 0;
+  const pattern = readBalancedGroup(raw, cursor);
+  if (!pattern) return null;
+  cursor = pattern.end;
+  const body = readBalancedGroup(raw, cursor);
+  if (!body) return null;
+  return {
+    pattern: pattern.content.trim(),
+    options: parseOptions(body.content)
+  };
+}
+
+function readBalancedGroup(text, start = 0) {
+  let cursor = start;
+  while (/\s/.test(text[cursor] || "")) cursor += 1;
+  if (text[cursor] !== "{") return null;
+  let depth = 0;
+  for (let index = cursor; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+    if (depth === 0) {
+      return {
+        content: text.slice(cursor + 1, index),
+        end: index + 1
+      };
+    }
+  }
+  return null;
 }
 
 export function normalizeOptions(command, rawOptions, env) {
@@ -206,6 +308,7 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (key === "fill") {
+      if (value === true) semantic["tikzkit bare fill"] = true;
       style.fill = value === true ? "black" : normalizeColor(String(value));
       continue;
     }
@@ -219,6 +322,10 @@ export function normalizeOptions(command, rawOptions, env) {
     }
     if (key === "shading") {
       semantic.shading = String(value || "").trim();
+      continue;
+    }
+    if (key === "path fading") {
+      style.pathFading = String(value || "").trim();
       continue;
     }
     if (key === "ball color") {
@@ -341,7 +448,6 @@ function normalizeLineJoin(value) {
 function applyNodeColor(style, color) {
   style.textFill = color;
   if (style.stroke !== "none") style.stroke = color;
-  if (style.fill !== "none") style.fill = color;
 }
 
 function applyCurrentColor(style, color, command) {
@@ -441,6 +547,9 @@ function parseArrowOption(key, value, defaultArrowTip) {
   if (text === "->") return { markerEnd: { ...defaultArrowTip } };
   if (text === "<-") return { markerStart: { ...defaultArrowTip } };
   if (text === "<->") return { markerStart: { ...defaultArrowTip }, markerEnd: { ...defaultArrowTip } };
+  if (text === "*-") return { markerStart: parseArrowTipSpec("*") };
+  if (text === "-*") return { markerEnd: parseArrowTipSpec("*") };
+  if (text === "*-*") return { markerStart: parseArrowTipSpec("*"), markerEnd: parseArrowTipSpec("*") };
 
   const customBoth = text.match(/^\{([\s\S]+)\}-\{([\s\S]+)\}$/);
   if (customBoth) {
@@ -474,6 +583,9 @@ function parseArrowTipSpec(input) {
   if (options.length) {
     overrides.length = lineWidthFromTikzDimension(options.length);
     overrides.customLength = true;
+  }
+  if (options["line width"]) {
+    overrides.lineWidth = lineWidthFromTikzDimension(options["line width"]);
   }
   if (options.color || options.draw) overrides.stroke = normalizeColor(String(options.color || options.draw));
   if (options.fill) overrides.fill = normalizeColor(String(options.fill));
@@ -523,14 +635,58 @@ const BASIC_COLOR_RGB = {
   cyan: [0, 255, 255],
   magenta: [255, 0, 255],
   yellow: [255, 255, 0],
+  aqua: [0, 255, 255],
+  aquamarine: [127, 255, 212],
+  blueviolet: [138, 43, 226],
   orange: [255, 165, 0],
   purple: [128, 0, 128],
   violet: [238, 130, 238],
+  teal: [0, 128, 128],
   brown: [165, 42, 42],
+  chartreuse: [127, 255, 0],
+  coral: [255, 127, 80],
+  cornflowerblue: [100, 149, 237],
+  crimson: [220, 20, 60],
   gray: [128, 128, 128],
   grey: [128, 128, 128],
   lightgray: [211, 211, 211],
-  darkgray: [169, 169, 169]
+  darkgray: [169, 169, 169],
+  darkgrey: [169, 169, 169],
+  darkblue: [0, 0, 139],
+  darkcyan: [0, 139, 139],
+  darkgreen: [0, 100, 0],
+  darkmagenta: [139, 0, 139],
+  darkorange: [255, 140, 0],
+  darkred: [139, 0, 0],
+  darkviolet: [148, 0, 211],
+  deeppink: [255, 20, 147],
+  deepskyblue: [0, 191, 255],
+  dimgray: [105, 105, 105],
+  dimgrey: [105, 105, 105],
+  fuchsia: [255, 0, 255],
+  gold: [255, 215, 0],
+  goldenrod: [218, 165, 32],
+  greenyellow: [173, 255, 47],
+  indigo: [75, 0, 130],
+  lightblue: [173, 216, 230],
+  lightcyan: [224, 255, 255],
+  lightgreen: [144, 238, 144],
+  lightpink: [255, 182, 193],
+  lightsteelblue: [176, 196, 222],
+  lime: [0, 255, 0],
+  limegreen: [50, 205, 50],
+  maroon: [128, 0, 0],
+  navy: [0, 0, 128],
+  olive: [128, 128, 0],
+  orchid: [218, 112, 214],
+  pink: [255, 192, 203],
+  plum: [221, 160, 221],
+  rebeccapurple: [102, 51, 153],
+  salmon: [250, 128, 114],
+  silver: [192, 192, 192],
+  skyblue: [135, 206, 235],
+  turquoise: [64, 224, 208],
+  yellowgreen: [154, 205, 50]
 };
 
 function colorToRgb(value) {
@@ -600,13 +756,56 @@ function defaultStyleForCommand(command) {
 function expandStyleOptions(rawOptions, env) {
   let expanded = {};
   for (const [key, value] of Object.entries(rawOptions || {})) {
-    if (value === true && env.styles[key]) {
-      expanded = mergeOptionOrder(expanded, expandStyleOptions(env.styles[key], env));
+    if (env.styles[key]) {
+      const styleOptions = instantiateStyleOptions(env.styles[key], value);
+      expanded = mergeOptionOrder(expanded, expandStyleOptions(styleOptions, env));
     } else {
       setOrderedOption(expanded, key, value);
     }
   }
   return expanded;
+}
+
+function instantiateStyleOptions(styleDefinition, value) {
+  if (!styleDefinition?.__tikzStyleArgsPattern) {
+    return value === true ? styleDefinition : substituteStyleArguments(styleDefinition, [value]);
+  }
+  const rawArgument = value === true || value === "" ? styleDefinition.__tikzStyleDefault || "" : String(value);
+  const args = matchStyleArguments(styleDefinition.__tikzStyleArgsPattern, rawArgument);
+  return substituteStyleArguments(styleDefinition.__tikzStyleOptions || {}, args);
+}
+
+function matchStyleArguments(pattern, rawArgument) {
+  const tokens = [];
+  const regexText = String(pattern || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/#(\d+)/g, (_match, index) => {
+    tokens.push(Number(index));
+    return "([\\s\\S]*?)";
+  });
+  const match = String(rawArgument || "").match(new RegExp(`^${regexText}$`));
+  if (!match) return [rawArgument];
+  const args = [];
+  tokens.forEach((index, offset) => {
+    args[index - 1] = match[offset + 1];
+  });
+  return args;
+}
+
+function substituteStyleArguments(styleOptions, args = []) {
+  const substituted = {};
+  for (const [key, value] of Object.entries(styleOptions || {})) {
+    if (key.startsWith("__tikzStyle")) continue;
+    const nextKey = substituteStyleArgumentText(key, args);
+    const nextValue = typeof value === "string" ? substituteStyleArgumentText(value, args) : value;
+    substituted[nextKey] = nextValue;
+  }
+  return substituted;
+}
+
+function substituteStyleArgumentText(value, args = []) {
+  return String(value).replace(/#(\d+)/g, (_match, index) => {
+    const arg = args[Number(index) - 1];
+    return arg === undefined || arg === true ? "" : String(arg);
+  });
 }
 
 function mergeOptionOrder(target, source) {
@@ -632,7 +831,15 @@ function setOrderedOption(options, key, value) {
 }
 
 function isRepeatableOption(key) {
-  return key === "label" || key === "general shadow" || key === "evaluate" || key === "if";
+  return (
+    key === "label" ||
+    key === "pin" ||
+    key === "general shadow" ||
+    key === "evaluate" ||
+    key === "declare function" ||
+    key === "if" ||
+    key === "name intersections"
+  );
 }
 
 function optionValues(value) {

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
-import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromTikzDimension } from "../src/tikz-metrics.js";
+import { parseDimension } from "../src/math.js";
+import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension } from "../src/tikz-metrics.js";
+
+function expectClose(actual, expected, epsilon = 1e-9) {
+  assert.ok(Math.abs(actual - expected) < epsilon, `expected ${actual} to be close to ${expected}`);
+}
 
 test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions", () => {
   const source = String.raw`
@@ -27,6 +32,112 @@ test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions
   ]);
   assert.equal(interpreted.ir.items[0].style.stroke, "blue");
   assert.equal(interpreted.ir.items[0].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
+});
+
+test("evaluates unbraced pgfmath length macros inside foreach timelines", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \pgfmathtruncatemacro\start{2010}
+  \pgfmathtruncatemacro\ende{2012}
+  \pgfmathtruncatemacro\differenz{\ende-\start}
+  \draw[->] (0,0) -- (\textwidth,0);
+  \foreach \j in {0,...,\differenz} {
+    \pgfmathsetlengthmacro\tmp{\j*\textwidth/\differenz}
+    \pgfmathtruncatemacro\jahr{\start+\j}
+    \draw (\tmp,0) node[rotate=45,left,yshift=-6pt] {\jahr};
+  }
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const yearLabels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const axis = result.ir.items.find((item) => item.type === "path" && item.style?.markerEnd);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(yearLabels, ["2010", "2011", "2012"]);
+  assert.ok(axis.commands[1].x > 10, `expected textwidth-scaled axis, got ${axis.commands[1].x}`);
+});
+
+test("applies leading font switches before tikzset timeline styles", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \small \sf
+  \tikzset{label/.style={draw=gray, ultra thin, rounded corners=.25ex, fill=gray!20, text width=4cm, text badly centered, inner sep=.5ex, above=2em, anchor=west, rotate=45}}
+  \tikzset{tick/.style={below=3pt}}
+  \draw (1,0) node(A1)[tick]{1} node(B1)[label]{event};
+  \foreach \nn in {1} { \draw[blue] (B\nn.west) -- ++(0,-.75); }
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const diagnostics = [...parsed.diagnostics, ...interpreted.diagnostics];
+  const box = interpreted.ir.items.find((item) => item.type === "nodeBox" && item.id === "B1");
+  const label = interpreted.ir.items.find((item) => item.type === "textNode" && item.text === "event");
+  const connector = interpreted.ir.items.find((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(box, "expected label style draw/fill to create a node box");
+  assert.equal(box.style.fill, "rgb(230 230 230)");
+  assert.ok(label.rotation > 40 && label.rotation < 50, `expected rotated label, got ${label.rotation}`);
+  assert.ok(interpreted.ir.coordinates.B1.x > 2, `expected west-anchored rotated label center to sit right of tick, got ${interpreted.ir.coordinates.B1.x}`);
+  assert.ok(interpreted.ir.coordinates.B1.y > 1.8, `expected label center above axis, got ${interpreted.ir.coordinates.B1.y}`);
+  assert.ok(Math.abs(connector.commands[0].x - 1) < 0.08, `expected connector to start near B1 west anchor x=1, got ${connector.commands[0].x}`);
+  assert.ok(connector.commands[0].y > 0.6, `expected connector to start above axis, got ${connector.commands[0].y}`);
+});
+
+test("resolves declared timeline coordinate systems before polar fallback", () => {
+  const result = tikzToSvg(String.raw`
+\tikzdeclarecoordinatesystem{timeline}{%
+  \pgfmathsetmacro\myx{(#1-1975)/3}
+  \pgfpointxy{\myx}{0}
+}
+\begin{tikzpicture}
+  \draw (timeline cs:1975) -- (timeline cs:2020);
+  \draw (timeline cs:1980) -- ++(0,0.2) node[above,font=\tiny]{1980};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path" && item.subtype !== "grid-line");
+  const tickLabel = result.ir.items.find((item) => item.type === "textNode" && item.text === "1980");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(paths[0].commands, [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 15, y: 0 }
+  ]);
+  assert.ok(Math.abs(paths[1].commands[0].x - 5 / 3) < 1e-6, `expected 1980 tick at x=5/3, got ${paths[1].commands[0].x}`);
+  assert.ok(Math.abs(tickLabel.x - 5 / 3) < 1e-6, `expected 1980 label at x=5/3, got ${tickLabel.x}`);
+});
+
+test("inherits current path color for bare fill inline nodes", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[event/.style={fill,text=white,font=\tiny}]
+  \draw[blue!80] (0,0) -- ++(0,-.8) node[below,event]{A};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const box = result.ir.items.find((item) => item.type === "nodeBox");
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.text === "A");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(box.style.fill, "rgb(51 51 255)");
+  assert.equal(label.style.fill, "white");
+});
+
+test("applies picture xscale and yscale to coordinates without scaling node shape", () => {
+  const source = String.raw`
+\begin{tikzpicture}[xscale=2,yscale=0.5]
+  \draw (1,2) -- ++(1,2);
+  \node[draw, minimum width=1cm, minimum height=1cm] (A) at (1,2) {A};
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const path = interpreted.ir.items.find((item) => item.type === "path");
+  const box = interpreted.ir.items.find((item) => item.type === "nodeBox" && item.id === "A");
+
+  assert.deepEqual([...parsed.diagnostics, ...interpreted.diagnostics], []);
+  assert.deepEqual(path.commands, [
+    { type: "moveTo", x: 2, y: 1 },
+    { type: "lineTo", x: 4, y: 2 }
+  ]);
+  assert.equal(box.x, 2);
+  assert.equal(box.y, 1);
+  assert.equal(box.width, 1);
+  assert.equal(box.height, 1);
 });
 
 test("interprets foreach count and evaluate options in dynamic coordinate names", () => {
@@ -58,6 +169,78 @@ test("interprets foreach count and evaluate options in dynamic coordinate names"
   assert.ok(interpreted.ir.items.some((item) => item.type === "textNode" && item.text === "1"));
 });
 
+test("interprets foreach count starting from option in coordinates", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \foreach \Text [count=\Xc starting from 0] in {{A},{B},{C}} {
+    \node at (\Xc,0) {\Text};
+  }
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const textNodes = interpreted.ir.items.filter((item) => item.type === "textNode");
+
+  assert.deepEqual([...parsed.diagnostics, ...interpreted.diagnostics], []);
+  assert.deepEqual(textNodes.map((node) => node.x), [0, 1, 2]);
+});
+
+test("lays out multiple tikzpictures inline instead of overlaying their local coordinates", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \draw (0,0) -- (2,0);
+  \node at (1,0) {P};
+\end{tikzpicture}
+
+\vspace{30pt}between pictures
+
+\begin{tikzpicture}[mylabel/.style={above=3pt, rotate=-45}]
+  \draw (0,0) -- (2,0);
+  \node[mylabel] at (1,0) {P};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.type === "textNode" && item.text === "P");
+  const prose = result.ir.items.find((item) => item.type === "textNode" && item.text === "between pictures");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.ok(prose, "expected document prose between tikzpictures to be rendered");
+  assert.ok(labels[1].x > labels[0].x + 2.5, `expected second picture to be shifted right, got ${labels.map((item) => item.x)}`);
+  assert.ok(prose.x > labels[0].x && prose.x < labels[1].x, `expected prose between pictures, got prose=${prose.x}, labels=${labels.map((item) => item.x)}`);
+});
+
+test("uses foreach coordinate variables as path circle centers", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \foreach \p in {(.6,.6),(3.1,.6),(2.35,2.25),(1,2.7)} \fill[black] \p circle(.035);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const circles = result.ir.items.filter((item) => item.shape === "circle" && item.style?.fill === "black");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    circles.map((circle) => [circle.cx, circle.cy]),
+    [
+      [0.6, 0.6],
+      [3.1, 0.6],
+      [2.35, 2.25],
+      [1, 2.7]
+    ]
+  );
+});
+
+test("evaluates inline pgfmathparse results inside foreach node text", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \foreach \i in {1,2} {
+    \node at (\i,0) {$\times \pgfmathparse{int(mod(\i+4,2))}\pgfmathresult$};
+  }
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const texts = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(texts, [String.raw`$\times 1$`, String.raw`$\times 0$`]);
+  assert.doesNotMatch(result.svg, /pgfmathparse|pgfmathresult/);
+});
+
 test("maps TikZ stroke presets and explicit dimensions into SVG stroke units", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -79,6 +262,45 @@ test("maps TikZ stroke presets and explicit dimensions into SVG stroke units", (
   ]);
 });
 
+test("maps shadows.blur blur shadow to soft node shadows", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows.blur}
+\begin{tikzpicture}
+  \node[draw, fill=Gold, rounded corners=5pt, blur shadow={shadow blur steps=15}] (box) {Box};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const box = result.ir.items.find((item) => item.type === "nodeBox" && item.id === "box");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(box?.shadows?.length, `expected blur shadow metadata, got ${JSON.stringify(box)}`);
+  assert.equal(box.shadows[0].blur, true);
+  assert.match(result.svg, /tikzkit-blur-shadow/);
+});
+
+test("renders circuitikz npn and pnp transistor nodes with B C E anchors", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+\draw
+  (0,0) node[pnp] (pnp2) {Q2}
+  (pnp2.B) node[pnp, xscale=-1, anchor=B] (pnp1) {}
+  (pnp1) node[left, inner sep=0pt] {Q1}
+  (pnp1.C) node[npn, anchor=C] (npn1) {Q3}
+  (pnp2.C) node[npn, xscale=-1, anchor=C] (npn2)
+    {\scalebox{-1}[1]{Q4}}
+  (pnp1.E) -- (pnp2.E)  (npn1.E) -- (npn2.E)
+  (pnp1.B) node[circ] {} |- (pnp2.C) node[circ] {}
+;
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const transistorBoxes = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "circuitikzTransistor");
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(transistorBoxes.length, 4);
+  assert.ok(paths.some((path) => path.commands.some((command) => Math.abs(command.x || 0) > 0.2 || Math.abs(command.y || 0) > 0.2)));
+  assert.doesNotMatch(result.svg, /scalebox/);
+  assert.match(result.svg, />Q4</);
+  assert.match(result.svg, /tikz-node-circuitikzTransistor/);
+});
+
 test("renders labels attached to coordinate statements", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -97,6 +319,119 @@ test("renders labels attached to coordinate statements", () => {
   assert.ok(p && Math.abs(p.x - 2) < 1e-6 && p.y > 9, `expected p above coordinate, got ${JSON.stringify(p)}`);
   assert.ok(u && u.x < 0 && Math.abs(u.y - 3) < 1e-6, `expected u left of coordinate, got ${JSON.stringify(u)}`);
   assert.ok(x && x.x > 7 && Math.abs(x.y - 2) < 1e-6, `expected x right of coordinate, got ${JSON.stringify(x)}`);
+});
+
+test("places bare directional nodes like equivalent anchors without an extra gap", () => {
+  const right = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[right] at (0,0) {$x$};
+\end{tikzpicture}`, { mathRenderer: "svg-text" }).ir.items.find((item) => item.type === "textNode");
+  const west = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[anchor=west] at (0,0) {$x$};
+\end{tikzpicture}`, { mathRenderer: "svg-text" }).ir.items.find((item) => item.type === "textNode");
+
+  assert.ok(right && west, "expected both text nodes");
+  assert.ok(Math.abs(right.x - west.x) < 1e-6, `expected right node x=${right.x} to match anchor west x=${west.x}`);
+  assert.ok(Math.abs(right.y - west.y) < 1e-6, `expected right node y=${right.y} to match anchor west y=${west.y}`);
+});
+
+test("renders styled coordinate statements as visible node anchors", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=3cm, line width=3pt, white,
+  element/.style={circle, draw, minimum width=4em}]
+  \coordinate[element, fill=red] (top);
+  \coordinate[element, below left of=top, fill=blue] (mid);
+  \path[->] (top) edge[bend left] (mid);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items
+    .filter((item) => item.type === "nodeBox" && item.id)
+    .map((item) => [item.id, item]));
+  const edgePath = ir.items.find((item) => item.type === "path" && item.style?.markerEnd);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(boxes.top?.shape, "circle");
+  assert.equal(boxes.mid?.shape, "circle");
+  assert.equal(boxes.top?.style.fill, "red");
+  assert.equal(boxes.mid?.style.fill, "blue");
+  assert.ok(boxes.top.width > 1 && boxes.top.height > 1, `expected 4em-sized top coordinate node, got ${JSON.stringify(boxes.top)}`);
+  assert.ok(edgePath?.commands?.[0]?.type === "moveTo");
+  assert.notDeepEqual(edgePath.commands[0], { type: "moveTo", x: 0, y: 0 });
+});
+
+test("positions bare coordinate statements with positioning library syntax", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \coordinate (a) at (0,0);
+  \coordinate[right=30mm of a] (b);
+  \coordinate[right=20mm of b] (c);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(ir.coordinates.a.x, 0);
+  assert.equal(ir.coordinates.a.y, 0);
+  assert.ok(Math.abs(ir.coordinates.b.x - 3) < 1e-6, `expected b at 3cm, got ${JSON.stringify(ir.coordinates.b)}`);
+  assert.ok(Math.abs(ir.coordinates.c.x - 5) < 1e-6, `expected c at 5cm, got ${JSON.stringify(ir.coordinates.c)}`);
+  assert.equal(ir.coordinates.b.y, 0);
+  assert.equal(ir.coordinates.c.y, 0);
+});
+
+test("keeps coordinates after standalone text spacing commands", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \linespread{0.8}
+  \coordinate (a) at (0,0);
+  \coordinate[right=30mm of a] (b);
+  \draw (a) -- (b);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(ir.coordinates.a, { x: 0, y: 0 });
+  assert.ok(Math.abs(ir.coordinates.b.x - 3) < 1e-6, `expected b at 3cm, got ${JSON.stringify(ir.coordinates.b)}`);
+  const path = ir.items.find((item) => item.type === "path");
+  assert.deepEqual(path.commands, [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 3, y: 0 }
+  ]);
+});
+
+test("expands parameterized styles inside coordinate option prefixes", () => {
+  const source = String.raw`
+\begin{tikzpicture}[ys/.style={yshift=#1}]
+  \coordinate (a) at (0,0);
+  \draw ([ys=10mm] a) -- (a);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(path.commands, [
+    { type: "moveTo", x: 0, y: 1 },
+    { type: "lineTo", x: 0, y: 0 }
+  ]);
+});
+
+test("expands single-argument TikZ styles into node options", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \tikzset{atom/.style={circle, shading=ball, ball color=#1, minimum size=15pt}}
+  \node[atom=blue] (a) at (0,0) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "a");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(box?.shape, "circle");
+  assert.equal(box?.style.ballColor, "blue");
+  assert.ok(box.width > 0.5 && box.width < 0.6, `expected 15pt atom node, got ${JSON.stringify(box)}`);
 });
 
 test("uses color option as the current fill color on fill paths", () => {
@@ -223,6 +558,104 @@ test("preserves ball shading on path circle and ellipse shapes", () => {
   assert.equal(ellipse.style.fill, "black");
 });
 
+test("uses declared radial shadings on shaped nodes", () => {
+  const source = String.raw`
+\documentclass{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadings}
+\pgfdeclareradialshading{atomshade}{\pgfpoint{0cm}{0cm}}{
+  color(0cm)=(pgftransparent!0);
+  color(0.5cm)=(pgftransparent!40);
+  color(1cm)=(pgftransparent!100)
+}
+\begin{document}
+\begin{tikzpicture}
+  \node[circle, shading=atomshade, minimum size=1cm] at (0,0) {};
+\end{tikzpicture}
+\end{document}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const node = interpreted.ir.items.find((item) => item.type === "nodeBox" && item.shape === "circle");
+
+  assert.deepEqual([...parsed.diagnostics, ...interpreted.diagnostics], []);
+  assert.equal(node.style.shading, "radial");
+  assert.equal(node.style.shadingName, "atomshade");
+  assert.equal(node.style.radialStops.length, 3);
+  assert.equal(node.style.radialStops[0].opacity, 0);
+  assert.equal(node.style.radialStops[2].opacity, 1);
+});
+
+test("keeps axial path fading semantics on filled paths", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \fill[fill=blue, path fading=west] (0,0) rectangle (2,0.2);
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const path = interpreted.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual([...parsed.diagnostics, ...interpreted.diagnostics], []);
+  assert.equal(path.style.fill, "blue");
+  assert.equal(path.style.pathFading, "west");
+});
+
+test("resolves xcolor colorlet aliases before path style normalization", () => {
+  const source = String.raw`
+\usepackage{xcolor}
+\colorlet{mewnol}{blue!75!cyan}
+\begin{tikzpicture}
+  \fill[fill=mewnol, path fading=west] (0,0) rectangle (2,0.2);
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const interpreted = interpretTikz(parsed.ast);
+  const path = interpreted.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual([...parsed.diagnostics, ...interpreted.diagnostics], []);
+  assert.equal(path.style.fill, "rgb(0 64 255)");
+  assert.equal(path.style.pathFading, "west");
+});
+
+test("parses TeX empty-group macro terminators inside dimensions", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \def\r{3}
+  \draw[dashed] (0,0) ellipse (\r{} and \r/3);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const ellipse = ir.items.find((item) => item.type === "path" && item.shape === "ellipse");
+  const start = ellipse?.commands.find((command) => command.type === "moveTo");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(start);
+  assert.ok(Math.abs(start.x - 3) < 1e-6, `expected ellipse x radius from \\r{} to be 3, got ${start.x}`);
+});
+
+test("renders TikZ angles library angle pics with quote labels", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \coordinate (x) at (1,0);
+  \coordinate (o) at (0,0);
+  \coordinate (y) at (0,1);
+  \pic [draw=gray, text=gray, ->, "$\theta$", angle eccentricity=1.4] {angle = x--o--y};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const angle = ir.items.find((item) => item.type === "path" && item.subtype === "angle-pic");
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "$\\theta$");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(angle, "expected angle pic path");
+  assert.equal(angle.style.stroke, "gray");
+  assert.ok(angle.style.markerEnd, "expected -> on angle pic");
+  assert.ok(label, "expected angle quote label");
+  assert.equal(label.style.fill, "gray");
+  assert.ok(label.x > 0.35 && label.y > 0.35, `expected label on angle bisector, got ${label?.x},${label?.y}`);
+});
+
 test("interprets PGF random list items and shade ball color paths", () => {
   const source = String.raw`
 \pgfmathdeclarerandomlist{colors}{{red!80}{teal}}
@@ -313,6 +746,31 @@ test("lays out TikZ node child trees with grow and sibling distances", () => {
   assert.ok(labels.every((label) => typeof label === "string"));
 });
 
+test("honors tree edge-from-parent options and down-grow child order", () => {
+  const source = String.raw`
+\begin{tikzpicture}[sibling distance=4cm, level distance=12mm]
+  \node {root}
+    child {node (left) {left}}
+    child {node (right) {right} edge from parent [draw=none]
+      child {node {deep}}
+    };
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const texts = ir.items.filter((item) => item.type === "textNode");
+  const root = texts.find((item) => item.text === "root");
+  const left = texts.find((item) => item.text === "left");
+  const right = texts.find((item) => item.text === "right");
+  const deep = texts.find((item) => item.text === "deep");
+  const visibleEdges = ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge" && item.style?.stroke !== "none");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(left.x < root.x, `expected first down-grow child on the left, got left=${left.x}, root=${root.x}`);
+  assert.ok(right.x > root.x, `expected second down-grow child on the right, got right=${right.x}, root=${root.x}`);
+  assert.ok(deep.y < right.y, `expected nested child below parent, got deep=${deep.y}, right=${right.y}`);
+  assert.equal(visibleEdges.length, 2, "expected the draw=none parent edge to be hidden");
+});
+
 test("renders basic mindmap concept nodes with cyclic child placement", () => {
   const source = String.raw`
 \begin{tikzpicture}[
@@ -396,6 +854,42 @@ test("supports coordinate-system projection, path rotation, midway labels, and n
   assert.ok(Math.abs(rotated.commands.at(-1).y - 2.16506) < 0.0001);
 });
 
+test("places TikZ labels outside the target node box", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=0.85]
+  \draw[ultra thick,rotate=60] (0,0) -- (2.5,0) coordinate (B);
+  \draw[xshift=-1cm] (B) node[circle,fill,inner sep=1pt,label=above:$P$](e){};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const marker = ir.coordinates.e;
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "$P$");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(marker, "expected named marker coordinate");
+  assert.ok(label, "expected label=above:$P$ text");
+  assert.ok(Math.abs(label.x - marker.x) < 1e-6, `expected P label centered above marker, got ${label.x},${marker.x}`);
+  assert.ok(label.y - marker.y > 0.34, `expected P label center to clear marker box, got gap ${label.y - marker.y}`);
+});
+
+test("supports compact elliptical arc radii with negative x radius", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[dashed] (2.6,0) arc (-90:90:-0.5 and 1.5);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const arc = ir.items.find((item) => item.type === "path" && item.shape === "arc");
+  const linePoints = arc.commands.filter((command) => command.type === "lineTo");
+  const xs = linePoints.map((command) => command.x);
+  const ys = linePoints.map((command) => command.y);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(arc, "expected compact elliptical arc to produce an arc path");
+  assert.ok(Math.min(...xs) < 2.15, `expected negative x radius to bow left, got x values ${xs.join(",")}`);
+  assert.ok(Math.max(...ys) > 2.95, `expected arc to reach top y near 3, got y values ${ys.join(",")}`);
+});
+
 test("supports TikZ orthogonal path operators with inline labels", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -410,13 +904,14 @@ test("supports TikZ orthogonal path operators with inline labels", () => {
 
   assert.equal(diagnostics.length, 0);
   assert.equal(path.commands.length, 3);
-  assert.deepEqual(path.commands[0], { type: "moveTo", x: 0, y: 0.1 });
+  expectClose(path.commands[0].x, 0);
+  expectClose(path.commands[0].y, 0.1 + parseDimension("0.2pt"));
   assert.deepEqual(path.commands[1], { type: "lineTo", x: 0, y: 1 });
   assert.equal(path.commands[2].type, "lineTo");
   assert.ok(path.commands[2].x > 0.84 && path.commands[2].x < 1, `expected final segment to stop at target node border, got ${path.commands[2].x}`);
   assert.equal(path.commands[2].y, 1);
   assert.ok(label);
-  assert.ok(label.x > 0.45 && label.x < 0.55 && label.y > 0.25 && label.y < 0.3, `expected label near first orthogonal segment, got ${label?.x},${label?.y}`);
+  assert.ok(label.x > 0.4 && label.x < 0.5 && label.y > 0.25 && label.y < 0.3, `expected label near first orthogonal segment, got ${label?.x},${label?.y}`);
 });
 
 test("approximates snake path morphing on decorated straight segments", () => {
@@ -443,6 +938,26 @@ test("approximates snake path morphing on decorated straight segments", () => {
     ),
   );
   assert.ok(path.commands.some((command) => command.type === "curveTo"), "expected snake decoration to use smooth cubic segments like native PGF");
+});
+
+test("keeps snake post length visible before arrow tip shortening", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[-stealth, thick, decorate, decoration={snake, pre length=0.01mm, segment length=2mm, amplitude=0.3mm, post length=1.5mm}] (0,0) -- (2,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const lastDecorated = path.commands.at(-2);
+  const visiblePostLength = parseDimension("1.5mm");
+  const thickLineWidthPt = 0.8;
+  const stealthShorten = (lineWidthFromPt(3 + 1.25 * thickLineWidthPt) * 0.625) / TIKZ_UNIT;
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(path.commands.at(-1).type, "lineTo");
+  assert.equal(path.commands.at(-1).x, 2);
+  assert.equal(lastDecorated.type, "curveTo");
+  expectClose(lastDecorated.x, 2 - visiblePostLength - stealthShorten, 1e-6);
 });
 
 test("interprets smooth plot coordinate lists as continuous curves", () => {
@@ -617,6 +1132,51 @@ test("places inline labels between path coordinates", () => {
   assert.equal(nLabel.y, -1);
 });
 
+test("registers inline path nodes when node name appears before options", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) -- +(0,-1)
+    node (e1) [draw] {1881}
+    node (e2) [draw, below=of e1] {born};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const first = ir.items.find((item) => item.type === "textNode" && item.text === "1881");
+  const second = ir.items.find((item) => item.type === "textNode" && item.text === "born");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(first, "expected first named inline node to render");
+  assert.ok(second, "expected second named inline node to render");
+  assert.ok(ir.coordinates.e1, "expected e1 coordinate to be registered");
+  assert.ok(ir.coordinates.e2, "expected e2 coordinate to be registered");
+  assert.ok(second.y < first.y, `expected below=of e1 placement, got ${second.y} vs ${first.y}`);
+});
+
+test("expands parameterized inline node styles with defaults", () => {
+  const source = String.raw`
+\begin{tikzpicture}[
+  TN/.style args={#1/#2}{fill=#1, fill opacity=#2, draw=gray!15, below},
+  TN/.default=gray!50/0.5
+]
+  \draw (0,0) -- +(0,-1)
+    node (e1) [TN] {1881}
+    node (e2) [TN=blue!30/0.3, below=of e1] {1885};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = ir.items.filter((item) => item.type === "nodeBox");
+  const first = ir.items.find((item) => item.type === "textNode" && item.text === "1881");
+  const second = ir.items.find((item) => item.type === "textNode" && item.text === "1885");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(boxes.length, 2);
+  assert.equal(boxes[0].style.fill, "rgb(192 192 192)");
+  assert.equal(boxes[0].style.fillOpacity, 0.5);
+  assert.equal(boxes[1].style.fill, "rgb(179 179 255)");
+  assert.equal(boxes[1].style.fillOpacity, 0.3);
+  assert.ok(second.y < first.y, `expected parameterized TN node to keep below=of placement, got ${second.y} vs ${first.y}`);
+});
+
 test("uses TikZ auto placement for inline path nodes without explicit side", () => {
   const source = String.raw`
 \begin{tikzpicture}[auto]
@@ -691,6 +1251,57 @@ test("does not draw a node border unless draw or fill is requested", () => {
   assert.equal(ir.items.filter((item) => item.type === "nodeBox").length, 1);
 });
 
+test("does not draw inline path label boxes from inherited picture draw color", () => {
+  const source = String.raw`
+\begin{tikzpicture}[white, draw=white]
+  \draw[fill=orange] (0,0) rectangle (2,4) node[midway] {$p(\neg E|H)$};
+  \draw[black] (0,4) -- (2,4) node[midway, above] {$p(H)$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode");
+  const boxes = ir.items.filter((item) => item.type === "nodeBox");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.equal(boxes.length, 0);
+  assert.equal(labels[0].style.fill, "white");
+  assert.equal(labels[1].style.fill, "black");
+});
+
+test("sizes filled inline path math label backgrounds with TeX-like formula metrics", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[very thick, stealth-] (0,0) to node[midway, fill=white] {\${\bf T}_{12}$} (2,0);
+  \draw[-stealth, very thick, dashed, bend left=90] (5.5,0) to
+    node[pos=0.33, align=center, fill=white] {\${\bf O'}_{3,id_{t+1}}$\\$\mathcal{N}(y_{t+1};\mu_{id_{t+1}},\sigma_{id_{t+1}})$}
+    (7,2);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labelBoxes = ir.items.filter((item) => item.type === "nodeBox" && item.style.fill === "white");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labelBoxes.length, 2);
+  assert.ok(labelBoxes[0].width > 0.78 && labelBoxes[0].width < 0.9, `expected native-sized T label background, got ${labelBoxes[0].width}`);
+  assert.ok(labelBoxes[1].width > 3.3 && labelBoxes[1].width < 3.9, `expected native-sized observation label background, got ${labelBoxes[1].width}`);
+});
+
+test("treats unitless node inner sep values as TeX points", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, fill, inner sep=1] (origin) at (0,0) {};
+  \node[circle, fill, inner sep=0.7] (tip) at (1,1) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(boxes.origin.width > 0.09 && boxes.origin.width < 0.11, `expected 1pt inner sep dot, got ${boxes.origin.width}`);
+  assert.ok(boxes.tip.width > 0.06 && boxes.tip.width < 0.08, `expected 0.7pt inner sep dot, got ${boxes.tip.width}`);
+});
+
 test("sizes playing-card suit math nodes from glyph width instead of macro names", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -715,7 +1326,7 @@ test("keeps vector object math nodes close to native TikZ height", () => {
   const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "o");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(box.width, 2.45);
+  expectClose(box.width, parseDimension("7em"));
   assert.ok(box.height > 0.54 && box.height < 0.6, `expected vector object height near native TikZ, got ${box.height}`);
 });
 
@@ -735,6 +1346,18 @@ test("keeps TeX subscript formula node widths close to native TikZ metrics", () 
   assert.ok(a.width > 0.58 && a.width < 0.74, `expected large a_phi box width near native TikZ, got ${a.width}`);
 });
 
+test("renders check accent math labels without spelling out the command", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node at (0,0) {$\check{S}_i$};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.doesNotMatch(result.svg, /checkS/);
+  assert.match(result.svg, /Š/);
+  assert.match(result.svg, /baseline-shift="sub">i/);
+});
+
 test("keeps single-symbol math circle nodes compact like native TikZ", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -748,6 +1371,26 @@ test("keeps single-symbol math circle nodes compact like native TikZ", () => {
   assert.ok(box.width > 0.58 && box.width < 0.75, `expected compact times circle diameter, got ${box.width}`);
 });
 
+test("sizes circular vector formulas with long subscripts for positioning", () => {
+  const source = String.raw`
+\usetikzlibrary{positioning}
+\begin{tikzpicture}
+  \node[circle, draw, thick] (z) {$\vec{a}_{real}$};
+  \node[circle, draw, thick, right=5em of z] (x) {$\vec{b}_{fake}$};
+  \node[circle, draw, thick, right=2em of x, yshift=7.5em] (D) {$\vec{b}$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(boxes.z.width > 1.06 && boxes.z.width < 1.18, `expected native-like z circle diameter, got ${boxes.z.width}`);
+  assert.ok(boxes.x.width > 1.18 && boxes.x.width < 1.3, `expected native-like x circle diameter, got ${boxes.x.width}`);
+  assert.ok(boxes.D.width > 0.62 && boxes.D.width < 0.78, `expected compact vector-only D circle diameter, got ${boxes.D.width}`);
+  assert.ok(Math.abs(ir.coordinates.x.x - 2.94) < 0.04, `expected right=5em positioning near native x center, got ${ir.coordinates.x.x}`);
+  assert.ok(Math.abs(ir.coordinates.D.x - 4.62) < 0.08, `expected D center near native placement, got ${ir.coordinates.D.x}`);
+});
+
 test("keeps multiline math circle nodes close to TikZ text metrics", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -759,10 +1402,8 @@ test("keeps multiline math circle nodes close to TikZ text metrics", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.ok(box, "expected circular node box");
-  // Claude: 圆形节点按内容框对角线外接(circumscribe) + 留白，比旧的 max(w,h) 略大，
-  // 保证公式四角不戳出圆外、周边有透气空间（用户明确要求）。上限相应放宽。
-  assert.ok(box.width >= 0.8, `expected circle to keep enough room for formula text, got ${box.width}`);
-  assert.ok(box.width <= 1.55, `expected formula circle to stay reasonable, got ${box.width}`);
+  assert.ok(box.width >= 1.56, `expected native-like multiline formula circle diameter, got ${box.width}`);
+  assert.ok(box.width <= 1.64, `expected native-like multiline formula circle diameter, got ${box.width}`);
 });
 
 test("matches native TikZ shape extents and anchors for text nodes", () => {
@@ -848,6 +1489,43 @@ test("renders repeated TikZ node labels with every label style", () => {
   assert.ok(Math.abs(labels.Graphics.style.fontScale - 0.5) < 1e-6, `expected every label scale, got ${labels.Graphics.style.fontScale}`);
 });
 
+test("renders repeated TikZ node pins with every pin style and border edges", () => {
+  const source = String.raw`
+\begin{tikzpicture}[every pin/.style={scale=0.5}]
+  \node[
+    pin=above:Graphics,
+    pin=left:Design,
+    pin=below:Typography,
+    pin=right:Coding,
+    circle, shading=ball, ball color=blue!60,
+    text=white] {TikZ};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const pins = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "textNode" && item.text !== "TikZ")
+      .map((item) => [item.text, item])
+  );
+  const edges = ir.items.filter((item) => item.subtype === "pin-edge");
+  const topEdge = edges.find((edge) => edge.commands[0]?.y > 0);
+  const rightEdge = edges.find((edge) => edge.commands[0]?.x > 0);
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(Object.keys(pins).sort(), ["Coding", "Design", "Graphics", "Typography"]);
+  assert.equal(edges.length, 4);
+  assert.ok(pins.Graphics.y > 0.7, `expected Graphics above the circle, got ${pins.Graphics.y}`);
+  assert.ok(pins.Typography.y < -0.7, `expected Typography below the circle, got ${pins.Typography.y}`);
+  assert.ok(pins.Design.x < -0.7, `expected Design left of the circle, got ${pins.Design.x}`);
+  assert.ok(pins.Coding.x > 0.7, `expected Coding right of the circle, got ${pins.Coding.x}`);
+  assert.ok(Math.abs(pins.Graphics.style.fontScale - 0.5) < 1e-6, `expected every pin scale, got ${pins.Graphics.style.fontScale}`);
+  assert.ok(edges.every((edge) => edge.style.stroke === "gray" || edge.style.stroke === "rgb(128 128 128)"), "expected default every pin edge help-lines color");
+  assert.ok(topEdge, "expected top pin edge to start at the node border");
+  assert.ok(rightEdge, "expected right pin edge to start at the node border");
+  assert.ok(topEdge.commands[0].y > 0.5 && topEdge.commands[0].y < pins.Graphics.y, `expected top edge from circle border to pin, got ${JSON.stringify(topEdge.commands)}`);
+  assert.ok(rightEdge.commands[0].x > 0.5 && rightEdge.commands[0].x < pins.Coding.x, `expected right edge from circle border to pin, got ${JSON.stringify(rightEdge.commands)}`);
+});
+
 test("inherits path color into labels attached to inline path nodes", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -859,6 +1537,20 @@ test("inherits path color into labels attached to inline path nodes", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.ok(label, "expected attached label text");
+  assert.equal(label.style.fill, "red");
+});
+
+test("inherits fill color into inline nodes attached to fill paths", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \fill[red] (0,0) circle (1pt) node[above right] {$P=(x,y)$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "$P=(x,y)$");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(label, "expected inline node text");
   assert.equal(label.style.fill, "red");
 });
 
@@ -893,9 +1585,81 @@ test("resolves braced polar coordinates in shift prefixes and calc offsets", () 
   const path = ir.items.find((item) => item.type === "path");
 
   assert.deepEqual(diagnostics, []);
-  assert.ok(Math.abs(box.x - 1.7) < 0.0001, `expected shifted node x=1.7, got ${box.x}`);
+  assert.ok(Math.abs(box.x - (1 + parseDimension("2em"))) < 0.0001, `expected shifted node x=1+2em, got ${box.x}`);
   assert.ok(Math.abs(box.y - 2) < 0.0001, `expected shifted node y=2, got ${box.y}`);
-  assert.deepEqual(path.commands.at(-1), { type: "lineTo", x: 1, y: 2.7 });
+  const end = path.commands.at(-1);
+  assert.equal(end.type, "lineTo");
+  expectClose(end.x, 1);
+  expectClose(end.y, 2 + parseDimension("2em"));
+});
+
+test("resolves calc interpolation offsets with whitespace after the target coordinate", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \coordinate (A) at (0,0);
+  \coordinate (B) at (2,0);
+  \coordinate (C) at ($(A)!0.3!(B) +(0,0.08)$);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(ir.coordinates.C, { x: 0.6, y: 0.08 });
+});
+
+test("renders tqft option-only pics and registers cobordism boundary anchors", () => {
+  const source = String.raw`
+\begin{tikzpicture}[every tqft/.append style={transform shape, rotate=90, tqft/circle x radius=7pt, tqft/boundary separation=1cm, tqft/view from=incoming}]
+  \pic[tqft/cylinder to prior, name=a, every incoming lower boundary component/.style={draw}, every outgoing lower boundary component/.style={draw}, cobordism edge/.style={draw}];
+  \pic[tqft/cup, cobordism edge/.style={draw}, at=(a-outgoing boundary)];
+  \draw ($(a-incoming boundary.west)!0.5!(a-outgoing boundary.west) +(0,0.08)$) -- (a-outgoing boundary.east);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const tqftPaths = ir.items.filter((item) => item.subtype?.startsWith?.("tqft-"));
+  const annotation = ir.items.find((item) => item.type === "path" && !item.subtype);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(tqftPaths.length >= 4, `expected tqft body and boundary paths, got ${tqftPaths.length}`);
+  assert.ok(
+    tqftPaths.find((item) => item.subtype === "tqft-cobordism")?.commands.every((command) => command.type !== "closePath"),
+    "expected mixed TQFT cobordism body to stay open like PGF's fullpath outline"
+  );
+  const boundaryPath = tqftPaths.find((item) => item.subtype?.endsWith?.("-boundary"));
+  assert.notEqual(boundaryPath.commands.at(-1).type, "closePath", "expected tqft boundary components to render as open half-arcs");
+  assert.ok(ir.coordinates["a-incoming boundary"], "expected incoming boundary coordinate");
+  assert.ok(ir.coordinates["a-outgoing boundary"], "expected outgoing boundary coordinate");
+  assert.ok(
+    ir.coordinates["a-outgoing boundary"].x > 1.5 && Math.abs(ir.coordinates["a-outgoing boundary"].y + 0.5) < 0.1,
+    `expected every tqft rotate/boundary separation style to place outgoing boundary horizontally, got ${JSON.stringify(ir.coordinates["a-outgoing boundary"])}`
+  );
+  assert.ok(Math.hypot(annotation.commands[0].x, annotation.commands[0].y) > 0.5, `expected calc annotation to use tqft anchors, got ${JSON.stringify(annotation.commands[0])}`);
+});
+
+test("places tqft adjacent-between anchors inside cobordisms instead of on boundary midpoints", () => {
+  const source = String.raw`
+\begin{tikzpicture}[every tqft/.append style={transform shape, rotate=90, tqft/boundary separation=1cm, tqft/view from=incoming}]
+  \pic[tqft/pair of pants, name=b, cobordism edge/.style={draw}];
+  \pic[tqft/reverse pair of pants, name=c, cobordism edge/.style={draw}, at=(b-outgoing boundary 1)];
+  \coordinate (temp1) at ($(b-between outgoing 1 and 2)!0.2!(c-between incoming 1 and 2) +(0,0.72)$);
+  \coordinate (temp2) at ($(b-between outgoing 1 and 2)!0.8!(c-between incoming 1 and 2) +(0,0.72)$);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const leftInterior = ir.coordinates["b-between outgoing 1 and 2"];
+  const rightInterior = ir.coordinates["c-between incoming 1 and 2"];
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(leftInterior, "expected pair-of-pants outgoing interior anchor");
+  assert.ok(rightInterior, "expected reverse pair-of-pants incoming interior anchor");
+  assert.ok(
+    Math.abs(leftInterior.x - rightInterior.x) > 0.2,
+    `expected adjacent TQFT between anchors to span the bridge interior, got ${JSON.stringify({ leftInterior, rightInterior })}`
+  );
+  assert.ok(
+    Math.abs(ir.coordinates.temp1.x - ir.coordinates.temp2.x) > 0.2,
+    `expected interpolated labels to separate, got ${JSON.stringify({ temp1: ir.coordinates.temp1, temp2: ir.coordinates.temp2 })}`
+  );
 });
 
 test("inherits picture-level font size into inline path labels", () => {
@@ -1000,6 +1764,49 @@ test("uses TikZ text node boxes for positioning math label chains", () => {
   assert.ok(ir.coordinates.Xn.x > 3.35 && ir.coordinates.Xn.x < 3.65, `expected Xn near native TikZ placement, got ${ir.coordinates.Xn.x}`);
 });
 
+test("parses unnamed node cells inside matrix of nodes", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \tikzset{
+    table/.style={
+      matrix of nodes,
+      nodes={draw},
+      column 4/.style={nodes={fill=gray!20}},
+      row 4/.style={nodes={fill=gray!20}}
+    }
+  }
+  \matrix[table] (m) {
+    A & B & C & D \\
+    E & F & G & H \\
+    I & J & K & L \\
+    M & N & O & \node[black, fill=cyan!50]{$0.449497$}; \\
+  };
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const texts = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const highlightedText = result.ir.items.find((item) => item.type === "textNode" && item.text === "$0.449497$");
+  const highlighted = result.ir.items.find(
+    (item) => item.type === "nodeBox" && Math.abs(item.x - highlightedText.x) < 0.001 && Math.abs(item.y - highlightedText.y) < 0.001
+  );
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(texts.includes("$0.449497$"));
+  assert.equal(highlighted?.style?.fill, "rgb(128 255 255)");
+});
+
+test("uses TeX-like formula width when positioning math output labels", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle, draw] (h) {};
+  \node[right=1.5em of h] (mu) {$\pi_\theta(s, \alpha_3)$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const delta = ir.coordinates.mu.x - ir.coordinates.h.x;
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(delta > 1.46 && delta < 1.54, `expected positioned formula label center near native TikZ, got ${delta}`);
+});
+
 test("keeps TikZ positioning shifts when an explicit at coordinate follows the options", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1015,6 +1822,19 @@ test("keeps TikZ positioning shifts when an explicit at coordinate follows the o
   assert.ok(ir.coordinates.top.y > 1.1, `expected above=... shift to raise explicit at coordinate, got ${ir.coordinates.top.y}`);
   assert.ok(ir.coordinates.side.x > 1.1, `expected right=... shift to move explicit at coordinate, got ${ir.coordinates.side.x}`);
   assert.equal(ir.coordinates.side.y, -2);
+});
+
+test("uses TikZ diagonal factor for bare directional node shifts with explicit at", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw, minimum width=2em, minimum height=2em, inner sep=0em, below right=2.5em] (n) at (0,0) {13};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(ir.coordinates.n.x - 0.973) < 0.02, `expected x to use diagonal distance factor, got ${ir.coordinates.n.x}`);
+  assert.ok(Math.abs(ir.coordinates.n.y + 0.973) < 0.02, `expected y to use diagonal distance factor, got ${ir.coordinates.n.y}`);
 });
 
 test("places nodes on named chains instead of leaving them at the origin", () => {
@@ -1034,6 +1854,28 @@ test("places nodes on named chains instead of leaving them at the origin", () =>
   assert.ok(ir.coordinates.d.x > ir.coordinates.c.x + 1, `expected chain 2 to advance right, got ${JSON.stringify(ir.coordinates)}`);
   assert.equal(ir.coordinates.c.y, -2);
   assert.equal(ir.coordinates.d.y, -2);
+});
+
+test("adds chain join edges with join=by arrow styles", () => {
+  const source = String.raw`
+\begin{tikzpicture}[start chain=1 going right]
+  \node[on chain=1] (x) {$x$};
+  \node[on chain=1,join=by o-latex] (w) {$w$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const join = ir.items.find(
+    (item) =>
+      item.type === "path" &&
+      item.style?.markerStart?.kind === "open-circle" &&
+      item.style?.markerEnd?.kind === "latex"
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(join, `expected on-chain join edge, got ${JSON.stringify(ir.items)}`);
+  assert.equal(join.commands[0].type, "moveTo");
+  assert.equal(join.commands.at(-1).type, "lineTo");
+  assert.ok(join.commands.at(-1).x > join.commands[0].x, `expected join to advance right, got ${JSON.stringify(join.commands)}`);
 });
 
 test("supports diamond node shape and compass anchors", () => {
@@ -1089,6 +1931,34 @@ test("supports built-in TikZ shapes library geometric and symbol nodes", () => {
   assert.match(result.svg, /class="tikz-node-shape tikz-node-cloud"/);
 });
 
+test("expands simple tikzset pic definitions with isosceles triangle anchors", () => {
+  const source = String.raw`
+\usetikzlibrary{shapes.geometric}
+\tikzset{
+  marker node/.style={isosceles triangle, minimum height=2.5mm, inner sep=0pt, anchor=apex},
+  marker/.pic={
+    \node[marker node, pic actions, rotate=-90](-o){};
+    \node[marker node, pic actions, rotate=90](-u){};
+  }
+}
+\begin{tikzpicture}
+  \pic[fill=blue] (m) at (2,0) {marker};
+  \draw (m-o.apex) -- (m-u.apex);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const boxes = result.ir.items.filter((item) => item.type === "nodeBox");
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(boxes.map((item) => item.id), ["m-o", "m-u"]);
+  assert.deepEqual(boxes.map((item) => item.shape), ["isoscelesTriangle", "isoscelesTriangle"]);
+  assert.equal(boxes[0].style.fill, "blue");
+  assert.equal(path.commands[0].x, 2);
+  assert.equal(path.commands[1].x, 2);
+  assert.match(result.svg, /class="tikz-node-shape tikz-node-isoscelesTriangle"/);
+});
+
 test("treats usetikzlibrary declarations as built-in library imports", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1131,6 +2001,21 @@ test("sizes diamond nodes from hspace and directional inner sep", () => {
   assert.equal(box.shape, "diamond");
   assert.ok(box.width > 7, `expected diamond width to include hspace and xsep, got ${box.width}`);
   assert.ok(box.height > 4, `expected diamond height to expand around wide text, got ${box.height}`);
+});
+
+test("sizes rectangle nodes with TeX hspace once instead of counting rendered spacer glyphs", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[name=n,shape=rectangle,draw,inner xsep=1.5cm,inner ysep=0.5cm]
+    {\Huge rectan\smash{g}le\hspace{3cm}node};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "n");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(box.shape, "rectangle");
+  assert.ok(box.width > 10.7 && box.width < 11.8, `expected native-like one-time hspace width, got ${box.width}`);
 });
 
 test("tikzToSvg emits svg path, inline arrow tip, y-axis flip, and diagnostics for unsupported syntax", () => {
@@ -1180,6 +2065,33 @@ test("keeps common TikZ arrow tip styles distinct in the drawing IR", () => {
   assert.equal(customTip.fill, "red");
   assert.equal(Math.round(customTip.width), Math.round(lineWidthFromTikzDimension("8pt")));
   assert.equal(Math.round(customTip.length), Math.round(lineWidthFromTikzDimension("10pt")));
+});
+
+test("renders arrows.meta Bar tips as perpendicular line caps", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \draw[{Bar[width=4mm,line width=0.4pt]}-{Bar[width=4mm,line width=0.4pt]}] (0,0) -- (2,0);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path" && item.style.markerStart && item.style.markerEnd);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.style.markerStart.kind, "bar");
+  assert.equal(path.style.markerEnd.kind, "bar");
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-bar" d="M 0 -20 L 0 20"/);
+});
+
+test("renders TikZ star arrow tips as filled endpoint dots", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \draw[*-] (0,0) -- (1,0);
+  \draw[-*] (0,-1) -- (1,-1);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(paths[0].style.markerStart.kind, "circle");
+  assert.equal(paths[1].style.markerEnd.kind, "circle");
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-circle"/);
 });
 
 test("draws plot mark x coordinates as small cross paths", () => {
@@ -1249,7 +2161,8 @@ test("keeps arrow endpoints clear of target node interiors", () => {
   const targetBox = ir.items.filter((item) => item.type === "nodeBox").at(1);
   const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
   const endpoint = arrow.commands.at(-1);
-  const targetWest = targetBox.x - targetBox.width / 2;
+  const outerSep = parseDimension("0.2pt");
+  const targetWest = targetBox.x - targetBox.width / 2 - outerSep;
 
   assert.deepEqual(diagnostics, []);
   assert.ok(Math.abs(endpoint.x - targetWest) < 1e-6, `expected arrow tip on target border, got ${endpoint.x} vs ${targetWest}`);
@@ -1270,6 +2183,23 @@ test("renders dashed double arrows as paired strokes with the label preserved", 
   assert.match(result.svg, /stroke-dasharray=/);
   assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-stealth"/);
   assert.match(result.svg, />dropout</);
+});
+
+test("recognizes TikZ shapes.arrows node shapes and sizing options", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[single arrow, draw, minimum height=1.1cm] (a) at (0,0) {};
+  \node[double arrow, fill=gray!60, minimum height=3.6cm] (b) at (4,0) {Fast};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = ir.items.filter((item) => item.type === "nodeBox");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(boxes[0].shape, "singleArrow");
+  assert.equal(boxes[1].shape, "doubleArrow");
+  assert.ok(boxes[0].width > boxes[0].height, "single arrow should add head length to its node box");
+  assert.ok(boxes[1].width > boxes[1].height, "double arrow should add both arrow heads to its node box");
 });
 
 test("breaks paths around intermediate text node borders", () => {
@@ -1312,8 +2242,8 @@ test("keeps decimal coordinates distinct from numeric node anchors", () => {
   assert.ok(pull && push, "expected both git labels");
   assert.equal(pull.x, 3);
   assert.equal(push.x, 3);
-  assert.ok(pull.y > 0.24 && pull.y < 0.32, `expected pull label above path, got ${pull.y}`);
-  assert.ok(push.y < -0.24 && push.y > -0.32, `expected push label below path, got ${push.y}`);
+  assert.ok(pull.y > 0.18 && pull.y < 0.24, `expected pull label above path, got ${pull.y}`);
+  assert.ok(push.y < -0.18 && push.y > -0.24, `expected push label below path, got ${push.y}`);
   assert.ok(Math.abs(pull.y + push.y) < 1e-6, `expected labels to be symmetric around path, got ${pull.y}, ${push.y}`);
 });
 
@@ -1330,11 +2260,12 @@ test("clips curved to-path arrows against node borders", () => {
   const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
   const start = arrow.commands[0];
   const end = arrow.commands.at(-1);
+  const outerSep = parseDimension("0.2pt");
 
   assert.deepEqual(diagnostics, []);
   assert.equal(end.type, "curveTo");
-  assert.ok(start.x >= sourceBox.x + sourceBox.width / 2 - 1e-6, `expected curve to start at source border, got ${start.x}`);
-  assert.ok(Math.abs(end.x - (targetBox.x - targetBox.width / 2)) < 1e-6, `expected curve to end at target border, got ${end.x}`);
+  assert.ok(start.x >= sourceBox.x + sourceBox.width / 2 + outerSep - 1e-6, `expected curve to start at source border, got ${start.x}`);
+  assert.ok(Math.abs(end.x - (targetBox.x - targetBox.width / 2 - outerSep)) < 1e-6, `expected curve to end at target border, got ${end.x}`);
 });
 
 test("approximates TikZ bend left and bend right edge arrows as curves", () => {
@@ -1380,7 +2311,7 @@ test("curves looseness-only to paths between anchors on the same node", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \node[circle, draw, thick] (h1) {$\vec{h}_1$};
-  \draw[-stealth] (h1.30) to[looseness=7] node[sloped, above] {$a$} (h1.105);
+  \draw[-stealth] (h1.45) to[looseness=9] node[sloped, above] {$a$} (h1.90);
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
@@ -1390,8 +2321,10 @@ test("curves looseness-only to paths between anchors on the same node", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(curve.type, "curveTo");
-  assert.ok(curve.y1 > path.commands[0].y, `expected first control point outside the node, got ${curve.y1}`);
-  assert.ok(curve.y2 > curve.y, `expected second control point outside the target anchor, got ${curve.y2}`);
+  assert.ok(curve.x1 > path.commands[0].x, `expected TikZ default out=45 control point, got x1=${curve.x1}`);
+  assert.ok(curve.y1 > path.commands[0].y, `expected TikZ default out=45 control point, got y1=${curve.y1}`);
+  assert.ok(curve.x2 < curve.x, `expected TikZ default in=135 control point, got x2=${curve.x2}`);
+  assert.ok(curve.y2 > curve.y, `expected TikZ default in=135 control point, got y2=${curve.y2}`);
   assert.ok(label.y > curve.y, `expected sloped label to sit on the outer loop, got ${label.y}`);
   assert.ok(label.rotation !== undefined, "expected curved sloped label to carry a rotation");
 });
@@ -1411,7 +2344,7 @@ test("attaches bend edges to the border along the curve tangent, not the chord",
   const [aBox] = ir.items.filter((item) => item.type === "nodeBox");
   const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
   const start = arrow.commands[0];
-  const aBottom = aBox.y - aBox.height / 2;
+  const aBottom = aBox.y - aBox.height / 2 - parseDimension("0.2pt");
 
   assert.deepEqual(diagnostics, []);
   assert.ok(Math.abs(start.y - aBottom) < 1e-6, `expected bend to depart from bottom border, got y=${start.y} vs ${aBottom}`);
@@ -1481,6 +2414,43 @@ test("projects path circles through TikZ picture basis vectors", () => {
   assert.ok(Math.max(...ys) - Math.min(...ys) < 2.2, `expected projected circle height to be compressed, got ${ys}`);
 });
 
+test("uses scalar TikZ x and y basis dimensions for coordinates", () => {
+  const source = String.raw`
+\begin{tikzpicture}[x=6cm,y=2cm]
+  \draw (1,1) -- (2,1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(path.commands, [
+    { type: "moveTo", x: 6, y: 2 },
+    { type: "lineTo", x: 12, y: 2 }
+  ]);
+});
+
+test("registers tikzmarknode anchors embedded in formula node text", () => {
+  const source = String.raw`
+\usetikzlibrary{tikzmark}
+\begin{tikzpicture}
+  \node {$\tikzmarknode{a}{a}+\tikzmarknode{b}{b}$};
+  \draw (a.south) -- (b.north);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const label = result.ir.items.find((item) => item.type === "textNode");
+  const edge = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.ir.coordinates.a, "expected tikzmarknode a coordinate");
+  assert.ok(result.ir.coordinates.b, "expected tikzmarknode b coordinate");
+  assert.ok(result.ir.coordinates.a.x < result.ir.coordinates.b.x, "expected mark coordinates to follow formula order");
+  assert.doesNotMatch(label.text, /tikzmarknode/);
+  assert.deepEqual(edge.commands.map((command) => command.type), ["moveTo", "lineTo"]);
+  assert.notDeepEqual(edge.commands[0], { type: "moveTo", x: 0, y: 0 });
+});
+
 test("scales path circle radii with the TikZ coordinate transform", () => {
   const source = String.raw`
 \begin{tikzpicture}[scale=0.85]
@@ -1498,6 +2468,23 @@ test("scales path circle radii with the TikZ coordinate transform", () => {
   assert.ok(Math.abs(Math.hypot(b.x, b.y) - 2.125) < 1e-6, `expected B to sit on the scaled circle, got ${JSON.stringify(b)}`);
 });
 
+test("scales path arc radii with the TikZ coordinate transform", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=0.85]
+  \draw (1,0) arc (0:60:1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const arc = ir.items.find((item) => item.type === "path" && item.shape === "arc");
+  const end = arc.commands.at(-1);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(arc, "expected scaled arc path");
+  assert.ok(Math.abs(arc.commands[0].x - 0.85) < 1e-6, `expected scaled arc start x=0.85, got ${arc.commands[0].x}`);
+  assert.ok(Math.abs(end.x - 0.425) < 1e-6, `expected scaled arc end x=0.425, got ${end.x}`);
+  assert.ok(Math.abs(end.y - 0.736121593217) < 1e-6, `expected scaled arc end y=0.7361, got ${end.y}`);
+});
+
 test("approximates zigzag path morphing on decorated edges", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1513,6 +2500,42 @@ test("approximates zigzag path morphing on decorated edges", () => {
   assert.deepEqual(diagnostics, []);
   assert.ok(lineCommands.length > 8, `expected zigzag edge to be flattened, got ${lineCommands.length}`);
   assert.ok(lineCommands.some((command) => Math.abs(command.y) > 0.03));
+});
+
+test("treats unitless path morphing dimensions as TeX points", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[decorate, decoration={zigzag, segment length=6, amplitude=2}] (0,0) -- (2,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const yValues = path.commands.map((command) => command.y).filter(Number.isFinite);
+  const xValues = path.commands.map((command) => command.x).filter(Number.isFinite);
+  const maxOffset = Math.max(...yValues.map((value) => Math.abs(value)));
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(maxOffset > 0.04 && maxOffset < 0.09, `expected unitless amplitude=2 to mean 2pt, got ${maxOffset}cm`);
+  assert.ok(
+    xValues.some((value) => value > 0.09 && value < 0.12),
+    "expected segment length=6 to create half-segment pt-sized zigzag vertices"
+  );
+});
+
+test("registers directed inline path node anchors at the displayed node center", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \fill (0,0) circle (2pt) node[above] (p) {$P$};
+  \draw (p.south) -- (1,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const edge = ir.items.find((item) => item.type === "path" && !item.shape);
+  const start = edge.commands[0];
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates.p.y > 0.25, `expected named inline node center above origin, got ${ir.coordinates.p.y}`);
+  assert.ok(start.y > -0.02, `expected p.south to stay near the origin, got ${start.y}`);
 });
 
 test("draws arrowed edge operations inside path statements", () => {
@@ -1564,10 +2587,13 @@ test("renders edge operations attached to node statements", () => {
   assert.deepEqual(diagnostics, []);
   assert.ok(edge, "expected node-attached edge to produce a path");
   assert.equal(edge.style.markerStart.kind, "stealth");
-  assert.deepEqual(edge.commands, [
-    { type: "moveTo", x: 1.5, y: 0 },
-    { type: "lineTo", x: 0.5, y: 0 }
-  ]);
+  const outerSep = parseDimension("0.2pt");
+  assert.equal(edge.commands[0].type, "moveTo");
+  expectClose(edge.commands[0].x, 1.5 - outerSep);
+  expectClose(edge.commands[0].y, 0);
+  assert.equal(edge.commands[1].type, "lineTo");
+  expectClose(edge.commands[1].x, 0.5 + outerSep);
+  expectClose(edge.commands[1].y, 0);
 });
 
 test("keeps repeated node-attached edges rooted at the source node", () => {
@@ -1585,10 +2611,14 @@ test("keeps repeated node-attached edges rooted at the source node", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(edges.length, 2);
-  assert.deepEqual(edges.map((edge) => edge.commands[0]), [
-    { type: "moveTo", x: 1.5, y: 0 },
-    { type: "moveTo", x: 2, y: 0.5 }
-  ]);
+  const outerSep = parseDimension("0.2pt");
+  const starts = edges.map((edge) => edge.commands[0]);
+  assert.equal(starts[0].type, "moveTo");
+  expectClose(starts[0].x, 1.5 - outerSep);
+  expectClose(starts[0].y, 0);
+  assert.equal(starts[1].type, "moveTo");
+  expectClose(starts[1].x, 2);
+  expectClose(starts[1].y, 0.5 + outerSep);
 });
 
 test("renders the circuitikz current shunt bipoles used by case 869", () => {
@@ -1618,6 +2648,102 @@ test("renders the circuitikz current shunt bipoles used by case 869", () => {
   }
 });
 
+test("renders circuitikz diamond and dot terminals used by case 1296", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) to[R, d-*] (2,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const resistor = ir.items.find((item) => item.subtype === "circuitikz-resistor");
+  const diamond = ir.items.find((item) => item.subtype === "circuitikz-terminal-diamond");
+  const dots = ir.items.filter((item) => item.subtype === "circuitikz-terminal-dot");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(resistor, "expected R to render as a resistor even without a label");
+  assert.ok(diamond, "expected d-* to create a diamond terminal at the start");
+  assert.equal(dots.length, 1);
+  expectClose(diamond.commands[0].x, 0);
+  expectClose(diamond.commands[0].y, 0.08);
+  expectClose(dots[0].cx, 2);
+});
+
+test("keeps circuitikz bipole path arrows on the post-component lead used by case 860", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[<->] (0,0) to[R] ++(3,0) node[npn, anchor=B]{};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const arrowedPaths = ir.items.filter((item) => item.type === "path" && (item.style?.markerStart || item.style?.markerEnd));
+  const resistor = ir.items.find((item) => item.subtype === "circuitikz-resistor");
+  const postLead = arrowedPaths.find((item) => {
+    const first = item.commands?.[0];
+    const last = item.commands?.at(-1);
+    return first?.type === "moveTo" && last?.type === "lineTo" && first.x > 2 && last.x > first.x;
+  });
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(resistor, "expected resistor symbol");
+  assert.equal(resistor.style.markerStart, undefined);
+  assert.equal(resistor.style.markerEnd, undefined);
+  assert.ok(postLead, "expected arrowed lead after the resistor");
+  assert.ok(postLead.style.markerStart, "expected reverse arrow at the component-side lead");
+  assert.ok(postLead.style.markerEnd, "expected forward arrow at the transistor-side lead");
+  assert.ok(!arrowedPaths.some((item) => item.commands?.[0]?.x === 0), "should not put a circuitikz arrow at the absolute path start");
+});
+
+test("applies circuitikz shorten <= to the post-component lead used by case 860", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[shorten <=10pt] (0,0) to[R] ++(3,0) node[npn, anchor=B]{};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const wire = ir.items.find((item) =>
+    item.type === "path" &&
+    !item.subtype &&
+    item.commands?.some((command) => command.type === "moveTo" && command.x > 2)
+  );
+  const postLeadStart = wire?.commands?.find((command) => command.type === "moveTo" && command.x > 2);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(wire, "expected split wire path");
+  expectClose(postLeadStart.x, 2.06 + parseDimension("10pt", {}));
+  expectClose(postLeadStart.y, 0);
+});
+
+test("renders circuitikz siunitx and RP voltage arrows used by case 863", () => {
+  const source = String.raw`
+\documentclass[border=4mm]{standalone}
+\usepackage[siunitx,RPvoltages]{circuitikz}
+\begin{document}
+\begin{tikzpicture}
+\draw (0,0) to[R=2<\ohm>, i=?, v=84<\volt>] (2,0) --
+    (2,2) to[V<=84<\volt>] (0,2)
+    -- (0,0);
+\end{tikzpicture}
+\end{document}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode");
+  const labelText = labels.map((item) => item.text);
+  const question = labels.find((item) => item.text === "?");
+  const voltageArrows = ir.items.filter((item) => item.subtype === "circuitikz-voltage-arrow");
+  const currentArrow = ir.items.find((item) => item.subtype === "circuitikz-current-arrow");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(labelText.includes("2 Ω"), "expected siunitx resistor label");
+  assert.equal(labelText.filter((text) => text === "84 V").length, 2);
+  assert.ok(labelText.every((text) => !String(text).includes("<")), "expected unit angle syntax to be normalized");
+  assert.ok(!labelText.includes("+"));
+  assert.ok(!labelText.includes("-"));
+  assert.equal(voltageArrows.length, 2);
+  assert.ok(voltageArrows.every((item) => item.style?.markerEnd), "expected RP voltage arrows to use arrow tips");
+  assert.ok(question?.x > 1.55, `expected current label near the right lead, got x=${question?.x}`);
+  assert.ok(currentArrow?.commands?.some((command) => Number(command.x) > 1.55), "expected current arrow near the right lead");
+});
+
 test("renders circuitikz flow ornaments used by case 871", () => {
   const source = String.raw`
 \begin{tikzpicture}[american, voltage shift=0.5]
@@ -1639,6 +2765,243 @@ test("renders circuitikz flow ornaments used by case 871", () => {
   for (const label of ["$I_0$", "$i_1$", "$i_2$"]) {
     assert.ok(labels.includes(label), `expected ${label} flow label`);
   }
+});
+
+test("renders circuitikz op amp feedback circuit used by case 875", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=0.8, transform shape]
+  \ctikzset{amplifiers/fill=cyan!20, component text=left}
+  \draw (0,0) node[above]{$v_i$} to[short, o-] ++(1,0)
+    node[op amp, noinv input up, anchor=+](OA){\texttt{OA1}}
+    (OA.-) -- ++(0,-1) coordinate(FB)
+    to[R=$R_1$] ++(0,-2) node[ground]{}
+    (FB) to[R=$R_2$, *-] (FB -| OA.out) -- (OA.out)
+    to[short, *-o] ++(1,0) node[above]{$v_o$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const opAmp = ir.items.find((item) => item.subtype === "circuitikz-op-amp");
+  const ground = ir.items.find((item) => item.subtype === "circuitikz-ground");
+  const openTerminals = ir.items.filter((item) => item.subtype === "circuitikz-terminal-open");
+  const filledTerminals = ir.items.filter((item) => item.subtype === "circuitikz-terminal-dot");
+  const resistors = ir.items.filter((item) => item.subtype === "circuitikz-resistor");
+  const componentLabel = ir.items.find((item) => item.type === "textNode" && item.text === String.raw`\texttt{OA1}`);
+  const horizontalResistor = resistors.find((item) => {
+    const xs = item.commands.map((command) => command.x).filter(Number.isFinite);
+    const ys = item.commands.map((command) => command.y).filter(Number.isFinite);
+    return Math.max(...xs) - Math.min(...xs) > Math.max(...ys) - Math.min(...ys);
+  });
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(opAmp, "expected op amp triangle node");
+  assert.match(opAmp.style.fill, /rgb\(/);
+  assert.ok(opAmp.width > 1.3 && opAmp.width < 1.45, `expected scaled op amp width near circuitikz default, got ${opAmp.width}`);
+  assert.ok(componentLabel && componentLabel.x < opAmp.x, "expected left-biased component label");
+  assert.ok(ground, "expected ground symbol");
+  assert.equal(openTerminals.length, 2);
+  assert.equal(filledTerminals.length, 2);
+  assert.equal(resistors.length, 2);
+  assert.ok(horizontalResistor, "expected R2 to resolve through OA.out into a horizontal resistor");
+  const horizontalYs = horizontalResistor.commands.map((command) => command.y).filter(Number.isFinite);
+  assert.ok(Math.max(...horizontalYs) - Math.min(...horizontalYs) < 0.5, "expected R2 resistor body to stay horizontal under picture scale");
+});
+
+test("renders circuitikz MOSFET path components and gate anchors used by case 1039", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+\draw[yscale=1.1, xscale=.8]
+  (2,4.5) -- (0,4.5) to[Tpmos=p1, n=p1] (0,3)
+     to[Tnmos=n1, n=n1] (0,1.5)
+     to[Tnmos=n2, n=n2] (0,0) node[ground] {}
+  (2,4.5) to[Tpmos=p2,n=p2] (2,3) to[short, -*] (0,3)
+  (p1.G) -- (n1.G) to[short, *-o] ($(n1.G)+(3,0)$)
+  (n2.G) ++(2,0) node[circ] {} -| (p2.G)
+  (n2.G) to[short, -o] ($(n2.G)+(3,0)$)
+  (0,3) to[short, -o] (-1,3)
+;
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const mosfets = ir.items.filter((item) => item.subtype === "circuitikz-mosfet");
+  const openTerminals = ir.items.filter((item) => item.subtype === "circuitikz-terminal-open");
+  const filledTerminals = ir.items.filter((item) => item.subtype === "circuitikz-terminal-dot");
+  const gateWire = ir.items.find((item) =>
+    item.type === "path" &&
+    item.commands.some((command) => Number(command.x) > 3) &&
+    item.commands.some((command) => Number(command.y) > 1 && Number(command.y) < 2)
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(mosfets.length, 4);
+  assert.ok(mosfets.some((item) => item.mosfetKind === "pmos"), "expected PMOS symbols");
+  assert.ok(mosfets.some((item) => item.mosfetKind === "nmos"), "expected NMOS symbols");
+  assert.ok(openTerminals.length >= 3, "expected open output/input terminals");
+  assert.ok(filledTerminals.length >= 3, "expected connection dots");
+  assert.ok(gateWire, "expected wires to resolve from MOSFET .G anchors");
+});
+
+test("renders circuitikz triode amplifier components used by case 1041", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+\draw (0,0) node (start) {}
+                to[sV=$V_i$] ++(0,2+\ctikzvalof{tubes/height})
+                to[C=$C_i$] ++(2,0) coordinate(Rg)
+                to[R=$R_g$] (Rg |- start)
+(Rg)            to[short,*-] ++(1,0)
+                node[triode,anchor=control] (Tri) {} ++(2,0)
+(Tri.cathode)   to[R=$R_c$,-*] (Tri.cathode |- start)
+(Tri.anode)     to [R=$R_a$] ++(0,2)
+                to [short] ++(3.5,0) node(Vatop) {}
+                to [V<=$V_a$] (Vatop |- start)
+                to [short] (start)
+(Tri.anode)     ++(0,0.2) to[C=$C_o$,*-o] ++(2,0)
+(Tri.cathode)   ++(0,-0.2) to[short,*-] ++(1.5,0) node(Cctop) {}
+                to[C=$C_c$,-*] (start -| Cctop)
+;
+\draw[red,thin,dashed] (Tri.north west) rectangle (Tri.south east);
+\draw (Tri.east) node[right] {12AX7};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const capacitors = ir.items.filter((item) => item.subtype === "circuitikz-capacitor");
+  const voltageSources = ir.items.filter((item) => item.subtype === "circuitikz-voltage-source");
+  const triode = ir.items.find((item) => item.subtype === "circuitikz-triode");
+  const labels = ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const paths = ir.items.filter((item) => item.type === "path");
+  const svg = tikzToSvg(source, { mathRenderer: "svg-text" }).svg;
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(capacitors.length, 3);
+  assert.equal(voltageSources.length, 2);
+  assert.ok(triode, "expected triode tube node");
+  assert.ok(ir.coordinates["Tri.anode"].y > ir.coordinates.Tri.y, "expected anode anchor above triode center");
+  assert.ok(ir.coordinates["Tri.cathode"].y < ir.coordinates.Tri.y, "expected cathode anchor below triode center");
+  assert.ok(ir.coordinates["Tri.control"].x < ir.coordinates.Tri.x, "expected control anchor left of triode center");
+  assert.ok(labels.includes("12AX7"), "expected tube label");
+  assert.ok(paths.some((path) => path.commands.some((command) => Number(command.y) > 4)), "expected upper anode rail to stay high");
+  assert.match(svg, /tikz-node-circuitikzTriode/);
+});
+
+test("renders circuitikz pentode tube anchors and partial border labels used by case 1043", () => {
+  const source = String.raw`
+\begin{tikzpicture}[circuitikz/tubes/fill=cyan!20,
+            circuitikz/tubes/partial borders=121212]
+\draw (0,0) node[pentode,anchor=control](V){};
+\draw (4,0) node[pentode,anchor=control,
+            circuitikz/tubes/width=1.4,
+            circuitikz/tubes/height=1](H){};
+\draw[red, font=\ttfamily\small\bfseries]
+                ([shift={(-.2,-.2)}]V.ne) node{1}
+                ([shift={(.1,0)}]V.e) node{2}
+                ([shift={(-.2,.2)}]V.se) node{3}
+                ([shift={(.2,.2)}]V.sw) node{4}
+                ([shift={(-.1,0)}]V.w) node{5}
+                ([shift={(.2,-.2)}]V.nw) node{6}
+                ([shift={(.2,-.2)}]H.nw) node{1}
+                ([shift={(0,.1)}]H.n) node{2}
+                ([shift={(-.2,-.2)}]H.ne) node{3}
+                ([shift={(-.2,.2)}]H.se) node{4}
+                ([shift={(0,-.1)}]H.s) node{5}
+                ([shift={(.2,.2)}]H.sw) node{6}
+                ;
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const pentodes = ir.items.filter((item) => item.subtype === "circuitikz-pentode");
+  const labels = ir.items.filter((item) => item.type === "textNode" && /^[1-6]$/.test(item.text));
+  const svg = tikzToSvg(source, { mathRenderer: "svg-text" }).svg;
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(pentodes.length, 2);
+  assert.equal(labels.length, 12);
+  assert.ok(ir.coordinates["V.ne"].x > ir.coordinates.V.x, "expected short ne anchor on right side of V");
+  assert.ok(ir.coordinates["V.nw"].x < ir.coordinates.V.x, "expected short nw anchor on left side of V");
+  assert.ok(ir.coordinates["H.e"].x > ir.coordinates.H.x, "expected short e anchor on right side of H");
+  assert.ok(labels.some((label) => label.x < ir.coordinates.V.x && label.y > ir.coordinates.V.y), "expected labels around V northwest side");
+  assert.ok(labels.some((label) => label.x > ir.coordinates.H.x && label.y > ir.coordinates.H.y), "expected labels around H northeast side");
+  assert.match(svg, /tikz-node-circuitikzPentode/);
+  assert.match(svg, /fill="rgb\(204 255 255\)"/);
+});
+
+test("expands circuitikz quadpole anchor macro pins used by case 1056", () => {
+  const source = String.raw`
+\begin{tikzpicture}[cute inductors]
+\def\coordx(#1)[#2:#3]#4{node[circle, #4, draw, inner sep=1pt,pin={[#4, overlay, inner sep=0.5pt, font=\scriptsize, pin distance=#2cm, pin edge={#4, overlay,}]#3:#1}](#1){}}
+  \foreach \comp/\pos/\case in {transformer/0/0,transformer core/4/1,gyrator/8/2}{
+    \draw (\pos,0) node[\comp](T){};
+    \ifcase\case
+      \foreach \a/\d/\t in {inner dot A1/0.2/75, inner dot A2/0.2/-75, inner dot B1/0.1/-45, inner dot B2/0.1/45}
+      \path (T.\a) \coordx(\a)[\d:\t]{red};
+    \or
+      \foreach \a/\d/\t in {outer dot A1/0.2/75, outer dot A2/0.2/-75, outer dot B1/0.2/-45, outer dot B2/0.2/45}
+      \path (T.\a) \coordx(\a)[\d:\t]{blue};
+    \or
+      \foreach \a/\t in {A1/120, A2/-120, B1/120, B2/-120, base/-90}
+      \path (T.\a) \coordx(\a)[0.2:\t]{green!50!black};
+    \fi
+  }
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const quadpoles = ir.items.filter((item) => item.type === "nodeBox" && String(item.subtype || "").startsWith("circuitikz-quadpole"));
+  const pinTexts = ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const pinEdges = ir.items.filter((item) => item.subtype === "pin-edge");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(quadpoles.length, 3);
+  assert.ok(quadpoles.some((item) => item.shapeData?.quadpoleKind === "transformer"));
+  assert.ok(quadpoles.some((item) => item.shapeData?.quadpoleKind === "transformer core"));
+  assert.ok(quadpoles.some((item) => item.shapeData?.quadpoleKind === "gyrator"));
+  for (const name of ["inner dot A1", "outer dot A2", "A1", "base"]) {
+    assert.ok(pinTexts.includes(name), `expected pin text ${name}`);
+  }
+  assert.ok(ir.coordinates["T.inner dot A1"], "expected transformer inner dot anchor");
+  assert.ok(ir.coordinates["T.outer dot B2"], "expected transformer core outer dot anchor");
+  assert.ok(ir.coordinates["T.base"], "expected gyrator base anchor");
+  assert.ok(
+    pinEdges.every((edge) => {
+      const [from, to] = edge.commands;
+      return Math.hypot(to.x - from.x, to.y - from.y) > 0.08;
+    }),
+    "expected macro-expanded pin distances to produce visible pin edges"
+  );
+});
+
+test("registers circuitikz transformer coil subnode anchors used by case 1065", () => {
+  const source = String.raw`
+\begin{tikzpicture}[american]
+\begin{scope}
+  \ctikzset{transformer L1/.style={inductors/coils=1, inductors/width=0.2}}
+  \draw (0,0) node[transformer core](T1){};
+\end{scope}
+\draw (3,0) node[transformer](T2){};
+\ctikzset{cute inductors, quadpoles style=inline}
+\ctikzset{transformer L1/.style={inductors/coils=2, inductors/width=0.2}}
+\draw (6,0) node[transformer core](T3){};
+\ctikzset{transformer L1/.style={american inductors, inductors/coils=1, inductors/width=0.2}}
+\ctikzset{transformer L2/.style={inductors/coils=7, inductors/width=1.0}}
+\draw (9,0) node[transformer](T4){};
+\foreach \t in {T1, T2, T3, T4} {
+  \foreach \l in {L1, L2} {
+    \foreach \a/\c in {a/blue, b/red}
+    \node [circle, fill=\c, inner sep=1pt] at (\t-\l.\a) {};
+  }
+}
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox" && item.id).map((item) => [item.id, item]));
+  const markerDots = ir.items.filter((item) => item.type === "nodeBox" && item.shape === "circle" && !item.id);
+  const dotPositions = new Set(markerDots.map((item) => `${item.x.toFixed(3)},${item.y.toFixed(3)}`));
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(markerDots.length, 16);
+  assert.equal(dotPositions.size, 16);
+  for (const name of ["T1-L1.a", "T1-L1.b", "T2-L2.a", "T3-L1.a", "T4-L2.b"]) {
+    assert.ok(ir.coordinates[name], `expected transformer coil anchor ${name}`);
+  }
+  assert.ok(boxes.T3.width < boxes.T2.width, `expected inline quadpole style to narrow T3, got T3=${boxes.T3.width}, T2=${boxes.T2.width}`);
+  assert.ok(ir.coordinates["T4-L2.b"].y < ir.coordinates["T4-L2.a"].y, "expected L2 b anchor below L2 a anchor");
 });
 
 test("places inline nodes after rectangle path operations on the rectangle edge", () => {
@@ -1681,6 +3044,48 @@ test("applies xslant/yslant shear and pt-based yshift in scope transforms", () =
     { type: "moveTo", x: 0, y: 1 },
     { type: "lineTo", x: 1, y: 1 }
   ]);
+});
+
+test("uses rendered tensor matrix dimensions for node anchors", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=0.58]
+\tikzset{mybox/.style={text=black, very thick, rectangle, rounded corners, inner sep=10pt, inner ysep=20pt}}
+\node [mybox, scale=1.0] (box) at (10.5, 2) {\[
+  {\mathbf M} = {\left[
+  \begin{matrix}
+    \left[\overmat{Layer 1}{\begin{matrix}1 & 0 & 0\\1 & 0 & 1\\1 & 0 & 0\end{matrix}}{red}\right] &
+    \left[\overmat{1 $\rightarrow$ 2}{\begin{matrix}1 & 0 & 0\\0 & 1 & 0\\0 & 0 & 0\end{matrix}}{gray}\right]\\
+    \left[\undermat{2 $\rightarrow$ 1}{\begin{matrix}0 & 0 & 0\\1 & 0 & 0\\0 & 0 & 0\end{matrix}}{gray}\right] &
+    \left[\undermat{Layer 2}{\begin{matrix}0 & 1 & 1\\1 & 0 & 0\\1 & 0 & 0\end{matrix}}{echodrk}\right]
+  \end{matrix}\right]}\]
+};
+\node[scale=0.8] at (box.north) {\bf Tensor form:};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const title = ir.items.find((item) => item.type === "textNode" && item.text === String.raw`\bf Tensor form:`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(title, "expected title node");
+  assert.ok(title.y > 2.1 && title.y < 3.1, `expected tensor title to attach to the rendered matrix box, got y=${title.y}`);
+});
+
+test("uses leading math font size macros when sizing circular nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw,circle,minimum size=10pt,inner sep=0pt] (x0) at (0,0) {$\tiny +1$};
+  \node[draw,circle,minimum size=10pt,inner sep=0pt] (x1) at (1,0) {$\tiny x_1$};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const circles = ir.items.filter((item) => item.type === "nodeBox" && item.shape === "circle");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(circles.length, 2);
+  for (const circle of circles) {
+    assert.ok(circle.width > 0.34 && circle.width < 0.37, `expected tiny math circle to stay near 10pt, got ${circle.width}`);
+    assert.equal(circle.width, circle.height);
+  }
 });
 
 test("scales TikZ grid step with picture coordinate scale", () => {
@@ -1729,6 +3134,56 @@ test("samples PGF plot expressions with radian trig suffixes", () => {
   assert.ok(Math.max(...ys) > 0.45, `expected radian polar plot to produce petals, got ${JSON.stringify(plot.commands)}`);
 });
 
+test("samples TikZ plot function curves and applies scoped transforms", () => {
+  const source = String.raw`
+\begin{tikzpicture}[domain=-0.25:9,xscale=0.8,yscale=5]
+  \def\A{-3}; \def\B{0.8};
+  \draw[thick] plot[id=x] function{1/(1+exp(-\A-\B*x))};
+  \begin{scope}[xshift=2cm,rotate=90]
+    \filldraw[fill opacity=0.3,fill=gray!70!black]
+      plot[domain=(0.5-0.25):(0.5+0.25),samples=9]
+      function {-0.14*gamma(40)/(gamma(40*0.5)*gamma((1-0.5)*40))*x**(0.5*40-1)*(1-x)**((1-0.5)*40-1)};
+  \end{scope}
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 2);
+  assert.equal(paths[0].commands.length, 25);
+  assert.ok(paths[0].commands.at(-1).y > paths[0].commands[0].y, "expected logistic plot to rise");
+  assert.equal(paths[1].commands.length, 9);
+  assert.ok(paths[1].commands.some((command) => command.x < 2), "expected rotated beta density to extend left from the shifted baseline");
+  assert.equal(paths[1].style.fill, "rgb(90 90 90)");
+  assert.equal(paths[1].style.fillOpacity, 0.3);
+});
+
+test("renders TikZ ycomb plot function samples as stems from the x-axis", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[ycomb,samples=3,domain=0:2] plot function {x-1};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(path.commands.length, 6);
+  assert.deepEqual(path.commands.map((command) => command.type), ["moveTo", "lineTo", "moveTo", "lineTo", "moveTo", "lineTo"]);
+  assert.deepEqual(
+    path.commands.map((command) => [command.x, command.y]),
+    [
+      [0, 0],
+      [0, -1],
+      [1, 0],
+      [1, 0],
+      [2, 0],
+      [2, 1]
+    ]
+  );
+});
+
 test("treats bare directional node offsets as TeX points", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -1741,4 +3196,58 @@ test("treats bare directional node offsets as TeX points", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.ok(label.x > 0.1 && label.x < 0.7, `expected right=5 to be a small pt offset, got ${label.x}`);
+});
+
+test("executes tikzset code args and ifnum conditionals inside macro-expanded scopes", () => {
+  const source = String.raw`
+\tikzset{
+  start date/.code args={#1/#2}{\def\dstart{#1}\def\mstart{#2}},
+  end date/.code args={#1/#2}{\def\dend{#1}\def\mend{#2}},
+  event color/.style={fill=#1!50,draw=#1}
+}
+\newcommand{\eventpoint}[2][]{
+  \begin{scope}[#1]
+    \pgfmathsetmacro{\yy}{(13-\mstart)}
+    \ifnum\mstart=\mend
+      \filldraw (0,\yy) rectangle (1,\yy+1) node[midway] {#2};
+    \else
+      \filldraw (0,\yy) rectangle (2,\yy+1) node[midway] {#2};
+      \filldraw (0,0) rectangle (1,1) node[midway] {#2};
+    \fi
+  \end{scope}
+}
+\begin{tikzpicture}
+  \eventpoint[start date=15/7,end date=25/7,event color=green]{same}
+  \eventpoint[start date=17/8,end date=19/9,event color=red]{split}
+\end{tikzpicture}`;
+
+  const parsed = parseTikz(source);
+  const { ir, diagnostics } = interpretTikz(parsed.ast);
+  const eventRects = ir.items.filter(
+    (item) => item.type === "path" && item.commands?.some((command) => command.type === "closePath")
+  );
+
+  assert.deepEqual([...parsed.diagnostics, ...diagnostics], []);
+  assert.equal(eventRects.length, 3);
+  assert.equal(eventRects.filter((item) => item.style.fill === "rgb(128 255 128)").length, 1);
+  assert.equal(eventRects.filter((item) => item.style.fill === "rgb(255 128 128)").length, 2);
+});
+
+test("applies pre-picture pgfmath macros to picture basis and foreach ranges", () => {
+  const source = String.raw`
+\newcommand{\target}{4}
+\newcommand{\anno}{1}
+\pgfmathsetmacro{\myend}{\target+1-\anno}
+\pgfmathsetmacro{\myspacing}{2/(\target-\anno)}
+\begin{tikzpicture}[x=\myspacing cm,y=1cm]
+  \foreach \tick in {0,...,\myend}{
+    \draw (\tick,0) -- (\tick,1);
+  }
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const xs = ir.items.map((item) => item.commands[0].x);
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(xs, [0, 0.666666666667, 1.333333333333, 2, 2.666666666667]);
 });

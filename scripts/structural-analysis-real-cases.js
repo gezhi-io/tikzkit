@@ -3,9 +3,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 export const STRUCTURAL_ANALYSIS_ROOT = "work/TikZ-StructuralAnalysis";
-export const STRUCTURAL_ANALYSIS_EXPECTED_CASE_COUNT = 227;
+export const STRUCTURAL_ANALYSIS_EXPECTED_CASE_COUNT = 226;
 export const STRUCTURAL_ANALYSIS_REPOSITORY_URL = "https://github.com/hackl/TikZ-StructuralAnalysis";
 export const STRUCTURAL_ANALYSIS_SOURCE_FILES = ["example.tex", "stanli.tex"];
+
+const EXCLUDED_STRUCTURAL_ANALYSIS_CASES = new Set([
+  // Visually duplicates stanli.tex#tikzpicture-225 in the web gallery; keep 225
+  // because it carries the same structure plus notation labels.
+  "stanli.tex#tikzpicture-222"
+]);
 
 const WRAPPER = String.raw`\documentclass[border=4mm]{standalone}
 \usepackage{stanli}
@@ -25,14 +31,15 @@ export async function loadStructuralAnalysisCases(root = STRUCTURAL_ANALYSIS_ROO
       return extractTikzPictures(source).map((picture, index) => {
         const number = String(index + 1).padStart(3, "0");
         const line = lineNumberAt(source, picture.beginIndex);
+        const casePath = `${relativePath}#tikzpicture-${number}`;
         return {
           title: `${path.basename(relativePath, ".tex")} tikzpicture ${number}`,
           origin: "hackl/TikZ-StructuralAnalysis",
-          path: `${relativePath}#tikzpicture-${number}`,
+          path: casePath,
           sourceUrl: `${STRUCTURAL_ANALYSIS_REPOSITORY_URL}/blob/master/${relativePath}#L${line}`,
           source: wrapStructuralAnalysisPicture(picture)
         };
-      });
+      }).filter((item) => !EXCLUDED_STRUCTURAL_ANALYSIS_CASES.has(item.path));
     })
   );
   return groups.flat();

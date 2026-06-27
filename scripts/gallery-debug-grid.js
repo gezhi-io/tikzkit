@@ -1,9 +1,9 @@
 export const GALLERY_DEBUG_GRID_OPTIONS = "black!45,line width=0.18pt,dash pattern=on 1pt off 1.2pt,step=1cm";
 
 export const GALLERY_DEBUG_GRID_SCOPE = String.raw`
-\begin{scope}[on background layer]
+\begin{pgfonlayer}{background}
   \draw[${GALLERY_DEBUG_GRID_OPTIONS}] ($(current bounding box.south west)+(-1,-1)$) grid ($(current bounding box.north east)+(1,1)$);
-\end{scope}`;
+\end{pgfonlayer}`;
 
 const TIKZCD_GRID_STYLE = String.raw`\tikzset{tikzkit compare grid/.style={execute at end picture={${GALLERY_DEBUG_GRID_SCOPE}}}}`;
 
@@ -16,7 +16,13 @@ export function withGalleryDebugGrid(source) {
 function ensureDebugGridPreamble(source) {
   const documentIndex = source.indexOf(String.raw`\begin{document}`);
   if (documentIndex === -1) return source;
-  const preamble = `${String.raw`\usetikzlibrary{backgrounds,calc}`}
+  const layerSetup = source.includes(String.raw`\pgfsetlayers`)
+    ? ""
+    : `${String.raw`\pgfdeclarelayer{background}`}
+${String.raw`\pgfsetlayers{background,main}`}
+`;
+  const preamble = `${String.raw`\usetikzlibrary{calc}`}
+${layerSetup}
 ${TIKZCD_GRID_STYLE}
 `;
   return `${source.slice(0, documentIndex)}${preamble}${source.slice(documentIndex)}`;

@@ -13,7 +13,7 @@ const BASELINE = {
   maxCasesWithDiagnostics: 0,
   maxTotalDiagnostics: 0,
   minZeroDiagnosticCases: STRUCTURAL_ANALYSIS_EXPECTED_CASE_COUNT,
-  minNonEmptyCases: 221
+  minNonEmptyCases: STRUCTURAL_ANALYSIS_EXPECTED_CASE_COUNT - 6
 };
 
 test("loads every hackl/TikZ-StructuralAnalysis tikzpicture from the local corpus", async (t) => {
