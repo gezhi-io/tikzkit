@@ -27,19 +27,36 @@ renderers.svg.renderSvg(ir, options)
 
 ## Current Structure
 
-The repository already has one-file-per-command and one-file-per-library catalogs:
+The repository is already partway through the compiler-style split. These
+directories are the preferred layer entrypoints for new code:
 
 ```txt
 src/
-  commands/                 # command metadata: draw, node, coordinate, axis, addplot
-  libraries/                # TikZ library metadata and helpers
-  packages/                 # TeX package metadata
-  extensions/               # third-party package preprocessors/compat layers
+  index.js                 # public library interface: tikzToSvg / convertTikzToSvg
+  cli/                     # command-line adapter
+  frontend/                # parser-facing seam
+  engine/                  # AST -> Scene Graph semantic seam
+  tikz/                    # TikZ command/library registration adapters
+  pgfplots/                # PGFPlots semantic model and axis lowering
+  scene/                   # renderer-neutral drawing IR helpers
+  renderers/svg/           # SVG serialization seam
+  adapters/                # filesystem and optional local TeX adapters
+  shared/                  # result, errors, source-map primitives
+  extensions/              # third-party package compatibility
+  libraries/               # TikZ library metadata catalog
+  packages/                # TeX package metadata catalog
+```
 
-  parser.js                 # current frontend implementation
-  interpreter.js            # current engine implementation
-  renderer-svg.js           # current SVG renderer implementation
+There are still compatibility files and historical catalogs that should not be
+used as the destination for new logic:
+
+```txt
+src/
+  parser.js                 # legacy parser implementation used by frontend/parser.js
+  interpreter.js            # legacy broad engine implementation
+  renderer-svg.js           # legacy broad SVG renderer implementation
   preprocess.js             # TeX-lite and package preprocessing
+  commands/                 # command metadata catalog, re-exported by tikz/commands
 ```
 
 The main debt is not the existence of these files. The debt is that a few root
@@ -98,10 +115,16 @@ src/pgfplots/
   geometry.js
   ticks.js
   grid.js
+  axisLines.js
   addplot.js
+  bars.js
+  comb.js
   coordinates.js
   labels.js
   marks.js
+  legend.js
+  plotPath.js
+  plotStyle.js
   transformDataToCanvas.js  # data coordinate -> TikZ canvas coordinate
 
 src/tikz/
@@ -159,7 +182,13 @@ TikZ semantics should be represented in the Scene Graph before rendering.
 5. Move PGFPlots axis internals out of `preprocess.js` into `pgfplots/` around
    the Axis Model seam. `\begin{axis}` should produce an axis model first; only
    then should it lower to ordinary TikZ/Scene Graph primitives.
-6. Move TeX-lite macro expansion families out of `preprocess.js` into smaller
+   Current extracted slices include ranges, geometry, ticks, grid, labels,
+   axis lines, legend, marks, plot paths, bars, and comb visualizers.
+6. Move command semantics out of the root `commands/` catalog into
+   `tikz/commands/` only when they become real command adapters rather than
+   metadata. Until then, `tikz/commands/` may re-export the existing catalog to
+   avoid duplicate sources of truth.
+7. Move TeX-lite macro expansion families out of `preprocess.js` into smaller
    package/extension modules only when a test or real case proves the seam.
 
 Each migration step must keep old public exports working until callers and tests

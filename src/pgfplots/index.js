@@ -10,6 +10,8 @@ export {
   shouldRenderAxisBox,
   shouldRenderAxisLines
 } from "./axisLines.js";
+export { isAxisBarPlot, renderAxisBars } from "./bars.js";
+export { isAxisCombPlot, renderAxisComb } from "./comb.js";
 export { createAxisOptions } from "./axisOptions.js";
 export { axisNumber, parseCoordinateList } from "./coordinates.js";
 export {

@@ -9,12 +9,16 @@ import {
   createAxisModel,
   createAxisTickModel,
   createDataToCanvasTransform,
+  isAxisBarPlot,
+  isAxisCombPlot,
   parseCoordinateAddplot,
   parseAxisAt,
   parseAxisDimension,
   parsePgfplotsCoordinateList,
   renderAxisBounds,
   renderAxisBox,
+  renderAxisBars,
+  renderAxisComb,
   renderAxisGrid,
   renderAxisLabels,
   renderAxisLines,
@@ -186,6 +190,20 @@ test("pgfplots plot path lowering owns straight, const, smooth, gap, and draw de
   assert.equal(shouldRenderAxisPlotPath({ "only marks": true }), false);
   assert.equal(shouldRenderAxisPlotPath({ draw: "none" }), false);
   assert.equal(shouldRenderAxisPlotPath({ draw: "none", "name path": "curve" }), true);
+});
+
+test("pgfplots bar and comb visualizers lower data points through axis geometry", () => {
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 2 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "2cm" }, ranges);
+
+  assert.equal(isAxisBarPlot({ ybar: true }, {}, "y"), true);
+  assert.equal(isAxisCombPlot({}, { ycomb: true }, "y"), true);
+  assert.deepEqual(renderAxisBars([{ x: 1, y: 2 }], { "bar width": 0.2 }, geometry, { blue: true }, 0, "y"), [
+    String.raw`\draw[axis bar, fill=blue, draw=none] (0.9,0) -- (1.1,0) -- (1.1,2) -- (0.9,2) -- cycle;`
+  ]);
+  assert.deepEqual(renderAxisComb([{ x: 1, y: 2 }], {}, ranges, geometry, { red: true, thick: true }, 0, "y"), [
+    String.raw`\draw[axis comb, red, thick] (1,0) -- (1,2);`
+  ]);
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {

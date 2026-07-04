@@ -12,6 +12,8 @@ import {
   renderDatavisualizationCleanAxes,
   shouldRenderAxisLines
 } from "./pgfplots/axisLines.js";
+import { isAxisBarPlot, renderAxisBars } from "./pgfplots/bars.js";
+import { isAxisCombPlot, renderAxisComb } from "./pgfplots/comb.js";
 import { parseCoordinateList } from "./pgfplots/coordinates.js";
 import {
   axisScaleFactor,
@@ -10715,57 +10717,6 @@ function clipDomainToAxisRange(domain, ranges) {
   const end = Math.min(domain.end, ranges.xMax);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return null;
   return { start, end };
-}
-
-function isAxisBarPlot(axisOptions, plotOptions, axis) {
-  const key = axis === "x" ? "xbar" : "ybar";
-  return Boolean(axisOptions[key] || plotOptions[key]);
-}
-
-function isAxisCombPlot(axisOptions, plotOptions, axis) {
-  const key = axis === "x" ? "xcomb" : "ycomb";
-  return Boolean(axisOptions[key] || plotOptions[key]);
-}
-
-function renderAxisComb(points, axisOptions, ranges, geometry, plotOptions, plotIndex, orientation) {
-  const commands = [];
-  const style = joinOptions(["axis comb", selectPlotStyle(plotOptions, plotIndex)]);
-  const xBaseline = ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : ranges.xMin;
-  const yBaseline = ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : ranges.yMin;
-  for (const point of points) {
-    const from = orientation === "x" ? geometry.mapPoint({ x: xBaseline, y: point.y }) : geometry.mapPoint({ x: point.x, y: yBaseline });
-    const to = geometry.mapPoint(point);
-    commands.push(`\\draw[${style}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
-  }
-  return commands;
-}
-
-function renderAxisBars(points, axisOptions, geometry, plotOptions, plotIndex, orientation) {
-  const commands = [];
-  const width = axisNumber(axisOptions["bar width"] || plotOptions["bar width"], 0.2);
-  const style = joinOptions(["axis bar", selectPlotFillStyle(plotOptions, plotIndex), "draw=none"]);
-  for (const point of points) {
-    if (orientation === "y") {
-      const baseline = axisNumber(axisOptions["ybar interval"] ? axisOptions.ymin : 0, 0);
-      const corners = [
-        geometry.mapPoint({ x: point.x - width / 2, y: baseline }),
-        geometry.mapPoint({ x: point.x + width / 2, y: baseline }),
-        geometry.mapPoint({ x: point.x + width / 2, y: point.y }),
-        geometry.mapPoint({ x: point.x - width / 2, y: point.y })
-      ];
-      commands.push(`\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`);
-    } else {
-      const baseline = axisNumber(axisOptions["xbar interval"] ? axisOptions.xmin : 0, 0);
-      const corners = [
-        geometry.mapPoint({ x: baseline, y: point.y - width / 2 }),
-        geometry.mapPoint({ x: point.x, y: point.y - width / 2 }),
-        geometry.mapPoint({ x: point.x, y: point.y + width / 2 }),
-        geometry.mapPoint({ x: baseline, y: point.y + width / 2 })
-      ];
-      commands.push(`\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`);
-    }
-  }
-  return commands;
 }
 
 function renderNodesNearCoords(plot, axisOptions, geometry) {
