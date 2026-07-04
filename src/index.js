@@ -1,6 +1,8 @@
-export { parseTikz } from "./parser.js";
-export { interpretTikz } from "./interpreter.js";
-export { renderSvg } from "./renderer-svg.js";
+export { parseTikz } from "./frontend/parser.js";
+export { evaluateTikzAst, interpretTikz } from "./engine/evaluate.js";
+export { renderSvg } from "./renderers/svg/renderSvg.js";
+export { appendSceneItem, createSceneGraph, sceneItems } from "./scene/index.js";
+export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
 export { BUILTIN_TIKZ_LIBRARIES, collectTikzLibraries, resolveTikzLibraries } from "./tikz-libraries.js";
 export {
@@ -55,9 +57,9 @@ export { forestExtension } from "./extensions/forest.js";
 export { neuralNetworkExtension } from "./extensions/neuralnetwork.js";
 export { stanliExtension } from "./extensions/stanli.js";
 
-import { parseTikz } from "./parser.js";
-import { interpretTikz } from "./interpreter.js";
-import { renderSvg } from "./renderer-svg.js";
+import { parseTikz } from "./frontend/parser.js";
+import { interpretTikz } from "./engine/evaluate.js";
+import { renderSvg } from "./renderers/svg/renderSvg.js";
 
 export function tikzToSvg(source, options = {}) {
   const parsed = parseTikz(source, options);
