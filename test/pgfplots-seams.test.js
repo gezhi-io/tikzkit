@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   axisModelToSceneGraphPlan,
+  axisPlotPointChain,
   axisTickValues,
   createAxisGeometry,
   createAxisGridModel,
@@ -22,6 +23,7 @@ import {
   renderLegendEntries,
   renderPlotMark,
   selectPlotStyle,
+  shouldRenderAxisPlotPath,
   shouldRenderPlotMarks,
   splitLegendEntries,
   transformDataToCanvas
@@ -172,6 +174,18 @@ test("pgfplots marks lowering owns mark decisions and TikZ mark primitives", () 
     String.raw`\draw[axis mark, draw=red, fill=red, fill opacity=1] (0.93,1.93) -- (1.07,1.93) -- (1.07,2.07) -- (0.93,2.07) -- cycle;`
   );
   assert.match(renderPlotMark({ x: 1, y: 2 }, { mark: "x", blue: true, "mark size": "1pt" }, 0), /axis mark, draw=blue/);
+});
+
+test("pgfplots plot path lowering owns straight, const, smooth, gap, and draw decisions", () => {
+  const points = [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }];
+
+  assert.equal(axisPlotPointChain(points, {}, {}), "(0,0) -- (1,1) -- (2,0)");
+  assert.equal(axisPlotPointChain(points, { "const plot": true }, {}), "(0,0) -- (1,0) -- (1,1) -- (2,1) -- (2,0)");
+  assert.match(axisPlotPointChain(points, {}, { smooth: true }), /\.\. controls/);
+  assert.equal(axisPlotPointChain(points, {}, { "axis plot gap": "1pt" }), "(0.025,0.025) -- (0.975,0.975) (1.025,0.975) -- (1.975,0.025)");
+  assert.equal(shouldRenderAxisPlotPath({ "only marks": true }), false);
+  assert.equal(shouldRenderAxisPlotPath({ draw: "none" }), false);
+  assert.equal(shouldRenderAxisPlotPath({ draw: "none", "name path": "curve" }), true);
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {

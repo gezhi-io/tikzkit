@@ -29,7 +29,9 @@ export {
   selectPlotFillStyle,
   selectPlotMarkFillColor,
   selectPlotStyle,
+  axisPlotPointChain,
   shouldRenderAxisLines,
+  shouldRenderAxisPlotPath,
   shouldRenderPlotMarks,
   splitLegendEntries,
   transformDataToCanvas
