@@ -41,3 +41,35 @@ test("cli strict mode fails when unsupported syntax is diagnosed", async () => {
     /Unsupported command/
   );
 });
+
+test("cli exposes SVG-text math and TeX unit controls for local visual QA", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tikz2svg-"));
+  const tikz = path.join(dir, "math.tikz");
+  const out = path.join(dir, "math.svg");
+
+  await writeFile(tikz, String.raw`
+\begin{tikzpicture}
+  \draw (0,0) circle (1cm);
+  \node at (0,0) {$\alpha$};
+\end{tikzpicture}`);
+
+  await execFileAsync(process.execPath, [
+    "bin/tikz2svg.js",
+    tikz,
+    "-o",
+    out,
+    "--math-renderer",
+    "svg-text",
+    "--unit",
+    "28.4527559",
+    "--margin",
+    "0"
+  ]);
+
+  const svg = await readFile(out, "utf8");
+  assert.match(svg, /<text[^>]+>α<\/text>/);
+  assert.doesNotMatch(svg, /foreignObject/);
+  assert.match(svg, /font-size="10"/);
+  assert.match(svg, /stroke-width="0\.4"/);
+  assert.match(svg, /viewBox="-28\.452756 -28\.452756 56\.905512 56\.905512"/);
+});

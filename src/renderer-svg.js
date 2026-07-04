@@ -49,7 +49,8 @@ const SVG_MATH_OPERATOR_WORDS = new Set(["sin", "cos", "tan", "cot", "sec", "csc
 export function renderSvg(ir, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
   const margin = options.margin ?? TIKZ_MARGIN;
-  const bounds = computeBounds(ir.items || [], options);
+  const items = scaleItemsForRenderUnit(ir.items || [], unit);
+  const bounds = computeBounds(items, options);
   const view = {
     x: bounds.minX * unit - margin,
     y: -bounds.maxY * unit - margin,
@@ -59,12 +60,12 @@ export function renderSvg(ir, options = {}) {
   const viewBox = [format(view.x), format(view.y), format(view.width), format(view.height)].join(" ");
 
   const body = [];
-  const patternDefs = collectPatternDefs(ir.items || []);
-  const ballGradientDefs = collectBallGradientDefs(ir.items || []);
-  const axisGradientDefs = collectAxisGradientDefs(ir.items || []);
-  const radialGradientDefs = collectRadialGradientDefs(ir.items || []);
-  const pathFadingDefs = collectPathFadingDefs(ir.items || []);
-  const blurShadowDefs = collectBlurShadowDefs(ir.items || [], unit);
+  const patternDefs = collectPatternDefs(items);
+  const ballGradientDefs = collectBallGradientDefs(items);
+  const axisGradientDefs = collectAxisGradientDefs(items);
+  const radialGradientDefs = collectRadialGradientDefs(items);
+  const pathFadingDefs = collectPathFadingDefs(items);
+  const blurShadowDefs = collectBlurShadowDefs(items, unit);
   const defs = [
     ...patternDefs.map(renderPatternDef),
     ...ballGradientDefs.map(renderBallGradientDef),
@@ -81,7 +82,7 @@ export function renderSvg(ir, options = {}) {
       )}" height="${format(view.height)}" fill="${escapeAttribute(String(background))}" />`
     );
   }
-  for (const item of ir.items || []) {
+  for (const item of items) {
     body.push(renderItem(item, unit, options));
   }
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {
@@ -93,6 +94,34 @@ export function renderSvg(ir, options = {}) {
     .filter(Boolean)
     .map((line) => `  ${line}`)
     .join("\n")}\n</svg>\n`;
+}
+
+function scaleItemsForRenderUnit(items, unit) {
+  const scale = renderUnitScale(unit);
+  if (Math.abs(scale - 1) < 1e-12) return items;
+  return items.map((item) => scaleItemForRenderUnit(item, scale));
+}
+
+function scaleItemForRenderUnit(item, scale) {
+  if (!item || typeof item !== "object") return item;
+  const next = { ...item };
+  if (item.style) next.style = scaleStyleForRenderUnit(item.style, scale);
+  return next;
+}
+
+function scaleStyleForRenderUnit(style, scale) {
+  const next = { ...style };
+  next.lineWidth = scaleNumeric(style.lineWidth, scale);
+  next.doubleDistance = scaleNumeric(style.doubleDistance, scale);
+  if (Array.isArray(style.dashArray)) {
+    next.dashArray = style.dashArray.map((value) => scaleNumeric(value, scale));
+  }
+  return next;
+}
+
+function scaleNumeric(value, scale) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric * scale : value;
 }
 
 function renderItem(item, unit, options = {}) {
@@ -1792,7 +1821,7 @@ function renderPlainTextNode(item, normalized, unit) {
   const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
   const fontFamily = escapeAttribute(rawFontFamily);
   const rawFontVariant = normalized.fontVariant || item.style?.fontVariant;
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
@@ -2062,7 +2091,7 @@ function renderSegmentedTextNode(item, normalized, unit) {
   const fontFamily = escapeAttribute(rawFontFamily);
   const rawFontVariant = normalized.fontVariant || item.style?.fontVariant;
   const textFontVariant = fontVariantAttribute({ fontVariant: rawFontVariant });
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, fallbackLines);
   const centerX = item.x * unit;
   const x = format(centerX);
@@ -2327,7 +2356,7 @@ function renderRichTextNode(item, normalized, unit) {
   const hasWrapWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = richTextSourceLines(source, normalized);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
   const wrapped = hasWrapWidth
@@ -4492,11 +4521,21 @@ function renderMarker(item, unit) {
   return `<path d="${TIKZ_ARROW.standalonePath}" fill="${fill}" transform="translate(${format(x)} ${format(y)}) rotate(${format(angle)})" />`;
 }
 
+function renderUnitScale(unit) {
+  const value = Number(unit);
+  return Number.isFinite(value) && value > 0 ? value / TIKZ_UNIT : 1;
+}
+
+function textFontSizeForUnit(unit) {
+  return TIKZ_TEXT_FONT_SIZE * renderUnitScale(unit);
+}
+
 function estimateMathBox(tex, displayMode, unit, scale = 1) {
-  const fontSize = (displayMode ? TIKZ_DISPLAY_MATH_FONT_SIZE : TIKZ_TEXT_FONT_SIZE) * scale;
+  const renderScale = renderUnitScale(unit);
+  const fontSize = (displayMode ? TIKZ_DISPLAY_MATH_FONT_SIZE : TIKZ_TEXT_FONT_SIZE) * renderScale * scale;
   const box = estimateFormulaBox(tex, { displayMode, scale });
-  const width = Math.max((displayMode ? 72 : 42) * scale, box.width * unit + 12 * scale);
-  const height = Math.max((displayMode ? 46 : 30) * scale, formulaTotalHeight(box) * unit + 8 * scale);
+  const width = Math.max((displayMode ? 72 : 42) * renderScale * scale, box.width * unit + 12 * renderScale * scale);
+  const height = Math.max((displayMode ? 46 : 30) * renderScale * scale, formulaTotalHeight(box) * unit + 8 * renderScale * scale);
   return {
     fontSize,
     width: Math.min(unit * 8, width),
@@ -4946,6 +4985,7 @@ function markerColorId(value) {
 }
 
 function computeBounds(items, options = {}) {
+  const unit = options.unit || TIKZ_UNIT;
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   const include = (x, y) => {
     bounds.minX = Math.min(bounds.minX, x);
@@ -4989,18 +5029,18 @@ function computeBounds(items, options = {}) {
       const math = parseMathText(normalized.text);
       if (math) {
         const scale = (normalized.scale || 1) * (math.scale || 1) * textFontScale(item, normalized) * mathStyleScale(math.tex);
-        const box = estimateMathBox(math.tex, math.displayMode, TIKZ_UNIT, scale);
-        box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, TIKZ_UNIT, [mathFallbackText(math.tex)]);
+        const box = estimateMathBox(math.tex, math.displayMode, unit, scale);
+        box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, unit, [mathFallbackText(math.tex)]);
         const htmlBox = scopedMathForeignObjectBox(box, math.displayMode);
         const svgTextFallback = options.mathRenderer === "svg-text";
-        const width = (svgTextFallback ? box.width : htmlBox.width) / TIKZ_UNIT;
-        const height = (svgTextFallback ? box.height : htmlBox.height) / TIKZ_UNIT;
+        const width = (svgTextFallback ? box.width : htmlBox.width) / unit;
+        const height = (svgTextFallback ? box.height : htmlBox.height) / unit;
         includeTextRenderBounds(item, width, height, include);
       } else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) {
-        const { width, height } = estimateRichTextRenderBounds(item, normalized, TIKZ_UNIT);
+        const { width, height } = estimateRichTextRenderBounds(item, normalized, unit);
         includeTextRenderBounds(item, width, height, include);
       } else {
-        const { width, height } = estimatePlainTextRenderBounds(item, normalized, TIKZ_UNIT);
+        const { width, height } = estimatePlainTextRenderBounds(item, normalized, unit);
         includeTextRenderBounds(item, width, height, include);
       }
     } else if (item.type === "marker") {
@@ -5033,7 +5073,7 @@ function includeTextRenderBounds(item, width, height, include) {
 
 function estimatePlainTextRenderBounds(item, normalized, unit) {
   const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
@@ -5045,7 +5085,7 @@ function estimatePlainTextRenderBounds(item, normalized, unit) {
     ? wrapWidth
     : Math.max(
         ...wrapped.lines.map((line, index) => {
-          const lineScale = (fontSize / TIKZ_TEXT_FONT_SIZE) * (Number(wrapped.lineStyles[index]?.scale) || 1);
+          const lineScale = (fontSize / textFontSizeForUnit(unit)) * (Number(wrapped.lineStyles[index]?.scale) || 1);
           return texTextWidthCm(line, lineScale) * widthScale;
         }),
         0
@@ -5066,7 +5106,7 @@ function estimateRichTextRenderBounds(item, normalized, unit) {
   const source = cleanRichTextSource(normalized.raw || normalized.text || "");
   const wrapWidth = Number(item.wrapWidth);
   const hasWrapWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
-  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = richTextSourceLines(source, normalized);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
   const wrapped = hasWrapWidth

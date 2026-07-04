@@ -18,7 +18,12 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   }
 
   const source = await filesystem.readTextFile(parsed.input, "utf8");
-  const result = tikzToSvg(source, { strict: parsed.strict });
+  const result = tikzToSvg(source, {
+    strict: parsed.strict,
+    mathRenderer: parsed.mathRenderer,
+    unit: parsed.unit,
+    margin: parsed.margin
+  });
   const blocking = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error" || parsed.strict);
   if (blocking.length > 0) {
     for (const diagnostic of blocking) {
@@ -42,14 +47,36 @@ export function parseCliArgs(argv = []) {
   const input = args[0];
   const outputIndex = args.findIndex((arg) => arg === "-o" || arg === "--output");
   const output = outputIndex >= 0 ? args[outputIndex + 1] : input ? `${basename(input).replace(/\.[^.]+$/, "")}.svg` : null;
+  const mathRenderer = valueAfter(args, "--math-renderer") || (args.includes("--svg-text-math") ? "svg-text" : undefined);
+  const unit = numericValueAfter(args, "--unit");
+  const margin = numericValueAfter(args, "--margin");
   return {
     input,
     output,
     strict: args.includes("--strict"),
+    mathRenderer,
+    unit,
+    margin,
     help: false
   };
 }
 
 export function usageText() {
-  return "Usage: tikz2svg input.tikz [-o output.svg] [--strict]\n";
+  return [
+    "Usage: tikz2svg input.tikz [-o output.svg] [--strict]",
+    "       [--math-renderer svg-text] [--svg-text-math] [--unit pxPerCm] [--margin px]",
+    ""
+  ].join("\n");
+}
+
+function valueAfter(args, flag) {
+  const index = args.findIndex((arg) => arg === flag);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function numericValueAfter(args, flag) {
+  const value = valueAfter(args, flag);
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }

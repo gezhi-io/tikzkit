@@ -211,6 +211,30 @@ test("includes shaped path command bounds when computing the SVG viewBox", () =>
   assert.match(svg, /viewBox="-110 -110 420 120"/);
 });
 
+test("uses the requested render unit when estimating text bounds", () => {
+  const svg = renderSvg(
+    {
+      items: [
+        {
+          type: "path",
+          shape: "circle",
+          cx: 0,
+          cy: 0,
+          r: 1,
+          style: { stroke: "black", fill: "none", lineWidth: 1 },
+          commands: []
+        },
+        { type: "textNode", x: 0, y: 1.3, text: String.raw`$\alpha$`, style: { fill: "black" } }
+      ],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text", unit: 28.4527559, margin: 0 }
+  );
+
+  assert.match(svg, /viewBox="-28\.452756 -42\.252343 56\.905512 70\.705098"/);
+  assert.match(svg, /font-size="10"/);
+});
+
 test("renders TikZ green as xcolor pure green instead of CSS named green", () => {
   const svg = renderSvg({
     items: [
