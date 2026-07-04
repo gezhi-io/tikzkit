@@ -10,7 +10,7 @@ export {
   parseAxisDimension,
   PGFPLOTS_DEFAULT_AXIS_WIDTH
 } from "./geometry.js";
-export { formatAxisNumber, formatAxisPoint, joinOptions as joinPgfplotsOptions, roundAxis } from "./format.js";
+export { formatAxisNumber, formatAxisPoint, formatAxisTickLabel, joinOptions as joinPgfplotsOptions, roundAxis } from "./format.js";
 export {
   axisGridLineSpan,
   createAxisGridModel,
@@ -22,5 +22,5 @@ export {
 export { createAxisLabelModel } from "./labels.js";
 export { createPlotMarkModel } from "./marks.js";
 export { createAxisRanges, isLogAxis, rangeSpan, scaleAxisValue } from "./ranges.js";
-export { axisTickValues, createAxisTickModel, majorTickValues, tickDistanceValues } from "./ticks.js";
+export { axisTickValues, createAxisTickModel, majorTickValues, renderAxisTicks, tickDistanceValues } from "./ticks.js";
 export { createDataToCanvasTransform, transformDataToCanvas } from "./transformDataToCanvas.js";

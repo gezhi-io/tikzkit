@@ -13,6 +13,7 @@ import {
   parseAxisDimension,
   parsePgfplotsCoordinateList,
   renderAxisGrid,
+  renderAxisTicks,
   transformDataToCanvas
 } from "../src/index.js";
 
@@ -76,6 +77,18 @@ test("pgfplots grid lowering emits TikZ draw primitives from axis geometry", () 
     String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,0) -- (2,0);`,
     String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,1) -- (2,1);`
   ]);
+});
+
+test("pgfplots tick lowering emits TikZ tick and label primitives from axis geometry", () => {
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 1 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "1cm" }, ranges);
+  const commands = renderAxisTicks({ xtick: "{0,2}", ytick: "{0,1}", "axis tick label font": "\\scriptsize" }, [], ranges, geometry);
+
+  assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, black, line width=0.25pt] (0,0) -- (0,-0.15);`));
+  assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, black, line width=0.25pt] (2,0) -- (2,-0.15);`));
+  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=north, font=\scriptsize]`) && command.endsWith("{0};")));
+  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=east, font=\scriptsize]`) && command.endsWith("{1};")));
+  assert.deepEqual(renderAxisTicks({ ticks: "none" }, [], ranges, geometry), []);
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {
