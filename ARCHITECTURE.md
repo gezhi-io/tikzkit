@@ -91,6 +91,18 @@ src/renderers/svg/
   renderSvg.js              # SVG renderer seam
   text.js
 
+src/pgfplots/
+  axis.js                   # PGFPlots Axis Model seam
+  axisOptions.js
+  ranges.js
+  ticks.js
+  grid.js
+  addplot.js
+  coordinates.js
+  labels.js
+  marks.js
+  transformDataToCanvas.js  # data coordinate -> TikZ canvas coordinate
+
 src/tikz/
   registerCoreTikz.js       # command/library registration
   commands/                 # TikZ-facing command adapters
@@ -120,6 +132,9 @@ These rules are the important part of the structure:
   nodes, scopes, and library behavior.
 - `tikz/commands/` owns command metadata and command-level registration.
 - `tikz/libraries/` owns TikZ library metadata and library-level registration.
+- `pgfplots/` owns PGFPlots semantics before they become ordinary Scene Graph
+  items: axis ranges, ticks, grid intent, labels, plot data, marks, and
+  data-coordinate-to-canvas-coordinate transforms.
 - `scene/` owns renderer-neutral drawing data.
 - `renderers/svg/` owns SVG-specific serialization, defs, text, markers, escaping,
   and SVG coordinate conversion.
@@ -140,7 +155,10 @@ TikZ semantics should be represented in the Scene Graph before rendering.
    `engine/pathBuilder.js`, `engine/coordinates.js`, and `engine/transforms.js`.
 4. Move SVG marker, path data, text, defs, and shape rendering out of
    `renderer-svg.js` into `renderers/svg/`.
-5. Move TeX-lite macro expansion families out of `preprocess.js` into smaller
+5. Move PGFPlots axis internals out of `preprocess.js` into `pgfplots/` around
+   the Axis Model seam. `\begin{axis}` should produce an axis model first; only
+   then should it lower to ordinary TikZ/Scene Graph primitives.
+6. Move TeX-lite macro expansion families out of `preprocess.js` into smaller
    package/extension modules only when a test or real case proves the seam.
 
 Each migration step must keep old public exports working until callers and tests

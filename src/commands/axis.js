@@ -3,6 +3,9 @@ export const tikzCommand = {
   kind: "environment",
   status: "partial",
   implementedBy: [
+    "src/pgfplots/axis.js:createAxisModel",
+    "src/pgfplots/ranges.js:createAxisRanges",
+    "src/pgfplots/transformDataToCanvas.js:createDataToCanvasTransform",
     "src/preprocess.js:expandPgfplotsAxes",
     "src/preprocess.js:renderAxisAsTikz",
     "src/preprocess.js:computeAxisRanges",
@@ -22,7 +25,7 @@ export const tikzCommand = {
       name: "xmin / xmax / ymin / ymax / domain",
       category: "ranges",
       status: "implemented",
-      implementedBy: "src/preprocess.js:computeAxisRanges",
+      implementedBy: "src/preprocess.js:computeAxisRanges + src/pgfplots/ranges.js",
       notes: "Explicit ranges override sampled/data-derived ranges."
     },
     {
@@ -43,7 +46,7 @@ export const tikzCommand = {
       name: "xtick / ytick / tick distance",
       category: "ticks",
       status: "partial",
-      implementedBy: "src/preprocess.js:renderAxisTicks",
+      implementedBy: "src/preprocess.js:renderAxisTicks + src/pgfplots/ticks.js",
       notes: "Explicit ticks, data ticks, and numeric tick distances are supported."
     },
     {

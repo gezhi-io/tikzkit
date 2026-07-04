@@ -4,6 +4,7 @@ import { parseTikz } from "../src/frontend/index.js";
 import { evaluateTikzAst, registerCoreTikz } from "../src/engine/index.js";
 import { renderSvg } from "../src/renderers/svg/index.js";
 import { appendSceneItem, createSceneGraph, sceneItems } from "../src/scene/index.js";
+import { createAxisModel } from "../src/pgfplots/index.js";
 
 test("exposes compiler-style frontend, engine, scene, and svg renderer seams", () => {
   const parsed = parseTikz(String.raw`
@@ -33,4 +34,14 @@ test("scene graph seam owns renderer-neutral drawing items", () => {
 
   assert.equal(scene.type, "drawing");
   assert.equal(sceneItems(scene).length, 1);
+});
+
+test("pgfplots exposes an axis model seam before SceneGraph rendering", () => {
+  const axis = createAxisModel({
+    ranges: { xMin: 0, xMax: 1, yMin: 0, yMax: 1 },
+    geometry: { origin: { x: 0, y: 0 }, width: 2, height: 3 }
+  });
+
+  assert.equal(axis.type, "Axis");
+  assert.deepEqual(axis.dataToCanvas.mapPoint({ x: 1, y: 1 }), { x: 2, y: 3 });
 });

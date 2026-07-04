@@ -11,6 +11,7 @@ import {
   TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_Y
 } from "./tikz-metrics.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "./tex-text.js";
+import { createAxisModel } from "./pgfplots/axis.js";
 
 const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "node", "coordinate", "foreach"]);
 const PGFPLOTS_DEFAULT_AXIS_WIDTH = parseDimension("240pt", {});
@@ -9400,34 +9401,41 @@ function renderAxisAsTikz(axisOptions, body, options, diagnostics = []) {
   }
   const ranges = computeAxisRanges(resolvedAxisOptions, addplots);
   const geometry = createAxisGeometry(resolvedAxisOptions, ranges);
-  const commands = [renderAxisBounds(geometry)];
-  const axisBox = renderAxisBox(resolvedAxisOptions, geometry);
+  const axisModel = createAxisModel({
+    axisOptions: resolvedAxisOptions,
+    addplots,
+    ranges,
+    geometry,
+    legendEntries
+  });
+  const commands = [renderAxisBounds(axisModel.geometry)];
+  const axisBox = renderAxisBox(axisModel.options, axisModel.geometry);
   if (has3dSurface) {
     addplots.forEach((plot, plotIndex) => {
-      commands.push(...renderAddplot(plot, resolvedAxisOptions, ranges, geometry, options, plotIndex));
+      commands.push(...renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
     });
-    commands.push(...renderAxis3DBox(resolvedAxisOptions, ranges, geometry));
-    commands.push(...renderAxis3DTicks(resolvedAxisOptions, ranges, geometry));
-    commands.push(...renderAxisLabels3D(resolvedAxisOptions, ranges, geometry));
-    commands.push(...renderLegendEntries(resolvedAxisOptions, ranges, geometry, legendEntries, addplots));
+    commands.push(...renderAxis3DBox(axisModel.options, axisModel.ranges, axisModel.geometry));
+    commands.push(...renderAxis3DTicks(axisModel.options, axisModel.ranges, axisModel.geometry));
+    commands.push(...renderAxisLabels3D(axisModel.options, axisModel.ranges, axisModel.geometry));
+    commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots));
     return `\n${commands.join("\n")}\n`;
   }
-  if (shouldRenderAnyAxisGrid(resolvedAxisOptions)) {
-    commands.push(...renderAxisGrid(resolvedAxisOptions, addplots, ranges, geometry));
+  if (shouldRenderAnyAxisGrid(axisModel.options)) {
+    commands.push(...renderAxisGrid(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   }
-  if (resolvedAxisOptions["datavis clean axes"]) {
-    commands.push(...renderDatavisualizationCleanAxes(resolvedAxisOptions, ranges, geometry));
-  } else if (shouldRenderAxisLines(resolvedAxisOptions)) {
-    commands.push(...renderAxisLines(resolvedAxisOptions, ranges, geometry));
+  if (axisModel.options["datavis clean axes"]) {
+    commands.push(...renderDatavisualizationCleanAxes(axisModel.options, axisModel.ranges, axisModel.geometry));
+  } else if (shouldRenderAxisLines(axisModel.options)) {
+    commands.push(...renderAxisLines(axisModel.options, axisModel.ranges, axisModel.geometry));
   }
-  commands.push(...renderAxisTicks(resolvedAxisOptions, addplots, ranges, geometry));
+  commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   addplots.forEach((plot, plotIndex) => {
-    commands.push(...renderAddplot(plot, resolvedAxisOptions, ranges, geometry, options, plotIndex));
+    commands.push(...renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
   });
-  commands.push(...renderAxisOverlayStatements(body, ranges, geometry));
+  commands.push(...renderAxisOverlayStatements(body, axisModel.ranges, axisModel.geometry));
   if (axisBox) commands.push(axisBox);
-  commands.push(...renderAxisLabels(resolvedAxisOptions, ranges, geometry));
-  commands.push(...renderLegendEntries(resolvedAxisOptions, ranges, geometry, legendEntries, addplots));
+  commands.push(...renderAxisLabels(axisModel.options, axisModel.ranges, axisModel.geometry));
+  commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots));
   return `\n${commands.join("\n")}\n`;
 }
 

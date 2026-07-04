@@ -3,6 +3,8 @@ export const tikzCommand = {
   kind: "command",
   status: "partial",
   implementedBy: [
+    "src/pgfplots/addplot.js:createAddplotModel",
+    "src/pgfplots/coordinates.js:parseCoordinateList",
     "src/preprocess.js:parseAddplots",
     "src/preprocess.js:evaluateAxisExpression",
     "src/preprocess.js:evaluateAxisExpressionAtSample",
@@ -22,7 +24,7 @@ export const tikzCommand = {
       name: "coordinates {(x,y) ...}",
       category: "data",
       status: "implemented",
-      implementedBy: "src/preprocess.js:parseAddplots",
+      implementedBy: "src/preprocess.js:parseAddplots + src/pgfplots/coordinates.js",
       notes: "2D and focused 3D coordinate lists are parsed from addplot bodies."
     },
     {

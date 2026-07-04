@@ -2,6 +2,17 @@ export { parseTikz } from "./frontend/parser.js";
 export { evaluateTikzAst, interpretTikz } from "./engine/evaluate.js";
 export { renderSvg } from "./renderers/svg/renderSvg.js";
 export { appendSceneItem, createSceneGraph, sceneItems } from "./scene/index.js";
+export {
+  axisModelToSceneGraphPlan,
+  createAddplotModel,
+  createAxisGridModel,
+  createAxisModel,
+  createAxisTickModel,
+  createDataToCanvasTransform,
+  parseCoordinateAddplot,
+  parseCoordinateList as parsePgfplotsCoordinateList,
+  transformDataToCanvas
+} from "./pgfplots/index.js";
 export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";
 export { createConversionResult, mergeDiagnostics } from "./shared/result.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
