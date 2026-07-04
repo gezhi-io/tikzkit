@@ -13,6 +13,7 @@ import {
   parseAxisDimension,
   parsePgfplotsCoordinateList,
   renderAxisGrid,
+  renderAxisLabels,
   renderAxisTicks,
   transformDataToCanvas
 } from "../src/index.js";
@@ -89,6 +90,20 @@ test("pgfplots tick lowering emits TikZ tick and label primitives from axis geom
   assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=north, font=\scriptsize]`) && command.endsWith("{0};")));
   assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=east, font=\scriptsize]`) && command.endsWith("{1};")));
   assert.deepEqual(renderAxisTicks({ ticks: "none" }, [], ranges, geometry), []);
+});
+
+test("pgfplots label lowering emits TikZ nodes from axis geometry", () => {
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 1 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "1cm" }, ranges);
+  const commands = renderAxisLabels(
+    { xlabel: "$x$", ylabel: "$y$", title: "Title", "axis label font": "\\small" },
+    ranges,
+    geometry
+  );
+
+  assert.ok(commands.includes(String.raw`\node[axis label, anchor=north, font=\small] at (1,-0.22) {$x$};`));
+  assert.ok(commands.includes(String.raw`\node[axis label, anchor=east, font=\small, rotate=90] at (-1.1,0.5) {$y$};`));
+  assert.ok(commands.includes(String.raw`\node[axis label, anchor=south] at (1,1.22) {Title};`));
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {

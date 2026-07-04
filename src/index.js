@@ -17,6 +17,7 @@ export {
   parseCoordinateList as parsePgfplotsCoordinateList,
   PGFPLOTS_DEFAULT_AXIS_WIDTH,
   renderAxisGrid,
+  renderAxisLabels,
   renderAxisTicks,
   transformDataToCanvas
 } from "./pgfplots/index.js";

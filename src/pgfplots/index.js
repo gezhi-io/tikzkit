@@ -19,7 +19,7 @@ export {
   shouldRenderAxisGrid,
   shouldRenderMinorAxisGrid
 } from "./grid.js";
-export { createAxisLabelModel } from "./labels.js";
+export { createAxisLabelModel, renderAxisLabels } from "./labels.js";
 export { createPlotMarkModel } from "./marks.js";
 export { createAxisRanges, isLogAxis, rangeSpan, scaleAxisValue } from "./ranges.js";
 export { axisTickValues, createAxisTickModel, majorTickValues, renderAxisTicks, tickDistanceValues } from "./ticks.js";
