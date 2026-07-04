@@ -88,6 +88,54 @@ test("expands Walmes newif boolean branches before parsing TikZ statements", () 
   assert.deepEqual(paths.map((path) => path.commands[0].y), [1, 2, 4]);
 });
 
+test("registers Walmes NANN inline anchors inside code text nodes", () => {
+  const { diagnostics, ir } = convert(String.raw`
+\newcommand{\NANN}[2]{%
+  \tikz[baseline] {\node[anchor=base,inner sep=0pt,outer sep=0pt] (#1) {#2};}%
+}
+\begin{tikzpicture}
+  \node (code) at (0,0) {value\NANN{pr1}{\phantom{1}}};
+  \draw (pr1) -- ($(pr1)+(1,0)$);
+\end{tikzpicture}`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates.pr1);
+  assert.equal(ir.items.filter((item) => item.type === "path").length, 1);
+});
+
+test("registers Walmes tm and tmc math anchors with local shifts", () => {
+  const { diagnostics, ir } = convert(String.raw`
+\newcommand{\tm}[1]{\tikz[remember picture, overlay]\node (#1) {};}
+\newcommand{\tmc}[2]{\tikz[remember picture, overlay]\node[xshift=#2 ex] (#1) {};}
+\begin{tikzpicture}
+  \node (eq) {$\tmc{pipe1}{0.3}|\tm{x}x$};
+  \draw (pipe1) -- +(0,1);
+  \draw (x) -- +(1,0);
+\end{tikzpicture}`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates.pipe1);
+  assert.ok(ir.coordinates.x);
+  assert.equal(ir.items.filter((item) => item.type === "path").length, 2);
+});
+
+test("expands Walmes pgfplotsinvokeforeach macro wrappers from list macros", () => {
+  const { diagnostics, ir } = convert(String.raw`
+\newcommand*{\ListXYvalues}{0.5, 1, 1.5}
+\newcommand*\pgfplotsinvokeforeachmacro[1]{%
+  \expandafter\pgfplotsinvokeforeach\expandafter{#1}}
+\begin{tikzpicture}
+  \pgfplotsinvokeforeachmacro\ListXYvalues{
+    \draw (#1,0) -- (#1,1);
+  }
+\end{tikzpicture}`);
+
+  const paths = ir.items.filter((item) => item.type === "path");
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 3);
+  assert.deepEqual(paths.map((path) => path.commands[0].x), [0.5, 1, 1.5]);
+});
+
 test("parses clip as a legal non-drawing TikZ path command", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}

@@ -3219,12 +3219,14 @@ function extractTikzmarkNodes(rawText) {
     const outputIndex = text.length;
     let readIndex = index + "\\tikzmarknode".length;
     readIndex = skipWhitespace(input, readIndex);
+    let optionalOptions = "";
     if (input[readIndex] === "[") {
       const optional = readBalancedPrefix(input.slice(readIndex), "[", "]");
       if (!optional) {
         text += input.slice(index);
         break;
       }
+      optionalOptions = optional.content;
       readIndex += optional.end;
       readIndex = skipWhitespace(input, readIndex);
     }
@@ -3245,6 +3247,7 @@ function extractTikzmarkNodes(rawText) {
       name: name.content.trim(),
       content,
       outputIndex,
+      options: optionalOptions || "",
       verticalRole: tikzmarkNodeVerticalRole(input, index)
     });
     text += content;
@@ -3274,9 +3277,10 @@ function registerTikzmarkNodeAnchors(marks, node, env) {
     const contentLength = Math.max(1, String(mark.content || "").length);
     const fraction = Math.max(0, Math.min(1, (mark.outputIndex + contentLength / 2) / textLength));
     const yOffset = tikzmarkNodeYOffset(mark.verticalRole, node.size.height);
+    const shift = tikzmarkNodeShift(mark.options, env);
     const point = roundPoint({
-      x: node.point.x + (fraction - 0.5) * node.size.width * 0.86,
-      y: node.point.y + yOffset
+      x: node.point.x + (fraction - 0.5) * node.size.width * 0.86 + shift.x,
+      y: node.point.y + yOffset + shift.y
     });
     const markSize = scaleSize(estimateNodeLayoutSize(mark.content, { "inner sep": "0pt" }, env), env.canvasScale);
     const width = Math.max(0.06, markSize.width);
@@ -3293,6 +3297,15 @@ function registerTikzmarkNodeAnchors(marks, node, env) {
     };
     env.coordinates[mark.name] = point;
   }
+}
+
+function tikzmarkNodeShift(rawOptions = "", env = {}) {
+  if (!rawOptions) return { x: 0, y: 0 };
+  const options = parseOptions(rawOptions);
+  return {
+    x: parseDimension(String(options.xshift ?? "0pt"), env.variables || {}),
+    y: parseDimension(String(options.yshift ?? "0pt"), env.variables || {})
+  };
 }
 
 function tikzmarkNodeYOffset(role, height) {

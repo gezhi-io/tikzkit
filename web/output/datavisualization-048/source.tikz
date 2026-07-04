@@ -1,9 +1,0 @@
-\usetikzlibrary { datavisualization.formats.functions, datavisualization.polar }
-\tikz \datavisualization [
-  scientific polar axes={inner ticks, 0 to 180},
-  visualize as smooth line,
-  data/format=function]
-data {
-  var angle : interval [0:100] samples 11;
-  func radius = \value{angle};
-};

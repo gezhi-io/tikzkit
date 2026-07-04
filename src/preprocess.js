@@ -65,6 +65,8 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = stripPgfLibraryDeclarations(expanded);
   const colorResult = collectColorDefinitions(expanded);
   expanded = replaceDefinedColorUses(colorResult.source, colorResult.colors);
+  expanded = normalizeWalmesInlineAnchors(expanded);
+  expanded = expandPgfplotsInvokeForeachMacroWrappers(expanded);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
   expanded = expandTexNewifConditionals(expanded);
@@ -132,6 +134,104 @@ function stripPgfLibraryDeclarations(source) {
   return String(source)
     .replace(/\\usepgflibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "")
     .replace(/\\usepgfplotslibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
+}
+
+function normalizeWalmesInlineAnchors(source) {
+  const text = String(source || "");
+  let output = "";
+  let index = 0;
+  while (index < text.length) {
+    if (text[index] !== "\\") {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    const command = readCommandName(text, index + 1);
+    if (!command?.value || !["NANN", "tm", "tmc"].includes(command.value)) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    const parsed = parseWalmesInlineAnchorInvocation(text, index, command.value, command.end);
+    if (!parsed) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    output += parsed.replacement;
+    index = parsed.end;
+  }
+  return output;
+}
+
+function parseWalmesInlineAnchorInvocation(source, start, command, afterCommand) {
+  let index = skipWhitespace(source, afterCommand);
+  const name = extractBalanced(source, index, "{", "}");
+  if (!name?.content?.trim()) return null;
+  index = skipWhitespace(source, name.end);
+  if (command === "tm") {
+    return {
+      replacement: `\\tikzmarknode{${name.content.trim()}}{}`,
+      end: name.end
+    };
+  }
+  const second = extractBalanced(source, index, "{", "}");
+  if (!second) return null;
+  if (command === "tmc") {
+    return {
+      replacement: `\\tikzmarknode[xshift=${second.content.trim()}ex]{${name.content.trim()}}{}`,
+      end: second.end
+    };
+  }
+  return {
+    replacement: `\\tikzmarknode{${name.content.trim()}}{${second.content}}`,
+    end: second.end
+  };
+}
+
+function expandPgfplotsInvokeForeachMacroWrappers(source) {
+  const text = String(source || "");
+  const zeroArgMacros = new Map();
+  let output = "";
+  let index = 0;
+  const wrapper = "\\pgfplotsinvokeforeachmacro";
+  while (index < text.length) {
+    if (text.startsWith("\\newcommand", index) || text.startsWith("\\renewcommand", index)) {
+      const parsed = parseNewCommandMacro(text, index);
+      if (parsed?.macro?.argCount === 0 && parsed.name) {
+        zeroArgMacros.set(parsed.name, parsed.macro.body);
+      }
+    }
+    if (!text.startsWith(wrapper, index) || !isTeXCommandBoundary(text, index + wrapper.length)) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    let cursor = skipWhitespace(text, index + wrapper.length);
+    if (text[cursor] !== "\\") {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    const listMacro = readCommandName(text, cursor + 1);
+    if (!listMacro?.value || !zeroArgMacros.has(listMacro.value)) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    cursor = skipWhitespace(text, listMacro.end);
+    const body = extractBalanced(text, cursor, "{", "}");
+    if (!body) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    output += expandPgfplotsInvokeForeachList(zeroArgMacros.get(listMacro.value))
+      .map((value) => body.content.replace(/#1/g, value))
+      .join("\n");
+    index = body.end;
+  }
+  return output;
 }
 
 function expandTheoreticalComputerScienceLogoMacros(source) {
@@ -3175,6 +3275,11 @@ function expandPgfplotsInvokeForeach(source, diagnostics) {
     if (start === -1) {
       output += source.slice(cursor);
       break;
+    }
+    if (!isTeXCommandBoundary(source, start + command.length)) {
+      output += source.slice(cursor, start + command.length);
+      cursor = start + command.length;
+      continue;
     }
     output += source.slice(cursor, start);
     let index = skipWhitespace(source, start + command.length);

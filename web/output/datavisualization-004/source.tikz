@@ -1,9 +1,0 @@
-\usetikzlibrary {datavisualization.formats.functions}
-\tikz \datavisualization
- [scientific axes=clean,
-  visualize as smooth line=my data,
-  my data={no lines, style={mark=x, mark size=2pt}}]
-data [format=function] {
-  var x : interval [0:pi] samples 10;
-  func y = sin(\value x r);
-};
