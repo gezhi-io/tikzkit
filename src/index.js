@@ -24,11 +24,13 @@ export {
   renderAxisTicks,
   renderDatavisualizationCleanAxes,
   renderLegendEntries,
+  renderPlotMark,
   selectPlotColor,
   selectPlotFillStyle,
   selectPlotMarkFillColor,
   selectPlotStyle,
   shouldRenderAxisLines,
+  shouldRenderPlotMarks,
   splitLegendEntries,
   transformDataToCanvas
 } from "./pgfplots/index.js";

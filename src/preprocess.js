@@ -24,13 +24,12 @@ import {
 import { renderAxisGrid, shouldRenderAnyAxisGrid } from "./pgfplots/grid.js";
 import { renderAxisLabels } from "./pgfplots/labels.js";
 import { estimateLegendEntryWidth, renderLegendEntries, splitLegendEntries, stripTexForLength } from "./pgfplots/legend.js";
+import { datavisualizationIsMercedesMark, renderPlotMark, shouldRenderPlotMarks } from "./pgfplots/marks.js";
 import {
   plotColorValue,
   plotFillOpacityOption,
-  plotLineWidthOption,
   selectPlotColor,
   selectPlotFillStyle,
-  selectPlotMarkFillColor,
   selectPlotStyle
 } from "./pgfplots/plotStyle.js";
 import { isLogAxis, scaleAxisValue as axisScaleValue } from "./pgfplots/ranges.js";
@@ -10891,11 +10890,6 @@ function renderAxisComb(points, axisOptions, ranges, geometry, plotOptions, plot
   return commands;
 }
 
-function shouldRenderPlotMarks(options = {}) {
-  if (options["no markers"] || String(options.mark || "").trim().toLowerCase() === "none") return false;
-  return Boolean(options["only marks"] || options.scatter || options.mark);
-}
-
 function renderAxisBars(points, axisOptions, geometry, plotOptions, plotIndex, orientation) {
   const commands = [];
   const width = axisNumber(axisOptions["bar width"] || plotOptions["bar width"], 0.2);
@@ -10922,52 +10916,6 @@ function renderAxisBars(points, axisOptions, geometry, plotOptions, plotIndex, o
     }
   }
   return commands;
-}
-
-function renderPlotMark(point, options, plotIndex) {
-  const mark = String(options.mark || (options.scatter ? "*" : "*")).trim().toLowerCase();
-  const stroke = plotColorValue(selectPlotColor(options, plotIndex));
-  const fill = plotColorValue(selectPlotMarkFillColor(options, plotIndex));
-  const style = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", plotLineWidthOption(options)]);
-  const size = axisMarkRadius(options);
-  if (mark === "x") {
-    const diagonal = size / Math.SQRT2;
-    return `\\draw[${joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)])}] ${formatAxisPoint(offsetPoint(point, -diagonal, -diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, diagonal))} ${formatAxisPoint(offsetPoint(point, -diagonal, diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, -diagonal))};`;
-  }
-  if (mark === "+") {
-    return `\\draw[${joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)])}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(offsetPoint(point, 0, -size))} -- ${formatAxisPoint(offsetPoint(point, 0, size))};`;
-  }
-  if (datavisualizationIsMercedesMark(mark)) {
-    return datavisualizationAxisMercedesMark(point, joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)]), mark, size);
-  }
-  if (mark === "square" || mark === "square*") {
-    return `\\draw[${style}] ${formatAxisPoint(offsetPoint(point, -size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, size))} -- ${formatAxisPoint(offsetPoint(point, -size, size))} -- cycle;`;
-  }
-  return `\\draw[${style}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
-}
-
-function datavisualizationIsMercedesMark(mark) {
-  return String(mark || "").trim().toLowerCase().startsWith("mercedes star");
-}
-
-function datavisualizationAxisMercedesMark(point, style, mark, size) {
-  const flipped = String(mark || "").toLowerCase().includes("flipped");
-  const angles = flipped ? [-90, 30, 150] : [90, 210, 330];
-  const center = formatAxisPoint(point);
-  const spokes = angles
-    .map((angle) => {
-      const end = offsetPoint(point, Math.cos((angle * Math.PI) / 180) * size, Math.sin((angle * Math.PI) / 180) * size);
-      return `${center} -- ${formatAxisPoint(end)}`;
-    })
-    .join(" ");
-  return `\\draw[${style}] ${spokes};`;
-}
-
-function axisMarkRadius(options = {}) {
-  const raw = options["mark size"] ?? options.markSize ?? "2pt";
-  const text = String(raw ?? "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
-  const value = /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(text) ? parseDimension(`${text}pt`, {}) : parseDimension(text, {});
-  return Number.isFinite(value) && value > 0 ? value : parseDimension("2pt", {});
 }
 
 function renderNodesNearCoords(plot, axisOptions, geometry) {

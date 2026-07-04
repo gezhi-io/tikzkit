@@ -39,7 +39,7 @@ export {
   splitLegendEntries,
   stripTexForLength
 } from "./legend.js";
-export { createPlotMarkModel } from "./marks.js";
+export { axisMarkRadius, createPlotMarkModel, datavisualizationIsMercedesMark, renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
 export {
   isPlotColorToken,
   PGFPLOTS_DEFAULT_COLORS,

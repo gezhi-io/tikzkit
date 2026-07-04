@@ -20,7 +20,9 @@ import {
   renderAxisTicks,
   renderDatavisualizationCleanAxes,
   renderLegendEntries,
+  renderPlotMark,
   selectPlotStyle,
+  shouldRenderPlotMarks,
   splitLegendEntries,
   transformDataToCanvas
 } from "../src/index.js";
@@ -160,6 +162,16 @@ test("pgfplots legend lowering owns legend box, samples, labels, and entry split
 test("pgfplots plot style helper preserves cycle colors and explicit style options", () => {
   assert.equal(selectPlotStyle({ "pgfplots plus": true, dashed: true }, 1), "red, dashed");
   assert.equal(selectPlotStyle({ draw: "black", "line width": "1pt", dotted: true }, 0), "draw=black, line width=1pt, dotted");
+});
+
+test("pgfplots marks lowering owns mark decisions and TikZ mark primitives", () => {
+  assert.equal(shouldRenderPlotMarks({ mark: "none" }), false);
+  assert.equal(shouldRenderPlotMarks({ "only marks": true }), true);
+  assert.equal(
+    renderPlotMark({ x: 1, y: 2 }, { mark: "square*", red: true, "mark size": "2pt" }, 0),
+    String.raw`\draw[axis mark, draw=red, fill=red, fill opacity=1] (0.93,1.93) -- (1.07,1.93) -- (1.07,2.07) -- (0.93,2.07) -- cycle;`
+  );
+  assert.match(renderPlotMark({ x: 1, y: 2 }, { mark: "x", blue: true, "mark size": "1pt" }, 0), /axis mark, draw=blue/);
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {
