@@ -1,1 +1,1 @@
-export { drawCommand } from "../../commands/draw.js";
+export { tikzCommand as drawCommand } from "../../commands/draw.js";

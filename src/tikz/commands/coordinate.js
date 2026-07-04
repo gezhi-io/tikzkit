@@ -1,1 +1,1 @@
-export { coordinateCommand } from "../../commands/coordinate.js";
+export { tikzCommand as coordinateCommand } from "../../commands/coordinate.js";

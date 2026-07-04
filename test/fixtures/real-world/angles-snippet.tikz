@@ -1,0 +1,7 @@
+\usetikzlibrary{angles,calc,quotes}
+\begin{tikzpicture}
+  \coordinate (A) at (0,0);
+  \coordinate (B) at (1,0);
+  \coordinate (C) at (1,1);
+  \path pic["$\alpha$", draw] {angle=A--B--C};
+\end{tikzpicture}

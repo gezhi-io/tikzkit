@@ -1,1 +1,1 @@
-export { pathCommand } from "../../commands/path.js";
+export { tikzCommand as pathCommand } from "../../commands/path.js";

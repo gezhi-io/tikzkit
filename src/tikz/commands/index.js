@@ -3,6 +3,8 @@ export {
   axisCommand,
   coordinateCommand,
   drawCommand,
+  fillCommand,
+  foreachCommand,
   knownTikzCommands,
   nodeCommand,
   pathCommand,

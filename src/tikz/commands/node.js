@@ -1,1 +1,1 @@
-export { nodeCommand } from "../../commands/node.js";
+export { tikzCommand as nodeCommand } from "../../commands/node.js";

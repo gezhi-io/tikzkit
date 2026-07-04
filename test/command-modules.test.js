@@ -6,13 +6,15 @@ import {
   addplotCommand,
   axisCommand,
   drawCommand,
+  fillCommand,
+  foreachCommand,
   knownTikzCommands,
   nodeCommand,
   tikzCommandCatalog,
   tikzpictureCommand
 } from "../src/commands/index.js";
 
-const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "path", "node", "coordinate", "axis", "addplot"];
+const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "fill", "path", "node", "coordinate", "foreach", "axis", "addplot"];
 
 test("keeps common TikZ commands in one module per command or environment", () => {
   assert.deepEqual(knownTikzCommands, OBSERVED_TIKZ_COMMANDS);
@@ -25,6 +27,8 @@ test("keeps common TikZ commands in one module per command or environment", () =
   }
 
   assert.equal(tikzCommandCatalog.draw.kind, "command");
+  assert.equal(tikzCommandCatalog.fill.kind, "command");
+  assert.equal(tikzCommandCatalog.foreach.kind, "command");
   assert.equal(tikzCommandCatalog.axis.kind, "environment");
   assert.equal(tikzCommandCatalog.addplot.package, "pgfplots");
 });
@@ -42,6 +46,8 @@ test("documents draw and node option families that drive visual parity", () => {
   assert.ok(optionNamesFor(drawCommand).includes("dashed / densely dashed / dotted / dash pattern"));
   assert.ok(optionNamesFor(drawCommand).includes("-> / -latex / -Stealth / stealth-stealth"));
   assert.ok(optionNamesFor(drawCommand).includes("node[midway, above] {text}"));
+  assert.ok(optionNamesFor(fillCommand).includes("fill"));
+  assert.ok(optionNamesFor(foreachCommand).includes("\\foreach \\x in {...} { ... }"));
 
   assert.ok(optionNamesFor(nodeCommand).includes("circle / rectangle / ellipse / diamond"));
   assert.ok(optionNamesFor(nodeCommand).includes("minimum size / minimum width / minimum height"));

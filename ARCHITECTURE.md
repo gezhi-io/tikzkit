@@ -60,27 +60,53 @@ The current migration starts by adding stable seams without breaking old imports
 ```txt
 src/frontend/
   index.js
+  ast.js                    # AST shape factories for tests and future parser split
+  diagnostics.js            # diagnostic helpers
+  lexer.js                  # small TikZ-ish tokenizer seam
   parser.js                 # re-exports the current parser implementation
 
 src/engine/
   index.js
+  context.js                # scope/context factory
   evaluate.js               # interpretTikz / evaluateTikzAst
   math.js                   # math and unit-facing exports
   options.js                # TikZ option-facing exports
+  pathBuilder.js            # renderer-neutral path command builder
   registry.js               # command/library registry seam
+  transforms.js             # affine transform helpers
+  units.js                  # TikZ unit and line-width exports
 
 src/scene/
   index.js
+  bbox.js                   # renderer-neutral bounding-box helpers
   sceneGraph.js             # renderer-neutral drawing container helpers
+  shapes.js                 # path/text/group item factories
+  style.js                  # renderer-neutral style defaults
 
 src/renderers/svg/
+  defs.js
+  escape.js
   index.js
+  pathData.js
   renderSvg.js              # SVG renderer seam
+  text.js
 
 src/tikz/
   registerCoreTikz.js       # command/library registration
   commands/                 # TikZ-facing command adapters
   libraries/                # TikZ-facing library adapters
+
+src/cli/
+  main.js                   # CLI adapter implementation with injectable IO
+
+src/adapters/
+  filesystem.js             # read/write text files
+  externalLatex.js          # optional external command adapter
+
+src/shared/
+  errors.js
+  result.js
+  sourceMap.js
 ```
 
 Old paths remain valid for now. New code should prefer the layered paths.
@@ -99,6 +125,9 @@ These rules are the important part of the structure:
   and SVG coordinate conversion.
 - `extensions/` owns third-party package compatibility and TeX-lite expansion that
   turns package commands into ordinary TikZ semantics.
+- `cli/` owns command-line argument handling and process IO coordination.
+- `adapters/` owns external effects such as filesystem and optional local TeX tools.
+- `shared/` owns cross-layer result and error primitives.
 
 Parser code must not build SVG. Renderer code must not understand TeX source.
 TikZ semantics should be represented in the Scene Graph before rendering.

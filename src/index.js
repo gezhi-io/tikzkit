@@ -3,6 +3,7 @@ export { evaluateTikzAst, interpretTikz } from "./engine/evaluate.js";
 export { renderSvg } from "./renderers/svg/renderSvg.js";
 export { appendSceneItem, createSceneGraph, sceneItems } from "./scene/index.js";
 export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";
+export { createConversionResult, mergeDiagnostics } from "./shared/result.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
 export { BUILTIN_TIKZ_LIBRARIES, collectTikzLibraries, resolveTikzLibraries } from "./tikz-libraries.js";
 export {
@@ -28,6 +29,8 @@ export {
   axisCommand,
   coordinateCommand,
   drawCommand,
+  fillCommand,
+  foreachCommand,
   knownTikzCommands,
   nodeCommand,
   pathCommand,
@@ -60,16 +63,19 @@ export { stanliExtension } from "./extensions/stanli.js";
 import { parseTikz } from "./frontend/parser.js";
 import { interpretTikz } from "./engine/evaluate.js";
 import { renderSvg } from "./renderers/svg/renderSvg.js";
+import { createConversionResult, mergeDiagnostics } from "./shared/result.js";
 
 export function tikzToSvg(source, options = {}) {
   const parsed = parseTikz(source, options);
   const interpreted = interpretTikz(parsed.ast, options);
-  const diagnostics = [...parsed.diagnostics, ...interpreted.diagnostics];
+  const diagnostics = mergeDiagnostics(parsed.diagnostics, interpreted.diagnostics);
   const svg = renderSvg(interpreted.ir, options);
-  return {
+  return createConversionResult({
     svg,
     diagnostics,
     ir: interpreted.ir,
     ast: parsed.ast
-  };
+  });
 }
+
+export const convertTikzToSvg = tikzToSvg;

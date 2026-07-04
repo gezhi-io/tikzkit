@@ -1,4 +1,5 @@
 export { evaluateTikzAst, interpretTikz } from "./evaluate.js";
+export { createEngineContext } from "./context.js";
 export {
   evaluateMath,
   parseDimension,
@@ -18,3 +19,6 @@ export {
   stripOuterBraces
 } from "./options.js";
 export { createTikzRegistry, registerCoreTikz } from "./registry.js";
+export { createPathBuilder } from "./pathBuilder.js";
+export { applyTransform, composeTransforms, identityTransform } from "./transforms.js";
+export { TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension } from "./units.js";

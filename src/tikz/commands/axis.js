@@ -1,1 +1,1 @@
-export { axisCommand } from "../../commands/axis.js";
+export { tikzCommand as axisCommand } from "../../commands/axis.js";
