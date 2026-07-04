@@ -145,6 +145,8 @@ export const supportedTikzLibraries = Object.freeze(
 export { tikzLibrary as calcLibrary } from "./calc.js";
 export { tikzLibrary as positioningLibrary } from "./positioning.js";
 export { tikzLibrary as matrixLibrary } from "./matrix.js";
+export { tikzLibrary as arrowsLibrary } from "./arrows.js";
+export { tikzLibrary as patternsLibrary } from "./patterns.js";
 
 function normalizeTikzLibrary(library) {
   const features = library.features || library.implements || [];

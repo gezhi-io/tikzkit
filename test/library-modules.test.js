@@ -13,6 +13,10 @@ import {
 } from "../src/libraries/index.js";
 import { isMatrixNodeOptions, matrixCellText } from "../src/libraries/matrix.js";
 import { defaultPositioningDistance, positioningDelta, scalePositioningDistance } from "../src/libraries/positioning.js";
+import { arrowsLibrary } from "../src/tikz/libraries/arrows.js";
+import { resolveCalcExpression } from "../src/tikz/libraries/calc.js";
+import { patternsLibrary } from "../src/tikz/libraries/patterns.js";
+import { positioningLibrary as tikzPositioningLibrary } from "../src/tikz/libraries/positioning.js";
 
 const OBSERVED_TIKZ_LIBRARIES = [
   "3d",
@@ -90,7 +94,7 @@ test("keeps observed TikZ libraries in one module per library name", () => {
   assert.ok(supportedTikzLibraries.includes("matrix"));
   assert.equal(tikzLibraryCatalog["3d"].status, "unsupported");
   assert.equal(calcLibrary.name, "calc");
-  assert.equal(positioningLibrary.name, "positioning");
+  assert.equal(tikzPositioningLibrary.name, "positioning");
   assert.equal(matrixLibrary.name, "matrix");
   assert.equal(calcLibrary.status, "builtin");
   assert.equal(positioningLibrary.status, "builtin");
@@ -126,4 +130,11 @@ test("has one source file for each observed usetikzlibrary name", () => {
       `missing src/libraries/${library}.js`
     );
   }
+});
+
+test("exposes target tikz library adapters from src/tikz/libraries", () => {
+  assert.equal(arrowsLibrary.name, "arrows");
+  assert.equal(positioningLibrary.name, "positioning");
+  assert.equal(patternsLibrary.name, "patterns");
+  assert.equal(typeof resolveCalcExpression, "function");
 });

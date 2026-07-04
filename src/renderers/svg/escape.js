@@ -2,8 +2,7 @@ export function escapeAttribute(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/</g, "&lt;");
 }
 
 export function escapeText(value) {
@@ -11,4 +10,8 @@ export function escapeText(value) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+export function escapeHtml(value) {
+  return escapeText(value).replace(/"/g, "&quot;");
 }

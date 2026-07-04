@@ -4,6 +4,7 @@ import { TIKZKIT_SCOPED_MATH_CSS } from "./math-scoped-css.js";
 import { mathFallbackText, normalizeTikzText, replaceTikzHspaceMarkers, splitInlineMathSegments } from "./tex-text.js";
 import { parseDimension } from "./math.js";
 import { normalizeColor } from "./options.js";
+import { escapeAttribute, escapeHtml, escapeText } from "./renderers/svg/escape.js";
 import { svgPathData as pathData } from "./renderers/svg/pathData.js";
 import {
   TIKZ_ARROW,
@@ -5180,16 +5181,4 @@ function cubicBezierPoint(p0, p1, p2, p3, t) {
 function format(value) {
   const rounded = Math.round((value + Number.EPSILON) * 1e6) / 1e6;
   return String(Object.is(rounded, -0) ? 0 : rounded);
-}
-
-function escapeAttribute(value) {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
-
-function escapeText(value) {
-  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeHtml(value) {
-  return escapeText(value).replace(/"/g, "&quot;");
 }
