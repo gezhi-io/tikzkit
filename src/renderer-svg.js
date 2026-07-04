@@ -4,6 +4,7 @@ import { TIKZKIT_SCOPED_MATH_CSS } from "./math-scoped-css.js";
 import { mathFallbackText, normalizeTikzText, replaceTikzHspaceMarkers, splitInlineMathSegments } from "./tex-text.js";
 import { parseDimension } from "./math.js";
 import { normalizeColor } from "./options.js";
+import { svgPathData as pathData } from "./renderers/svg/pathData.js";
 import {
   TIKZ_ARROW,
   TIKZ_DISPLAY_MATH_FONT_SIZE,
@@ -4488,28 +4489,6 @@ function renderMarker(item, unit) {
   const angle = -item.angle;
   const fill = escapeAttribute(item.style?.fill || "black");
   return `<path d="${TIKZ_ARROW.standalonePath}" fill="${fill}" transform="translate(${format(x)} ${format(y)}) rotate(${format(angle)})" />`;
-}
-
-function pathData(commands, unit) {
-  return commands
-    .map((command) => {
-      if (command.type === "moveTo") return `M ${format(command.x * unit)} ${format(-command.y * unit)}`;
-      if (command.type === "lineTo") return `L ${format(command.x * unit)} ${format(-command.y * unit)}`;
-      if (command.type === "quadTo") {
-        return `Q ${format(command.x1 * unit)} ${format(-command.y1 * unit)} ${format(command.x * unit)} ${format(
-          -command.y * unit
-        )}`;
-      }
-      if (command.type === "curveTo") {
-        return `C ${format(command.x1 * unit)} ${format(-command.y1 * unit)} ${format(command.x2 * unit)} ${format(
-          -command.y2 * unit
-        )} ${format(command.x * unit)} ${format(-command.y * unit)}`;
-      }
-      if (command.type === "closePath") return "Z";
-      return "";
-    })
-    .filter(Boolean)
-    .join(" ");
 }
 
 function estimateMathBox(tex, displayMode, unit, scale = 1) {
