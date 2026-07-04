@@ -12,6 +12,12 @@ import {
 } from "./tikz-metrics.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "./tex-text.js";
 import { createAxisModel } from "./pgfplots/axis.js";
+import { parseCoordinateList } from "./pgfplots/coordinates.js";
+import {
+  axisTickValues,
+  majorTickValues as axisMajorTickValues,
+  tickDistanceValues as axisTickDistanceValues
+} from "./pgfplots/ticks.js";
 
 const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "node", "coordinate", "foreach"]);
 const PGFPLOTS_DEFAULT_AXIS_WIDTH = parseDimension("240pt", {});
@@ -9701,25 +9707,6 @@ function parseLegendEntries(body) {
   return entries;
 }
 
-function parseCoordinateList(input) {
-  const points = [];
-  const pattern = /\(([^)]*)\)/g;
-  let match = pattern.exec(input);
-  while (match) {
-    const parts = splitTopLevel(match[1], ",");
-    if (parts.length >= 2) {
-      const point = { x: axisNumber(parts[0]), y: axisNumber(parts[1]), raw: `(${parts[0].trim()},${parts[1].trim()})` };
-      if (parts.length >= 3) {
-        point.z = axisNumber(parts[2]);
-        point.raw = `(${parts[0].trim()},${parts[1].trim()},${parts[2].trim()})`;
-      }
-      points.push(point);
-    }
-    match = pattern.exec(input);
-  }
-  return points;
-}
-
 function resolvePgfplotsTableContent(content, options = {}, diagnostics = []) {
   const text = String(content || "").trim();
   const looksLikeFile = text && !/[\r\n]/.test(text) && !/\s/.test(text) && /\.[A-Za-z0-9]+$/.test(text);
@@ -10647,29 +10634,6 @@ function trimAutoTerminalTicks(values, min, max) {
   if (!Number.isFinite(step) || step <= 0) return ticks;
   if (ticks.length > 1 && max - ticks.at(-1) >= 0 && max - ticks.at(-1) < step * 0.12) ticks.pop();
   return ticks;
-}
-
-function axisTickValues(raw, axis, addplots) {
-  const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
-  if (!text) return [];
-  if (text === "\\empty" || text === "empty") return [];
-  if (text === "data") return uniqueAxisValues(addplots.flatMap((plot) => plot.points || []).map((point) => point[axis]));
-  return splitBracedList(text).map((part) => axisNumber(part, NaN)).filter(Number.isFinite);
-}
-
-function axisTickDistanceValues(axisOptions, axis, min, max) {
-  const raw = axisOptions?.[`${axis}tick distance`] ?? axisOptions?.[`${axis} tick distance`];
-  const step = axisNumber(raw, NaN);
-  if (!Number.isFinite(step) || step <= 0 || !Number.isFinite(min) || !Number.isFinite(max) || min > max) return [];
-  const epsilon = Math.max(1e-9, Math.abs(max - min) * 1e-10);
-  const start = Math.ceil((min - epsilon) / step) * step;
-  const values = [];
-  for (let value = start; value <= max + epsilon; value += step) {
-    const rounded = roundAxis(value);
-    if (rounded >= min - epsilon && rounded <= max + epsilon && !values.includes(rounded)) values.push(rounded);
-    if (values.length > 200) break;
-  }
-  return values;
 }
 
 function axisTickLabels(raw, ticks) {
@@ -12104,25 +12068,6 @@ function tickValues(min, max) {
   const maxTicks = 41;
   const step = Math.max(1, Math.ceil((end - start + 1) / maxTicks));
   for (let value = start; value <= end; value += step) values.push(value);
-  return values;
-}
-
-function axisMajorTickValues(min, max, maxTicks = 5) {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return [];
-  const span = max - min;
-  const rawStep = Math.abs(span) / Math.max(1, maxTicks - 1);
-  const exponent = Math.floor(Math.log10(rawStep));
-  const base = 10 ** exponent;
-  const fraction = rawStep / base;
-  const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
-  const step = niceFraction * base;
-  const start = Math.ceil(min / step) * step;
-  const values = [];
-  for (let value = start; value <= max + step * 0.2; value += step) {
-    const rounded = roundAxis(value);
-    if (rounded >= min - step * 0.2 && rounded <= max + step * 0.2) values.push(rounded);
-    if (values.length >= maxTicks + 2) break;
-  }
   return values;
 }
 

@@ -4,6 +4,7 @@ export { renderSvg } from "./renderers/svg/renderSvg.js";
 export { appendSceneItem, createSceneGraph, sceneItems } from "./scene/index.js";
 export {
   axisModelToSceneGraphPlan,
+  axisTickValues,
   createAddplotModel,
   createAxisGridModel,
   createAxisModel,

@@ -1,3 +1,6 @@
+import { splitTopLevel } from "../engine/options.js";
+import { axisNumber } from "./coordinates.js";
+
 export function createAxisTickModel(axisOptions = {}, ranges = {}, addplots = []) {
   return {
     x: createTickAxisModel("x", axisOptions, ranges, addplots),
@@ -16,7 +19,7 @@ export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplot
   const values = disabled
     ? []
     : hasExplicitTickOption(raw)
-      ? tickValues(raw, axis, addplots)
+      ? axisTickValues(raw, axis, addplots)
       : distanceTicks.length
         ? distanceTicks
         : majorTickValues(min, max, axis === "x" ? 7 : 6);
@@ -42,8 +45,8 @@ export function majorTickValues(min, max, maxTicks = 5) {
 }
 
 export function tickDistanceValues(axisOptions = {}, axis, min, max) {
-  const raw = axisOptions[`${axis}tick distance`] ?? axisOptions[`${axis} tick distance`];
-  const step = Number(raw);
+  const raw = axisOptions?.[`${axis}tick distance`] ?? axisOptions?.[`${axis} tick distance`];
+  const step = axisNumber(raw, NaN);
   if (!Number.isFinite(step) || step <= 0 || !Number.isFinite(min) || !Number.isFinite(max) || min > max) return [];
   const values = [];
   const epsilon = Math.max(1e-9, Math.abs(max - min) * 1e-10);
@@ -54,14 +57,14 @@ export function tickDistanceValues(axisOptions = {}, axis, min, max) {
   return values;
 }
 
-function tickValues(raw, axis, addplots = []) {
+export function axisTickValues(raw, axis, addplots = []) {
   const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (!text || text === "\\empty" || text === "empty") return [];
   if (text === "data") {
     const values = addplots.flatMap((plot) => plot.points || []).map((point) => point[axis]).filter(Number.isFinite);
     return [...new Set(values)];
   }
-  return text.split(",").map((part) => Number(part.trim())).filter(Number.isFinite);
+  return splitBracedList(text).map((part) => axisNumber(part, NaN)).filter(Number.isFinite);
 }
 
 function hasExplicitTickOption(raw) {
@@ -78,4 +81,10 @@ function ticksDisabled(raw) {
 
 function roundAxis(value) {
   return Math.round((value + Number.EPSILON) * 1000) / 1000;
+}
+
+function splitBracedList(raw) {
+  const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  if (!text) return [];
+  return splitTopLevel(text, ",").map((part) => part.trim()).filter(Boolean);
 }

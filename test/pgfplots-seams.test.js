@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   axisModelToSceneGraphPlan,
+  axisTickValues,
   createAxisGridModel,
   createAxisModel,
   createAxisTickModel,
@@ -57,4 +58,22 @@ test("pgfplots transform, ticks, and grid are isolated semantics", () => {
   assert.deepEqual(transformDataToCanvas({ x: 5, y: 0 }, transform), { x: 11, y: 7 });
   assert.deepEqual(createAxisTickModel({ "xtick distance": 5 }, ranges).x.values, [0, 5, 10]);
   assert.equal(createAxisGridModel({ "y grid": true }).y, true);
+});
+
+test("pgfplots ticks and coordinate parsing preserve preprocess behavior", () => {
+  assert.deepEqual(parsePgfplotsCoordinateList("(pi,2) (5,2,3)"), [
+    { x: Math.PI, y: 2, raw: "(pi,2)" },
+    { x: 5, y: 2, z: 3, raw: "(5,2,3)" }
+  ]);
+  assert.deepEqual(
+    axisTickValues("data", "x", [
+      { points: [{ x: 2 }, { x: 2 }, { x: 5 }] }
+    ]),
+    [2, 5]
+  );
+  assert.deepEqual(createAxisTickModel({ "xtick distance": "pi/2" }, { xMin: 0, xMax: Math.PI, yMin: 0, yMax: 1 }).x.values, [
+    0,
+    1.571,
+    3.142
+  ]);
 });

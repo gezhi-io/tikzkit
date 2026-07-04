@@ -6,5 +6,5 @@ export { createAxisGridModel, shouldRenderAnyAxisGrid, shouldRenderAxisGrid } fr
 export { createAxisLabelModel } from "./labels.js";
 export { createPlotMarkModel } from "./marks.js";
 export { createAxisRanges, isLogAxis, rangeSpan, scaleAxisValue } from "./ranges.js";
-export { createAxisTickModel, majorTickValues, tickDistanceValues } from "./ticks.js";
+export { axisTickValues, createAxisTickModel, majorTickValues, tickDistanceValues } from "./ticks.js";
 export { createDataToCanvasTransform, transformDataToCanvas } from "./transformDataToCanvas.js";
