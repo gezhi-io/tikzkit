@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseTikz, interpretTikz, renderSvg, tikzToSvg } from "../src/index.js";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { PACKT_CASES, PACKT_ROOT } from "../scripts/packt-real-cases.js";
 
-test("renders 20 Packt TikZ examples without diagnostics", () => {
+test("renders 20 Packt TikZ examples without diagnostics", (t) => {
+  if (!existsSync(PACKT_ROOT)) {
+    t.skip(`Packt corpus not found at ${PACKT_ROOT}`);
+    return;
+  }
   const results = PACKT_CASES.map((relativePath) => {
     const source = readFileSync(`${PACKT_ROOT}/${relativePath}`, "utf8");
     const result = tikzToSvg(source);

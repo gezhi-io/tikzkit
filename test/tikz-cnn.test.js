@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { tikzCnnExtension, tikzToSvg } from "../src/index.js";
 
 function convert(body) {
@@ -53,8 +53,13 @@ test("tracks tikz_cnn totalOffset and draws cross-layer connections", () => {
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "sum"));
 });
 
-test("renders the upstream jettan/tikz_cnn example without diagnostics", () => {
-  const source = readFileSync("work/jettan-tikz-cnn/main.tex", "utf8");
+test("renders the upstream jettan/tikz_cnn example without diagnostics", (t) => {
+  const fixture = "work/jettan-tikz-cnn/main.tex";
+  if (!existsSync(fixture)) {
+    t.skip(`tikz_cnn upstream fixture not found at ${fixture}`);
+    return;
+  }
+  const source = readFileSync(fixture, "utf8");
   const { ir, diagnostics, svg } = tikzToSvg(source, { mathRenderer: "svg-text" });
 
   assert.deepEqual(diagnostics, []);

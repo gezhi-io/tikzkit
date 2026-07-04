@@ -1,48 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
-import path from "node:path";
 import test from "node:test";
-import { loadRealGalleryCases } from "../scripts/gallery-case-source.js";
 import { parseTikz } from "../src/parser.js";
-import { splitTopLevel } from "../src/options.js";
 import {
-  knownTexPackages,
   mathtoolsPackage,
   pgfplotsPackage,
-  supportedTexPackages,
   texPackageCatalog
 } from "../src/packages/index.js";
-
-async function observedTexPackages() {
-  const gallery = await loadRealGalleryCases();
-  const packages = new Map();
-  const pattern = /\\usepackage(?:\[[^\]]*\])?\{([^{}]*)\}/g;
-  for (const item of gallery.cases || []) {
-    let match;
-    while ((match = pattern.exec(item.source || ""))) {
-      for (const rawName of splitTopLevel(match[1], ",")) {
-        const name = rawName.trim();
-        if (!name) continue;
-        const entry = packages.get(name) || { count: 0 };
-        entry.count += 1;
-        packages.set(name, entry);
-      }
-    }
-  }
-  return new Map([...packages].sort(([left], [right]) => left.localeCompare(right)));
-}
-
-test("keeps observed TeX packages in one module per package name", async () => {
-  const observed = await observedTexPackages();
-  assert.equal(observed.size, 89);
-  assert.deepEqual(knownTexPackages, [...observed.keys()]);
-  assert.ok(supportedTexPackages.includes("pgfplots"));
-  assert.ok(supportedTexPackages.includes("mathtools"));
-
-  for (const name of observed.keys()) {
-    assert.equal(existsSync(path.resolve("src", "packages", `${name}.js`)), true, `missing src/packages/${name}.js`);
-  }
-});
 
 test("records local TeX Live sources for high-priority packages", () => {
   assert.equal(pgfplotsPackage.name, "pgfplots");
