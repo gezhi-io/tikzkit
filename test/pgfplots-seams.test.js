@@ -12,9 +12,13 @@ import {
   parseAxisAt,
   parseAxisDimension,
   parsePgfplotsCoordinateList,
+  renderAxisBounds,
+  renderAxisBox,
   renderAxisGrid,
   renderAxisLabels,
+  renderAxisLines,
   renderAxisTicks,
+  renderDatavisualizationCleanAxes,
   transformDataToCanvas
 } from "../src/index.js";
 
@@ -77,6 +81,32 @@ test("pgfplots grid lowering emits TikZ draw primitives from axis geometry", () 
     String.raw`\draw[axis grid, gray!30, line width=0.2pt] (2,0) -- (2,1);`,
     String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,0) -- (2,0);`,
     String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,1) -- (2,1);`
+  ]);
+});
+
+test("pgfplots axis line lowering emits bounds, box, middle lines, and clean axes", () => {
+  const ranges = { xMin: -1, xMax: 1, yMin: -1, yMax: 1 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "2cm" }, ranges);
+
+  assert.equal(
+    renderAxisBounds(geometry),
+    String.raw`\draw[axis bounds, draw=none, fill=none] (-0.3,-0.32) -- (2.55,-0.32) -- (2.55,2.32) -- (-0.3,2.32) -- cycle;`
+  );
+  assert.equal(
+    renderAxisBox({ "axis lines": "box", "axis frame color": "gray" }, geometry),
+    String.raw`\draw[axis frame, gray, line width=0.35pt] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;`
+  );
+  assert.deepEqual(renderAxisLines({ "axis lines": "middle" }, ranges, geometry), [
+    String.raw`\draw[axis line, black, line width=0.35pt, ->] (0,1) -- (2,1);`,
+    String.raw`\draw[axis line, black, line width=0.35pt, ->] (1,0) -- (1,2);`
+  ]);
+  assert.deepEqual(renderDatavisualizationCleanAxes({ "datavis clean padding": "0.1cm" }, ranges, geometry), [
+    String.raw`\draw[axis clean line, black!50, line width=0.12pt] (0,-0.1) -- (2,-0.1);`,
+    String.raw`\draw[axis clean line, black!50, line width=0.12pt] (-0.1,0) -- (-0.1,2);`,
+    String.raw`\draw[axis clean boundary, black!25, line width=0.12pt, line cap=rect] (0,0) -- (2,0);`,
+    String.raw`\draw[axis clean boundary, black!25, line width=0.12pt, line cap=rect] (0,2) -- (2,2);`,
+    String.raw`\draw[axis clean boundary, black!25, line width=0.12pt, line cap=rect] (0,0) -- (0,2);`,
+    String.raw`\draw[axis clean boundary, black!25, line width=0.12pt, line cap=rect] (2,0) -- (2,2);`
   ]);
 });
 

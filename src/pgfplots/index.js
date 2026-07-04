@@ -1,5 +1,15 @@
 export { createAddplotModel, parseCoordinateAddplot } from "./addplot.js";
 export { createAxisModel, axisModelToSceneGraphPlan } from "./axis.js";
+export {
+  axisOuterBounds,
+  renderAxisBounds,
+  renderAxisBox,
+  renderAxisLines,
+  renderDatavisualizationCleanAxes,
+  shouldArrowAxisLines,
+  shouldRenderAxisBox,
+  shouldRenderAxisLines
+} from "./axisLines.js";
 export { createAxisOptions } from "./axisOptions.js";
 export { axisNumber, parseCoordinateList } from "./coordinates.js";
 export {
