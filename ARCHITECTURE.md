@@ -123,6 +123,7 @@ src/pgfplots/
   labels.js
   marks.js
   legend.js
+  plotNodes.js
   plotPath.js
   plotStyle.js
   transformDataToCanvas.js  # data coordinate -> TikZ canvas coordinate
@@ -183,7 +184,8 @@ TikZ semantics should be represented in the Scene Graph before rendering.
    the Axis Model seam. `\begin{axis}` should produce an axis model first; only
    then should it lower to ordinary TikZ/Scene Graph primitives.
    Current extracted slices include ranges, geometry, ticks, grid, labels,
-   axis lines, legend, marks, plot paths, bars, and comb visualizers.
+   axis lines, legend, marks, plot paths, plot nodes, bars, and comb
+   visualizers.
 6. Move command semantics out of the root `commands/` catalog into
    `tikz/commands/` only when they become real command adapters rather than
    metadata. Until then, `tikz/commands/` may re-export the existing catalog to

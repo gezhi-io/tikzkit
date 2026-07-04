@@ -67,6 +67,7 @@ export {
   smoothAxisCyclePointChain,
   smoothAxisPlotPointChain
 } from "./plotPath.js";
+export { renderAxisPlotInlineNodes, renderNodesNearCoords } from "./plotNodes.js";
 export { createAxisRanges, isLogAxis, rangeSpan, scaleAxisValue } from "./ranges.js";
 export { axisTickValues, createAxisTickModel, majorTickValues, renderAxisTicks, tickDistanceValues } from "./ticks.js";
 export { createDataToCanvasTransform, transformDataToCanvas } from "./transformDataToCanvas.js";

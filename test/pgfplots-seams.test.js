@@ -22,9 +22,11 @@ import {
   renderAxisGrid,
   renderAxisLabels,
   renderAxisLines,
+  renderAxisPlotInlineNodes,
   renderAxisTicks,
   renderDatavisualizationCleanAxes,
   renderLegendEntries,
+  renderNodesNearCoords,
   renderPlotMark,
   selectPlotStyle,
   shouldRenderAxisPlotPath,
@@ -204,6 +206,29 @@ test("pgfplots bar and comb visualizers lower data points through axis geometry"
   assert.deepEqual(renderAxisComb([{ x: 1, y: 2 }], {}, ranges, geometry, { red: true, thick: true }, 0, "y"), [
     String.raw`\draw[axis comb, red, thick] (1,0) -- (1,2);`
   ]);
+});
+
+test("pgfplots plot node lowering owns nodes near coords and inline plot labels", () => {
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 2 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "2cm" }, ranges);
+
+  assert.deepEqual(renderNodesNearCoords({ options: {}, points: [{ x: 1, y: 2 }] }, { "nodes near coords": true }, geometry), [
+    String.raw`\node[axis near coord, anchor=south, font=\scriptsize] at (1,2.08) {2};`
+  ]);
+  assert.deepEqual(
+    renderAxisPlotInlineNodes(
+      [{ options: { pos: 0.5, right: true, xshift: "2pt", pin: "north:{peak}" }, text: "$f(x)$" }],
+      [
+        { x: 0, y: 0 },
+        { x: 2, y: 0 }
+      ],
+      "blue"
+    ),
+    [
+      String.raw`\draw[axis plot node connector, gray, thin] (1,0) -- (1.07,0);`,
+      String.raw`\node[axis plot node, anchor=west, text=blue, pin={north:{peak}}] at (1.07,0) {$f(x)$};`
+    ]
+  );
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {
