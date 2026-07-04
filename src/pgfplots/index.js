@@ -30,7 +30,28 @@ export {
   shouldRenderMinorAxisGrid
 } from "./grid.js";
 export { createAxisLabelModel, renderAxisLabels } from "./labels.js";
+export {
+  estimateLegendEntryWidth,
+  legendBoxFromAnchor,
+  legendFontOption,
+  legendPlacement,
+  renderLegendEntries,
+  splitLegendEntries,
+  stripTexForLength
+} from "./legend.js";
 export { createPlotMarkModel } from "./marks.js";
+export {
+  isPlotColorToken,
+  PGFPLOTS_DEFAULT_COLORS,
+  plotColorValue,
+  plotFillOpacityOption,
+  plotLineWidthOption,
+  plotUsesCycleColor,
+  selectPlotColor,
+  selectPlotFillStyle,
+  selectPlotMarkFillColor,
+  selectPlotStyle
+} from "./plotStyle.js";
 export { createAxisRanges, isLogAxis, rangeSpan, scaleAxisValue } from "./ranges.js";
 export { axisTickValues, createAxisTickModel, majorTickValues, renderAxisTicks, tickDistanceValues } from "./ticks.js";
 export { createDataToCanvasTransform, transformDataToCanvas } from "./transformDataToCanvas.js";

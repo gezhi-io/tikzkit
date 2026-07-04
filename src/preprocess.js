@@ -23,6 +23,16 @@ import {
 } from "./pgfplots/geometry.js";
 import { renderAxisGrid, shouldRenderAnyAxisGrid } from "./pgfplots/grid.js";
 import { renderAxisLabels } from "./pgfplots/labels.js";
+import { estimateLegendEntryWidth, renderLegendEntries, splitLegendEntries, stripTexForLength } from "./pgfplots/legend.js";
+import {
+  plotColorValue,
+  plotFillOpacityOption,
+  plotLineWidthOption,
+  selectPlotColor,
+  selectPlotFillStyle,
+  selectPlotMarkFillColor,
+  selectPlotStyle
+} from "./pgfplots/plotStyle.js";
 import { isLogAxis, scaleAxisValue as axisScaleValue } from "./pgfplots/ranges.js";
 import {
   axisTickValues,
@@ -10960,18 +10970,6 @@ function axisMarkRadius(options = {}) {
   return Number.isFinite(value) && value > 0 ? value : parseDimension("2pt", {});
 }
 
-function plotLineWidthOption(options = {}) {
-  if (options["line width"]) return `line width=${options["line width"]}`;
-  if (options["ultra thick"]) return "ultra thick";
-  if (options["very thick"]) return "very thick";
-  if (options.thick) return "thick";
-  if (options.semithick) return "semithick";
-  if (options.thin) return "thin";
-  if (options["very thin"]) return "very thin";
-  if (options["ultra thin"]) return "ultra thin";
-  return "";
-}
-
 function renderNodesNearCoords(plot, axisOptions, geometry) {
   if (!axisOptions["nodes near coords"] && !plot.options["nodes near coords"]) return [];
   return (plot.points || []).map((point) => {
@@ -11143,114 +11141,6 @@ function axis3DBoxCorners(ranges, geometry) {
     c011: geometry.mapPoint3d({ x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }),
     c111: geometry.mapPoint3d({ x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
   };
-}
-
-function renderLegendEntries(axisOptions, ranges, geometry, bodyEntries = [], addplots = []) {
-  const raw = axisOptions["legend entries"];
-  const entries = raw ? splitLegendEntries(raw) : bodyEntries;
-  if (!entries.length) return [];
-  const font = legendFontOption(axisOptions);
-  const fontScale = fontScaleFromTikzFont(font);
-  const placement = legendPlacement(axisOptions["legend pos"], geometry);
-  const rowHeight = Math.max(0.19, 0.31 * fontScale / 0.7);
-  const imageWidth = Math.max(0.28, 0.38 * fontScale / 0.7);
-  const horizontalPadding = Math.max(0.12, 0.26 * fontScale / 0.7);
-  const verticalPadding = Math.max(0.08, 0.16 * fontScale / 0.7);
-  const boxWidth = Math.max(0.85, horizontalPadding * 2 + imageWidth + 0.12 + Math.max(...entries.map((entry) => estimateLegendEntryWidth(entry, fontScale))));
-  const boxHeight = Math.max(0.28, verticalPadding + entries.length * rowHeight);
-  const box = legendBoxFromAnchor(placement.point, placement.anchor, boxWidth, boxHeight);
-  const commands = [
-    `\\draw[axis legend box, draw=black, fill=white, line width=0.2pt] ${formatAxisPoint({ x: box.left, y: box.top })} -- ${formatAxisPoint({
-      x: box.right,
-      y: box.top
-    })} -- ${formatAxisPoint({ x: box.right, y: box.bottom })} -- ${formatAxisPoint({ x: box.left, y: box.bottom })} -- cycle;`
-  ];
-  entries.forEach((entry, index) => {
-    const y = box.top - verticalPadding / 2 - rowHeight * (index + 0.5);
-    const x0 = box.left + horizontalPadding * 0.55;
-    const x1 = x0 + imageWidth;
-    const textX = x1 + Math.max(0.08, 0.12 * fontScale / 0.7);
-    const plot = addplots[index];
-    const imageStyle = joinOptions(["axis legend image", selectPlotStyle(plot?.options || {}, index), axisOptions.thick ? "thick" : ""]);
-    commands.push(`\\draw[${imageStyle}] ${formatAxisPoint({ x: x0, y })} -- ${formatAxisPoint({ x: x1, y })};`);
-    commands.push(`\\node[axis legend, anchor=west, ${font}] at ${formatAxisPoint({ x: textX, y })} {${entry.trim()}};`);
-  });
-  return commands;
-}
-
-function legendFontOption(axisOptions = {}) {
-  const style = parseOptions(axisOptions["legend style"] || "");
-  const font = style.font ? String(style.font).trim() : "";
-  return font ? `font=${font}` : "font=\\scriptsize";
-}
-
-function legendPlacement(rawPosition, geometry) {
-  const value = String(rawPosition || "north east").trim().toLowerCase();
-  const presets = {
-    "south west": { x: 0.03, y: 0.03, anchor: "south west" },
-    "south east": { x: 0.97, y: 0.03, anchor: "south east" },
-    "north west": { x: 0.03, y: 0.97, anchor: "north west" },
-    "north east": { x: 0.97, y: 0.97, anchor: "north east" },
-    "outer north east": { x: 1.03, y: 1, anchor: "north west" },
-    "south east outside": { x: 1.03, y: 0.03, anchor: "south west" }
-  };
-  const preset = presets[value] || presets["north east"];
-  return {
-    anchor: preset.anchor,
-    point: {
-      x: geometry.origin.x + geometry.width * preset.x,
-      y: geometry.origin.y + geometry.height * preset.y
-    }
-  };
-}
-
-function legendBoxFromAnchor(point, anchor, width, height) {
-  const horizontal = anchor.includes("east") ? "east" : "west";
-  const vertical = anchor.includes("south") ? "south" : "north";
-  const left = horizontal === "east" ? point.x - width : point.x;
-  const right = left + width;
-  const bottom = vertical === "north" ? point.y - height : point.y;
-  const top = bottom + height;
-  return { left, right, top, bottom };
-}
-
-function estimateLegendEntryWidth(entry, fontScale = 0.7) {
-  return Math.max(0.28, stripTexForLength(entry).length * 0.075 * (fontScale / 0.7));
-}
-
-function splitLegendEntries(raw) {
-  const entries = [];
-  let start = 0;
-  let braceDepth = 0;
-  let bracketDepth = 0;
-  let parenDepth = 0;
-  const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1");
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (char === "\\") {
-      index += 1;
-      continue;
-    }
-    if (char === "{") braceDepth += 1;
-    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
-    else if (char === "[") bracketDepth += 1;
-    else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
-    else if (char === "(") parenDepth += 1;
-    else if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
-    else if (char === "," && braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
-      entries.push(text.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  entries.push(text.slice(start).trim());
-  return entries.filter(Boolean);
-}
-
-function stripTexForLength(value) {
-  return String(value || "")
-    .replace(/\\[a-zA-Z]+\s*/g, "")
-    .replace(/[{}$]/g, "")
-    .trim();
 }
 
 function parseDomain(raw) {
@@ -11482,101 +11372,6 @@ function readExponentOperand(input, start) {
   const match = input.slice(cursor).match(/^[A-Za-z0-9_.]+/);
   if (!match) return null;
   return { start: cursor, end: cursor + match[0].length };
-}
-
-const PGFPLOTS_DEFAULT_COLORS = ["blue", "red", "brown!80!black", "black!60!green", "orange", "violet", "cyan", "magenta"];
-
-function selectPlotColor(options, plotIndex = 0) {
-  const explicit = explicitPlotColor(options);
-  if (explicit) return explicit;
-  return plotUsesCycleColor(options) ? PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length] : "black";
-}
-
-function selectPlotMarkFillColor(options, plotIndex = 0) {
-  if (options.fill && options.fill !== true) return plotColorValue(options.fill);
-  const explicit = explicitPlotColor(options);
-  const cycle = PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length];
-  if (options["pgfplots plus"]) {
-    if (!explicit || explicit === "black") return pgfplotsMarkFillColor(cycle);
-    return pgfplotsMarkFillColor(explicit);
-  }
-  return explicit || (plotUsesCycleColor(options) ? cycle : "black");
-}
-
-function pgfplotsMarkFillColor(color) {
-  const text = String(color || "").trim();
-  const equals = text.indexOf("=");
-  if (equals !== -1) {
-    const key = text.slice(0, equals);
-    const value = text.slice(equals + 1);
-    return `${key}=${pgfplotsMarkFillColor(value)}`;
-  }
-  if (!text || text.includes("!") || text.startsWith("#") || /^rgb\s*\(/i.test(text)) return text;
-  return `${text}!80!black`;
-}
-
-function explicitPlotColor(options) {
-  for (const [key, value] of Object.entries(options || {})) {
-    if (key.startsWith("pgfplots ")) continue;
-    if (value === true && isPlotColorToken(key)) {
-      return key;
-    }
-    if (key === "color" || key === "draw") return `${key}=${value}`;
-  }
-  return "";
-}
-
-function plotColorValue(color) {
-  const text = String(color || "").trim();
-  if (text.startsWith("draw=") || text.startsWith("color=") || text.startsWith("fill=")) return text.split("=").slice(1).join("=");
-  return text;
-}
-
-function plotUsesCycleColor(options = {}) {
-  return Boolean(options["pgfplots plus"] || !options["pgfplots explicit options"]);
-}
-
-function isPlotColorToken(value) {
-  const text = String(value || "").trim();
-  return (
-    /^(black|white|red|green|blue|cyan|magenta|yellow|gray|grey|orange|purple|brown|pink|violet|lime|teal|olive|lightgray|darkgray)$/i.test(text) ||
-    text.includes("!") ||
-    /^#[0-9a-f]{6}$/i.test(text) ||
-    /^rgb\s*\(/i.test(text)
-  );
-}
-
-function selectPlotStyle(options, plotIndex = 0) {
-  const parts = [selectPlotColor(options, plotIndex)];
-  if (options["line width"]) parts.push(`line width=${options["line width"]}`);
-  else if (options["very thick"]) parts.push("very thick");
-  else if (options.thick) parts.push("thick");
-  if (options["line cap"]) parts.push(`line cap=${options["line cap"]}`);
-  if (options["line join"]) parts.push(`line join=${options["line join"]}`);
-  if (options.dashed) parts.push("dashed");
-  if (options["densely dashed"]) parts.push("densely dashed");
-  if (options["loosely dashed"]) parts.push("loosely dashed");
-  if (options.dotted) parts.push("dotted");
-  if (options["densely dotted"]) parts.push("densely dotted");
-  if (options["loosely dotted"]) parts.push("loosely dotted");
-  if (options["dash pattern"]) parts.push(`dash pattern=${options["dash pattern"]}`);
-  return joinOptions(parts);
-}
-
-function selectPlotFillStyle(options, plotIndex = 0) {
-  if (options.fill && options.fill !== true) return `fill=${options.fill}`;
-  const color = selectPlotColor(options, plotIndex);
-  if (color.startsWith("draw=") || color.startsWith("color=")) return `fill=${color.split("=").slice(1).join("=")}`;
-  return `fill=${color || PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length]}`;
-}
-
-function plotFillOpacityOption(options = {}) {
-  const raw = options["fill opacity"] ?? options.opacity;
-  if (raw === undefined || raw === null || raw === true) return "";
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return "";
-  const opacity = value > 1 ? value / 100 : value;
-  return `fill opacity=${Math.max(0, Math.min(1, opacity))}`;
 }
 
 function joinOptions(parts) {

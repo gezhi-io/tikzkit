@@ -23,7 +23,13 @@ export {
   renderAxisLines,
   renderAxisTicks,
   renderDatavisualizationCleanAxes,
+  renderLegendEntries,
+  selectPlotColor,
+  selectPlotFillStyle,
+  selectPlotMarkFillColor,
+  selectPlotStyle,
   shouldRenderAxisLines,
+  splitLegendEntries,
   transformDataToCanvas
 } from "./pgfplots/index.js";
 export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";

@@ -19,6 +19,9 @@ import {
   renderAxisLines,
   renderAxisTicks,
   renderDatavisualizationCleanAxes,
+  renderLegendEntries,
+  selectPlotStyle,
+  splitLegendEntries,
   transformDataToCanvas
 } from "../src/index.js";
 
@@ -134,6 +137,29 @@ test("pgfplots label lowering emits TikZ nodes from axis geometry", () => {
   assert.ok(commands.includes(String.raw`\node[axis label, anchor=north, font=\small] at (1,-0.22) {$x$};`));
   assert.ok(commands.includes(String.raw`\node[axis label, anchor=east, font=\small, rotate=90] at (-1.1,0.5) {$y$};`));
   assert.ok(commands.includes(String.raw`\node[axis label, anchor=south] at (1,1.22) {Title};`));
+});
+
+test("pgfplots legend lowering owns legend box, samples, labels, and entry splitting", () => {
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 1 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "1cm" }, ranges);
+  const commands = renderLegendEntries(
+    { "legend entries": "{$x$,{two, words}}", "legend pos": "south east", "legend style": "font=\\tiny" },
+    ranges,
+    geometry,
+    [],
+    [{ options: { blue: true, thick: true } }, { options: { dashed: true } }]
+  );
+
+  assert.deepEqual(splitLegendEntries("{$x$,{two, words}}"), ["$x$", "{two, words}"]);
+  assert.ok(commands[0].startsWith(String.raw`\draw[axis legend box, draw=black, fill=white`));
+  assert.ok(commands.some((command) => command.includes(String.raw`\draw[axis legend image, blue, thick]`)));
+  assert.ok(commands.some((command) => command.includes(String.raw`\draw[axis legend image, red, dashed]`)));
+  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis legend, anchor=west, font=\tiny]`) && command.endsWith("{$x$};")));
+});
+
+test("pgfplots plot style helper preserves cycle colors and explicit style options", () => {
+  assert.equal(selectPlotStyle({ "pgfplots plus": true, dashed: true }, 1), "red, dashed");
+  assert.equal(selectPlotStyle({ draw: "black", "line width": "1pt", dotted: true }, 0), "draw=black, line width=1pt, dotted");
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {
