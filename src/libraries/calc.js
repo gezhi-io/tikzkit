@@ -5,8 +5,8 @@ export const tikzLibrary = {
   name: "calc",
   status: "builtin",
   implementedBy: "src/libraries/calc.js",
-  features: ["coordinate interpolation", "coordinate addition", "polar/vector offsets"],
-  implements: ["coordinate interpolation", "coordinate addition", "polar/vector offsets"]
+  features: ["coordinate interpolation", "coordinate addition", "polar/vector offsets", "scalar coordinate multiplication"],
+  implements: ["coordinate interpolation", "coordinate addition", "polar/vector offsets", "scalar coordinate multiplication"]
 };
 
 export function resolveCalcExpression(text, env, diagnostics, helpers) {
@@ -32,9 +32,7 @@ export function resolveCalcExpression(text, env, diagnostics, helpers) {
 
   const addition = splitCalcAddition(text);
   if (addition) {
-    const left = addition.left.includes("!")
-      ? resolveCalcExpression(addition.left, env, diagnostics, helpers)
-      : helpers.resolveCoordinate(addition.left, env, diagnostics);
+    const left = resolveCalcAdditionLeft(addition.left, env, diagnostics, helpers);
     const right = addition.right.includes("!")
       ? resolveCalcExpression(addition.right, env, diagnostics, helpers)
       : resolveCalcOffsetExpression(addition.right, env, diagnostics, helpers);
@@ -44,16 +42,39 @@ export function resolveCalcExpression(text, env, diagnostics, helpers) {
     });
   }
 
+  if (splitCalcScalarMultiplication(text)) {
+    return resolveCalcOffsetExpression(text, env, diagnostics, helpers);
+  }
+
   return helpers.resolveCoordinate(text, env, diagnostics);
 }
 
 export function resolveCalcOffsetExpression(text, env, diagnostics, helpers) {
   const raw = String(text || "").trim();
+  const multiplication = splitCalcScalarMultiplication(raw);
+  if (multiplication) {
+    const factor = evaluateMath(multiplication.factor, env.variables);
+    const vector = resolveCalcOffsetExpression(multiplication.coordinate, env, diagnostics, helpers);
+    return roundPoint({
+      x: vector.x * factor,
+      y: vector.y * factor
+    });
+  }
   const coordinateText = raw.startsWith("(") && raw.endsWith(")") ? raw.slice(1, -1).trim() : raw;
   if (splitTopLevel(coordinateText, ",").length >= 2 || /^.+:.+$/.test(coordinateText)) {
     return resolveLocalVectorCoordinate(coordinateText, env, diagnostics, helpers);
   }
   return helpers.resolveCoordinate(coordinateText, env, diagnostics);
+}
+
+function resolveCalcAdditionLeft(text, env, diagnostics, helpers) {
+  if (text.includes("!")) {
+    return resolveCalcExpression(text, env, diagnostics, helpers);
+  }
+  if (splitCalcScalarMultiplication(text)) {
+    return resolveCalcOffsetExpression(text, env, diagnostics, helpers);
+  }
+  return helpers.resolveCoordinate(text, env, diagnostics);
 }
 
 function resolveLocalVectorCoordinate(text, env, diagnostics, helpers) {
@@ -83,17 +104,49 @@ function resolveLocalVectorCoordinate(text, env, diagnostics, helpers) {
 
 function splitCalcAddition(text) {
   let depth = 0;
+  let braceDepth = 0;
+  let bracketDepth = 0;
   for (let i = 0; i < text.length; i += 1) {
     const char = text[i];
     if (char === "(") depth += 1;
     if (char === ")") depth -= 1;
-    if ((char === "+" || char === "-") && depth === 0) {
+    if (char === "{") braceDepth += 1;
+    if (char === "}") braceDepth -= 1;
+    if (char === "[") bracketDepth += 1;
+    if (char === "]") bracketDepth -= 1;
+    if ((char === "+" || char === "-") && depth === 0 && braceDepth === 0 && bracketDepth === 0 && i > 0) {
+      const previous = text.slice(0, i).trim().at(-1);
+      if (!previous || "+-*/^(".includes(previous)) continue;
       return {
         left: stripPointParens(text.slice(0, i).trim()),
         right: stripPointParens(text.slice(i + 1).trim()),
         sign: char === "+" ? 1 : -1
       };
     }
+  }
+  return null;
+}
+
+function splitCalcScalarMultiplication(text) {
+  let depth = 0;
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if (char === "{") braceDepth += 1;
+    if (char === "}") braceDepth -= 1;
+    if (char === "[") bracketDepth += 1;
+    if (char === "]") bracketDepth -= 1;
+    if (char !== "*" || depth !== 0 || braceDepth !== 0 || bracketDepth !== 0) continue;
+    const factor = text.slice(0, i).trim();
+    const coordinate = text.slice(i + 1).trim();
+    if (!factor || !coordinate.startsWith("(") || !coordinate.endsWith(")")) continue;
+    return {
+      factor: stripOuterBraces(factor),
+      coordinate
+    };
   }
   return null;
 }

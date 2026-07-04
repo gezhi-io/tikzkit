@@ -34,6 +34,29 @@ test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions
   assert.equal(interpreted.ir.items[0].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
 });
 
+test("resolves calc scalar multiplication of vector coordinates", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{calc}
+\begin{tikzpicture}
+  \def\thetas{5}
+  \def\thetav{0.4}
+  \draw ($(-0.25,0)+1/(1+exp(\thetas*\thetav))*(0,1)$) --
+        ($(0,0)+{0.9+-2.8*(-0.4)^2}*(1,0)$);
+  \coordinate (A) at (2,4);
+  \coordinate (B) at (4,0);
+  \draw ($0.5*(A)+0.5*(B)$) -- (0,0);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  expectClose(paths[0].commands[0].x, -0.25);
+  expectClose(paths[0].commands[0].y, 1 / (1 + Math.exp(2)));
+  expectClose(paths[0].commands[1].x, 0.9 - 2.8 * 0.4 ** 2);
+  expectClose(paths[0].commands[1].y, 0);
+  expectClose(paths[1].commands[0].x, 3);
+  expectClose(paths[1].commands[0].y, 2);
+});
+
 test("evaluates unbraced pgfmath length macros inside foreach timelines", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}
