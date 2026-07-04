@@ -16,6 +16,7 @@ export {
   parseAxisDimension,
   parseCoordinateList as parsePgfplotsCoordinateList,
   PGFPLOTS_DEFAULT_AXIS_WIDTH,
+  renderAxisGrid,
   transformDataToCanvas
 } from "./pgfplots/index.js";
 export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";

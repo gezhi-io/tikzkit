@@ -12,6 +12,7 @@ import {
   parseAxisAt,
   parseAxisDimension,
   parsePgfplotsCoordinateList,
+  renderAxisGrid,
   transformDataToCanvas
 } from "../src/index.js";
 
@@ -61,6 +62,20 @@ test("pgfplots transform, ticks, and grid are isolated semantics", () => {
   assert.deepEqual(transformDataToCanvas({ x: 5, y: 0 }, transform), { x: 11, y: 7 });
   assert.deepEqual(createAxisTickModel({ "xtick distance": 5 }, ranges).x.values, [0, 5, 10]);
   assert.equal(createAxisGridModel({ "y grid": true }).y, true);
+});
+
+test("pgfplots grid lowering emits TikZ draw primitives from axis geometry", () => {
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 1 };
+  const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "1cm" }, ranges);
+  const commands = renderAxisGrid({ grid: "major", "axis grid color": "gray!30" }, [], ranges, geometry);
+
+  assert.deepEqual(commands, [
+    String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,0) -- (0,1);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.2pt] (1,0) -- (1,1);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.2pt] (2,0) -- (2,1);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,0) -- (2,0);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.2pt] (0,1) -- (2,1);`
+  ]);
 });
 
 test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {
