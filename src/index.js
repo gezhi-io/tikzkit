@@ -6,12 +6,16 @@ export {
   axisModelToSceneGraphPlan,
   axisTickValues,
   createAddplotModel,
+  createAxisGeometry,
   createAxisGridModel,
   createAxisModel,
   createAxisTickModel,
   createDataToCanvasTransform,
   parseCoordinateAddplot,
+  parseAxisAt,
+  parseAxisDimension,
   parseCoordinateList as parsePgfplotsCoordinateList,
+  PGFPLOTS_DEFAULT_AXIS_WIDTH,
   transformDataToCanvas
 } from "./pgfplots/index.js";
 export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";

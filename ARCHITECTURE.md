@@ -95,6 +95,7 @@ src/pgfplots/
   axis.js                   # PGFPlots Axis Model seam
   axisOptions.js
   ranges.js
+  geometry.js
   ticks.js
   grid.js
   addplot.js

@@ -3,11 +3,14 @@ import test from "node:test";
 import {
   axisModelToSceneGraphPlan,
   axisTickValues,
+  createAxisGeometry,
   createAxisGridModel,
   createAxisModel,
   createAxisTickModel,
   createDataToCanvasTransform,
   parseCoordinateAddplot,
+  parseAxisAt,
+  parseAxisDimension,
   parsePgfplotsCoordinateList,
   transformDataToCanvas
 } from "../src/index.js";
@@ -58,6 +61,31 @@ test("pgfplots transform, ticks, and grid are isolated semantics", () => {
   assert.deepEqual(transformDataToCanvas({ x: 5, y: 0 }, transform), { x: 11, y: 7 });
   assert.deepEqual(createAxisTickModel({ "xtick distance": 5 }, ranges).x.values, [0, 5, 10]);
   assert.equal(createAxisGridModel({ "y grid": true }).y, true);
+});
+
+test("pgfplots geometry owns axis sizing, origin, margins, and mapping", () => {
+  const geometry = createAxisGeometry(
+    { "scale only axis": true, width: "4cm", height: "2cm", at: "(1cm,2cm)" },
+    { xMin: 0, xMax: 5, yMin: 0, yMax: 5 }
+  );
+
+  assert.equal(geometry.width, 4);
+  assert.equal(geometry.height, 2);
+  assert.deepEqual(geometry.origin, { x: 1, y: 2 });
+  assert.deepEqual(geometry.mapPoint({ x: 5, y: 5 }), { x: 5, y: 4 });
+  assert.equal(parseAxisDimension("1cm", 0), 1);
+  assert.deepEqual(parseAxisAt("{(2cm,3cm)}"), { x: 2, y: 3 });
+});
+
+test("pgfplots geometry preserves log-axis and 3D projection metadata", () => {
+  const geometry = createAxisGeometry(
+    { "scale only axis": true, width: "3cm", height: "3cm", xmode: "log", "pgfplots 3d surface": true },
+    { xMin: 1, xMax: 100, yMin: 0, yMax: 10, zMin: 0, zMax: 5 }
+  );
+
+  assert.equal(geometry.xLog, true);
+  assert.deepEqual(geometry.mapPoint({ x: 10, y: 5 }), { x: 1.5, y: 1.5 });
+  assert.ok(Number.isFinite(geometry.mapPoint3d({ x: 10, y: 5, z: 2 }).x));
 });
 
 test("pgfplots ticks and coordinate parsing preserve preprocess behavior", () => {
