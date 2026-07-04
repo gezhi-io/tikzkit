@@ -67,6 +67,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = replaceDefinedColorUses(colorResult.source, colorResult.colors);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
+  expanded = expandTexNewifConditionals(expanded);
   expanded = expandBraidMacros(expanded, diagnostics);
   expanded = terminatePgfTransformStatements(expanded);
   expanded = applyPreprocessExtensions(expanded, {
@@ -1613,6 +1614,120 @@ function expandTexLiteMacros(source, diagnostics, options) {
     withoutDefinitions = next;
   }
   return { source: withoutDefinitions, macros };
+}
+
+function expandTexNewifConditionals(source) {
+  return expandTexNewifConditionalsWithState(String(source || ""), new Map());
+}
+
+function expandTexNewifConditionalsWithState(source, states) {
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith("\\newif", index)) {
+      const parsed = parseNewifDeclaration(source, index);
+      if (parsed) {
+        states.set(parsed.name, false);
+        index = parsed.end;
+        continue;
+      }
+    }
+    const assignment = parseNewifAssignment(source, index, states);
+    if (assignment) {
+      states.set(assignment.name, assignment.value);
+      index = assignment.end;
+      continue;
+    }
+    const conditional = parseNewifConditional(source, index, states);
+    if (conditional) {
+      const selected = conditional.value ? conditional.thenSource : conditional.elseSource;
+      output += expandTexNewifConditionalsWithState(selected, states);
+      index = conditional.end;
+      continue;
+    }
+    output += source[index];
+    index += 1;
+  }
+  return output;
+}
+
+function parseNewifDeclaration(source, start) {
+  let index = skipWhitespace(source, start + "\\newif".length);
+  if (!source.startsWith("\\if", index)) return null;
+  const name = readCommandName(source, index + 3);
+  if (!name?.value) return null;
+  return {
+    name: name.value,
+    end: name.end
+  };
+}
+
+function parseNewifAssignment(source, start, states) {
+  if (source[start] !== "\\") return null;
+  const command = readCommandName(source, start + 1);
+  if (!command?.value) return null;
+  const match = command.value.match(/^(.+?)(true|false)$/);
+  if (!match || !states.has(match[1])) return null;
+  return {
+    name: match[1],
+    value: match[2] === "true",
+    end: command.end
+  };
+}
+
+function parseNewifConditional(source, start, states) {
+  const name = readNewifConditionalName(source, start, states);
+  if (!name) return null;
+  const branches = splitNewifConditionalBranches(source, name.end, states);
+  if (!branches) return null;
+  return {
+    ...branches,
+    value: Boolean(states.get(name.value))
+  };
+}
+
+function readNewifConditionalName(source, start, states) {
+  if (!source.startsWith("\\if", start)) return null;
+  const command = readCommandName(source, start + 3);
+  if (!command?.value || !states.has(command.value)) return null;
+  return command;
+}
+
+function splitNewifConditionalBranches(source, start, states) {
+  let depth = 0;
+  let elseStart = -1;
+  let elseEnd = -1;
+  for (let index = start; index < source.length; index += 1) {
+    if (source[index] !== "\\") continue;
+    if (readNewifConditionalName(source, index, states)) {
+      depth += 1;
+      continue;
+    }
+    if (source.startsWith("\\else", index) && isTeXCommandBoundary(source, index + "\\else".length) && depth === 0 && elseStart === -1) {
+      elseStart = index;
+      elseEnd = index + "\\else".length;
+      index = elseEnd - 1;
+      continue;
+    }
+    if (source.startsWith("\\fi", index) && isTeXCommandBoundary(source, index + "\\fi".length)) {
+      if (depth > 0) {
+        depth -= 1;
+        index += "\\fi".length - 1;
+        continue;
+      }
+      const fiEnd = index + "\\fi".length;
+      return {
+        thenSource: (elseStart === -1 ? source.slice(start, index) : source.slice(start, elseStart)).trim(),
+        elseSource: elseStart === -1 ? "" : source.slice(elseEnd, index).trim(),
+        end: fiEnd
+      };
+    }
+  }
+  return null;
+}
+
+function isTeXCommandBoundary(source, index) {
+  return !/[A-Za-z@]/.test(source[index] || "");
 }
 
 function collectMacroDefinitions(source, macros, diagnostics) {

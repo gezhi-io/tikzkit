@@ -60,6 +60,34 @@ test("expands Walmes ifthenelse length tests inside foreach bodies", () => {
   assert.ok(Math.abs(paths[0].commands[0].x - 1) < 1e-9);
 });
 
+test("expands Walmes newif boolean branches before parsing TikZ statements", () => {
+  const { diagnostics, ir } = convert(String.raw`
+\newif\ifopacity
+\newif\ifshow
+\begin{tikzpicture}
+\ifopacity
+  \draw (0,0) -- (1,0);
+\else
+  \draw (0,1) -- (1,1);
+\fi
+\opacitytrue
+\ifopacity
+  \draw (0,2) -- (1,2);
+\else
+  \draw (0,3) -- (1,3);
+\fi
+\showtrue
+\ifshow
+  \draw (0,4) -- (1,4);
+\fi
+\end{tikzpicture}`);
+  const paths = ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 3);
+  assert.deepEqual(paths.map((path) => path.commands[0].y), [1, 2, 4]);
+});
+
 test("parses clip as a legal non-drawing TikZ path command", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}
