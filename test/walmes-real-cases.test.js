@@ -10,9 +10,9 @@ import {
 } from "../scripts/walmes-real-cases.js";
 
 const BASELINE = {
-  maxCasesWithDiagnostics: 47,
-  maxTotalDiagnostics: 222,
-  minZeroDiagnosticCases: 264
+  maxCasesWithDiagnostics: 46,
+  maxTotalDiagnostics: 214,
+  minZeroDiagnosticCases: 265
 };
 
 test("loads every Walmes/Tikz pgf drawing from the local corpus", async (t) => {

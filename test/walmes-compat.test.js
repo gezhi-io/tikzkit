@@ -40,6 +40,26 @@ test("evaluates pgfmathtruncatemacro variables used by Walmes color gradients", 
   assert.ok(ir.items.some((item) => item.style?.fill === "rgb(128 0 128)"));
 });
 
+test("expands Walmes ifthenelse length tests inside foreach bodies", () => {
+  const { diagnostics, ir } = convert(String.raw`
+\begin{tikzpicture}
+  \foreach \x in {1.0, 3.5, 6}{
+    \ifthenelse{\lengthtest{\x pt=1 pt}}{
+      \draw[align=center] (\x,0) edge[->] +(0,1)
+        node[above] {90\% \\ quantile};
+    }{
+    }
+  }
+\end{tikzpicture}`);
+  const paths = ir.items.filter((item) => item.type === "path");
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.text.includes("quantile"));
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 1);
+  assert.equal(labels.length, 1);
+  assert.ok(Math.abs(paths[0].commands[0].x - 1) < 1e-9);
+});
+
 test("parses clip as a legal non-drawing TikZ path command", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}

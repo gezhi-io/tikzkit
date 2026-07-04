@@ -351,8 +351,11 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
       });
       applyForeachOptions(childVariables, statement.options || {}, foreachIndex, env);
       const childEnv = { ...env, variables: childVariables };
-      const children = statement.bodySource && String(statement.bodySource).includes("\\ifcase")
-        ? parseStatements(expandIfCaseConditionals(substituteTextVariables(statement.bodySource, childVariables)), diagnostics)
+      const substitutedBodySource = statement.bodySource
+        ? substituteTextVariables(statement.bodySource, childVariables)
+        : "";
+      const children = statement.bodySource && hasDynamicForeachConditionals(substitutedBodySource)
+        ? parseStatements(expandDynamicForeachConditionals(substitutedBodySource, childVariables), diagnostics)
         : statement.body;
       for (const child of children) interpretStatement(child, childEnv, ir, diagnostics, options);
       foreachIndex += 1;
@@ -488,6 +491,15 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   }
 }
 
+function hasDynamicForeachConditionals(source) {
+  const text = String(source || "");
+  return text.includes("\\ifcase") || text.includes("\\ifthenelse");
+}
+
+function expandDynamicForeachConditionals(source, variables = {}) {
+  return expandIfThenElseConditionals(expandIfCaseConditionals(source), variables);
+}
+
 function expandIfCaseConditionals(source) {
   let output = "";
   let cursor = 0;
@@ -509,6 +521,88 @@ function expandIfCaseConditionals(source) {
     cursor = parsed.end;
   }
   return output;
+}
+
+function expandIfThenElseConditionals(source, variables = {}) {
+  let output = "";
+  let cursor = 0;
+  const marker = "\\ifthenelse";
+  while (cursor < source.length) {
+    const start = source.indexOf(marker, cursor);
+    if (start === -1) {
+      output += source.slice(cursor);
+      break;
+    }
+    output += source.slice(cursor, start);
+    const parsed = parseIfThenElseConditional(source, start, variables);
+    if (!parsed) {
+      output += marker;
+      cursor = start + marker.length;
+      continue;
+    }
+    output += parsed.selected;
+    cursor = parsed.end;
+  }
+  return output;
+}
+
+function parseIfThenElseConditional(source, start, variables = {}) {
+  let cursor = skipLocalWhitespace(source, start + "\\ifthenelse".length);
+  const condition = extractBalanced(source, cursor, "{", "}");
+  if (!condition) return null;
+  cursor = skipLocalWhitespace(source, condition.end);
+  const thenBranch = extractBalanced(source, cursor, "{", "}");
+  if (!thenBranch) return null;
+  cursor = skipLocalWhitespace(source, thenBranch.end);
+  const elseBranch = extractBalanced(source, cursor, "{", "}");
+  if (!elseBranch) return null;
+  return {
+    selected: evaluateIfThenElseCondition(condition.content, variables) ? thenBranch.content : elseBranch.content,
+    end: elseBranch.end
+  };
+}
+
+function evaluateIfThenElseCondition(raw, variables = {}) {
+  const condition = stripOuterBraces(String(raw || "").trim());
+  if (condition.startsWith("\\lengthtest")) {
+    const group = extractBalanced(condition, skipLocalWhitespace(condition, "\\lengthtest".length), "{", "}");
+    return group ? evaluateLengthTest(group.content, variables) : false;
+  }
+  if (condition.startsWith("\\equal")) {
+    let cursor = skipLocalWhitespace(condition, "\\equal".length);
+    const left = extractBalanced(condition, cursor, "{", "}");
+    if (!left) return false;
+    cursor = skipLocalWhitespace(condition, left.end);
+    const right = extractBalanced(condition, cursor, "{", "}");
+    if (!right) return false;
+    return substituteTextVariables(left.content, variables).trim() === substituteTextVariables(right.content, variables).trim();
+  }
+  return Math.abs(evaluateMath(condition, variables)) > 1e-12;
+}
+
+function evaluateLengthTest(raw, variables = {}) {
+  const expression = substituteTextVariables(String(raw || "").trim(), variables);
+  const operator = findLengthTestOperator(expression);
+  if (!operator) return false;
+  const left = parseDimension(expression.slice(0, operator.index).trim(), variables);
+  const right = parseDimension(expression.slice(operator.index + operator.value.length).trim(), variables);
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return false;
+  if (operator.value === "<") return left < right;
+  if (operator.value === ">") return left > right;
+  return Math.abs(left - right) < 1e-9;
+}
+
+function findLengthTestOperator(expression) {
+  let depth = 0;
+  for (let index = 0; index < expression.length; index += 1) {
+    const char = expression[index];
+    if (char === "{" || char === "(" || char === "[") depth += 1;
+    else if (char === "}" || char === ")" || char === "]") depth = Math.max(0, depth - 1);
+    else if (depth === 0 && ["=", "<", ">"].includes(char)) {
+      return { value: char, index };
+    }
+  }
+  return null;
 }
 
 function parseIfCaseConditional(source, start) {
