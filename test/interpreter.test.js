@@ -34,6 +34,13 @@ test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions
   assert.equal(interpreted.ir.items[0].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
 });
 
+test("evaluates dimension expressions with units inside arithmetic", () => {
+  expectClose(parseDimension("{1.3cm*0.3}"), 0.39);
+  expectClose(parseDimension("{{(1.3cm)*0.3}}"), 0.39);
+  expectClose(parseDimension("1cm+2pt"), 1 + 2 / 28.4527559);
+  expectClose(parseDimension("1cm-2pt"), 1 - 2 / 28.4527559);
+});
+
 test("resolves calc scalar multiplication of vector coordinates", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{calc}
@@ -953,6 +960,25 @@ test("supports compact elliptical arc radii with negative x radius", () => {
   assert.ok(arc, "expected compact elliptical arc to produce an arc path");
   assert.ok(Math.min(...xs) < 2.15, `expected negative x radius to bow left, got x values ${xs.join(",")}`);
   assert.ok(Math.max(...ys) > 2.95, `expected arc to reach top y near 3, got y values ${ys.join(",")}`);
+});
+
+test("supports macro-expanded dimension expressions in polar coordinates and arc radii", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \newcommand\R{1.3cm}
+  \draw[fill=green!15] (0,0) -- (170:{\R*0.3}) arc (170:45:{{(\R)*0.3}});
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const arc = result.ir.items.find((item) => item.type === "path" && item.shape === "arc");
+  const radial = result.ir.items.find((item) => item.type === "path" && item.shape !== "arc");
+  const arcPoints = arc?.commands?.filter((command) => command.type === "lineTo") || [];
+  const radialEnd = radial?.commands?.find((command) => command.type === "lineTo");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(arc, "expected macro dimension expression to produce an arc path");
+  assert.ok(radialEnd && Math.hypot(radialEnd.x, radialEnd.y) > 0.35, `expected polar radius near 0.39cm, got ${JSON.stringify(radialEnd)}`);
+  assert.ok(arcPoints.some((point) => Math.hypot(point.x, point.y) > 0.35), `expected nonzero arc points, got ${JSON.stringify(arcPoints)}`);
 });
 
 test("supports TikZ orthogonal path operators with inline labels", () => {

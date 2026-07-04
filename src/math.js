@@ -59,17 +59,16 @@ export function evaluateMath(input, variables = {}) {
 }
 
 export function parseDimension(input, variables = {}) {
-  const text = substituteVariables(input, variables).replace(/\{\}/g, "").trim();
+  const text = stripBalancedOuterBraces(substituteVariables(input, variables).replace(/\{\}/g, "").trim());
+  const normalizedExpression = normalizeDimensionExpression(text);
+  if (normalizedExpression !== text) {
+    const value = evaluateMath(normalizedExpression, variables);
+    return Number.isFinite(value) ? value : 0;
+  }
   const match = text.match(/^\{?([^a-zA-Z}]*)\}?\s*(cm|mm|pt|em|ex|in)?$/);
   if (!match) return evaluateMath(text, variables);
   const value = evaluateMath(match[1], variables);
-  const unit = match[2] || "cm";
-  if (unit === "mm") return value / 10;
-  if (unit === "pt") return value / 28.4527559;
-  if (unit === "em") return value * (10 / 28.4527559);
-  if (unit === "ex") return value * (4.30554 / 28.4527559);
-  if (unit === "in") return value * 2.54;
-  return value;
+  return convertDimensionUnit(value, match[2] || "cm");
 }
 
 export function roundPoint(point, places = 12) {
@@ -111,6 +110,45 @@ function normalizeMathExpression(input) {
     .replace(/(?<!\.)\bsin\s*\(/g, "Math.sin((Math.PI/180)*")
     .replace(/(?<!\.)\bcos\s*\(/g, "Math.cos((Math.PI/180)*")
     .replace(/(?<!\.)\btan\s*\(/g, "Math.tan((Math.PI/180)*");
+}
+
+function normalizeDimensionExpression(input) {
+  return String(input || "").replace(/([-+]?(?:\d+\.?\d*|\.\d+))\s*(cm|mm|pt|em|ex|in)\b/g, (_match, value, unit, offset) => {
+    const converted = String(convertDimensionUnit(Number(value), unit));
+    return value.startsWith("+") && offset > 0 ? `+${converted}` : converted;
+  });
+}
+
+function convertDimensionUnit(value, unit) {
+  if (!Number.isFinite(value)) return 0;
+  if (unit === "mm") return value / 10;
+  if (unit === "pt") return value / 28.4527559;
+  if (unit === "em") return value * (10 / 28.4527559);
+  if (unit === "ex") return value * (4.30554 / 28.4527559);
+  if (unit === "in") return value * 2.54;
+  return value;
+}
+
+function stripBalancedOuterBraces(input) {
+  let text = String(input || "").trim();
+  while (text.startsWith("{") && text.endsWith("}") && outerBracesWrapWholeInput(text)) {
+    text = text.slice(1, -1).trim();
+  }
+  return text;
+}
+
+function outerBracesWrapWholeInput(text) {
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && index < text.length - 1) return false;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
 }
 
 function gammaLanczos(z) {
