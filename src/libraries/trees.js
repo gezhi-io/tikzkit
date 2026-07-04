@@ -5,13 +5,21 @@ export const tikzLibrary = {
   "features": [
     "node child trees",
     "grow direction",
+    "grow cyclic",
     "level distance",
-    "sibling distance"
+    "sibling distance",
+    "sibling angle",
+    "clockwise/counterclockwise from",
+    "focused TCS logo macro expansion"
   ],
   "implements": [
     "node child trees",
     "grow direction",
+    "grow cyclic",
     "level distance",
-    "sibling distance"
+    "sibling distance",
+    "sibling angle",
+    "clockwise/counterclockwise from",
+    "focused TCS logo macro expansion"
   ]
 };

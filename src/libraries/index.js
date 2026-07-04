@@ -20,6 +20,11 @@ import { tikzLibrary as decorationsMarkingsLibrary } from "./decorations.marking
 import { tikzLibrary as decorationsPathmorphingLibrary } from "./decorations.pathmorphing.js";
 import { tikzLibrary as decorationsPathreplacingLibrary } from "./decorations.pathreplacing.js";
 import { tikzLibrary as decorationsTextLibrary } from "./decorations.text.js";
+import { tikzLibrary as datavisualizationBarchartsLibrary } from "./datavisualization.barcharts.js";
+import { tikzLibrary as datavisualizationLibrary } from "./datavisualization.js";
+import { tikzLibrary as datavisualizationFormatsFunctionsLibrary } from "./datavisualization.formats.functions.js";
+import { tikzLibrary as datavisualizationPolarLibrary } from "./datavisualization.polar.js";
+import { tikzLibrary as datavisualizationSparklinesLibrary } from "./datavisualization.sparklines.js";
 import { tikzLibrary as extPathsArctoLibrary } from "./ext.paths.arcto.js";
 import { tikzLibrary as extPathsOrthoLibrary } from "./ext.paths.ortho.js";
 import { tikzLibrary as extShapesCirclecrosssplitLibrary } from "./ext.shapes.circlecrosssplit.js";
@@ -77,6 +82,11 @@ const tikzLibraries = Object.freeze([
   circuitsEeIECLibrary,
   circuitsPidLibrary,
   circuitsPidISO14617Library,
+  datavisualizationLibrary,
+  datavisualizationBarchartsLibrary,
+  datavisualizationFormatsFunctionsLibrary,
+  datavisualizationPolarLibrary,
+  datavisualizationSparklinesLibrary,
   decorationsLibrary,
   decorationsMarkingsLibrary,
   decorationsPathmorphingLibrary,

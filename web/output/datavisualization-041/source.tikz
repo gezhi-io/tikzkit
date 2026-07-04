@@ -1,0 +1,8 @@
+\usetikzlibrary { datavisualization.polar }
+\tikz \datavisualization
+    [new polar axes={angle axis}{radius axis},
+     radius axis={length=2cm},
+     visualize as scatter]
+  data [format=named] {
+    angle={0,20,...,160}, radius={0,...,5}
+  };

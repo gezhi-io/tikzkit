@@ -1,0 +1,12 @@
+\usetikzlibrary {datavisualization}
+\tikz \datavisualization [
+  school book axes, visualize as line/.list={a,b},
+  style sheet=vary dashing,
+  a={label in legend={text=a}},
+  new legend entry={
+    text=spacer,
+    visualizer in legend={\draw[solid] (0,0) circle[radius=2pt];}
+  },
+  b={label in legend={text=b}}]
+data point [x=-1, y=-1, set=a]   data point [x=1, y=0, set=a]
+data point [x=-1, y=1,  set=b]   data point [x=1, y=0.5, set=b];

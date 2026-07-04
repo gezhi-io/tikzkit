@@ -159,6 +159,7 @@ const DOC_CANDIDATES = {
 };
 
 const LOCAL_SOURCE_REVIEWED = {
+  "tikzlibrary:arrows": "yes",
   "tikzlibrary:decorations.text": "yes",
   "tikzlibrary:decorations.pathreplacing": "yes",
   "tikzlibrary:intersections": "yes",

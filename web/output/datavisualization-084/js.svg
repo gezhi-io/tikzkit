@@ -1,0 +1,15 @@
+<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-5 -306 313 320.1">
+  <rect class="tikz-background" x="-5" y="-306" width="313" height="320.1" fill="white" />
+  <path d="M -4 6 L 308 6 L 308 -306 L -4 -306 Z" stroke="none" fill="none" stroke-width="1.4058392143307286" />
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 298.594161 0" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-to" d="M -4.204057 5.601123 C -3.434715 2.240449 -1.719459 0.64973 0 0 C -1.719459 -0.64973 -3.434715 -2.240449 -4.204057 -5.601123" fill="none" stroke="black" stroke-width="1.405839" stroke-linecap="round" stroke-linejoin="round" transform="translate(300 0) rotate(0)" /></g>
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 0 -298.594161" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-to" d="M -4.204057 5.601123 C -3.434715 2.240449 -1.719459 0.64973 0 0 C -1.719459 -0.64973 -3.434715 -2.240449 -4.204057 -5.601123" fill="none" stroke="black" stroke-width="1.405839" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -300) rotate(-90)" /></g>
+  <path d="M 0 14.1 L 0 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 50 14.1 L 50 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 100 14.1 L 100 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 150 14.1 L 150 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 200 14.1 L 200 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 250 14.1 L 250 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 300 14.1 L 300 -14.1" stroke="rgb(255 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M -5 5 L 5 -5 M -5 -5 L 5 5" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 295 -295 L 305 -305 M 295 -305 L 305 -295" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+</svg>

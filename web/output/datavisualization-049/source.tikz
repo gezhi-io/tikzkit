@@ -1,0 +1,17 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization [
+  scientific axes,
+  visualize as smooth line/.list={a,b},
+  legend={label style=text colored},
+  a={label in legend={text=$a$}},
+  b={label in legend={text=$b$}},
+  style sheet=strong colors,
+  data/format=function]
+data [set=a] {
+  var x : interval [0:2] samples 20;
+  func y = \value x;
+}
+data [set=b] {
+  var x : interval [0:2] samples 20;
+  func y = 2-\value x;
+};

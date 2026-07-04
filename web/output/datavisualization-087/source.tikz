@@ -1,0 +1,27 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization [
+  scientific axes, x axis={label=$x$},
+  visualize as smooth line/.list={log, lin, squared, exp},
+  legend={anchor=north west, at=(data visualization bounding box.north east)},
+  log={label in legend={text=$\log x$}},
+  lin={label in legend={text=$x/2$}},
+  squared={label in legend={text=$x^2$}},
+  exp={label in legend={text=$e^x$}},
+  style sheet=vary dashing,
+  data/format=function]
+data [set=log] {
+  var x : interval [0.2:2.5] samples 30;
+  func y = ln(\value x);
+}
+data [set=lin] {
+  var x : interval [-2:2.5] samples 30;
+  func y = 0.5*\value x;
+}
+data [set=squared] {
+  var x : interval [-1.5:1.5] samples 30;
+  func y = \value x*\value x;
+}
+data [set=exp] {
+  var x : interval [-2.5:1] samples 30;
+  func y = exp(\value x);
+};

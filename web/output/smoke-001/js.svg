@@ -1,0 +1,8 @@
+<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-31.5 -194.714155 285.214155 213.214155">
+  <rect class="tikz-background" x="-31.5" y="-194.714155" width="285.214155" height="213.214155" fill="white" />
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 197.188322 0" stroke="black" fill="none" stroke-width="2.811678428661457" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-to" d="M -7.422147 9.533202 C -6.063894 3.813281 -3.035658 1.105851 0 0 C -3.035658 -1.105851 -6.063894 -3.813281 -7.422147 -9.533202" fill="none" stroke="black" stroke-width="2.811678" stroke-linecap="round" stroke-linejoin="round" transform="translate(200 0) rotate(0)" /></g>
+  <text x="222.214155" y="0" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="35.14598" font-style="italic" font-family="KaTeX_Main, 'Times New Roman', Times, serif">x</text>
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 0 -147.188322" stroke="black" fill="none" stroke-width="2.811678428661457" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-to" d="M -7.422147 9.533202 C -6.063894 3.813281 -3.035658 1.105851 0 0 C -3.035658 -1.105851 -6.063894 -3.813281 -7.422147 -9.533202" fill="none" stroke="black" stroke-width="2.811678" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -150) rotate(-90)" /></g>
+  <text x="0" y="-176.214155" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="35.14598" font-style="italic" font-family="KaTeX_Main, 'Times New Roman', Times, serif">y</text>
+  <path d="M 0 0 L 150 -100" stroke="blue" fill="none" stroke-width="2.811678428661457" stroke-linecap="butt" stroke-linejoin="miter" />
+</svg>

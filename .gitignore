@@ -29,6 +29,8 @@ coverage/
 
 # Generated TikZ/gallery artifacts
 outputs/
+outputs_back/
+web_bak/
 work/
 
 # TeX/MacTeX auxiliary files

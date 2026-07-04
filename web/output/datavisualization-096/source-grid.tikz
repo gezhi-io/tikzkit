@@ -1,0 +1,20 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization [
+  scientific axes=clean,
+  visualize as smooth line/.list={series, reference},
+  legend={south east outside},
+  series={style={blue}, label in legend={text=series,
+    visualizer in legend style={red, line width=1.5pt}}},
+  reference={style={black, densely dashed}, label in legend={text=reference}},
+  data/format=function]
+data [set=series] {
+  var x : interval [0:2] samples 9;
+  func y = \value x;
+}
+data [set=reference] {
+  var x : interval [0:2] samples 9;
+  func y = 1.2 - 0.3*\value x;
+};
+\end{tikzpicture}

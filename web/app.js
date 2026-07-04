@@ -1,530 +1,236 @@
-import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
-import { withGalleryDebugGrid } from "../scripts/gallery-debug-grid.js";
-import { buildCaseInsights, diffSeverity } from "./gallery-analysis.js";
-import { jsCompareScale } from "./gallery-compare-scale.js";
-import { createEmptyGalleryReportIndexes, createGalleryReportIndexes, reportForCase } from "./gallery-report-matching.js";
-import { createGalleryMarkdown, createSampleGallery } from "./sample-gallery.js";
-import { REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY } from "./real-gallery-data.js";
+import { findTikzCaseIndexByHash, parseTikzCasesMarkdown } from "./cases-md.js";
+import { inferSvgGridStep, parseViewBoxWidth, svgPhysicalWidthPx } from "./svg-display-scale.js";
 
-let galleryReports = createEmptyGalleryReportIndexes();
-let activeCases = REAL_GALLERY_CASES;
-let activeSummary = REAL_GALLERY_SUMMARY;
-let activeSample = createSampleGallery();
-let activeCorpusId = "core";
-
-const input = document.querySelector("#source-input");
-const preview = document.querySelector("#preview");
+const caseSelect = document.querySelector("#case-select");
+const sourceInput = document.querySelector("#source-input");
 const renderButton = document.querySelector("#render-button");
-const resetButton = document.querySelector("#reset-button");
-const strictMode = document.querySelector("#strict-mode");
-const sourceCount = document.querySelector("#source-count");
+const preview = document.querySelector("#preview");
+const diagnostics = document.querySelector("#diagnostics");
 const statusLine = document.querySelector("#status-line");
-const gallerySourceSelect = document.querySelector("#gallery-source-select");
-const gallerySourceStatus = document.querySelector("#gallery-source-status");
-const resultsViewButton = document.querySelector("#results-view-button");
-const sourceViewButton = document.querySelector("#source-view-button");
-const workspace = document.querySelector(".workspace");
+const caseTitle = document.querySelector("#case-title");
+const previewPane = document.querySelector(".preview-pane");
+const outputArtifacts = document.querySelector("#output-artifacts");
+const lineNumbers = document.querySelector("#line-numbers");
 
-input.value = activeSample;
-renderButton.addEventListener("click", renderEditor);
-resetButton.addEventListener("click", () => {
-  input.value = activeSample;
-  renderEditor();
-});
-input.addEventListener("input", debounce(renderEditor, 180));
-strictMode.addEventListener("change", renderEditor);
-gallerySourceSelect.addEventListener("change", loadSelectedGallerySource);
-resultsViewButton.addEventListener("click", () => setWorkspaceView("results"));
-sourceViewButton.addEventListener("click", () => setWorkspaceView("source"));
-preview.addEventListener("click", handlePreviewClick);
+let cases = [];
+let activeCase = null;
 
-setWorkspaceView("results");
-renderEditor();
-loadCorpusOptions().then(() => loadSelectedGallerySource());
-loadGalleryReports();
-renderTikzBlocks(document);
-
-export function renderTikzBlocks(root = document, options = {}) {
-  const blocks = root.querySelectorAll("pre code.language-tikz, pre code.tikz, pre code[class*='language-tikz']");
-  for (const block of blocks) {
-    const pre = block.closest("pre");
-    if (!pre || pre.dataset.tikzRendered === "true") continue;
-    const figure = renderTikzFigure(block.textContent, options);
-    pre.replaceWith(figure);
-  }
-}
-
-function renderEditor() {
-  const parts = splitTikzCodeBlocks(input.value);
-  const tikzCount = parts.filter((part) => part.type === "tikz").length;
-  let tikzIndex = 0;
-  sourceCount.textContent = `${tikzCount} block${tikzCount === 1 ? "" : "s"}`;
-  preview.replaceChildren(
-    ...parts.map((part) => {
-      if (part.type !== "tikz") return renderPart(part);
-      tikzIndex += 1;
-      const galleryCase = activeCases[tikzIndex - 1];
-      return renderTikzFigure(part.content, {
-        strict: strictMode.checked,
-        galleryReport: activeCorpusId === "core" ? reportForCase(tikzIndex, galleryCase, galleryReports) : {},
-        caseId: String(tikzIndex).padStart(3, "0")
-      });
+async function boot() {
+  const markdown = await fetch("/web/cases.md", { cache: "no-store" }).then((response) => response.text());
+  cases = parseTikzCasesMarkdown(markdown);
+  caseSelect.replaceChildren(
+    ...cases.map((item, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${item.id} - ${item.title}`;
+      return option;
     })
   );
-  const totalDiagnostics = [...preview.querySelectorAll(".tikz-figure")].reduce(
-    (sum, figure) => sum + Number(figure.dataset.diagnosticsCount || 0),
-    0
-  );
-  statusLine.textContent = `${tikzCount} rendered · ${totalDiagnostics} diagnostics${formatOverallDiffStatus(tikzCount)}`;
-}
 
-async function loadCorpusOptions() {
-  try {
-    const payload = await fetchJson("/api/corpora");
-    const corpora = payload?.corpora || [];
-    gallerySourceSelect.replaceChildren();
-    for (const corpus of corpora) {
-      const option = document.createElement("option");
-      option.value = corpus.id;
-      option.disabled = !corpus.available;
-      option.textContent = `${corpus.label} (${corpus.available ? `~${corpus.expectedCount}` : "missing"})`;
-      gallerySourceSelect.append(option);
-    }
-    gallerySourceStatus.textContent = "core · loading merged gallery";
-  } catch (error) {
-    gallerySourceStatus.textContent = `corpus list failed: ${error instanceof Error ? error.message : String(error)}`;
-  }
-}
+  const hashIndex = findTikzCaseIndexByHash(cases, window.location.hash);
+  if (hashIndex >= 0) caseSelect.value = String(hashIndex);
 
-async function loadSelectedGallerySource() {
-  gallerySourceSelect.disabled = true;
-  gallerySourceStatus.textContent = "loading merged core";
-  try {
-    const payload = await fetchJson("/api/corpora/core");
-    if (!payload?.available) {
-      setActiveGallerySource("core", REAL_GALLERY_CASES, REAL_GALLERY_SUMMARY, "core gallery fallback");
-      return;
-    }
-    setActiveGallerySource(
-      "core",
-      payload.cases || [],
-      payload.summary || { origins: [payload.origin], caseCount: payload.cases?.length || 0 },
-      "core gallery"
-    );
-  } catch (error) {
-    gallerySourceStatus.textContent = `load failed: ${error instanceof Error ? error.message : String(error)}`;
-  } finally {
-    gallerySourceSelect.disabled = false;
-  }
-}
-
-function setActiveGallerySource(id, cases, summary, label) {
-  activeCorpusId = id;
-  activeCases = cases;
-  activeSummary = summary;
-  activeSample = createGalleryMarkdown(activeCases, activeSummary);
-  input.value = activeSample;
-  gallerySourceStatus.textContent = `${label} · ${formatMergedCaseCount(activeCases.length, activeSummary)}`;
-  renderEditor();
-}
-
-function formatMergedCaseCount(count, summary = {}) {
-  const rawCount = Number(summary.rawCaseCount || count);
-  const duplicatesRemoved = Number(summary.duplicatesRemoved || 0);
-  if (duplicatesRemoved > 0) return `${count} cases · ${rawCount} raw · ${duplicatesRemoved} duplicates removed`;
-  return `${count} cases`;
-}
-
-function renderPart(part) {
-  if (part.type === "tikz") return renderTikzFigure(part.content, { strict: strictMode.checked });
-  const section = document.createElement("section");
-  section.className = "text-part";
-  section.innerHTML = renderText(part.content);
-  return section;
-}
-
-function renderTikzFigure(source, options = {}) {
-  const figure = document.createElement("figure");
-  figure.className = "tikz-figure";
-  if (options.caseId) figure.dataset.caseId = options.caseId;
-
-  const renderSource = options.debugGrid === false ? source : withGalleryDebugGrid(source);
-  const result = tikzToSvg(renderSource, options);
-  figure.dataset.diagnosticsCount = String(result.diagnostics.length);
-  const hasBlockingDiagnostic =
-    options.strict && result.diagnostics.some((diagnostic) => diagnostic.severity === "warning" || diagnostic.severity === "error");
-
-  const surface = createCaseViewer(source, result, options.galleryReport, {
-    blocked: hasBlockingDiagnostic,
-    caseId: options.caseId
+  caseSelect.addEventListener("change", () => loadSelectedCase({ updateHash: true }));
+  window.addEventListener("hashchange", loadCaseFromHash);
+  renderButton.addEventListener("click", render);
+  sourceInput.addEventListener("input", () => {
+    updateLineNumbers();
+    statusLine.textContent = "edited";
   });
+  sourceInput.addEventListener("scroll", syncLineNumberScroll);
 
-  const caption = document.createElement("figcaption");
-  caption.append(createDiagnostics(result.diagnostics, options.galleryReport));
-
-  figure.append(surface, caption);
-  return figure;
+  loadSelectedCase({ updateHash: false });
 }
 
-function createCaseViewer(source, result, galleryReport = {}, options = {}) {
-  const viewer = document.createElement("div");
-  viewer.className = "case-viewer";
-  viewer.dataset.activeView = "compare";
+function loadCaseFromHash() {
+  const index = findTikzCaseIndexByHash(cases, window.location.hash);
+  if (index < 0 || caseSelect.value === String(index)) return;
+  caseSelect.value = String(index);
+  loadSelectedCase({ updateHash: false });
+}
 
-  const toolbar = document.createElement("div");
-  toolbar.className = "case-toolbar";
-  for (const [view, label] of [
-    ["compare", "对比"],
-    ["render", "JS 渲染"],
-    ["native", "Native"],
-    ["diff", "Diff"],
-    ["source", "源码"],
-    ["analysis", "分析"]
-  ]) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `case-tab${view === "compare" ? " active" : ""}`;
-    button.dataset.view = view;
-    button.textContent = label;
-    toolbar.append(button);
+function loadSelectedCase(options = {}) {
+  const item = cases[Number(caseSelect.value) || 0] || cases[0];
+  activeCase = item || null;
+  sourceInput.value = item?.source?.trim() || "";
+  caseTitle.textContent = item ? `${item.id} - ${item.title}` : "No case";
+  document.body.dataset.activeCase = item?.id || "";
+  if (previewPane) {
+    if (item?.id) {
+      previewPane.id = item.id;
+    } else {
+      previewPane.removeAttribute("id");
+    }
   }
-
-  const panels = document.createElement("div");
-  panels.className = "case-panels";
-  panels.append(
-    panel("compare", createComparePanel(result, galleryReport, options), true),
-    panel("render", createRenderPanel(result, options)),
-    panel("native", createImagePanel("MacTeX native PNG", galleryReport.native?.pngPath)),
-    panel("diff", createImagePanel("Pixel diff heatmap", galleryReport.diff?.diffPath)),
-    panel("source", createSourcePanel(source)),
-    panel("analysis", createAnalysisPanel(source, result.diagnostics, galleryReport))
-  );
-
-  viewer.append(toolbar, panels);
-  return viewer;
+  if (options.updateHash && item?.id && window.location.hash !== `#${item.id}`) {
+    history.replaceState(null, "", `#${item.id}`);
+  }
+  updateLineNumbers();
+  renderArtifacts(item);
+  render();
 }
 
-function panel(view, child, active = false) {
-  const wrapper = document.createElement("div");
-  wrapper.className = `case-panel${active ? " active" : ""}`;
-  wrapper.dataset.view = view;
-  wrapper.append(child);
-  return wrapper;
+async function render() {
+  const source = sourceInput.value;
+  const startedAt = performance.now();
+  renderButton.disabled = true;
+  renderButton.textContent = "Rendering...";
+  statusLine.textContent = "rendering";
+  try {
+    const response = await fetch("/api/render", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source })
+    });
+    const result = await response.json();
+    if (!response.ok || result.error) throw new Error(result.error || `HTTP ${response.status}`);
+    const elapsed = Math.round(performance.now() - startedAt);
+
+    await renderComparison(result, activeCase);
+    diagnostics.replaceChildren(...renderDiagnostics(result.diagnostics || []));
+    statusLine.textContent = `${(result.diagnostics || []).length} diagnostics · ${elapsed}ms`;
+  } catch (error) {
+    preview.innerHTML = `<div class="error-state">Render failed</div>`;
+    diagnostics.replaceChildren(renderDiagnostic("error", error instanceof Error ? error.message : String(error)));
+    statusLine.textContent = "render failed";
+  } finally {
+    renderButton.disabled = false;
+    renderButton.textContent = "Render";
+  }
 }
 
-function createComparePanel(result, galleryReport, options = {}) {
+function renderArtifacts(item) {
+  outputArtifacts.replaceChildren();
+  if (!item) return;
+  const paths = [
+    ["TikZKit JS SVG", `/web/output/${item.id}/js-grid.svg`],
+    ["tikztosvg SVG", `/web/output/${item.id}/tikztosvg-grid.svg`],
+    ["TikZKit normalized PNG", `/web/output/${item.id}/js-normalized.png`],
+    ["tikztosvg normalized PNG", `/web/output/${item.id}/tikztosvg-normalized.png`],
+    ["PNG diff", `/web/output/${item.id}/image-diff.png`],
+    ["Aligned PNG diff", `/web/output/${item.id}/image-diff-aligned.png`]
+  ];
+  for (const [label, href] of paths) {
+    const link = document.createElement("a");
+    link.href = href;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = label;
+    outputArtifacts.append(link);
+  }
+}
+
+async function renderComparison(result, item) {
   const grid = document.createElement("div");
   grid.className = "compare-grid";
-  const compareScale = jsCompareScale(galleryReport.diff);
+  grid.append(createSvgPane("TikZKit JS SVG live + 1cm grid", result.gridSvg || result.svg));
   grid.append(
-    comparePane("JS SVG", createRenderPanel(result, { ...options, compareScale })),
-    comparePane("MacTeX PNG", createImagePanel("MacTeX native PNG", galleryReport.native?.pngPath))
+    item
+      ? await createFetchedSvgPane("tikztosvg SVG + 1cm grid", `/web/output/${item.id}/tikztosvg-grid.svg`)
+      : createEmptyPane("tikztosvg SVG + 1cm grid", "No selected case")
   );
-  return grid;
+
+  preview.replaceChildren(grid);
 }
 
-function comparePane(title, child) {
+async function createFetchedSvgPane(title, href) {
+  try {
+    const response = await fetch(href, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return createSvgPane(title, await response.text());
+  } catch (error) {
+    return createEmptyPane(title, `${href} not generated`);
+  }
+}
+
+function createSvgPane(title, svg) {
+  const pane = createComparePane(title);
+  const surface = pane.querySelector(".compare-surface");
+  surface.innerHTML = svg || `<div class="empty-state">No SVG</div>`;
+  normalizeSvgPhysicalScale(surface);
+  return pane;
+}
+
+function normalizeSvgPhysicalScale(surface) {
+  const svg = [...surface.children].find((child) => child.tagName?.toLowerCase() === "svg");
+  if (!svg) return;
+  const viewBoxWidth = parseViewBoxWidth(svg.getAttribute("viewBox"));
+  const gridStep = inferSvgGridStep(svg.outerHTML);
+  const widthPx = svgPhysicalWidthPx(viewBoxWidth, gridStep);
+  if (!widthPx) return;
+  svg.dataset.physicalScale = "true";
+  svg.style.width = `${widthPx.toFixed(3)}px`;
+  svg.style.height = "auto";
+}
+
+function createImagePane(title, src) {
+  const pane = createComparePane(title);
+  const surface = pane.querySelector(".compare-surface");
+  const image = document.createElement("img");
+  image.alt = title;
+  image.loading = "lazy";
+  image.src = src;
+  image.addEventListener("error", () => {
+    surface.replaceChildren(createEmptyMessage(`${src} not generated`));
+  }, { once: true });
+  surface.append(image);
+  return pane;
+}
+
+function createEmptyPane(title, message) {
+  const pane = createComparePane(title);
+  pane.querySelector(".compare-surface").append(createEmptyMessage(message));
+  return pane;
+}
+
+function createComparePane(title) {
   const pane = document.createElement("section");
   pane.className = "compare-pane";
   const heading = document.createElement("div");
   heading.className = "compare-heading";
   heading.textContent = title;
-  pane.append(heading, child);
+  const surface = document.createElement("div");
+  surface.className = "compare-surface";
+  pane.append(heading, surface);
   return pane;
 }
 
-function createRenderPanel(result, options = {}) {
-  const surface = document.createElement("div");
-  surface.className = "svg-surface";
-  if (options.blocked) {
-    surface.innerHTML = `<div class="error-state">Strict mode stopped this block.</div>`;
-  } else {
-    surface.innerHTML = result.svg;
-    applySvgCompareScale(surface, options.compareScale);
+function createEmptyMessage(message) {
+  const empty = document.createElement("div");
+  empty.className = "empty-state";
+  empty.textContent = message;
+  return empty;
+}
+
+function renderDiagnostics(items) {
+  if (!items.length) {
+    const ok = document.createElement("div");
+    ok.className = "diagnostic ok";
+    ok.textContent = "Rendered without diagnostics";
+    return [ok];
   }
-  return surface;
+  return items.map((item) => {
+    return renderDiagnostic(item.severity || "warning", item.message);
+  });
 }
 
-function applySvgCompareScale(surface, scale) {
-  const safeScale = Number(scale);
-  if (!Number.isFinite(safeScale) || safeScale <= 0 || safeScale === 1) return;
-  const svg = surface.querySelector(":scope > svg");
-  if (!svg) return;
-  surface.classList.add("compare-scaled");
-  surface.dataset.compareScale = formatScale(safeScale);
-  const viewBox = parseSvgViewBox(svg.getAttribute("viewBox"));
-  if (!viewBox) {
-    svg.style.setProperty("--tikz-js-compare-scale", formatScale(safeScale));
-    svg.classList.add("compare-transform-scaled");
-    return;
-  }
-  svg.style.width = `${formatScale(viewBox.width * safeScale)}px`;
-  svg.style.height = `${formatScale(viewBox.height * safeScale)}px`;
+function renderDiagnostic(severity, message) {
+  const row = document.createElement("div");
+  row.className = `diagnostic ${severity}`;
+  row.textContent = `${severity}: ${message}`;
+  return row;
 }
 
-function parseSvgViewBox(value) {
-  const numbers = String(value || "")
-    .trim()
-    .split(/[,\s]+/)
-    .map(Number);
-  if (numbers.length !== 4 || numbers.some((number) => !Number.isFinite(number))) return null;
-  const [, , width, height] = numbers;
-  if (width <= 0 || height <= 0) return null;
-  return { width, height };
+function updateLineNumbers() {
+  const count = Math.max(1, sourceInput.value.split("\n").length);
+  lineNumbers.textContent = Array.from({ length: count }, (_, index) => String(index + 1)).join("\n");
+  syncLineNumberScroll();
 }
 
-function formatScale(value) {
-  return String(Number(value).toFixed(6)).replace(/\.?0+$/, "");
+function syncLineNumberScroll() {
+  lineNumbers.scrollTop = sourceInput.scrollTop;
 }
 
-function createImagePanel(title, path) {
-  const surface = document.createElement("div");
-  surface.className = "image-surface";
-  if (!path) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.textContent = `${title} not generated`;
-    surface.append(empty);
-    return surface;
-  }
-  const image = document.createElement("img");
-  image.alt = title;
-  image.loading = "lazy";
-  image.src = `/${path}`;
-  surface.append(image);
-  return surface;
-}
-
-function createSourcePanel(source) {
-  const pre = document.createElement("pre");
-  pre.className = "source-panel";
-  const code = document.createElement("code");
-  code.textContent = source.trim();
-  pre.append(code);
-  return pre;
-}
-
-function createAnalysisPanel(source, diagnostics, galleryReport = {}) {
-  const insights = buildCaseInsights(source, diagnostics, galleryReport.diff, galleryReport.native);
-  const wrapper = document.createElement("div");
-  wrapper.className = `analysis-panel severity-${insights.severity}`;
-
-  const recommendation = document.createElement("p");
-  recommendation.className = "analysis-recommendation";
-  recommendation.textContent = insights.recommendation;
-  wrapper.append(recommendation);
-  wrapper.append(createUnitMetricsPanel(galleryReport.diff?.unit));
-
-  const list = document.createElement("div");
-  list.className = "capability-list";
-  if (insights.capabilities.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "capability-item";
-    empty.textContent = "没有扫描到明显高阶宏；优先比较节点尺寸、字体、线宽和坐标缩放。";
-    list.append(empty);
-  } else {
-    for (const item of insights.capabilities) {
-      const entry = document.createElement("div");
-      entry.className = `capability-item ${item.status}`;
-      const title = document.createElement("strong");
-      title.textContent = `${item.command} · ${formatCapabilityStatus(item.status)}`;
-      const note = document.createElement("span");
-      note.textContent = item.note;
-      entry.append(title, note);
-      list.append(entry);
-    }
-  }
-  wrapper.append(list);
-  return wrapper;
-}
-
-function createDiagnostics(diagnostics, galleryReport = {}) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "diagnostics-panel";
-
-  const meta = document.createElement("div");
-  meta.className = "figure-status";
-  meta.append(
-    statusPill(`${diagnostics.length} diagnostics`, diagnostics.length ? "error" : "ok"),
-    statusPill(formatNativeStatus(galleryReport.native), nativeStatusKind(galleryReport.native)),
-    statusPill(formatDiffStatus(galleryReport.diff), diffStatusKind(galleryReport.diff)),
-    statusPill(formatUnitStatus(galleryReport.diff), unitStatusKind(galleryReport.diff))
-  );
-  wrapper.append(meta);
-
-  const list = document.createElement("div");
-  list.className = diagnostics.length ? "diagnostics" : "diagnostics empty";
-  if (diagnostics.length === 0) {
-    list.textContent = "Rendered without diagnostics";
-    wrapper.append(list);
-    return wrapper;
-  }
-  for (const diagnostic of diagnostics) {
-    const item = document.createElement("div");
-    item.className = `diagnostic ${diagnostic.severity}`;
-    item.textContent = `${diagnostic.severity}: ${diagnostic.message}`;
-    list.append(item);
-  }
-  wrapper.append(list);
-  return wrapper;
-}
-
-async function loadGalleryReports() {
-  try {
-    const [diffRows, nativeRows] = await Promise.all([
-      fetchJson("/outputs/real-gallery/diff/report.json"),
-      fetchJson("/outputs/real-gallery/native/report.json")
-    ]);
-    galleryReports = createGalleryReportIndexes(diffRows, nativeRows);
-  } catch (error) {
-    galleryReports = createEmptyGalleryReportIndexes(error instanceof Error ? error.message : String(error));
-  }
-  renderEditor();
-}
-
-async function fetchJson(url) {
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) return null;
-  return response.json();
-}
-
-function statusPill(text, kind) {
-  const pill = document.createElement("span");
-  pill.className = `status-pill ${kind}`;
-  pill.textContent = text;
-  return pill;
-}
-
-function nativeStatusKind(row) {
-  if (!row) return galleryReports.loaded ? "missing" : "pending";
-  return row.ok ? "ok" : "error";
-}
-
-function diffStatusKind(row) {
-  if (!row) return galleryReports.loaded ? "missing" : "pending";
-  return row.ok ? "ok" : "error";
-}
-
-function unitStatusKind(row) {
-  if (!row) return galleryReports.loaded ? "missing" : "pending";
-  return row.unit ? "info" : "missing";
-}
-
-function formatNativeStatus(row) {
-  if (!row) return galleryReports.loaded ? "native PNG missing" : "native PNG pending";
-  if (!row.ok) return "native PNG failed";
-  const fallbacks = row.assetFallbacks?.length ? ` · fallback ${row.assetFallbacks.join(", ")}` : "";
-  return `native PNG ok${fallbacks}`;
-}
-
-function formatDiffStatus(row) {
-  if (!row) return galleryReports.loaded ? "native diff missing" : "native diff pending";
-  if (row.reason) return `native diff ${row.reason}`;
-  const changed = formatPercent(row.changedPixelsRatio);
-  const mean = Number.isFinite(row.meanAbsDiff) ? row.meanAbsDiff.toFixed(4) : "n/a";
-  return `native diff ${row.ok ? "pass" : "fail"} · changed ${changed} · mean ${mean}`;
-}
-
-function formatUnitStatus(row) {
-  if (!row) return galleryReports.loaded ? "unit scale missing" : "unit scale pending";
-  if (!row.unit) return "unit scale missing";
-  const unit = row.unit;
-  return `unit ${unit.step || "1cm"} · JS ${formatPx(unit.jsSvgPxPerXUnit)}px · native ${formatPx(unit.nativeRasterPxPerXUnit)}px`;
-}
-
-function createUnitMetricsPanel(unit) {
-  const panel = document.createElement("div");
-  panel.className = "unit-metrics";
-  const title = document.createElement("strong");
-  title.textContent = "单位标尺";
-  const detail = document.createElement("span");
-  if (!unit) {
-    detail.textContent = "还没有生成单位长度报告；重新运行 gallery:js 和 gallery:diff 后会显示每个 case 的 1cm 对比尺度。";
-  } else {
-    detail.textContent = [
-      `${unit.step || "1cm"}: JS ${formatPx(unit.jsSvgPxPerXUnit)}px/${formatPx(unit.jsSvgPxPerYUnit)}px`,
-      `MacTeX @${unit.nativeRasterDpi || 144}dpi ${formatPx(unit.nativeRasterPxPerXUnit)}px/${formatPx(unit.nativeRasterPxPerYUnit)}px`,
-      `对齐后 x/y ${formatPx(unit.compareJsPxPerXUnit)}:${formatPx(unit.compareNativePxPerXUnit)} / ${formatPx(unit.compareJsPxPerYUnit)}:${formatPx(unit.compareNativePxPerYUnit)}`
-    ].join(" · ");
-  }
-  panel.append(title, detail);
-  return panel;
-}
-
-function formatOverallDiffStatus(tikzCount) {
-  if (!galleryReports.loaded || galleryReports.diffRows.size === 0) return "";
-  const rows = [...galleryReports.diffRows.values()];
-  const passed = rows.filter((row) => row.ok).length;
-  return ` · diff ${passed}/${Math.max(tikzCount, rows.length)} passed`;
-}
-
-function formatPercent(value) {
-  return Number.isFinite(value) ? `${(value * 100).toFixed(2)}%` : "n/a";
-}
-
-function formatPx(value) {
-  if (!Number.isFinite(value)) return "n/a";
-  return value >= 10 ? value.toFixed(1) : value.toFixed(2);
-}
-
-function formatCapabilityStatus(status) {
-  if (status === "approximated") return "已有近似";
-  if (status === "partial") return "部分支持";
-  return status;
-}
-
-function handlePreviewClick(event) {
-  const button = event.target.closest(".case-tab");
-  if (!button) return;
-  const viewer = button.closest(".case-viewer");
-  if (!viewer) return;
-  setCaseView(viewer, button.dataset.view || "compare");
-}
-
-function setCaseView(viewer, view) {
-  viewer.dataset.activeView = view;
-  for (const tab of viewer.querySelectorAll(".case-tab")) {
-    tab.classList.toggle("active", tab.dataset.view === view);
-  }
-  for (const panelElement of viewer.querySelectorAll(".case-panel")) {
-    panelElement.classList.toggle("active", panelElement.dataset.view === view);
-  }
-}
-
-function setWorkspaceView(view) {
-  const sourceActive = view === "source";
-  workspace.classList.toggle("source-visible", sourceActive);
-  resultsViewButton.classList.toggle("active", !sourceActive);
-  sourceViewButton.classList.toggle("active", sourceActive);
-}
-
-function renderText(text) {
-  return text
-    .trim()
-    .split(/\n{2,}/)
-    .filter(Boolean)
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`)
-    .join("");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function debounce(fn, delay) {
-  let timer = 0;
-  return (...args) => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => fn(...args), delay);
-  };
-}
-
-window.TikzRenderer = {
-  renderTikzBlocks,
-  tikzToSvg,
-  splitTikzCodeBlocks
-};
+boot().catch((error) => {
+  diagnostics.textContent = `Failed to load web/cases.md: ${error instanceof Error ? error.message : String(error)}`;
+});

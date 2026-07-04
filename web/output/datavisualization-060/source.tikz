@@ -1,0 +1,13 @@
+\usetikzlibrary {datavisualization}
+\tikz \datavisualization [
+  school book axes,
+  visualize as line/.list={a,b},
+  style sheet=vary dashing,
+  a={label in legend={text=a,
+      label in legend line coordinates={(-1em,0),(0,0)}}},
+  b={label in legend={text=b,
+      label in legend line coordinates={(-2em,0),(0,0)}}}]
+data point [x=-1, y=-1, set=a]
+data point [x=1, y=0, set=a]
+data point [x=-1, y=1, set=b]
+data point [x=1, y=0.5, set=b];

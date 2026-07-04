@@ -1,0 +1,28 @@
+<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-325 -320 680 535">
+  <rect class="tikz-background" x="-325" y="-320" width="680" height="535" fill="white" />
+  <path d="M -325 215 L 355 215 L 355 -320 L -325 -320 Z" stroke="none" fill="#F8FAFC" stroke-width="1.4058392143307286" />
+  <path d="M -300 180 L -300 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M -200 180 L -200 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M -100 180 L -100 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 0 180 L 0 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 100 180 L 100 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 200 180 L 200 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 300 180 L 300 -275" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M -295 100 L 325 100" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M -295 0 L 325 0" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M -295 -100 L 325 -100" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M -295 -200 L 325 -200" stroke="#D7E1EA" fill="none" stroke-width="1.1246713714645828" stroke-linecap="round" stroke-linejoin="round" />
+  <g class="tikz-arrowed-path"><path d="M -295 0 L 319.076216 0" stroke="#334155" fill="none" stroke-width="2.9874083304527983" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-stealth" d="M 0 0 L -14.278055 -7.139027 L -8.923784 0 L -14.278055 7.139027 Z" fill="#334155" stroke="none" transform="translate(328 0) rotate(0)" /></g>
+  <g class="tikz-arrowed-path"><path d="M 0 178 L 0 -281.076216" stroke="#334155" fill="none" stroke-width="2.9874083304527983" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-stealth" d="M 0 0 L -14.278055 -7.139027 L -8.923784 0 L -14.278055 7.139027 Z" fill="#334155" stroke="none" transform="translate(0 -290) rotate(-90)" /></g>
+  <path d="M -270 135 L 290 -145" stroke="#2563EB" fill="none" stroke-width="3.8660578394095033" stroke-dasharray="10.543794107480464 7.029196071653643" stroke-linecap="round" stroke-linejoin="round" />
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 104.70319 -52.806826" stroke="#2563EB" fill="none" stroke-width="6.326276464488279" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-stealth" d="M 0 0 L -18.45164 -9.22582 L -11.532275 0 L -18.45164 9.22582 Z" fill="#2563EB" stroke="none" transform="translate(115 -58) rotate(-26.763994)" /></g>
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 214.694397 -107.824297" stroke="#F97316" fill="none" stroke-width="6.326276464488279" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-stealth" d="M 0 0 L -18.45164 -9.22582 L -11.532275 0 L -18.45164 9.22582 Z" fill="#F97316" stroke="none" transform="translate(225 -113) rotate(-26.66682)" /></g>
+  <text x="105" y="-86.864155" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="24.602186" font-weight="700" font-family="KaTeX_Main, 'Times New Roman', Times, serif">v</text>
+  <text x="215" y="-143.864155" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="24.602186" font-style="italic" font-family="KaTeX_Main, 'Times New Roman', Times, serif">Av = λv</text>
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 79.00175 -125.473367" stroke="#64748B" fill="none" stroke-width="5.974816660905597" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-stealth" d="M 0 0 L -18.012315 -9.006157 L -11.257697 0 L -18.012315 9.006157 Z" fill="#64748B" stroke="none" transform="translate(85 -135) rotate(-57.804266)" /></g>
+  <g class="tikz-arrowed-path"><path d="M 0 0 L 174.508839 -67.916953" stroke="#F97316" fill="none" stroke-width="5.974816660905597" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-stealth" d="M 0 0 L -18.012315 -9.006157 L -11.257697 0 L -18.012315 9.006157 Z" fill="#F97316" stroke="none" transform="translate(185 -72) rotate(-21.26545)" /></g>
+  <text x="65.935845" y="-156.864155" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="24.602186" font-weight="700" font-family="KaTeX_Main, 'Times New Roman', Times, serif">w</text>
+  <text x="211.614155" y="-72" fill="black" text-anchor="middle" dominant-baseline="middle" font-size="24.602186" font-style="italic" font-family="KaTeX_Main, 'Times New Roman', Times, serif">Aw</text>
+  <text x="-197.485845" y="-292" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="42.175176" font-family="KaTeX_SansSerif, Arial, Helvetica, sans-serif">Eigenvector</text>
+  <text x="-155.658345" y="-263" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="24.602186" font-family="KaTeX_SansSerif, Arial, Helvetica, sans-serif">same line after transformation</text>
+</svg>

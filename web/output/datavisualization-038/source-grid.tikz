@@ -1,0 +1,22 @@
+\usetikzlibrary {datavisualization}
+\pgfdvdeclarestylesheet{traffic light}{
+  1/.style={green!50!black},
+  2/.style={yellow!90!black},
+  3/.style={red!80!black},
+  default style/.style={black}
+}
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization [
+  school book axes,
+  visualize as line=1,
+  visualize as line=2,
+  visualize as line=3,
+  style sheet=traffic light]
+data point [x=0, y=0, set=1]
+data point [x=2, y=2, set=1]
+data point [x=0, y=1, set=2]
+data point [x=2, y=1, set=2]
+data point [x=0.5, y=1.5, set=3]
+data point [x=2.25, y=1.75, set=3];
+\end{tikzpicture}

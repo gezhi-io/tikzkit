@@ -1,0 +1,9 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization [
+  scientific axes={inner ticks},
+  visualize as line=line,
+  data/format=function]
+data {
+  var x : interval [0:2] samples 3;
+  func y = \value x;
+};

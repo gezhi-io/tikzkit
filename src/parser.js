@@ -1064,6 +1064,14 @@ function parsePathSegments(pathText) {
       index = extOperator.end;
       continue;
     }
+    if (pathText.startsWith("pic", index)) {
+      const parsed = parsePathPicSegment(pathText, index);
+      if (parsed) {
+        segments.push(parsed.segment);
+        index = parsed.end;
+        continue;
+      }
+    }
     if (pathText.startsWith("--", index)) {
       segments.push({ kind: "operator", value: "--", options: {} });
       index += 2;
@@ -1133,6 +1141,11 @@ function parsePathSegments(pathText) {
           index = parsed.end;
           continue;
         }
+      }
+      if (options.raw) {
+        segments.push({ kind: "options", options: options.options });
+        index = options.end;
+        continue;
       }
     }
     if (startsKeyword(pathText, index, "to")) {
@@ -1429,6 +1442,23 @@ function parsePathTargetOperation(pathText, index, kind, leadingOptions = {}) {
   };
 }
 
+function parsePathPicSegment(pathText, index) {
+  let cursor = skipWhitespace(pathText, index + "pic".length);
+  const options = parseOptionalOptions(pathText, cursor);
+  cursor = skipWhitespace(pathText, options.end);
+  const body = extractBalanced(pathText, cursor, "{", "}");
+  if (!body) return null;
+  return {
+    segment: {
+      kind: "pic",
+      options: options.options,
+      body: body.content.trim(),
+      raw: pathText.slice(index, body.end)
+    },
+    end: body.end
+  };
+}
+
 function parsePathCoordinateName(pathText, index) {
   let cursor = index + "coordinate".length;
   cursor = skipWhitespace(pathText, cursor);
@@ -1643,7 +1673,12 @@ const FONT_SWITCH_COMMANDS = new Set([
   "bf",
   "bfseries",
   "it",
-  "itshape"
+  "itshape",
+  "sl",
+  "slshape",
+  "sc",
+  "scshape",
+  "normalfont"
 ]);
 
 function parseLeadingFontSwitches(text) {
@@ -2012,7 +2047,7 @@ function nextTokenEnd(text, index) {
 }
 
 function nextDelimiter(text, index) {
-  const candidates = ["--", "..", "(", ";", " grid ", " circle", " ellipse", " arc", " node", " edge", " to", " plot"]
+  const candidates = ["--", "..", "(", ";", " grid ", " circle", " ellipse", " arc", " node", " edge", " to", " plot", " pic"]
     .map((needle) => text.indexOf(needle, index + 1))
     .filter((value) => value !== -1);
   return candidates.length ? Math.min(...candidates) : text.length;

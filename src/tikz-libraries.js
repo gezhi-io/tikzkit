@@ -4,7 +4,7 @@ export const BUILTIN_TIKZ_LIBRARIES = tikzLibraryCatalog;
 
 export function collectTikzLibraries(source) {
   const names = [];
-  const pattern = /\\usetikzlibrary(?:\[[^\]]*\])?\{([^{}]*)\}/g;
+  const pattern = /\\usetikzlibrary\s*(?:\[[^\]]*\])?\s*\{([^{}]*)\}/g;
   let match;
   while ((match = pattern.exec(String(source)))) {
     for (const name of parseTikzLibraryList(match[1])) {
@@ -15,7 +15,7 @@ export function collectTikzLibraries(source) {
 }
 
 export function stripTikzLibraryDeclarations(source) {
-  return String(source).replace(/\\usetikzlibrary(?:\[[^\]]*\])?\{[^{}]*\}\s*;?/g, "");
+  return String(source).replace(/\\usetikzlibrary\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}\s*;?/g, "");
 }
 
 export function resolveTikzLibraries(names = []) {

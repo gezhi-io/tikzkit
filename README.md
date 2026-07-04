@@ -2,6 +2,21 @@
 
 TikZKit is a pure JavaScript TikZ semantic interpreter. It is not a full TeX engine. The goal is to support practical TikZ/PGF drawing semantics in the browser and in Node.js, then render them to SVG.
 
+## Current Status: Not Production Ready
+
+TikZKit is currently an experimental compatibility prototype. It is useful for
+studying TikZ semantics, comparing JavaScript rendering against local
+`tikztosvg`/MacTeX output, and iterating on focused real-world cases.
+
+It is **not ready for general use** as a drop-in TikZ renderer, npm dependency,
+or production browser library. Many TikZ, PGF, PGFPlots, TeX macro, font,
+layout, and package behaviors are still partial or case-driven. Unsupported or
+partially supported syntax may render approximately, emit diagnostics, or fail
+to match native TikZ visual output.
+
+Use this repository as a work-in-progress renderer and testbed, not as a stable
+implementation.
+
 The current pipeline is:
 
 ```text

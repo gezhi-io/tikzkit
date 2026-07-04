@@ -1,0 +1,17 @@
+\usetikzlibrary {datavisualization}
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization [
+    xy Cartesian,
+    all axes={visualize axis={low=0, style=->},
+              ticks={some}},
+    x axis={visualize ticks={
+                direction axis=y axis,
+                major={low=0pt, high=4pt, tick text at high}}},
+    visualize as scatter]
+  data {
+    x, y
+    0, 0
+    2, 2
+  };
+\end{tikzpicture}

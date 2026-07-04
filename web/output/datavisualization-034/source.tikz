@@ -1,0 +1,30 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization data group {function classes} = {
+  data [set=log, format=function] {
+    var x : interval [0.2:2.5] samples 25;
+    func y = ln(\value x);
+  }
+  data [set=lin, format=function] {
+    var x : interval [-2:2.5] samples 25;
+    func y = 0.5*\value x;
+  }
+  data [set=squared, format=function] {
+    var x : interval [-1.5:1.5] samples 25;
+    func y = \value x*\value x;
+  }
+  data [set=exp, format=function] {
+    var x : interval [-2.5:1] samples 25;
+    func y = exp(\value x);
+  }
+};
+\tikz \datavisualization [
+  school book axes,
+  all axes={unit length=7.5mm},
+  x axis={label=$x$},
+  visualize as smooth line/.list={log,lin,squared,exp},
+  log={label in legend={text=$\log x$}},
+  lin={label in legend={text=$x/2$}},
+  squared={label in legend={text=$x^2$}},
+  exp={label in legend={text=$e^x$}},
+  style sheet=vary dashing]
+data group {function classes};

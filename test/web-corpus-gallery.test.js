@@ -4,7 +4,7 @@ import test from "node:test";
 import { splitTikzCodeBlocks } from "../src/index.js";
 import { createGalleryMarkdown } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
-import { listWebCorpora, loadWebCorpus, normalizedGallerySourceKey } from "../web/corpus-gallery-server.js";
+import { listWebCorpora, loadWebCorpus, loadWebCorpusWindow, normalizedGallerySourceKey } from "../web/corpus-gallery-server.js";
 import { loadRealGalleryCases } from "../scripts/gallery-case-source.js";
 
 test("web corpus registry exposes one merged core gallery", () => {
@@ -78,13 +78,27 @@ test("core gallery loader merges available corpora and removes duplicate sources
   }
 });
 
+test("core gallery window loader returns a global case range around deep hash targets", async () => {
+  const windowed = await loadWebCorpusWindow("core", { target: 1028, limit: 180 });
+  const localIndex = 1028 - windowed.window.start;
+
+  assert.equal(windowed.id, "core");
+  assert.equal(windowed.available, true);
+  assert.equal(windowed.cases.length, 180);
+  assert.equal(windowed.window.target, 1028);
+  assert.ok(windowed.window.start <= 1028 && windowed.window.end >= 1028);
+  assert.ok(windowed.window.start > REAL_GALLERY_CASES.length);
+  assert.equal(windowed.cases[localIndex]?.title, "circuitikz manual snippet 175");
+  assert.equal(windowed.summary.caseCount, windowed.window.totalCases);
+});
+
 test("web app defaults to the merged core gallery API", () => {
   const html = readFileSync(new URL("../web/index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
 
   assert.match(html, /id="gallery-source-select"/);
   assert.match(app, /fetchJson\("\/api\/corpora"\)/);
-  assert.match(app, /fetchJson\("\/api\/corpora\/core"\)/);
+  assert.match(app, /\/api\/corpora\/core\/window\?target=/);
   assert.doesNotMatch(app, /fetchJson\(`\/api\/corpora\/\$\{encodeURIComponent\(selected\)\}`\)/);
 });
 

@@ -1,0 +1,13 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \datavisualization [ scientific axes=clean,
+                       x axis={min value=0,max value=4,ticks={step=1},grid},
+                       y axis={min value=0,max value=4,ticks={step=1},grid},
+                       visualize as smooth line=curve,
+                       curve={label in data={text={$p$},when=x is 2}},
+                       data/format=function ]
+  data {
+    var x : interval [0:4] samples 5;
+    func y = \value x;
+  };
+\end{tikzpicture}

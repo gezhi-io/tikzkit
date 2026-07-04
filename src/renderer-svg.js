@@ -1,8 +1,9 @@
 import katex from "katex";
-import { estimateFormulaBox, formulaTotalHeight, parseMathText } from "./math-metrics.js";
+import { estimateFormulaBox, formulaTotalHeight, parseMathText, texTextWidthCm } from "./math-metrics.js";
 import { TIKZKIT_SCOPED_MATH_CSS } from "./math-scoped-css.js";
 import { mathFallbackText, normalizeTikzText, replaceTikzHspaceMarkers, splitInlineMathSegments } from "./tex-text.js";
 import { parseDimension } from "./math.js";
+import { normalizeColor } from "./options.js";
 import {
   TIKZ_ARROW,
   TIKZ_DISPLAY_MATH_FONT_SIZE,
@@ -34,8 +35,14 @@ const MATH_CLASS_ALIASES = new Map([
 const KATEX_ROOT_FONT_SCALE = 1.21;
 const KATEX_INLINE_LINE_BOX_SCALE = 1.36;
 const KATEX_DISPLAY_LINE_BOX_SCALE = 1.62;
+const KATEX_RICH_TEXT_LINE_BOX_SCALE = 1.6;
+const KATEX_RICH_TEXT_WRAP_WIDTH_SCALE = 0.98;
+const KATEX_RICH_TEXT_FONT_SCALE = 0.96;
 const KATEX_INLINE_WIDTH_PAD_EM = 0.65;
+const SVG_TEXT_WRAP_CHAR_WIDTH_EM = 0.54;
 const KATEX_DISPLAY_WIDTH_PAD_EM = 0.9;
+const SVG_MATRIX_ENV_NAMES = ["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "cases"];
+const SVG_MATH_OPERATOR_WORDS = new Set(["sin", "cos", "tan", "cot", "sec", "csc", "log", "ln", "exp", "max", "min", "det", "dim", "ker", "hom", "arg", "Pr"]);
 
 export function renderSvg(ir, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -87,6 +94,7 @@ export function renderSvg(ir, options = {}) {
 }
 
 function renderItem(item, unit, options = {}) {
+  if (item.type === "bbox") return "";
   if (item.type === "marker") return renderMarker(item, unit);
   if (item.type === "nodeBox") {
     if (item.shape === "opAmp") return renderNodeBoxWithOverlay(item, renderCircuitikzOpAmpNodeBox(item, unit), unit);
@@ -1781,6 +1789,7 @@ function renderPlainTextNode(item, normalized, unit) {
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
   const fontFamily = escapeAttribute(rawFontFamily);
+  const rawFontVariant = normalized.fontVariant || item.style?.fontVariant;
   const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
@@ -1790,11 +1799,15 @@ function renderPlainTextNode(item, normalized, unit) {
   const contentLines = wrappedText.contentLines;
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, lines);
   const lineStyles = wrappedText.lineStyles;
-  const align = normalizedTextAlign(item.textAlign);
-  const x = format(alignedTextX(item, unit, align));
-  const textAnchor = textAnchorForAlign(align);
+  const wrapWidth = Number(item.wrapWidth);
+  const hasWrapWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
+  const explicitTextAnchor = svgTextAnchorForItem(item);
+  const align = item.textAlign ? normalizedTextAlign(item.textAlign) : hasWrapWidth ? "left" : "center";
+  const x = format(explicitTextAnchor ? svgTextAnchorX(item, unit) : alignedTextX(item, unit, align));
+  const textAnchor = explicitTextAnchor || textAnchorForAlign(align);
   const y = format(-item.y * unit);
-  const widthScale = typewriterWidthScale(rawFontFamily);
+  const widthScale = textWidthScale(item, rawFontFamily);
+  const textFontVariant = fontVariantAttribute({ fontVariant: rawFontVariant });
   if (lines.length <= 1) {
     const lineStyle = lineStyles[0] || {};
     const lineFontSize = fontSize * (lineStyle.scale || 1);
@@ -1802,7 +1815,7 @@ function renderPlainTextNode(item, normalized, unit) {
     const lineFontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(contentLines[0]);
     const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="${textAnchor}" dominant-baseline="middle" xml:space="preserve" font-size="${format(
       lineFontSize
-    )}"${fontWeightAttribute(lineStyle)}${lineFontStyle} font-family="${fontFamily}">${content}</text>`;
+    )}"${fontWeightAttribute(lineStyle)}${lineFontStyle}${textFontVariant} font-family="${fontFamily}">${content}</text>`;
     return wrapTypewriterWidth(text, item, unit, widthScale);
   }
   const lineOffsets = baselineOffsets(fontSize, lineStyles);
@@ -1825,7 +1838,7 @@ function renderPlainTextNode(item, normalized, unit) {
     .join("");
   const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="${textAnchor}" dominant-baseline="middle" xml:space="preserve" font-size="${format(
     fontSize
-  )}" font-family="${fontFamily}">${tspans}</text>`;
+  )}"${textFontVariant} font-family="${fontFamily}">${tspans}</text>`;
   return wrapTypewriterWidth(text, item, unit, widthScale);
 }
 
@@ -1839,6 +1852,25 @@ function textAnchorForAlign(align) {
   if (align === "left") return "start";
   if (align === "right") return "end";
   return "middle";
+}
+
+function svgTextAnchorForItem(item = {}) {
+  const anchor = String(item.svgTextAnchor || "").trim();
+  return anchor === "start" || anchor === "middle" || anchor === "end" ? anchor : "";
+}
+
+function svgTextAnchorX(item, unit) {
+  const x = Number(item.svgTextX);
+  return (Number.isFinite(x) ? x : item.x) * unit;
+}
+
+function svgTextAnchorPoint(item, unit) {
+  const explicitAnchor = svgTextAnchorForItem(item);
+  return {
+    x: explicitAnchor ? svgTextAnchorX(item, unit) : item.x * unit,
+    y: -item.y * unit,
+    anchor: explicitAnchor || "middle"
+  };
 }
 
 function alignedTextX(item, unit, align) {
@@ -1866,10 +1898,10 @@ function wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, w
   for (let index = 0; index < formattedLines.length; index += 1) {
     const style = sourceLineStyles[index] || {};
     const lineFontSize = baseFontSize * (Number(style.scale) || 1);
-    const wrapped = wrapSvgTextLines([formattedLines[index]], wrapWidth, unit, lineFontSize);
-    for (const line of wrapped) {
-      lines.push(line);
-      contentLines.push(wrapped.length === 1 ? sourceLines[index] : line);
+    const wrapped = wrapSvgTextLineWithSource(sourceLines[index], formattedLines[index], wrapWidth, unit, lineFontSize);
+    for (const entry of wrapped) {
+      lines.push(entry.line);
+      contentLines.push(entry.contentLine);
       lineStyles.push(style);
     }
   }
@@ -1912,6 +1944,11 @@ function fontStyleAttribute(lineStyle) {
   return lineStyle.fontStyle ? ` font-style="${escapeAttribute(String(lineStyle.fontStyle))}"` : "";
 }
 
+function fontVariantAttribute(lineStyle) {
+  return lineStyle.fontVariant ? ` font-variant="${escapeAttribute(String(lineStyle.fontVariant))}"` : "";
+}
+
+
 function mathLineFontStyleAttribute(sourceLine) {
   const tex = mathOnlySourceLineTex(sourceLine);
   const style = tex ? mathFallbackFontStyle(tex) : "";
@@ -1943,26 +1980,76 @@ function textFontScale(item, normalized = null) {
 function wrapSvgTextLines(lines, wrapWidth, unit, fontSize) {
   const width = Number(wrapWidth) * unit;
   if (!Number.isFinite(width) || width <= 0) return lines;
-  const maxChars = Math.max(1, Math.floor(width / Math.max(1, fontSize * 0.49)));
+  const maxChars = Math.max(1, Math.floor(width / Math.max(1, fontSize * SVG_TEXT_WRAP_CHAR_WIDTH_EM)));
   return lines.flatMap((line) => wrapSvgTextLine(line, maxChars));
+}
+
+function wrapSvgTextLineWithSource(sourceLine, formattedLine, wrapWidth, unit, fontSize) {
+  const width = Number(wrapWidth) * unit;
+  const source = collapseTeXParagraphWhitespace(sourceLine ?? formattedLine ?? "");
+  const formatted = collapseTeXParagraphWhitespace(formattedLine ?? source);
+  if (!Number.isFinite(width) || width <= 0) return [{ line: formatted, contentLine: source }];
+  const maxChars = Math.max(1, Math.floor(width / Math.max(1, fontSize * SVG_TEXT_WRAP_CHAR_WIDTH_EM)));
+  if (!hasInlineMathSource(source)) {
+    return wrapSvgTextLine(formatted, maxChars).map((line) => ({ line, contentLine: line }));
+  }
+  const tokens = svgTextWrapTokens(source);
+  if (!tokens.length) return [{ line: formatted, contentLine: source }];
+  return wrapSvgTextTokensBalanced(tokens, maxChars).map((line) => ({
+    line: line.map((token) => token.formatted).join(" "),
+    contentLine: line.map((token) => token.source).join(" ")
+  }));
 }
 
 function wrapSvgTextLine(line, maxChars) {
   const text = String(line || "").trim();
   if (!text || text.length <= maxChars || !/\s/.test(text)) return [text];
-  const output = [];
-  let current = "";
-  for (const word of text.split(/\s+/)) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length <= maxChars || !current) {
-      current = next;
-    } else {
-      output.push(current);
-      current = word;
+  const tokens = text.split(/\s+/).map((word) => ({ source: word, formatted: word }));
+  return wrapSvgTextTokensBalanced(tokens, maxChars).map((line) => line.map((token) => token.formatted).join(" "));
+}
+
+function svgTextWrapTokens(sourceLine) {
+  const tokens = [];
+  for (const segment of splitInlineMathSegments(sourceLine)) {
+    if (segment.type === "math") {
+      const source = `$${segment.tex}$`;
+      tokens.push({ source, formatted: mathFallbackText(segment.tex) });
+      continue;
+    }
+    for (const match of String(segment.text || "").matchAll(/\S+/g)) {
+      const source = match[0];
+      tokens.push({ source, formatted: formatPlainTexText(source) });
     }
   }
-  if (current) output.push(current);
-  return output.length ? output : [text];
+  return tokens;
+}
+
+function wrapSvgTextTokensBalanced(tokens, maxChars) {
+  if (!tokens.length) return [];
+  const count = tokens.length;
+  const best = Array.from({ length: count + 1 }, () => ({ cost: Infinity, next: count }));
+  best[count] = { cost: 0, next: count };
+  for (let start = count - 1; start >= 0; start -= 1) {
+    let width = 0;
+    for (let end = start; end < count; end += 1) {
+      width += String(tokens[end].formatted || "").length + (end > start ? 1 : 0);
+      if (width > maxChars * 1.08 && end > start) break;
+      const isLast = end === count - 1;
+      const overfull = Math.max(0, width - maxChars);
+      const remaining = Math.max(0, maxChars - width);
+      const lineCost = overfull > 0 ? overfull * overfull * 70 : isLast ? remaining * remaining * 0.05 : remaining * remaining;
+      const cost = lineCost + best[end + 1].cost;
+      if (cost < best[start].cost) best[start] = { cost, next: end + 1 };
+    }
+  }
+  const lines = [];
+  let cursor = 0;
+  while (cursor < count) {
+    const next = Math.max(cursor + 1, Math.min(count, best[cursor].next));
+    lines.push(tokens.slice(cursor, next));
+    cursor = next;
+  }
+  return lines;
 }
 
 function renderSegmentedTextNode(item, normalized, unit) {
@@ -1971,11 +2058,14 @@ function renderSegmentedTextNode(item, normalized, unit) {
   const color = escapeAttribute(item.style?.fill || "black");
   const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
   const fontFamily = escapeAttribute(rawFontFamily);
+  const rawFontVariant = normalized.fontVariant || item.style?.fontVariant;
+  const textFontVariant = fontVariantAttribute({ fontVariant: rawFontVariant });
   const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, fallbackLines);
-  const x = format(item.x * unit);
+  const centerX = item.x * unit;
+  const x = format(centerX);
   const y = format(-item.y * unit);
-  const widthScale = typewriterWidthScale(rawFontFamily);
+  const widthScale = textWidthScale(item, rawFontFamily);
   const lineHeight = fontSize * 1.15;
   const startDy = -((lines.length - 1) * lineHeight) / 2;
   const rects = [];
@@ -1986,26 +2076,46 @@ function renderSegmentedTextNode(item, normalized, unit) {
       baseline += dy;
       const parsedSegments = parseTextColorSegments(line);
       rects.push(...inlineBoxRects(parsedSegments, item.x * unit, -item.y * unit + baseline, fontSize));
-      const segments = parsedSegments
-        .map((segment) => {
-          const text = escapeText(formatTextLine(segment.text));
-          if (!text) return "";
-          const fill = segment.background ? "white" : segment.color;
-          return fill ? `<tspan fill="${escapeAttribute(fill)}">${text}</tspan>` : text;
-        })
-        .join("");
-      return `<tspan x="${x}" dy="${format(dy)}">${segments}</tspan>`;
+      return renderFlatSegmentedTextLine(parsedSegments, centerX, dy, fontSize);
     })
     .join("");
-  const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="${format(
+  const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="start" dominant-baseline="middle" xml:space="preserve" font-size="${format(
     fontSize
-  )}" font-family="${fontFamily}">${tspans}</text>`;
+  )}"${textFontVariant} font-family="${fontFamily}">${tspans}</text>`;
   return wrapTypewriterWidth(rects.length ? `<g>${rects.join("")}${text}</g>` : text, item, unit, widthScale);
+}
+
+function renderFlatSegmentedTextLine(parsedSegments, centerX, dy, fontSize) {
+  let output = "";
+  let wrotePositionedSegment = false;
+  const formattedLine = parsedSegments.map((segment) => formatTextLine(segment.text)).join("");
+  const lineWidth = estimateRichTextWidthEm(formattedLine) * fontSize;
+  const x = format(centerX - lineWidth / 2);
+  for (const segment of parsedSegments) {
+    const text = escapeText(formatTextLine(segment.text));
+    if (!text) continue;
+    const fill = segment.background ? "white" : segment.color;
+    if (!wrotePositionedSegment || fill) {
+      const positionAttrs = wrotePositionedSegment ? "" : ` x="${x}" dy="${format(dy)}"`;
+      const fillAttr = fill ? ` fill="${escapeAttribute(svgPaint(fill))}"` : "";
+      output += `<tspan${positionAttrs}${fillAttr}>${text}</tspan>`;
+    } else {
+      output += text;
+    }
+    wrotePositionedSegment = true;
+  }
+  return wrotePositionedSegment ? output : `<tspan x="${x}" dy="${format(dy)}"></tspan>`;
 }
 
 function typewriterWidthScale(fontFamily) {
   const text = String(fontFamily || "");
   return /(?:Typewriter|mono|Menlo|Monaco|Consolas|Courier)/i.test(text) ? TIKZ_TYPEWRITER_WIDTH_SCALE : 1;
+}
+
+function textWidthScale(item, fontFamily) {
+  const explicit = Number(item?.style?.textWidthScale);
+  const scale = Number.isFinite(explicit) && explicit > 0 ? explicit : 1;
+  return typewriterWidthScale(fontFamily) * scale;
 }
 
 function wrapTypewriterWidth(svg, item, unit, scale) {
@@ -2090,7 +2200,10 @@ function renderInlineSvgMathContent(source, formattedLine, fontSize, unit = TIKZ
   const parts = [];
   for (const segment of splitInlineMathSegments(source)) {
     if (segment.type === "math") {
-      parts.push(renderSvgMathFallbackContent(normalizeKatexTex(segment.tex.trim()), fontSize));
+      const tex = normalizeKatexTex(segment.tex.trim());
+      const content = renderSvgMathFallbackContent(tex, fontSize);
+      const fontStyle = mathFallbackFontStyle(tex);
+      parts.push(fontStyle ? `<tspan font-style="${escapeAttribute(fontStyle)}">${content}</tspan>` : content);
     } else if (segment.text) {
       parts.push(renderPlainSvgTextContent(formatPlainTexText(segment.text), unit));
     }
@@ -2137,8 +2250,16 @@ function renderPlainSvgTextContent(value, unit = TIKZ_UNIT) {
 }
 
 function renderSvgMathFallbackContent(tex, fontSize) {
+  const statefulColor = statefulColorMathTextFallback(tex);
+  if (statefulColor) return renderSvgMathColorSegmentsContent(statefulColor, fontSize);
+  return renderSvgMathFallbackContentWithoutColor(tex, fontSize);
+}
+
+function renderSvgMathFallbackContentWithoutColor(tex, fontSize) {
   const leadingScript = leadingScriptFallback(tex);
   if (leadingScript) return renderLeadingScriptContent(leadingScript, fontSize);
+  const sumLimits = renderSumLimitsContentFallback(tex, fontSize);
+  if (sumLimits) return sumLimits;
   const simple = simpleNumericSubscriptFallback(tex);
   if (simple) return renderSimpleSubscriptContent(simple, fontSize);
   const scripted = scriptedMathFallback(tex, { allowSimpleScripts: true });
@@ -2146,6 +2267,16 @@ function renderSvgMathFallbackContent(tex, fontSize) {
   const mixed = mixedAlphabeticSubscriptFallback(tex);
   if (mixed) return renderMixedSubscriptContent(mixed, fontSize);
   return escapeText(mathFallbackText(tex));
+}
+
+function renderSvgMathColorSegmentsContent(segments, fontSize) {
+  return segments
+    .map((segment) => {
+      const content = renderSvgMathFallbackContentWithoutColor(segment.tex, fontSize);
+      if (!segment.color) return content;
+      return `<tspan fill="${escapeAttribute(svgPaint(segment.color))}">${content}</tspan>`;
+    })
+    .join("");
 }
 
 function hasInlineMath(normalized) {
@@ -2189,41 +2320,66 @@ function renderScopedMathStyleDef() {
 }
 
 function renderRichTextNode(item, normalized, unit) {
-  const source = cleanRichTextSource(normalized.text || normalized.raw || "");
-  const rawLines = source.split(/\\\\|\n/).map((line) => line.trim()).filter((line) => line.length);
-  const lines = rawLines.length ? rawLines : normalized.lines.length ? normalized.lines : [normalized.text];
-  const fallback = renderPlainTextNode(item, normalized, unit);
+  const source = cleanRichTextSource(normalized.raw || normalized.text || "");
+  const wrapWidth = Number(item.wrapWidth);
+  const hasWrapWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
   const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
-  const lineStyles = textLineStyles(normalized, lines.length);
+  const sourceLines = richTextSourceLines(source, normalized);
+  const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
+  const wrapped = hasWrapWidth
+    ? wrapRichTextLines(sourceLines, wrapWidth, unit, baseFontSize, sourceLineStyles)
+    : sourceLines.map((line, index) => ({ text: line, style: sourceLineStyles[index] || {} }));
+  const lines = wrapped.length ? wrapped.map((line) => line.text) : [normalized.text || ""];
+  const lineStyles = wrapped.length ? wrapped.map((line) => line.style || {}) : textLineStyles(normalized, lines.length);
   const fontSize = fitRichFontSizeToBox(baseFontSize, item.fitBox, unit, lines, lineStyles);
-  const box = estimateRichTextBox(lines, fontSize, lineStyles);
-  const x = item.x * unit - box.width / 2;
+  const displayFontSize = hasWrapWidth ? fontSize * KATEX_RICH_TEXT_FONT_SCALE : fontSize;
+  const box = estimateRichTextBox(lines, displayFontSize, lineStyles);
+  const width = hasWrapWidth ? wrapWidth * unit : box.width;
+  const align = item.textAlign ? normalizedTextAlign(item.textAlign) : hasWrapWidth ? "left" : "center";
+  const alignItems = align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start";
+  const fallback = renderPlainTextNode(richTextFallbackItem(item, align, hasWrapWidth), normalized, unit);
+  const x = item.x * unit - width / 2;
   const y = -item.y * unit - box.height / 2;
   const htmlLines = lines
     .map((line, index) => {
       const lineStyle = lineStyles[index] || {};
-      const lineFontSize = fontSize * (lineStyle.scale || 1);
+      const lineFontSize = displayFontSize * (lineStyle.scale || 1);
       return `<div class="tikz-rich-line"${fontWeightAttribute(lineStyle)} style="font-size:${format(
         lineFontSize
-      )}px;">${renderInlineMathHtml(line)}</div>`;
+      )}px;width:100%;">${renderInlineMathHtml(line)}</div>`;
     })
     .join("");
-  const foreignObject = `<foreignObject x="${format(x)}" y="${format(
+  const foreignObject = `<foreignObject requiredExtensions="http://www.w3.org/1999/xhtml" x="${format(x)}" y="${format(
     y
-  )}" width="${format(box.width)}" height="${format(
+  )}" width="${format(width)}" height="${format(
     box.height
   )}"><div xmlns="http://www.w3.org/1999/xhtml" class="tikz-rich-text" style="width:${format(
-    box.width
+    width
   )}px;height:${format(
     box.height
   )}px;color:${color};font-size:${format(
-    fontSize
-  )}px;line-height:1.05;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;white-space:nowrap;overflow:visible;font-family:${escapeAttribute(
+    displayFontSize
+  )}px;line-height:${format(
+    KATEX_RICH_TEXT_LINE_BOX_SCALE
+  )};display:flex;flex-direction:column;align-items:${alignItems};justify-content:center;text-align:${align};white-space:nowrap;overflow:visible;font-family:${escapeAttribute(
     fontFamily
   )};">${htmlLines}</div></foreignObject>`;
   return `<switch>${foreignObject}${fallback}</switch>`;
+}
+
+function richTextFallbackItem(item, align, hasWrapWidth) {
+  if (!hasWrapWidth) return item;
+  return {
+    ...item,
+    textAlign: item.textAlign || align,
+    style: {
+      ...(item.style || {}),
+      fontScale: (Number(item.style?.fontScale) || 1) * KATEX_RICH_TEXT_FONT_SCALE,
+      fontSizeBaseScale: (Number(item.style?.fontSizeBaseScale) || 1) * KATEX_RICH_TEXT_FONT_SCALE
+    }
+  };
 }
 
 function cleanRichTextSource(source) {
@@ -2235,21 +2391,222 @@ function cleanRichTextSource(source) {
     .replace(/[ \t]+/g, " ");
 }
 
+function richTextSourceLines(source, normalized) {
+  const explicitLines = String(source || "")
+    .split(/\\\\/)
+    .map(collapseTeXParagraphWhitespace)
+    .filter((line) => line.length);
+  if (explicitLines.length) return explicitLines;
+  const fallbackLines = Array.isArray(normalized.lines) && normalized.lines.length ? normalized.lines : [normalized.text || ""];
+  return fallbackLines.map(collapseTeXParagraphWhitespace).filter((line) => line.length);
+}
+
+function collapseTeXParagraphWhitespace(value) {
+  return String(value || "")
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+function wrapRichTextLines(sourceLines, wrapWidth, unit, fontSize, sourceLineStyles) {
+  const width = Number(wrapWidth) * unit;
+  if (!Number.isFinite(width) || width <= 0) {
+    return sourceLines.map((line, index) => ({ text: line, style: sourceLineStyles[index] || {} }));
+  }
+  const maxEm = (width / Math.max(1, fontSize)) * KATEX_RICH_TEXT_WRAP_WIDTH_SCALE;
+  const output = [];
+  sourceLines.forEach((line, index) => {
+    const style = sourceLineStyles[index] || {};
+    for (const wrapped of wrapRichTextLine(line, maxEm)) {
+      output.push({ text: wrapped, style });
+    }
+  });
+  return output;
+}
+
+function wrapRichTextLine(line, maxEm) {
+  const text = collapseTeXParagraphWhitespace(line);
+  if (!text || estimateRichTextWidthEm(text) <= maxEm || !/\s/.test(text)) return [text];
+  const tokens = richTextWrapTokens(text);
+  if (!tokens.length) return [text];
+  return wrapRichTextTokensBalanced(tokens, maxEm);
+}
+
+function richTextWrapTokens(line) {
+  const tokens = [];
+  for (const segment of splitInlineMathSegments(line)) {
+    if (segment.type === "math") {
+      const source = `$${segment.tex}$`;
+      tokens.push({ source, widthEm: Math.max(0.2, estimateRichMathWidthEm(segment.tex)) });
+      continue;
+    }
+    for (const match of String(segment.text || "").matchAll(/\S+/g)) {
+      const source = match[0];
+      const widthEm = Math.max(0.2, estimateRichTextWidthEm(formatPlainTexText(source)));
+      if (/^[,.;:!?]+$/.test(source) && tokens.length) {
+        tokens[tokens.length - 1].source += source;
+        tokens[tokens.length - 1].widthEm += widthEm;
+      } else {
+        tokens.push({ source, widthEm });
+      }
+    }
+  }
+  return tokens;
+}
+
+function estimateRichMathWidthEm(tex) {
+  const fallback = mathFallbackText(tex);
+  const width = estimateRichTextWidthEm(fallback);
+  return /[=<>≤≥]/.test(fallback) ? width * 0.68 : width;
+}
+
+function wrapRichTextTokensBalanced(tokens, maxEm) {
+  const count = tokens.length;
+  const best = Array.from({ length: count + 1 }, () => ({ cost: Infinity, next: count }));
+  best[count] = { cost: 0, next: count };
+  for (let start = count - 1; start >= 0; start -= 1) {
+    let width = 0;
+    for (let end = start; end < count; end += 1) {
+      width += tokens[end].widthEm + (end > start ? TEX_SPACE_WIDTH_EM : 0);
+      if (width > maxEm * 1.08 && end > start) break;
+      const isLast = end === count - 1;
+      const overfull = Math.max(0, width - maxEm);
+      const remaining = Math.max(0, maxEm - width);
+      const lineCost = overfull > 0
+        ? overfull * overfull * 80
+        : isLast
+          ? remaining * remaining * 0.05
+          : remaining * remaining;
+      const cost = lineCost + best[end + 1].cost;
+      if (cost < best[start].cost) best[start] = { cost, next: end + 1 };
+    }
+  }
+  const lines = [];
+  let cursor = 0;
+  while (cursor < count) {
+    const next = best[cursor].next > cursor ? best[cursor].next : cursor + 1;
+    lines.push(normalizeRichWrappedLineSpacing(tokens.slice(cursor, next).map((token) => token.source).join(" ")));
+    cursor = next;
+  }
+  return lines.length ? lines : [tokens.map((token) => token.source).join(" ")];
+}
+
+const TEX_SPACE_WIDTH_EM = 0.333;
+const TEX_CHAR_WIDTHS_EM = new Map(
+  Object.entries({
+    " ": TEX_SPACE_WIDTH_EM,
+    ".": 0.278,
+    ",": 0.278,
+    ";": 0.278,
+    ":": 0.278,
+    "!": 0.278,
+    "?": 0.472,
+    "-": 0.333,
+    "(": 0.389,
+    ")": 0.389,
+    "[": 0.278,
+    "]": 0.278,
+    "{": 0.389,
+    "}": 0.389,
+    "|": 0.278,
+    "=": 0.778,
+    "+": 0.778,
+    "/": 0.5,
+    A: 0.75,
+    B: 0.708,
+    C: 0.722,
+    D: 0.764,
+    E: 0.681,
+    F: 0.653,
+    G: 0.785,
+    H: 0.75,
+    I: 0.361,
+    J: 0.514,
+    K: 0.778,
+    L: 0.625,
+    M: 0.917,
+    N: 0.75,
+    O: 0.778,
+    P: 0.681,
+    Q: 0.778,
+    R: 0.736,
+    S: 0.556,
+    T: 0.722,
+    U: 0.75,
+    V: 0.75,
+    W: 1.028,
+    X: 0.75,
+    Y: 0.75,
+    Z: 0.611,
+    a: 0.5,
+    b: 0.556,
+    c: 0.444,
+    d: 0.556,
+    e: 0.444,
+    f: 0.306,
+    g: 0.5,
+    h: 0.556,
+    i: 0.278,
+    j: 0.306,
+    k: 0.528,
+    l: 0.278,
+    m: 0.833,
+    n: 0.556,
+    o: 0.5,
+    p: 0.556,
+    q: 0.528,
+    r: 0.392,
+    s: 0.394,
+    t: 0.389,
+    u: 0.556,
+    v: 0.528,
+    w: 0.722,
+    x: 0.528,
+    y: 0.528,
+    z: 0.444,
+    "α": 0.625,
+    "β": 0.625,
+    "γ": 0.625,
+    "δ": 0.625,
+    "∥": 0.5
+  })
+);
+
+function estimateRichTextWidthEm(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .split("")
+    .reduce((sum, char) => sum + (TEX_CHAR_WIDTHS_EM.get(char) ?? defaultTexCharWidthEm(char)), 0);
+}
+
+function defaultTexCharWidthEm(char) {
+  if (/\d/.test(char)) return 0.5;
+  if (/[A-Z]/.test(char)) return 0.72;
+  if (/[a-z]/.test(char)) return 0.5;
+  return 0.5;
+}
+
+function normalizeRichWrappedLineSpacing(line) {
+  return String(line || "")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s+([)\]}])/g, "$1")
+    .replace(/([([{])\s+/g, "$1")
+    .trim();
+}
+
 function renderInlineMathHtml(line) {
   const parts = [];
-  const pattern = /\$([^$]+)\$/g;
-  let cursor = 0;
-  let match;
-  while ((match = pattern.exec(line))) {
-    if (match.index > cursor) parts.push(escapeHtml(line.slice(cursor, match.index)));
-    parts.push(
-      renderScopedMathHtml(normalizeKatexTex(match[1].trim()), {
-        displayMode: false
-      })
-    );
-    cursor = match.index + match[0].length;
+  for (const segment of splitInlineMathSegments(line)) {
+    if (segment.type === "math") {
+      parts.push(
+        renderScopedMathHtml(normalizeKatexTex(segment.tex.trim()), {
+          displayMode: false
+        })
+      );
+    } else if (segment.text) {
+      parts.push(escapeHtml(formatPlainTexText(segment.text)));
+    }
   }
-  if (cursor < line.length) parts.push(escapeHtml(line.slice(cursor)));
   return parts.join("");
 }
 
@@ -2267,7 +2624,8 @@ function estimateRichTextBox(lines, fontSize, lineStyles = []) {
   );
   const height = Math.max(
     fontSize * 1.15,
-    lineStyles.reduce((sum, style) => sum + fontSize * (Number(style?.scale) || 1) * 1.12, 0) || lines.length * fontSize * 1.12
+    lineStyles.reduce((sum, style) => sum + fontSize * (Number(style?.scale) || 1) * KATEX_RICH_TEXT_LINE_BOX_SCALE, 0) ||
+      lines.length * fontSize * KATEX_RICH_TEXT_LINE_BOX_SCALE
   );
   return { width, height };
 }
@@ -2607,11 +2965,12 @@ function renderMathNode(item, math, unit, options = {}) {
   const fontStyle = mathFallbackFontStyle(tex);
   const fontWeight = math.fontWeight || mathFallbackFontWeight(tex);
   const fallbackFontSize = box.fontSize;
-  const plainFallback = `<text x="${format(item.x * unit)}" y="${format(-item.y * unit)}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+  const fallbackText = mathFallbackText(tex);
+  const fallbackContent = renderMathTextWithUprightOperators(fallbackText);
+  const fallbackAnchor = svgTextAnchorPoint(item, unit);
+  const plainFallback = `<text x="${format(fallbackAnchor.x)}" y="${format(fallbackAnchor.y)}" fill="${color}" text-anchor="${fallbackAnchor.anchor}" dominant-baseline="middle" font-size="${format(
     fallbackFontSize
-  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${escapeText(
-    mathFallbackText(tex)
-  )}</text>`;
+  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">${fallbackContent}</text>`;
   const fractionFallback = simpleFractionFallback(tex);
   if (fractionFallback && options.mathRenderer === "svg-text") {
     return renderFractionMathFallback(item, fractionFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
@@ -2630,6 +2989,10 @@ function renderMathNode(item, math, unit, options = {}) {
   const tensorMatrixFallback = tensorMatrixFallbackParts(tex);
   if (tensorMatrixFallback && options.mathRenderer === "svg-text") {
     return renderTensorMatrixFallback(item, tensorMatrixFallback, box.fontSize, unit, color);
+  }
+  const inlineMatrixFallback = inlineMatrixMathFallback(tex);
+  if (inlineMatrixFallback && options.mathRenderer === "svg-text") {
+    return renderInlineMatrixMathFallback(item, inlineMatrixFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
   }
   const coloredMathFallback = coloredMathTextFallback(tex);
   if (coloredMathFallback && options.mathRenderer === "svg-text") {
@@ -2994,7 +3357,9 @@ function sumLimitsInlineFallback(tex) {
   if (sumIndex === -1) return null;
   let cursor = sumIndex + "\\sum".length;
   cursor = skipInlineWhitespace(raw, cursor);
+  let hasLimits = false;
   if (raw.startsWith("\\limits", cursor)) {
+    hasLimits = true;
     cursor += "\\limits".length;
     cursor = skipInlineWhitespace(raw, cursor);
   }
@@ -3014,6 +3379,7 @@ function sumLimitsInlineFallback(tex) {
   }
   return {
     prefix: raw.slice(0, sumIndex),
+    hasLimits,
     lower: lower.content,
     upper: upper.content,
     term,
@@ -3060,11 +3426,11 @@ function renderSumLimitsInlineFallback(item, parts, baseFontSize, unit, color, f
   }
   const sumX = cursor + limitWidth / 2;
   partsOut.push(`<text x="${format(sumX)}" y="${format(y + fontSize * 0.08)}" ${textAttrs} font-size="${format(sumFontSize)}">∑</text>`);
-  partsOut.push(`<text x="${format(sumX)}" y="${format(y - fontSize * 0.66)}" ${textAttrs} font-size="${format(limitFontSize)}">${renderFractionPartContent(
+  partsOut.push(`<text x="${format(sumX)}" y="${format(y - fontSize * 0.66)}" ${textAttrs} font-size="${format(limitFontSize)}">${renderSumLimitPartContent(
     parts.upper,
     limitFontSize
   )}</text>`);
-  partsOut.push(`<text x="${format(sumX)}" y="${format(y + fontSize * 0.72)}" ${textAttrs} font-size="${format(limitFontSize)}">${renderFractionPartContent(
+  partsOut.push(`<text x="${format(sumX)}" y="${format(y + fontSize * 0.72)}" ${textAttrs} font-size="${format(limitFontSize)}">${renderSumLimitPartContent(
     parts.lower,
     limitFontSize
   )}</text>`);
@@ -3086,9 +3452,309 @@ function renderSumLimitsInlineFallback(item, parts, baseFontSize, unit, color, f
   return partsOut.join("");
 }
 
+function renderSumLimitsContentFallback(tex, baseFontSize) {
+  const parts = sumLimitsInlineFallback(tex);
+  if (!parts) return null;
+  if (!parts.hasLimits) return renderSumSideScriptsContentFallback(parts, baseFontSize);
+  const limitFontSize = baseFontSize * 0.58;
+  const sumFontSize = baseFontSize * 1.08;
+  const upperWidth = sumLimitsPartWidth(parts.upper, limitFontSize);
+  const lowerWidth = sumLimitsPartWidth(parts.lower, limitFontSize);
+  const sumAdvance = sumFontSize * 0.54;
+  const stackWidth = Math.max(upperWidth, lowerWidth, sumFontSize * 0.46);
+  const upperDx = -(sumAdvance / 2 + upperWidth / 2);
+  const lowerDx = -((upperWidth + lowerWidth) / 2);
+  const tailDx = Math.max(baseFontSize * 0.18, sumAdvance / 2 - lowerWidth / 2 + baseFontSize * 0.18);
+  const output = [];
+  const tail = `${parts.term || ""}${parts.suffix || ""}`;
+  if (parts.prefix) output.push(renderFractionPartContent(parts.prefix, baseFontSize));
+  output.push(
+    `<tspan class="tikz-sum-limits-content" font-size="${format(sumFontSize)}" font-style="normal">∑</tspan>`
+  );
+  output.push(
+    `<tspan font-size="${format(limitFontSize)}" font-style="normal" dx="${format(
+      upperDx
+    )}" dy="${format(-baseFontSize * 0.62)}">${renderSumLimitPartContent(parts.upper, limitFontSize)}</tspan>`
+  );
+  output.push(
+    `<tspan font-size="${format(limitFontSize)}" font-style="normal" dx="${format(
+      lowerDx
+    )}" dy="${format(baseFontSize * 1.1)}">${renderSumLimitPartContent(parts.lower, limitFontSize)}</tspan>`
+  );
+  if (tail.trim()) {
+    output.push(
+      `<tspan font-size="${format(baseFontSize)}" dx="${format(
+        Math.max(tailDx, stackWidth - lowerWidth + baseFontSize * 0.18)
+      )}" dy="${format(-baseFontSize * 0.48)}">${renderFractionPartContent(tail, baseFontSize)}</tspan>`
+    );
+  }
+  return output.join("");
+}
+
+function renderSumSideScriptsContentFallback(parts, baseFontSize) {
+  const limitFontSize = baseFontSize * 0.58;
+  const sumFontSize = baseFontSize * 1.08;
+  const upperWidth = sumLimitsPartWidth(parts.upper, limitFontSize);
+  const lowerWidth = sumLimitsPartWidth(parts.lower, limitFontSize);
+  const output = [];
+  const tail = `${parts.term || ""}${parts.suffix || ""}`;
+  if (parts.prefix) output.push(renderFractionPartContent(parts.prefix, baseFontSize));
+  output.push(
+    `<tspan class="tikz-sum-sidescripts-content" font-size="${format(sumFontSize)}" font-style="normal">∑</tspan>`
+  );
+  output.push(
+    `<tspan font-size="${format(limitFontSize)}" font-style="normal" dx="${format(
+      baseFontSize * 0.05
+    )}" dy="${format(-baseFontSize * 0.46)}">${renderSumLimitPartContent(parts.upper, limitFontSize)}</tspan>`
+  );
+  output.push(
+    `<tspan font-size="${format(limitFontSize)}" font-style="normal" dx="${format(
+      -upperWidth
+    )}" dy="${format(baseFontSize * 0.72)}">${renderSumLimitPartContent(parts.lower, limitFontSize)}</tspan>`
+  );
+  if (tail.trim()) {
+    output.push(
+      `<tspan font-size="${format(baseFontSize)}" dx="${format(
+        Math.max(baseFontSize * 0.12, upperWidth - lowerWidth + baseFontSize * 0.12)
+      )}" dy="${format(-baseFontSize * 0.26)}">${renderFractionPartContent(tail, baseFontSize)}</tspan>`
+    );
+  }
+  return output.join("");
+}
+
+function inlineMatrixMathFallback(tex) {
+  const raw = String(tex || "");
+  const beginIndex = raw.indexOf(String.raw`\begin`);
+  if (beginIndex === -1) return null;
+  const begin = matchSvgMatrixEnvToken(raw, beginIndex, "begin");
+  if (!begin) return null;
+  const end = findSvgMatrixEnvironmentEnd(raw, beginIndex);
+  if (!end) return null;
+  const rows = splitSvgMatrixTopLevel(raw.slice(begin.end, end.start), "row")
+    .map((row) =>
+      splitSvgMatrixTopLevel(row, "col")
+        .map((cell) => mathFallbackText(cell).trim())
+        .filter(Boolean)
+    )
+    .filter((row) => row.length);
+  if (!rows.length) return null;
+  return {
+    env: begin.env,
+    prefix: raw.slice(0, beginIndex),
+    rows,
+    suffix: raw.slice(end.end)
+  };
+}
+
+function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, color, fontStyle, fontWeight) {
+  const x = item.x * unit;
+  const y = -item.y * unit;
+  const fontSize = baseFontSize;
+  const inlineFontSize = fontSize * 0.82;
+  const cellFontSize = fontSize * 0.56;
+  const prefix = mathFallbackText(parts.prefix).trim();
+  const suffix = mathFallbackText(parts.suffix).trim();
+  const prefixWidth = prefix ? inlineMathTextWidth(prefix, inlineFontSize) : 0;
+  const suffixWidth = suffix ? inlineMathTextWidth(suffix, inlineFontSize) : 0;
+  const colCount = Math.max(...parts.rows.map((row) => row.length));
+  const colGap = cellFontSize * 0.46;
+  const rowGap = cellFontSize * 0.1;
+  const rowHeight = cellFontSize * 0.92;
+  const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
+    Math.max(
+      cellFontSize * 0.44,
+      ...parts.rows.map((row) => inlineMathTextWidth(row[colIndex] || "", cellFontSize))
+    )
+  );
+  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + colGap * Math.max(0, colCount - 1);
+  const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
+  const delimiterWidth = parts.env === "matrix" ? 0 : cellFontSize * 0.32;
+  const delimiterPad = parts.env === "matrix" ? 0 : cellFontSize * 0.12;
+  const matrixWidth = contentWidth + delimiterWidth * 2 + delimiterPad * 2;
+  const gap = inlineFontSize * 0.16;
+  const totalWidth = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);
+  let cursor = x - totalWidth / 2;
+  const textAttrs = `fill="${color}" dominant-baseline="middle"${fontStyle ? ` font-style="${fontStyle}"` : ""}${
+    fontWeight ? ` font-weight="${fontWeight}"` : ""
+  } font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}"`;
+  const output = [`<g class="tikz-math-matrix-inline">`];
+  if (prefix) {
+    output.push(`<text x="${format(cursor)}" y="${format(y)}" ${textAttrs} text-anchor="start" font-size="${format(inlineFontSize)}">${escapeText(prefix)}</text>`);
+    cursor += prefixWidth + gap;
+  }
+  const matrixX = cursor;
+  const contentX = matrixX + delimiterWidth + delimiterPad;
+  if (parts.env !== "matrix") {
+    output.push(renderInlineMatrixDelimiters(parts.env, matrixX, y, matrixWidth, matrixHeight, delimiterWidth, cellFontSize, color));
+  }
+  let cellY = y - matrixHeight / 2 + rowHeight / 2;
+  for (const row of parts.rows) {
+    let cellX = contentX;
+    for (let colIndex = 0; colIndex < colCount; colIndex += 1) {
+      const value = row[colIndex] || "";
+      const colWidth = colWidths[colIndex];
+      if (value) {
+        output.push(`<text x="${format(cellX + colWidth / 2)}" y="${format(cellY)}" ${textAttrs} text-anchor="middle" font-size="${format(
+          cellFontSize
+        )}">${escapeText(value)}</text>`);
+      }
+      cellX += colWidth + colGap;
+    }
+    cellY += rowHeight + rowGap;
+  }
+  cursor += matrixWidth;
+  if (suffix) {
+    cursor += gap;
+    output.push(`<text x="${format(cursor)}" y="${format(y)}" ${textAttrs} text-anchor="start" font-size="${format(inlineFontSize)}">${escapeText(suffix)}</text>`);
+  }
+  output.push("</g>");
+  return output.join("");
+}
+
+function renderInlineMatrixDelimiters(env, x, y, width, height, delimiterWidth, fontSize, color) {
+  if (env === "pmatrix") {
+    const delimiterFontSize = Math.max(fontSize * 1.15, height * 1.16);
+    return [
+      `<text x="${format(x + delimiterWidth / 2)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+        delimiterFontSize
+      )}" font-style="normal" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">(</text>`,
+      `<text x="${format(x + width - delimiterWidth / 2)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
+        delimiterFontSize
+      )}" font-style="normal" font-family="${escapeAttribute(TIKZ_FONT_FAMILY)}">)</text>`
+    ].join("");
+  }
+  if (env === "vmatrix" || env === "Vmatrix") {
+    const offset = env === "Vmatrix" ? delimiterWidth * 0.18 : 0;
+    const left = x + delimiterWidth * 0.55;
+    const right = x + width - delimiterWidth * 0.55;
+    const top = y - height / 2 - fontSize * 0.04;
+    const bottom = y + height / 2 + fontSize * 0.04;
+    const lines = [`M ${format(left - offset)} ${format(top)} L ${format(left - offset)} ${format(bottom)}`];
+    if (env === "Vmatrix") lines.push(`M ${format(left + offset)} ${format(top)} L ${format(left + offset)} ${format(bottom)}`);
+    lines.push(`M ${format(right + offset)} ${format(top)} L ${format(right + offset)} ${format(bottom)}`);
+    if (env === "Vmatrix") lines.push(`M ${format(right - offset)} ${format(top)} L ${format(right - offset)} ${format(bottom)}`);
+    return `<path d="${lines.join(" ")}" stroke="${color}" fill="none" stroke-width="${format(Math.max(0.45, fontSize * 0.055))}" />`;
+  }
+  const left = x + delimiterWidth * 0.9;
+  const right = x + width - delimiterWidth * 0.9;
+  const top = y - height / 2 - fontSize * 0.03;
+  const bottom = y + height / 2 + fontSize * 0.03;
+  const tick = delimiterWidth * 0.52;
+  const leftPath = env === "Bmatrix" || env === "cases"
+    ? curlyDelimiterPath(left, y, height + fontSize * 0.08, "left", fontSize * 0.22)
+    : `M ${format(left + tick)} ${format(top)} L ${format(left)} ${format(top)} L ${format(left)} ${format(bottom)} L ${format(left + tick)} ${format(bottom)}`;
+  const rightPath = env === "Bmatrix"
+    ? curlyDelimiterPath(right, y, height + fontSize * 0.08, "right", fontSize * 0.22)
+    : `M ${format(right - tick)} ${format(top)} L ${format(right)} ${format(top)} L ${format(right)} ${format(bottom)} L ${format(right - tick)} ${format(bottom)}`;
+  const path = env === "cases" ? leftPath : `${leftPath} ${rightPath}`;
+  return `<path d="${path}" stroke="${color}" fill="none" stroke-width="${format(Math.max(0.45, fontSize * 0.055))}" stroke-linecap="round" stroke-linejoin="round" />`;
+}
+
+function curlyDelimiterPath(x, y, height, side, amplitude) {
+  const sign = side === "left" ? -1 : 1;
+  const top = y - height / 2;
+  const bottom = y + height / 2;
+  const mid = y;
+  return [
+    `M ${format(x)} ${format(top)}`,
+    `C ${format(x + sign * amplitude)} ${format(top + height * 0.12)} ${format(x + sign * amplitude)} ${format(mid - height * 0.16)} ${format(x)} ${format(mid)}`,
+    `C ${format(x + sign * amplitude)} ${format(mid + height * 0.16)} ${format(x + sign * amplitude)} ${format(bottom - height * 0.12)} ${format(x)} ${format(bottom)}`
+  ].join(" ");
+}
+
+function inlineMathTextWidth(text, fontSize) {
+  const normalized = String(text || "");
+  if (!normalized) return 0;
+  return Math.max(fontSize * 0.28, [...normalized].length * fontSize * 0.48);
+}
+
+function findSvgMatrixEnvironmentEnd(text, start) {
+  let depth = 0;
+  let cursor = start;
+  while (cursor < text.length) {
+    const begin = matchSvgMatrixEnvToken(text, cursor, "begin");
+    if (begin) {
+      depth += 1;
+      cursor = begin.end;
+      continue;
+    }
+    const end = matchSvgMatrixEnvToken(text, cursor, "end");
+    if (end) {
+      depth -= 1;
+      if (depth === 0) return { start: cursor, end: end.end };
+      cursor = end.end;
+      continue;
+    }
+    cursor += 1;
+  }
+  return null;
+}
+
+function matchSvgMatrixEnvToken(text, index, kind) {
+  if (!text.startsWith(`\\${kind}`, index)) return null;
+  const match = text.slice(index).match(new RegExp(`^\\\\${kind}\\s*\\{([A-Za-z*]+)\\}`));
+  if (!match) return null;
+  const env = match[1].replace(/\*$/, "");
+  if (!SVG_MATRIX_ENV_NAMES.includes(env)) return null;
+  return { env, end: index + match[0].length };
+}
+
+function splitSvgMatrixTopLevel(body, mode) {
+  const parts = [];
+  let current = "";
+  let envDepth = 0;
+  let braceDepth = 0;
+  let index = 0;
+  while (index < body.length) {
+    const begin = matchSvgMatrixEnvToken(body, index, "begin");
+    if (begin) {
+      envDepth += 1;
+      current += body.slice(index, begin.end);
+      index = begin.end;
+      continue;
+    }
+    const end = matchSvgMatrixEnvToken(body, index, "end");
+    if (end) {
+      envDepth = Math.max(0, envDepth - 1);
+      current += body.slice(index, end.end);
+      index = end.end;
+      continue;
+    }
+    const char = body[index];
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    if (envDepth === 0 && braceDepth === 0) {
+      if (mode === "row" && char === "\\" && body[index + 1] === "\\") {
+        parts.push(current);
+        current = "";
+        index += 2;
+        continue;
+      }
+      if (mode === "col" && char === "&") {
+        parts.push(current);
+        current = "";
+        index += 1;
+        continue;
+      }
+    }
+    current += char;
+    index += 1;
+  }
+  parts.push(current);
+  return parts;
+}
+
 function sumLimitsPartWidth(tex, fontSize) {
-  const fallback = mathFallbackText(tex).replace(/\s+/g, "");
-  return Math.max(fontSize * 0.18, [...fallback].length * fontSize * 0.38);
+  const fallback = compactSumLimitScriptOperators(mathFallbackText(tex).replace(/\s+/g, " ").trim());
+  return Math.max(fontSize * 0.18, estimateRichTextWidthEm(fallback) * fontSize * 0.92);
+}
+
+function renderSumLimitPartContent(tex, fontSize) {
+  return renderFractionPartContent(tex, fontSize).replace(/(>[^<>]*)\s+([=<>≤≥])\s+([^<>]*<)/g, "$1$2$3");
+}
+
+function compactSumLimitScriptOperators(text) {
+  return String(text || "").replace(/\s+([=<>≤≥])\s+/g, "$1");
 }
 
 function renderFractionPartContent(tex, fontSize) {
@@ -3159,6 +3825,40 @@ function coloredMathTextFallback(tex) {
   return segments.some((segment) => segment.color) ? segments : null;
 }
 
+function statefulColorMathTextFallback(tex) {
+  const raw = String(tex || "");
+  if (!raw.includes("\\color")) return null;
+  const segments = [];
+  let cursor = 0;
+  let color = null;
+  while (cursor < raw.length) {
+    const index = raw.indexOf("\\color", cursor);
+    if (index === -1) {
+      const texPart = raw.slice(cursor);
+      if (texPart) segments.push({ tex: texPart, color });
+      break;
+    }
+    if (index > cursor) segments.push({ tex: raw.slice(cursor, index), color });
+    const read = readStatefulColorCommand(raw, index);
+    if (!read) {
+      segments.push({ tex: raw.slice(index, index + "\\color".length), color });
+      cursor = index + "\\color".length;
+      continue;
+    }
+    color = read.color;
+    cursor = read.end;
+  }
+  return segments.some((segment) => segment.color) ? segments : null;
+}
+
+function readStatefulColorCommand(raw, start) {
+  if (!raw.startsWith("\\color", start) || /[A-Za-z@]/.test(raw[start + "\\color".length] || "")) return null;
+  let cursor = skipInlineWhitespace(raw, start + "\\color".length);
+  const color = readBalancedGroup(raw, cursor);
+  if (!color) return null;
+  return { color: color.content.trim(), end: color.end };
+}
+
 function readTextColorCommand(raw, start) {
   if (!raw.startsWith("\\textcolor", start)) return null;
   let cursor = start + "\\textcolor".length;
@@ -3183,7 +3883,7 @@ function renderColoredMathTextFallback(item, segments, baseFontSize, unit, color
     .map((segment) => {
       const rendered = renderFractionPartContent(segment.tex, baseFontSize);
       if (!segment.color) return rendered;
-      return `<tspan fill="${escapeAttribute(segment.color)}">${rendered}</tspan>`;
+      return `<tspan fill="${escapeAttribute(svgPaint(segment.color))}">${rendered}</tspan>`;
     })
     .join("");
   return `<text x="${format(x)}" y="${format(y)}" ${textAttrs}>${content}</text>`;
@@ -3208,11 +3908,27 @@ function renderScriptedMathFallback(item, segments, baseFontSize, unit, color, f
   const x = format(item.x * unit);
   const y = format(-item.y * unit);
   const content = renderScriptedSegmentsContent(segments, baseFontSize);
+  const textLength = scriptedMathFallbackTextLength(segments, baseFontSize);
+  const textLengthAttrs = Number.isFinite(textLength) ? ` textLength="${format(textLength)}" lengthAdjust="spacing"` : "";
   return `<text x="${x}" y="${y}" fill="${color}" text-anchor="middle" dominant-baseline="middle" font-size="${format(
     baseFontSize
-  )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+  )}"${textLengthAttrs}${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
     TIKZ_FONT_FAMILY
   )}">${content}</text>`;
+}
+
+function scriptedMathFallbackTextLength(segments, baseFontSize) {
+  if (!segments?.some((segment, index) => segment.kind === "script" && startsWithNamedMathOperator(segments[index + 1]?.text))) return NaN;
+  const plain = segments
+    .map((segment) => {
+      if (segment.kind === "text" || segment.kind === "bold") return segment.text || "";
+      return `${segment.base || ""}${segment.superscript || ""}${segment.subscript || ""}`;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  const charCount = Math.max(1, [...plain].length);
+  return charCount * baseFontSize * 0.39;
 }
 
 function renderSimpleSubscriptContent(parts, baseFontSize) {
@@ -3245,12 +3961,18 @@ function renderLeadingScriptContent(parts, baseFontSize) {
 
 function renderScriptedSegmentsContent(segments, baseFontSize) {
   const scriptFontSize = baseFontSize * 0.66;
+  const superscriptExtraDy = Math.max(2, baseFontSize * 0.22);
   const operatorSpacing =
     segments.some((segment) => segment.operatorSpacing) ||
-    segments.some((segment) => segment.kind === "text" && /[=+≤≥≠≈]/.test(segment.text));
+    segments.some((segment) => segment.kind === "text" && /[=+≤≥≠≈∼]/.test(segment.text));
   return segments
-    .map((segment) => {
-      if (segment.kind === "text") return operatorSpacing ? renderMathOperatorSpacedText(segment.text, baseFontSize) : escapeText(segment.text);
+    .map((segment, index) => {
+      if (segment.kind === "text") {
+        if (operatorSpacing) return renderMathOperatorSpacedText(segment.text, baseFontSize);
+        const leadingOperatorDx =
+          index > 0 && segments[index - 1]?.kind === "script" && startsWithNamedMathOperator(segment.text) ? Math.max(1.4, baseFontSize * 0.16) : 0;
+        return renderMathTextWithUprightOperators(segment.text, { leadingOperatorDx });
+      }
       if (segment.kind === "bold") return `<tspan font-weight="700" font-style="normal">${escapeText(segment.text)}</tspan>`;
       const base = renderMathBaseText(segment.base);
       if (segment.superscript && segment.subscript) {
@@ -3263,10 +3985,14 @@ function renderScriptedSegmentsContent(segments, baseFontSize) {
         )}" font-style="normal" baseline-shift="sub">${renderNestedScriptText(segment.subscript, scriptFontSize)}</tspan>`;
       }
       if (segment.superscript) {
-        return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super">${renderNestedScriptText(
+        const isDegreeSuperscript = String(segment.superscript || "").trim() === "°";
+        const extraDy = isDegreeSuperscript ? 0 : superscriptExtraDy;
+        const shiftAttrs = extraDy ? ` dy="${format(-extraDy)}"` : "";
+        const restoreAttrs = extraDy ? `<tspan dy="${format(extraDy)}"></tspan>` : "";
+        return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super"${shiftAttrs}>${renderNestedScriptText(
           segment.superscript,
           scriptFontSize
-        )}</tspan>`;
+        )}</tspan>${restoreAttrs}`;
       }
       return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="sub">${renderNestedScriptText(
         segment.subscript,
@@ -3293,21 +4019,57 @@ function renderMathBaseText(text) {
 }
 
 function texNeedsOperatorSpacing(tex) {
-  return /\\(?:leq|le|geq|ge|neq|approx)(?![A-Za-z])|[=<>]/.test(String(tex || ""));
+  return /\\(?:leq|le|geq|ge|neq|approx|sim)(?![A-Za-z])|[=<>∼]/.test(String(tex || ""));
 }
 
 function renderMathOperatorSpacedText(text, baseFontSize) {
   const source = String(text || "");
-  if (!/[=+≤≥≠≈]/.test(source)) return escapeText(source);
+  if (!/[=+≤≥≠≈∼]/.test(source)) return renderMathTextWithUprightOperators(source);
   const spacing = Math.max(1.5, baseFontSize * 0.12);
-  return [...source]
-    .map((char) => {
-      if (/[=+≤≥≠≈]/.test(char)) {
-        return `<tspan dx="${format(spacing)}" font-style="normal">${escapeText(char)}</tspan><tspan dx="${format(spacing)}"></tspan>`;
+  let output = "";
+  let buffer = "";
+  for (const char of source) {
+      if (/[=+≤≥≠≈∼]/.test(char)) {
+      output += renderMathTextWithUprightOperators(buffer);
+      buffer = "";
+      output += `<tspan dx="${format(spacing)}" font-style="normal">${escapeText(char)}</tspan><tspan dx="${format(spacing)}"></tspan>`;
+      continue;
       }
-      return escapeText(char);
-    })
-    .join("");
+    buffer += char;
+  }
+  return output + renderMathTextWithUprightOperators(buffer);
+}
+
+function renderMathTextWithUprightOperators(text, options = {}) {
+  const source = String(text || "");
+  if (!source) return "";
+  const pattern = /\b([A-Za-z]+)\b/g;
+  let output = "";
+  let cursor = 0;
+  let match;
+  let usedLeadingOperatorDx = false;
+  while ((match = pattern.exec(source))) {
+    output += escapeText(source.slice(cursor, match.index));
+    const word = match[1];
+    if (SVG_MATH_OPERATOR_WORDS.has(word)) {
+      const leadingOperatorDx =
+        !usedLeadingOperatorDx && Number(options.leadingOperatorDx) > 0 && source.slice(0, match.index).trim() === ""
+          ? ` dx="${format(Number(options.leadingOperatorDx))}"`
+          : "";
+      output += `<tspan${leadingOperatorDx} font-style="normal">${escapeText(word)}</tspan>`;
+      usedLeadingOperatorDx = true;
+    } else {
+      output += escapeText(word);
+    }
+    cursor = pattern.lastIndex;
+  }
+  output += escapeText(source.slice(cursor));
+  return output;
+}
+
+function startsWithNamedMathOperator(text) {
+  const match = String(text || "").trimStart().match(/^([A-Za-z]+)\b/);
+  return Boolean(match && SVG_MATH_OPERATOR_WORDS.has(match[1]));
 }
 
 function estimateScriptTextWidth(text, fontSize) {
@@ -3366,11 +4128,13 @@ function renderNestedScriptText(text, fontSize) {
   const nestedFontSize = fontSize * 0.74;
   let output = "";
   let cursor = 0;
-  const pattern = /_([A-Za-z0-9+\-=()]+)/g;
+  const pattern = /([_^])([A-Za-z0-9+\-=()]+)/g;
   let match;
   while ((match = pattern.exec(raw))) {
     output += escapeText(raw.slice(cursor, match.index));
-    output += `<tspan font-size="${format(nestedFontSize)}" baseline-shift="sub">${escapeText(match[1])}</tspan>`;
+    output += `<tspan font-size="${format(nestedFontSize)}" baseline-shift="${
+      match[1] === "^" ? "super" : "sub"
+    }">${escapeText(match[2])}</tspan>`;
     cursor = pattern.lastIndex;
   }
   output += escapeText(raw.slice(cursor));
@@ -3617,6 +4381,8 @@ function readMathScriptAtom(raw, start) {
     if (raw[end] === "'") end += 1;
     return { source: raw.slice(start, end), end };
   }
+  const number = raw.slice(start).match(/^(?:\d+(?:\.\d+)?|\.\d+)/);
+  if (number) return { source: number[0], end: start + number[0].length };
   return null;
 }
 
@@ -3688,7 +4454,7 @@ function skipInlineWhitespace(raw, start) {
 }
 
 function mathScriptFallbackText(value) {
-  return mathFallbackText(value).replace(/^_/, "");
+  return mathFallbackText(value).replace(/^_/, "").replace(/-/g, "−");
 }
 
 function mathFallbackFontStyle(tex) {
@@ -3826,7 +4592,20 @@ function styleAttributes(style = {}, options = {}) {
 
 function svgPaint(value) {
   const text = String(value ?? "").trim();
+  if (
+    !text ||
+    text === "none" ||
+    text.startsWith("url(") ||
+    text.startsWith("color-mix(") ||
+    text.startsWith("var(") ||
+    text === "currentColor" ||
+    text === "transparent" ||
+    text === "inherit"
+  ) {
+    return text;
+  }
   if (text.toLowerCase() === "green") return "rgb(0 255 0)";
+  if (text.includes("!")) return normalizeColor(text);
   return text;
 }
 
@@ -4196,6 +4975,7 @@ function computeBounds(items, options = {}) {
   };
 
   for (const item of items) {
+    if (item.overlay) continue;
     if (item.type === "nodeBox") {
       include(item.x - item.width / 2, item.y - item.height / 2);
       include(item.x + item.width / 2, item.y + item.height / 2);
@@ -4209,7 +4989,7 @@ function computeBounds(items, options = {}) {
         include(sx - sw / 2 - blurPad, sy - sh / 2 - blurPad);
         include(sx + sw / 2 + blurPad, sy + sh / 2 + blurPad);
       }
-    } else if (item.type === "path" && hasPathCommands(item)) {
+    } else if ((item.type === "path" || item.type === "bbox") && hasPathCommands(item)) {
       includePathBounds(item, include);
     } else if (item.shape === "circle") {
       include(item.cx - item.r, item.cy - item.r);
@@ -4235,12 +5015,13 @@ function computeBounds(items, options = {}) {
         const svgTextFallback = options.mathRenderer === "svg-text";
         const width = (svgTextFallback ? box.width : htmlBox.width) / TIKZ_UNIT;
         const height = (svgTextFallback ? box.height : htmlBox.height) / TIKZ_UNIT;
-        include(item.x - width / 2, item.y - height / 2);
-        include(item.x + width / 2, item.y + height / 2);
+        includeTextRenderBounds(item, width, height, include);
+      } else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) {
+        const { width, height } = estimateRichTextRenderBounds(item, normalized, TIKZ_UNIT);
+        includeTextRenderBounds(item, width, height, include);
       } else {
         const { width, height } = estimatePlainTextRenderBounds(item, normalized, TIKZ_UNIT);
-        include(item.x - width / 2, item.y - height / 2);
-        include(item.x + width / 2, item.y + height / 2);
+        includeTextRenderBounds(item, width, height, include);
       }
     } else if (item.type === "marker") {
       include(item.x, item.y);
@@ -4253,6 +5034,23 @@ function computeBounds(items, options = {}) {
   return bounds;
 }
 
+function includeTextRenderBounds(item, width, height, include) {
+  const anchor = svgTextAnchorForItem(item);
+  const rawAnchorX = Number(item.svgTextX);
+  const anchorX = anchor ? (Number.isFinite(rawAnchorX) ? rawAnchorX : item.x) : item.x;
+  let minX = anchorX - width / 2;
+  let maxX = anchorX + width / 2;
+  if (anchor === "start") {
+    minX = anchorX;
+    maxX = anchorX + width;
+  } else if (anchor === "end") {
+    minX = anchorX - width;
+    maxX = anchorX;
+  }
+  include(minX, item.y - height / 2);
+  include(maxX, item.y + height / 2);
+}
+
 function estimatePlainTextRenderBounds(item, normalized, unit) {
   const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
   const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
@@ -4262,10 +5060,16 @@ function estimatePlainTextRenderBounds(item, normalized, unit) {
   const wrapped = wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, item.wrapWidth, unit, baseFontSize);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, wrapped.lines);
   const wrapWidth = Number(item.wrapWidth);
-  const typewriter = typewriterWidthScale(rawFontFamily) !== 1;
+  const widthScale = textWidthScale(item, rawFontFamily);
   const width = Number.isFinite(wrapWidth) && wrapWidth > 0
     ? wrapWidth
-    : Math.max(...wrapped.lines.map((line) => line.length), 0) * (typewriter ? 0.187 : 0.15) * (fontSize / TIKZ_TEXT_FONT_SIZE);
+    : Math.max(
+        ...wrapped.lines.map((line, index) => {
+          const lineScale = (fontSize / TIKZ_TEXT_FONT_SIZE) * (Number(wrapped.lineStyles[index]?.scale) || 1);
+          return texTextWidthCm(line, lineScale) * widthScale;
+        }),
+        0
+      );
   const offsets = baselineOffsets(fontSize, wrapped.lineStyles);
   const lineSizes = wrapped.lineStyles.map((style) => fontSize * (Number(style?.scale) || 1));
   const maxLineSize = Math.max(fontSize, ...lineSizes);
@@ -4275,6 +5079,28 @@ function estimatePlainTextRenderBounds(item, normalized, unit) {
   return {
     width: Math.max(0.08, width),
     height: Math.max(0.08, heightPx / unit)
+  };
+}
+
+function estimateRichTextRenderBounds(item, normalized, unit) {
+  const source = cleanRichTextSource(normalized.raw || normalized.text || "");
+  const wrapWidth = Number(item.wrapWidth);
+  const hasWrapWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * (normalized.scale || 1) * textFontScale(item, normalized);
+  const sourceLines = richTextSourceLines(source, normalized);
+  const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
+  const wrapped = hasWrapWidth
+    ? wrapRichTextLines(sourceLines, wrapWidth, unit, baseFontSize, sourceLineStyles)
+    : sourceLines.map((line, index) => ({ text: line, style: sourceLineStyles[index] || {} }));
+  const lines = wrapped.length ? wrapped.map((line) => line.text) : [normalized.text || ""];
+  const lineStyles = wrapped.length ? wrapped.map((line) => line.style || {}) : textLineStyles(normalized, lines.length);
+  const fontSize = fitRichFontSizeToBox(baseFontSize, item.fitBox, unit, lines, lineStyles);
+  const displayFontSize = hasWrapWidth ? fontSize * KATEX_RICH_TEXT_FONT_SCALE : fontSize;
+  const box = estimateRichTextBox(lines, displayFontSize, lineStyles);
+  const widthPx = hasWrapWidth ? wrapWidth * unit : box.width;
+  return {
+    width: Math.max(0.08, widthPx / unit),
+    height: Math.max(0.08, box.height / unit)
   };
 }
 

@@ -1,0 +1,15 @@
+\usetikzlibrary {datavisualization}
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization [
+  school book axes, visualize as line/.list={a,b},
+  style sheet=vary dashing,
+  a={label in legend={text=a}},
+  new legend entry={
+    text=spacer,
+    visualizer in legend={\draw[solid] (0,0) circle[radius=2pt];}
+  },
+  b={label in legend={text=b}}]
+data point [x=-1, y=-1, set=a]   data point [x=1, y=0, set=a]
+data point [x=-1, y=1,  set=b]   data point [x=1, y=0.5, set=b];
+\end{tikzpicture}

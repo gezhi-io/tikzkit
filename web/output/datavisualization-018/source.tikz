@@ -1,0 +1,23 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \datavisualization [ scientific axes=clean,
+                       visualize as smooth line/.list={a,b,c},
+                       style sheet=strong colors,
+                       style sheet=vary thickness,
+                       a={label in legend={text=low}},
+                       b={label in legend={text=mid}},
+                       c={label in legend={text=high}},
+                       data/format=function ]
+  data [set=a] {
+    var x : interval [0:4] samples 25;
+    func y = 0.25*\value x;
+  }
+  data [set=b] {
+    var x : interval [0:4] samples 25;
+    func y = 0.25*\value x + 0.5;
+  }
+  data [set=c] {
+    var x : interval [0:4] samples 25;
+    func y = 0.25*\value x + 1;
+  };
+\end{tikzpicture}

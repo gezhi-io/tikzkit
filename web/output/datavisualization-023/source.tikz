@@ -1,0 +1,21 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \datavisualization [ scientific axes=clean,
+                       all axes={ticks=few},
+                       visualize as smooth line=polygon,
+                       polygon={straight cycle,style={blue},label in legend={text=polygon}},
+                       data/format=function ]
+  data [set=polygon] {
+    var t : interval [0:2*pi] samples 9;
+    func x = cos(\value t r);
+    func y = sin(\value t r);
+  }
+  [
+    visualize as smooth cycle=loop,
+    loop={style={red},label in legend={text=loop}} ]
+  data [set=loop, format=function] {
+    var t : interval [0:2*pi] samples 17;
+    func x = 0.72*cos(\value t r);
+    func y = 0.72*sin(\value t r);
+  };
+\end{tikzpicture}

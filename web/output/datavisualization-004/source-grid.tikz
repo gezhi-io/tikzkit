@@ -1,0 +1,12 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization
+ [scientific axes=clean,
+  visualize as smooth line=my data,
+  my data={no lines, style={mark=x, mark size=2pt}}]
+data [format=function] {
+  var x : interval [0:pi] samples 10;
+  func y = sin(\value x r);
+};
+\end{tikzpicture}

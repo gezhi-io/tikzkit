@@ -1,14 +1,15 @@
 export const tikzLibrary = {
   "name": "arrows",
-  "status": "builtin",
-  "implementedBy": "src/options.js:parseArrowOption + src/tikz-metrics.js:createArrowTip",
+  "status": "partial",
+  "implementedBy": "src/options.js:parseArrowOption + src/tikz-metrics.js:createArrowTip + src/preprocess.js:expandTheoreticalComputerScienceLogoMacros",
   "features": [
     "->",
     "<-",
     "<->",
     "-stealth",
     "-latex",
-    "-latex'"
+    "-latex'",
+    "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion"
   ],
   "implements": [
     "->",
@@ -16,6 +17,7 @@ export const tikzLibrary = {
     "<->",
     "-stealth",
     "-latex",
-    "-latex'"
+    "-latex'",
+    "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion"
   ]
 };

@@ -9,6 +9,15 @@ function formatted(value) {
   return String(Object.is(rounded, -0) ? 0 : rounded);
 }
 
+function richLineTexts(svg) {
+  return [...svg.matchAll(/<div class="tikz-rich-line"[^>]*>(.*?)<\/div>/gs)].map((match) =>
+    match[1]
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
+}
+
 test("normalizes TeX strut, escaped dollars, and cdots for timeline labels", () => {
   assert.equal(normalizeTikzText(String.raw`\strut$n-1$`).text, "$n-1$");
   assert.equal(mathFallbackText(String.raw`$\$ 1$`), "$1");
@@ -50,8 +59,37 @@ test("preserves multiline dollar math before styled text cleanup", () => {
   assert.match(mathFallbackText(normalized.lines[0]), /θ_r\+\(θ_s-θ_r\)\//);
 });
 
+test("treats ordinary source newlines in text nodes as TeX paragraph spaces", () => {
+  const normalized = normalizeTikzText(String.raw`
+    When we assume that $\color{red}AB$ and $\color{blue}CD$ are
+    parallel, i.\,e., $\color{red}AB \parallel \color{blue}CD$.
+  `);
+
+  assert.equal(normalized.lines.length, 1);
+  assert.match(normalized.lines[0], /are parallel/);
+});
+
+test("left-aligns wrapped text width nodes unless align=center is explicit", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[text width=6cm] at (0,0) {When we assume that $\color{red}AB$ and $\color{blue}CD$ are
+  parallel, i.\,e., $\color{red}AB \parallel \color{blue}CD$.};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /text-anchor="start"/);
+  assert.doesNotMatch(result.svg, /are<\/tspan><tspan[^>]*>parallel/);
+});
+
 test("normalizes TeX right-left harpoons in math fallback labels", () => {
   assert.equal(mathFallbackText(String.raw`\theta_s \rightleftharpoons S`), "θ_s ⇌ S");
+});
+
+test("normalizes matrix environments in SVG text math fallback labels", () => {
+  const text = mathFallbackText(String.raw`A=\begin{pmatrix}2&1\\0&3\end{pmatrix}`);
+
+  assert.equal(text, "A = (2 1; 0 3)");
+  assert.doesNotMatch(text, /begin|pmatrix|end/);
 });
 
 test("renders nested fractions inside SVG text fraction parts without raw command leaks", () => {
@@ -625,7 +663,34 @@ test("renders inline sum limits with stacked upper and lower labels", () => {
   assert.match(result.svg, /class="tikz-sum-limits-inline"/);
   assert.match(result.svg, />∑</);
   assert.match(result.svg, />n</);
-  assert.match(result.svg, />i = 1</);
+  assert.match(result.svg, />i=1</);
+  assert.doesNotMatch(result.svg, />i = 1</);
+});
+
+test("renders sum limits inside mixed inline SVG text without compressed scripts", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node at (0,0) {$\sum_{i=1}^{10} x_i$, where $x_i \sim U(-1,1)$};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-sum-sidescripts-content"/);
+  assert.match(result.svg, />∑</);
+  assert.match(result.svg, />10</);
+  assert.match(result.svg, />i=1</);
+  assert.doesNotMatch(result.svg, />i = 1</);
+  assert.doesNotMatch(result.svg, /<tspan>∑<\/tspan><tspan[^>]+baseline-shift="super">10/);
+  assert.match(result.svg, /<tspan font-style="italic"><tspan class="tikz-sum-sidescripts-content"/);
+  assert.match(result.svg, /font-style="normal">∼<\/tspan><tspan dx="/);
+  const upperDx = result.svg.match(/class="tikz-sum-sidescripts-content"[^>]*>∑<\/tspan><tspan[^>]*dx="([^"]+)"/);
+  assert.ok(upperDx, "expected inline sum upper side-script tspan");
+  assert.ok(Number(upperDx[1]) > 0, `expected upper script to sit to the right of the sum glyph, got dx=${upperDx[1]}`);
+  const lowerDy = result.svg.match(/>10<\/tspan><\/tspan><tspan[^>]*dy="([^"]+)"><tspan>i=1/);
+  assert.ok(lowerDy, "expected inline sum lower side-script tspan");
+  assert.ok(Number(lowerDy[1]) > 20, `expected lower script to sit below the upper script without overlap, got dy=${lowerDy[1]}`);
+  const limitFont = result.svg.match(/>∑<\/tspan><tspan font-size="([^"]+)"/);
+  assert.ok(limitFont, "expected explicit sum-limit font size");
+  assert.ok(Number(limitFont[1]) > 19, `expected sum-limit scripts to remain readable in legend text, got ${limitFont[1]}`);
 });
 
 test("uses PGF butt caps and miter joins for solid paths unless line cap is explicit", () => {
@@ -741,6 +806,35 @@ test("sizes scoped KaTeX foreignObject boxes without clipping scriptsize formula
   assert.ok(height >= hostFontSize * 1.21 * 1.28, `expected foreignObject height to cover scoped KaTeX line box, got ${height}`);
   assert.ok(hostFontSize < 22, `expected host font-size to compensate KaTeX 1.21em root, got ${hostFontSize}`);
   assert.match(style, /white-space:nowrap/);
+});
+
+test("includes KaTeX rich text foreignObject in SVG bounds", () => {
+  const svg = renderSvg(
+    {
+      items: [
+        {
+          type: "textNode",
+          x: 0,
+          y: 0,
+          text: String.raw`$\sum_{i=1}^{10} x_i$, where $x_i \sim U(-1,1)$`,
+          style: { fill: "black" }
+        }
+      ],
+      coordinates: {}
+    },
+    { margin: 0 }
+  );
+  const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
+  const foreignObject = svg.match(/<foreignObject[^>]+>/)?.[0] || "";
+  const foreignX = Number(foreignObject.match(/\bx="([^"]+)"/)?.[1]);
+  const foreignWidth = Number(foreignObject.match(/\bwidth="([^"]+)"/)?.[1]);
+
+  assert.ok(viewBox, "expected SVG viewBox");
+  assert.ok(Number.isFinite(foreignX) && Number.isFinite(foreignWidth), "expected rich-text foreignObject dimensions");
+  assert.ok(
+    viewBox[0] + viewBox[2] >= foreignX + foreignWidth,
+    `expected viewBox right edge ${viewBox[0] + viewBox[2]} to include foreignObject right edge ${foreignX + foreignWidth}`
+  );
 });
 
 test("renders contour-wrapped math labels as plain math content", () => {
@@ -1316,6 +1410,32 @@ test("renders textcolor commands inside SVG math fallback as colored tspans", ()
   assert.match(svg, /&amp;/);
 });
 
+test("renders stateful color commands inside inline SVG math fallback", () => {
+  const svg = renderSvg(
+    {
+      items: [
+        {
+          type: "textNode",
+          x: 0,
+          y: 0,
+          text: String.raw`When $\color{red}AB \parallel \color{blue}CD$ holds`,
+          style: { fill: "black" },
+          wrapWidth: 6
+        }
+      ],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.doesNotMatch(svg, /\\color/);
+  assert.match(svg, /<tspan fill="red">/);
+  assert.match(svg, /<tspan fill="blue">/);
+  assert.match(svg, /AB/);
+  assert.match(svg, /∥/);
+  assert.match(svg, /CD/);
+});
+
 test("renders single-token math font commands without leaking command names", () => {
   const text = mathFallbackText(String.raw`\mathbf I`);
   const svg = renderSvg(
@@ -1380,6 +1500,20 @@ test("adds TeX-like spacing around relations and named operators in SVG math fal
   assert.match(svg, />P = \(x,y\)<\/text>/);
 });
 
+test("keeps named math operators upright in plain SVG math fallback labels", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$\sin x$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /font-style="italic"/);
+  assert.match(svg, /<tspan[^>]+font-style="normal"[^>]*>sin<\/tspan> x/);
+  assert.doesNotMatch(svg, />sin x<\/text>/);
+});
+
 test("renders sum limits and scalable delimiters compactly in SVG math fallback", () => {
   const formula = String.raw`\sigma\left(w_0 + \sum\limits_{i=1}^{n}{w_ix_i}\right)`;
   const text = mathFallbackText(formula);
@@ -1396,8 +1530,42 @@ test("renders sum limits and scalable delimiters compactly in SVG math fallback"
   assert.match(svg, /class="tikz-sum-limits-inline"/);
   assert.match(svg, />∑</);
   assert.match(svg, />n</);
-  assert.match(svg, />i = 1</);
+  assert.match(svg, />i=1</);
+  assert.doesNotMatch(svg, />i = 1</);
   assert.doesNotMatch(svg, /\\(?:left|right|limits|sum)/);
+});
+
+test("renders inline pmatrix as a structured SVG math fallback", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /class="tikz-math-matrix-inline"/);
+  assert.match(svg, />A =<\/text>/);
+  assert.match(svg, />2<\/text>/);
+  assert.match(svg, />1<\/text>/);
+  assert.match(svg, />0<\/text>/);
+  assert.match(svg, />3<\/text>/);
+  assert.doesNotMatch(svg, /\\begin|pmatrix|\\end/);
+  assert.doesNotMatch(svg, />A = \(2 1; 0 3\)<\/text>/);
+});
+
+test("uses structured inline matrix metrics for anchored math nodes", () => {
+  const result = tikzToSvg(
+    String.raw`\begin{tikzpicture}
+  \node[anchor=west,font=\scriptsize] at (-2.9,2.67) {$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$};
+\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  );
+  const node = result.ir.items.find((item) => item.type === "textNode");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(node.x < -2.4 && node.x > -2.55, `expected west-anchored matrix center near rendered width, got ${node.x}`);
+  assert.match(result.svg, /class="tikz-math-matrix-inline"/);
 });
 
 test("keeps alphabetic math subscripts portable in SVG text fallback", () => {
@@ -1597,6 +1765,20 @@ test("wraps plain node text to TikZ text width before shrinking", () => {
   assert.match(result.svg, /<tspan[^>]*>are above the spade\?"<\/tspan>/);
 });
 
+test("uses TeX text metrics for plain SVG text viewBox bounds", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: "measurements", style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text", margin: 0 }
+  );
+  const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
+
+  assert.ok(viewBox, "expected SVG viewBox");
+  assert.ok(viewBox[2] >= 210, `expected Computer Modern text width to be included, got ${viewBox.join(" ")}`);
+});
+
 test("inherits tikzpicture nodes text width and alignment", () => {
   const result = tikzToSvg(
     String.raw`
@@ -1722,6 +1904,74 @@ test("renders combined math subscript and superscript groups as SVG tspans", () 
   assert.match(svg, /<tspan>O'<\/tspan><tspan[^>]+baseline-shift="super">1<\/tspan><tspan[^>]+baseline-shift="sub">0,id₀<\/tspan>/);
   assert.match(svg, /<tspan>σ<\/tspan><tspan[^>]+baseline-shift="super">1<\/tspan><tspan[^>]+baseline-shift="sub">id<tspan[^>]+baseline-shift="sub">n<\/tspan><\/tspan>/);
   assert.doesNotMatch(svg, /\^1|μ_id|O'₀/);
+});
+
+test("renders nested superscripts inside SVG math fallback script groups", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x^2}$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /<tspan>e<\/tspan><tspan[^>]+baseline-shift="super"[^>]*>−x<tspan[^>]+baseline-shift="super">2<\/tspan><\/tspan>/);
+  assert.doesNotMatch(svg, /-x\^2/);
+});
+
+test("keeps named math operators upright after SVG fallback scripts", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x/2}\sin x$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /<tspan[^>]+font-style="normal"[^>]*>sin<\/tspan>/);
+  assert.match(svg, /baseline-shift="super"[^>]*>−x\/2<\/tspan>/);
+  assert.doesNotMatch(svg, /baseline-shift="super">-x\/2<\/tspan>sin x/);
+});
+
+test("raises SVG math fallback superscripts with explicit dy for rsvg", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x/2}\sin x$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /baseline-shift="super"[^>]+dy="-[0-9.]+">−x\/2<\/tspan>/);
+  assert.match(svg, /<\/tspan><tspan dy="[0-9.]+"><\/tspan><tspan[^>]+font-style="normal"[^>]*>sin<\/tspan>/);
+});
+
+test("calibrates scripted SVG math fallback width for TeX glyph comparisons", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x/2}\sin x$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+  const text = svg.match(/<text[^>]+>\s*<tspan>e<\/tspan>/)?.[0] || "";
+  const textLength = Number(text.match(/\btextLength="([^"]+)"/)?.[1]);
+
+  assert.ok(Number.isFinite(textLength), "expected scripted fallback text to carry a calibrated textLength");
+  assert.ok(textLength > 130 && textLength < 150, `expected TeX-like e^{-x/2} sin x width, got ${textLength}`);
+  assert.match(text, /lengthAdjust="spacing"/);
+});
+
+test("adds TeX-like spacing between a scripted atom and following named operator", () => {
+  const svg = renderSvg(
+    {
+      items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x/2}\sin x$`, style: { fill: "black" } }],
+      coordinates: {}
+    },
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /baseline-shift="super"[^>]*>−x\/2<\/tspan>(?:<tspan dy="[^"]+"><\/tspan>)?<tspan[^>]+dx="[^"]+"[^>]+font-style="normal"[^>]*>sin<\/tspan>/);
 });
 
 test("adds TeX-like operator spacing in scripted SVG math fallback labels", () => {
@@ -1898,6 +2148,17 @@ test("treats explicit TeX font size commands as overriding inherited node fonts"
   assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 0.7)}"`));
 });
 
+test("inherits picture font family when local node font only changes weight or size", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[font=\sffamily]
+  \node[text=black,font=\bfseries\large,anchor=west] at (-2.9,2.96) {Two eigen-directions};
+\end{tikzpicture}`);
+  const node = result.ir.items.find((item) => item.type === "textNode");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(node.style.fontFamily, /SansSerif/);
+});
+
 test("wraps text width lines using their local TeX font size", () => {
   const svg = renderSvg({
     items: [
@@ -1951,6 +2212,66 @@ test("renders mixed multiline text and inline math with KaTeX by default", () =>
   assert.doesNotMatch(svg, /class="[^"]*\bkatex\b/);
   assert.match(svg, /Agent 1/);
   assert.match(svg, /θ/);
+});
+
+test("constrains mixed rich text to TikZ text width with paragraph alignment", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[text width=6cm,fill=red!20] at (0,0) {
+    When we assume that $\color{red}AB$ and $\color{blue}CD$ are\\
+    parallel, i.\,e., $\color{red}AB \mathbin{\|} \color{blue}CD$,\\
+    then $\alpha = \gamma$ and $\beta = \delta$.
+  };
+\end{tikzpicture}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-rich-text"/);
+  const foreignObject = result.svg.match(/<foreignObject[^>]+requiredExtensions="http:\/\/www\.w3\.org\/1999\/xhtml"[^>]+>/)?.[0] || "";
+  assert.match(foreignObject, /width="600"/);
+  const richHeight = Number(foreignObject.match(/height="([^"]+)"/)?.[1]);
+  assert.ok(richHeight > 150, `expected rich paragraph height to fit KaTeX line boxes, got ${richHeight}`);
+  assert.match(result.svg, /align-items:flex-start/);
+  assert.match(result.svg, /text-align:left/);
+  assert.match(result.svg, /<text x="-300"[^>]+text-anchor="start"/);
+  assert.match(result.svg, /∥/);
+  assert.doesNotMatch(result.svg, /colorred|colorblue|mathbin/);
+});
+
+test("collapses ordinary TeX source newlines in rich paragraph text", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[text width=20cm,fill=red!20] at (0,0) {
+    When $AB$ and $CD$ are
+    parallel, i.\,e., $AB \mathbin{\|} CD$,
+    then $\alpha = \gamma$.
+  };
+\end{tikzpicture}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal((result.svg.match(/class="tikz-rich-line"/g) || []).length, 1);
+  assert.match(result.svg, /are parallel/);
+  assert.match(result.svg, /i\. e\./);
+  assert.match(result.svg, /∥/);
+  assert.doesNotMatch(result.svg, /\\,|mathbin/);
+});
+
+test("wraps rich TikZ text width paragraphs with TeX-like word metrics", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[text width=6cm,fill=red!20] at (0,0) {
+      When we assume that $\color{red}AB$ and $\color{blue}CD$ are
+      parallel, i.\,e., $\color{red}AB \mathbin{\|} \color{blue}CD$,
+      then $\alpha = \gamma$ and $\beta = \delta$.
+    };
+\end{tikzpicture}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  const lines = richLineTexts(result.svg);
+  assert.equal(lines.length, 3);
+  assert.match(lines[0], /^When we assume that AB and CD$/);
+  assert.match(lines[1], /^are parallel/);
+  assert.match(lines[1], /α=γ|α = γ/);
+  assert.match(lines[2], /^and β=δ|^and β = δ/);
 });
 
 test("preserves grouped vector macros in mixed KaTeX rich text", () => {

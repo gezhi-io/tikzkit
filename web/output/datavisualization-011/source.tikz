@@ -1,0 +1,12 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization
+ [scientific axes=clean,
+  x axis={min value=-2,max value=2,ticks={step=1},grid,length=6cm},
+  y axis={min value=-1,max value=4,ticks={step=1},grid,length=3cm},
+  visualize as smooth line=parabola,
+  parabola={style={orange, thick},label in legend={text=$x^2$}},
+  data/format=function]
+data {
+  var x : interval [-2:2] samples 41;
+  func y = \value x*\value x;
+};

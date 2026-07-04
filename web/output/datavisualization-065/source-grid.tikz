@@ -1,0 +1,15 @@
+\usetikzlibrary {datavisualization.barcharts}
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization
+ [scientific axes=clean,
+  candle stick plot,
+  index/source=dax]
+data {
+  day, dax/low, dax/high, dax/entry, dax/exit
+  1,   10,      40,       18,        32
+  2,   12,      42,       35,        20
+  3,   18,      55,       30,        48
+  4,   25,      80,       74,        42
+};
+\end{tikzpicture}

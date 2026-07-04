@@ -1,0 +1,25 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization [ scientific axes=clean,
+                       y axis=grid,
+                       visualize as smooth line/.list={sin,cos,tan},
+                       style sheet=strong colors,
+                       style sheet=vary dashing,
+                       sin={label in legend={text=$\sin x$}},
+                       cos={label in legend={text=$\cos x$}},
+                       tan={label in legend={text=$\tan x$}},
+                       data/format=function ]
+  data [set=sin] {
+    var x : interval [-0.5*pi:4];
+    func y = sin(\value x r);
+  }
+  data [set=cos] {
+    var x : interval [-0.5*pi:4];
+    func y = cos(\value x r);
+  }
+  data [set=tan] {
+    var x : interval [-0.3*pi:.3*pi];
+    func y = tan(\value x r);
+  };
+\end{tikzpicture}

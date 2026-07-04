@@ -155,6 +155,21 @@ test("parses TikZ sine and cosine path operators", () => {
   ]);
 });
 
+test("parses drawing commands after shape font switches", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \scriptsize\scshape\draw (0,0) -- (1,0);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const draw = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(draw.type, "path");
+  assert.equal(draw.command, "draw");
+  assert.equal(draw.leadingFont, "\\scriptsize \\scshape");
+});
+
 test("parses TikZ child tree syntax attached to node statements", () => {
   const source = String.raw`
 \begin{tikzpicture}[grow=up, level 1/.style={sibling distance=30mm}]

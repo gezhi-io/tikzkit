@@ -1,0 +1,52 @@
+<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-90.100202 -325.167151 852.937805 388.648457">
+  <rect class="tikz-background" x="-90.100202" y="-325.167151" width="852.937805" height="388.648457" fill="white" />
+  <path d="M -30 0 L 555 0 L 555 -309 L -30 -309 Z" stroke="none" fill="none" stroke-width="1.4058392143307286" />
+  <path d="M 0 17.5 L 500 17.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M -17.5 0 L -17.5 -309" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 0 L 500 0" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 0 -309 L 500 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 0 0 L 0 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 500 0 L 500 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 0 17.5 L 0 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="0" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0</text>
+  <path d="M 62.5 17.5 L 62.5 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="62.5" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0.25</text>
+  <path d="M 125 17.5 L 125 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="125" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0.5</text>
+  <path d="M 187.5 17.5 L 187.5 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="187.5" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0.75</text>
+  <path d="M 250 17.5 L 250 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="250" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1</text>
+  <path d="M 312.5 17.5 L 312.5 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="312.5" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1.25</text>
+  <path d="M 375 17.5 L 375 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="375" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1.5</text>
+  <path d="M 437.5 17.5 L 437.5 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="437.5" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1.75</text>
+  <path d="M 500 17.5 L 500 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="500" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">2</text>
+  <path d="M -17.5 0 L -24.5 0" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-47.143355" y="0" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0</text>
+  <path d="M -17.5 -38.6 L -24.5 -38.6" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-65.107179" y="-38.6" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0.25</text>
+  <path d="M -17.5 -77.3 L -24.5 -77.3" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-58.077979" y="-77.3" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0.5</text>
+  <path d="M -17.5 -115.9 L -24.5 -115.9" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-65.107179" y="-115.9" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0.75</text>
+  <path d="M -17.5 -154.5 L -24.5 -154.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-47.143355" y="-154.5" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1</text>
+  <path d="M -17.5 -193.1 L -24.5 -193.1" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-65.107179" y="-193.1" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1.25</text>
+  <path d="M -17.5 -231.8 L -24.5 -231.8" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-58.077979" y="-231.8" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1.5</text>
+  <path d="M -17.5 -270.4 L -24.5 -270.4" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-65.107179" y="-270.4" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1.75</text>
+  <path d="M -17.5 -309 L -24.5 -309" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-47.143355" y="-309" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">2</text>
+  <path d="M 0 0 C 0 0 45.2 -27.9 62.5 -38.6 C 79.8 -49.3 107.7 -66.5 125 -77.3 C 142.3 -88 170.2 -105.2 187.5 -115.9 C 204.8 -126.6 232.7 -143.8 250 -154.5 C 267.3 -165.2 295.2 -182.4 312.5 -193.1 C 329.8 -203.8 357.7 -221 375 -231.8 C 392.3 -242.5 420.2 -259.7 437.5 -270.4 C 454.8 -281.1 500 -309 500 -309" stroke="blue" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 -185.4 C 0 -185.4 45.2 -177 62.5 -173.8 C 79.8 -170.6 107.7 -165.4 125 -162.2 C 142.3 -159 170.2 -153.9 187.5 -150.6 C 204.8 -147.4 232.7 -142.3 250 -139.1 C 267.3 -135.8 295.2 -130.7 312.5 -127.5 C 329.8 -124.2 357.7 -119.1 375 -115.9 C 392.3 -112.7 420.2 -107.5 437.5 -104.3 C 454.8 -101.1 500 -92.7 500 -92.7" stroke="black" fill="none" stroke-width="2.108758821496093" stroke-dasharray="10.543794107480464 7.029196071653643" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 552.6 -70.1 C 555.6 -70.9 561.4 -75.4 570.2 -74.7 C 579 -73.9 596.6 -66.4 605.4 -65.6 C 614.2 -64.9 620 -69.4 623 -70.1" stroke="red" fill="none" stroke-width="5.271897053740232" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="640.5" y="-70.1" fill="black" text-anchor="start" dominant-baseline="middle" xml:space="preserve" font-size="31.631382" font-family="KaTeX_Main, 'Times New Roman', Times, serif">series</text>
+  <path d="M 552.6 -31.5 C 555.6 -32.3 561.4 -36.8 570.2 -36.1 C 579 -35.3 596.6 -27.7 605.4 -27 C 614.2 -26.2 620 -30.8 623 -31.5" stroke="black" fill="none" stroke-width="2.108758821496093" stroke-dasharray="10.543794107480464 7.029196071653643" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="640.5" y="-31.5" fill="black" text-anchor="start" dominant-baseline="middle" xml:space="preserve" font-size="31.631382" font-family="KaTeX_Main, 'Times New Roman', Times, serif">reference</text>
+</svg>

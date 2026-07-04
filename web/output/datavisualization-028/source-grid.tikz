@@ -1,0 +1,29 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \datavisualization [ scientific axes=clean,
+                       legend={south east outside},
+                       visualize as smooth line/.list={a,b,c,d},
+                       style sheet=gray scale,
+                       a={label in legend={text=a}},
+                       b={label in legend={text=b}},
+                       c={label in legend={text=c}},
+                       d={label in legend={text=d}},
+                       data/format=function ]
+  data [set=a] {
+    var x : interval [0:2] samples 11;
+    func y = \value x;
+  }
+  data [set=b] {
+    var x : interval [0:2] samples 11;
+    func y = \value x + 0.2;
+  }
+  data [set=c] {
+    var x : interval [0:2] samples 11;
+    func y = \value x + 0.4;
+  }
+  data [set=d] {
+    var x : interval [0:2] samples 11;
+    func y = \value x + 0.6;
+  };
+\end{tikzpicture}

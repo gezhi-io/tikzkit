@@ -260,6 +260,9 @@ function estimateFormulaParts(tex, scale, metric) {
   const tensorMatrixBox = estimateTensorMatrixParts(tex, scale);
   if (tensorMatrixBox) return tensorMatrixBox;
 
+  const inlineMatrixBox = estimateInlineMatrixFormulaParts(tex, scale);
+  if (inlineMatrixBox) return inlineMatrixBox;
+
   // Claude: 原版完全没有 \begin{matrix} 的尺寸感知 —— 矩阵的宽度按「所有单元格摊平成一行」
   // 来算（巨宽），高度只按一行算（巨扁），结果 display 矩阵的 SVG 盒子被估成又宽又扁，
   // 矩阵被压成一条细线。这里先做矩阵感知估算（按行列、支持嵌套），估到了就用它。
@@ -317,6 +320,88 @@ function estimateFormulaParts(tex, scale, metric) {
   }
 
   return { width, height, depth };
+}
+
+function estimateInlineMatrixFormulaParts(tex, scale) {
+  const parts = extractInlineMatrixFormula(tex);
+  if (!parts || (!parts.prefix.trim() && !parts.suffix.trim())) return null;
+
+  // Keep this in sync with renderer-svg.js renderInlineMatrixMathFallback.
+  const baseFont = (10 / TEX_PT_PER_CM) * scale;
+  const inlineFont = baseFont * 0.82;
+  const cellFont = baseFont * 0.56;
+  const prefix = mathFallbackText(parts.prefix).trim();
+  const suffix = mathFallbackText(parts.suffix).trim();
+  const prefixWidth = prefix ? inlineMatrixTextWidthCm(prefix, inlineFont) : 0;
+  const suffixWidth = suffix ? inlineMatrixTextWidthCm(suffix, inlineFont) : 0;
+  const colCount = Math.max(...parts.rows.map((row) => row.length));
+  const colGap = cellFont * 0.46;
+  const rowGap = cellFont * 0.1;
+  const rowHeight = cellFont * 0.92;
+  const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
+    Math.max(
+      cellFont * 0.44,
+      ...parts.rows.map((row) => inlineMatrixTextWidthCm(row[colIndex] || "", cellFont))
+    )
+  );
+  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + colGap * Math.max(0, colCount - 1);
+  const delimiterWidth = parts.env === "matrix" ? 0 : cellFont * 0.32;
+  const delimiterPad = parts.env === "matrix" ? 0 : cellFont * 0.12;
+  const matrixWidth = contentWidth + delimiterWidth * 2 + delimiterPad * 2;
+  const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
+  const gap = inlineFont * 0.16;
+  const width = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);
+  const height = Math.max(baseFont * 0.34, matrixHeight / 2);
+  const depth = Math.max(baseFont * 0.16, matrixHeight / 2);
+  return { width, height, depth };
+}
+
+function inlineMatrixTextWidthCm(value, fontSizeCm) {
+  return Math.max(0, mathFallbackText(value).length * fontSizeCm * 0.48);
+}
+
+function extractInlineMatrixFormula(tex) {
+  const text = String(tex || "");
+  for (let index = 0; index < text.length; index += 1) {
+    const begin = matchEnvToken(text, index, "begin");
+    if (!begin || !MATRIX_ENV_NAMES.includes(begin.env)) continue;
+    const end = findMatrixEnvironmentEnd(text, begin);
+    if (!end) return null;
+    const body = text.slice(begin.end, end.start);
+    const rows = splitMatrixTopLevel(body, "row")
+      .map((row) => splitMatrixTopLevel(row, "col").map((cell) => mathFallbackText(cell).trim()))
+      .filter((row) => row.length);
+    if (!rows.length) return null;
+    return {
+      env: begin.env,
+      prefix: text.slice(0, index),
+      rows,
+      suffix: text.slice(end.end)
+    };
+  }
+  return null;
+}
+
+function findMatrixEnvironmentEnd(text, begin) {
+  let depth = 1;
+  let cursor = begin.end;
+  while (cursor < text.length) {
+    const open = matchEnvToken(text, cursor, "begin");
+    const close = matchEnvToken(text, cursor, "end");
+    if (open && MATRIX_ENV_NAMES.includes(open.env)) {
+      depth += 1;
+      cursor = open.end;
+      continue;
+    }
+    if (close && MATRIX_ENV_NAMES.includes(close.env)) {
+      depth -= 1;
+      if (depth === 0) return { start: cursor, end: close.end };
+      cursor = close.end;
+      continue;
+    }
+    cursor += 1;
+  }
+  return null;
 }
 
 function estimateTensorMatrixParts(tex, scale) {

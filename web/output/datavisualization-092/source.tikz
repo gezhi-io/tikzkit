@@ -1,0 +1,22 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization
+ [scientific axes=clean,
+  x axis={min value=0,max value=4,ticks={step=1},grid},
+  y axis={min value=0,max value=16,ticks={step=4},grid},
+  visualize as smooth line/.list={linear,squared,cubed},
+  linear={label in data={text={$2x$}}},
+  squared={label in data={text={$x^2$}}},
+  cubed={label in data={text={$x^3$}}},
+  data/format=function]
+data [set=linear] {
+  var x : interval [0:4] samples 9;
+  func y = 2*\value x;
+}
+data [set=squared] {
+  var x : interval [0:4] samples 9;
+  func y = \value x*\value x;
+}
+data [set=cubed] {
+  var x : interval [0:2.5] samples 9;
+  func y = \value x*\value x*\value x;
+};

@@ -1,0 +1,25 @@
+\usetikzlibrary {datavisualization}
+\pgfdvdeclarestylesheet{traffic light}{
+  1/.style={green!50!black},
+  2/.style={yellow!90!black},
+  3/.style={red!80!black},
+  default style/.style={black}
+}
+\begin{tikzpicture}
+  \datavisualization data group {lines} = {
+    data point [x=0, y=0,       set=normal]
+    data point [x=2, y=2,       set=normal]
+    data point [x=0, y=1,       set=heated]
+    data point [x=2, y=1,       set=heated]
+    data point [x=0.5, y=1.5,   set=critical]
+    data point [x=2.25, y=1.75, set=critical]
+  };
+  \datavisualization [
+    school book axes,
+    visualize as line=normal,
+    visualize as line=heated,
+    visualize as line=critical,
+    /data point/set/critical/.initial=1,
+    style sheet=traffic light]
+  data group {lines};
+\end{tikzpicture}

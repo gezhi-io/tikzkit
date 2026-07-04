@@ -1,0 +1,43 @@
+<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-52.343355 -325.167151 749.077658 388.648457">
+  <rect class="tikz-background" x="-52.343355" y="-325.167151" width="749.077658" height="388.648457" fill="white" />
+  <path d="M -30 0 L 555 0 L 555 -309 L -30 -309 Z" stroke="none" fill="none" stroke-width="1.4058392143307286" />
+  <path d="M 0 0 L 0 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 125 0 L 125 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 250 0 L 250 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 375 0 L 375 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 500 0 L 500 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 0 L 500 0" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 -103 L 500 -103" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 -206 L 500 -206" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 -309 L 500 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 17.5 L 500 17.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M -17.5 0 L -17.5 -309" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 0 L 500 0" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 0 -309 L 500 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 0 0 L 0 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 500 0 L 500 -309" stroke="rgb(191 191 191)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="square" stroke-linejoin="miter" />
+  <path d="M 0 17.5 L 0 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="0" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0</text>
+  <path d="M 125 17.5 L 125 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="125" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1</text>
+  <path d="M 250 17.5 L 250 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="250" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">2</text>
+  <path d="M 375 17.5 L 375 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="375" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">3</text>
+  <path d="M 500 17.5 L 500 24.5" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="500" y="47.314155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">4</text>
+  <path d="M -17.5 0 L -24.5 0" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-45.314155" y="0" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0</text>
+  <path d="M -17.5 -103 L -24.5 -103" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-45.314155" y="-103" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1</text>
+  <path d="M -17.5 -206 L -24.5 -206" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-45.314155" y="-206" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">2</text>
+  <path d="M -17.5 -309 L -24.5 -309" stroke="rgb(128 128 128)" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-45.314155" y="-309" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">3</text>
+  <path d="M 0 0 L 125 0 L 125 -103 L 0 -103 Z" stroke="blue" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 125 0 L 375 0 L 375 -206 L 125 -206 Z" stroke="red" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 625.4 -132.3 L 625.4 -154.5 L 640.5 -154.5 L 640.5 -132.3 Z" stroke="blue" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="640.5" y="-139.8" fill="black" text-anchor="start" dominant-baseline="middle" xml:space="preserve" font-size="31.631382" font-family="KaTeX_Main, 'Times New Roman', Times, serif">cold</text>
+  <path d="M 625.4 -93.6 L 625.4 -115.8 L 640.5 -115.8 L 640.5 -93.6 Z" stroke="red" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="640.5" y="-101.2" fill="black" text-anchor="start" dominant-baseline="middle" xml:space="preserve" font-size="31.631382" font-family="KaTeX_Main, 'Times New Roman', Times, serif">hot</text>
+</svg>

@@ -1,0 +1,17 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization [
+  scientific axes,
+  visualize as smooth line/.list={log, lin},
+  legend={label style={node style=draw}},
+  log={label in legend={text=$\log x$}},
+  lin={label in legend={text=$x/2$, node style={circle, draw=red}}},
+  style sheet=strong colors,
+  data/format=function]
+data [set=log] {
+  var x : interval [0.2:2.5] samples 30;
+  func y = ln(\value x);
+}
+data [set=lin] {
+  var x : interval [-2:2.5] samples 30;
+  func y = 0.5*\value x;
+};

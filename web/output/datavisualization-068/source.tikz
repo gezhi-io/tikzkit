@@ -1,0 +1,14 @@
+\usetikzlibrary {datavisualization}
+\tikz \datavisualization
+ [scientific axes,
+  x axis={attribute=people, length=2.5cm, ticks=few},
+  y axis={attribute=year, scaling=1900 at 0cm and 2000 at 5cm},
+  visualize as scatter]
+data {
+  year, people
+  1900, 100
+  1910, 200
+  1950, 200
+  1960, 250
+  2000, 150
+};

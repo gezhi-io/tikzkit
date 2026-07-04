@@ -1,0 +1,17 @@
+\usetikzlibrary {datavisualization}
+\tikzdvdeclarestylesheetcolorseries{greens}{hsb}{0.3,1.3,0.8}{0,-.4,-.1}
+\tikz \datavisualization [
+  school book axes,
+  visualize as line=normal,
+  visualize as line=heated,
+  visualize as line=critical,
+  normal={label in legend={text=normal}},
+  heated={label in legend={text=heated}},
+  critical={label in legend={text=critical}},
+  style sheet=greens]
+data point [x=0, y=0, set=normal]
+data point [x=2, y=2, set=normal]
+data point [x=0, y=1, set=heated]
+data point [x=2, y=1, set=heated]
+data point [x=0.5, y=1.5, set=critical]
+data point [x=2.25, y=1.75, set=critical];

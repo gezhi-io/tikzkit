@@ -837,6 +837,8 @@ function isRepeatableOption(key) {
     key === "general shadow" ||
     key === "evaluate" ||
     key === "declare function" ||
+    key === "label in data" ||
+    key === "pin in data" ||
     key === "if" ||
     key === "name intersections"
   );

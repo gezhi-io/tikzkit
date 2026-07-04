@@ -1,0 +1,28 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \datavisualization [ scientific axes=clean,
+                       visualize as smooth line/.list={sin,cos,sin 2,cos 2},
+                       legend={below, rows=2},
+                       style sheet=strong colors,
+                       sin={label in legend={text=$\sin x$}},
+                       cos={label in legend={text=$\cos x$}},
+                       sin 2={label in legend={text=$\sin 2x$}},
+                       cos 2={label in legend={text=$\cos 2x$}},
+                       data/format=function ]
+  data [set=sin] {
+    var x : interval [-0.5*pi:4] samples 25;
+    func y = sin(\value x r);
+  }
+  data [set=cos] {
+    var x : interval [-0.5*pi:4] samples 25;
+    func y = cos(\value x r);
+  }
+  data [set=sin 2] {
+    var x : interval [-0.5*pi:4] samples 25;
+    func y = sin(2*\value x r);
+  }
+  data [set=cos 2] {
+    var x : interval [-0.5*pi:4] samples 25;
+    func y = cos(2*\value x r);
+  };
+\end{tikzpicture}

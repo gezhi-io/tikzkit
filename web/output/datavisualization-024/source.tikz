@@ -1,0 +1,37 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\begin{tikzpicture}[baseline]
+  \datavisualization [ scientific axes=clean,
+                       visualize as smooth line/.list={a,b,c,d,e,f},
+                       style sheet=vary thickness and dashing,
+                       a={label in legend={text=a}},
+                       b={label in legend={text=b}},
+                       c={label in legend={text=c}},
+                       d={label in legend={text=d}},
+                       e={label in legend={text=e}},
+                       f={label in legend={text=f}},
+                       data/format=function ]
+  data [set=a] {
+    var x : interval [0:6] samples 31;
+    func y = 0.12*\value x;
+  }
+  data [set=b] {
+    var x : interval [0:6] samples 31;
+    func y = 0.12*\value x + 0.35;
+  }
+  data [set=c] {
+    var x : interval [0:6] samples 31;
+    func y = 0.12*\value x + 0.7;
+  }
+  data [set=d] {
+    var x : interval [0:6] samples 31;
+    func y = 0.12*\value x + 1.05;
+  }
+  data [set=e] {
+    var x : interval [0:6] samples 31;
+    func y = 0.12*\value x + 1.4;
+  }
+  data [set=f] {
+    var x : interval [0:6] samples 31;
+    func y = 0.12*\value x + 1.75;
+  };
+\end{tikzpicture}

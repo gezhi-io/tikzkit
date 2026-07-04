@@ -1,0 +1,9 @@
+\usetikzlibrary { datavisualization.formats.functions, datavisualization.polar }
+\tikz \datavisualization [
+  scientific polar axes={outer ticks, 0 to 180},
+  angle axis={ticks={step=30}},
+  radius axis={length=1cm, ticks={step=1}},
+  visualize as scatter]
+data point [angle=20, radius=0.5]
+data point [angle=30, radius=1]
+data point [angle=40, radius=1.5];

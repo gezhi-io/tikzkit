@@ -1,0 +1,5 @@
+\begin{tikzpicture}
+  \draw[->, thick] (0,0) -- (2,0) node[right] {$x$};
+  \draw[->, thick] (0,0) -- (0,1.5) node[above] {$y$};
+  \draw[blue, thick] (0,0) -- (1.5,1);
+\end{tikzpicture}

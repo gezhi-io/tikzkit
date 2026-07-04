@@ -1,0 +1,17 @@
+\usetikzlibrary {datavisualization,plotmarks}
+\tikz \datavisualization
+ [scientific axes=clean,
+  all axes={ticks={step=1},grid},
+  visualize as scatter/.list={a,b},
+  style sheet=cross marks,
+  a={label in legend={text=a}},
+  b={label in legend={text=b}}]
+data {
+  x, y, set
+  0, 0, a
+  1, 1, a
+  2, 0.5, a
+  0, 1, b
+  1, 0.2, b
+  2, 1.4, b
+};

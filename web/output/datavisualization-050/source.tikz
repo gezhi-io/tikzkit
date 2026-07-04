@@ -1,0 +1,11 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization [
+  scientific axes=clean,
+  visualize as scatter/.list={a,b,c},
+  style sheet=cross marks,
+  a={label in legend={text=example a, label in legend three marks}},
+  b={label in legend={text=example b, label in legend three marks}},
+  c={label in legend={text=example c}}]
+data point [x=0,y=0,set=a]
+data point [x=0.5,y=1,set=b]
+data point [x=1,y=0.5,set=c];

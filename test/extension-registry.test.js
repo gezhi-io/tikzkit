@@ -6,7 +6,7 @@ test("extension registry records implementation and MacTeX source status for key
   const rows = parseCsv(readFileSync(new URL("../docs/extension-registry.csv", import.meta.url), "utf8"));
   const byKey = new Map(rows.map((row) => [`${row.kind}:${row.name}`, row]));
 
-  assert.equal(rows.length, 138);
+  assert.equal(rows.length, 142);
   assert.equal(byKey.get("package:circuitikz")?.implementationStatus, "partial");
   assert.equal(byKey.get("package:circuitikz")?.localSourceReviewed, "yes");
   assert.match(byKey.get("package:circuitikz")?.implementedBy || "", /src\/interpreter\.js:appendCircuitikzToSegment/);
@@ -21,6 +21,43 @@ test("extension registry records implementation and MacTeX source status for key
   assert.equal(byKey.get("pgfplotslibrary:groupplots")?.implementationStatus, "partial");
   assert.equal(byKey.get("pgfplotslibrary:groupplots")?.localSourceFound, "yes");
   assert.match(byKey.get("pgfplotslibrary:groupplots")?.localSource || "", /tikzlibrarypgfplots\.groupplots\.code\.tex$/);
+
+  assert.equal(byKey.get("tikzlibrary:datavisualization.formats.functions")?.implementationStatus, "partial");
+  assert.equal(byKey.get("tikzlibrary:datavisualization.formats.functions")?.localSourceReviewed, "yes");
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.cases || "", /datavisualization-001\.\.099/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /veclen\/ifthenelse\/sinh\/cosh/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /rectangle visualizer \.list routing/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /visualize ticks low\/high\/style\/direction axis tick marks plus tick text/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /right then down, columns=2/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /max columns=2/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /degrees\/radians/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /legend label node style draw\/circle/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /explicit legend anchor\/at placement/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /legend at-coordinate projections/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /default auto selectors/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /legend matrix node style/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /opaque\/transparent/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /visualizer in legend style/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /ignore style sheets/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /repeated pin leader-edge overlays/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.formats.functions")?.notes || "", /tikzdatavisualizationset named styles/);
+
+  assert.equal(byKey.get("tikzlibrary:datavisualization.barcharts")?.implementationStatus, "partial");
+  assert.equal(byKey.get("tikzlibrary:datavisualization.barcharts")?.localSourceReviewed, "yes");
+  assert.match(byKey.get("tikzlibrary:datavisualization.barcharts")?.cases || "", /datavisualization-065/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.barcharts")?.notes || "", /candle stick plot/);
+
+  assert.equal(byKey.get("tikzlibrary:datavisualization.polar")?.implementationStatus, "partial");
+  assert.equal(byKey.get("tikzlibrary:datavisualization.polar")?.localSourceReviewed, "yes");
+  assert.match(byKey.get("tikzlibrary:datavisualization.polar")?.cases || "", /datavisualization-048/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.polar")?.notes || "", /inner\/outer angle ticks/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.polar")?.notes || "", /ticks=none/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.polar")?.notes || "", /angle axis degrees\/radians scaling/);
+
+  assert.equal(byKey.get("tikzlibrary:datavisualization.sparklines")?.implementationStatus, "partial");
+  assert.equal(byKey.get("tikzlibrary:datavisualization.sparklines")?.localSourceReviewed, "yes");
+  assert.match(byKey.get("tikzlibrary:datavisualization.sparklines")?.cases || "", /datavisualization-066/);
+  assert.match(byKey.get("tikzlibrary:datavisualization.sparklines")?.notes || "", /x axis unit length 1pt/);
 
   assert.equal(byKey.get("tikzlibrary:arrows.meta")?.implementationStatus, "builtin");
   assert.match(byKey.get("tikzlibrary:arrows.meta")?.localSource || "", /pgflibraryarrows\.meta\.code\.tex$/);

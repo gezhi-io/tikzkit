@@ -1,0 +1,10 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization
+ [scientific axes=clean,
+  visualize as line=line,
+  line={style={mark=x}, label in legend={text=example, straight label in legend line}},
+  data/format=function]
+data {
+  var x : interval [0:1] samples 2;
+  func y = \value x;
+};

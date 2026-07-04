@@ -104,6 +104,48 @@ test("resolves declared timeline coordinate systems before polar fallback", () =
   assert.ok(Math.abs(tickLabel.x - 5 / 3) < 1e-6, `expected 1980 label at x=5/3, got ${tickLabel.x}`);
 });
 
+test("renders path edges, intersection cs coordinates, and inline angle pics", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary {angles,calc,quotes}
+\begin{tikzpicture}[angle radius=.75cm]
+  \node (A) at (-2,0)     [red,left]   {$A$};
+  \node (B) at ( 3,.5)    [red,right]  {$B$};
+  \node (C) at (-2,2)     [blue,left]  {$C$};
+  \node (D) at ( 3,2.5)   [blue,right] {$D$};
+  \node (E) at (60:-5mm)  [below]      {$E$};
+  \node (F) at (60:3.5cm) [above]      {$F$};
+
+  \coordinate (X) at (intersection cs:first line={(A)--(B)}, second line={(E)--(F)});
+  \coordinate (Y) at (intersection cs:first line={(C)--(D)}, second line={(E)--(F)});
+
+  \path
+    (A) edge [red, thick]  (B)
+    (C) edge [blue, thick] (D)
+    (E) edge [thick]       (F)
+      pic ["$\alpha$", draw, fill=yellow]   {angle = F--X--A}
+      pic ["$\beta$",  draw, fill=green!30] {angle = B--X--F}
+      pic ["$\gamma$", draw, fill=yellow]   {angle = E--Y--D}
+      pic ["$\delta$", draw, fill=green!30] {angle = C--Y--E};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "edge");
+  const anglePics = result.ir.items.filter((item) => item.type === "path" && item.subtype === "angle-pic");
+  const angleLabels = result.ir.items.filter((item) => item.type === "textNode" && /^\$\\(?:alpha|beta|gamma|delta)\$$/.test(item.text));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.ir.coordinates.X.x > 0.15 && result.ir.coordinates.X.x < 0.3, `expected X on the oblique EF line, got ${JSON.stringify(result.ir.coordinates.X)}`);
+  assert.ok(result.ir.coordinates.Y.x > 1.1 && result.ir.coordinates.Y.x < 1.4, `expected Y on the oblique EF line, got ${JSON.stringify(result.ir.coordinates.Y)}`);
+  assert.ok(result.ir.coordinates.Y.y > 2.2 && result.ir.coordinates.Y.y < 2.45, `expected Y on upper blue line, got ${JSON.stringify(result.ir.coordinates.Y)}`);
+  assert.equal(edges.length, 3);
+  assert.deepEqual(edges.map((edge) => edge.style.stroke), ["red", "blue", "black"]);
+  assert.ok(edges.every((edge) => {
+    const [from, to] = edge.commands;
+    return Math.hypot((to?.x ?? 0) - (from?.x ?? 0), (to?.y ?? 0) - (from?.y ?? 0)) > 1;
+  }), "expected node edge operations to produce visible non-zero lines");
+  assert.equal(anglePics.length, 4);
+  assert.deepEqual(anglePics.map((pic) => pic.style.fill), ["yellow", "rgb(179 255 179)", "yellow", "rgb(179 255 179)"]);
+  assert.deepEqual(angleLabels.map((node) => node.text), ["$\\alpha$", "$\\beta$", "$\\gamma$", "$\\delta$"]);
+});
+
 test("inherits current path color for bare fill inline nodes", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}[event/.style={fill,text=white,font=\tiny}]

@@ -1,0 +1,6 @@
+\begin{tikzpicture}
+  \draw[overlay, step=1cm, line width=0.12pt, dash pattern=on 0.7pt off 0.7pt, black!45] (-50,-50) grid (50,50);
+  \draw[->, thick] (0,0) -- (2,0) node[right] {$x$};
+  \draw[->, thick] (0,0) -- (0,1.5) node[above] {$y$};
+  \draw[blue, thick] (0,0) -- (1.5,1);
+\end{tikzpicture}

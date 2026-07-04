@@ -1,0 +1,35 @@
+export const tikzLibrary = {
+  name: "datavisualization.polar",
+  status: "partial",
+  category: "datavisualization",
+  implementedBy: "src/preprocess.js:renderDatavisualizationAsPolarTikz",
+  features: [
+    "scientific polar axes with focused clean/grid rendering",
+    "new polar axes={angle axis}{radius axis} with direct-degree low-level mapping",
+    "angle axis unit vectors for low-level polar coordinate transforms",
+    "low-level new polar axes avoid default axes unless ticks/grid are explicitly requested",
+    "angle/radius function data projection",
+    "scientific polar explicit data point scatter with angle/radius attributes",
+    "format=named scatter data for official manual low-level polar examples",
+    "0 to pi, 0 to 2pi, and common degree/radian fixed angle ranges",
+    "radius axis length as total physical axis span for scientific manual scatter examples",
+    "radius axis max value",
+    "scientific polar logarithmic angle-axis mapping",
+    "polar radius axis ticks={some} using native about ticks",
+    "polar radius tick label style color propagation without recoloring angle labels",
+    "logarithmic angle minor grid rays from minor steps between steps",
+    "logarithmic angle outer minor tick marks from minor steps between steps",
+    "smooth line visualizers with legend labels",
+    "clean full-circle outer boundary",
+    "clean partial-range pale radius axes plus outward-offset clean boundary axes",
+    "endpoint radius tick labels for clean partial ranges",
+    "non-clean scientific polar radius axes plus symmetric radius ticks and native-like inner/outer angle ticks",
+    "non-clean half-plane 0-degree radius-axis high-side duplicate tick text",
+    "degree tick suffixes rendered as math labels",
+    "large clean half-plane angle tick labels calibrated to native tick-text-at-high placement",
+    "full-circle default outside-right legends aligned to the 0-degree radius",
+    "duplicate 360-degree endpoint tick suppression"
+  ],
+  notes:
+    "Focused implementation of the common manual Chapter 85 polar datavisualization path. It projects angle/radius data into ordinary TikZ coordinates, supports scientific explicit data point scatter and the official low-level named-data scatter example including angle axis unit vectors, maps logarithmic scientific angle axes before projection, and draws approximate polar grid arcs/rays, logarithmic minor angle grid rays plus outer minor tick marks, clean/non-clean outer boundaries, clean partial-range radius axes, inner/outer angle ticks with close-to-native outside label placement, endpoint radius labels including the non-clean 0-degree high-side duplicate layer visible in tikztosvg, and simple legend rows when an axis system or explicit ticks/grid request them; it is not the full native polar axis object system."
+};

@@ -1,0 +1,11 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization [
+  scientific axes=clean,
+  visualize as scatter=samples,
+  samples={
+    style={mark=*,mark size=1.5pt},
+    label in legend={
+      text=custom marks,
+      label in legend mark coordinates={(-2em,0),(0,0)}
+    }}]
+data point [x=0,y=0,set=samples];

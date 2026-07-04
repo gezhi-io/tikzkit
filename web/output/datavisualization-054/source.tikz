@@ -1,0 +1,33 @@
+\usetikzlibrary {datavisualization}
+\begin{tikzpicture}
+  \datavisualization [
+    scientific axes=clean,
+    x axis={length=2cm},
+    y axis={length=1.4cm},
+    visualize as scatter=samples,
+    style sheet=* mark]
+  data point [x=0, y=0, set=samples]
+  data point [x=1, y=1, set=samples];
+
+  \begin{scope}[xshift=3.2cm]
+  \datavisualization [
+    scientific axes=clean,
+    x axis={length=2cm},
+    y axis={length=1.4cm},
+    visualize as scatter=samples,
+    style sheet=dot mark]
+  data point [x=0, y=0, set=samples]
+  data point [x=1, y=1, set=samples];
+  \end{scope}
+
+  \begin{scope}[xshift=6.4cm]
+  \datavisualization [
+    scientific axes=clean,
+    x axis={length=2cm},
+    y axis={length=1.4cm},
+    visualize as scatter=samples,
+    style sheet=o mark]
+  data point [x=0, y=0, set=samples]
+  data point [x=1, y=1, set=samples];
+  \end{scope}
+\end{tikzpicture}

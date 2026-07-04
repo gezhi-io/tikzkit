@@ -1,0 +1,12 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization
+ [scientific axes=clean,
+  x axis={min value=0,max value=4,ticks={step=1},grid},
+  y axis={min value=0,max value=4,ticks={step=1},grid},
+  visualize as smooth line=curve,
+  curve={style={blue,thick},label in data={text={$p$},node style=sloped,when=x is 2}},
+  data/format=function]
+data {
+  var x : interval [0:4] samples 9;
+  func y = \value x;
+};

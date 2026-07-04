@@ -1,0 +1,21 @@
+<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" viewBox="-34.843355 -226.4 286.243355 272.381306">
+  <rect class="tikz-background" x="-34.843355" y="-226.4" width="286.243355" height="272.381306" fill="white" />
+  <path d="M -4 6 L 233 6 L 233 -206 L -4 -206 Z" stroke="none" fill="none" stroke-width="1.4058392143307286" />
+  <g class="tikz-arrowed-path"><path d="M -26.4 0 L 249.994161 0" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-to" d="M -4.204057 5.601123 C -3.434715 2.240449 -1.719459 0.64973 0 0 C -1.719459 -0.64973 -3.434715 -2.240449 -4.204057 -5.601123" fill="none" stroke="black" stroke-width="1.405839" stroke-linecap="round" stroke-linejoin="round" transform="translate(251.4 0) rotate(0)" /></g>
+  <g class="tikz-arrowed-path"><path d="M 0 26.4 L 0 -224.994161" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" /><path class="tikz-arrow-tip tikz-arrow-to" d="M -4.204057 5.601123 C -3.434715 2.240449 -1.719459 0.64973 0 0 C -1.719459 -0.64973 -3.434715 -2.240449 -4.204057 -5.601123" fill="none" stroke="black" stroke-width="1.405839" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 -226.4) rotate(-90)" /></g>
+  <path d="M 0 0 L 0 7" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="0" y="29.814155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0</text>
+  <path d="M 100 0 L 100 7" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="100" y="29.814155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1</text>
+  <path d="M 200 0 L 200 7" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="200" y="29.814155" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">2</text>
+  <path d="M 0 0 L -7 0" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-27.814155" y="0" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">0</text>
+  <path d="M 0 -100 L -7 -100" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-27.814155" y="-100" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">1</text>
+  <path d="M 0 -200 L -7 -200" stroke="black" fill="none" stroke-width="1.4058392143307286" stroke-linecap="butt" stroke-linejoin="miter" />
+  <text x="-27.814155" y="-200" fill="black" text-anchor="middle" dominant-baseline="middle" xml:space="preserve" font-size="28.116784" font-family="KaTeX_Main, 'Times New Roman', Times, serif">2</text>
+  <path d="M 0 0 L 200 -200" stroke="rgb(0 128 0)" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 0 -100 L 200 -100" stroke="rgb(230 230 0)" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+  <path d="M 50 -150 L 225 -175" stroke="rgb(204 0 0)" fill="none" stroke-width="2.108758821496093" stroke-linecap="butt" stroke-linejoin="miter" />
+</svg>

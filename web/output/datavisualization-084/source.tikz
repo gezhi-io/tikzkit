@@ -1,0 +1,14 @@
+\usetikzlibrary {datavisualization}
+\tikz \datavisualization [
+    xy Cartesian,
+    all axes={visualize axis={low=0, style=->},
+              ticks={some}},
+    x axis={visualize ticks={
+                direction axis=y axis,
+                major={low=-4pt, high=4pt, style=red!50}}},
+    visualize as scatter]
+  data {
+    x, y
+    0, 0
+    3, 3
+  };

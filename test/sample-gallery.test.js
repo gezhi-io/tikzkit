@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { splitTikzCodeBlocks, tikzToSvg } from "../src/index.js";
+import { caseAnchorIds, hashTargetCandidates } from "../web/case-anchors.js";
+import { MAX_PREVIEW_CASES, previewRenderWindow } from "../web/preview-window.js";
 import { createSampleGallery } from "../web/sample-gallery.js";
 import { REAL_GALLERY_CASES } from "../web/real-gallery-data.js";
 
@@ -112,4 +114,39 @@ test("web realtime JS renderer injects the same comparison grid as gallery artif
   assert.match(app, /tikzToSvg\(renderSource,\s*options\)/);
   assert.match(app, /formatUnitStatus/);
   assert.match(app, /createUnitMetricsPanel/);
+});
+
+test("web gallery exposes stable hash anchors for every rendered case", () => {
+  const app = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../web/styles.css", import.meta.url), "utf8");
+
+  assert.deepEqual(caseAnchorIds(1028), {
+    number: "1028",
+    padded: "1028",
+    canonical: "case-1028",
+    aliases: ["1028"]
+  });
+  assert.deepEqual(caseAnchorIds(5), {
+    number: "5",
+    padded: "005",
+    canonical: "case-005",
+    aliases: ["5", "005"]
+  });
+  assert.deepEqual(hashTargetCandidates("1028"), ["1028", "case-1028"]);
+  assert.deepEqual(hashTargetCandidates("case-1028"), ["case-1028", "1028"]);
+  assert.deepEqual(hashTargetCandidates("005"), ["005", "5", "case-005"]);
+  const window = previewRenderWindow(1560, "#1028");
+  assert.equal(window.windowed, true);
+  assert.equal(window.renderedCount, MAX_PREVIEW_CASES);
+  assert.ok(window.start <= 1028 && window.end >= 1028);
+  assert.ok(window.start > 157, `expected #1028 window to start after early static cases, got ${window.start}`);
+  assert.match(app, /appendCaseAnchors\(figure,\s*options\.caseId\)/);
+  assert.match(app, /import\s+\{\s*caseAnchorIds,\s*caseNumberFromHash,\s*hashTargetCandidates\s*\}\s+from\s+"\.\/case-anchors\.js"/);
+  assert.match(app, /\/api\/corpora\/core\/window\?target=/);
+  assert.match(app, /activeCaseStart\s*\+\s*tikzIndex\s*-\s*1/);
+  assert.match(app, /window\.addEventListener\("hashchange"/);
+  assert.match(app, /scrollToHashTarget/);
+  assert.match(css, /\.preview-window-notice/);
+  assert.match(css, /\.case-anchor-link/);
+  assert.match(css, /\.tikz-figure\.hash-target/);
 });

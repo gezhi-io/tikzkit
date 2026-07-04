@@ -1,0 +1,12 @@
+\usetikzlibrary {datavisualization.barcharts}
+\tikz \datavisualization
+ [scientific axes=clean,
+  candle stick plot,
+  index/source=dax]
+data {
+  day, dax/low, dax/high, dax/entry, dax/exit
+  1,   10,      40,       18,        32
+  2,   12,      42,       35,        20
+  3,   18,      55,       30,        48
+  4,   25,      80,       74,        42
+};

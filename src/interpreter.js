@@ -114,7 +114,12 @@ export function interpretTikz(ast, options = {}) {
     const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
     const baseVariables = evaluatePicturePgfMathMacros(picture.pgfMathMacros || [], DEFAULT_TEX_VARIABLES);
-    const pictureOptions = stripStyleDefinitionOptions(normalizeOptions("path", picture.options || {}, { variables: baseVariables, styles }).options);
+    const pictureOptions = stripStyleDefinitionOptions(
+      normalizeOptions("path", withImplicitStyleOption("every picture", picture.options || {}, styles), {
+        variables: baseVariables,
+        styles
+      }).options
+    );
     const pictureBasis = parsePictureBasis(pictureOptions, baseVariables);
     const pictureTransformEnv = {
       variables: { ...baseVariables },
@@ -454,18 +459,22 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   }
   if (statement.type === "scope") {
     const scopedVariables = { ...env.variables };
-    const codeEnv = { ...env, variables: scopedVariables };
-    applyOptionCodeHandlers(statement.options || {}, codeEnv);
+    const scopeStyles = { ...env.styles, ...styleDefinitionsFromOptions(statement.options || {}, env.styles) };
+    const codeEnv = { ...env, variables: scopedVariables, styles: scopeStyles };
+    const scopeOptions = stripStyleDefinitionOptions(
+      normalizeOptions("path", withImplicitStyleOption("every scope", statement.options || {}, scopeStyles), codeEnv).options
+    );
+    applyOptionCodeHandlers(scopeOptions, codeEnv);
     const scopedEnv = {
       ...env,
       variables: scopedVariables,
-      transform: composeTransform(env.transform, statement.options, codeEnv),
-      canvasScale: env.canvasScale * transformCanvasScale(statement.options || {}, codeEnv),
-      basis: composeBasis(env.basis, statement.options, codeEnv),
-      pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, statement.options || {}),
-      styles: { ...env.styles, ...styleDefinitionsFromOptions(statement.options || {}, env.styles) }
+      transform: composeTransform(env.transform, scopeOptions, codeEnv),
+      canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
+      basis: composeBasis(env.basis, scopeOptions, codeEnv),
+      pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, scopeOptions),
+      styles: scopeStyles
     };
-    if (isBackgroundScope(statement.options || {})) {
+    if (isBackgroundScope(scopeOptions)) {
       const backgroundIr = { ...ir, items: [], backgroundItems: [] };
       for (const child of statement.body) interpretStatement(child, scopedEnv, backgroundIr, diagnostics, options);
       ir.backgroundItems.push(...backgroundIr.backgroundItems, ...backgroundIr.items);
@@ -592,6 +601,11 @@ function evaluateIfNum(statement, env) {
   return left === right;
 }
 
+function withImplicitStyleOption(styleName, rawOptions = {}, styles = {}) {
+  if (!styles?.[styleName]) return rawOptions || {};
+  return { [styleName]: true, ...(rawOptions || {}) };
+}
+
 function applyOptionCodeHandlers(rawOptions = {}, env) {
   for (const [key, value] of Object.entries(rawOptions || {})) {
     const handler = env.codeHandlers?.[key];
@@ -707,7 +721,10 @@ function stripStyleDefinitionOptions(options = {}) {
 }
 
 function interpretPathStatement(statement, env, ir, diagnostics) {
-  const rawOptions = resolveDynamicOptions({ ...(env.pictureOptions || {}), ...(statement.options || {}) }, env);
+  const rawOptions = resolveDynamicOptions(
+    withImplicitStyleOption("every path", { ...(env.pictureOptions || {}), ...(statement.options || {}) }, env.styles),
+    env
+  );
   const normalized = normalizeOptions(statement.command, rawOptions, env);
   const style = scaleCanvasStyle(normalized.style, env);
   const { semantic, options } = normalized;
@@ -732,6 +749,17 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       : built.shapes.flatMap((shape) => shape.commands || []);
   }
 
+  if (tikzBoolean(pathOptions["use as bounding box"])) {
+    const bboxCommands = built.commands.length ? built.commands : built.shapes.flatMap((shape) => shape.commands || []);
+    if (bboxCommands.length) {
+      ir.items.push({
+        type: "bbox",
+        tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
+        commands: bboxCommands
+      });
+    }
+  }
+
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
   if (visible) {
@@ -740,6 +768,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     const styledShapes = built.shapes.map((shape) => ({
       ...shape,
       subtype: shape.subtype || subtype,
+      overlay: tikzBoolean(pathOptions.overlay),
       style: { ...style, ...shadingStyle, ...doubleStyle, ...(shape.style || {}) }
     }));
     const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype);
@@ -752,6 +781,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       const item = {
         type: "path",
         subtype: built.styleHints.subtype || subtype,
+        overlay: tikzBoolean(pathOptions.overlay),
         tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
         style: pathStyle,
         commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
@@ -804,6 +834,12 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     if (segment.kind === "unknown") {
       const mark = String(segment.raw || "").match(/\bplot\s*\[[^\]]*\bmark\s*=\s*([^\],\s]+)[^\]]*\]/);
       if (mark) pendingPlotMark = mark[1];
+      continue;
+    }
+    if (segment.kind === "options") {
+      const segmentOptions = resolveDynamicOptions(segment.options || {}, env);
+      Object.assign(effectivePathOptions, segmentOptions);
+      Object.assign(styleHints, pathOptionStyleHints(effectivePathOptions, pathStyle, env));
       continue;
     }
     if (segment.kind === "operator") {
@@ -931,6 +967,15 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       env.coordinates[name] = roundPoint(current);
       continue;
     }
+    if (segment.kind === "pic") {
+      const anglePic = buildAnglePic(segment, pathOptions, env, diagnostics, pathStyle);
+      if (anglePic) {
+        shapes.push(anglePic.shape);
+        if (anglePic.label) nodes.push(anglePic.label);
+        styleHints.visiblePic = true;
+      }
+      continue;
+    }
     if ((segment.kind === "edge" || segment.kind === "to") && current) {
       const to = segment.relative
         ? resolveRelativeCoordinate(segment.to, currentBase || current, env, diagnostics)
@@ -968,7 +1013,11 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         pending = null;
         continue;
       }
-      Object.assign(styleHints, edgeStyleHintsFromOptions(combinedEdgeOptions, env));
+      const edgeHints = edgeStyleHintsFromOptions(combinedEdgeOptions, env);
+      Object.assign(styleHints, edgeHints);
+      if (segment.kind === "edge" && !Object.hasOwn(edgeHints, "stroke") && !edgeExplicitlySuppressesDraw(combinedEdgeOptions)) {
+        styleHints.stroke = pathStyle.stroke === "none" ? "black" : pathStyle.stroke || "black";
+      }
       Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
       const loopDirection = loopDirectionFromOptions(combinedEdgeOptions);
       const arcThrough = parseTikzExtArcThrough(combinedEdgeOptions);
@@ -1011,20 +1060,34 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const clipped = curve
         ? clipNodeCurveEndpoints(edgeFrom, currentNodeRef, to, toNodeRef, curve, env)
         : straightClipped;
+      const targetCommands = segment.kind === "edge" ? [{ type: "moveTo", x: clipped.from.x, y: clipped.from.y }] : commands;
       if (curve) {
-        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
+        if (segment.kind !== "edge" && shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         const distance = tikzCurveControlDistance(clipped.from, clipped.to);
         const c1 = polarOffset(clipped.from, curve.out, distance * curve.outLooseness);
         const c2 = polarOffset(clipped.to, curve.in, distance * curve.inLooseness);
-        commands.push({ type: "curveTo", x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y, x: clipped.to.x, y: clipped.to.y });
+        targetCommands.push({ type: "curveTo", x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y, x: clipped.to.x, y: clipped.to.y });
         const labelGeometry = cubicLabelGeometry(clipped.from, c1, c2, clipped.to);
         flushInlinePathNodesAt(pendingInlineNodes, labelGeometry.point, nodes, env, pathStyle, labelGeometry.segment);
         lastSegment = { from: clipped.from, to: clipped.to };
       } else {
-        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
-        commands.push({ type: "lineTo", x: clipped.to.x, y: clipped.to.y });
+        if (segment.kind !== "edge" && shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
+        targetCommands.push({ type: "lineTo", x: clipped.to.x, y: clipped.to.y });
         flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle);
         lastSegment = { from: clipped.from, to: clipped.to };
+      }
+      if (segment.kind === "edge") {
+        const edgeStyle = edgeDrawableStyle(combinedEdgeOptions, pathStyle, env);
+        const edgeCommands = applyPathMorphing(targetCommands, combinedEdgeOptions, env, edgeStyle);
+        shapes.push({
+          type: "path",
+          subtype: "edge",
+          commands: applyArrowEndpointShortening(edgeCommands, edgeStyle, {
+            start: currentNodeRef,
+            end: toNodeRef
+          }),
+          style: edgeStyle
+        });
       }
       pendingInlineNodes = [];
       current = clipped.to;
@@ -1175,7 +1238,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         const markOptions = { ...pathOptions, ...(segment.options || {}) };
         shapes.push(...plot.points.map((point) => buildPlotMark(point, mark, pathStyle, markOptions, env)));
       }
-      for (const command of plot.commands) commands.push(command);
+      if (!pathOptions["only marks"] && !segment.options?.["only marks"]) {
+        for (const command of plot.commands) commands.push(command);
+      }
       if (plot.points.length) {
         current = plot.points.at(-1);
         currentLocal = null;
@@ -3352,6 +3417,10 @@ function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) 
   for (const segment of splitAttachedPathSegments(segments)) {
     const built = buildPath([{ kind: "coordinate", raw: name }, ...segment], env, diagnostics, pathOptions, style);
     const visible = isVisiblePath("path", style, semantic, built.styleHints);
+    for (const shape of built.shapes) {
+      ir.items.push(shape);
+      addDecorationMarkers(shape, options, ir);
+    }
     if (visible && hasDrawableCommands(built.commands, built.shapes)) {
       const pathStyle = drawablePathStyle(style, built.styleHints);
       const item = {
@@ -4444,7 +4513,8 @@ function createAnglePic(statement, env, ir) {
         textFill: textColor,
         fontScale: roundNumber(env.canvasScale * fontScaleFromTikzFont(statement.options?.font ?? env.pictureOptions?.font)),
         fontSizeBaseScale: 1,
-        fontFamily: resolveFontFamily(statement.options?.font || env.pictureOptions?.font)
+        fontFamily: resolveInheritedFontFamily(statement.options?.font, env.pictureOptions?.font),
+        fontVariant: resolveInheritedFontVariant(statement.options?.font, env.pictureOptions?.font)
       }
     });
   }
@@ -4458,6 +4528,122 @@ function anglePicQuote(options = {}) {
     if (text.length >= 2 && text.startsWith("\"") && text.endsWith("\"")) return text.slice(1, -1);
   }
   return "";
+}
+
+function buildAnglePic(segment, pathOptions = {}, env = {}, diagnostics = []) {
+  const parts = parseAnglePicParts(segment.body);
+  if (!parts) return null;
+  const from = resolveCoordinate(parts.from, env, diagnostics);
+  const vertex = resolveCoordinate(parts.vertex, env, diagnostics);
+  const to = resolveCoordinate(parts.to, env, diagnostics);
+  const fromAngle = Math.atan2(from.y - vertex.y, from.x - vertex.x);
+  const toAngle = Math.atan2(to.y - vertex.y, to.x - vertex.x);
+  let delta = toAngle - fromAngle;
+  while (delta <= -Math.PI) delta += Math.PI * 2;
+  while (delta > Math.PI) delta -= Math.PI * 2;
+
+  const radiusRaw = segment.options?.["angle radius"] ?? pathOptions["angle radius"] ?? "5mm";
+  const radius = parseDimension(radiusRaw, env.variables);
+  const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : parseDimension("5mm", env.variables);
+  const { style: rawStyle } = normalizeOptions("path", segment.options || {}, env);
+  const style = scaleCanvasStyle(rawStyle, env);
+  const hasFill = style.fill && style.fill !== "none";
+  const shapeStyle = {
+    ...style,
+    stroke: style.stroke && style.stroke !== "none" ? style.stroke : "black",
+    fill: hasFill ? style.fill : "none"
+  };
+  const commands = anglePicCommands(vertex, fromAngle, delta, safeRadius, hasFill);
+  const quote = anglePicQuote(segment.options || {});
+  return {
+    shape: {
+      type: "path",
+      subtype: "angle-pic",
+      shape: hasFill ? "sector" : "arc",
+      style: shapeStyle,
+      commands
+    },
+    label: quote ? anglePicLabelNode(quote, vertex, fromAngle, delta, safeRadius, segment.options || {}, env) : null
+  };
+}
+
+function parseAnglePicParts(body) {
+  const angleMatch = String(body || "").trim().match(/^angle\s*=\s*([\s\S]+)$/);
+  if (!angleMatch) return null;
+  const parts = splitTopLevelAnglePath(angleMatch[1]);
+  if (parts.length !== 3) return null;
+  return {
+    from: parts[0],
+    vertex: parts[1],
+    to: parts[2]
+  };
+}
+
+function splitTopLevelAnglePath(text) {
+  const parts = [];
+  let start = 0;
+  let paren = 0;
+  let brace = 0;
+  let bracket = 0;
+  for (let index = 0; index < text.length - 1; index += 1) {
+    const char = text[index];
+    if (char === "(") paren += 1;
+    else if (char === ")") paren = Math.max(0, paren - 1);
+    else if (char === "{") brace += 1;
+    else if (char === "}") brace = Math.max(0, brace - 1);
+    else if (char === "[") bracket += 1;
+    else if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (paren || brace || bracket) continue;
+    if (text.slice(index, index + 2) === "--") {
+      parts.push(text.slice(start, index).trim());
+      start = index + 2;
+      index += 1;
+    }
+  }
+  parts.push(text.slice(start).trim());
+  return parts.filter(Boolean);
+}
+
+function anglePicCommands(vertex, fromAngle, delta, radius, closed) {
+  const steps = Math.max(6, Math.ceil(Math.abs(delta) / (Math.PI / 18)));
+  const start = anglePoint(vertex, fromAngle, radius);
+  const commands = closed
+    ? [
+        { type: "moveTo", x: vertex.x, y: vertex.y },
+        { type: "lineTo", x: start.x, y: start.y }
+      ]
+    : [{ type: "moveTo", x: start.x, y: start.y }];
+  for (let index = 1; index <= steps; index += 1) {
+    const angle = fromAngle + (delta * index) / steps;
+    const point = anglePoint(vertex, angle, radius);
+    commands.push({ type: "lineTo", x: point.x, y: point.y });
+  }
+  if (closed) commands.push({ type: "closePath" });
+  return commands;
+}
+
+function anglePoint(vertex, angle, radius) {
+  return roundPoint({
+    x: vertex.x + Math.cos(angle) * radius,
+    y: vertex.y + Math.sin(angle) * radius
+  });
+}
+
+function anglePicLabelNode(text, vertex, fromAngle, delta, radius, options, env) {
+  const eccentricity = evaluateMath(options["angle eccentricity"] ?? "0.65", env.variables);
+  const labelRadius = radius * (Number.isFinite(eccentricity) && eccentricity > 0 ? eccentricity : 0.65);
+  const point = anglePoint(vertex, fromAngle + delta / 2, labelRadius);
+  return {
+    at: point,
+    displayPoint: point,
+    text,
+    options: {
+      "inner sep": "1pt",
+      anchor: "center",
+      ...(options.text ? { text: options.text } : {})
+    },
+    canvasScale: env.canvasScale
+  };
 }
 
 function picCubeBasis(env) {
@@ -4802,7 +4988,9 @@ function addNodeItems(node, ir, env) {
     fill: style.textFill || semantic.text || "black",
     fontScale: roundNumber(nodeEnv.canvasScale * (node.textFontScale || nodeFontScale(node.options || {}, nodeEnv))),
     fontSizeBaseScale: roundNumber(nodeEnv.canvasScale * nodeOptionScale(node.options || {}, nodeEnv)),
-    fontFamily: resolveFontFamily(node.text) || resolveFontFamily(node.options?.font || nodeEnv.pictureOptions?.font)
+    textWidthScale: numberOption(node.options?.["tikzkit text width scale"], 1),
+    fontFamily: resolveFontFamily(node.text) || resolveInheritedFontFamily(node.options?.font, nodeEnv.pictureOptions?.font),
+    fontVariant: resolveInheritedFontVariant(node.options?.font, nodeEnv.pictureOptions?.font)
   };
   if (shape === "opAmp") {
     textStyle.fontScale = roundNumber((Number(textStyle.fontScale) || 1) * 0.75);
@@ -4932,6 +5120,7 @@ function addNodeItems(node, ir, env) {
       }
     });
   }
+  const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
   ir.items.push({
     type: "textNode",
     x: textPoint.x,
@@ -4940,6 +5129,8 @@ function addNodeItems(node, ir, env) {
     style: textStyle,
     rotation: rotation || undefined,
     textAlign: normalizedNodeTextAlign(node.options?.align),
+    svgTextAnchor,
+    svgTextX: svgTextAnchor ? (node.at || textPoint).x : undefined,
     wrapWidth: node.options?.["text width"] ? parseDimension(node.options["text width"], nodeEnv.variables) : undefined,
     fitBox: node.fitTextToBox ? { width: size.width, height: size.height } : undefined
   });
@@ -4956,6 +5147,14 @@ function normalizedNodeTextAlign(value) {
   if (["left", "flush left", "ragged right", "raggedright"].includes(align)) return "left";
   if (["right", "flush right", "ragged left", "raggedleft"].includes(align)) return "right";
   if (["center", "centering", "centered"].includes(align)) return "center";
+  return undefined;
+}
+
+function svgTextAnchorForNode(options = {}, semantic = {}) {
+  if (!semantic["axis legend"]) return undefined;
+  const anchor = String(options.anchor || "").trim().toLowerCase().replace(/-/g, " ");
+  if (anchor.includes("west")) return "start";
+  if (anchor.includes("east")) return "end";
   return undefined;
 }
 
@@ -5133,7 +5332,11 @@ function labelTextStyle(label, env, fallbackStyle = {}, parentOptions = {}, kind
     fill: style.textFill || semantic.text || "black",
     fontScale: roundNumber(env.canvasScale * nodeFontScale(normalizedLabelOptions, env)),
     fontSizeBaseScale: roundNumber(env.canvasScale * nodeOptionScale(normalizedLabelOptions, env)),
-    fontFamily: resolveFontFamily(label.text) || resolveFontFamily(normalizedLabelOptions.font || env.pictureOptions?.font) || fallbackStyle.fontFamily
+    fontFamily:
+      resolveFontFamily(label.text) ||
+      resolveInheritedFontFamily(normalizedLabelOptions.font, env.pictureOptions?.font) ||
+      fallbackStyle.fontFamily,
+    fontVariant: resolveInheritedFontVariant(normalizedLabelOptions.font, env.pictureOptions?.font) || fallbackStyle.fontVariant
   };
 }
 
@@ -5150,7 +5353,10 @@ function addCoordinateLabels(options = {}, point, env, ir) {
     fill: style.textFill || semantic.text || "black",
     fontScale: roundNumber(env.canvasScale * nodeFontScale(expandedOptions, env)),
     fontSizeBaseScale: roundNumber(env.canvasScale * nodeOptionScale(expandedOptions, env)),
-    fontFamily: resolveFontFamily(String(expandedOptions.label || "")) || resolveFontFamily(expandedOptions.font || env.pictureOptions?.font)
+    fontFamily:
+      resolveFontFamily(String(expandedOptions.label || "")) ||
+      resolveInheritedFontFamily(expandedOptions.font, env.pictureOptions?.font),
+    fontVariant: resolveInheritedFontVariant(expandedOptions.font, env.pictureOptions?.font)
   };
   for (const label of nodeLabels(expandedOptions, point, { width: 0, height: 0 }, env, textStyle)) {
     ir.items.push(label);
@@ -5424,6 +5630,7 @@ function addChainJoinPath(chainUpdate, options = {}, env, ir, diagnostics) {
     const item = {
       type: "path",
       subtype: semanticSubtype(pathOptions),
+      overlay: tikzBoolean(pathOptions.overlay),
       style: pathStyle,
       commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
     };
@@ -5668,6 +5875,60 @@ function edgePathOptions(options = {}) {
   if (Object.hasOwn(options, "decorate")) picked.decorate = options.decorate;
   if (Object.hasOwn(options, "decoration")) picked.decoration = options.decoration;
   return picked;
+}
+
+function pathOptionStyleHints(options = {}, inheritedPathStyle = {}, env = {}) {
+  const normalized = normalizeOptions("path", options || {}, env);
+  const style = scaleCanvasStyle(normalized.style, env);
+  const hints = {};
+  const drawAction = pathOptionsRequestDraw(options);
+  const fillAction = pathOptionsRequestFill(options);
+  if (drawAction || fillAction) hints.pathAction = true;
+  if ((drawAction || inheritedPathStyle.stroke !== "none") && style.stroke && style.stroke !== "none") {
+    hints.stroke = style.stroke;
+  }
+  if ((fillAction || inheritedPathStyle.fill !== "none") && style.fill && style.fill !== "none") {
+    hints.fill = style.fill;
+  }
+  if (Number.isFinite(Number(style.lineWidth))) hints.lineWidth = style.lineWidth;
+  if (Array.isArray(style.dashArray)) hints.dashArray = style.dashArray;
+  if (style.markerStart) hints.markerStart = style.markerStart;
+  if (style.markerEnd) hints.markerEnd = style.markerEnd;
+  if (style.opacity !== undefined) hints.opacity = style.opacity;
+  if (style.fillOpacity !== undefined) hints.fillOpacity = style.fillOpacity;
+  if (style.strokeOpacity !== undefined) hints.strokeOpacity = style.strokeOpacity;
+  return hints;
+}
+
+function pathOptionsRequestDraw(options = {}) {
+  if (!Object.hasOwn(options, "draw")) return false;
+  const value = options.draw;
+  if (value === false) return false;
+  return !/^(?:none|false|0|no|off|transparent)$/i.test(String(value).trim());
+}
+
+function pathOptionsRequestFill(options = {}) {
+  if (!Object.hasOwn(options, "fill")) return false;
+  const value = options.fill;
+  if (value === false) return false;
+  return !/^(?:none|false|0|no|off|transparent)$/i.test(String(value).trim());
+}
+
+function edgeExplicitlySuppressesDraw(options = {}) {
+  const draw = options.draw;
+  if (draw === false) return true;
+  if (draw === undefined || draw === null) return false;
+  return /^(?:none|false|0|no|off|transparent)$/i.test(String(draw).trim());
+}
+
+function edgeDrawableStyle(options = {}, inheritedPathStyle = {}, env = {}) {
+  const normalized = normalizeOptions("draw", options || {}, env);
+  const style = drawablePathStyle(scaleCanvasStyle(normalized.style, env), edgeStyleHintsFromOptions(options || {}, env));
+  if (!edgeExplicitlySuppressesDraw(options) && (!style.stroke || style.stroke === "none")) {
+    style.stroke = inheritedPathStyle.stroke && inheritedPathStyle.stroke !== "none" ? inheritedPathStyle.stroke : "black";
+  }
+  style.fill = "none";
+  return style;
 }
 
 function loopDirectionFromOptions(options = {}) {
@@ -5991,6 +6252,18 @@ function resolveFontFamily(raw) {
     return TIKZ_FONT_FAMILY;
   }
   return undefined;
+}
+
+function resolveInheritedFontFamily(localFont, inheritedFont) {
+  return resolveFontFamily(localFont) || resolveFontFamily(inheritedFont);
+}
+
+function resolveFontVariant(raw) {
+  return /\\scshape\b/.test(String(raw || "")) ? "small-caps" : undefined;
+}
+
+function resolveInheritedFontVariant(localFont, inheritedFont) {
+  return resolveFontVariant(localFont) || resolveFontVariant(inheritedFont);
 }
 
 function rectangleSplitParts(semantic = {}) {
@@ -6325,17 +6598,23 @@ function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
   const textBox = scaleTextMetricBox(estimateTextMetricBox(normalized, {
     widthFactor: typewriter ? 0.187 : 0.13,
     fixedCharWidth: typewriter ? 0.187 : undefined,
+    texTextMetrics: Boolean(options["axis tick label"]),
     lineHeight: typewriter ? 0.236 : 0.18,
     lineGap: typewriter ? 0.187 : undefined,
     minHeight: 0.18,
     formulaMinWidth: 0.08,
     formulaWidthPadding: 0.08
   }), nodeFontScaleForText(normalized, options, env));
-  const innerSep = parseNodeLengthDimension(options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const innerSep = parseNodeLengthDimension(compactTextInnerSepOption(normalized, options), env);
   const width = Math.max(0.08, textBox.width + innerSep * 2);
   const height = Math.max(0.08, textBox.height + innerSep * 2);
 
   return { width: roundNumber(width), height: roundNumber(height) };
+}
+
+function compactTextInnerSepOption(normalized, options = {}) {
+  if (options["inner sep"] !== undefined) return options["inner sep"];
+  return TIKZ_DEFAULT_INNER_SEP;
 }
 
 function nodeUsesMonospaceFont(text, options = {}, env = {}) {
@@ -6450,6 +6729,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const shape = nodeShape(options);
   const typewriter = nodeUsesTypewriterFont(normalized, options, env);
   const inlineMathLabelMetrics = Boolean(options["tikzkit inline math label metrics"]);
+  const datavisLegendMathMetrics = Boolean(options["tikzkit datavis legend math metrics"]);
   const multilineFormulaCircle = isCircleShape && nodeHasMultipleMathLines(normalized);
   const textBox = scaleTextMetricBox(estimateTextMetricBox(
     normalized,
@@ -6458,29 +6738,29 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           texTextMetrics: !typewriter,
           fixedCharWidth: typewriter ? 0.187 : undefined,
           widthFactor: 0.09,
-          formulaWidthFactor: 0.09,
-          formulaMinWidth: 0.32,
+          formulaWidthFactor: datavisLegendMathMetrics ? 0.08 : 0.09,
+          formulaMinWidth: datavisLegendMathMetrics ? 0.18 : 0.32,
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
-          formulaTexTextMetrics: true,
-          formulaWidthPadding: multilineFormulaCircle ? 0.38 : 0.08,
+          formulaTexTextMetrics: datavisLegendMathMetrics ? false : true,
+          formulaWidthPadding: datavisLegendMathMetrics ? 0.02 : multilineFormulaCircle ? 0.38 : 0.08,
           shortFormulaWidthPadding: 0.02,
           shortFormulaMaxUnits: 1.6
         }
       : {
           texTextMetrics: !typewriter,
           fixedCharWidth: typewriter ? 0.187 : undefined,
-          widthFactor: 0.16,
-          formulaWidthFactor: 0.17,
+          widthFactor: datavisLegendMathMetrics ? 0.08 : 0.16,
+          formulaWidthFactor: datavisLegendMathMetrics ? 0.08 : 0.17,
           formulaMinWidth: 0.08,
           formulaMinHeight: 0.36,
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
-          formulaTexTextMetrics: shape === "roundedRectangle" || inlineMathLabelMetrics,
-          formulaWidthPadding: inlineMathLabelMetrics ? 0.35 : shape === "roundedRectangle" ? 0 : 0.14,
-          shortFormulaWidthPadding: 0.08,
+          formulaTexTextMetrics: datavisLegendMathMetrics ? false : shape === "roundedRectangle" || inlineMathLabelMetrics,
+          formulaWidthPadding: datavisLegendMathMetrics ? 0.02 : inlineMathLabelMetrics ? 0.35 : shape === "roundedRectangle" ? 0 : 0.14,
+          shortFormulaWidthPadding: datavisLegendMathMetrics ? 0.02 : 0.08,
           shortFormulaMaxUnits: 3
         }
   ), unscaledTextMetricScale);
@@ -7213,7 +7493,8 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
       ...item.style,
       ...payload.style,
       fill: visibleTextFill(payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
-      fontFamily: payload.style.fontFamily || resolveFontFamily(pathOptions.font || env.pictureOptions?.font),
+      fontFamily: payload.style.fontFamily || resolveInheritedFontFamily(pathOptions.font, env.pictureOptions?.font),
+      fontVariant: payload.style.fontVariant || resolveInheritedFontVariant(pathOptions.font, env.pictureOptions?.font),
       fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
     }
   });
@@ -7680,6 +7961,21 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       style: kind.endsWith("*") ? filledStyle : lineStyle
     };
   }
+  if (kind === "x") {
+    const diagonal = size / Math.SQRT2;
+    return {
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: [
+        { type: "moveTo", x: roundNumber(point.x - diagonal), y: roundNumber(point.y - diagonal) },
+        { type: "lineTo", x: roundNumber(point.x + diagonal), y: roundNumber(point.y + diagonal) },
+        { type: "moveTo", x: roundNumber(point.x - diagonal), y: roundNumber(point.y + diagonal) },
+        { type: "lineTo", x: roundNumber(point.x + diagonal), y: roundNumber(point.y - diagonal) }
+      ],
+      style: lineStyle
+    };
+  }
   return {
     type: "path",
     shape: "plot-mark",
@@ -7721,15 +8017,25 @@ function semanticSubtype(options = {}) {
   if (options["tikzquads kind"]) return `tikzquads-${String(options["tikzquads kind"]).trim().replace(/\s+/g, "-")}`;
   if (options["axis mark"]) return "axis-mark";
   if (options["axis bar"]) return "axis-bar";
+  if (options["axis rectangle"]) return "axis-rectangle";
+  if (options["axis candlestick wick"]) return "axis-candlestick-wick";
+  if (options["axis candlestick body"]) return "axis-candlestick-body";
   if (options["axis comb"]) return "axis-comb";
   if (options["axis closed cycle"]) return "axis-closed-cycle";
   if (options["axis surface"]) return "axis-surface";
+  if (options["axis minor tick"]) return "axis-minor-tick";
   if (options["axis tick"]) return "axis-tick";
   if (options["axis bounds"]) return "axis-frame";
   if (options["axis frame"]) return "axis-frame";
+  if (options["axis minor grid"]) return "axis-minor-grid-line";
   if (options["axis grid"]) return "axis-grid-line";
+  if (options["axis clean line"]) return "axis-clean-line";
+  if (options["axis clean boundary"]) return "axis-clean-boundary";
   if (options["axis line"]) return "axis-line";
   if (options["axis plot"]) return "axis-plot";
+  if (options["axis pin edge"]) return "axis-pin-edge";
+  if (options["axis legend background"]) return "axis-legend-background";
+  if (options["axis legend example"]) return "axis-legend-example";
   if (options["axis legend"]) return "axis-legend";
   if (options["ternary patch"]) return "ternary-patch";
   if (options["ternary grid"]) return "ternary-grid";
@@ -7794,6 +8100,7 @@ function tikzBoolean(value) {
 
 function hasDrawableCommands(commands, shapes) {
   if (commands.length === 0) return false;
+  if (commands.every((command) => command.type === "moveTo") && shapes.length > 0) return false;
   if (commands.length === 1 && commands[0].type === "moveTo" && shapes.length > 0) return false;
   return true;
 }
@@ -8122,6 +8429,10 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
     const projected = projection.operator === "|-" ? { x: left.x, y: right.y } : { x: right.x, y: left.y };
     return roundPoint(projected);
   }
+  const intersectionCoordinate = resolveIntersectionCoordinateSystem(text, env, diagnostics);
+  if (intersectionCoordinate) {
+    return roundPoint(intersectionCoordinate);
+  }
   if (Object.hasOwn(env.coordinates, text)) {
     return roundPoint(env.coordinates[text]);
   }
@@ -8140,34 +8451,230 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   if (declaredCoordinate) {
     return applyTransform(declaredCoordinate, env.transform);
   }
+  const explicitCoordinate = resolveExplicitCoordinateSystem(text, env, diagnostics);
+  if (explicitCoordinate) {
+    return applyTransform(explicitCoordinate, env.transform);
+  }
   const polar = text.match(/^(.+):(.+)$/);
   if (polar) {
-    const angle = (evaluateMath(polar[1], env.variables) * Math.PI) / 180;
-    const radius = parseDimension(polar[2], env.variables);
-    return applyTransform(roundPoint({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }), env.transform);
+    const angle = (coordinateAngleDegrees(polar[1], env.variables) * Math.PI) / 180;
+    const radiusText = polar[2].trim();
+    const point = coordinateComponentHasDimension(radiusText, env.variables)
+      ? {
+          x: Math.cos(angle) * parseCoordinateCanvasDimension(radiusText, env.variables),
+          y: Math.sin(angle) * parseCoordinateCanvasDimension(radiusText, env.variables)
+        }
+      : projectBasisPoint(
+          Math.cos(angle) * parseCoordinateFactor(radiusText, env.variables),
+          Math.sin(angle) * parseCoordinateFactor(radiusText, env.variables),
+          0,
+          env.basis
+        );
+    return applyTransform(roundPoint(point), env.transform);
   }
   const comma = splitTopLevel(text, ",");
   if (comma.length >= 2) {
     if (comma.length >= 3) {
       const projected = projectBasisPoint(
-        parseDimension(comma[0], env.variables),
-        parseDimension(comma[1], env.variables),
-        parseDimension(comma[2], env.variables),
+        parseCoordinateFactor(comma[0], env.variables),
+        parseCoordinateFactor(comma[1], env.variables),
+        parseCoordinateFactor(comma[2], env.variables),
         env.basis
       );
       return applyTransform(projected, env.transform);
     }
-    return applyTransform(roundPoint({
-      ...projectBasisPoint(
-        parseDimension(comma[0], env.variables),
-        parseDimension(comma[1], env.variables),
-        0,
-        env.basis
-      )
-    }), env.transform);
+    return applyTransform(resolveImplicitTwoPartCoordinate(comma[0], comma[1], env), env.transform);
   }
   diagnostics.push({ severity: "warning", message: `Unknown coordinate ${raw}` });
   return { x: 0, y: 0 };
+}
+
+function resolveImplicitTwoPartCoordinate(xRaw, yRaw, env) {
+  const xIsDimension = coordinateComponentHasDimension(xRaw, env.variables);
+  const yIsDimension = coordinateComponentHasDimension(yRaw, env.variables);
+  const xPoint = xIsDimension
+    ? { x: parseCoordinateCanvasDimension(xRaw, env.variables), y: 0 }
+    : projectBasisPoint(parseCoordinateFactor(xRaw, env.variables), 0, 0, env.basis);
+  const yPoint = yIsDimension
+    ? { x: 0, y: parseCoordinateCanvasDimension(yRaw, env.variables) }
+    : projectBasisPoint(0, parseCoordinateFactor(yRaw, env.variables), 0, env.basis);
+  return roundPoint({
+    x: xPoint.x + yPoint.x,
+    y: xPoint.y + yPoint.y
+  });
+}
+
+function resolveExplicitCoordinateSystem(text, env, diagnostics) {
+  const match = String(text || "").match(/^([A-Za-z][A-Za-z0-9 _-]*?)\s+cs\s*:\s*([\s\S]+)$/);
+  if (!match) return null;
+  const system = match[1].trim().replace(/\s+/g, " ");
+  const options = parseOptions(match[2]);
+  if (system === "canvas") {
+    return roundPoint({
+      x: parseCoordinateCanvasDimension(options.x ?? "0pt", env.variables),
+      y: parseCoordinateCanvasDimension(options.y ?? "0pt", env.variables)
+    });
+  }
+  if (system === "xyz") {
+    return projectBasisPoint(
+      parseCoordinateFactor(options.x ?? 0, env.variables),
+      parseCoordinateFactor(options.y ?? 0, env.variables),
+      parseCoordinateFactor(options.z ?? 0, env.variables),
+      env.basis
+    );
+  }
+  if (system === "canvas polar") {
+    const angle = (coordinateAngleDegrees(options.angle ?? 0, env.variables) * Math.PI) / 180;
+    const radius = options.radius ?? null;
+    const xRadius = parseCoordinateCanvasDimension(options["x radius"] ?? radius ?? "0pt", env.variables);
+    const yRadius = parseCoordinateCanvasDimension(options["y radius"] ?? radius ?? "0pt", env.variables);
+    return roundPoint({
+      x: Math.cos(angle) * xRadius,
+      y: Math.sin(angle) * yRadius
+    });
+  }
+  if (system === "xyz polar" || system === "xy polar") {
+    const angle = (coordinateAngleDegrees(options.angle ?? 0, env.variables) * Math.PI) / 180;
+    const radius = options.radius ?? 0;
+    const xRadius = parseCoordinateFactor(options["x radius"] ?? radius, env.variables);
+    const yRadius = parseCoordinateFactor(options["y radius"] ?? radius, env.variables);
+    return projectBasisPoint(Math.cos(angle) * xRadius, Math.sin(angle) * yRadius, 0, env.basis);
+  }
+  if (system === "node") {
+    const name = String(options.name || "").trim();
+    if (!name) return null;
+    if (options.anchor) return resolveCoordinate(`${name}.${options.anchor}`, env, diagnostics);
+    if (options.angle) return resolveCoordinate(`${name}.${options.angle}`, env, diagnostics);
+    if (Object.hasOwn(env.nodes, name)) return roundPoint(env.nodes[name].point);
+    if (Object.hasOwn(env.coordinates, name)) return roundPoint(env.coordinates[name]);
+  }
+  return null;
+}
+
+function coordinateComponentHasDimension(value, variables = {}) {
+  const raw = stripOuterBraces(String(value ?? "").trim());
+  if (/\\(?:textwidth|textheight|linewidth|paperwidth|paperheight)\b/.test(raw)) return true;
+  const text = substituteVariables(raw, variables).replace(/\{\}/g, "");
+  return /(?:^|[^\p{L}])(?:cm|mm|pt|em|ex|in)\b/u.test(text);
+}
+
+function parseCoordinateFactor(value, variables = {}) {
+  const evaluated = evaluateMath(value, variables);
+  return Number.isFinite(evaluated) ? evaluated : 0;
+}
+
+function parseCoordinateCanvasDimension(value, variables = {}) {
+  const text = stripOuterBraces(substituteVariables(value, variables).replace(/\{\}/g, "").trim());
+  const additive = parseAdditiveCoordinateDimension(text);
+  if (Number.isFinite(additive)) return additive;
+  const parsed = parseDimension(text, variables);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseAdditiveCoordinateDimension(text) {
+  const compact = String(text || "").replace(/\s+/g, "");
+  if (!compact) return NaN;
+  const tokenPattern = /[+-]?(?:\d+\.?\d*|\.\d+)(?:cm|mm|pt|em|ex|in)?/g;
+  let index = 0;
+  let total = 0;
+  let matched = false;
+  for (const match of compact.matchAll(tokenPattern)) {
+    if (match.index !== index) return NaN;
+    matched = true;
+    const token = match[0];
+    const parsed = token.match(/^([+-]?(?:\d+\.?\d*|\.\d+))(cm|mm|pt|em|ex|in)?$/);
+    if (!parsed) return NaN;
+    total += parseDimension(`${parsed[1]}${parsed[2] || "pt"}`, {});
+    index = match.index + token.length;
+  }
+  return matched && index === compact.length ? total : NaN;
+}
+
+function coordinateAngleDegrees(value, variables = {}) {
+  const text = String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const namedAngles = {
+    right: 0,
+    east: 0,
+    up: 90,
+    north: 90,
+    left: 180,
+    west: 180,
+    down: -90,
+    south: -90,
+    "north east": 45,
+    "north west": 135,
+    "south east": -45,
+    "south west": -135
+  };
+  if (Object.hasOwn(namedAngles, text)) return namedAngles[text];
+  return evaluateMath(value, variables);
+}
+
+function resolveIntersectionCoordinateSystem(text, env, diagnostics) {
+  const match = String(text || "").match(/^intersection\s+cs\s*:\s*([\s\S]+)$/);
+  if (!match) return null;
+  const options = parseOptions(match[1]);
+  const first = intersectionLineEndpoints(options["first line"], env, diagnostics);
+  const second = intersectionLineEndpoints(options["second line"], env, diagnostics);
+  if (!first || !second) return null;
+  const point = lineLineIntersection(first[0], first[1], second[0], second[1]);
+  if (!point) {
+    diagnostics.push({ severity: "warning", message: `No line intersection for ${text}` });
+    return null;
+  }
+  return roundPoint(point);
+}
+
+function intersectionLineEndpoints(value, env, diagnostics) {
+  if (value === undefined || value === null || value === true) return null;
+  const parts = splitTopLevelOperator(String(value), "--");
+  if (parts.length !== 2) {
+    diagnostics.push({ severity: "warning", message: `Unsupported intersection line ${value}` });
+    return null;
+  }
+  return parts.map((part) => resolveCoordinate(stripCoordinateEndpoint(part), env, diagnostics));
+}
+
+function stripCoordinateEndpoint(value) {
+  let text = stripOuterBraces(String(value || "").trim());
+  if (text.startsWith("(") && text.endsWith(")")) text = text.slice(1, -1).trim();
+  return text;
+}
+
+function splitTopLevelOperator(text, operator) {
+  const parts = [];
+  let start = 0;
+  let paren = 0;
+  let brace = 0;
+  let bracket = 0;
+  for (let index = 0; index <= text.length - operator.length; index += 1) {
+    const char = text[index];
+    if (char === "(") paren += 1;
+    else if (char === ")") paren = Math.max(0, paren - 1);
+    else if (char === "{") brace += 1;
+    else if (char === "}") brace = Math.max(0, brace - 1);
+    else if (char === "[") bracket += 1;
+    else if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (paren || brace || bracket) continue;
+    if (text.slice(index, index + operator.length) === operator) {
+      parts.push(text.slice(start, index).trim());
+      start = index + operator.length;
+      index += operator.length - 1;
+    }
+  }
+  parts.push(text.slice(start).trim());
+  return parts.filter(Boolean);
+}
+
+function lineLineIntersection(a, b, c, d) {
+  const denominator = (a.x - b.x) * (c.y - d.y) - (a.y - b.y) * (c.x - d.x);
+  if (Math.abs(denominator) < 1e-12) return null;
+  const detA = a.x * b.y - a.y * b.x;
+  const detB = c.x * d.y - c.y * d.x;
+  return {
+    x: (detA * (c.x - d.x) - (a.x - b.x) * detB) / denominator,
+    y: (detA * (c.y - d.y) - (a.y - b.y) * detB) / denominator
+  };
 }
 
 function resolveDeclaredCoordinateSystem(text, env) {
@@ -8614,6 +9121,7 @@ function computeItemsBoundingBox(items = [], fallback = { minX: 0, minY: 0, maxX
 }
 
 function includeItemBounds(item, include) {
+  if (item.overlay) return;
   if (item.type === "nodeBox") {
     include(item.x - item.width / 2, item.y - item.height / 2);
     include(item.x + item.width / 2, item.y + item.height / 2);
@@ -8634,6 +9142,10 @@ function includeItemBounds(item, include) {
     return;
   }
   if (item.type === "path") {
+    includePathItemBounds(item, include);
+    return;
+  }
+  if (item.type === "bbox") {
     includePathItemBounds(item, include);
     return;
   }
@@ -9069,7 +9581,11 @@ function doublePathStyle(semantic = {}, env = { variables: {} }) {
 
 function isVisiblePath(command, style, semantic, styleHints = {}) {
   if (command === "draw" || command === "fill") return true;
+  if (styleHints.pathAction) return true;
   if (style.markerStart || style.markerEnd || styleHints.markerStart || styleHints.markerEnd) return true;
+  if (styleHints.visiblePic) return true;
+  if (styleHints.stroke && styleHints.stroke !== "none") return true;
+  if (styleHints.fill && styleHints.fill !== "none") return true;
   if (semantic["name path"] && style.stroke === "none" && style.fill === "none") return false;
   return style.stroke !== "none" || style.fill !== "none";
 }

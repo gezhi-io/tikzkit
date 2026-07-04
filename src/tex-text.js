@@ -11,6 +11,7 @@ const TIKZ_HSPACE_START = "\uE100";
 const TIKZ_HSPACE_END = "\uE101";
 const MATH_FALLBACK_LBRACE = "\uE102";
 const MATH_FALLBACK_RBRACE = "\uE103";
+const MATH_MATRIX_ENV_NAMES = ["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "cases"];
 const MATHCAL_GLYPHS = {
   A: "𝒜",
   B: "ℬ",
@@ -56,6 +57,7 @@ export function normalizeTikzText(value) {
   const fontFamily = detectTextFontFamily(rawInput);
   const fontStyle = /\\(?:emph|textit|itshape|slshape)\b/.test(rawInput) ? "italic" : null;
   const fontWeight = hasWholeTextBoldCommand(rawInput) ? 700 : null;
+  const fontVariant = /\\scshape\b/.test(rawInput) ? "small-caps" : null;
   const nestedGraphic = parseNestedTikzGraphic(text);
   if (nestedGraphic) return nestedGraphic;
   const image = parseIncludeGraphics(text);
@@ -127,6 +129,7 @@ export function normalizeTikzText(value) {
       fontFamily,
       fontStyle,
       fontWeight,
+      fontVariant,
       invisible,
       explicitFontSize,
       lines: [text.trim()]
@@ -146,11 +149,13 @@ export function normalizeTikzText(value) {
     fontFamily,
     fontStyle,
     fontWeight,
+    fontVariant,
     invisible,
     explicitFontSize,
     lineStyles: styledLines.map((line) => ({
       scale: line.scale,
       fontWeight: line.fontWeight,
+      fontVariant,
       explicitFontSize: line.explicitFontSize
     })),
     lines: styledLines.map((line) => line.text)
@@ -524,8 +529,7 @@ function splitStyledTextLines(text) {
       continue;
     }
     if (source[cursor] === "\n") {
-      lines.push(current);
-      current = "";
+      current += " ";
       cursor += 1;
       continue;
     }
@@ -578,6 +582,7 @@ function cleanStyledTextLine(line) {
     .replace(/\\sim(?![A-Za-z])/g, "∼")
     .replace(/\\(?:neg|lnot)(?![A-Za-z])/g, "¬")
     .replace(/\\approx(?![A-Za-z])/g, "≈")
+    .replace(/\\parallel(?![A-Za-z])/g, "∥")
     .replace(/\\rightleftharpoons/g, "⇌")
     .replace(/\\leftrightharpoons/g, "⇋")
     .replace(/\\rightarrow/g, "→")
@@ -687,6 +692,8 @@ export function mathFallbackText(tex) {
       .replace(/^\\\[([\s\S]*)\\\]$/, "$1")
   );
   text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
+  text = replaceCommand(text, "mathbin", 1, (args) => args[0]);
+  text = replaceMathMatrixEnvironments(text);
   text = text.replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)(?![A-Za-z])\s*/g, "");
   text = replaceMathFractionCommands(text);
   return text
@@ -694,6 +701,7 @@ export function mathFallbackText(tex) {
     .replace(/\\\$\s*/g, "$")
     .replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)(?![A-Za-z])\s*/g, "")
     .replace(/\\textcolor\s*\{[^{}]*\}\s*\{([^{}]*)\}/g, "$1")
+    .replace(/\\color\s*\{[^{}]*\}\s*/g, "")
     .replace(/\\[,;:!]\s*/g, " ")
     .replace(/\\mathcal\s*\{([^{}]*)\}/g, (_match, value) => mathcalFallbackText(value))
     .replace(/\\mathcal\s*([A-Za-z])/g, (_match, value) => mathcalFallbackText(value))
@@ -732,6 +740,7 @@ export function mathFallbackText(tex) {
     .replace(/\\sim(?![A-Za-z])/g, "∼")
     .replace(/\\(?:neg|lnot)(?![A-Za-z])/g, "¬")
     .replace(/\\approx(?![A-Za-z])/g, "≈")
+    .replace(/\\parallel(?![A-Za-z])/g, "∥")
     .replace(/\\rightleftharpoons/g, "⇌")
     .replace(/\\leftrightharpoons/g, "⇋")
     .replace(/\\rightarrow/g, "→")
@@ -801,7 +810,7 @@ export function mathFallbackText(tex) {
     .replace(/\\ddots/g, "⋱")
     .replace(/\^\s*\{?\\circ\}?/g, "°")
     .replace(/\\circ/g, "°")
-    .replace(/\\\|/g, "||")
+    .replace(/\\\|/g, "∥")
     .replace(/_\{([^{}]*)\}/g, (_match, value) => toSubscript(value))
     .replace(/_([A-Za-z0-9+\-=()])/g, (_match, value) => toSubscript(value))
     .replace(/\^\{([^{}]*)\}/g, (_match, value) => `^${value}`)
@@ -810,7 +819,7 @@ export function mathFallbackText(tex) {
     .replace(/[{}]/g, "")
     .replace(new RegExp(MATH_FALLBACK_LBRACE, "g"), "{")
     .replace(new RegExp(MATH_FALLBACK_RBRACE, "g"), "}")
-    .replace(/\s*([=≤≥≠≈∈∼])\s*/g, " $1 ")
+    .replace(/\s*([=≤≥≠≈∈∼∥])\s*/g, " $1 ")
     .replace(/\{\s+/g, "{")
     .replace(/\s+\}/g, "}")
     .replace(/\s+/g, " ")
@@ -829,6 +838,131 @@ function replaceMathFractionCommands(input) {
     }
   } while (text !== previous && /\\(?:dfrac|tfrac|frac)\s*\{/.test(text));
   return text;
+}
+
+function replaceMathMatrixEnvironments(input) {
+  const text = String(input ?? "");
+  let output = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const beginIndex = text.indexOf(String.raw`\begin`, cursor);
+    if (beginIndex === -1) {
+      output += text.slice(cursor);
+      break;
+    }
+    const begin = matchMathMatrixEnvToken(text, beginIndex, "begin");
+    if (!begin) {
+      output += text.slice(cursor, beginIndex + String.raw`\begin`.length);
+      cursor = beginIndex + String.raw`\begin`.length;
+      continue;
+    }
+    const end = findMathMatrixEnvironmentEnd(text, beginIndex, begin);
+    if (!end) {
+      output += text.slice(cursor, begin.end);
+      cursor = begin.end;
+      continue;
+    }
+    output += text.slice(cursor, beginIndex);
+    output += formatMathMatrixFallback(begin.env, text.slice(begin.end, end.start));
+    cursor = end.end;
+  }
+  return output;
+}
+
+function findMathMatrixEnvironmentEnd(text, start, firstBegin) {
+  let depth = 0;
+  let cursor = start;
+  while (cursor < text.length) {
+    const begin = matchMathMatrixEnvToken(text, cursor, "begin");
+    if (begin) {
+      depth += 1;
+      cursor = begin.end;
+      continue;
+    }
+    const end = matchMathMatrixEnvToken(text, cursor, "end");
+    if (end) {
+      depth -= 1;
+      if (depth === 0) return { start: cursor, end: end.end };
+      cursor = end.end;
+      continue;
+    }
+    cursor += 1;
+  }
+  return null;
+}
+
+function matchMathMatrixEnvToken(text, index, kind) {
+  if (!text.startsWith(`\\${kind}`, index)) return null;
+  const match = text.slice(index).match(new RegExp(`^\\\\${kind}\\s*\\{([A-Za-z*]+)\\}`));
+  if (!match) return null;
+  const env = match[1].replace(/\*$/, "");
+  if (!MATH_MATRIX_ENV_NAMES.includes(env)) return null;
+  return { env, end: index + match[0].length };
+}
+
+function formatMathMatrixFallback(env, body) {
+  const rows = splitMathMatrixTopLevel(body, "row")
+    .map((row) =>
+      splitMathMatrixTopLevel(row, "col")
+        .map((cell) => mathFallbackText(cell).trim())
+        .filter(Boolean)
+        .join(" ")
+    )
+    .filter(Boolean);
+  const content = rows.join("; ");
+  if (!content) return "";
+  if (env === "pmatrix") return `(${content})`;
+  if (env === "bmatrix") return `[${content}]`;
+  if (env === "Bmatrix") return `{${content}}`;
+  if (env === "vmatrix") return `|${content}|`;
+  if (env === "Vmatrix") return `||${content}||`;
+  if (env === "cases") return `{${content}`;
+  return content;
+}
+
+function splitMathMatrixTopLevel(body, mode) {
+  const parts = [];
+  let current = "";
+  let envDepth = 0;
+  let braceDepth = 0;
+  let index = 0;
+  while (index < body.length) {
+    const begin = matchMathMatrixEnvToken(body, index, "begin");
+    if (begin) {
+      envDepth += 1;
+      current += body.slice(index, begin.end);
+      index = begin.end;
+      continue;
+    }
+    const end = matchMathMatrixEnvToken(body, index, "end");
+    if (end) {
+      envDepth = Math.max(0, envDepth - 1);
+      current += body.slice(index, end.end);
+      index = end.end;
+      continue;
+    }
+    const char = body[index];
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    if (envDepth === 0 && braceDepth === 0) {
+      if (mode === "row" && char === "\\" && body[index + 1] === "\\") {
+        parts.push(current);
+        current = "";
+        index += 2;
+        continue;
+      }
+      if (mode === "col" && char === "&") {
+        parts.push(current);
+        current = "";
+        index += 1;
+        continue;
+      }
+    }
+    current += char;
+    index += 1;
+  }
+  parts.push(current);
+  return parts;
 }
 
 function formatFractionFallback(numerator, denominator) {

@@ -1,0 +1,11 @@
+\usetikzlibrary {datavisualization.formats.functions}
+\tikz \datavisualization
+  [scientific axes,
+   visualize as smooth line,
+   all axes={grid, unit length=1.25cm},
+   y axis={ticks=few},
+   x axis={ticks=many, ticks and grid={major also at={(pi/2) as $\frac{\pi}{2}$}}}]
+  data [format=function] {
+    var x : interval [-pi/2:3*pi] samples 50;
+    func y = sin(\value x r);
+  };
