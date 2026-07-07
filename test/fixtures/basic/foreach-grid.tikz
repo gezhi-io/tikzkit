@@ -1,0 +1,7 @@
+\begin{tikzpicture}
+  \foreach \x in {0,1,2} {
+    \foreach \y in {0,1,2} {
+      \fill (\x,\y) circle (1pt);
+    }
+  }
+\end{tikzpicture}
