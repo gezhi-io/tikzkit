@@ -1,8 +1,35 @@
-import { tikzToSvgAsync } from "../src/index.js";
+import * as tikzKitPublicApi from "../src/index.js";
+
+export function createRequestGate() {
+  let currentToken = 0;
+
+  return {
+    next() {
+      currentToken += 1;
+      return currentToken;
+    },
+    current() {
+      return currentToken;
+    },
+    isCurrent(token) {
+      return token === currentToken;
+    }
+  };
+}
+
+export function selectTikzRenderer(publicApi = tikzKitPublicApi) {
+  return typeof publicApi.tikzToSvgAsync === "function"
+    ? publicApi.tikzToSvgAsync
+    : publicApi.tikzToSvg;
+}
 
 export async function renderWorkbenchSource(source, options = {}) {
   const started = Date.now();
-  const result = await tikzToSvgAsync(String(source || ""), options);
+  const renderer = selectTikzRenderer();
+  if (typeof renderer !== "function") {
+    throw new TypeError("TikZKit public API does not expose a renderer");
+  }
+  const result = await renderer(String(source || ""), options);
   return {
     svg: result.svg,
     diagnostics: diagnosticRows(result.diagnostics),

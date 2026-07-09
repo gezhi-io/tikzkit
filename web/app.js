@@ -1,14 +1,19 @@
-import { renderWorkbenchSource } from "./workbench.js";
+import { createRequestGate, renderWorkbenchSource } from "./workbench.js";
 
 const state = { fixtures: [], active: null, lastSvg: "" };
+const requestGate = createRequestGate();
 
 async function loadFixture(id) {
+  const token = requestGate.next();
   const fixture = state.fixtures.find((entry) => entry.id === id) || state.fixtures[0];
   if (!fixture) return;
 
+  const source = await fetch(fixture.sourceUrl).then((response) => response.text());
+  if (!requestGate.isCurrent(token)) return;
+
   state.active = fixture;
   document.querySelector("#fixture-select").value = fixture.id;
-  document.querySelector("#source-editor").value = await fetch(fixture.sourceUrl).then((response) => response.text());
+  document.querySelector("#source-editor").value = source;
   history.replaceState(null, "", `#${encodeURIComponent(fixture.id)}`);
 
   const reference = document.querySelector("#reference-result");
@@ -21,22 +26,24 @@ async function loadFixture(id) {
     reference.textContent = "Reference artifact has not been generated yet.";
   }
 
-  await renderCurrentSource();
+  await renderCurrentSource(token);
 }
 
-async function renderCurrentSource() {
+async function renderCurrentSource(token = requestGate.current()) {
   const button = document.querySelector("#render-button");
   button.disabled = true;
+  const source = document.querySelector("#source-editor").value;
+  const activeFigureId = state.active?.activeFigureId || undefined;
   try {
-    const result = await renderWorkbenchSource(document.querySelector("#source-editor").value, {
-      activeFigureId: state.active?.activeFigureId || undefined
-    });
+    const result = await renderWorkbenchSource(source, { activeFigureId });
+    if (!requestGate.isCurrent(token)) return;
+
     state.lastSvg = result.svg;
     showTikzkitSvg(result.svg);
     showDiagnostics(result.diagnostics);
     document.querySelector("#render-status").textContent = `${result.elapsedMs}ms · ${result.diagnostics.length} diagnostics`;
   } finally {
-    button.disabled = false;
+    if (requestGate.isCurrent(token)) button.disabled = false;
   }
 }
 
