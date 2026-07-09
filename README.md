@@ -37,7 +37,7 @@ Run the test suite:
 npm test
 ```
 
-Start the local gallery/web renderer:
+Start the local browser workbench:
 
 ```bash
 npm run web
@@ -49,9 +49,30 @@ Open:
 http://127.0.0.1:5173/
 ```
 
-## Browser Usage
+## Browser Workbench
 
-The web app renders Markdown-like TikZ code blocks. Both backtick fences and apostrophe fences are supported:
+The workbench opens the frozen 30-case milestone catalog. Choose a fixture,
+edit its TikZ source, click **Render**, and inspect the TikZKit SVG and
+diagnostics. Toggle the 1cm grid when comparing the browser result with the
+reference panel; the fixture selection is retained in the URL hash.
+
+`npm run web` serves the workbench's static assets, TikZKit source modules,
+fixture source, and pre-generated reference artifacts. It does not render
+TikZ on the server and does not expose a `/api/render` endpoint. Rendering
+runs in the browser through the public API in `src/index.js`.
+
+MacTeX and `tikztosvg` are offline reference-generation tools only. They are
+not browser-workbench runtime dependencies. Regenerate reference artifacts
+separately with:
+
+```bash
+npm run examples:render
+```
+
+## Browser and Markdown Usage
+
+TikZKit also renders Markdown-like TikZ code blocks. Both backtick fences and
+apostrophe fences are supported:
 
 ````markdown
 ```tikz
