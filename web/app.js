@@ -1,4 +1,5 @@
 import { createRequestGate, renderWorkbenchSource } from "./workbench.js";
+import { withQaGrid } from "./qaGrid.js";
 
 const state = { fixtures: [], active: null, lastSvg: "" };
 const requestGate = createRequestGate();
@@ -48,7 +49,8 @@ async function renderCurrentSource(token = requestGate.current()) {
 }
 
 function showTikzkitSvg(svg) {
-  document.querySelector("#tikzkit-result").innerHTML = svg;
+  const enabled = document.querySelector("#grid-toggle").checked;
+  document.querySelector("#tikzkit-result").innerHTML = withQaGrid(svg, { enabled });
 }
 
 function showDiagnostics(rows) {
@@ -86,6 +88,7 @@ async function boot() {
 
   select.addEventListener("change", () => loadFixture(select.value));
   document.querySelector("#render-button").addEventListener("click", renderCurrentSource);
+  document.querySelector("#grid-toggle").addEventListener("change", () => showTikzkitSvg(state.lastSvg));
   document.querySelector("#source-editor").addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
