@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,7 @@ export async function createWorkbenchServer(options = {}) {
         return sendText(response, await readFile(fixture.sourcePath, "utf8"), "text/plain; charset=utf-8");
       }
 
-      const route = staticRoute(url.pathname, { outputRoot });
+      const route = await staticRoute(url.pathname, { outputRoot });
       if (!route) return sendStatus(response, 404);
       return sendFile(response, route);
     } catch (error) {
@@ -39,7 +39,7 @@ function publicFixture(entry) {
   return publicEntry;
 }
 
-function staticRoute(pathname, { outputRoot }) {
+async function staticRoute(pathname, { outputRoot }) {
   const routes = [
     ["/src/", path.join(PROJECT_ROOT, "src")],
     ["/vendor/chevrotain/", path.join(PROJECT_ROOT, "node_modules/chevrotain/lib")],
@@ -54,7 +54,18 @@ function staticRoute(pathname, { outputRoot }) {
     const requestPath = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(prefix.length));
     const candidate = path.resolve(root, requestPath);
     const relative = path.relative(root, candidate);
-    if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) return candidate;
+    if (relative !== "" && (relative.startsWith("..") || path.isAbsolute(relative))) return null;
+
+    try {
+      const [resolvedRoot, resolvedCandidate] = await Promise.all([realpath(root), realpath(candidate)]);
+      const resolvedRelative = path.relative(resolvedRoot, resolvedCandidate);
+      if (resolvedRelative === "" || (!resolvedRelative.startsWith("..") && !path.isAbsolute(resolvedRelative))) {
+        return resolvedCandidate;
+      }
+    } catch {
+      return null;
+    }
+
     return null;
   }
 

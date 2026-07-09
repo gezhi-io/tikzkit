@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
+import os from "node:os";
+import path from "node:path";
 import { createWorkbenchServer } from "../web/server.js";
 
 test("workbench server exposes browser assets and fixture source without rendering", async (t) => {
@@ -33,6 +36,26 @@ test("workbench server rejects allowlisted directories", async (t) => {
   const port = server.address().port;
   const response = await fetch(`http://127.0.0.1:${port}/src/`);
   assert.equal(response.status, 404);
+});
+
+test("workbench server rejects artifact symlinks outside the output root", async (t) => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-web-server-"));
+  const outputRoot = path.join(tempRoot, "output");
+  const outsidePath = path.join(tempRoot, "outside.txt");
+  const linkPath = path.join(outputRoot, "escaped.txt");
+  await mkdir(outputRoot, { recursive: true });
+  await writeFile(outsidePath, "secret outside artifact");
+  await symlink(outsidePath, linkPath);
+  t.after(() => rm(tempRoot, { recursive: true, force: true }));
+
+  const server = await createWorkbenchServer({ outputRoot });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const port = server.address().port;
+  const response = await fetch(`http://127.0.0.1:${port}/artifacts/escaped.txt`);
+
+  assert.equal(response.status, 404);
+  assert.equal(await response.text(), "");
 });
 
 test("workbench server rejects path traversal", async (t) => {
