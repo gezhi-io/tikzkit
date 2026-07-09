@@ -23,6 +23,16 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.equal(chevrotain.status, 200);
   assert.equal(katex.status, 200);
   assert.equal(katexFont.status, 200);
+  assert.equal(katexFont.headers.get("content-type"), "font/woff2");
+});
+
+test("workbench server rejects allowlisted directories", async (t) => {
+  const server = await createWorkbenchServer();
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const port = server.address().port;
+  const response = await fetch(`http://127.0.0.1:${port}/src/`);
+  assert.equal(response.status, 404);
 });
 
 test("workbench server rejects path traversal", async (t) => {

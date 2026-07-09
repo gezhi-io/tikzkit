@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { access, readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -63,7 +63,8 @@ function staticRoute(pathname, { outputRoot }) {
 
 async function sendFile(response, filePath) {
   try {
-    await access(filePath);
+    const file = await stat(filePath);
+    if (!file.isFile()) return sendStatus(response, 404);
   } catch {
     return sendStatus(response, 404);
   }
@@ -77,10 +78,21 @@ async function sendFile(response, filePath) {
     ".mjs": "text/javascript; charset=utf-8",
     ".png": "image/png",
     ".svg": "image/svg+xml; charset=utf-8",
-    ".tex": "text/plain; charset=utf-8"
+    ".tex": "text/plain; charset=utf-8",
+    ".ttf": "font/ttf",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2"
   };
+  const stream = createReadStream(filePath);
+  stream.on("error", (error) => {
+    if (response.headersSent) {
+      response.destroy(error);
+      return;
+    }
+    sendJson(response, { error: error.message }, 500);
+  });
   response.writeHead(200, { "content-type": types[extension] || "application/octet-stream" });
-  createReadStream(filePath).pipe(response);
+  stream.pipe(response);
 }
 
 function sendJson(response, value, status = 200) {
