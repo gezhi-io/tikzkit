@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TikZKit Workbench</title>
+<link rel="stylesheet" href="/styles.css">
+<script type="importmap">
+{
+  "imports": {
+    "chevrotain": "/vendor/chevrotain/chevrotain.mjs",
+    "katex": "/vendor/katex/katex.mjs"
+  }
+}
+</script>
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="toolbar">
+    <label for="fixture-select">Fixture</label>
+    <select id="fixture-select"></select>
+    <button id="render-button" type="button">Render</button>
+    <label class="toggle"><input id="grid-toggle" type="checkbox" checked> 1cm grid</label>
+    <output id="render-status" aria-live="polite">Ready</output>
+  </header>
+  <main class="workbench">
+    <section class="editor-pane" aria-label="TikZ source">
+      <textarea id="source-editor" spellcheck="false" aria-label="TikZ source editor"></textarea>
+      <section id="diagnostics" class="diagnostics" aria-label="Diagnostics"></section>
+    </section>
+    <section class="preview-pane" aria-label="Render comparison">
+      <article class="preview-column">
+        <h2>TikZKit browser SVG</h2>
+        <div id="tikzkit-result" class="render-surface"></div>
+      </article>
+      <article class="preview-column">
+        <h2>tikztosvg reference</h2>
+        <object id="reference-result" class="render-surface" type="image/svg+xml"></object>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
