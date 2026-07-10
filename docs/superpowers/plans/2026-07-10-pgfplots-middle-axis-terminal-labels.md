@@ -67,7 +67,7 @@ assert.deepEqual(geometry.transformRanges, {
   zMin: 0,
   zMax: 1
 });
-assert.ok(commands.includes(String.raw`\node[axis label, anchor=south east] at (6.933,0.949) {$x$};`));
+assert.ok(commands.includes(String.raw`\node[axis label, anchor=south east] at (6.923,0.949) {$x$};`));
 assert.ok(commands.includes(String.raw`\node[axis label, anchor=north west] at (1.387,5.785) {$y$};`));
 ```
 
@@ -87,7 +87,7 @@ const ranges = { xMin: -1.5, xMax: 1.5, yMin: 0, yMax: 2.475 };
 const geometry = createAxisGeometry(axisOptions, ranges);
 const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
-assert.ok(commands.includes(String.raw`\node[axis label, anchor=south east] at (6.933,0.474) {$x$};`));
+assert.ok(commands.includes(String.raw`\node[axis label, anchor=south east] at (6.923,0.474) {$x$};`));
 assert.ok(commands.includes(String.raw`\node[axis label, anchor=north west] at (3.427,5.785) {$y$};`));
 ```
 
