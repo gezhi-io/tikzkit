@@ -80,6 +80,10 @@ Actually inspect all three sheets and individual images. Acceptance:
 - the two preserved fixtures are visually/byte stable except unavoidable artifact metadata;
 - middle-lines visibly improves from `2.52442002% / 0.0053913040`; target changed ratio is below `1.5%` and RGBA MAE below `0.0035`.
 
+### Recorded Visual-Gate Outcome
+
+The semantic and visual density goal passed, but the estimated numeric target did not: middle-lines improved to `2.132173382% / 0.0042083094`. Independent review confirmed that TikZKit and tikztosvg now both show only integer x/y ticks `-2,-1,1,2`, with no geometry, content, crop, or density regression. The residual whole-line diff is stroke rasterization/antialiasing rather than a visible coordinate displacement. This slice is therefore accepted with an explicit numeric-threshold exception; stroke rasterization parity remains a separate task. The two preservation sheets are byte-identical to their pre-slice artifacts.
+
 ## Task 3: Capability And Final Review
 
 **Write set:**
