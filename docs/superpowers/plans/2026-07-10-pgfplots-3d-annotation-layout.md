@@ -26,7 +26,7 @@
 **Files:**
 - Modify: `src/pgfplots/axis3d.js`
 - Modify: `test/pgfplots-seams.test.js`
-- Regenerate: `test/fixtures/examples/output/tikzkit-svg/*.svg`, `tikzkit-png/*.png`, `tikztosvg-svg/*.svg`, `tikztosvg-png/*.png`, and `diff/*` for the two real-case gates (generated QA artifacts only; do not commit them unless already tracked)
+- Regenerate: `outputs/qa-pgfplots-3d-annotation/` for the two real-case gates (generated QA artifacts only; do not commit them)
 
 **Interfaces:**
 - Consumes: `geometry.mapPoint3d(point) -> { x, y }`, `ranges.{xMin,xMax,yMin,yMax,zMin,zMax}`, and existing `axis3DTickLabelEdges()` edge selection.
@@ -121,8 +121,8 @@ Expected: all tests pass. Update old exact-coordinate assertions only where the 
 Run:
 
 ```bash
-npm run examples:render -- --only latex-examples-3d-gaussian-distribution,latex-examples-3d-function-8 --strict-tikztosvg --comparison-grid-mode svg --external-timeout-ms 120000
-npm run examples:diff
+npm run examples:render -- --fixtures test/fixtures/examples --output outputs/qa-pgfplots-3d-annotation --only latex-examples-3d-gaussian-distribution,latex-examples-3d-function-8 --strict-tikztosvg --comparison-grid-mode svg --external-timeout-ms 120000
+npm run examples:diff -- --output outputs/qa-pgfplots-3d-annotation
 ```
 
 Actually inspect both generated `*-sheet.png` files. Acceptance requires:
@@ -143,4 +143,3 @@ git commit -m "Align PGFPlots 3D annotations to projected edges"
 ```
 
 Do not stage generated output artifacts or unrelated dirty files.
-
