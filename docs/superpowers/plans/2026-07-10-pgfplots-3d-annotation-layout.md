@@ -91,20 +91,22 @@ function anchorForOutwardNormal(normal) {
 Update `renderAxis3DTicks()`:
 
 - map each tick to the selected data-space edge as today;
-- use `base + normal * 0.08` for the tick endpoint;
-- use `base + normal * 0.13` for the tick-label point;
+- start from `base + normal * 0.08` for the tick endpoint;
+- start from `base + normal * 0.13` for the tick-label point;
 - use the layout anchor instead of fixed north/west/east;
 - place the scaled-z multiplier from the same z edge/normal with a larger finite offset, preserving `formatScaledAxisTickLabel()` and existing tick values.
 
 Update `renderAxisLabels3D()`:
 
 - use the x/y/z selected edge midpoint from `axis3DAnnotationLayout()`;
-- offset along the same normal by `0.36` for x, `0.42` for y, and `0.48` for z;
+- start from offsets along the same normal of `0.36` for x, `0.42` for y, and `0.48` for z;
 - use the layout anchor for x/y/z labels;
 - retain `rotate=90` for the z label;
 - retain the existing title logic, which is outside this slice.
 
 Do not change surface polygons, projection basis, tick values, range resolution, colorbar logic, fonts, renderer bounds, or overlay lowering.
+
+The listed distances are initial global calibration values, not fixture contracts. If the native-bbox tests or the two real-case gates show that a distance reserves too much or too little space, calibrate the shared axis-specific constant while preserving the selected edge, outward-normal direction, anchor semantics, and zero case-specific branches.
 
 - [ ] **Step 5: Run focused and PGFPlots regression tests**
 
