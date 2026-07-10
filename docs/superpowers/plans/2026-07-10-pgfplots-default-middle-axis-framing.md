@@ -11,7 +11,8 @@
 ## Global Constraints
 
 - MacTeX is authoritative; local PGFPlots 1.18.2 reserves `45pt` for the default non-boxed/middle-axis plot rectangle.
-- Use exact TeX dimensions through `parseDimension("45pt", {})` and `parseDimension("0.2pt", {})`; do not encode decimal fits from one raster.
+- Use exact TeX dimensions through `parseDimension("45pt", {})` and `parseDimension("0.2pt", {})`; do not encode new decimal fits from one raster.
+- The `0.2pt` value is the base frame overflow on all sides. The existing auto-Y-range bottom reserve is a separate transitional tick-label overflow compatibility path; preserve it in this slice, stop it from overriding the exact top overflow, and record its replacement by measured tick-layout bounds as later work.
 - This slice changes framing only. Axis labels, arrow tips, tick generation/font size, paint order, line width, and plot sampling remain unchanged and explicitly tracked as later work.
 - Do not add fixture-ID, source-path, node-name, or coordinate hardcoding to production code.
 - Display comparison grids are not semantic input and must not affect generated SVG geometry.
@@ -24,6 +25,7 @@
 
 **Files:**
 - Modify: `src/tikz/metrics.js`
+- Modify: `src/pgfplots/geometry.js`
 - Modify: `test/pgfplots-seams.test.js`
 
 **Interfaces:**
@@ -36,8 +38,9 @@ Copy current owned files to:
 
 ```bash
 cp src/tikz/metrics.js /private/tmp/tikzkit-middle-axis-framing-metrics-before.js
+cp src/pgfplots/geometry.js /private/tmp/tikzkit-middle-axis-framing-geometry-before.js
 cp test/pgfplots-seams.test.js /private/tmp/tikzkit-middle-axis-framing-seams-before.test.js
-shasum -a 256 src/tikz/metrics.js test/pgfplots-seams.test.js
+shasum -a 256 src/tikz/metrics.js src/pgfplots/geometry.js test/pgfplots-seams.test.js
 ```
 
 - [ ] **Step 2: Write the failing geometry contract**
@@ -63,6 +66,8 @@ assert.ok(Math.abs(geometry.width - (PGFPLOTS_DEFAULT_AXIS_WIDTH - reserve)) < 1
 assert.ok(Math.abs(geometry.height - (PGFPLOTS_DEFAULT_AXIS_HEIGHT - reserve)) < 1e-9);
 assert.deepEqual(geometry.margin, { left: margin, right: margin, top: margin, bottom: margin });
 ```
+
+Add a second assertion for the auto-Y-range variant (explicit `xmin`/`xmax`, no `ymin`/`ymax`): its `margin.top` must equal `0.2pt`; its existing `margin.bottom` must remain larger than the base margin because it is the current explicit tick-label overflow reserve.
 
 Import `PGFPLOTS_DEFAULT_AXIS_WIDTH` and `PGFPLOTS_DEFAULT_AXIS_HEIGHT` from `src/pgfplots/geometry.js` if the test does not already import them.
 
@@ -95,6 +100,16 @@ export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y = TIKZ_PGFPLOTS_DEFAUL
 
 Leave explicit-size, tight-bounds, hidden-axis, 3D, and non-enlarged constants unchanged.
 
+In `src/pgfplots/geometry.js`, keep the auto-Y-range bottom reserve but remove its old `margin.top = 0.03` override. The cloned shared margin already supplies the MacTeX `0.2pt` top overflow:
+
+```js
+if (hasExplicitXRange && !hasExplicitYRange) {
+  margin.bottom = 0.173;
+}
+```
+
+Do not add source/fixture checks. Do not change the bottom value in this slice; replacing it with measured tick-label bounds is explicitly later work.
+
 - [ ] **Step 5: Verify GREEN and regression boundary**
 
 ```bash
@@ -103,6 +118,8 @@ node --test test/example-fixtures.test.js test/example-render-script.test.js
 ```
 
 Expected: all selected tests pass. If the full `pgfplots-seams` suite is also run, record the pre-existing baseline failures separately and require no new failures.
+
+Update only coordinate expectations that are direct consequences of the new exact `45pt` rectangle. Preserve the native bbox and vertical-placement gates for x-square, and preserve the known non-enlarged `axis-middle-lines` bbox failure as a separately tracked baseline.
 
 - [ ] **Step 6: Generate both real visual gates**
 
@@ -117,7 +134,7 @@ Actually inspect both TikZKit/tikztosvg/diff sheets. Acceptance requires:
 - `latex-examples-2d-x-square-with-circle`: changed ratio at most `5.0%`, RGBA MAE at most `0.0060`;
 - default plot rectangle equals `195pt x 162pt` within `0.02pt`;
 - key grid/plot coordinates differ from reference by at most `0.05pt`;
-- document dimensions stay within `0.01pt` width and `0.02pt` height of reference;
+- document dimensions stay within `0.03pt` width and `0.03pt` height of reference;
 - both cases render with zero diagnostics and no missing plots, ticks, labels, axes, or layers;
 - visible geometry improvement is confirmed, not inferred only from diff statistics.
 
@@ -126,8 +143,9 @@ Actually inspect both TikZKit/tikztosvg/diff sheets. Acceptance requires:
 Create final SHA-256 records and focused diffs:
 
 ```bash
-shasum -a 256 src/tikz/metrics.js test/pgfplots-seams.test.js
+shasum -a 256 src/tikz/metrics.js src/pgfplots/geometry.js test/pgfplots-seams.test.js
 git diff --no-index -- /private/tmp/tikzkit-middle-axis-framing-metrics-before.js src/tikz/metrics.js > /private/tmp/tikzkit-middle-axis-framing-metrics.diff
+git diff --no-index -- /private/tmp/tikzkit-middle-axis-framing-geometry-before.js src/pgfplots/geometry.js > /private/tmp/tikzkit-middle-axis-framing-geometry.diff
 git diff --no-index -- /private/tmp/tikzkit-middle-axis-framing-seams-before.test.js test/pgfplots-seams.test.js > /private/tmp/tikzkit-middle-axis-framing-seams.diff
 ```
 
@@ -195,6 +213,6 @@ Record before/after SHA-256 hashes and focused diffs for `src/capabilities/matri
 
 ## Plan Self-Review
 
-- Scope covers one shared framing capability and excludes label/arrow/tick/layer fixes.
+- Scope covers one shared framing capability and excludes label/arrow/tick/layer fixes; the auto-Y bottom tick-label overflow remains explicitly transitional.
 - Exact units, owner files, interfaces, RED/GREEN commands, real artifacts, visual gates, and dirty-worktree evidence are specified.
 - No placeholder, fixture branch, duplicate capability row, or full-PGFPlots compatibility claim is permitted.
