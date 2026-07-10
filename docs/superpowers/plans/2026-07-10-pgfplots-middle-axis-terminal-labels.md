@@ -124,8 +124,8 @@ In `renderAxisLabels`, leave the datavisualization `end` branch unchanged. After
 
 ```js
 const labelRanges = middleAxis && geometry.transformRanges ? geometry.transformRanges : ranges;
-const yAxis = labelRanges.yMin <= 0 && labelRanges.yMax >= 0 ? 0 : labelRanges.yMin;
-const xAxis = labelRanges.xMin <= 0 && labelRanges.xMax >= 0 ? 0 : labelRanges.xMin;
+const yAxis = (ranges.yMin <= 0 && ranges.yMax >= 0) || (labelRanges.yMin <= 0 && labelRanges.yMax >= 0) ? 0 : ranges.yMin;
+const xAxis = (ranges.xMin <= 0 && ranges.xMax >= 0) || (labelRanges.xMin <= 0 && labelRanges.xMax >= 0) ? 0 : ranges.xMin;
 ```
 
 Use `labelRanges.xMax` and `labelRanges.yMax` only in the two default middle-axis point expressions:
@@ -141,6 +141,8 @@ const point = middleAxis
 ```
 
 Do not change `applyAxisLabelStyle`: its `at=...` override must continue to replace the computed default point.
+
+Add a non-zero-crossing enlarged regression (`x=1..2`, `y=3..4`) proving that only the terminal maxima come from `labelRanges`: the x label's y coordinate must remain on the x-axis at raw `yMin=3`, and the y label's x coordinate must remain on the y-axis at raw `xMin=1`, exactly matching `renderAxisLines`.
 
 - [ ] **Step 5: Verify focused and regression suites**
 
@@ -223,7 +225,7 @@ Expected: fail because the existing `pgfplots_axis` row records the framing gate
 
 - [ ] **Step 3: Update only the existing `pgfplots_axis` row**
 
-Keep parser/semantic/SVG status `partial`. Add `outputs/qa-pgfplots-middle-axis-labels` without duplicating fixtures. Record the verified `ticklabel* cs:1` transformed-endpoint behavior and retain the remaining gaps: classic stealth geometry, axis line width, origin/padded minor tick behavior, tick-label metrics, layer ordering, transitional auto-Y bottom reserve, and broader PGFPlots input handlers.
+Keep parser/semantic/SVG status `partial`. Add `outputs/qa-pgfplots-middle-axis-labels` without duplicating fixtures. Record the verified `ticklabel* cs:1` transformed-endpoint behavior and retain the remaining gaps: other label placements, classic stealth geometry, axis line width, origin/padded minor tick behavior, tick-label metrics, layer ordering, transitional auto-Y bottom reserve, and broader PGFPlots input handlers.
 
 - [ ] **Step 4: Run capability and combined regression suites**
 
