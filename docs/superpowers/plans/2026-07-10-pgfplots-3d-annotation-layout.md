@@ -145,3 +145,65 @@ git commit -m "Align PGFPlots 3D annotations to projected edges"
 ```
 
 Do not stage generated output artifacts or unrelated dirty files.
+
+### Task 2: Record the verified slice and remaining 3D differences
+
+**Files:**
+- Modify: `src/capabilities/matrix.js`
+- Modify: `test/capabilities.test.js`
+
+**Interfaces:**
+- Consumes: the reviewed Task 1 tests and `outputs/qa-pgfplots-3d-annotation/` visual artifacts.
+- Produces: an updated `capabilityMatrix.pgfplots_3d_surface` record with owner modules, real fixtures, verification artifacts, and remaining differences.
+
+- [ ] **Step 1: Write the failing capability assertion**
+
+Add a test that requires the existing `pgfplots_3d_surface` row to retain `partial` status and record both real gates plus the QA artifact directory:
+
+```js
+test("capability matrix records PGFPlots 3D annotation visual gates", () => {
+  const feature = capabilityMatrix.pgfplots_3d_surface;
+  assert.equal(feature.semantic, "partial");
+  assert.equal(feature.svg, "partial");
+  assert.ok(feature.modules.includes("src/pgfplots/axis3d.js"));
+  assert.ok(feature.fixtures.includes("test/fixtures/examples/latex-examples/3d-gaussian-distribution.tex"));
+  assert.ok(feature.fixtures.includes("test/fixtures/examples/latex-examples/3d-function-8.tex"));
+  assert.deepEqual(feature.verification.artifacts, ["outputs/qa-pgfplots-3d-annotation"]);
+  assert.match(feature.notes, /view-aware projected-edge annotation layout/i);
+  assert.match(feature.notes, /remaining/i);
+});
+```
+
+- [ ] **Step 2: Run the capability test and verify RED**
+
+Run:
+
+```bash
+node --test --test-name-pattern="PGFPlots 3D annotation visual gates" test/capabilities.test.js
+```
+
+Expected: FAIL because the two fixtures, artifact directory, and updated notes are absent.
+
+- [ ] **Step 3: Update the existing partial capability row**
+
+Keep `parser`, `semantic`, and `svg` as `partial`. Extend `fixtures` with the gaussian and function-8 fixture paths, add:
+
+```js
+artifacts: ["outputs/qa-pgfplots-3d-annotation"]
+```
+
+inside `verification`, and update `notes` to state that view-aware projected-edge annotation layout is verified for opposing views. The same note must explicitly retain remaining differences: projection calibration, surface/color interpolation, overlays, colorbar placement, and exact TeX glyph metrics.
+
+- [ ] **Step 4: Run capability and focused semantic tests**
+
+Run:
+
+```bash
+node --test test/capabilities.test.js test/pgfplots-seams.test.js
+```
+
+Expected: all tests pass and `pgfplots_3d_surface` remains partial.
+
+- [ ] **Step 5: Preserve the dirty-worktree boundary**
+
+Because `src/capabilities/` and `test/capabilities.test.js` contain pre-existing uncommitted architecture work, do not stage or commit them as part of this task. Record before/after snapshot hashes and hand the focused diff to the reviewer.
