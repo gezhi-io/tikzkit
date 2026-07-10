@@ -8,7 +8,7 @@ Make ordinary 2D PGFPlots ticks and tick labels follow the local TeX Live implem
 
 - `latex-examples-2d-parted-function` (`tick align=outside`);
 - `latex-examples-2d-x-square-with-circle` (`tick align=outside`);
-- `pgfplots-axis-middle-lines` (implicit non-boxed `tick align=center`).
+- `axis-middle-lines` (implicit non-boxed `tick align=center`).
 
 The slice is complete only when all three regenerated TikZKit/reference sheets have been inspected and the labels are visibly closer in font footprint and outer-normal placement without losing ticks, grid lines, curves, arrows, or axis labels.
 
@@ -87,7 +87,7 @@ The second command may retain only already-recorded baseline failures; no new fa
 Generate fresh TikZKit and local `tikztosvg` artifacts:
 
 ```sh
-npm run examples:render -- --fixtures test/fixtures/examples --output outputs/qa-pgfplots-tick-label-metrics-alignment --only latex-examples-2d-parted-function --only latex-examples-2d-x-square-with-circle --only pgfplots-axis-middle-lines --strict-tikztosvg --no-comparison-grid --external-timeout-ms 120000
+npm run examples:render -- --fixtures test/fixtures/examples --output outputs/qa-pgfplots-tick-label-metrics-alignment --only latex-examples-2d-parted-function --only latex-examples-2d-x-square-with-circle --only axis-middle-lines --strict-tikztosvg --no-comparison-grid --external-timeout-ms 120000
 ```
 
 Inspect each TikZKit PNG, reference PNG, and diff sheet. Record, case by case:
