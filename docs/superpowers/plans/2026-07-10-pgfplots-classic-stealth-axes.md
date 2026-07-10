@@ -26,6 +26,7 @@
 **Files:**
 - Modify: `src/tikz/metrics.js`
 - Modify: `test/svg-renderer.test.js`
+- Modify: `test/renderer.test.js`
 
 **Interfaces:**
 - Consumes: `lineWidthFromPt(pt)`.
@@ -36,6 +37,7 @@
 ```bash
 cp src/tikz/metrics.js /private/tmp/tikzkit-classic-stealth-metrics-before.js
 cp test/svg-renderer.test.js /private/tmp/tikzkit-classic-stealth-svg-renderer-before.test.js
+cp test/renderer.test.js /private/tmp/tikzkit-classic-stealth-renderer-before.test.js
 ```
 
 - [ ] **Step 2: Write a failing thin-stealth metric test**
@@ -55,6 +57,22 @@ assert.ok(Math.abs(values[4] + lineWidthFromPt(1.996094)) < 0.02);
 ```
 
 Keep the existing thick-stealth test as a regression gate.
+
+In `test/renderer.test.js`, replace the old raw `9.094524` stealth shaft-start literal with a value derived from the corrected shared metric functions:
+
+```js
+import {
+  createArrowTip,
+  lineWidthFromPt,
+  stealthArrowLengthFromLineWidth,
+  stealthArrowShortenFromLength
+} from "../src/tikz-metrics.js";
+
+const rawStealthShorten = stealthArrowShortenFromLength(stealthArrowLengthFromLineWidth(2.8));
+assert.match(svg, new RegExp(`<path d="M ${formatted(rawStealthShorten)} -100 L 100 -100`));
+```
+
+This assertion must continue to prove that the serialized shaft uses the shared shortening algorithm; do not replace it with a looser wildcard.
 
 - [ ] **Step 3: Verify RED**
 
@@ -90,7 +108,7 @@ Keep the current measured half-width ratio and `0.625` shortening ratio; the thi
 - [ ] **Step 5: Verify focused and shared arrow regressions**
 
 ```bash
-node --test --test-name-pattern="classic stealth|stealth arrow|arrow tip geometry" test/svg-renderer.test.js test/renderer.test.js test/architecture-seams.test.js
+node --test --test-name-pattern="classic stealth|stealth arrow|arrow tip geometry|renders TikZ arrow tips as inline paths" test/svg-renderer.test.js test/renderer.test.js test/architecture-seams.test.js
 ```
 
 Expected: all selected tests pass; custom tip dimensions and non-stealth kinds remain unchanged.
@@ -102,9 +120,10 @@ Generate minimal `thin,-stealth` and `thick,-stealth` SVGs with local `tikztosvg
 - [ ] **Step 7: Refresh focused hashes and diffs**
 
 ```bash
-shasum -a 256 src/tikz/metrics.js test/svg-renderer.test.js
+shasum -a 256 src/tikz/metrics.js test/svg-renderer.test.js test/renderer.test.js
 git diff --no-index -- /private/tmp/tikzkit-classic-stealth-metrics-before.js src/tikz/metrics.js > /private/tmp/tikzkit-classic-stealth-metrics.diff
 git diff --no-index -- /private/tmp/tikzkit-classic-stealth-svg-renderer-before.test.js test/svg-renderer.test.js > /private/tmp/tikzkit-classic-stealth-svg-renderer.diff
+git diff --no-index -- /private/tmp/tikzkit-classic-stealth-renderer-before.test.js test/renderer.test.js > /private/tmp/tikzkit-classic-stealth-renderer.diff
 ```
 
 ---
