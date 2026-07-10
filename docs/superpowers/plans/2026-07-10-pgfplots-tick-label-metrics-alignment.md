@@ -4,7 +4,7 @@
 
 ## Goal
 
-Make ordinary 2D PGFPlots ticks and tick labels follow the local TeX Live implementation instead of compensating with TikZKit-only constants. The real visual gates are:
+Make non-boxed middle-axis PGFPlots ticks and tick labels follow the local TeX Live implementation instead of compensating with TikZKit-only constants. The real visual gates are:
 
 - `latex-examples-2d-parted-function` (`tick align=outside`);
 - `latex-examples-2d-x-square-with-circle` (`tick align=outside`);
@@ -27,21 +27,21 @@ TikZKit's existing node engine already supplies the ordinary TikZ `.3333em` inne
 
 ## Scope
 
-Implement only ordinary 2D `renderAxisTicks` behavior:
+Implement only non-boxed middle-axis `renderAxisTicks` behavior:
 
-- default 2D tick-label font inheritance (`\normalsize` in the lowered node command);
+- default middle-axis tick-label font inheritance (`\normalsize` in the lowered node command);
 - explicit `axis tick label font` precedence;
 - `tick align`, `xtick align`, and `ytick align` for middle-axis major/minor tick segments;
 - native label-point offset factors: inside `0`, center `0.5`, outside `1` tick length;
 - default non-boxed middle-axis alignment `center`;
-- existing explicit `x/y axis tick label distance` precedence;
+- existing explicit non-negative `x/y axis tick label distance` precedence, including `0pt`;
 - ordinary TikZ default inner separation unless an explicit `axis tick label inner sep` is provided.
 
 Preserve these boundaries:
 
 - datavisualization visual tick configs and their explicit font/inner-sep overrides;
 - 3D/colorbar tick rendering;
-- boxed-axis tick geometry in this slice;
+- boxed-axis tick geometry and its currently calibrated compact tick-label metrics in this slice; native boxed normal-font metrics remain a separate tracked gap;
 - explicit tick-label lists, origin suppression, terminal suppression, minor-tick generation, grid generation, tick colors, and line widths;
 - axis labels, arrow tips, plot geometry, and plot sampling.
 
@@ -60,14 +60,15 @@ Add focused lowering tests that prove:
 2. implicit non-boxed middle axes use centered ticks (`-0.5*tickLength` to `+0.5*tickLength`) and a half-tick label offset.
 3. `tick align=inside` places the tick from the axis inward and keeps the label point at the axis before normal TikZ inner separation.
 4. `xtick align` and `ytick align` override the common `tick align` independently.
-5. default labels lower as `font=\normalsize` without `inner sep=0pt`; explicit `axis tick label font` and `axis tick label inner sep` still win.
+5. default middle-axis labels lower as `font=\normalsize` without `inner sep=0pt`; explicit `axis tick label font` and `axis tick label inner sep` still win, while boxed-axis defaults remain unchanged.
 6. existing origin suppression, tick values, and label text are unchanged.
+7. explicit `x/y axis tick label distance=0pt` is preserved rather than replaced by an alignment-derived distance.
 
 Run the new focused test first and confirm it fails for the old `1.55`, `\scriptsize`, and forced-zero-inner-sep behavior.
 
 ### Implementation
 
-Introduce small private helpers in `ticks.js` for normalized per-axis alignment and its offset factor. Use those helpers for middle-axis major and minor segment endpoints and for default label distance. Keep the visualized-tick branch and boxed-axis branch untouched. Reorder local declarations as needed so the middle-axis state is available when selecting the default font.
+Introduce small private helpers in `ticks.js` for normalized per-axis alignment and its offset factor. Use those helpers for middle-axis major and minor segment endpoints and for default label distance. Keep the visualized-tick branch and boxed-axis branch untouched, including the existing compact boxed tick-label default until its bbox can be calibrated independently. Accept finite explicit distances greater than or equal to zero. Reorder local declarations as needed so the middle-axis state is available when selecting the default font.
 
 ### Verification
 
@@ -118,7 +119,7 @@ If a metric regresses despite visible improvement, do not hide it: inspect the p
 - `test/capabilities.test.js`
 - `.superpowers/sdd/progress.md`
 
-Update the existing PGFPlots axis capability row rather than adding a duplicate. Record the native source files, the three fixtures, the QA artifact directory, implemented alignment/font/inner-sep semantics, and the remaining unimplemented tick-label style/rotation/3D cases. Keep the capability partial.
+Update the existing PGFPlots axis capability row rather than adding a duplicate. Record the native source files, the three fixtures, the QA artifact directory, implemented middle-axis alignment/font/inner-sep semantics, and the remaining boxed-font metric, tick-label style/rotation, and 3D cases. Keep the capability partial.
 
 Run:
 
