@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Calibrate the physical plot rectangle for default-size, enlarged, middle-axis PGFPlots figures to the TeX Live 2025 / PGFPlots 1.18.2 `45pt` reserve and `0.2pt` outer-margin model.
+**Goal:** Calibrate the physical plot rectangle for default-size, enlarged, middle-axis PGFPlots figures to the TeX Live 2025 / PGFPlots 1.18.2 `45pt` reserve and `0.2pt` outer-margin model without changing the not-yet-calibrated non-enlarged path.
 
 **Architecture:** Keep range resolution and data transforms in `src/pgfplots/geometry.js`; change only the shared TeX-unit constants consumed by that model. Do not compensate in SVG viewBox code or branch on fixture IDs. Use two independent real fixtures to prove the calibration is shared.
 
@@ -14,6 +14,7 @@
 - Use exact TeX dimensions through `parseDimension("45pt", {})` and `parseDimension("0.2pt", {})`; do not encode new decimal fits from one raster.
 - The `0.2pt` value is the base frame overflow on all sides. The existing auto-Y-range bottom reserve is a separate transitional tick-label overflow compatibility path; preserve it in this slice, stop it from overriding the exact top overflow, and record its replacement by measured tick-layout bounds as later work.
 - This slice changes framing only. Axis labels, arrow tips, tick generation/font size, paint order, line width, and plot sampling remain unchanged and explicitly tracked as later work.
+- The exact `45pt` reserve is enabled only for default-size middle axes with enlargement enabled. Preserve the existing non-enlarged reserve until its outer margins receive a separate visual calibration; the existing `axis-middle-lines` native bbox test must not become a new failure.
 - Do not add fixture-ID, source-path, node-name, or coordinate hardcoding to production code.
 - Display comparison grids are not semantic input and must not affect generated SVG geometry.
 - The shared worktree is dirty. Take before snapshots, produce focused `git diff --no-index` evidence, and do not stage or commit dirty implementation/capability files.
@@ -30,7 +31,7 @@
 
 **Interfaces:**
 - Consumes: `parseDimension(value, context)` and `createAxisGeometry(axisOptions, ranges)`.
-- Produces: shared default middle-axis reserve constants equal to `45pt`, and enlarged middle-axis margins equal to `0.2pt` on all four sides.
+- Produces: default enlarged-middle-axis reserve constants equal to `45pt`, enlarged middle-axis margins equal to `0.2pt` on all four sides, and unchanged non-enlarged default reserve behavior.
 
 - [ ] **Step 1: Capture dirty-worktree ownership evidence**
 
@@ -81,10 +82,10 @@ Expected: fail because current reserves are `1.607cm` / `1.603cm` and current ma
 
 - [ ] **Step 4: Implement exact shared TeX dimensions**
 
-In `src/tikz/metrics.js`, replace the fitted default constants with shared TeX dimensions:
+In `src/tikz/metrics.js`, preserve the current non-enlarged default constants and add exact enlarged-default constants:
 
 ```js
-const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVE = parseDimension("45pt", {});
+const TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVE = parseDimension("45pt", {});
 const TIKZ_PGFPLOTS_ENLARGED_MIDDLE_AXIS_MARGIN = parseDimension("0.2pt", {});
 
 export const TIKZ_ENLARGED_MIDDLE_AXIS_CONTAINER_MARGIN = {
@@ -94,11 +95,15 @@ export const TIKZ_ENLARGED_MIDDLE_AXIS_CONTAINER_MARGIN = {
   bottom: TIKZ_PGFPLOTS_ENLARGED_MIDDLE_AXIS_MARGIN
 };
 
-export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X = TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVE;
-export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y = TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVE;
+export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X = 1.607;
+export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y = 1.603;
+export const TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVED_X = TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVE;
+export const TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVED_Y = TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVE;
 ```
 
 Leave explicit-size, tight-bounds, hidden-axis, 3D, and non-enlarged constants unchanged.
+
+In `axisPlotAreaSize()`, select the new exact enlarged constants only when `axisHasEnabledEnlargeLimits(axisOptions)` is true and width/height are implicit. Continue selecting the existing default constants for non-enlarged implicit middle axes. Add no fixture checks.
 
 In `src/pgfplots/geometry.js`, keep the auto-Y-range bottom reserve but remove its old `margin.top = 0.03` override. The cloned shared margin already supplies the MacTeX `0.2pt` top overflow:
 
@@ -119,7 +124,7 @@ node --test test/example-fixtures.test.js test/example-render-script.test.js
 
 Expected: all selected tests pass. If the full `pgfplots-seams` suite is also run, record the pre-existing baseline failures separately and require no new failures.
 
-Update only coordinate expectations that are direct consequences of the new exact `45pt` rectangle. Preserve the native bbox and vertical-placement gates for x-square, and preserve the known non-enlarged `axis-middle-lines` bbox failure as a separately tracked baseline.
+Update only coordinate expectations that are direct consequences of the new exact `45pt` enlarged rectangle. Preserve the native bbox and vertical-placement gates for x-square. The non-enlarged `axis-middle-lines` bbox gate passed before this task and must continue to pass; do not reclassify it as a baseline failure.
 
 - [ ] **Step 6: Generate both real visual gates**
 
@@ -213,6 +218,6 @@ Record before/after SHA-256 hashes and focused diffs for `src/capabilities/matri
 
 ## Plan Self-Review
 
-- Scope covers one shared framing capability and excludes label/arrow/tick/layer fixes; the auto-Y bottom tick-label overflow remains explicitly transitional.
+- Scope covers the enlarged default-size framing capability and excludes non-enlarged margin calibration plus label/arrow/tick/layer fixes; the auto-Y bottom tick-label overflow remains explicitly transitional.
 - Exact units, owner files, interfaces, RED/GREEN commands, real artifacts, visual gates, and dirty-worktree evidence are specified.
 - No placeholder, fixture branch, duplicate capability row, or full-PGFPlots compatibility claim is permitted.
