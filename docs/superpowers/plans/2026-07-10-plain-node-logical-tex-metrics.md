@@ -15,7 +15,7 @@ MacTeX is authoritative:
 
 ## Global Constraints
 
-- Semantic measurement belongs in `src/tikz/textMetrics.js` and the text-engine adapter. Do not change parser, node evaluator, SVG paint scale, or renderer shape geometry.
+- Semantic measurement belongs in `src/tikz/textMetrics.js`, the text-engine adapter, and the engine adapter that consumes typed metrics. Do not change parser, node shape geometry, SVG paint scale, or SVG paint implementation.
 - Keep SVG paint bounds and logical TeX box metrics separate. Cached payload/viewBox sizing continues to use render bounds so glyphs are not clipped; `measure()` returns logical metrics to node layout.
 - Apply the new path only to normal, single-line, unwrapped plain text supported by the embedded Main-Regular metrics. Wrapped/minipage text, mixed inline math, multiline text, non-default font families, bold/italic, and arbitrary TeX macros stay on the existing partial path.
 - Font size scaling must follow the request's TeX point size. A 10pt `concatenate` box is approximately `51.666pt` wide, `6.151pt` high, and `0pt` deep before inner separation.
@@ -30,13 +30,14 @@ MacTeX is authoritative:
 **Files:**
 - Modify: `src/tikz/textMetrics.js`
 - Modify: `src/renderers/svg/textEngine.js`
+- Modify: `src/engine/evaluate.js`
 - Modify: `test/svg-renderer.test.js`
 - Modify: `test/interpreter.test.js`
 - Modify: `test/example-fixtures.test.js`
 
 **Interfaces:**
 - Produces: `measurePlainTextTeXBoxPt(text, options) -> { width, height, depth } | null` for supported plain Main-Regular text.
-- Consumed by: `createSvgTextEngine().measure()` for semantic node metrics; cached SVG payload continues to use render bounds.
+- Consumed by: `createSvgTextEngine().measure()` for typed semantic node metrics; cached SVG payload continues to use render bounds. `measurePlainTextWithTextEngine()` honors logical metrics without applying its legacy heuristic minimum-height clamp.
 
 - [ ] **Step 1: Write failing metric and node tests**
 
@@ -67,10 +68,17 @@ In `measurePlainTextRequest()`:
 - use logical TeX metrics only when the request is one supported, unwrapped, normal Main-Regular line;
 - return logical width and total height `(height + depth)` in SVG text-engine units;
 - derive `baselineY` from logical height rather than a fixed `0.62` ratio;
+- attach an explicit measurement-kind signal such as `measurementKind: "tex-box"` only when logical metrics are returned;
 - keep cache identity render-affecting and stable;
 - retain the old measurement path for wrapped, multiline, styled, mixed-math, and unsupported text.
 
-- [ ] **Step 4: Run focused and regression tests**
+- [ ] **Step 4: Consume typed logical metrics without heuristic clamping**
+
+In `src/engine/evaluate.js`, keep the existing `minHeight` clamp for legacy/fallback paint-bound measurements. When and only when the injected text engine returns the explicit logical TeX-box signal, use its finite measured height directly. Do not infer logical status from numeric dimensions or text content, and do not change math measurement behavior.
+
+Add a regression assertion that a fallback/plain render-bound measurement still receives the legacy minimum-height clamp while a `tex-box` result bypasses it.
+
+- [ ] **Step 5: Run focused and regression tests**
 
 ```bash
 node --test test/svg-renderer.test.js test/interpreter.test.js test/example-fixtures.test.js test/convert.test.js
@@ -78,7 +86,7 @@ node --test test/svg-renderer.test.js test/interpreter.test.js test/example-fixt
 
 Expected: all tests pass. Existing paint snapshots must remain unchanged unless their semantic node box legitimately changes.
 
-- [ ] **Step 5: Generate and inspect the real-case gate**
+- [ ] **Step 6: Generate and inspect the real-case gate**
 
 ```bash
 npm run examples:render -- --fixtures test/fixtures/examples --output outputs/qa-plain-node-logical-metrics --only latex-examples-aggregation-blocks --strict-tikztosvg --comparison-grid-mode svg --external-timeout-ms 120000
