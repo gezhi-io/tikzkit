@@ -68,6 +68,7 @@ export function normalizeTikzText(value) {
   let color = null;
   let invisible = false;
   let explicitFontSize = false;
+  let contentFontScale = 1;
   const wholeScale = readWholeCommand(text, "scalebox", 2);
   if (wholeScale) {
     const parsed = Number(wholeScale.args[0]);
@@ -115,6 +116,7 @@ export function normalizeTikzText(value) {
   const fontSize = readLeadingFontSize(text);
   if (fontSize) {
     scale *= fontSize.scale;
+    contentFontScale = fontSize.scale;
     explicitFontSize = true;
     text = fontSize.text;
   }
@@ -138,7 +140,7 @@ export function normalizeTikzText(value) {
     };
   }
 
-  const styledLines = parseStyledTextLines(text);
+  const styledLines = parseStyledTextLines(text, contentFontScale);
   text = styledLines.map((line) => line.text).join("\\\\").trim();
   explicitFontSize = explicitFontSize || styledLines.some((line) => line.explicitFontSize);
 
@@ -155,10 +157,14 @@ export function normalizeTikzText(value) {
     invisible,
     explicitFontSize,
     lineStyles: styledLines.map((line) => ({
-      scale: line.scale,
+      scale: line.scale / contentFontScale,
       fontWeight: line.fontWeight,
       fontVariant,
-      explicitFontSize: line.explicitFontSize
+      explicitFontSize: line.explicitFontSize,
+      fontSegments: line.fontSegments.map((segment) => ({
+        text: segment.text,
+        scale: segment.scale / line.scale
+      }))
     })),
     lines: styledLines.map((line) => line.text)
   };
@@ -506,11 +512,17 @@ function hasWholeTextBoldCommand(value) {
   return false;
 }
 
-function parseStyledTextLines(text) {
-  const rawLines = splitStyledTextLines(text)
-    .map((line) => cleanStyledTextLine(line))
-    .filter((line) => line.text.length);
-  return rawLines.length ? rawLines : [{ text: "", scale: 1, fontWeight: null }];
+function parseStyledTextLines(text, initialScale = 1) {
+  const rawLines = [];
+  let currentScale = initialScale;
+  for (const sourceLine of splitStyledTextLines(text)) {
+    const line = cleanStyledTextLine(sourceLine, currentScale);
+    currentScale = line.finalScale;
+    if (line.text.length) rawLines.push(line);
+  }
+  return rawLines.length
+    ? rawLines
+    : [{ text: "", scale: initialScale, fontWeight: null, explicitFontSize: false, fontSegments: [] }];
 }
 
 function splitStyledTextLines(text) {
@@ -561,22 +573,68 @@ function compactDollarMathWhitespace(raw) {
   return `${delimiter}${content}${delimiter}`;
 }
 
-function cleanStyledTextLine(line) {
-  let text = stripOuterTextBraces(String(line || "").trim());
-  let scale = 1;
-  let fontWeight = null;
-  let explicitFontSize = false;
+function cleanStyledTextLine(line, initialScale = 1) {
+  const source = stripOuterTextBraces(String(line || "").trim());
+  const parsed = splitFontSizeSegments(source, initialScale);
+  const fontSegments = cleanFontSizeSegments(parsed.segments);
+  const text = fontSegments.map((segment) => segment.text).join("").replace(/[ \t]+/g, " ").trim();
+  const scale = fontSegments[0]?.scale || initialScale;
+  const fontWeight = /\\(?:bf|bfseries)\b|\\(?:mathbf|textbf)\s*\{/.test(source) ? 700 : null;
 
-  text = text.replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b/g, (_match, size) => {
-    scale = fontSpecFromSizeCommand(`\\${size}`).sizePt / 10;
+  return {
+    text,
+    scale,
+    fontWeight,
+    explicitFontSize: parsed.explicitFontSize,
+    fontSegments,
+    finalScale: parsed.finalScale
+  };
+}
+
+function splitFontSizeSegments(text, initialScale = 1) {
+  const segments = [];
+  const pattern = /\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b|\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b/g;
+  let currentScale = initialScale;
+  let cursor = 0;
+  let explicitFontSize = false;
+  for (const match of String(text || "").matchAll(pattern)) {
+    if (match.index > cursor) segments.push({ text: text.slice(cursor, match.index), scale: currentScale });
+    if (match[1]) currentScale = fontSpecFromSizeCommand(`\\${match[1]}`).sizePt / 10;
+    else {
+      const sizePt = Number(match[2]);
+      if (Number.isFinite(sizePt) && sizePt > 0) currentScale = sizePt / 10;
+    }
     explicitFontSize = true;
-    return "";
-  });
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < text.length) segments.push({ text: text.slice(cursor), scale: currentScale });
+  if (!segments.length) segments.push({ text: "", scale: currentScale });
+  return { segments, explicitFontSize, finalScale: currentScale };
+}
+
+function cleanFontSizeSegments(rawSegments) {
+  const segments = [];
+  let pendingSpace = false;
+  for (const segment of rawSegments) {
+    const cleaned = cleanStyledTextContent(segment.text);
+    const leadingSpace = /^\s/.test(cleaned);
+    const trailingSpace = /\s$/.test(cleaned);
+    const text = cleaned.replace(/[ \t]+/g, " ").trim();
+    if (!text) {
+      pendingSpace = pendingSpace || leadingSpace || trailingSpace;
+      continue;
+    }
+    if (segments.length && (pendingSpace || leadingSpace)) segments.at(-1).text += " ";
+    segments.push({ text, scale: segment.scale });
+    pendingSpace = trailingSpace;
+  }
+  return segments;
+}
+
+function cleanStyledTextContent(value) {
+  let text = String(value || "");
   const protectedMath = protectInlineMathSpans(text);
   text = protectedMath.text;
-  if (/\\(?:bf|bfseries)\b|\\(?:mathbf|textbf)\s*\{/.test(text)) {
-    fontWeight = 700;
-  }
 
 	  text = normalizePlainTextAccents(text)
 	    .replace(/\\(?:mathbf|textbf)\s*\{([^{}]*)\}/g, "$1")
@@ -617,11 +675,9 @@ function cleanStyledTextLine(line) {
     .replace(/\\&/g, "&")
     .replace(/\\_/g, "_")
     .replace(/[{}]/g, "")
-    .replace(/@@TIKZ_MATH_(\d+)@@/g, (_match, index) => protectedMath.spans[Number(index)] || "")
-    .replace(/[ \t]+/g, " ")
-    .trim();
+    .replace(/@@TIKZ_MATH_(\d+)@@/g, (_match, index) => protectedMath.spans[Number(index)] || "");
 
-  return { text, scale, fontWeight, explicitFontSize };
+  return text;
 }
 
 function normalizePlainTextAccents(input) {

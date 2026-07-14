@@ -1,5 +1,9 @@
 import { parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
-import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
+import {
+  TIKZ_FONT_FAMILY,
+  TIKZ_MONOSPACE_FONT_FAMILY,
+  TIKZ_SANS_SERIF_FONT_FAMILY
+} from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { textFontSizeForUnit } from "./layout.js";
@@ -34,13 +38,14 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
     return renderSegmentedTextNode(item, normalized, unit, { fitFontSizeToBox, formatTextLine });
   }
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
-  const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
+  const rawFontFamily = resolvedFontFamily(item, normalized);
   const fontFamily = escapeAttribute(rawFontFamily);
-  const rawFontVariant = normalized.fontVariant || item.style?.fontVariant;
+  const fontFallback = resolvedFontStyle(item);
+  const rawFontVariant = normalized.fontVariant || item.style?.fontVariant || fontFallback.fontVariant;
   const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
-  const sourceLineStyles = textLineStyles(normalized, sourceLines.length, item.style || {});
+  const sourceLineStyles = textLineStyles(normalized, sourceLines.length, fontFallback);
   const wrappedText = wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, item.wrapWidth, unit, baseFontSize);
   const lines = wrappedText.lines;
   const contentLines = wrappedText.contentLines;
@@ -58,7 +63,14 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   if (lines.length <= 1) {
     const lineStyle = lineStyles[0] || {};
     const lineFontSize = fontSize * (lineStyle.scale || 1) * mathOnlyGlyphFontScale(contentLines[0]);
-    const content = renderSvgTextLineContent(contentLines[0], lines[0] || "", lineFontSize, unit);
+    const content = renderLineFontSegments(
+      contentLines[0],
+      lines[0] || "",
+      lineStyle,
+      lineFontSize,
+      unit,
+      renderSvgTextLineContent
+    );
     const lineFontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(contentLines[0]);
     const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="${textAnchor}" dominant-baseline="middle" xml:space="preserve" font-size="${format(
       lineFontSize
@@ -74,11 +86,13 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
       const dy = index === 0 ? lineOffsets[0] : lineOffsets[index] - lineOffsets[index - 1];
       const lineStyle = lineStyles[index] || {};
       const lineFontSize = fontSize * (lineStyle.scale || 1);
-      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize, contentLines[index])}>${renderSvgTextLineContent(
+      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize, contentLines[index])}>${renderLineFontSegments(
         contentLines[index],
         line,
+        lineStyle,
         lineFontSize,
-        unit
+        unit,
+        renderSvgTextLineContent
       )}</tspan>`;
     })
     .join("");
@@ -103,7 +117,7 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
   try {
     metrics = textEngine.measure({
       mode: "text",
-      text: normalized.text,
+      text: normalized.raw || item.text || normalized.text,
       displayMode: false,
       font: item.font,
       fontSizePt: 10 * fontScale,
@@ -147,11 +161,11 @@ function mathOnlyGlyphFontScale(sourceLine) {
 export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {}) {
   const formatTextLine = deps.formatTextLine || ((line) => String(line ?? ""));
   const fitFontSizeToBox = deps.fitFontSizeToBox || ((baseFontSize) => baseFontSize);
-  const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
+  const rawFontFamily = resolvedFontFamily(item, normalized);
   const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
-  const sourceLineStyles = textLineStyles(normalized, sourceLines.length, item.style || {});
+  const sourceLineStyles = textLineStyles(normalized, sourceLines.length, resolvedFontStyle(item));
   const wrapped = wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, item.wrapWidth, unit, baseFontSize);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, wrapped.lines);
   const wrapWidth = Number(item.wrapWidth);
@@ -161,7 +175,14 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
     : Math.max(
         ...wrapped.lines.map((line, index) => {
           const lineScale = (fontSize / textFontSizeForUnit(unit)) * (Number(wrapped.lineStyles[index]?.scale) || 1);
-          return texTextWidthCm(line, lineScale) * widthScale;
+          const segments = wrapped.lineStyles[index]?.fontSegments || [];
+          const measured = segments.length > 1
+            ? segments.reduce(
+                (sum, segment) => sum + texTextWidthCm(segment.text, lineScale * (Number(segment.scale) || 1)),
+                0
+              )
+            : texTextWidthCm(line, lineScale);
+          return measured * widthScale;
         }),
         0
       );
@@ -180,6 +201,37 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
     width: Math.max(0.08, width),
     height: Math.max(0.08, heightPx / unit)
   };
+}
+
+function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSize, unit, renderSvgTextLineContent) {
+  const segments = Array.isArray(lineStyle?.fontSegments) ? lineStyle.fontSegments : [];
+  if (segments.length <= 1) return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
+  return segments
+    .map((segment) => {
+      const scale = Number(segment.scale) || 1;
+      const size = lineFontSize * scale;
+      const content = renderSvgTextLineContent(segment.text, segment.text, size, unit);
+      return Math.abs(scale - 1) < 1e-9 ? content : `<tspan font-size="${format(size)}">${content}</tspan>`;
+    })
+    .join("");
+}
+
+function resolvedFontStyle(item = {}) {
+  const font = item.font || {};
+  return {
+    ...(item.style || {}),
+    fontWeight: item.style?.fontWeight || (font.weight && Number(font.weight) !== 400 ? font.weight : null),
+    fontStyle: item.style?.fontStyle || (font.style && font.style !== "normal" ? font.style : null),
+    fontVariant: item.style?.fontVariant || (font.variant && font.variant !== "normal" ? font.variant : null)
+  };
+}
+
+function resolvedFontFamily(item = {}, normalized = {}) {
+  const family = item.font?.family || item.style?.fontFamily || normalized.fontFamily;
+  if (family === "sans-serif") return TIKZ_SANS_SERIF_FONT_FAMILY;
+  if (family === "monospace") return TIKZ_MONOSPACE_FONT_FAMILY;
+  if (!family || family === "serif") return TIKZ_FONT_FAMILY;
+  return family;
 }
 
 function plainTextBoundsWidthScale(item, fontFamily) {

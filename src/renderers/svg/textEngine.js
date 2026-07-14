@@ -59,7 +59,7 @@ function parseTextEngineMathRequest(request) {
 
 function measureMathRequest(math, request, unit, mathRenderer) {
   const font = textEngineFont(request);
-  const contentSizeAlreadyResolved = Boolean(request.font && math.explicitFontSize && font.source === "content-command");
+  const contentSizeAlreadyResolved = Boolean(request.font && math.explicitFontSize);
   const requestedScale = textEngineFontScale(request) * (contentSizeAlreadyResolved ? 1 : math.scale || 1);
   const effectiveScale = requestedScale * mathStyleScale(math.tex);
   const box = estimateMathBox(math.tex, math.displayMode, unit, effectiveScale);

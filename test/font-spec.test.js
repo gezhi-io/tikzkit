@@ -395,6 +395,20 @@ test("preserves FontSpec source precedence for pins", () => {
   assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
 });
 
+test("composes nested scope font patches property by property", () => {
+  const node = renderedTextNode(
+    String.raw`\begin{tikzpicture}[font=\small]\begin{scope}[font=\bfseries]\node {x};\end{scope}\end{tikzpicture}`
+  );
+
+  assert.deepEqual(node.font, {
+    ...createFontSpec(),
+    sizePt: 9,
+    baselineSkipPt: 11,
+    weight: 700,
+    source: "scope"
+  });
+});
+
 function renderedPlainTextFontSize(source) {
   const { svg } = tikzToSvg(source, { mathRenderer: "svg-text" });
   const sizes = [...svg.matchAll(/<text\b[^>]*\bfont-size="([^"]+)"/g)].map((match) => Number(match[1]));

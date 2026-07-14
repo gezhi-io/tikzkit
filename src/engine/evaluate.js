@@ -800,9 +800,17 @@ function mergeScopePictureOptions(parentOptions = {}, scopeOptions = {}) {
   const merged = { ...parentOptions };
   for (const [key, value] of Object.entries(scopeOptions || {})) {
     if (isScopeTransformOption(key) || isScopeDefinitionOption(key)) continue;
+    if (key === "font") {
+      merged.font = [fontOptionText(merged.font), fontOptionText(value)].filter(Boolean).join(" ");
+      continue;
+    }
     merged[key] = value;
   }
   return merged;
+}
+
+function fontOptionText(value) {
+  return value === undefined || value === null || value === true ? "" : String(value).trim();
 }
 
 function isScopeTransformOption(key) {
@@ -6858,9 +6866,26 @@ function resolvedTextFontSpec(text, options = {}, env = {}, geometricScale = 1) 
     nodeOption: nodeFont === undefined || nodeFont === null
       ? null
       : parseTikzFontPatch(nodeFont, { source: "node-option" }),
-    contentCommand: parseTikzFontPatch(text, { source: "content-command" })
+    contentCommand: leadingContentFontPatch(text)
   });
   return scaleResolvedFontSpec(resolved, geometricScale);
+}
+
+function leadingContentFontPatch(text) {
+  let source = stripOuterBraces(String(text ?? "").trim());
+  if (source.startsWith("$$")) source = source.slice(2).trimStart();
+  else if (source.startsWith("$")) source = source.slice(1).trimStart();
+  else if (source.startsWith("\\[")) source = source.slice(2).trimStart();
+  let prefix = "";
+  while (source) {
+    const declaration = source.match(
+      /^(?:\\(?:Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny|rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt|mdseries|bfseries|bf|upshape|itshape|slshape|scshape)\b|\\fontsize\s*\{[^{}]+\}\s*\{[^{}]+\}\s*\\selectfont\b)\s*/
+    );
+    if (!declaration) break;
+    prefix += declaration[0];
+    source = source.slice(declaration[0].length);
+  }
+  return parseTikzFontPatch(prefix, { source: "content-command" });
 }
 
 function scaleResolvedFontSpec(font, scale = 1) {

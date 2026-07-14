@@ -262,6 +262,78 @@ test("public multiline SVG uses resolved FontSpec baseline skip for tspan dy", (
   assert.ok(Math.abs(dyValues[1] - expectedBaselineSkip) < 1e-6);
 });
 
+test("mixed content size commands only resize the following text segment", () => {
+  const result = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node {normal \tiny tiny};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  );
+  const textNode = result.ir.items.find((item) => item.type === "textNode");
+  const baseSize = Number(result.svg.match(/<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
+  const tinySize = Number(result.svg.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>tiny<\/tspan>/)?.[1]);
+
+  assert.equal(textNode.font.sizePt, 10);
+  assert.equal(textNode.font.source, "document");
+  assert.ok(Number.isFinite(baseSize));
+  assert.ok(Number.isFinite(tinySize));
+  assert.ok(Math.abs(tinySize / baseSize - 0.5) < 1e-6);
+});
+
+test("multiline content size commands keep absolute 9pt and 5pt line sizes", () => {
+  const result = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node {\small A\\\tiny B};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  );
+  const textNode = result.ir.items.find((item) => item.type === "textNode");
+  const baseSize = Number(result.svg.match(/<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
+  const secondLineSize = Number(result.svg.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>B<\/tspan>/)?.[1]);
+
+  assert.equal(textNode.font.sizePt, 9);
+  assert.equal(textNode.font.baselineSkipPt, 11);
+  assert.equal(textNode.font.source, "content-command");
+  assert.ok(Number.isFinite(baseSize));
+  assert.ok(Number.isFinite(secondLineSize));
+  assert.ok(Math.abs(secondLineSize / baseSize - 5 / 9) < 1e-6);
+});
+
+test("resolved FontSpec properties reach plain SVG without legacy style fields", () => {
+  const font = createFontSpec({
+    sizePt: 9,
+    baselineSkipPt: 11,
+    family: "sans-serif",
+    weight: 700,
+    style: "italic",
+    variant: "small-caps",
+    source: "node-option"
+  });
+  const svg = renderSvg(
+    createSceneGraph({ items: [createTextShape("x", 0, 0, { fill: "black" }, { font })] }),
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.match(svg, /font-family="KaTeX_SansSerif,[^"]+"/);
+  assert.match(svg, /font-weight="700"/);
+  assert.match(svg, /font-style="italic"/);
+  assert.match(svg, /font-variant="small-caps"/);
+});
+
+test("resolved math FontSpec rendering is independent of source metadata", () => {
+  const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
+  const request = (source) => engine.measure({
+    text: String.raw`$\tiny x$`,
+    mode: "math",
+    font: createFontSpec({ sizePt: 5, baselineSkipPt: 6, source })
+  });
+  const nodeOption = request("node-option");
+  const contentCommand = request("content-command");
+
+  assert.equal(nodeOption.width, contentCommand.width);
+  assert.equal(nodeOption.height, contentCommand.height);
+  assert.equal(
+    engine.renderFromCache(nodeOption.cacheKey).body,
+    engine.renderFromCache(contentCommand.cacheKey).body
+  );
+});
+
 test("measures a supported plain Main-Regular logical TeX box", () => {
   const box = measurePlainTextTeXBoxPt("concatenate", { fontSizePt: 10 });
   const negativeDepth = measurePlainTextTeXBoxPt("=", { fontSizePt: 10 });

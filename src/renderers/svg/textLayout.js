@@ -55,7 +55,9 @@ export function textLineStyles(normalized, count, fallbackStyle = {}) {
   return Array.from({ length: count }, (_unused, index) => ({
     scale: Number(styles[index]?.scale) || 1,
     fontWeight: styles[index]?.fontWeight || normalized.fontWeight || fallbackStyle.fontWeight || null,
-    fontStyle: styles[index]?.fontStyle || normalized.fontStyle || null
+    fontStyle: styles[index]?.fontStyle || normalized.fontStyle || fallbackStyle.fontStyle || null,
+    fontVariant: styles[index]?.fontVariant || normalized.fontVariant || fallbackStyle.fontVariant || null,
+    fontSegments: Array.isArray(styles[index]?.fontSegments) ? styles[index].fontSegments : []
   }));
 }
 
