@@ -4,8 +4,12 @@ import {
   createFontSpec,
   fontSpecFromLegacyScale,
   fontSpecFromSizeCommand,
-  mergeFontSpec
+  mergeFontSpec,
+  parseTikzFontPatch,
+  resolveFontSpec
 } from "../src/tex/fontSpec.js";
+import { fontScaleFromTikzFont, normalizeTikzText } from "../src/tikz/text.js";
+import { parseMathText } from "../src/tikz/textMetrics.js";
 
 test("matches the MacTeX size10.clo font table", () => {
   const expected = {
@@ -123,4 +127,95 @@ test("rejects FontSpec sizes that are not finite positive points", () => {
     mathStyle: "text",
     source: "document"
   });
+});
+
+test("resolves document scope library node and content font layers in order", () => {
+  const resolved = resolveFontSpec({
+    document: createFontSpec(),
+    scope: parseTikzFontPatch(String.raw`\sffamily\large`, { source: "scope" }),
+    libraryRole: parseTikzFontPatch(String.raw`\small\bfseries`, { source: "library-role" }),
+    nodeOption: parseTikzFontPatch(String.raw`\Large\mdseries\itshape`, { source: "node-option" }),
+    contentCommand: parseTikzFontPatch(String.raw`\fontsize{6}{7}\selectfont\scshape`, {
+      source: "content-command"
+    })
+  });
+
+  assert.deepEqual(resolved, {
+    sizePt: 6,
+    baselineSkipPt: 7,
+    family: "sans-serif",
+    weight: 400,
+    style: "italic",
+    variant: "small-caps",
+    mathStyle: "text",
+    source: "content-command"
+  });
+});
+
+test("parses explicit fontsize commands and keeps the last valid size", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\fontsize{6}{7}\selectfont`, { source: "content-command" }), {
+    sizePt: 6,
+    baselineSkipPt: 7,
+    source: "content-command"
+  });
+  assert.deepEqual(
+    parseTikzFontPatch(
+      String.raw`\tiny\fontsize{8}{9.5}\selectfont\fontsize{0}{12}\selectfont\fontsize{NaN}{7}\selectfont`
+    ),
+    { sizePt: 8, baselineSkipPt: 9.5, source: "node-option" }
+  );
+  assert.deepEqual(parseTikzFontPatch(String.raw`\fontsize{-1}{7}\selectfont`), {});
+  assert.deepEqual(parseTikzFontPatch(String.raw`\fontsize{Infinity}{7}\selectfont`), {});
+});
+
+test("parses the last named size from the document font profile", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\tiny\Large\small`, { source: "scope" }), {
+    sizePt: 9,
+    baselineSkipPt: 11,
+    source: "scope"
+  });
+});
+
+test("merges font family weight style and variant without resetting inherited size", () => {
+  const inherited = fontSpecFromSizeCommand(String.raw`\small`, { source: "library-role" });
+  const patch = parseTikzFontPatch(String.raw`\sffamily\bfseries\itshape\scshape`, {
+    source: "node-option"
+  });
+
+  assert.deepEqual(mergeFontSpec(inherited, patch), {
+    ...inherited,
+    family: "sans-serif",
+    weight: 700,
+    style: "italic",
+    variant: "small-caps",
+    source: "node-option"
+  });
+});
+
+test("ignores empty and irrelevant font text without changing the source", () => {
+  assert.deepEqual(parseTikzFontPatch(""), {});
+  assert.deepEqual(parseTikzFontPatch(String.raw`\color{red} ordinary text`, { source: "content-command" }), {});
+
+  const inherited = fontSpecFromSizeCommand(String.raw`\small`, { source: "library-role" });
+  assert.deepEqual(
+    resolveFontSpec({
+      document: createFontSpec(),
+      libraryRole: inherited,
+      contentCommand: parseTikzFontPatch(String.raw`\color{red}`, { source: "content-command" })
+    }),
+    inherited
+  );
+});
+
+test("uses the canonical tiny scale in TikZ font parsing and text normalization", () => {
+  assert.equal(fontScaleFromTikzFont(String.raw`\tiny`), 0.5);
+  assert.equal(normalizeTikzText(String.raw`\tiny x`).scale, 0.5);
+});
+
+test("uses the canonical named size table for leading math font commands", () => {
+  const parsed = parseMathText(String.raw`$\tiny x$`);
+
+  assert.equal(parsed.scale, 0.5);
+  assert.equal(parsed.explicitFontSize, "tiny");
+  assert.equal(parsed.tex, "x");
 });

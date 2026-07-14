@@ -37,10 +37,60 @@ export function fontSpecFromLegacyScale(scale, base = DEFAULT_FONT_SPEC) {
   });
 }
 
+export function parseTikzFontPatch(source, options = {}) {
+  const text = String(source || "");
+  const patch = {};
+
+  const namedSizes = [...text.matchAll(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b/g)];
+  if (namedSizes.length) {
+    const profile = documentFontProfile(options.profile || "10pt");
+    Object.assign(patch, profile[namedSizes.at(-1)[1]]);
+  }
+
+  const explicitSizes = text.matchAll(/\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b/g);
+  for (const match of explicitSizes) {
+    const sizePt = Number(match[1]);
+    const baselineSkipPt = Number(match[2]);
+    if (!isFinitePositiveNumber(sizePt) || !isFinitePositiveNumber(baselineSkipPt)) continue;
+    patch.sizePt = sizePt;
+    patch.baselineSkipPt = baselineSkipPt;
+  }
+
+  const family = lastFontCommand(text, /\\(rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt)\b/g);
+  if (family) {
+    patch.family = family === "sffamily" || family === "sf"
+      ? "sans-serif"
+      : family === "ttfamily" || family === "tt"
+        ? "monospace"
+        : "serif";
+  }
+
+  const weight = lastFontCommand(text, /\\(mdseries|bfseries|bf)\b/g);
+  if (weight) patch.weight = weight === "mdseries" ? 400 : 700;
+
+  const style = lastFontCommand(text, /\\(upshape|itshape|slshape)\b/g);
+  if (style) patch.style = style === "upshape" ? "normal" : "italic";
+
+  if (/\\scshape\b/.test(text)) patch.variant = "small-caps";
+
+  if (Object.keys(patch).length) patch.source = options.source || "node-option";
+  return patch;
+}
+
+export function resolveFontSpec(layers = {}) {
+  return ["document", "scope", "libraryRole", "nodeOption", "contentCommand"]
+    .reduce((font, key) => layers[key] ? mergeFontSpec(font, layers[key]) : font, createFontSpec());
+}
+
 function definedProperties(value) {
   return Object.fromEntries(
     Object.entries(value || {}).filter(([, item]) => item !== undefined && item !== null)
   );
+}
+
+function lastFontCommand(text, pattern) {
+  const matches = [...text.matchAll(pattern)];
+  return matches.at(-1)?.[1] || null;
 }
 
 function validateFontSpec(spec) {
