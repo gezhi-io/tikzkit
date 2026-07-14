@@ -273,10 +273,59 @@ test("renders tiny plain node text at half the normal size through the public AP
   assert.ok(Math.abs(tiny / normal - 0.5) < 1e-6);
 });
 
+test("carries resolved normal and node-option FontSpec values into textNode IR", () => {
+  const normal = renderedTextNode(String.raw`\begin{tikzpicture}\node {x};\end{tikzpicture}`);
+  const small = renderedTextNode(String.raw`\begin{tikzpicture}\node[font=\small] {x};\end{tikzpicture}`);
+
+  assert.deepEqual(normal.font, createFontSpec());
+  assert.deepEqual(small.font, {
+    ...createFontSpec(),
+    sizePt: 9,
+    baselineSkipPt: 11,
+    source: "node-option"
+  });
+  assert.equal(small.style.fontScale, 0.9, "legacy scale remains during the migration");
+});
+
+test("resolves content tiny once in textNode FontSpec without double scaling", () => {
+  const tiny = renderedTextNode(String.raw`\begin{tikzpicture}\node {\tiny x};\end{tikzpicture}`);
+  const normalSize = renderedPlainTextFontSize(String.raw`\begin{tikzpicture}\node {x};\end{tikzpicture}`);
+  const tinySize = renderedPlainTextFontSize(String.raw`\begin{tikzpicture}\node {\tiny x};\end{tikzpicture}`);
+
+  assert.deepEqual(tiny.font, {
+    ...createFontSpec(),
+    sizePt: 5,
+    baselineSkipPt: 6,
+    source: "content-command"
+  });
+  assert.ok(Math.abs(tinySize / normalSize - 0.5) < 1e-6);
+});
+
+test("keeps an inherited scope size when a node font only changes weight", () => {
+  const node = renderedTextNode(
+    String.raw`\begin{tikzpicture}[font=\small]\node[font=\bfseries] {x};\end{tikzpicture}`
+  );
+
+  assert.deepEqual(node.font, {
+    ...createFontSpec(),
+    sizePt: 9,
+    baselineSkipPt: 11,
+    weight: 700,
+    source: "node-option"
+  });
+});
+
 function renderedPlainTextFontSize(source) {
   const { svg } = tikzToSvg(source, { mathRenderer: "svg-text" });
   const sizes = [...svg.matchAll(/<text\b[^>]*\bfont-size="([^"]+)"/g)].map((match) => Number(match[1]));
   assert.equal(sizes.length, 1);
   assert.ok(Number.isFinite(sizes[0]));
   return sizes[0];
+}
+
+function renderedTextNode(source) {
+  const { ir } = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const items = ir.items.filter((item) => item.type === "textNode");
+  assert.equal(items.length, 1);
+  return items[0];
 }
