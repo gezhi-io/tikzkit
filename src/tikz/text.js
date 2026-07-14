@@ -93,12 +93,13 @@ export function normalizeTikzText(value) {
   text = replaceCommand(text, "phantom", 1, () => "");
   text = replaceCommand(text, "tikzinlinebox", 2, (args) => args[1]);
   text = replaceCommand(text, "contour", 2, (args) => args[1]);
-  text = replaceCommand(text, "texttt", 1, (args) => args[0]);
-  text = replaceCommand(text, "textsf", 1, (args) => args[0]);
-  text = replaceCommand(text, "textrm", 1, (args) => args[0]);
-  text = replaceCommand(text, "textbf", 1, (args) => args[0]);
-  text = replaceCommand(text, "textit", 1, (args) => args[0]);
-  text = replaceCommand(text, "emph", 1, (args) => args[0]);
+  if (isMathText(text)) {
+    for (const command of ["texttt", "textsf", "textrm", "textbf", "textit", "emph"]) {
+      text = replaceCommand(text, command, 1, (args) => args[0]);
+    }
+  } else {
+    text = expandScopedTextFontWrappers(text);
+  }
   text = replaceCommand(text, "bm", 1, (args) => args[0]);
   text = replaceCommand(text, "mathbf", 1, (args) => args[0]);
   text = replaceCommand(text, "boldsymbol", 1, (args) => args[0]);
@@ -530,6 +531,33 @@ function hasWholeTextBoldCommand(value) {
   if (/^\\(?:bf|bfseries)\b/.test(text)) return true;
   if (/^\\(?:bm|boldsymbol|mathbf|textbf)\s*(?:\{[\s\S]*\}|\\[A-Za-z]+|[^\s{}])\s*$/.test(text)) return true;
   return false;
+}
+
+const SCOPED_TEXT_FONT_WRAPPERS = Object.freeze({
+  textbf: "bfseries",
+  textit: "itshape",
+  textsf: "sffamily",
+  textrm: "rmfamily",
+  texttt: "ttfamily",
+  textmd: "mdseries",
+  textup: "upshape",
+  textsl: "slshape",
+  textsc: "scshape",
+  emph: "itshape"
+});
+
+function expandScopedTextFontWrappers(value) {
+  let text = String(value || "");
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [command, declaration] of Object.entries(SCOPED_TEXT_FONT_WRAPPERS)) {
+      const expanded = replaceCommand(text, command, 1, ([content]) => `{\\${declaration} ${content}}`);
+      if (expanded !== text) changed = true;
+      text = expanded;
+    }
+  }
+  return text;
 }
 
 function hasWholeTextStyle(value, style) {

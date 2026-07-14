@@ -351,6 +351,53 @@ test("mid-line font declarations style only following segments", () => {
   assert.match(groupedText, /<tspan\b[^>]*font-weight="700"[^>]*>bold<\/tspan> normal<\/text>$/);
 });
 
+test("scoped text font wrappers style only their arguments and restore afterward", () => {
+  const cases = [
+    { command: "textbf", text: "bold", attribute: "font-weight", value: "700" },
+    { command: "textit", text: "italic", attribute: "font-style", value: "italic" },
+    { command: "textsf", text: "sans", attribute: "font-family", value: "KaTeX_SansSerif" },
+    { command: "texttt", text: "mono", attribute: "font-family", value: "KaTeX_Typewriter" },
+    { command: "textsl", text: "slanted", attribute: "font-style", value: "italic" },
+    { command: "textsc", text: "caps", attribute: "font-variant", value: "small-caps" }
+  ];
+
+  for (const entry of cases) {
+    const wrapper = `\\${entry.command}{${entry.text}}`;
+    const svg = tikzToSvg(
+      String.raw`\begin{tikzpicture}\node {normal ${wrapper} normal};\end{tikzpicture}`,
+      { mathRenderer: "svg-text" }
+    ).svg;
+    const text = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
+    const openingTag = text.match(/^<text\b[^>]*>/)?.[0] || "";
+
+    assert.doesNotMatch(openingTag, new RegExp(`${entry.attribute}="[^"]*${entry.value}`));
+    assert.match(
+      text,
+      new RegExp(`normal <tspan\\b(?=[^>]*${entry.attribute}="[^"]*${entry.value}[^"]*")[^>]*>${entry.text}<\\/tspan> normal`)
+    );
+  }
+
+  const overrideCases = [
+    { option: String.raw`\sffamily`, command: "textrm", text: "serif", attribute: "font-family", value: "TikZKitCMUSerif" },
+    { option: String.raw`\bfseries`, command: "textmd", text: "medium", attribute: "font-weight", value: "400" },
+    { option: String.raw`\itshape`, command: "textup", text: "upright", attribute: "font-style", value: "normal" }
+  ];
+
+  for (const entry of overrideCases) {
+    const wrapper = `\\${entry.command}{${entry.text}}`;
+    const svg = tikzToSvg(
+      String.raw`\begin{tikzpicture}\node[font=${entry.option}] {before ${wrapper} after};\end{tikzpicture}`,
+      { mathRenderer: "svg-text" }
+    ).svg;
+    const text = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
+
+    assert.match(
+      text,
+      new RegExp(`before <tspan\\b(?=[^>]*${entry.attribute}="[^"]*${entry.value}[^"]*")[^>]*>${entry.text}<\\/tspan> after`)
+    );
+  }
+});
+
 test("resolved FontSpec properties reach plain SVG without legacy style fields", () => {
   const font = createFontSpec({
     sizePt: 9,
@@ -627,6 +674,24 @@ test("svg text engine isolates font variant and math style cache entries", () =>
 
   assert.notEqual(textMath.cacheKey, displayMath.cacheKey);
   assert.ok(displayMath.height > textMath.height);
+});
+
+test("svg text engine cache separates canonical line and segment styles before rendering", () => {
+  const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
+  const request = {
+    mode: "text",
+    font: createFontSpec(),
+    alignment: "center"
+  };
+  const plain = engine.measure({ ...request, text: "normal bold" });
+  const styled = engine.measure({ ...request, text: String.raw`normal \bfseries bold` });
+
+  assert.notEqual(plain.cacheKey, styled.cacheKey);
+
+  const plainBody = engine.renderFromCache(plain.cacheKey).body;
+  const styledBody = engine.renderFromCache(styled.cacheKey).body;
+  assert.doesNotMatch(plainBody, /font-weight="700"/);
+  assert.match(styledBody, /<tspan\b[^>]*font-weight="700"[^>]*>bold<\/tspan>/);
 });
 
 test("tikzToSvg creates svg text engine before sizing math node boxes", () => {

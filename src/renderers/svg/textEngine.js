@@ -165,6 +165,7 @@ function measurePlainTextRequest(request, unit) {
     fontWeight: fontWeight || null,
     fontVariant: font.variant,
     mathStyle: font.mathStyle,
+    textStyle: normalizedTextRenderStyleSignature(normalized),
     alignment,
     textWidthPt: request.textWidthPt ?? null
   });
@@ -191,6 +192,36 @@ function measurePlainTextRequest(request, unit) {
       })
     })
   };
+}
+
+function normalizedTextRenderStyleSignature(normalized = {}) {
+  return {
+    scale: finiteStyleScale(normalized.scale),
+    family: normalized.fontFamily || null,
+    weight: normalized.fontWeight ?? null,
+    style: normalized.fontStyle || null,
+    variant: normalized.fontVariant || null,
+    lines: (Array.isArray(normalized.lineStyles) ? normalized.lineStyles : []).map((line = {}) => ({
+      scale: finiteStyleScale(line.scale),
+      family: line.fontFamily || null,
+      weight: line.fontWeight ?? null,
+      style: line.fontStyle || null,
+      variant: line.fontVariant || null,
+      segments: (Array.isArray(line.fontSegments) ? line.fontSegments : []).map((segment = {}) => ({
+        text: String(segment.text ?? ""),
+        scale: finiteStyleScale(segment.scale),
+        family: segment.family || null,
+        weight: segment.weight ?? null,
+        style: segment.style || null,
+        variant: segment.variant || null
+      }))
+    }))
+  };
+}
+
+function finiteStyleScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
 function logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWeight) {
