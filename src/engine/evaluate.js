@@ -6873,6 +6873,11 @@ function resolvedTextFontSpec(text, options = {}, env = {}, geometricScale = 1) 
 
 function leadingContentFontPatch(text) {
   let source = stripOuterBraces(String(text ?? "").trim());
+  const phantom = source.match(/^\\(?:phantom|hphantom|vphantom)\s*/);
+  if (phantom) {
+    const group = readBalancedPrefix(source.slice(phantom[0].length), "{", "}");
+    if (group && !source.slice(phantom[0].length + group.end).trim()) source = group.content.trim();
+  }
   if (source.startsWith("$$")) source = source.slice(2).trimStart();
   else if (source.startsWith("$")) source = source.slice(1).trimStart();
   else if (source.startsWith("\\[")) source = source.slice(2).trimStart();

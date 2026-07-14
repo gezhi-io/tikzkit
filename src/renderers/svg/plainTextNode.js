@@ -63,6 +63,7 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   if (lines.length <= 1) {
     const lineStyle = lineStyles[0] || {};
     const lineFontSize = fontSize * (lineStyle.scale || 1) * mathOnlyGlyphFontScale(contentLines[0]);
+    const lineFontFamily = escapeAttribute(renderFontFamily(lineStyle.fontFamily || rawFontFamily));
     const content = renderLineFontSegments(
       contentLines[0],
       lines[0] || "",
@@ -72,9 +73,10 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
       renderSvgTextLineContent
     );
     const lineFontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(contentLines[0]);
+    const lineFontVariant = fontVariantAttribute(lineStyle) || textFontVariant;
     const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="${textAnchor}" dominant-baseline="middle" xml:space="preserve" font-size="${format(
       lineFontSize
-    )}"${fontWeightAttribute(lineStyle)}${lineFontStyle}${textFontVariant} font-family="${fontFamily}">${content}</text>`;
+    )}"${fontWeightAttribute(lineStyle)}${lineFontStyle}${lineFontVariant} font-family="${lineFontFamily}">${content}</text>`;
     return wrapTypewriterWidth(text, item, unit, widthScale);
   }
   const lineOffsets = baselineOffsets(fontSize, lineStyles, {
@@ -86,7 +88,10 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
       const dy = index === 0 ? lineOffsets[0] : lineOffsets[index] - lineOffsets[index - 1];
       const lineStyle = lineStyles[index] || {};
       const lineFontSize = fontSize * (lineStyle.scale || 1);
-      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize, contentLines[index])}>${renderLineFontSegments(
+      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize, contentLines[index])}${lineFontFamilyAttribute(
+        lineStyle,
+        rawFontFamily
+      )}>${renderLineFontSegments(
         contentLines[index],
         line,
         lineStyle,
@@ -205,21 +210,53 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
 
 function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSize, unit, renderSvgTextLineContent) {
   const segments = Array.isArray(lineStyle?.fontSegments) ? lineStyle.fontSegments : [];
-  if (segments.length <= 1) return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
+  if (!segments.length) return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
+  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize, 1)) {
+    return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
+  }
   return segments
     .map((segment) => {
       const scale = Number(segment.scale) || 1;
       const size = lineFontSize * scale;
       const content = renderSvgTextLineContent(segment.text, segment.text, size, unit);
-      return Math.abs(scale - 1) < 1e-9 ? content : `<tspan font-size="${format(size)}">${content}</tspan>`;
+      const attributes = segmentFontAttributes(segment, lineStyle, size, scale);
+      return attributes ? `<tspan${attributes}>${content}</tspan>` : content;
     })
     .join("");
+}
+
+function segmentFontAttributes(segment, lineStyle, size, scale) {
+  let attributes = Math.abs(scale - 1) < 1e-9 ? "" : ` font-size="${format(size)}"`;
+  if (segment.family && !sameFontProperty(segment.family, lineStyle.fontFamily)) {
+    attributes += ` font-family="${escapeAttribute(renderFontFamily(segment.family))}"`;
+  }
+  if (segment.weight !== null && segment.weight !== undefined && !sameFontProperty(segment.weight, lineStyle.fontWeight)) {
+    attributes += ` font-weight="${escapeAttribute(String(segment.weight))}"`;
+  }
+  if (segment.style && !sameFontProperty(segment.style, lineStyle.fontStyle)) {
+    attributes += ` font-style="${escapeAttribute(segment.style)}"`;
+  }
+  if (segment.variant && !sameFontProperty(segment.variant, lineStyle.fontVariant)) {
+    attributes += ` font-variant="${escapeAttribute(segment.variant)}"`;
+  }
+  return attributes;
+}
+
+function sameFontProperty(first, second) {
+  return String(first ?? "") === String(second ?? "");
+}
+
+function lineFontFamilyAttribute(lineStyle, parentFamily) {
+  if (!lineStyle.fontFamily) return "";
+  const family = renderFontFamily(lineStyle.fontFamily);
+  return family === renderFontFamily(parentFamily) ? "" : ` font-family="${escapeAttribute(family)}"`;
 }
 
 function resolvedFontStyle(item = {}) {
   const font = item.font || {};
   return {
     ...(item.style || {}),
+    fontFamily: item.style?.fontFamily || font.family || null,
     fontWeight: item.style?.fontWeight || (font.weight && Number(font.weight) !== 400 ? font.weight : null),
     fontStyle: item.style?.fontStyle || (font.style && font.style !== "normal" ? font.style : null),
     fontVariant: item.style?.fontVariant || (font.variant && font.variant !== "normal" ? font.variant : null)
@@ -228,6 +265,10 @@ function resolvedFontStyle(item = {}) {
 
 function resolvedFontFamily(item = {}, normalized = {}) {
   const family = item.font?.family || item.style?.fontFamily || normalized.fontFamily;
+  return renderFontFamily(family);
+}
+
+function renderFontFamily(family) {
   if (family === "sans-serif") return TIKZ_SANS_SERIF_FONT_FAMILY;
   if (family === "monospace") return TIKZ_MONOSPACE_FONT_FAMILY;
   if (!family || family === "serif") return TIKZ_FONT_FAMILY;

@@ -54,6 +54,7 @@ export function textLineStyles(normalized, count, fallbackStyle = {}) {
   const styles = Array.isArray(normalized.lineStyles) ? normalized.lineStyles : [];
   return Array.from({ length: count }, (_unused, index) => ({
     scale: Number(styles[index]?.scale) || 1,
+    fontFamily: styles[index]?.fontFamily || fallbackStyle.fontFamily || null,
     fontWeight: styles[index]?.fontWeight || normalized.fontWeight || fallbackStyle.fontWeight || null,
     fontStyle: styles[index]?.fontStyle || normalized.fontStyle || fallbackStyle.fontStyle || null,
     fontVariant: styles[index]?.fontVariant || normalized.fontVariant || fallbackStyle.fontVariant || null,
@@ -105,7 +106,7 @@ export function lineFontAttributes(lineStyle, baseFontSize, sourceLine = "") {
   const fontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(sourceLine);
   return `${lineStyle.scale && lineStyle.scale !== 1 ? ` font-size="${format(baseFontSize * lineStyle.scale)}"` : ""}${fontWeightAttribute(
     lineStyle
-  )}${fontStyle}`;
+  )}${fontStyle}${fontVariantAttribute(lineStyle)}`;
 }
 
 export function fontWeightAttribute(lineStyle) {

@@ -295,6 +295,62 @@ test("multiline content size commands keep absolute 9pt and 5pt line sizes", () 
   assert.ok(Math.abs(secondLineSize / baseSize - 5 / 9) < 1e-6);
 });
 
+test("TeX font groups restore size on the same line and after a line break", () => {
+  const inline = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node {{\small A} B};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  ).svg;
+  const inlineText = inline.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
+  const inlineBaseSize = Number(inlineText.match(/^<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
+  const groupedSize = Number(inlineText.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>A<\/tspan>/)?.[1]);
+
+  assert.match(inlineText, /<tspan\b[^>]*>A<\/tspan> B<\/text>$/);
+  assert.ok(Math.abs(groupedSize / inlineBaseSize - 0.9) < 1e-6);
+
+  const multiline = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node {{\small A}\\B};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  ).svg;
+  const multilineText = multiline.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
+  const multilineBaseSize = Number(multilineText.match(/^<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
+  const firstLineSize = Number(multilineText.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>A<\/tspan>/)?.[1]);
+
+  assert.ok(Math.abs(firstLineSize / multilineBaseSize - 0.9) < 1e-6);
+  assert.match(multilineText, /<tspan\b(?=[^>]*\bdy=)(?![^>]*\bfont-size=)[^>]*>B<\/tspan>/);
+});
+
+test("mid-line font declarations style only following segments", () => {
+  const cases = [
+    { command: String.raw`\bfseries`, text: "bold", attribute: "font-weight", value: "700" },
+    { command: String.raw`\itshape`, text: "italic", attribute: "font-style", value: "italic" },
+    { command: String.raw`\scshape`, text: "caps", attribute: "font-variant", value: "small-caps" },
+    { command: String.raw`\sffamily`, text: "sans", attribute: "font-family", value: "KaTeX_SansSerif" }
+  ];
+
+  for (const entry of cases) {
+    const svg = tikzToSvg(
+      String.raw`\begin{tikzpicture}\node {normal ${entry.command} ${entry.text}};\end{tikzpicture}`,
+      { mathRenderer: "svg-text" }
+    ).svg;
+    const text = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
+    const openingTag = text.match(/^<text\b[^>]*>/)?.[0] || "";
+    const segmentPattern = new RegExp(
+      `<tspan\\b(?=[^>]*${entry.attribute}="[^"]*${entry.value}[^"]*")[^>]*>${entry.text}<\\/tspan>`
+    );
+
+    assert.doesNotMatch(openingTag, new RegExp(`${entry.attribute}="[^"]*${entry.value}`));
+    assert.match(text, new RegExp(`normal <tspan\\b`));
+    assert.match(text, segmentPattern);
+  }
+
+  const grouped = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node {{\bfseries bold} normal};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  ).svg;
+  const groupedText = grouped.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
+  assert.match(groupedText, /<tspan\b[^>]*font-weight="700"[^>]*>bold<\/tspan> normal<\/text>$/);
+});
+
 test("resolved FontSpec properties reach plain SVG without legacy style fields", () => {
   const font = createFontSpec({
     sizePt: 9,
@@ -539,6 +595,38 @@ test("svg text engine isolates cached payloads by render-affecting text style", 
   assert.notEqual(blackMath.cacheKey, blueMath.cacheKey);
   assert.match(engine.renderFromCache(blackMath.cacheKey).body, /(?:color:black|fill="black")/);
   assert.match(engine.renderFromCache(blueMath.cacheKey).body, /(?:color:blue|fill="blue")/);
+});
+
+test("svg text engine isolates font variant and math style cache entries", () => {
+  const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
+  const normal = engine.measure({
+    text: "label",
+    mode: "text",
+    font: createFontSpec({ variant: "normal" })
+  });
+  const smallCaps = engine.measure({
+    text: "label",
+    mode: "text",
+    font: createFontSpec({ variant: "small-caps" })
+  });
+
+  assert.notEqual(normal.cacheKey, smallCaps.cacheKey);
+  assert.doesNotMatch(engine.renderFromCache(normal.cacheKey).body, /font-variant="small-caps"/);
+  assert.match(engine.renderFromCache(smallCaps.cacheKey).body, /font-variant="small-caps"/);
+
+  const textMath = engine.measure({
+    text: "$x$",
+    mode: "math",
+    font: createFontSpec({ mathStyle: "text" })
+  });
+  const displayMath = engine.measure({
+    text: "$x$",
+    mode: "math",
+    font: createFontSpec({ mathStyle: "display" })
+  });
+
+  assert.notEqual(textMath.cacheKey, displayMath.cacheKey);
+  assert.ok(displayMath.height > textMath.height);
 });
 
 test("tikzToSvg creates svg text engine before sizing math node boxes", () => {

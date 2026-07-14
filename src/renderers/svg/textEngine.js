@@ -59,17 +59,18 @@ function parseTextEngineMathRequest(request) {
 
 function measureMathRequest(math, request, unit, mathRenderer) {
   const font = textEngineFont(request);
+  const tex = mathTexForFontStyle(math.tex, font.mathStyle);
   const contentSizeAlreadyResolved = Boolean(request.font && math.explicitFontSize);
   const requestedScale = textEngineFontScale(request) * (contentSizeAlreadyResolved ? 1 : math.scale || 1);
-  const effectiveScale = requestedScale * mathStyleScale(math.tex);
-  const box = estimateMathBox(math.tex, math.displayMode, unit, effectiveScale);
-  const renderBox = mathRenderer === "svg-text" ? box : scopedMathForeignObjectBox(box, math.displayMode, math.tex);
+  const effectiveScale = requestedScale * mathStyleScale(tex);
+  const box = estimateMathBox(tex, math.displayMode, unit, effectiveScale);
+  const renderBox = mathRenderer === "svg-text" ? box : scopedMathForeignObjectBox(box, math.displayMode, tex);
   const color = request.color || "black";
   const fontFamily = textEngineRenderFontFamily(font.family);
   const fontStyle = font.style;
   const fontWeight = font.weight;
   const cacheKey = textEngineCacheKey("math", {
-    tex: math.tex,
+    tex,
     displayMode: math.displayMode,
     requestedScale,
     unit,
@@ -78,6 +79,8 @@ function measureMathRequest(math, request, unit, mathRenderer) {
     fontFamily,
     fontStyle,
     fontWeight,
+    fontVariant: font.variant,
+    mathStyle: font.mathStyle,
     baselineSkipPt: font.baselineSkipPt
   });
   const metrics = {
@@ -87,7 +90,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
     baselineY: renderBox.height * 0.62,
     midLineY: renderBox.height / 2,
     paragraphId: null,
-    renderSourceText: math.tex,
+    renderSourceText: tex,
     ...textEngineFontMetrics(font)
   };
   return {
@@ -98,7 +101,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
         type: "textNode",
         x: 0,
         y: 0,
-        text: `$${math.tex}$`,
+        text: `$${tex}$`,
         style: {
           fill: color,
           fontFamily,
@@ -107,7 +110,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
         },
         font
       };
-      const body = renderMathNode(item, { ...math, scale: requestedScale }, unit, { mathRenderer });
+      const body = renderMathNode(item, { ...math, tex, scale: requestedScale }, unit, { mathRenderer });
       return {
         cacheKey,
         viewBox: centeredViewBox(renderBox.width, renderBox.height),
@@ -160,6 +163,8 @@ function measurePlainTextRequest(request, unit) {
     fontFamily,
     fontStyle: fontStyle || null,
     fontWeight: fontWeight || null,
+    fontVariant: font.variant,
+    mathStyle: font.mathStyle,
     alignment,
     textWidthPt: request.textWidthPt ?? null
   });
@@ -241,8 +246,19 @@ function textEngineFontMetrics(font) {
     baselineSkipPt: font.baselineSkipPt,
     fontFamily: font.family,
     fontWeight: font.weight,
-    fontStyle: font.style
+    fontStyle: font.style,
+    fontVariant: font.variant,
+    mathStyle: font.mathStyle
   };
+}
+
+function mathTexForFontStyle(tex, mathStyle) {
+  const source = String(tex || "");
+  if (/\\(?:display|text|script|scriptscript)style(?![A-Za-z])/.test(source)) return source;
+  if (mathStyle === "display") return `\\displaystyle ${source}`;
+  if (mathStyle === "script") return `\\scriptstyle ${source}`;
+  if (mathStyle === "scriptscript") return `\\scriptscriptstyle ${source}`;
+  return source;
 }
 
 function textEngineRenderFontFamily(family) {
