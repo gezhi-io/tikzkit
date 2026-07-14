@@ -60,6 +60,7 @@ import {
 
 const TIKZ_DEFAULT_INNER_SEP = ".3333em";
 const TEX_PT_PER_CM = 28.4527559;
+const EXPLICIT_NODE_FONT = Symbol("tikzkit.explicitNodeFont");
 const PGF_DEFAULT_Z_VECTOR = { x: -0.385, y: -0.385 };
 const DEFAULT_TEX_VARIABLES = {
   textwidth: parseDimension("345pt", {})
@@ -3300,10 +3301,13 @@ function hasExplicitTextColor(options = {}) {
 }
 
 function createNode(statement, env, ir, diagnostics) {
+  const statementOptions = resolveDynamicOptions(statement.options || {}, env);
+  const localOptions = normalizeOptions("node", statementOptions, env).options;
   let expandedOptions = normalizeOptions("node", {
     ...inheritedNodeOptions(env),
-    ...resolveDynamicOptions(statement.options || {}, env)
+    ...statementOptions
   }, env).options;
+  expandedOptions[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
   const textMarks = extractTikzmarkNodes(resolveTextContent(resolveNodeTextContent(statement.text, expandedOptions), env));
   const text = textMarks.text;
@@ -6842,7 +6846,7 @@ function nodeFontScale(options = {}, env = {}) {
 
 function resolvedTextFontSpec(text, options = {}, env = {}, geometricScale = 1) {
   const scopeFont = env.pictureOptions?.font;
-  const nodeFont = options.font;
+  const nodeFont = Object.hasOwn(options, EXPLICIT_NODE_FONT) ? options[EXPLICIT_NODE_FONT] : options.font;
   const resolved = resolveFontSpec({
     document: createFontSpec(),
     scope: parseTikzFontPatch(scopeFont, { source: "scope" }),

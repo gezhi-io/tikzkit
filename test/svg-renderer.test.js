@@ -37,7 +37,7 @@ import {
 import { createFontSpec } from "../src/tex/fontSpec.js";
 import { tikzToSvg } from "../src/internal.js";
 import { renderSvg as compatRenderSvg } from "../src/renderer-svg.js";
-import { createRasterImageShape, createSceneGraph } from "../src/scene/index.js";
+import { createRasterImageShape, createSceneGraph, createTextShape } from "../src/scene/index.js";
 import { lineWidthFromPt } from "../src/tikz/metrics.js";
 import { measurePlainTextTeXBoxPt } from "../src/tikz/textMetrics.js";
 
@@ -221,11 +221,45 @@ test("svg text engine prefers FontSpec physical size for plain text and math", (
   }
 });
 
+test("scene text shapes retain resolved FontSpec attributes", () => {
+  const font = createFontSpec({ sizePt: 9, baselineSkipPt: 11, source: "scope" });
+  const shape = createTextShape("x", 1, 2, { fill: "black" }, { font });
+
+  assert.equal(shape.type, "textNode");
+  assert.equal(shape.text, "x");
+  assert.deepEqual(shape.font, font);
+});
+
+test("svg text engine keeps legacy fontSizePt fallback for plain text and math", () => {
+  const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
+  const plain = engine.measure({ text: "x", mode: "text", fontSizePt: 9 });
+  const math = engine.measure({ text: "$x$", mode: "math", fontSizePt: 9 });
+
+  for (const metrics of [plain, math]) {
+    assert.equal(metrics.fontSizePt, 9);
+    assert.ok(Math.abs(metrics.baselineSkipPt - 10.8) < 1e-9);
+  }
+});
+
 test("equal-size multiline baseline gap follows FontSpec baseline skip", () => {
   const baseFontSize = 90;
 
   assert.ok(Math.abs(lineBaselineGap(baseFontSize, {}, {}, { baselineSkipRatio: 11 / 9 }) - 110) < 1e-9);
   assert.equal(lineBaselineGap(baseFontSize, {}, {}), 103.49999999999999);
+});
+
+test("public multiline SVG uses resolved FontSpec baseline skip for tspan dy", () => {
+  const result = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node[font=\small] {A\\B};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  );
+  const textNode = result.ir.items.find((item) => item.type === "textNode");
+  const dyValues = [...result.svg.matchAll(/<tspan\b[^>]*\bdy="([^"]+)"/g)].map((match) => Number(match[1]));
+  const expectedBaselineSkip = (11 / 28.4527559) * 100;
+
+  assert.equal(textNode.font.baselineSkipPt, 11);
+  assert.equal(dyValues.length, 2);
+  assert.ok(Math.abs(dyValues[1] - expectedBaselineSkip) < 1e-6);
 });
 
 test("measures a supported plain Main-Regular logical TeX box", () => {

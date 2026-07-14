@@ -287,6 +287,39 @@ test("carries resolved normal and node-option FontSpec values into textNode IR",
   assert.equal(small.style.fontScale, 0.9, "legacy scale remains during the migration");
 });
 
+test("preserves scope node-option and content-command FontSpec sources", () => {
+  const scopeOnly = renderedTextNode(
+    String.raw`\begin{tikzpicture}[font=\small]\node {x};\end{tikzpicture}`
+  );
+  const nodeOverride = renderedTextNode(
+    String.raw`\begin{tikzpicture}[font=\small]\node[font=\bfseries] {x};\end{tikzpicture}`
+  );
+  const contentOverride = renderedTextNode(
+    String.raw`\begin{tikzpicture}[font=\small]\node[font=\bfseries] {\tiny x};\end{tikzpicture}`
+  );
+
+  assert.deepEqual(scopeOnly.font, {
+    ...createFontSpec(),
+    sizePt: 9,
+    baselineSkipPt: 11,
+    source: "scope"
+  });
+  assert.deepEqual(nodeOverride.font, {
+    ...createFontSpec(),
+    sizePt: 9,
+    baselineSkipPt: 11,
+    weight: 700,
+    source: "node-option"
+  });
+  assert.deepEqual(contentOverride.font, {
+    ...createFontSpec(),
+    sizePt: 5,
+    baselineSkipPt: 6,
+    weight: 700,
+    source: "content-command"
+  });
+});
+
 test("resolves content tiny once in textNode FontSpec without double scaling", () => {
   const tiny = renderedTextNode(String.raw`\begin{tikzpicture}\node {\tiny x};\end{tikzpicture}`);
   const normalSize = renderedPlainTextFontSize(String.raw`\begin{tikzpicture}\node {x};\end{tikzpicture}`);
