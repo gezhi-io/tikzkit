@@ -10,6 +10,7 @@ import {
 } from "../src/tex/fontSpec.js";
 import { fontScaleFromTikzFont, normalizeTikzText } from "../src/tikz/text.js";
 import { parseMathText } from "../src/tikz/textMetrics.js";
+import { tikzToSvg } from "../src/index.js";
 
 test("matches the MacTeX size10.clo font table", () => {
   const expected = {
@@ -168,6 +169,24 @@ test("parses explicit fontsize commands and keeps the last valid size", () => {
   assert.deepEqual(parseTikzFontPatch(String.raw`\fontsize{Infinity}{7}\selectfont`), {});
 });
 
+test("keeps the last valid size command in source order", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\small\fontsize{6}{7}\selectfont`), {
+    sizePt: 6,
+    baselineSkipPt: 7,
+    source: "node-option"
+  });
+  assert.deepEqual(parseTikzFontPatch(String.raw`\fontsize{6}{7}\selectfont\Large`), {
+    sizePt: 14.4,
+    baselineSkipPt: 18,
+    source: "node-option"
+  });
+  assert.deepEqual(parseTikzFontPatch(String.raw`\small\fontsize{0}{7}\selectfont`), {
+    sizePt: 9,
+    baselineSkipPt: 11,
+    source: "node-option"
+  });
+});
+
 test("parses the last named size from the document font profile", () => {
   assert.deepEqual(parseTikzFontPatch(String.raw`\tiny\Large\small`, { source: "scope" }), {
     sizePt: 9,
@@ -219,3 +238,45 @@ test("uses the canonical named size table for leading math font commands", () =>
   assert.equal(parsed.explicitFontSize, "tiny");
   assert.equal(parsed.tex, "x");
 });
+
+test("treats consecutive leading math sizes as absolute selections", () => {
+  const tinyThenLarge = parseMathText(String.raw`$\tiny\Large x$`);
+  const largeThenTiny = parseMathText(String.raw`$\Large\tiny x$`);
+
+  assert.equal(tinyThenLarge.scale, 1.44);
+  assert.equal(tinyThenLarge.explicitFontSize, "Large");
+  assert.equal(tinyThenLarge.tex, "x");
+  assert.equal(largeThenTiny.scale, 0.5);
+  assert.equal(largeThenTiny.explicitFontSize, "tiny");
+  assert.equal(largeThenTiny.tex, "x");
+});
+
+test("uses the last consecutive leading size in plain text without a line multiplier", () => {
+  for (const [source, expectedScale] of [
+    [String.raw`\tiny\Large x`, 1.44],
+    [String.raw`\Large\tiny x`, 0.5]
+  ]) {
+    const normalized = normalizeTikzText(source);
+
+    assert.equal(normalized.scale, expectedScale);
+    assert.equal(normalized.explicitFontSize, true);
+    assert.deepEqual(normalized.lines, ["x"]);
+    assert.equal(normalized.lineStyles[0].scale, 1);
+    assert.equal(normalized.lineStyles[0].explicitFontSize, false);
+  }
+});
+
+test("renders tiny plain node text at half the normal size through the public API", () => {
+  const normal = renderedPlainTextFontSize(String.raw`\begin{tikzpicture}\node {x};\end{tikzpicture}`);
+  const tiny = renderedPlainTextFontSize(String.raw`\begin{tikzpicture}\node {\tiny x};\end{tikzpicture}`);
+
+  assert.ok(Math.abs(tiny / normal - 0.5) < 1e-6);
+});
+
+function renderedPlainTextFontSize(source) {
+  const { svg } = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const sizes = [...svg.matchAll(/<text\b[^>]*\bfont-size="([^"]+)"/g)].map((match) => Number(match[1]));
+  assert.equal(sizes.length, 1);
+  assert.ok(Number.isFinite(sizes[0]));
+  return sizes[0];
+}

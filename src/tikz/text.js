@@ -468,11 +468,17 @@ export function fontScaleFromTikzFont(font) {
 }
 
 function readLeadingFontSize(text) {
-  const match = String(text).trim().match(/^\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b\s*/);
-  if (!match) return null;
+  let remaining = String(text).trim();
+  let size = null;
+  let match;
+  while ((match = remaining.match(/^\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b\s*/))) {
+    size = match[1];
+    remaining = remaining.slice(match[0].length).trim();
+  }
+  if (!size) return null;
   return {
-    scale: fontSpecFromSizeCommand(`\\${match[1]}`).sizePt / 10,
-    text: String(text).trim().slice(match[0].length).trim()
+    scale: fontSpecFromSizeCommand(`\\${size}`).sizePt / 10,
+    text: remaining
   };
 }
 

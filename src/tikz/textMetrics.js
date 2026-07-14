@@ -276,7 +276,7 @@ function leadingMathFontSize(tex) {
     const match = text.match(/^\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)(?![A-Za-z])\s*/);
     if (match) {
       const nextScale = fontSpecFromSizeCommand(`\\${match[1]}`).sizePt / 10;
-      scale *= nextScale;
+      scale = nextScale;
       explicitFontSize = match[1];
       text = text.slice(match[0].length).trim();
       changed = true;

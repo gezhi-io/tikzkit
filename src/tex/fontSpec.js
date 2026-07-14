@@ -41,16 +41,17 @@ export function parseTikzFontPatch(source, options = {}) {
   const text = String(source || "");
   const patch = {};
 
-  const namedSizes = [...text.matchAll(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b/g)];
-  if (namedSizes.length) {
-    const profile = documentFontProfile(options.profile || "10pt");
-    Object.assign(patch, profile[namedSizes.at(-1)[1]]);
-  }
-
-  const explicitSizes = text.matchAll(/\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b/g);
-  for (const match of explicitSizes) {
-    const sizePt = Number(match[1]);
-    const baselineSkipPt = Number(match[2]);
+  const sizeCommands = text.matchAll(
+    /\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b|\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b/g
+  );
+  for (const match of sizeCommands) {
+    if (match[1]) {
+      const profile = documentFontProfile(options.profile || "10pt");
+      Object.assign(patch, profile[match[1]]);
+      continue;
+    }
+    const sizePt = Number(match[2]);
+    const baselineSkipPt = Number(match[3]);
     if (!isFinitePositiveNumber(sizePt) || !isFinitePositiveNumber(baselineSkipPt)) continue;
     patch.sizePt = sizePt;
     patch.baselineSkipPt = baselineSkipPt;
