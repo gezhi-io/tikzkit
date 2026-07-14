@@ -3118,11 +3118,13 @@ function flushInlinePathNodesAt(pendingInlineNodes, point, nodes, env, pathStyle
 
 function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pathSegment = null) {
   const rawOptions = resolveDynamicOptions(segment.options || {}, env);
+  const localOptions = normalizeOptions("node", inlineNodeOptions(rawOptions, pathStyle), env).options;
   const normalizedOptions = normalizeOptions("node", {
     ...inlineNodeInheritedOptions(env, rawOptions),
     ...inlineNodeOptions(rawOptions, pathStyle)
   }, env);
   const expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
+  expandedOptions[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
   text = resolveTextContent(resolveNodeTextContent(text, expandedOptions), env);
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
   if (inlinePathLabelNeedsTexMetrics(text, rawOptions, expandedOptions)) {
@@ -5707,12 +5709,15 @@ function resolveLabelOptions(label, env, parentOptions = {}, kind = "label") {
   const pathTextOptions = inheritedPathText && !hasExplicitTextColor(labelOptions)
     ? { text: inheritedPathText }
     : {};
-  return normalizeOptions("node", {
+  const localOptions = normalizeOptions("node", labelOptions, env).options;
+  const resolved = normalizeOptions("node", {
     ...inheritedNodeOptions(env),
     [kind === "pin" ? "every pin" : "every label"]: true,
     ...pathTextOptions,
     ...labelOptions
   }, env);
+  resolved.options[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
+  return resolved;
 }
 
 function labelPlacementSize(label, env, parentOptions = {}, kind = "label") {

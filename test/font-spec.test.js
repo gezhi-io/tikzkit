@@ -348,6 +348,53 @@ test("keeps an inherited scope size when a node font only changes weight", () =>
   });
 });
 
+test("preserves FontSpec source precedence for inline path nodes", () => {
+  const scopeOnly = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\draw (0,0) -- node {inline} (1,0);\end{tikzpicture}`,
+    "inline"
+  );
+  const localOverride = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\draw (0,0) -- node[font=\bfseries] {inline} (1,0);\end{tikzpicture}`,
+    "inline"
+  );
+  const contentOverride = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\draw (0,0) -- node[font=\bfseries] {\tiny inline} (1,0);\end{tikzpicture}`,
+    String.raw`\tiny inline`
+  );
+
+  assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
+  assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
+  assertFontSource(contentOverride.font, "content-command", { sizePt: 5, baselineSkipPt: 6, weight: 700 });
+});
+
+test("preserves FontSpec source precedence for labels", () => {
+  const scopeOnly = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\node[label=above:label] {parent};\end{tikzpicture}`,
+    "label"
+  );
+  const localOverride = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\node[label={[font=\bfseries]above:label}] {parent};\end{tikzpicture}`,
+    "label"
+  );
+
+  assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
+  assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
+});
+
+test("preserves FontSpec source precedence for pins", () => {
+  const scopeOnly = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\node[pin=above:pin] {parent};\end{tikzpicture}`,
+    "pin"
+  );
+  const localOverride = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\node[pin={[font=\bfseries]above:pin}] {parent};\end{tikzpicture}`,
+    "pin"
+  );
+
+  assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
+  assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
+});
+
 function renderedPlainTextFontSize(source) {
   const { svg } = tikzToSvg(source, { mathRenderer: "svg-text" });
   const sizes = [...svg.matchAll(/<text\b[^>]*\bfont-size="([^"]+)"/g)].map((match) => Number(match[1]));
@@ -361,4 +408,18 @@ function renderedTextNode(source) {
   const items = ir.items.filter((item) => item.type === "textNode");
   assert.equal(items.length, 1);
   return items[0];
+}
+
+function renderedTextNodeByText(source, text) {
+  const { ir } = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const item = ir.items.find((candidate) => candidate.type === "textNode" && candidate.text === text);
+  assert.ok(item, `expected textNode ${JSON.stringify(text)}`);
+  return item;
+}
+
+function assertFontSource(font, source, expected) {
+  assert.equal(font.source, source);
+  assert.equal(font.sizePt, expected.sizePt);
+  assert.equal(font.baselineSkipPt, expected.baselineSkipPt);
+  assert.equal(font.weight, expected.weight);
 }
