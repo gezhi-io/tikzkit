@@ -31,6 +31,12 @@ test("matches the MacTeX size10.clo font table", () => {
   }
 });
 
+test("rejects inherited and unknown size command names", () => {
+  for (const command of ["\\toString", "\\constructor", "\\__proto__", "\\unknown"]) {
+    assert.equal(fontSpecFromSizeCommand(command), null);
+  }
+});
+
 test("merges property patches without resetting inherited size", () => {
   const small = fontSpecFromSizeCommand("\\small", { source: "library-role" });
 
@@ -42,12 +48,61 @@ test("merges property patches without resetting inherited size", () => {
 });
 
 test("converts legacy scales through the canonical 10pt profile", () => {
-  assert.equal(fontSpecFromLegacyScale(0.5).sizePt, 5);
-  assert.equal(fontSpecFromLegacyScale(1).sizePt, 10);
+  assert.deepEqual(fontSpecFromLegacyScale(0.5), {
+    sizePt: 5,
+    baselineSkipPt: 6,
+    family: "serif",
+    weight: 400,
+    style: "normal",
+    variant: "normal",
+    mathStyle: "text",
+    source: "legacy-scale"
+  });
+  assert.deepEqual(fontSpecFromLegacyScale(1), {
+    sizePt: 10,
+    baselineSkipPt: 12,
+    family: "serif",
+    weight: 400,
+    style: "normal",
+    variant: "normal",
+    mathStyle: "text",
+    source: "legacy-scale"
+  });
+
+  const base = createFontSpec({
+    sizePt: 12,
+    baselineSkipPt: 15,
+    family: "sans-serif",
+    weight: 700,
+    source: "library-role"
+  });
+  assert.deepEqual(fontSpecFromLegacyScale(0.5, base), {
+    ...base,
+    sizePt: 6,
+    baselineSkipPt: 7.5,
+    source: "legacy-scale"
+  });
 });
 
 test("rejects FontSpec sizes that are not finite positive points", () => {
-  for (const value of [0, -1, Infinity, -Infinity, NaN, "not-a-size"]) {
+  const unsupported = [
+    0,
+    -1,
+    Infinity,
+    -Infinity,
+    NaN,
+    true,
+    false,
+    [],
+    [10],
+    {},
+    Symbol("size"),
+    "",
+    "not-a-size",
+    "10"
+  ];
+
+  for (const value of unsupported) {
     assert.throws(
       () => createFontSpec({ sizePt: value }),
       { name: "RangeError", message: "FontSpec sizes must be finite positive TeX points" }
@@ -57,4 +112,15 @@ test("rejects FontSpec sizes that are not finite positive points", () => {
       { name: "RangeError", message: "FontSpec sizes must be finite positive TeX points" }
     );
   }
+
+  assert.deepEqual(createFontSpec({ sizePt: 10.5, baselineSkipPt: 13 }), {
+    sizePt: 10.5,
+    baselineSkipPt: 13,
+    family: "serif",
+    weight: 400,
+    style: "normal",
+    variant: "normal",
+    mathStyle: "text",
+    source: "document"
+  });
 });

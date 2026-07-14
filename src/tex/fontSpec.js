@@ -21,8 +21,9 @@ export function mergeFontSpec(base = DEFAULT_FONT_SPEC, patch = {}) {
 
 export function fontSpecFromSizeCommand(command, options = {}) {
   const name = String(command || "").trim().replace(/^\\/, "");
-  const size = documentFontProfile(options.profile || "10pt")[name];
-  if (!size) return null;
+  const profile = documentFontProfile(options.profile || "10pt");
+  if (!Object.hasOwn(profile, name)) return null;
+  const size = profile[name];
   return createFontSpec({ ...size, source: options.source || "content-command" });
 }
 
@@ -43,15 +44,13 @@ function definedProperties(value) {
 }
 
 function validateFontSpec(spec) {
-  const sizePt = Number(spec.sizePt);
-  const baselineSkipPt = Number(spec.baselineSkipPt);
-  if (
-    !Number.isFinite(sizePt) ||
-    sizePt <= 0 ||
-    !Number.isFinite(baselineSkipPt) ||
-    baselineSkipPt <= 0
-  ) {
+  const { sizePt, baselineSkipPt } = spec;
+  if (!isFinitePositiveNumber(sizePt) || !isFinitePositiveNumber(baselineSkipPt)) {
     throw new RangeError("FontSpec sizes must be finite positive TeX points");
   }
-  return { ...spec, sizePt, baselineSkipPt };
+  return { ...spec };
+}
+
+function isFinitePositiveNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
