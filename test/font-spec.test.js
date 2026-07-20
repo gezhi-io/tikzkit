@@ -61,6 +61,7 @@ test("converts legacy scales through the canonical 10pt profile", () => {
     style: "normal",
     variant: "normal",
     mathStyle: "text",
+    mathVersion: "normal",
     source: "legacy-scale"
   });
   assert.deepEqual(fontSpecFromLegacyScale(1), {
@@ -71,6 +72,7 @@ test("converts legacy scales through the canonical 10pt profile", () => {
     style: "normal",
     variant: "normal",
     mathStyle: "text",
+    mathVersion: "normal",
     source: "legacy-scale"
   });
 
@@ -126,6 +128,7 @@ test("rejects FontSpec sizes that are not finite positive points", () => {
     style: "normal",
     variant: "normal",
     mathStyle: "text",
+    mathVersion: "normal",
     source: "document"
   });
 });
@@ -149,6 +152,7 @@ test("resolves document scope library node and content font layers in order", ()
     style: "italic",
     variant: "small-caps",
     mathStyle: "text",
+    mathVersion: "normal",
     source: "content-command"
   });
 });
@@ -208,6 +212,26 @@ test("merges font family weight style and variant without resetting inherited si
     style: "italic",
     variant: "small-caps",
     source: "node-option"
+  });
+});
+
+test("tracks boldmath independently from ordinary text weight", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\boldmath\Large`, { source: "node-option" }), {
+    sizePt: 14.4,
+    baselineSkipPt: 18,
+    mathVersion: "bold",
+    source: "node-option"
+  });
+});
+
+test("uses the last boldmath or unboldmath declaration", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\boldmath\unboldmath`, { source: "scope" }), {
+    mathVersion: "normal",
+    source: "scope"
+  });
+  assert.deepEqual(parseTikzFontPatch(String.raw`\unboldmath\boldmath`, { source: "scope" }), {
+    mathVersion: "bold",
+    source: "scope"
   });
 });
 

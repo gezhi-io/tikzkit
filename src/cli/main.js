@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { createFilesystemAdapter } from "../adapters/filesystem.js";
-import { tikzToSvg } from "../index.js";
+import { tikzToSvgAsync } from "../index.js";
 
 export async function runCli(argv = process.argv.slice(2), io = {}) {
   const stdout = io.stdout || process.stdout;
@@ -18,7 +18,8 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   }
 
   const source = await filesystem.readTextFile(parsed.input, "utf8");
-  const result = tikzToSvg(source, {
+  const convertTikzToSvg = io.convertTikzToSvg || tikzToSvgAsync;
+  const result = await convertTikzToSvg(source, {
     strict: parsed.strict,
     mathRenderer: parsed.mathRenderer,
     unit: parsed.unit,

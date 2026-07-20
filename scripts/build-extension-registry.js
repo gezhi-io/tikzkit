@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { BUILTIN_EXTENSIONS } from "../src/extensions/index.js";
-import { BUILTIN_TIKZ_LIBRARIES } from "../src/tikz-libraries.js";
-import { splitTopLevel } from "../src/options.js";
+import { BUILTIN_TIKZ_LIBRARIES } from "../src/tikz/libraries/declarations.js";
+import { splitTopLevel } from "../src/engine/options.js";
 import { loadRealGalleryCases } from "./gallery-case-source.js";
 
 const outputCsv = "docs/extension-registry.csv";
@@ -11,72 +11,72 @@ const outputMd = "docs/extension-registry.md";
 const CORE_PACKAGE_SUPPORT = {
   xcolor: {
     status: "builtin",
-    implementedBy: "src/preprocess.js:collectColorDefinitions",
+    implementedBy: "src/frontend/latex-shell.js:collectColorDefinitions",
     notes: "\\definecolor, HTML/rgb/RGB/gray, color mixes, \\textcolor subset"
   },
   tikz: {
     status: "builtin",
-    implementedBy: "src/parser.js + src/interpreter.js + src/renderer-svg.js",
+    implementedBy: "src/frontend/parser.js + src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
     notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset"
   },
   pgf: {
     status: "partial",
-    implementedBy: "src/preprocess.js + src/interpreter.js",
+    implementedBy: "src/frontend/latex-shell.js + src/engine/evaluate.js",
     notes: "Core PGF-style path/color/math compatibility only"
   },
   pgfmath: {
     status: "partial",
-    implementedBy: "src/math.js + src/preprocess.js",
+    implementedBy: "src/engine/math.js + src/frontend/latex-shell.js",
     notes: "\\pgfmathsetmacro and common expression subset"
   },
   pgfplots: {
     status: "partial",
-    implementedBy: "src/preprocess.js:expandPgfplotsAxes",
+    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsAxes",
     notes: "axis/groupplot/addplot subset, not full PGFPlots engine"
   },
   pgfplotstable: {
     status: "partial",
-    implementedBy: "src/preprocess.js:collectPgfplotstableReads",
+    implementedBy: "src/frontend/latex-shell.js:collectPgfplotstableReads",
     notes: "\\pgfplotstableread table data usable by addplot table"
   },
   pgfcalendar: {
     status: "partial",
-    implementedBy: "src/preprocess.js package compatibility",
+    implementedBy: "src/frontend/latex-shell.js package compatibility",
     notes: "Package/library declaration compatibility; calendar rendering still minimal"
   },
   pgfgantt: {
     status: "partial",
-    implementedBy: "src/preprocess.js:expandPgfganttCharts",
+    implementedBy: "src/frontend/latex-shell.js:expandPgfganttCharts",
     notes: "ganttchart/gantttitle/ganttbar/ganttgroup/ganttmilestone subset"
   },
   amsmath: {
     status: "partial",
-    implementedBy: "src/math-metrics.js + src/renderer-svg.js",
+    implementedBy: "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
     notes: "Many formulas are delegated to KaTeX; TeX macro package itself is not interpreted"
   },
   amssymb: {
     status: "partial",
-    implementedBy: "src/math-metrics.js + src/renderer-svg.js",
+    implementedBy: "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
     notes: "Symbols mostly delegated to KaTeX or SVG text fallback"
   },
   mathtools: {
     status: "partial",
-    implementedBy: "src/math-metrics.js + src/renderer-svg.js",
+    implementedBy: "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
     notes: "Formula display delegated to KaTeX; package-level commands are not complete"
   },
   bm: {
     status: "partial",
-    implementedBy: "src/tex-text.js + src/renderer-svg.js",
+    implementedBy: "src/tikz/text.js + src/renderers/svg/renderSvg.js",
     notes: "\\bm is normalized for common math labels"
   },
   relsize: {
     status: "partial",
-    implementedBy: "src/tex-text.js",
+    implementedBy: "src/tikz/text.js",
     notes: "Common size/style macros are normalized, not full relsize semantics"
   },
   etoolbox: {
     status: "partial",
-    implementedBy: "src/preprocess.js toggle compatibility",
+    implementedBy: "src/frontend/latex-shell.js toggle compatibility",
     notes: "newtoggle/toggletrue/togglefalse/iftoggle subset"
   }
 };
@@ -84,7 +84,7 @@ const CORE_PACKAGE_SUPPORT = {
 const PGFPLOTS_LIBRARY_SUPPORT = {
   groupplots: {
     status: "partial",
-    implementedBy: "src/preprocess.js:expandPgfplotsGroupplots",
+    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsGroupplots",
     notes: "groupplot/nextgroupplot/group size/horizontal sep/vertical sep subset"
   }
 };
@@ -92,12 +92,12 @@ const PGFPLOTS_LIBRARY_SUPPORT = {
 const PGF_LIBRARY_SUPPORT = {
   bbox: {
     status: "partial",
-    implementedBy: "src/renderer-svg.js:computeBounds",
+    implementedBy: "src/renderers/svg/renderSvg.js:computeBounds",
     notes: "tight bezier bounding box compatibility for current cases"
   },
   "shapes.multipart": {
     status: "partial",
-    implementedBy: "src/interpreter.js + src/renderer-svg.js",
+    implementedBy: "src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
     notes: "rectangle split and selected multipart shape behavior"
   }
 };
@@ -114,6 +114,7 @@ const EXTENSION_SUPPORT = Object.fromEntries(
 );
 
 const PACKAGE_EXTENSION_ALIASES = {
+  bchart: "bchart",
   "tikz-3dplot": "tikz-3dplot",
   "tikz-bagua": "tikz-bagua",
   "tikz-bayesnet": "tikz-bayesnet",
@@ -130,6 +131,7 @@ const PACKAGE_EXTENSION_ALIASES = {
   "tikz-qtree": "tikz-qtree",
   tikzfxgraph: "tikzfxgraph",
   tikzquads: "tikzquads",
+  "tkz-euclide": "tkz-euclide",
   stanli: "stanli"
 };
 
@@ -142,6 +144,7 @@ const TIKZ_LIBRARY_EXTENSION_ALIASES = {
 };
 
 const DOC_CANDIDATES = {
+  bchart: "bchart.pdf",
   "tikz-3dplot": "tikz-3dplot_documentation.tex",
   "tikz-bagua": "tikz-bagua.tex",
   "tikz-bbox": "pgfmanual-en-library-bbox.tex",
@@ -154,11 +157,13 @@ const DOC_CANDIDATES = {
   "tikz-feynman": "tikz-feynman.tex",
   "tikz-network": "tikz-network.tex",
   "tikz-qtree": "tikz-qtree-manual.tex",
+  "tkz-euclide": "tkz-euclide.pdf",
   tikzquads: "tikzquads.tex",
   tikzfxgraph: "tikzfxgraph.tex"
 };
 
 const LOCAL_SOURCE_REVIEWED = {
+  "package:bchart": "yes",
   "tikzlibrary:arrows": "yes",
   "tikzlibrary:decorations.text": "yes",
   "tikzlibrary:decorations.pathreplacing": "yes",
@@ -178,6 +183,7 @@ const LOCAL_SOURCE_REVIEWED = {
   "package:tikz-feynhand": "yes",
   "package:tikz-feynman": "yes",
   "package:tikz-palattice": "yes",
+  "package:tkz-euclide": "yes",
   "package:tikz-qtree": "yes",
   "package:tikzquads": "yes",
   "package:tikzfxgraph": "yes"

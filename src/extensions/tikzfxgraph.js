@@ -1,5 +1,5 @@
-import { evaluateMath } from "../math.js";
-import { splitTopLevel, stripOuterBraces } from "../options.js";
+import { evaluateMath } from "../engine/math.js";
+import { splitTopLevel, stripOuterBraces } from "../engine/options.js";
 
 export const tikzfxgraphExtension = {
   name: "tikzfxgraph",

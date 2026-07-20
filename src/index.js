@@ -1,115 +1,19 @@
-export { parseTikz } from "./frontend/parser.js";
-export { evaluateTikzAst, interpretTikz } from "./engine/evaluate.js";
-export { renderSvg } from "./renderers/svg/renderSvg.js";
-export { appendSceneItem, createSceneGraph, sceneItems } from "./scene/index.js";
-export {
-  axisModelToSceneGraphPlan,
-  axisTickValues,
-  createAddplotModel,
-  createAxisGeometry,
-  createAxisGridModel,
-  createAxisModel,
-  createAxisTickModel,
-  createDataToCanvasTransform,
-  isAxisBarPlot,
-  isAxisCombPlot,
-  parseCoordinateAddplot,
-  parseAxisAt,
-  parseAxisDimension,
-  parseCoordinateList as parsePgfplotsCoordinateList,
-  PGFPLOTS_DEFAULT_AXIS_WIDTH,
-  renderAxisBounds,
-  renderAxisBox,
-  renderAxisGrid,
-  renderAxisBars,
-  renderAxisComb,
-  renderAxisLabels,
-  renderAxisLines,
-  renderAxisPlotInlineNodes,
-  renderAxisTicks,
-  renderDatavisualizationCleanAxes,
-  renderLegendEntries,
-  renderNodesNearCoords,
-  renderPlotMark,
-  selectPlotColor,
-  selectPlotFillStyle,
-  selectPlotMarkFillColor,
-  selectPlotStyle,
-  axisPlotPointChain,
-  shouldRenderAxisLines,
-  shouldRenderAxisPlotPath,
-  shouldRenderPlotMarks,
-  splitLegendEntries,
-  transformDataToCanvas
-} from "./pgfplots/index.js";
-export { createTikzRegistry, registerCoreTikz } from "./tikz/registerCoreTikz.js";
-export { createConversionResult, mergeDiagnostics } from "./shared/result.js";
-export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./code-blocks.js";
-export { BUILTIN_TIKZ_LIBRARIES, collectTikzLibraries, resolveTikzLibraries } from "./tikz-libraries.js";
-export {
-  builtinTikzLibraries,
-  knownTikzLibraries,
-  supportedTikzLibraries,
-  tikzLibraryCatalog,
-  calcLibrary,
-  matrixLibrary,
-  positioningLibrary
-} from "./libraries/index.js";
-export {
-  knownTexPackages,
-  mathtoolsPackage,
-  pgfplotsPackage,
-  supportedTexPackages,
-  texPackageCatalog,
-  tikzPackage,
-  xcolorPackage
-} from "./packages/index.js";
-export {
-  addplotCommand,
-  axisCommand,
-  coordinateCommand,
-  drawCommand,
-  fillCommand,
-  foreachCommand,
-  knownTikzCommands,
-  nodeCommand,
-  pathCommand,
-  supportedTikzCommands,
-  tikzCommandCatalog,
-  tikzpictureCommand
-} from "./commands/index.js";
-export { collectTexPackages, resolveTexPackage, resolveTexPackages } from "./tex-packages.js";
-export { BUILTIN_EXTENSIONS, applyPreprocessExtensions } from "./extensions/index.js";
-export { tikzBaguaExtension } from "./extensions/tikz-bagua.js";
-export { tikzBayesnetExtension } from "./extensions/tikz-bayesnet.js";
-export { tikzBpmnExtension } from "./extensions/tikz-bpmn.js";
-export { tikzCdExtension } from "./extensions/tikz-cd.js";
-export { tikzCnnExtension } from "./extensions/tikz-cnn.js";
-export { tikzDecofontsExtension } from "./extensions/tikz-decofonts.js";
-export { tikzDimlineExtension } from "./extensions/tikz-dimline.js";
-export { tikzExtExtension } from "./extensions/tikz-ext.js";
-export { tikzFeynhandExtension } from "./extensions/tikz-feynhand.js";
-export { tikzFeynmanExtension } from "./extensions/tikz-feynman.js";
-export { tikzfxgraphExtension } from "./extensions/tikzfxgraph.js";
-export { tikzNetworkExtension } from "./extensions/tikz-network.js";
-export { tikzPalatticeExtension } from "./extensions/tikz-palattice.js";
-export { tikzQtreeExtension } from "./extensions/tikz-qtree.js";
-export { tikzquadsExtension } from "./extensions/tikzquads.js";
-export { tikzThreeDPlotExtension } from "./extensions/tikz-3dplot.js";
-export { forestExtension } from "./extensions/forest.js";
-export { neuralNetworkExtension } from "./extensions/neuralnetwork.js";
-export { stanliExtension } from "./extensions/stanli.js";
-
-import { parseTikz } from "./frontend/parser.js";
-import { interpretTikz } from "./engine/evaluate.js";
-import { renderSvg } from "./renderers/svg/renderSvg.js";
+import { parseTikz } from "./frontend/index.js";
+import { interpretTikz } from "./engine/index.js";
+import { createSvgTextEngine, renderSvg } from "./renderers/svg/index.js";
 import { createConversionResult, mergeDiagnostics } from "./shared/result.js";
+import { TIKZ_UNIT } from "./tikz/metrics.js";
+
+export { parseTikz } from "./frontend/index.js";
+export { evaluateTikzAst, interpretTikz } from "./engine/index.js";
+export { renderSvg } from "./renderers/svg/index.js";
 
 export function tikzToSvg(source, options = {}) {
+  const conversionOptions = conversionRenderOptions(options);
   const parsed = parseTikz(source, options);
-  const interpreted = interpretTikz(parsed.ast, options);
+  const interpreted = interpretTikz(parsed.ast, conversionOptions);
   const diagnostics = mergeDiagnostics(parsed.diagnostics, interpreted.diagnostics);
-  const svg = renderSvg(interpreted.ir, options);
+  const svg = renderSvg(interpreted.ir, conversionOptions);
   return createConversionResult({
     svg,
     diagnostics,
@@ -119,3 +23,65 @@ export function tikzToSvg(source, options = {}) {
 }
 
 export const convertTikzToSvg = tikzToSvg;
+
+export async function tikzToSvgAsync(source, options = {}) {
+  const conversionOptions = conversionRenderOptions(options);
+  const parsed = parseTikz(source, options);
+  let interpreted = interpretTikz(parsed.ast, conversionOptions);
+  const maxTextEnginePasses = maxAsyncTextEnginePasses(options);
+  let exhaustedTextEnginePasses = false;
+  for (let pass = 0; pass < maxTextEnginePasses; pass += 1) {
+    const flushed = await flushTextEngineMeasurements(conversionOptions.textEngine);
+    if (flushed.length === 0) break;
+    interpreted = interpretTikz(parsed.ast, conversionOptions);
+    exhaustedTextEnginePasses = pass === maxTextEnginePasses - 1;
+  }
+  const diagnostics = mergeDiagnostics(
+    parsed.diagnostics,
+    interpreted.diagnostics,
+    exhaustedTextEnginePasses ? [textEnginePassLimitDiagnostic(maxTextEnginePasses)] : []
+  );
+  const svg = renderSvg(interpreted.ir, conversionOptions);
+  return createConversionResult({
+    svg,
+    diagnostics,
+    ir: interpreted.ir,
+    ast: parsed.ast
+  });
+}
+
+export const convertTikzToSvgAsync = tikzToSvgAsync;
+
+function maxAsyncTextEnginePasses(options = {}) {
+  const value = Number(options.maxTextEnginePasses ?? options.textEnginePasses);
+  if (Number.isFinite(value) && value >= 0) return Math.floor(value);
+  return 4;
+}
+
+function conversionRenderOptions(options = {}) {
+  if (options.textEngine) return options;
+  const unit = Number(options.unit) || TIKZ_UNIT;
+  return {
+    ...options,
+    textEngine: createSvgTextEngine({ unit, mathRenderer: options.mathRenderer }),
+    textEngineUnit: unit
+  };
+}
+
+async function flushTextEngineMeasurements(textEngine) {
+  if (!textEngine || typeof textEngine.flushPending !== "function") return [];
+  try {
+    const flushed = await textEngine.flushPending();
+    return Array.isArray(flushed) ? flushed : [];
+  } catch {
+    return [];
+  }
+}
+
+function textEnginePassLimitDiagnostic(maxPasses) {
+  return {
+    severity: "warning",
+    code: "text-engine-pass-limit",
+    message: `Text engine measurement did not settle after ${maxPasses} passes; SVG text or node bounds may use fallback metrics.`
+  };
+}

@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "bm",
   "status": "partial",
-  "implementedBy": "src/tex-text.js + src/renderer-svg.js",
+  "implementedBy": "src/tikz/text.js + src/renderers/svg/renderSvg.js",
   "features": [
     "\\bm normalization for common math labels"
   ],

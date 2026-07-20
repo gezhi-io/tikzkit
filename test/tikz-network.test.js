@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzNetworkExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzNetworkExtension } from "../src/internal.js";
 import { parseDimension } from "../src/math.js";
 
 function convert(body) {
@@ -35,7 +36,8 @@ test("tikz-network extension expands commands without preprocess helper injectio
 \Edge[Direct,label=e](A)(A)
 \end{tikzpicture}`, { diagnostics: [], options: {} });
 
-  assert.match(expanded, /\\node\[[\s\S]*\]\s*\(A\)\s+at\s+\(1,2\)\s+\{A\};/);
+  assert.match(expanded, /\\node\[[^\]]*minimum size=0\.6cm[\s\S]*\]\s*\(A\)\s+at\s+\(1,2\)\s+\{\};/);
+  assert.match(expanded, /\\node\[draw=none[\s\S]*\]\s+at\s+\(A\.center\)\s+\{A\};/);
   assert.match(expanded, /\\path\[[\s\S]*-latex[\s\S]*\]\s+\(A\)\s+edge/);
   assert.doesNotMatch(expanded, /\\Vertex|\\Edge/);
 });
@@ -186,5 +188,6 @@ test("expands tikz-network Layer environments without leaking environment comman
 \end{tikzpicture}`, { diagnostics: [], options: {} });
 
   assert.doesNotMatch(expanded, /\\begin\{Layer\}|\\end\{Layer\}/);
-  assert.match(expanded, /\\node\[[\s\S]*\]\s+\(A\)\s+at\s+\(1,0\)\s+\{A\};/);
+  assert.match(expanded, /\\node\[[^\]]*minimum size=0\.6cm[\s\S]*\]\s+\(A\)\s+at\s+\(1,0\)\s+\{\};/);
+  assert.match(expanded, /\\node\[draw=none[\s\S]*\]\s+at\s+\(A\.center\)\s+\{A\};/);
 });

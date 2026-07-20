@@ -1,0 +1,7 @@
+\usetikzlibrary{matrix}
+\begin{tikzpicture}
+  \matrix[matrix of nodes,nodes={draw,minimum width=6mm}] (m) {
+    A & B \\
+    C & D \\
+  };
+\end{tikzpicture}

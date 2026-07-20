@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "relsize",
   "status": "partial",
-  "implementedBy": "src/tex-text.js",
+  "implementedBy": "src/tikz/text.js",
   "features": [
     "common size/style macros are normalized"
   ],

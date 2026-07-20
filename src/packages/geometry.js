@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "geometry",
   "status": "noop",
-  "implementedBy": "src/preprocess.js:stripTexDocumentShell",
+  "implementedBy": "src/frontend/latex-shell.js:stripTexDocumentShell",
   "features": [
     "page geometry ignored for SVG drawing"
   ],

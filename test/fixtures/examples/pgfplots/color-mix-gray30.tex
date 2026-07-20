@@ -1,0 +1,12 @@
+\documentclass[tikz]{standalone}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[xmin=0,xmax=3,ymin=0,ymax=3,grid=major,grid style={gray!30}]
+    \addplot[gray!30,thick,mark=none] coordinates {(0,0) (3,3)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}
+

@@ -1,5 +1,5 @@
-import { parseDimension, roundNumber } from "../math.js";
-import { parseOptions, splitTopLevel, stripOuterBraces } from "../options.js";
+import { parseDimension, roundNumber } from "../engine/math.js";
+import { parseOptions, splitTopLevel, stripOuterBraces } from "../engine/options.js";
 
 const ROW_SEP = {
   huge: "+3.6em",

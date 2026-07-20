@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { loadMilestoneCatalog } from "../web/fixtureCatalog.js";
 
-test("workbench catalog freezes the accepted 30 real cases in order", async () => {
+test("workbench catalog keeps the milestone order and exposes every manifest case", async () => {
+  const manifest = JSON.parse(readFileSync("test/fixtures/examples/manifest.json", "utf8"));
   const catalog = await loadMilestoneCatalog({
     fixtureRoot: path.resolve("test/fixtures/examples"),
     outputRoot: path.resolve("test/fixtures/examples/output")
   });
 
-  assert.equal(catalog.length, 30);
-  assert.deepEqual(catalog.map((entry) => entry.id), [
+  assert.equal(catalog.length, manifest.cases.length);
+  assert.deepEqual(catalog.slice(0, 30).map((entry) => entry.id), [
     "latex-examples-2048",
     "latex-examples-2d-chi-squared-cdf",
     "latex-examples-2d-chi-squared-pdf",
@@ -43,8 +45,11 @@ test("workbench catalog freezes the accepted 30 real cases in order", async () =
     "latex-examples-arbelos"
   ]);
   assert.equal(catalog[0].id, "latex-examples-2048");
-  assert.equal(catalog.at(-1).id, "latex-examples-arbelos");
-  assert.equal(new Set(catalog.map((entry) => entry.id)).size, 30);
+  assert.equal(new Set(catalog.map((entry) => entry.id)).size, manifest.cases.length);
+  assert.deepEqual(
+    new Set(catalog.map((entry) => entry.id)),
+    new Set(manifest.cases.map((entry) => entry.id))
+  );
   assert.match(catalog[0].sourceUrl, /^\/api\/fixtures\//);
   assert.ok(catalog[0].tikztosvgSvgUrl === null || /^\/artifacts\/tikztosvg-svg\//.test(catalog[0].tikztosvgSvgUrl));
 });

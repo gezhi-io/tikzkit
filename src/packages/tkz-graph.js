@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "tkz-graph",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:expandTkzGraphMacros",
+  "implementedBy": "src/frontend/latex-shell.js:expandTkzGraphMacros",
   "features": [
     "selected Vertex/Edge macro compatibility"
   ],

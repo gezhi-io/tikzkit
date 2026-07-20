@@ -1,0 +1,10 @@
+\documentclass{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\tikz \datavisualization [scientific axes=clean, visualize as smooth line]
+data [format=function] {
+  var x : interval [-1:1] samples 9;
+  func y = x*x;
+};
+\end{document}

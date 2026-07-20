@@ -12,7 +12,9 @@ import {
   nodeCommand,
   tikzCommandCatalog,
   tikzpictureCommand
-} from "../src/commands/index.js";
+} from "../src/tikz/commands/index.js";
+import { foreachIterationVariables } from "../src/tikz/commands/foreach.js";
+import { drawCommand as compatDrawCommand } from "../src/commands/index.js";
 
 const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "fill", "path", "node", "coordinate", "foreach", "axis", "addplot"];
 
@@ -20,9 +22,9 @@ test("keeps common TikZ commands in one module per command or environment", () =
   assert.deepEqual(knownTikzCommands, OBSERVED_TIKZ_COMMANDS);
   for (const command of OBSERVED_TIKZ_COMMANDS) {
     assert.equal(
-      existsSync(path.resolve("src", "commands", `${command}.js`)),
+      existsSync(path.resolve("src", "tikz", "commands", `${command}.js`)),
       true,
-      `missing src/commands/${command}.js`
+      `missing src/tikz/commands/${command}.js`
     );
   }
 
@@ -31,6 +33,11 @@ test("keeps common TikZ commands in one module per command or environment", () =
   assert.equal(tikzCommandCatalog.foreach.kind, "command");
   assert.equal(tikzCommandCatalog.axis.kind, "environment");
   assert.equal(tikzCommandCatalog.addplot.package, "pgfplots");
+});
+
+test("keeps legacy src/commands imports as compatibility adapters", () => {
+  assert.equal(compatDrawCommand.name, "draw");
+  assert.equal(existsSync(path.resolve("src", "commands", "draw.js")), true);
 });
 
 test("documents the user-facing tikzpicture style options", () => {
@@ -65,6 +72,25 @@ test("documents pgfplots axis and addplot option families", () => {
   assert.ok(optionNamesFor(addplotCommand).includes("coordinates {(x,y) ...}"));
   assert.ok(optionNamesFor(addplotCommand).includes("domain / samples"));
   assert.ok(optionNamesFor(addplotCommand).includes("color / thick / dashed / mark"));
+});
+
+test("foreach command module owns loop variable binding semantics", () => {
+  const iterations = foreachIterationVariables(
+    {
+      variables: ["x", "label"],
+      values: ["1/A", "3/B"],
+      options: {
+        count: "\\i from 0",
+        evaluate: "\\x as \\next using {int(\\x+1)}"
+      }
+    },
+    { variables: { base: 10 } }
+  );
+
+  assert.deepEqual(iterations.map((entry) => entry.variables.x), ["1", "3"]);
+  assert.deepEqual(iterations.map((entry) => entry.variables.label), ["A", "B"]);
+  assert.deepEqual(iterations.map((entry) => entry.variables.i), [0, 1]);
+  assert.deepEqual(iterations.map((entry) => entry.variables.next), [2, 4]);
 });
 
 function optionNamesFor(command) {

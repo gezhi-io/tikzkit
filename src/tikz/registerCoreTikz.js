@@ -1,5 +1,5 @@
-import { tikzCommandCatalog } from "../commands/index.js";
-import { tikzLibraryCatalog } from "../libraries/index.js";
+import { tikzCommandCatalog } from "./commands/index.js";
+import { tikzLibraryCatalog } from "./libraries/index.js";
 
 export function createTikzRegistry() {
   const commands = new Map();

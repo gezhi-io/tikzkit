@@ -1,4 +1,4 @@
-import { evaluateMath, parseDimension } from "../math.js";
+import { evaluateMath, parseDimension } from "../engine/math.js";
 import { formatAxisPoint } from "./format.js";
 
 export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}) {

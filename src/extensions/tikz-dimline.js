@@ -1,5 +1,5 @@
-import { parseDimension, roundNumber } from "../math.js";
-import { parseOptions, splitTopLevel } from "../options.js";
+import { parseDimension, roundNumber } from "../engine/math.js";
+import { parseOptions, splitTopLevel } from "../engine/options.js";
 
 export const tikzDimlineExtension = {
   name: "tikz-dimline",

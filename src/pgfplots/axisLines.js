@@ -1,5 +1,8 @@
 import { parseDimension } from "../engine/math.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
+import { pgfplotsAxisHidden } from "./axisOptions.js";
+
+const PGFPLOTS_ARROW_END_PAINT_RESERVE = parseDimension("0.2pt", {});
 
 export function axisOuterBounds(geometry) {
   return {
@@ -32,23 +35,37 @@ export function renderAxisBox(axisOptions = {}, geometry = {}) {
   const min = geometry.origin;
   const max = { x: geometry.origin.x + geometry.width, y: geometry.origin.y + geometry.height };
   const color = axisOptions["axis frame color"] || "black";
-  return `\\draw[axis frame, ${color}, line width=0.35pt] ${formatAxisPoint({
-    x: min.x,
-    y: min.y
-  })} -- ${formatAxisPoint({
-    x: max.x,
-    y: min.y
-  })} -- ${formatAxisPoint({
-    x: max.x,
-    y: max.y
-  })} -- ${formatAxisPoint({
-    x: min.x,
-    y: max.y
-  })} -- cycle;`;
+  const xMode = pgfplotsAxisHidden(axisOptions, "x") ? "none" : specificAxisLineMode(axisOptions, "x");
+  const yMode = pgfplotsAxisHidden(axisOptions, "y") ? "none" : specificAxisLineMode(axisOptions, "y");
+  if (!xMode && !yMode) {
+    return `\\draw[axis frame, ${color}, line width=0.35pt] ${formatAxisPoint({
+      x: min.x,
+      y: min.y
+    })} -- ${formatAxisPoint({
+      x: max.x,
+      y: min.y
+    })} -- ${formatAxisPoint({
+      x: max.x,
+      y: max.y
+    })} -- ${formatAxisPoint({
+      x: min.x,
+      y: max.y
+    })} -- cycle;`;
+  }
+  const segments = [];
+  if (xMode !== "none") {
+    if (!xMode || xMode === "bottom") segments.push(axisFrameSegment({ x: min.x, y: min.y }, { x: max.x, y: min.y }));
+    if (!xMode || xMode === "top") segments.push(axisFrameSegment({ x: min.x, y: max.y }, { x: max.x, y: max.y }));
+  }
+  if (yMode !== "none") {
+    if (!yMode || yMode === "left") segments.push(axisFrameSegment({ x: min.x, y: min.y }, { x: min.x, y: max.y }));
+    if (!yMode || yMode === "right") segments.push(axisFrameSegment({ x: max.x, y: min.y }, { x: max.x, y: max.y }));
+  }
+  return segments.length ? `\\draw[axis frame, ${color}, line width=0.35pt] ${segments.join(" ")};` : "";
 }
 
 export function shouldRenderAxisBox(axisOptions = {}) {
-  if (axisOptions["hide axis"] || axisOptions.hide) return false;
+  if (pgfplotsAxisHidden(axisOptions, "x") && pgfplotsAxisHidden(axisOptions, "y")) return false;
   const raw = axisOptions["axis lines"] ?? axisOptions.axis;
   if (raw === undefined || raw === null || raw === "") return true;
   if (raw === true) return true;
@@ -57,27 +74,69 @@ export function shouldRenderAxisBox(axisOptions = {}) {
 }
 
 export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
-  const yAxis = ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : ranges.yMin;
-  const xAxis = ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : ranges.xMin;
+  const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
+  const yAxis = axisContainsZero(ranges.yMin, ranges.yMax) || axisContainsZero(spanRanges.yMin, spanRanges.yMax) ? 0 : ranges.yMin;
+  const xAxis = axisContainsZero(ranges.xMin, ranges.xMax) || axisContainsZero(spanRanges.xMin, spanRanges.xMax) ? 0 : ranges.xMin;
   const padding = parseAxisSchoolBookPadding(axisOptions);
-  const style = joinOptions([
-    "axis line",
-    "black",
-    axisOptions["axis line width"] ? `line width=${axisOptions["axis line width"]}` : axisOptions["very thick"] ? "very thick" : "line width=0.35pt",
-    shouldArrowAxisLines(axisOptions) ? "->" : ""
-  ]);
-  const xFrom = geometry.mapPoint({ x: ranges.xMin, y: yAxis });
-  const xTo = geometry.mapPoint({ x: ranges.xMax, y: yAxis });
-  const yFrom = geometry.mapPoint({ x: xAxis, y: ranges.yMin });
-  const yTo = geometry.mapPoint({ x: xAxis, y: ranges.yMax });
+  const globalStyle = axisLineStyleFragments(axisOptions["axis line style"]);
+  const xArrowed = shouldArrowAxis(axisOptions, "x");
+  const yArrowed = shouldArrowAxis(axisOptions, "y");
+  const xStyle = createAxisLineStyle(axisOptions, globalStyle, "x", xArrowed);
+  const yStyle = createAxisLineStyle(axisOptions, globalStyle, "y", yArrowed);
+  const xFrom = geometry.mapPoint({ x: spanRanges.xMin, y: yAxis });
+  const xTo = geometry.mapPoint({ x: spanRanges.xMax, y: yAxis });
+  const yFrom = geometry.mapPoint({ x: xAxis, y: spanRanges.yMin });
+  const yTo = geometry.mapPoint({ x: xAxis, y: spanRanges.yMax });
+  // Native PGF arrow tips extend the painted axis slightly beyond the path
+  // endpoint. Keep that extent in the generated geometry so the SVG bbox and
+  // raster scaling agree with dvisvgm/tikztosvg.
+  if (xArrowed) xTo.x += PGFPLOTS_ARROW_END_PAINT_RESERVE;
+  if (yArrowed) yTo.y += PGFPLOTS_ARROW_END_PAINT_RESERVE;
   xFrom.x -= padding;
   xTo.x += padding;
   yFrom.y -= padding;
   yTo.y += padding;
-  return [
-    `\\draw[${style}] ${formatAxisPoint(xFrom)} -- ${formatAxisPoint(xTo)};`,
-    `\\draw[${style}] ${formatAxisPoint(yFrom)} -- ${formatAxisPoint(yTo)};`
-  ];
+  const commands = [];
+  if (!pgfplotsAxisHidden(axisOptions, "x")) {
+    commands.push(`\\draw[${xStyle}] ${formatAxisPoint(xFrom)} -- ${formatAxisPoint(xTo)};`);
+  }
+  if (!pgfplotsAxisHidden(axisOptions, "y")) {
+    commands.push(`\\draw[${yStyle}] ${formatAxisPoint(yFrom)} -- ${formatAxisPoint(yTo)};`);
+  }
+  return commands;
+}
+
+function createAxisLineStyle(axisOptions, globalStyle, axis, arrowed) {
+  const specificStyle = axisLineStyleFragments(axisOptions[`${axis} axis line style`]);
+  return joinOptions([
+    "axis line",
+    "black",
+    axisOptions["axis line width"]
+      ? `line width=${axisOptions["axis line width"]}`
+      : axisOptions["very thick"]
+        ? "very thick"
+        : `line width=${arrowed ? "0.4pt" : "0.35pt"}`,
+    ...globalStyle,
+    ...specificStyle,
+    arrowed ? "-stealth" : ""
+  ]);
+}
+
+function axisLineStyleFragments(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .filter((entry) => entry !== undefined && entry !== null && entry !== true && String(entry).trim())
+    .map((entry) => String(entry).trim());
+}
+
+function shouldArrowAxis(axisOptions = {}, axis) {
+  const specific = specificAxisLineMode(axisOptions, axis);
+  if (specific) return specific === "left" || specific === "middle" || specific === "center";
+  return shouldArrowAxisLines(axisOptions);
+}
+
+function axisContainsZero(min, max) {
+  return Number(min) <= 0 && Number(max) >= 0;
 }
 
 export function renderDatavisualizationCleanAxes(axisOptions = {}, ranges = {}, geometry = {}) {
@@ -135,4 +194,17 @@ function parseAxisSchoolBookPadding(axisOptions = {}) {
   if (raw === undefined || raw === null || raw === "") return 0;
   const parsed = parseDimension(String(raw), {});
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function axisFrameSegment(from, to) {
+  return `${formatAxisPoint(from)} -- ${formatAxisPoint(to)}`;
+}
+
+function specificAxisLineMode(axisOptions = {}, axis) {
+  const raw = axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`];
+  if (raw === undefined || raw === null || raw === "") return "";
+  if (raw === false) return "none";
+  const value = String(raw).trim().toLowerCase();
+  if (value === "false" || value === "off" || value === "0") return "none";
+  return value;
 }

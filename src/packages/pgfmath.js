@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfmath",
   "status": "partial",
-  "implementedBy": "src/math.js + src/preprocess.js",
+  "implementedBy": "src/engine/math.js + src/frontend/latex-shell.js",
   "features": [
     "\\pgfmathsetmacro",
     "\\pgfmathtruncatemacro",

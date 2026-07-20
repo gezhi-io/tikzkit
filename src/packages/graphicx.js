@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "graphicx",
   "status": "partial",
-  "implementedBy": "src/tex-text.js + src/preprocess.js",
+  "implementedBy": "src/tikz/text.js + src/frontend/latex-shell.js",
   "features": [
     "\\scalebox and text scaling subset"
   ],

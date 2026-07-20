@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfcalendar",
   "status": "partial",
-  "implementedBy": "src/parser.js noop compatibility",
+  "implementedBy": "src/frontend/parser.js noop compatibility",
   "features": [
     "package declaration compatibility",
     "calendar library preamble compatibility"

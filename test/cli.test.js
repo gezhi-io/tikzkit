@@ -71,5 +71,6 @@ test("cli exposes SVG-text math and TeX unit controls for local visual QA", asyn
   assert.doesNotMatch(svg, /foreignObject/);
   assert.match(svg, /font-size="10"/);
   assert.match(svg, /stroke-width="0\.4"/);
-  assert.match(svg, /viewBox="-28\.452756 -28\.452756 56\.905512 56\.905512"/);
+  assert.match(svg, /width="57\.09pt" height="57\.09pt"/);
+  assert.match(svg, /viewBox="-28\.652756 -28\.652756 57\.305512 57\.305512"/);
 });

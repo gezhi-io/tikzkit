@@ -1,7 +1,8 @@
 import { parseDimension } from "../engine/math.js";
 import { axisNumber } from "./coordinates.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
-import { axisTickValues } from "./ticks.js";
+import { isMiddleAxis } from "./geometry.js";
+import { axisAutoMajorTickCountForOptions, axisMinorTickValues, axisTickValues, majorTickValues } from "./ticks.js";
 
 export function createAxisGridModel(axisOptions = {}) {
   return {
@@ -16,31 +17,35 @@ export function createAxisGridModel(axisOptions = {}) {
 
 export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geometry = {}) {
   const commands = [];
+  const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
+  const hasExplicitXMajorTicks =
+    hasExplicitAxisTickOption(axisOptions["x grid values"]) || hasExplicitAxisTickOption(axisOptions.xtick);
+  const hasExplicitYMajorTicks =
+    hasExplicitAxisTickOption(axisOptions["y grid values"]) || hasExplicitAxisTickOption(axisOptions.ytick);
   const xTicks = hasExplicitAxisTickOption(axisOptions["x grid values"])
     ? axisTickValues(axisOptions["x grid values"], "x", addplots)
     : hasExplicitAxisTickOption(axisOptions.xtick)
       ? axisTickValues(axisOptions.xtick, "x", addplots)
-      : gridTickValues(ranges.xMin, ranges.xMax);
+      : gridTickValues(ranges.xMin, ranges.xMax, axisAutoMajorTickCountForOptions(axisOptions, "x", ranges.xMin, ranges.xMax, geometry, 7));
   const yTicks = hasExplicitAxisTickOption(axisOptions["y grid values"])
     ? axisTickValues(axisOptions["y grid values"], "y", addplots)
     : hasExplicitAxisTickOption(axisOptions.ytick)
       ? axisTickValues(axisOptions.ytick, "y", addplots)
-      : gridTickValues(ranges.yMin, ranges.yMax);
+      : gridTickValues(ranges.yMin, ranges.yMax, axisAutoMajorTickCountForOptions(axisOptions, "y", ranges.yMin, ranges.yMax, geometry, 6));
+  const xMajorGridTicks = omitAutoOriginGridTick(axisOptions, "x", xTicks, ranges, hasExplicitXMajorTicks);
+  const yMajorGridTicks = omitAutoOriginGridTick(axisOptions, "y", yTicks, ranges, hasExplicitYMajorTicks);
   const xMinorTicks = hasExplicitAxisTickOption(axisOptions["x minor grid values"])
     ? axisTickValues(axisOptions["x minor grid values"], "x", addplots)
-    : hasExplicitAxisTickOption(axisOptions["x minor tick values"])
-      ? axisTickValues(axisOptions["x minor tick values"], "x", addplots)
-      : [];
+    : axisMinorTickValues(axisOptions, "x", xTicks, ranges.xMin, ranges.xMax, addplots);
   const yMinorTicks = hasExplicitAxisTickOption(axisOptions["y minor grid values"])
     ? axisTickValues(axisOptions["y minor grid values"], "y", addplots)
-    : hasExplicitAxisTickOption(axisOptions["y minor tick values"])
-      ? axisTickValues(axisOptions["y minor tick values"], "y", addplots)
-      : [];
+    : axisMinorTickValues(axisOptions, "y", yTicks, ranges.yMin, ranges.yMax, addplots);
   const padding = parseAxisSchoolBookPadding(axisOptions);
   const style = joinOptions([
     "axis grid",
-    axisOptions["axis grid color"] || "gray!25",
-    `line width=${axisOptions["axis grid line width"] || "0.2pt"}`
+    axisOptions["axis grid color"] || "black!25",
+    `line width=${axisOptions["axis grid line width"] || "0.4pt"}`,
+    axisOptions["grid style"] || axisOptions["major grid style"] || ""
   ]);
   const minorStyle = joinOptions([
     "axis minor grid",
@@ -52,7 +57,7 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
   const yMinorStyle = joinOptions([minorStyle, axisOptions["y minor grid style"] || ""]);
   if (shouldRenderAxisGrid(axisOptions, "x")) {
     if (shouldRenderMinorAxisGrid(axisOptions, "x")) {
-      const span = axisGridLineSpan(axisOptions, "x", "minor", ranges);
+      const span = axisGridLineSpan(axisOptions, "x", "minor", spanRanges);
       for (const x of xMinorTicks) {
         const from = geometry.mapPoint({ x, y: span.low });
         const to = geometry.mapPoint({ x, y: span.high });
@@ -61,9 +66,9 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
         commands.push(`\\draw[${xMinorStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
       }
     }
-    for (const x of xTicks) {
-      const from = geometry.mapPoint({ x, y: ranges.yMin });
-      const to = geometry.mapPoint({ x, y: ranges.yMax });
+    for (const x of xMajorGridTicks) {
+      const from = geometry.mapPoint({ x, y: spanRanges.yMin });
+      const to = geometry.mapPoint({ x, y: spanRanges.yMax });
       from.y -= padding;
       to.y += padding;
       commands.push(`\\draw[${style}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
@@ -71,7 +76,7 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
   }
   if (shouldRenderAxisGrid(axisOptions, "y")) {
     if (shouldRenderMinorAxisGrid(axisOptions, "y")) {
-      const span = axisGridLineSpan(axisOptions, "y", "minor", ranges);
+      const span = axisGridLineSpan(axisOptions, "y", "minor", spanRanges);
       for (const y of yMinorTicks) {
         const from = geometry.mapPoint({ x: span.low, y });
         const to = geometry.mapPoint({ x: span.high, y });
@@ -80,9 +85,9 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
         commands.push(`\\draw[${yMinorStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
       }
     }
-    for (const y of yTicks) {
-      const from = geometry.mapPoint({ x: ranges.xMin, y });
-      const to = geometry.mapPoint({ x: ranges.xMax, y });
+    for (const y of yMajorGridTicks) {
+      const from = geometry.mapPoint({ x: spanRanges.xMin, y });
+      const to = geometry.mapPoint({ x: spanRanges.xMax, y });
       from.x -= padding;
       to.x += padding;
       commands.push(`\\draw[${style}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
@@ -112,7 +117,10 @@ function axisGridBoundaryValue(raw, min, max, fallback) {
 }
 
 export function shouldRenderAnyAxisGrid(axisOptions = {}) {
-  return shouldRenderAxisGrid(axisOptions, "x") || shouldRenderAxisGrid(axisOptions, "y");
+  return shouldRenderAxisGrid(axisOptions, "x") ||
+    shouldRenderAxisGrid(axisOptions, "y") ||
+    shouldRenderMinorAxisGrid(axisOptions, "x") ||
+    shouldRenderMinorAxisGrid(axisOptions, "y");
 }
 
 export function shouldRenderAxisGrid(axisOptions = {}, axis) {
@@ -122,10 +130,10 @@ export function shouldRenderAxisGrid(axisOptions = {}, axis) {
       : axisOptions["y grid"] ?? axisOptions.ygrid ?? axisOptions.ymajorgrids;
   if (axisSpecific !== undefined && axisSpecific !== null && axisSpecific !== "") {
     const text = String(axisSpecific).toLowerCase();
-    return text !== "false" && text !== "none";
+    return !["false", "none", "minor"].includes(text);
   }
   const grid = String(axisOptions.grid || "").toLowerCase();
-  return Boolean(grid && grid !== "false" && grid !== "none");
+  return Boolean(grid && !["false", "none", "minor"].includes(grid));
 }
 
 export function shouldRenderMinorAxisGrid(axisOptions = {}, axis) {
@@ -133,9 +141,12 @@ export function shouldRenderMinorAxisGrid(axisOptions = {}, axis) {
     axis === "x"
       ? axisOptions.xminorgrids ?? axisOptions["x minor grids"]
       : axisOptions.yminorgrids ?? axisOptions["y minor grids"];
-  if (axisSpecific === undefined || axisSpecific === null || axisSpecific === "") return false;
-  const text = String(axisSpecific).toLowerCase();
-  return text !== "false" && text !== "none";
+  if (axisSpecific !== undefined && axisSpecific !== null && axisSpecific !== "") {
+    const text = String(axisSpecific).toLowerCase();
+    return text !== "false" && text !== "none";
+  }
+  const grid = String(axisOptions.grid || "").trim().toLowerCase();
+  return grid === "both" || grid === "minor";
 }
 
 function parseAxisSchoolBookPadding(axisOptions = {}) {
@@ -145,14 +156,25 @@ function parseAxisSchoolBookPadding(axisOptions = {}) {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
-function gridTickValues(min, max) {
-  const start = Math.ceil(min);
-  const end = Math.floor(max);
-  const values = [];
-  const maxTicks = 41;
-  const step = Math.max(1, Math.ceil((end - start + 1) / maxTicks));
-  for (let value = start; value <= end; value += step) values.push(value);
-  return values;
+function gridTickValues(min, max, maxTicks) {
+  return majorTickValues(min, max, maxTicks).filter((tick) => !autoGridTickOutsideRange(tick, min, max));
+}
+
+function omitAutoOriginGridTick(axisOptions, axis, ticks, ranges, hasExplicitTicks) {
+  if (hasExplicitTicks || !isMiddleAxis(axisOptions)) return ticks;
+  const min = axis === "x" ? Number(ranges.xMin) : Number(ranges.yMin);
+  const max = axis === "x" ? Number(ranges.xMax) : Number(ranges.yMax);
+  if (!(Number.isFinite(min) && Number.isFinite(max) && min <= 0 && max >= 0)) return ticks;
+  return ticks.filter((tick) => Math.abs(Number(tick)) > 1e-9);
+}
+
+function autoGridTickOutsideRange(value, min, max) {
+  const minNumber = Number(min);
+  const maxNumber = Number(max);
+  if (!Number.isFinite(minNumber) || !Number.isFinite(maxNumber)) return false;
+  const span = Math.abs(maxNumber - minNumber) || 1;
+  const epsilon = Math.max(span * 5e-3, 1e-9);
+  return value < minNumber - epsilon || value > maxNumber + epsilon;
 }
 
 function hasExplicitAxisTickOption(raw) {

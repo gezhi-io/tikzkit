@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzCdExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzCdExtension } from "../src/internal.js";
 
 function hasMathText(ir, text) {
   return ir.items.some((item) => item.type === "textNode" && stripTikzCdLabelSize(item.text) === text);

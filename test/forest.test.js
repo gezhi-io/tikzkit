@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { forestExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { forestExtension } from "../src/internal.js";
 
 test("exposes forest as a built-in extension module", () => {
   assert.equal(forestExtension.name, "forest");

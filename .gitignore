@@ -32,6 +32,10 @@ outputs/
 outputs_back/
 web_bak/
 work/
+test/fixtures/examples/output/*
+!test/fixtures/examples/output/README.md
+test/fixtures/implementation-examples/output/*
+!test/fixtures/implementation-examples/output/.gitkeep
 
 # TeX/MacTeX auxiliary files
 *.aux

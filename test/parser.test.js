@@ -21,6 +21,36 @@ test("parses tikzpicture commands, options, coordinates, foreach, and nodes", ()
   assert.equal(result.ast.pictures[0].statements[2].type, "node");
 });
 
+test("recovers a top-level TikZ command after unsupported bare text", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  TODO
+  \foreach \x in {1,2} { \node at (\x,0) {\x}; }
+  \node at (0,1) {after};
+\end{tikzpicture}`;
+  const result = parseTikz(source);
+  const statements = result.ast.pictures[0].statements;
+
+  assert.deepEqual(statements.map((statement) => statement.type), ["unsupported", "foreach", "node"]);
+  assert.equal(statements[0].raw.trim(), "TODO");
+  assert.match(statements[0].diagnostic?.message || "", /Unsupported/);
+});
+
+test("parses foreach loops embedded inside a path", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw (0,0) \foreach \x in {1,...,3} { -- (\x,0) } -- cycle;
+\end{tikzpicture}`;
+  const result = parseTikz(source);
+  const statement = result.ast.pictures[0].statements[0];
+  const loop = statement.path.segments.find((segment) => segment.kind === "foreach");
+
+  assert.equal(statement.type, "path");
+  assert.deepEqual(loop.variables, ["x"]);
+  assert.deepEqual(loop.values, ["1", "...", "3"]);
+  assert.deepEqual(loop.body.map((segment) => segment.kind), ["operator", "coordinate"]);
+});
+
 test("parses calc expressions without splitting path coordinates", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -52,6 +82,38 @@ test("parses TikZ to path options placed before the to keyword", () => {
   assert.equal(result.diagnostics.length, 0);
   assert.ok(toSegment);
   assert.equal(toSegment.options["bend left"], true);
+});
+
+test("merges consecutive option lists on path commands", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \fill[name intersections={of=a and b, name=i}][red, opacity=.5] (i-1) circle (2pt);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const fill = result.ast.pictures[0].statements[0];
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(fill.options["name intersections"], "of=a and b, name=i");
+  assert.equal(fill.options.red, true);
+  assert.equal(fill.options.opacity, ".5");
+});
+
+test("preserves nested decorate path operations in the AST", () => {
+  const source = String.raw`
+\begin{tikzpicture}[decoration=Koch snowflake]
+  \draw decorate{ decorate[raise=1pt]{ (0,0) -- (3,0) }};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const outer = result.ast.pictures[0].statements[0].path.segments[0];
+  const inner = outer.segments[0];
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(outer.kind, "decorate");
+  assert.equal(inner.kind, "decorate");
+  assert.equal(inner.options.raise, "1pt");
+  assert.deepEqual(inner.segments.map((segment) => segment.kind), ["coordinate", "operator", "coordinate"]);
 });
 
 test("parses TikZ to path targets written as relative ++ coordinates", () => {
@@ -88,6 +150,29 @@ test("parses compact TikZ arc angle-radius syntax", () => {
   assert.equal(result.diagnostics.length, 0);
   assert.ok(arc);
   assert.deepEqual(arc.options, { "start angle": "0", "end angle": "60", radius: "1" });
+});
+
+test("splits semicolonless tikzstyle declarations before following commands", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \tikzstyle{box}=[draw,minimum width=1cm]
+  \tikzstyle{arrow}=[->, -Latex, thick]
+  \draw[fill=black!10,dashed] (-1,-1) rectangle (1,1);
+  \draw[arrow] (0,1) -- (0,0);
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const statements = result.ast.pictures[0].statements;
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(statements.length, 4);
+  assert.equal(statements[0].type, "tikzset");
+  assert.deepEqual(statements[0].styles.box, { draw: true, "minimum width": "1cm" });
+  assert.equal(statements[1].type, "tikzset");
+  assert.deepEqual(statements[1].styles.arrow, { "->": true, "-Latex": true, thick: true });
+  assert.equal(statements[2].type, "path");
+  assert.equal(statements[2].command, "draw");
+  assert.equal(statements[3].options.arrow, true);
 });
 
 test("parses option-only TikZ pics such as tqft cobordisms", () => {
@@ -377,7 +462,7 @@ test("records preamble TikZ libraries and style definitions for matrix/positioni
   assert.deepEqual(result.ast.libraries.map((library) => library.name), ["positioning", "matrix"]);
   assert.deepEqual(picture.libraries.map((library) => library.name), ["positioning", "matrix"]);
   assert.equal(result.ast.libraries[0].status, "builtin");
-  assert.match(result.ast.libraries[0].implementedBy, /src\/libraries\/positioning\.js/);
+  assert.match(result.ast.libraries[0].implementedBy, /src\/tikz\/libraries\/positioning\.js/);
   assert.equal(picture.styles.tablet["matrix of nodes"], true);
   assert.equal(picture.styles.tablet["row sep"], "-\\pgflinewidth");
   assert.equal(picture.styles.tablet.nodes, "rectangle,draw=black,text width=1.25ex,align=center");

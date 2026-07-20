@@ -1,0 +1,11 @@
+\documentclass[tikz]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[xmin=-2,xmax=2,ymin=-2,ymax=2,axis x line=middle,axis y line=middle]
+    \addplot[blue,mark=none] coordinates {(-2,-1) (2,1)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}
+

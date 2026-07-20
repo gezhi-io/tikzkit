@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "id": "activation-functions",
+      "sourceId": "latex-examples-activation-functions",
+      "nativeEngine": "pdflatex"
+    },
+    {
+      "id": "3d-function-9",
+      "sourceId": "latex-examples-3d-function-9",
+      "nativeEngine": "pdflatex"
+    },
+    {
+      "id": "datavisualization-functions",
+      "source": "test/fixtures/font-visual-gates/datavisualization-functions.tex",
+      "nativeEngine": "pdflatex"
+    },
+    {
+      "id": "circuitikz-labels",
+      "source": "test/fixtures/font-visual-gates/circuitikz-labels.tex",
+      "nativeEngine": "pdflatex"
+    }
+  ],
+  "tolerances": {
+    "visibleBoxPt": 1,
+    "anchorPt": 1
+  }
+}

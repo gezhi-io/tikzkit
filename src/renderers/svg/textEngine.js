@@ -5,9 +5,10 @@ import {
   TIKZ_MONOSPACE_FONT_FAMILY,
   TIKZ_SANS_SERIF_FONT_FAMILY,
   TIKZ_TEXT_FONT_SIZE,
+  TIKZ_TYPEWRITER_WIDTH_SCALE,
   TIKZ_UNIT
 } from "../../tikz/metrics.js";
-import { estimateMathBox, mathStyleScale, renderMathNode, scopedMathForeignObjectBox } from "./mathNode.js";
+import { measureMathBoxPt, renderMathNode, scopedMathForeignObjectBox } from "./mathNode.js";
 import { estimatePlainTextRenderBounds, renderPlainTextNode } from "./plainTextNode.js";
 import { normalizedTextAlign } from "./textLayout.js";
 import { formatTextLine, renderSvgTextLineContent } from "./textLineContent.js";
@@ -61,10 +62,34 @@ function measureMathRequest(math, request, unit, mathRenderer) {
   const font = textEngineFont(request);
   const tex = mathTexForFontStyle(math.tex, font.mathStyle);
   const contentSizeAlreadyResolved = Boolean(request.font && math.explicitFontSize);
-  const requestedScale = textEngineFontScale(request) * (contentSizeAlreadyResolved ? 1 : math.scale || 1);
-  const effectiveScale = requestedScale * mathStyleScale(tex);
-  const box = estimateMathBox(tex, math.displayMode, unit, effectiveScale);
-  const renderBox = mathRenderer === "svg-text" ? box : scopedMathForeignObjectBox(box, math.displayMode, tex);
+  const contentScale = contentSizeAlreadyResolved ? 1 : math.scale || 1;
+  const requestedScale = textEngineFontScale(request) * contentScale;
+  const physicalBox = measureMathBoxPt(tex, {
+    font,
+    displayMode: math.displayMode,
+    renderer: mathRenderer,
+    scale: contentScale
+  });
+  const pointsToRenderUnits = unit / TEX_PT_PER_CM;
+  const renderBox = {
+    width: physicalBox.widthPt * pointsToRenderUnits,
+    height: (physicalBox.heightPt + physicalBox.depthPt) * pointsToRenderUnits
+  };
+  const htmlBoxPt = scopedMathForeignObjectBox(
+    {
+      fontSize: physicalBox.svgFontSize,
+      width: physicalBox.rawWidthPt,
+      height: physicalBox.rawHeightPt
+    },
+    math.displayMode,
+    tex
+  );
+  const payloadBox = mathRenderer === "svg-text"
+    ? renderBox
+    : {
+        width: htmlBoxPt.width * pointsToRenderUnits,
+        height: htmlBoxPt.height * pointsToRenderUnits
+      };
   const color = request.color || "black";
   const fontFamily = textEngineRenderFontFamily(font.family);
   const fontStyle = font.style;
@@ -81,13 +106,14 @@ function measureMathRequest(math, request, unit, mathRenderer) {
     fontWeight,
     fontVariant: font.variant,
     mathStyle: font.mathStyle,
+    mathVersion: font.mathVersion,
     baselineSkipPt: font.baselineSkipPt
   });
   const metrics = {
     cacheKey,
     width: renderBox.width,
     height: renderBox.height,
-    baselineY: renderBox.height * 0.62,
+    baselineY: physicalBox.baselinePt * pointsToRenderUnits,
     midLineY: renderBox.height / 2,
     paragraphId: null,
     renderSourceText: tex,
@@ -110,10 +136,10 @@ function measureMathRequest(math, request, unit, mathRenderer) {
         },
         font
       };
-      const body = renderMathNode(item, { ...math, tex, scale: requestedScale }, unit, { mathRenderer });
+      const body = renderMathNode(item, { ...math, tex, scale: contentScale }, unit, { mathRenderer });
       return {
         cacheKey,
-        viewBox: centeredViewBox(renderBox.width, renderBox.height),
+        viewBox: centeredViewBox(payloadBox.width, payloadBox.height),
         body
       };
     }
@@ -134,13 +160,16 @@ function measurePlainTextRequest(request, unit) {
     y: 0,
     text: normalized.text,
     textAlign: alignment,
+    textWrapMode: request.lineBreakMode,
     font,
     style: {
       fill: color,
       fontFamily,
       fontScale: textEngineFontScale(request),
       fontStyle,
-      fontWeight
+      fontWeight,
+      textWidthScale: request.textWidthScale,
+      textWidthScaleExplicit: Boolean(request.textWidthScaleExplicit)
     },
     wrapWidth: textWidthPtToCm(request.textWidthPt)
   };
@@ -167,7 +196,9 @@ function measurePlainTextRequest(request, unit) {
     mathStyle: font.mathStyle,
     textStyle: normalizedTextRenderStyleSignature(normalized),
     alignment,
-    textWidthPt: request.textWidthPt ?? null
+    lineBreakMode: request.lineBreakMode || null,
+    textWidthPt: request.textWidthPt ?? null,
+    textWidthScale: request.textWidthScaleExplicit ? request.textWidthScale : null
   });
   const metrics = {
     cacheKey,
@@ -231,17 +262,37 @@ function logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWei
   if (/[\r\n\\$]/.test(raw)) return null;
   if (fontStyle || fontWeight || normalized.fontStyle || normalized.fontWeight || normalized.fontVariant) return null;
   if (normalized.explicitFontSize || Number(normalized.scale) !== 1) return null;
-  if (!isMainRegularFontFamily(fontFamily) || !isMainRegularFontFamily(normalized.fontFamily)) return null;
+  const typewriter = isTypewriterFontFamily(fontFamily);
+  const sans = isSansSerifFontFamily(fontFamily);
+  if (!typewriter && !sans && (!isMainRegularFontFamily(fontFamily) || !isMainRegularFontFamily(normalized.fontFamily))) return null;
+  if (typewriter && normalized.fontFamily && !isTypewriterFontFamily(normalized.fontFamily)) return null;
+  if (sans && normalized.fontFamily && !isSansSerifFontFamily(normalized.fontFamily)) return null;
   if (!Array.isArray(normalized.lines) || normalized.lines.length !== 1) return null;
   const lineStyle = normalized.lineStyles?.[0];
   if (lineStyle && (lineStyle.fontStyle || lineStyle.fontWeight || lineStyle.fontVariant || Number(lineStyle.scale) !== 1)) return null;
   const fontSizePt = textFontSizePt() * textEngineFontScale(request);
-  return measurePlainTextTeXBoxPt(normalized.text, { fontSizePt });
+  const box = measurePlainTextTeXBoxPt(normalized.text, {
+    fontSizePt,
+    fontFamily: sans ? "sans-serif" : "serif"
+  });
+  if (!box || !typewriter) return box;
+  return {
+    ...box,
+    width: [...normalized.text].length * fontSizePt * 0.6 * TIKZ_TYPEWRITER_WIDTH_SCALE
+  };
 }
 
 function isMainRegularFontFamily(value) {
   const family = String(value || "").trim();
   return !family || family === "serif" || family === TIKZ_FONT_FAMILY || /^['"]?KaTeX_Main['"]?(?:\s*,|$)/.test(family);
+}
+
+function isTypewriterFontFamily(value) {
+  return /(?:Typewriter|mono|Menlo|Monaco|Consolas|Courier)/i.test(String(value || ""));
+}
+
+function isSansSerifFontFamily(value) {
+  return /(?:CMUSans|sans-serif|sans\b|Helvetica|Arial)/i.test(String(value || ""));
 }
 
 function normalTextAttribute(value) {
@@ -262,11 +313,14 @@ function textEngineFont(request = {}) {
   return {
     sizePt,
     baselineSkipPt,
-    family: requested.family || request.fontFamily || TIKZ_FONT_FAMILY,
+    // The item-level render family is the resolved CSS family. Keep it ahead
+    // of the semantic serif/sans marker stored on the TeX font spec.
+    family: request.fontFamily || requested.family || TIKZ_FONT_FAMILY,
     weight: requested.weight ?? request.fontWeight ?? "normal",
     style: requested.style || request.fontStyle || "normal",
     variant: requested.variant || "normal",
     mathStyle: requested.mathStyle || "text",
+    mathVersion: requested.mathVersion === "bold" ? "bold" : "normal",
     source: requested.source || "legacy-request"
   };
 }
@@ -279,7 +333,8 @@ function textEngineFontMetrics(font) {
     fontWeight: font.weight,
     fontStyle: font.style,
     fontVariant: font.variant,
-    mathStyle: font.mathStyle
+    mathStyle: font.mathStyle,
+    mathVersion: font.mathVersion
   };
 }
 

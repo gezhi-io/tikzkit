@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { stanliExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { stanliExtension } from "../src/internal.js";
 import { expandStanli } from "../src/extensions/stanli.js";
 
 function render(body) {

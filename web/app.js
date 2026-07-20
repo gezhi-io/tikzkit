@@ -1,7 +1,7 @@
 import { createRequestGate, renderWorkbenchSource } from "./workbench.js";
 import { withQaGrid } from "./qaGrid.js";
 
-const state = { fixtures: [], active: null, lastSvg: "" };
+const state = { fixtures: [], active: null, lastSvg: "", resources: new Map() };
 const requestGate = createRequestGate();
 
 async function loadFixture(id) {
@@ -10,9 +10,11 @@ async function loadFixture(id) {
   if (!fixture) return;
 
   const source = await fetch(fixture.sourceUrl).then((response) => response.text());
+  const resourceRows = await Promise.all((fixture.resources || []).map(loadFixtureResource));
   if (!requestGate.isCurrent(token)) return;
 
   state.active = fixture;
+  state.resources = new Map(resourceRows);
   document.querySelector("#fixture-select").value = fixture.id;
   document.querySelector("#source-editor").value = source;
   history.replaceState(null, "", `#${encodeURIComponent(fixture.id)}`);
@@ -36,7 +38,17 @@ async function renderCurrentSource(token = requestGate.current()) {
   const source = document.querySelector("#source-editor").value;
   const activeFigureId = state.active?.activeFigureId || undefined;
   try {
-    const result = await renderWorkbenchSource(source, { activeFigureId });
+    const result = await renderWorkbenchSource(source, {
+      activeFigureId,
+      pgfplotsTableResolver: (file) => {
+        const resource = state.resources.get(normalizeResourceName(file));
+        return typeof resource === "string" ? resource : undefined;
+      },
+      imageResolver: (file) => {
+        const resource = state.resources.get(normalizeResourceName(file));
+        return resource && typeof resource === "object" ? resource : undefined;
+      }
+    });
     if (!requestGate.isCurrent(token)) return;
 
     state.lastSvg = result.svg;
@@ -46,6 +58,39 @@ async function renderCurrentSource(token = requestGate.current()) {
   } finally {
     if (requestGate.isCurrent(token)) button.disabled = false;
   }
+}
+
+async function loadFixtureResource(resource) {
+  const response = await fetch(resource.url);
+  if (!response.ok) throw new Error(`Could not load fixture resource ${resource.name}`);
+  const name = normalizeResourceName(resource.name);
+  if (!/\.(?:png|jpe?g|gif|webp)$/i.test(name)) return [name, await response.text()];
+
+  const href = await blobToDataUrl(await response.blob());
+  const dimensions = await loadImageDimensions(href);
+  return [name, { href, ...dimensions }];
+}
+
+function normalizeResourceName(value) {
+  return String(value || "").trim().replace(/^\.\//, "").replaceAll("\\", "/");
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")), { once: true });
+    reader.addEventListener("error", () => reject(reader.error), { once: true });
+    reader.readAsDataURL(blob);
+  });
+}
+
+function loadImageDimensions(href) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve({ naturalWidth: image.naturalWidth, naturalHeight: image.naturalHeight }), { once: true });
+    image.addEventListener("error", () => reject(new Error("Could not decode fixture image")), { once: true });
+    image.src = href;
+  });
 }
 
 function showTikzkitSvg(svg) {

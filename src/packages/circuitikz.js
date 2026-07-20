@@ -1,7 +1,16 @@
+export const circuitikzFontRoles = Object.freeze({
+  label: "label",
+  annotation: "annotation",
+  tiny: "tinySymbol",
+  sixPoint: "sixPointSymbol",
+  normal: "normalSymbol",
+  large: "largeSymbol"
+});
+
 export const texPackage = {
   "name": "circuitikz",
   "status": "partial",
-  "implementedBy": "src/interpreter.js:appendCircuitikzToSegment",
+  "implementedBy": "src/engine/evaluate.js:appendCircuitikzToSegment",
   "features": [
     "short wires",
     "R/C/current/voltage source slices",
@@ -31,5 +40,5 @@ export const texPackage = {
   "observedOptions": [
     "siunitx,RPvoltages"
   ],
-  "notes": "Current implementation is a case-driven circuitikz subset, not the full circuitikz engine."
+  "notes": "Current implementation is a case-driven circuitikz subset, not the full circuitikz engine. Labels and annotations inherit the current TikZ font; internal symbol roles follow the 5/6pt, 10/12pt, and 12/14pt sizes declared by pgfcirc.defines.tex."
 };

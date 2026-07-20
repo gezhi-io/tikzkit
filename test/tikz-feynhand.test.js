@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzFeynhandExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzFeynhandExtension } from "../src/internal.js";
 
 test("exposes tikz-feynhand as a built-in extension module", () => {
   assert.equal(tikzFeynhandExtension.name, "tikz-feynhand");

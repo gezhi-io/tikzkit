@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "chains",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/chains.js";

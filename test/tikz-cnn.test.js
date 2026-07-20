@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { existsSync, readFileSync } from "node:fs";
-import { tikzCnnExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzCnnExtension } from "../src/internal.js";
 
 function convert(body) {
   return tikzToSvg(String.raw`

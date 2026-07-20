@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgf",
   "status": "partial",
-  "implementedBy": "src/preprocess.js + src/interpreter.js",
+  "implementedBy": "src/frontend/latex-shell.js + src/engine/evaluate.js",
   "features": [
     "core PGF-style path/color/math compatibility"
   ],

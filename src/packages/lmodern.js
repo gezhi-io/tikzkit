@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "lmodern",
   "status": "noop",
-  "implementedBy": "src/tikz-metrics.js:TIKZ_FONT_FAMILY",
+  "implementedBy": "src/tikz/metrics.js:TIKZ_FONT_FAMILY",
   "features": [
     "font package declaration compatibility"
   ],

@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "chronology",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:expandChronologyEnvironments",
+  "implementedBy": "src/frontend/latex-shell.js:expandChronologyEnvironments",
   "features": [
     "chronology environment",
     "\\event point/span subset",

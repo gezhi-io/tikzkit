@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "sunitx",
   "status": "partial",
-  "implementedBy": "src/tex-text.js",
+  "implementedBy": "src/tikz/text.js",
   "features": [
     "typo-compatible siunitx-like label fallback"
   ],

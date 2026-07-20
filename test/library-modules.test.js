@@ -10,13 +10,21 @@ import {
   knownTikzLibraries,
   supportedTikzLibraries,
   tikzLibraryCatalog
-} from "../src/libraries/index.js";
-import { isMatrixNodeOptions, matrixCellText } from "../src/libraries/matrix.js";
-import { defaultPositioningDistance, positioningDelta, scalePositioningDistance } from "../src/libraries/positioning.js";
-import { arrowsLibrary } from "../src/tikz/libraries/arrows.js";
+} from "../src/tikz/libraries/index.js";
+import { calcLibrary as compatCalcLibrary } from "../src/libraries/index.js";
+import {
+  collectTikzLibraries,
+  parseTikzLibraryList,
+  resolveTikzLibraries,
+  stripTikzLibraryDeclarations
+} from "../src/tikz/libraries/declarations.js";
+import { collectTikzLibraries as compatCollectTikzLibraries } from "../src/tikz-libraries.js";
+import { isMatrixNodeOptions, matrixCellText } from "../src/tikz/libraries/matrix.js";
+import { defaultPositioningDistance, positioningDelta, scalePositioningDistance } from "../src/tikz/libraries/positioning.js";
+import { tikzLibrary as arrowsLibrary } from "../src/tikz/libraries/arrows.js";
 import { resolveCalcExpression } from "../src/tikz/libraries/calc.js";
-import { patternsLibrary } from "../src/tikz/libraries/patterns.js";
-import { positioningLibrary as tikzPositioningLibrary } from "../src/tikz/libraries/positioning.js";
+import { tikzLibrary as patternsLibrary } from "../src/tikz/libraries/patterns.js";
+import { tikzLibrary as tikzPositioningLibrary } from "../src/tikz/libraries/positioning.js";
 
 const OBSERVED_TIKZ_LIBRARIES = [
   "3d",
@@ -125,14 +133,32 @@ test("positioning library exposes node-distance edge spacing helpers", () => {
 test("has one source file for each observed usetikzlibrary name", () => {
   for (const library of OBSERVED_TIKZ_LIBRARIES) {
     assert.equal(
-      existsSync(path.resolve("src", "libraries", `${library}.js`)),
+      existsSync(path.resolve("src", "tikz", "libraries", `${library}.js`)),
       true,
-      `missing src/libraries/${library}.js`
+      `missing src/tikz/libraries/${library}.js`
     );
   }
 });
 
-test("exposes target tikz library adapters from src/tikz/libraries", () => {
+test("keeps legacy src/libraries imports as compatibility adapters", () => {
+  assert.equal(compatCalcLibrary.name, "calc");
+  assert.equal(existsSync(path.resolve("src", "libraries", "calc.js")), true);
+});
+
+test("tikz library declarations are parsed at the tikz/libraries seam", () => {
+  const source = String.raw`\usetikzlibrary{calc, positioning, unknown}\draw (0,0)--(1,0);`;
+  const libraries = collectTikzLibraries(source);
+
+  assert.deepEqual(parseTikzLibraryList("calc, positioning"), ["calc", "positioning"]);
+  assert.deepEqual(libraries.map((library) => library.name), ["calc", "positioning", "unknown"]);
+  assert.equal(libraries[0].status, "builtin");
+  assert.equal(libraries[2].status, "unsupported");
+  assert.match(resolveTikzLibraries(["matrix"])[0].implementedBy, /src\/tikz\/libraries\/matrix\.js/);
+  assert.doesNotMatch(stripTikzLibraryDeclarations(source), /\\usetikzlibrary/);
+  assert.equal(compatCollectTikzLibraries, collectTikzLibraries);
+});
+
+test("exposes target tikz library modules from src/tikz/libraries", () => {
   assert.equal(arrowsLibrary.name, "arrows");
   assert.equal(positioningLibrary.name, "positioning");
   assert.equal(patternsLibrary.name, "patterns");

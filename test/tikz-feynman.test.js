@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzFeynmanExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzFeynmanExtension } from "../src/internal.js";
 
 test("exposes tikz-feynman as a built-in extension module", () => {
   assert.equal(tikzFeynmanExtension.name, "tikz-feynman");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzQtreeExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzQtreeExtension } from "../src/internal.js";
 
 test("exposes tikz-qtree as a built-in extension module", () => {
   assert.equal(tikzQtreeExtension.name, "tikz-qtree");

@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "through",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/through.js";

@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "latexsym",
   "status": "partial",
-  "implementedBy": "src/tex-text.js + src/renderer-svg.js",
+  "implementedBy": "src/tikz/text.js + src/renderers/svg/renderSvg.js",
   "features": [
     "symbols delegated to KaTeX or fallback"
   ],

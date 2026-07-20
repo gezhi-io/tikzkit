@@ -1,6 +1,26 @@
 import { joinOptions } from "./format.js";
 
 export const PGFPLOTS_DEFAULT_COLORS = ["blue", "red", "brown!80!black", "black!60!green", "orange", "violet", "cyan", "magenta"];
+export const PGFPLOTS_DEFAULT_MARKS = ["*", "square*", "otimes*", "star", "diamond*", "*", "square*", "otimes*", "star", "diamond*"];
+export const PGFPLOTS_DEFAULT_MARK_FILLS = [
+  "blue!80!black",
+  "red!80!black",
+  "brown!80!black",
+  "",
+  "blue!80!black",
+  "red!80!black",
+  "brown!80!black",
+  "gray",
+  "",
+  "red!80!black"
+];
+
+export function defaultPgfplotsCycleMarkStyle(plotIndex = 0) {
+  const index = ((Number(plotIndex) || 0) % PGFPLOTS_DEFAULT_MARKS.length + PGFPLOTS_DEFAULT_MARKS.length) % PGFPLOTS_DEFAULT_MARKS.length;
+  const style = { mark: PGFPLOTS_DEFAULT_MARKS[index] };
+  if (PGFPLOTS_DEFAULT_MARK_FILLS[index]) style["mark fill"] = PGFPLOTS_DEFAULT_MARK_FILLS[index];
+  return style;
+}
 
 export function selectPlotColor(options, plotIndex = 0) {
   const explicit = explicitPlotColor(options);
@@ -9,6 +29,7 @@ export function selectPlotColor(options, plotIndex = 0) {
 }
 
 export function selectPlotMarkFillColor(options, plotIndex = 0) {
+  if (options["mark fill"] && options["mark fill"] !== true) return plotColorValue(options["mark fill"]);
   if (options.fill && options.fill !== true) return plotColorValue(options.fill);
   const explicit = explicitPlotColor(options);
   const cycle = PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length];
@@ -41,9 +62,8 @@ export function isPlotColorToken(value) {
 
 export function selectPlotStyle(options, plotIndex = 0) {
   const parts = [selectPlotColor(options, plotIndex)];
-  if (options["line width"]) parts.push(`line width=${options["line width"]}`);
-  else if (options["very thick"]) parts.push("very thick");
-  else if (options.thick) parts.push("thick");
+  const lineWidth = plotLineWidthOption(options);
+  if (lineWidth) parts.push(lineWidth);
   if (options["line cap"]) parts.push(`line cap=${options["line cap"]}`);
   if (options["line join"]) parts.push(`line join=${options["line join"]}`);
   if (options.dashed) parts.push("dashed");

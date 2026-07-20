@@ -1,8 +1,29 @@
 import { parseDimension } from "../engine/math.js";
-import { splitTopLevel } from "../engine/options.js";
-import { axisNumber } from "./coordinates.js";
+import { parseOptions, splitTopLevel } from "../engine/options.js";
+import { axisNumber, axisNumberList } from "./coordinates.js";
+import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
+import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./format.js";
-import { isMiddleAxis } from "./geometry.js";
+import { axisHasExplicitDescriptionPlacement, isMiddleAxis } from "./geometry.js";
+import { pgfplotsAxisHidden } from "./axisOptions.js";
+
+const PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE = 1.0001;
+// Computer Modern's optical 7pt design has wider digits than a linearly
+// scaled 10pt web font. Native PGFPlots uses cmr7 for \scriptsize tick labels,
+// so preserve that TeX advance width for rotated anchors and SVG painting.
+const PGFPLOTS_SCRIPTSIZE_TICK_LABEL_TEXT_WIDTH_SCALE = 1.135;
+const PGFPLOTS_BOX_X_TICKLABEL_BASELINE_SHIFT = parseDimension("0.8pt", {});
+const PGFPLOTS_DEFAULT_MAX_SPACE_BETWEEN_TICKS = parseDimension("35pt", {});
+const TEX_PT_PER_CM = 28.45274;
+const PGF_DEFAULT_NODE_INNER_SEP_PT = 3.333;
+const PGF_DEFAULT_NODE_OUTER_EXTENT_PT = 0.4;
+const CMR8_DIGIT_WIDTH_SCALE = 0.531258 / 0.5;
+const CMR8_MULTILINE_LAYOUT_X_COMPENSATION_PT = 1.654;
+const CMR8_MULTILINE_LAYOUT_BOTTOM_COMPENSATION_PT = 1.125;
+// PGF's legacy style uses yshift=.3em. The SVG text fallback's superscript
+// paint box extends 1.45pt farther above its node center than the TeX glyph
+// box, so compensate that renderer difference at the lowering boundary.
+const PGFPLOTS_LEGACY_Y_SCALE_LABEL_SHIFT = parseDimension("1.55pt", {});
 
 export function createAxisTickModel(axisOptions = {}, ranges = {}, addplots = []) {
   return {
@@ -14,7 +35,7 @@ export function createAxisTickModel(axisOptions = {}, ranges = {}, addplots = []
 export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplots = []) {
   const allDisabled = ticksDisabled(axisOptions.ticks) || ticksDisabled(axisOptions.tick);
   const raw = axis === "x" ? axisOptions.xtick ?? axisOptions["x tick"] : axisOptions.ytick ?? axisOptions["y tick"];
-  const disabled = allDisabled || ticksDisabled(raw);
+  const disabled = allDisabled || pgfplotsAxisHidden(axisOptions, axis) || ticksDisabled(raw);
   const min = Number(ranges[`${axis}Min`]);
   const max = Number(ranges[`${axis}Max`]);
   const distanceTicks = tickDistanceValues(axisOptions, axis, min, max);
@@ -32,158 +53,413 @@ export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplot
 export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, geometry = {}) {
   const commands = [];
   const allTicksDisabled = ticksDisabled(axisOptions.ticks) || ticksDisabled(axisOptions.tick);
-  const xTicksDisabled = allTicksDisabled || ticksDisabled(axisOptions.xtick) || ticksDisabled(axisOptions["x tick"]);
-  const yTicksDisabled = allTicksDisabled || ticksDisabled(axisOptions.ytick) || ticksDisabled(axisOptions["y tick"]);
+  const xLineMode = specificAxisLineMode(axisOptions, "x");
+  const yLineMode = specificAxisLineMode(axisOptions, "y");
+  const xTicksDisabled = allTicksDisabled || pgfplotsAxisHidden(axisOptions, "x") || xLineMode === "none" || ticksDisabled(axisOptions.xtick) || ticksDisabled(axisOptions["x tick"]);
+  const yTicksDisabled = allTicksDisabled || pgfplotsAxisHidden(axisOptions, "y") || yLineMode === "none" || ticksDisabled(axisOptions.ytick) || ticksDisabled(axisOptions["y tick"]);
   const xDistanceTicks = tickDistanceValues(axisOptions, "x", ranges.xMin, ranges.xMax);
   const yDistanceTicks = tickDistanceValues(axisOptions, "y", ranges.yMin, ranges.yMax);
   const explicitXTicks = xTicksDisabled || hasExplicitTickOption(axisOptions.xtick) || xDistanceTicks.length > 0;
   const explicitYTicks = yTicksDisabled || hasExplicitTickOption(axisOptions.ytick) || yDistanceTicks.length > 0;
-  const xTicks = xTicksDisabled
+  const rawXTicks = xTicksDisabled
     ? []
     : hasExplicitTickOption(axisOptions.xtick)
     ? axisTickValues(axisOptions.xtick, "x", addplots)
     : xDistanceTicks.length
     ? xDistanceTicks
-    : trimAutoTerminalTicks(majorTickValues(ranges.xMin, ranges.xMax, 7), ranges.xMin, ranges.xMax);
-  const yTicks = yTicksDisabled
+    : autoMajorTickValues(axisOptions, ranges.xMin, ranges.xMax, axisAutoMajorTickCountForOptions(axisOptions, "x", ranges.xMin, ranges.xMax, geometry, 7));
+  const rawYTicks = yTicksDisabled
     ? []
     : hasExplicitTickOption(axisOptions.ytick)
     ? axisTickValues(axisOptions.ytick, "y", addplots)
     : yDistanceTicks.length
     ? yDistanceTicks
-    : trimAutoTerminalTicks(majorTickValues(ranges.yMin, ranges.yMax, 6), ranges.yMin, ranges.yMax);
-  const xMinorTicks = xTicksDisabled || !hasExplicitTickOption(axisOptions["x minor tick values"]) ? [] : axisTickValues(axisOptions["x minor tick values"], "x", addplots);
-  const yMinorTicks = yTicksDisabled || !hasExplicitTickOption(axisOptions["y minor tick values"]) ? [] : axisTickValues(axisOptions["y minor tick values"], "y", addplots);
-  const xLabels = axisTickLabels(axisOptions.xticklabels, xTicks).map((label, index) =>
+    : autoMajorTickValues(axisOptions, ranges.yMin, ranges.yMax, axisAutoMajorTickCountForOptions(axisOptions, "y", ranges.yMin, ranges.yMax, geometry, 6));
+  const xTicks = explicitXTicks ? rawXTicks : rawXTicks.filter((tick) => !autoTickLabelOutsideRange(tick, ranges.xMin, ranges.xMax));
+  const yTicks = explicitYTicks ? rawYTicks : rawYTicks.filter((tick) => !autoTickLabelOutsideRange(tick, ranges.yMin, ranges.yMax));
+  const xMinorTicks = xTicksDisabled
+    ? []
+    : axisMinorTickValues(axisOptions, "x", xTicks, ranges.xMin, ranges.xMax, addplots);
+  const yMinorTicks = yTicksDisabled
+    ? []
+    : axisMinorTickValues(axisOptions, "y", yTicks, ranges.yMin, ranges.yMax, addplots);
+  const xLabels = axisOptions["pgfplots symbolic x labels"]
+    ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic x labels"], xTicks)
+    : axisOptions["pgfplots x interval tick labels"]
+      ? intervalAxisTickLabels(xTicks, axisTickNumberFormat(axisOptions, "x"))
+      : axisTickLabels(
+        axisOptions.xticklabels,
+        scaledAxisTicks(axisOptions, "x", xTicks),
+        axisTickNumberFormat(axisOptions, "x"),
+        axisOptions.xticklabel
+      ).map((label, index) =>
     !explicitXTicks && autoTickLabelOutsideRange(xTicks[index], ranges.xMin, ranges.xMax) ? "" : label
-  );
-  const yLabels = axisTickLabels(axisOptions.yticklabels, yTicks).map((label, index) =>
+    );
+  const yLabels = axisOptions["pgfplots symbolic y labels"]
+    ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic y labels"], yTicks)
+    : axisTickLabels(
+      axisOptions.yticklabels,
+      scaledAxisTicks(axisOptions, "y", yTicks),
+      axisTickNumberFormat(axisOptions, "y"),
+      axisOptions.yticklabel
+    ).map((label, index) =>
     !explicitYTicks && autoTickLabelOutsideRange(yTicks[index], ranges.yMin, ranges.yMax) ? "" : label
-  );
+    );
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
-  const xTickLabelDistance = parseDimension(String(axisOptions["x axis tick label distance"] || ""), {});
-  const yTickLabelDistance = parseDimension(String(axisOptions["y axis tick label distance"] || ""), {});
-  const xTickColor = axisOptions["x axis tick color"] || axisOptions["axis tick color"] || "black";
-  const yTickColor = axisOptions["y axis tick color"] || axisOptions["axis tick color"] || "black";
+  const xTickLabelDistance = explicitNonnegativeDimension(axisOptions["x axis tick label distance"]);
+  const yTickLabelDistance = explicitNonnegativeDimension(axisOptions["y axis tick label distance"]);
+  const xTickColor = axisOptions["x axis tick color"] || axisOptions["axis tick color"] || "gray";
+  const yTickColor = axisOptions["y axis tick color"] || axisOptions["axis tick color"] || "gray";
   const xTickLabelColor = axisOptions["x axis tick label color"] || "";
   const yTickLabelColor = axisOptions["y axis tick label color"] || "";
+  const minorTickLength = parseDimension(String(axisOptions["minor tick length"] || axisOptions.subtickwidth || "0.1cm"), {});
   const xTickStyle = joinOptions([
     "axis tick",
-    xTickColor,
-    `line width=${axisOptions["axis tick line width"] || "0.25pt"}`
+    axisTickColor(axisOptions, xTickColor),
+    `line width=${axisTickLineWidth(axisOptions)}`
   ]);
   const yTickStyle = joinOptions([
     "axis tick",
-    yTickColor,
-    `line width=${axisOptions["axis tick line width"] || "0.25pt"}`
+    axisTickColor(axisOptions, yTickColor),
+    `line width=${axisTickLineWidth(axisOptions)}`
   ]);
   const minorTickStyle = joinOptions([
     "axis minor tick",
-    xTickColor,
-    `line width=${axisOptions["axis tick line width"] || "0.25pt"}`
+    axisTickColor(axisOptions, xTickColor),
+    `line width=${axisTickLineWidth(axisOptions)}`
   ]);
   const xMajorTickVisual = axisTickVisualRenderConfig(axisOptions, "x", "major", tickLength, xTickStyle);
   const yMajorTickVisual = axisTickVisualRenderConfig(axisOptions, "y", "major", tickLength, yTickStyle);
-  const xMinorTickVisual = axisTickVisualRenderConfig(axisOptions, "x", "minor", parseDimension("1.4pt", {}), minorTickStyle);
+  const xMinorTickVisual = axisTickVisualRenderConfig(axisOptions, "x", "minor", minorTickLength, minorTickStyle);
   const yMinorTickVisual = axisTickVisualRenderConfig(
     axisOptions,
     "y",
     "minor",
-    parseDimension("1.4pt", {}),
-    joinOptions(["axis minor tick", yTickColor, `line width=${axisOptions["axis tick line width"] || "0.25pt"}`])
+    minorTickLength,
+    joinOptions(["axis minor tick", axisTickColor(axisOptions, yTickColor), `line width=${axisTickLineWidth(axisOptions)}`])
   );
-  const tickLabelFont = axisOptions["axis tick label font"] || "\\scriptsize";
-  const tickLabelInnerSep = axisOptions["axis tick label inner sep"];
-  const hideOutOfRangeTickLabels = Boolean(axisOptions["datavis hide out of range tick labels"]);
   const middleAxis = isMiddleAxis(axisOptions);
+  const xTickAlignment = normalizedTickAlignment(axisOptions, "x", middleAxis);
+  const yTickAlignment = normalizedTickAlignment(axisOptions, "y", middleAxis);
+  const xTickLabelsOnUpperSide = boxTickLabelsUseUpperSide(axisOptions, "x");
+  const yTickLabelsOnUpperSide = boxTickLabelsUseUpperSide(axisOptions, "y");
+  const xTickLabelFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "x"));
+  const yTickLabelFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "y"));
+  const xTickLabelTextWidthScale = pgfplotsTickLabelTextWidthScale(xTickLabelFont);
+  const yTickLabelTextWidthScale = pgfplotsTickLabelTextWidthScale(yTickLabelFont);
+  const xTickLabelInnerSep = axisTickLabelInnerSep(axisOptions, "x");
+  const yTickLabelInnerSep = axisTickLabelInnerSep(axisOptions, "y");
+  const xTickLabelStyle = axisTickLabelStyleOptions(axisOptions, "x");
+  const yTickLabelStyle = axisTickLabelStyleOptions(axisOptions, "y");
+  const hideOutOfRangeTickLabels = Boolean(axisOptions["datavis hide out of range tick labels"]);
   const cleanAxisOffset = axisOptions["datavis clean axes"] ? parseAxisCleanPadding(axisOptions) : 0;
-  const oppositeBoxTicks = shouldRenderDatavisBoxOppositeTicks(axisOptions);
-  const innerBoxTicks = oppositeBoxTicks && axisOptions["datavis tick direction"] === "inner";
-  const yAxis = middleAxis && ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : ranges.yMin;
-  const xAxis = middleAxis && ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : ranges.xMin;
+  const oppositeXBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "x");
+  const oppositeYBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "y");
+  const innerBoxTicks = shouldRenderInsideBoxTicks(axisOptions);
+  const boxRanges = isBoxAxis(axisOptions) ? geometry.transformRanges || ranges : ranges;
+  const yAxis = xLineMode === "top"
+    ? boxRanges.yMax
+    : middleAxis && ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : boxRanges.yMin;
+  const xAxis = yLineMode === "right"
+    ? boxRanges.xMax
+    : middleAxis && ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : boxRanges.xMin;
   xMinorTicks.forEach((x) => {
+    if (shouldHideObscuredAxisTick(axisOptions, "x", x, ranges)) return;
     const base = geometry.mapPoint({ x, y: axisTickBaseValue(xMinorTickVisual, "y", yAxis, ranges) });
     if (cleanAxisOffset) base.y -= cleanAxisOffset;
-    const [from, to] = axisTickSegment(base, xMinorTickVisual, "x", 0, innerBoxTicks ? tickLength * 0.5 : -tickLength * 0.5);
+    const [from, to] =
+      middleAxis && !xMinorTickVisual
+        ? alignedMiddleAxisTickSegment(base, "x", minorTickLength, xTickAlignment)
+        : axisTickSegment(base, xMinorTickVisual, "x", 0, innerBoxTicks ? minorTickLength : -minorTickLength);
     commands.push(`\\draw[${xMinorTickVisual?.style || minorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
   });
   xTicks.forEach((x, index) => {
+    if (shouldHideObscuredAxisTick(axisOptions, "x", x, ranges)) return;
     const base = geometry.mapPoint({ x, y: axisTickBaseValue(xMajorTickVisual, "y", yAxis, ranges) });
     if (cleanAxisOffset) base.y -= cleanAxisOffset;
-    const [from, to] = axisTickSegment(base, xMajorTickVisual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
+    const intervalLabelX = axisOptions["pgfplots x interval tick labels"] && Number.isFinite(xTicks[index + 1])
+      ? (x + xTicks[index + 1]) / 2
+      : x;
+    const labelBase = geometry.mapPoint({
+      x: intervalLabelX,
+      y: xTickLabelsOnUpperSide && isBoxAxis(axisOptions)
+        ? boxRanges.yMax
+        : axisTickBaseValue(xMajorTickVisual, "y", yAxis, ranges)
+    });
+    if (cleanAxisOffset) labelBase.y -= cleanAxisOffset;
+    const [from, to] =
+      middleAxis && !xMajorTickVisual
+        ? alignedMiddleAxisTickSegment(base, "x", tickLength, xTickAlignment)
+        : axisTickSegment(base, xMajorTickVisual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
     commands.push(`\\draw[${xMajorTickVisual?.style || xTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
-    if (oppositeBoxTicks) {
-      const topBase = geometry.mapPoint({ x, y: ranges.yMax });
+    if (oppositeXBoxTicks) {
+      const topBase = geometry.mapPoint({ x, y: boxRanges.yMax });
       commands.push(`\\draw[${xTickStyle}] ${formatAxisPoint(topBase)} -- ${formatAxisPoint(offsetPoint(topBase, 0, innerBoxTicks ? -tickLength : tickLength))};`);
     }
-    const shouldShowXLabel =
-      !shouldHideAutoOriginTickLabel(x, explicitXTicks, middleAxis, ranges.yMin, ranges.yMax) &&
-      !(hideOutOfRangeTickLabels && autoTickLabelOutsideRange(x, ranges.xMin, ranges.xMax));
+    const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickLabelOutsideRange(x, ranges.xMin, ranges.xMax));
     if (xMajorTickVisual && shouldShowXLabel) {
       for (const spec of axisTickVisualLabelSpecs(xMajorTickVisual, from, to)) {
+        const multilineLayout = multilineTickLabelLayoutOptions(
+          xLabels[index],
+          xTickLabelFont,
+          xTickLabelStyle,
+          xTickLabelInnerSep
+        );
         const labelStyle = joinOptions([
           "axis tick label",
-          `anchor=${spec.anchor}`,
-          `font=${tickLabelFont}`,
-          tickLabelInnerSep !== undefined ? `inner sep=${tickLabelInnerSep}` : "",
+          "tikzkit skip implicit node bbox",
+          `anchor=${axisTickLabelAnchor(xTickLabelStyle, spec.anchor, "x")}`,
+          axisTickLabelRotation(xTickLabelStyle),
+          axisTickLabelAlignment(xTickLabelStyle),
+          `font=${xTickLabelFont}`,
+          xTickLabelTextWidthScale,
+          tickLabelNeedsLayoutBox(axisOptions, "x", xLineMode, xTickLabelStyle) ? "tikzkit layout bbox" : "",
+          xTickLabelInnerSep !== undefined ? `inner sep=${xTickLabelInnerSep}` : "",
+          ...multilineLayout.options,
           xTickLabelColor ? `text=${xTickLabelColor}` : ""
         ]);
         if (xLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(spec.point)} {${xLabels[index]}};`);
       }
     } else if (!xMajorTickVisual && shouldShowXLabel) {
+      const multilineLayout = multilineTickLabelLayoutOptions(
+        xLabels[index],
+        xTickLabelFont,
+        xTickLabelStyle,
+        xTickLabelInnerSep
+      );
       const labelStyle = joinOptions([
         "axis tick label",
-        "anchor=north",
-        `font=${tickLabelFont}`,
-        tickLabelInnerSep !== undefined ? `inner sep=${tickLabelInnerSep}` : "",
+        "tikzkit skip implicit node bbox",
+        `anchor=${axisTickLabelAnchor(xTickLabelStyle, xTickLabelsOnUpperSide ? "south" : "north", "x")}`,
+        axisTickLabelRotation(xTickLabelStyle),
+        axisTickLabelAlignment(xTickLabelStyle),
+        `font=${xTickLabelFont}`,
+        xTickLabelTextWidthScale,
+        tickLabelNeedsLayoutBox(axisOptions, "x", xLineMode, xTickLabelStyle) ? "tikzkit layout bbox" : "",
+        xTickLabelInnerSep !== undefined ? `inner sep=${xTickLabelInnerSep}` : "",
+        ...multilineLayout.options,
         xTickLabelColor ? `text=${xTickLabelColor}` : ""
       ]);
-      const labelDistance = Number.isFinite(xTickLabelDistance) && xTickLabelDistance > 0 ? xTickLabelDistance : tickLength * 1.55;
-      commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(base, 0, -labelDistance))} {${xLabels[index]}};`);
+      const labelDistance = Number.isFinite(xTickLabelDistance)
+        ? xTickLabelDistance
+        : defaultTickLabelDistance(axisOptions, "x", tickLength, xTickAlignment, {
+            explicitNorthSouthAnchor: multilineLayout.nativeNodeBox
+          });
+      if (xLabels[index] !== "") {
+        commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(labelBase, 0, xTickLabelsOnUpperSide ? labelDistance : -labelDistance))} {${xLabels[index]}};`);
+      }
     }
   });
   yMinorTicks.forEach((y) => {
+    if (shouldHideObscuredAxisTick(axisOptions, "y", y, ranges)) return;
     const base = geometry.mapPoint({ x: axisTickBaseValue(yMinorTickVisual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
-    const [from, to] = axisTickSegment(base, yMinorTickVisual, "y", innerBoxTicks ? tickLength * 0.5 : -tickLength * 0.5, 0);
-    commands.push(`\\draw[${yMinorTickVisual?.style || yMinorTickVisual?.defaultStyle || joinOptions(["axis minor tick", yTickColor, `line width=${axisOptions["axis tick line width"] || "0.25pt"}`])}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+    const [from, to] =
+      middleAxis && !yMinorTickVisual
+        ? alignedMiddleAxisTickSegment(base, "y", minorTickLength, yTickAlignment)
+        : axisTickSegment(base, yMinorTickVisual, "y", innerBoxTicks ? minorTickLength : -minorTickLength, 0);
+    commands.push(`\\draw[${yMinorTickVisual?.style || yMinorTickVisual?.defaultStyle || joinOptions(["axis minor tick", axisTickColor(axisOptions, yTickColor), `line width=${axisTickLineWidth(axisOptions)}`])}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
   });
   yTicks.forEach((y, index) => {
+    if (shouldHideObscuredAxisTick(axisOptions, "y", y, ranges)) return;
     const base = geometry.mapPoint({ x: axisTickBaseValue(yMajorTickVisual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
-    const [from, to] = axisTickSegment(base, yMajorTickVisual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
+    const [from, to] =
+      middleAxis && !yMajorTickVisual
+        ? alignedMiddleAxisTickSegment(base, "y", tickLength, yTickAlignment)
+        : axisTickSegment(base, yMajorTickVisual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
     commands.push(`\\draw[${yMajorTickVisual?.style || yTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
-    if (oppositeBoxTicks) {
-      const rightBase = geometry.mapPoint({ x: ranges.xMax, y });
+    if (oppositeYBoxTicks) {
+      const rightBase = geometry.mapPoint({ x: boxRanges.xMax, y });
       commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightBase)} -- ${formatAxisPoint(offsetPoint(rightBase, innerBoxTicks ? -tickLength : tickLength, 0))};`);
     }
-    const shouldShowYLabel =
-      !shouldHideAutoOriginTickLabel(y, explicitYTicks, middleAxis, ranges.xMin, ranges.xMax) &&
-      !(hideOutOfRangeTickLabels && autoTickLabelOutsideRange(y, ranges.yMin, ranges.yMax));
+    const shouldShowYLabel = !(hideOutOfRangeTickLabels && autoTickLabelOutsideRange(y, ranges.yMin, ranges.yMax));
     if (yMajorTickVisual && shouldShowYLabel) {
       for (const spec of axisTickVisualLabelSpecs(yMajorTickVisual, from, to)) {
         const labelStyle = joinOptions([
           "axis tick label",
-          `anchor=${spec.anchor}`,
-          `font=${tickLabelFont}`,
-          tickLabelInnerSep !== undefined ? `inner sep=${tickLabelInnerSep}` : "",
+          "tikzkit skip implicit node bbox",
+          `anchor=${axisTickLabelAnchor(yTickLabelStyle, spec.anchor, "y")}`,
+          axisTickLabelRotation(yTickLabelStyle),
+          axisTickLabelAlignment(yTickLabelStyle),
+          `font=${yTickLabelFont}`,
+          yTickLabelTextWidthScale,
+          tickLabelNeedsLayoutBox(axisOptions, "y", yLineMode) ? "tikzkit layout bbox" : "",
+          yTickLabelInnerSep !== undefined ? `inner sep=${yTickLabelInnerSep}` : "",
           yTickLabelColor ? `text=${yTickLabelColor}` : ""
         ]);
         if (yLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(spec.point)} {${yLabels[index]}};`);
       }
     } else if (!yMajorTickVisual && shouldShowYLabel) {
+      const rightSide = yLineMode === "right" || (isBoxAxis(axisOptions) && yTickLabelsOnUpperSide);
+      const labelBase = rightSide && isBoxAxis(axisOptions)
+        ? geometry.mapPoint({ x: boxRanges.xMax, y })
+        : base;
       const labelStyle = joinOptions([
         "axis tick label",
-        "anchor=east",
-        `font=${tickLabelFont}`,
-        tickLabelInnerSep !== undefined ? `inner sep=${tickLabelInnerSep}` : "",
+        "tikzkit skip implicit node bbox",
+        `anchor=${axisTickLabelAnchor(yTickLabelStyle, rightSide ? "west" : "east", "y")}`,
+        axisTickLabelRotation(yTickLabelStyle),
+        axisTickLabelAlignment(yTickLabelStyle),
+        `font=${yTickLabelFont}`,
+        yTickLabelTextWidthScale,
+        tickLabelNeedsLayoutBox(axisOptions, "y", yLineMode) ? "tikzkit layout bbox" : "",
+        yTickLabelInnerSep !== undefined ? `inner sep=${yTickLabelInnerSep}` : "",
         yTickLabelColor ? `text=${yTickLabelColor}` : ""
       ]);
-      const labelDistance = Number.isFinite(yTickLabelDistance) && yTickLabelDistance > 0 ? yTickLabelDistance : tickLength * 1.55;
-      commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(base, -labelDistance, 0))} {${yLabels[index]}};`);
+      const labelDistance = Number.isFinite(yTickLabelDistance) ? yTickLabelDistance : defaultTickLabelDistance(axisOptions, "y", tickLength, yTickAlignment);
+      commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(labelBase, rightSide ? labelDistance : -labelDistance, 0))} {${yLabels[index]}};`);
     }
   });
+  commands.push(...renderTickScaleLabel(axisOptions, "x", xTicks, geometry, xTickLabelsOnUpperSide ? "top" : xLineMode));
+  commands.push(...renderTickScaleLabel(axisOptions, "y", yTicks, geometry, yTickLabelsOnUpperSide ? "right" : yLineMode));
   return commands;
+}
+
+function multilineTickLabelLayoutOptions(label, fontCommand = "", labelStyle = {}, innerSep = undefined) {
+  const lines = String(label || "").split(/\\\\(?:\[[^\]]*\])?/).map((line) => line.trim());
+  const font = standardLatexFontMetrics(fontCommand);
+  const centered = axisTickLabelAlignment(labelStyle) === "align=center";
+  if (lines.length < 2 || !font) return { options: [], nativeNodeBox: false };
+  if (!centered) {
+    return /\\footnotesize\b/.test(String(fontCommand || ""))
+      ? {
+          options: [
+            "tikzkit layout bbox x padding=2.36pt",
+            "tikzkit layout bbox bottom padding=3pt"
+          ],
+          nativeNodeBox: false
+        }
+      : { options: [], nativeNodeBox: false };
+  }
+
+  const metrics = lines.map((line) => measurePlainTextTeXBoxPt(line, { fontSizePt: font.sizePt }));
+  if (metrics.some((metric) => !metric)) return { options: [], nativeNodeBox: false };
+
+  const innerSepPt = tickLabelInnerSepPt(innerSep);
+  const first = metrics[0];
+  const last = metrics.at(-1);
+  const heightPt =
+    first.height +
+    font.baselineSkipPt * (lines.length - 1) +
+    Math.max(0, last.depth) +
+    innerSepPt * 2 +
+    PGF_DEFAULT_NODE_OUTER_EXTENT_PT;
+  const options = [`minimum height=${heightPt.toFixed(3)}pt`];
+
+  if (font.sizePt === 8 && lines.every((line) => /^[+\-]?\d+$/.test(line))) {
+    const widthPt =
+      Math.max(...metrics.map((metric) => metric.width * CMR8_DIGIT_WIDTH_SCALE)) +
+      innerSepPt * 2 +
+      PGF_DEFAULT_NODE_OUTER_EXTENT_PT;
+    options.unshift(`minimum width=${widthPt.toFixed(3)}pt`);
+    // The SVG cropper works from painted glyph bounds, while PGF records the
+    // full optical CMR8 hbox. Keep that invisible remainder separate from the
+    // node dimensions so anchor=north still uses the native TeX box.
+    options.push(
+      `tikzkit layout bbox x padding=${CMR8_MULTILINE_LAYOUT_X_COMPENSATION_PT}pt`,
+      `tikzkit layout bbox bottom padding=${CMR8_MULTILINE_LAYOUT_BOTTOM_COMPENSATION_PT}pt`
+    );
+  }
+  return { options, nativeNodeBox: true };
+}
+
+function standardLatexFontMetrics(fontCommand = "") {
+  const text = String(fontCommand || "");
+  const profiles = [
+    [/\\tiny\b/, 5, 6],
+    [/\\scriptsize\b/, 7, 8],
+    [/\\footnotesize\b/, 8, 9.5],
+    [/\\small\b/, 9, 11],
+    [/\\normalsize\b/, 10, 12],
+    [/\\large\b/, 12, 14],
+    [/\\Large\b/, 14.4, 18],
+    [/\\LARGE\b/, 17.28, 22],
+    [/\\huge\b/, 20.74, 25],
+    [/\\Huge\b/, 24.88, 30]
+  ];
+  const match = profiles.find(([pattern]) => pattern.test(text));
+  return match ? { sizePt: match[1], baselineSkipPt: match[2] } : null;
+}
+
+function tickLabelInnerSepPt(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false || String(raw).trim() === "") {
+    return PGF_DEFAULT_NODE_INNER_SEP_PT;
+  }
+  const value = parseDimension(String(raw), {}) * TEX_PT_PER_CM;
+  return Number.isFinite(value) && value >= 0 ? value : PGF_DEFAULT_NODE_INNER_SEP_PT;
+}
+
+function axisTickLabelFontOption(axisOptions = {}, axis) {
+  const candidates = [
+    axisOptions["axis tick label font"],
+    fontFromStyle(axisOptions["tick label style"]),
+    fontFromStyle(axisOptions["ticklabel style"]),
+    fontFromStyle(axisOptions.ticklabelStyle),
+    axisOptions[`${axis} tick label font`],
+    axisOptions[`${axis}ticklabel font`],
+    fontFromStyle(axisOptions[`${axis} tick label style`]),
+    fontFromStyle(axisOptions[`${axis}ticklabel style`])
+  ];
+  return candidates.filter((value) => value !== undefined && value !== null && String(value).trim()).at(-1) || "";
+}
+
+function pgfplotsTickLabelTextWidthScale(fontCommand = "") {
+  const scale = /\\scriptsize\b/.test(String(fontCommand || ""))
+    ? PGFPLOTS_SCRIPTSIZE_TICK_LABEL_TEXT_WIDTH_SCALE
+    : PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE;
+  return `tikzkit text width scale=${scale}`;
+}
+
+function axisTickLabelStyleOptions(axisOptions = {}, axis = "x") {
+  const styles = [
+    axisOptions["tick label style"],
+    axisOptions["ticklabel style"],
+    axisOptions.ticklabelStyle,
+    axisOptions[`${axis} tick label style`],
+    axisOptions[`${axis}ticklabel style`]
+  ];
+  const merged = {};
+  for (const style of styles) {
+    if (style === undefined || style === null || style === true || style === false) continue;
+    Object.assign(merged, parseOptions(String(style)));
+  }
+  return merged;
+}
+
+function axisTickLabelAnchor(style = {}, fallback = "center", axis = "") {
+  if (style.anchor !== undefined && style.anchor !== null) {
+    const explicit = String(style.anchor).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+    if (explicit) return explicit;
+  }
+  if (axisTickLabelRotation(style)) {
+    if (axis === "x" && (fallback === "north" || fallback === "south")) {
+      return fallback === "north" ? "near xticklabel" : "near xticklabel opposite";
+    }
+    if (axis === "y" && (fallback === "east" || fallback === "west")) {
+      return fallback === "east" ? "near yticklabel" : "near yticklabel opposite";
+    }
+  }
+  return fallback;
+}
+
+function axisTickLabelRotation(style = {}) {
+  const value = style.rotate;
+  if (value === undefined || value === null || value === true || String(value).trim() === "") return "";
+  return `rotate=${String(value).trim()}`;
+}
+
+function axisTickLabelAlignment(style = {}) {
+  const explicit = String(style.align || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().toLowerCase();
+  if (!["left", "flush left", "right", "flush right", "center", "flush center", "justify", "none"].includes(explicit)) {
+    return "";
+  }
+  return `align=${explicit}`;
+}
+
+function fontFromStyle(rawStyle) {
+  if (rawStyle === undefined || rawStyle === null || rawStyle === true || rawStyle === false) return "";
+  return parseOptions(String(rawStyle)).font || "";
 }
 
 export function majorTickValues(min, max, maxTicks = 5) {
@@ -193,15 +469,87 @@ export function majorTickValues(min, max, maxTicks = 5) {
   const exponent = Math.floor(Math.log10(rawStep));
   const base = 10 ** exponent;
   const fraction = rawStep / base;
-  const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+  const tolerance = 1e-9;
+  const niceFraction =
+    fraction < 1.5 - tolerance ? 1 : fraction < 3.5 - tolerance ? 2 : fraction < 7.5 - tolerance ? 5 : 10;
   const step = niceFraction * base;
   const start = Math.ceil(min / step) * step;
   const values = [];
   for (let value = start; value <= max + step * 0.2; value += step) {
     values.push(roundAxis(value));
-    if (values.length >= maxTicks + 2) break;
+    if (values.length >= 200) break;
   }
   return values;
+}
+
+export function axisAutoMajorTickCount(axis, geometry = {}, fallback = 6, maxSpacing = PGFPLOTS_DEFAULT_MAX_SPACE_BETWEEN_TICKS) {
+  const length = Number(axis === "x" ? geometry.width : geometry.height);
+  if (!Number.isFinite(length) || length <= 0) return fallback;
+  const targetSpacing = Number(maxSpacing);
+  if (!Number.isFinite(targetSpacing) || targetSpacing <= 0) return fallback;
+  return Math.max(2, Math.floor(length / targetSpacing) + 1);
+}
+
+export function axisAutoMajorTickCountForOptions(axisOptions = {}, axis, min, max, geometry = {}, fallback = 6) {
+  const configuredSpacing = parseDimension(String(axisOptions["max space between ticks"] || "35pt"), {});
+  const automaticCount = axisAutoMajorTickCount(axis, geometry, fallback, configuredSpacing);
+  const scaledCount = axis === "y" && axisTickScale(axisOptions, "y", [min, max])
+    ? Math.min(automaticCount, 6)
+    : automaticCount;
+  const requestedMinimum = Math.floor(Number(axisOptions["try min ticks"]));
+  const count = Number.isFinite(requestedMinimum) && requestedMinimum >= 2
+    ? Math.max(scaledCount, requestedMinimum)
+    : scaledCount;
+  const span = Number(max) - Number(min);
+  if (
+    axis === "x" &&
+    isMiddleAxis(axisOptions) &&
+    axisTransformRangeIsEnlarged(geometry, "x", min, max) &&
+    Number.isFinite(span) &&
+    span > 0 &&
+    span <= 4
+  ) {
+    return Math.max(count, 7);
+  }
+  if (
+    axis === "y" &&
+    isMiddleAxis(axisOptions) &&
+    middleAxisAllowsSparseYTicks(axisOptions) &&
+    axisHasExplicitBounds(axisOptions, "y") &&
+    Number.isFinite(span) &&
+    span >= 1 &&
+    span <= 3
+  ) {
+    return Math.min(count, 4);
+  }
+  return count;
+}
+
+function axisTransformRangeIsEnlarged(geometry = {}, axis, min, max) {
+  const transformedMin = Number(geometry.transformRanges?.[`${axis}Min`]);
+  const transformedMax = Number(geometry.transformRanges?.[`${axis}Max`]);
+  const rawMin = Number(min);
+  const rawMax = Number(max);
+  if (![transformedMin, transformedMax, rawMin, rawMax].every(Number.isFinite)) return false;
+  const spanScale = Math.max(Math.abs(rawMax - rawMin), Math.abs(transformedMax - transformedMin));
+  const tolerance = spanScale * 1e-6;
+  return transformedMin < rawMin - tolerance || transformedMax > rawMax + tolerance;
+}
+
+function axisHasExplicitBounds(axisOptions = {}, axis) {
+  return hasAxisBoundOption(axisOptions[`${axis}min`]) || hasAxisBoundOption(axisOptions[`${axis}max`]);
+}
+
+function hasAxisBoundOption(value) {
+  return value !== undefined && value !== null && value !== true && String(value).trim() !== "";
+}
+
+function middleAxisAllowsSparseYTicks(axisOptions = {}) {
+  const raw = axisOptions.enlargelimits ?? axisOptions["enlarge x limits"] ?? axisOptions["enlarge y limits"];
+  if (raw === undefined || raw === null || raw === "" || raw === true) return true;
+  if (raw === false) return false;
+  const normalized = String(raw).trim().toLowerCase();
+  return normalized !== "false" && normalized !== "0" && normalized !== "off";
 }
 
 export function tickDistanceValues(axisOptions = {}, axis, min, max) {
@@ -217,6 +565,65 @@ export function tickDistanceValues(axisOptions = {}, axis, min, max) {
   return values;
 }
 
+function explicitMinorTickValues(axisOptions = {}, axis, addplots = []) {
+  const raw =
+    axisOptions[`${axis} minor tick values`] ??
+    axisOptions[`minor ${axis}tick`] ??
+    axisOptions[`minor ${axis} tick`];
+  return hasExplicitTickOption(raw) ? axisTickValues(raw, axis, addplots) : null;
+}
+
+export function axisMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max, addplots = []) {
+  return explicitMinorTickValues(axisOptions, axis, addplots) ??
+    automaticMinorTickValues(axisOptions, axis, majorTicks, min, max);
+}
+
+function automaticMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max) {
+  const raw = axisOptions[`minor ${axis} tick num`] ?? axisOptions["minor tick num"];
+  if (!hasExplicitTickOption(raw)) return [];
+  const minorTickNum = Number(raw);
+  if (!Number.isInteger(minorTickNum) || minorTickNum === 0 || majorTicks.length < 2) return [];
+  const values = [];
+  const seen = new Set();
+  const minNumber = Number(min);
+  const maxNumber = Number(max);
+  const tolerance = 1e-9;
+  const numericMajorTicks = majorTicks.map(Number).filter(Number.isFinite);
+  const firstStep = numericMajorTicks[1] - numericMajorTicks[0];
+  const lastStep = numericMajorTicks.at(-1) - numericMajorTicks.at(-2);
+  const intervalPairs = [
+    [numericMajorTicks[0] - firstStep, numericMajorTicks[0]],
+    ...numericMajorTicks.slice(0, -1).map((current, index) => [current, numericMajorTicks[index + 1]]),
+    [numericMajorTicks.at(-1), numericMajorTicks.at(-1) + lastStep]
+  ];
+  for (const [current, next] of intervalPairs) {
+    if (!Number.isFinite(current) || !Number.isFinite(next)) continue;
+    const distance = (next - current) / (minorTickNum + 1);
+    if (!Number.isFinite(distance) || Math.abs(distance) < 1e-12) continue;
+    for (const minorIndex of foreachIntegerSequence(1, minorTickNum)) {
+      const value = roundAxis(current + minorIndex * distance);
+      if (Number.isFinite(minNumber) && value < minNumber - tolerance) continue;
+      if (Number.isFinite(maxNumber) && value > maxNumber + tolerance) continue;
+      const key = tickValueKey(value);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      values.push(value);
+    }
+  }
+  return values;
+}
+
+function tickValueKey(value) {
+  return Number(value).toFixed(12);
+}
+
+function foreachIntegerSequence(start, end) {
+  const step = start <= end ? 1 : -1;
+  const values = [];
+  for (let value = start; step > 0 ? value <= end : value >= end; value += step) values.push(value);
+  return values;
+}
+
 export function axisTickValues(raw, axis, addplots = []) {
   const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (!text || text === "\\empty" || text === "empty") return [];
@@ -224,7 +631,7 @@ export function axisTickValues(raw, axis, addplots = []) {
     const values = addplots.flatMap((plot) => plot.points || []).map((point) => point[axis]).filter(Number.isFinite);
     return [...new Set(values)];
   }
-  return splitBracedList(text).map((part) => axisNumber(part, NaN)).filter(Number.isFinite);
+  return axisNumberList(text);
 }
 
 function hasExplicitTickOption(raw) {
@@ -277,6 +684,52 @@ function axisTickSegment(base, visual, tickAxis, defaultDx, defaultDy) {
   return [from, to];
 }
 
+function normalizedTickAlignment(axisOptions = {}, axis, middleAxis = false) {
+  const keys = Object.keys(axisOptions);
+  const alignment = latestOrderedOption(axisOptions, keys, ["tick align", `${axis} tick align`, `${axis}tick align`]);
+  const middleLine = latestOrderedMiddleAxisOption(axisOptions, keys, axis);
+  if (middleAxis && middleLine.index > alignment.index) return "center";
+  const raw = alignment.value;
+  const normalized = String(raw || "").trim().toLowerCase();
+  if (normalized === "inside" || normalized === "outside" || normalized === "center") return normalized;
+  return middleAxis ? "center" : "inside";
+}
+
+function latestOrderedOption(options, keys, candidates) {
+  let latest = { index: -1, value: undefined };
+  for (const key of candidates) {
+    const index = keys.indexOf(key);
+    if (index > latest.index) latest = { index, value: options[key] };
+  }
+  return latest;
+}
+
+function latestOrderedMiddleAxisOption(axisOptions, keys, axis) {
+  let latest = { index: -1, value: undefined };
+  for (const key of ["axis", "axis lines", `axis ${axis} line`, `axis ${axis} line*`]) {
+    const index = keys.indexOf(key);
+    const value = String(axisOptions[key] || "").trim().toLowerCase();
+    if (index > latest.index && (value === "middle" || value === "center")) {
+      latest = { index, value };
+    }
+  }
+  return latest;
+}
+
+function tickAlignmentOffsetFactor(alignment) {
+  if (alignment === "outside") return 1;
+  if (alignment === "center") return 0.5;
+  return 0;
+}
+
+function alignedMiddleAxisTickSegment(base, tickAxis, tickLength, alignment) {
+  const offset = tickLength * tickAlignmentOffsetFactor(alignment);
+  const start = -offset;
+  const end = tickLength - offset;
+  if (tickAxis === "x") return [offsetPoint(base, 0, start), offsetPoint(base, 0, end)];
+  return [offsetPoint(base, start, 0), offsetPoint(base, end, 0)];
+}
+
 function axisTickVisualLabelSpecs(visual, lowPoint, highPoint) {
   if (!visual) return [];
   const specs = [];
@@ -299,14 +752,210 @@ function axisTickBaseValue(visual, axis, fallback, ranges) {
   return fallback;
 }
 
-function shouldRenderDatavisBoxOppositeTicks(axisOptions = {}) {
-  if (!axisOptions["datavis boxed axes"]) return false;
-  const raw = axisOptions["axis lines"] ?? axisOptions.axis;
-  return String(raw || "").trim().toLowerCase() === "box";
+function axisTickColor(axisOptions = {}, fallback) {
+  if (axisOptions["x axis tick color"] || axisOptions["y axis tick color"] || axisOptions["axis tick color"]) return fallback;
+  return isBoxAxis(axisOptions) ? "gray" : fallback;
 }
 
-function shouldHideAutoOriginTickLabel(value, explicitTicks, middleAxis, otherMin, otherMax) {
-  return !explicitTicks && middleAxis && otherMin < 0 && otherMax > 0 && Math.abs(value) < 1e-9;
+function axisTickLineWidth(axisOptions = {}) {
+  if (axisOptions["axis tick line width"]) return axisOptions["axis tick line width"];
+  return "0.2pt";
+}
+
+function shouldRenderBoxOppositeTicks(axisOptions = {}, axis = "x") {
+  if (specificAxisLineMode(axisOptions, axis)) return false;
+  if (axisOptions["datavis boxed axes"]) return String((axisOptions["axis lines"] ?? axisOptions.axis) || "").trim().toLowerCase() === "box";
+  return isBoxAxis(axisOptions);
+}
+
+function shouldRenderInsideBoxTicks(axisOptions = {}) {
+  if (axisOptions["datavis boxed axes"]) return axisOptions["datavis tick direction"] === "inner";
+  return isBoxAxis(axisOptions);
+}
+
+function defaultTickLabelDistance(axisOptions = {}, axis = "x", tickLength = 0, alignment = "inside", placement = {}) {
+  if (isMiddleAxis(axisOptions)) return tickLength * tickAlignmentOffsetFactor(alignment);
+  if (!isBoxAxis(axisOptions)) return tickLength * 1.55;
+  // A near-ticklabel anchor places the node's layout boundary on the axis.
+  // The x label needs the small TeX baseline/depth compensation measured by
+  // the native text box. Outside/centered tick protrusion remains geometric.
+  const baselineShift = axis === "x" && !placement.explicitNorthSouthAnchor
+    ? PGFPLOTS_BOX_X_TICKLABEL_BASELINE_SHIFT
+    : 0;
+  return baselineShift + tickLength * tickAlignmentOffsetFactor(alignment);
+}
+
+function explicitNonnegativeDimension(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false || String(raw).trim() === "") return NaN;
+  const text = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  const value = parseDimension(text, {});
+  if (!Number.isFinite(value) || value < 0) return NaN;
+  if (value > 0) return value;
+  return /^[+\-]?(?:0+(?:\.0*)?|\.0+)\s*(?:cm|mm|pt|em|ex|in)?$/i.test(text) ? 0 : NaN;
+}
+
+function axisTickLabelInnerSep(axisOptions = {}, axis = "x") {
+  if (axisOptions["axis tick label inner sep"] !== undefined) return axisOptions["axis tick label inner sep"];
+  const styles = [
+    axisOptions["tick label style"],
+    axisOptions["ticklabel style"],
+    axisOptions.ticklabelStyle,
+    axisOptions[`${axis} tick label style`],
+    axisOptions[`${axis}ticklabel style`]
+  ];
+  let innerSep;
+  for (const style of styles) {
+    if (style === undefined || style === null || style === true || style === false) continue;
+    const value = parseOptions(String(style))["inner sep"];
+    if (value !== undefined) innerSep = value;
+  }
+  return innerSep;
+}
+
+function isBoxAxis(axisOptions = {}) {
+  if (axisOptions["hide axis"] || axisOptions.hide) return false;
+  if (isMiddleAxis(axisOptions)) return false;
+  const raw = axisOptions["axis lines"] ?? axisOptions.axis;
+  if (raw === undefined || raw === null || raw === "" || raw === true) return true;
+  return String(raw).trim().toLowerCase() === "box";
+}
+
+function boxTickLabelsUseUpperSide(axisOptions = {}, axis = "x") {
+  if (!isBoxAxis(axisOptions)) return false;
+  const raw = axisOptions[`${axis}ticklabel pos`] ?? axisOptions[`${axis} tick label pos`] ?? axisOptions.ticklabelpos ?? axisOptions["ticklabel pos"] ?? axisOptions["tick label pos"];
+  const value = String(raw || "").trim().toLowerCase();
+  if (value === "upper") return true;
+  if (value === "lower") return false;
+  return axis === "x" ? value === "top" : value === "right";
+}
+
+function tickLabelNeedsLayoutBox(axisOptions = {}, axis, lineMode = "", labelStyle = {}) {
+  if (isBoxAxis(axisOptions)) return true;
+  if (axisHasExplicitDescriptionPlacement(axisOptions)) return true;
+  // TeX includes the complete rotated node rectangle (including inner sep)
+  // in the picture bounding box, even where the painted glyphs are smaller.
+  if (axis === "x" && axisTickLabelRotation(labelStyle)) return true;
+  // TeX keeps the node's invisible inner sep in the picture bounding box.
+  // For a left-side y scale this is what reserves the space before the
+  // leftmost glyph, even when the visible text itself is already aligned.
+  return axis === "y" && lineMode !== "right" && lineMode !== "none";
+}
+
+function specificAxisLineMode(axisOptions = {}, axis) {
+  const raw = axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`];
+  if (raw === undefined || raw === null || raw === "") return "";
+  if (raw === false) return "none";
+  const value = String(raw).trim().toLowerCase();
+  if (value === "none" || value === "false" || value === "off" || value === "0") return "none";
+  if (value === "top" || value === "right" || value === "bottom" || value === "left") return value;
+  return value;
+}
+
+function symbolicAxisTickLabels(labels, ticks) {
+  return ticks.map((tick) => {
+    const index = Math.round(Number(tick));
+    return Math.abs(Number(tick) - index) < 1e-8 ? labels[index] ?? "" : "";
+  });
+}
+
+function scaledAxisTicks(axisOptions, axis, ticks) {
+  const scale = axisTickScale(axisOptions, axis, ticks);
+  if (!scale) return ticks;
+  return ticks.map((tick) => roundAxis(tick * scale.factor));
+}
+
+function renderTickScaleLabel(axisOptions, axis, ticks, geometry, lineMode) {
+  if (!ticks.length) return [];
+  const scale = axisTickScale(axisOptions, axis, ticks);
+  if (!scale || scale.displayExponent === 0) return [];
+  const origin = geometry.origin || { x: 0, y: 0 };
+  const width = Number(geometry.width) || 0;
+  const height = Number(geometry.height) || 0;
+  const point = axis === "x"
+    ? { x: origin.x + width, y: lineMode === "top" ? origin.y + height + 0.12 : origin.y - 0.48 }
+    : {
+        x: lineMode === "right" ? origin.x + width : origin.x,
+        y: origin.y + height + PGFPLOTS_LEGACY_Y_SCALE_LABEL_SHIFT
+      };
+  const anchor = axis === "x" ? "north east" : lineMode === "right" ? "south east" : "south west";
+  const font = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, axis));
+  return [`\\node[${joinOptions(["axis tick scale label", `anchor=${anchor}`, `font=${font}`, "inner sep=0pt"])}] at ${formatAxisPoint(point)} {$\\cdot 10^{${scale.displayExponent}}$};`];
+}
+
+function axisTickScale(axisOptions = {}, axis, ticks = []) {
+  const labelStyle = axisTickLabelStyleOptions(axisOptions, axis);
+  const raw = axisOptions[`scaled ${axis} ticks`] ?? axisOptions["scaled ticks"] ?? labelStyle[`scaled ${axis} ticks`] ?? labelStyle["scaled ticks"];
+  if (raw === false) return null;
+  const text = String(raw ?? "true").trim().toLowerCase();
+  if (text === "false" || text === "none" || text === "off" || text === "0") return null;
+  const baseMatch = text.match(/^base\s+10\s*:\s*([-+]?\d+)$/);
+  if (!baseMatch) return text === "true" || !text ? automaticAxisTickScale(axisOptions, ticks) : null;
+  const exponent = Number(baseMatch[1]);
+  if (!Number.isFinite(exponent)) return null;
+  return { factor: 10 ** exponent, displayExponent: -exponent };
+}
+
+function automaticAxisTickScale(axisOptions = {}, ticks = []) {
+  const maxAbs = Math.max(0, ...ticks.map((tick) => Math.abs(Number(tick))).filter(Number.isFinite));
+  if (!(maxAbs > 0)) return null;
+  const exponent = Math.floor(Math.log10(maxAbs));
+  const above = Number(axisOptions["scale ticks above exponent"] ?? 3);
+  const below = Number(axisOptions["scale ticks below exponent"] ?? -1);
+  if (!(exponent > (Number.isFinite(above) ? above : 3) || exponent < (Number.isFinite(below) ? below : -1))) {
+    return null;
+  }
+  return { factor: 10 ** -exponent, displayExponent: exponent };
+}
+
+function shouldHideObscuredAxisTick(axisOptions, axis, value, ranges) {
+  if (!obscuredAxisTicksEnabled(axisOptions, axis)) return false;
+  const ownMode = effectiveAxisLineMode(axisOptions, axis);
+  if (ownMode !== "middle" && ownMode !== "center") return false;
+
+  const otherAxis = axis === "x" ? "y" : "x";
+  const otherMode = effectiveAxisLineMode(axisOptions, otherAxis);
+  const min = Number(ranges[`${axis}Min`]);
+  const max = Number(ranges[`${axis}Max`]);
+  const tick = Number(value);
+  if (![min, max, tick].every(Number.isFinite)) return false;
+  const tolerance = Math.max(Math.abs(max - min) * 1e-9, 1e-9);
+  const touches = (target) => Math.abs(tick - target) <= tolerance;
+
+  if (otherMode === "middle" || otherMode === "center") {
+    const crossing = Math.min(max, Math.max(min, 0));
+    return touches(crossing);
+  }
+  if (otherMode === "left" || otherMode === "bottom") return touches(min);
+  if (otherMode === "right" || otherMode === "top") return touches(max);
+  if (otherMode === "none") return false;
+  return touches(min) || touches(max);
+}
+
+function obscuredAxisTicksEnabled(axisOptions, axis) {
+  const raw = axisOptions[`hide obscured ${axis} ticks`];
+  if (raw === undefined || raw === null || raw === "") return true;
+  if (raw === false) return false;
+  return !["false", "0", "off", "no"].includes(String(raw).trim().toLowerCase());
+}
+
+function effectiveAxisLineMode(axisOptions, axis) {
+  const specific = specificAxisLineMode(axisOptions, axis);
+  if (specific) return specific;
+  const raw = axisOptions["axis lines"] ?? axisOptions.axis;
+  if (raw === false) return "none";
+  const common = String(raw ?? "box").trim().toLowerCase() || "box";
+  if (common === "left") return axis === "x" ? "bottom" : "left";
+  if (common === "right") return axis === "x" ? "top" : "right";
+  return common;
+}
+
+function autoMajorTickValues(axisOptions, min, max, maxTicks) {
+  const values = majorTickValues(min, max, maxTicks);
+  return shouldTrimAutoTerminalTicks(axisOptions) ? trimAutoTerminalTicks(values, min, max) : values;
+}
+
+function shouldTrimAutoTerminalTicks(axisOptions = {}) {
+  return Boolean(axisOptions["datavis clean axes"]);
 }
 
 function autoTickLabelOutsideRange(value, min, max) {
@@ -332,11 +981,58 @@ function trimAutoTerminalTicks(values, min, max) {
   return ticks;
 }
 
-function axisTickLabels(raw, ticks) {
+function axisTickLabels(raw, ticks, formatOptions = {}, template = "") {
   if (isEmptyTickLabelList(raw)) return ticks.map(() => "");
   const labels = splitBracedList(raw);
   if (labels.length) return ticks.map((_, index) => labels[index] ?? "");
-  return ticks.map((tick) => formatAxisTickLabel(tick));
+  if (hasTickLabelTemplate(template)) {
+    return ticks.map((tick) => applyTickLabelTemplate(template, formatAxisTickLabel(tick, formatOptions)));
+  }
+  return ticks.map((tick) => formatAxisTickLabel(tick, formatOptions));
+}
+
+function hasTickLabelTemplate(template) {
+  const text = String(template ?? "").trim();
+  return Boolean(text) && text !== "true" && text !== "false";
+}
+
+function applyTickLabelTemplate(template, label) {
+  return String(template)
+    .replace(/^\{([\s\S]*)\}$/, "$1")
+    .replace(/\\pgfmathprintnumber\s*\{\s*\\tick\s*\}/g, label)
+    .replace(/\\pgfmathprintnumber\s*\\tick\b/g, label)
+    .replace(/\\tick\b/g, label);
+}
+
+function intervalAxisTickLabels(ticks, formatOptions = {}) {
+  return ticks.map((tick, index) => {
+    const next = ticks[index + 1];
+    if (!Number.isFinite(next)) return "";
+    return `${formatAxisTickLabel(tick, formatOptions)}--${formatAxisTickLabel(next, formatOptions)}`;
+  });
+}
+
+function axisTickNumberFormat(axisOptions = {}, axis) {
+  const parsed = axisTickLabelStyleOptions(axisOptions, axis);
+  const precision =
+    parsed["/pgf/number format/precision"] ??
+    parsed["number format/precision"] ??
+    parsed.precision;
+  return {
+    precision: precision === undefined ? undefined : Number(precision),
+    fixed:
+      parsed["/pgf/number format/fixed"] === true ||
+      parsed["number format/fixed"] === true ||
+      parsed.fixed === true,
+    fixedZeroFill:
+      parsed["/pgf/number format/fixed zerofill"] === true ||
+      parsed["number format/fixed zerofill"] === true ||
+      parsed["fixed zerofill"] === true,
+    thousandSeparator:
+      parsed["/pgf/number format/1000 sep"] ??
+      parsed["number format/1000 sep"] ??
+      parsed["1000 sep"]
+  };
 }
 
 function isEmptyTickLabelList(raw) {

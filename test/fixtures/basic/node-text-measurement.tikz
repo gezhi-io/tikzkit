@@ -1,0 +1,4 @@
+\begin{tikzpicture}
+  \node[draw,text width=2cm,inner sep=2pt] at (0,0)
+    {When $AB$ and $CD$ are parallel, $\alpha=\gamma$.};
+\end{tikzpicture}

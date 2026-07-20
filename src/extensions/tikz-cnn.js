@@ -1,5 +1,5 @@
-import { evaluateMath, roundNumber } from "../math.js";
-import { splitTopLevel } from "../options.js";
+import { evaluateMath, roundNumber } from "../engine/math.js";
+import { splitTopLevel } from "../engine/options.js";
 
 const DEFAULT_Z_VECTOR = { x: -0.385, y: -0.385 };
 const INSET = 0.02;

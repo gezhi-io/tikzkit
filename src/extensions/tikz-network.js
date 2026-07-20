@@ -1,4 +1,4 @@
-import { parseOptions, splitTopLevel } from "../options.js";
+import { parseOptions, splitTopLevel } from "../engine/options.js";
 
 // Claude: 本文件是 tikz-network 宏包的「预处理(preprocess)阶段」扩展。
 // 它不直接画图，而是把 \Vertex / \Edge / \Plane / \Text / Layer 等 tikz-network
@@ -286,9 +286,9 @@ function renderVertex(vertexId, options, state) {
   if (options.style) styleParts.push(stripOuterBraces(options.style));
   if (flag(options.Pseudo)) styleParts.push("opacity=0,text opacity=0,fill opacity=0,draw opacity=0");
   const label = vertexLabel(vertexId, options);
-  const text = shouldRenderVertexLabel(options) && !shouldPlaceLabelOutside(options) ? label : "";
-  const node = `\\node[${joinOptions(styleParts)}] (${vertexId}) at (${x},${y}) {${text}};`;
+  const node = `\\node[${joinOptions(styleParts)}] (${vertexId}) at (${x},${y}) {};`;
   if (shouldPlaceLabelOutside(options)) return `${node}\n${renderExternalLabel(vertexId, label, options, state)}`;
+  if (shouldRenderVertexLabel(options)) return `${node}\n${renderCenteredLabel(vertexId, label, options, state)}`;
   return node;
 }
 
@@ -307,6 +307,21 @@ function shouldRenderVertexLabel(options) {
 function shouldPlaceLabelOutside(options) {
   const position = String(options.position || "center").trim();
   return shouldRenderVertexLabel(options) && position && position !== "center";
+}
+
+function renderCenteredLabel(vertexId, label, options, state) {
+  const labelOptions = [
+    "draw=none",
+    "fill=none",
+    "inner sep=0",
+    "outer sep=0",
+    `text=${color(options.fontcolor || state.vertexStyle.textColor, flag(options.RGB) && options.fontcolor !== undefined)}`
+  ];
+  if (options.fontsize) labelOptions.push(`font=${options.fontsize}`);
+  else if (state.vertexStyle.textFont) labelOptions.push(`font=${state.vertexStyle.textFont}`);
+  if (options.fontscale) labelOptions.push(`scale=${options.fontscale}`);
+  if (flag(options.Pseudo)) labelOptions.push("opacity=0,text opacity=0");
+  return `\\node[${joinOptions(labelOptions)}] at (${vertexId}.center) {${label}};`;
 }
 
 function renderExternalLabel(vertexId, label, options, state) {

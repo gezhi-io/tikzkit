@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "shapes.geometric",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/shapes.geometric.js";

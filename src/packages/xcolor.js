@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "xcolor",
   "status": "builtin",
-  "implementedBy": "src/preprocess.js:collectColorDefinitions",
+  "implementedBy": "src/frontend/latex-shell.js:collectColorDefinitions",
   "features": [
     "\\definecolor",
     "\\colorlet aliases",

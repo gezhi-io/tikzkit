@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "ext.transformations.mirror",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/ext.transformations.mirror.js";

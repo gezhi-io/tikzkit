@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "circuits.pid",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/circuits.pid.js";

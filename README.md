@@ -2,7 +2,12 @@
 
 TikZKit is a pure JavaScript TikZ semantic interpreter. It is not a full TeX engine. The goal is to support practical TikZ/PGF drawing semantics in the browser and in Node.js, then render them to SVG.
 
-## Current Status: Not Production Ready
+> [!WARNING]
+> **TikZKit is still under active testing.** It is not production ready and is
+> not a complete replacement for TeX, TikZ, PGF, or PGFPlots. Compatibility is
+> expanded and verified case by case against local MacTeX/`tikztosvg` output.
+
+## Current Status: Experimental
 
 TikZKit is currently an experimental compatibility prototype. It is useful for
 studying TikZ semantics, comparing JavaScript rendering against local
@@ -24,6 +29,18 @@ source -> preprocess extensions -> parser -> semantic interpreter -> drawing IR 
 ```
 
 It is designed for browser rendering of fenced TikZ code blocks, CLI conversion, and incremental support for common TikZ libraries.
+
+### Current validation scope
+
+- A selected 30-case LaTeX-examples batch currently renders without diagnostics
+  and stays within 1.5pt of the local `tikztosvg` canvas dimensions.
+- Those 30 JS/reference/diff sheets have been reviewed visually. This is a
+  focused compatibility gate, not a claim that arbitrary TikZ input works.
+- Exact glyph hinting and antialiasing can still differ between browser SVG and
+  PDF-to-SVG output even when geometry and text placement agree.
+- Package and library support is intentionally partial unless documented
+  otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
+  for tested commands, parameters, and remaining boundaries.
 
 ## Install
 
@@ -49,12 +66,21 @@ Open:
 http://127.0.0.1:5173/
 ```
 
+To use another port, for example 5174:
+
+```bash
+PORT=5174 npm run web
+```
+
+Then open `http://127.0.0.1:5174/`.
+
 ## Browser Workbench
 
-The workbench opens the frozen 30-case milestone catalog. Choose a fixture,
-edit its TikZ source, click **Render**, and inspect the TikZKit SVG and
-diagnostics. Toggle the 1cm grid when comparing the browser result with the
-reference panel; the fixture selection is retained in the URL hash.
+The workbench discovers the unified copied fixture catalog, including the
+selected 30-case visual acceptance batch. Choose a fixture, edit its TikZ
+source, click **Render**, and inspect the TikZKit SVG and diagnostics. Toggle
+the 1cm grid when comparing the browser result with the `tikztosvg` reference;
+the fixture selection is retained in the URL hash.
 
 `npm run web` serves the workbench's static assets, TikZKit source modules,
 fixture source, and pre-generated reference artifacts. It does not render
@@ -67,7 +93,12 @@ separately with:
 
 ```bash
 npm run examples:render
+npm run examples:diff
 ```
+
+This requires the local reference tools used by the project, including
+`tikztosvg` and `rsvg-convert`. Generated output is test evidence and is
+ignored by Git.
 
 ## Browser and Markdown Usage
 
@@ -99,7 +130,7 @@ The page defaults to rendered results and includes per-case tabs for JS renderin
 
 ## CLI Usage
 
-Convert a `.tikz` or `.tex` file to SVG:
+From this repository checkout, convert a `.tikz` or `.tex` file to SVG:
 
 ```bash
 node bin/tikz2svg.js input.tikz -o output.svg
@@ -129,6 +160,10 @@ console.log(result.svg);
 console.log(result.diagnostics);
 ```
 
+Always inspect `result.diagnostics` before accepting a render. An SVG may still
+be returned for partially supported input so that compatibility problems can be
+debugged visually.
+
 Public API:
 
 - `parseTikz(source, options)`: returns `{ ast, diagnostics }`.
@@ -145,6 +180,25 @@ const result = tikzToSvg(source, { mathRenderer: "svg-text" });
 ```
 
 `svg-text` avoids SVG `foreignObject` and is useful for raster comparison tools. The default renderer uses KaTeX for richer math in browser SVG.
+
+## Testing
+
+Run the complete Node test command:
+
+```bash
+npm test
+```
+
+Run the focused 30-case compatibility gate:
+
+```bash
+node --test test/latex-examples-new30-acceptance.test.js
+```
+
+The focused gate checks that every selected case emits no diagnostics and
+retains the locally measured native canvas contract. Visual changes must also
+be reviewed with the generated TikZKit/reference/diff sheets; a numeric image
+diff alone is not considered sufficient acceptance.
 
 ## Supported TikZ Surface
 

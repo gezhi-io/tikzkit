@@ -6,6 +6,12 @@ import {
   pgfplotsPackage,
   texPackageCatalog
 } from "../src/packages/index.js";
+import {
+  collectTexPackages,
+  resolveTexPackage,
+  resolveTexPackages
+} from "../src/packages/declarations.js";
+import { collectTexPackages as compatCollectTexPackages } from "../src/tex-packages.js";
 
 test("records local TeX Live sources for high-priority packages", () => {
   assert.equal(pgfplotsPackage.name, "pgfplots");
@@ -25,6 +31,17 @@ test("documents circuitikz siunitx and RPvoltages package option support", () =>
   assert.ok(circuitikz.observedOptions.includes("siunitx,RPvoltages"));
   assert.ok(circuitikz.features.some((feature) => feature.includes("siunitx")));
   assert.ok(circuitikz.features.some((feature) => feature.includes("RPvoltages")));
+});
+
+test("package declarations are parsed at the packages seam", () => {
+  const packages = collectTexPackages(String.raw`\usepackage[siunitx,RPvoltages]{circuitikz}\usepackage{pgfplots,mathtools}`);
+
+  assert.deepEqual(packages.map((pkg) => pkg.name), ["circuitikz", "pgfplots", "mathtools"]);
+  assert.equal(packages[0].options.siunitx, true);
+  assert.equal(packages[0].options.RPvoltages, true);
+  assert.equal(resolveTexPackage("mathtools").status, "partial");
+  assert.equal(resolveTexPackages(["pgfplots"])[0].localSource, pgfplotsPackage.localSource);
+  assert.equal(compatCollectTexPackages, collectTexPackages);
 });
 
 test("uses package catalog and expands DeclareMathOperator definitions", () => {

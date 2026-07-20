@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfplots",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:expandPgfplotsAxes",
+  "implementedBy": "src/pgfplots/axisEnvironment.js:expandPgfplotsAxes",
   "features": [
     "axis-like environments",
     "\\addplot coordinates/table/functions",

@@ -1,7 +1,20 @@
-import { mathFallbackText, readDollarMathSpan, stripTikzHspaceMarkers } from "./text.js";
+import {
+  mathFallbackText,
+  normalizeBrowserMathMacros,
+  readDollarMathSpan,
+  replaceTikzHspaceMarkers,
+  stripTikzHspaceMarkers
+} from "./text.js";
+import { parseExtensibleMathArrow } from "./mathArrows.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 
 const TEX_PT_PER_CM = 28.45274;
+const EXTENSIBLE_ARROW_MIN_WIDTH_PT = 10.90817;
+const EXTENSIBLE_ARROW_END_ALLOWANCE_PT = 0.99;
+const EXTENSIBLE_ARROW_UPPER_GAP_PT = 6.66873;
+const EXTENSIBLE_ARROW_LOWER_GAP_PT = 2.66666;
+const EXTENSIBLE_ARROW_SUPERSCRIPT_HEIGHT_PT = 8.14003;
+const EXTENSIBLE_ARROW_DOUBLE_STRUCK_CORRECTION_PT = 2.93;
 
 // KaTeX Main-Regular generated TFM data, reduced to printable plain-text glyphs.
 // Each entry is [width, height, depth] in em units.
@@ -32,6 +45,7 @@ const MAIN_REGULAR_TEX_METRICS = {
   "7": [0.5, 0.64444, 0],
   "8": [0.5, 0.64444, 0],
   "9": [0.5, 0.64444, 0],
+  "−": [0.77778, 0.58333, 0.08333],
   ":": [0.27778, 0.43056, 0],
   ";": [0.27778, 0.43056, 0.19444],
   "<": [0.77778, 0.5391, 0.0391],
@@ -102,6 +116,113 @@ const MAIN_REGULAR_TEX_METRICS = {
   "~": [0.5, 0.31786, 0.35]
 };
 
+// phvr7t.tfm (Helvetica Roman, T1 encoding), reduced to numeric tick-label
+// glyphs. PGFPlots' sansmath examples use this font for plain axis ticks.
+// Each entry is [width, height, depth] in em units.
+const SANS_REGULAR_TEX_METRICS = {
+  " ": [0.27799, 0, 0],
+  "+": [0.583997, 0.502497, 0],
+  ",": [0.27799, 0.105994, 0.146997],
+  "-": [0.332996, 0.3174925, 0],
+  ".": [0.27799, 0.105994, 0],
+  "0": [0.555994, 0.704492, 0.016492],
+  "1": [0.555994, 0.704492, 0],
+  "2": [0.555994, 0.704492, 0],
+  "3": [0.555994, 0.704492, 0.016492],
+  "4": [0.555994, 0.704492, 0],
+  "5": [0.555994, 0.685992, 0.016492],
+  "6": [0.555994, 0.704492, 0.016492],
+  "7": [0.555994, 0.685992, 0],
+  "8": [0.555994, 0.704492, 0.016492],
+  "9": [0.555994, 0.704492, 0.016492],
+  "−": [0.583997, 0.502497, 0]
+};
+
+// KaTeX's generated Computer Modern Math Italic TFM data, reduced to ASCII
+// letters. Each entry is [width, height, depth] in em units. Math-mode digits
+// and punctuation continue to use Main-Regular, just as TeX assigns them to
+// family 0 while ordinary Latin math letters come from family 1.
+const MATH_ITALIC_TEX_METRICS = {
+  A: [0.75, 0.68333, 0], B: [0.75851, 0.68333, 0], C: [0.71472, 0.68333, 0],
+  D: [0.82792, 0.68333, 0], E: [0.7382, 0.68333, 0], F: [0.64306, 0.68333, 0],
+  G: [0.78625, 0.68333, 0], H: [0.83125, 0.68333, 0], I: [0.43958, 0.68333, 0],
+  J: [0.55451, 0.68333, 0], K: [0.84931, 0.68333, 0], L: [0.68056, 0.68333, 0],
+  M: [0.97014, 0.68333, 0], N: [0.80347, 0.68333, 0], O: [0.76278, 0.68333, 0],
+  P: [0.64201, 0.68333, 0], Q: [0.79056, 0.68333, 0.19444], R: [0.75929, 0.68333, 0],
+  S: [0.6132, 0.68333, 0], T: [0.58438, 0.68333, 0], U: [0.68278, 0.68333, 0],
+  V: [0.58333, 0.68333, 0], W: [0.94445, 0.68333, 0], X: [0.82847, 0.68333, 0],
+  Y: [0.58056, 0.68333, 0], Z: [0.68264, 0.68333, 0],
+  a: [0.52859, 0.43056, 0], b: [0.42917, 0.69444, 0], c: [0.43276, 0.43056, 0],
+  d: [0.52049, 0.69444, 0], e: [0.46563, 0.43056, 0], f: [0.48959, 0.69444, 0.19444],
+  g: [0.47697, 0.43056, 0.19444], h: [0.57616, 0.69444, 0], i: [0.34451, 0.65952, 0],
+  j: [0.41181, 0.65952, 0.19444], k: [0.5206, 0.69444, 0], l: [0.29838, 0.69444, 0],
+  m: [0.87801, 0.43056, 0], n: [0.60023, 0.43056, 0], o: [0.48472, 0.43056, 0],
+  p: [0.50313, 0.43056, 0.19444], q: [0.44641, 0.43056, 0.19444], r: [0.45116, 0.43056, 0],
+  s: [0.46875, 0.43056, 0], t: [0.36111, 0.61508, 0], u: [0.57246, 0.43056, 0],
+  v: [0.48472, 0.43056, 0], w: [0.71592, 0.43056, 0], x: [0.57153, 0.43056, 0],
+  y: [0.49028, 0.43056, 0.19444], z: [0.46505, 0.43056, 0]
+};
+
+// cmmib10.tfm from the local MacTeX 2025 installation. Math-version bold
+// selects these glyphs for ordinary Latin math atoms.
+const MATH_BOLD_ITALIC_TEX_METRICS = {
+  A: [0.86944, 0.686111, 0], B: [0.866404, 0.686111, 0], C: [0.81694, 0.686111, 0],
+  D: [0.938121, 0.686111, 0], E: [0.810066, 0.686111, 0], F: [0.688886, 0.686111, 0],
+  G: [0.886732, 0.686111, 0], H: [0.982287, 0.686111, 0], I: [0.51111, 0.686111, 0],
+  J: [0.631248, 0.686111, 0], K: [0.971176, 0.686111, 0], L: [0.755551, 0.686111, 0],
+  M: [1.142009, 0.686111, 0], N: [0.950343, 0.686111, 0], O: [0.836662, 0.686111, 0],
+  P: [0.723088, 0.686111, 0], Q: [0.868607, 0.686111, 0.194445], R: [0.87235, 0.686111, 0],
+  S: [0.692706, 0.686111, 0], T: [0.636627, 0.686111, 0], U: [0.800275, 0.686111, 0],
+  V: [0.677775, 0.686111, 0], W: [1.093051, 0.686111, 0], X: [0.947218, 0.686111, 0],
+  Y: [0.674579, 0.686111, 0], Z: [0.772566, 0.686111, 0],
+  a: [0.632868, 0.444445, 0], b: [0.52083, 0.694445, 0], c: [0.513423, 0.444445, 0],
+  d: [0.60972, 0.694445, 0], e: [0.553609, 0.444445, 0], f: [0.568057, 0.694445, 0.194445],
+  g: [0.544904, 0.444445, 0.194445], h: [0.66759, 0.694445, 0], i: [0.404796, 0.693255, 0],
+  j: [0.470833, 0.693255, 0.194445], k: [0.603702, 0.694445, 0], l: [0.348147, 0.694445, 0],
+  m: [1.032404, 0.444445, 0], n: [0.712961, 0.444445, 0], o: [0.584719, 0.444445, 0],
+  p: [0.600924, 0.444445, 0.194445], q: [0.542127, 0.444445, 0.194445], r: [0.528704, 0.444445, 0],
+  s: [0.53125, 0.444445, 0], t: [0.415276, 0.634921, 0], u: [0.681017, 0.444445, 0],
+  v: [0.566664, 0.444445, 0], w: [0.831479, 0.444445, 0], x: [0.659027, 0.444445, 0],
+  y: [0.590276, 0.444445, 0.194445], z: [0.555092, 0.444445, 0]
+};
+
+// cmbx10.tfm values used by digits, punctuation, delimiters, relations, and
+// binary operators in bold math. Letters still come from cmmib10 above.
+const MAIN_BOLD_TEX_METRICS = {
+  "(": [0.44722, 0.75, 0.25],
+  ")": [0.44722, 0.75, 0.25],
+  "*": [0.574997, 0.75, 0],
+  "+": [0.89444, 0.633331, 0.133331],
+  ",": [0.319443, 0.155556, 0.194445],
+  "-": [0.383331, 0.444445, 0],
+  ".": [0.319443, 0.155556, 0],
+  "/": [0.574997, 0.75, 0.25],
+  "0": [0.574997, 0.644444, 0],
+  "1": [0.574997, 0.644444, 0],
+  "2": [0.574997, 0.644444, 0],
+  "3": [0.574997, 0.644444, 0],
+  "4": [0.574997, 0.644444, 0],
+  "5": [0.574997, 0.644444, 0],
+  "6": [0.574997, 0.644444, 0],
+  "7": [0.574997, 0.644444, 0],
+  "8": [0.574997, 0.644444, 0],
+  "9": [0.574997, 0.644444, 0],
+  "−": [0.89444, 0.633331, 0.133331],
+  ":": [0.319443, 0.444445, 0],
+  ";": [0.319443, 0.444445, 0.194445],
+  "<": [0.349998, 0.5, 0.194445],
+  "=": [0.89444, 0.391111, -0.108889],
+  ">": [0.543053, 0.5, 0.194445]
+};
+
+// TeX math-list spacing and italic correction make these boxes differ from a
+// raw sum of TFM advances. Values are measured from the local MacTeX engine at
+// 10pt and then scaled by the resolved FontSpec.
+const SIMPLE_BOLD_ASCII_FORMULA_METRICS_PT = {
+  x: [6.59027, 4.44445, 0],
+  "f(x)": [31.85995 / 1.44, 7.5, 2.5]
+};
+
 const CMR10_WIDTH_PT = {
   " ": 3.333,
   "!": 2.778,
@@ -133,6 +254,7 @@ const CMR10_WIDTH_PT = {
   ";": 2.778,
   "<": 7.778,
   "=": 7.778,
+  "≈": 7.778,
   ">": 7.778,
   "?": 4.722,
   "@": 7.778,
@@ -200,6 +322,35 @@ const CMR10_WIDTH_PT = {
   "~": 5
 };
 
+// cmr10.afm kerning pairs from the local MacTeX 2025 installation. TeX
+// applies these adjustments after advancing each glyph; summing widths alone
+// makes ordinary labels measurably too wide (for example, "Wahlbeteiligung"
+// contains both the negative Wa kern and the positive be kern).
+const CMR10_KERNING_EM = Object.freeze(Object.fromEntries([
+  [-0.111, ["AW", "AV", "FA", "LW", "LV", "RW", "RV", "VA", "WA"]],
+  [-0.083, [
+    "AY", "AT", "Fa", "Fr", "Fu", "Fe", "Fo", "LY", "LT", "P,", "P.", "PA",
+    "RY", "RT", "Tu", "TA", "Ta", "Tr", "To", "Te", "Va", "Vr", "Vu", "Ve",
+    "Vo", "Wa", "Wr", "Wu", "We", "Wo", "Yu", "YA", "Ya", "Yr", "Yo", "Ye",
+    "y,", "y."
+  ]],
+  [-0.027, [
+    "AQ", "AU", "AG", "AO", "AC", "At", "DY", "DV", "DA", "DW", "DX", "FQ",
+    "FG", "FC", "FO", "KQ", "KG", "KC", "KO", "OY", "OV", "OA", "OW", "OX",
+    "Pa", "Pe", "Po", "RQ", "RU", "RG", "RO", "RC", "Rt", "Ty", "VQ", "VG",
+    "VC", "VO", "WQ", "WG", "WC", "WO", "XQ", "XG", "XC", "XO", "aw", "ay",
+    "av", "bw", "by", "bv", "bx", "ck", "ch", "hw", "hv", "hy", "hb", "hu",
+    "ht", "kc", "ko", "ke", "ka", "mw", "mv", "my", "mb", "mu", "mt", "nw",
+    "nv", "ny", "nb", "nu", "nt", "ow", "oy", "ov", "ox", "pw", "py", "pv",
+    "px", "tw", "ty", "uw", "vc", "vo", "ve", "va", "wc", "wo", "wa", "we",
+    "ya", "ye", "yo"
+  ]],
+  [0.027, ["II", "bq", "bc", "bd", "bo", "be", "gj", "oq", "oc", "od", "oo", "oe", "pq", "pc", "pd", "po", "pe"]],
+  [0.055, ["aj", "bj", "oj", "pj"]],
+  [0.077, ["f]", "f)", "f!", "f?", "f'"]],
+  [0.111, ["'!", "'?"]]
+].flatMap(([kern, pairs]) => pairs.map((pair) => [pair, kern]))));
+
 const SCRIPT_CHAR_PATTERN =
   /[₀₁₂₃₄₅₆₇₈₉ₐᵦₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓ₊₋₌₍₎⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]/u;
 const WIDE_MATH_ALPHA_CHARS = new Set([...("𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵")]);
@@ -230,7 +381,7 @@ export function parseMathText(value) {
 
 export function estimateFormulaBox(tex, options = {}) {
   const displayMode = Boolean(options.displayMode);
-  const normalized = leadingMathFontSize(tex);
+  const normalized = leadingMathFontSize(normalizeBrowserMathMacros(tex));
   const optionScale = Number(options.scale) > 0 ? Number(options.scale) : 1;
   const scale = optionScale * normalized.scale;
   const baseMinWidth = Number.isFinite(options.minWidth) ? options.minWidth : displayMode ? 0.72 : 0.42;
@@ -238,7 +389,8 @@ export function estimateFormulaBox(tex, options = {}) {
   const metric = {
     widthFactor: Number.isFinite(options.widthFactor) ? options.widthFactor : 0.16,
     widthPadding: Number.isFinite(options.widthPadding) ? options.widthPadding : 0.35 * scale,
-    texTextMetrics: Boolean(options.texTextMetrics)
+    texTextMetrics: Boolean(options.texTextMetrics),
+    mathVersion: options.mathVersion === "bold" ? "bold" : "normal"
   };
   const compact = estimateFormulaParts(normalized.tex, scale, metric);
   const displayScale = displayMode ? 1.12 : 1;
@@ -250,7 +402,7 @@ export function estimateFormulaBox(tex, options = {}) {
 }
 
 function parsedMathText(tex, displayMode) {
-  const normalized = leadingMathFontSize(tex);
+  const normalized = leadingMathFontSize(normalizeBrowserMathMacros(tex));
   return {
     tex: normalized.tex,
     displayMode,
@@ -348,7 +500,7 @@ export function mathTextMetricUnits(line) {
 
 export function texTextWidthCm(line, scale = 1) {
   const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
-  let widthPt = 0;
+  let widthPt = relativeTikzHspaceWidthPt(line);
   const chars = [...stripTikzHspaceMarkers(line)];
   for (let index = 0; index < chars.length; index += 1) {
     const char = chars[index];
@@ -366,18 +518,115 @@ export function texTextWidthCm(line, scale = 1) {
   return (widthPt / TEX_PT_PER_CM) * factor;
 }
 
+function relativeTikzHspaceWidthPt(value, emSizePt = 10) {
+  let widthPt = 0;
+  replaceTikzHspaceMarkers(value, (dimension) => {
+    const match = String(dimension || "").trim().match(/^([-+]?[0-9.]+)\s*(em|ex)$/);
+    if (!match) return "";
+    const amount = Number(match[1]);
+    if (Number.isFinite(amount)) widthPt += amount * emSizePt * (match[2] === "em" ? 1 : 0.430554);
+    return "";
+  });
+  return widthPt;
+}
+
+export function wrapTeXTextLineByWidth(line, maxWidthCm, scale = 1, options = {}) {
+  const text = String(line || "").trim();
+  const limit = Number(maxWidthCm);
+  if (!text || !Number.isFinite(limit) || limit <= 0 || !/\s/.test(text)) return [text];
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return [text];
+  if (options.lineBreakMode === "flush") return wrapTeXWordsFlush(words, limit, scale);
+  const tolerance = Number.isFinite(Number(options.overfullTolerance))
+    ? Math.max(1, Number(options.overfullTolerance))
+    : 1.02;
+  const lastLineWeight = Number.isFinite(Number(options.lastLineWeight))
+    ? Math.max(0, Number(options.lastLineWeight))
+    : 0.05;
+  const best = Array.from({ length: words.length + 1 }, () => ({ cost: Infinity, next: words.length }));
+  best[words.length] = { cost: 0, next: words.length };
+  for (let start = words.length - 1; start >= 0; start -= 1) {
+    for (let end = start; end < words.length; end += 1) {
+      const candidate = words.slice(start, end + 1).join(" ");
+      const width = texTextWidthCm(candidate, scale);
+      if (width > limit * tolerance && end > start) break;
+      const isLast = end === words.length - 1;
+      const overfull = Math.max(0, width - limit);
+      const remaining = Math.max(0, limit - width);
+      const lineCost = overfull > 0
+        ? overfull * overfull * 70
+        : remaining * remaining * (isLast ? lastLineWeight : 1);
+      const cost = lineCost + best[end + 1].cost;
+      if (cost < best[start].cost) best[start] = { cost, next: end + 1 };
+    }
+  }
+  const lines = [];
+  for (let cursor = 0; cursor < words.length;) {
+    const next = Math.max(cursor + 1, Math.min(words.length, best[cursor].next));
+    lines.push(words.slice(cursor, next).join(" "));
+    cursor = next;
+  }
+  return lines.length ? lines : [text];
+}
+
+function wrapTeXWordsFlush(words, maxWidthCm, scale) {
+  const count = words.length;
+  const best = Array.from({ length: count + 1 }, () => ({ cost: Infinity, next: count }));
+  best[count] = { cost: 0, next: count };
+  const fontSizePt = 10 * scale;
+  const maxWidthPt = maxWidthCm * TEX_PT_PER_CM;
+  const spaceShrinkPt = (10 / 9) * scale;
+  for (let start = count - 1; start >= 0; start -= 1) {
+    for (let end = start; end < count; end += 1) {
+      const candidate = words.slice(start, end + 1).join(" ");
+      const metric = measurePlainTextTeXBoxPt(candidate, { fontSizePt });
+      const widthPt = metric?.width ?? texTextWidthCm(candidate, scale) * TEX_PT_PER_CM;
+      const overflowPt = Math.max(0, widthPt - maxWidthPt);
+      const shrinkPt = Math.max(0, end - start) * spaceShrinkPt;
+      if (end > start && overflowPt > shrinkPt) break;
+      const badness = overflowPt > 0 && shrinkPt > 0
+        ? Math.min(10000, 100 * (overflowPt / shrinkPt) ** 3)
+        : overflowPt > 0
+          ? 10000
+          : 0;
+      const cost = (10 + badness) ** 2 + best[end + 1].cost;
+      if (cost < best[start].cost || (Math.abs(cost - best[start].cost) < 1e-9 && end + 1 > best[start].next)) {
+        best[start] = { cost, next: end + 1 };
+      }
+    }
+  }
+  const lines = [];
+  let cursor = 0;
+  while (cursor < count) {
+    const next = Math.max(cursor + 1, Math.min(count, best[cursor].next));
+    lines.push(words.slice(cursor, next).join(" "));
+    cursor = next;
+  }
+  return lines;
+}
+
 export function measurePlainTextTeXBoxPt(text, options = {}) {
   const fontSizePt = Number(options.fontSizePt);
-  const chars = [...String(text ?? "")];
+  const source = String(text ?? "");
+  const chars = [...replaceTikzHspaceMarkers(source, () => "")];
   if (!Number.isFinite(fontSizePt) || fontSizePt <= 0 || chars.length === 0) return null;
+  const sans = /sans/i.test(String(options.fontFamily || ""));
+  const metrics = sans ? SANS_REGULAR_TEX_METRICS : MAIN_REGULAR_TEX_METRICS;
 
-  let width = 0;
+  let width = relativeTikzHspaceWidthPt(source, fontSizePt) / fontSizePt;
   let height = 0;
   let depth = -Infinity;
-  for (const char of chars) {
-    const metric = MAIN_REGULAR_TEX_METRICS[char];
+  for (let index = 0; index < chars.length; index += 1) {
+    const char = chars[index];
+    const metric = metrics[char];
     if (!metric) return null;
-    width += metric[0];
+    if (sans) {
+      width += metric[0];
+    } else {
+      const widthPt = CMR10_WIDTH_PT[char] ?? metric[0] * 10;
+      width += widthPt / 10;
+      if (index > 0) width += CMR10_KERNING_EM[`${chars[index - 1]}${char}`] || 0;
+    }
     height = Math.max(height, metric[1]);
     depth = Math.max(depth, metric[2]);
   }
@@ -414,11 +663,20 @@ function estimateFormulaParts(tex, scale, metric) {
   const glyphMetric = simpleGlyphFormulaMetric(tex, scale, metric);
   if (glyphMetric) return glyphMetric;
 
+  const asciiMetric = simpleAsciiFormulaMetric(tex, scale, metric);
+  if (asciiMetric) return asciiMetric;
+
+  const alignedBox = estimateAlignedFormulaParts(tex, scale, metric);
+  if (alignedBox) return alignedBox;
+
   const tensorMatrixBox = estimateTensorMatrixParts(tex, scale);
   if (tensorMatrixBox) return tensorMatrixBox;
 
   const inlineMatrixBox = estimateInlineMatrixFormulaParts(tex, scale);
   if (inlineMatrixBox) return inlineMatrixBox;
+
+  const extensibleArrowBox = estimateExtensibleArrowFormulaParts(tex, scale, metric);
+  if (extensibleArrowBox) return extensibleArrowBox;
 
   // Claude: 原版完全没有 \begin{matrix} 的尺寸感知 —— 矩阵的宽度按「所有单元格摊平成一行」
   // 来算（巨宽），高度只按一行算（巨扁），结果 display 矩阵的 SVG 盒子被估成又宽又扁，
@@ -429,6 +687,14 @@ function estimateFormulaParts(tex, scale, metric) {
   let width = fallbackWidth(tex, scale, metric);
   let height = 0.25 * scale;
   let depth = 0.04 * scale;
+
+  const niceFractions = readBrowserNiceFractionParts(tex);
+  if (niceFractions.length) {
+    width += niceFractions.reduce((sum, fraction) => sum + niceFractionWidthAdjustment(fraction, scale, metric), 0);
+    const em = 10 / TEX_PT_PER_CM;
+    height = Math.max(height, em * 0.75 * scale);
+    depth = Math.max(depth, em * 0.25 * scale);
+  }
 
   for (const fraction of readCommandPairs(tex, ["frac", "dfrac", "tfrac"])) {
     const numerator = estimateFormulaParts(fraction.first, scale * 0.9, metric);
@@ -479,6 +745,134 @@ function estimateFormulaParts(tex, scale, metric) {
   return { width, height, depth };
 }
 
+function estimateExtensibleArrowFormulaParts(tex, scale, metric) {
+  const parts = parseExtensibleMathArrow(tex);
+  if (!parts) return null;
+
+  const compactMetric = { ...metric, widthPadding: 0 };
+  const prefix = parts.prefix.trim() ? estimateFormulaParts(parts.prefix, scale, compactMetric) : null;
+  const suffix = parts.suffix.trim() ? estimateFormulaParts(parts.suffix, scale, compactMetric) : null;
+  if (prefix) Object.assign(prefix, extensibleArrowFragmentMetrics(parts.prefix, prefix, scale));
+  if (suffix) Object.assign(suffix, extensibleArrowFragmentMetrics(parts.suffix, suffix, scale));
+  const scriptScale = scale * 0.7;
+  // The cmr7 design-size font is wider than a geometrically scaled cmr10.
+  const aboveWidth = texTextWidthCm(mathFallbackText(parts.above).replace(/\s+/g, ""), scriptScale) * 1.14;
+  const belowWidth = texTextWidthCm(mathFallbackText(parts.below).replace(/\s+/g, ""), scriptScale) * 1.14;
+  // amsmath's \ext@arrow uses scriptstyle labels padded by 14mu (5mu + 9mu).
+  const scriptPadding = ((14 * 7) / 18 / TEX_PT_PER_CM) * scale;
+  const arrowEndAllowance = (EXTENSIBLE_ARROW_END_ALLOWANCE_PT / TEX_PT_PER_CM) * scale;
+  const minimumArrowWidth = (EXTENSIBLE_ARROW_MIN_WIDTH_PT / TEX_PT_PER_CM) * scale;
+  const arrowWidth = Math.max(
+    minimumArrowWidth,
+    aboveWidth + scriptPadding + arrowEndAllowance,
+    belowWidth + scriptPadding + arrowEndAllowance
+  );
+  const relationGap = ((5 * 10) / 18 / TEX_PT_PER_CM) * scale;
+  const width =
+    (prefix?.width || 0) +
+    (prefix ? relationGap : 0) +
+    arrowWidth +
+    (suffix ? relationGap : 0) +
+    (suffix?.width || 0) +
+    metric.widthPadding;
+  const aboveMetric = extensibleArrowScriptMetric(parts.above, scale);
+  const belowMetric = extensibleArrowScriptMetric(parts.below, scale);
+  const scriptHeight = aboveMetric
+    ? (aboveMetric.height + EXTENSIBLE_ARROW_UPPER_GAP_PT * scale) / TEX_PT_PER_CM
+    : 0;
+  const scriptDepth = belowMetric
+    ? (belowMetric.height + Math.max(0, belowMetric.depth) + EXTENSIBLE_ARROW_LOWER_GAP_PT * scale) / TEX_PT_PER_CM
+    : 0;
+
+  return {
+    width,
+    height: Math.max(prefix?.height || 0, suffix?.height || 0, 0.25 * scale, scriptHeight),
+    depth: Math.max(prefix?.depth || 0, suffix?.depth || 0, 0.04 * scale, scriptDepth)
+  };
+}
+
+function extensibleArrowFragmentWidthCorrection(tex, scale) {
+  const fallback = mathFallbackText(tex).replace(/\s+/g, "");
+  const doubleStruckCount = [...fallback].filter((char) => "ℂℍℕℙℚℝℤ".includes(char)).length;
+  const scriptCount = (fallback.match(/[_^](?:[A-Za-z0-9]|[₀-₉⁰-⁹])/g) || []).length;
+  return ((doubleStruckCount * EXTENSIBLE_ARROW_DOUBLE_STRUCK_CORRECTION_PT + scriptCount * 0.3) / TEX_PT_PER_CM) * scale;
+}
+
+function extensibleArrowFragmentMetrics(tex, fallbackMetric, scale) {
+  const fallback = mathFallbackText(tex).replace(/\s+/g, "");
+  const width = texTextWidthCm(fallback, scale) + extensibleArrowFragmentWidthCorrection(tex, scale);
+  const base = [...fallback]
+    .map((char) => doubleStruckBaseChar(char))
+    .filter((char) => !/[₀-₉⁰-⁹]/.test(char))
+    .join("");
+  const plain = measurePlainTextTeXBoxPt(base, { fontSizePt: 10 * scale });
+  const hasSuperscript = /\^|[⁰-⁹]/.test(String(tex)) || /[⁰-⁹]/.test(fallback);
+  const hasSubscript = /_|[₀-₉]/.test(String(tex)) || /[₀-₉]/.test(fallback);
+  return {
+    width,
+    height: Math.max(
+      Number(fallbackMetric?.height) || 0,
+      (Number(plain?.height) || 0) / TEX_PT_PER_CM,
+      hasSuperscript ? (EXTENSIBLE_ARROW_SUPERSCRIPT_HEIGHT_PT / TEX_PT_PER_CM) * scale : 0
+    ),
+    depth: Math.max(
+      Number(fallbackMetric?.depth) || 0,
+      Math.max(0, Number(plain?.depth) || 0) / TEX_PT_PER_CM,
+      hasSubscript ? (2.5 / TEX_PT_PER_CM) * scale : 0
+    )
+  };
+}
+
+function extensibleArrowScriptMetric(tex, scale) {
+  const text = mathFallbackText(tex).replace(/\s+/g, "");
+  if (!text) return null;
+  return measurePlainTextTeXBoxPt(
+    [...text].map((char) => doubleStruckBaseChar(char)).join(""),
+    { fontSizePt: 7 * scale }
+  ) || { height: 4.86108 * scale, depth: 0 };
+}
+
+function doubleStruckBaseChar(char) {
+  const index = "ℂℍℕℙℚℝℤ".indexOf(char);
+  return index >= 0 ? "CHNPQRZ"[index] : char;
+}
+
+function estimateAlignedFormulaParts(tex, scale, metric) {
+  const match = String(tex || "").trim().match(/^\\begin\s*\{(?:aligned|alignedat\*?)\}([\s\S]*)\\end\s*\{(?:aligned|alignedat\*?)\}$/);
+  if (!match) return null;
+  const rows = splitMatrixTopLevel(match[1], "row")
+    .map((row) => splitMatrixTopLevel(row, "col").map((cell) => cell.trim()))
+    .filter((row) => row.some(Boolean));
+  if (!rows.length) return null;
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const columnWidths = Array.from({ length: columnCount }, (_value, columnIndex) =>
+    Math.max(
+      0,
+      ...rows.map((row) => estimateFormulaParts(row[columnIndex] || "", scale, metric).width)
+    )
+  );
+  const columnGap = 0.12 * scale;
+  const width = columnWidths.reduce((sum, value) => sum + value, 0) + columnGap * Math.max(0, columnCount - 1);
+  const rowBoxes = rows.map((row) => {
+    const parts = row.map((cell) => estimateFormulaParts(cell, scale, metric));
+    return {
+      height: Math.max(...parts.map((part) => part.height), 0.25 * scale),
+      depth: Math.max(...parts.map((part) => part.depth), 0.04 * scale)
+    };
+  });
+  const rowGap = 0.13 * scale;
+  const extraTallRows = Math.max(0, rows.length - 2) * 0.2 * scale;
+  const totalHeight =
+    rowBoxes.reduce((sum, row) => sum + row.height + row.depth, 0) +
+    rowGap * Math.max(0, rows.length - 1) +
+    extraTallRows;
+  return {
+    width,
+    height: totalHeight / 2,
+    depth: totalHeight / 2
+  };
+}
+
 function simpleGlyphFormulaMetric(tex, scale, metric) {
   if (!metric.texTextMetrics) return null;
   const key = String(tex || "").replace(/\s+/g, "");
@@ -488,6 +882,47 @@ function simpleGlyphFormulaMetric(tex, scale, metric) {
     width: (spec.widthPt / TEX_PT_PER_CM) * scale,
     height: (spec.heightPt / TEX_PT_PER_CM) * scale,
     depth: (spec.depthPt / TEX_PT_PER_CM) * scale
+  };
+}
+
+function simpleAsciiFormulaMetric(tex, scale, metric) {
+  if (!metric.texTextMetrics) return null;
+  const text = String(tex || "").trim();
+  if (!text || /[\\{}_^]/.test(text) || !/^[A-Za-z0-9()+\-*=.,/:;<>\s]+$/.test(text)) return null;
+
+  if (metric.mathVersion === "bold") {
+    const exact = SIMPLE_BOLD_ASCII_FORMULA_METRICS_PT[text.replace(/\s+/g, "")];
+    if (exact) {
+      return {
+        width: (exact[0] * scale) / TEX_PT_PER_CM,
+        height: (exact[1] * scale) / TEX_PT_PER_CM,
+        depth: (exact[2] * scale) / TEX_PT_PER_CM
+      };
+    }
+  }
+
+  let width = 0;
+  let height = 0;
+  let depth = 0;
+  for (const char of text) {
+    if (/\s/.test(char)) continue;
+    const visibleChar = char === "-" ? "−" : char;
+    const spec = /[A-Za-z]/.test(char)
+      ? (metric.mathVersion === "bold" ? MATH_BOLD_ITALIC_TEX_METRICS : MATH_ITALIC_TEX_METRICS)[char]
+      : (metric.mathVersion === "bold" ? MAIN_BOLD_TEX_METRICS : MAIN_REGULAR_TEX_METRICS)[visibleChar];
+    if (!spec) return null;
+    width += spec[0];
+    height = Math.max(height, spec[1]);
+    depth = Math.max(depth, spec[2]);
+    if ("=<>".includes(char)) width += 10 / 18;
+    else if ("+-*".includes(char)) width += 8 / 18;
+  }
+
+  const fontSizePt = 10 * scale;
+  return {
+    width: (width * fontSizePt) / TEX_PT_PER_CM,
+    height: (height * fontSizePt) / TEX_PT_PER_CM,
+    depth: (depth * fontSizePt) / TEX_PT_PER_CM
   };
 }
 
@@ -623,16 +1058,71 @@ function readTensorMatrixMetricBlocks(text) {
 }
 
 function fallbackWidth(tex, scale, metric) {
+  return fallbackBodyWidth(tex, scale, metric) + metric.widthPadding;
+}
+
+function fallbackBodyWidth(tex, scale, metric) {
   const fallback = metric.texTextMetrics ? compactMathMetricText(tex) : mathFallbackText(tex);
-  const bodyWidth = metric.texTextMetrics
-    ? texTextWidthCm(fallback, scale)
+  return metric.texTextMetrics
+    ? texTextWidthCm(fallback, scale) + texMathRelationSpacingCm(fallback, scale)
     : mathTextMetricUnits(fallback) * metric.widthFactor * scale;
-  return bodyWidth + metric.widthPadding;
+}
+
+function texMathRelationSpacingCm(text, scale) {
+  const relationCount = [...String(text || "")].filter((char) => "=≔≤≥≠≈∼<>".includes(char)).length;
+  if (!relationCount) return 0;
+  // Plain TeX surrounds relation atoms with \thickmuskip (5mu) on both
+  // sides. At the 10pt math size, 1mu is 1/18em.
+  const relationSpacingPt = relationCount * 2 * 5 * (10 / 18) * scale;
+  return relationSpacingPt / TEX_PT_PER_CM;
+}
+
+function readBrowserNiceFractionParts(tex) {
+  return readCommandGroups(String(tex || ""), ["mathord"])
+    .map(parseBrowserNiceFractionGroup)
+    .filter(Boolean);
+}
+
+function parseBrowserNiceFractionGroup(value) {
+  const source = String(value || "");
+  let cursor = skipWhitespace(source, 0);
+  const raisebox = String.raw`\raisebox`;
+  if (!source.startsWith(raisebox, cursor)) return null;
+  cursor = skipWhitespace(source, cursor + raisebox.length);
+  const raise = readBalanced(source, cursor, "{", "}");
+  if (!raise || raise.content.trim() !== "0.2em") return null;
+  cursor = skipWhitespace(source, raise.end);
+  const numerator = readBalanced(source, cursor, "{", "}");
+  if (!numerator) return null;
+  cursor = skipWhitespace(source, numerator.end);
+  const separator = source.slice(cursor).match(/^\\mkern\s*-2mu\s*\/\s*\\mkern\s*-1mu\s*/);
+  if (!separator) return null;
+  cursor = skipWhitespace(source, cursor + separator[0].length);
+  const denominator = readBalanced(source, cursor, "{", "}");
+  if (!denominator || source.slice(denominator.end).trim()) return null;
+  return {
+    numerator: stripBrowserNiceFractionSize(numerator.content),
+    denominator: stripBrowserNiceFractionSize(denominator.content)
+  };
+}
+
+function stripBrowserNiceFractionSize(value) {
+  return String(value || "").replace(/^\s*\\scriptsize(?![A-Za-z])\s*(?:\{\})?/, "");
+}
+
+function niceFractionWidthAdjustment(fraction, scale, metric) {
+  const numerator = mathFallbackText(fraction.numerator);
+  const denominator = mathFallbackText(fraction.denominator);
+  const unscaledWidth = fallbackBodyWidth(`${numerator}/${denominator}`, scale, metric);
+  const scriptWidth = fallbackBodyWidth(numerator, scale * 0.7, metric)
+    + fallbackBodyWidth(denominator, scale * 0.7, metric);
+  const kernedSolidusWidth = fallbackBodyWidth("/", scale, metric) * (2 / 3);
+  return scriptWidth + kernedSolidusWidth - unscaledWidth;
 }
 
 function compactMathMetricText(tex) {
   return mathFallbackText(tex)
-    .replace(/\s*([=+≤≥≠≈∼<>])\s*/g, "$1")
+    .replace(/\s*([=+≔≤≥≠≈∼<>])\s*/g, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

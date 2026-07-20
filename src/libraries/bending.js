@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "bending",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/bending.js";

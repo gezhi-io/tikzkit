@@ -1,4 +1,4 @@
-import { evaluateMath, roundNumber } from "../math.js";
+import { evaluateMath, roundNumber } from "../engine/math.js";
 
 export const tikzThreeDPlotExtension = {
   name: "tikz-3dplot",

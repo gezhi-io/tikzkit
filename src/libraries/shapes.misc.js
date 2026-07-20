@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "shapes.misc",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/shapes.misc.js";

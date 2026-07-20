@@ -1,4 +1,4 @@
-import { parseDimension } from "../math.js";
+import { parseDimension } from "../engine/math.js";
 
 export const forestExtension = {
   name: "forest",

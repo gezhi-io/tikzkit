@@ -1,4 +1,4 @@
-import { effectiveMathFontScale, parseMathText } from "../../tikz/textMetrics.js";
+import { effectiveMathFontScale, parseMathText, texTextWidthCm, wrapTeXTextLineByWidth } from "../../tikz/textMetrics.js";
 import { mathFallbackText, splitInlineMathSegments } from "../../tikz/text.js";
 import { TIKZ_TYPEWRITER_WIDTH_SCALE } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
@@ -8,7 +8,13 @@ import { collapseTeXParagraphWhitespace } from "./richText.js";
 import { formatPlainTexText } from "./text.js";
 
 export const SVG_TEXT_WRAP_CHAR_WIDTH_EM = 0.54;
-export const SVG_SERIF_TEXT_WIDTH_SCALE = 0.79;
+// The bundled CMU Serif font uses the same advances as CMR10 (for example,
+// "Exponent (8 bit)" is 73.66pt versus TeX's 73.75pt at 10pt).  The former
+// generic-serif fallback needed horizontal compression; the embedded font does not.
+export const SVG_SERIF_TEXT_WIDTH_SCALE = 1;
+export const SVG_SANS_SERIF_TEXT_WIDTH_SCALE = 1;
+const TEX_PT_PER_CM = 28.4527559;
+const MIXED_TEX_WRAP_WIDTH_CORRECTION = 1.1;
 
 export function normalizedTextAlign(value) {
   const align = String(value || "").trim().toLowerCase();
@@ -62,14 +68,29 @@ export function textLineStyles(normalized, count, fallbackStyle = {}) {
   }));
 }
 
-export function wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, wrapWidth, unit, baseFontSize) {
+export function wrapStyledSvgTextLines(
+  sourceLines,
+  formattedLines,
+  sourceLineStyles,
+  wrapWidth,
+  unit,
+  baseFontSize,
+  options = {}
+) {
   const lines = [];
   const contentLines = [];
   const lineStyles = [];
   for (let index = 0; index < formattedLines.length; index += 1) {
     const style = sourceLineStyles[index] || {};
     const lineFontSize = baseFontSize * (Number(style.scale) || 1);
-    const wrapped = wrapSvgTextLineWithSource(sourceLines[index], formattedLines[index], wrapWidth, unit, lineFontSize);
+    const wrapped = wrapSvgTextLineWithSource(
+      sourceLines[index],
+      formattedLines[index],
+      wrapWidth,
+      unit,
+      lineFontSize,
+      options
+    );
     for (const entry of wrapped) {
       lines.push(entry.line);
       contentLines.push(entry.contentLine);
@@ -149,11 +170,13 @@ export function textFontScale(item, normalized = null) {
     const normalizedScale = Number(normalized?.scale);
     const contentScale = Number.isFinite(normalizedScale) && normalizedScale > 0 ? normalizedScale : 1;
     const factor = physicalSizePt / 10 / contentScale;
+    if (item?.style?.exactMathFontScale) return factor;
     return normalized?.tex ? effectiveMathFontScale(normalized.tex, factor) : factor;
   }
   const key = normalized?.explicitFontSize ? item.style?.fontSizeBaseScale : item.style?.fontScale;
   const scale = Number(key);
   const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  if (item?.style?.exactMathFontScale) return factor;
   return normalized?.tex ? effectiveMathFontScale(normalized.tex, factor) : factor;
 }
 
@@ -171,9 +194,19 @@ export function typewriterWidthScale(fontFamily) {
 
 export function textWidthScale(item, fontFamily) {
   const explicit = Number(item?.style?.textWidthScale);
-  if (Number.isFinite(explicit) && explicit > 0 && Math.abs(explicit - 1) > 1e-9) return explicit;
+  if (
+    Number.isFinite(explicit) &&
+    explicit > 0 &&
+    (item?.style?.textWidthScaleExplicit || Math.abs(explicit - 1) > 1e-9)
+  ) {
+    return explicit;
+  }
   const familyScale = typewriterWidthScale(fontFamily);
-  return familyScale < 1 ? familyScale : SVG_SERIF_TEXT_WIDTH_SCALE;
+  if (familyScale < 1) return familyScale;
+  if (/(?:CMUSans|SansSerif|sans-serif|Helvetica|Arial)/i.test(String(fontFamily || ""))) {
+    return SVG_SANS_SERIF_TEXT_WIDTH_SCALE;
+  }
+  return SVG_SERIF_TEXT_WIDTH_SCALE;
 }
 
 export function wrapTypewriterWidth(svg, item, unit, scale) {
@@ -191,18 +224,22 @@ export function wrapSvgTextLines(lines, wrapWidth, unit, fontSize) {
   return lines.flatMap((line) => wrapSvgTextLine(line, maxChars));
 }
 
-export function wrapSvgTextLineWithSource(sourceLine, formattedLine, wrapWidth, unit, fontSize) {
+export function wrapSvgTextLineWithSource(sourceLine, formattedLine, wrapWidth, unit, fontSize, options = {}) {
   const width = Number(wrapWidth) * unit;
   const source = collapseTeXParagraphWhitespace(sourceLine ?? formattedLine ?? "");
   const formatted = collapseTeXParagraphWhitespace(formattedLine ?? source);
   if (!Number.isFinite(width) || width <= 0) return [{ line: formatted, contentLine: source }];
-  const maxChars = Math.max(1, Math.floor(width / Math.max(1, fontSize * SVG_TEXT_WRAP_CHAR_WIDTH_EM)));
   if (!hasInlineMathSource(source)) {
-    return wrapSvgTextLine(formatted, maxChars).map((line) => ({ line, contentLine: line }));
+    const fontScale = (fontSize * TEX_PT_PER_CM) / (unit * 10);
+    return wrapTeXTextLineByWidth(formatted, Number(wrapWidth), fontScale, options).map((line) => ({
+      line,
+      contentLine: line
+    }));
   }
   const tokens = svgTextWrapTokens(source);
   if (!tokens.length) return [{ line: formatted, contentLine: source }];
-  return wrapSvgTextTokensBalanced(tokens, maxChars).map((line) => ({
+  const fontScale = (fontSize * TEX_PT_PER_CM) / (unit * 10);
+  return wrapSvgTextTokensByWidth(tokens, Number(wrapWidth), fontScale, options).map((line) => ({
     line: joinWrappedTextTokens(line, "formatted"),
     contentLine: joinWrappedTextTokens(line, "source")
   }));
@@ -233,7 +270,13 @@ export function svgTextWrapTokens(sourceLine) {
     }
     for (const match of String(segment.text || "").matchAll(/\S+/g)) {
       const source = match[0];
-      tokens.push({ source, formatted: formatPlainTexText(source) });
+      const formatted = formatPlainTexText(source);
+      if (/^[,.;:!?]+$/.test(formatted) && tokens.length) {
+        tokens.at(-1).source += source;
+        tokens.at(-1).formatted += formatted;
+      } else {
+        tokens.push({ source, formatted });
+      }
     }
   }
   return tokens;
@@ -264,6 +307,53 @@ export function wrapSvgTextTokensBalanced(tokens, maxChars) {
     lines.push(tokens.slice(cursor, next));
     cursor = next;
   }
+  return lines;
+}
+
+export function wrapSvgTextTokensByWidth(tokens, maxWidthCm, fontScale = 1, options = {}) {
+  if (!tokens.length) return [];
+  if (!Number.isFinite(maxWidthCm) || maxWidthCm <= 0) return [tokens];
+  if (options.lineBreakMode === "flush") return wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale);
+  const count = tokens.length;
+  const best = Array.from({ length: count + 1 }, () => ({ cost: Infinity, next: count }));
+  best[count] = { cost: 0, next: count };
+  for (let start = count - 1; start >= 0; start -= 1) {
+    for (let end = start; end < count; end += 1) {
+      const line = tokens.slice(start, end + 1);
+      const width = texTextWidthCm(joinWrappedTextTokens(line, "formatted"), fontScale) * MIXED_TEX_WRAP_WIDTH_CORRECTION;
+      if (width > maxWidthCm * 1.08 && end > start) break;
+      const isLast = end === count - 1;
+      const overfull = Math.max(0, width - maxWidthCm);
+      const remaining = Math.max(0, maxWidthCm - width);
+      const lineCost = overfull > 0 ? overfull * overfull * 70 : isLast ? remaining * remaining * 0.05 : remaining * remaining;
+      const cost = lineCost + best[end + 1].cost;
+      if (cost < best[start].cost) best[start] = { cost, next: end + 1 };
+    }
+  }
+  const lines = [];
+  let cursor = 0;
+  while (cursor < count) {
+    const next = Math.max(cursor + 1, Math.min(count, best[cursor].next));
+    lines.push(tokens.slice(cursor, next));
+    cursor = next;
+  }
+  return lines;
+}
+
+function wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale) {
+  const lines = [];
+  let line = [];
+  for (const token of tokens) {
+    const candidate = [...line, token];
+    const width = texTextWidthCm(joinWrappedTextTokens(candidate, "formatted"), fontScale);
+    if (line.length && width > maxWidthCm) {
+      lines.push(line);
+      line = [token];
+    } else {
+      line = candidate;
+    }
+  }
+  if (line.length) lines.push(line);
   return lines;
 }
 

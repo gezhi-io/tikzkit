@@ -1,5 +1,5 @@
-import { evaluateMath, parseDimension } from "../math.js";
-import { parseOptions } from "../options.js";
+import { evaluateMath, parseDimension } from "../engine/math.js";
+import { parseOptions } from "../engine/options.js";
 
 export const neuralNetworkExtension = {
   name: "neuralnetwork",

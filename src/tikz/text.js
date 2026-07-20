@@ -1,4 +1,5 @@
 import { TIKZ_FONT_FAMILY, TIKZ_MONOSPACE_FONT_FAMILY, TIKZ_SANS_SERIF_FONT_FAMILY } from "./metrics.js";
+import { replaceExtensibleMathArrowsWithGlyphs } from "./mathArrows.js";
 import { preprocessTikzSource } from "../frontend/latex-shell.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 
@@ -12,7 +13,45 @@ const TIKZ_HSPACE_START = "\uE100";
 const TIKZ_HSPACE_END = "\uE101";
 const MATH_FALLBACK_LBRACE = "\uE102";
 const MATH_FALLBACK_RBRACE = "\uE103";
-const MATH_MATRIX_ENV_NAMES = ["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "cases"];
+export const MATH_FALLBACK_NAMED_OPERATORS = Object.freeze([
+  "arccos",
+  "arcsin",
+  "arctan",
+  "arg",
+  "cos",
+  "cosh",
+  "cot",
+  "coth",
+  "csc",
+  "deg",
+  "det",
+  "dim",
+  "exp",
+  "gcd",
+  "hom",
+  "inf",
+  "ker",
+  "lg",
+  "lim",
+  "liminf",
+  "limsup",
+  "ln",
+  "log",
+  "max",
+  "min",
+  "Pr",
+  "sec",
+  "sin",
+  "sinh",
+  "sup",
+  "tan",
+  "tanh"
+]);
+const MATH_FALLBACK_NAMED_OPERATOR_PATTERN = new RegExp(
+  String.raw`\\(?:${MATH_FALLBACK_NAMED_OPERATORS.join("|")})(?![A-Za-z])`,
+  "g"
+);
+const MATH_MATRIX_ENV_NAMES = ["matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "cases", "array"];
 const MATHCAL_GLYPHS = {
   A: "𝒜",
   B: "ℬ",
@@ -41,6 +80,126 @@ const MATHCAL_GLYPHS = {
   Y: "𝒴",
   Z: "𝒵"
 };
+const MATHBB_CAPITAL_EXCEPTIONS = Object.freeze({
+  C: "ℂ",
+  H: "ℍ",
+  N: "ℕ",
+  P: "ℙ",
+  Q: "ℚ",
+  R: "ℝ",
+  Z: "ℤ"
+});
+
+export function normalizeBrowserMathMacros(value) {
+  return replaceBrowserNiceFractionCommands(String(value ?? ""))
+    .replace(/(?<!\\)\\coloneqq(?![A-Za-z])/g, String.raw`\mathrel{≔}`);
+}
+
+function replaceBrowserNiceFractionCommands(value) {
+  const source = String(value ?? "");
+  const command = String.raw`\nicefrac`;
+  let output = "";
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const index = source.indexOf(command, cursor);
+    if (index === -1) {
+      output += source.slice(cursor);
+      break;
+    }
+    const commandEnd = index + command.length;
+    if (isEscapedAt(source, index) || /[A-Za-z]/.test(source[commandEnd] || "")) {
+      output += source.slice(cursor, commandEnd);
+      cursor = commandEnd;
+      continue;
+    }
+
+    let argumentStart = skipTextWhitespace(source, commandEnd);
+    let style = "";
+    if (source[argumentStart] === "[") {
+      const optional = readBalancedDelimited(source, argumentStart, "[", "]");
+      if (!optional) {
+        output += source.slice(cursor, commandEnd);
+        cursor = commandEnd;
+        continue;
+      }
+      style = normalizeBrowserMathMacros(optional.content.trim());
+      argumentStart = skipTextWhitespace(source, optional.end);
+    }
+
+    const numerator = readBalanced(source, argumentStart);
+    const denominatorStart = numerator ? skipTextWhitespace(source, numerator.end) : argumentStart;
+    const denominator = numerator ? readBalanced(source, denominatorStart) : null;
+    if (!numerator || !denominator) {
+      output += source.slice(cursor, commandEnd);
+      cursor = commandEnd;
+      continue;
+    }
+
+    output += source.slice(cursor, index);
+    output += browserNiceFraction(
+      normalizeBrowserMathMacros(numerator.content),
+      normalizeBrowserMathMacros(denominator.content),
+      style
+    );
+    cursor = denominator.end;
+  }
+
+  return output;
+}
+
+function browserNiceFraction(numerator, denominator, style) {
+  const formatPart = (part) => (style ? `${style}{${part}}` : part);
+  return String.raw`\mathord{\raisebox{0.2em}{\scriptsize{}${formatPart(numerator)}}\mkern-2mu/\mkern-1mu{\scriptsize{}${formatPart(denominator)}}}`;
+}
+
+function replaceBrowserNiceFractionFormsForFallback(value) {
+  const source = String(value ?? "");
+  const command = String.raw`\mathord`;
+  let output = "";
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const index = source.indexOf(command, cursor);
+    if (index === -1) {
+      output += source.slice(cursor);
+      break;
+    }
+    const read = readCommandAt(source, index, "mathord", 1);
+    const fraction = read ? parseBrowserNiceFractionBody(read.args[0]) : null;
+    if (!read || !fraction) {
+      output += source.slice(cursor, index + command.length);
+      cursor = index + command.length;
+      continue;
+    }
+    output += source.slice(cursor, index);
+    output += `\\frac{${fraction.numerator}}{${fraction.denominator}}`;
+    cursor = read.end;
+  }
+
+  return output;
+}
+
+function parseBrowserNiceFractionBody(value) {
+  const source = String(value ?? "");
+  const start = skipTextWhitespace(source, 0);
+  const raisebox = readCommandAt(source, start, "raisebox", 2);
+  if (!raisebox || raisebox.args[0].trim() !== "0.2em") return null;
+  let cursor = skipTextWhitespace(source, raisebox.end);
+  const separator = source.slice(cursor).match(/^\\mkern\s*-2mu\s*\/\s*\\mkern\s*-1mu\s*/);
+  if (!separator) return null;
+  cursor = skipTextWhitespace(source, cursor + separator[0].length);
+  const denominator = readBalanced(source, cursor);
+  if (!denominator || source.slice(denominator.end).trim()) return null;
+  return {
+    numerator: stripBrowserNiceFractionSize(raisebox.args[1]),
+    denominator: stripBrowserNiceFractionSize(denominator.content)
+  };
+}
+
+function stripBrowserNiceFractionSize(value) {
+  return String(value ?? "").replace(/^\s*\\scriptsize(?![A-Za-z])\s*(?:\{\})?/, "");
+}
 
 const LIPSUM_PARAGRAPHS = [
   "",
@@ -52,16 +211,20 @@ const LIPSUM_PARAGRAPHS = [
   "Suspendisse vel felis. Ut lorem lorem, interdum eu, tincidunt sit amet, laoreet vitae, arcu. Aenean faucibus pede eu ante. Praesent enim elit, rutrum at, molestie non, nonummy vel, nisl. Ut lectus eros, malesuada sit amet, fermentum eu, sodales cursus, magna. Donec eu purus. Quisque vehicula, urna sed ultricies auctor, pede lorem egestas dui, et convallis elit erat sed nulla. Donec luctus. Curabitur et nunc. Aliquam dolor odio, commodo pretium, ultricies non, pharetra in, velit. Integer arcu est, nonummy in, fermentum faucibus, egestas vel, odio."
 ];
 
-export function normalizeTikzText(value) {
+export function normalizeTikzText(value, options = {}) {
   const rawInput = normalizeTextColorTokenArguments(replaceInlineTikzNodes(stripMinipageWrapper(String(value ?? ""))));
-  let text = normalizeTextListEnvironments(rawInput).trim();
+  const browserRawInput = normalizeBrowserMathMacros(rawInput);
+  let text = unwrapWholeShortstack(normalizeTextListEnvironments(browserRawInput).trim());
+  const fixedHbox = readWholeHboxTo(text);
+  const boxWidth = fixedHbox ? parseTikzGraphicDimension(fixedHbox.width) : null;
+  if (fixedHbox) text = fixedHbox.content.trim();
   const fontFamily = detectTextFontFamily(rawInput);
   const fontStyle = hasWholeTextStyle(rawInput, "italic") ? "italic" : null;
   const fontWeight = hasWholeTextBoldCommand(rawInput) ? 700 : null;
   const fontVariant = hasLeadingFontDeclaration(rawInput, /\\scshape\b/) ? "small-caps" : null;
   const nestedGraphic = parseNestedTikzGraphic(text);
   if (nestedGraphic) return nestedGraphic;
-  const image = parseIncludeGraphics(text);
+  const image = parseIncludeGraphics(text, options);
   if (image) return image;
 
   let scale = 1;
@@ -88,11 +251,15 @@ export function normalizeTikzText(value) {
 
 	  text = unwrapOptionalAxisScalebox(text);
 	  text = unwrapParboxCommands(stripOuterTextBraces(text));
+	  text = normalizeWholeAmsDisplayEnvironment(text);
+	  text = normalizeAdjacentDisplayMathBlocks(text);
 	  text = replaceCommand(text, "scalebox", 2, (args) => args[1]);
   if (!isMathText(text)) text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
   text = replaceCommand(text, "phantom", 1, () => "");
   text = replaceCommand(text, "tikzinlinebox", 2, (args) => args[1]);
   text = replaceCommand(text, "contour", 2, (args) => args[1]);
+  text = replaceCommand(text, "rule", 2, () => "");
+  text = normalizeMathArrayColumnSpecs(text);
   if (isMathText(text)) {
     for (const command of ["texttt", "textsf", "textrm", "textbf", "textit", "emph"]) {
       text = replaceCommand(text, command, 1, (args) => args[0]);
@@ -123,11 +290,12 @@ export function normalizeTikzText(value) {
   }
   text = stripZeroWidthTextCommands(text);
   text = restoreEscapedMathDelimiters(text);
+  const displayMathSequence = /\$\$[\s\S]*?\$\$\s*\\\\\s*\$\$[\s\S]*?\$\$/.test(text);
 
   if (isMathText(text)) {
     return {
       kind: "text",
-      raw: rawInput,
+      raw: browserRawInput,
       text: text.trim(),
       scale,
       color,
@@ -137,6 +305,7 @@ export function normalizeTikzText(value) {
       fontVariant,
       invisible,
       explicitFontSize,
+      boxWidth,
       lines: [text.trim()]
     };
   }
@@ -147,7 +316,7 @@ export function normalizeTikzText(value) {
 
   return {
     kind: "text",
-    raw: rawInput,
+    raw: browserRawInput,
     text,
     scale,
     color,
@@ -157,6 +326,8 @@ export function normalizeTikzText(value) {
     fontVariant,
     invisible,
     explicitFontSize,
+    boxWidth,
+    displayMathSequence,
     lineStyles: styledLines.map((line) => ({
       scale: line.scale / contentFontScale,
       fontFamily: line.fontFamily ?? fontFamily,
@@ -175,6 +346,47 @@ export function normalizeTikzText(value) {
     })),
     lines: styledLines.map((line) => line.text)
   };
+}
+
+function normalizeWholeAmsDisplayEnvironment(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^\\begin\s*\{(align\*?|aligned|alignedat\*?)\}([\s\S]*)\\end\s*\{\1\}$/);
+  if (!match) return value;
+  const environment = match[1].replace(/^align\*?$/, "aligned").replace(/^alignedat\*?$/, "aligned");
+  return `\\[\\begin{${environment}}${match[2]}\\end{${environment}}\\]`;
+}
+
+function normalizeAdjacentDisplayMathBlocks(value) {
+  const text = String(value || "").trim();
+  const blocks = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    while (/\s/.test(text[cursor] || "")) cursor += 1;
+    if (!text.startsWith("$$", cursor)) return value;
+    const span = readDollarMathSpan(text, cursor);
+    if (!span?.displayMode) return value;
+    blocks.push(text.slice(span.start, span.end));
+    cursor = span.end;
+  }
+  return blocks.length > 1 ? blocks.join("\\\\") : value;
+}
+
+function readWholeHboxTo(text) {
+  const source = String(text || "").trim();
+  const prefix = String.raw`\hbox`;
+  if (!source.startsWith(prefix)) return null;
+  let index = prefix.length;
+  while (/\s/.test(source[index] || "")) index += 1;
+  if (!source.startsWith("to", index)) return null;
+  index += 2;
+  while (/\s/.test(source[index] || "")) index += 1;
+  const widthStart = index;
+  while (index < source.length && !/\s|\{/.test(source[index])) index += 1;
+  const width = source.slice(widthStart, index).trim();
+  while (/\s/.test(source[index] || "")) index += 1;
+  const content = readBalanced(source, index);
+  if (!width || !content || source.slice(content.end).trim()) return null;
+  return { width, content: content.content };
 }
 
 export function isEmptyNormalizedTikzText(normalized) {
@@ -428,6 +640,13 @@ function replaceInlineTikzNodes(source) {
     while (/\s/.test(text[readCursor] || "")) readCursor += 1;
     const body = readBalanced(text, readCursor);
     if (!body) {
+      if (text.startsWith(String.raw`\node`, readCursor)) {
+        const end = findInlineTikzStatementEnd(text, readCursor);
+        const commandBody = text.slice(readCursor, end);
+        output += inlineTikzNodeReplacement(commandBody);
+        cursor = text[end] === ";" ? end + 1 : end;
+        continue;
+      }
       output += text.slice(index, readCursor);
       cursor = readCursor;
       continue;
@@ -436,6 +655,20 @@ function replaceInlineTikzNodes(source) {
     cursor = body.end;
   }
   return output;
+}
+
+function findInlineTikzStatementEnd(text, start) {
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (char === "[") bracketDepth += 1;
+    else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (char === ";" && braceDepth === 0 && bracketDepth === 0) return index;
+  }
+  return text.length;
 }
 
 function inlineTikzNodeReplacement(body) {
@@ -473,11 +706,47 @@ function extractInlineTikzNode(body) {
 
 function normalizeInlineTikzNodeText(text) {
   return String(text || "")
+    .replace(/\\ref\s*\{[^{}]*\}/g, "??")
     .replace(/\\textcolor\s*\{[^{}]+\}\s*\{([^{}]*)\}/g, "$1")
     .replace(/\\(?:tt|ttfamily|rm|rmfamily|sf|sffamily|normalfont|bf|bfseries|itshape|slshape|scshape)\b/g, "")
     .replace(/[{}]/g, "")
     .replace(/[ \t]+/g, " ")
     .trim();
+}
+
+function unwrapWholeShortstack(text) {
+  const source = String(text || "").trim();
+  const command = String.raw`\shortstack`;
+  if (!source.startsWith(command)) return source;
+  let cursor = skipTextWhitespace(source, command.length);
+  if (source[cursor] === "[") {
+    const align = readBalancedDelimited(source, cursor, "[", "]");
+    if (!align) return source;
+    cursor = skipTextWhitespace(source, align.end);
+  }
+  const body = readBalanced(source, cursor);
+  if (!body || source.slice(body.end).trim()) return source;
+  return body.content.trim();
+}
+
+function normalizeMathArrayColumnSpecs(text) {
+  let source = String(text || "");
+  const command = String.raw`\begin{array}`;
+  let index = source.indexOf(command);
+  while (index !== -1) {
+    const specStart = skipTextWhitespace(source, index + command.length);
+    const spec = readBalanced(source, specStart);
+    if (!spec) {
+      index = source.indexOf(command, index + command.length);
+      continue;
+    }
+    const columns = spec.content
+      .replace(/@\{[^{}]*\}/g, "")
+      .replace(/[^lcrpmb|]/g, "") || "l";
+    source = `${source.slice(0, specStart)}{${columns}}${source.slice(spec.end)}`;
+    index = source.indexOf(command, specStart + columns.length + 2);
+  }
+  return source;
 }
 
 export function fontScaleFromTikzFont(font) {
@@ -810,6 +1079,10 @@ function cleanStyledTextContent(value) {
 	  text = normalizePlainTextAccents(text)
 	    .replace(/\\(?:mathbf|textbf)\s*\{([^{}]*)\}/g, "$1")
 	    .replace(/\\(?:centering|raggedright|raggedleft|tt|ttfamily|rm|rmfamily|sf|sffamily|normalfont|bf|bfseries|itshape|slshape|scshape)\b/g, "")
+    .replace(/\\,(?![A-Za-z])\s*/g, () => hspaceText("0.166667em"))
+    .replace(/\\:(?![A-Za-z])\s*/g, () => hspaceText("0.222222em"))
+    .replace(/\\;(?![A-Za-z])\s*/g, () => hspaceText("0.277778em"))
+    .replace(/\\!(?![A-Za-z])\s*/g, () => hspaceText("-0.166667em"))
     .replace(/\\hspace\s*\{([^}]*)\}/g, (_match, dimension) => hspaceText(dimension))
     .replace(/\\smash\s*\{([^{}]*)\}/g, "$1")
     .replace(/\\dots/g, "…")
@@ -833,7 +1106,8 @@ function cleanStyledTextContent(value) {
     .replace(/\\Leftarrow/g, "⇐")
     .replace(/\\uparrow/g, "↑")
     .replace(/\\downarrow/g, "↓")
-    .replace(/\\to/g, "→")
+    .replace(/\\top(?![A-Za-z])/g, "⊤")
+    .replace(/\\to(?![A-Za-z])/g, "→")
     .replace(/\\gets/g, "←")
     .replace(/\\star/g, "⋆")
     .replace(/\\pounds/g, "£")
@@ -843,6 +1117,8 @@ function cleanStyledTextContent(value) {
     .replace(/\\spadesuit/g, "♠")
     .replace(/\^\s*\{?\\circ\}?/g, "°")
     .replace(/\\circ/g, "°")
+    .replace(/\\lbrace/g, "{")
+    .replace(/\\rbrace/g, "}")
     .replace(/\\&/g, "&")
     .replace(/\\_/g, "_")
     .replace(/[{}]/g, "")
@@ -885,11 +1161,15 @@ function protectInlineMathSpans(text) {
 
 function hspaceText(dimension) {
   const raw = String(dimension || "").trim();
-  const match = raw.match(/^([0-9.]+)\s*(cm|mm|em|ex|pt)?$/);
+  const match = raw.match(/^([-+]?[0-9.]+)\s*(cm|mm|em|ex|pt)?$/);
   if (!match) return " ";
   const value = Number(match[1]);
-  if (!Number.isFinite(value) || value <= 0) return " ";
+  if (!Number.isFinite(value) || value === 0) return "";
   return `${TIKZ_HSPACE_START}${encodeURIComponent(raw)}${TIKZ_HSPACE_END}`;
+}
+
+export function tikzHspaceText(dimension) {
+  return hspaceText(dimension);
 }
 
 function tikzHspaceMarkerPattern() {
@@ -924,7 +1204,7 @@ function hasBalancedBraces(text) {
 
 export function mathFallbackText(tex) {
   let text = normalizeMathFallbackAccents(
-    String(tex)
+    replaceBrowserNiceFractionFormsForFallback(normalizeBrowserMathMacros(String(tex)))
     .trim()
     .replace(/^\$\$([\s\S]*)\$\$$/, "$1")
     .replace(/^\$([\s\S]*)\$$/, "$1")
@@ -933,11 +1213,17 @@ export function mathFallbackText(tex) {
   );
   text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
   text = replaceCommand(text, "mathbin", 1, (args) => args[0]);
+  text = replaceCommand(text, "mathrel", 1, (args) => args[0]);
+  text = replaceCommand(text, "mathord", 1, (args) => args[0]);
+  text = replaceCommand(text, "raisebox", 2, (args) => args[1]);
+  text = replaceCommand(text, "mathrm", 1, (args) => args[0]);
+  text = replaceExtensibleMathArrowsWithGlyphs(text);
   text = replaceMathMatrixEnvironments(text);
   text = text.replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)(?![A-Za-z])\s*/g, "");
   text = replaceMathFractionCommands(text);
   return text
     .replace(/\\strut(?![A-Za-z])\s*/g, "")
+    .replace(/\\mkern\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*mu(?![A-Za-z])\s*/g, "")
     .replace(/\\\$\s*/g, "$")
     .replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)(?![A-Za-z])\s*/g, "")
     .replace(/\\textcolor\s*\{[^{}]*\}\s*\{([^{}]*)\}/g, "$1")
@@ -945,11 +1231,13 @@ export function mathFallbackText(tex) {
     .replace(/\\[,;:!]\s*/g, " ")
     .replace(/\\mathcal\s*\{([^{}]*)\}/g, (_match, value) => mathcalFallbackText(value))
     .replace(/\\mathcal\s*([A-Za-z])/g, (_match, value) => mathcalFallbackText(value))
+    .replace(/\\mathbb\s*\{([^{}]*)\}/g, (_match, value) => mathbbFallbackText(value))
+    .replace(/\\mathbb\s*([A-Za-z0-9])/g, (_match, value) => mathbbFallbackText(value))
     .replace(/\\operatorname\*?\s*\{([^{}]*)\}/g, "$1")
     .replace(/\\operatorname\*?\s*([A-Za-z]+)/g, "$1")
     .replace(/\\(?:vec|overrightarrow)\s*\{([^{}]*)\}/g, (_match, value) => `${value}⃗`)
     .replace(/\\vec\s*([A-Za-z])/g, (_match, value) => `${value}⃗`)
-    .replace(/\\overline\s*\{([^{}]*)\}/g, (_match, value) => `${value}̄`)
+    .replace(/\\overline\s*\{([^{}]*)\}/g, (_match, value) => `${mathFallbackText(value)}̄`)
     .replace(/\\overline\s*([A-Za-z])/g, (_match, value) => `${value}̄`)
     .replace(/\\bar\s*\{([^{}]*)\}/g, (_match, value) => `${value}̄`)
     .replace(/\\bar\s*([A-Za-z])/g, (_match, value) => `${value}̄`)
@@ -966,12 +1254,13 @@ export function mathFallbackText(tex) {
     .replace(/\\(?:bm|mathbf|boldsymbol|text|textnormal|textbf|textit|mathrm|textrm|texttt|emph|overline|underline|mathlarger|operatorname\*?)\s*(\\[A-Za-z]+)/g, "$1")
     .replace(/\\(?:bm|mathbf|boldsymbol|text|textnormal|textbf|textit|mathrm|textrm|texttt|emph|overline|underline|mathlarger|operatorname\*?)\s*([A-Za-z])/g, "$1")
     .replace(/\\(?:bf|bfseries|tt|ttfamily|rm|rmfamily|sf|sffamily|normalfont|large|Large|LARGE|Huge|huge|scriptsize|footnotesize|tiny)\b/g, "")
-    .replace(/\\(?:sin|cos|tan|cot|sec|csc|log|ln|exp|max|min|det|dim|ker|hom|arg|Pr)(?![A-Za-z])/g, (match) => ` ${match.slice(1)} `)
+    .replace(MATH_FALLBACK_NAMED_OPERATOR_PATTERN, (match) => ` ${match.slice(1)} `)
     .replace(/\\(?:cdots|ldots|dots)/g, "…")
     .replace(/\\times/g, "×")
-    .replace(/\\cdot/g, ".")
+    .replace(/\\cdot\s*/g, "⋅")
     .replace(/\\otimes/g, "(x)")
     .replace(/\\oplus/g, "(+)")
+    .replace(/\\infty(?![A-Za-z])/g, "∞")
     .replace(/\\partial(?![A-Za-z])/g, "∂")
     .replace(/\\(?:in)(?![A-Za-z])/g, "∈")
     .replace(/\\(?:leq|le)(?![A-Za-z])/g, "≤")
@@ -979,6 +1268,8 @@ export function mathFallbackText(tex) {
     .replace(/\\neq(?![A-Za-z])/g, "≠")
     .replace(/\\sim(?![A-Za-z])/g, "∼")
     .replace(/\\(?:neg|lnot)(?![A-Za-z])/g, "¬")
+    .replace(/\\(?:lor|vee)(?![A-Za-z])/g, "∨")
+    .replace(/\\(?:land|wedge)(?![A-Za-z])/g, "∧")
     .replace(/\\approx(?![A-Za-z])/g, "≈")
     .replace(/\\parallel(?![A-Za-z])/g, "∥")
     .replace(/\\rightleftharpoons/g, "⇌")
@@ -989,7 +1280,8 @@ export function mathFallbackText(tex) {
     .replace(/\\Leftarrow/g, "⇐")
     .replace(/\\uparrow/g, "↑")
     .replace(/\\downarrow/g, "↓")
-    .replace(/\\to/g, "→")
+    .replace(/\\top(?![A-Za-z])/g, "⊤")
+    .replace(/\\to(?![A-Za-z])/g, "→")
     .replace(/\\gets/g, "←")
     .replace(/\\star/g, "⋆")
     .replace(/\\pounds/g, "£")
@@ -1034,15 +1326,18 @@ export function mathFallbackText(tex) {
     .replace(/\\rho/g, "ρ")
     .replace(/\\varsigma/g, "ς")
     .replace(/\\sigma/g, "σ")
-    .replace(/\\varphi/g, "ϕ")
-    .replace(/\\phi/g, "φ")
+    .replace(/\\varphi/g, "φ")
+    .replace(/\\phi/g, "ϕ")
     .replace(/\\psi/g, "ψ")
     .replace(/\\omega/g, "ω")
     .replace(/\\Gamma/g, "Γ")
     .replace(/\\Delta/g, "Δ")
+    .replace(/\\Theta/g, "Θ")
     .replace(/\\Lambda/g, "Λ")
+    .replace(/\\Xi/g, "Ξ")
     .replace(/\\Pi/g, "Π")
     .replace(/\\Sigma/g, "Σ")
+    .replace(/\\Upsilon/g, "Υ")
     .replace(/\\Phi/g, "Φ")
     .replace(/\\Psi/g, "Ψ")
     .replace(/\\Omega/g, "Ω")
@@ -1059,7 +1354,7 @@ export function mathFallbackText(tex) {
     .replace(/[{}]/g, "")
     .replace(new RegExp(MATH_FALLBACK_LBRACE, "g"), "{")
     .replace(new RegExp(MATH_FALLBACK_RBRACE, "g"), "}")
-    .replace(/\s*([=≤≥≠≈∈∼∥])\s*/g, " $1 ")
+    .replace(/\s*([=≔≤≥≠≈∈∼∥])\s*/g, " $1 ")
     .replace(/\{\s+/g, "{")
     .replace(/\s+\}/g, "}")
     .replace(/\s+/g, " ")
@@ -1141,7 +1436,8 @@ function matchMathMatrixEnvToken(text, index, kind) {
 }
 
 function formatMathMatrixFallback(env, body) {
-  const rows = splitMathMatrixTopLevel(body, "row")
+  const matrixBody = env === "array" ? stripMathArrayColumnSpec(body) : body;
+  const rows = splitMathMatrixTopLevel(matrixBody, "row")
     .map((row) =>
       splitMathMatrixTopLevel(row, "col")
         .map((cell) => mathFallbackText(cell).trim())
@@ -1158,6 +1454,12 @@ function formatMathMatrixFallback(env, body) {
   if (env === "Vmatrix") return `||${content}||`;
   if (env === "cases") return `{${content}`;
   return content;
+}
+
+function stripMathArrayColumnSpec(body) {
+  const source = String(body || "").trimStart();
+  const spec = readBalanced(source, 0);
+  return spec ? source.slice(spec.end) : source;
 }
 
 function splitMathMatrixTopLevel(body, mode) {
@@ -1222,6 +1524,16 @@ function maybeParenthesizeFractionPart(value, role) {
 
 function mathcalFallbackText(value) {
   return [...String(value || "")].map((char) => MATHCAL_GLYPHS[char] || char).join("");
+}
+
+function mathbbFallbackText(value) {
+  return [...String(value || "")].map((char) => {
+    if (MATHBB_CAPITAL_EXCEPTIONS[char]) return MATHBB_CAPITAL_EXCEPTIONS[char];
+    if (/[A-Z]/.test(char)) return String.fromCodePoint(0x1d538 + char.charCodeAt(0) - 65);
+    if (/[a-z]/.test(char)) return String.fromCodePoint(0x1d552 + char.charCodeAt(0) - 97);
+    if (/[0-9]/.test(char)) return String.fromCodePoint(0x1d7d8 + char.charCodeAt(0) - 48);
+    return char;
+  }).join("");
 }
 
 function normalizeMathFallbackAccents(tex) {
@@ -1336,23 +1648,43 @@ function isMathText(text) {
   );
 }
 
-function parseIncludeGraphics(text) {
+function parseIncludeGraphics(text, options = {}) {
   const match = text.match(/^\\includegraphics(?:\[([\s\S]*?)\])?\{([^}]+)\}$/);
   if (!match) return null;
-  const options = parseGraphicOptions(match[1] || "");
-  const width = parseCmDimension(options.width) ?? 2;
+  const graphicOptions = parseGraphicOptions(match[1] || "");
+  const explicitWidth = parseCmDimension(graphicOptions.width);
+  const explicitHeight = parseCmDimension(graphicOptions.height);
   const fileName = match[2].trim();
+  const resolved = resolveImageResource(options.imageResolver, fileName);
+  const naturalWidth = Number(resolved?.naturalWidth);
+  const naturalHeight = Number(resolved?.naturalHeight);
+  const naturalAspect = naturalWidth > 0 && naturalHeight > 0 ? naturalWidth / naturalHeight : 1 / 0.55;
+  const width = explicitWidth ?? (explicitHeight !== null ? explicitHeight * naturalAspect : 2);
+  const height = explicitHeight ?? (explicitWidth !== null ? explicitWidth / naturalAspect : width / naturalAspect);
   const networkDevice = packtNetworkDeviceName(fileName);
   return {
     kind: "image",
     raw: text,
     fileName,
     width,
-    height: width * 0.55,
+    height,
+    ...(resolved?.href ? { href: resolved.href } : {}),
+    ...(naturalWidth > 0 && naturalHeight > 0 ? { naturalWidth, naturalHeight } : {}),
     scale: 1,
     ...(networkDevice ? { plot: "network-device", device: networkDevice } : {}),
     lines: []
   };
+}
+
+function resolveImageResource(resolver, fileName) {
+  if (typeof resolver !== "function") return null;
+  try {
+    const resolved = resolver(fileName);
+    if (typeof resolved === "string") return { href: resolved };
+    return resolved && typeof resolved === "object" ? resolved : null;
+  } catch {
+    return null;
+  }
 }
 
 function packtNetworkDeviceName(fileName) {

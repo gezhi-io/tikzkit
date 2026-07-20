@@ -1,3 +1,5 @@
+import { formatSvgNumber as format } from "./format.js";
+
 export function svgPathData(commands = [], unit = 1) {
   return commands
     .map((command) => {
@@ -18,9 +20,4 @@ export function svgPathData(commands = [], unit = 1) {
     })
     .filter(Boolean)
     .join(" ");
-}
-
-function format(value) {
-  const rounded = Math.round((Number(value) + Number.EPSILON) * 1e6) / 1e6;
-  return Object.is(rounded, -0) ? "0" : String(rounded);
 }

@@ -19,6 +19,17 @@ export {
   stripOuterBraces
 } from "./options.js";
 export { createTikzRegistry, registerCoreTikz } from "./registry.js";
-export { createPathBuilder } from "./pathBuilder.js";
+export {
+  circleCircleIntersections,
+  circleToPath,
+  ellipseToPath,
+  flattenPath,
+  lineCircleIntersections,
+  lineLineIntersection,
+  pathIntersections,
+  pathLength,
+  pointAtLength
+} from "./geometry.js";
+export { closePathCommand, createPathBuilder, curveToCommand, lineToCommand, moveToCommand, quadToCommand } from "./pathBuilder.js";
 export { applyTransform, composeTransforms, identityTransform } from "./transforms.js";
 export { TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension } from "./units.js";

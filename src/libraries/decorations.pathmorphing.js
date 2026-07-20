@@ -1,11 +1,1 @@
-export const tikzLibrary = {
-  "name": "decorations.pathmorphing",
-  "status": "builtin",
-  "implementedBy": "src/interpreter.js:createPathItem",
-  "features": [
-    "snake/zigzag approximation"
-  ],
-  "implements": [
-    "snake/zigzag approximation"
-  ]
-};
+export * from "../tikz/libraries/decorations.pathmorphing.js";

@@ -1,0 +1,4 @@
+\begin{tikzpicture}
+  \draw[very thick, stealth-stealth] (0,0) -- (2,0);
+  \draw[dashed, -latex'] (0,-0.5) -- (2,-0.5);
+\end{tikzpicture}

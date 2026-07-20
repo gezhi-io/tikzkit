@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "amsmath",
   "status": "partial",
-  "implementedBy": "src/math-metrics.js + src/renderer-svg.js + src/preprocess.js:parseDeclareMathOperator",
+  "implementedBy": "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator",
   "features": [
     "KaTeX delegated environments/macros",
     "\\DeclareMathOperator macro expansion"

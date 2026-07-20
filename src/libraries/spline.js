@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "spline",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/spline.js";

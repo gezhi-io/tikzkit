@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "mathrsfs",
   "status": "partial",
-  "implementedBy": "src/renderer-svg.js",
+  "implementedBy": "src/renderers/svg/renderSvg.js",
   "features": [
     "script math symbols delegated to KaTeX"
   ],

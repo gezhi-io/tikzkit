@@ -1,0 +1,12 @@
+\documentclass[tikz]{standalone}
+\usepackage{amsfonts}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[xmin=0,xmax=3,ymin=0,ymax=9,xlabel={$x\in\mathbb{R}$},ylabel={$f(x)=x^2$}]
+    \addplot[blue,mark=none] coordinates {(0,0) (1,1) (2,4) (3,9)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}
+

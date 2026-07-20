@@ -1,0 +1,444 @@
+{
+  "version": 1,
+  "description": "Structured TikZKit implementation examples aligned with the target compiler-style directory layout.",
+  "cases": [
+    {
+      "id": "basic-line-arrow",
+      "title": "Basic draw line with arrow and math label",
+      "source": "basic/line-arrow.tikz",
+      "semanticOwner": "src/tikz/commands/draw.js",
+      "features": [
+        "draw command",
+        "line segment",
+        "arrow tip",
+        "node on path",
+        "math label"
+      ]
+    },
+    {
+      "id": "paths-polyline-cycle",
+      "title": "Polyline path with closed fill",
+      "source": "paths/polyline-cycle.tikz",
+      "semanticOwner": "src/engine/pathBuilder.js",
+      "features": [
+        "path builder",
+        "lineTo",
+        "cycle",
+        "fill opacity",
+        "rounded corners"
+      ]
+    },
+    {
+      "id": "nodes-math-box",
+      "title": "Math node inside a rounded box",
+      "source": "nodes/math-box.tikz",
+      "semanticOwner": "src/tikz/commands/node.js",
+      "features": [
+        "node command",
+        "drawn shape",
+        "inner sep",
+        "rounded corners",
+        "KaTeX math text"
+      ]
+    },
+    {
+      "id": "foreach-grid",
+      "title": "Foreach-generated grid",
+      "source": "foreach/grid.tikz",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach",
+        "variable substitution",
+        "draw command",
+        "xcolor gray mix"
+      ]
+    },
+    {
+      "id": "pgfplots-axis-basic-range",
+      "title": "PGFPlots explicit axis range",
+      "source": "pgfplots/axis-basic-range.tex",
+      "semanticOwner": "src/pgfplots/rangeResolver.js",
+      "features": [
+        "axis environment",
+        "xmin",
+        "xmax",
+        "ymin",
+        "ymax",
+        "addplot coordinates"
+      ]
+    },
+    {
+      "id": "real-world-parallel-line-angles",
+      "title": "Parallel lines angle relationships",
+      "source": "real-world/parallel-line-angles.tikz",
+      "semanticOwner": "src/tikz/libraries/angles.js",
+      "features": [
+        "angles library",
+        "calc library",
+        "quotes library",
+        "intersection cs",
+        "pic angle",
+        "text node"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2048",
+      "title": "LaTeX examples master: 2048",
+      "source": "latex-examples-master/2048.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "fit",
+        "backgrounds",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2d-chi-squared-cdf",
+      "title": "LaTeX examples master: 2d-chi-squared-cdf",
+      "source": "latex-examples-master/2d-chi-squared-cdf.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:pgfplots",
+        "package:tikz",
+        "package:xcolor"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2d-chi-squared-pdf",
+      "title": "LaTeX examples master: 2d-chi-squared-pdf",
+      "source": "latex-examples-master/2d-chi-squared-pdf.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:pgfplots",
+        "package:tikz",
+        "package:xcolor"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2d-epochs-overfitting",
+      "title": "LaTeX examples master: 2d-epochs-overfitting",
+      "source": "latex-examples-master/2d-epochs-overfitting.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "positioning",
+        "decorations.text",
+        "decorations.pathmorphing",
+        "package:pgfplots",
+        "package:tikz",
+        "package:xcolor"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2d-light-bulb",
+      "title": "LaTeX examples master: 2d-light-bulb",
+      "source": "latex-examples-master/2d-light-bulb.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "positioning",
+        "decorations.text",
+        "decorations.pathmorphing",
+        "package:pgfplots",
+        "package:tikz",
+        "package:xcolor"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2d-parted-function",
+      "title": "LaTeX examples master: 2d-parted-function",
+      "source": "latex-examples-master/2d-parted-function.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:pgfplots",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-2d-x-square-with-circle",
+      "title": "LaTeX examples master: 2d-x-square-with-circle",
+      "source": "latex-examples-master/2d-x-square-with-circle.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:pgfplots",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-cmos-loss-diagram",
+      "title": "LaTeX examples master: 3d-cmos-loss-diagram",
+      "source": "latex-examples-master/3d-cmos-loss-diagram.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-2",
+      "title": "LaTeX examples master: 3d-function-2",
+      "source": "latex-examples-master/3d-function-2.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-3",
+      "title": "LaTeX examples master: 3d-function-3",
+      "source": "latex-examples-master/3d-function-3.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-4",
+      "title": "LaTeX examples master: 3d-function-4",
+      "source": "latex-examples-master/3d-function-4.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-5",
+      "title": "LaTeX examples master: 3d-function-5",
+      "source": "latex-examples-master/3d-function-5.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-6",
+      "title": "LaTeX examples master: 3d-function-6",
+      "source": "latex-examples-master/3d-function-6.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-7",
+      "title": "LaTeX examples master: 3d-function-7",
+      "source": "latex-examples-master/3d-function-7.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-8",
+      "title": "LaTeX examples master: 3d-function-8",
+      "source": "latex-examples-master/3d-function-8.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-9",
+      "title": "LaTeX examples master: 3d-function-9",
+      "source": "latex-examples-master/3d-function-9.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-continuous",
+      "title": "LaTeX examples master: 3d-function-continuous",
+      "source": "latex-examples-master/3d-function-continuous.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-function-semicubical-parabola",
+      "title": "LaTeX examples master: 3d-function-semicubical-parabola",
+      "source": "latex-examples-master/3d-function-semicubical-parabola.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-gaussian-distribution",
+      "title": "LaTeX examples master: 3d-gaussian-distribution",
+      "source": "latex-examples-master/3d-gaussian-distribution.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-gradient-colored",
+      "title": "LaTeX examples master: 3d-gradient-colored",
+      "source": "latex-examples-master/3d-gradient-colored.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "arrows.meta",
+        "package:xcolor",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-gradient-cos",
+      "title": "LaTeX examples master: 3d-gradient-cos",
+      "source": "latex-examples-master/3d-gradient-cos.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-helix",
+      "title": "LaTeX examples master: 3d-helix",
+      "source": "latex-examples-master/3d-helix.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-manhattan-bar-plot",
+      "title": "LaTeX examples master: 3d-manhattan-bar-plot",
+      "source": "latex-examples-master/3d-manhattan-bar-plot.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:pgfplots"
+      ]
+    },
+    {
+      "id": "latex-examples-master-3d-vector",
+      "title": "LaTeX examples master: 3d-vector",
+      "source": "latex-examples-master/3d-vector.tex",
+      "semanticOwner": "src/tikz/libraries/3d.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:tikz",
+        "package:tikz-3dplot"
+      ]
+    },
+    {
+      "id": "latex-examples-master-activation-functions",
+      "title": "LaTeX examples master: activation-functions",
+      "source": "latex-examples-master/activation-functions.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:pgfplots",
+        "package:tikz",
+        "package:xcolor"
+      ]
+    },
+    {
+      "id": "latex-examples-master-agent-environment-diagram-mdp",
+      "title": "LaTeX examples master: agent-environment-diagram-mdp",
+      "source": "latex-examples-master/agent-environment-diagram-mdp.tex",
+      "semanticOwner": "src/tikz/commands/node.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "shapes",
+        "snakes",
+        "shapes.geometric",
+        "positioning",
+        "decorations.text",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-agent-environment-diagram-pomdp",
+      "title": "LaTeX examples master: agent-environment-diagram-pomdp",
+      "source": "latex-examples-master/agent-environment-diagram-pomdp.tex",
+      "semanticOwner": "src/tikz/commands/node.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "shapes",
+        "snakes",
+        "shapes.geometric",
+        "positioning",
+        "decorations.text",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-agent-environment-diagram-rl",
+      "title": "LaTeX examples master: agent-environment-diagram-rl",
+      "source": "latex-examples-master/agent-environment-diagram-rl.tex",
+      "semanticOwner": "src/tikz/commands/node.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "shapes",
+        "snakes",
+        "shapes.geometric",
+        "positioning",
+        "decorations.text",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-aggregation-blocks",
+      "title": "LaTeX examples master: aggregation-blocks",
+      "source": "latex-examples-master/aggregation-blocks.tex",
+      "semanticOwner": "src/tikz/commands/node.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "arrows.meta",
+        "shapes.geometric",
+        "arrows",
+        "positioning",
+        "package:amssymb",
+        "package:tikz"
+      ]
+    },
+    {
+      "id": "latex-examples-master-arbelos",
+      "title": "LaTeX examples master: arbelos",
+      "source": "latex-examples-master/arbelos.tex",
+      "semanticOwner": "src/index.js",
+      "features": [
+        "LaTeX-examples-master corpus",
+        "package:preview",
+        "package:tikz"
+      ]
+    }
+  ]
+}

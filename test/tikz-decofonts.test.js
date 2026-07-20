@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzDecofontsExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzDecofontsExtension } from "../src/internal.js";
 
 test("exposes tikz-decofonts as a built-in extension module", () => {
   assert.equal(tikzDecofontsExtension.name, "tikz-decofonts");

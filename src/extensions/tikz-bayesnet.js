@@ -1,4 +1,4 @@
-import { splitTopLevel, stripOuterBraces } from "../options.js";
+import { splitTopLevel, stripOuterBraces } from "../engine/options.js";
 
 const BAYESNET_STYLES = String.raw`
 \tikzset{

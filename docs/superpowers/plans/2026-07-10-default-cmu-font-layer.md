@@ -53,7 +53,7 @@
 - `TIKZ_FONT_FAMILY` is exactly `"TikZKitCMUSerif, 'CMU Serif', serif"`.
 - `renderSvg(ir, { fontUrlPrefix })` passes `fontUrlPrefix || "/fonts/"` to `renderDefaultFontStyleDef`.
 
-- [ ] **Step 1: Write the failing renderer test**
+- [x] **Step 1: Write the failing renderer test**
 
 Add a test immediately after the existing basic SVG rendering test:
 
@@ -74,7 +74,7 @@ test("embeds the namespaced CMU default font layer for SVG text", () => {
 
 Update the two existing renderer assertions that require `KaTeX_Main` so they require the new exact `TIKZ_FONT_FAMILY` string.
 
-- [ ] **Step 2: Run the renderer test red**
+- [x] **Step 2: Run the renderer test red**
 
 Run:
 
@@ -84,7 +84,7 @@ node --test --test-name-pattern='CMU default font|KaTeX font stack' test/rendere
 
 Expected: the new test fails because no `tikzkit-default-font-style` or `TikZKitCMUSerif` output exists.
 
-- [ ] **Step 3: Write the failing workbench-font route test**
+- [x] **Step 3: Write the failing workbench-font route test**
 
 In the first `workbench server exposes browser assets` test, request:
 
@@ -94,7 +94,7 @@ assert.equal(cmuFont.status, 200);
 assert.equal(cmuFont.headers.get("content-type"), "font/otf");
 ```
 
-- [ ] **Step 4: Run the server test red**
+- [x] **Step 4: Run the server test red**
 
 Run:
 
@@ -104,7 +104,7 @@ node --test --test-name-pattern='workbench server exposes browser assets' test/w
 
 Expected: FAIL because `/fonts/TikZKitCMUSerif-Roman.otf` is not currently allowlisted.
 
-- [ ] **Step 5: Add the CMU assets and renderer-owned CSS**
+- [x] **Step 5: Add the CMU assets and renderer-owned CSS**
 
 Copy the four source OTF files exactly once:
 
@@ -140,7 +140,7 @@ Set `TIKZ_FONT_FAMILY` to `"TikZKitCMUSerif, 'CMU Serif', serif"`. Insert the de
 
 In `web/server.js`, add `["/fonts/", path.join(PROJECT_ROOT, "web", "fonts")]` before the root route and map `.otf` to `font/otf`.
 
-- [ ] **Step 6: Run focused tests green**
+- [x] **Step 6: Run focused tests green**
 
 Run:
 
@@ -151,7 +151,7 @@ node --test --test-name-pattern='workbench server exposes browser assets' test/w
 
 Expected: all selected tests pass.
 
-- [ ] **Step 7: Record focused source and asset snapshots**
+- [x] **Step 7: Record focused source and asset snapshots**
 
 ```sh
 shasum -a 256 web/fonts/TikZKitCMUSerif-Roman.otf web/fonts/TikZKitCMUSerif-Italic.otf web/fonts/TikZKitCMUSerif-Bold.otf web/fonts/TikZKitCMUSerif-BoldItalic.otf src/renderers/svg/defaultFontCss.js src/tikz/metrics.js src/renderers/svg/renderSvg.js web/server.js test/renderer.test.js test/web-server.test.js
@@ -163,7 +163,6 @@ shasum -a 256 web/fonts/TikZKitCMUSerif-Roman.otf web/fonts/TikZKitCMUSerif-Ital
 
 - Modify: `scripts/render-example-fixtures.js:1-40,280-330,529-560`
 - Modify: `test/example-render-script.test.js:608-635`
-- Modify: `test/pgfplots-seams.test.js:2339-2354`
 - Create: `outputs/qa-default-cmu-font-layer/` generated artifacts
 - Modify: `.superpowers/sdd/progress.md`
 
@@ -173,7 +172,7 @@ shasum -a 256 web/fonts/TikZKitCMUSerif-Roman.otf web/fonts/TikZKitCMUSerif-Ital
 - TikZKit render calls in `render-example-fixtures.js` pass `fontUrlPrefix: "../fonts/"`.
 - Fontconfig for TikZKit PNG adds `/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/cm-unicode`.
 
-- [ ] **Step 1: Write the failing output-asset test**
+- [x] **Step 1: Write the failing output-asset test**
 
 In the existing PNG conversion test, after the fixture renderer finishes, assert:
 
@@ -185,7 +184,7 @@ assert.match(svg, /url\('\.\.\/fonts\/TikZKitCMUSerif-Roman\.otf'\)/);
 
 Use the existing test's rendered fixture id instead of inventing a new fixture.
 
-- [ ] **Step 2: Run the output-asset test red**
+- [x] **Step 2: Run the output-asset test red**
 
 Run the exact existing test name containing `converts SVG artifacts to PNG`:
 
@@ -195,11 +194,11 @@ node --test --test-name-pattern='converts SVG artifacts to PNG' test/example-ren
 
 Expected: FAIL because the output `fonts/` directory and relative SVG font URL do not exist.
 
-- [ ] **Step 3: Implement output-font copying and Fontconfig support**
+- [x] **Step 3: Implement output-font copying and Fontconfig support**
 
 Add a source-asset list based on `PROJECT_ROOT/web/fonts`. Before TikZKit SVG generation, copy all four OTFs into `outputRoot/fonts`; pass `fontUrlPrefix: "../fonts/"` into the TikZKit conversion options. Add the CM Unicode MacTeX directory to the generated Fontconfig `<dir>` list so `rsvg-convert` resolves the `CMU Serif` fallback.
 
-- [ ] **Step 4: Run output-asset tests green**
+- [x] **Step 4: Run output-asset tests green**
 
 Run:
 
@@ -209,7 +208,7 @@ node --test --test-name-pattern='converts SVG artifacts to PNG|writes TikZKit an
 
 Expected: all selected tests pass.
 
-- [ ] **Step 5: Regenerate and inspect activation-functions**
+- [x] **Step 5: Regenerate and inspect activation-functions**
 
 Run:
 
@@ -234,11 +233,11 @@ Acceptance:
 - default text and basic math fallback visibly use a Computer Modern-shaped face instead of the old browser fallback;
 - no clipping, bbox change greater than `1pt`, legend geometry loss, or formula line-wrap regression.
 
-- [ ] **Step 6: Add the visual regression assertion**
+- [x] **Step 6: Add the visual regression assertion**
 
 Keep the existing activation-function bbox assertion. Add a diagnostic/assertion that its generated TikZKit SVG includes `TikZKitCMUSerif` and a relative `../fonts/` source in the output artifact. Do not assert a guessed global pixel-diff threshold.
 
-- [ ] **Step 7: Run the focused regression gate**
+- [x] **Step 7: Run the focused regression gate**
 
 Run:
 
@@ -249,7 +248,7 @@ git diff --check
 
 Expected: no new failures. Existing documented PGFPlots baselines may remain only if unchanged.
 
-- [ ] **Step 8: Record the generator-integration snapshots**
+- [x] **Step 8: Record the generator-integration snapshots**
 
 ```sh
 shasum -a 256 scripts/render-example-fixtures.js test/example-render-script.test.js test/pgfplots-seams.test.js .superpowers/sdd/progress.md
@@ -262,15 +261,15 @@ shasum -a 256 scripts/render-example-fixtures.js test/example-render-script.test
 - Create: `.superpowers/sdd/default-cmu-font-layer-task-1-report.md`
 - Create: `.superpowers/sdd/default-cmu-font-layer-task-2-report.md`
 
-- [ ] **Step 1: Have an independent reviewer inspect the source/test diff**
+- [x] **Step 1: Have an independent reviewer inspect the source/test diff**
 
 The reviewer must verify that the CMU assets are from the stated MacTeX source, that no `KaTeX_Main` default-text family survives, and that scoped formula HTML remains isolated.
 
-- [ ] **Step 2: Have an independent reviewer inspect the three activation-functions images**
+- [x] **Step 2: Have an independent reviewer inspect the three activation-functions images**
 
 The reviewer must report actual visible changes in glyph face, tick labels, legend formulas, clipping, axis placement, curve/legend preservation, and diagnostics. A diff number alone is insufficient.
 
-- [ ] **Step 3: Record result and remaining boundary**
+- [x] **Step 3: Record result and remaining boundary**
 
 Append a progress entry that records the visual evidence, source asset paths, commands, checksums, and the remaining limitation: full TeX math glyph selection/layout remains a distinct capability.
 

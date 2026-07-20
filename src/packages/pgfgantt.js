@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfgantt",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:expandPgfganttCharts",
+  "implementedBy": "src/frontend/latex-shell.js:expandPgfganttCharts",
   "features": [
     "ganttchart",
     "\\gantttitle",

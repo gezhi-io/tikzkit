@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfplotstable",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:collectPgfplotstableReads",
+  "implementedBy": "src/frontend/latex-shell.js:collectPgfplotstableReads",
   "features": [
     "\\pgfplotstableread macro data for addplot table"
   ],

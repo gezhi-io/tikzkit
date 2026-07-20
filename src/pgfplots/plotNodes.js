@@ -1,14 +1,93 @@
-import { parseDimension } from "../engine/math.js";
+import { evaluateMath, parseDimension } from "../engine/math.js";
+import { parseOptions } from "../engine/options.js";
 import { axisNumber } from "./coordinates.js";
 import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
-import { plotColorValue } from "./plotStyle.js";
+import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./histogram.js";
+import { plotColorValue, selectPlotColor } from "./plotStyle.js";
 
-export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}) {
+export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}, plotIndex = 0) {
   if (!axisOptions["nodes near coords"] && !plot.options?.["nodes near coords"]) return [];
-  return (plot.points || []).map((point) => {
-    const mapped = geometry.mapPoint(point);
-    return `\\node[axis near coord, anchor=south, font=\\scriptsize] at ${formatAxisPoint(offsetPoint(mapped, 0, 0.08))} {${formatAxisNumber(point.y)}};`;
+  const orientation = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") ? "y" : "x";
+  const points = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
+    ? pgfplotsIntervalDataPoints(plot, axisOptions, orientation)
+    : plot.points || [];
+  const style = joinOptions([
+    "axis near coord",
+    "anchor=south",
+    "font=\\scriptsize",
+    nodeNearCoordTextColor(plot.options || {}, plotIndex),
+    ...nodeNearCoordStyles(axisOptions),
+    ...nodeNearCoordStyles(plot.options || {})
+  ]);
+  const offset = nodeNearCoordOffset(axisOptions, plot.options || {});
+  return points.map((point, pointIndex) => {
+    const mapped = plot.is3d && typeof geometry.mapPoint3d === "function"
+      ? geometry.mapPoint3d(point)
+      : geometry.mapPoint(point);
+    const label = nodeNearCoordLabel(point, plot, axisOptions, pointIndex);
+    return `\\node[${style}] at ${formatAxisPoint(offsetPoint(mapped, 0, offset))} {${label}};`;
   });
+}
+
+function nodeNearCoordLabel(point, plot = {}, axisOptions = {}, pointIndex = 0) {
+  const rawTemplate = plot.options?.["nodes near coords"] ?? axisOptions["nodes near coords"];
+  const fallback = point.meta ?? (plot.is3d ? point.z : point.y);
+  if (rawTemplate === true || rawTemplate === undefined || rawTemplate === null || String(rawTemplate).trim() === "") {
+    return formatAxisNumber(fallback);
+  }
+
+  const bindings = visualizationDependencyBindings(axisOptions, plot.options || {}, point);
+  let label = String(rawTemplate);
+  label = label.replace(/\\pgfplotspointmeta\b/g, formatAxisNumber(fallback));
+  label = label.replace(/\\coordindex\b/g, String(pointIndex));
+  label = label.replace(/\\thisrow\s*\{([^{}]+)\}/g, (_match, column) => String(point.columns?.[String(column).trim()] ?? ""));
+  for (const [macro, value] of bindings) {
+    label = label.replace(new RegExp(`\\\\${escapeRegExp(macro)}(?![A-Za-z@])`, "g"), value);
+  }
+  label = label.replace(/\\pgfmathparse\s*\{([^{}]*)\}\s*\\pgfmathresult/g, (_match, expression) => {
+    const value = evaluateMath(expression);
+    return Number.isFinite(value) ? formatAxisNumber(value) : "0";
+  });
+  return label;
+}
+
+function nodeNearCoordOffset(axisOptions = {}, plotOptions = {}) {
+  const merged = {};
+  for (const rawStyle of [...nodeNearCoordStyles(axisOptions), ...nodeNearCoordStyles(plotOptions)]) {
+    Object.assign(merged, parseOptions(rawStyle));
+  }
+  const anchor = String(merged.anchor || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().toLowerCase();
+  return anchor === "center" ? 0 : 0.08;
+}
+
+function visualizationDependencyBindings(axisOptions, plotOptions, point) {
+  const declarations = [axisOptions["visualization depends on"], plotOptions["visualization depends on"]]
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .filter((value) => value !== undefined && value !== null && value !== true);
+  const bindings = new Map();
+  for (const declaration of declarations) {
+    const match = String(declaration).match(/(?:\bvalue\s+)?\\thisrow\s*\{([^{}]+)\}\s*\\as\s*\\([A-Za-z@]+)/);
+    if (!match) continue;
+    bindings.set(match[2], String(point.columns?.[match[1].trim()] ?? ""));
+  }
+  return bindings;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function nodeNearCoordTextColor(plotOptions, plotIndex) {
+  if (!plotOptions["pgfplots explicit options"]) return "";
+  const color = plotColorValue(selectPlotColor(plotOptions, plotIndex));
+  return color && color !== "black" ? `text=${color}` : "";
+}
+
+function nodeNearCoordStyles(options = {}) {
+  return [
+    options["every node near coord/.style"],
+    options["every node near coord/.append style"]
+  ].flatMap((value) => Array.isArray(value) ? value : [value]).filter((value) => value && value !== true).map(String);
 }
 
 export function renderAxisPlotInlineNodes(nodes = [], mappedPoints = [], plotColor = "") {

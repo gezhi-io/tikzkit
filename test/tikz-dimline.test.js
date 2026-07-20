@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzDimlineExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzDimlineExtension } from "../src/internal.js";
 
 test("exposes tikz-dimline as a built-in extension module", () => {
   assert.equal(tikzDimlineExtension.name, "tikz-dimline");

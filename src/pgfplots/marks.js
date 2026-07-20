@@ -1,4 +1,5 @@
-import { parseDimension } from "../math.js";
+import { parseDimension } from "../engine/math.js";
+import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
 
@@ -13,29 +14,59 @@ export function createPlotMarkModel(plotOptions = {}) {
 
 export function shouldRenderPlotMarks(options = {}) {
   if (options["no markers"] || String(options.mark || "").trim().toLowerCase() === "none") return false;
-  return Boolean(options["only marks"] || options.scatter || options.mark);
+  return Boolean(options["only marks"] || options.scatter || options.mark || options["pgfplots plus"]);
+}
+
+export function scatterClassOptionsForPoint(options = {}, point = {}) {
+  const rawClasses = options["scatter/classes"];
+  const meta = String(point.meta ?? "").trim();
+  if (!rawClasses || rawClasses === true || !meta) return options;
+
+  for (const entry of splitTopLevel(String(rawClasses), ",")) {
+    const match = entry.trim().match(/^([^=]+?)\s*=\s*\{([\s\S]*)\}$/);
+    if (!match || match[1].trim() !== meta) continue;
+    return { ...options, ...parseOptions(match[2]) };
+  }
+  return options;
 }
 
 export function renderPlotMark(point, options = {}, plotIndex = 0) {
   const mark = String(options.mark || (options.scatter ? "*" : "*")).trim().toLowerCase();
-  const stroke = plotColorValue(selectPlotColor(options, plotIndex));
-  const fill = plotColorValue(selectPlotMarkFillColor(options, plotIndex));
-  const style = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", plotLineWidthOption(options)]);
+  const mappedColor = String(options["pgfplots scatter mapped color"] || "").trim();
+  const stroke = mappedColor ? `${mappedColor}!80!black` : plotColorValue(selectPlotColor(options, plotIndex));
+  const fill = mappedColor || plotColorValue(selectPlotMarkFillColor(options, plotIndex));
+  const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", plotLineWidthOption(options)]);
+  const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)]);
   const size = axisMarkRadius(options);
   if (mark === "x") {
     const diagonal = size / Math.SQRT2;
-    return `\\draw[${joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)])}] ${formatAxisPoint(offsetPoint(point, -diagonal, -diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, diagonal))} ${formatAxisPoint(offsetPoint(point, -diagonal, diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, -diagonal))};`;
+    return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -diagonal, -diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, diagonal))} ${formatAxisPoint(offsetPoint(point, -diagonal, diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, -diagonal))};`;
   }
   if (mark === "+") {
-    return `\\draw[${joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)])}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(offsetPoint(point, 0, -size))} -- ${formatAxisPoint(offsetPoint(point, 0, size))};`;
+    return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(offsetPoint(point, 0, -size))} -- ${formatAxisPoint(offsetPoint(point, 0, size))};`;
+  }
+  if (mark === "halfcircle") {
+    return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+  }
+  if (mark === "halfcircle*") {
+    const left = formatAxisPoint(offsetPoint(point, -size, 0));
+    const right = formatAxisPoint(offsetPoint(point, size, 0));
+    return `\\draw[${filledStyle}] ${left} arc (180:360:${formatAxisNumber(size)}) -- cycle;\\draw[${strokedStyle}] ${left} -- ${right} ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
   }
   if (datavisualizationIsMercedesMark(mark)) {
-    return datavisualizationAxisMercedesMark(point, joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)]), mark, size);
+    return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size);
   }
   if (mark === "square" || mark === "square*") {
+    const style = mark.endsWith("*") ? filledStyle : strokedStyle;
     return `\\draw[${style}] ${formatAxisPoint(offsetPoint(point, -size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, size))} -- ${formatAxisPoint(offsetPoint(point, -size, size))} -- cycle;`;
   }
-  return `\\draw[${style}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+  if (mark === "triangle" || mark === "triangle*") {
+    const style = mark.endsWith("*") ? filledStyle : strokedStyle;
+    const halfBase = size * Math.cos(Math.PI / 6);
+    const baseY = -size / 2;
+    return `\\draw[${style}] ${formatAxisPoint(offsetPoint(point, 0, size))} -- ${formatAxisPoint(offsetPoint(point, halfBase, baseY))} -- ${formatAxisPoint(offsetPoint(point, -halfBase, baseY))} -- cycle;`;
+  }
+  return `\\draw[${mark === "o" ? strokedStyle : filledStyle}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
 }
 
 export function datavisualizationIsMercedesMark(mark) {

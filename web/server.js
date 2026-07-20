@@ -10,19 +10,34 @@ const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 export async function createWorkbenchServer(options = {}) {
   const fixtureRoot = path.resolve(options.fixtureRoot || path.join(PROJECT_ROOT, "test/fixtures/examples"));
   const outputRoot = path.resolve(options.outputRoot || path.join(fixtureRoot, "output"));
-  const catalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
-  const byId = new Map(catalog.map((entry) => [entry.id, entry]));
+  await loadMilestoneCatalog({ fixtureRoot, outputRoot });
 
   return http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url || "/", "http://127.0.0.1");
-      if (url.pathname === "/api/fixtures") return sendJson(response, catalog.map(publicFixture));
+      if (url.pathname === "/api/fixtures") {
+        // Reference artifacts are commonly generated while the workbench is
+        // already running. Re-read the catalog so a browser refresh sees them
+        // without requiring a server restart.
+        const currentCatalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
+        return sendJson(response, currentCatalog.map(publicFixture));
+      }
 
       const sourceMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)\/source$/);
       if (sourceMatch) {
-        const fixture = byId.get(decodeURIComponent(sourceMatch[1]));
+        const currentCatalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
+        const fixture = currentCatalog.find((entry) => entry.id === decodeURIComponent(sourceMatch[1]));
         if (!fixture) return sendStatus(response, 404);
         return sendText(response, await readFile(fixture.sourcePath, "utf8"), "text/plain; charset=utf-8");
+      }
+
+      const resourceMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)\/resources\/(\d+)$/);
+      if (resourceMatch) {
+        const currentCatalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
+        const fixture = currentCatalog.find((entry) => entry.id === decodeURIComponent(resourceMatch[1]));
+        const resource = fixture?.resources?.[Number(resourceMatch[2])];
+        if (!resource) return sendStatus(response, 404);
+        return sendFile(response, resource.sourcePath);
       }
 
       const route = await staticRoute(url.pathname, { outputRoot });
@@ -36,11 +51,13 @@ export async function createWorkbenchServer(options = {}) {
 
 function publicFixture(entry) {
   const { sourcePath, outputRoot, ...publicEntry } = entry;
+  publicEntry.resources = (publicEntry.resources || []).map(({ sourcePath: _sourcePath, ...resource }) => resource);
   return publicEntry;
 }
 
 async function staticRoute(pathname, { outputRoot }) {
   const routes = [
+    ["/fonts/", path.join(PROJECT_ROOT, "web", "fonts")],
     ["/src/", path.join(PROJECT_ROOT, "src")],
     ["/vendor/chevrotain/", path.join(PROJECT_ROOT, "node_modules/chevrotain/lib")],
     ["/vendor/katex/", path.join(PROJECT_ROOT, "node_modules/katex/dist")],
@@ -84,11 +101,15 @@ async function sendFile(response, filePath) {
   const types = {
     ".css": "text/css; charset=utf-8",
     ".html": "text/html; charset=utf-8",
+    ".jpeg": "image/jpeg",
+    ".jpg": "image/jpeg",
     ".js": "text/javascript; charset=utf-8",
     ".json": "application/json; charset=utf-8",
     ".mjs": "text/javascript; charset=utf-8",
+    ".otf": "font/otf",
     ".png": "image/png",
     ".svg": "image/svg+xml; charset=utf-8",
+    ".csv": "text/csv; charset=utf-8",
     ".tex": "text/plain; charset=utf-8",
     ".ttf": "font/ttf",
     ".woff": "font/woff",
@@ -102,7 +123,10 @@ async function sendFile(response, filePath) {
     }
     sendJson(response, { error: error.message }, 500);
   });
-  response.writeHead(200, { "content-type": types[extension] || "application/octet-stream" });
+  response.writeHead(200, {
+    "cache-control": "no-store",
+    "content-type": types[extension] || "application/octet-stream"
+  });
   stream.pipe(response);
 }
 
@@ -111,7 +135,7 @@ function sendJson(response, value, status = 200) {
 }
 
 function sendText(response, value, type = "text/plain; charset=utf-8", status = 200) {
-  response.writeHead(status, { "content-type": type });
+  response.writeHead(status, { "cache-control": "no-store", "content-type": type });
   response.end(value);
 }
 

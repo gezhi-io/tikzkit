@@ -1,4 +1,4 @@
-import { TIKZ_UNIT, lineWidthFromPt } from "../src/tikz-metrics.js";
+import { TIKZ_UNIT, lineWidthFromPt } from "../src/tikz/metrics.js";
 
 export const JS_STANDARD_PX_PER_TIKZ_UNIT = TIKZ_UNIT;
 export const NATIVE_RASTER_DPI = 144;

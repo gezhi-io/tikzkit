@@ -34,6 +34,24 @@ test("workbench renders through TikZKit public async API", async () => {
   assert.equal(Number.isFinite(result.elapsedMs), true);
 });
 
+test("workbench uses the same zero-margin SVG bounds as fixture comparisons", async () => {
+  const source = String.raw`
+\documentclass{article}
+\usepackage[pdftex,active,tightpage]{preview}
+\setlength\PreviewBorder{2mm}
+\begin{document}
+\begin{preview}
+\begin{tikzpicture}\draw (0,0) -- (1,0);\end{tikzpicture}
+\end{preview}
+\end{document}`;
+  const workbench = await renderWorkbenchSource(source);
+  const comparison = publicApi.tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
+  const svgSize = (svg) => svg.match(/\b(?:width|height)="[^"]+"/g)?.slice(0, 2);
+
+  assert.deepEqual(workbench.diagnostics, []);
+  assert.deepEqual(svgSize(workbench.svg), svgSize(comparison.svg));
+});
+
 test("workbench diagnostic rows preserve severity, code, message, and source location", () => {
   assert.deepEqual(
     diagnosticRows([{ severity: "warning", code: "x", message: "Unsupported x", line: 3, column: 7 }]),

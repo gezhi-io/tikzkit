@@ -1,5 +1,5 @@
-import { parseDimension, roundNumber } from "../math.js";
-import { parseOptions } from "../options.js";
+import { parseDimension, roundNumber } from "../engine/math.js";
+import { parseOptions } from "../engine/options.js";
 
 const PIXEL_FONT = {
   A: "01110/10001/10001/11111/10001/10001/10001",

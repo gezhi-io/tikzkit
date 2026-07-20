@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "ext.topaths.arcthrough",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/ext.topaths.arcthrough.js";

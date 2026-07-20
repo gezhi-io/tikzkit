@@ -8,6 +8,7 @@ const DEFAULT_FONT_SPEC = Object.freeze({
   style: "normal",
   variant: "normal",
   mathStyle: "text",
+  mathVersion: "normal",
   source: "document"
 });
 
@@ -68,6 +69,9 @@ export function parseTikzFontPatch(source, options = {}) {
 
   const weight = lastFontCommand(text, /\\(mdseries|bfseries|bf)\b/g);
   if (weight) patch.weight = weight === "mdseries" ? 400 : 700;
+
+  const mathVersion = lastFontCommand(text, /\\(boldmath|unboldmath)\b/g);
+  if (mathVersion) patch.mathVersion = mathVersion === "boldmath" ? "bold" : "normal";
 
   const style = lastFontCommand(text, /\\(upshape|itshape|slshape)\b/g);
   if (style) patch.style = style === "upshape" ? "normal" : "italic";

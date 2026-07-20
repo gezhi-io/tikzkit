@@ -6,6 +6,7 @@ import { texPackage as pkg_4_amsthm } from "./amsthm.js";
 import { texPackage as pkg_5_appendixnumberbeamer } from "./appendixnumberbeamer.js";
 import { texPackage as pkg_6_array } from "./array.js";
 import { texPackage as pkg_7_babel } from "./babel.js";
+import { texPackage as pkg_bchart } from "./bchart.js";
 import { texPackage as pkg_8_bm } from "./bm.js";
 import { texPackage as pkg_9_booktabs } from "./booktabs.js";
 import { texPackage as pkg_10_braids } from "./braids.js";
@@ -43,6 +44,7 @@ import { texPackage as pkg_41_mathtools } from "./mathtools.js";
 import { texPackage as pkg_42_microtype } from "./microtype.js";
 import { texPackage as pkg_43_multirow } from "./multirow.js";
 import { texPackage as pkg_44_neuralnetwork } from "./neuralnetwork.js";
+import { texPackage as pkg_nicefrac } from "./nicefrac.js";
 import { texPackage as pkg_45_pgf } from "./pgf.js";
 import { texPackage as pkg_46_pgfcalendar } from "./pgfcalendar.js";
 import { texPackage as pkg_47_pgfgantt } from "./pgfgantt.js";
@@ -79,6 +81,7 @@ import { texPackage as pkg_77_tikzpeople } from "./tikzpeople.js";
 import { texPackage as pkg_78_tikzquads } from "./tikzquads.js";
 import { texPackage as pkg_79_times } from "./times.js";
 import { texPackage as pkg_80_tkz_berge } from "./tkz-berge.js";
+import { texPackage as pkg_tkz_euclide } from "./tkz-euclide.js";
 import { texPackage as pkg_81_tkz_fct } from "./tkz-fct.js";
 import { texPackage as pkg_82_tkz_graph } from "./tkz-graph.js";
 import { texPackage as pkg_83_ulem } from "./ulem.js";
@@ -97,6 +100,7 @@ const texPackages = [
   pkg_5_appendixnumberbeamer,
   pkg_6_array,
   pkg_7_babel,
+  pkg_bchart,
   pkg_8_bm,
   pkg_9_booktabs,
   pkg_10_braids,
@@ -134,6 +138,7 @@ const texPackages = [
   pkg_42_microtype,
   pkg_43_multirow,
   pkg_44_neuralnetwork,
+  pkg_nicefrac,
   pkg_45_pgf,
   pkg_46_pgfcalendar,
   pkg_47_pgfgantt,
@@ -170,6 +175,7 @@ const texPackages = [
   pkg_78_tikzquads,
   pkg_79_times,
   pkg_80_tkz_berge,
+  pkg_tkz_euclide,
   pkg_81_tkz_fct,
   pkg_82_tkz_graph,
   pkg_83_ulem,
@@ -200,3 +206,4 @@ export { texPackage as pgfplotsPackage } from "./pgfplots.js";
 export { texPackage as mathtoolsPackage } from "./mathtools.js";
 export { texPackage as tikzPackage } from "./tikz.js";
 export { texPackage as xcolorPackage } from "./xcolor.js";
+export { texPackage as bchartPackage } from "./bchart.js";

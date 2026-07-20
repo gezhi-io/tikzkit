@@ -6,7 +6,12 @@ import {
   lineLineIntersection,
   pointAtLength,
   flattenPath
-} from "../src/geometry.js";
+} from "../src/engine/index.js";
+import { flattenPath as compatFlattenPath } from "../src/geometry.js";
+
+test("exposes geometry helpers at the engine seam with a legacy adapter", () => {
+  assert.equal(compatFlattenPath, flattenPath);
+});
 
 test("computes analytic line-line, line-circle, and circle-circle intersections", () => {
   assert.deepEqual(

@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "etoolbox",
   "status": "partial",
-  "implementedBy": "src/preprocess.js toggle compatibility",
+  "implementedBy": "src/frontend/latex-shell.js toggle compatibility",
   "features": [
     "\\newtoggle",
     "\\toggletrue/false",

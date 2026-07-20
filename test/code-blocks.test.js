@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { extractTikzCodeBlocks, splitTikzCodeBlocks } from "../src/code-blocks.js";
+import {
+  extractTikzCodeBlocks as frontendExtractTikzCodeBlocks,
+  splitTikzCodeBlocks as frontendSplitTikzCodeBlocks
+} from "../src/frontend/index.js";
+
+test("exposes tikz fenced code block extraction at the frontend seam", () => {
+  assert.equal(frontendExtractTikzCodeBlocks, extractTikzCodeBlocks);
+  assert.equal(frontendSplitTikzCodeBlocks, splitTikzCodeBlocks);
+});
 
 test("extracts tikz fenced code blocks from backtick and apostrophe fences", () => {
   const input = [

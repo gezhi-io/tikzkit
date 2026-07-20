@@ -12,8 +12,13 @@ export async function loadMilestoneCatalog(options = {}) {
   if (new Set(milestone.caseIds).size !== milestone.caseIds.length) {
     throw new Error("Milestone fixture IDs must be unique");
   }
+  const milestoneIds = new Set(milestone.caseIds);
+  const catalogIds = [
+    ...milestone.caseIds,
+    ...manifest.cases.map((entry) => entry.id).filter((id) => !milestoneIds.has(id))
+  ];
 
-  return Promise.all(milestone.caseIds.map(async (id) => {
+  return Promise.all(catalogIds.map(async (id) => {
     const entry = byId.get(id);
     const tikztosvgSvgUrl = await artifactUrlIfPresent(outputRoot, "tikztosvg-svg", id, "svg");
     const tikztosvgGridSvgUrl = await artifactUrlIfPresent(outputRoot, "tikztosvg-grid-svg", id, "svg");
@@ -24,6 +29,11 @@ export async function loadMilestoneCatalog(options = {}) {
       sourceUrl: `/api/fixtures/${encodeURIComponent(id)}/source`,
       activeFigureId: entry.activeFigureId || null,
       features: entry.features || [],
+      resources: (entry.resources || []).map((resource, index) => ({
+        name: resource.name,
+        sourcePath: path.join(fixtureRoot, resource.source),
+        url: `/api/fixtures/${encodeURIComponent(id)}/resources/${index}`
+      })),
       tikztosvgSvgUrl,
       tikztosvgGridSvgUrl,
       outputRoot

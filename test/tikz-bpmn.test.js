@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzBpmnExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzBpmnExtension } from "../src/internal.js";
 import { parseDimension } from "../src/math.js";
 import { TIKZ_LINE_WIDTHS } from "../src/tikz-metrics.js";
 

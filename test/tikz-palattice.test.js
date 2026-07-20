@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzPalatticeExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzPalatticeExtension } from "../src/internal.js";
 
 test("exposes tikz-palattice as a built-in extension module", () => {
   assert.equal(tikzPalatticeExtension.name, "tikz-palattice");

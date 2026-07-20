@@ -1,0 +1,5 @@
+\usetikzlibrary{decorations.pathmorphing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={snake,segment length=2mm,amplitude=.3mm},-stealth]
+    (0,0) -- (2,0);
+\end{tikzpicture}

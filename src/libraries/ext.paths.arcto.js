@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "ext.paths.arcto",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/ext.paths.arcto.js";

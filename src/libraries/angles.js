@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "angles",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/angles.js";

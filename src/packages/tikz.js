@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "tikz",
   "status": "builtin",
-  "implementedBy": "src/parser.js + src/interpreter.js + src/renderer-svg.js",
+  "implementedBy": "src/frontend/parser.js + src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
   "features": [
     "tikzpicture extraction",
     "draw/path/fill/node/coordinate subset"

@@ -1,5 +1,5 @@
-import { parseDimension } from "../math.js";
-import { texTextWidthCm } from "../math-metrics.js";
+import { parseDimension } from "../engine/math.js";
+import { texTextWidthCm } from "../tikz/textMetrics.js";
 
 export const tikzQtreeExtension = {
   name: "tikz-qtree",

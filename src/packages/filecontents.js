@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "filecontents",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:collectFilecontentsTables",
+  "implementedBy": "src/frontend/latex-shell.js:collectFilecontentsTables",
   "features": [
     "filecontents table capture for pgfplots tables"
   ],

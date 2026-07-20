@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "verbatim",
   "status": "noop",
-  "implementedBy": "src/preprocess.js:stripTexDocumentShell",
+  "implementedBy": "src/frontend/latex-shell.js:stripTexDocumentShell",
   "features": [
     "package declaration compatibility"
   ],

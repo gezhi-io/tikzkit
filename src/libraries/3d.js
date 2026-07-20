@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "3d",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/3d.js";

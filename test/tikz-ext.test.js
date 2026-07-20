@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { tikzExtExtension, tikzToSvg } from "../src/index.js";
+import { tikzToSvg } from "../src/index.js";
+import { tikzExtExtension } from "../src/internal.js";
 
 test("exposes tikz-ext as a built-in extension module", () => {
   assert.equal(tikzExtExtension.name, "tikz-ext");

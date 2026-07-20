@@ -1,0 +1,12 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage[siunitx,RPvoltages]{circuitikz}
+\begin{document}
+\begin{tikzpicture}[font=\large]
+  \draw (0,0)
+    to[R={$R_1$}, i>^={$i_R$}, v^>={$V_R$}] (3,0)
+    to[C={$C_1$}, a^={$\tau=R_1C_1$}] (3,-2)
+    to[V={$V_s$}] (0,-2)
+    -- cycle;
+  \node[font=\scriptsize] at (1.5,-2.45) {reference label};
+\end{tikzpicture}
+\end{document}

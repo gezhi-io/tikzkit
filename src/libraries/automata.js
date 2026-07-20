@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "automata",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/automata.js";

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseTikz, interpretTikz, tikzBaguaExtension, tikzToSvg, tikzThreeDPlotExtension } from "../src/index.js";
+import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
+import { tikzBaguaExtension, tikzThreeDPlotExtension } from "../src/internal.js";
 import { parseDimension } from "../src/math.js";
 import { preprocessTikzSource } from "../src/preprocess.js";
+import { lineWidthFromPt } from "../src/tikz-metrics.js";
 
 test("allows user-supplied preprocess extensions", () => {
   const source = String.raw`
@@ -39,6 +41,22 @@ test("treats circuitikz environments as TikZ picture aliases", () => {
   assert.equal(result.ast.pictures.length, 1);
   assert.equal(result.ast.pictures[0].options.american, true);
   assert.equal(result.ir.items.some((item) => item.type === "path"), true);
+});
+
+test("keeps circuitikz labels on the surrounding TikZ font contract", () => {
+  const source = String.raw`
+\usepackage{circuitikz}
+\begin{tikzpicture}[font=\large]
+  \draw (0,0) to[R={$R$}] (2,0);
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.text === "$R$");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(label?.font?.sizePt, 12);
+  assert.equal(label?.font?.baselineSkipPt, 14);
+  assert.equal(label?.font?.source, "scope");
 });
 
 test("expands custom timeline Task environments into drawable TikZ", () => {
@@ -5054,6 +5072,33 @@ data {
   assert.ok(yLabel.x <= -1.05, `expected y label left of the clean y axis, got x=${yLabel.x}`);
 });
 
+test("carries native datavisualization role sizes into text IR", () => {
+  const source = String.raw`
+\usetikzlibrary{datavisualization.formats.functions}
+\tikz \datavisualization[
+  scientific axes=clean,
+  x axis={label=$x$,min value=0,max value=1,ticks={step=.5}},
+  visualize as line=a,
+  a={label in legend={text=$a$}},
+  legend={north east inside},
+  data/format=function
+] data {
+  var x : interval [0:1] samples 3;
+  func y = \value x;
+};`;
+
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.type === "textNode");
+  const axisLabel = labels.find((item) => item.text === "$x$");
+  const legendLabel = labels.find((item) => item.text === "$a$");
+  const tickLabel = labels.find((item) => item.text === "0.5");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(axisLabel?.font?.sizePt, 9);
+  assert.equal(legendLabel?.font?.sizePt, 8);
+  assert.equal(tickLabel?.font?.sizePt, 8);
+});
+
 test("places datavisualization end labels at the positive axis ends", () => {
   const source = String.raw`
 \usetikzlibrary {datavisualization.formats.functions}
@@ -5532,7 +5577,19 @@ test("uses arrowed middle axis lines for PGFPlots middle axes", () => {
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(axisLines.length, 2);
-  assert.equal(axisLines.every((item) => item.style.markerEnd?.kind === "to"), true);
+  assert.equal(axisLines.every((item) => item.style.markerEnd?.kind === "stealth"), true);
+  assert.equal(axisLines.every((item) => Math.abs(item.style.lineWidth - lineWidthFromPt(0.4)) < 1e-9), true);
+
+  const explicit = tikzToSvg(String.raw`\begin{tikzpicture}
+\begin{axis}[axis lines=middle,axis line width=1pt,xmin=0,xmax=1,ymin=0,ymax=1]
+\addplot coordinates {(0,0) (1,1)};
+\end{axis}\end{tikzpicture}`);
+  const explicitAxes = explicit.ir.items.filter((item) => item.subtype === "axis-line");
+
+  assert.deepEqual(explicit.diagnostics, []);
+  assert.equal(explicitAxes.length, 2);
+  assert.equal(explicitAxes.every((item) => Math.abs(item.style.lineWidth - lineWidthFromPt(1)) < 1e-9), true);
+  assert.equal(explicitAxes.every((item) => item.style.markerEnd?.kind === "stealth"), true);
 });
 
 test("uses arrowed left axis lines for PGFPlots left axes", () => {
@@ -5548,7 +5605,8 @@ test("uses arrowed left axis lines for PGFPlots left axes", () => {
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(axisLines.length, 2);
-  assert.equal(axisLines.every((item) => item.style.markerEnd?.kind === "to"), true);
+  assert.equal(axisLines.every((item) => item.style.markerEnd?.kind === "stealth"), true);
+  assert.equal(axisLines.every((item) => Math.abs(item.style.lineWidth - lineWidthFromPt(0.4)) < 1e-9), true);
 });
 
 test("uses PGFPlots middle-axis plot area inside declared width and height", () => {
@@ -5634,7 +5692,7 @@ test("uses PGFPlots native default axis dimensions when width and height are omi
   const yLength = Math.abs(yAxis.commands[1].y - yAxis.commands[0].y);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(xLength > 6 && xLength < 7, `expected PGFPlots default width near 240pt after axis reservations, got ${xLength}`);
+  assert.ok(Math.abs(xLength - 6.828) < 0.01, `expected PGFPlots default middle-axis width near tikztosvg baseline, got ${xLength}`);
   assert.ok(yLength > 5, `expected PGFPlots default height near 207pt after axis reservations, got ${yLength}`);
 });
 
@@ -5657,7 +5715,7 @@ test("maps draw edge annotations inside PGFPlots axis coordinates", () => {
   assert.ok(edge.commands[0].x > 1 && edge.commands[0].x < 2.5, `expected start point to be mapped through the axis transform, got ${edge.commands[0].x}`);
 });
 
-test("adds PGFPlots auto limits padding for implicit y ranges", () => {
+test("keeps PGFPlots non-boxed middle axes tight unless enlargelimits is explicit", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \begin{axis}[xmin=0,xmax=10,axis lines=middle,ticks=none]
@@ -5674,8 +5732,8 @@ test("adds PGFPlots auto limits padding for implicit y ranges", () => {
   const yAxisMax = Math.max(...yAxis.commands.map((command) => command.y));
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(Math.min(...yValues) > yAxisMin + 0.25, `expected lower plot to have native-like y padding, got ${Math.min(...yValues)} at ${yAxisMin}`);
-  assert.ok(Math.max(...yValues) < yAxisMax - 0.25, `expected upper plot to have native-like y padding, got ${Math.max(...yValues)} at ${yAxisMax}`);
+  assert.ok(Math.min(...yValues) <= yAxisMin + 0.05, `expected lower plot to reach native non-boxed y bound, got ${Math.min(...yValues)} at ${yAxisMin}`);
+  assert.ok(Math.max(...yValues) >= yAxisMax - 0.05, `expected upper plot to reach native non-boxed y bound, got ${Math.max(...yValues)} at ${yAxisMax}`);
 });
 
 test("honors simple PGFPlots axis label positioning styles", () => {

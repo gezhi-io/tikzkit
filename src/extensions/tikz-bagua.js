@@ -1,4 +1,4 @@
-import { evaluateMath, roundNumber } from "../math.js";
+import { evaluateMath, roundNumber } from "../engine/math.js";
 
 const EM = 0.35;
 const LINE_WIDTH = 0.0816 * EM;

@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "amssymb",
   "status": "partial",
-  "implementedBy": "src/math-metrics.js + src/renderer-svg.js",
+  "implementedBy": "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
   "features": [
     "symbols delegated to KaTeX or SVG text fallback"
   ],

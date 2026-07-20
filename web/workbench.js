@@ -29,7 +29,11 @@ export async function renderWorkbenchSource(source, options = {}) {
   if (typeof renderer !== "function") {
     throw new TypeError("TikZKit public API does not expose a renderer");
   }
-  const result = await renderer(String(source || ""), options);
+  const result = await renderer(String(source || ""), {
+    margin: 0,
+    mathRenderer: "svg-text",
+    ...options
+  });
   return {
     svg: result.svg,
     diagnostics: diagnosticRows(result.diagnostics),

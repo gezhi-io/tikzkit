@@ -1,3 +1,5 @@
+import { bchartExtension } from "./bchart.js";
+import { kvmacrosExtension } from "./kvmacros.js";
 import { tikzBaguaExtension } from "./tikz-bagua.js";
 import { tikzBayesnetExtension } from "./tikz-bayesnet.js";
 import { tikzBpmnExtension } from "./tikz-bpmn.js";
@@ -14,11 +16,15 @@ import { tikzPalatticeExtension } from "./tikz-palattice.js";
 import { tikzQtreeExtension } from "./tikz-qtree.js";
 import { tikzquadsExtension } from "./tikzquads.js";
 import { tikzThreeDPlotExtension } from "./tikz-3dplot.js";
+import { tkzEuclideExtension } from "./tkz-euclide.js";
+import { tkzFctExtension } from "./tkz-fct.js";
 import { forestExtension } from "./forest.js";
 import { neuralNetworkExtension } from "./neuralnetwork.js";
 import { stanliExtension } from "./stanli.js";
 
 export const BUILTIN_EXTENSIONS = [
+  bchartExtension,
+  kvmacrosExtension,
   tikzNetworkExtension,
   tikzThreeDPlotExtension,
   tikzBaguaExtension,
@@ -35,6 +41,8 @@ export const BUILTIN_EXTENSIONS = [
   tikzPalatticeExtension,
   tikzQtreeExtension,
   tikzquadsExtension,
+  tkzEuclideExtension,
+  tkzFctExtension,
   forestExtension,
   neuralNetworkExtension,
   stanliExtension
@@ -57,3 +65,5 @@ export function applyPreprocessExtensions(source, context = {}) {
   }
   return current;
 }
+
+export { bchartExtension, kvmacrosExtension };

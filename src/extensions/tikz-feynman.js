@@ -1,4 +1,4 @@
-import { parseOptions, splitTopLevel, stripOuterBraces } from "../options.js";
+import { parseOptions, splitTopLevel, stripOuterBraces } from "../engine/options.js";
 
 export const tikzFeynmanExtension = {
   name: "tikz-feynman",

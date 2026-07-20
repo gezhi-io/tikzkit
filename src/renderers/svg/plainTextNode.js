@@ -1,4 +1,4 @@
-import { parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
+import { measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
 import {
   TIKZ_FONT_FAMILY,
   TIKZ_MONOSPACE_FONT_FAMILY,
@@ -46,7 +46,15 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length, fontFallback);
-  const wrappedText = wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, item.wrapWidth, unit, baseFontSize);
+  const wrappedText = wrapStyledSvgTextLines(
+    sourceLines,
+    formattedLines,
+    sourceLineStyles,
+    item.wrapWidth,
+    unit,
+    baseFontSize,
+    { lineBreakMode: item.textWrapMode }
+  );
   const lines = wrappedText.lines;
   const contentLines = wrappedText.contentLines;
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, lines);
@@ -57,7 +65,7 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   const align = item.textAlign ? normalizedTextAlign(item.textAlign) : hasWrapWidth ? "left" : "center";
   const x = format(explicitTextAnchor ? svgTextAnchorX(item, unit) : alignedTextX(item, unit, align));
   const textAnchor = explicitTextAnchor || textAnchorForAlign(align);
-  const y = format(-item.y * unit);
+  const y = format(-item.y * unit + plainTextVisualCenterOffset(item, unit));
   const widthScale = textWidthScale(item, rawFontFamily);
   const textFontVariant = fontVariantAttribute({ fontVariant: rawFontVariant });
   if (lines.length <= 1) {
@@ -131,7 +139,10 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
       fontWeight: item.style?.fontWeight || normalized.fontWeight || "normal",
       textWidthPt,
       alignment: align,
-      color: normalized.color || item.style?.fill || "black"
+      lineBreakMode: item.textWrapMode,
+      color: normalized.color || item.style?.fill || "black",
+      textWidthScale: item.style?.textWidthScale,
+      textWidthScaleExplicit: item.style?.textWidthScaleExplicit
     });
   } catch {
     return "";
@@ -145,7 +156,17 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
     return "";
   }
   if (!payload?.body) return "";
-  return `<g class="tikz-text-engine-cache" transform="translate(${format(item.x * unit)} ${format(-item.y * unit)})">${payload.body}</g>`;
+  const verticalOffset = plainTextVisualCenterOffset(item, unit);
+  return `<g class="tikz-text-engine-cache" transform="translate(${format(item.x * unit)} ${format(-item.y * unit + verticalOffset)})">${payload.body}</g>`;
+}
+
+function plainTextVisualCenterOffset(item, unit) {
+  if (!item.texBoxVerticalAlign) return 0;
+  // SVG's `middle` baseline already performs most of TeX's baseline shift.
+  // KaTeX_Typewriter needs only this residual optical correction; applying
+  // the full TeX height/depth offset moves glyphs against the bottom border.
+  const fontSizePt = Number(item.font?.sizePt) || 10;
+  return (fontSizePt * 0.08 / TEX_PT_PER_CM) * unit;
 }
 
 function textEnginePlainTextScale(normalized = {}) {
@@ -171,7 +192,15 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length, resolvedFontStyle(item));
-  const wrapped = wrapStyledSvgTextLines(sourceLines, formattedLines, sourceLineStyles, item.wrapWidth, unit, baseFontSize);
+  const wrapped = wrapStyledSvgTextLines(
+    sourceLines,
+    formattedLines,
+    sourceLineStyles,
+    item.wrapWidth,
+    unit,
+    baseFontSize,
+    { lineBreakMode: item.textWrapMode }
+  );
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, wrapped.lines);
   const wrapWidth = Number(item.wrapWidth);
   const widthScale = plainTextBoundsWidthScale(item, rawFontFamily);
@@ -199,13 +228,33 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
   const lineSizes = wrapped.lineStyles.map((style) => fontSize * (Number(style?.scale) || 1));
   const maxLineSize = Math.max(fontSize, ...lineSizes);
   const baselineRatio = textBaselineSkipRatio(item) || 1.15;
-  const heightPx = offsets.length
+  const measuredHeightPx = measuredWrappedTextHeightPx(wrapped.lines, lineSizes, offsets, unit);
+  const heightPx = Number.isFinite(measuredHeightPx)
+    ? measuredHeightPx
+    : offsets.length
     ? Math.max(...offsets) - Math.min(...offsets) + maxLineSize * (offsets.length > 1 ? baselineRatio : 1.15)
     : maxLineSize * baselineRatio;
   return {
     width: Math.max(0.08, width),
     height: Math.max(0.08, heightPx / unit)
   };
+}
+
+function measuredWrappedTextHeightPx(lines, lineSizes, offsets, unit) {
+  if (!Array.isArray(lines) || !lines.length || !Array.isArray(offsets) || offsets.length !== lines.length) return NaN;
+  let top = Infinity;
+  let bottom = -Infinity;
+  for (let index = 0; index < lines.length; index += 1) {
+    const sizePx = Number(lineSizes[index]);
+    const fontSizePt = (sizePx / unit) * TEX_PT_PER_CM;
+    const box = measurePlainTextTeXBoxPt(lines[index], { fontSizePt });
+    if (!box) return NaN;
+    const heightPx = (box.height / TEX_PT_PER_CM) * unit;
+    const depthPx = (box.depth / TEX_PT_PER_CM) * unit;
+    top = Math.min(top, offsets[index] - heightPx);
+    bottom = Math.max(bottom, offsets[index] + depthPx);
+  }
+  return Number.isFinite(top) && Number.isFinite(bottom) ? Math.max(0, bottom - top) : NaN;
 }
 
 function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSize, unit, renderSvgTextLineContent) {

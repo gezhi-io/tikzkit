@@ -5,6 +5,8 @@ import {
   blurShadowFilterId,
   collectArrowMarkerDefs,
   collectSvgDefs,
+  computeSvgBounds,
+  includeTextRenderBounds,
   createSvgDefs,
   createSvgTextEngine,
   createSvgView,
@@ -12,7 +14,9 @@ import {
   escapeHtml,
   formatPlainTexText,
   formatSvgNumber,
+  inlineArrowGeometry,
   estimateMathBox,
+  measureMathBoxPt,
   lineBaselineGap,
   renderUnitScale,
   renderArrowMarkerDef,
@@ -26,6 +30,7 @@ import {
   renderSvg,
   renderSvgText,
   scopedMathForeignObjectBox,
+  scopedMathHostFontSize,
   scaleItemsForRenderUnit,
   scopeMathHtml,
   styleAttributes,
@@ -39,7 +44,11 @@ import { tikzToSvg } from "../src/internal.js";
 import { renderSvg as compatRenderSvg } from "../src/renderer-svg.js";
 import { createRasterImageShape, createSceneGraph, createTextShape } from "../src/scene/index.js";
 import { lineWidthFromPt } from "../src/tikz/metrics.js";
-import { measurePlainTextTeXBoxPt } from "../src/tikz/textMetrics.js";
+import {
+  stealthArrowHalfWidthFromLength,
+  stealthArrowLengthFromLineWidth
+} from "../src/tikz/metrics.js";
+import { estimateFormulaBox, measurePlainTextTeXBoxPt } from "../src/tikz/textMetrics.js";
 
 test("svg renderer layer exposes render, escaping, defs, text, and path-data helpers", () => {
   const scene = createSceneGraph({
@@ -66,13 +75,18 @@ test("svg renderer layer exposes render, escaping, defs, text, and path-data hel
   });
   assert.equal(createSvgDefs(["<marker />"]), "<defs><marker /></defs>");
   assert.match(renderSvgText({ text: "<x>", x: 1, y: 2 }), /&lt;x&gt;/);
-  assert.equal(formatPlainTexText(String.raw`\strut \$ 1\,x`), "$1 x");
+  assert.equal(formatPlainTexText(String.raw`\strut \$ 1\,x`), "$1\uE1000.166667em\uE101x");
+  assert.equal(formatPlainTexText(String.raw`100\% \#1 \& x\_1 \{ok\}`), "100% #1 & x_1 {ok}");
   assert.equal(renderPlainSvgTextContent("<x>"), "&lt;x&gt;");
   const compactMathBox = estimateMathBox("x", false, 100, 1);
   const compactForeignObjectBox = scopedMathForeignObjectBox(compactMathBox, false);
   assert.ok(compactMathBox.width < 35);
   assert.ok(compactForeignObjectBox.width < 60);
   assert.ok(compactForeignObjectBox.height < 42);
+  const legendMathTex = String.raw`\varphi_4(x)=\log(e^x + 1)`;
+  const legendMathBox = estimateMathBox(legendMathTex, false, 100, 1);
+  const legendForeignObjectBox = scopedMathForeignObjectBox(legendMathBox, false, legendMathTex);
+  assert.ok(legendForeignObjectBox.width - legendMathBox.width >= legendMathBox.fontSize * 1.69);
   const svgTextMath = renderSvg(createSceneGraph({ items: [{ type: "textNode", text: "$x$", x: 0, y: 0, style: { fill: "black" } }] }), {
     margin: 0,
     mathRenderer: "svg-text"
@@ -138,6 +152,40 @@ test("svg renderer layer exposes render, escaping, defs, text, and path-data hel
   assert.equal(blurShadowFilterId({ blurRadius: 0.08 }), "tikzkit-blur-shadow-80");
 });
 
+test("plain Computer Modern text uses MacTeX design fonts across LaTeX sizes", () => {
+  const source = String.raw`\begin{tikzpicture}
+    \node at (0,2) {Normal};
+    \node[font=\small] at (0,1) {Small};
+    \node[font=\footnotesize] at (0,0) {2012};
+    \node[font=\scriptsize] at (0,-1) {2956};
+    \node[font=\bfseries] at (0,-2) {Bold title};
+  \end{tikzpicture}`;
+  const result = tikzToSvg(source, { fontUrlPrefix: "../fonts/" });
+
+  assert.match(result.svg, /font-family="TikZKitCMR10, TikZKitCMUSerif, serif"[^>]*>Normal<\/text>/);
+  assert.match(result.svg, /font-family="TikZKitCMR9, TikZKitCMUSerif, serif"[^>]*>Small<\/text>/);
+  assert.match(result.svg, /font-family="TikZKitCMR8, TikZKitCMUSerif, serif"[^>]*>2012<\/text>/);
+  assert.match(result.svg, /font-family="TikZKitCMR7, TikZKitCMUSerif, serif"[^>]*>2956<\/text>/);
+  assert.match(result.svg, /font-family="TikZKitCMBX10, TikZKitCMUSerif, serif"[^>]*>Bold title<\/text>/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR10-Regular\.otf'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR9-Regular\.otf'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR8-Regular\.otf'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR7-Regular\.otf'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMBX10-Bold\.otf'\)/);
+});
+
+test("classic stealth bounds follow the PGF line-width geometry", () => {
+  const lineWidth = lineWidthFromPt(1.2);
+  const length = stealthArrowLengthFromLineWidth(lineWidth);
+  const halfWidth = stealthArrowHalfWidthFromLength(length);
+  const geometry = inlineArrowGeometry({ kind: "stealth" }, { lineWidth });
+
+  assert.equal(geometry.bounds.minX, -length);
+  assert.equal(geometry.bounds.maxX, 0);
+  assert.equal(geometry.bounds.minY, -halfWidth);
+  assert.equal(geometry.bounds.maxY, halfWidth);
+});
+
 test("svg text engine measures math before rendering from cache", async () => {
   const engine = createSvgTextEngine({ unit: 100 });
   const metrics = engine.measure({
@@ -181,6 +229,101 @@ test("svg text engine measures math before rendering from cache", async () => {
     foreignObjectWidth <= displayPayload.viewBox.width + 1e-6,
     `expected measured viewBox to cover rendered foreignObject width, got viewBox=${displayPayload.viewBox.width} body=${foreignObjectWidth}`
   );
+});
+
+test("keeps KaTeX compensation private while exposing a physical formula box", () => {
+  const box = measureMathBoxPt(String.raw`x_i^2`, {
+    font: createFontSpec({ sizePt: 10, baselineSkipPt: 12 }),
+    displayMode: false
+  });
+
+  assert.equal(box.fontSizePt, 10);
+  assert.ok(box.widthPt > 0);
+  assert.ok(box.heightPt > 0);
+  assert.ok(box.depthPt >= 0);
+  assert.ok(Math.abs(box.baselinePt - box.heightPt) < 1e-9);
+  assert.equal(scopedMathHostFontSize(box.svgFontSize), box.svgFontSize / 1.21);
+});
+
+test("uses MacTeX cmmib10 boxes for Large bold math labels", () => {
+  const font = createFontSpec({ sizePt: 14.4, baselineSkipPt: 18, mathVersion: "bold" });
+  const x = measureMathBoxPt("x", { font, displayMode: false });
+  const fx = measureMathBoxPt("f(x)", { font, displayMode: false });
+
+  assert.ok(Math.abs(x.widthPt - 9.48997) < 0.002, `unexpected bold x width ${x.widthPt}`);
+  assert.ok(Math.abs(fx.widthPt - 31.85995) < 0.002, `unexpected bold f(x) width ${fx.widthPt}`);
+  assert.equal(x.mathVersion, "bold");
+  assert.equal(fx.mathVersion, "bold");
+});
+
+test("agrees between browser and SVG fallback formula boxes", () => {
+  const font = createFontSpec({ sizePt: 9, baselineSkipPt: 11 });
+  const tex = String.raw`A=\begin{pmatrix}2&1\\0&3\end{pmatrix}`;
+  const browser = measureMathBoxPt(tex, { font, renderer: "katex" });
+  const fallback = measureMathBoxPt(tex, { font, renderer: "svg-text" });
+
+  assert.ok(Math.abs(browser.widthPt - fallback.widthPt) <= 0.1);
+  assert.ok(Math.abs((browser.heightPt + browser.depthPt) - (fallback.heightPt + fallback.depthPt)) <= 0.1);
+  assert.equal(browser.baselinePt, fallback.baselinePt);
+});
+
+test("uses the same measured formula box in both SVG text engine modes", () => {
+  const request = {
+    text: String.raw`$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`,
+    mode: "math",
+    font: createFontSpec({ sizePt: 9, baselineSkipPt: 11 })
+  };
+  const browser = createSvgTextEngine({ unit: 100, mathRenderer: "katex" }).measure(request);
+  const fallback = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" }).measure(request);
+
+  assert.ok(Math.abs(browser.width - fallback.width) < 1e-9);
+  assert.ok(Math.abs(browser.height - fallback.height) < 1e-9);
+  assert.ok(Math.abs(browser.baselineY - fallback.baselineY) < 1e-9);
+});
+
+test("uses the same physical formula box for SVG document bounds", () => {
+  const scene = createSceneGraph({
+    items: [createTextShape(String.raw`$x_i^2$`, 0, 0, { fill: "black" }, {
+      font: createFontSpec({ sizePt: 9, baselineSkipPt: 11 })
+    })]
+  });
+  const browser = computeSvgBounds(scene.items, { unit: 100, mathRenderer: "katex" });
+  const fallback = computeSvgBounds(scene.items, { unit: 100, mathRenderer: "svg-text" });
+
+  for (const key of ["minX", "minY", "maxX", "maxY"]) {
+    assert.ok(Math.abs(browser[key] - fallback[key]) < 1e-12, `${key} should use the same physical formula box`);
+  }
+});
+
+test("computes rotated node and text bounds in canvas coordinates", () => {
+  const nodeBounds = computeSvgBounds([
+    { type: "nodeBox", x: 0, y: 0, width: 4, height: 2, rotation: 90, style: { stroke: "none" } }
+  ]);
+  assert.ok(Math.abs(nodeBounds.minX + 1) < 1e-9);
+  assert.ok(Math.abs(nodeBounds.maxX - 1) < 1e-9);
+  assert.ok(Math.abs(nodeBounds.minY + 2) < 1e-9);
+  assert.ok(Math.abs(nodeBounds.maxY - 2) < 1e-9);
+
+  const included = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const include = (x, y) => {
+    included.minX = Math.min(included.minX, x);
+    included.minY = Math.min(included.minY, y);
+    included.maxX = Math.max(included.maxX, x);
+    included.maxY = Math.max(included.maxY, y);
+  };
+  includeTextRenderBounds({ x: 0, y: 0, rotation: 90 }, 4, 2, include);
+  assert.ok(Math.abs(included.minX + 1) < 1e-9);
+  assert.ok(Math.abs(included.maxX - 1) < 1e-9);
+  assert.ok(Math.abs(included.minY + 2) < 1e-9);
+  assert.ok(Math.abs(included.maxY - 2) < 1e-9);
+});
+
+test("includes half the node border width on every SVG document edge", () => {
+  const bounds = computeSvgBounds([
+    { type: "nodeBox", x: 0, y: 0, width: 4, height: 2, style: { stroke: "black", lineWidth: 40 } }
+  ], { unit: 100 });
+
+  assert.deepEqual(bounds, { minX: -2.2, minY: -1.2, maxX: 2.2, maxY: 1.2 });
 });
 
 test("svg text engine prefers FontSpec physical size for plain text and math", () => {
@@ -262,6 +405,25 @@ test("public multiline SVG uses resolved FontSpec baseline skip for tspan dy", (
   assert.ok(Math.abs(dyValues[1] - expectedBaselineSkip) < 1e-6);
 });
 
+test("node boldmath font options reach SVG math glyphs", () => {
+  const result = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node[font=\boldmath\Large] {$x$};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  );
+  const textNode = result.ir.items.find((item) => item.type === "textNode");
+
+  assert.equal(textNode.font.sizePt, 14.4);
+  assert.equal(textNode.font.weight, 400);
+  assert.equal(textNode.font.mathVersion, "bold");
+  assert.equal(textNode.style.fontWeight, undefined);
+  assert.match(result.svg, /<text\b[^>]*font-weight="700"[^>]*>x<\/text>/);
+
+  const browser = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node[font=\boldmath\Large] {$x$};\end{tikzpicture}`
+  );
+  assert.match(browser.svg, /tikzkit-math-boldsymbol/);
+});
+
 test("mixed content size commands only resize the following text segment", () => {
   const result = tikzToSvg(
     String.raw`\begin{tikzpicture}\node {normal \tiny tiny};\end{tikzpicture}`,
@@ -324,7 +486,7 @@ test("mid-line font declarations style only following segments", () => {
     { command: String.raw`\bfseries`, text: "bold", attribute: "font-weight", value: "700" },
     { command: String.raw`\itshape`, text: "italic", attribute: "font-style", value: "italic" },
     { command: String.raw`\scshape`, text: "caps", attribute: "font-variant", value: "small-caps" },
-    { command: String.raw`\sffamily`, text: "sans", attribute: "font-family", value: "KaTeX_SansSerif" }
+    { command: String.raw`\sffamily`, text: "sans", attribute: "font-family", value: "TikZKitCMUSans" }
   ];
 
   for (const entry of cases) {
@@ -355,7 +517,7 @@ test("scoped text font wrappers style only their arguments and restore afterward
   const cases = [
     { command: "textbf", text: "bold", attribute: "font-weight", value: "700" },
     { command: "textit", text: "italic", attribute: "font-style", value: "italic" },
-    { command: "textsf", text: "sans", attribute: "font-family", value: "KaTeX_SansSerif" },
+    { command: "textsf", text: "sans", attribute: "font-family", value: "TikZKitCMUSans" },
     { command: "texttt", text: "mono", attribute: "font-family", value: "KaTeX_Typewriter" },
     { command: "textsl", text: "slanted", attribute: "font-style", value: "italic" },
     { command: "textsc", text: "caps", attribute: "font-variant", value: "small-caps" }
@@ -413,7 +575,7 @@ test("resolved FontSpec properties reach plain SVG without legacy style fields",
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /font-family="KaTeX_SansSerif,[^"]+"/);
+  assert.match(svg, /font-family="TikZKitCMUSans,[^"]+"/);
   assert.match(svg, /font-weight="700"/);
   assert.match(svg, /font-style="italic"/);
   assert.match(svg, /font-variant="small-caps"/);
@@ -439,20 +601,37 @@ test("resolved math FontSpec rendering is independent of source metadata", () =>
 
 test("measures a supported plain Main-Regular logical TeX box", () => {
   const box = measurePlainTextTeXBoxPt("concatenate", { fontSizePt: 10 });
+  const kerned = measurePlainTextTeXBoxPt("Wahlbeteiligung", { fontSizePt: 10 });
+  const spaced = measurePlainTextTeXBoxPt("a a", { fontSizePt: 10 });
   const negativeDepth = measurePlainTextTeXBoxPt("=", { fontSizePt: 10 });
+  const unicodeMinus = measurePlainTextTeXBoxPt("−2", { fontSizePt: 10 });
   const zeroDepthMixed = measurePlainTextTeXBoxPt("=a", { fontSizePt: 10 });
   const positiveDepthMixed = measurePlainTextTeXBoxPt("=g", { fontSizePt: 10 });
 
   assert.ok(box, "expected supported Main-Regular metrics");
   assert.ok(Math.abs(box.width - 51.666) < 0.01, `expected TeX width near 51.666pt, got ${box.width}`);
+  assert.ok(Math.abs(kerned.width - 70.83351) < 0.01, `expected MacTeX CMR10 kerning width 70.83351pt, got ${kerned.width}`);
+  assert.ok(Math.abs(spaced.width - 13.333) < 0.01, `expected CMR10 interword space width, got ${spaced.width}`);
   assert.ok(Math.abs(box.height - 6.151) < 0.01, `expected TeX height near 6.151pt, got ${box.height}`);
   assert.ok(Math.abs(box.depth) < 1e-9, `expected zero TeX depth, got ${box.depth}`);
   assert.ok(Math.abs(negativeDepth.width - 7.7778) < 0.001, `expected equals width near 7.7778pt, got ${negativeDepth.width}`);
   assert.ok(Math.abs(negativeDepth.height - 3.6687) < 0.001, `expected equals height near 3.6687pt, got ${negativeDepth.height}`);
   assert.ok(Math.abs(negativeDepth.depth - -1.33125) < 0.001, `expected equals depth near -1.33125pt, got ${negativeDepth.depth}`);
+  assert.ok(Math.abs(unicodeMinus.width - 12.7778) < 0.001, `expected Unicode minus tick width near 12.7778pt, got ${unicodeMinus.width}`);
+  assert.ok(Math.abs(unicodeMinus.height - 6.4444) < 0.001, `expected Unicode minus tick height near 6.4444pt, got ${unicodeMinus.height}`);
+  assert.ok(Math.abs(unicodeMinus.depth - 0.8333) < 0.001, `expected Unicode minus tick depth near 0.8333pt, got ${unicodeMinus.depth}`);
   assert.ok(Math.abs(zeroDepthMixed.depth) < 1e-9, `expected mixed zero depth, got ${zeroDepthMixed.depth}`);
   assert.ok(Math.abs(positiveDepthMixed.depth - 1.9444) < 0.001, `expected mixed positive depth near 1.9444pt, got ${positiveDepthMixed.depth}`);
   assert.equal(measurePlainTextTeXBoxPt("caf\u00e9", { fontSizePt: 10 }), null);
+});
+
+test("measures numeric sans-serif ticks from the TeX Helvetica TFM", () => {
+  const box = measurePlainTextTeXBoxPt("40", { fontSizePt: 10, fontFamily: "sans-serif" });
+
+  assert.ok(box, "expected supported Helvetica tick metrics");
+  assert.ok(Math.abs(box.width - 11.11988) < 0.0001, `expected 11.11988pt width, got ${box.width}`);
+  assert.ok(Math.abs(box.height - 7.04492) < 0.0001, `expected 7.04492pt height, got ${box.height}`);
+  assert.ok(Math.abs(box.depth - 0.16492) < 0.0001, `expected 0.16492pt depth, got ${box.depth}`);
 });
 
 test("svg text engine logical TeX box preserves negative depth in total height", () => {
@@ -644,7 +823,7 @@ test("svg text engine isolates cached payloads by render-affecting text style", 
   assert.match(engine.renderFromCache(blueMath.cacheKey).body, /(?:color:blue|fill="blue")/);
 });
 
-test("svg text engine isolates font variant and math style cache entries", () => {
+test("svg text engine isolates font variant, math style, and math version cache entries", () => {
   const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
   const normal = engine.measure({
     text: "label",
@@ -674,6 +853,15 @@ test("svg text engine isolates font variant and math style cache entries", () =>
 
   assert.notEqual(textMath.cacheKey, displayMath.cacheKey);
   assert.ok(displayMath.height > textMath.height);
+
+  const boldMath = engine.measure({
+    text: "$x$",
+    mode: "math",
+    font: createFontSpec({ mathStyle: "text", mathVersion: "bold" })
+  });
+  assert.notEqual(textMath.cacheKey, boldMath.cacheKey);
+  assert.equal(boldMath.mathVersion, "bold");
+  assert.match(engine.renderFromCache(boldMath.cacheKey).body, /font-weight="700"/);
 });
 
 test("svg text engine cache separates canonical line and segment styles before rendering", () => {
@@ -845,6 +1033,7 @@ test("renders decoration text as glyphs sampled along path commands", () => {
   const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
 
   assert.match(svg, /tikz-decoration-glyph/);
+  assert.match(svg, /class="tikz-decoration-glyph"[^>]+dominant-baseline="alphabetic"/);
   assert.match(svg, />A</);
   assert.match(svg, />n</);
   assert.doesNotMatch(svg, /<textPath\b/);
@@ -870,6 +1059,27 @@ test("uses approximate glyph advances for decoration text along paths", () => {
 
   assert.equal(xs.length, 3);
   assert.ok(xs[1] - xs[0] < xs[2] - xs[1], `expected narrow i/i spacing before wide W: ${xs.join(", ")}`);
+});
+
+test("uses the normal TikZ text size for decoration text", () => {
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "human-level error",
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 5, y: 0 }
+        ],
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const fontSize = Number(svg.match(/class="tikz-decoration-glyph"[^>]+font-size="([^"]+)"/)?.[1]);
+
+  assert.ok(fontSize > 35 && fontSize < 35.3, `expected the native 10pt TikZ text size, got ${fontSize}`);
 });
 
 test("uses SVG point units and stroke bounds for no-margin path documents", () => {
@@ -943,6 +1153,46 @@ test("does not double-shift simple superscripts in svg-text math fallback", () =
   assert.doesNotMatch(result.svg, /baseline-shift="super"[^>]*\bdy="/);
 });
 
+test("renders amsmath xrightarrow as an extensible labeled SVG relation", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+  \node at (0,0) {$T \xrightarrow{\text{Liften}} \mathbb{R}^2 / \mathbb{Z}^2$};
+\end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-math-extensible-arrow" data-direction="right"/);
+  assert.match(result.svg, /class="tikz-math-arrow-label"[^>]*>Liften<\/text>/);
+  assert.match(result.svg, /class="tikz-math-arrow-shaft"/);
+  assert.match(result.svg, /class="tikz-math-arrow-head"/);
+  assert.doesNotMatch(result.svg, /xrightarrow/);
+
+  const box = estimateFormulaBox(String.raw`T \xrightarrow{\text{Liften}} \mathbb{R}^2 / \mathbb{Z}^2`, {
+    minWidth: 0,
+    widthPadding: 0
+  });
+  assert.ok(box.width * 28.45274 > 67.65 && box.width * 28.45274 < 67.95, `expected TeX width 67.81pt, got ${box.width * 28.45274}pt`);
+  assert.ok(box.height * 28.45274 > 11.45 && box.height * 28.45274 < 11.6, `expected TeX height 11.53pt, got ${box.height * 28.45274}pt`);
+  assert.ok(box.depth * 28.45274 > 2.42 && box.depth * 28.45274 < 2.58, `expected TeX depth 2.5pt, got ${box.depth * 28.45274}pt`);
+
+  const fragmentY = Number(result.svg.match(/class="tikz-math-arrow-fragment"[^>]*\by="([^"]+)"/)?.[1]);
+  const textNode = result.ir.items.find((item) => item.type === "textNode");
+  assert.ok(Number.isFinite(fragmentY));
+  assert.ok(fragmentY > -textNode.y * 100 + 15, "expected the TeX baseline below the node center for an asymmetric xrightarrow box");
+  assert.ok(textNode.nodeLayoutWidth > box.width, "expected TikZ inner xsep in the invisible node layout box");
+  assert.ok(textNode.nodeLayoutHeight > box.height + box.depth, "expected TikZ inner ysep in the invisible node layout box");
+  assert.match(result.svg, /tikz-math-arrow-fragment[^>]*dominant-baseline="alphabetic"/);
+});
+
+test("renders xleftarrow optional lower and required upper labels", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+  \node at (0,0) {$B \xleftarrow[g]{f} A$};
+\end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-math-extensible-arrow" data-direction="left"/);
+  assert.match(result.svg, />f<\/text>/);
+  assert.match(result.svg, />g<\/text>/);
+});
+
 test("renders simple math variables as TeX-like glyph paths in svg-text mode", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \draw[thick, -stealth] (0,0) -- node[above] {$x$} (2,0);
@@ -950,6 +1200,16 @@ test("renders simple math variables as TeX-like glyph paths in svg-text mode", (
 
   assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-x"/);
   assert.doesNotMatch(result.svg, /<text[^>]*>\s*x\s*<\/text>/);
+});
+
+test("uses the inherited sans family for sansmath svg-text formulas", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+  \node[font=\sansmath\sffamily] at (0,0) {$x$};
+  \node[font=\sansmath\sffamily] at (1,0) {$f(x)$};
+\end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  assert.match(result.svg, /font-family="TikZKitCMUSans, 'CMU Sans Serif', sans-serif"/);
+  assert.doesNotMatch(result.svg, /class="tikz-math-glyph tikz-math-glyph-x"/);
 });
 
 test("renders simple y math glyph at anchored node positions without NaN transforms", () => {
@@ -1050,6 +1310,20 @@ test("calibrates thick stealth arrow tip geometry against tikztosvg", () => {
   assert.ok(Math.abs(values[2] + 14.566) < 0.01, `expected tikztosvg stealth length, got ${values[2]}`);
   assert.ok(Math.abs(values[3] + 7.29) < 0.01, `expected tikztosvg stealth half width, got ${values[3]}`);
   assert.ok(Math.abs(values[4] + 9.104) < 0.01, `expected tikztosvg stealth inset, got ${values[4]}`);
+});
+
+test("renders the legacy arrows-library stealth prime with PGF's curved fill-and-stroke geometry", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}[>=stealth']
+  \draw[thick, ->] (0,0) -- (2,0);
+\end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+  const tip = result.svg.match(/<path class="tikz-arrow-tip tikz-arrow-stealth-prime"[^>]+>/)?.[0] || "";
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(tip, /\bd="M [^"]+ C [^"]+ C [^"]+ C [^"]+ Z"/);
+  assert.match(tip, /fill="black"/);
+  assert.match(tip, /stroke="black"/);
+  assert.match(tip, /stroke-width="2\.811678"/);
+  assert.match(tip, /stroke-linejoin="round"/);
 });
 
 test("calibrates thin classic stealth geometry against TeX Live 2025", () => {

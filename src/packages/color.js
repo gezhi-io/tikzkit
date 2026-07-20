@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "color",
   "status": "builtin",
-  "implementedBy": "src/preprocess.js:collectColorDefinitions + src/tex-text.js",
+  "implementedBy": "src/frontend/latex-shell.js:collectColorDefinitions + src/tikz/text.js",
   "features": [
     "basic color package compatibility",
     "\\textcolor subset"

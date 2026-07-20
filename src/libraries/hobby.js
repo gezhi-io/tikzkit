@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "hobby",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/hobby.js";

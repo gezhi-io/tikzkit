@@ -1,0 +1,3062 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "addplot-coordinates",
+      "title": "Coordinate plot path",
+      "source": "pgfplots/addplot-coordinates.tex",
+      "semanticOwner": "src/pgfplots/addplotParser.js",
+      "features": [
+        "addplot coordinates",
+        "mark=o",
+        "data-to-canvas transform"
+      ]
+    },
+    {
+      "id": "addplot-marks",
+      "title": "Coordinate plot marks",
+      "source": "pgfplots/addplot-marks.tex",
+      "semanticOwner": "src/pgfplots/marks.js",
+      "features": [
+        "mark=*",
+        "mark size",
+        "plot cycle colors"
+      ]
+    },
+    {
+      "id": "axis-basic-range",
+      "title": "PGFPlots explicit axis range",
+      "source": "pgfplots/axis-basic-range.tex",
+      "semanticOwner": "src/pgfplots/rangeResolver.js",
+      "features": [
+        "xmin",
+        "xmax",
+        "ymin",
+        "ymax",
+        "axis coordinate transform"
+      ]
+    },
+    {
+      "id": "axis-labels-math",
+      "title": "PGFPlots math labels",
+      "source": "pgfplots/axis-labels-math.tex",
+      "semanticOwner": "src/pgfplots/labels.js",
+      "features": [
+        "xlabel",
+        "ylabel",
+        "KaTeX math text"
+      ]
+    },
+    {
+      "id": "axis-major-grid",
+      "title": "PGFPlots major grid with dashed style",
+      "source": "pgfplots/axis-major-grid.tex",
+      "semanticOwner": "src/pgfplots/grid.js",
+      "features": [
+        "grid=major",
+        "grid style",
+        "xcolor mix gray!30"
+      ]
+    },
+    {
+      "id": "axis-middle-lines",
+      "title": "PGFPlots middle axis lines",
+      "source": "pgfplots/axis-middle-lines.tex",
+      "semanticOwner": "src/pgfplots/axisLines.js",
+      "features": [
+        "axis x line=middle",
+        "axis y line=middle",
+        "tick placement"
+      ]
+    },
+    {
+      "id": "color-mix-gray30",
+      "title": "xcolor mix gray!30 in grid style",
+      "source": "pgfplots/color-mix-gray30.tex",
+      "semanticOwner": "src/engine/options.js",
+      "features": [
+        "xcolor gray!30",
+        "draw style normalization",
+        "grid style"
+      ]
+    },
+    {
+      "id": "foreach-inside-axis",
+      "title": "Foreach expands plots inside axis",
+      "source": "pgfplots/foreach-inside-axis.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach",
+        "addplot coordinates",
+        "loop variable substitution"
+      ]
+    },
+    {
+      "id": "latex-examples-2048",
+      "title": "LaTeX-examples 2048",
+      "source": "latex-examples/2048.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2048/2048.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "path drawing",
+        "node labels",
+        "style resolution"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-chi-squared-cdf",
+      "title": "LaTeX-examples 2d Chi Squared Cdf",
+      "source": "latex-examples/2d-chi-squared-cdf.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-chi-squared-cdf/2d-chi-squared-cdf.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-chi-squared-pdf",
+      "title": "LaTeX-examples 2d Chi Squared Pdf",
+      "source": "latex-examples/2d-chi-squared-pdf.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-chi-squared-pdf/2d-chi-squared-pdf.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-epochs-overfitting",
+      "title": "LaTeX-examples 2d Epochs Overfitting",
+      "source": "latex-examples/2d-epochs-overfitting.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-epochs-overfitting/2d-epochs-overfitting.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-light-bulb",
+      "title": "LaTeX-examples 2d Light Bulb",
+      "source": "latex-examples/2d-light-bulb.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-light-bulb/2d-light-bulb.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-parted-function",
+      "title": "LaTeX-examples 2d Parted Function",
+      "source": "latex-examples/2d-parted-function.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-parted-function/2d-parted-function.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-x-square-with-circle",
+      "title": "LaTeX-examples 2d X Square With Circle",
+      "source": "latex-examples/2d-x-square-with-circle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-x-square-with-circle/2d-x-square-with-circle.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-cmos-loss-diagram",
+      "title": "LaTeX-examples 3d Cmos Loss Diagram",
+      "source": "latex-examples/3d-cmos-loss-diagram.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-cmos-loss-diagram/3d-cmos-loss-diagram.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-2",
+      "title": "LaTeX-examples 3d Function 2",
+      "source": "latex-examples/3d-function-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-2/3d-function-2.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-3",
+      "title": "LaTeX-examples 3d Function 3",
+      "source": "latex-examples/3d-function-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-3/3d-function-3.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-4",
+      "title": "LaTeX-examples 3d Function 4",
+      "source": "latex-examples/3d-function-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-4/3d-function-4.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-5",
+      "title": "LaTeX-examples 3d Function 5",
+      "source": "latex-examples/3d-function-5.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-5/3d-function-5.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-6",
+      "title": "LaTeX-examples 3d Function 6",
+      "source": "latex-examples/3d-function-6.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-6/3d-function-6.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-7",
+      "title": "LaTeX-examples 3d Function 7",
+      "source": "latex-examples/3d-function-7.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-7/3d-function-7.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-8",
+      "title": "LaTeX-examples 3d Function 8",
+      "source": "latex-examples/3d-function-8.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-8/3d-function-8.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-9",
+      "title": "LaTeX-examples 3d Function 9",
+      "source": "latex-examples/3d-function-9.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-9/3d-function-9.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-continuous",
+      "title": "LaTeX-examples 3d Function Continuous",
+      "source": "latex-examples/3d-function-continuous.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-continuous/3d-function-continuous.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-function-semicubical-parabola",
+      "title": "LaTeX-examples 3d Function Semicubical Parabola",
+      "source": "latex-examples/3d-function-semicubical-parabola.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-semicubical-parabola/3d-function-semicubical-parabola.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-gaussian-distribution",
+      "title": "LaTeX-examples 3d Gaussian Distribution",
+      "source": "latex-examples/3d-gaussian-distribution.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-gaussian-distribution/3d-gaussian-distribution.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-gradient-colored",
+      "title": "LaTeX-examples 3d Gradient Colored",
+      "source": "latex-examples/3d-gradient-colored.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-gradient-colored/3d-gradient-colored.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-gradient-cos",
+      "title": "LaTeX-examples 3d Gradient Cos",
+      "source": "latex-examples/3d-gradient-cos.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-gradient-cos/3d-gradient-cos.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-helix",
+      "title": "LaTeX-examples 3d Helix",
+      "source": "latex-examples/3d-helix.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-helix/3d-helix.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-manhattan-bar-plot",
+      "title": "LaTeX-examples 3d Manhattan Bar Plot",
+      "source": "latex-examples/3d-manhattan-bar-plot.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-manhattan-bar-plot/3d-manhattan-bar-plot.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-3d-vector",
+      "title": "LaTeX-examples 3d Vector",
+      "source": "latex-examples/3d-vector.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-vector/3d-vector.tex",
+      "semanticOwner": "src/libraries/3d.js",
+      "features": [
+        "3d coordinates",
+        "projection transform",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-activation-functions",
+      "title": "LaTeX-examples Activation Functions",
+      "source": "latex-examples/activation-functions.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "activation-functions/activation-functions.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "axis coordinate transform",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-agent-environment-diagram-mdp",
+      "title": "LaTeX-examples Agent Environment Diagram Mdp",
+      "source": "latex-examples/agent-environment-diagram-mdp.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "agent-environment-diagram-mdp/agent-environment-diagram-mdp.tex",
+      "semanticOwner": "src/geometry.js",
+      "features": [
+        "circle geometry",
+        "node labels",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-agent-environment-diagram-pomdp",
+      "title": "LaTeX-examples Agent Environment Diagram Pomdp",
+      "source": "latex-examples/agent-environment-diagram-pomdp.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "agent-environment-diagram-pomdp/agent-environment-diagram-pomdp.tex",
+      "semanticOwner": "src/geometry.js",
+      "features": [
+        "circle geometry",
+        "node labels",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-agent-environment-diagram-rl",
+      "title": "LaTeX-examples Agent Environment Diagram Rl",
+      "source": "latex-examples/agent-environment-diagram-rl.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "agent-environment-diagram-rl/agent-environment-diagram-rl.tex",
+      "semanticOwner": "src/libraries/decorations.text.js",
+      "features": [
+        "ellipse nodes",
+        "positioning",
+        "text along path",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-aggregation-blocks",
+      "title": "LaTeX-examples Aggregation Blocks",
+      "source": "latex-examples/aggregation-blocks.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "aggregation-blocks/aggregation-blocks.tex",
+      "semanticOwner": "src/libraries/arrows.meta.js",
+      "features": [
+        "node boxes",
+        "positioning",
+        "Latex arrow tips",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-arbelos",
+      "title": "LaTeX-examples Arbelos",
+      "source": "latex-examples/arbelos.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "arbelos/arbelos.tex",
+      "semanticOwner": "src/engine/pathBuilder.js",
+      "features": [
+        "arc path",
+        "scope transform",
+        "circle geometry",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-arc",
+      "title": "LaTeX-examples circular sector arc",
+      "source": "latex-examples/arc.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "arc/arc.tex",
+      "semanticOwner": "src/engine/pathBuilder.js",
+      "features": [
+        "arc path",
+        "scope color",
+        "dimension macro",
+        "coordinate labels"
+      ]
+    },
+    {
+      "id": "latex-examples-circle-diameter-radius",
+      "title": "LaTeX-examples circle diameter and radius",
+      "source": "latex-examples/circle-diameter-radius.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "circle-diameter-radius/circle-diameter-radius.tex",
+      "semanticOwner": "src/engine/math.js",
+      "features": [
+        "polar coordinates",
+        "newcommand",
+        "circle",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-t1",
+      "title": "LaTeX-examples line segments with styled endpoints",
+      "source": "latex-examples/line-segments-t1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-t1.tex",
+      "semanticOwner": "src/tikz/commands/path.js",
+      "features": [
+        "coordinate references",
+        "to path style",
+        "grid",
+        "every node style"
+      ]
+    },
+    {
+      "id": "latex-examples-path",
+      "title": "LaTeX-examples graph path with selected edges",
+      "source": "latex-examples/path.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "path/path.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach pair expansion",
+        "node anchors",
+        "edge operation",
+        "pgfonlayer compatibility"
+      ]
+    },
+    {
+      "id": "latex-examples-rectangle-1",
+      "title": "LaTeX-examples polygon with grid and labels",
+      "source": "latex-examples/rectangle-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "rectangle/rectangle-1.tex",
+      "semanticOwner": "src/tikz/commands/draw.js",
+      "features": [
+        "polygon path",
+        "grid",
+        "circle point",
+        "node labels",
+        "xcolor fills"
+      ]
+    },
+    {
+      "id": "workbench-line-smoke",
+      "title": "Workbench smoke line with arrow and math label",
+      "source": "workbench/line-smoke.tikz",
+      "sourceCorpus": "local-workbench",
+      "semanticOwner": "src/tikz/commands/draw.js",
+      "features": [
+        "draw command",
+        "arrow tip",
+        "thick line",
+        "node on path",
+        "xcolor mix fill"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-caro",
+      "title": "LaTeX-examples 2d Caro",
+      "source": "latex-examples/2d-caro.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "2d-utility/2d-caro.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-array",
+      "title": "LaTeX-examples Array",
+      "source": "latex-examples/array.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "array/array.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-artificial-neuron",
+      "title": "LaTeX-examples Artificial Neuron",
+      "source": "latex-examples/artificial-neuron.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "artificial-neuron/artificial-neuron.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-2",
+      "title": "LaTeX-examples B Tree 2",
+      "source": "latex-examples/b-tree-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree/b-tree-2.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-3-evolution",
+      "title": "LaTeX-examples B Tree 3 Evolution",
+      "source": "latex-examples/b-tree-3-evolution.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree-3-evolution/b-tree-3-evolution.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-node",
+      "title": "LaTeX-examples B Tree Node",
+      "source": "latex-examples/b-tree-node.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree-node/b-tree-node.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-bar-chart-grouping",
+      "title": "LaTeX-examples Bar Chart Grouping",
+      "source": "latex-examples/bar-chart-grouping.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bar-chart-grouping/bar-chart-grouping.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-bar-chart-military-budget",
+      "title": "LaTeX-examples Bar Chart Military Budget",
+      "source": "latex-examples/bar-chart-military-budget.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bar-chart-military-budget/bar-chart-military-budget.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-bar-chart-simple",
+      "title": "LaTeX-examples Bar Chart Simple",
+      "source": "latex-examples/bar-chart-simple.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bar-chart-simple/bar-chart-simple.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-bchart-simple",
+      "title": "LaTeX-examples Bchart Simple",
+      "source": "latex-examples/bchart-simple.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bchart-simple/bchart-simple.tex",
+      "semanticOwner": "src/extensions/bchart.js",
+      "features": [
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-bellman-ford-algorithm",
+      "title": "LaTeX-examples Bellman Ford Algorithm",
+      "source": "latex-examples/bellman-ford-algorithm.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bellman-ford-algorithm/bellman-ford-algorithm.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-bias-variance",
+      "title": "LaTeX-examples Bias Variance",
+      "source": "latex-examples/bias-variance.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bias-variance/bias-variance.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-binary-search-tree",
+      "title": "LaTeX-examples Binary Search Tree",
+      "source": "latex-examples/binary-search-tree.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "binary-search-tree/binary-search-tree.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-binary-tree",
+      "title": "LaTeX-examples Binary Tree",
+      "source": "latex-examples/binary-tree.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "binary-tree/binary-tree.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-bounding-box-lines-1",
+      "title": "LaTeX-examples Bounding Box Lines 1",
+      "source": "latex-examples/bounding-box-lines-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bounding-box-lines-1/bounding-box-lines-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-cache-4-way-associative",
+      "title": "LaTeX-examples Cache 4 Way Associative",
+      "source": "latex-examples/cache-4-way-associative.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cache-4-way-associative/cache-4-way-associative.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-cascade-correlation-network",
+      "title": "LaTeX-examples Cascade Correlation Network",
+      "source": "latex-examples/cascade-correlation-network.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cascade-correlation-network/cascade-correlation-network.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-cbc-mode-decryption",
+      "title": "LaTeX-examples Cbc Mode Decryption",
+      "source": "latex-examples/cbc-mode-decryption.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "CBC-Mode-Decryption/CBC-Mode-Decryption.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-cbc-mode-encryption",
+      "title": "LaTeX-examples Cbc Mode Encryption",
+      "source": "latex-examples/cbc-mode-encryption.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "CBC-Mode-Encryption/CBC-Mode-Encryption.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-center",
+      "title": "LaTeX-examples Center",
+      "source": "latex-examples/center.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "center/center.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-center-line",
+      "title": "LaTeX-examples Center Line",
+      "source": "latex-examples/center-line.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "center-line/center-line.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-center-two-cluster",
+      "title": "LaTeX-examples Center Two Cluster",
+      "source": "latex-examples/center-two-cluster.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "center-two-cluster/center-two-cluster.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-cfb-mode-decryption",
+      "title": "LaTeX-examples Cfb Mode Decryption",
+      "source": "latex-examples/cfb-mode-decryption.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "CFB-Mode-Decryption/CFB-Mode-Decryption.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-cfb-mode-encryption",
+      "title": "LaTeX-examples Cfb Mode Encryption",
+      "source": "latex-examples/cfb-mode-encryption.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "CFB-Mode-Encryption/CFB-Mode-Encryption.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-chemistry-example",
+      "title": "LaTeX-examples Chemistry Example",
+      "source": "latex-examples/chemistry-example.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "chemistry-example/chemistry-example.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "arrow tips",
+        "math labels",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-circle-convex-metric-space",
+      "title": "LaTeX-examples Circle Convex Metric Space",
+      "source": "latex-examples/circle-convex-metric-space.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "circle-convex-metric-space/circle-convex-metric-space.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-circle-inscribed-circumscribed-polygon",
+      "title": "LaTeX-examples Circle Inscribed Circumscribed Polygon",
+      "source": "latex-examples/circle-inscribed-circumscribed-polygon.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "circle-inscribed-circumscribed-polygon/circle-inscribed-circumscribed-polygon.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-circles-closed",
+      "title": "LaTeX-examples Circles Closed",
+      "source": "latex-examples/circles-closed.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "circles-closed/circles-closed.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-circular-cone",
+      "title": "LaTeX-examples Circular Cone",
+      "source": "latex-examples/circular-cone.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "circular-cone/circular-cone.tex",
+      "semanticOwner": "src/libraries/3d.js",
+      "features": [
+        "foreach expansion",
+        "path drawing",
+        "3d transform"
+      ]
+    },
+    {
+      "id": "latex-examples-circular-sector-centroid",
+      "title": "LaTeX-examples Circular Sector Centroid",
+      "source": "latex-examples/circular-sector-centroid.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "circular-sector-centroid/circular-sector-centroid.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-2d-semicubical-parabola",
+      "title": "LaTeX-examples 2d Semicubical Parabola",
+      "source": "latex-examples/2d-semicubical-parabola.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "3d-function-semicubical-parabola/2d-semicubical-parabola.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-2-small-2",
+      "title": "LaTeX-examples B Tree 2 Small 2",
+      "source": "latex-examples/b-tree-2-small-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree-2-small-2/b-tree-2-small-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-2-small-3",
+      "title": "LaTeX-examples B Tree 2 Small 3",
+      "source": "latex-examples/b-tree-2-small-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree-2-small-3/b-tree-2-small-3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-2-small-4",
+      "title": "LaTeX-examples B Tree 2 Small 4",
+      "source": "latex-examples/b-tree-2-small-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree-2-small-4/b-tree-2-small-4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-2-small",
+      "title": "LaTeX-examples B Tree 2 Small",
+      "source": "latex-examples/b-tree-2-small.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree-2-small/b-tree-2-small.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-b-tree-3",
+      "title": "LaTeX-examples B Tree 3",
+      "source": "latex-examples/b-tree-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "b-tree/b-tree-3.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-birthday-paradox",
+      "title": "LaTeX-examples Birthday Paradox",
+      "source": "latex-examples/birthday-paradox.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "birthday-paradox/birthday-paradox.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-bounding-box-lines-2",
+      "title": "LaTeX-examples Bounding Box Lines 2",
+      "source": "latex-examples/bounding-box-lines-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bounding-box-lines-2/bounding-box-lines-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-bounding-box-lines-3",
+      "title": "LaTeX-examples Bounding Box Lines 3",
+      "source": "latex-examples/bounding-box-lines-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bounding-box-lines-3/bounding-box-lines-3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-bounding-box-lines-4",
+      "title": "LaTeX-examples Bounding Box Lines 4",
+      "source": "latex-examples/bounding-box-lines-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "bounding-box-lines-4/bounding-box-lines-4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-class-tree",
+      "title": "LaTeX-examples Class Tree",
+      "source": "latex-examples/class-tree.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "class-tree/class-tree.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ],
+      "resources": [
+        {
+          "name": "road.jpg",
+          "source": "resources/class-tree/road.jpg"
+        },
+        {
+          "name": "water.jpg",
+          "source": "resources/class-tree/water.jpg"
+        },
+        {
+          "name": "child.jpg",
+          "source": "resources/class-tree/child.jpg"
+        },
+        {
+          "name": "adult.jpg",
+          "source": "resources/class-tree/adult.jpg"
+        },
+        {
+          "name": "bike.jpg",
+          "source": "resources/class-tree/bike.jpg"
+        },
+        {
+          "name": "motorcycle.jpg",
+          "source": "resources/class-tree/motorcycle.jpg"
+        },
+        {
+          "name": "car.jpg",
+          "source": "resources/class-tree/car.jpg"
+        },
+        {
+          "name": "lkw.jpg",
+          "source": "resources/class-tree/lkw.jpg"
+        },
+        {
+          "name": "danger.png",
+          "source": "resources/class-tree/danger.png"
+        },
+        {
+          "name": "danger-right.png",
+          "source": "resources/class-tree/danger-right.png"
+        },
+        {
+          "name": "slippery.png",
+          "source": "resources/class-tree/slippery.png"
+        },
+        {
+          "name": "bike-sign.png",
+          "source": "resources/class-tree/bike-sign.png"
+        },
+        {
+          "name": "bike-sign-french.png",
+          "source": "resources/class-tree/bike-sign-french.png"
+        },
+        {
+          "name": "bike-sign-ove.png",
+          "source": "resources/class-tree/bike-sign-ove.png"
+        }
+      ]
+    },
+    {
+      "id": "latex-examples-cmos-nor",
+      "title": "LaTeX-examples Cmos Nor",
+      "source": "latex-examples/cmos-nor.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cmos-nor/cmos-nor.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-cmos-sram-cell",
+      "title": "LaTeX-examples Cmos Sram Cell",
+      "source": "latex-examples/cmos-sram-cell.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cmos-sram-cell/cmos-sram-cell.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-color-blind-friendly-mesh-colormap",
+      "title": "LaTeX-examples Color Blind Friendly Mesh Colormap",
+      "source": "latex-examples/color-blind-friendly-mesh-colormap.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "color-blind-friendly-mesh-colormap/color-blind-friendly-mesh-colormap.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-commutative-diagram-2",
+      "title": "LaTeX-examples Commutative Diagram 2",
+      "source": "latex-examples/commutative-diagram-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "commutative-diagram-2/commutative-diagram-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-commutative-diagram",
+      "title": "LaTeX-examples Commutative Diagram",
+      "source": "latex-examples/commutative-diagram.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "commutative-diagram/commutative-diagram.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-control-flow-graph",
+      "title": "LaTeX-examples Control Flow Graph",
+      "source": "latex-examples/control-flow-graph.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "control-flow-graph/control-flow-graph.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-convolution-linear",
+      "title": "LaTeX-examples Convolution Linear",
+      "source": "latex-examples/convolution-linear.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "convolution-linear/convolution-linear.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-coordinate-system-1",
+      "title": "LaTeX-examples Coordinate System 1",
+      "source": "latex-examples/coordinate-system-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "coordinate-system-1/coordinate-system-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-coordinate-system-2",
+      "title": "LaTeX-examples Coordinate System 2",
+      "source": "latex-examples/coordinate-system-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "coordinate-system-2/coordinate-system-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-coordinate-system-3",
+      "title": "LaTeX-examples Coordinate System 3",
+      "source": "latex-examples/coordinate-system-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "coordinate-system-3/coordinate-system-3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-cos-fixpoint",
+      "title": "LaTeX-examples Cos Fixpoint",
+      "source": "latex-examples/cos-fixpoint.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cos-fixpoint/cos-fixpoint.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-countable-sets",
+      "title": "LaTeX-examples Countable Sets",
+      "source": "latex-examples/countable-sets.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "countable-sets/countable-sets.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-csv-2d-gaussian-multivarate-distributions",
+      "title": "LaTeX-examples Csv 2d Gaussian Multivarate Distributions",
+      "source": "latex-examples/csv-2d-gaussian-multivarate-distributions.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "csv-2d-gaussian-multivarate-distributions/csv-2d-gaussian-multivarate-distributions.tex",
+      "resources": [
+        {
+          "name": "data.csv",
+          "source": "resources/csv-2d-gaussian-multivarate-distributions/data.csv"
+        }
+      ],
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels",
+        "symbolic scatter classes"
+      ]
+    },
+    {
+      "id": "latex-examples-csv-2d-point-plot",
+      "title": "LaTeX-examples Csv 2d Point Plot",
+      "source": "latex-examples/csv-2d-point-plot.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "csv-2d-point-plot/csv-2d-point-plot.tex",
+      "resources": [
+        {
+          "name": "data.csv",
+          "source": "resources/csv-2d-point-plot/data.csv"
+        }
+      ],
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "table metadata labels"
+      ]
+    },
+    {
+      "id": "latex-examples-csv-bivariate-normal-distribution",
+      "title": "LaTeX-examples Csv Bivariate Normal Distribution",
+      "source": "latex-examples/csv-bivariate-normal-distribution.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "csv-bivariate-normal-distribution/csv-bivariate-normal-distribution.tex",
+      "resources": [
+        {
+          "name": "data.csv",
+          "source": "resources/csv-bivariate-normal-distribution/data.csv"
+        }
+      ],
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-csv-line-plot-kit-students",
+      "title": "LaTeX-examples Csv Line Plot Kit Students",
+      "source": "latex-examples/csv-line-plot-kit-students.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "csv-line-plot-kit-students/csv-line-plot-kit-students.tex",
+      "resources": [
+        {
+          "name": "students.csv",
+          "source": "resources/csv-line-plot-kit-students/students.csv"
+        }
+      ],
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-csv-line-plot-two-axes",
+      "title": "LaTeX-examples Csv Line Plot Two Axes",
+      "source": "latex-examples/csv-line-plot-two-axes.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "csv-line-plot-two-axes/csv-line-plot-two-axes.tex",
+      "resources": [
+        {
+          "name": "linearProbing.csv",
+          "source": "resources/csv-line-plot-two-axes/linearProbing.csv"
+        },
+        {
+          "name": "quadraticProbing.csv",
+          "source": "resources/csv-line-plot-two-axes/quadraticProbing.csv"
+        }
+      ],
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-cubic-function-intermediate-value-theorem",
+      "title": "LaTeX-examples Cubic Function Intermediate Value Theorem",
+      "source": "latex-examples/cubic-function-intermediate-value-theorem.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cubic-function-intermediate-value-theorem/cubic-function-intermediate-value-theorem.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "foreach expansion",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-cubic-function",
+      "title": "LaTeX-examples Cubic Function",
+      "source": "latex-examples/cubic-function.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cubic-function/cubic-function.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "foreach expansion"
+      ]
+    },
+    {
+      "id": "latex-examples-cyclic-graph",
+      "title": "LaTeX-examples Cyclic Graph",
+      "source": "latex-examples/cyclic-graph.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cyclic-graph/cyclic-graph.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing"
+      ],
+      "resources": [
+        {
+          "name": "brunnian.sty",
+          "source": "latex-examples/resources/knot-trefoil/brunnian.sty"
+        }
+      ]
+    },
+    {
+      "id": "latex-examples-cylinder",
+      "title": "LaTeX-examples Cylinder",
+      "source": "latex-examples/cylinder.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "cylinder/cylinder.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dense-block",
+      "title": "LaTeX-examples Dense Block",
+      "source": "latex-examples/dense-block.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dense-block/dense-block.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dijkstra-fail",
+      "title": "LaTeX-examples Dijkstra Fail",
+      "source": "latex-examples/dijkstra-fail.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dijkstra-fail/dijkstra-fail.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-dirichlet-function",
+      "title": "LaTeX-examples Dirichlet Function",
+      "source": "latex-examples/dirichlet-function.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dirichlet-function/dirichlet-function.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-discontinuity-jump",
+      "title": "LaTeX-examples Discontinuity Jump",
+      "source": "latex-examples/discontinuity-jump.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "discontinuity-jump/discontinuity-jump.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-1",
+      "title": "LaTeX-examples Dot Product 1",
+      "source": "latex-examples/dot-product-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-1/dot-product-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-2",
+      "title": "LaTeX-examples Dot Product 2",
+      "source": "latex-examples/dot-product-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-2/dot-product-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-3-1",
+      "title": "LaTeX-examples Dot Product 3 1",
+      "source": "latex-examples/dot-product-3-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-3/dot-product-3.1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-3-2",
+      "title": "LaTeX-examples Dot Product 3 2",
+      "source": "latex-examples/dot-product-3-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-3/dot-product-3.2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-3-3",
+      "title": "LaTeX-examples Dot Product 3 3",
+      "source": "latex-examples/dot-product-3-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-3/dot-product-3.3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-3-4",
+      "title": "LaTeX-examples Dot Product 3 4",
+      "source": "latex-examples/dot-product-3-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-3/dot-product-3.4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-4",
+      "title": "LaTeX-examples Dot Product 4",
+      "source": "latex-examples/dot-product-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-4/dot-product-4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-5",
+      "title": "LaTeX-examples Dot Product 5",
+      "source": "latex-examples/dot-product-5.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-5/dot-product-5.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dot-product-6",
+      "title": "LaTeX-examples Dot Product 6",
+      "source": "latex-examples/dot-product-6.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dot-product-6/dot-product-6.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-doubly-linked-list",
+      "title": "LaTeX-examples Doubly Linked List",
+      "source": "latex-examples/doubly-linked-list.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "doubly-linked-list/doubly-linked-list.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-dst-end",
+      "title": "LaTeX-examples Dst End",
+      "source": "latex-examples/dst-end.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dst-end/dst-end.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-dst-start",
+      "title": "LaTeX-examples Dst Start",
+      "source": "latex-examples/dst-start.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "dst-start/dst-start.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-earth-skizze-2",
+      "title": "LaTeX-examples Earth Skizze 2",
+      "source": "latex-examples/earth-skizze-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "earth-skizze-2/earth-skizze-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-earth-skizze",
+      "title": "LaTeX-examples Earth Skizze",
+      "source": "latex-examples/earth-skizze.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "earth-skizze/earth-skizze.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-ecb-mode-decryption",
+      "title": "LaTeX-examples Ecb Mode Decryption",
+      "source": "latex-examples/ecb-mode-decryption.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "ECB-Mode-Decryption/ECB-Mode-Decryption.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-ecb-mode-encryption",
+      "title": "LaTeX-examples Ecb Mode Encryption",
+      "source": "latex-examples/ecb-mode-encryption.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "ECB-Mode-Encryption/ECB-Mode-Encryption.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-ellipsoid",
+      "title": "LaTeX-examples Ellipsoid",
+      "source": "latex-examples/ellipsoid.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "ellipsoid/ellipsoid.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "foreach expansion",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-equilateral-triangle-circles",
+      "title": "LaTeX-examples Equilateral Triangle Circles",
+      "source": "latex-examples/equilateral-triangle-circles.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "equilateral-triangle-circles/equilateral-triangle-circles.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-equilateral-triangle-heights",
+      "title": "LaTeX-examples Equilateral Triangle Heights",
+      "source": "latex-examples/equilateral-triangle-heights.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "equilateral-triangle-heights/equilateral-triangle-heights.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-equilateral-triangle",
+      "title": "LaTeX-examples Equilateral Triangle",
+      "source": "latex-examples/equilateral-triangle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "equilateral-triangle/equilateral-triangle.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-evaluation-tree",
+      "title": "LaTeX-examples Evaluation Tree",
+      "source": "latex-examples/evaluation-tree.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "evaluation-tree/evaluation-tree.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout"
+      ]
+    },
+    {
+      "id": "latex-examples-exponential-functions",
+      "title": "LaTeX-examples Exponential Functions",
+      "source": "latex-examples/exponential-functions.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "exponential-functions/exponential-functions.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-faktorraum",
+      "title": "LaTeX-examples Faktorraum",
+      "source": "latex-examples/faktorraum.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "faktorraum/faktorraum.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-family-tree",
+      "title": "LaTeX-examples Family Tree",
+      "source": "latex-examples/family-tree.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "family-tree/family-tree.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout"
+      ]
+    },
+    {
+      "id": "latex-examples-feed-forward-perceptron",
+      "title": "LaTeX-examples Feed Forward Perceptron",
+      "source": "latex-examples/feed-forward-perceptron.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "feed-forward-perceptron/feed-forward-perceptron.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-flowchart-network-design",
+      "title": "LaTeX-examples Flowchart Network Design",
+      "source": "latex-examples/flowchart-network-design.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "flowchart-network-design/flowchart-network-design.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-force-distance-diagram-constant",
+      "title": "LaTeX-examples Force Distance Diagram Constant",
+      "source": "latex-examples/force-distance-diagram-constant.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "force-distance-diagram-constant/force-distance-diagram-constant.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-force-distance-diagram",
+      "title": "LaTeX-examples Force Distance Diagram",
+      "source": "latex-examples/force-distance-diagram.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "force-distance-diagram/force-distance-diagram.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-1",
+      "title": "LaTeX-examples Geometry 1",
+      "source": "latex-examples/geometry-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-1/geometry-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-2",
+      "title": "LaTeX-examples Geometry 2",
+      "source": "latex-examples/geometry-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-2/geometry-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-3",
+      "title": "LaTeX-examples Geometry 3",
+      "source": "latex-examples/geometry-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-3/geometry-3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-4",
+      "title": "LaTeX-examples Geometry 4",
+      "source": "latex-examples/geometry-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-4/geometry-4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-5",
+      "title": "LaTeX-examples Geometry 5",
+      "source": "latex-examples/geometry-5.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-5/geometry-5.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-6",
+      "title": "LaTeX-examples Geometry 6",
+      "source": "latex-examples/geometry-6.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-6/geometry-6.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-7",
+      "title": "LaTeX-examples Geometry 7",
+      "source": "latex-examples/geometry-7.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-7/geometry-7.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-8",
+      "title": "LaTeX-examples Geometry 8",
+      "source": "latex-examples/geometry-8.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-8/geometry-8.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-geometry-9",
+      "title": "LaTeX-examples Geometry 9",
+      "source": "latex-examples/geometry-9.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "geometry-9/geometry-9.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-elevation-chart",
+      "title": "LaTeX-examples Elevation Chart",
+      "source": "latex-examples/elevation-chart.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "gpx-gps-elevation-chart-generator/elevation-chart.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ],
+      "resources": [
+        {
+          "name": "data.csv",
+          "source": "latex-examples/resources/elevation-chart/data.csv"
+        }
+      ]
+    },
+    {
+      "id": "latex-examples-graph-banner",
+      "title": "LaTeX-examples Graph Banner",
+      "source": "latex-examples/graph-banner.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "graph-banner/graph-banner.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-graph-circles",
+      "title": "LaTeX-examples Graph Circles",
+      "source": "latex-examples/graph-circles.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "graph-circles/graph-circles.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-graph-content-and-structure",
+      "title": "LaTeX-examples Graph Content And Structure",
+      "source": "latex-examples/graph-content-and-structure.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "graph-content-and-structure/graph-content-and-structure.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-graph-mrf-image-segmentation",
+      "title": "LaTeX-examples Graph Mrf Image Segmentation",
+      "source": "latex-examples/graph-mrf-image-segmentation.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "graph-mrf-image-segmentation/graph-mrf-image-segmentation.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-graph-triangles",
+      "title": "LaTeX-examples Graph Triangles",
+      "source": "latex-examples/graph-triangles.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "graph-triangles/graph-triangles.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-graph-v6-e8",
+      "title": "LaTeX-examples Graph V6 E8",
+      "source": "latex-examples/graph-v6-e8.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "graph-v6-e8/graph-v6-e8.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-halbleiterspeicher-klassifizierung",
+      "title": "LaTeX-examples Halbleiterspeicher Klassifizierung",
+      "source": "latex-examples/halbleiterspeicher-klassifizierung.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "halbleiterspeicher-klassifizierung/halbleiterspeicher-klassifizierung.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout"
+      ]
+    },
+    {
+      "id": "latex-examples-half-space",
+      "title": "LaTeX-examples Half Space",
+      "source": "latex-examples/half-space.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "half-space/half-space.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hard-limit-function",
+      "title": "LaTeX-examples Hard Limit Function",
+      "source": "latex-examples/hard-limit-function.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hard-limit-function/hard-limit-function.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-haskell-type-classes",
+      "title": "LaTeX-examples Haskell Type Classes",
+      "source": "latex-examples/haskell-type-classes.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "haskell-type-classes/haskell-type-classes.tex",
+      "semanticOwner": "src/libraries/matrix.js",
+      "features": [
+        "matrix",
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-heap",
+      "title": "LaTeX-examples Heap",
+      "source": "latex-examples/heap.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "heap/heap.tex",
+      "semanticOwner": "src/libraries/trees.js",
+      "features": [
+        "tree layout",
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hidden-markov-model-abc-2",
+      "title": "LaTeX-examples Hidden Markov Model Abc 2",
+      "source": "latex-examples/hidden-markov-model-abc-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hidden-markov-model-abc-2/hidden-markov-model-abc-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hidden-markov-model-abc",
+      "title": "LaTeX-examples Hidden Markov Model Abc",
+      "source": "latex-examples/hidden-markov-model-abc.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hidden-markov-model-abc/hidden-markov-model-abc.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hidden-markov-model-three-state-symbol",
+      "title": "LaTeX-examples Hidden Markov Model Three State Symbol",
+      "source": "latex-examples/hidden-markov-model-three-state-symbol.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hidden-markov-model-three-state-symbol/hidden-markov-model-three-state-symbol.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-histogram-simple",
+      "title": "LaTeX-examples Histogram Simple",
+      "source": "latex-examples/histogram-simple.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "histogram-simple/histogram-simple.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot"
+      ]
+    },
+    {
+      "id": "latex-examples-histogram-large-1d-dataset",
+      "title": "LaTeX-examples Histogram Large 1d Dataset",
+      "source": "latex-examples/histogram-large-1d-dataset.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "histogram-symbols/histogram-large-1d-dataset.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-histogram",
+      "title": "LaTeX-examples Histogram",
+      "source": "latex-examples/histogram.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "histogram/histogram.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hopfield-network",
+      "title": "LaTeX-examples Hopfield Network",
+      "source": "latex-examples/hopfield-network.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hopfield-network/hopfield-network.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hyberbolische-geometrie-1",
+      "title": "LaTeX-examples Hyberbolische Geometrie 1",
+      "source": "latex-examples/hyberbolische-geometrie-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyberbolische-geometrie-1/hyberbolische-geometrie-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-hyberbolische-geometrie-2",
+      "title": "LaTeX-examples Hyberbolische Geometrie 2",
+      "source": "latex-examples/hyberbolische-geometrie-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyberbolische-geometrie-2/hyberbolische-geometrie-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-hyperbolic-geometry-not-parallel",
+      "title": "LaTeX-examples Hyperbolic Geometry Not Parallel",
+      "source": "latex-examples/hyperbolic-geometry-not-parallel.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyperbolic-geometry-not-parallel/hyperbolic-geometry-not-parallel.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-hyperbolic-paraboloid",
+      "title": "LaTeX-examples Hyperbolic Paraboloid",
+      "source": "latex-examples/hyperbolic-paraboloid.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyperbolic-paraboloid/hyperbolic-paraboloid.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hyperbolic-triangle-exterior-angles",
+      "title": "LaTeX-examples Hyperbolic Triangle Exterior Angles",
+      "source": "latex-examples/hyperbolic-triangle-exterior-angles.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyperbolic-triangle-exterior-angles/hyperbolic-triangle-exterior-angles.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hyperbolic-triangle-interior-angles",
+      "title": "LaTeX-examples Hyperbolic Triangle Interior Angles",
+      "source": "latex-examples/hyperbolic-triangle-interior-angles.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyperbolic-triangle-interior-angles/hyperbolic-triangle-interior-angles.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hyperbolische-geometrie-axiom-1-1",
+      "title": "LaTeX-examples Hyperbolische Geometrie Axiom 1 1",
+      "source": "latex-examples/hyperbolische-geometrie-axiom-1-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyperbolische-geometrie-axiom-1-1/hyperbolische-geometrie-axiom-1-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hyperbolische-geometrie-axiom-1-2",
+      "title": "LaTeX-examples Hyperbolische Geometrie Axiom 1 2",
+      "source": "latex-examples/hyperbolische-geometrie-axiom-1-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hyperbolische-geometrie-axiom-1-2/hyperbolische-geometrie-axiom-1-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hypersurface-2",
+      "title": "LaTeX-examples Hypersurface 2",
+      "source": "latex-examples/hypersurface-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hypersurface-2/hypersurface-2.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "foreach expansion",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hypersurface-3",
+      "title": "LaTeX-examples Hypersurface 3",
+      "source": "latex-examples/hypersurface-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hypersurface-3/hypersurface-3.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "foreach expansion",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-hypersurface-order-2",
+      "title": "LaTeX-examples Hypersurface Order 2",
+      "source": "latex-examples/hypersurface-order-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "hypersurface-order-2/hypersurface-order-2.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "foreach expansion",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-ieee-754-float",
+      "title": "LaTeX-examples Ieee 754 Float",
+      "source": "latex-examples/ieee-754-float.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "ieee-754-float/ieee-754-float.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-ind-cpa-game",
+      "title": "LaTeX-examples Ind Cpa Game",
+      "source": "latex-examples/ind-cpa-game.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "IND-CPA-Game/IND-CPA-Game.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-informatikstudium-kit-abhaengigkeitsgraph",
+      "title": "LaTeX-examples Informatikstudium Kit Abhaengigkeitsgraph",
+      "source": "latex-examples/informatikstudium-kit-abhaengigkeitsgraph.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "informatikstudium-kit-abhaengigkeitsgraph/informatikstudium-kit-abhaengigkeitsgraph.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-interiour-exteriour-angles-triangle",
+      "title": "LaTeX-examples Interiour Exteriour Angles Triangle",
+      "source": "latex-examples/interiour-exteriour-angles-triangle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "interiour-exteriour-angles-triangle/interiour-exteriour-angles-triangle.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-intersecting-lines-1",
+      "title": "LaTeX-examples Intersecting Lines 1",
+      "source": "latex-examples/intersecting-lines-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "intersecting-lines-1/intersecting-lines-1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-intersecting-lines-2",
+      "title": "LaTeX-examples Intersecting Lines 2",
+      "source": "latex-examples/intersecting-lines-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "intersecting-lines-2/intersecting-lines-2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-intersecting-lines-3",
+      "title": "LaTeX-examples Intersecting Lines 3",
+      "source": "latex-examples/intersecting-lines-3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "intersecting-lines-3/intersecting-lines-3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-intersecting-lines-4",
+      "title": "LaTeX-examples Intersecting Lines 4",
+      "source": "latex-examples/intersecting-lines-4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "intersecting-lines-4/intersecting-lines-4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-intersecting-lines-5",
+      "title": "LaTeX-examples Intersecting Lines 5",
+      "source": "latex-examples/intersecting-lines-5.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "intersecting-lines-5/intersecting-lines-5.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-inverse-function",
+      "title": "LaTeX-examples Inverse Function",
+      "source": "latex-examples/inverse-function.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "inverse-function/inverse-function.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-inversion-am-kreis",
+      "title": "LaTeX-examples Inversion Am Kreis",
+      "source": "latex-examples/inversion-am-kreis.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "inversion-am-kreis/inversion-am-kreis.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-isosceles-triangle-more",
+      "title": "LaTeX-examples Isosceles Triangle More",
+      "source": "latex-examples/isosceles-triangle-more.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "isosceles-triangle-more/isosceles-triangle-more.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-isosceles-triangle",
+      "title": "LaTeX-examples Isosceles Triangle",
+      "source": "latex-examples/isosceles-triangle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "isosceles-triangle/isosceles-triangle.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-jordan-normal-form-block",
+      "title": "LaTeX-examples Jordan Normal Form Block",
+      "source": "latex-examples/jordan-normal-form-block.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "jordan-normal-form-block/jordan-normal-form-block.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-kalman-filter",
+      "title": "LaTeX-examples Kalman Filter",
+      "source": "latex-examples/kalman-filter.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "kalman-filter/kalman-filter.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-karnaugh-map-2",
+      "title": "LaTeX-examples Karnaugh Map 2",
+      "source": "latex-examples/karnaugh-map-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "karnaugh-map-2/karnaugh-map-2.tex",
+      "activeFigureId": "figure:0",
+      "semanticOwner": "src/frontend/latex-shell.js + src/tikz/libraries/matrix.js",
+      "features": [
+        "custom environment expansion",
+        "foreach expansion",
+        "matrix aliases and anchored layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-karnaugh-map",
+      "title": "LaTeX-examples Karnaugh Map",
+      "source": "latex-examples/karnaugh-map.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "karnaugh-map/karnaugh-map.tex",
+      "semanticOwner": "src/extensions/kvmacros.js",
+      "features": [
+        "kvmacros picture lowering",
+        "Gray-code cell layout",
+        "picture put and oval overlays",
+        "remember-picture marks",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-knot-trefoil",
+      "title": "LaTeX-examples Knot Trefoil",
+      "source": "latex-examples/knot-trefoil.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "knot-trefoil/knot-trefoil.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-koch-snowflake",
+      "title": "LaTeX-examples Koch Snowflake",
+      "source": "latex-examples/koch-snowflake.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "koch-snowflake/koch-snowflake.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-landtagswahlen-in-bayern",
+      "title": "LaTeX-examples Landtagswahlen In Bayern",
+      "source": "latex-examples/landtagswahlen-in-bayern.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "landtagswahlen-in-bayern/landtagswahlen-in-bayern.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ],
+      "resources": [
+        {
+          "name": "landtagswahlen-in-bayern.csv",
+          "source": "latex-examples/resources/landtagswahlen-in-bayern/landtagswahlen-in-bayern.csv"
+        }
+      ]
+    },
+    {
+      "id": "latex-examples-lda-gauss-1",
+      "title": "LaTeX-examples Lda Gauss 1",
+      "source": "latex-examples/lda-gauss-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lda-gauss-1/lda-gauss-1.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-lda-gauss-2",
+      "title": "LaTeX-examples Lda Gauss 2",
+      "source": "latex-examples/lda-gauss-2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lda-gauss-2/lda-gauss-2.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-lda-gauss-intervariance-big",
+      "title": "LaTeX-examples Lda Gauss Intervariance Big",
+      "source": "latex-examples/lda-gauss-intervariance-big.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lda-gauss-intervariance-big/lda-gauss-intervariance-big.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-lda-gauss-intervariance",
+      "title": "LaTeX-examples Lda Gauss Intervariance",
+      "source": "latex-examples/lda-gauss-intervariance.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lda-gauss-intervariance/lda-gauss-intervariance.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-lda-gauss-variance-big",
+      "title": "LaTeX-examples Lda Gauss Variance Big",
+      "source": "latex-examples/lda-gauss-variance-big.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lda-gauss-variance-big/lda-gauss-variance-big.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-lda-gauss-variance-small",
+      "title": "LaTeX-examples Lda Gauss Variance Small",
+      "source": "latex-examples/lda-gauss-variance-small.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lda-gauss-variance-small/lda-gauss-variance-small.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "path drawing",
+        "arrow tips",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-learn-curve-ml",
+      "title": "LaTeX-examples Learn Curve Ml",
+      "source": "latex-examples/learn-curve-ml.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "learn-curve-ml/learn-curve-ml.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-liftung-torus-r",
+      "title": "LaTeX-examples Liftung Torus R",
+      "source": "latex-examples/liftung-torus-r.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "liftung-torus-r/liftung-torus-r.tex",
+      "semanticOwner": "src/tikz/commands/foreach.js",
+      "features": [
+        "foreach expansion",
+        "node layout",
+        "path drawing",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-line-chart-electric-vehicles-sold",
+      "title": "LaTeX-examples Line Chart Electric Vehicles Sold",
+      "source": "latex-examples/line-chart-electric-vehicles-sold.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-chart-electric-vehicles-sold/line-chart-electric-vehicles-sold.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "node layout",
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-reflection",
+      "title": "LaTeX-examples Line Reflection",
+      "source": "latex-examples/line-reflection.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-reflection/line-reflection.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing",
+        "math labels",
+        "third-party package"
+      ]
+    },
+    {
+      "id": "latex-examples-flowchart",
+      "title": "LaTeX-examples Flowchart",
+      "source": "latex-examples/flowchart.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/flowchart.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "node layout",
+        "path drawing"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-bounding-box",
+      "title": "LaTeX-examples Line Segments Bounding Box",
+      "source": "latex-examples/line-segments-bounding-box.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-bounding-box.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f1",
+      "title": "LaTeX-examples Line Segments F1",
+      "source": "latex-examples/line-segments-f1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f1.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f2",
+      "title": "LaTeX-examples Line Segments F2",
+      "source": "latex-examples/line-segments-f2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f3",
+      "title": "LaTeX-examples Line Segments F3",
+      "source": "latex-examples/line-segments-f3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f4",
+      "title": "LaTeX-examples Line Segments F4",
+      "source": "latex-examples/line-segments-f4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f5",
+      "title": "LaTeX-examples Line Segments F5",
+      "source": "latex-examples/line-segments-f5.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f5.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f6",
+      "title": "LaTeX-examples Line Segments F6",
+      "source": "latex-examples/line-segments-f6.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f6.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f7",
+      "title": "LaTeX-examples Line Segments F7",
+      "source": "latex-examples/line-segments-f7.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f7.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-f8",
+      "title": "LaTeX-examples Line Segments F8",
+      "source": "latex-examples/line-segments-f8.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-f8.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-t2",
+      "title": "LaTeX-examples Line Segments T2",
+      "source": "latex-examples/line-segments-t2.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-t2.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-t3",
+      "title": "LaTeX-examples Line Segments T3",
+      "source": "latex-examples/line-segments-t3.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-t3.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-t4",
+      "title": "LaTeX-examples Line Segments T4",
+      "source": "latex-examples/line-segments-t4.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-t4.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-t5",
+      "title": "LaTeX-examples Line Segments T5",
+      "source": "latex-examples/line-segments-t5.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-t5.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-line-segments-t6",
+      "title": "LaTeX-examples Line Segments T6",
+      "source": "latex-examples/line-segments-t6.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "line-segments/line-segments-t6.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "arrow tips"
+      ]
+    },
+    {
+      "id": "latex-examples-linear-functions",
+      "title": "LaTeX-examples Linear Functions",
+      "source": "latex-examples/linear-functions.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "linear-functions/linear-functions.tex",
+      "semanticOwner": "src/pgfplots/index.js",
+      "features": [
+        "pgfplots axis",
+        "addplot",
+        "math labels"
+      ]
+    },
+    {
+      "id": "latex-examples-lines-intersections",
+      "title": "LaTeX-examples Lines Intersections",
+      "source": "latex-examples/lines-intersections.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
+      "externalSource": "lines-intersections/lines-intersections.tex",
+      "semanticOwner": "src/engine/evaluate.js",
+      "features": [
+        "path drawing",
+        "third-party package"
+      ]
+    }
+  ]
+}

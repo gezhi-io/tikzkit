@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "siunitx",
   "status": "partial",
-  "implementedBy": "src/tex-text.js + src/interpreter.js circuitikz labels",
+  "implementedBy": "src/tikz/text.js + src/engine/evaluate.js circuitikz labels",
   "features": [
     "common unit labels in circuitikz/axis text"
   ],

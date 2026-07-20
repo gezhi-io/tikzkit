@@ -206,6 +206,42 @@ test("pgfplots docsrc: samples tikzpicture declare function expressions", () => 
   assert.ok(!labels.includes("1000"), "expected normalpdf exponent sign to stay negative");
 });
 
+test("pgfplots docsrc: samples pgfmathdeclarefunction with legacy plot styles and current plot anchors", () => {
+  const { ir, diagnostics } = tikzToSvg(String.raw`
+\pgfmathdeclarefunction{gauss}{2}{%
+  \pgfmathparse{1/(sqrt(2*pi*#2))*exp(-((x-#1)^2)/(2*#2))}%
+}
+\newcommand{\variance}{100}
+\pgfmathsetmacro{\plotheight}{max(1/(sqrt(2*pi*\variance)),.032)}
+\begin{tikzpicture}
+  \tikzstyle{plotA}=[ultra thick,red!90!black]
+  \tikzstyle{plotB}=[ultra thick,cyan!50!black]
+  \begin{axis}[xmin=0,xmax=125,ymin=0,ymax=\plotheight]
+    \addplot[domain=0:120,samples=101,plotA] {gauss(80,\variance)};
+    \addplot[domain=0:120,samples=101,plotB] {gauss(40,\variance)};
+    \addplot+[plotB,samples at={70},mark=*] {gauss(40,\variance)};
+    \coordinate (a) at (axis cs:70,.024);
+    \draw[black,thick] (a |- current plot begin) -- (a);
+  \end{axis}
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const plotPaths = paths(ir).filter((item) => role(item) === "axis-plot");
+  const red = plotPaths.find((item) => item.style?.stroke === "rgb(230 0 0)" && item.commands.length > 50);
+  const cyan = plotPaths.find((item) => item.style?.stroke === "rgb(0 128 128)" && item.commands.length > 50);
+  assert.ok(red, "expected the legacy plotA style and declared Gaussian to produce a red curve");
+  assert.ok(cyan, "expected the legacy plotB style and declared Gaussian to produce a cyan curve");
+  const redY = red.commands.map((command) => command.y).filter(Number.isFinite);
+  assert.ok(Math.max(...redY) - Math.min(...redY) > 5, "expected a static pgfmathsetmacro ymax to preserve the Gaussian scale");
+  assert.ok(ir.coordinates["current plot begin"], "expected PGFPlots to expose the first sampled point");
+  assert.equal(ir.coordinates["current plot begin"].x, ir.coordinates["current plot end"].x);
+  const connector = paths(ir).find((item) => {
+    if (item.style?.stroke !== "black" || item.commands.length !== 2) return false;
+    return Math.abs(item.commands[0].x - item.commands[1].x) < 1e-6 && Math.abs(item.commands[0].y - item.commands[1].y) > 0.1;
+  });
+  assert.ok(connector, "expected a vertical connector resolved through current plot begin");
+});
+
 test("pgfplots docsrc: applies tikzset declared functions and pgfplotsset axis styles", () => {
   const { ir, diagnostics } = tikzToSvg(String.raw`
 \begin{tikzpicture}
@@ -586,8 +622,10 @@ test("pgfplots docsrc: renders 3D surf mesh strokes and rotated text z labels", 
 
   assert.equal(diagnostics.length, 0);
   const surfaces = paths(ir).filter((item) => role(item) === "axis-surface");
+  const surfaceMeshes = surfaces.filter((item) => item.style.stroke && item.style.stroke !== "none");
   assert.ok(surfaces.length > 0);
-  assert.ok(surfaces.every((item) => item.style.stroke && item.style.stroke !== "none"));
+  assert.ok(surfaceMeshes.length > 0);
+  assert.ok(surfaceMeshes.every((item) => item.style.fill === "none"));
   const zLabel = textNodes(ir).find((item) => item.text === "$n_\\text{B}(p_0)$");
   assert.ok(zLabel);
   assert.equal(zLabel.rotation, 90);
@@ -639,9 +677,11 @@ test("pgfplots docsrc: treats axis-level surf addplot3 coordinates as filled 3D 
 
   assert.equal(diagnostics.length, 0);
   const surfaces = paths(ir).filter((item) => role(item) === "axis-surface");
-  assert.equal(surfaces.length, 2);
+  const surfaceFills = surfaces.filter((item) => item.style.fill && item.style.fill !== "none");
+  const surfaceMeshes = surfaces.filter((item) => item.style.stroke && item.style.stroke !== "none");
+  assert.equal(surfaceFills.length, 2);
+  assert.equal(surfaceMeshes.length, 2);
   assert.ok(surfaces.every((item) => item.commands?.some((command) => command.type === "lineTo")));
-  assert.ok(surfaces.some((item) => item.style.fill && item.style.fill !== "none"));
   assert.ok(textNodes(ir).some((item) => item.text === "$z$"));
 });
 
@@ -699,6 +739,30 @@ test("pgfplots docsrc: preserves addplot name paths for intersections and clips 
     .filter((command) => typeof command.y === "number")
     .map((command) => command.y);
   assert.ok(Math.max(...plotYs) <= expectedTop + 0.02, `expected function plot to be clipped to ymax, got ${Math.max(...plotYs)}`);
+});
+
+test("pgfplots docsrc: preserves global name paths and lowers fill intersection overlays inside axes", () => {
+  const { ir, diagnostics } = tikzToSvg(String.raw`
+\newcommand*{\ShowIntersection}[2]{
+  \fill[name intersections={of=#1 and #2, name=i, total=\t}]
+    [red, every node/.style={above left, black}]
+    \foreach \s in {1,...,\t}{(i-\s) circle (2pt) node[above left] {\s}};
+}
+\begin{tikzpicture}
+\begin{axis}[xmin=0,xmax=2,ymin=-1,ymax=1,width=6cm,height=6cm]
+  \addplot[name path global=a,domain=0:2,samples=101] {(x-.5)*(x-1.5)};
+  \addplot[name path global=b,domain=0:2] {0};
+  \ShowIntersection{a}{b};
+\end{axis}
+\end{tikzpicture}`);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates["i-1"], "expected axis plot intersections to create i-1");
+  assert.ok(ir.coordinates["i-2"], "expected path-level total to be available before the foreach range expands");
+  const markers = ir.items.filter((item) => item.type === "path" && item.shape === "circle" && item.style?.fill === "red");
+  assert.equal(markers.length, 2, "expected the fill foreach overlay to render both intersection markers");
+  assert.ok(textNodes(ir).some((item) => item.text === "1"), "expected the intersection index label");
+  assert.ok(textNodes(ir).some((item) => item.text === "2"), "expected the second intersection index label");
 });
 
 test("pgfplots docsrc: expands pgfplotsinvokeforeach and samples parametric coordinate plots", () => {

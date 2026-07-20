@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "amsfonts",
   "status": "partial",
-  "implementedBy": "src/math-metrics.js + src/renderer-svg.js",
+  "implementedBy": "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
   "features": [
     "math fonts delegated to KaTeX or SVG text fallback"
   ],

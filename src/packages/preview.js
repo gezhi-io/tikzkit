@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "preview",
   "status": "noop",
-  "implementedBy": "src/preprocess.js:stripTexDocumentShell",
+  "implementedBy": "src/frontend/latex-shell.js:stripTexDocumentShell",
   "features": [
     "preview environment package declaration compatibility"
   ],

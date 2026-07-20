@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "fpu",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/fpu.js";

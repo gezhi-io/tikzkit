@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "braids",
   "status": "partial",
-  "implementedBy": "src/preprocess.js:expandBraidMacros",
+  "implementedBy": "src/frontend/latex-shell.js:expandBraidMacros",
   "features": [
     "braid macro approximation"
   ],

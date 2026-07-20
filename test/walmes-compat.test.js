@@ -261,7 +261,7 @@ test("honors pgfgantt inline labels and bar append fill styles", () => {
 \end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(diagnostics, []);
-  assert.ok(ir.items.some((item) => item.type === "path" && item.style?.fill === "rgb(255 99 0)"));
+  assert.ok(ir.items.some((item) => item.type === "path" && item.style?.fill === "rgb(255 77 0)"));
   const label = ir.items.find((item) => item.type === "textNode" && item.text === "Task");
   assert.ok(label);
   assert.ok(label.x > 0.2, `expected inline label to sit inside the bar, got x=${label.x}`);

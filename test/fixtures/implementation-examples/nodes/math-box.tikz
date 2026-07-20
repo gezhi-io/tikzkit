@@ -1,0 +1,3 @@
+\begin{tikzpicture}
+  \node[draw, rounded corners=2pt, inner sep=3pt] at (0,0) {$x^2+y^2=1$};
+\end{tikzpicture}

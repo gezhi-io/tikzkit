@@ -1,5 +1,5 @@
-import { evaluateMath, roundNumber } from "../math.js";
-import { splitTopLevel } from "../options.js";
+import { evaluateMath, roundNumber } from "../engine/math.js";
+import { splitTopLevel } from "../engine/options.js";
 
 export const stanliExtension = {
   name: "stanli",

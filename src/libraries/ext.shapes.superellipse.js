@@ -1,7 +1,1 @@
-export const tikzLibrary = {
-  "name": "ext.shapes.superellipse",
-  "status": "unsupported",
-  "implementedBy": null,
-  "features": [],
-  "implements": []
-};
+export * from "../tikz/libraries/ext.shapes.superellipse.js";
