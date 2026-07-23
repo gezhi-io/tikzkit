@@ -2,6 +2,434 @@
   "version": 1,
   "cases": [
     {
+      "id": "arrows-declared-leaf-tip",
+      "title": "PGF manual declared leaf arrow tip",
+      "source": "arrows/declared-leaf-tip.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js",
+      "features": [
+        "pgfarrowsdeclare",
+        "pgfarrowsleftextend",
+        "pgfarrowsrightextend",
+        "pgfpathmoveto",
+        "pgfpatharc",
+        "pgfusepathqfill",
+        "declared arrow tip at path start/end"
+      ]
+    },
+    {
+      "id": "lindenmayer-koch-snowflake",
+      "title": "PGF manual Lindenmayer Koch snowflake",
+      "source": "lindenmayer/koch-snowflake.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-lsystems.tex",
+      "semanticOwner": "src/tikz/libraries/lindenmayersystems.js:lowerLindenmayerSystems",
+      "features": [
+        "pgfdeclarelindenmayersystem",
+        "rule expansion",
+        "l-system path operation",
+        "step/angle/axiom/order turtle options"
+      ]
+    },
+    {
+      "id": "circuitikz-inductors",
+      "title": "circuitikz inductor styles and variable inductor",
+      "source": "circuitikz/inductors.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzInductorSettings/circuitikzInductorItems",
+      "features": [
+        "to[L]",
+        "to[vL]",
+        "cute inductor",
+        "american inductor",
+        "european inductor",
+        "inductors/scale",
+        "inductors/width",
+        "inductors/coils",
+        "ctikzset inductor"
+      ]
+    },
+    {
+      "id": "circuitikz-chokes-and-core-anchors",
+      "title": "circuitikz cute chokes and inductor core anchors",
+      "source": "circuitikz/chokes-and-core-anchors.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzChokeCoreItems/registerCircuitikzInductorNode",
+      "features": [
+        "cute choke",
+        "onelinechoke",
+        "twolineschoke",
+        "bipoles/cutechoke/cthick",
+        "name",
+        "core west",
+        "core east",
+        "bipoles/inductors/core distance"
+      ]
+    },
+    {
+      "id": "circuitikz-basic-bipoles",
+      "title": "circuitikz manual R-C-voltage-source mesh",
+      "source": "circuitikz/basic-bipoles.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendCircuitikzToSegment/appendCircuitikzVoltageLabel",
+      "features": [
+        "circuitikz environment",
+        "to[R] resistor",
+        "to[C] capacitor",
+        "to[V] voltage source",
+        "siunitx package option",
+        "RPvoltages package option",
+        "component/current/voltage labels"
+      ]
+    },
+    {
+      "id": "tkz-euclide-incircle",
+      "title": "tkz-euclide triangle incircle",
+      "source": "tkz-euclide/incircle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/triangle-inscribed-circle",
+      "externalSource": "tikz/triangle-inscribed-circle/triangle-inscribed-circle.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefCircle/expandGetLength",
+      "features": [
+        "tkzDefCircle[in]",
+        "tkzGetPoint",
+        "tkzGetPoints",
+        "tkzGetLength",
+        "tkzDrawCircle"
+      ]
+    },
+    {
+      "id": "tkz-euclide-incircle-bisectors",
+      "title": "tkz-euclide triangle incircle with angle bisectors",
+      "source": "tkz-euclide/incircle-bisectors.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/triangle-inscribed-circle",
+      "externalSource": "tikz/triangle-inscribed-circle/triangle-inscribed-circle.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefCircle/expandDefLine/expandInterLL",
+      "features": [
+        "tkzDefCircle[in]",
+        "tkzDefLine[bisector]",
+        "tkzInterLL",
+        "tkzDrawLine[add]",
+        "tkzDrawCircle"
+      ]
+    },
+    {
+      "id": "tkz-euclide-exterior-bisector",
+      "title": "tkz-euclide exterior angle bisector",
+      "source": "tkz-euclide/exterior-bisector.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-clipping.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefLine/expandDrawPairs",
+      "features": [
+        "tkzDefLine[bisector]",
+        "tkzDefLine[bisector out]",
+        "tkzDrawLines[add]",
+        "tkzDrawPoints",
+        "tkzLabelPoint"
+      ]
+    },
+    {
+      "id": "tkz-euclide-altitudes",
+      "title": "tkz-euclide triangle altitudes",
+      "source": "tkz-euclide/altitudes.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-lines.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefLine/orthogonalProjection",
+      "features": [
+        "tkzDefLine[altitude]",
+        "tkzDrawPolygon",
+        "tkzDrawSegments",
+        "tkzMarkRightAngles",
+        "tkzLabelPoints"
+      ]
+    },
+    {
+      "id": "tkz-euclide-euler-line",
+      "title": "tkz-euclide Euler line through orthocenter and nine-point center",
+      "source": "tkz-euclide/euler-line.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-lines.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefLine/eulerLinePoints",
+      "features": [
+        "tkzDefLine[euler]",
+        "tkzGetPoints",
+        "tkzDefCircle[circum]",
+        "tkzDrawPolygon",
+        "tkzDrawLine[add]",
+        "tkzDrawPoints",
+        "tkzLabelPoints"
+      ]
+    },
+    {
+      "id": "tkz-euclide-mediator",
+      "title": "tkz-euclide mediator as an ordered perpendicular-bisector pair",
+      "source": "tkz-euclide/mediator.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-lines.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefLine/mediatorLinePoints",
+      "features": [
+        "default tkzDefLine[mediator]",
+        "tkzGetPoints",
+        "tkzDefMidPoint",
+        "tkzFillPolygon",
+        "tkzDrawSegments",
+        "tkzMarkRightAngle",
+        "tkzDrawPoints",
+        "tkzLabelPoints"
+      ]
+    },
+    {
+      "id": "tkz-euclide-symmedian",
+      "title": "tkz-euclide symmedian as the median reflected in the angle bisector",
+      "source": "tkz-euclide/symmedian.tex",
+      "sourceCorpus": "TeX Live tkz-euclide implementation",
+      "externalSource": "tex/latex/tkz-euclide/tkz-obj-eu-lines.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefLine/symmedianPoint",
+      "features": [
+        "tkzDefLine[symmedian]",
+        "tkzDefLine[bisector]",
+        "tkzDefMidPoint",
+        "tkzDrawPolygon",
+        "tkzDrawLine[add]",
+        "tkzDrawSegments",
+        "tkzDrawPoints",
+        "tkzLabelPoints"
+      ]
+    },
+    {
+      "id": "tkz-euclide-tangents",
+      "title": "tkz-euclide tangents at a contact point and from an external point",
+      "source": "tkz-euclide/tangents.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-lines.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefLine/tangentDirectionPoint/tangentContactsFromExternal",
+      "features": [
+        "tkzDefLine[tangent at]",
+        "tkzDefLine[tangent from]",
+        "tkzGetPoint",
+        "tkzGetPoints",
+        "tkzDrawCircle",
+        "tkzDrawLine[add]",
+        "tkzMarkRightAngle",
+        "tkzLabelPoints"
+      ]
+    },
+    {
+      "id": "tkz-euclide-circumcircle",
+      "title": "tkz-euclide circumcircle for the nine-point triangle",
+      "source": "tkz-euclide/circumcircle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/triangle-9-point-circle",
+      "externalSource": "tikz/triangle-9-point-circle/triangle-9-point-circle.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefCircle/expandGetLength",
+      "features": [
+        "tkzDefCircle[circum]",
+        "tkzGetPoint",
+        "tkzGetLength",
+        "tkzDrawCircle",
+        "tkzDefMidPoint"
+      ]
+    },
+    {
+      "id": "tkz-euclide-midpoints",
+      "title": "tkz-euclide edge midpoints in the nine-point-circle triangle",
+      "source": "tkz-euclide/midpoints.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/triangle-9-point-circle",
+      "externalSource": "tikz/triangle-9-point-circle/triangle-9-point-circle.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefMidPoint",
+      "features": [
+        "tkzDefMidPoint",
+        "tkzGetPoint",
+        "tkzInterLL",
+        "tkzDrawPoints",
+        "tkzLabelPoints"
+      ]
+    },
+    {
+      "id": "tkz-euclide-line-circle-intersections",
+      "title": "tkz-euclide line-circle intersections in the Thales triangle",
+      "source": "tkz-euclide/line-circle-intersections.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/thales-circle-triangle",
+      "externalSource": "tikz/thales-circle-triangle/thales-circle-triangle.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandInterLC",
+      "features": [
+        "tkzInterLC",
+        "tkzGetPoints",
+        "circle through point",
+        "default directed ordering",
+        "tkzDrawCircle",
+        "tkzDrawPolygon"
+      ]
+    },
+    {
+      "id": "tkz-euclide-label-styles",
+      "title": "tkz-euclide shared label styles",
+      "source": "tkz-euclide/label-styles.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-styles.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandSetUpLabel/expandSetUpStyle",
+      "features": [
+        "tkzSetUpLabel",
+        "tkzSetUpStyle",
+        "label style",
+        "font",
+        "color",
+        "tkzLabelPoint",
+        "tkzLabelSegment"
+      ]
+    },
+    {
+      "id": "tkz-euclide-segment-labels",
+      "title": "tkz-euclide segment labels on a triangle",
+      "source": "tkz-euclide/segment-labels.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/triangle-labels",
+      "externalSource": "tikz/triangle-labels/triangle-labels.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandLabelSegment(s)",
+      "features": [
+        "tkzLabelSegment",
+        "tkzLabelSegments",
+        "above",
+        "below",
+        "left",
+        "right",
+        "pos"
+      ]
+    },
+    {
+      "id": "tkz-euclide-fill-angles",
+      "title": "tkz-euclide filled angle sectors",
+      "source": "tkz-euclide/fill-angles.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-filling.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandFillAngleTriple",
+      "features": [
+        "tkzFillAngle",
+        "tkzFillAngles",
+        "size",
+        "fill",
+        "opacity",
+        "draw"
+      ]
+    },
+    {
+      "id": "tkz-euclide-right-angle-marks",
+      "title": "tkz-euclide right angle marks",
+      "source": "tkz-euclide/right-angle-marks.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-marking.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandMarkRightAngleTriple",
+      "features": [
+        "tkzMarkRightAngle",
+        "tkzMarkRightAngles",
+        "size",
+        "fill",
+        "german",
+        "dotsize"
+      ]
+    },
+    {
+      "id": "tkz-euclide-custom-segment-marks",
+      "title": "tkz-euclide custom segment marks",
+      "source": "tkz-euclide/custom-segment-marks.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-marking.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandMarkSegments + src/engine/evaluate.js:buildPlotMark",
+      "features": [
+        "tkzMarkSegment",
+        "pos",
+        "mark=z",
+        "mark=s",
+        "mark=oo",
+        "mark=s|",
+        "mark=s||",
+        "mark=s|||"
+      ]
+    },
+    {
+      "id": "tkz-euclide-custom-angle-marks",
+      "title": "tkz-euclide custom angle marks",
+      "source": "tkz-euclide/custom-angle-marks.tex",
+      "sourceCorpus": "TeX Live tkz-euclide library source",
+      "externalSource": "tex/latex/tkz-euclide/tkz-lib-eu-marks.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandMarkAngleTriple + src/engine/evaluate.js:buildPlotMark",
+      "features": [
+        "tkzMarkAngle",
+        "mark=z",
+        "mark=s",
+        "mark=oo",
+        "mark=s|",
+        "mark=s||",
+        "mark=s|||",
+        "mark options rotate"
+      ]
+    },
+    {
+      "id": "tkz-euclide-angle-equality-marks",
+      "title": "tkz-euclide angle equality marks",
+      "source": "tkz-euclide/angle-equality-marks.tex",
+      "sourceCorpus": "TeX Live tkz-euclide manual",
+      "externalSource": "doc/latex/tkz-euclide/TKZdoc-euclide-marking.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandMarkAngleTriple",
+      "features": [
+        "tkzMarkAngle",
+        "arc=ll",
+        "mark=x",
+        "mark=||",
+        "mksize",
+        "mkcolor",
+        "mkpos"
+      ]
+    },
+    {
+      "id": "tikz-standard-radial-path-fadings",
+      "title": "TikZ standard radial path fadings",
+      "source": "fadings/standard-radial-path-fadings.tex",
+      "sourceCorpus": "TeX Live PGF fadings library",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryfadings.code.tex",
+      "semanticOwner": "src/renderers/svg/defs.js:renderPathFadingDefs",
+      "features": [
+        "path fading",
+        "circle with fuzzy edge 10 percent",
+        "circle with fuzzy edge 15 percent",
+        "circle with fuzzy edge 20 percent",
+        "fuzzy ring 15 percent"
+      ]
+    },
+    {
+      "id": "tikz-axis-shading-colors",
+      "title": "TikZ axis shading color shortcuts and angles",
+      "source": "shadings/axis-colors.tex",
+      "sourceCorpus": "TeX Live TikZ core shadings",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:pathShadingStyle + src/renderers/svg/defs.js:renderAxisGradientDef",
+      "features": [
+        "top color",
+        "middle color",
+        "bottom color",
+        "left color",
+        "right color",
+        "shading angle",
+        "node axis shading"
+      ]
+    },
+    {
+      "id": "pgf-pattern-form-only-primitives",
+      "title": "PGF form-only dots and checkerboard patterns",
+      "source": "patterns/form-only-primitives.tex",
+      "sourceCorpus": "TeX Live PGF patterns library",
+      "externalSource": "tex/generic/pgf/libraries/pgflibrarypatterns.code.tex",
+      "semanticOwner": "src/engine/evaluate.js + src/renderers/svg/defs.js",
+      "features": [
+        "pgfdeclarepatternformonly",
+        "pgfpathcircle",
+        "pgfpathrectangle",
+        "pgfusepath fill",
+        "pattern color"
+      ]
+    },
+    {
       "id": "addplot-coordinates",
       "title": "Coordinate plot path",
       "source": "pgfplots/addplot-coordinates.tex",
@@ -994,7 +1422,7 @@
       "source": "latex-examples/circular-sector-centroid.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "circular-sector-centroid/circular-sector-centroid.tex",
-      "semanticOwner": "src/engine/evaluate.js",
+      "semanticOwner": "src/frontend/parser.js:parseNode",
       "features": [
         "node layout",
         "path drawing",
@@ -1091,6 +1519,12 @@
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "birthday-paradox/birthday-paradox.tex",
       "semanticOwner": "src/pgfplots/index.js",
+      "resources": [
+        {
+          "name": "data.csv",
+          "source": "resources/birthday-paradox/data.csv"
+        }
+      ],
       "features": [
         "pgfplots axis",
         "addplot",
@@ -2473,7 +2907,7 @@
       "source": "latex-examples/informatikstudium-kit-abhaengigkeitsgraph.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "informatikstudium-kit-abhaengigkeitsgraph/informatikstudium-kit-abhaengigkeitsgraph.tex",
-      "semanticOwner": "src/engine/evaluate.js",
+      "semanticOwner": "src/frontend/latex-shell.js:lowerStandalonePgfplotsCustomLegends",
       "features": [
         "node layout",
         "path drawing",
@@ -2486,10 +2920,13 @@
       "source": "latex-examples/interiour-exteriour-angles-triangle.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "interiour-exteriour-angles-triangle/interiour-exteriour-angles-triangle.tex",
-      "semanticOwner": "src/engine/evaluate.js",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandMarkAngleTriple/expandDrawPairs",
       "features": [
-        "node layout",
-        "math labels"
+        "tkzDefPoints",
+        "tkzMarkAngle arc=l/lll with size/color/fill",
+        "tkzDrawLine add=a and b",
+        "tkzDrawPoints",
+        "ordinary TikZ calc coordinates and math labels"
       ]
     },
     {

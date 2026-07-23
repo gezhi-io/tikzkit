@@ -1,0 +1,24 @@
+% Adapted from TeX Live 2025 TKZdoc-euclide-clipping.tex, lines 138--150.
+% Keeps the native bisector construction while omitting the clipping demo shell.
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}
+  \tkzDefPoint(0,0){O}
+  \tkzDefPoint(3,1){I}
+  \tkzDefPoint(1,4){J}
+  \tkzDefLine[bisector](I,O,J)\tkzGetPoint{i}
+  \tkzDefLine[bisector out](I,O,J)\tkzGetPoint{j}
+
+  \tkzDrawLines[add=1 and 2,color=orange](O,I O,J)
+  \tkzDrawLines[add=1 and 2,dashed](O,i O,j)
+  \tkzDrawPoints(O,I,J,i,j)
+  \tkzLabelPoints[below left](O)
+  \tkzLabelPoints[below right](I)
+  \tkzLabelPoints[above](J)
+  \tkzLabelPoint[left](i){$i$}
+  \tkzLabelPoint[right](j){$j$}
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,13 @@
+% Source: TeX Live 2025 tkz-euclide manual, TKZdoc-euclide-marking.tex
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \tkzDefPoints{0/0/O,5/0/A,3/4/B}
+  \tkzMarkAngle[size=4,mark=x,arc=ll,mkcolor=red,mkpos=.33](A,O,B)
+  \tkzMarkAngle[size=2,mark=||,arc=ll,mkcolor=blue,mkpos=.66](A,O,B)
+  \tkzDrawLines(O,A O,B)
+  \tkzDrawPoints(O,A,B)
+\end{tikzpicture}
+\end{document}

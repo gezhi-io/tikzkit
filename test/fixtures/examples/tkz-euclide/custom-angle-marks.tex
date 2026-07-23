@@ -1,0 +1,17 @@
+% Source: TeX Live 2025 tkz-euclide mark declarations, tkz-lib-eu-marks.tex
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \tkzDefPoints{0/0/O,5/0/A,3/4/B}
+  \tkzMarkAngle[size=4.0,mark=z,arc=l,mkcolor=brown,mkpos=.16](A,O,B)
+  \tkzMarkAngle[size=3.5,mark=s,arc=l,mkcolor=red,mkpos=.34](A,O,B)
+  \tkzMarkAngle[size=3.0,mark=oo,arc=l,mkcolor=blue,mkpos=.52](A,O,B)
+  \tkzMarkAngle[size=2.5,mark=s|,arc=l,mkcolor=green!50!black,mkpos=.70](A,O,B)
+  \tkzMarkAngle[size=2.0,mark=s||,arc=l,mkcolor=orange,mkpos=.28](A,O,B)
+  \tkzMarkAngle[size=1.5,mark=s|||,arc=l,mkcolor=purple,mkpos=.76](A,O,B)
+  \tkzDrawLines(O,A O,B)
+  \tkzDrawPoints(O,A,B)
+\end{tikzpicture}
+\end{document}

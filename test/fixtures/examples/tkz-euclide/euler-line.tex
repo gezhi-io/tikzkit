@@ -1,0 +1,18 @@
+% Adapted from TeX Live 2025 tkz-euclide's Euler-line manual example.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \tkzDefPoints{0/0/A,6/0/B,.8/4/C}
+  \tkzDefLine[euler](A,B,C)\tkzGetPoints{H}{N}
+  % The manual uses tkzDefTriangleCenter[circum]; this equivalent subset
+  % obtains the same circumcenter through the already-supported circle API.
+  \tkzDefCircle[circum](A,B,C)\tkzGetPoint{O}
+  \tkzDrawPolygon[teal](A,B,C)
+  \tkzDrawPoints[red](A,B,C,H,N,O)
+  \tkzDrawLine[add=2 and 2](H,N)
+  \tkzLabelPoints(A,B,C,H,N,O)
+  \tkzLabelPoints[above](C)
+\end{tikzpicture}
+\end{document}

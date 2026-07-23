@@ -1,0 +1,16 @@
+% Source: TeX Live 2025 tkz-euclide manual, TKZdoc-euclide-marking.tex
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/A,8/6/B}
+  \tkzDrawSegment(A,B)
+  \tkzMarkSegment[color=brown,size=2pt,pos=.12,mark=z](A,B)
+  \tkzMarkSegment[color=blue,pos=.28,mark=oo](A,B)
+  \tkzMarkSegment[pos=.44,mark=s,color=red](A,B)
+  \tkzMarkSegment[color=green!50!black,pos=.60,mark=s|](A,B)
+  \tkzMarkSegment[color=orange,pos=.74,mark=s||](A,B)
+  \tkzMarkSegment[color=purple,pos=.88,mark=s|||](A,B)
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,24 @@
+% Extracted from TeX Live 2025 tkz-euclide/TKZdoc-euclide-styles.tex.
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-euclide}
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \tkzSetUpLabel[font=\scriptsize,red]
+  \tkzDefPoints{0/0/A,2/0/B,.5/1.5/C}
+  \tkzDrawPoints[teal,fill=teal!30,size=6](A,B,C)
+  \tkzLabelPoint[above left](A){$A$}
+  \tkzLabelPoint[above right](B){$B$}
+  \tkzLabelPoint[above](C){$C$}
+  \tkzLabelSegment[above](A,B){$r$}
+  \tkzDrawPolygon[teal](A,B,C)
+
+  \tkzSetUpStyle[blue,font=\footnotesize]{label style}
+  \tkzDefPoints{3/0/D,5/0/E,3.5/1.5/F}
+  \tkzDrawPoints[orange,fill=orange!30,size=6](D,E,F)
+  \tkzLabelPoint[below left](D){$D$}
+  \tkzLabelPoint[below right](E){$E$}
+  \tkzLabelPoint[above](F){$F$}
+  \tkzLabelSegment[above](D,E){$s$}
+  \tkzDrawPolygon[orange](D,E,F)
+\end{tikzpicture}
+\end{document}

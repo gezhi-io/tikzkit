@@ -1,0 +1,23 @@
+% Adapted from TeX Live 2025 TKZdoc-euclide-lines.tex, tangent examples.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}[scale=.75]
+  \tkzDefPoints{0/0/O,0/3/A,6/-1/E}
+  \tkzDrawCircle[teal](O,A)
+  \tkzDrawSegment[gray](O,A)
+
+  % The one-point result determines the tangent direction at A.
+  \tkzDefLine[tangent at=A](O)\tkzGetPoint{H}
+  \tkzDrawLine[add=3 and 3,red](A,H)
+  \tkzMarkRightAngle[fill=teal!30](O,A,H)
+
+  % The two-point result is ordered by the directed external/contact/center angle.
+  \tkzDefLine[tangent from=E](O,A)\tkzGetPoints{T1}{T2}
+  \tkzDrawSegments[blue](E,T1 E,T2)
+  \tkzDrawPoints[red](O,A,E,T1,T2)
+  \tkzLabelPoints(O,A,E,T1,T2)
+  \tkzLabelPoints[left](H)
+\end{tikzpicture}
+\end{document}

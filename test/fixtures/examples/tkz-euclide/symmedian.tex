@@ -1,0 +1,23 @@
+% Adapted from the TeX Live 2025 tkz-euclide symmedian construction.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}[scale=.8]
+  \tkzDefPoints{0/0/A,4/0/B,0/3/C}
+  \tkzDefMidPoint(A,C)\tkzGetPoint{M}
+  \tkzDefLine[bisector](A,B,C)\tkzGetPoint{I}
+  \tkzDefLine[symmedian](A,B,C)\tkzGetPoint{S}
+
+  \tkzDrawPolygon[teal](A,B,C)
+  \tkzDrawSegments[dashed,gray](B,M B,I)
+  \tkzDrawLine[add=1 and 1,red](B,S)
+  \tkzDrawPoints[red](A,B,C,M,I,S)
+  \tkzLabelPoint[below](A){$A$}
+  \tkzLabelPoint[right](B){$B$}
+  \tkzLabelPoint[above](C){$C$}
+  \tkzLabelPoint[left](M){$M$}
+  \tkzLabelPoint[right](I){$I$}
+  \tkzLabelPoint[below left](S){$S$}
+\end{tikzpicture}
+\end{document}

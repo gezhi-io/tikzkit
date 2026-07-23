@@ -1,0 +1,21 @@
+% Adapted from TeX Live 2025 TKZdoc-euclide-lines.tex, lines 153--166.
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\usepackage{tkz-euclide}
+
+\begin{document}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/A,6/0/B,0.8/4/C}
+  \tkzDefLine[altitude](A,B,C)\tkzGetPoint{b}
+  \tkzDefLine[altitude](B,C,A)\tkzGetPoint{c}
+  \tkzDefLine[altitude](B,A,C)\tkzGetPoint{a}
+  \tkzDrawPolygon(A,B,C)
+  \tkzDrawPoints[blue](a,b,c)
+  \tkzDrawSegments[blue](A,a B,b C,c)
+  \tkzMarkRightAngles(C,a,B A,b,C B,c,A)
+  \tkzDrawPoints(A,B,C)
+  \tkzLabelPoints(A,B,c)
+  \tkzLabelPoints[above](C,a)
+  \tkzLabelPoints[above left](b)
+\end{tikzpicture}
+\end{document}

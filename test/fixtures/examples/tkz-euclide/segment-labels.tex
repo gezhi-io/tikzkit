@@ -1,0 +1,21 @@
+% Extracted from LaTeX-examples-master/tikz/triangle-labels/triangle-labels.tex.
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-euclide}
+\begin{document}
+\begin{tikzpicture}[very thick]
+  \tkzDefPoint(0,0){A}
+  \tkzDefPoint(2,0){B}
+  \tkzDefPoint(0.5,2.0){C}
+  \tkzLabelSegment[right](B,C){$a$}
+  \tkzLabelSegment[left](A,C){$b$}
+  \tkzLabelSegment[below](A,B){$c$}
+  \tkzDrawPolygon[fill=gray!10](A,B,C)
+  \tkzMarkAngle[arc=l,size=0.6cm,fill=green!30](B,A,C)
+  \tkzLabelAngle[pos=0.3](B,A,C){$\alpha$}
+  \tkzMarkAngle[arc=l,size=0.6cm,fill=green!30](C,B,A)
+  \tkzLabelAngle[pos=0.45](C,B,A){$\beta$}
+  \tkzMarkAngle[arc=l,size=0.6cm,fill=green!30](A,C,B)
+  \tkzLabelAngle[pos=0.45](A,C,B){$\gamma$}
+  \tkzDrawPolygon[very thick](A,B,C)
+\end{tikzpicture}
+\end{document}
