@@ -17,6 +17,7 @@
     "implementation-examples:render": "node scripts/render-example-fixtures.js --fixtures test/fixtures/implementation-examples --output test/fixtures/implementation-examples/output",
     "implementation-examples:diff": "node scripts/diff-example-pngs.js --output test/fixtures/implementation-examples/output",
     "extension-registry": "node scripts/build-extension-registry.js",
+    "case:audit": "node scripts/case-semantic-audit.js",
     "awesome-tikz:audit": "node scripts/awesome-tikz-audit.js",
     "real-cases:render": "node scripts/render-real-cases.js",
     "gallery:audit": "node scripts/gallery-audit.js",

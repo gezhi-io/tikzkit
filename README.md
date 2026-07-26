@@ -183,6 +183,30 @@ const result = tikzToSvg(source, { mathRenderer: "svg-text" });
 
 ## Testing
 
+Before changing a real compatibility case, generate its semantic inventory:
+
+```bash
+npm run case:audit -- path/to/case.tex \
+  --output outputs/case-audit.md \
+  --init-review outputs/case-review.json
+```
+
+This resolves local MacTeX sources and lists every dependency, command,
+environment, nested option, source variable, numeric value, and plot
+expression. The strict acceptance run remains incomplete until the review
+records what was learned from each local source and gives every semantic item
+test or visual-artifact evidence:
+
+```bash
+npm run case:audit -- path/to/case.tex \
+  --review outputs/case-review.json \
+  --strict
+```
+
+Zero diagnostics, similar canvas dimensions, or a low image-diff value do not
+by themselves complete a case. See
+[case-driven semantic acceptance](docs/case-driven-acceptance.md).
+
 Run the complete Node test command:
 
 ```bash
