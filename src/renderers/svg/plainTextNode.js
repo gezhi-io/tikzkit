@@ -120,11 +120,16 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
   if (!textEngine || typeof textEngine.measure !== "function" || typeof textEngine.renderFromCache !== "function") return "";
   const wrapWidth = Number(item.wrapWidth);
   const textWidthPt = Number.isFinite(wrapWidth) && wrapWidth > 0 ? wrapWidth * TEX_PT_PER_CM : null;
-  const align = item.textAlign
-    ? normalizedTextAlign(item.textAlign)
-    : Number.isFinite(wrapWidth) && wrapWidth > 0
-      ? "left"
-      : "center";
+  const explicitTextAnchor = svgTextAnchorForItem(item);
+  const align = explicitTextAnchor === "start"
+    ? "left"
+    : explicitTextAnchor === "end"
+      ? "right"
+      : item.textAlign
+        ? normalizedTextAlign(item.textAlign)
+        : Number.isFinite(wrapWidth) && wrapWidth > 0
+          ? "left"
+          : "center";
   const fontScale = textEnginePlainTextScale(normalized) * textFontScale(item, normalized);
   let metrics = null;
   try {

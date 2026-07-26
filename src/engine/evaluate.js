@@ -74,6 +74,18 @@ const BUILTIN_STYLES = {
   "every state": {},
   "state without output": { circle: true, draw: true, "minimum size": "2.5em", "every state": true },
   state: { "state without output": true },
+  // tikzlibraryautomata.code.tex builds accepting states from the ordinary
+  // state shape, then adds the double outline. Initial-state arrows are an
+  // after-node path, so we retain their direction as semantic metadata and
+  // add the path once the node boundary is known.
+  "accepting by double": { double: true },
+  accepting: { "accepting by double": true },
+  "initial by arrow": { "tikzkit automata initial": true, "tikzkit automata initial angle": 180 },
+  initial: { "initial by arrow": true },
+  "initial above": { "initial by arrow": true, "tikzkit automata initial angle": 90 },
+  "initial below": { "initial by arrow": true, "tikzkit automata initial angle": 270 },
+  "initial left": { "initial by arrow": true, "tikzkit automata initial angle": 180 },
+  "initial right": { "initial by arrow": true, "tikzkit automata initial angle": 0 },
   "every concept": {},
   concept: { circle: true, "tikzkit concept": true, "every concept": true },
   "extra concept": { "concept color": "black!50", "level 2 concept": true, concept: true, "every extra concept": true },
@@ -6534,7 +6546,82 @@ function addNodeItems(node, ir, env) {
   for (const pinItem of nodePins(node.options || {}, point, size, nodeEnv, textStyle)) {
     ir.items.push(pinItem);
   }
+  addAutomataInitialArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
   applyNodeOverlay(ir, firstItemIndex, overlay);
+}
+
+function addAutomataInitialArrow(node, point, semantic, nodeStyle, textStyle, textFont, env, ir) {
+  if (!tikzBoolean(semantic["tikzkit automata initial"]) || !node.name) return;
+  const stateNode = env.nodes?.[node.name];
+  if (!stateNode) return;
+
+  const rawAngle = Number(semantic["tikzkit automata initial angle"]);
+  const angle = Number.isFinite(rawAngle) ? rawAngle : 180;
+  const radians = (angle * Math.PI) / 180;
+  const direction = { x: Math.cos(radians), y: Math.sin(radians) };
+  const border = nodeBorderPoint(stateNode, point, {
+    x: point.x + direction.x,
+    y: point.y + direction.y
+  }, env);
+  const distance = parseFiniteDimension(
+    semantic["initial distance"],
+    env,
+    parseDimension("3ex", env.variables || {})
+  );
+  const start = roundPoint({
+    x: border.x + direction.x * distance,
+    y: border.y + direction.y * distance
+  });
+  const arrowOptions = {
+    "->": true
+  };
+  if (env.pictureOptions?.[">"] !== undefined) arrowOptions[">"] = env.pictureOptions[">"];
+  const { style: initialStyle } = normalizeOptions("draw", arrowOptions, env);
+  const stroke = nodeStyle.stroke && nodeStyle.stroke !== "none" ? nodeStyle.stroke : initialStyle.stroke || "black";
+  const lineWidth = nodeStyle.lineWidth || initialStyle.lineWidth || lineWidthFromPt(0.4);
+  ir.items.push(createPathShape(
+    [moveToCommand(start), lineToCommand(border)],
+    {
+      stroke,
+      fill: "none",
+      lineWidth,
+      lineCap: initialStyle.lineCap,
+      lineJoin: initialStyle.lineJoin,
+      markerEnd: initialStyle.markerEnd || createArrowTip("to", { fill: stroke, stroke })
+    },
+    { subtype: "automata-initial" }
+  ));
+  addAutomataInitialText(start, angle, semantic, initialStyle, textStyle, textFont, env, ir);
+}
+
+function addAutomataInitialText(start, angle, semantic, initialStyle, textStyle, textFont, env, ir) {
+  const rawText = semantic["initial text"] === undefined ? "start" : stripOuterBraces(String(semantic["initial text"]));
+  const text = String(rawText || "").trim();
+  if (!text) return;
+  const normalizedAngle = ((angle % 360) + 360) % 360;
+  const anchor = normalizedAngle === 0 ? "start" : normalizedAngle === 180 ? "end" : "middle";
+  const side = normalizedAngle === 90 ? 1 : normalizedAngle === 270 ? -1 : 0;
+  const fontSizePt = Number(textFont?.sizePt) || 10;
+  const labelBox = measurePlainTextTeXBoxPt(text, {
+    fontSizePt,
+    fontFamily: textStyle.fontFamily
+  });
+  const verticalOffset = side * ((Number(labelBox?.height) || 0) + (Number(labelBox?.depth) || 0)) / (2 * TEX_PT_PER_CM);
+  ir.items.push({
+    type: "textNode",
+    subtype: "automata-initial-text",
+    x: start.x,
+    y: roundNumber(start.y + verticalOffset),
+    text,
+    font: textFont,
+    style: {
+      ...textStyle,
+      fill: initialStyle.textFill || textStyle.fill || "black"
+    },
+    svgTextAnchor: anchor,
+    svgTextX: start.x,
+    "tikzkit automata initial angle": normalizedAngle
+  });
 }
 
 function computerModernOpticalTextFamily(text, font = {}, currentFamily = "") {
