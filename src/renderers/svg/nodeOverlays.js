@@ -34,7 +34,7 @@ export function renderNodeBoxShadow(item, shadow, unit) {
     rx: (item.rx || 0) * scale,
     style: shadowStyle
   };
-  if (shadowItem.shape === "circle" || shadowItem.shape === "ellipse") {
+  if (shadowItem.shape === "circle" || shadowItem.shape === "circleSplit" || shadowItem.shape === "ellipse") {
     return `<ellipse class="tikz-node-shadow" cx="${format(shadowItem.x * unit)}" cy="${format(-shadowItem.y * unit)}" rx="${format(
       (shadowItem.width / 2) * unit
     )}" ry="${format((shadowItem.height / 2) * unit)}"${styleAttributes(shadowItem.style)} />`;
@@ -149,7 +149,7 @@ export function renderDoubleNodeOutline(item, unit) {
   const cy = -item.y * unit;
   const halfWidth = (item.width * unit) / 2;
   const halfHeight = (item.height * unit) / 2;
-  if (item.shape === "circle" || item.shape === "ellipse") {
+  if (item.shape === "circle" || item.shape === "circleSplit" || item.shape === "ellipse") {
     return `<ellipse class="tikz-bpmn-double" cx="${format(cx)}" cy="${format(cy)}" rx="${format(
       Math.max(0, halfWidth - inset)
     )}" ry="${format(Math.max(0, halfHeight - inset))}" stroke="${stroke}" fill="none" stroke-width="${format(width)}" />`;

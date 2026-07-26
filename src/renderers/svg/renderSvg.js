@@ -6,6 +6,7 @@ import { renderDefaultFontStyleDef } from "./defaultFontCss.js";
 import { clipRectId, collectSvgDefs } from "./defs.js";
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
+import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
 import { formatSvgNumber as format } from "./format.js";
 import { renderImagePlaceholder } from "./imagePlaceholders.js";
 import { scaleItemsForRenderUnit } from "./layout.js";
@@ -90,6 +91,7 @@ function renderItem(item, unit, options = {}, index = 0) {
         (item.width / 2) * unit
       )}" ry="${format((item.height / 2) * unit)}"${styleAttributes(item.style)} />`, unit);
     }
+    if (item.shape === "circleSplit") return renderNodeBoxWithOverlay(item, renderCircleSplitNodeBox(item, unit), unit);
     if (item.shape === "circleCrossSplit") return renderNodeBoxWithOverlay(item, renderCircleCrossSplitNodeBox(item, unit), unit);
     if (item.shape === "diamond") return renderNodeBoxWithOverlay(item, renderDiamondNodeBox(item, unit), unit);
     if (LIBRARY_NODE_SHAPES.includes(item.shape)) {

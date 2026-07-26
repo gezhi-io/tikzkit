@@ -73,6 +73,7 @@ const DEFAULT_TEX_VARIABLES = {
 const BUILTIN_STYLES = {
   "every state": {},
   "state without output": { circle: true, draw: true, "minimum size": "2.5em", "every state": true },
+  "state with output": { "circle split": true, draw: true, "minimum size": "2.5em", "every state": true },
   state: { "state without output": true },
   // tikzlibraryautomata.code.tex builds accepting states from the ordinary
   // state shape, then adds the double outline. Initial-state arrows are an
@@ -4027,7 +4028,8 @@ function createNode(statement, env, ir, diagnostics) {
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
   const fitLayout = resolveFitNodeLayout(expandedOptions, env, nodeEnv);
   const rectangleSplit = rectangleSplitLayout(text, expandedOptions, nodeEnv);
-  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
+  const circleSplit = circleSplitLayout(text, expandedOptions, nodeEnv);
+  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
   const rawAnchorSize = fitLayout?.rawSize || estimateNodeAnchorSize(text, expandedOptions, nodeEnv, rawSize);
   const rawPositioningSize = fitLayout?.rawSize || estimatePositioningSelfSize(text, expandedOptions, nodeEnv, rawAnchorSize);
   const size = scaleSize(rawSize, nodeEnv.canvasScale);
@@ -4050,6 +4052,7 @@ function createNode(statement, env, ir, diagnostics) {
     canvasScale: nodeEnv.canvasScale,
     displayPoint,
     rectangleSplit,
+    circleSplit,
     fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   };
   const nodeRecord = {
@@ -4061,7 +4064,8 @@ function createNode(statement, env, ir, diagnostics) {
     shape: nodeShape(expandedOptions),
     shapeData: {
       ...nodeShapeData(expandedOptions, nodeEnv),
-      rectangleSplit
+      rectangleSplit,
+      circleSplit
     },
     rotation: nodeRotation(expandedOptions, nodeEnv)
   };
@@ -6340,7 +6344,8 @@ function addNodeItems(node, ir, env) {
   const shape = nodeShape(node.options || {});
   const shapeData = {
     ...nodeShapeData(node.options || {}, nodeEnv),
-    rectangleSplit: node.rectangleSplit || null
+    rectangleSplit: node.rectangleSplit || null,
+    circleSplit: node.circleSplit || null
   };
   const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, nodeEnv), nodeEnv.canvasScale);
   const shadingStyle = pathShadingStyle(style, semantic, nodeEnv);
@@ -6518,6 +6523,8 @@ function addNodeItems(node, ir, env) {
   }
   if (shape === "rectangleSplit" && node.rectangleSplit?.horizontal) {
     addRectangleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
+  } else if (shape === "circleSplit" && node.circleSplit) {
+    addCircleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
@@ -6672,6 +6679,26 @@ function addRectangleSplitTextItems(node, point, size, rotation, textStyle, env,
   for (const part of node.rectangleSplit.parts || []) {
     if (!part.text) continue;
     const local = rotateVector(part.centerX * scale, 0, rotation || 0);
+    ir.items.push({
+      type: "textNode",
+      x: roundNumber(point.x + local.x),
+      y: roundNumber(point.y + local.y),
+      text: part.text,
+      font: resolvedTextFontSpec(part.text, node.options || {}, env, env.canvasScale * nodeOptionScale(node.options || {}, env)),
+      style: textStyle,
+      rotation: rotation || undefined,
+      textAlign: "center",
+      texBoxVerticalAlign: true
+    });
+  }
+}
+
+function addCircleSplitTextItems(node, point, size, rotation, textStyle, env, ir) {
+  const layout = node.circleSplit;
+  const scale = size.width / Math.max(layout.size.width, 1e-9);
+  for (const part of layout.parts || []) {
+    if (!part.text) continue;
+    const local = rotateVector(0, part.centerY * scale, rotation || 0);
     ir.items.push({
       type: "textNode",
       x: roundNumber(point.x + local.x),
@@ -7826,7 +7853,7 @@ function nodeBorderPoint(node, center, toward, env) {
   const halfHeight = (Number(node.layoutHeight) || Number(node.height) || 0) / 2;
   if (halfWidth <= 0 || halfHeight <= 0) return roundPoint(center);
   let localPoint;
-  if (node.shape === "circle" || node.shape === "circleCrossSplit") {
+  if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit") {
     const radius = Math.max(halfWidth, halfHeight);
     localPoint = { x: (localDx / localDistance) * radius, y: (localDy / localDistance) * radius };
   } else if (node.shape === "ellipse" || node.shape === "cloud") {
@@ -7865,6 +7892,7 @@ function nodeShape(options = {}) {
   if (shape === "tikzquads black box") return "tikzquadsBlackBox";
   if (shape === "tikzquads pg load line") return "tikzquadsPgLoadLine";
   if (options["rectangle split"]) return "rectangleSplit";
+  if (options["circle split"] || shape === "circle split") return "circleSplit";
   if (options["single arrow"] || shape === "single arrow") return "singleArrow";
   if (options["double arrow"] || shape === "double arrow") return "doubleArrow";
   if (options["cross out"] || shape === "cross out") return "crossOut";
@@ -8112,6 +8140,52 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     innerYSep: roundNumber(innerYSep),
     separatorWidth: roundNumber(separatorWidth),
     size: { width: roundNumber(width), height: roundNumber(height) }
+  };
+}
+
+function circleSplitLayout(text, options = {}, env = { variables: {} }) {
+  if (!options["circle split"] && normalizeShapeName(options.shape) !== "circle split") return null;
+  const { upper, lower } = circleSplitTextParts(text);
+  const metricOptions = {
+    ...options,
+    "inner sep": "0pt",
+    "inner xsep": "0pt",
+    "inner ysep": "0pt",
+    "minimum width": undefined,
+    "minimum height": undefined,
+    "minimum size": undefined
+  };
+  const upperSize = estimateCompactTextSize(upper, metricOptions, env);
+  const lowerSize = estimateCompactTextSize(lower, metricOptions, env);
+  const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const { style } = normalizeOptions("node", options, env);
+  const lineWidth = Math.max(0, Number(style.lineWidth) || 0) / TIKZ_UNIT;
+  const halfWidth = Math.max(upperSize.width, lowerSize.width) / 2 + innerXSep;
+  const halfHeight = Math.max(upperSize.height, lowerSize.height) + innerYSep * 2 + lineWidth / 2;
+  const minimumWidth = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0;
+  const minimumHeight = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0;
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const radius = Math.max(Math.hypot(halfWidth, halfHeight), minimumWidth / 2, minimumHeight / 2, minimumSize / 2);
+  const textOffset = Math.min(radius * 0.46, Math.max(radius * 0.3, Math.max(upperSize.height, lowerSize.height) * 0.58 + innerYSep));
+  const size = { width: roundNumber(radius * 2), height: roundNumber(radius * 2) };
+  return {
+    size,
+    parts: [
+      { name: "text", text: upper, centerY: roundNumber(textOffset) },
+      { name: "lower", text: lower, centerY: roundNumber(-textOffset) }
+    ],
+    lowerAnchor: { x: 0, y: roundNumber(-textOffset) }
+  };
+}
+
+function circleSplitTextParts(text) {
+  const source = String(text || "");
+  const match = /\\nodepart\s*\{lower\}/i.exec(source);
+  if (!match) return { upper: source.trim(), lower: "" };
+  return {
+    upper: source.slice(0, match.index).trim(),
+    lower: source.slice(match.index + match[0].length).trim()
   };
 }
 
@@ -11513,6 +11587,10 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     const splitAnchor = rectangleSplitLocalAnchor(anchor, size);
     if (splitAnchor) return splitAnchor;
   }
+  if (shape === "circleSplit") {
+    const splitAnchor = circleSplitLocalAnchor(anchor, size);
+    if (splitAnchor) return splitAnchor;
+  }
   if (shape === "isoscelesTriangle") {
     const anchors = {
       apex: { x: halfWidth, y: 0 },
@@ -11656,6 +11734,17 @@ function rectangleSplitLocalAnchor(anchor, size = {}) {
   return { x: originX, y: originY };
 }
 
+function circleSplitLocalAnchor(anchor, size = {}) {
+  if (String(anchor || "").trim().toLowerCase() !== "lower") return null;
+  const layout = size.shapeData?.circleSplit;
+  if (!layout?.size || !layout.lowerAnchor) return null;
+  const scale = (Number(size.width) || 0) / Math.max(Number(layout.size.width) || 0, 1e-9);
+  return {
+    x: (Number(layout.lowerAnchor.x) || 0) * scale,
+    y: (Number(layout.lowerAnchor.y) || 0) * scale
+  };
+}
+
 function tikzquadsPortY(halfHeight) {
   return halfHeight * (5 / 7);
 }
@@ -11669,12 +11758,12 @@ function tikzquadsInnerExt(halfSize) {
 }
 
 function shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight) {
-  if (shape !== "circle" && shape !== "circleCrossSplit" && shape !== "ellipse") return null;
+  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleCrossSplit" && shape !== "ellipse") return null;
   if (halfWidth <= 0 || halfHeight <= 0) return null;
   const dx = anchor.includes("east") ? 1 : anchor.includes("west") ? -1 : 0;
   const dy = anchor.includes("north") ? 1 : anchor.includes("south") ? -1 : 0;
   if (!dx && !dy) return null;
-  if (shape === "circle" || shape === "circleCrossSplit") {
+  if (shape === "circle" || shape === "circleSplit" || shape === "circleCrossSplit") {
     const radius = Math.max(halfWidth, halfHeight);
     const length = Math.hypot(dx, dy) || 1;
     return { x: (dx / length) * radius, y: (dy / length) * radius };

@@ -4,6 +4,7 @@ import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
 
 const FIXTURE = new URL("./fixtures/examples/automata/initial-accepting-states.tex", import.meta.url);
+const OUTPUT_FIXTURE = new URL("./fixtures/examples/automata/state-with-output.tex", import.meta.url);
 
 test("renders automata state, accepting double outline, and directional initial arrows", () => {
   const result = tikzToSvg(readFileSync(FIXTURE, "utf8"), { mathRenderer: "svg-text" });
@@ -40,4 +41,21 @@ test("renders automata state, accepting double outline, and directional initial 
   `, { mathRenderer: "svg-text" });
   assert.deepEqual(withoutDefaultLabel.diagnostics, []);
   assert.equal(withoutDefaultLabel.ir.items.filter((item) => item.subtype === "automata-initial-text").length, 0);
+});
+
+test("renders automata state with output as a circle split with a lower anchor", () => {
+  const result = tikzToSvg(readFileSync(OUTPUT_FIXTURE, "utf8"), { mathRenderer: "svg-text" });
+  const states = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "circleSplit");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const lowerGuide = result.ir.items.at(-1);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(states.map((item) => item.id), ["idle", "ready", "done"]);
+  assert.ok(states.every((item) => item.shapeData?.circleSplit?.parts?.length === 2));
+  assert.ok(states.every((item) => item.width === item.height));
+  assert.ok(labels.includes("idle") && labels.includes("ready") && labels.includes("done"));
+  assert.ok(!labels.some((item) => /nodepart/.test(item)));
+  assert.ok(lowerGuide.commands[0].y < 0 && lowerGuide.commands[1].y < 0);
+  assert.match(result.svg, /tikz-node-circle-split/);
+  assert.match(result.svg, /tikz-bpmn-double/);
 });
