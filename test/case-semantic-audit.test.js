@@ -107,6 +107,23 @@ test("strict audit blockers expose commands without an implementation owner", ()
   assert.equal(report.gate.status, "blocked");
 });
 
+test("audit assigns document-shell and font commands to explicit owners", () => {
+  const report = auditTikzSource(String.raw`
+    \usepackage[active]{preview}
+    \setlength\PreviewBorder{2mm}
+    \begin{tikzpicture}\node{\tiny\tt x};\end{tikzpicture}
+  `, {
+    localSourceResolver: fakeResolver
+  });
+
+  const ownerFor = (name) => report.commands.find((entry) => entry.name === name)?.implementedBy;
+  assert.equal(ownerFor("\\PreviewBorder"), "src/frontend/latex-shell.js");
+  assert.equal(ownerFor("\\setlength"), "src/frontend/latex-shell.js");
+  assert.equal(ownerFor("\\tiny"), "src/tex/fontSpec.js");
+  assert.equal(ownerFor("\\tt"), "src/tex/fontSpec.js");
+  assert.ok(!report.gate.blockers.some((entry) => /PreviewBorder|setlength|tiny|\\tt/.test(entry)));
+});
+
 test("review evidence can satisfy individual semantic features without hiding remaining work", () => {
   const report = auditTikzSource(String.raw`\draw[line width=1pt] (0,0) -- (1,1);`, {
     localSourceResolver: fakeResolver,

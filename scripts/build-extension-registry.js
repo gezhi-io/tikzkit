@@ -97,8 +97,8 @@ const PGF_LIBRARY_SUPPORT = {
   },
   "shapes.multipart": {
     status: "partial",
-    implementedBy: "src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
-    notes: "rectangle split and selected multipart shape behavior"
+    implementedBy: "src/engine/evaluate.js + src/renderers/svg/rectangleSplitNodes.js + src/renderers/svg/mathNode.js",
+    notes: "horizontal rectangle split; nodepart text boxes; named part anchors; per-part fill; TeX text/script/scriptscript math sizing. Arbitrary multipart shapes and complete TeX box metrics remain partial."
   }
 };
 
@@ -171,6 +171,7 @@ const LOCAL_SOURCE_REVIEWED = {
   "tikzlibrary:mindmap": "yes",
   "tikzlibrary:plotmarks": "yes",
   "tikzlibrary:shadows": "yes",
+  "tikzlibrary:shapes.multipart": "yes",
   "tikzlibrary:spy": "yes",
   "tikzlibrary:trees": "yes",
   "package:tikz-network": "yes",

@@ -71,7 +71,8 @@ export function measureMathBoxPt(tex, options = {}) {
   const mathVersion = options.mathVersion === "bold" || font.mathVersion === "bold" ? "bold" : "normal";
   const displayMode = Boolean(options.displayMode);
   const extraScale = finitePositiveScale(options.scale);
-  const scale = (font.sizePt / 10) * extraScale * mathStyleScale(source);
+  const baseMathSizePt = font.sizePt * extraScale;
+  const scale = (font.sizePt / 10) * extraScale * mathStyleScale(source, baseMathSizePt);
   const rawBox = estimateMathBox(source, displayMode, TEX_PT_PER_CM, scale, { mathVersion });
   const glyphBox = simpleMathGlyphRenderBox(simpleMathGlyphFallback(source), rawBox);
   const paintBox = glyphBox || rawBox;
@@ -111,11 +112,12 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const tex = normalizeKatexTex(math.tex);
   const mathVersion = item?.font?.mathVersion === "bold" ? "bold" : "normal";
   const contentScale = (math.scale || 1) * textFontScale(item, math);
-  const box = estimateMathBox(tex, math.displayMode, unit, contentScale * mathStyleScale(tex), { mathVersion });
+  const styleScale = mathStyleScale(tex, 10 * contentScale);
+  const box = estimateMathBox(tex, math.displayMode, unit, contentScale * styleScale, { mathVersion });
   const originalFontSize = box.fontSize;
   box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, unit, [mathFitText(tex)]);
   const fitScale = originalFontSize > 0 ? box.fontSize / originalFontSize : 1;
-  const fittedBox = estimateMathBox(tex, math.displayMode, unit, contentScale * fitScale * mathStyleScale(tex), {
+  const fittedBox = estimateMathBox(tex, math.displayMode, unit, contentScale * fitScale * styleScale, {
     mathVersion
   });
   const htmlBox = scopedMathForeignObjectBox(fittedBox, math.displayMode, tex);
@@ -486,11 +488,38 @@ function hasInlineMatrixTex(tex) {
   return /\\begin\s*\{(?:p|b|B|v|V)?matrix\}/.test(String(tex || ""));
 }
 
-export function mathStyleScale(tex) {
-  const raw = String(tex || "");
-  if (/\\displaystyle(?![A-Za-z])/.test(raw)) return 1.18;
-  if (/\\(?:scriptstyle|scriptscriptstyle)(?![A-Za-z])/.test(raw)) return 0.78;
-  return 1;
+export function mathStyleScale(tex, baseSizePt = 10) {
+  const styles = [...String(tex || "").matchAll(/\\(display|text|script|scriptscript)style(?![A-Za-z])/g)];
+  const style = styles.at(-1)?.[1] || "text";
+  if (style === "display") return 1.18;
+  if (style === "text") return 1;
+  const base = Number(baseSizePt);
+  if (!Number.isFinite(base) || base <= 0) return 1;
+  const sizes = texMathSizesForBase(base);
+  return style === "script" ? sizes.script / base : sizes.scriptscript / base;
+}
+
+function texMathSizesForBase(baseSizePt) {
+  // LaTeX's fontmath.ltx declares the text/script/scriptscript triplets.
+  // At normal 10pt this is 10/7/5, so scriptscriptstyle must not reuse the
+  // scriptstyle scale. Values at or below 5pt remain at the 5pt floor.
+  if (baseSizePt <= 5) return { script: baseSizePt, scriptscript: baseSizePt };
+  const table = [
+    { text: 6, script: 5, scriptscript: 5 },
+    { text: 7, script: 5, scriptscript: 5 },
+    { text: 8, script: 6, scriptscript: 5 },
+    { text: 9, script: 6, scriptscript: 5 },
+    { text: 10, script: 7, scriptscript: 5 },
+    { text: 11, script: 8, scriptscript: 6 },
+    { text: 12, script: 8, scriptscript: 6 },
+    { text: 14, script: 10, scriptscript: 7 },
+    { text: 17, script: 12, scriptscript: 10 },
+    { text: 20, script: 14, scriptscript: 12 },
+    { text: 25, script: 20, scriptscript: 17 }
+  ];
+  return table.reduce((nearest, entry) => (
+    Math.abs(entry.text - baseSizePt) < Math.abs(nearest.text - baseSizePt) ? entry : nearest
+  ));
 }
 
 export function estimateMathBox(tex, displayMode, unit, scale = 1, options = {}) {

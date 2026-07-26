@@ -86,7 +86,7 @@ export function computeSvgBounds(items, options = {}) {
       if (math) {
         const mathVersion = item?.font?.mathVersion === "bold" ? "bold" : "normal";
         const contentScale = (normalized.scale || 1) * (math.scale || 1) * textFontScale(item, math);
-        const scale = contentScale * mathStyleScale(math.tex);
+        const scale = contentScale * mathStyleScale(math.tex, 10 * contentScale);
         const box = estimateMathBox(math.tex, math.displayMode, unit, scale, { mathVersion });
         const originalFontSize = box.fontSize;
         box.fontSize = fitFontSizeToBox(box.fontSize, item.fitBox, unit, [mathFallbackText(math.tex)]);
