@@ -5,6 +5,7 @@ import { tikzToSvg } from "../src/index.js";
 
 const FIXTURE = new URL("./fixtures/examples/automata/initial-accepting-states.tex", import.meta.url);
 const OUTPUT_FIXTURE = new URL("./fixtures/examples/automata/state-with-output.tex", import.meta.url);
+const ACCEPTING_FIXTURE = new URL("./fixtures/examples/automata/accepting-arrows.tex", import.meta.url);
 
 test("renders automata state, accepting double outline, and directional initial arrows", () => {
   const result = tikzToSvg(readFileSync(FIXTURE, "utf8"), { mathRenderer: "svg-text" });
@@ -58,4 +59,21 @@ test("renders automata state with output as a circle split with a lower anchor",
   assert.ok(lowerGuide.commands[0].y < 0 && lowerGuide.commands[1].y < 0);
   assert.match(result.svg, /tikz-node-circle-split/);
   assert.match(result.svg, /tikz-bpmn-double/);
+});
+
+test("renders directional automata accepting arrows with text and distance", () => {
+  const result = tikzToSvg(readFileSync(ACCEPTING_FIXTURE, "utf8"), { mathRenderer: "svg-text" });
+  const arrows = result.ir.items.filter((item) => item.type === "path" && item.subtype === "automata-accepting");
+  const labels = result.ir.items.filter((item) => item.type === "textNode" && item.subtype === "automata-accepting-text");
+  const byId = Object.fromEntries(arrows.map((item) => [item.nodeId, item]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(arrows.length, 4);
+  assert.deepEqual(labels.map((item) => item.text), ["finish", "halt", "done"]);
+  assert.ok(byId.top.commands[1].y > byId.top.commands[0].y);
+  assert.ok(byId.right.commands[1].x > byId.right.commands[0].x);
+  assert.ok(byId.bottom.commands[1].y < byId.bottom.commands[0].y);
+  assert.ok(byId.left.commands[1].x < byId.left.commands[0].x);
+  assert.ok(byId.right.commands[1].x - byId.right.commands[0].x > 0.6);
+  assert.ok(arrows.every((item) => item.style.markerEnd));
 });

@@ -76,11 +76,16 @@ const BUILTIN_STYLES = {
   "state with output": { "circle split": true, draw: true, "minimum size": "2.5em", "every state": true },
   state: { "state without output": true },
   // tikzlibraryautomata.code.tex builds accepting states from the ordinary
-  // state shape, then adds the double outline. Initial-state arrows are an
-  // after-node path, so we retain their direction as semantic metadata and
-  // add the path once the node boundary is known.
+  // state shape, then adds the double outline. Initial and accepting arrows
+  // are after-node paths, so retain their direction until the node boundary
+  // is known.
   "accepting by double": { double: true },
   accepting: { "accepting by double": true },
+  "accepting by arrow": { "tikzkit automata accepting": true, "tikzkit automata accepting angle": 0 },
+  "accepting above": { "accepting by arrow": true, "tikzkit automata accepting angle": 90 },
+  "accepting below": { "accepting by arrow": true, "tikzkit automata accepting angle": 270 },
+  "accepting left": { "accepting by arrow": true, "tikzkit automata accepting angle": 180 },
+  "accepting right": { "accepting by arrow": true, "tikzkit automata accepting angle": 0 },
   "initial by arrow": { "tikzkit automata initial": true, "tikzkit automata initial angle": 180 },
   initial: { "initial by arrow": true },
   "initial above": { "initial by arrow": true, "tikzkit automata initial angle": 90 },
@@ -6554,6 +6559,7 @@ function addNodeItems(node, ir, env) {
     ir.items.push(pinItem);
   }
   addAutomataInitialArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
+  addAutomataAcceptingArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
   applyNodeOverlay(ir, firstItemIndex, overlay);
 }
 
@@ -6628,6 +6634,78 @@ function addAutomataInitialText(start, angle, semantic, initialStyle, textStyle,
     svgTextAnchor: anchor,
     svgTextX: start.x,
     "tikzkit automata initial angle": normalizedAngle
+  });
+}
+
+function addAutomataAcceptingArrow(node, point, semantic, nodeStyle, textStyle, textFont, env, ir) {
+  if (!tikzBoolean(semantic["tikzkit automata accepting"]) || !node.name) return;
+  const stateNode = env.nodes?.[node.name];
+  if (!stateNode) return;
+
+  const rawAngle = Number(semantic["tikzkit automata accepting angle"]);
+  const angle = Number.isFinite(rawAngle) ? rawAngle : 0;
+  const radians = (angle * Math.PI) / 180;
+  const direction = { x: Math.cos(radians), y: Math.sin(radians) };
+  const border = nodeBorderPoint(stateNode, point, {
+    x: point.x + direction.x,
+    y: point.y + direction.y
+  }, env);
+  const distance = parseFiniteDimension(
+    semantic["accepting distance"],
+    env,
+    parseDimension("3ex", env.variables || {})
+  );
+  const end = roundPoint({
+    x: border.x + direction.x * distance,
+    y: border.y + direction.y * distance
+  });
+  const arrowOptions = { "->": true };
+  if (env.pictureOptions?.[">"] !== undefined) arrowOptions[">"] = env.pictureOptions[">"];
+  const { style: acceptingStyle } = normalizeOptions("draw", arrowOptions, env);
+  const stroke = nodeStyle.stroke && nodeStyle.stroke !== "none" ? nodeStyle.stroke : acceptingStyle.stroke || "black";
+  const lineWidth = nodeStyle.lineWidth || acceptingStyle.lineWidth || lineWidthFromPt(0.4);
+  ir.items.push(createPathShape(
+    [moveToCommand(border), lineToCommand(end)],
+    {
+      stroke,
+      fill: "none",
+      lineWidth,
+      lineCap: acceptingStyle.lineCap,
+      lineJoin: acceptingStyle.lineJoin,
+      markerEnd: acceptingStyle.markerEnd || createArrowTip("to", { fill: stroke, stroke })
+    },
+    { subtype: "automata-accepting", nodeId: node.name }
+  ));
+  addAutomataAcceptingText(end, angle, semantic, acceptingStyle, textStyle, textFont, env, ir);
+}
+
+function addAutomataAcceptingText(end, angle, semantic, acceptingStyle, textStyle, textFont, env, ir) {
+  const rawText = semantic["accepting text"] === undefined ? "" : stripOuterBraces(String(semantic["accepting text"]));
+  const text = String(rawText || "").trim();
+  if (!text) return;
+  const normalizedAngle = ((angle % 360) + 360) % 360;
+  const anchor = normalizedAngle === 0 ? "start" : normalizedAngle === 180 ? "end" : "middle";
+  const side = normalizedAngle === 90 ? 1 : normalizedAngle === 270 ? -1 : 0;
+  const fontSizePt = Number(textFont?.sizePt) || 10;
+  const labelBox = measurePlainTextTeXBoxPt(text, {
+    fontSizePt,
+    fontFamily: textStyle.fontFamily
+  });
+  const verticalOffset = side * ((Number(labelBox?.height) || 0) + (Number(labelBox?.depth) || 0)) / (2 * TEX_PT_PER_CM);
+  ir.items.push({
+    type: "textNode",
+    subtype: "automata-accepting-text",
+    x: end.x,
+    y: roundNumber(end.y + verticalOffset),
+    text,
+    font: textFont,
+    style: {
+      ...textStyle,
+      fill: acceptingStyle.textFill || textStyle.fill || "black"
+    },
+    svgTextAnchor: anchor,
+    svgTextX: end.x,
+    "tikzkit automata accepting angle": normalizedAngle
   });
 }
 

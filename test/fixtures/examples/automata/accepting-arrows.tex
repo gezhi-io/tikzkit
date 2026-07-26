@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{automata,arrows.meta}
+
+\begin{document}
+\begin{tikzpicture}[>=Stealth,every state/.style={fill=green!10}]
+  \node[state,accepting above,accepting text=finish] (top) at (0,0) {$q_0$};
+  \node[state,accepting right,accepting distance=5ex] (right) at (3,0) {$q_1$};
+  \node[state,accepting below,accepting text=halt] (bottom) at (0,-2.5) {$q_2$};
+  \node[state,accepting left,accepting text=done] (left) at (3,-2.5) {$q_3$};
+\end{tikzpicture}
+\end{document}
