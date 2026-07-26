@@ -2703,6 +2703,26 @@ test("uses a display formula node's text width as the minimum KaTeX viewport wid
   assert.ok(width >= 600, `expected the display formula viewport to honor text width, got ${width}`);
 });
 
+test("uses amsmath's opened-up baseline skip for aligned display rows", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[draw] {\begin{align*}
+    x &= x^2\\
+    y &= y^2\\
+    z &= z^2
+  \end{align*}};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const baselines = ["x", "y", "z"].map((variable) => Number(
+    result.svg.match(new RegExp(`<text x="[^"]+" y="([^"]+)" text-anchor="end"[^>]*>${variable}<\\/text>`))?.[1]
+  ));
+  const fontSize = Number(result.svg.match(/tikz-math-aligned-fallback[^]*?font-size="([^"]+)"/)?.[1]);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(baselines.every(Number.isFinite));
+  assert.ok(Math.abs((baselines[1] - baselines[0]) - fontSize * 1.5) < 0.01);
+  assert.ok(Math.abs((baselines[2] - baselines[1]) - fontSize * 1.5) < 0.01);
+});
+
 test("constrains mixed rich text to TikZ text width with paragraph alignment", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}

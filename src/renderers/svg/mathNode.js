@@ -64,6 +64,9 @@ const KATEX_INLINE_COMPACT_WIDTH_PAD_EM = 0.85;
 const KATEX_DISPLAY_WIDTH_PAD_EM = 0.9;
 const KATEX_COMPLEX_INLINE_WIDTH_RATIO = 2;
 const TEX_PT_PER_CM = 28.4527559;
+// amsmath's \spread@equation performs \openup\jot. At the default 10pt
+// size that is the 12pt baseline skip plus a 3pt \jot, i.e. 1.5em.
+const AMSMATH_ALIGN_ROW_BASELINE_FACTOR = 1.5;
 
 export function measureMathBoxPt(tex, options = {}) {
   const source = normalizeKatexTex(tex);
@@ -315,7 +318,7 @@ function renderAlignedMathFallback(item, rows, fontSize, unit, color, fontWeight
         ? anchor.x - totalWidth
         : anchor.x - totalWidth / 2;
   const alignX = startX + leftWidth;
-  const lineHeight = fontSize * 1.22;
+  const lineHeight = fontSize * AMSMATH_ALIGN_ROW_BASELINE_FACTOR;
   const firstY = anchor.y - ((normalizedRows.length - 1) * lineHeight) / 2;
   const common = `fill="${color}" dominant-baseline="middle" font-size="${format(fontSize)}" font-style="italic"${
     fontWeight ? ` font-weight="${fontWeight}"` : ""

@@ -1,9 +1,10 @@
 export const texPackage = {
   "name": "amsmath",
   "status": "partial",
-  "implementedBy": "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator",
+  "implementedBy": "src/tikz/text.js + src/tikz/textMetrics.js + src/renderers/svg/mathNode.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator",
   "features": [
     "KaTeX delegated environments/macros",
+    "SVG-text aligned display fallback with amsmath \\jot row spacing",
     "\\DeclareMathOperator macro expansion"
   ],
   "requires": [],
@@ -25,5 +26,6 @@ export const texPackage = {
     "Complex roots - equation text block"
   ],
   "observedOptions": [],
-  "notes": ""
+  "localSourceReviewed": true,
+  "notes": "Partial amsmath subset: align/aligned display rows, common scripts, color groups, matrices, and math fallback layout. Tags, intertext, split, gathered, multline, and full TeX macro expansion remain unsupported or partial."
 };
