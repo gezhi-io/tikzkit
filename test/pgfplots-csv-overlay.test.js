@@ -134,6 +134,27 @@ test("explicit middle axes reserve scaled-y description space before y-only enla
   assert.ok(Math.abs(geometry.height - 5.328) < 0.001);
 });
 
+test("middle-axis layout measures grouped numeric tick labels instead of using the text fallback margin", () => {
+  const geometry = createAxisGeometry(
+    {
+      "axis x line": "middle",
+      "axis y line": "middle",
+      width: "15cm",
+      height: "8cm",
+      xmin: "0",
+      xmax: "2150",
+      ymin: "0",
+      ymax: "20000000",
+      "enlarge y limits": "true"
+    },
+    { xMin: 0, xMax: 2150, yMin: 0, yMax: 20000000 }
+  );
+
+  // Native PGFPlots measures `1,000` as a numeric tick label; it should not
+  // force the generic 1.1cm nonnumeric-label reserve on the left edge.
+  assert.ok(Math.abs(geometry.margin.left - 0.758) < 0.01, geometry.margin.left);
+});
+
 test("legend style at and anchor use axis-description coordinates", () => {
   const geometry = { origin: { x: 1, y: 2 }, width: 10, height: 5 };
   const placement = legendPlacement(undefined, geometry, "at={(0.1,-0.1)}, anchor=north");

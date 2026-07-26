@@ -573,10 +573,36 @@ function geometryAxisTickLabels(axisOptions = {}, axis, ranges = {}, plotArea = 
     : geometryAutoMajorTickValues(axisOptions, axis, min, max, plotArea[axis === "x" ? "width" : "height"], axis === "x" ? 7 : 6);
   const rawLabels = axisOptions[`${axis}ticklabels`] ?? axisOptions[`${axis} tick labels`];
   const explicitLabels = geometryExplicitTickLabels(rawLabels);
+  const scaledValues = explicitLabels.length ? values : geometryScaledAxisTickValues(axisOptions, axis, values);
   return values.map((value, index) => ({
     value,
-    text: explicitLabels[index] ?? formatAxisTickLabel(value)
+    text: explicitLabels[index] ?? formatAxisTickLabel(scaledValues[index])
   }));
+}
+
+function geometryScaledAxisTickValues(axisOptions = {}, axis, values = []) {
+  const scale = geometryAxisTickScale(axisOptions, axis, values);
+  return scale ? values.map((value) => roundAxis(value * scale.factor)) : values;
+}
+
+function geometryAxisTickScale(axisOptions = {}, axis, values = []) {
+  const labelStyle = parseOptions(String(axisOptions[`${axis} tick label style`] ?? axisOptions[`${axis}ticklabel style`] ?? axisOptions["tick label style"] ?? ""));
+  const raw = axisOptions[`scaled ${axis} ticks`] ?? axisOptions["scaled ticks"] ?? labelStyle[`scaled ${axis} ticks`] ?? labelStyle["scaled ticks"];
+  const text = String(raw ?? "true").trim().toLowerCase();
+  if (raw === false || ["false", "none", "off", "0"].includes(text)) return null;
+  const baseMatch = text.match(/^base\s+10\s*:\s*([-+]?\d+)$/);
+  if (baseMatch) {
+    const exponent = Number(baseMatch[1]);
+    return Number.isFinite(exponent) ? { factor: 10 ** exponent } : null;
+  }
+  if (text !== "true" && text !== "") return null;
+  const maximum = Math.max(0, ...values.map((value) => Math.abs(Number(value))).filter(Number.isFinite));
+  if (!(maximum > 0)) return null;
+  const exponent = Math.floor(Math.log10(maximum));
+  const above = Number(axisOptions["scale ticks above exponent"] ?? 3);
+  const below = Number(axisOptions["scale ticks below exponent"] ?? -1);
+  if (!(exponent > (Number.isFinite(above) ? above : 3) || exponent < (Number.isFinite(below) ? below : -1))) return null;
+  return { factor: 10 ** -exponent };
 }
 
 function geometryExplicitTickLabels(raw) {
@@ -600,7 +626,7 @@ function geometryTickLabelHeight(label) {
 }
 
 function geometryTickLabelIsPlainNumber(text) {
-  return /^[−-]?\d+(?:\.\d+)?$/.test(String(text || "").trim());
+  return /^[−-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/.test(String(text || "").trim());
 }
 
 function geometryEndTickLabelWidth(labels, axisMax) {
