@@ -660,6 +660,9 @@ function isGreekFallbackToken(char) {
 }
 
 function estimateFormulaParts(tex, scale, metric) {
+  const simpleScriptMetric = simpleScriptFormulaMetric(tex, scale, metric);
+  if (simpleScriptMetric) return simpleScriptMetric;
+
   const glyphMetric = simpleGlyphFormulaMetric(tex, scale, metric);
   if (glyphMetric) return glyphMetric;
 
@@ -743,6 +746,37 @@ function estimateFormulaParts(tex, scale, metric) {
   }
 
   return { width, height, depth };
+}
+
+function simpleScriptFormulaMetric(tex, scale, metric) {
+  if (!metric.texTextMetrics) return null;
+  const match = String(tex || "").trim().match(/^([A-Za-z])\s*_\s*(?:\{\s*([A-Za-z0-9]+)\s*\}|([A-Za-z0-9]))$/);
+  if (!match) return null;
+
+  // Math letters use the math-italic family, while a digit subscript stays in
+  // the text family at script size. Measuring the base as CMR text widened
+  // compact formulas such as $q_0$, which in turn made geometric node shapes
+  // (notably automata's `initial by diamond`) visibly too large.
+  const baseSpec = (metric.mathVersion === "bold" ? MATH_BOLD_ITALIC_TEX_METRICS : MATH_ITALIC_TEX_METRICS)[match[1]];
+  const base = baseSpec
+    ? {
+        width: baseSpec[0] * 10 * scale,
+        height: baseSpec[1] * 10 * scale,
+        depth: baseSpec[2] * 10 * scale
+      }
+    : null;
+  const script = measurePlainTextTeXBoxPt(match[2] || match[3], { fontSizePt: 7 * scale });
+  if (!base || !script) return null;
+
+  // TeX keeps a one-letter math atom and its scriptstyle subscript tight.
+  // The math-italic advance already includes the needed placement; adding a
+  // generic italic-width multiplier would grow the surrounding TikZ node.
+  const scriptDropPt = 1.55 * scale;
+  return {
+    width: (base.width + script.width) / TEX_PT_PER_CM,
+    height: base.height / TEX_PT_PER_CM,
+    depth: Math.max(base.depth, Math.max(0, script.height - scriptDropPt) + script.depth) / TEX_PT_PER_CM
+  };
 }
 
 function estimateExtensibleArrowFormulaParts(tex, scale, metric) {

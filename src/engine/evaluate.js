@@ -86,6 +86,7 @@ const BUILTIN_STYLES = {
   "accepting below": { "accepting by arrow": true, "tikzkit automata accepting angle": 270 },
   "accepting left": { "accepting by arrow": true, "tikzkit automata accepting angle": 180 },
   "accepting right": { "accepting by arrow": true, "tikzkit automata accepting angle": 0 },
+  "initial by diamond": { shape: "diamond" },
   "initial by arrow": { "tikzkit automata initial": true, "tikzkit automata initial angle": 180 },
   initial: { "initial by arrow": true },
   "initial above": { "initial by arrow": true, "tikzkit automata initial angle": 90 },
@@ -7969,24 +7970,74 @@ function nodeShape(options = {}) {
   if (shape === "tikzquads quad") return "tikzquadsQuad";
   if (shape === "tikzquads black box") return "tikzquadsBlackBox";
   if (shape === "tikzquads pg load line") return "tikzquadsPgLoadLine";
+  const explicitShape = explicitNodeShape(shape);
+  if (explicitShape) return explicitShape;
   if (options["rectangle split"]) return "rectangleSplit";
-  if (options["circle split"] || shape === "circle split") return "circleSplit";
-  if (options["single arrow"] || shape === "single arrow") return "singleArrow";
-  if (options["double arrow"] || shape === "double arrow") return "doubleArrow";
-  if (options["cross out"] || shape === "cross out") return "crossOut";
-  if (options["strike out"] || shape === "strike out") return "strikeOut";
-  if (options.circle || options["knot crossing"] || shape === "circle" || shape === "knot crossing") return "circle";
-  if (options["circle cross split"] || shape === "circle cross split") return "circleCrossSplit";
-  if (options.ellipse || shape === "ellipse") return "ellipse";
-  if (options.diamond || shape === "diamond") return "diamond";
-  if (options["rounded rectangle"] || shape === "rounded rectangle" || shape === "rectangle with rounded corners") return "roundedRectangle";
-  if (options.superellipse || shape === "superellipse") return "superellipse";
-  if (options["regular polygon"] || shape === "regular polygon") return "regularPolygon";
-  if (options.star || shape === "star") return "star";
-  if (options.trapezium || shape === "trapezium") return "trapezium";
-  if (options["isosceles triangle"] || shape === "isosceles triangle") return "isoscelesTriangle";
-  if (options.cloud || shape === "cloud") return "cloud";
+  if (options["circle split"]) return "circleSplit";
+  if (options["single arrow"]) return "singleArrow";
+  if (options["double arrow"]) return "doubleArrow";
+  if (options["cross out"]) return "crossOut";
+  if (options["strike out"]) return "strikeOut";
+  if (options.circle || options["knot crossing"]) return "circle";
+  if (options["circle cross split"]) return "circleCrossSplit";
+  if (options.ellipse) return "ellipse";
+  if (options.diamond) return "diamond";
+  if (options["rounded rectangle"]) return "roundedRectangle";
+  if (options.superellipse) return "superellipse";
+  if (options["regular polygon"]) return "regularPolygon";
+  if (options.star) return "star";
+  if (options.trapezium) return "trapezium";
+  if (options["isosceles triangle"]) return "isoscelesTriangle";
+  if (options.cloud) return "cloud";
   return "rectangle";
+}
+
+function explicitNodeShape(shape) {
+  const shapes = {
+    rectangle: "rectangle",
+    "rectangle split": "rectangleSplit",
+    "circle split": "circleSplit",
+    "single arrow": "singleArrow",
+    "double arrow": "doubleArrow",
+    "cross out": "crossOut",
+    "strike out": "strikeOut",
+    circle: "circle",
+    "knot crossing": "circle",
+    "circle cross split": "circleCrossSplit",
+    ellipse: "ellipse",
+    diamond: "diamond",
+    "rounded rectangle": "roundedRectangle",
+    "rectangle with rounded corners": "roundedRectangle",
+    superellipse: "superellipse",
+    "regular polygon": "regularPolygon",
+    star: "star",
+    trapezium: "trapezium",
+    "isosceles triangle": "isoscelesTriangle",
+    cloud: "cloud"
+  };
+  return shapes[shape] || null;
+}
+
+function diamondLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const rawAspect = evaluateMath(options.aspect ?? options["shape aspect"] ?? "1", env.variables);
+  const aspect = Number.isFinite(rawAspect) && rawAspect > 0 ? rawAspect : 1;
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const minimumWidth = Math.max(
+    minimumSize,
+    options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0
+  );
+  const minimumHeight = Math.max(
+    minimumSize,
+    options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
+  );
+  const halfContentWidth = Math.max(0, contentWidth) / 2;
+  const halfContentHeight = Math.max(0, contentHeight) / 2;
+  const halfWidth = Math.max(halfContentWidth + aspect * halfContentHeight, minimumWidth / 2);
+  const halfHeight = Math.max(halfContentWidth / aspect + halfContentHeight, minimumHeight / 2);
+  return {
+    width: roundNumber(halfWidth * 2),
+    height: roundNumber(halfHeight * 2)
+  };
 }
 
 function nodeShapeData(options = {}, env = {}) {
@@ -8722,7 +8773,7 @@ function nodeUsesBoxSizing(options = {}, env = { variables: {} }) {
 }
 
 function shouldFitTextToNodeBox(options = {}) {
-  return Boolean((options.circle || options.shape === "circle") && options["minimum size"]);
+  return Boolean(nodeShape(options) === "circle" && options["minimum size"]);
 }
 
 function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
@@ -8873,9 +8924,8 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     }, shapeScale);
   }
   const lines = textMetricLines(normalized);
-  const normalizedShape = normalizeShapeName(options.shape);
-  const isCircleShape = options.circle || options["knot crossing"] || normalizedShape === "circle" || normalizedShape === "knot crossing";
   const shape = nodeShape(options);
+  const isCircleShape = shape === "circle" || shape === "circleCrossSplit";
   const typewriter = nodeUsesTypewriterFont(normalized, options, env);
   const inlineMathLabelMetrics = Boolean(options["tikzkit inline math label metrics"]);
   const datavisLegendMathMetrics = Boolean(options["tikzkit datavis legend math metrics"]);
@@ -8912,7 +8962,10 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           widthFactor: datavisLegendMathMetrics ? 0.08 : 0.16,
           formulaWidthFactor: datavisLegendMathMetrics ? 0.08 : 0.17,
           formulaMinWidth: 0.08,
-          formulaMinHeight: 0.36,
+          // PGF's diamond shape uses the actual TeX height plus depth before
+          // adding its inner separation. The generic node floor is useful for
+          // labels, but makes short formulas such as $q_0$ grow the diamond.
+          formulaMinHeight: shape === "diamond" ? 0 : 0.36,
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
@@ -8931,7 +8984,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const isEmptyText = lines.every((line) => !line.trim());
   const isEmptyCircle = isCircleShape && isEmptyText;
-  const fixedCircleSize = fixedCircularMinimumSize(options, env);
+  const fixedCircleSize = isCircleShape ? fixedCircularMinimumSize(options, env) : null;
   const wholeMathLines =
     normalized.lines?.length &&
     normalized.lines.every((line) => Boolean(parseMathText(String(line || "").trim())));
@@ -8953,7 +9006,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   if (
     isEmptyText &&
     !isCircleShape &&
-    !["roundedRectangle", "rectangleSplit"].includes(emptyNodeShape) &&
+    !["roundedRectangle", "rectangleSplit", "diamond"].includes(emptyNodeShape) &&
     (options["minimum width"] || options["minimum height"] || options["minimum size"] || options["text width"] || options["text height"])
   ) {
     let emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
@@ -8981,7 +9034,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       : Math.max(0.22, textBox.width + innerXSep * 2));
   let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(0.35, textBox.height + innerYSep * 2));
   if (arrowNodeShape(shape)) return scaleSize(arrowNodeLayoutSize(width, height, options, env), shapeScale);
-  if (shape === "ellipse") {
+  if (shape === "diamond" && !options["bpmn gateway"]) {
+    ({ width, height } = diamondLayoutSize(width, height, options, env));
+  } else if (shape === "ellipse") {
     const minWidth = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : NaN;
     const minHeight = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : NaN;
     const minSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : NaN;
@@ -9016,19 +9071,10 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     width = diameter;
     height = diameter;
   }
-  if (options.diamond || options.shape === "diamond") {
-    if (options["bpmn gateway"]) {
-      const diameter = Math.max(width, height);
-      width = diameter;
-      height = diameter;
-    } else {
-      const contentWidth = width;
-      const contentHeight = height;
-      const rawAspect = evaluateMath(options.aspect ?? options["shape aspect"] ?? "1", env.variables);
-      const aspect = Number.isFinite(rawAspect) && rawAspect > 0 ? rawAspect : 1;
-      width = contentWidth + aspect * contentHeight;
-      height = contentWidth / aspect + contentHeight;
-    }
+  if (shape === "diamond" && options["bpmn gateway"]) {
+    const diameter = Math.max(width, height);
+    width = diameter;
+    height = diameter;
   }
   if (shape === "roundedRectangle") {
     if (isEmptyText && options["minimum width"]) {

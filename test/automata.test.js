@@ -6,6 +6,7 @@ import { tikzToSvg } from "../src/index.js";
 const FIXTURE = new URL("./fixtures/examples/automata/initial-accepting-states.tex", import.meta.url);
 const OUTPUT_FIXTURE = new URL("./fixtures/examples/automata/state-with-output.tex", import.meta.url);
 const ACCEPTING_FIXTURE = new URL("./fixtures/examples/automata/accepting-arrows.tex", import.meta.url);
+const DIAMOND_FIXTURE = new URL("./fixtures/examples/automata/initial-by-diamond.tex", import.meta.url);
 
 test("renders automata state, accepting double outline, and directional initial arrows", () => {
   const result = tikzToSvg(readFileSync(FIXTURE, "utf8"), { mathRenderer: "svg-text" });
@@ -76,4 +77,17 @@ test("renders directional automata accepting arrows with text and distance", () 
   assert.ok(byId.left.commands[1].x < byId.left.commands[0].x);
   assert.ok(byId.right.commands[1].x - byId.right.commands[0].x > 0.6);
   assert.ok(arrows.every((item) => item.style.markerEnd));
+});
+
+test("lets automata initial by diamond override the state circle", () => {
+  const result = tikzToSvg(readFileSync(DIAMOND_FIXTURE, "utf8"), { mathRenderer: "svg-text" });
+  const nodes = result.ir.items.filter((item) => item.type === "nodeBox");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(nodes.map((item) => item.shape), ["diamond", "diamond"]);
+  assert.equal(result.ir.items.filter((item) => item.subtype === "automata-initial").length, 0);
+  assert.ok(nodes[1].width > nodes[0].width);
+  assert.ok(nodes[0].width > 0.99 && nodes[0].width < 1.02, `unexpected natural diamond width: ${nodes[0].width}`);
+  assert.ok(nodes[1].width > 1.19 && nodes[1].width < 1.21, `unexpected minimum-size diamond width: ${nodes[1].width}`);
+  assert.match(result.svg, /<polygon points=/);
 });
