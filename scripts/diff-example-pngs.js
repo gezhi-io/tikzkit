@@ -412,7 +412,12 @@ function crc32(buffer) {
 }
 
 async function main() {
-  const summary = await compareExamplePngs(parseArgs(process.argv.slice(2)));
+  const argv = process.argv.slice(2);
+  if (argv.includes("--help") || argv.includes("-h")) {
+    process.stdout.write("Usage: node scripts/diff-example-pngs.js [--output <directory>]\n");
+    return;
+  }
+  const summary = await compareExamplePngs(parseArgs(argv));
   process.stdout.write(formatExampleDiffSummary(summary));
 }
 

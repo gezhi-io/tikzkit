@@ -42,31 +42,29 @@ It is designed for browser rendering of fenced TikZ code blocks, CLI conversion,
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
 
-## Install
+## Requirements And Quick Start
+
+Required for JavaScript rendering:
+
+- Node.js 20 or newer. The checked local environment uses Node.js 22.
+- npm, to install the repository dependencies.
+
+Optional, only for reference generation and visual QA:
+
+- local MacTeX, for native TikZ output;
+- local `tikztosvg`, for an independent SVG reference;
+- `rsvg-convert`, for PNG comparison sheets.
+
+Start from a clean checkout:
 
 ```bash
 npm install
-```
-
-Run the test suite:
-
-```bash
 npm test
-```
-
-Start the local browser workbench:
-
-```bash
 npm run web
 ```
 
-Open:
-
-```text
-http://127.0.0.1:5173/
-```
-
-To use another port, for example 5174:
+Open `http://127.0.0.1:5173/`. To run a second workbench without stopping the
+first one, choose another port:
 
 ```bash
 PORT=5174 npm run web
@@ -74,13 +72,38 @@ PORT=5174 npm run web
 
 Then open `http://127.0.0.1:5174/`.
 
+The browser renderer has no server-side TeX dependency. MacTeX and
+`tikztosvg` are used only to generate reference artifacts for comparison.
+
+### Render A Source File
+
+For a standalone `.tikz` snippet or `.tex` document, use the CLI:
+
+```bash
+node bin/tikz2svg.js examples/diagram.tex -o outputs/diagram.svg
+```
+
+Use `--strict` when a warning must fail the conversion, and `--svg-text-math`
+when the SVG must avoid `foreignObject` math output:
+
+```bash
+node bin/tikz2svg.js examples/diagram.tex -o outputs/diagram.svg --strict --svg-text-math
+```
+
+Run `node bin/tikz2svg.js --help` for the complete CLI options.
+
 ## Browser Workbench
 
-The workbench discovers the unified copied fixture catalog, including the
-selected 30-case visual acceptance batch. Choose a fixture, edit its TikZ
-source, click **Render**, and inspect the TikZKit SVG and diagnostics. Toggle
-the 1cm grid when comparing the browser result with the `tikztosvg` reference;
-the fixture selection is retained in the URL hash.
+The workbench discovers the unified fixture catalog, including the selected
+30-case visual acceptance batch. Choose a fixture, edit its TikZ source, click
+**Render**, and inspect the TikZKit SVG and diagnostics. Toggle the 1cm grid
+when comparing the browser result with the `tikztosvg` reference; the fixture
+selection is retained in the URL hash.
+
+For a new source, paste a complete `tikzpicture` or document source into the
+editor and render it locally. A successful SVG is not an acceptance signal on
+its own: inspect diagnostics and, for compatibility work, compare it with a
+native reference.
 
 `npm run web` serves the workbench's static assets, TikZKit source modules,
 fixture source, and pre-generated reference artifacts. It does not render
@@ -99,6 +122,27 @@ npm run examples:diff
 This requires the local reference tools used by the project, including
 `tikztosvg` and `rsvg-convert`. Generated output is test evidence and is
 ignored by Git.
+
+### Add A Focused Visual QA Case
+
+Put a reusable real-world source under `test/fixtures/examples/<topic>/`. Then
+render one fixture into a dedicated, ignored QA directory and generate its
+comparison sheet:
+
+```bash
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/examples \
+  --output outputs/qa-my-feature \
+  --only <fixture-id> \
+  --preserve-output
+
+node scripts/diff-example-pngs.js --output outputs/qa-my-feature
+```
+
+The output directory contains TikZKit SVG/PNG, tikztosvg SVG/PNG, optional
+1cm-grid variants, per-case diff PNGs, and an `index.html` comparison page.
+Use `node scripts/render-example-fixtures.js --help` and
+`node scripts/diff-example-pngs.js --help` to inspect the supported switches.
 
 ## Browser and Markdown Usage
 
@@ -128,21 +172,9 @@ or:
 
 The page defaults to rendered results and includes per-case tabs for JS rendering, native rendering, diff, source, and analysis when gallery reports exist.
 
-## CLI Usage
-
-From this repository checkout, convert a `.tikz` or `.tex` file to SVG:
-
-```bash
-node bin/tikz2svg.js input.tikz -o output.svg
-```
-
-Strict mode treats warnings as blocking:
-
-```bash
-node bin/tikz2svg.js input.tex -o output.svg --strict
-```
-
-If no output path is provided, the CLI writes `<input-name>.svg`.
+If no CLI output path is provided, TikZKit writes `<input-name>.svg` next to
+the input. `--strict` makes any warning a non-zero exit, which is useful in
+automated checks.
 
 ## Library Usage
 
@@ -247,20 +279,32 @@ Unsupported or partially supported syntax should produce diagnostics instead of 
 
 ## TikZ Library Registry
 
-`\usetikzlibrary{...}` declarations are parsed separately from source-rewriting extensions. The registry lives in:
+`\usetikzlibrary{...}` declarations are parsed separately from source-rewriting extensions. The per-library metadata lives in:
 
 ```text
-src/tikz-libraries.js
+src/tikz/libraries/
 ```
 
 `parseTikz(source)` records the resolved library list on both `ast.libraries` and each `tikzpicture.libraries`, while the preprocessor removes the raw declaration before statement parsing. This keeps the LaTeX preamble readable to TikZKit without turning `\usetikzlibrary` into a drawing command.
 
 Current core examples:
 
-- `positioning`: implemented by `src/interpreter.js:resolvePositioning`; supports `node distance=<vertical> and <horizontal>`, `right=of`, `below=of`, and edge-to-edge placement from node bounds.
-- `matrix`: implemented by `src/parser.js:parseMatrix` and `src/interpreter.js:createMatrix`; supports `matrix of nodes`, `row sep`, `column sep`, `nodes={...}`, `nodes in empty cells`, and `m-row-column` cell anchors.
+- `positioning`: supports `node distance=<vertical> and <horizontal>`, `right=of`, `below=of`, and edge-to-edge placement from node bounds.
+- `matrix`: supports `matrix of nodes`, `row sep`, `column sep`, `nodes={...}`, `nodes in empty cells`, and `m-row-column` cell anchors.
+- `automata`: supports state circles, split output states, accepting/initial arrows, and `initial by diamond` when the source also loads `shapes.geometric`.
 
-When adding a built-in TikZ library, add its metadata to `src/tikz-libraries.js`, then implement the actual semantics in the parser/interpreter/renderer layer that owns the behavior. When adding a package-style compatibility layer that rewrites custom commands into ordinary TikZ, use an extension under `src/extensions/`.
+The per-library metadata lives in `src/tikz/libraries/`; the generated
+compatibility table is `docs/extension-registry.md`. Regenerate it after a
+library change:
+
+```bash
+npm run extension-registry
+```
+
+When adding a built-in TikZ library, update its file in `src/tikz/libraries/`,
+then implement the semantics in the parser, engine, or renderer layer that owns
+the behavior. For a package-style compatibility layer that rewrites custom
+commands into ordinary TikZ, use an extension under `src/extensions/`.
 
 ## Real Gallery Validation
 

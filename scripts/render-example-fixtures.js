@@ -917,8 +917,32 @@ export function parseExampleRenderArgs(argv = process.argv.slice(2)) {
 }
 
 async function main() {
-  const summary = await renderExampleFixtures(parseExampleRenderArgs());
+  const argv = process.argv.slice(2);
+  if (argv.includes("--help") || argv.includes("-h")) {
+    process.stdout.write(exampleRenderUsage());
+    return;
+  }
+  const summary = await renderExampleFixtures(parseExampleRenderArgs(argv));
   process.stdout.write(formatExampleRenderSummary(summary));
+}
+
+function exampleRenderUsage() {
+  return [
+    "Usage: node scripts/render-example-fixtures.js [options]",
+    "",
+    "Options:",
+    "  --fixtures <directory>          Fixture root (default: test/fixtures/examples)",
+    "  --output <directory>            Artifact output root",
+    "  --only <fixture-id>             Render one fixture; may be repeated",
+    "  --limit <count>                 Render only the first count fixtures",
+    "  --preserve-output               Keep existing output-root artifacts",
+    "  --skip-tikztosvg                Do not invoke the local tikztosvg reference",
+    "  --skip-png                      Keep SVG artifacts only",
+    "  --strict-tikztosvg              Fail when tikztosvg cannot render a case",
+    "  --tikztosvg-engine <engine>     TeX engine for tikztosvg (default: xelatex)",
+    "  --no-comparison-grid            Do not add the 1cm comparison grid",
+    "  --math-renderer <renderer>      TikZKit math renderer, such as svg-text"
+  ].join("\n") + "\n";
 }
 
 export function formatExampleRenderSummary(summary) {

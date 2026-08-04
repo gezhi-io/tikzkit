@@ -897,10 +897,11 @@ function escapeRegExp(value) {
 }
 
 function parseCliArgs(argv) {
-  const args = { sourcePath: null, reviewPath: null, outputPath: null, initReviewPath: null, json: false, strict: false };
+  const args = { sourcePath: null, reviewPath: null, outputPath: null, initReviewPath: null, json: false, strict: false, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--review") args.reviewPath = argv[++index];
+    if (arg === "--help" || arg === "-h") args.help = true;
+    else if (arg === "--review") args.reviewPath = argv[++index];
     else if (arg === "--output") args.outputPath = argv[++index];
     else if (arg === "--init-review") args.initReviewPath = argv[++index];
     else if (arg === "--json") args.json = true;
@@ -944,6 +945,10 @@ export function createReviewTemplate(report) {
 
 function main() {
   const args = parseCliArgs(process.argv.slice(2));
+  if (args.help) {
+    process.stdout.write("Usage: npm run case:audit -- <case.tex> [--review review.json] [--init-review review.json] [--output audit.md] [--json] [--strict]\n");
+    return;
+  }
   if (!args.sourcePath) {
     console.error("Usage: npm run case:audit -- <case.tex> [--review review.json] [--init-review review.json] [--output audit.md] [--json] [--strict]");
     process.exitCode = 2;
