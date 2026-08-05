@@ -17,9 +17,12 @@ const IMPLEMENTED_COMMANDS = [
   "tkzDefTangent",
   "tkzInterLL",
   "tkzInterLC",
+  "tkzInterCC",
   "tkzGetLength",
   "tkzGetPoint",
   "tkzGetPoints",
+  "tkzGetFirstPoint",
+  "tkzGetSecondPoint",
   "tkzDrawPoint",
   "tkzDrawPoints",
   "tkzDrawLine",
@@ -179,9 +182,13 @@ function expandCommand(source, name, afterName, state, diagnostics) {
   if (name === "tkzTangent" || name === "tkzDefTangent") return expandTangent(source, afterName, state, diagnostics);
   if (name === "tkzInterLL") return expandInterLL(source, afterName, state, diagnostics);
   if (name === "tkzInterLC") return expandInterLC(source, afterName, state, diagnostics);
+  if (name === "tkzInterCC") return expandInterCC(source, afterName, state, diagnostics);
   if (name === "tkzGetLength") return expandGetLength(source, afterName, state, diagnostics);
   if (name === "tkzGetPoint") return expandGetPoint(source, afterName, state, diagnostics);
   if (name === "tkzGetPoints") return expandGetPoints(source, afterName, state, diagnostics);
+  if (name === "tkzGetFirstPoint" || name === "tkzGetSecondPoint") {
+    return expandGetResultPoint(source, afterName, state, diagnostics, name === "tkzGetFirstPoint" ? 0 : 1);
+  }
   if (name === "tkzDrawPoint" || name === "tkzDrawPoints") {
     return expandDrawPoints(source, afterName, state, diagnostics, name === "tkzDrawPoint");
   }
@@ -804,6 +811,51 @@ function expandInterLC(source, afterName, state, diagnostics) {
   };
 }
 
+function expandInterCC(source, afterName, state, diagnostics) {
+  const optional = parseOptionalArg(source, afterName);
+  const firstCircle = parseParenthesizedArg(source, optional.end);
+  const secondCircle = firstCircle && parseParenthesizedArg(source, firstCircle.end);
+  state.pointResult = null;
+  state.pointResults = [];
+  if (!firstCircle || !secondCircle) return malformed(diagnostics, "tkzInterCC");
+
+  const options = parseOptions(optional.content);
+  if (Object.hasOwn(options, "with nodes")) {
+    warnOnce(
+      state,
+      diagnostics,
+      "tkzInterCC-with-nodes",
+      "tkz-euclide compatibility currently supports tkzInterCC center-point and [R] radius forms, not [with nodes]"
+    );
+    return { text: "", end: secondCircle.end };
+  }
+
+  const first = resolveCircleCircleInput(firstCircle.content, Object.hasOwn(options, "R"), state);
+  const second = resolveCircleCircleInput(secondCircle.content, Object.hasOwn(options, "R"), state);
+  if (!first || !second) {
+    warn(diagnostics, `Could not resolve tkzInterCC inputs (${firstCircle.content})(${secondCircle.content})`);
+    return { text: "", end: secondCircle.end };
+  }
+
+  let intersections = circleCircleIntersections(first.center, first.radius, second.center, second.radius);
+  if (!intersections) {
+    warn(diagnostics, `tkzInterCC has no real intersection: (${firstCircle.content}) and (${secondCircle.content})`);
+    return { text: "", end: secondCircle.end };
+  }
+
+  intersections = orderCircleCircleIntersections(intersections, first.center, second.center, options, state);
+  state.pointResults = intersections;
+  state.points.set("tkzFirstPointResult", intersections[0]);
+  state.points.set("tkzSecondPointResult", intersections[1]);
+  return {
+    text: [
+      `\\coordinate (tkzFirstPointResult) at (${formatNumber(intersections[0].x)},${formatNumber(intersections[0].y)});`,
+      `\\coordinate (tkzSecondPointResult) at (${formatNumber(intersections[1].x)},${formatNumber(intersections[1].y)});`
+    ].join("\n"),
+    end: secondCircle.end
+  };
+}
+
 function expandGetLength(source, afterName, state, diagnostics) {
   const name = parseRequiredArg(source, afterName);
   if (!name) return malformed(diagnostics, "tkzGetLength");
@@ -855,6 +907,22 @@ function expandGetPoints(source, afterName, state, diagnostics) {
       `\\coordinate (${second}) at (${formatNumber(secondPoint.x)},${formatNumber(secondPoint.y)});`
     ].join("\n"),
     end: secondName.end
+  };
+}
+
+function expandGetResultPoint(source, afterName, state, diagnostics, resultIndex) {
+  const name = parseRequiredArg(source, afterName);
+  if (!name) return malformed(diagnostics, resultIndex === 0 ? "tkzGetFirstPoint" : "tkzGetSecondPoint");
+  const pointName = name.content.trim();
+  const point = state.pointResults[resultIndex];
+  if (!pointName || !point) {
+    warn(diagnostics, `${resultIndex === 0 ? "tkzGetFirstPoint" : "tkzGetSecondPoint"} could not resolve ${pointName || "an unnamed point"}`);
+    return { text: "", end: name.end };
+  }
+  state.points.set(pointName, point);
+  return {
+    text: `\\coordinate (${pointName}) at (${formatNumber(point.x)},${formatNumber(point.y)});`,
+    end: name.end
   };
 }
 
@@ -2019,6 +2087,65 @@ function lineCircleIntersections(first, second, center, radius) {
       y: roundNumber(first.y + (projection + offset) * dy, 10)
     }
   ];
+}
+
+function resolveCircleCircleInput(content, explicitRadius, state) {
+  const parts = splitTopLevel(content, ",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length !== 2) return null;
+  const center = state.points.get(parts[0]);
+  if (!center) return null;
+  const radius = explicitRadius
+    ? dimensionToCentimeters(resolveNumericMacros(parts[1], state))
+    : distanceBetween(center, state.points.get(parts[1]) || {});
+  return Number.isFinite(radius) && radius > 1e-12 ? { center, radius } : null;
+}
+
+function circleCircleIntersections(firstCenter, firstRadius, secondCenter, secondRadius) {
+  const deltaX = secondCenter.x - firstCenter.x;
+  const deltaY = secondCenter.y - firstCenter.y;
+  const distance = Math.hypot(deltaX, deltaY);
+  if (distance < 1e-12 || distance > firstRadius + secondRadius + 1e-10 || distance < Math.abs(firstRadius - secondRadius) - 1e-10) {
+    return null;
+  }
+
+  const along = (firstRadius ** 2 - secondRadius ** 2 + distance ** 2) / (2 * distance);
+  const heightSquared = firstRadius ** 2 - along ** 2;
+  if (heightSquared < -1e-10) return null;
+  const height = Math.sqrt(Math.max(0, heightSquared));
+  const base = {
+    x: firstCenter.x + (along * deltaX) / distance,
+    y: firstCenter.y + (along * deltaY) / distance
+  };
+
+  // tkzInterCCR's raw order is the positive perpendicular of the center
+  // vector, then its mirror. Its wrapper may swap the pair by directed angle.
+  return [
+    {
+      x: roundNumber(base.x - (height * deltaY) / distance, 10),
+      y: roundNumber(base.y + (height * deltaX) / distance, 10)
+    },
+    {
+      x: roundNumber(base.x + (height * deltaY) / distance, 10),
+      y: roundNumber(base.y - (height * deltaX) / distance, 10)
+    }
+  ];
+}
+
+function orderCircleCircleIntersections(intersections, firstCenter, secondCenter, options, state) {
+  let [first, second] = intersections;
+  const commonName = typeof options.common === "string" ? options.common.trim() : "";
+  const common = commonName && state.points.get(commonName);
+  if (common) {
+    // TeX keeps the common point as tkzSecondPointResult and assigns the
+    // non-common contact to tkzFirstPointResult.
+    if (distanceBetween(common, second) > distanceBetween(common, first)) [first, second] = [second, first];
+    return [first, second];
+  }
+
+  const firstAngle = angleOfPoint(first, firstCenter);
+  const secondAngle = angleOfPoint(first, secondCenter);
+  if (normalizedPositiveAngle(secondAngle - firstAngle) >= 180 - 1e-10) [first, second] = [second, first];
+  return [first, second];
 }
 
 function orderLineCircleIntersections(intersections, lineStart, center, options, state) {

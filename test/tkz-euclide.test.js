@@ -21,7 +21,7 @@ function structuralPaths(result) {
 test("exposes tkz-euclide as a built-in preprocess extension", () => {
   assert.equal(tkzEuclideExtension.name, "tkz-euclide");
   assert.equal(tkzEuclideExtension.phase, "preprocess");
-  for (const command of ["tkzSetUpLabel", "tkzSetUpStyle", "tkzDefPoints", "tkzDefMidPoint", "tkzDefBarycentricPoint", "tkzDefCircle", "tkzInterLL", "tkzInterLC", "tkzGetLength", "tkzDrawSegments", "tkzDrawPolygon", "tkzDrawCircle", "tkzClipCircle", "tkzDrawArc", "tkzDrawSector", "tkzMarkSegment", "tkzMarkSegments", "tkzMarkAngle", "tkzMarkAngles", "tkzMarkRightAngle", "tkzMarkRightAngles", "tkzFillAngle", "tkzFillAngles", "tkzLabelAngle", "tkzLabelPoint", "tkzLabelPoints", "tkzLabelSegment", "tkzLabelSegments"]) {
+  for (const command of ["tkzSetUpLabel", "tkzSetUpStyle", "tkzDefPoints", "tkzDefMidPoint", "tkzDefBarycentricPoint", "tkzDefCircle", "tkzInterLL", "tkzInterLC", "tkzInterCC", "tkzGetLength", "tkzGetFirstPoint", "tkzGetSecondPoint", "tkzDrawSegments", "tkzDrawPolygon", "tkzDrawCircle", "tkzClipCircle", "tkzDrawArc", "tkzDrawSector", "tkzMarkSegment", "tkzMarkSegments", "tkzMarkAngle", "tkzMarkAngles", "tkzMarkRightAngle", "tkzMarkRightAngles", "tkzFillAngle", "tkzFillAngles", "tkzLabelAngle", "tkzLabelPoint", "tkzLabelPoints", "tkzLabelSegment", "tkzLabelSegments"]) {
     assert.ok(tkzEuclideExtension.commands.includes(command));
   }
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-euclide}`)[0];
@@ -31,6 +31,39 @@ test("exposes tkz-euclide as a built-in preprocess extension", () => {
   assert.match(pkg.implementedBy, /src\/engine\/evaluate\.js:buildArc/);
   assert.match(pkg.localSourceReviewed, /tkz-lib-eu-marks\.tex/);
   assert.match(pkg.localSourceReviewed, /tkz-obj-eu-points-spc\.tex/);
+});
+
+test("constructs tkz-euclide circle-circle intersections with native result order and point handoff", () => {
+  const source = String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/A,5/0/B,4/0/Ra,8/0/Rb}
+  \tkzInterCC[R](A,4cm)(B,3cm)\tkzGetPoints{C}{D}
+  \tkzInterCC(A,Ra)(B,Rb)\tkzGetFirstPoint{Upper}\tkzGetSecondPoint{Lower}
+  \tkzDrawPolygon(A,B,C)
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(result.ir.coordinates.C, { x: 3.2, y: 2.4 });
+  assert.deepEqual(result.ir.coordinates.D, { x: 3.2, y: -2.4 });
+  assert.deepEqual(result.ir.coordinates.Upper, { x: 3.2, y: 2.4 });
+  assert.deepEqual(result.ir.coordinates.Lower, { x: 3.2, y: -2.4 });
+  assert.equal(structuralPaths(result).length, 1);
+});
+
+test("keeps a tkzInterCC common point as the native second result", () => {
+  const source = String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/A,4/0/B,2/3.464101615/C}
+  \tkzInterCC[common=C](A,B)(B,A)\tkzGetPoints{Other}{Common}
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(result.ir.coordinates.Other, { x: 2, y: -3.4641016151 });
+  assert.deepEqual(result.ir.coordinates.Common, { x: 2, y: 3.4641016151 });
 });
 
 test("constructs named tkz-euclide midpoints from the centers of two points", () => {

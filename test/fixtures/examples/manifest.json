@@ -50,6 +50,21 @@
       ]
     },
     {
+      "id": "tkz-euclide-pythagoras",
+      "title": "tkz-euclide Pythagoras triangle from two circle intersections",
+      "source": "tkz-euclide/pythagoras.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/pythagoras",
+      "externalSource": "tex/latex/tkz-euclide/tkz-tools-eu-intersections.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandInterCC",
+      "features": [
+        "tkzInterCC[R]",
+        "tkzGetPoints",
+        "circle-circle result order",
+        "tkzDrawPolygon",
+        "tkzMarkAngle"
+      ]
+    },
+    {
       "id": "arrows-declared-leaf-tip",
       "title": "PGF manual declared leaf arrow tip",
       "source": "arrows/declared-leaf-tip.tex",
