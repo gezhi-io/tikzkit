@@ -73,11 +73,10 @@ Optional, only for reference generation and visual QA:
 - local `tikztosvg`, for an independent SVG reference;
 - `rsvg-convert`, for PNG comparison sheets.
 
-Start from a clean checkout:
+Start the browser workbench from a clean checkout:
 
 ```bash
 npm install
-npm test
 npm run web
 ```
 
@@ -92,6 +91,57 @@ Then open `http://127.0.0.1:5174/`.
 
 The browser renderer has no server-side TeX dependency. MacTeX and
 `tikztosvg` are used only to generate reference artifacts for comparison.
+
+### Test Status And Focused Checks
+
+`npm test` runs the entire experimental suite. It is useful for exposing the
+current compatibility baseline, but it is **not currently a green release
+gate**: the 2026-08-05 baseline has 1557 passing tests, 90 known failures, and
+14 skipped optional-corpus tests. Do not report the project as fully tested
+from that command alone.
+
+For a focused renderer change, run the narrow test file that owns the feature,
+then regenerate and inspect a real visual case. For example, a multipart-node
+change should run its split-node tests before the case comparison:
+
+```bash
+node --test test/interpreter.test.js test/shapes-multipart-vertical.test.js
+```
+
+Regenerate the extension registry after a package or library implementation
+change:
+
+```bash
+npm run extension-registry
+```
+
+## Visual Compatibility Contract
+
+TikZKit is developed as an interpreter, not by matching isolated PNG pixels.
+Every accepted compatibility change must have a narrow feature boundary and a
+real source case. The expected loop is:
+
+1. Inspect the exact TikZ source and its semantic inventory. Account for every
+   package, library, command, environment, style, parameter, macro, and numeric
+   expression used by the selected case.
+2. Read the corresponding local MacTeX/TeX Live implementation or manual
+   before changing TikZKit semantics.
+3. Generate the same source through MacTeX, `tikztosvg`, and TikZKit. Keep the
+   SVG, PNG, and comparison sheet together in one ignored `outputs/qa-*`
+   directory.
+4. Inspect the visible panels for missing objects, coordinate drift, bounding
+   boxes, fonts, labels, arrows, clipping, colors, layer order, and line
+   weights. Pixel statistics are only triage data.
+5. Add a shared regression test, make the smallest semantic/renderer change,
+   regenerate the artifacts, and confirm a visible improvement without new
+   diagnostics.
+6. Record the source review, artifacts, supported subset, and remaining limits
+   in `docs/extension-registry.csv` and a focused file under `docs/qa/`.
+
+A source that merely produces SVG is not accepted as compatible. A case can be
+called visually aligned only after the three-way inspection confirms that its
+remaining difference is rasterization rather than missing or displaced TikZ
+semantics.
 
 ### Render A Source File
 
