@@ -199,6 +199,34 @@ Keep the resulting `mactex-png/`, `tikzkit-svg/`, `tikzkit-png/`,
 `tikztosvg-svg/`, `tikztosvg-png/`, and `diff/` directories together. They are
 the minimum evidence bundle for a visual compatibility change.
 
+### Verification And Commit Gate
+
+Run the complete automated suite before calling a renderer change accepted:
+
+```bash
+npm test
+```
+
+For a focused compatibility change, also run its narrow regression test and
+rebuild the actual fixture artifacts. A green focused test is useful while
+iterating, but does not replace the full suite or visual review:
+
+```bash
+node --test test/<feature>.test.js
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/examples \
+  --output outputs/qa-<feature> \
+  --only <fixture-id> \
+  --preserve-output
+node scripts/diff-example-pngs.js --output outputs/qa-<feature>
+```
+
+Only commit a compatibility slice after its fixture has been inspected against
+both local MacTeX and `tikztosvg`, its diagnostics have not increased, and its
+relevant tests pass. Keep separate parser, renderer, package, and library
+experiments in separate commits; do not use a broad work-in-progress diff as a
+release checkpoint.
+
 ## Browser and Markdown Usage
 
 TikZKit also renders Markdown-like TikZ code blocks. Both backtick fences and
