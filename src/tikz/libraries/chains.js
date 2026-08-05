@@ -6,8 +6,8 @@ export const tikzLibrary = {
   ],
   "features": [
     "start chain=<name> going <direction>",
-    "continue chain=<name> going <direction> in scopes",
-    "on chain=<name>",
+    "start/continue chain=<name> placed <positioning> in scopes or nodes",
+    "on chain=<name> with per-node going/placed override",
     "chain-begin, chain-end, and chain-<n> aliases",
     "join=by and join=with <node> by <style>"
   ],
@@ -18,5 +18,5 @@ export const tikzLibrary = {
     "join"
   ],
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarychains.code.tex",
-  "notes": "Does not yet implement placed-chain directions, start/continue branch, or \\chainin."
+  "notes": "Supports native going and placed chain positioning, including a per-node placed override that leaves the stored chain placement unchanged. start/continue branch and \\chainin remain partial."
 };

@@ -3113,6 +3113,61 @@ test("keeps multiple named chains and exposes begin/end aliases across continue-
   assert.equal(paths.length, 2);
 });
 
+test("places chains with the local placed positioning syntax without changing the stored direction", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=7mm, start chain=flow placed below]
+  \node[draw,on chain={flow placed {at={(0,0)}}}] (a) {A};
+  \node[draw,on chain] (b) {B};
+  \node[draw,on chain=flow placed right] (c) {C};
+  \node[draw,on chain] (d) {D};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates.b.y < ir.coordinates.a.y, `expected placed below to lower B, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.c.x > ir.coordinates.b.x, `expected local placed right to move C right, got ${JSON.stringify(ir.coordinates)}`);
+  assert.equal(ir.coordinates.c.y, ir.coordinates.b.y);
+  assert.equal(ir.coordinates.d.x, ir.coordinates.c.x);
+  assert.ok(ir.coordinates.d.y < ir.coordinates.c.y, `expected default placed below to resume for D, got ${JSON.stringify(ir.coordinates)}`);
+});
+
+test("continues a placed chain with a new stored placement inside a scope", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=7mm, start chain=flow placed below]
+  \node[draw,on chain={flow placed {at={(0,0)}}}] (a) {A};
+  \node[draw,on chain] (b) {B};
+  \begin{scope}[continue chain=flow placed right]
+    \node[draw,on chain] (c) {C};
+    \node[draw,on chain] (d) {D};
+  \end{scope}
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates.b.y < ir.coordinates.a.y, `expected initial placed below chain, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.c.x > ir.coordinates.b.x, `expected continued placed right chain, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.d.x > ir.coordinates.c.x, `expected stored placed right chain to continue, got ${JSON.stringify(ir.coordinates)}`);
+  assert.equal(ir.coordinates.d.y, ir.coordinates.c.y);
+});
+
+test("changes placed chain placement from the documented node option", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=7mm, start chain=flow placed below]
+  \node[draw,on chain={flow placed {at={(0,0)}}}] (a) {A};
+  \node[draw,continue chain=flow placed right,on chain] (b) {B};
+  \node[draw,on chain] (c) {C};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.coordinates.b.x > ir.coordinates.a.x, `expected node continue option to place B right of A, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.c.x > ir.coordinates.b.x, `expected stored placed right to continue for C, got ${JSON.stringify(ir.coordinates)}`);
+  assert.equal(ir.coordinates.c.y, ir.coordinates.b.y);
+});
+
 test("supports diamond node shape and compass anchors", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -3759,6 +3759,21 @@
         "samples",
         "no marks"
       ]
+    },
+    {
+      "id": "chains-placed-chain-layout",
+      "title": "TikZ chains placed positioning layout",
+      "source": "chains/placed-chain-layout.tex",
+      "sourceCorpus": "TeX Live TikZ chains library",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarychains.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:resolveChainPosition",
+      "features": [
+        "start chain placed below",
+        "on chain placed right",
+        "node distance",
+        "chain aliases",
+        "positioning node borders"
+      ]
     }
   ]
 }

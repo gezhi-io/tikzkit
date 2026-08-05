@@ -4837,6 +4837,7 @@ function hasExplicitTextColor(options = {}) {
 function createNode(statement, env, ir, diagnostics) {
   const statementOptions = resolveDynamicOptions(statement.options || {}, env);
   const localOptions = normalizeOptions("node", statementOptions, env).options;
+  applyChainControlOptions(localOptions, env, diagnostics);
   let expandedOptions = normalizeOptions("node", {
     ...inheritedNodeOptions(env),
     ...statementOptions
@@ -8186,7 +8187,7 @@ function initialChains(pictureOptions = {}) {
   for (const spec of chainOptionValues(pictureOptions["start chain"])) {
     const parsed = parseStartChainSpec(spec);
     if (!parsed || chains[parsed.name]) continue;
-    chains[parsed.name] = { direction: parsed.direction, last: null, count: 0 };
+    chains[parsed.name] = { placement: chainPlacementFromParsed(parsed), last: null, count: 0 };
   }
   return chains;
 }
@@ -8210,7 +8211,7 @@ function applyChainControlOptions(options = {}, env, diagnostics = []) {
       continue;
     }
     env.chains ||= {};
-    env.chains[parsed.name] = { direction: parsed.direction, last: null, count: 0 };
+    env.chains[parsed.name] = { placement: chainPlacementFromParsed(parsed), last: null, count: 0 };
     env.activeChain = parsed.name;
   }
   for (const spec of chainOptionValues(options["continue chain"])) {
@@ -8221,31 +8222,63 @@ function applyChainControlOptions(options = {}, env, diagnostics = []) {
       continue;
     }
     env.activeChain = name;
-    if (parsed?.hasExplicitDirection) env.chains[name].direction = parsed.direction;
+    if (parsed?.hasExplicitDirection) env.chains[name].placement = chainPlacementFromParsed(parsed);
   }
 }
 
 function parseStartChainSpec(value) {
   if (value === undefined || value === null || value === false) return null;
   const text = String(value === true ? "" : value).trim();
-  if (!text) return { name: "chain", direction: "right", hasExplicitDirection: false };
-  const match = text.match(/^(?:(.+?)\s+)?going\s+(.+)$/);
+  if (!text) {
+    return {
+      name: "chain",
+      placementKind: "going",
+      placementValue: "right",
+      hasExplicitDirection: false
+    };
+  }
+  const match = text.match(/^(?:(.+?)\s+)?(going|placed)\s+(.+)$/i);
   if (match) {
+    const placementKind = match[2].toLowerCase();
     return {
       name: normalizeChainName(match[1] || "chain"),
-      direction: normalizeChainDirection(match[2]),
+      placementKind,
+      placementValue: placementKind === "going" ? normalizeChainDirection(match[3]) : match[3].trim(),
       hasExplicitDirection: true
     };
   }
-  return { name: normalizeChainName(text), direction: "right", hasExplicitDirection: false };
+  return {
+    name: normalizeChainName(text),
+    placementKind: "going",
+    placementValue: "right",
+    hasExplicitDirection: false
+  };
 }
 
-function chainNameFromOptions(options = {}, env = {}) {
+function chainPlacementFromParsed(parsed = {}) {
+  return {
+    kind: parsed.placementKind === "placed" ? "placed" : "going",
+    value: parsed.placementValue || "right"
+  };
+}
+
+function chainSpecFromOptions(options = {}, env = {}) {
   if (!Object.hasOwn(options, "on chain")) return null;
   const value = options["on chain"];
   if (value === false || value === null) return null;
-  if (value === true || value === "") return env.activeChain || "default";
-  return normalizeChainName(value);
+  if (value === true || value === "") {
+    return {
+      name: env.activeChain || "default",
+      placementKind: "going",
+      placementValue: "right",
+      hasExplicitDirection: false
+    };
+  }
+  return parseStartChainSpec(value);
+}
+
+function chainNameFromOptions(options = {}, env = {}) {
+  return chainSpecFromOptions(options, env)?.name || null;
 }
 
 function normalizeChainName(value) {
@@ -8258,23 +8291,44 @@ function normalizeChainDirection(value) {
 
 function ensureChain(name, env) {
   env.chains ||= {};
-  if (!env.chains[name]) env.chains[name] = { direction: "right", last: null, count: 0 };
+  if (!env.chains[name]) env.chains[name] = { placement: { kind: "going", value: "right" }, last: null, count: 0 };
   if (!Number.isFinite(Number(env.chains[name].count))) env.chains[name].count = 0;
+  if (!env.chains[name].placement) env.chains[name].placement = { kind: "going", value: "right" };
   env.activeChain ||= name;
   return env.chains[name];
 }
 
 function resolveChainPosition(options = {}, env, selfSize = { width: 0, height: 0 }) {
-  const name = chainNameFromOptions(options, env);
-  if (!name) return null;
-  const chain = ensureChain(name, env);
+  const spec = chainSpecFromOptions(options, env);
+  if (!spec) return null;
+  const chain = ensureChain(spec.name, env);
+  const placement = spec.hasExplicitDirection ? chainPlacementFromParsed(spec) : chain.placement;
+  if (placement?.kind === "placed") {
+    return resolvePlacedChainPosition(placement.value, chain, env, selfSize);
+  }
   if (!chain.last) return applyTransform({ x: 0, y: 0 }, env.transform);
   const distance = scalePositioningLibraryDistance(positioningLibraryDefaultDistance(env), env, positioningLibraryHelpers());
-  const direction = chain.direction || "right";
+  const direction = placement?.value || "right";
   return roundPoint({
     x: chain.last.point.x + positioningLibraryDelta(direction, "x", distance, chain.last, selfSize),
     y: chain.last.point.y + positioningLibraryDelta(direction, "y", distance, chain.last, selfSize)
   });
+}
+
+function resolvePlacedChainPosition(value, chain, env, selfSize) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  if (!raw.includes("=")) {
+    if (!chain.last?.name) return null;
+    const direction = normalizeChainDirection(raw);
+    return resolvePositioning({ [direction]: `of ${chain.last.name}` }, env, selfSize);
+  }
+  const expanded = raw.replace(/\\tikzchainprevious\b/g, chain.last?.name || "");
+  const placementOptions = parseOptions(stripOuterBraces(expanded));
+  if (placementOptions.at !== undefined) {
+    return resolveCoordinate(placementOptions.at, env);
+  }
+  return resolvePositioning(placementOptions, env, selfSize);
 }
 
 function updateChainState(options = {}, env, point, size = { width: 0, height: 0 }, node = {}) {
