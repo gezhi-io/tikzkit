@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { deflateSync } from "node:zlib";
-import { compareDecodedPngs, compareExamplePngs, decodePng, formatExampleDiffSummary } from "../scripts/diff-example-pngs.js";
+import { compareDecodedPngs, compareExamplePngs, decodePng, findBestPixelAlignment, formatExampleDiffSummary } from "../scripts/diff-example-pngs.js";
 
 test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifacts", async () => {
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-example-diff-"));
@@ -161,12 +161,47 @@ test("example PNG diff treats antialias noise as visually same", () => {
   assert.ok(comparison.changedRatio < 0.005);
 });
 
+test("registered comparison reports a small uniform raster shift without overwriting raw diff data", () => {
+  const actual = solidImage(7, 5, [255, 255, 255, 255]);
+  const expected = solidImage(7, 5, [255, 255, 255, 255]);
+  setPixel(actual, 7, 2, 2, [0, 0, 0, 255]);
+  setPixel(expected, 7, 3, 2, [0, 0, 0, 255]);
+
+  const raw = compareDecodedPngs(actual, expected);
+  const registered = findBestPixelAlignment(actual, expected, { radius: 2, sampleStep: 1 });
+
+  assert.equal(raw.changedPixels, 2);
+  assert.equal(registered.offsetX, 1);
+  assert.equal(registered.offsetY, 0);
+  assert.equal(registered.changedPixels, 0);
+  assert.equal(registered.status, "same");
+});
+
+test("registered comparison retains the raw position when a sampled shift worsens a full diff metric", () => {
+  const actual = solidImage(7, 5, [255, 255, 255, 255]);
+  const expected = solidImage(7, 5, [255, 255, 255, 255]);
+  setPixel(actual, 7, 0, 0, [0, 0, 0, 255]);
+  setPixel(expected, 7, 0, 0, [0, 0, 0, 255]);
+  setPixel(actual, 7, 2, 2, [0, 0, 0, 255]);
+  setPixel(expected, 7, 3, 2, [0, 0, 0, 255]);
+
+  const raw = compareDecodedPngs(actual, expected);
+  const registered = findBestPixelAlignment(actual, expected, { radius: 2, sampleStep: 1 });
+
+  assert.ok(registered.meanAbsoluteRGBA <= raw.meanAbsoluteRGBA);
+  assert.ok(registered.changedRatio <= raw.changedRatio);
+});
+
 function solidImage(width, height, pixel) {
   const data = Buffer.alloc(width * height * 4);
   for (let index = 0; index < width * height; index += 1) {
     Buffer.from(pixel).copy(data, index * 4);
   }
   return { width, height, data };
+}
+
+function setPixel(image, width, x, y, pixel) {
+  Buffer.from(pixel).copy(image.data, (y * width + x) * 4);
 }
 
 async function writeFixturePng(filePath, pixels) {

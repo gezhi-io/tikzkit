@@ -491,6 +491,19 @@ declared resources beneath `.mactex-work/<fixture-id>/`; all three renderers
 therefore resolve the same paths. Use `node scripts/render-example-fixtures.js --help` and
 `node scripts/diff-example-pngs.js --help` to inspect the supported switches.
 
+When a page uses different SVG rasterizers, add `--register` during triage:
+
+```bash
+node scripts/diff-example-pngs.js --output outputs/qa-my-feature --register
+```
+
+This keeps the raw diff unchanged and additionally records the best bounded
+integer translation (`dx`, `dy`, default range `-3..3`) plus an aligned diff
+PNG. It is an investigation aid, not a pass criterion: a nonzero translation
+means the canvas/bounding-box contract still needs review, while a large
+aligned residual points to missing or incorrectly rendered geometry. Use
+`--alignment-radius <pixels>` only when a wider inspection window is justified.
+
 ### Compare One Snippet Locally
 
 For a small standalone `tikzpicture`, keep the source and every generated

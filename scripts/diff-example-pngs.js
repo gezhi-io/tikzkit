@@ -10,6 +10,9 @@ const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const DEFAULT_PIXEL_TOLERANCE = 6;
 const DEFAULT_CHANGED_RATIO_TOLERANCE = 0.005;
 const DEFAULT_MEAN_ABSOLUTE_TOLERANCE = 0.001;
+const DEFAULT_ALIGNMENT_RADIUS = 3;
+const DEFAULT_ALIGNMENT_SAMPLE_STEP = 3;
+const DEFAULT_ALIGNMENT_CANDIDATES = 4;
 
 export async function compareExamplePngs(options = {}) {
   const outputRoot = path.resolve(options.outputRoot || DEFAULT_OUTPUT_ROOT);
@@ -20,7 +23,7 @@ export async function compareExamplePngs(options = {}) {
 
   const cases = [];
   for (const entry of renderSummary.cases || []) {
-    const result = await compareCase(outputRoot, entry);
+    const result = await compareCase(outputRoot, entry, options);
     cases.push(result);
   }
 
@@ -55,7 +58,7 @@ async function clearManagedDiffArtifacts(outputRoot) {
   }
 }
 
-async function compareCase(outputRoot, entry) {
+async function compareCase(outputRoot, entry, options = {}) {
   if (entry.tikzkitPngStatus !== "rendered" || entry.tikztosvgPngStatus !== "rendered" || !entry.tikzkitPng || !entry.tikztosvgPng) {
     return {
       id: entry.id,
@@ -71,10 +74,22 @@ async function compareCase(outputRoot, entry) {
   const tikzkit = decodePng(await readFile(tikzkitPath));
   const tikztosvg = decodePng(await readFile(tikztosvgPath));
   const comparison = compareDecodedPngs(tikzkit, tikztosvg);
+  const registration = options.register
+    ? findBestPixelAlignment(tikzkit, tikztosvg, {
+      radius: options.alignmentRadius,
+      sampleStep: options.alignmentSampleStep
+    })
+    : null;
   const diffPng = path.join(outputRoot, "diff-png", `${entry.id}.png`);
   const sheetPng = path.join(outputRoot, "diff", `${entry.id}-sheet.png`);
   await writeFile(diffPng, encodePng(comparison.diff));
   await writeFile(sheetPng, encodePng(composeComparisonSheet(tikzkit, tikztosvg, comparison.diff)));
+  let registeredDiffPng = null;
+  if (registration) {
+    const registeredDiffPath = path.join(outputRoot, "diff-png", `${entry.id}-registered.png`);
+    await writeFile(registeredDiffPath, encodePng(registration.diff));
+    registeredDiffPng = path.relative(outputRoot, registeredDiffPath);
+  }
   let nativeSheetPng = null;
   if (entry.mactexPngStatus === "rendered" && entry.mactexPng) {
     const native = decodePng(await readFile(path.join(outputRoot, entry.mactexPng)));
@@ -99,6 +114,16 @@ async function compareCase(outputRoot, entry) {
     changedPixels: comparison.changedPixels,
     changedRatio: comparison.changedRatio,
     meanAbsoluteRGBA: comparison.meanAbsoluteRGBA,
+    registration: registration && {
+      offsetX: registration.offsetX,
+      offsetY: registration.offsetY,
+      status: registration.status,
+      comparedPixels: registration.comparedPixels,
+      changedPixels: registration.changedPixels,
+      changedRatio: registration.changedRatio,
+      meanAbsoluteRGBA: registration.meanAbsoluteRGBA,
+      diffPng: registeredDiffPng
+    },
     tikzkitPng: entry.tikzkitPng,
     tikztosvgPng: entry.tikztosvgPng,
     diffPng: path.relative(outputRoot, diffPng),
@@ -108,6 +133,54 @@ async function compareCase(outputRoot, entry) {
 }
 
 export function compareDecodedPngs(actual, expected, options = {}) {
+  return compareDecodedPngsAtOffset(actual, expected, 0, 0, options);
+}
+
+export function findBestPixelAlignment(actual, expected, options = {}) {
+  const radius = Number.isFinite(options.radius)
+    ? Math.max(0, Math.round(options.radius))
+    : DEFAULT_ALIGNMENT_RADIUS;
+  const sampleStep = Number.isFinite(options.sampleStep)
+    ? Math.max(1, Math.round(options.sampleStep))
+    : DEFAULT_ALIGNMENT_SAMPLE_STEP;
+  const candidateCount = Number.isFinite(options.candidateCount)
+    ? Math.max(1, Math.round(options.candidateCount))
+    : DEFAULT_ALIGNMENT_CANDIDATES;
+  const candidates = [];
+  for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
+    for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
+      const score = scorePngOffset(actual, expected, offsetX, offsetY, { ...options, sampleStep });
+      candidates.push({ ...score, offsetX, offsetY });
+    }
+  }
+  candidates.sort(compareAlignmentScore);
+  const finalists = [{ offsetX: 0, offsetY: 0 }];
+  for (const candidate of candidates.slice(0, candidateCount)) {
+    if (!finalists.some((entry) => entry.offsetX === candidate.offsetX && entry.offsetY === candidate.offsetY)) {
+      finalists.push(candidate);
+    }
+  }
+  const comparisons = finalists.map(({ offsetX, offsetY }) => ({
+    ...compareDecodedPngsAtOffset(actual, expected, offsetX, offsetY, options),
+    offsetX,
+    offsetY
+  }));
+  const baseline = comparisons.find((comparison) => comparison.offsetX === 0 && comparison.offsetY === 0);
+  const nonWorsening = comparisons.filter((comparison) =>
+    comparison.meanAbsoluteRGBA <= baseline.meanAbsoluteRGBA &&
+    comparison.changedRatio <= baseline.changedRatio
+  );
+  nonWorsening.sort(compareAlignmentScore);
+  return nonWorsening[0] || baseline;
+}
+
+function compareAlignmentScore(left, right) {
+  if (left.meanAbsoluteRGBA !== right.meanAbsoluteRGBA) return left.meanAbsoluteRGBA - right.meanAbsoluteRGBA;
+  if (left.changedRatio !== right.changedRatio) return left.changedRatio - right.changedRatio;
+  return Math.abs(left.offsetX || 0) + Math.abs(left.offsetY || 0) - Math.abs(right.offsetX || 0) - Math.abs(right.offsetY || 0);
+}
+
+function compareDecodedPngsAtOffset(actual, expected, offsetX, offsetY, options = {}) {
   const pixelTolerance = Number.isFinite(options.pixelTolerance) ? options.pixelTolerance : DEFAULT_PIXEL_TOLERANCE;
   const changedRatioTolerance = Number.isFinite(options.changedRatioTolerance)
     ? options.changedRatioTolerance
@@ -115,16 +188,16 @@ export function compareDecodedPngs(actual, expected, options = {}) {
   const meanAbsoluteTolerance = Number.isFinite(options.meanAbsoluteTolerance)
     ? options.meanAbsoluteTolerance
     : DEFAULT_MEAN_ABSOLUTE_TOLERANCE;
-  const width = Math.min(actual.width, expected.width);
-  const height = Math.min(actual.height, expected.height);
+  const overlap = pngOverlap(actual, expected, offsetX, offsetY);
+  const { width, height } = overlap;
   const diffPixels = Buffer.alloc(width * height * 4);
   let changedPixels = 0;
   let totalDelta = 0;
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const actualIndex = (y * actual.width + x) * 4;
-      const expectedIndex = (y * expected.width + x) * 4;
+      const actualIndex = ((overlap.actualY + y) * actual.width + overlap.actualX + x) * 4;
+      const expectedIndex = ((overlap.expectedY + y) * expected.width + overlap.expectedX + x) * 4;
       const diffIndex = (y * width + x) * 4;
       let pixelDelta = 0;
       let maxChannelDelta = 0;
@@ -166,6 +239,53 @@ export function compareDecodedPngs(actual, expected, options = {}) {
     changedRatioTolerance,
     meanAbsoluteTolerance,
     diff: { width, height, data: diffPixels }
+  };
+}
+
+function scorePngOffset(actual, expected, offsetX, offsetY, options = {}) {
+  const pixelTolerance = Number.isFinite(options.pixelTolerance) ? options.pixelTolerance : DEFAULT_PIXEL_TOLERANCE;
+  const sampleStep = Math.max(1, Number(options.sampleStep) || 1);
+  const overlap = pngOverlap(actual, expected, offsetX, offsetY);
+  let changedPixels = 0;
+  let comparedPixels = 0;
+  let totalDelta = 0;
+  for (let y = 0; y < overlap.height; y += sampleStep) {
+    for (let x = 0; x < overlap.width; x += sampleStep) {
+      const actualIndex = ((overlap.actualY + y) * actual.width + overlap.actualX + x) * 4;
+      const expectedIndex = ((overlap.expectedY + y) * expected.width + overlap.expectedX + x) * 4;
+      let pixelDelta = 0;
+      let maxChannelDelta = 0;
+      for (let channel = 0; channel < 4; channel += 1) {
+        const channelDelta = Math.abs(actual.data[actualIndex + channel] - expected.data[expectedIndex + channel]);
+        pixelDelta += channelDelta;
+        maxChannelDelta = Math.max(maxChannelDelta, channelDelta);
+      }
+      comparedPixels += 1;
+      if (maxChannelDelta > pixelTolerance) {
+        totalDelta += pixelDelta;
+        changedPixels += 1;
+      }
+    }
+  }
+  return {
+    comparedPixels,
+    changedRatio: comparedPixels ? changedPixels / comparedPixels : 0,
+    meanAbsoluteRGBA: comparedPixels ? totalDelta / (comparedPixels * 4 * 255) : 0
+  };
+}
+
+function pngOverlap(actual, expected, offsetX, offsetY) {
+  const actualX = Math.max(0, -offsetX);
+  const actualY = Math.max(0, -offsetY);
+  const expectedX = Math.max(0, offsetX);
+  const expectedY = Math.max(0, offsetY);
+  return {
+    actualX,
+    actualY,
+    expectedX,
+    expectedY,
+    width: Math.max(0, Math.min(actual.width - actualX, expected.width - expectedX)),
+    height: Math.max(0, Math.min(actual.height - actualY, expected.height - expectedY))
   };
 }
 
@@ -425,7 +545,7 @@ function crc32(buffer) {
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.includes("--help") || argv.includes("-h")) {
-    process.stdout.write("Usage: node scripts/diff-example-pngs.js [--output <directory>]\n");
+    process.stdout.write("Usage: node scripts/diff-example-pngs.js [--output <directory>] [--register] [--alignment-radius <pixels>]\n");
     return;
   }
   const summary = await compareExamplePngs(parseArgs(argv));
@@ -434,7 +554,9 @@ async function main() {
 
 function parseArgs(argv) {
   return {
-    outputRoot: valueAfter(argv, "--output") || DEFAULT_OUTPUT_ROOT
+    outputRoot: valueAfter(argv, "--output") || DEFAULT_OUTPUT_ROOT,
+    register: argv.includes("--register"),
+    alignmentRadius: valueAfter(argv, "--alignment-radius")
   };
 }
 

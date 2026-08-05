@@ -1437,6 +1437,7 @@ function renderCaseHtml(entry, diff) {
     ${renderArtifactLink("MacTeX log", entry.mactexLog)}
     ${renderArtifactLink("tikztosvg log", entry.tikztosvgLog)}
     ${renderArtifactLink("diff PNG", diff?.diffPng)}
+    ${renderArtifactLink("registered diff PNG", diff?.registration?.diffPng)}
     ${renderArtifactLink("MacTeX comparison sheet", diff?.nativeSheetPng)}
   </div>
   ${renderDiagnostics(entry.diagnostics)}
@@ -1453,7 +1454,10 @@ function renderArtifactLink(title, href) {
 
 function renderDiffNumbers(diff) {
   if (!diff || typeof diff.changedRatio !== "number") return "";
-  return ` · changed ${(diff.changedRatio * 100).toFixed(2)}% · mean ${Number(diff.meanAbsoluteRGBA || 0).toFixed(4)}`;
+  const raw = ` · raw ${(diff.changedRatio * 100).toFixed(2)}% · mean ${Number(diff.meanAbsoluteRGBA || 0).toFixed(4)}`;
+  const registration = diff.registration;
+  if (!registration || typeof registration.changedRatio !== "number") return raw;
+  return `${raw} · aligned dx=${registration.offsetX}, dy=${registration.offsetY}: ${(registration.changedRatio * 100).toFixed(2)}%`;
 }
 
 function renderDiagnostics(diagnostics = []) {
