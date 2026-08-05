@@ -375,9 +375,12 @@ circuitikz component catalog remain partial.
 
 ### Circuitikz Transformer Cores
 
-`transformer core` accepts the manual's narrow core-style directory. This
-does not claim general transformer compatibility: it covers only the two core
-strokes, not the full coil/anchor geometry configuration.
+`transformer core` accepts the manual's narrow core-style directory and draws
+the default cute-transformer body with the same alternating half-elliptical
+coil construction as local Circuitikz. Outer leads retain the component line
+width, while coils and the magnetic core use the native choke-width basis.
+This does not claim complete transformer compatibility: non-cute body styles,
+custom transformer families, and the wider quadpole catalogue remain partial.
 
 ```tex
 \begin{circuitikz}
@@ -392,8 +395,12 @@ strokes, not the full coil/anchor geometry configuration.
 
 Supported: `relative thickness`, `color`, a zero-phase sequence of
 `{on}{off}` dash dimensions, `dash=default` (inherit the component pattern),
-and `dash=none` (force solid core strokes). The reference and visual record is
-[`docs/qa/2026-08-06-circuitikz-transformer-core.md`](docs/qa/2026-08-06-circuitikz-transformer-core.md).
+and `dash=none` (force solid core strokes). The default cute body also keeps
+the manual's five large coil lobes, four return lobes, full-height lead routing,
+and matching L1/L2 coil-anchor span. The reference and visual records are
+[`docs/qa/2026-08-06-circuitikz-transformer-core.md`](docs/qa/2026-08-06-circuitikz-transformer-core.md)
+and
+[`docs/qa/2026-08-06-circuitikz-transformer-geometry.md`](docs/qa/2026-08-06-circuitikz-transformer-geometry.md).
 
 ### Circuitikz Sinusoidal Sources
 

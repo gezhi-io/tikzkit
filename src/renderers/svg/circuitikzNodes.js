@@ -207,15 +207,34 @@ function renderCircuitikzQuadpoleNodeBox(item, unit) {
     lineCap: "butt",
     lineJoin: "round"
   };
-  const commands = kind === "gyrator" ? circuitikzGyratorCommands(item) : circuitikzTransformerCommands(item);
-  const body = `<path class="tikz-node-circuitikzQuadpole-body" d="${localTubePathData(commands, cx, cy, unit)}"${styleAttributes(
-    style,
-    { lineCap: "butt", lineJoin: "round" }
-  )} />`;
-  const core = kind === "transformer core" ? renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth) : "";
+  const body = kind === "gyrator"
+    ? `<path class="tikz-node-circuitikzQuadpole-body" d="${localTubePathData(circuitikzGyratorCommands(item), cx, cy, unit)}"${styleAttributes(
+      style,
+      { lineCap: "butt", lineJoin: "round" }
+    )} />`
+    : renderCircuitikzTransformerBody(item, unit, cx, cy, style, lineWidth);
+  const core = kind === "transformer core" ? renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth * 2) : "";
   return `<g class="tikz-node-shape tikz-node-circuitikzQuadpole tikz-node-circuitikzQuadpole-${escapeAttribute(
     kind.replace(/\s+/g, "-")
   )}">${body}${core}</g>`;
+}
+
+function renderCircuitikzTransformerBody(item, unit, cx, cy, style, lineWidth) {
+  const paths = circuitikzTransformerPaths(item);
+  const leadStyle = { ...style, lineWidth };
+  // Circuitikz's cuteinductor shape resets to the path's starting line width;
+  // in the default transformer that is twice the outer lead width.
+  const coilStyle = { ...style, lineWidth: lineWidth * 2, lineJoin: "bevel" };
+  return [
+    `<path class="tikz-node-circuitikzQuadpole-body tikz-node-circuitikzQuadpole-leads" d="${localTubePathData(paths.leads, cx, cy, unit)}"${styleAttributes(
+      leadStyle,
+      { lineCap: "butt", lineJoin: "round" }
+    )} />`,
+    `<path class="tikz-node-circuitikzQuadpole-coils" d="${localTubePathData(paths.coils, cx, cy, unit)}"${styleAttributes(
+      coilStyle,
+      { lineCap: "butt", lineJoin: "bevel" }
+    )} />`
+  ].join("");
 }
 
 function renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth) {
@@ -242,44 +261,36 @@ function renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth) 
   )}"${styleAttributes(coreStyle, { lineCap: "butt", lineJoin: "round" })} />`;
 }
 
-function circuitikzTransformerCommands(item) {
+function circuitikzTransformerPaths(item) {
   const hw = item.width / 2;
   const hh = item.height / 2;
-  const terminalY = hh * 0.56;
   const inner = circuitikzQuadpoleInnerRatio(item);
   const leftCoilX = -hw * inner;
   const rightCoilX = hw * inner;
-  const leadX = hw * Math.min(0.92, Math.max(0.62, inner * 0.9));
   const leftSpec = item.shapeData?.quadpoleSettings?.coils?.L1 || {};
   const rightSpec = item.shapeData?.quadpoleSettings?.coils?.L2 || {};
-  const leftTurns = circuitikzTransformerCoilTurns(leftSpec, 5);
-  const rightTurns = circuitikzTransformerCoilTurns(rightSpec, 5);
-  const leftAmplitude = -circuitikzTransformerCoilAmplitude(hw, leftSpec);
-  const rightAmplitude = circuitikzTransformerCoilAmplitude(hw, rightSpec);
-  const leftCoilY = circuitikzTransformerCoilHalfSpan(hh, leftSpec);
-  const rightCoilY = circuitikzTransformerCoilHalfSpan(hh, rightSpec);
-  return [
-    ["M", -hw, terminalY],
-    ["L", -hw, -terminalY],
-    ["M", hw, terminalY],
-    ["L", hw, -terminalY],
-    ["M", -hw, terminalY],
-    ["L", -leadX, terminalY],
-    ["L", leftCoilX, terminalY],
-    ["L", leftCoilX, leftCoilY],
-    ...verticalCoilCommands(leftCoilX, leftCoilY, -leftCoilY, leftAmplitude, leftTurns),
-    ["L", leftCoilX, -terminalY],
-    ["L", -leadX, -terminalY],
-    ["L", -hw, -terminalY],
-    ["M", hw, terminalY],
-    ["L", leadX, terminalY],
-    ["L", rightCoilX, terminalY],
-    ["L", rightCoilX, rightCoilY],
-    ...verticalCoilCommands(rightCoilX, rightCoilY, -rightCoilY, rightAmplitude, rightTurns),
-    ["L", rightCoilX, -terminalY],
-    ["L", leadX, -terminalY],
-    ["L", hw, -terminalY]
-  ];
+  const leftGeometry = circuitikzTransformerCoilGeometry(hh, leftSpec);
+  const rightGeometry = circuitikzTransformerCoilGeometry(hh, rightSpec);
+  return {
+    leads: [
+      ["M", -hw, hh],
+      ["L", leftCoilX, hh],
+      ["L", leftCoilX, leftGeometry.halfSpan],
+      ["M", leftCoilX, -leftGeometry.halfSpan],
+      ["L", leftCoilX, -hh],
+      ["L", -hw, -hh],
+      ["M", hw, hh],
+      ["L", rightCoilX, hh],
+      ["L", rightCoilX, rightGeometry.halfSpan],
+      ["M", rightCoilX, -rightGeometry.halfSpan],
+      ["L", rightCoilX, -hh],
+      ["L", hw, -hh]
+    ],
+    coils: [
+      ...cuteTransformerCoilCommands(leftCoilX, leftGeometry, 1),
+      ...cuteTransformerCoilCommands(rightCoilX, rightGeometry, -1)
+    ]
+  };
 }
 
 function circuitikzQuadpoleInnerRatio(item = {}) {
@@ -293,24 +304,70 @@ function circuitikzTransformerCoilTurns(spec = {}, fallback = 5) {
   return Math.max(1, Math.min(12, Math.round(raw)));
 }
 
-function circuitikzTransformerCoilAmplitude(halfWidth, spec = {}) {
-  const raw = Number(spec["inductors/width"] ?? spec.width ?? 0.8);
-  const widthScale = Number.isFinite(raw) ? Math.max(0.75, Math.min(1.25, raw / 0.8)) : 1;
-  return Math.max(halfWidth * 0.12, halfWidth * 0.2 * widthScale);
+function circuitikzTransformerCoilGeometry(halfHeight, spec = {}) {
+  // A transformer has a height of 1.5 Rlen, so its half-height is .75 Rlen.
+  // This is the same geometry used by pgfcircbipoles.tex:cuteinductor.
+  const rlen = halfHeight / 0.75;
+  const turns = circuitikzTransformerCoilTurns(spec, 5);
+  const width = circuitikzTransformerCoilOption(spec, "inductors/width", "width", 0.6, 0.1, 1.5);
+  const aspect = circuitikzTransformerCoilOption(spec, "inductors/coil aspect", "coil aspect", 0.5, 0, 1);
+  const coilHeight = circuitikzTransformerCoilOption(spec, "inductors/height", "height", 0.3, 0.05, 1.5);
+  const lowerCoilHeight = circuitikzTransformerCoilOption(
+    spec,
+    "inductors/lower coil height",
+    "lower coil height",
+    0.15,
+    0.02,
+    1.5
+  );
+  const smallStep = turns > 1 ? (0.5 * aspect * width * rlen) / (turns - 1) : 0;
+  const wideStep = (width * rlen + (turns - 1) * 2 * smallStep) / turns / 2;
+  return {
+    turns,
+    wideStep,
+    smallStep,
+    wideRadius: (coilHeight * rlen) / 2,
+    smallRadius: (lowerCoilHeight * rlen) / 2,
+    halfSpan: turns * wideStep - (turns - 1) * smallStep
+  };
 }
 
-function circuitikzTransformerCoilHalfSpan(halfHeight, spec = {}) {
-  const terminalY = halfHeight * 0.56;
-  const raw = Number(spec["inductors/width"] ?? spec.width ?? 0.8);
-  const ratio = Number.isFinite(raw) ? Math.max(0.14, Math.min(0.7, raw * 0.68)) : 0.54;
-  return terminalY * ratio;
+function circuitikzTransformerCoilOption(spec, fullName, shortName, fallback, min, max) {
+  const raw = Number(spec[fullName] ?? spec[shortName] ?? fallback);
+  return Number.isFinite(raw) ? Math.max(min, Math.min(max, raw)) : fallback;
+}
+
+function cuteTransformerCoilCommands(x, geometry, insideDirection) {
+  const commands = [["M", x, geometry.halfSpan]];
+  let y = geometry.halfSpan;
+  const kappa = 0.5522847498;
+  for (let index = 0; index < geometry.turns; index += 1) {
+    const wideEnd = y - 2 * geometry.wideStep;
+    const wideMid = y - geometry.wideStep;
+    const wideX = x + insideDirection * geometry.wideRadius;
+    commands.push(
+      ["C", x + insideDirection * geometry.wideRadius * kappa, y, wideX, y - geometry.wideStep * kappa, wideX, wideMid],
+      ["C", wideX, y - geometry.wideStep * (2 - kappa), x + insideDirection * geometry.wideRadius * kappa, wideEnd, x, wideEnd]
+    );
+    y = wideEnd;
+    if (index === geometry.turns - 1 || geometry.smallStep === 0) continue;
+    const smallEnd = y + 2 * geometry.smallStep;
+    const smallMid = y + geometry.smallStep;
+    const smallX = x - insideDirection * geometry.smallRadius;
+    commands.push(
+      ["C", x - insideDirection * geometry.smallRadius * kappa, y, smallX, y + geometry.smallStep * kappa, smallX, smallMid],
+      ["C", smallX, y + geometry.smallStep * (2 - kappa), x - insideDirection * geometry.smallRadius * kappa, smallEnd, x, smallEnd]
+    );
+    y = smallEnd;
+  }
+  return commands;
 }
 
 function circuitikzTransformerCoreCommands(item) {
   const hw = item.width / 2;
   const hh = item.height / 2;
-  const x = hw * 0.07;
-  const y = hh * 0.48;
+  const x = hw * 0.05;
+  const y = hh * 0.5;
   return [
     ["M", -x, y],
     ["L", -x, -y],
@@ -339,18 +396,6 @@ function circuitikzGyratorCommands(item) {
     ["M", innerX, -curveY],
     ["Q", 0, 0, innerX, curveY]
   ];
-}
-
-function verticalCoilCommands(x, top, bottom, amplitude, turns) {
-  const commands = [];
-  const step = (top - bottom) / turns;
-  for (let index = 0; index < turns; index += 1) {
-    const y0 = top - step * index;
-    const yMid = top - step * (index + 0.5);
-    const y1 = top - step * (index + 1);
-    commands.push(["Q", x + amplitude, yMid, x, y1]);
-  }
-  return commands;
 }
 
 function tubeCapsulePath(rx, ry) {
@@ -438,6 +483,11 @@ function localTubePathData(commands, cx, cy, unit) {
         return `Q ${format((cx + command[1]) * unit)} ${format(-(cy + command[2]) * unit)} ${format((cx + command[3]) * unit)} ${format(
           -(cy + command[4]) * unit
         )}`;
+      }
+      if (command[0] === "C") {
+        return `C ${format((cx + command[1]) * unit)} ${format(-(cy + command[2]) * unit)} ${format((cx + command[3]) * unit)} ${format(
+          -(cy + command[4]) * unit
+        )} ${format((cx + command[5]) * unit)} ${format(-(cy + command[6]) * unit)}`;
       }
       return "";
     })

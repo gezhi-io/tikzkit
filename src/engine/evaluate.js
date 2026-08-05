@@ -3868,11 +3868,17 @@ function circuitikzTransformerCoilLocalAnchor(coilRaw, anchorRaw, size = {}) {
 
 function circuitikzTransformerCoilHalfSpan(size = {}, coil = "L1") {
   const halfHeight = (Number(size.height) || 0) / 2;
-  const terminalY = halfHeight * 0.56;
   const spec = size.shapeData?.quadpoleSettings?.coils?.[coil] || {};
-  const rawWidth = Number(spec["inductors/width"] ?? spec.width ?? 0.8);
-  const ratio = Number.isFinite(rawWidth) ? Math.max(0.14, Math.min(0.7, rawWidth * 0.68)) : 0.54;
-  return terminalY * ratio;
+  const rlen = halfHeight / 0.75;
+  const turnsRaw = Number(spec["inductors/coils"] ?? spec.coils ?? 5);
+  const turns = Number.isFinite(turnsRaw) ? Math.max(1, Math.min(12, Math.round(turnsRaw))) : 5;
+  const widthRaw = Number(spec["inductors/width"] ?? spec.width ?? 0.6);
+  const width = Number.isFinite(widthRaw) ? Math.max(0.1, Math.min(1.5, widthRaw)) : 0.6;
+  const aspectRaw = Number(spec["inductors/coil aspect"] ?? spec["coil aspect"] ?? 0.5);
+  const aspect = Number.isFinite(aspectRaw) ? Math.max(0, Math.min(1, aspectRaw)) : 0.5;
+  const smallStep = turns > 1 ? (0.5 * aspect * width * rlen) / (turns - 1) : 0;
+  const wideStep = (width * rlen + (turns - 1) * 2 * smallStep) / turns / 2;
+  return turns * wideStep - (turns - 1) * smallStep;
 }
 
 function circuitikzTransistorTextPoint(point, size = {}, shapeData = {}) {

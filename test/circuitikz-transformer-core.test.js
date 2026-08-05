@@ -21,8 +21,22 @@ test("applies transformer-core style-directory color, thickness, and dash settin
   assert.equal(styled.shapeData.quadpoleSettings.core.relativeThickness, 2);
   assert.equal(styled.shapeData.quadpoleSettings.core.dashMode, "custom");
   assert.deepEqual(styled.shapeData.quadpoleSettings.core.dashArray, [lineWidthFromTikzDimension("4pt"), lineWidthFromTikzDimension("2pt")]);
-  assert.match(svg, /tikz-node-circuitikzQuadpole-core[^>]+stroke="red"[^>]+stroke-width="2\.811678/);
+  assert.match(svg, /tikz-node-circuitikzQuadpole-core[^>]+stroke="red"[^>]+stroke-width="5\.623356/);
   assert.match(svg, /tikz-node-circuitikzQuadpole-core[^>]+stroke-dasharray="14\.058392143307286 7\.029196071653643"/);
+});
+
+test("renders transformer leads and cute coils with Circuitikz's shared geometry", () => {
+  const source = String.raw`
+\begin{circuitikz}
+  \draw (0,0) node[transformer core](T){};
+\end{circuitikz}`.replaceAll("\\\\", "\\");
+  const { diagnostics } = interpretTikz(parseTikz(source).ast);
+  const svg = tikzToSvg(source, { mathRenderer: "svg-text" }).svg;
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(svg, /tikz-node-circuitikzQuadpole-leads/);
+  assert.match(svg, /tikz-node-circuitikzQuadpole-coils[^>]+d="[^"]* C [^"]* C /);
+  assert.match(svg, /tikz-node-circuitikzQuadpole-coils[^>]+stroke-linejoin="bevel"/);
 });
 
 test("inherits a path dash by default and lets dash=none make the core solid", () => {

@@ -3831,10 +3831,11 @@
       "source": "circuitikz/transformer-core-customization.tex",
       "sourceCorpus": "TeX Live circuitikz manual",
       "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
-      "semanticOwner": "src/engine/evaluate.js:circuitikzTransformerCoreSettings/normalizeCtikzSetOptions;src/renderers/svg/circuitikzNodes.js:renderCircuitikzTransformerCore",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzTransformerCoreSettings/normalizeCtikzSetOptions/circuitikzTransformerCoilHalfSpan;src/renderers/svg/circuitikzNodes.js:renderCircuitikzTransformerBody/renderCircuitikzTransformerCore",
       "features": [
         "transformer core node",
         "transformer core/.cd",
+        "cute transformer lead and coil geometry",
         "relative thickness",
         "color",
         "dash on/off pairs",
