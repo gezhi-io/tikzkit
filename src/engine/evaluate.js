@@ -9790,6 +9790,12 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   const arrowReserved = decorationArrowEndpointShortening(pathStyle);
   const preLength = Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0) + arrowReserved.start);
   const postLength = Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0) + arrowReserved.end);
+  // PGF runs a snake decoration over the complete input subpath. In
+  // particular, its state machine does not restart at each `--` corner and
+  // pre/post lengths only apply at the subpath endpoints.
+  if (mode === "snake") {
+    return applySnakeDecorationToSubpaths(commands, amplitude, segmentLength, preLength, postLength);
+  }
   const morphed = [];
   let current = null;
   let start = null;
@@ -9819,6 +9825,52 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
     morphed.push(command);
     if ("x" in command) current = { x: command.x, y: command.y };
   }
+  return morphed;
+}
+
+function applySnakeDecorationToSubpaths(commands, amplitude, segmentLength, preLength, postLength) {
+  const morphed = [];
+  let subpath = [];
+
+  const flushSubpath = () => {
+    if (!subpath.length) return;
+    const startsWithMove = subpath[0]?.type === "moveTo";
+    const hasDrawableSegment = subpath.some((command) => ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type));
+    if (!startsWithMove || !hasDrawableSegment) {
+      morphed.push(...subpath);
+      subpath = [];
+      return;
+    }
+
+    const points = flattenPath(subpath, 0.04);
+    if (points.length < 2) {
+      morphed.push(...subpath);
+      subpath = [];
+      return;
+    }
+
+    const start = points[0];
+    morphed.push({ type: "moveTo", x: start.x, y: start.y });
+    appendMorphedPolyline(morphed, points, amplitude, segmentLength, "snake", preLength, postLength);
+    if (subpath.at(-1)?.type === "closePath") morphed.push({ type: "closePath" });
+    subpath = [];
+  };
+
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      flushSubpath();
+      subpath.push(command);
+      continue;
+    }
+    if (subpath.length && ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type)) {
+      subpath.push(command);
+      if (command.type === "closePath") flushSubpath();
+      continue;
+    }
+    flushSubpath();
+    morphed.push(command);
+  }
+  flushSubpath();
   return morphed;
 }
 
