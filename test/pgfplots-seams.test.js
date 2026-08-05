@@ -4796,14 +4796,14 @@ test("pgfplots geometry preserves log-axis and 3D projection metadata", () => {
   assert.ok(Number.isFinite(geometry.mapPoint3d({ x: 10, y: 5, z: 2 }).x));
 });
 
-test("pgfplots perspective 3D geometry reserves the native description bbox", () => {
+test("pgfplots perspective 3D geometry reserves lateral descriptions without a synthetic top gutter", () => {
   const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -49, zMax: 151 };
   const geometry = createAxisGeometry(
     { "pgfplots 3d surface": true },
     ranges
   );
 
-  assert.deepEqual(geometry.margin, { left: 0.52, right: 0.43, top: 0.073, bottom: 0.32 });
+  assert.deepEqual(geometry.margin, { left: 0.52, right: 0.43, top: 0, bottom: 0.32 });
   assert.ok(Math.abs(geometry.width - (PGFPLOTS_DEFAULT_AXIS_WIDTH - PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_X)) < 1e-9);
   assert.ok(Math.abs(geometry.height - (PGFPLOTS_DEFAULT_AXIS_HEIGHT - PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_Y)) < 1e-9);
 
@@ -4817,14 +4817,36 @@ test("pgfplots perspective 3D geometry reserves the native description bbox", ()
   assertAxisPointsNearlyEqual(basis({ x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }), { x: 0, y: 3.203 }, 0.01);
 });
 
-test("pgfplots explicit perspective 3D axes do not add an unpainted right gutter", () => {
+test("pgfplots explicit perspective 3D axes retain the calibrated right description reserve", () => {
   const geometry = createAxisGeometry(
     { width: "15cm", view: "{45}{45}", "pgfplots 3d surface": true },
     { xMin: -90, xMax: 90, yMin: -90, yMax: 90, zMin: -4, zMax: 4 }
   );
 
-  assert.deepEqual(geometry.margin, { left: 0.52, right: 0, top: 0.073, bottom: 0.32 });
-  assert.match(renderAxisBounds(geometry), /\(13\.462,11\.429\)/);
+  assert.deepEqual(geometry.margin, { left: 0.52, right: parseDimension("8.7pt", {}), top: 0, bottom: 0.32 });
+  assert.match(renderAxisBounds(geometry), /\(13\.767,11\.356\)/);
+});
+
+test("pgfplots scaled 3D z ticks rely on their measured label bbox instead of an extra top reserve", () => {
+  const ranges = { xMin: 1.5, xMax: 6, yMin: 2e7, yMax: 1e9, zMin: 0, zMax: 4e10 };
+  const geometry = createAxisGeometry(
+    { width: "15cm", view: "{10}{15}", ymode: "log", "pgfplots 3d surface": true },
+    ranges
+  );
+
+  assert.equal(geometry.margin.top, 0);
+  const bounds = renderAxisBounds(geometry);
+  const top = Math.max(...[...bounds.matchAll(/,(-?[0-9.]+)\)/g)].map((match) => Number(match[1])));
+  const projectedTop = Math.max(
+    ...[
+      { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax },
+      { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax },
+      { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax },
+      { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax }
+    ].map((point) => geometry.mapPoint3d(point).y)
+  );
+
+  assert.ok(Math.abs(top - projectedTop) < 0.001, `expected no synthetic top gutter, got bounds=${bounds}`);
 });
 
 test("pgfplots default surf domains stay tight instead of inheriting 2D auto enlargement", () => {

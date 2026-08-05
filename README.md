@@ -258,6 +258,22 @@ unsupported gnuplot functions remain unsupported. See
 [`docs/qa/2026-08-06-pgfplots-raw-gnuplot.md`](docs/qa/2026-08-06-pgfplots-raw-gnuplot.md)
 for the checked local-MacTeX boundary and visual-QA caveat.
 
+### PGFPlots 3D Axis Bounds
+
+The supported 3D subset lowers the surface, projected box, grid, ticks, and
+axis descriptions to ordinary SVG elements. Tick-scale labels such as
+`10^10` are rendered as real text and participate in the tight SVG bounds;
+TikZKit does not add a second invisible margin for the same label. This is
+important when an explicit `width` is used, because the otherwise duplicated
+reserve leaves an obvious blank strip above the plot.
+
+The check in
+[`docs/qa/2026-08-06-pgfplots-3d-axis-bounds.md`](docs/qa/2026-08-06-pgfplots-3d-axis-bounds.md)
+uses `3d-cmos-loss-diagram` and `3d-gradient-cos` against local MacTeX and
+`tikztosvg`. It validates shared 3D axis geometry, not a full implementation
+of every PGFPlots 3D feature. Per-view projection calibration, exact TeX text
+metrics, and advanced 3D plot handlers remain partial.
+
 ### Circuitikz Voltage Notation
 
 The current `circuitikz` support is intentionally a focused subset. The
