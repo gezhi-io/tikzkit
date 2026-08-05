@@ -24,7 +24,7 @@ export function computeSvgBounds(items, options = {}) {
   for (const item of items) {
     if (item.overlay || item.excludeFromBounds) continue;
     if (item.type === "nodeBox") {
-      const strokePad = nodeBoxStrokePadding(item, unit);
+      const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
       includeRotatedRectangleBounds(
         item.x - item.width / 2 - strokePad,
         item.y - item.height / 2 - strokePad,
@@ -194,7 +194,8 @@ function includePathBounds(item, include, unit) {
   };
   includePathCommandBounds(item.commands || [], includeLocal, { tightBezierBounds: item.tightBezierBounds });
   if (!Number.isFinite(pathBounds.minX)) return;
-  const pad = item.type === "path" || item.includeStrokeBounds ? pathStrokePadding(item, unit) : 0;
+  const includeStrokeBounds = item.includeStrokeBounds ?? item.type === "path";
+  const pad = includeStrokeBounds ? pathStrokePadding(item, unit) : 0;
   const paintedBounds = {
     minX: pathBounds.minX - pad,
     minY: pathBounds.minY - pad,
@@ -225,16 +226,16 @@ function includeInlineArrowBounds(item, include, unit) {
   if (style.markerStart && terminal.first) {
     const ux = -(terminal.first.startUx ?? terminal.first.ux);
     const uy = -(terminal.first.startUy ?? terminal.first.uy);
-    includeArrowTipBounds(style.markerStart, style, terminal.first.start, ux, uy, include, unit);
+    includeArrowTipBounds(style.markerStart, style, terminal.first.start, ux, uy, include, unit, item.includeArrowNormalBounds);
   }
   if (style.markerEnd && terminal.last) {
     const ux = terminal.last.endUx ?? terminal.last.ux;
     const uy = terminal.last.endUy ?? terminal.last.uy;
-    includeArrowTipBounds(style.markerEnd, style, terminal.last.end, ux, uy, include, unit);
+    includeArrowTipBounds(style.markerEnd, style, terminal.last.end, ux, uy, include, unit, item.includeArrowNormalBounds);
   }
 }
 
-function includeArrowTipBounds(rawTip, style, endpoint, ux, uy, include, unit) {
+function includeArrowTipBounds(rawTip, style, endpoint, ux, uy, include, unit, includeNormalBounds = true) {
   const tip = resolveInlineArrowTip(rawTip, style);
   if (tip.geometry?.includeBounds === false) return;
   const bounds = tip.geometry?.bounds;
@@ -244,10 +245,17 @@ function includeArrowTipBounds(rawTip, style, endpoint, ux, uy, include, unit) {
     x: endpoint.x - ux * placement,
     y: endpoint.y - uy * placement
   };
+  const terminalPad = (Number(tip.strokeWidth) || Number(style.lineWidth) || 0) / unit;
   const strokePad = (Number(tip.strokeWidth) || 0) / unit / 2;
   const perpendicular = { x: -uy, y: ux };
-  for (const x of [bounds.minX / unit - strokePad, bounds.maxX / unit + strokePad]) {
-    for (const y of [bounds.minY / unit - strokePad, bounds.maxY / unit + strokePad]) {
+  for (const x of [bounds.minX / unit, bounds.maxX / unit + terminalPad]) {
+    // PGF's picture bounds include the tip's terminal extension, while the
+    // stroked path already accounts for its normal-direction footprint.
+    // Mirroring that rule avoids vertically inflating horizontal stealth tips.
+    const normalOffsets = includeNormalBounds
+      ? [bounds.minY / unit - strokePad, bounds.maxY / unit + strokePad]
+      : [0];
+    for (const y of normalOffsets) {
       include(
         origin.x + ux * x + perpendicular.x * y,
         origin.y + uy * x + perpendicular.y * y

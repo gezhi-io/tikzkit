@@ -1759,7 +1759,7 @@ test("applies node option bold sans-serif font to plain text labels", () => {
   const textOpen = svg.match(/<text[^>]+>2048<\/text>/)?.[0] || "";
 
   assert.match(textOpen, /font-weight="700"/);
-  assert.match(textOpen, /SansSerif/);
+  assert.match(textOpen, /(?:TikZKitCMUSans|SansSerif)/);
 });
 
 test("renders text commands inside math fallback without leaking command names", () => {
@@ -2592,7 +2592,7 @@ test("treats explicit TeX font size commands as overriding inherited node fonts"
   assert.deepEqual(result.diagnostics, []);
   assert.ok(boxes.large.width > boxes.small.width * 1.8, `expected local Large to override scriptsize, got ${boxes.small.width} -> ${boxes.large.width}`);
   assert.match(textNodes[0].style.fontFamily, /Typewriter/);
-  assert.match(textNodes[1].style.fontFamily, /SansSerif/);
+  assert.match(textNodes[1].style.fontFamily, /(?:TikZKitCMUSans|SansSerif)/);
   assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 1.44)}"`));
   assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 0.7)}"`));
 });
@@ -2605,7 +2605,7 @@ test("inherits picture font family when local node font only changes weight or s
   const node = result.ir.items.find((item) => item.type === "textNode");
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(node.style.fontFamily, /SansSerif/);
+  assert.match(node.style.fontFamily, /(?:TikZKitCMUSans|SansSerif)/);
 });
 
 test("wraps text width lines using their local TeX font size", () => {

@@ -5,7 +5,6 @@ import {
   TIKZ_MONOSPACE_FONT_FAMILY,
   TIKZ_SANS_SERIF_FONT_FAMILY,
   TIKZ_TEXT_FONT_SIZE,
-  TIKZ_TYPEWRITER_WIDTH_SCALE,
   TIKZ_UNIT
 } from "../../tikz/metrics.js";
 import { measureMathBoxPt, renderMathNode, scopedMathForeignObjectBox } from "./mathNode.js";
@@ -262,10 +261,8 @@ function logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWei
   if (/[\r\n\\$]/.test(raw)) return null;
   if (fontStyle || fontWeight || normalized.fontStyle || normalized.fontWeight || normalized.fontVariant) return null;
   if (normalized.explicitFontSize || Number(normalized.scale) !== 1) return null;
-  const typewriter = isTypewriterFontFamily(fontFamily);
   const sans = isSansSerifFontFamily(fontFamily);
-  if (!typewriter && !sans && (!isMainRegularFontFamily(fontFamily) || !isMainRegularFontFamily(normalized.fontFamily))) return null;
-  if (typewriter && normalized.fontFamily && !isTypewriterFontFamily(normalized.fontFamily)) return null;
+  if (!sans && (!isMainRegularFontFamily(fontFamily) || !isMainRegularFontFamily(normalized.fontFamily))) return null;
   if (sans && normalized.fontFamily && !isSansSerifFontFamily(normalized.fontFamily)) return null;
   if (!Array.isArray(normalized.lines) || normalized.lines.length !== 1) return null;
   const lineStyle = normalized.lineStyles?.[0];
@@ -275,11 +272,7 @@ function logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWei
     fontSizePt,
     fontFamily: sans ? "sans-serif" : "serif"
   });
-  if (!box || !typewriter) return box;
-  return {
-    ...box,
-    width: [...normalized.text].length * fontSizePt * 0.6 * TIKZ_TYPEWRITER_WIDTH_SCALE
-  };
+  return box;
 }
 
 function isMainRegularFontFamily(value) {
@@ -287,8 +280,9 @@ function isMainRegularFontFamily(value) {
   return !family || family === "serif" || family === TIKZ_FONT_FAMILY || /^['"]?KaTeX_Main['"]?(?:\s*,|$)/.test(family);
 }
 
-function isTypewriterFontFamily(value) {
-  return /(?:Typewriter|mono|Menlo|Monaco|Consolas|Courier)/i.test(String(value || ""));
+function isPhysicalSerifFamily(value) {
+  const family = String(value || "").trim();
+  return family === TIKZ_FONT_FAMILY || /(?:TikZKitCMR|TikZKitCMUSerif|KaTeX_Main|CMU Serif)/.test(family);
 }
 
 function isSansSerifFontFamily(value) {

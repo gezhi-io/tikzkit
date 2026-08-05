@@ -980,8 +980,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     }
   }
 
+  const includeStrokeBounds = built.nodes.length === 0;
   if (!tikzBoolean(pathOptions.overlay) && built.boundsCommands?.length) {
-    ir.items.push(createBoundingBoxShape(built.boundsCommands, { includeStrokeBounds: true, style }));
+    ir.items.push(createBoundingBoxShape(built.boundsCommands, { includeStrokeBounds, style }));
   }
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
@@ -1013,6 +1014,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
           overlay: tikzBoolean(pathOptions.overlay),
           clipRect,
           clipCircle,
+          includeStrokeBounds,
+          includeArrowNormalBounds: includeStrokeBounds,
           includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(pathOptions),
           tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
         }
@@ -6562,6 +6565,7 @@ function addNodeItems(node, ir, env) {
       y: point.y,
       width: size.width,
       height: size.height,
+      strokeBoundsIncluded: true,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
       appendAfterCommand: semantic["append after command"],

@@ -210,6 +210,35 @@ The output directory contains TikZKit SVG/PNG, tikztosvg SVG/PNG, optional
 Use `node scripts/render-example-fixtures.js --help` and
 `node scripts/diff-example-pngs.js --help` to inspect the supported switches.
 
+### Compare One Snippet Locally
+
+For a small standalone `tikzpicture`, keep the source and every generated
+artifact in one ignored QA directory. This is the quickest way to inspect a
+renderer change before adding it to the fixture catalog:
+
+```bash
+mkdir -p outputs/qa-arrow-label
+node bin/tikz2svg.js path/to/diagram.tikz \
+  -o outputs/qa-arrow-label/tikzkit.svg \
+  --svg-text-math --margin 0
+tikztosvg --pdflatex \
+  -o outputs/qa-arrow-label/tikztosvg.svg \
+  path/to/diagram.tikz
+rsvg-convert --background-color=white --dpi-x=72 --dpi-y=72 --zoom=4 \
+  outputs/qa-arrow-label/tikzkit.svg \
+  -o outputs/qa-arrow-label/tikzkit.png
+rsvg-convert --background-color=white --dpi-x=72 --dpi-y=72 --zoom=4 \
+  outputs/qa-arrow-label/tikztosvg.svg \
+  -o outputs/qa-arrow-label/tikztosvg.png
+```
+
+`tikztosvg` expects a TikZ snippet such as `\begin{tikzpicture} ...
+\end{tikzpicture}`. For the native comparison, wrap that exact source in a
+minimal standalone document, compile it with `pdflatex`, and rasterize the PDF
+at the same 72dpi base scale. Compare position, canvas bounds, font size,
+arrow tips, clipping, and line weights visually; do not accept a change from a
+single pixel-difference number alone.
+
 For a native MacTeX reference, compile the exact fixture separately and put
 the PNG beside the generated artifacts. This makes the acceptance target
 explicit: TikZKit geometry, clipping, labels, arrows, and visible text must be

@@ -656,7 +656,7 @@ test("svg text engine logical TeX box preserves negative depth in total height",
   assert.ok(metrics.baselineY > metrics.height, `expected negative depth to place baseline below total box height, got ${JSON.stringify(metrics)}`);
 });
 
-test("svg text engine separates a logical TeX box from plain-text paint bounds", () => {
+test("svg text engine keeps calibrated CMR logical and paint boxes aligned", () => {
   const engine = createSvgTextEngine({ unit: 100 });
   const request = {
     text: "concatenate",
@@ -676,8 +676,8 @@ test("svg text engine separates a logical TeX box from plain-text paint bounds",
   assert.ok(Math.abs(metrics.width - 51.6667 * ptToEngineUnits) < 0.05, `expected logical width, got ${metrics.width}`);
   assert.ok(Math.abs(metrics.height - 6.1508 * ptToEngineUnits) < 0.05, `expected logical total height, got ${metrics.height}`);
   assert.ok(Math.abs(metrics.baselineY - 6.1508 * ptToEngineUnits) < 0.05, `expected logical baseline, got ${metrics.baselineY}`);
-  assert.ok(payload.viewBox.width > 143 && payload.viewBox.width < 144, `expected retained paint width, got ${payload.viewBox.width}`);
-  assert.ok(payload.viewBox.height > 40 && payload.viewBox.height < 41, `expected retained paint height, got ${payload.viewBox.height}`);
+  assert.ok(Math.abs(payload.viewBox.width - metrics.width) < 0.001, `expected calibrated CMR paint width, got ${payload.viewBox.width}`);
+  assert.ok(Math.abs(payload.viewBox.height - metrics.height) < 0.001, `expected calibrated CMR paint height, got ${payload.viewBox.height}`);
   assert.match(payload.body, />concatenate<\/text>/);
 });
 

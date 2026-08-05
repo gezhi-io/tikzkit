@@ -15,10 +15,10 @@ export function formatPlainTexText(value) {
     .replace(/\\strut(?![A-Za-z])\s*/g, "")
     .replace(/\\\$\s*/g, "$")
     .replace(/\\([%#&_{}])/g, "$1")
-    .replace(/\\,(?![A-Za-z])\s*/g, () => tikzHspaceText("0.166667em"))
-    .replace(/\\:(?![A-Za-z])\s*/g, () => tikzHspaceText("0.222222em"))
-    .replace(/\\;(?![A-Za-z])\s*/g, () => tikzHspaceText("0.277778em"))
-    .replace(/\\!(?![A-Za-z])\s*/g, () => tikzHspaceText("-0.166667em"));
+    .replace(/\\,\s*/g, () => tikzHspaceText("0.166667em"))
+    .replace(/\\:\s*/g, () => tikzHspaceText("0.222222em"))
+    .replace(/\\;\s*/g, () => tikzHspaceText("0.277778em"))
+    .replace(/\\!\s*/g, () => tikzHspaceText("-0.166667em"));
 }
 
 export function renderPlainSvgTextContent(value, unit = TIKZ_UNIT) {

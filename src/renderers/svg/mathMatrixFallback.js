@@ -54,7 +54,9 @@ export function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, 
   const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
   const delimiterWidth = parts.env === "matrix" ? 0 : cellFontSize * 0.72;
   const delimiterPad = parts.env === "matrix" ? 0 : cellFontSize * 0.1;
-  const arrayColumnAllowance = (1 / 28.45274) * unit;
+  // Keep the fallback glyph layout aligned with the shared amsmath matrix
+  // metric: a textstyle matrix retains a 3pt edge bearing.
+  const arrayColumnAllowance = (3 / 28.45274) * unit;
   const matrixWidth = contentWidth + delimiterWidth * 2 + delimiterPad * 2 + arrayColumnAllowance;
   const gap = (2 / 28.45274) * unit;
   const totalWidth = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);

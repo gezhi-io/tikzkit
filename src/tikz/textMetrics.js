@@ -985,9 +985,16 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
   const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + colGap * Math.max(0, colCount - 1);
   const delimiterWidth = parts.env === "matrix" ? 0 : cellFont * 0.72;
   const delimiterPad = parts.env === "matrix" ? 0 : cellFont * 0.1;
-  const matrixWidth = contentWidth + delimiterWidth * 2 + delimiterPad * 2;
+  // amsmath's \env@matrix is an array with a compensating final
+  // \arraycolsep. Keep the reserved column allowance shared with the SVG
+  // fallback so the node box contains the rendered delimiters and cells.
+  // The amsmath array's edge bearing is 3pt at textstyle. This is the
+  // remaining visible width after the paired \arraycolsep compensation and
+  // matches the local pdfTeX/tikztosvg pmatrix node border.
+  const arrayColumnAllowance = (3 * scale) / TEX_PT_PER_CM;
+  const matrixWidth = contentWidth + delimiterWidth * 2 + delimiterPad * 2 + arrayColumnAllowance;
   const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
-  const gap = inlineFont * 0.16;
+  const gap = (2 * scale) / TEX_PT_PER_CM;
   const width = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);
   const height = Math.max(baseFont * 0.34, matrixHeight / 2);
   const depth = Math.max(baseFont * 0.16, matrixHeight / 2);

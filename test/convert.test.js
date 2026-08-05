@@ -3,6 +3,7 @@ import test from "node:test";
 import { convertTikzToSvg, convertTikzToSvgAsync, tikzToSvg } from "../src/index.js";
 import { parseCliArgs, runCli } from "../src/cli/index.js";
 import { createSvgTextEngine } from "../src/renderers/svg/index.js";
+import { readFileSync } from "node:fs";
 
 test("public convertTikzToSvg interface returns an ok conversion result", () => {
   const result = convertTikzToSvg(String.raw`\draw (0,0) -- (1,0);`);
@@ -37,15 +38,13 @@ test("public default KaTeX conversion creates text engine before sizing math nod
 });
 
 test("public default KaTeX conversion sizes inline pmatrix nodes close to tikztosvg", () => {
-  const result = convertTikzToSvg(String.raw`
-\begin{tikzpicture}
-  \node[draw, inner sep=0pt] {$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$};
-\end{tikzpicture}`, { margin: 0 });
+  const source = readFileSync("test/fixtures/basic/inline-pmatrix-metrics.tikz", "utf8");
+  const result = convertTikzToSvg(source, { margin: 0 });
   const box = result.ir.items.find((item) => item.type === "nodeBox");
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(box, "expected a rendered node box");
-  assert.ok(box.width > 1.85 && box.width < 2.1, `expected tikztosvg-like matrix node width near 1.96cm, got ${box.width}cm`);
+  assert.ok(Math.abs(box.width - 1.945) < 0.04, `expected tikztosvg-like matrix node width near 1.945cm, got ${box.width}cm`);
   assert.ok(box.height > 0.75 && box.height < 0.95, `expected tikztosvg-like matrix node height near 0.85cm, got ${box.height}cm`);
 });
 
