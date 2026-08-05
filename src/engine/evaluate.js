@@ -2137,13 +2137,13 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     shapes.push(...circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle));
     if (split.postLead) shapes.push(split.postLead);
     registerCircuitikzInductorNode(spec, geometry, settings, bodyLength, options, env);
-  } else if (spec.kind === "voltageSource") {
+  } else if (spec.kind === "voltageSource" || spec.kind === "controlledVoltageSource") {
     const split = appendCircuitikzSplitWire(
       commands,
       from,
       to,
       geometry,
-      circuitikzBodyLength("voltageSource", geometry.length, env),
+      circuitikzBodyLength(spec.kind === "controlledVoltageSource" ? "controlledSource" : "voltageSource", geometry.length, env, spec),
       pathStyle,
       styleHints,
       options,
@@ -2152,19 +2152,19 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     shapes.push(...circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle, env));
     appendCircuitikzVoltageSourceSymbolNodes(nodes, spec, geometry, env);
     if (split.postLead) shapes.push(split.postLead);
-  } else if (spec.kind === "isource") {
+  } else if (spec.kind === "isource" || spec.kind === "controlledCurrentSource") {
     const split = appendCircuitikzSplitWire(
       commands,
       from,
       to,
       geometry,
-      circuitikzBodyLength("isource", geometry.length, env),
+      circuitikzBodyLength(spec.kind === "controlledCurrentSource" ? "controlledSource" : "isource", geometry.length, env, spec),
       pathStyle,
       styleHints,
       options,
       env
     );
-    shapes.push(...circuitikzCurrentSourceItems(from, to, geometry, pathStyle, env));
+    shapes.push(...circuitikzCurrentSourceItems(from, to, geometry, spec, pathStyle, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "mosfet") {
     commands.push(moveToCommand(to));
@@ -2240,6 +2240,36 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
   }
   const voltage = circuitikzFirstMatchingOption(options, /^V[<>_^]*$/);
   if (voltage) return { kind: "voltageSource", sourceKind: "plain", label: voltage.label, voltageKey: voltage.key };
+  const controlledVoltage = circuitikzFirstMatchingOption(options, /^cV[<>_^]*$/);
+  const controlledVoltageStyle = circuitikzFirstMatchingOption(
+    options,
+    /^(?:controlled voltage source|controlled vsource|cvsource|cvsourceEU|cvsourceAM|european controlled voltage source|american controlled voltage source)$/
+  );
+  if (controlledVoltage || controlledVoltageStyle) {
+    return {
+      kind: "controlledVoltageSource",
+      sourceKind: "controlled",
+      sourceStyle: circuitikzControlledSourceStyle(options, env, "voltage"),
+      label: circuitikzLabelValue(options.l) || controlledVoltageStyle?.label || null,
+      voltageKey: controlledVoltage?.key || null,
+      voltageLabel: controlledVoltage?.label || null
+    };
+  }
+  const controlledCurrent = circuitikzFirstMatchingOption(options, /^cI[<>_^]*$/);
+  const controlledCurrentStyle = circuitikzFirstMatchingOption(
+    options,
+    /^(?:controlled current source|controlled isource|cisource|cisourceEU|cisourceAM|european controlled current source|american controlled current source)$/
+  );
+  if (controlledCurrent || controlledCurrentStyle) {
+    return {
+      kind: "controlledCurrentSource",
+      sourceKind: "controlled",
+      sourceStyle: circuitikzControlledSourceStyle(options, env, "current"),
+      label: circuitikzLabelValue(options.l) || controlledCurrentStyle?.label || null,
+      currentKey: controlledCurrent?.key || null,
+      currentLabel: controlledCurrent?.label || null
+    };
+  }
   const sourceLabel = circuitikzFirstLabel(options, ["isource", "I", "current source", "american current source", "european current source"]);
   if (sourceLabel !== null) return { kind: "isource", label: circuitikzLabelValue(options.l) || sourceLabel };
   const pmosLabel = circuitikzFirstLabel(options, ["Tpmos", "pmos", "tpmos"]);
@@ -2493,10 +2523,41 @@ function circuitikzTubeShape(kind) {
 
 function circuitikzBodyLength(kind, segmentLength, env = {}, settings = null) {
   const scale = circuitikzLengthScale(env);
+  const controlledScale = kind === "controlledSource" ? circuitikzControlledSourceScale(env) : 1;
   const desired = kind === "inductor"
     ? (settings?.bodyLength || 0.84 * scale)
-    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : 0.84) * scale;
+    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : 0.84) * scale;
   return Math.min(desired, Math.max(0, segmentLength * 0.78));
+}
+
+function circuitikzControlledSourceScale(env = {}) {
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/csources/scale", "csources/scale"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return 1;
+}
+
+function circuitikzControlledSourceStyle(options = {}, env = {}, kind = "voltage") {
+  const americanKeys = kind === "voltage"
+    ? ["american controlled voltage source", "cvsourceAM"]
+    : ["american controlled current source", "cisourceAM"];
+  const europeanKeys = kind === "voltage"
+    ? ["european controlled voltage source", "cvsourceEU"]
+    : ["european controlled current source", "cisourceEU"];
+  for (const key of americanKeys) {
+    if (options[key] !== undefined) return "american";
+  }
+  for (const key of europeanKeys) {
+    if (options[key] !== undefined) return "european";
+  }
+  return kind === "voltage"
+    ? circuitikzUsesAmericanVoltageSource(env) ? "american" : "european"
+    : circuitikzUsesAmericanCurrentSource(env) ? "american" : "european";
 }
 
 function circuitikzInductorKind(options = {}, env = {}) {
@@ -2902,8 +2963,40 @@ function registerCircuitikzInductorNode(spec, geometry, settings, requestedBodyL
   materializeCircuitikzNodeAnchors(name, env);
 }
 
-function circuitikzCurrentSourceItems(from, to, geometry, pathStyle = {}, env = {}) {
+function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle = {}, env = {}) {
   const scale = circuitikzLengthScale(env);
+  if (spec.kind === "controlledCurrentSource") {
+    const halfExtent = 0.49 * scale * circuitikzControlledSourceScale(env);
+    const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+    const items = [{
+      type: "path",
+      subtype: "circuitikz-controlled-current-source",
+      shape: "diamond",
+      style,
+      commands: circuitikzDiamondPath(geometry, halfExtent)
+    }];
+    if (spec.sourceStyle === "european") {
+      const start = pointAlong(geometry.mid, geometry.n, -halfExtent);
+      const end = pointAlong(geometry.mid, geometry.n, halfExtent);
+      items.push({
+        type: "path",
+        subtype: "circuitikz-controlled-current-source-line",
+        style,
+        commands: [{ type: "moveTo", x: start.x, y: start.y }, { type: "lineTo", x: end.x, y: end.y }]
+      });
+    } else {
+      const arrowHalf = halfExtent * 0.7;
+      const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
+      const arrowEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
+      items.push({
+        type: "path",
+        subtype: "circuitikz-controlled-current-source-arrow",
+        style: circuitikzArrowStyle(pathStyle),
+        commands: [{ type: "moveTo", x: arrowStart.x, y: arrowStart.y }, { type: "lineTo", x: arrowEnd.x, y: arrowEnd.y }]
+      });
+    }
+    return items;
+  }
   const radius = 0.42 * scale;
   const arrowHalf = 0.28 * scale;
   const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
@@ -2933,6 +3026,29 @@ function circuitikzCurrentSourceItems(from, to, geometry, pathStyle = {}, env = 
 
 function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, env = {}) {
   const scale = circuitikzLengthScale(env);
+  if (spec.kind === "controlledVoltageSource") {
+    const halfExtent = 0.49 * scale * circuitikzControlledSourceScale(env);
+    const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+    const items = [{
+      type: "path",
+      subtype: "circuitikz-controlled-voltage-source",
+      sourceKind: spec.sourceKind,
+      shape: "diamond",
+      style,
+      commands: circuitikzDiamondPath(geometry, halfExtent)
+    }];
+    if (spec.sourceStyle === "european") {
+      const start = pointAlong(geometry.mid, geometry.u, -halfExtent);
+      const end = pointAlong(geometry.mid, geometry.u, halfExtent);
+      items.push({
+        type: "path",
+        subtype: "circuitikz-controlled-voltage-source-line",
+        style,
+        commands: [{ type: "moveTo", x: start.x, y: start.y }, { type: "lineTo", x: end.x, y: end.y }]
+      });
+    }
+    return items;
+  }
   const radius = 0.42 * scale;
   const style = circuitikzComponentStyle(pathStyle);
   const items = [
@@ -2995,15 +3111,44 @@ function circuitikzUsesAmericanVoltageSource(env = {}) {
   return false;
 }
 
+function circuitikzUsesAmericanCurrentSource(env = {}) {
+  const sources = [env.pictureOptions || {}, env.circuitikz || {}];
+  for (const source of sources) {
+    if (source["european current source"] !== undefined || source["european currents"] !== undefined) return false;
+    if (
+      source.american !== undefined ||
+      source["american current source"] !== undefined ||
+      source["american currents"] !== undefined
+    ) return true;
+  }
+  return false;
+}
+
 function appendCircuitikzVoltageSourceSymbolNodes(nodes, spec, geometry, env = {}) {
-  if (spec.sourceKind !== "plain" || !circuitikzUsesAmericanVoltageSource(env)) return;
-  const signOffset = 0.18 * circuitikzLengthScale(env);
+  const controlled = spec.kind === "controlledVoltageSource";
+  if ((spec.sourceKind !== "plain" && !controlled) || (controlled ? spec.sourceStyle !== "american" : !circuitikzUsesAmericanVoltageSource(env))) return;
+  const sourceScale = controlled ? circuitikzControlledSourceScale(env) : 1;
+  const signOffset = 0.18 * circuitikzLengthScale(env) * sourceScale;
   const backward = String(spec.voltageKey || "").includes("<");
   const plusDirection = backward ? geometry.u : { x: -geometry.u.x, y: -geometry.u.y };
   const plusPoint = pointAlong(geometry.mid, plusDirection, signOffset);
   const minusPoint = pointAlong(geometry.mid, plusDirection, -signOffset);
   addCircuitikzTextNode(nodes, plusPoint, "+", { "inner sep": "0pt", anchor: "center" });
   addCircuitikzTextNode(nodes, minusPoint, "-", { "inner sep": "0pt", anchor: "center" });
+}
+
+function circuitikzDiamondPath(geometry, halfExtent) {
+  const left = pointAlong(geometry.mid, geometry.u, -halfExtent);
+  const top = pointAlong(geometry.mid, geometry.n, halfExtent);
+  const right = pointAlong(geometry.mid, geometry.u, halfExtent);
+  const bottom = pointAlong(geometry.mid, geometry.n, -halfExtent);
+  return [
+    { type: "moveTo", x: left.x, y: left.y },
+    { type: "lineTo", x: top.x, y: top.y },
+    { type: "lineTo", x: right.x, y: right.y },
+    { type: "lineTo", x: bottom.x, y: bottom.y },
+    { type: "closePath" }
+  ];
 }
 
 function circuitikzMosfetItems(from, to, geometry, spec, pathStyle = {}, env = {}) {
@@ -3482,12 +3627,29 @@ function circuitikzGroundItem(point, style = {}, env = {}) {
 }
 
 function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {}) {
-  if (spec.kind === "voltageSource" && circuitikzVoltageSpec({}, spec, env)) return;
+  if ((spec.kind === "voltageSource" || spec.kind === "controlledVoltageSource") && circuitikzVoltageSpec({}, spec, env)) return;
   const label = circuitikzTextLabel(spec.label, env);
   if (!label) return;
+  if (spec.kind === "controlledVoltageSource" || spec.kind === "controlledCurrentSource") {
+    const { point, anchor } = circuitikzControlledSourceLabelPlacement(geometry, env);
+    addCircuitikzTextNode(nodes, point, label, { anchor });
+    return;
+  }
   const scale = circuitikzLengthScale(env);
-  const offset = (spec.kind === "isource" ? 0.7 : spec.kind === "inductor" && spec.variable ? 0.8 : 0.46) * scale;
+  const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource" ? 0.7 : spec.kind === "inductor" && spec.variable ? 0.8 : 0.46) * scale;
   addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label);
+}
+
+function circuitikzControlledSourceLabelPlacement(geometry, env = {}) {
+  const scale = circuitikzLengthScale(env);
+  const sourceScale = circuitikzControlledSourceScale(env);
+  // circuitikz begins l= at the rotated source's outline (shape.90), then
+  // applies its .75ex label space. The SVG text anchor must face outward.
+  const distance = (0.49 * sourceScale + 0.17) * scale;
+  return {
+    point: pointNormal(geometry.mid, geometry.n, distance),
+    anchor: circuitikzOuterTextAnchor(geometry.n)
+  };
 }
 
 function appendCircuitikzAnnotationLabel(nodes, spec, geometry, options = {}, env = {}) {
@@ -3497,7 +3659,7 @@ function appendCircuitikzAnnotationLabel(nodes, spec, geometry, options = {}, en
   const sideNormal = annotation.side > 0
     ? geometry.n
     : { x: -geometry.n.x, y: -geometry.n.y };
-  const offset = (spec.kind === "isource" ? 0.7 : 0.46) * scale;
+  const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource" ? 0.7 : 0.46) * scale;
   addCircuitikzTextNode(
     nodes,
     pointNormal(geometry.mid, sideNormal, offset),
@@ -3527,7 +3689,7 @@ function circuitikzOuterTextAnchor(normal) {
 }
 
 function appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options = {}, pathStyle = {}, env = {}) {
-  const current = circuitikzCurrentSpec(options, env);
+  const current = circuitikzCurrentSpec(options, spec, env);
   if (!current) return;
   const scale = circuitikzLengthScale(env);
   const bodyLength = spec.kind === "short" ? 0 : circuitikzBodyLength(spec.kind, geometry.length, env);
@@ -3605,11 +3767,15 @@ function circuitikzFlowArrowItem(center, geometry, flow, pathStyle = {}, env = {
   };
 }
 
-function circuitikzCurrentSpec(options = {}, env = {}) {
+function circuitikzCurrentSpec(options = {}, spec = {}, env = {}) {
   for (const [key, value] of Object.entries(options)) {
     if (!/^i(?:[<>_^]*)?$/.test(key)) continue;
     const label = circuitikzTextLabel(value, env);
     if (label) return { key, label };
+  }
+  if (spec.kind === "controlledCurrentSource" && spec.currentLabel) {
+    const label = circuitikzTextLabel(spec.currentLabel, env);
+    if (label) return { key: String(spec.currentKey || "cI").replace(/^cI/, "i"), label };
   }
   return null;
 }
@@ -3636,6 +3802,14 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
   const { label } = voltage;
   const scale = circuitikzLengthScale(env);
   const normal = circuitikzVoltageNormal(geometry, voltage, spec);
+  if (spec.kind === "controlledVoltageSource") {
+    const { point, anchor } = circuitikzControlledSourceLabelPlacement(
+      { ...geometry, n: normal },
+      env
+    );
+    addCircuitikzTextNode(nodes, point, label, { anchor });
+    return;
+  }
   if (!circuitikzUsesAmericanVoltageSource(env)) {
     shapes.push(circuitikzRpVoltageArrowItem(spec, geometry, voltage, normal, pathStyle, env));
     const labelOffset = (spec.kind === "voltageSource" ? 0.78 : 0.78) * scale;
@@ -3650,8 +3824,8 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
     return;
   }
 
-  const signOffset = (spec.kind === "isource" ? 0.28 : 0.38) * scale;
-  const labelOffset = (spec.kind === "isource" ? 0.72 : 0.62) * scale;
+  const signOffset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource" ? 0.28 : 0.38) * scale;
+  const labelOffset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource" ? 0.72 : 0.62) * scale;
   const along = 0.55 * scale;
   const backward = circuitikzVoltageDirectionIsBackward(voltage, spec, env);
   const plusAlong = backward ? -along : along;
@@ -3670,6 +3844,10 @@ function circuitikzVoltageSpec(options = {}, spec = {}, env = {}) {
     const label = circuitikzTextLabel(spec.label, env);
     if (label) return { key: spec.voltageKey || "V", label };
   }
+  if (spec.kind === "controlledVoltageSource" && spec.voltageLabel) {
+    const label = circuitikzTextLabel(spec.voltageLabel, env);
+    if (label) return { key: spec.voltageKey || "cV", label };
+  }
   return null;
 }
 
@@ -3682,12 +3860,12 @@ function circuitikzVoltageDirectionIsBackward(voltage = {}, spec = {}, env = {})
   const key = String(voltage.key || "");
   if (key.includes("<")) return true;
   if (key.includes(">")) return false;
-  return spec.kind !== "voltageSource" && circuitikzUsesRPVoltages(env);
+  return spec.kind !== "voltageSource" && spec.kind !== "controlledVoltageSource" && circuitikzUsesRPVoltages(env);
 }
 
 function circuitikzVoltageNormal(geometry, voltage = {}, spec = {}) {
   const key = String(voltage.key || "");
-  const above = key.includes("^") || (!key.includes("_") && spec.kind === "voltageSource");
+  const above = key.includes("^") || (!key.includes("_") && (spec.kind === "voltageSource" || spec.kind === "controlledVoltageSource"));
   return above ? geometry.n : { x: -geometry.n.x, y: -geometry.n.y };
 }
 

@@ -200,6 +200,21 @@
       ]
     },
     {
+      "id": "circuitikz-controlled-sources",
+      "title": "circuitikz controlled voltage and current source styles",
+      "source": "circuitikz/controlled-sources.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzDiamondPath/circuitikzControlledSourceScale",
+      "features": [
+        "to[cV] controlled voltage source",
+        "to[cI] controlled current source",
+        "European and American controlled source symbols",
+        "csources/scale",
+        "source labels"
+      ]
+    },
+    {
       "id": "tkz-euclide-incircle",
       "title": "tkz-euclide triangle incircle",
       "source": "tkz-euclide/incircle.tex",

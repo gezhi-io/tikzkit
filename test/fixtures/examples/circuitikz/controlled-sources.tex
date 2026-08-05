@@ -1,0 +1,12 @@
+% Adapted from the TeX Live circuitikz manual's controlled-source section.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american, thick]
+  \ctikzset{csources/scale=1.2}
+  \draw (0,0) to[cV=$g v_x$] (0,3);
+  \draw (2.5,0) to[cI=$g i_x$] (2.5,3);
+  \draw (5,0) to[european controlled voltage source, l=$\mu v_x$] (5,3);
+  \draw (7.5,0) to[european controlled current source, l=$\beta i_x$] (7.5,3);
+\end{circuitikz}
+\end{document}
