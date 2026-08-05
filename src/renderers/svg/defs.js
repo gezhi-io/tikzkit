@@ -1,5 +1,6 @@
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
+import { svgPathData } from "./pathData.js";
 import {
   axisGradientId,
   ballGradientId,
@@ -18,9 +19,26 @@ export function createSvgDefs(parts = []) {
   return body ? `<defs>${body}</defs>` : "";
 }
 
+export function formOnlyPatternClipId(index) {
+  return `tikz-form-pattern-clip-${index}`;
+}
+
+function collectFormOnlyPatternClipDefs(items = []) {
+  return items.flatMap((item, index) => {
+    if (!item?.style?.patternDefinition || !Array.isArray(item.commands) || !item.commands.length) return [];
+    return [{ id: formOnlyPatternClipId(index), commands: item.commands, fillRule: item.style.fillRule }];
+  });
+}
+
+function renderFormOnlyPatternClipDef(def, unit) {
+  const fillRule = def.fillRule ? ` clip-rule="${escapeAttribute(String(def.fillRule))}"` : "";
+  return `<clipPath id="${escapeAttribute(def.id)}" clipPathUnits="userSpaceOnUse"><path d="${svgPathData(def.commands, unit)}"${fillRule} /></clipPath>`;
+}
+
 export function collectSvgDefs(items, unit) {
   const clipRectDefs = collectClipRectDefs(items);
   const patternDefs = collectPatternDefs(items);
+  const formOnlyPatternClipDefs = collectFormOnlyPatternClipDefs(items);
   const ballGradientDefs = collectBallGradientDefs(items);
   const axisGradientDefs = collectAxisGradientDefs(items);
   const radialGradientDefs = collectRadialGradientDefs(items);
@@ -28,6 +46,7 @@ export function collectSvgDefs(items, unit) {
   const blurShadowDefs = collectBlurShadowDefs(items, unit);
   return [
     ...clipRectDefs.map((def) => renderClipRectDef(def, unit)),
+    ...formOnlyPatternClipDefs.map((def) => renderFormOnlyPatternClipDef(def, unit)),
     ...patternDefs.map(renderPatternDef),
     ...ballGradientDefs.map(renderBallGradientDef),
     ...axisGradientDefs.map(renderAxisGradientDef),

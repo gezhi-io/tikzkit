@@ -3,7 +3,7 @@ import { isEmptyNormalizedTikzText, normalizeTikzText } from "../../tikz/text.js
 import { computeSvgBounds } from "./bounds.js";
 import { renderDecorationTextPath } from "./decorationText.js";
 import { renderDefaultFontStyleDef } from "./defaultFontCss.js";
-import { clipRectId, collectSvgDefs } from "./defs.js";
+import { clipRectId, collectSvgDefs, formOnlyPatternClipId } from "./defs.js";
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
 import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
@@ -28,6 +28,7 @@ import {
 } from "./nodeShapes.js";
 import { renderMiscOutNodeBox, renderNodeBoxWithOverlay } from "./nodeOverlays.js";
 import { renderPathElement } from "./paths.js";
+import { hasRenderableFormOnlyPattern, renderFormOnlyPatternFill } from "./formOnlyPatterns.js";
 import { renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
 import { renderRichTextNode } from "./richTextNode.js";
@@ -149,7 +150,10 @@ function renderItem(item, unit, options = {}, index = 0) {
     return wrapNodeRotation(rendered, item, unit);
   }
   if (item.type === "path" && hasPathCommands(item)) {
-    const rendered = renderPathElement(item, unit);
+    const rendered = hasRenderableFormOnlyPattern(item)
+      ? `${renderFormOnlyPatternFill(item, unit, formOnlyPatternClipId(index))}${renderPathElement({
+        ...item, style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
+      }, unit)}` : renderPathElement(item, unit);
     if (!item.clipRect) return rendered;
     return `<g clip-path="url(#${escapeAttribute(clipRectId(item.clipRect))})">${rendered}</g>`;
   }

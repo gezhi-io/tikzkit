@@ -351,6 +351,7 @@ Current support is pragmatic and growing. Highlights:
 - Basic drawing commands: `\draw`, `\path`, `\fill`, `\filldraw`, `\node`, `\coordinate`.
 - Common paths: lines, rectangles, circles, ellipses, arcs, grids, orthogonal `|-` / `-|`, `to`, `edge`, bend edges, self loops.
 - Styles: `\tikzset`, `\tikzstyle`, color definitions, line widths, dash patterns, opacity, arrow tips.
+- Pattern fills: built-in pattern metadata plus a focused `\pgfdeclarepatternformonly` slice. Constant `\pgfpoint`/`\pgfqpoint` tile geometry and line, circle, rectangle, close, fill, and stroke primitives are supported; pattern transforms, mutable/inherently-colored patterns, and arbitrary TeX drawing procedures remain unsupported.
 - Nodes: named nodes, compass anchors, angle anchors, shape borders, circle/rectangle/diamond, text and math sizing approximations.
 - Positioning: `right=... of A`, `below right=... of A`, legacy `right of=A`, shifts, node distance.
 - Matrices: common `matrix of nodes`, empty cells, row style overrides, matrix cell anchors.
@@ -480,6 +481,25 @@ families, and named bare part anchors are implemented for the supported part
 names. `rectangle split part align=none`,
 the full PGF anchor surface, arbitrary nested/multiline part boxes, and the
 broader multipart shape family remain under test.
+
+### Declared Pattern Tiles
+
+Use a form-only declaration before the path that consumes it. The declaration's
+third point is the repeat step; the final group is a small PGF drawing procedure.
+
+```tex
+\pgfdeclarepatternformonly{blue dots}
+  {\pgfqpoint{-1pt}{-1pt}}
+  {\pgfqpoint{1pt}{1pt}}
+  {\pgfqpoint{3pt}{3pt}}
+  {\pgfpathcircle{\pgfpointorigin}{.5pt}\pgfusepath{fill}}
+\fill[pattern=blue dots,pattern color=blue] (0,0) rectangle (2,1);
+```
+
+The verified procedure subset is move/line/circle/rectangle/close plus
+`\pgfusepath{fill}` and `\pgfusepath{stroke}`. Keep the tile geometry constant;
+pattern transforms and declarations with executable TeX arguments are still
+outside the supported boundary.
 
 ## TikZ Library Registry
 

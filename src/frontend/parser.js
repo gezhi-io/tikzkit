@@ -154,6 +154,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\pgfmathtruncatemacro")) return parsePgfMathTruncate(text, diagnostics);
   if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
   if (text.startsWith("\\pgfmathrandomitem")) return parsePgfMathRandomItem(text, diagnostics);
+  if (text.startsWith("\\pgfdeclarepatternformonly")) return parsePgfDeclarePatternFormOnly(text, diagnostics);
   if (text.startsWith("\\ifnum")) return parseIfNum(text, diagnostics);
   if (text.startsWith("\\pgftransformcm")) return parsePgfTransformCm(text);
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
@@ -554,6 +555,38 @@ function parsePgfMathTargetCommand(text, command) {
     name,
     expression: expression.content.trim(),
     end: expression.end
+  };
+}
+
+function parsePgfDeclarePatternFormOnly(text, diagnostics = []) {
+  let index = skipWhitespace(text, "\\pgfdeclarepatternformonly".length);
+  const optional = text[index] === "[" ? extractBalanced(text, index, "[", "]") : null;
+  if (optional) index = skipWhitespace(text, optional.end);
+  const name = extractBalanced(text, index, "{", "}");
+  if (!name) return unsupported("pgfdeclarepatternformonly", text, "Malformed \\pgfdeclarepatternformonly declaration");
+  index = skipWhitespace(text, name.end);
+
+  const groups = [];
+  for (let count = 0; count < 4; count += 1) {
+    const group = extractBalanced(text, index, "{", "}");
+    if (!group) {
+      return unsupported("pgfdeclarepatternformonly", text, "Malformed \\pgfdeclarepatternformonly declaration");
+    }
+    groups.push(group.content);
+    index = skipWhitespace(text, group.end);
+  }
+  if (text.slice(index).trim()) {
+    return unsupported("pgfdeclarepatternformonly", text, "Malformed \\pgfdeclarepatternformonly declaration");
+  }
+  return {
+    type: "pgfdeclarepatternformonly",
+    name: name.content.trim(),
+    arguments: optional?.content.trim() || "",
+    lowerLeft: groups[0].trim(),
+    upperRight: groups[1].trim(),
+    tileSize: groups[2].trim(),
+    body: groups[3],
+    raw: text
   };
 }
 
@@ -1989,6 +2022,7 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\pgfmathtruncatemacro") ||
     text.startsWith("\\pgfmathdeclarerandomlist") ||
     text.startsWith("\\pgfmathrandomitem") ||
+    text.startsWith("\\pgfdeclarepatternformonly") ||
     text.startsWith("\\pgfplotsset") ||
     text.startsWith("\\ctikzset") ||
     text.startsWith("\\pgfplotstableread") ||
