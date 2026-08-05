@@ -280,6 +280,30 @@ its real SVG text bounds participate in cropping. The focused comparison for
 `color-blind-friendly-mesh-colormap` is recorded in
 [`docs/qa/2026-08-06-pgfplots-3d-title-placement.md`](docs/qa/2026-08-06-pgfplots-3d-title-placement.md).
 
+### PGFPlots 3D Plot Box Ratio
+
+The browser renderer supports a focused `plot box ratio` subset for 3D
+`axis` environments:
+
+```tex
+\begin{axis}[
+  view={120}{35},
+  plot box ratio={1}{2}{1},
+  mesh
+]
+  \addplot3 {y};
+\end{axis}
+```
+
+Finite positive numeric triplets in either `plot box ratio={1}{2}{1}` or
+`plot box ratio=1 2 1` form scale the x/y/z projection basis before the
+requested `width`/`height` fit. This is deliberately not a full PGFPlots 3D
+transform implementation: macro/expression values, `view dir`, explicit
+`x`/`y`/`z` vectors, and the broader `scale mode` family remain partial. The
+local MacTeX/tikztosvg visual audit, its real fixture, and reproduction
+commands are recorded in
+[`docs/qa/2026-08-06-pgfplots-3d-plot-box-ratio.md`](docs/qa/2026-08-06-pgfplots-3d-plot-box-ratio.md).
+
 ### Circuitikz Voltage Notation
 
 The current `circuitikz` support is intentionally a focused subset. The

@@ -1006,15 +1006,18 @@ function hasAxisBound(value) {
 
 function createPgfplots3DViewProjection(axisOptions = {}, width = 1, height = 1) {
   const view = parsePgfplotsView(axisOptions.view);
+  const plotBoxRatio = parsePgfplotsPlotBoxRatio(axisOptions["plot box ratio"]);
   const az = degreesToRadians(view.azimuth);
   const el = degreesToRadians(-view.elevation);
   const sinAz = Math.sin(az);
   const cosAz = Math.cos(az);
   const sinEl = Math.sin(el);
   const cosEl = Math.cos(el);
-  const xVector = { x: cosAz, y: sinAz * sinEl };
-  const yVector = { x: sinAz, y: -sinEl * cosAz };
-  const zVector = { x: 0, y: cosEl };
+  // PGFPlots applies this ratio to its three basis vectors before scaling the
+  // resulting projected box to the requested axis dimensions.
+  const xVector = { x: cosAz * plotBoxRatio.x, y: sinAz * sinEl * plotBoxRatio.x };
+  const yVector = { x: sinAz * plotBoxRatio.y, y: -sinEl * cosAz * plotBoxRatio.y };
+  const zVector = { x: 0, y: cosEl * plotBoxRatio.z };
   const projectRaw = (x, y, z) => ({
     x: x * xVector.x + y * yVector.x + z * zVector.x,
     y: x * xVector.y + y * yVector.y + z * zVector.y
@@ -1068,12 +1071,25 @@ function parsePgfplotsView(raw) {
   return { azimuth: 25, elevation: 30 };
 }
 
+function parsePgfplotsPlotBoxRatio(raw) {
+  const values = String(raw ?? "1 1 1")
+    .replace(/[{}]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map(Number);
+  if (values.length < 3 || values.slice(0, 3).some((value) => !Number.isFinite(value) || value <= 0)) {
+    return { x: 1, y: 1, z: 1 };
+  }
+  return { x: values[0], y: values[1], z: values[2] };
+}
+
 function degreesToRadians(value) {
   return (Number(value) * Math.PI) / 180;
 }
 
 export function pgfplotsViewDirection(axisOptions = {}) {
   const view = parsePgfplotsView(axisOptions.view);
+  const plotBoxRatio = parsePgfplotsPlotBoxRatio(axisOptions["plot box ratio"]);
   const az = degreesToRadians(view.azimuth);
   const el = degreesToRadians(-view.elevation);
   const sinAz = Math.sin(az);
@@ -1081,8 +1097,8 @@ export function pgfplotsViewDirection(axisOptions = {}) {
   const sinEl = Math.sin(el);
   const cosEl = Math.cos(el);
   return {
-    x: -sinAz * cosEl,
-    y: cosAz * cosEl,
-    z: sinEl
+    x: -sinAz * cosEl * plotBoxRatio.x,
+    y: cosAz * cosEl * plotBoxRatio.y,
+    z: sinEl * plotBoxRatio.z
   };
 }

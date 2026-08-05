@@ -47,8 +47,13 @@ test("capability matrix records PGFPlots faceted painter visual gates", () => {
   assert.ok(feature.fixtures.includes("test/fixtures/examples/latex-examples/3d-function-8.tex"));
   assert.ok(feature.fixtures.includes("test/fixtures/examples/latex-examples/3d-gradient-cos.tex"));
   assert.ok(feature.fixtures.includes("test/fixtures/examples/latex-examples/3d-manhattan-bar-plot.tex"));
+  assert.ok(feature.fixtures.includes("test/fixtures/examples/pgfplots/plot-box-ratio-3d.tex"));
   assert.equal(new Set(feature.fixtures).size, feature.fixtures.length);
-  assert.deepEqual(feature.verification.artifacts, ["outputs/qa-pgfplots-3d-annotation", "outputs/qa-pgfplots-faceted-order"]);
+  assert.deepEqual(feature.verification.artifacts, [
+    "outputs/qa-pgfplots-3d-annotation",
+    "outputs/qa-pgfplots-faceted-order",
+    "outputs/qa-pgfplots-3d-plot-box-ratio"
+  ]);
   assert.match(feature.notes, /per-patch faceted painter ordering is verified/i);
   assert.match(feature.notes, /projection calibration/i);
   assert.match(feature.notes, /surface\/color interpolation/i);
@@ -56,6 +61,7 @@ test("capability matrix records PGFPlots faceted painter visual gates", () => {
   assert.match(feature.notes, /colorbar placement/i);
   assert.match(feature.notes, /exact TeX glyph metrics/i);
   assert.match(feature.notes, /unsupported shader\/patch modes/i);
+  assert.match(feature.notes, /plot box ratio/i);
 });
 
 test("capability matrix records default middle-axis framing visual gates", () => {

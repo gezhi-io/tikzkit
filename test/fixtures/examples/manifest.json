@@ -3744,6 +3744,21 @@
         "radian trigonometry",
         "exp and abs"
       ]
+    },
+    {
+      "id": "pgfplots-plot-box-ratio-3d",
+      "title": "PGFPlots 3D plot box ratio",
+      "source": "pgfplots/plot-box-ratio-3d.tex",
+      "sourceCorpus": "TeX Live visualtikz manual",
+      "externalSource": "doc/latex/visualtikz/Source/tkzgraph3D.tex",
+      "semanticOwner": "src/pgfplots/geometry.js:createPgfplots3DViewProjection",
+      "features": [
+        "PGFPlots 3D view",
+        "plot box ratio={1}{2}{1}",
+        "mesh",
+        "samples",
+        "no marks"
+      ]
     }
   ]
 }

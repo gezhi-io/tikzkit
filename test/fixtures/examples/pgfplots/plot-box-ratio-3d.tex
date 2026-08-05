@@ -1,0 +1,18 @@
+% Extracted from TeX Live visualtikz Source/tkzgraph3D.tex.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=5cm,
+    samples=10,
+    mesh,
+    no marks,
+    view={120}{35},
+    plot box ratio={1}{2}{1}
+  ]
+    \addplot3 {y};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

@@ -4976,6 +4976,37 @@ test("pgfplots 3d geometry defaults to stretch-to-fill plot box scaling", () => 
   assert.ok(Math.abs(Math.max(...corners.map((point) => point.y)) - geometry.height) < 1e-9);
 });
 
+test("pgfplots 3d plot box ratio scales basis vectors before the projected box is fitted", () => {
+  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 1 };
+  const base = createAxisGeometry(
+    { "scale only axis": true, width: "4cm", height: "4cm", "pgfplots 3d surface": true, view: "{120}{35}" },
+    ranges
+  );
+  const stretchedY = createAxisGeometry(
+    {
+      "scale only axis": true,
+      width: "4cm",
+      height: "4cm",
+      "pgfplots 3d surface": true,
+      view: "{120}{35}",
+      "plot box ratio": "1 2 1"
+    },
+    ranges
+  );
+  const baseOrigin = base.mapPoint3d({ x: 0, y: 0, z: 0 });
+  const stretchedOrigin = stretchedY.mapPoint3d({ x: 0, y: 0, z: 0 });
+  const baseY = base.mapPoint3d({ x: 0, y: 1, z: 0 });
+  const stretchedYPoint = stretchedY.mapPoint3d({ x: 0, y: 1, z: 0 });
+  const baseX = base.mapPoint3d({ x: 1, y: 0, z: 0 });
+  const stretchedX = stretchedY.mapPoint3d({ x: 1, y: 0, z: 0 });
+
+  const baseYToX = Math.hypot(baseY.x - baseOrigin.x, baseY.y - baseOrigin.y) / Math.hypot(baseX.x - baseOrigin.x, baseX.y - baseOrigin.y);
+  const stretchedYToX = Math.hypot(stretchedYPoint.x - stretchedOrigin.x, stretchedYPoint.y - stretchedOrigin.y)
+    / Math.hypot(stretchedX.x - stretchedOrigin.x, stretchedX.y - stretchedOrigin.y);
+
+  assert.ok(stretchedYToX > baseYToX * 1.7, `expected plot box ratio to lengthen y relative to x, got ${baseYToX} -> ${stretchedYToX}`);
+});
+
 test("pgfplots default 3d surf z buffer follows native reverse-y scanline order", () => {
   const axisOptions = {
     "pgfplots 3d surface": true,

@@ -178,20 +178,21 @@ export const capabilityMatrix = {
     parser: "partial",
     semantic: "partial",
     svg: "partial",
-    modules: ["src/pgfplots/axis3d.js", "src/pgfplots/surface.js", "src/pgfplots/rangeResolver.js"],
+    modules: ["src/pgfplots/axis3d.js", "src/pgfplots/geometry.js", "src/pgfplots/surface.js", "src/pgfplots/rangeResolver.js"],
     fixtures: [
       "test/fixtures/examples/latex-examples/3d-manhattan-bar-plot.tex",
       "test/fixtures/examples/latex-examples/3d-gaussian-distribution.tex",
       "test/fixtures/examples/latex-examples/3d-function-8.tex",
       "test/fixtures/examples/latex-examples/3d-function-2.tex",
-      "test/fixtures/examples/latex-examples/3d-gradient-cos.tex"
+      "test/fixtures/examples/latex-examples/3d-gradient-cos.tex",
+      "test/fixtures/examples/pgfplots/plot-box-ratio-3d.tex"
     ],
     verification: {
       oracle: "unit-test+tikztosvg",
       tests: ["test/pgfplots-seams.test.js", "test/example-render-script.test.js"],
-      artifacts: ["outputs/qa-pgfplots-3d-annotation", "outputs/qa-pgfplots-faceted-order"]
+      artifacts: ["outputs/qa-pgfplots-3d-annotation", "outputs/qa-pgfplots-faceted-order", "outputs/qa-pgfplots-3d-plot-box-ratio"]
     },
-    notes: "View-aware projected-edge annotation layout is verified for opposing views. Per-patch faceted painter ordering is verified. Remaining differences include projection calibration, surface/color interpolation, overlays, colorbar placement, exact TeX glyph metrics, and unsupported shader/patch modes."
+    notes: "View-aware projected-edge annotation layout is verified for opposing views. Per-patch faceted painter ordering is verified. Literal finite-positive `plot box ratio={x}{y}{z}` values now scale the projected x/y/z basis vectors before the final requested plot-box fit, as in local PGFPlots; brace and bare whitespace triplets are accepted. Remaining differences include projection calibration, surface/color interpolation, overlays, colorbar placement, exact TeX glyph metrics, expression/macro-valued plot box ratios, view-dir/scale-mode variants, and unsupported shader/patch modes."
   },
   pgfplots_colorbar: {
     id: "pgfplots_colorbar",
