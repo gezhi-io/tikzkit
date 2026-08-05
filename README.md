@@ -326,6 +326,12 @@ Current support is pragmatic and growing. Highlights:
   localized names, and executable calendar hooks remain partial; use the
   `calendar-week-list-multimonth` fixture and its QA record as the current
   verified boundary.
+- `tkz-fct` Cartesian frame: `\tkzInit`, `\tkzGrid`, and `\tkzAxeXY` support
+  separate x/y scales, same-sign local origins, explicit grid ranges, and
+  `sub` grids. The scalar `\tkzFct` subset samples source-unit expressions;
+  parametric/polar functions, gnuplot cache identifiers, tangents, areas, and
+  asymptotes remain outside the verified boundary. See
+  [`docs/qa/2026-08-05-tkz-fct-grid-origin.md`](docs/qa/2026-08-05-tkz-fct-grid-origin.md).
 - PGFPlots subset: common `axis`, `addplot`, function sampling, coordinates, labels, legends, middle axes.
 - 3D subset: TikZ `x=`, `y=`, `z=` basis projection.
 - TeX-lite macros: common `\def`, `\newcommand`, `\foreach`, `\pgfmathsetmacro`.

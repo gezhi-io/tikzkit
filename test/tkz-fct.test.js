@@ -98,10 +98,31 @@ test("lowers tkzInit, tkzGrid, and tkzAxeXY using tkz-base dimensions", () => {
 \end{tikzpicture}`);
 
   assert.doesNotMatch(expanded, /\\tkz(?:Init|Grid|AxeXY)/);
-  assert.match(expanded, /line width=0\.4pt,step=1cm\] \(0,0\) grid \(4\.5,4\.5\)/);
+  assert.match(expanded, /line width=0\.4pt,xstep=1cm,ystep=1cm\] \(0,0\) grid \(4\.5,4\.5\)/);
   assert.match(expanded, /line width=0\.4pt,-latex\] \(0,0\) -- \(5,0\)/);
   assert.match(expanded, /line width=0\.8pt/);
   assert.match(expanded, /\\path \(4,2pt\) -- \(4,-2pt\) node\[below=3pt.*\{\$4\$\}/);
+});
+
+test("matches tkz-base local origins and subgrid ranges for non-normalized frames", () => {
+  const source = String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=20,xmax=100,xstep=20,ymin=1000,ymax=3000,ystep=1000]
+  \tkzGrid[sub,subxstep=10,subystep=500,color=orange](-20,-1000)(115,4000)
+  \tkzAxeXY
+\end{tikzpicture}`;
+  const expanded = expandTkzFct(source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const gridLines = result.ir.items.filter((item) => item.type === "path" && item.subtype === "grid-line");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.doesNotMatch(expanded, /\(-20,-1000\)\(115,4000\)/);
+  assert.match(expanded, /color=orange!50,line width=0\.3pt,xstep=0\.5cm,ystep=0\.5cm\] \(-2,-2\) grid \(4\.75,3\)/);
+  assert.match(expanded, /color=orange,line width=0\.4pt,xstep=1cm,ystep=1cm\] \(-2,-2\) grid \(4\.75,3\)/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(gridLines.length, 38, "expected 25 subgrid lines beneath 13 major-grid lines");
+  assert.ok(labels.includes("$20$") && labels.includes("$100$") && labels.includes("$1000$") && labels.includes("$3000$"));
 });
 
 test("lowers tkzAxeXY labels from tick endpoints and honors shared axis geometry options", () => {

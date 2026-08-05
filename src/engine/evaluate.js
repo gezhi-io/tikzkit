@@ -9513,15 +9513,19 @@ function textMetricUnits(line) {
 }
 
 function buildGrid(from, to, pathOptions, env = {}, localCoordinates = false) {
-  const step = parseDimension(pathOptions.step || 1) * (localCoordinates ? 1 : gridStepScale(env));
-  if (!Number.isFinite(step) || step <= 0) return [];
+  const scale = localCoordinates ? 1 : gridStepScale(env);
+  const fallbackStep = parseDimension(pathOptions.step || 1) * scale;
+  const xstep = parseDimension(pathOptions.xstep || pathOptions["x step"] || pathOptions.step || 1) * scale;
+  const ystep = parseDimension(pathOptions.ystep || pathOptions["y step"] || pathOptions.step || 1) * scale;
+  if (!Number.isFinite(fallbackStep) || fallbackStep <= 0 || !Number.isFinite(xstep) || xstep <= 0 || !Number.isFinite(ystep) || ystep <= 0) return [];
   const lines = [];
   const subtype = semanticSubtype(pathOptions) || "grid-line";
   const minX = Math.min(from.x, to.x);
   const maxX = Math.max(from.x, to.x);
   const minY = Math.min(from.y, to.y);
   const maxY = Math.max(from.y, to.y);
-  const tolerance = Math.max(1e-9, step * 0.05);
+  const xTolerance = Math.max(1e-9, xstep * 0.05);
+  const yTolerance = Math.max(1e-9, ystep * 0.05);
   const gridPoint = (point) => localCoordinates ? applyTransform(point, env.transform) : roundPoint(point);
   const addHorizontal = (y) => {
     const start = gridPoint({ x: minX, y: roundNumber(y) });
@@ -9535,7 +9539,7 @@ function buildGrid(from, to, pathOptions, env = {}, localCoordinates = false) {
       ]
     });
   };
-  for (let x = Math.ceil((minX - tolerance) / step) * step; x <= maxX + tolerance; x += step) {
+  for (let x = Math.ceil((minX - xTolerance) / xstep) * xstep; x <= maxX + xTolerance; x += xstep) {
     const start = gridPoint({ x: roundNumber(x), y: minY });
     const end = gridPoint({ x: roundNumber(x), y: maxY });
     lines.push({
@@ -9548,11 +9552,11 @@ function buildGrid(from, to, pathOptions, env = {}, localCoordinates = false) {
     });
   }
   let horizontalCount = 0;
-  for (let y = Math.ceil((minY - tolerance) / step) * step; y <= maxY + tolerance; y += step) {
+  for (let y = Math.ceil((minY - yTolerance) / ystep) * ystep; y <= maxY + yTolerance; y += ystep) {
     addHorizontal(y);
     horizontalCount += 1;
   }
-  const transformedCap = localCoordinates ? null : transformedGridUpperCap(minY, maxY, step, tolerance, env);
+  const transformedCap = localCoordinates ? null : transformedGridUpperCap(minY, maxY, ystep, yTolerance, env);
   if (horizontalCount === 0 && transformedCap !== null) {
     addHorizontal(transformedCap);
   }

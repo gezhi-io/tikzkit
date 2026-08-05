@@ -5,6 +5,7 @@ export const texPackage = {
   "features": [
     "tkzInit Cartesian bounds",
     "tkzGrid major grid",
+    "tkzGrid subgrid, explicit range, and independent x/y steps",
     "tkzAxeXY axes, ticks, and labels",
     "tkzFct sampled scalar functions",
     "tkzFct finite-sample pole branch splitting"
@@ -17,6 +18,7 @@ export const texPackage = {
     "manual linear scalar function plots",
     "sampled tangent branches across poles"
   ],
-  "observedOptions": ["domain", "samples", "color", "line width", "style", "xstep", "ystep"],
-  "notes": "tkzFct samples scalar function expressions in source units, maps them through tkzInit xstep/ystep, clips each segment to the initialized frame, and breaks a sampled branch that crosses opposite frame bounds across a pole. tkzFctPar, tkzFctPolar, gnuplot file/cache ids, tangents, areas, asymptotes, adaptive sampling, and general discontinuity analysis remain deferred."
+  "observedOptions": ["domain", "samples", "color", "line width", "style", "xstep", "ystep", "sub", "subxstep", "subystep", "ratio"],
+  "localSourceReviewed": true,
+  "notes": "tkzInit follows tkz-base's same-sign-range local-origin rule; tkzGrid maps explicit source-coordinate ranges plus major/subgrid x/y steps into the local Cartesian frame; tkzFct samples scalar function expressions in source units, clips each segment to the initialized frame, and breaks a sampled branch that crosses opposite frame bounds across a pole. tkzFctPar, tkzFctPolar, gnuplot file/cache ids, tangents, areas, asymptotes, adaptive sampling, and general discontinuity analysis remain deferred."
 };
