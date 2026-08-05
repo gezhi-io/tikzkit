@@ -361,6 +361,10 @@ test("expands TikZ calendar days into visible date nodes and anchors", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.ok(ir.coordinates["Feb-2016-02-29"], "expected leap-day coordinate anchor");
-  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "29" && item.style?.fill === "orange"));
+  assert.ok(
+    ir.items.some(
+      (item) => item.type === "textNode" && item.text === "29" && ["orange", "rgb(255 128 0)"].includes(item.style?.fill)
+    )
+  );
   assert.ok(ir.items.some((item) => item.type === "path" && item.commands?.length >= 2));
 });

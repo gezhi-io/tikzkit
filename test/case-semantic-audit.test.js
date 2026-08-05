@@ -124,6 +124,25 @@ test("audit assigns document-shell and font commands to explicit owners", () => 
   assert.ok(!report.gate.blockers.some((entry) => /PreviewBorder|setlength|tiny|\\tt/.test(entry)));
 });
 
+test("semantic audit maps calendar commands, options, and reviewed library metadata", () => {
+  const report = auditTikzSource(String.raw`
+    \usetikzlibrary{calendar}
+    \begin{tikzpicture}
+      \calendar [dates=2000-01-01 to 2000-02-last,week list,month yshift=3cm]
+        if (Sunday) [red];
+    \end{tikzpicture}
+  `, { localSourceResolver: fakeResolver });
+
+  const command = report.commands.find((entry) => entry.name === "\\calendar");
+  const dependency = report.dependencies.find((entry) => entry.name === "calendar");
+  assert.equal(command.implementedBy, "src/engine/evaluate.js:createCalendar/calendarLayout");
+  assert.equal(command.implementationStatus, "partial");
+  assert.equal(dependency.localSourceReviewed, true);
+  assert.ok(report.options.some((entry) => entry.id === "option:calendar:dates"));
+  assert.ok(report.options.some((entry) => entry.id === "option:calendar:week list"));
+  assert.ok(report.options.some((entry) => entry.id === "option:calendar:month yshift"));
+});
+
 test("review evidence can satisfy individual semantic features without hiding remaining work", () => {
   const report = auditTikzSource(String.raw`\draw[line width=1pt] (0,0) -- (1,1);`, {
     localSourceResolver: fakeResolver,

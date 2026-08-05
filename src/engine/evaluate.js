@@ -4581,31 +4581,25 @@ function createCalendarItems(spec, center, env, ir, diagnostics = []) {
     diagnostics.push({ severity: "warning", message: `Unsupported \\calendar dates ${spec.options?.dates || ""}`.trim() });
     return;
   }
-  const start = roundPoint({
-    x: center.x - (layout.columns - 1) * layout.dayX / 2,
-    y: center.y + (layout.rowCount - 1) * layout.dayY / 2
-  });
-
+  const calendarEnv = { ...env, styles: layout.styles };
   if (layout.options["month label above centered"] || layout.options["month label above left"] || layout.options["month label above right"]) {
-    const monthPoint = roundPoint({
-      x: start.x + ((layout.columns - 1) * layout.dayX) / 2 - parseDimension("1.5ex", env.variables),
-      y: start.y + layout.dayY * 1.25
-    });
-    addCalendarNode({
-      point: monthPoint,
-      text: calendarMonthText(layout),
-      options: calendarTextNodeOptions(layout.options, { "every month": true }, env)
-    }, ir, env);
+    for (const month of layout.months) {
+      addCalendarNode({
+        point: calendarMonthLabelPoint(layout, month, center, env),
+        text: calendarMonthText(layout, month.date),
+        options: calendarTextNodeOptions(layout.options, { "every month": true }, calendarEnv)
+      }, ir, calendarEnv);
+    }
   }
 
   for (const date of layout.dates) {
     const point = roundPoint({
-      x: start.x + date.weekdaySunday * layout.dayX,
-      y: start.y - date.row * layout.dayY
+      x: center.x + date.point.x,
+      y: center.y + date.point.y
     });
     const name = spec.name ? `${resolveDynamicName(spec.name, env)}-${date.iso}` : date.iso;
-    const options = calendarDayOptions(layout, date, env);
-    addCalendarNode({ point, text: calendarDayText(layout, date), options, name }, ir, env);
+    const options = calendarDayOptions(layout, date, calendarEnv);
+    addCalendarNode({ point, text: calendarDayText(layout, date), options, name }, ir, calendarEnv);
   }
 }
 
@@ -4636,38 +4630,73 @@ function estimateCalendarSize(spec, env) {
   const layout = calendarLayout(spec, env);
   if (!layout) return { width: 1, height: 1 };
   return {
-    width: roundNumber(layout.columns * layout.dayX + 0.35),
-    height: roundNumber(layout.rowCount * layout.dayY + layout.dayY * 1.45)
+    width: roundNumber((layout.columns - 1) * layout.dayX + 0.35),
+    height: roundNumber(layout.height + layout.dayY * 1.45)
   };
 }
 
 function calendarLayout(spec, env) {
-  const options = calendarEffectiveOptions(spec, env);
+  const styles = { ...(env.styles || {}), ...styleDefinitionsFromOptions(spec.options || {}, env.styles || {}) };
+  const calendarEnv = { ...env, styles };
+  const options = calendarEffectiveOptions(spec, calendarEnv);
   const dates = calendarDateRange(options.dates || spec.options?.dates);
   if (!dates.length) return null;
   const dayX = parseFiniteDimension(options["day xshift"], env, parseDimension("3.5ex", env.variables));
   const dayY = parseFiniteDimension(options["day yshift"], env, parseDimension("3ex", env.variables));
-  const first = dates[0];
-  const positioned = dates.map((date) => {
-    const absolute = calendarOrdinal(date.date);
-    const firstAbsolute = calendarOrdinal(first.date);
-    const weekdaySunday = date.date.getUTCDay();
-    const row = Math.floor((first.date.getUTCDay() + (absolute - firstAbsolute)) / 7);
-    return { ...date, weekdaySunday, row };
+  const monthY = parseFiniteDimension(options["month yshift"], env, parseDimension("9ex", env.variables));
+  const sundayFirst = options["week list sunday"] === true || String(options["week list"] || "").trim().toLowerCase() === "sunday";
+  let cursorY = 0;
+  const months = [];
+  const positioned = dates.map((date, index) => {
+    // PGF's calendar library starts ordinary week lists with Monday (0) and
+    // moves down after Sunday. A new month receives its extra vertical gap
+    // before its first day is placed.
+    if (index > 0 && date.day === 1) cursorY -= monthY;
+    const weekday = sundayFirst ? date.date.getUTCDay() : calendarWeekdayMonday(date.date);
+    const point = { x: weekday * dayX, y: cursorY };
+    const positionedDate = { ...date, weekday, point };
+    // Month labels belong to the full week-list row, not to the weekday on
+    // which the first of the month happens to fall. PGF resets their x origin
+    // to the left edge before applying the centered-label offset.
+    if (date.day === 1) months.push({ date: positionedDate, point: { x: 0, y: cursorY } });
+    if (weekday === 6) cursorY -= dayY;
+    return positionedDate;
   });
+  const verticalPoints = positioned.map((date) => date.point.y);
+  const minimumY = Math.min(...verticalPoints);
   return {
     options,
+    styles,
     conditions: [...calendarConditionsFromOptions(options), ...(spec.conditions || [])],
     dates: positioned,
+    months,
     columns: 7,
     dayX,
     dayY,
-    rowCount: Math.max(...positioned.map((date) => date.row)) + 1
+    monthY,
+    sundayFirst,
+    rowCount: Math.round(Math.abs(minimumY) / dayY) + 1,
+    height: Math.abs(minimumY)
   };
 }
 
+function calendarWeekdayMonday(date) {
+  return (date.getUTCDay() + 6) % 7;
+}
+
+function calendarMonthLabelPoint(layout, month, center, env) {
+  return roundPoint({
+    x: center.x + month.point.x + ((layout.columns - 1) * layout.dayX) / 2 - parseDimension("1.5ex", env.variables),
+    y: center.y + month.point.y + layout.dayY * 1.25
+  });
+}
+
 function calendarEffectiveOptions(spec, env) {
-  const normalized = normalizeOptions("node", { "every calendar": true, ...(spec.options || {}) }, env).options;
+  const normalized = normalizeOptions(
+    "node",
+    withImplicitStyleOption("every calendar", spec.options || {}, env.styles || {}),
+    env
+  ).options;
   return normalized;
 }
 
@@ -4731,7 +4760,11 @@ function parseCalendarIfValue(value) {
 
 function calendarConditionMatches(condition, date) {
   const text = stripOuterBraces(String(condition || "").trim());
+  const alternatives = splitTopLevel(text, ",").map((value) => value.trim()).filter(Boolean);
+  if (alternatives.length > 1) return alternatives.some((alternative) => calendarConditionMatches(alternative, date));
   const lower = text.toLowerCase();
+  if (lower === "weekend") return date.weekday === 5 || date.weekday === 6;
+  if (lower === "workday") return date.weekday >= 0 && date.weekday <= 4;
   if (lower === "sunday" || lower === "monday" || lower === "tuesday" || lower === "wednesday" || lower === "thursday" || lower === "friday" || lower === "saturday") {
     return lower === date.weekdayName.toLowerCase();
   }
@@ -4771,26 +4804,36 @@ function calendarDayText(layout, date) {
   return calendarTemplateText(template, date);
 }
 
-function calendarMonthText(layout) {
-  const first = layout.dates[0];
+function calendarMonthText(layout, date = layout.dates[0]) {
   const template = layout.options["month text"] || "\\%mt";
-  return calendarTemplateText(template, first);
+  return calendarTemplateText(template, date);
 }
 
 function calendarTemplateText(template, date) {
   let text = stripOuterBraces(String(template || ""));
   text = text.replace(/\\textit\{([^{}]*)\}/g, "$1");
-  text = text.replace(/\\%mt/g, calendarMonthAbbrev(date.month));
+  text = text.replace(/\\%mt/g, calendarMonthName(date.month));
+  text = text.replace(/\\%m\./g, calendarMonthAbbrev(date.month));
   text = text.replace(/\\%m0/g, String(date.month).padStart(2, "0"));
   text = text.replace(/\\%m-/g, String(date.month));
+  text = text.replace(/\\%wt/g, date.weekdayName);
+  text = text.replace(/\\%w\./g, calendarWeekdayAbbrev(date.weekday));
   text = text.replace(/\\%d0/g, String(date.day).padStart(2, "0"));
   text = text.replace(/\\%d-/g, String(date.day));
-  text = text.replace(/\\%y0/g, String(date.year));
+  text = text.replace(/\\%y(?:0|-|=)/g, String(date.year));
   return text.trim() || String(date.day);
 }
 
 function calendarMonthAbbrev(month) {
-  return ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][month - 1] || String(month);
+  return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1] || String(month);
+}
+
+function calendarMonthName(month) {
+  return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][month - 1] || String(month);
+}
+
+function calendarWeekdayAbbrev(weekday) {
+  return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][weekday] || "";
 }
 
 function calendarDateRange(rawDates) {
@@ -4820,6 +4863,7 @@ function calendarDateRange(rawDates) {
       day,
       iso: `${year}-${monthText}-${dayText}`,
       monthDay: `${monthText}-${dayText}`,
+      weekday: calendarWeekdayMonday(date),
       weekdayName: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][date.getUTCDay()]
     });
     current += 24 * 60 * 60 * 1000;

@@ -3605,6 +3605,20 @@
         "nodepart anchors",
         "per-part fill"
       ]
+    },
+    {
+      "id": "calendar-week-list-multimonth",
+      "title": "PGF calendar multi-month week list",
+      "source": "calendar/week-list-multimonth.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-calendar.tex",
+      "semanticOwner": "src/engine/evaluate.js:calendarLayout",
+      "features": [
+        "calendar date ranges",
+        "week list",
+        "month labels",
+        "calendar conditions"
+      ]
     }
   ]
 }

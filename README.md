@@ -321,6 +321,11 @@ Current support is pragmatic and growing. Highlights:
 - Calc-like coordinates: named coordinates, `($(A)+(1,2)$)`, interpolation, projections.
 - Intersections: named paths and common path intersections.
 - Decorations: markings, arrows along paths, snake/brace/zigzag approximations.
+- Calendar: normal Monday-first `week list` calendars, basic date predicates,
+  day-node styles, and multi-month vertical placement. `week list` variants,
+  localized names, and executable calendar hooks remain partial; use the
+  `calendar-week-list-multimonth` fixture and its QA record as the current
+  verified boundary.
 - PGFPlots subset: common `axis`, `addplot`, function sampling, coordinates, labels, legends, middle axes.
 - 3D subset: TikZ `x=`, `y=`, `z=` basis projection.
 - TeX-lite macros: common `\def`, `\newcommand`, `\foreach`, `\pgfmathsetmacro`.

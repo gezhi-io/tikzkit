@@ -20,6 +20,7 @@ const COMMAND_OWNERS = {
   addplot3: owner("src/pgfplots/addplotParser.js", "partial", "pgfplots.code.tex"),
   begin: owner("src/frontend/parser.js", "stable", "latex.ltx"),
   bcbar: owner("src/packages/bchart.js", "partial"),
+  calendar: owner("src/engine/evaluate.js:createCalendar/calendarLayout", "partial", "tikzlibrarycalendar.code.tex"),
   coordinate: owner("src/tikz/commands/coordinate.js", "partial", "tikz.code.tex"),
   ctikzset: owner("src/packages/circuitikz.js", "partial"),
   datavisualization: owner("src/tikz/libraries/datavisualization.js", "partial"),
@@ -51,6 +52,7 @@ const COMMAND_OWNERS = {
   setlength: owner("src/frontend/latex-shell.js", "stable", "latex.ltx"),
   shade: owner("src/tikz/commands/fill.js", "partial"),
   tiny: owner("src/tex/fontSpec.js", "partial", "size10.clo"),
+  textcolor: owner("src/renderers/svg/textEngine.js", "partial", "xcolor.sty"),
   tikz: owner("src/packages/tikz.js", "partial"),
   tikzset: owner("src/engine/options.js", "partial", "tikz.code.tex"),
   tikzstyle: owner("src/frontend/latex-shell.js", "partial", "tikz.code.tex"),
@@ -63,6 +65,7 @@ const COMMAND_OWNERS = {
 const OPTION_COMMANDS = new Set([
   "addplot",
   "addplot3",
+  "calendar",
   "coordinate",
   "datavisualization",
   "draw",
@@ -92,6 +95,7 @@ const OPTION_CONTEXT_OWNERS = {
   addplot: "src/pgfplots/addplotParser.js",
   addplot3: "src/pgfplots/addplotParser.js",
   bchart: "src/packages/bchart.js",
+  calendar: "src/engine/evaluate.js:createCalendar/calendarLayout",
   circuitikz: "src/packages/circuitikz.js",
   ctikzset: "src/packages/circuitikz.js",
   datavisualization: "src/tikz/libraries/datavisualization.js",
@@ -173,7 +177,7 @@ function collectDependencies(source, resolver, review) {
     ...entry,
     implementationStatus: entry.status,
     localSource: null,
-    localSourceReviewed: null,
+    declaredLocalSourceReviewed: Boolean(entry.localSourceReviewed),
     lookup: `tikzlibrary${entry.name}.code.tex`
   }));
   const pgfplotsLibraries = collectPgfplotsLibraries(source).map((entry) => ({
@@ -200,7 +204,7 @@ function collectDependencies(source, resolver, review) {
       implementedBy: entry.implementedBy || null,
       localSource: resolved,
       localSourceFound: Boolean(resolved),
-      localSourceReviewed: reviewed,
+      localSourceReviewed: entry.declaredLocalSourceReviewed || reviewed,
       lookup: entry.lookup,
       features: entry.features || [],
       notes: entry.notes || ""
@@ -461,6 +465,29 @@ function collectOptionGroups(source, lineStarts) {
       if (source[cursor] !== "[") continue;
       const group = readBalanced(source, cursor, "[", "]");
       if (group) groups.push(optionGroup(name, group, match.index, lineStarts));
+      continue;
+    }
+
+    if (name === "calendar") {
+      // \calendar optionally names the date-anchor family and positions its
+      // week list before the ordinary option list: \calendar (name) at (x,y)
+      // [dates=...,week list] if (Sunday) [red]. Keep those options visible
+      // to the workbench audit instead of treating the command as optionless.
+      if (source[cursor] === "(") {
+        const calendarName = readBalanced(source, cursor, "(", ")");
+        if (!calendarName) continue;
+        cursor = skipWhitespace(source, calendarName.end);
+      }
+      if (source.startsWith("at", cursor) && !/[A-Za-z@]/.test(source[cursor + 2] || "")) {
+        cursor = skipWhitespace(source, cursor + 2);
+        const position = readBalanced(source, cursor, "(", ")");
+        if (!position) continue;
+        cursor = skipWhitespace(source, position.end);
+      }
+      if (source[cursor] !== "[") continue;
+      const group = readBalanced(source, cursor, "[", "]");
+      if (!group) continue;
+      groups.push(optionGroup(name, group, match.index, lineStarts));
       continue;
     }
 

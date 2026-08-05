@@ -1,0 +1,19 @@
+% Source: TeX Live PGF manual, calendar library week-list layout.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{calendar}
+
+\begin{document}
+\begin{tikzpicture}
+  \calendar (cal) at (0,0)
+    [dates=2000-01-01 to 2000-02-last,
+     week list,
+     month label above centered,
+     month text=\textcolor{blue}{\%mt} \%y-,
+     day xshift=1cm,
+     day yshift=1cm,
+     month yshift=3cm,
+     every day/.style={draw, minimum size=8mm}]
+    if (Sunday) [red];
+\end{tikzpicture}
+\end{document}
