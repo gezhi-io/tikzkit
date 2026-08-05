@@ -331,12 +331,16 @@ Current support is pragmatic and growing. Highlights:
   `sub` grids. `\tkzFct` samples scalar source-unit expressions, while
   `\tkzFctPar[domain=...,samples=...]{x(t)}{y(t)}` evaluates `t`-based
   parametric curves, scales each coordinate with its own `xstep`/`ystep`, and
-  clips to the initialized frame. The documented defaults are `domain=-5:5`
-  and `samples=200`; ordinary draw options such as `color`, `style`, and
-  `line width` pass through. `\tkzFctPolar`, cache IDs, tangents, areas,
-  asymptotes, adaptive sampling, and general parametric discontinuity analysis
-  remain outside the verified boundary. See
-  [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md).
+  clips to the initialized frame. `\tkzFctPolar[domain=...,samples=...]{r(t)}`
+  uses its distinct native polar mapping: the radius uses `xstep`, same-sign
+  origins shift the result, and the command does not implicitly clip. The
+  documented defaults are `domain=-5:5` for `\tkzFctPar`, `domain=0:2*pi` for
+  `\tkzFctPolar`, and `samples=200`; ordinary draw options such as `color`,
+  `style`, and `line width` pass through. Cache IDs, tangents, areas,
+  asymptotes, adaptive sampling, advanced paint keys, and general parametric
+  discontinuity analysis remain outside the verified boundary. See
+  [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md)
+  and [`docs/qa/2026-08-05-tkz-fct-polar.md`](docs/qa/2026-08-05-tkz-fct-polar.md).
 
   ```tex
   \usepackage{tkz-fct}
@@ -345,6 +349,15 @@ Current support is pragmatic and growing. Highlights:
     \tkzGrid
     \tkzAxeXY
     \tkzFctPar[samples=400,domain=0:2*pi]{t-sin(t)}{1-cos(t)}
+  \end{tikzpicture}
+  ```
+
+  ```tex
+  \begin{tikzpicture}
+    \tkzInit[xmin=-1,xmax=1,ymin=-1,ymax=1,xstep=.2,ystep=.2]
+    \tkzGrid
+    \tkzAxeXY
+    \tkzFctPolar[domain=0:2*pi,samples=400]{cos(2*t)}
   \end{tikzpicture}
   ```
 - PGFPlots subset: common `axis`, `addplot`, function sampling, coordinates, labels, legends, middle axes.

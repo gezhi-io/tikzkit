@@ -1,7 +1,7 @@
 import { parseOptions } from "../engine/options.js";
 import { evaluateAxisExpression } from "../pgfplots/expressions.js";
 
-const IMPLEMENTED_COMMANDS = ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar"];
+const IMPLEMENTED_COMMANDS = ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar", "tkzFctPolar"];
 const COMMANDS = new Set(IMPLEMENTED_COMMANDS);
 const TEX_PT_PER_CM = 28.4527559;
 const TKZ_LABEL_DISTANCE_PT = 3;
@@ -75,6 +75,17 @@ export function expandTkzFct(source) {
       index = yExpression.end;
       continue;
     }
+    if (command.value === "tkzFctPolar") {
+      const expression = parseRequiredArg(text, optional.end);
+      if (!expression) {
+        output += text.slice(index, optional.end);
+        index = optional.end;
+        continue;
+      }
+      output += renderPolarFunction(state, optional.content, expression.content);
+      index = expression.end;
+      continue;
+    }
     output += renderAxes(state, optional.content, {
       scriptsize: insideScriptsizeScope(text, index)
     });
@@ -84,7 +95,7 @@ export function expandTkzFct(source) {
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY|Fct(?:Par)?)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY|Fct(?:Par|Polar)?)\b/.test(source);
 }
 
 function createState() {
@@ -328,6 +339,41 @@ function renderParametricFunction(state, rawOptions, rawXExpression, rawYExpress
     .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
     .join("\n");
   return paths ? `${clip}\n${paths}\n\\end{scope}` : "";
+}
+
+function renderPolarFunction(state, rawOptions, rawExpression) {
+  const options = parseOptions(rawOptions);
+  // tkz-fct delegates to Gnuplot's `set polar` and divides the radius by
+  // xstep only. This intentionally differs from tkzFctPar's x/y scaling.
+  const domain = parseDomain(options.domain, { start: 0, end: 2 * Math.PI });
+  const samples = functionSamples(options.samples);
+  const style = functionDrawOptions(options, "0.4pt");
+  const originX = state.xorigin / state.xstep;
+  const originY = state.yorigin / state.ystep;
+  const segments = [];
+  let active = [];
+
+  for (let index = 0; index < samples; index += 1) {
+    const ratio = samples === 1 ? 0 : index / (samples - 1);
+    const parameter = domain.start + (domain.end - domain.start) * ratio;
+    const radius = evaluateAxisExpression(rawExpression, parameter, { "trig format": "rad" }, { t: parameter });
+    if (!Number.isFinite(radius)) {
+      if (active.length) segments.push(active);
+      active = [];
+      continue;
+    }
+    const normalizedRadius = radius / state.xstep;
+    active.push({
+      x: normalizedRadius * Math.cos(parameter) - originX,
+      y: normalizedRadius * Math.sin(parameter) - originY
+    });
+  }
+  if (active.length) segments.push(active);
+  const paths = segments
+    .filter((segment) => segment.length >= 2)
+    .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
+    .join("\n");
+  return paths;
 }
 
 function hasDiscontinuityBetween(expression, start, end, state, bounds) {

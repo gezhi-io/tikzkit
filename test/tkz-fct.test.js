@@ -13,7 +13,7 @@ const DISCONTINUITY_FIXTURE = new URL(
 
 test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", () => {
   assert.equal(tkzFctExtension.phase, "preprocess");
-  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar"]);
+  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar", "tkzFctPolar"]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
   assert.equal(pkg.implementedBy, "src/extensions/tkz-fct.js");
@@ -75,6 +75,35 @@ test("uses tkzFctPar's native -5:5 default domain independently of the frame", (
   assert.deepEqual(
     paths[0].commands.map((command) => [command.x, command.y]),
     [[-2, -2], [0, 0], [2, 2]]
+  );
+});
+
+test("lowers tkzFctPolar with its native radial mapping and default domain", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=1,ymin=-1,ymax=1,xstep=.2,ystep=.2]
+  \tkzFctPolar[color=red,samples=5]{1}
+\end{tikzpicture}`);
+
+  assert.doesNotMatch(expanded, /\\tkzFctPolar/);
+  assert.doesNotMatch(expanded, /\\clip/);
+  assert.match(expanded, /\\draw\[color=red,line width=0\.4pt\] \(5,0\) -- \(0,5\) -- \(-5,0\) -- \(0,-5\) -- \(5,0\);/);
+});
+
+test("uses xstep for polar radius and shifts same-sign local origins like tkz-fct", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=20,xmax=60,xstep=10,ymin=1000,ymax=3000,ystep=1000]
+  \tkzFctPolar[color=blue,samples=2,domain=0:pi]{10}
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    path.commands.map((command) => [command.x, command.y]),
+    [[-1, -1], [-3, -1]]
   );
 });
 
