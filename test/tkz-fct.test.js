@@ -13,10 +13,50 @@ const DISCONTINUITY_FIXTURE = new URL(
 
 test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", () => {
   assert.equal(tkzFctExtension.phase, "preprocess");
-  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar", "tkzFctPolar"]);
+  assert.deepEqual(tkzFctExtension.commands, [
+    "tkzInit",
+    "tkzGrid",
+    "tkzAxeXY",
+    "tkzDrawX",
+    "tkzDrawY",
+    "tkzFct",
+    "tkzFctPar",
+    "tkzFctPolar"
+  ]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
   assert.equal(pkg.implementedBy, "src/extensions/tkz-fct.js");
+});
+
+test("lowers tkzDrawX and tkzDrawY without adding the separate numeric-label commands", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=1,ymin=-1,ymax=1,xstep=.2,ystep=.2]
+  \tkzDrawX[color=red,label={$u$},right space=1,noticks]
+  \tkzDrawY[color=blue,label={$v$},up space=1,step=.4,ticklt=3pt,tickrt=4pt]
+\end{tikzpicture}`);
+
+  assert.doesNotMatch(expanded, /\\tkzDraw[XY]/);
+  assert.match(expanded, /\\draw\[color=red,line width=0\.4pt,-latex\] \(-5,0\) -- \(6,0\) node\[below=3pt,inner sep=1pt,outer sep=0pt\] \{\$u\$\};/);
+  assert.match(expanded, /\\draw\[color=blue,line width=0\.4pt,-latex\] \(0,-5\) -- \(0,6\) node\[left=3pt,inner sep=1pt,outer sep=0pt\] \{\$v\$\};/);
+  assert.doesNotMatch(expanded, /color=red,line width=0\.8pt/);
+  assert.match(expanded, /\\draw\[color=blue,line width=0\.8pt\] \(4pt,-5\) -- \(-3pt,-5\);/);
+  assert.match(expanded, /\\draw\[color=blue,line width=0\.8pt\] \(4pt,-3\) -- \(-3pt,-3\);/);
+  assert.doesNotMatch(expanded, /\$-1\$/);
+});
+
+test("uses tkz-base trig positions for independent axis ticks", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-3.2,xmax=3.2,ymin=-1,ymax=1]
+  \tkzDrawX[trig=2]
+\end{tikzpicture}`);
+
+  assert.match(expanded, /\(0,2pt\) -- \(0,-2pt\);/);
+  assert.match(expanded, /\(1\.5707963268,2pt\) -- \(1\.5707963268,-2pt\);/);
+  assert.match(expanded, /\(-1\.5707963268,2pt\) -- \(-1\.5707963268,-2pt\);/);
 });
 
 test("lowers tkzFct gnuplot syntax into scaled, clipped ordinary TikZ segments", () => {

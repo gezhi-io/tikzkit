@@ -328,7 +328,13 @@ Current support is pragmatic and growing. Highlights:
   verified boundary.
 - `tkz-fct` Cartesian frame: `\tkzInit`, `\tkzGrid`, and `\tkzAxeXY` support
   separate x/y scales, same-sign local origins, explicit grid ranges, and
-  `sub` grids. `\tkzFct` samples scalar source-unit expressions, while
+  `sub` grids. Independent `\tkzDrawX` / `\tkzDrawY` support the native
+  axis line and `-latex` arrow, default `$x$`/`$y$` label or `label=...`, axis
+  extension (`right space`, `left space`, `up space`, `down space`),
+  `noticks`, `tickwd`, `tickup`, `tickdn`, `ticklt`, `tickrt`, `trig`, and the
+  y-axis `step` tick spacing. They deliberately do not add numeric graduation
+  labels: native `\tkzLabelX` / `\tkzLabelY` are separate commands and remain
+  unsupported. `\tkzFct` samples scalar source-unit expressions, while
   `\tkzFctPar[domain=...,samples=...]{x(t)}{y(t)}` evaluates `t`-based
   parametric curves, scales each coordinate with its own `xstep`/`ystep`, and
   clips to the initialized frame. `\tkzFctPolar[domain=...,samples=...]{r(t)}`
@@ -340,14 +346,16 @@ Current support is pragmatic and growing. Highlights:
   asymptotes, adaptive sampling, advanced paint keys, and general parametric
   discontinuity analysis remain outside the verified boundary. See
   [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md)
-  and [`docs/qa/2026-08-05-tkz-fct-polar.md`](docs/qa/2026-08-05-tkz-fct-polar.md).
+  [`docs/qa/2026-08-05-tkz-fct-polar.md`](docs/qa/2026-08-05-tkz-fct-polar.md),
+  and [`docs/qa/2026-08-05-tkz-draw-axes.md`](docs/qa/2026-08-05-tkz-draw-axes.md).
 
   ```tex
   \usepackage{tkz-fct}
   \begin{tikzpicture}
     \tkzInit[ymax=2.25,ystep=.5]
     \tkzGrid
-    \tkzAxeXY
+    \tkzDrawX
+    \tkzDrawY
     \tkzFctPar[samples=400,domain=0:2*pi]{t-sin(t)}{1-cos(t)}
   \end{tikzpicture}
   ```

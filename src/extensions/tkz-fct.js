@@ -1,7 +1,16 @@
 import { parseOptions } from "../engine/options.js";
 import { evaluateAxisExpression } from "../pgfplots/expressions.js";
 
-const IMPLEMENTED_COMMANDS = ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar", "tkzFctPolar"];
+const IMPLEMENTED_COMMANDS = [
+  "tkzInit",
+  "tkzGrid",
+  "tkzAxeXY",
+  "tkzDrawX",
+  "tkzDrawY",
+  "tkzFct",
+  "tkzFctPar",
+  "tkzFctPolar"
+];
 const COMMANDS = new Set(IMPLEMENTED_COMMANDS);
 const TEX_PT_PER_CM = 28.4527559;
 const TKZ_LABEL_DISTANCE_PT = 3;
@@ -52,6 +61,16 @@ export function expandTkzFct(source) {
       index = gridBounds.end;
       continue;
     }
+    if (command.value === "tkzDrawX") {
+      output += renderXAxis(state, optional.content);
+      index = optional.end;
+      continue;
+    }
+    if (command.value === "tkzDrawY") {
+      output += renderYAxis(state, optional.content);
+      index = optional.end;
+      continue;
+    }
     if (command.value === "tkzFct") {
       const expression = parseRequiredArg(text, optional.end);
       if (!expression) {
@@ -86,16 +105,18 @@ export function expandTkzFct(source) {
       index = expression.end;
       continue;
     }
-    output += renderAxes(state, optional.content, {
-      scriptsize: insideScriptsizeScope(text, index)
-    });
+    if (command.value === "tkzAxeXY") {
+      output += renderAxes(state, optional.content, {
+        scriptsize: insideScriptsizeScope(text, index)
+      });
+    }
     index = optional.end;
   }
   return output;
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY|Fct(?:Par|Polar)?)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY|Draw[XY]|Fct(?:Par|Polar)?)\b/.test(source);
 }
 
 function createState() {
@@ -226,6 +247,66 @@ function renderAxes(state, rawOptions, context = {}) {
   const commands = swap
     ? [...labelX, ...labelY, ...drawX, ...drawY]
     : [...drawX, ...drawY, ...labelX, ...labelY];
+  return commands.join("\n");
+}
+
+function renderXAxis(state, rawOptions) {
+  const options = parseOptions(rawOptions);
+  const color = optionText(options.color, "black");
+  const textColor = optionText(options.text, color);
+  const lineWidth = optionText(options["line width"], "0.4pt");
+  const tickWidth = optionText(options.tickwd, "0.8pt");
+  const tickUp = optionText(options.tickup, "2pt");
+  const tickDown = optionText(options.tickdn, "2pt");
+  const rightSpace = optionNumber(options["right space"], 0.5);
+  const leftSpace = optionNumber(options["left space"], 0);
+  const label = options.label === undefined ? "$x$" : optionText(options.label, "");
+  const bounds = normalizedBounds(state);
+  const textOption = textColor === color ? "" : `,text=${textColor}`;
+  const commands = [
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt${textOption}] {${label}};`
+  ];
+
+  if (optionBoolean(options.noticks, false)) return commands.join("\n");
+  const trig = optionNumber(options.trig, 0);
+  const positions = trig === 0
+    ? integerPositions(bounds.xmin, bounds.xmax)
+    : trigAxisPositions(bounds.xmin, bounds.xmax, trig);
+  for (const position of positions) {
+    commands.push(
+      `\\draw[color=${color},line width=${tickWidth}] (${format(position)},${tickUp}) -- (${format(position)},${negateLength(tickDown)});`
+    );
+  }
+  return commands.join("\n");
+}
+
+function renderYAxis(state, rawOptions) {
+  const options = parseOptions(rawOptions);
+  const color = optionText(options.color, "black");
+  const textColor = optionText(options.text, color);
+  const lineWidth = optionText(options["line width"], "0.4pt");
+  const tickWidth = optionText(options.tickwd, "0.8pt");
+  const tickLeft = optionText(options.ticklt, "2pt");
+  const tickRight = optionText(options.tickrt, "2pt");
+  const upSpace = optionNumber(options["up space"], 0.5);
+  const downSpace = optionNumber(options["down space"], 0);
+  const label = options.label === undefined ? "$y$" : optionText(options.label, "");
+  const bounds = normalizedBounds(state);
+  const textOption = textColor === color ? "" : `,text=${textColor}`;
+  const commands = [
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt${textOption}] {${label}};`
+  ];
+
+  if (optionBoolean(options.noticks, false)) return commands.join("\n");
+  const trig = optionNumber(options.trig, 0);
+  const positions = trig === 0
+    ? steppedAxisPositions(bounds.ymin, bounds.ymax, optionNumber(options.step, state.ystep) / state.ystep)
+    : trigAxisPositions(bounds.ymin, bounds.ymax, trig);
+  for (const position of positions) {
+    commands.push(
+      `\\draw[color=${color},line width=${tickWidth}] (${tickRight},${format(position)}) -- (${negateLength(tickLeft)},${format(position)});`
+    );
+  }
   return commands.join("\n");
 }
 
@@ -481,6 +562,24 @@ function normalizedBounds(state) {
 function integerPositions(min, max) {
   const values = [];
   for (let value = Math.trunc(min); value <= Math.trunc(max); value += 1) values.push(value);
+  return values;
+}
+
+function steppedAxisPositions(min, max, increment) {
+  const start = Math.trunc(min);
+  const end = Math.trunc(max);
+  if (!Number.isFinite(increment) || increment <= 0) return integerPositions(min, max);
+  const values = [];
+  for (let value = start; value <= end + 1e-9; value += increment) values.push(value);
+  return values;
+}
+
+function trigAxisPositions(min, max, trig) {
+  if (!Number.isFinite(trig) || trig === 0) return integerPositions(min, max);
+  const start = Math.round(((Math.trunc(min) + 0.5) / Math.PI) * trig);
+  const end = Math.round((Math.trunc(max) / Math.PI) * trig);
+  const values = [];
+  for (let value = start; value <= end; value += 1) values.push((value * Math.PI) / trig);
   return values;
 }
 
