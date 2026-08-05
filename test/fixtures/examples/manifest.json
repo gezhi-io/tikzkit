@@ -2,6 +2,38 @@
   "version": 1,
   "cases": [
     {
+      "id": "tkz-euclide-thales-circle-triangle",
+      "title": "tkz-euclide Thales circle triangle with sector",
+      "source": "tkz-euclide/thales-circle-triangle.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/thales-circle-triangle",
+      "externalSource": "tex/latex/tkz-euclide/tkz-obj-eu-sectors.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDrawSector",
+      "features": [
+        "tkzInterLC",
+        "tkzDrawSector towards",
+        "tkzDrawPolygon",
+        "tkzMarkAngle",
+        "tkzLabelSegment"
+      ]
+    },
+    {
+      "id": "decorations-snake-arrow-lengths",
+      "title": "PGF snake decoration with explicit end lengths and stealth arrow",
+      "source": "decorations/snake-arrow-lengths.tex",
+      "sourceCorpus": "TikZKit user-reported Case 005 command",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyPathMorphing",
+      "features": [
+        "snake",
+        "pre length",
+        "segment length",
+        "amplitude",
+        "post length",
+        "stealth arrow shortening",
+        "named coordinate endpoints"
+      ]
+    },
+    {
       "id": "arrows-declared-leaf-tip",
       "title": "PGF manual declared leaf arrow tip",
       "source": "arrows/declared-leaf-tip.tex",

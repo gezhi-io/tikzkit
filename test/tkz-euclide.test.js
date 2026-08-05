@@ -21,7 +21,7 @@ function structuralPaths(result) {
 test("exposes tkz-euclide as a built-in preprocess extension", () => {
   assert.equal(tkzEuclideExtension.name, "tkz-euclide");
   assert.equal(tkzEuclideExtension.phase, "preprocess");
-  for (const command of ["tkzSetUpLabel", "tkzSetUpStyle", "tkzDefPoints", "tkzDefMidPoint", "tkzDefCircle", "tkzInterLL", "tkzInterLC", "tkzGetLength", "tkzDrawSegments", "tkzDrawPolygon", "tkzDrawCircle", "tkzClipCircle", "tkzMarkSegment", "tkzMarkSegments", "tkzMarkAngle", "tkzMarkAngles", "tkzMarkRightAngle", "tkzMarkRightAngles", "tkzFillAngle", "tkzFillAngles", "tkzLabelAngle", "tkzLabelPoint", "tkzLabelPoints", "tkzLabelSegment", "tkzLabelSegments"]) {
+  for (const command of ["tkzSetUpLabel", "tkzSetUpStyle", "tkzDefPoints", "tkzDefMidPoint", "tkzDefCircle", "tkzInterLL", "tkzInterLC", "tkzGetLength", "tkzDrawSegments", "tkzDrawPolygon", "tkzDrawCircle", "tkzClipCircle", "tkzDrawArc", "tkzDrawSector", "tkzMarkSegment", "tkzMarkSegments", "tkzMarkAngle", "tkzMarkAngles", "tkzMarkRightAngle", "tkzMarkRightAngles", "tkzFillAngle", "tkzFillAngles", "tkzLabelAngle", "tkzLabelPoint", "tkzLabelPoints", "tkzLabelSegment", "tkzLabelSegments"]) {
     assert.ok(tkzEuclideExtension.commands.includes(command));
   }
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-euclide}`)[0];
@@ -482,6 +482,47 @@ test("expands perpendicular lines through ordinary TikZ nodes and explicit-radiu
   assert.match(expanded, /\\coordinate \(c\) at \(tkzPointResult\);/);
   assert.match(expanded, /\(\$\(m\)!-2!\(c\)\$\) -- \(\$\(c\)!-1!\(m\)\$\)/);
   assert.match(expanded, /\\draw\[line width=1pt,draw=orange\] \(\$\(A\)\+\(0:2\.24cm\)\$\) arc \(0:180:2\.24cm\);/);
+});
+
+test("expands tkz-euclide sectors through their four documented draw modes", () => {
+  const diagnostics = [];
+  const expanded = expandTkzEuclide(String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/O,2/0/A,0/2/B,-1/1/C}
+  \tkzDrawSector[thick,fill=green!20](O,A)(B)
+  \tkzDrawSector[rotate,draw=orange](O,A)(-90)
+  \tkzDrawSector[R,draw=teal](O,1)(90,0)
+  \tkzDrawSector[R with nodes,fill=blue!20](O,1.5)(B,C)
+\end{tikzpicture}`,
+  diagnostics);
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(expanded, /\\draw\[thick,fill=green!20\] \(O\) -- \(\$\(O\)\+\(0:2cm\)\$\) arc \(0:90:2cm\) -- cycle;/);
+  assert.match(expanded, /\\draw\[draw=orange\] \(O\) -- \(\$\(O\)\+\(-90:2cm\)\$\) arc \(-90:0:2cm\) -- cycle;/);
+  assert.match(expanded, /\\draw\[draw=teal\] \(O\) -- \(\$\(O\)\+\(-270:1cm\)\$\) arc \(-270:0:1cm\) -- cycle;/);
+  assert.match(expanded, /\\draw\[fill=blue!20\] \(O\) -- \(\$\(O\)\+\(90:1\.5cm\)\$\) arc \(90:135:1\.5cm\) -- cycle;/);
+});
+
+test("renders the full thales circle triangle including tkzDrawSector", () => {
+  const source = readFileSync(
+    new URL("./fixtures/examples/tkz-euclide/thales-circle-triangle.tex", import.meta.url),
+    "utf8"
+  );
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const sector = result.ir.items.find((item) => (
+    item.type === "path" &&
+    item.shape === "arc" &&
+    item.commands.some((command) => command.type === "closePath")
+  ));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(sector);
+  // The example has picture scale=1.5, so the native M->B radius of 2cm
+  // becomes a three-unit radial edge in the shared scene graph.
+  assert.deepEqual(sector.commands[0], { type: "moveTo", x: 3, y: 0 });
+  assert.deepEqual(sector.commands[1], { type: "lineTo", x: 6, y: 0 });
+  assert.ok(sector.commands.some((command) => command.type === "closePath"));
 });
 
 test("renders the hyperbolic axiom fixture with points, a perpendicular, and its orange semicircle", () => {

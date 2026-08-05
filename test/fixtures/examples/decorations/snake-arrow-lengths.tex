@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,decorations.pathmorphing}
+
+\begin{document}
+\begin{tikzpicture}
+  \coordinate (hs1) at (0,0);
+  \coordinate (s1) at (4,0);
+  \draw[-stealth, decoration={snake, pre length=0.01mm, segment length=2mm, amplitude=0.3mm, post length=1.5mm}, decorate, thick, red]
+    (hs1) -- (s1);
+\end{tikzpicture}
+\end{document}

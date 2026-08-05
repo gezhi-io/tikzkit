@@ -28,6 +28,7 @@ const IMPLEMENTED_COMMANDS = [
   "tkzDrawCircle",
   "tkzClipCircle",
   "tkzDrawArc",
+  "tkzDrawSector",
   "tkzDrawPolygon",
   "tkzMarkSegment",
   "tkzMarkSegments",
@@ -54,7 +55,7 @@ const TKZ_LABEL_STYLE_DEFAULTS = String.raw`\tikzset{label style/.style={below,f
 export const tkzEuclideExtension = {
   name: "tkz-euclide",
   phase: "preprocess",
-  description: "Expands a practical tkz-euclide point, line, tangent, angle, polygon, arc, intersection, label, and shared-style subset into ordinary TikZ.",
+  description: "Expands a practical tkz-euclide point, line, tangent, angle, polygon, arc, sector, intersection, label, and shared-style subset into ordinary TikZ.",
   commands: IMPLEMENTED_COMMANDS,
   preprocess(source, context = {}) {
     return expandTkzEuclide(source, context.diagnostics || []);
@@ -191,6 +192,7 @@ function expandCommand(source, name, afterName, state, diagnostics) {
   if (name === "tkzDrawCircle") return expandDrawCircle(source, afterName, state, diagnostics);
   if (name === "tkzClipCircle") return expandClipCircle(source, afterName, state, diagnostics);
   if (name === "tkzDrawArc") return expandDrawArc(source, afterName, state, diagnostics);
+  if (name === "tkzDrawSector") return expandDrawSector(source, afterName, state, diagnostics);
   if (name === "tkzDrawPolygon") return expandDrawPolygon(source, afterName, state, diagnostics);
   if (name === "tkzMarkSegment" || name === "tkzMarkSegments") {
     return expandMarkSegments(source, afterName, state, diagnostics, name === "tkzMarkSegment");
@@ -905,6 +907,91 @@ function expandDrawArc(source, afterName, state, diagnostics) {
   };
 }
 
+function expandDrawSector(source, afterName, state, diagnostics) {
+  const optional = parseOptionalArg(source, afterName);
+  const centerAndFirst = parseParenthesizedArg(source, optional.end);
+  const target = centerAndFirst && parseParenthesizedArg(source, centerAndFirst.end);
+  const firstParts = centerAndFirst && parsePointPair(centerAndFirst.content);
+  if (!centerAndFirst || !target || !firstParts) return malformed(diagnostics, "tkzDrawSector");
+
+  const [centerName, firstValue] = firstParts;
+  const modes = optionParts(optional.content).map((part) => part.key);
+  const mode = modes.includes("R with nodes")
+    ? "R with nodes"
+    : modes.includes("R")
+      ? "R"
+      : modes.includes("rotate")
+        ? "rotate"
+        : "towards";
+  const center = state.points.get(centerName);
+  if (!center) {
+    warn(diagnostics, `Could not resolve tkz-euclide sector center ${centerName}`);
+    return { text: "", end: target.end };
+  }
+
+  let radius;
+  let start;
+  let end;
+  if (mode === "towards") {
+    const first = state.points.get(firstValue);
+    const last = state.points.get(target.content.trim());
+    if (!first || !last) {
+      warn(diagnostics, `Could not resolve tkzDrawSector points (${centerAndFirst.content})(${target.content})`);
+      return { text: "", end: target.end };
+    }
+    radius = `${formatNumber(distanceBetween(center, first))}cm`;
+    start = angleOfPoint(center, first);
+    end = angleOfPoint(center, last);
+  } else if (mode === "rotate") {
+    const first = state.points.get(firstValue);
+    const rotation = evaluateMath(resolveNumericMacros(target.content, state));
+    if (!first || !Number.isFinite(rotation)) {
+      warn(diagnostics, `Could not resolve tkzDrawSector[rotate] arguments (${centerAndFirst.content})(${target.content})`);
+      return { text: "", end: target.end };
+    }
+    radius = `${formatNumber(distanceBetween(center, first))}cm`;
+    start = angleOfPoint(center, first);
+    end = start + rotation;
+    if (rotation <= 0) [start, end] = [end, start];
+  } else if (mode === "R") {
+    const angles = parsePointPair(target.content);
+    const parsedRadius = normalizeBareCoordinateDimension(resolveNumericMacros(firstValue, state));
+    if (!angles || !parsedRadius) {
+      warn(diagnostics, `Could not parse tkzDrawSector[R] arguments (${centerAndFirst.content})(${target.content})`);
+      return { text: "", end: target.end };
+    }
+    radius = parsedRadius;
+    start = evaluateMath(resolveNumericMacros(angles[0], state));
+    end = evaluateMath(resolveNumericMacros(angles[1], state));
+  } else {
+    const nodes = parsePointPair(target.content);
+    const parsedRadius = normalizeBareCoordinateDimension(resolveNumericMacros(firstValue, state));
+    const first = nodes && state.points.get(nodes[0]);
+    const last = nodes && state.points.get(nodes[1]);
+    if (!parsedRadius || !first || !last) {
+      warn(diagnostics, `Could not resolve tkzDrawSector[R with nodes] arguments (${centerAndFirst.content})(${target.content})`);
+      return { text: "", end: target.end };
+    }
+    radius = parsedRadius;
+    start = angleOfPoint(center, first);
+    end = angleOfPoint(center, last);
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || !radius) {
+    warn(diagnostics, `Could not resolve tkzDrawSector arguments (${centerAndFirst.content})(${target.content})`);
+    return { text: "", end: target.end };
+  }
+  ({ start, end } = normalizeSectorSweep(start, end));
+  const drawOptions = renderSectorOptions(optional.content);
+  const command = drawOptions ? `\\draw[${drawOptions}]` : "\\draw";
+  const startAngle = formatNumber(start);
+  const endAngle = formatNumber(end);
+  return {
+    text: `${command} (${centerName}) -- ($(${centerName})+(${startAngle}:${radius})$) arc (${startAngle}:${endAngle}:${radius}) -- cycle;`,
+    end: target.end
+  };
+}
+
 function expandDrawPolygon(source, afterName, state, diagnostics) {
   const optional = parseOptionalArg(source, afterName);
   const list = parseParenthesizedArg(source, optional.end);
@@ -1359,6 +1446,13 @@ function renderArcOptions(rawOptions) {
   ].filter(Boolean).join(",");
 }
 
+function renderSectorOptions(rawOptions) {
+  return optionParts(rawOptions)
+    .filter((part) => !["towards", "rotate", "R", "R with nodes"].includes(part.key))
+    .map((part) => part.raw)
+    .join(",");
+}
+
 function renderSegmentMarkOptions(rawOptions) {
   const options = parseOptions(rawOptions);
   const color = String(options.color ?? options.draw ?? "black").trim();
@@ -1779,6 +1873,15 @@ function angleGeometry(names, state) {
   else if (start <= 0 && start > end) end += 360;
   return {
     centerName,
+    start: roundNumber(start, 10),
+    end: roundNumber(end, 10)
+  };
+}
+
+function normalizeSectorSweep(start, end) {
+  if (start > 0 && start > end) start -= 360;
+  else if (start <= 0 && start > end) end += 360;
+  return {
     start: roundNumber(start, 10),
     end: roundNumber(end, 10)
   };
