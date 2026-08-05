@@ -133,7 +133,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `262/262 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `265/265 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -713,6 +713,12 @@ Current support is pragmatic and growing. Highlights:
 - Calc-like coordinates: named coordinates, `($(A)+(1,2)$)`, interpolation, projections.
 - Intersections: named paths and common path intersections.
 - Decorations: markings, arrows along paths, snake/brace/zigzag approximations.
+  The verified `snake` subset keeps `pre length`, `segment length`, `amplitude`,
+  and `post length` on the complete input subpath. Adding `-stealth` or another
+  terminal tip shortens only the final painted lead; it does not change the
+  wave phase or the requested decoration lengths. See the Case 005 driver at
+  `test/fixtures/examples/decorations/snake-arrow-lengths.tex` and its QA
+  record in `docs/qa/2026-08-06-snake-arrow-phase.md`.
 - Calendar: normal Monday-first `week list` calendars, basic date predicates,
   day-node styles, and multi-month vertical placement. `week list` variants,
   localized names, and executable calendar hooks remain partial; use the

@@ -10622,9 +10622,12 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
     minimumSegmentLength,
     parseFinitePgfLength(decoration["segment length"] ?? "10pt", env, defaultSegmentLength)
   );
-  const arrowReserved = decorationArrowEndpointShortening(pathStyle);
-  const preLength = Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0) + arrowReserved.start);
-  const postLength = Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0) + arrowReserved.end);
+  // TikZ decorates the path before the arrow-tip shortening pass.  In
+  // particular, adding an arrow must not alter the snake's phase or the
+  // caller-provided pre/post lengths; the SVG renderer shortens only the
+  // final painted line when it places the tip.
+  const preLength = Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0));
+  const postLength = Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0));
   // PGF runs a snake decoration over the complete input subpath. In
   // particular, its state machine does not restart at each `--` corner and
   // pre/post lengths only apply at the subpath endpoints.

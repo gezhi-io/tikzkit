@@ -1963,7 +1963,7 @@ test("recursively applies the Koch snowflake decoration to nested decorate opera
   assert.ok(path.commands.some((command) => command.y > 0.8), "expected the recursive Koch peaks above the source segment");
 });
 
-test("keeps snake post length visible before arrow tip shortening", () => {
+test("keeps snake decoration lengths independent from late arrow tip shortening", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \draw[-stealth, thick, decorate, decoration={snake, pre length=0.01mm, segment length=2mm, amplitude=0.3mm, post length=1.5mm}] (0,0) -- (2,0);
@@ -1973,13 +1973,12 @@ test("keeps snake post length visible before arrow tip shortening", () => {
   const path = ir.items.find((item) => item.type === "path");
   const lastDecorated = path.commands.at(-2);
   const visiblePostLength = parseDimension("1.5mm");
-  const stealthShorten = stealthArrowShortenFromLength(stealthArrowLengthFromLineWidth(TIKZ_LINE_WIDTHS.thick)) / TIKZ_UNIT;
 
   assert.deepEqual(diagnostics, []);
   assert.equal(path.commands.at(-1).type, "lineTo");
   assert.equal(path.commands.at(-1).x, 2);
   assert.ok(lastDecorated.type === "curveTo" || lastDecorated.type === "lineTo");
-  expectClose(lastDecorated.x, 2 - visiblePostLength - stealthShorten, 1e-6);
+  expectClose(lastDecorated.x, 2 - visiblePostLength, 1e-6);
 });
 
 test("interprets smooth plot coordinate lists as continuous curves", () => {
