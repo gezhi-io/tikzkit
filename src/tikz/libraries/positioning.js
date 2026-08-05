@@ -4,12 +4,12 @@ import { stripOuterBraces } from "../../engine/options.js";
 export const tikzLibrary = {
   name: "positioning",
   status: "builtin",
-  implementedBy: "src/tikz/libraries/positioning.js",
+  implementedBy: "src/tikz/libraries/positioning.js; src/engine/evaluate.js:nodeTextAnchorOffsets",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-shapes.tex",
-  features: ["right/left/above/below=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
-  implements: ["right/left/above/below=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
-  notes: "Normal positioning preserves PGF border-to-border spacing. on grid makes modern above/below/left/right of placements ignore both node sizes, matching the native center-to-center rule at picture or node scope. base/mid anchors and the legacy right of family remain separate semantics."
+  features: ["right/left/above/below=... of", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
+  implements: ["right/left/above/below=... of", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
+  notes: "Normal positioning preserves PGF border-to-border spacing. base/mid placement connects the corresponding text anchors. on grid makes modern placements ignore both node sizes, matching the native center-to-center rule at picture or node scope. The legacy right of family remains separate semantics."
 };
 
 export function resolvePositioningPoint(options, env, selfSize = { width: 0, height: 0 }, helpers) {
@@ -19,7 +19,8 @@ export function resolvePositioningPoint(options, env, selfSize = { width: 0, hei
   if (!placement) return null;
   const geometry = positioningGeometry(placement, selfSize);
   const dx = positioningDelta(placement.direction, "x", placement.distance, geometry.reference, geometry.selfSize);
-  const dy = positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize);
+  const dy = positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ??
+    positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize);
   return roundPoint({ x: placement.reference.point.x + dx, y: placement.reference.point.y + dy });
 }
 
@@ -32,7 +33,8 @@ export function resolveExplicitAtPositioningOffsetPoint(options, env, selfSize =
   const geometry = positioningGeometry({ ...placement, reference: origin }, selfSize);
   return {
     x: positioningDelta(placement.direction, "x", placement.distance, geometry.reference, geometry.selfSize),
-    y: positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize)
+    y: positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ??
+      positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize)
   };
 }
 
@@ -40,7 +42,7 @@ function resolvePositioningPlacement(options, env, helpers) {
   const entries = Object.entries(options || {});
   for (const [key, value] of entries) {
     const direction = key.trim().toLowerCase().replace(/\s+/g, " ");
-    if (!["right", "left", "above", "below", "above right", "above left", "below right", "below left"].includes(direction)) {
+    if (!["right", "left", "above", "below", "above right", "above left", "below right", "below left", "base left", "base right", "mid left", "mid right"].includes(direction)) {
       continue;
     }
     const text = String(value === true ? "" : value).trim();
@@ -57,9 +59,16 @@ function resolvePositioningPlacement(options, env, helpers) {
 function positioningGeometry(placement, selfSize) {
   if (!placement.onGrid) return { reference: placement.reference, selfSize };
   return {
-    reference: { ...placement.reference, width: 0, height: 0 },
-    selfSize: { width: 0, height: 0 }
+    // PGF's on-grid branch replaces both placement anchors with center.
+    reference: { ...placement.reference, width: 0, height: 0, baseOffset: 0, midOffset: 0 },
+    selfSize: { width: 0, height: 0, baseOffset: 0, midOffset: 0 }
   };
+}
+
+function positioningAnchorDelta(direction, reference = {}, selfSize = {}) {
+  const kind = direction.startsWith("base ") ? "baseOffset" : direction.startsWith("mid ") ? "midOffset" : null;
+  if (!kind) return null;
+  return (Number(reference[kind]) || 0) - (Number(selfSize[kind]) || 0);
 }
 
 function positioningUsesGrid(options = {}, env = {}) {
@@ -174,7 +183,13 @@ function resolvePositioningReference(raw, env, helpers) {
   const text = helpers.resolveDynamicName(raw, env);
   if (Object.hasOwn(env.nodes, text)) {
     const node = env.nodes[text];
-    return { point: node.point, width: node.layoutWidth || node.width || 0, height: node.layoutHeight || node.height || 0 };
+    return {
+      point: node.point,
+      width: node.layoutWidth || node.width || 0,
+      height: node.layoutHeight || node.height || 0,
+      baseOffset: Number(node.baseOffset) || 0,
+      midOffset: Number(node.midOffset) || 0
+    };
   }
   if (Object.hasOwn(env.coordinates, text)) return { point: env.coordinates[text], width: 0, height: 0 };
   const anchored = helpers.resolveAnchoredNodeCoordinate(text, env);

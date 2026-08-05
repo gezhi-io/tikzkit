@@ -2875,6 +2875,37 @@ test("uses positioning on grid to keep node centres one requested distance apart
   assert.ok(Math.abs(inherited.b.y - inherited.a.y - 1) < 1e-6, "expected picture-level on grid to reach child nodes");
 });
 
+test("aligns base and mid positioning through their corresponding text anchors", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=1ex,font=\huge]
+  \node (baseX) at (0,1) {X};
+  \node (baseA) [base right=of baseX] {a};
+  \node (baseY) [base right=of baseA] {y};
+  \coordinate (baseXMark) at (baseX.base east);
+  \coordinate (baseAMark) at (baseA.base west);
+  \coordinate (baseYMark) at (baseY.base west);
+  \node (midX) at (0,0) {X};
+  \node (midA) [mid right=of midX] {a};
+  \node (midY) [mid right=of midA] {y};
+  \coordinate (midXMark) at (midX.mid east);
+  \coordinate (midAMark) at (midA.mid west);
+  \coordinate (midYMark) at (midY.mid west);
+  \node (gridX) at (0,-1) {X};
+  \node [on grid,base right=1cm of gridX] (gridY) {y};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(ir.coordinates.baseXMark.y - ir.coordinates.baseAMark.y) < 1e-6, "expected base right to align baselines");
+  assert.ok(Math.abs(ir.coordinates.baseXMark.y - ir.coordinates.baseYMark.y) < 1e-6, "expected chained base right to retain baseline");
+  assert.ok(Math.abs(ir.coordinates.midXMark.y - ir.coordinates.midAMark.y) < 1e-6, "expected mid right to align mid anchors");
+  assert.ok(Math.abs(ir.coordinates.midXMark.y - ir.coordinates.midYMark.y) < 1e-6, "expected chained mid right to retain mid anchor");
+  assert.ok(ir.coordinates.baseA.x > ir.coordinates.baseX.x, "expected base right to advance horizontally");
+  assert.ok(ir.coordinates.midA.x > ir.coordinates.midX.x, "expected mid right to advance horizontally");
+  assert.ok(Math.abs(ir.coordinates.gridY.y - ir.coordinates.gridX.y) < 1e-6, "expected on grid to override base anchors with center placement");
+});
+
 test("accepts compact positioning syntax without whitespace before of", () => {
   const source = String.raw`
 \begin{tikzpicture}

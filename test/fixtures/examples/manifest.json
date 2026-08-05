@@ -3856,6 +3856,22 @@
         "center-to-center placement",
         "node distance"
       ]
+    },
+    {
+      "id": "positioning-base-mid-anchor-alignment",
+      "title": "PGF positioning base and mid anchor alignment",
+      "source": "positioning/base-mid-anchor-alignment.tex",
+      "sourceCorpus": "PGF manual positioning library base-anchor example",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/positioning.js:resolvePositioningPoint;src/engine/evaluate.js:nodeTextAnchorOffsets",
+      "features": [
+        "positioning",
+        "base right=... of",
+        "mid right=... of",
+        "base east/base west anchors",
+        "mid east/mid west anchors",
+        "node distance"
+      ]
     }
   ]
 }

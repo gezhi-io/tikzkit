@@ -4694,9 +4694,10 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   const scaledSize = scaleSize(size, nodeEnv.canvasScale);
   const scaledAnchorSize = scaleSize(anchorSize, nodeEnv.canvasScale);
   const scaledPositioningSize = scaleSize(positioningSize, nodeEnv.canvasScale);
+  const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, scaledSize);
   const slopedRotation = slopedInlineNodeRotation(expandedOptions, pathSegment, nodeEnv);
   const recordRotation = slopedRotation ?? nodeRotation(expandedOptions, nodeEnv);
-  const positioningPoint = resolvePositioning(expandedOptions, nodeEnv, scaledPositioningSize);
+  const positioningPoint = resolvePositioning(expandedOptions, nodeEnv, { ...scaledPositioningSize, ...textAnchorOffsets });
   const basePoint = positioningPoint || point;
   const anchoredPoint = expandedOptions.anchor
     ? resolveNodeAnchorPoint(basePoint, expandedOptions, text, nodeEnv, scaledSize)
@@ -4718,6 +4719,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
       height: scaledSize.height,
       layoutWidth: scaledAnchorSize.width,
       layoutHeight: scaledAnchorSize.height,
+      ...textAnchorOffsets,
       shape: nodeShape(expandedOptions),
       shapeData: nodeShapeData(expandedOptions, nodeEnv),
       rotation: recordRotation
@@ -4952,7 +4954,8 @@ function createNode(statement, env, ir, diagnostics) {
   const size = scaleSize(rawSize, nodeEnv.canvasScale);
   const anchorSize = scaleSize(rawAnchorSize, nodeEnv.canvasScale);
   const positioningSize = scaleSize(rawPositioningSize, nodeEnv.canvasScale);
-  const point = fitLayout?.point || resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, positioningSize);
+  const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, size);
+  const point = fitLayout?.point || resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, { ...positioningSize, ...textAnchorOffsets });
   const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, nodeEnv, size);
   const name = statement.name
     ? resolvePicScopedName(resolveDynamicName(statement.name, env), env)
@@ -4978,6 +4981,7 @@ function createNode(statement, env, ir, diagnostics) {
     height: size.height,
     layoutWidth: anchorSize.width,
     layoutHeight: anchorSize.height,
+    ...textAnchorOffsets,
     shape: nodeShape(expandedOptions),
     shapeData: {
       ...nodeShapeData(expandedOptions, nodeEnv),
@@ -8517,7 +8521,8 @@ function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variable
   const size = sizeOverride || estimateNodeLayoutSize(text, options, env);
   const sep = parseNodeLengthDimension(options["inner sep"] ?? options["outer sep"] ?? "0.08cm", env);
   const anchorSize = nodeAnchorTextWidthScaledSize(size, options, sep, env);
-  const shift = nodeAnchorShift(options, anchorSize, sep, env, nodeRotation(options, env));
+  const textAnchorOffsets = nodeTextAnchorOffsets(text, options, env, size);
+  const shift = nodeAnchorShift(options, anchorSize, sep, env, nodeRotation(options, env), textAnchorOffsets);
   const explicitShift = nodeExplicitShift(options, env);
   return roundPoint({
     x: point.x + shift.x + explicitShift.x,
@@ -8545,7 +8550,7 @@ function rotateVector(x, y, degrees) {
   return { x: x * cos - y * sin, y: x * sin + y * cos };
 }
 
-function nodeAnchorShift(options = {}, size, sep, env, rotation = 0) {
+function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorOffsets = {}) {
   const direction = nodeDirection(options);
   const scaledSep = sep * canvasLengthScale(env);
   if (direction) {
@@ -8561,7 +8566,7 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0) {
     const gapX = direction.includes("right") ? distance : direction.includes("left") ? -distance : 0;
     const gapY = direction.includes("above") ? distance : direction.includes("below") ? -distance : 0;
     if (explicitAnchorOverridesDirection(options, direction)) {
-      const explicit = explicitNodeAnchorShift(options, size, env, rotation);
+      const explicit = explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets);
       return { x: gapX + explicit.x, y: gapY + explicit.y };
     }
     const anchorX = direction.includes("right") ? size.width / 2 : direction.includes("left") ? -size.width / 2 : 0;
@@ -8570,7 +8575,7 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0) {
     return { x: gapX + rotated.x, y: gapY + rotated.y };
   }
 
-  return explicitNodeAnchorShift(options, size, env, rotation);
+  return explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets);
 }
 
 function explicitAnchorOverridesDirection(options = {}, direction) {
@@ -8579,11 +8584,21 @@ function explicitAnchorOverridesDirection(options = {}, direction) {
   return keys.indexOf("anchor") > keys.indexOf(direction);
 }
 
-function explicitNodeAnchorShift(options = {}, size, env, rotation = 0) {
+function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnchorOffsets = {}) {
   const anchor = String(options.anchor || "").trim();
   if (!anchor) return { x: 0, y: 0 };
   const nearTicklabelShift = nearTicklabelAnchorShift(anchor, size, rotation);
   if (nearTicklabelShift) return nearTicklabelShift;
+  const textAnchor = textAnchorKind(anchor);
+  if (textAnchor) {
+    const outerSep = nodeOuterSep(options, env);
+    const local = {
+      x: anchor.includes("east") ? size.width / 2 + outerSep.x * canvasLengthScale(env) : anchor.includes("west") ? -(size.width / 2 + outerSep.x * canvasLengthScale(env)) : 0,
+      y: Number(textAnchorOffsets[`${textAnchor}Offset`]) || 0
+    };
+    const rotated = rotateVector(local.x, local.y, rotation);
+    return { x: -rotated.x, y: -rotated.y };
+  }
   const customAnchor = customNodeLocalAnchor(nodeShape(options), anchor, { ...size, shapeData: nodeShapeData(options, env) });
   if (customAnchor) {
     const rotated = rotateVector(customAnchor.x, customAnchor.y, rotation);
@@ -8598,6 +8613,13 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0) {
   };
   const rotated = rotateVector(local.x, local.y, rotation);
   return { x: -rotated.x, y: -rotated.y };
+}
+
+function textAnchorKind(anchorRaw) {
+  const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+  if (anchor === "base" || anchor === "base east" || anchor === "base west") return "base";
+  if (anchor === "mid" || anchor === "mid east" || anchor === "mid west") return "mid";
+  return null;
 }
 
 function nearTicklabelAnchorShift(anchorRaw, size = {}, rotation = 0) {
@@ -9913,6 +9935,56 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   return {
     width: roundNumber((Number(size.width) || 0) + outerSep.x * 2),
     height: roundNumber((Number(size.height) || 0) + outerSep.y * 2)
+  };
+}
+
+function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
+  const shape = nodeShape(options);
+  const canvasScale = canvasLengthScale(env);
+  const font = resolvedTextFontSpec(text, options, env, canvasScale);
+  const midOffset = (0.5 * 4.30554 * (Number(font.sizePt) || 10) / 10) / TEX_PT_PER_CM;
+  if (shape !== "rectangle" && shape !== "roundedRectangle") {
+    return { baseOffset: 0, midOffset: roundNumber(midOffset) };
+  }
+
+  const normalized = normalizeTikzText(text, env);
+  const lines = normalized.lines?.length ? normalized.lines : String(normalized.text || "").split(/\\\\|\n/);
+  const line = String(lines[0] || "").trim();
+  let height = Number.NaN;
+  let depth = Number.NaN;
+  const math = parseMathText(line);
+  if (math && lines.length === 1) {
+    const formula = estimateFormulaBox(math.tex, {
+      scale: (Number(font.sizePt) || 10) / 10,
+      minWidth: 0,
+      widthPadding: 0,
+      texTextMetrics: true
+    });
+    height = formula.height;
+    depth = formula.depth;
+  } else if (line && lines.length === 1) {
+    const measured = measurePlainTextTeXBoxPt(line, {
+      fontSizePt: Number(font.sizePt) || 10,
+      fontFamily: font.family
+    });
+    if (measured) {
+      height = measured.height / TEX_PT_PER_CM;
+      depth = measured.depth / TEX_PT_PER_CM;
+    }
+  }
+
+  if (options["text height"] !== undefined) height = parseNodeLengthDimension(options["text height"], env) * canvasScale;
+  if (options["text depth"] !== undefined) depth = parseNodeLengthDimension(options["text depth"], env) * canvasScale;
+  if (!Number.isFinite(height) || !Number.isFinite(depth)) {
+    const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env) * canvasScale;
+    const contentHeight = Math.max(0, (Number(visibleSize.height) || 0) - innerYSep * 2);
+    height = Number.isFinite(height) ? height : contentHeight * 0.8;
+    depth = Number.isFinite(depth) ? depth : contentHeight * 0.2;
+  }
+  const baseOffset = (depth - height) / 2;
+  return {
+    baseOffset: roundNumber(baseOffset),
+    midOffset: roundNumber(baseOffset + midOffset)
   };
 }
 
@@ -12956,8 +13028,15 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const anchor = rawAnchor.replace(/-/g, " ");
   if (!anchor || anchor === "center") return roundPoint(node.point);
   if (anchor === "text") return roundPoint({ x: node.point.x - visibleWidth * 0.18, y: node.point.y - visibleHeight * 0.04 });
-  if (anchor === "base") return roundPoint({ x: node.point.x, y: node.point.y - visibleHeight * 0.08 });
-  if (anchor === "mid") return roundPoint(node.point);
+  const textAnchor = textAnchorKind(anchor);
+  if (textAnchor) {
+    const local = {
+      x: anchor.includes("east") ? halfWidth : anchor.includes("west") ? -halfWidth : 0,
+      y: Number(node[`${textAnchor}Offset`]) || (textAnchor === "base" ? -visibleHeight * 0.08 : 0)
+    };
+    const rotated = rotateVector(local.x, local.y, Number(node.rotation) || 0);
+    return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
+  }
   const customAnchor = customNodeLocalAnchor(node.shape, rawAnchor, { width, height, shapeData: node.shapeData });
   if (customAnchor) {
     const rotated = rotateVector(customAnchor.x, customAnchor.y, Number(node.rotation) || 0);

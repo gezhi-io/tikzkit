@@ -209,7 +209,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `273/273 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `274/274 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -1123,7 +1123,7 @@ src/tikz/libraries/
 
 Current core examples:
 
-- `positioning`: supports `node distance=<vertical> and <horizontal>`, `right=of`, `below=of`, and edge-to-edge placement from node bounds.
+- `positioning`: supports `node distance=<vertical> and <horizontal>`, normal edge-to-edge `right=of` / `below=of`, `on grid` centre-to-centre placement, and `base left/right` / `mid left/right` for one-line text and formula nodes. The latter use their corresponding TeX-style text anchors; complex multi-line box metrics remain partial.
 - `matrix`: supports `matrix of nodes`, `row sep`, `column sep`, `nodes={...}`, `nodes in empty cells`, and `m-row-column` cell anchors.
 - `automata`: supports state circles, split output states, accepting/initial arrows, and `initial by diamond` when the source also loads `shapes.geometric`.
 
