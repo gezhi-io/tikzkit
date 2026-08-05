@@ -292,6 +292,13 @@ relevant tests pass. Keep separate parser, renderer, package, and library
 experiments in separate commits; do not use a broad work-in-progress diff as a
 release checkpoint.
 
+When a decoration or path operation has an unintuitive result, add a minimal
+fixture beside the real-world corpus before changing the interpreter. Keep the
+source path, the narrow `node --test` command, the MacTeX PNG, and both SVG
+renderings in the QA record. This makes the accepted PGF state transition
+explicit and prevents a visual fix for one example from silently changing
+another path family.
+
 ## Browser and Markdown Usage
 
 TikZKit also renders Markdown-like TikZ code blocks. Both backtick fences and

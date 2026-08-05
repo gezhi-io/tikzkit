@@ -1,0 +1,13 @@
+% A single decorated path: PGF computes one brace over its full polyline.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (0,0) -- (3,0) -- (3,2);
+  \draw[thick,decorate,
+    decoration={brace,mirror,raise=4pt,amplitude=8pt,aspect=.32}]
+    (0,0) -- (3,0) -- (3,2);
+  \fill[red] (0,0) circle (1.1pt) (3,0) circle (1.1pt) (3,2) circle (1.1pt);
+\end{tikzpicture}
+\end{document}

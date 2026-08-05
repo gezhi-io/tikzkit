@@ -9994,14 +9994,23 @@ function usesCustomArrowDimension(source = {}, raw = {}, key) {
 function applyBraceDecoration(commands, decoration, env) {
   const replaced = [];
   let current = null;
+  let braceReachedFinalState = false;
   for (const command of commands) {
     if (command.type === "moveTo") {
       current = { x: command.x, y: command.y };
+      braceReachedFinalState = false;
       continue;
     }
-    if (command.type === "lineTo" && current) {
+    if (command.type === "lineTo" && current && !braceReachedFinalState) {
       appendBraceLine(replaced, current, { x: command.x, y: command.y }, decoration, env);
       current = { x: command.x, y: command.y };
+      // PGF's brace declaration consumes the current input segment with
+      // `next state=final`; later segments in this subpath are not restarted.
+      braceReachedFinalState = true;
+      continue;
+    }
+    if (braceReachedFinalState) {
+      if ("x" in command) current = { x: command.x, y: command.y };
       continue;
     }
     if (!replaced.length && current) replaced.push({ type: "moveTo", x: current.x, y: current.y });

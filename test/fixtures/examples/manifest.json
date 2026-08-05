@@ -67,6 +67,23 @@
       ]
     },
     {
+      "id": "decorations-brace-polyline-continuity",
+      "title": "PGF brace final state on a polyline input path",
+      "source": "decorations/brace-polyline-continuity.tex",
+      "sourceCorpus": "TikZKit visual regression derived from PGF brace state semantics",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyBraceDecoration",
+      "features": [
+        "brace",
+        "polyline input segment",
+        "mirror",
+        "raise",
+        "amplitude",
+        "aspect",
+        "final decoration state"
+      ]
+    },
+    {
       "id": "tkz-euclide-triangle-menelaos-1",
       "title": "tkz-euclide Menelaus triangle using a barycentric construction",
       "source": "tkz-euclide/triangle-menelaos-1.tex",
