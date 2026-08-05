@@ -16,7 +16,7 @@ const ARRAY_BEGIN = "\\begin{array}";
 const ARRAY_END = "\\end{array}";
 
 export function lowerTikzmarkMathOverlays(source) {
-  const text = String(source || "");
+  const text = lowerInlineTabularTikzmarks(String(source || ""));
   if (!text.includes("\\tikzmark{") || !text.includes(ARRAY_BEGIN)) return text;
 
   let serial = 0;
@@ -31,6 +31,104 @@ export function lowerTikzmarkMathOverlays(source) {
 
   const lowered = lowerMarkedArrayMathBlock(text, ++serial);
   return lowered || text;
+}
+
+// A common pre-tikzmark idiom places zero-size remembered-picture coordinates
+// inside a LaTex tabular, then draws an overlay brace between them. Lower the
+// small tabular subset into an ordinary TikZ matrix so its cell anchors share
+// the normal renderer coordinate registry.
+function lowerInlineTabularTikzmarks(source) {
+  const text = String(source || "");
+  if (!text.includes("\\tikzmark{") || !text.includes("\\begin{tabular}")) return text;
+
+  let serial = 0;
+  return text.replace(/\\begin\{preview\}([\s\S]*?)\\end\{preview\}/g, (match, body) => {
+    const lowered = lowerSingleMarkedTabular(body, ++serial);
+    return lowered || match;
+  });
+}
+
+function lowerSingleMarkedTabular(rawBody, serial) {
+  const body = String(rawBody || "");
+  const start = body.indexOf("\\begin{tabular}");
+  if (start < 0) return null;
+  let cursor = skipWhitespace(body, start + "\\begin{tabular}".length);
+  const columns = readBalanced(body, cursor, "{", "}");
+  if (!columns) return null;
+  const end = body.indexOf("\\end{tabular}", columns.end);
+  if (end < 0) return null;
+
+  const rowDefinitions = parseMarkedTabularRows(body.slice(columns.end, end));
+  const rows = rowDefinitions.map((row) => row.cells);
+  if (!rows.length || !rows.every((row) => row.length === rows[0].length)) return null;
+
+  const marks = new Map();
+  const matrixRows = rows.map((row, rowIndex) => row.map((cell, columnIndex) => {
+    let text = cell;
+    for (const marker of cell.matchAll(/\\tikzmark\s*\{([^{}]+)\}/g)) {
+      marks.set(marker[1].trim(), { row: rowIndex + 1, column: columnIndex + 1 });
+    }
+    text = text.replace(/\\tikzmark\s*\{[^{}]+\}/g, "").trim();
+    return text || "{}";
+  }));
+  if (!marks.size) return null;
+
+  const name = `tikzkit-tabular-${serial}`;
+  const matrixBody = matrixRows.map((row) => row.join(" & ")).join(" \\\\ ");
+  const rowCount = matrixRows.length;
+  const columnCount = matrixRows[0].length;
+  const todo = body.slice(0, start).trim();
+  const trailing = body.slice(end + "\\end{tabular}".length);
+  const overlay = trailing.match(/\\begin\{tikzpicture\}\s*\[[^\]]*overlay[^\]]*\]([\s\S]*?)\\end\{tikzpicture\}/);
+  const trailingRemainder = overlay ? trailing.replace(overlay[0], "") : trailing;
+  const marksSource = [...marks.entries()]
+    .map(([markName, cell]) => `\\coordinate (${markName}) at (${name}-${cell.row}-${cell.column}.base east);`)
+    .join("\n");
+  const tablePicture = [
+    "\\begin{tikzpicture}",
+    `\\matrix (${name}) [matrix of nodes,nodes={inner xsep=4pt,inner ysep=1.45pt},column sep=0pt,row sep=0pt] {${matrixBody}};`,
+    `\\draw[line width=.4pt] (${name}-outer-north-west) rectangle (${name}-outer-south-east);`,
+    ...Array.from({ length: Math.max(0, columnCount - 1) }, (_unused, index) => {
+      const column = index + 1;
+      return `\\draw[line width=.4pt] (${name}-column-${column}-north-east) -- (${name}-column-${column}-south-east);`;
+    }),
+    ...renderTabularHorizontalRules(name, rowDefinitions),
+    todo ? `\\node[anchor=base east] at ([xshift=-8pt]${name}-${Math.ceil(rowCount / 2)}-1.base west) {${todo}};` : "",
+    marksSource,
+    overlay?.[1]?.trim(),
+    "\\end{tikzpicture}"
+  ].filter(Boolean).join("\n");
+  return `${tablePicture}\n${trailingRemainder}`;
+}
+
+function parseMarkedTabularRows(source) {
+  return splitAtTopLevel(source, "row")
+    .map((rawRow) => {
+      const hlines = [...rawRow.matchAll(/\\hline\b/g)].length;
+      const content = rawRow.replace(/\\hline\b/g, "").trim();
+      if (!content || !content.includes("&")) return null;
+      return {
+        cells: splitAtTopLevel(content, "cell").map((cell) => cell.trim()),
+        hlines
+      };
+    })
+    .filter(Boolean);
+}
+
+function renderTabularHorizontalRules(name, rows) {
+  const statements = [];
+  for (let rowIndex = 1; rowIndex < rows.length; rowIndex += 1) {
+    const hlines = rows[rowIndex].hlines || 0;
+    if (!hlines) continue;
+    const boundary = name + "-row-" + rowIndex + "-south";
+    for (let lineIndex = 0; lineIndex < hlines; lineIndex += 1) {
+      const shift = lineIndex ? "[yshift=" + (-2 * lineIndex) + "pt]" : "";
+      statements.push(
+        "\\draw[line width=.4pt] (" + shift + boundary + "-west) -- (" + shift + boundary + "-east);"
+      );
+    }
+  }
+  return statements;
 }
 
 function lowerMarkedArrayMathBlock(rawBlock, serial) {

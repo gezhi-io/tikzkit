@@ -41,6 +41,11 @@ It is designed for browser rendering of fenced TikZ code blocks, CLI conversion,
 - `shapes.multipart` now verifies horizontal `rectangle split` alignment
   (`center`, `top`, `bottom`, `base`) and vertical alignment (`center`, `left`,
   `right`); the broader multipart shape family remains partial.
+- The array compatibility slice can lower a marked top-level tabular into a
+  TikZ matrix, preserving vertical rules and single/double hline rules so a
+  same-picture tikzmark overlay can resolve its anchors. It is not a general
+  TeX table implementation: complex column preambles, multicolumn, multirow,
+  and native cross-picture remember-picture cropping remain unsupported.
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
