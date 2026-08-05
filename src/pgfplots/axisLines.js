@@ -5,11 +5,12 @@ import { pgfplotsAxisHidden } from "./axisOptions.js";
 const PGFPLOTS_ARROW_END_PAINT_RESERVE = parseDimension("0.2pt", {});
 
 export function axisOuterBounds(geometry) {
+  const layout = geometry.layoutBounds || geometry;
   return {
-    minX: geometry.origin.x - geometry.margin.left,
-    maxX: geometry.origin.x + geometry.width + geometry.margin.right,
-    minY: geometry.origin.y - geometry.margin.bottom,
-    maxY: geometry.origin.y + geometry.height + geometry.margin.top
+    minX: layout.origin.x - geometry.margin.left,
+    maxX: layout.origin.x + layout.width + geometry.margin.right,
+    minY: layout.origin.y - geometry.margin.bottom,
+    maxY: layout.origin.y + layout.height + geometry.margin.top
   };
 }
 
@@ -77,6 +78,7 @@ export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
   const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
   const yAxis = axisContainsZero(ranges.yMin, ranges.yMax) || axisContainsZero(spanRanges.yMin, spanRanges.yMax) ? 0 : ranges.yMin;
   const xAxis = axisContainsZero(ranges.xMin, ranges.xMax) || axisContainsZero(spanRanges.xMin, spanRanges.xMax) ? 0 : ranges.xMin;
+  const yLineRange = axisLineRange(axisOptions, "y", spanRanges, ranges);
   const padding = parseAxisSchoolBookPadding(axisOptions);
   const globalStyle = axisLineStyleFragments(axisOptions["axis line style"]);
   const xArrowed = shouldArrowAxis(axisOptions, "x");
@@ -85,8 +87,8 @@ export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
   const yStyle = createAxisLineStyle(axisOptions, globalStyle, "y", yArrowed);
   const xFrom = geometry.mapPoint({ x: spanRanges.xMin, y: yAxis });
   const xTo = geometry.mapPoint({ x: spanRanges.xMax, y: yAxis });
-  const yFrom = geometry.mapPoint({ x: xAxis, y: spanRanges.yMin });
-  const yTo = geometry.mapPoint({ x: xAxis, y: spanRanges.yMax });
+  const yFrom = geometry.mapPoint({ x: xAxis, y: yLineRange.min });
+  const yTo = geometry.mapPoint({ x: xAxis, y: yLineRange.max });
   // Native PGF arrow tips extend the painted axis slightly beyond the path
   // endpoint. Keep that extent in the generated geometry so the SVG bbox and
   // raster scaling agree with dvisvgm/tikztosvg.
@@ -104,6 +106,39 @@ export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
     commands.push(`\\draw[${yStyle}] ${formatAxisPoint(yFrom)} -- ${formatAxisPoint(yTo)};`);
   }
   return commands;
+}
+
+function axisLineRange(axisOptions = {}, axis, ranges = {}, surveyedRanges = ranges) {
+  const min = Number(ranges[`${axis}Min`]);
+  const max = Number(ranges[`${axis}Max`]);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return { min, max };
+
+  // With `axis ... line=middle`, PGFPlots lets an axis that lands on a
+  // restricted zero boundary protrude into the otherwise clipped side. The
+  // extension is measured from the surveyed interval, not the transform
+  // interval. This keeps the y-axis arrow and the picture bbox aligned with
+  // native output for `restrict y to domain=0:<max>` plots.
+  if (
+    isMiddleAxisLine(axisOptions, axis) &&
+    axisHasRestrictedDomain(axisOptions, axis) &&
+    Math.abs(min) < 1e-9
+  ) {
+    const rawMax = Number(surveyedRanges[`${axis}Max`]);
+    const rawMin = Number(surveyedRanges[`${axis}Min`]);
+    const span = Math.abs(rawMax - rawMin);
+    return { min: rawMin - span * (2 / 15), max };
+  }
+  return { min, max };
+}
+
+function axisHasRestrictedDomain(axisOptions = {}, axis = "x") {
+  return [axisOptions[`restrict ${axis} to domain`], axisOptions[`restrict ${axis} to domain*`]]
+    .some((value) => value !== undefined && value !== null && value !== false && String(value).trim() !== "");
+}
+
+function isMiddleAxisLine(axisOptions = {}, axis = "x") {
+  const raw = axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`] ?? axisOptions["axis lines"] ?? axisOptions.axis;
+  return ["middle", "center"].includes(String(raw || "").trim().toLowerCase());
 }
 
 function createAxisLineStyle(axisOptions, globalStyle, axis, arrowed) {

@@ -2,6 +2,7 @@ import { measurePlainTextTeXBoxPt, parseMathText } from "../../tikz/textMetrics.
 import { normalizeTikzText } from "../../tikz/text.js";
 import {
   TIKZ_FONT_FAMILY,
+  TIKZ_HELVETICA_FONT_FAMILY,
   TIKZ_MONOSPACE_FONT_FAMILY,
   TIKZ_SANS_SERIF_FONT_FAMILY,
   TIKZ_TEXT_FONT_SIZE,
@@ -307,14 +308,21 @@ function textEngineFont(request = {}) {
   return {
     sizePt,
     baselineSkipPt,
-    // The item-level render family is the resolved CSS family. Keep it ahead
-    // of the semantic serif/sans marker stored on the TeX font spec.
-    family: request.fontFamily || requested.family || TIKZ_FONT_FAMILY,
+    // The generic default `serif` does not name a physical face. Preserve a
+    // caller's CMR design-size family for that case, while explicit semantic
+    // choices such as sans-serif and helvetica remain authoritative.
+    family: requested.family && requested.family !== "serif"
+      ? requested.family
+      : isPhysicalSerifFamily(request.fontFamily)
+        ? request.fontFamily
+        : requested.family || request.fontFamily || TIKZ_FONT_FAMILY,
     weight: requested.weight ?? request.fontWeight ?? "normal",
     style: requested.style || request.fontStyle || "normal",
     variant: requested.variant || "normal",
     mathStyle: requested.mathStyle || "text",
-    mathVersion: requested.mathVersion === "bold" ? "bold" : "normal",
+    mathVersion: requested.mathVersion === "bold" || requested.mathVersion === "sans"
+      ? requested.mathVersion
+      : "normal",
     source: requested.source || "legacy-request"
   };
 }
@@ -342,6 +350,7 @@ function mathTexForFontStyle(tex, mathStyle) {
 }
 
 function textEngineRenderFontFamily(family) {
+  if (family === "helvetica") return TIKZ_HELVETICA_FONT_FAMILY;
   if (family === "sans-serif") return TIKZ_SANS_SERIF_FONT_FAMILY;
   if (family === "monospace") return TIKZ_MONOSPACE_FONT_FAMILY;
   if (!family || family === "serif") return TIKZ_FONT_FAMILY;

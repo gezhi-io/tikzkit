@@ -82,6 +82,72 @@
       ]
     },
     {
+      "id": "real-world-angle-pic-reflex-and-right",
+      "title": "Reflex and right-angle pics",
+      "source": "real-world/angle-pic-reflex-and-right.tikz",
+      "semanticOwner": "src/tikz/libraries/angles.js",
+      "features": [
+        "angles library",
+        "right angle pic",
+        "counterclockwise reflex angle pic",
+        "pic fill",
+        "quote label"
+      ]
+    },
+    {
+      "id": "real-world-intersections-sorted-aliases",
+      "title": "Named-path intersections sorted by route",
+      "source": "real-world/intersections-sorted-aliases.tikz",
+      "semanticOwner": "src/tikz/libraries/intersections.js",
+      "features": [
+        "intersections library",
+        "name path",
+        "name intersections",
+        "sort by",
+        "by aliases"
+      ]
+    },
+    {
+      "id": "real-world-intersections-alias-label",
+      "title": "Named-path intersection alias label",
+      "source": "real-world/intersections-alias-label.tikz",
+      "semanticOwner": "src/tikz/libraries/intersections.js",
+      "features": [
+        "intersections library",
+        "name path",
+        "name intersections",
+        "by alias coordinate options",
+        "label on named intersection"
+      ]
+    },
+    {
+      "id": "real-world-intersections-alias-coordinate-style",
+      "title": "Named-path intersection alias coordinate style",
+      "source": "real-world/intersections-alias-coordinate-style.tikz",
+      "semanticOwner": "src/tikz/libraries/intersections.js",
+      "features": [
+        "intersections library",
+        "name path",
+        "name intersections",
+        "by alias coordinate options",
+        "coordinate shape and label"
+      ]
+    },
+    {
+      "id": "real-world-decorations-text-alignment",
+      "title": "Text along path alignment and signed raise",
+      "source": "real-world/decorations-text-alignment.tikz",
+      "semanticOwner": "src/tikz/libraries/decorations.text.js",
+      "features": [
+        "decorations.text library",
+        "left/center/right alignment",
+        "left and right indents",
+        "fit to path stretching spaces",
+        "signed raise",
+        "curved-path glyph tangents"
+      ]
+    },
+    {
       "id": "latex-examples-master-2048",
       "title": "LaTeX examples master: 2048",
       "source": "latex-examples-master/2048.tex",

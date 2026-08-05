@@ -156,7 +156,7 @@ export function renderCurrentPlotCoordinates(plot, axisOptions, ranges, geometry
   ];
 }
 
-function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, options) {
+export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, options = {}) {
   if (plot.type === "coordinates" && !isSurfacePlot(plot, axisOptions)) {
     return plot.points
       .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && (!plot.is3d || Number.isFinite(point.z)))

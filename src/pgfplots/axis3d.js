@@ -14,6 +14,10 @@ import { shouldRenderAnyAxisGrid } from "./grid.js";
 import { isLogAxis } from "./ranges.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
 
+// PGFPlots positions boxed 3D y labels near the selected tick edge. Keeping
+// this below a centimetre prevents a second, synthetic right-side gutter.
+const PGFPLOTS_BOXED_3D_Y_LABEL_DISTANCE = 0.65;
+
 export function renderAxis3DBox(axisOptions = {}, ranges, geometry) {
   const corners = axis3DBoxCorners(ranges, geometry);
   const style = "axis line, black, line width=0.4pt";
@@ -507,7 +511,7 @@ export function renderAxisLabels3D(axisOptions, ranges, geometry) {
   }
   if (axisOptions.ylabel) {
     const boxed = shouldRenderOpposite3DTicks(axisOptions, "y");
-    const point = offsetAlongNormal(pointAlongProjectedEdge(layout.y, boxed ? 0.5 : 0.541), layout.y.normal, boxed ? 0.96 : 0.764);
+    const point = offsetAlongNormal(pointAlongProjectedEdge(layout.y, boxed ? 0.5 : 0.541), layout.y.normal, boxed ? PGFPLOTS_BOXED_3D_Y_LABEL_DISTANCE : 0.764);
     commands.push(`\\node[${joinOptions(["axis label", `anchor=${axisAnnotationAnchor(axisOptions, "y", layout.y.normal)}`, labelFont("y") ? `font=${labelFont("y")}` : ""])}] at ${formatAxisPoint(point)} {${axisOptions.ylabel}};`);
   }
   if (axisOptions.zlabel) {
@@ -777,7 +781,11 @@ function zAxisLabelDistance(axisOptions, ranges, geometry) {
     const label = formatScaledAxisTickLabel(value, tickFormat, { precision });
     return Math.max(width, approximateTickLabelWidth(label));
   }, 0);
-  return Math.max(1.12, tickLabelDistance(axisOptions, "z") + widest + 0.2);
+  // `every axis z label` is anchored at `ticklabel cs:0.5` with
+  // `near ticklabel` in PGFPlots. The 3D default therefore sits one
+  // centimetre from the selected z edge, not at the larger 2D reserve that
+  // is used to size an entire axis description box.
+  return Math.max(1, tickLabelDistance(axisOptions, "z") + widest + 0.2);
 }
 
 function approximateTickLabelWidth(label) {

@@ -119,18 +119,37 @@ export function pointAtLength(points, lengthOrRatio) {
 }
 
 export function pathIntersections(commandsA, commandsB) {
+  return pathIntersectionDetails(commandsA, commandsB).map((intersection) => intersection.point);
+}
+
+// Keep the traversal time for each path so the TikZ intersections library can
+// honor `sort by=<named path>` when it assigns coordinate aliases.
+export function pathIntersectionDetails(commandsA, commandsB) {
   const a = flattenPath(commandsA);
   const b = flattenPath(commandsB);
   const intersections = [];
   for (let i = 1; i < a.length; i += 1) {
     for (let j = 1; j < b.length; j += 1) {
       const point = lineLineIntersection(a[i - 1], a[i], b[j - 1], b[j]);
-      if (point && !intersections.some((seen) => distance(seen, point) < 1e-6)) {
-        intersections.push(point);
+      if (point && !intersections.some((seen) => distance(seen.point, point) < 1e-6)) {
+        intersections.push({
+          point,
+          firstTime: intersectionSegmentTime(a[i - 1], a[i], point, i - 1),
+          secondTime: intersectionSegmentTime(b[j - 1], b[j], point, j - 1)
+        });
       }
     }
   }
   return intersections;
+}
+
+function intersectionSegmentTime(start, end, point, segmentIndex) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared < EPSILON) return segmentIndex;
+  const local = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
+  return segmentIndex + Math.max(0, Math.min(1, local));
 }
 
 export function pathLength(points) {

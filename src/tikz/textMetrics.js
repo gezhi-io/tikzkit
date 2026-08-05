@@ -9,6 +9,8 @@ import { parseExtensibleMathArrow } from "./mathArrows.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 
 const TEX_PT_PER_CM = 28.45274;
+const ENGLISH_LEFT_HYPHEN_MIN = 2;
+const ENGLISH_RIGHT_HYPHEN_MIN = 3;
 const EXTENSIBLE_ARROW_MIN_WIDTH_PT = 10.90817;
 const EXTENSIBLE_ARROW_END_ALLOWANCE_PT = 0.99;
 const EXTENSIBLE_ARROW_UPPER_GAP_PT = 6.66873;
@@ -537,12 +539,17 @@ export function wrapTeXTextLineByWidth(line, maxWidthCm, scale = 1, options = {}
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length <= 1) return [text];
   if (options.lineBreakMode === "flush") return wrapTeXWordsFlush(words, limit, scale);
+  const centeredParagraph = options.lineBreakMode === "center";
   const tolerance = Number.isFinite(Number(options.overfullTolerance))
     ? Math.max(1, Number(options.overfullTolerance))
-    : 1.02;
+    : centeredParagraph
+      ? 1
+      : 1.02;
   const lastLineWeight = Number.isFinite(Number(options.lastLineWeight))
     ? Math.max(0, Number(options.lastLineWeight))
-    : 0.05;
+    : centeredParagraph
+      ? 1
+      : 0.05;
   const best = Array.from({ length: words.length + 1 }, () => ({ cost: Infinity, next: words.length }));
   best[words.length] = { cost: 0, next: words.length };
   for (let start = words.length - 1; start >= 0; start -= 1) {
@@ -566,7 +573,107 @@ export function wrapTeXTextLineByWidth(line, maxWidthCm, scale = 1, options = {}
     lines.push(words.slice(cursor, next).join(" "));
     cursor = next;
   }
-  return lines.length ? lines : [text];
+  return applyConservativeEnglishHyphenation(lines, limit, scale, tolerance);
+}
+
+function applyConservativeEnglishHyphenation(lines, maxWidthCm, scale, tolerance) {
+  const wrapped = lines
+    .map((line) => String(line || "").trim().split(/\s+/).filter(Boolean))
+    .filter((words) => words.length);
+  if (wrapped.length < 2) return wrapped.map((words) => words.join(" "));
+
+  let introducedHyphenation = false;
+  for (let lineIndex = 0; lineIndex < wrapped.length - 1; lineIndex += 1) {
+    const current = wrapped[lineIndex];
+    const following = wrapped[lineIndex + 1];
+    const nextWord = following[0];
+    const split = longestHyphenationThatFits(current, nextWord, maxWidthCm, scale, tolerance);
+    if (!split) continue;
+    current.push(split.prefix);
+    following[0] = split.suffix;
+    introducedHyphenation = true;
+  }
+  if (!introducedHyphenation) return wrapped.map((words) => words.join(" "));
+
+  // TeX repacks subsequent words after inserting a discretionary hyphen. Keep the
+  // existing balanced breaks unless a whole word now fits into the preceding line.
+  for (let lineIndex = 1; lineIndex < wrapped.length - 1; lineIndex += 1) {
+    const current = wrapped[lineIndex];
+    const following = wrapped[lineIndex + 1];
+    while (following.length && lineFitsWidth([...current, following[0]], maxWidthCm, scale, tolerance)) {
+      current.push(following.shift());
+    }
+  }
+  return wrapped.filter((words) => words.length).map((words) => words.join(" "));
+}
+
+function longestHyphenationThatFits(previousWords, word, maxWidthCm, scale, tolerance) {
+  if (lineFitsWidth([...previousWords, word], maxWidthCm, scale, tolerance)) return null;
+  const candidates = englishHyphenationCandidates(word);
+  for (const candidate of candidates) {
+    if (lineFitsWidth([...previousWords, candidate.prefix], maxWidthCm, scale, tolerance)) return candidate;
+  }
+  return null;
+}
+
+function lineFitsWidth(words, maxWidthCm, scale, tolerance) {
+  return texTextWidthCm(words.join(" "), scale) <= maxWidthCm * tolerance;
+}
+
+function englishHyphenationCandidates(rawWord) {
+  const match = String(rawWord || "").match(/^([A-Za-z]+)([),.;:!?]*)$/);
+  if (!match) return [];
+  const [, original, trailingPunctuation] = match;
+  if (
+    original.length < ENGLISH_LEFT_HYPHEN_MIN + ENGLISH_RIGHT_HYPHEN_MIN ||
+    /^[A-Z]{2,}$/.test(original)
+  ) {
+    return [];
+  }
+  const word = original.toLowerCase();
+  const points = new Set();
+  for (let index = ENGLISH_LEFT_HYPHEN_MIN; index <= word.length - ENGLISH_RIGHT_HYPHEN_MIN; index += 1) {
+    const before = word[index - 1];
+    const beforeBefore = word[index - 2];
+    const after = word[index];
+    const afterAfter = word[index + 1];
+    if (englishDigraph(before, after)) continue;
+    if (isEnglishVowel(before) && isEnglishConsonant(after) && isEnglishVowel(afterAfter)) {
+      points.add(`${index}:1`);
+    }
+    if (
+      isEnglishVowel(beforeBefore) &&
+      isEnglishConsonant(before) &&
+      isEnglishConsonant(after) &&
+      isEnglishVowel(afterAfter)
+    ) {
+      // A VCCV boundary (for example Or|dering) is a stronger English
+      // syllable boundary than a later VCV candidate in the same word.
+      points.add(`${index}:2`);
+    }
+  }
+  return [...points]
+    .map((point) => {
+      const [index, priority] = point.split(":").map(Number);
+      return { index, priority };
+    })
+    .sort((left, right) => right.priority - left.priority || right.index - left.index)
+    .map(({ index }) => ({
+      prefix: `${original.slice(0, index)}-`,
+      suffix: `${original.slice(index)}${trailingPunctuation}`
+    }));
+}
+
+function isEnglishVowel(char) {
+  return /^[aeiouy]$/i.test(char || "");
+}
+
+function isEnglishConsonant(char) {
+  return /^[a-z]$/i.test(char || "") && !isEnglishVowel(char);
+}
+
+function englishDigraph(left, right) {
+  return ["ch", "sh", "th", "ph", "wh", "qu", "ck"].includes(`${left || ""}${right || ""}`.toLowerCase());
 }
 
 function wrapTeXWordsFlush(words, maxWidthCm, scale) {

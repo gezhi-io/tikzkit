@@ -93,6 +93,33 @@ test("Hopfield fixture preserves macro ranges, nested foreach edges, and rotated
   assert.ok(Math.abs(weightLabels[1].rotation + 37) < 1e-6);
 });
 
+test("feed-forward perceptron expands nested foreach connections with scaled Latex start tips", () => {
+  const source = readFileSync(path.join(FIXTURE_ROOT, "latex-examples", "feed-forward-perceptron.tex"), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const boxes = result.ir.items.filter((item) => item.type === "nodeBox");
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    boxes.map((item) => item.id),
+    ["b1", "b2", "i1", "i2", "i3", "i4", "i5", "h1", "h2", "h3", "o1"]
+  );
+  assert.equal(paths.length, 22, "expected four output edges and three six-edge hidden bundles");
+  assert.ok(paths.every((item) => item.style.markerStart?.kind === "latex"));
+  assert.ok(paths.every((item) => !item.style.markerEnd));
+  assert.ok(paths.every((item) => item.style.lineWidth > 2.8));
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-latex"/);
+});
+
+test("Bellman-Ford frames retain named vertices across consecutive tikzpictures", () => {
+  const source = readFileSync(path.join(FIXTURE_ROOT, "latex-examples", "bellman-ford-algorithm.tex"), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const arrows = result.ir.items.filter((item) => item.type === "path" && item.style.markerEnd?.kind === "to");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(arrows.length, 30, "expected all ten graph edges in each of the three frames");
+});
+
 test("aggregation concatenate uses logical TeX box anchors without moving fixed layout", () => {
   const source = readFileSync(path.join(FIXTURE_ROOT, "latex-examples", "aggregation-blocks.tex"), "utf8");
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });

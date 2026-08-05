@@ -2,6 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { BUILTIN_EXTENSIONS } from "../src/extensions/index.js";
 import { BUILTIN_TIKZ_LIBRARIES } from "../src/tikz/libraries/declarations.js";
+import { texPackageCatalog } from "../src/packages/index.js";
+import { PGFPLOTS_LIBRARY_SUPPORT as RUNTIME_PGFPLOTS_LIBRARY_SUPPORT } from "../src/pgfplots/axisOptions.js";
 import { splitTopLevel } from "../src/engine/options.js";
 import { loadRealGalleryCases } from "./gallery-case-source.js";
 
@@ -17,7 +19,7 @@ const CORE_PACKAGE_SUPPORT = {
   tikz: {
     status: "builtin",
     implementedBy: "src/frontend/parser.js + src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
-    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset"
+    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations"
   },
   pgf: {
     status: "partial",
@@ -31,8 +33,8 @@ const CORE_PACKAGE_SUPPORT = {
   },
   pgfplots: {
     status: "partial",
-    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsAxes",
-    notes: "axis/groupplot/addplot subset, not full PGFPlots engine"
+    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsAxes + lowerStandalonePgfplotsCustomLegends",
+    notes: "axis/groupplot/addplot subset plus standalone custom legend samples; not a full PGFPlots engine"
   },
   pgfplotstable: {
     status: "partial",
@@ -82,6 +84,7 @@ const CORE_PACKAGE_SUPPORT = {
 };
 
 const PGFPLOTS_LIBRARY_SUPPORT = {
+  ...RUNTIME_PGFPLOTS_LIBRARY_SUPPORT,
   groupplots: {
     status: "partial",
     implementedBy: "src/frontend/latex-shell.js:expandPgfplotsGroupplots",
@@ -170,7 +173,9 @@ const LOCAL_SOURCE_REVIEWED = {
   "tikzlibrary:decorations.text": "yes",
   "tikzlibrary:decorations.pathreplacing": "yes",
   "tikzlibrary:intersections": "yes",
+  "tikzlibrary:lindenmayersystems": "yes",
   "tikzlibrary:mindmap": "yes",
+  "tikzlibrary:patterns": "yes",
   "tikzlibrary:plotmarks": "yes",
   "tikzlibrary:shadows": "yes",
   "tikzlibrary:shapes.multipart": "yes",
@@ -257,14 +262,18 @@ function enrichEntry(entry) {
   entry.implementationStatus = support.status;
   entry.implementedBy = support.implementedBy || "";
   entry.notes = support.notes || "";
-  entry.localSource = findLocalSource(entry);
-  entry.localDoc = findLocalDoc(entry);
+  entry.localSource = support.localSource || findLocalSource(entry);
+  entry.localDoc = support.localDoc || findLocalDoc(entry);
   const reviewedKey = `${entry.kind}:${entry.name}`;
-  entry.localSourceReviewed = LOCAL_SOURCE_REVIEWED[reviewedKey] || (entry.localSource ? "no" : "not-found");
+  entry.localSourceReviewed = support.localSourceReviewed
+    ? "yes"
+    : LOCAL_SOURCE_REVIEWED[reviewedKey] || (entry.localSource ? "no" : "not-found");
 }
 
 function implementationSupport(entry) {
   if (entry.kind === "package") {
+    const packageMetadata = texPackageCatalog[entry.name];
+    if (packageMetadata) return packageMetadataSupport(packageMetadata);
     const extensionName = PACKAGE_EXTENSION_ALIASES[entry.name];
     if (extensionName && EXTENSION_SUPPORT[extensionName]) return EXTENSION_SUPPORT[extensionName];
     return CORE_PACKAGE_SUPPORT[entry.name] || unsupportedSupport(entry);
@@ -286,6 +295,17 @@ function implementationSupport(entry) {
   if (entry.kind === "pgfplotslibrary") return PGFPLOTS_LIBRARY_SUPPORT[entry.name] || unsupportedSupport(entry);
   if (entry.kind === "pgflibrary") return PGF_LIBRARY_SUPPORT[entry.name] || unsupportedSupport(entry);
   return unsupportedSupport(entry);
+}
+
+function packageMetadataSupport(metadata) {
+  return {
+    status: metadata.implementationStatus || metadata.status || "unsupported",
+    implementedBy: metadata.implementedBy || "",
+    notes: metadata.notes || (metadata.features || []).join("; "),
+    localSource: metadata.localSource || "",
+    localDoc: metadata.localDoc || "",
+    localSourceReviewed: metadata.localSourceReviewed || ""
+  };
 }
 
 function unsupportedSupport(entry) {

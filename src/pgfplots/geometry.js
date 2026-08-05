@@ -91,9 +91,13 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     plotBoxAlreadyLabelAdjusted,
     ranges
   });
-  const width = plotArea.width * scale;
-  const height = plotArea.height * scale;
-  const origin = parseAxisAt(axisOptions.at);
+  const localWidth = plotArea.width * scale;
+  const localHeight = plotArea.height * scale;
+  const localOrigin = parseAxisAt(axisOptions.at);
+  const inheritedPlotBox = pgfplotsInheritedPlotBox(axisOptions);
+  const width = inheritedPlotBox?.width ?? localWidth;
+  const height = inheritedPlotBox?.height ?? localHeight;
+  const origin = inheritedPlotBox?.origin ?? localOrigin;
   const margin = scaleAxisMargin(axisContainerMargin(axisOptions, { hasExplicitHeight, hasExplicitWidth, ranges, plotArea }), scale);
   const transformRanges = axisTransformRanges(axisOptions, ranges);
   const lineRanges = axisLineRanges(axisOptions, ranges);
@@ -159,6 +163,9 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     width,
     height,
     origin,
+    // A secondary axis can share the primary data box while its own PGFPlots
+    // layout allocation still participates in the TikZ picture bounding box.
+    layoutBounds: inheritedPlotBox ? { width: localWidth, height: localHeight, origin: localOrigin } : null,
     margin,
     ranges,
     transformRanges,
@@ -194,6 +201,17 @@ function createAxisDescriptionBounds(lineRanges = {}, mapPoint) {
   const bottom = Math.min(...ys);
   const top = Math.max(...ys);
   return { left, right, bottom, top, width: right - left, height: top - bottom };
+}
+
+function pgfplotsInheritedPlotBox(axisOptions = {}) {
+  const box = axisOptions["tikzkit pgfplots inherited plot box"];
+  if (!box || typeof box !== "object") return null;
+  const width = Number(box.width);
+  const height = Number(box.height);
+  const x = Number(box.origin?.x);
+  const y = Number(box.origin?.y);
+  if (![width, height, x, y].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+  return { width, height, origin: { x, y } };
 }
 
 function axisDirectionSign(raw) {
@@ -851,13 +869,64 @@ function middleAxisTransformAxisRange(axisOptions, axis, min, max) {
     const pad = span * 0.1;
     return { min: min - pad, max: max + pad };
   }
+  const declaredDomain = axis === "x" ? axisDeclaredDomain(axisOptions.domain) : null;
+  if (
+    !lowerExplicit &&
+    !upperExplicit &&
+    Math.abs(min) < 1e-9 &&
+    declaredDomain &&
+    declaredDomain.min > 0 &&
+    declaredDomain.max >= max
+  ) {
+    const declaredSpan = declaredDomain.max - declaredDomain.min;
+    return {
+      min: declaredDomain.min - declaredSpan * 0.1,
+      max: declaredDomain.max + declaredSpan * 0.1
+    };
+  }
   if (!lowerExplicit && Math.abs(min) < 1e-9 && max > min) {
+    // A restricted positive data domain (for example
+    // `restrict y to domain=0:0.5`) keeps the middle axis on its zero
+    // boundary. PGFPlots still reserves the usual 10% at both ends, but the
+    // unavailable lower reserve is transferred above the data. This keeps
+    // the visible grid and clipped function geometry at the native scale.
+    if (axisHasRestrictedDomain(axisOptions, axis)) {
+      return { min, max: max + span * 0.2 };
+    }
     return { min: min - span / 11, max };
   }
   if (!upperExplicit && Math.abs(max) < 1e-9 && min < max) {
+    if (axisHasRestrictedDomain(axisOptions, axis)) {
+      return { min: min - span * 0.2, max };
+    }
     return { min, max: max + span / 11 };
   }
+  if (!lowerExplicit && !upperExplicit) {
+    // Inferred function/table limits have no user-specified boundary to
+    // preserve. `enlargelimits=true` expands both sides by the default 10%,
+    // including domains that start slightly above zero (such as 0.01:8).
+    return { min: min - span * 0.1, max: max + span * 0.1 };
+  }
   return { min, max };
+}
+
+function axisDeclaredDomain(rawDomain) {
+  if (rawDomain === undefined || rawDomain === null || rawDomain === true || rawDomain === false) return null;
+  const match = String(rawDomain)
+    .trim()
+    .replace(/^\{([\s\S]*)\}$/, "$1")
+    .match(/^([+-]?(?:\d+\.?\d*|\.\d+))\s*:\s*([+-]?(?:\d+\.?\d*|\.\d+))$/);
+  if (!match) return null;
+  const min = Number(match[1]);
+  const max = Number(match[2]);
+  return Number.isFinite(min) && Number.isFinite(max) && max > min ? { min, max } : null;
+}
+
+function axisHasRestrictedDomain(axisOptions = {}, axis = "x") {
+  return [
+    axisOptions[`restrict ${axis} to domain`],
+    axisOptions[`restrict ${axis} to domain*`]
+  ].some((value) => value !== undefined && value !== null && value !== false && String(value).trim() !== "");
 }
 
 function axisEnlargeEnabledFor(axisOptions = {}, axis) {

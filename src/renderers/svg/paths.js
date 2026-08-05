@@ -281,6 +281,11 @@ export function resolveInlineArrowTip(tip, style = {}) {
   return {
     kind: raw.kind,
     geometry,
+    // PGF's default Latex tip is filled and stroked with its normal mitered
+    // outline. Round joins are only used when the TikZ arrow option asks for
+    // them; applying them globally makes small scaled tips visibly bulbous.
+    lineCap: raw.kind === "latex" ? "butt" : "round",
+    lineJoin: raw.kind === "latex" ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -356,15 +361,18 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     };
   }
   if (tip.kind === "latex") {
-    const native = latexArrowGeometryFromLineWidth(lineWidth);
+    const native = latexArrowGeometryFromLineWidth(lineWidth, tip.scale);
     const length = flags.customLength ? tip.length : native.length;
     const halfWidth = flags.customWidth ? tip.width / 2 : native.halfWidth;
     return {
       path: [
         `M 0 0`,
-        `C ${format(-length * 0.337381)} ${format(-halfWidth * 0.51948)} ${format(-length * 0.877192)} ${format(-halfWidth * 0.077922)} ${format(-length)} ${format(-halfWidth)}`,
+        // PGF's Latex tip leaves the point almost tangentially, then rounds
+        // out towards its base. Keeping this control-point order is visible
+        // on small scaled tips such as Latex[scale=0.5].
+        `C ${format(-length * 0.124)} ${format(-halfWidth * 0.077)} ${format(-length * 0.664)} ${format(-halfWidth * 0.519)} ${format(-length)} ${format(-halfWidth)}`,
         `L ${format(-length)} ${format(halfWidth)}`,
-        `C ${format(-length * 0.877192)} ${format(halfWidth * 0.077922)} ${format(-length * 0.337381)} ${format(halfWidth * 0.51948)} 0 0 Z`
+        `C ${format(-length * 0.664)} ${format(halfWidth * 0.519)} ${format(-length * 0.124)} ${format(halfWidth * 0.077)} 0 0 Z`
       ].join(" "),
       shorten: flags.customLength ? length * 0.9 : native.shorten,
       lineWidth: native.lineWidth
@@ -535,7 +543,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
 
 export function renderInlineArrowTip(tip, point, angle, unit) {
   const strokePart = tip.strokeWidth > 0 ? ` stroke="${escapeAttribute(tip.stroke)}" stroke-width="${format(tip.strokeWidth)}"` : ` stroke="none"`;
-  const lineStyle = tip.strokeWidth > 0 ? ` stroke-linecap="round" stroke-linejoin="round"` : "";
+  const lineStyle = tip.strokeWidth > 0 ? ` stroke-linecap="${escapeAttribute(tip.lineCap || "round")}" stroke-linejoin="${escapeAttribute(tip.lineJoin || "round")}"` : "";
   return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}" d="${tip.geometry.path}" fill="${escapeAttribute(
     tip.fill
   )}"${strokePart}${lineStyle} transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})" />`;

@@ -133,7 +133,7 @@ export function renderScriptedSegmentsContent(segments, baseFontSize) {
         return renderMathTextWithUprightOperators(segment.text, { leadingOperatorDx });
       }
       if (segment.kind === "bold") return `<tspan font-weight="700" font-style="normal">${escapeText(segment.text)}</tspan>`;
-      const base = renderMathBaseText(segment.base);
+      const base = renderMathScriptBase(segment, baseFontSize);
       if (segment.superscript && segment.subscript) {
         const backtrack = Math.max(0, estimateScriptTextWidth(segment.superscript, scriptFontSize));
         return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super">${renderNestedScriptText(
@@ -158,6 +158,20 @@ export function renderScriptedSegmentsContent(segments, baseFontSize) {
       )}</tspan>`;
     })
     .join("");
+}
+
+function renderMathScriptBase(segment, baseFontSize) {
+  let content;
+  if (segment.groupContent !== null && segment.groupContent !== undefined) {
+    const nested = scriptedMathFallback(segment.groupContent, { allowSimpleScripts: true });
+    content = nested
+      ? renderScriptedSegmentsContent(nested, baseFontSize)
+      : renderMathTextWithUprightOperators(mathFallbackText(segment.groupContent));
+    content = `<tspan class="tikz-math-script-group">${content}</tspan>`;
+  } else {
+    content = renderMathBaseText(segment.base);
+  }
+  return segment.bold ? `<tspan font-weight="700" font-style="normal">${content}</tspan>` : content;
 }
 
 function shouldUseExplicitSuperscriptDy(value) {
@@ -241,6 +255,35 @@ export function startsWithNamedMathOperator(text) {
 
 export function estimateScriptTextWidth(text, fontSize) {
   return [...String(text || "")].length * fontSize * 0.42;
+}
+
+export function estimateScriptedSegmentsWidth(segments, baseFontSize) {
+  const scriptFontSize = baseFontSize * 0.66;
+  return (segments || []).reduce((total, segment) => {
+    if (segment.kind === "text" || segment.kind === "bold") {
+      return total + estimateFallbackMathTextWidth(segment.text, baseFontSize);
+    }
+    const baseWidth = segment.groupContent !== null && segment.groupContent !== undefined
+      ? estimateGroupedScriptBaseWidth(segment.groupContent, baseFontSize)
+      : estimateFallbackMathTextWidth(segment.base, baseFontSize);
+    const superscriptWidth = segment.superscript ? estimateScriptTextWidth(segment.superscript, scriptFontSize) : 0;
+    const subscriptWidth = segment.subscript ? estimateScriptTextWidth(segment.subscript, scriptFontSize) : 0;
+    // TeX advances past the wider script, rather than summing both scripts.
+    return total + baseWidth + Math.max(superscriptWidth, subscriptWidth);
+  }, 0);
+}
+
+function estimateGroupedScriptBaseWidth(source, baseFontSize) {
+  const nested = scriptedMathFallback(source, { allowSimpleScripts: true });
+  return nested
+    ? estimateScriptedSegmentsWidth(nested, baseFontSize)
+    : estimateFallbackMathTextWidth(mathFallbackText(source), baseFontSize);
+}
+
+function estimateFallbackMathTextWidth(text, fontSize) {
+  const source = String(text || "");
+  const relationCount = [...source].filter((char) => "=+≤≥≠≈∼".includes(char)).length;
+  return [...source].length * fontSize * 0.42 + relationCount * fontSize * (10 / 18);
 }
 
 export function renderNestedScriptText(text, fontSize) {
@@ -361,6 +404,7 @@ export function scriptedMathFallback(tex, options = {}) {
     segments.push({
       kind: "script",
       base,
+      groupContent: atom.groupContent || null,
       subscript: normalizedSubscript,
       superscript: normalizedSuperscript,
       operatorSpacing: Boolean(superscript && atom.parenthesized)
@@ -394,9 +438,36 @@ export function styledScriptedMathFallback(tex) {
     if (bold) {
       const before = mathFallbackSegmentText(raw.slice(lastIndex, cursor));
       if (before) segments.push({ kind: "text", text: before });
-      if (bold.text) segments.push({ kind: "bold", text: bold.text });
-      lastIndex = bold.end;
-      cursor = bold.end;
+      let next = bold.end;
+      let subscript = null;
+      let superscript = null;
+      for (let i = 0; i < 2; i += 1) {
+        next = skipInlineWhitespace(raw, next);
+        const marker = raw[next];
+        if (marker !== "_" && marker !== "^") break;
+        const script = readMathScriptValue(raw, next + 1);
+        if (!script) break;
+        if (marker === "_") subscript = script.value;
+        else superscript = script.value;
+        next = script.end;
+      }
+      if (subscript || superscript) {
+        const normalizedSubscript = subscript ? mathScriptFallbackText(subscript) : null;
+        const normalizedSuperscript = superscript ? mathScriptFallbackText(superscript) : null;
+        if (normalizedSubscript || (normalizedSuperscript && normalizedSuperscript !== "°")) hasNonDegreeScript = true;
+        segments.push({
+          kind: "script",
+          base: bold.text,
+          groupContent: null,
+          subscript: normalizedSubscript,
+          superscript: normalizedSuperscript,
+          bold: true
+        });
+      } else if (bold.text) {
+        segments.push({ kind: "bold", text: bold.text });
+      }
+      lastIndex = next;
+      cursor = next;
       matched = true;
       continue;
     }
@@ -432,6 +503,7 @@ export function styledScriptedMathFallback(tex) {
     segments.push({
       kind: "script",
       base,
+      groupContent: atom.groupContent || null,
       subscript: normalizedSubscript,
       superscript: normalizedSuperscript
     });

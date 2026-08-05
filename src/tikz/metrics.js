@@ -11,6 +11,9 @@ export const TIKZ_MATH_CALLIGRAPHIC_FONT_FAMILY =
 export const TIKZ_MONOSPACE_FONT_FAMILY =
   "KaTeX_Typewriter, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
 export const TIKZ_SANS_SERIF_FONT_FAMILY = "TikZKitCMUSans, 'CMU Sans Serif', sans-serif";
+// helvet.sty selects the PSNFSS `phv` family. macOS ships Helvetica, which is
+// its closest browser-native counterpart and avoids changing generic sans text.
+export const TIKZ_HELVETICA_FONT_FAMILY = "Helvetica, Arial, sans-serif";
 export const TIKZ_TEXT_FONT_SIZE = lineWidthFromPt(10);
 export const TIKZ_DISPLAY_MATH_FONT_SIZE = lineWidthFromPt(10);
 // cmtt10.tfm: every glyph advances by 0.524996em. The SVG typewriter font
@@ -189,10 +192,14 @@ export function createArrowTip(kind = "to", overrides = {}) {
   };
 }
 
-export function latexArrowGeometryFromLineWidth(lineWidth) {
+export function latexArrowGeometryFromLineWidth(lineWidth, scale = 1) {
   const unitsPerPt = lineWidthFromPt(1);
   const lineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;
-  const arrowLengthPt = 3 + 4.5 * lineWidthPt;
+  // PGF applies `scale` to Latex's computed arrow length, then derives its
+  // width and capped outline from that scaled length. It does not simply
+  // scale the generic 3pt fallback dimensions.
+  const arrowScale = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
+  const arrowLengthPt = (3 + 4.5 * lineWidthPt) * arrowScale;
   const arrowWidthPt = 0.75 * arrowLengthPt;
   const arrowLineWidthPt = Math.min(lineWidthPt, 0.2 * arrowLengthPt);
 

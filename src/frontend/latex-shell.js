@@ -95,6 +95,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = expandChronologyEnvironments(expanded, diagnostics);
   expanded = expandEventPeriodTimelineMacros(expanded, diagnostics);
   const packages = collectTexPackages(expanded);
+  expanded = applyDocumentFontPackageAliases(expanded, packages);
   const libraries = collectTikzLibraries(expanded);
   const pgfplotsLibraries = collectPgfplotsLibraries(expanded);
   const pgfplotsSet = collectPgfplotsSetOptions(expanded);
@@ -109,6 +110,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = expandTexLiteEnvironments(expanded, diagnostics, options);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
+  expanded = lowerStandalonePgfplotsCustomLegends(expanded);
   expanded = expandStaticPgfmathMacrosBeforePictures(expanded);
   expanded = lowerTikzmarkMathOverlays(expanded);
   expanded = lowerNestedInlineTikzNodes(expanded);
@@ -153,6 +155,158 @@ export function preprocessTikzSource(source, options = {}) {
     pgfplotsOptions: pgfplotsSet.options,
     previewBorder
   };
+}
+
+const PGFPLOTS_CUSTOM_LEGEND_INITIALIZER = "\\csname pgfplots@init@cleared@structures\\endcsname";
+const PGFPLOTS_CUSTOM_LEGEND_IMAGE = "\\csname pgfplots@addlegendimage\\endcsname";
+const PGFPLOTS_CUSTOM_LEGEND_RENDERER = "\\csname pgfplots@createlegend\\endcsname";
+
+// A common PGFPlots recipe declares a lightweight environment which exposes
+// \addlegendimage outside an axis. Once TeX-lite expands that environment, the
+// recipe consists of the three internal commands below. Lower it to ordinary
+// TikZ primitives so it uses the shared path/node renderer and remains useful
+// in diagrams without an axis.
+function lowerStandalonePgfplotsCustomLegends(source) {
+  const text = String(source || "");
+  let output = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const start = text.indexOf("\\begingroup", cursor);
+    if (start === -1) {
+      output += text.slice(cursor);
+      break;
+    }
+    const end = findTexGroupEnd(text, start);
+    if (end === -1) {
+      output += text.slice(cursor);
+      break;
+    }
+    const lowered = lowerStandalonePgfplotsCustomLegendBlock(text.slice(start, end));
+    if (!lowered) {
+      output += text.slice(cursor, start + "\\begingroup".length);
+      cursor = start + "\\begingroup".length;
+      continue;
+    }
+    output += text.slice(cursor, start);
+    output += lowered;
+    cursor = end;
+  }
+  return output;
+}
+
+function findTexGroupEnd(source, start) {
+  let depth = 0;
+  const commandPattern = /\\(?:begin|end)group\b/g;
+  commandPattern.lastIndex = start;
+  for (let match = commandPattern.exec(source); match; match = commandPattern.exec(source)) {
+    if (match[0] === "\\begingroup") depth += 1;
+    else depth -= 1;
+    if (depth === 0) return commandPattern.lastIndex;
+  }
+  return -1;
+}
+
+function lowerStandalonePgfplotsCustomLegendBlock(block) {
+  const initializer = block.indexOf(PGFPLOTS_CUSTOM_LEGEND_INITIALIZER);
+  const renderer = block.lastIndexOf(PGFPLOTS_CUSTOM_LEGEND_RENDERER);
+  if (initializer === -1 || renderer === -1 || renderer < initializer) return null;
+
+  let cursor = skipWhitespace(block, initializer + PGFPLOTS_CUSTOM_LEGEND_INITIALIZER.length);
+  const options = extractBalanced(block, cursor, "[", "]");
+  if (!options) return null;
+  const optionMap = parseOptions(options.content);
+  const entries = splitLegendEntries(optionMap["legend entries"] || "");
+  const legendStyle = parseOptions(stripSingleOuterBraces(optionMap["legend style"] || ""));
+  const point = parseStandaloneLegendPoint(legendStyle.at);
+  if (!entries.length || !point) return null;
+
+  cursor = options.end;
+  const samples = [];
+  while (cursor < renderer) {
+    const image = block.indexOf(PGFPLOTS_CUSTOM_LEGEND_IMAGE, cursor);
+    if (image === -1 || image >= renderer) break;
+    const argumentStart = skipWhitespace(block, image + PGFPLOTS_CUSTOM_LEGEND_IMAGE.length);
+    const argument = extractBalanced(block, argumentStart, "{", "}");
+    if (!argument) return null;
+    samples.push(argument.content.trim());
+    cursor = argument.end;
+  }
+  if (samples.length !== entries.length) return null;
+  return renderStandalonePgfplotsLegend({ entries, samples, point, anchor: legendStyle.anchor || "center" });
+}
+
+function parseStandaloneLegendPoint(value) {
+  const text = stripSingleOuterBraces(String(value || "")).trim();
+  const match = /^\(\s*([-+]?\d*\.?\d+)\s*,\s*([-+]?\d*\.?\d+)\s*\)$/.exec(text);
+  if (!match) return null;
+  const x = Number(match[1]);
+  const y = Number(match[2]);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+function renderStandalonePgfplotsLegend({ entries, samples, point, anchor }) {
+  const iconWidth = 0.72;
+  const iconHeight = 0.16;
+  const textGap = 0.26;
+  const xPadding = 0.19;
+  const yPadding = 0.12;
+  const rowHeight = 0.42;
+  // PGFPlots' default legend text uses \footnotesize rather than the picture's
+  // normal 10pt font. Its narrower measured box is important when anchoring a
+  // standalone legend at an absolute TikZ coordinate.
+  const textWidth = Math.max(...entries.map((entry) => estimateLegendEntryWidth(entry, 0.8)));
+  const width = xPadding * 2 + iconWidth + textGap + textWidth;
+  const height = yPadding * 2 + rowHeight * entries.length;
+  const box = standaloneLegendBox(point, anchor, width, height);
+  const commands = [
+    `\\draw[draw=black,fill=white,line width=0.4pt] (${formatStandaloneLegendNumber(box.left)},${formatStandaloneLegendNumber(box.top)}) rectangle (${formatStandaloneLegendNumber(box.right)},${formatStandaloneLegendNumber(box.bottom)});`
+  ];
+  entries.forEach((entry, index) => {
+    const y = box.top - yPadding - rowHeight * (index + 0.5);
+    const x0 = box.left + xPadding;
+    const x1 = x0 + iconWidth;
+    commands.push(...renderStandaloneLegendSample(samples[index], x0, x1, y, iconHeight));
+    commands.push(`\\node[anchor=west,inner sep=0pt,font=\\footnotesize] at (${formatStandaloneLegendNumber(x1 + textGap)},${formatStandaloneLegendNumber(y)}) {${entry}};`);
+  });
+  return `\n${commands.join("\n")}\n`;
+}
+
+function standaloneLegendBox(point, anchor, width, height) {
+  const normalized = String(anchor || "center").trim().toLowerCase();
+  const horizontal = normalized.includes("east") ? "east" : normalized.includes("west") ? "west" : "center";
+  const vertical = normalized.includes("south") ? "south" : normalized.includes("north") ? "north" : "center";
+  const left = horizontal === "east" ? point.x - width : horizontal === "west" ? point.x : point.x - width / 2;
+  const bottom = vertical === "north" ? point.y - height : vertical === "south" ? point.y : point.y - height / 2;
+  return { left, right: left + width, bottom, top: bottom + height };
+}
+
+function renderStandaloneLegendSample(style, x0, x1, y, height) {
+  const raw = String(style || "").trim();
+  if (/(?:^|,)\s*area legend\b/.test(raw)) {
+    return [`\\draw[${raw}] (${formatStandaloneLegendNumber(x0)},${formatStandaloneLegendNumber(y - height / 2)}) rectangle (${formatStandaloneLegendNumber(x1)},${formatStandaloneLegendNumber(y + height / 2)});`];
+  }
+  return [`\\draw[${raw}] (${formatStandaloneLegendNumber(x0)},${formatStandaloneLegendNumber(y)}) -- (${formatStandaloneLegendNumber(x1)},${formatStandaloneLegendNumber(y)});`];
+}
+
+function stripSingleOuterBraces(value) {
+  const text = String(value || "").trim();
+  const parsed = text.startsWith("{") ? extractBalanced(text, 0, "{", "}") : null;
+  return parsed && parsed.end === text.length ? parsed.content.trim() : text;
+}
+
+function formatStandaloneLegendNumber(value) {
+  return String(Number(Number(value).toFixed(4)));
+}
+
+function applyDocumentFontPackageAliases(source, packages = []) {
+  if (!packages.some((pkg) => pkg?.name === "helvet")) return source;
+
+  // helvet.sty changes only LaTeX's sans-serif default (\sfdefault -> phv).
+  // Preserve that distinction through preprocessing so generic \sffamily
+  // remains CMU Sans unless the package is explicitly present.
+  return String(source)
+    .replace(/\\sffamily\b/g, "\\tikzkithelvetfamily")
+    .replace(/\\sf\b/g, "\\tikzkithelvetfamily");
 }
 
 function collectPreviewBorder(source) {
@@ -290,7 +444,7 @@ function lowerNestedInlineTikzNodes(source) {
     }
     const outer = parseInlineNodeStatement(text, start);
     const nested = outer ? parseNestedTikzNode(outer.body) : null;
-    if (!outer?.at || !nested) {
+    if (!outer || !nested) {
       output += text.slice(cursor, start + 1);
       cursor = start + 1;
       continue;
@@ -301,7 +455,10 @@ function lowerNestedInlineTikzNodes(source) {
     const outerOptions = [outer.options, nestedOuterNodePadding(outer.options), `fit=(${name})`].filter(Boolean).join(",");
     const outerName = outer.name ? ` (${outer.name})` : "";
     const replacement = [
-      `\\node${innerOptions} (${name}) at ${outer.at} {${nested.body}};`,
+      // A bare outer \node is placed at the current point, which is the
+      // picture origin for a standalone node. Keep the nested inline picture
+      // at that same point so its split-part anchors remain addressable.
+      `\\node${innerOptions} (${name}) at ${outer.at || "(0,0)"} {${nested.body}};`,
       `\\begin{scope}[on background layer]`,
       `\\node[${outerOptions}]${outerName} {};`,
       `\\end{scope}`
@@ -1795,10 +1952,38 @@ function collectTikzpicturePgfplotsOptions(source) {
       index = start + begin.length;
       continue;
     }
-    options = mergeOptionMaps(options, parseOptions(body.content));
+    options = mergeOptionMaps(options, pgfplotsPictureStyleOptions(parseOptions(body.content)));
     index = body.end;
   }
   return options;
+}
+
+function pgfplotsPictureStyleOptions(options = {}) {
+  const result = { ...options };
+  // A tikzpicture transform applies around the lowered axis. Passing it into
+  // PGFPlots as an axis default also scales the generated geometry, so a
+  // picture such as [scale=.5] is applied twice. Keep picture-level style
+  // declarations, but leave all geometric transforms to the TikZ evaluator.
+  for (const key of [
+    "scale",
+    "xscale",
+    "yscale",
+    "xslant",
+    "yslant",
+    "rotate",
+    "rotate around",
+    "scale around",
+    "shift",
+    "xshift",
+    "yshift",
+    "transform canvas",
+    "transform shape",
+    "x",
+    "y"
+  ]) {
+    delete result[key];
+  }
+  return result;
 }
 
 function mergeOptionMaps(target = {}, source = {}) {
@@ -9761,7 +9946,15 @@ function pgfplotsAxisLoweringDependencies() {
 }
 
 function preparePgfplotsAxisOptions(axisOptions, options = {}) {
-  const styles = options.pgfplotsStyleDefinitions || {};
+  // Axis-local `every axis/.append style` declarations are themselves style
+  // definitions. Materialize them before expanding the axis so their font and
+  // role defaults flow to ticks, labels, legends, and plots just like a
+  // preceding \pgfplotsset declaration.
+  const baseStyles = options.pgfplotsStyleDefinitions || {};
+  const styles = {
+    ...baseStyles,
+    ...styleDefinitionsFromOptions(axisOptions, baseStyles)
+  };
   const globalDefaults = pgfplotsGlobalAxisDefaults(options.pgfplotsStyleOptions);
   const inherited = { ...globalDefaults, ...axisOptions };
   const raw = styles["every axis"] ? { "every axis": true, ...inherited } : inherited;

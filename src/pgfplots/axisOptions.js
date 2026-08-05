@@ -1,6 +1,14 @@
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 
 export const PGFPLOTS_LIBRARY_SUPPORT = {
+  fillbetween: {
+    status: "partial",
+    implementationStatus: "partial",
+    implementedBy: "src/pgfplots/fillBetween.js",
+    localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex",
+    notes: "Named 2D function/coordinate paths, soft clip={domain=a:b}, and pre-main area layering are lowered to a closed SVG path. Segment splitting, intersections, and fill between/of arbitrary TikZ paths remain unsupported.",
+    features: ["named function/coordinate paths", "soft clip domain", "pre-main area layering"]
+  },
   groupplots: {
     status: "builtin",
     implementedBy: "src/frontend/latex-shell.js:expandPgfplotsGroupplots",
@@ -68,7 +76,10 @@ export function collectPgfplotsLibraries(source) {
       libraries.push({
         name,
         status: support?.status || "unsupported",
+        implementationStatus: support?.implementationStatus || support?.status || "unsupported",
         implementedBy: support?.implementedBy || null,
+        localSourceReviewed: support?.localSourceReviewed || null,
+        notes: support?.notes || null,
         features: support ? [...support.features] : []
       });
     }

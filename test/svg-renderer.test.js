@@ -49,6 +49,8 @@ import {
   stealthArrowLengthFromLineWidth
 } from "../src/tikz/metrics.js";
 import { estimateFormulaBox, measurePlainTextTeXBoxPt } from "../src/tikz/textMetrics.js";
+import { normalizeTikzText } from "../src/tikz/text.js";
+import { renderPlainTextNodeWithTextEngine } from "../src/renderers/svg/plainTextNode.js";
 
 test("svg renderer layer exposes render, escaping, defs, text, and path-data helpers", () => {
   const scene = createSceneGraph({
@@ -786,6 +788,25 @@ test("svg text engine preserves plain text alignment in cached payloads", () => 
   assert.match(engine.renderFromCache(right.cacheKey).body, /text-anchor="end"/);
 });
 
+test("svg text engine keeps an unwrapped left-aligned paragraph centered on its TikZ node", () => {
+  const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
+  const item = {
+    type: "textNode",
+    x: 4,
+    y: 2,
+    text: String.raw`$A~\nicefrac{6}{10}$\\$B~\nicefrac{2}{10}$`,
+    textAlign: "left",
+    style: { fill: "black" }
+  };
+  const rendered = renderPlainTextNodeWithTextEngine(item, normalizeTikzText(item.text), 100, { textEngine: engine });
+  const match = rendered.match(/transform="translate\(([-0-9.]+)\s+[-0-9.]+\)"/);
+
+  assert.ok(match, `expected cached text transform, got ${rendered}`);
+  assert.ok(Number(match[1]) < 400, `expected left-aligned paragraph to shift left from the node center, got ${match[1]}`);
+  assert.match(rendered, /text-anchor="start"/);
+  assert.match(rendered, /class="tikz-nicefrac-numerator"/);
+});
+
 test("svg text engine isolates cached payloads by render-affecting text style", () => {
   const engine = createSvgTextEngine({ unit: 100 });
   const baseTextRequest = {
@@ -1061,6 +1082,97 @@ test("uses approximate glyph advances for decoration text along paths", () => {
   assert.ok(xs[1] - xs[0] < xs[2] - xs[1], `expected narrow i/i spacing before wide W: ${xs.join(", ")}`);
 });
 
+test("places braced inline decoration math as one TeX box with a lowered script", () => {
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: String.raw`Aktion {$a_k$}`,
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 5, y: 0 }
+        ],
+        pathTextAlign: "center",
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const box = svg.match(/class="tikz-decoration-math-box" x="([^"]+)" y="([^"]+)"[^>]+font-family="TikZKitMath_Math[^>]+font-style="italic"[^>]*>a<tspan font-size="([^"]+)" baseline-shift="sub">k<\/tspan><\/text>/);
+
+  assert.ok(box, "expected a single math italic decoration box for the braced formula");
+  assert.ok(Number(box[3]) < 30, `expected a smaller script font, got ${box[3]}`);
+  assert.equal((svg.match(/class="tikz-decoration-math-box"/g) || []).length, 1);
+  assert.doesNotMatch(svg, />ₖ<\/text>/);
+});
+
+test("honors decorations.text alignment, indents, fit spacing, and signed raise", () => {
+  const pathCommands = [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 10, y: 0 }
+  ];
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "L",
+        pathCommands,
+        pathTextAlign: "left",
+        pathLeftIndent: 1,
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "C",
+        pathCommands,
+        pathTextAlign: "center",
+        pathLeftIndent: 1,
+        pathRightIndent: 3,
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "R",
+        pathCommands,
+        pathTextAlign: "right",
+        pathRightIndent: 1,
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "A B",
+        pathCommands,
+        pathTextAlign: "left",
+        pathTextFitToPath: true,
+        pathTextFitToPathStretchingSpaces: true,
+        pathRaise: -0.2,
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const glyph = (character) => {
+    const match = svg.match(new RegExp(`<text class="tikz-decoration-glyph" x="([^"]+)" y="([^"]+)"[^>]*>${character}</text>`));
+    assert.ok(match, `expected ${character} decoration glyph`);
+    return { x: Number(match[1]), y: Number(match[2]) };
+  };
+
+  const left = glyph("L");
+  const center = glyph("C");
+  const right = glyph("R");
+  const fittedA = glyph("A");
+
+  assert.ok(left.x < center.x && center.x < right.x, `expected left/center/right placement: ${left.x}, ${center.x}, ${right.x}`);
+  assert.ok(left.x > 90 && left.x < 130, `expected 1cm left indent, got x=${left.x}`);
+  assert.ok(right.x > 850 && right.x < 910, `expected 1cm right indent, got x=${right.x}`);
+  assert.ok(fittedA.y > 15 && fittedA.y < 25, `expected negative raise below the path, got y=${fittedA.y}`);
+});
+
 test("uses the normal TikZ text size for decoration text", () => {
   const scene = createSceneGraph({
     items: [
@@ -1202,14 +1314,57 @@ test("renders simple math variables as TeX-like glyph paths in svg-text mode", (
   assert.doesNotMatch(result.svg, /<text[^>]*>\s*x\s*<\/text>/);
 });
 
-test("uses the inherited sans family for sansmath svg-text formulas", () => {
+test("keeps sansmath variables as math italic while preserving the sans math version", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \node[font=\sansmath\sffamily] at (0,0) {$x$};
   \node[font=\sansmath\sffamily] at (1,0) {$f(x)$};
+  \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  assert.equal(result.ir.items[0].font.mathVersion, "sans");
+  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-x"/);
+  assert.doesNotMatch(result.svg, /font-family="TikZKitCMUSans, 'CMU Sans Serif', sans-serif"[^>]*>x<\/text>/);
+});
+
+test("svg-text sansmath keeps variables italic but makes digits, roman text, and bold vectors sans", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+  \node[font=\sansmath\sffamily] at (0,0) {$x+123\,\mathrm{km}=\mathbf{v}$};
+  \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  assert.match(result.svg, /font-family="TikZKitCMUSans, 'CMU Sans Serif', sans-serif" font-style="normal">1<\/tspan>/);
+  assert.match(result.svg, /font-family="TikZKitCMUSans, 'CMU Sans Serif', sans-serif" font-style="normal">km<\/tspan>/);
+  assert.match(result.svg, /font-family="TikZKitCMUSans, 'CMU Sans Serif', sans-serif" font-style="normal" font-weight="700">v<\/tspan>/);
+  assert.match(result.svg, />x<tspan/);
+});
+
+test("scopes KaTeX sansmath digits and bold vectors without leaking a KaTeX class", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+  \node[font=\sansmath\sffamily] at (0,0) {$x+123\,\mathrm{km}=\mathbf{v}$};
+  \end{tikzpicture}`, { margin: 0 });
+
+  assert.match(result.svg, /tikzkit-math-root tikzkit-math-sans/);
+  assert.match(result.svg, /tikzkit-math-mathboldsf/);
+  assert.match(result.svg, /TikZKitCMUSans/);
+  assert.doesNotMatch(result.svg, /class="[^\"]*\bkatex\b/);
+});
+
+test("applies helvet's sans-family default to text and sansmath glyphs", () => {
+  const svgText = tikzToSvg(String.raw`\usepackage{helvet}
+\usepackage{sansmath}
+\begin{tikzpicture}
+  \node[font=\sansmath\sffamily] at (0,0) {$x+123\,\mathrm{km}=\mathbf{v}$};
+  \node[font=\sffamily] at (0,-1) {Helvetica text};
 \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
 
-  assert.match(result.svg, /font-family="TikZKitCMUSans, 'CMU Sans Serif', sans-serif"/);
-  assert.doesNotMatch(result.svg, /class="tikz-math-glyph tikz-math-glyph-x"/);
+  assert.deepEqual(svgText.diagnostics, []);
+  assert.equal(svgText.ir.items[0].font.family, "helvetica");
+  assert.match(svgText.svg, /font-family="Helvetica, Arial, sans-serif" font-style="normal">1<\/tspan>/);
+  assert.match(svgText.svg, /font-family="Helvetica, Arial, sans-serif"[^>]*>Helvetica text<\/text>/);
+  assert.doesNotMatch(svgText.svg, /tikzkithelvetfamily/);
+
+  const html = tikzToSvg(String.raw`\usepackage{helvet}\usepackage{sansmath}
+\begin{tikzpicture}\node[font=\sansmath\sffamily] at (0,0) {$x+1$};\end{tikzpicture}`, { margin: 0 });
+  assert.match(html.svg, /tikzkit-math-helvetica/);
+  assert.match(html.svg, /font-family:Helvetica,Arial,sans-serif/);
 });
 
 test("renders simple y math glyph at anchored node positions without NaN transforms", () => {

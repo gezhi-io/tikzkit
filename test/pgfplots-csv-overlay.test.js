@@ -318,6 +318,48 @@ test("csv two-axis fixture renders all four series and the overlaid right axis",
   assert.match(result.svg, /fill=\"rgb\(204 0 0\)\"/);
 });
 
+test("csv two-axis fixture shares the primary plot box with its hidden-x right-axis overlay", () => {
+  const source = readFileSync("test/fixtures/examples/latex-examples/csv-line-plot-two-axes.tex", "utf8");
+  const resourceRoot = "test/fixtures/examples/resources/csv-line-plot-two-axes";
+  const result = tikzToSvg(source, {
+    margin: 0,
+    mathRenderer: "svg-text",
+    pgfplotsTableResolver: (name) => readFileSync(`${resourceRoot}/${name}`, "utf8")
+  });
+  const primary = createAxisGeometry(
+    {
+      "axis x line": "middle",
+      "axis y line": "middle",
+      width: "15cm",
+      height: "8cm",
+      xmin: "0",
+      xmax: "2150",
+      ymin: "0",
+      ymax: "20000000",
+      "enlarge y limits": "true"
+    },
+    { xMin: 0, xMax: 2150, yMin: 0, yMax: 20000000 }
+  );
+  const rightAxisFrame = result.ir.items.find((item) =>
+    item.type === "path"
+      && item.subtype === "axis-frame"
+      && item.commands?.length === 2
+      && Math.abs(item.commands[0]?.x - primary.width) < 1e-3
+  );
+  const overlayBounds = result.ir.items.find((item) =>
+    item.type === "path"
+      && item.subtype === "axis-frame"
+      && item.commands?.length === 5
+      && Math.abs(item.commands[1]?.x - primary.width) > 0.01
+      && item.commands[2]?.y > primary.height
+  );
+
+  assert.ok(rightAxisFrame, "expected a right-side axis frame aligned with the primary plot box");
+  assert.ok(Math.abs(rightAxisFrame.commands[0].y) < 1e-9);
+  assert.ok(Math.abs(rightAxisFrame.commands[1].y - primary.height) < 1e-3);
+  assert.ok(overlayBounds, "expected the right axis to retain its own PGFPlots layout bounds");
+});
+
 test("KIT students CSV fixture renders three series with native tick and legend policies", () => {
   const source = readFileSync("test/fixtures/examples/latex-examples/csv-line-plot-kit-students.tex", "utf8");
   const resourceRoot = "test/fixtures/examples/resources/csv-line-plot-kit-students";

@@ -18,8 +18,6 @@ const TEX_CSS_CONFLICT_COLOR_NAMES = new Set([
   "violet"
 ]);
 
-const XCOLOR_DEVICE_CMYK_NAMES = new Set(["cyan", "magenta", "yellow", "olive"]);
-
 const NAMED_COLORS = new Set([
   "black",
   "white",
@@ -329,6 +327,8 @@ export function normalizeOptions(command, rawOptions, env) {
   const style = defaultStyleForCommand(command);
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
+  let currentColor = "black";
+  let usesCurrentColorForFill = false;
   let pendingDashPattern;
   let pendingDashKey;
 
@@ -349,11 +349,15 @@ export function normalizeOptions(command, rawOptions, env) {
     if (value === true && isColorToken(key)) {
       const color = normalizeColor(key);
       applyCurrentColor(style, color, command);
+      currentColor = color;
+      if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
     if (key.includes("!")) {
       const color = normalizeColor(key);
       applyCurrentColor(style, color, command);
+      currentColor = color;
+      if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
     if (key === "draw") {
@@ -361,8 +365,14 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (key === "fill") {
-      if (value === true) semantic["tikzkit bare fill"] = true;
-      style.fill = value === true ? "black" : normalizeColor(String(value));
+      if (value === true) {
+        semantic["tikzkit bare fill"] = true;
+        usesCurrentColorForFill = true;
+        style.fill = currentColor;
+      } else {
+        usesCurrentColorForFill = false;
+        style.fill = normalizeColor(String(value));
+      }
       continue;
     }
     if (key === "even odd rule") {
@@ -386,13 +396,34 @@ export function normalizeOptions(command, rawOptions, env) {
       if (!semantic.shading) semantic.shading = "ball";
       continue;
     }
-    if (key === "top color" || key === "bottom color" || key === "middle color") {
+    if (
+      key === "top color" ||
+      key === "bottom color" ||
+      key === "middle color" ||
+      key === "left color" ||
+      key === "right color"
+    ) {
       semantic[key] = normalizeColor(String(value));
+      if (key === "middle color") {
+        semantic["tikzkit axis middle color"] = semantic[key];
+      } else {
+        // TikZ recalculates the axis midpoint whenever a terminal color is
+        // assigned. This deliberately overwrites an earlier middle color.
+        const top = semantic["top color"] ?? semantic["left color"] ?? "gray";
+        const bottom = semantic["bottom color"] ?? semantic["right color"] ?? "white";
+        semantic["tikzkit axis middle color"] = normalizeColor(`${top}!50!${bottom}`);
+      }
+      continue;
+    }
+    if (key === "shading angle") {
+      semantic[key] = String(value);
       continue;
     }
     if (key === "color") {
       const color = normalizeColor(String(value));
       applyCurrentColor(style, color, command);
+      currentColor = color;
+      if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
     if (key === "text") {
@@ -662,6 +693,12 @@ function parseArrowTipSpec(input) {
   const tip = createArrowTip(match[1], overrides);
   const scale = Number(options.scale);
   if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 1e-12) return tip;
+  // Latex is a geometric PGF tip: its default dimensions depend on the
+  // current path width. Preserve the scale so the renderer can apply it to
+  // that calculated geometry instead of scaling TikZKit's static fallback.
+  if (tip.kind === "latex" && !overrides.customLength && !overrides.customWidth) {
+    return { ...tip, scale };
+  }
   return {
     ...tip,
     length: tip.length * scale,
@@ -669,6 +706,7 @@ function parseArrowTipSpec(input) {
     ...(tip.lineWidth ? { lineWidth: tip.lineWidth * scale } : {})
   };
 }
+
 function parseDeclaredArrowPayload(value) {
   if (typeof value !== "string" || !value) return null;
   try {
@@ -698,7 +736,6 @@ function parseDeclaredArrowPayload(value) {
   }
 }
 
-
 function isColorToken(value) {
   const text = String(value).trim();
   return isPlainColor(text) || text.includes("!");
@@ -713,7 +750,7 @@ export function normalizeColor(value) {
     if (texNamed) return rgbToCss(texNamed);
     const lower = text.toLowerCase();
     const natural = xcolorNaturalColorSpec(lower);
-    if (natural && (TEX_CSS_CONFLICT_COLOR_NAMES.has(lower) || XCOLOR_DEVICE_CMYK_NAMES.has(lower))) {
+    if (natural && TEX_CSS_CONFLICT_COLOR_NAMES.has(lower)) {
       return colorSpecToCss(natural);
     }
     return isPlainColor(text) ? text : "black";
@@ -821,10 +858,13 @@ const XCOLOR_NATURAL_COLOR_SPECS = {
   purple: { model: "rgb", channels: [0.75, 0, 0.25] },
   teal: { model: "rgb", channels: [0, 0.5, 0.5] },
   violet: { model: "rgb", channels: [0.5, 0, 0.5] },
-  cyan: { model: "cmyk", channels: [1, 0, 0, 0] },
-  magenta: { model: "cmyk", channels: [0, 1, 0, 0] },
-  yellow: { model: "cmyk", channels: [0, 0, 1, 0] },
-  olive: { model: "cmyk", channels: [0, 0, 1, 0.5] },
+  // xcolor gives these standard names both a CMYK definition and an RGB
+  // alternate. In normal TikZ rendering the RGB alternate is selected;
+  // explicit \definecolor{...}{cmyk}{...} still follows DeviceCMYK elsewhere.
+  cyan: { model: "rgb", channels: [0, 1, 1] },
+  magenta: { model: "rgb", channels: [1, 0, 1] },
+  yellow: { model: "rgb", channels: [1, 1, 0] },
+  olive: { model: "rgb", channels: [0.5, 0.5, 0] },
   black: { model: "gray", channels: [0] },
   darkgray: { model: "gray", channels: [0.25] },
   gray: { model: "gray", channels: [0.5] },
@@ -1092,6 +1132,8 @@ function isRepeatableOption(key) {
     key === "z axis line style" ||
     key === "inner axis line style" ||
     key === "outer axis line style" ||
+    key === "start chain" ||
+    key === "continue chain" ||
     key === "if" ||
     key === "name intersections"
   );

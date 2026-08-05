@@ -19,6 +19,14 @@ layout, and package behaviors are still partial or case-driven. Unsupported or
 partially supported syntax may render approximately, emit diagnostics, or fail
 to match native TikZ visual output.
 
+The current checkout is an active calibration checkpoint: a source that renders in
+the browser is **not** automatically accepted as visually compatible. In
+particular, font metrics, PGFPlots tick/label placement, 3D axes, and advanced
+package layout are still being corrected against local MacTeX and
+`tikztosvg`. Treat a green focused fixture as evidence for that fixture and
+feature slice only; run the full test suite and inspect the paired reference
+artifacts before promoting a change.
+
 Use this repository as a work-in-progress renderer and testbed, not as a stable
 implementation.
 

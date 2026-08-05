@@ -495,6 +495,7 @@ test("pgfplots addplot parser samples supported raw gnuplot chi-squared plots in
   assert.equal(plots.length, 2);
   assert.equal(plots[0].source, "gnuplot");
   assert.equal(plots[0].type, "coordinates");
+  assert.equal(plots[0].options.mark, "none");
   assert.equal(plots[0].points.length >= 4, true);
   assert.equal(plots[1].points.length, 5);
   assert.equal(plots[1].points[0].x < 0.001, true);
@@ -558,8 +559,8 @@ test("pgfplots cycle list declarations feed addplot cycle styles", () => {
     }
   );
 
-  assert.match(rendered, /\\draw\[axis plot, yellow\]/);
-  assert.match(rendered, /\\draw\[axis plot, draw=#00dd00, densely dashed\]/);
+  assert.match(rendered, /\\draw\[axis plot, yellow(?:,|\])/);
+  assert.match(rendered, /\\draw\[axis plot, draw=#00dd00, densely dashed(?:,|\])/);
 });
 
 test("pgfplots lowers two-parameter addplot3 tuples into a surface grid", () => {
@@ -2008,8 +2009,8 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
 
   assert.deepEqual(renderAxisLabels3D({ xlabel: "$x$", ylabel: "$y$", zlabel: "$z$", title: "Surface" }, ranges, geometry), [
     String.raw`\node[axis label, anchor=north] at (0.5,-0.72) {$x$};`,
-    String.raw`\node[axis label, anchor=east] at (-0.809,0.529) {$y$};`,
-    String.raw`\node[axis label, anchor=east, rotate=90] at (-1.12,0.5) {$z$};`,
+    String.raw`\node[axis label, anchor=east] at (-0.531,0.391) {$y$};`,
+    String.raw`\node[axis label, anchor=east, rotate=90] at (-1,0.5) {$z$};`,
     String.raw`\node[axis label, anchor=south] at (0.55,1.35) {Surface};`
   ]);
 });
@@ -2479,6 +2480,37 @@ test("pgfplots labels inherit the enclosing uniform tikz picture scale", () => {
   assert.match(result.svg, /font-size="17\.57[0-9]+"/);
   assert.doesNotMatch(result.svg, /font-size="35\.14598"/);
   assert.match(result.svg, /stroke-width="0\.702919607/);
+});
+
+test("pgfplots picture scale transforms 3D surface geometry exactly once", () => {
+  const axis = String.raw`\begin{axis}[width=6cm,view={155}{45},domain=-5:5,y domain=-5:5,samples=9]
+\addplot3[surf] {y*y-x*x*x};
+\end{axis}`;
+  const render = (pictureOptions = "") => tikzToSvg(
+    String.raw`\begin{tikzpicture}${pictureOptions}
+${axis}
+\end{tikzpicture}`,
+    { margin: 0, mathRenderer: "svg-text" }
+  );
+  const frameBounds = (result) => {
+    const frame = result.ir.items.find((item) => item.subtype === "axis-frame");
+    assert.ok(frame, "expected lowered 3D axis bounds");
+    const points = frame.commands.filter((command) => Number.isFinite(command.x) && Number.isFinite(command.y));
+    return {
+      minX: Math.min(...points.map((point) => point.x)),
+      maxX: Math.max(...points.map((point) => point.x)),
+      minY: Math.min(...points.map((point) => point.y)),
+      maxY: Math.max(...points.map((point) => point.y))
+    };
+  };
+
+  const base = frameBounds(render());
+  const scaled = frameBounds(render("[scale=0.5]"));
+
+  assert.equal(scaled.minX, base.minX * 0.5);
+  assert.equal(scaled.maxX, base.maxX * 0.5);
+  assert.equal(scaled.minY, base.minY * 0.5);
+  assert.equal(scaled.maxY, base.maxY * 0.5);
 });
 
 test("pgfplots transform, ticks, and grid are isolated semantics", () => {
@@ -3029,6 +3061,67 @@ test("pgfplots explicit enlarged middle axes preserve the native 45pt inner plot
   assert.ok(Math.abs(geometry.width - (16 - reserve)) < 1e-9);
   assert.ok(Math.abs(geometry.height - (9 - reserve)) < 1e-9);
   assert.deepEqual(geometry.margin, { left: margin, right: margin, top: margin, bottom: margin });
+});
+
+test("pgfplots restricted zero-bound middle axes transfer enlarge space to the free side", () => {
+  const geometry = createAxisGeometry(
+    {
+      width: "16cm",
+      height: "9cm",
+      "axis x line": "middle",
+      "axis y line": "middle",
+      enlargelimits: "true",
+      domain: "0.01:8",
+      "restrict y to domain": "0:0.5"
+    },
+    { xMin: 0, xMax: 8, yMin: 0, yMax: 0.5 }
+  );
+
+  assert.deepEqual(geometry.transformRanges, {
+    xMin: -0.789,
+    xMax: 8.799,
+    yMin: 0,
+    yMax: 0.6,
+    zMin: 0,
+    zMax: 1
+  });
+});
+
+test("pgfplots enlarged restricted middle axes choose chi-squared unit ticks from the transform range", () => {
+  const axisOptions = {
+    width: "16cm",
+    height: "9cm",
+    "axis x line": "middle",
+    "axis y line": "middle",
+    enlargelimits: "true",
+    domain: "0.01:8",
+    "restrict y to domain": "0:0.5"
+  };
+  const ranges = { xMin: 0, xMax: 8, yMin: 0, yMax: 0.5 };
+  const geometry = createAxisGeometry(axisOptions, ranges);
+  const labels = renderAxisTicks(axisOptions, [], ranges, geometry)
+    .filter((command) => command.includes("axis tick label") && command.includes("anchor=north"));
+
+  assert.ok(labels.some((command) => command.endsWith("{1};")), labels.join("\n"));
+  assert.ok(labels.some((command) => command.endsWith("{8};")), labels.join("\n"));
+  assert.ok(!labels.some((command) => command.endsWith("{0.5};")), labels.join("\n"));
+});
+
+test("pgfplots restricted zero-bound middle y axis preserves the native lower paint extent", () => {
+  const axisOptions = {
+    width: "16cm",
+    height: "9cm",
+    "axis x line": "middle",
+    "axis y line": "middle",
+    enlargelimits: "true",
+    domain: "0.01:8",
+    "restrict y to domain": "0:0.5"
+  };
+  const ranges = { xMin: 0, xMax: 8, yMin: 0, yMax: 0.5 };
+  const geometry = createAxisGeometry(axisOptions, ranges);
+  const lines = renderAxisLines(axisOptions, ranges, geometry);
+
+  assert.ok(lines.some((line) => line.includes("(1.186,-0.824) -- (1.186,7.425)")), lines.join("\n"));
 });
 
 test("pgfplots light bulb fixture keeps legend text bounds close to tikztosvg", () => {
@@ -3616,6 +3709,27 @@ test("pgfplots tick lowering emits TikZ tick and label primitives from axis geom
   assert.deepEqual(renderAxisTicks({ ticks: "none" }, [], ranges, geometry), []);
 });
 
+test("pgfplots axis-level font is inherited by tick, label, and legend roles", () => {
+  const axisOptions = {
+    font: String.raw`\sansmath\sffamily`,
+    xlabel: "n",
+    ylabel: "m",
+    xtick: "{0,1}",
+    ytick: "{0,1}"
+  };
+  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+  const geometry = createAxisGeometry(axisOptions, ranges);
+  const labels = renderAxisLabels(axisOptions, ranges, geometry);
+  const ticks = renderAxisTicks(axisOptions, [], ranges, geometry);
+
+  assert.ok(labels.every((command) => command.includes(String.raw`font=\normalsize\sansmath\sffamily`)), labels.join("\n"));
+  assert.ok(
+    ticks.filter((command) => command.includes("axis tick label")).every((command) => command.includes(String.raw`font=\normalsize\sansmath\sffamily`)),
+    ticks.join("\n")
+  );
+  assert.equal(legendFontOption(axisOptions), String.raw`font=\normalsize\sansmath\sffamily`);
+});
+
 test("pgfplots box ticklabel pos places labels on the requested upper sides", () => {
   const axisOptions = {
     "scale only axis": true,
@@ -4052,8 +4166,8 @@ test("pgfplots middle axis auto ticks keep terminal boundary labels", () => {
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
 
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=north`) && command.endsWith("{2.0};")), "expected x terminal label");
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=east`) && command.endsWith("{2.0};")), "expected y terminal label");
+  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label,`) && command.includes("anchor=north") && command.endsWith("{2.0};")), "expected x terminal label");
+  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label,`) && command.includes("anchor=east") && command.endsWith("{2.0};")), "expected y terminal label");
 });
 
 test("pgfplots boxed auto ticks keep terminal max tick labels", () => {
@@ -4626,6 +4740,46 @@ test("pgfplots perspective 3D geometry reserves the native description bbox", ()
   assertAxisPointsNearlyEqual(basis({ x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }), { x: 4.618, y: -0.776 }, 0.01);
   assertAxisPointsNearlyEqual(basis({ x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }), { x: 2.153, y: 1.665 }, 0.01);
   assertAxisPointsNearlyEqual(basis({ x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }), { x: 0, y: 3.203 }, 0.01);
+});
+
+test("pgfplots explicit perspective 3D axes do not add an unpainted right gutter", () => {
+  const geometry = createAxisGeometry(
+    { width: "15cm", view: "{45}{45}", "pgfplots 3d surface": true },
+    { xMin: -90, xMax: 90, yMin: -90, yMax: 90, zMin: -4, zMax: 4 }
+  );
+
+  assert.deepEqual(geometry.margin, { left: 0.52, right: 0, top: 0.073, bottom: 0.32 });
+  assert.match(renderAxisBounds(geometry), /\(13\.462,11\.429\)/);
+});
+
+test("pgfplots default surf domains stay tight instead of inheriting 2D auto enlargement", () => {
+  const surface = {
+    type: "function",
+    is3d: true,
+    options: { surf: true },
+    expression: "-(x*x/16+y*y/4-1)"
+  };
+
+  const ranges = computeAxisRanges({ "pgfplots 3d surface": true }, [surface]);
+
+  assert.deepEqual(
+    { xMin: ranges.xMin, xMax: ranges.xMax, yMin: ranges.yMin, yMax: ranges.yMax },
+    { xMin: -5, xMax: 5, yMin: -5, yMax: 5 }
+  );
+  assert.ok(Math.abs(ranges.zMin + 6.8125) < 0.001);
+  assert.equal(ranges.zMax, 1);
+});
+
+test("pgfplots 3D z labels use the native near-ticklabel default offset", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+\begin{axis}[xlabel=$x$,ylabel=$y$,zlabel=$z$,axis lines=left]
+\addplot3[surf] {x+y};
+\end{axis}
+\end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  const zLabel = result.ir.items.find((item) => item.type === "textNode" && item.text === "$z$");
+  assert.ok(zLabel, "expected a generated z axis label");
+  assert.ok(Math.abs(zLabel.x + 1) < 1e-6, `expected a 1cm z label offset, received ${zLabel.x}`);
 });
 
 test("pgfplots axis equal image keeps x and y data units square for top-view surfaces", () => {

@@ -32,7 +32,9 @@ import { texPackage as pkg_27_fourier } from "./fourier.js";
 import { texPackage as pkg_28_fp } from "./fp.js";
 import { texPackage as pkg_29_fullpage } from "./fullpage.js";
 import { texPackage as pkg_30_geometry } from "./geometry.js";
+import { texPackage as pkg_gensymb } from "./gensymb.js";
 import { texPackage as pkg_31_graphicx } from "./graphicx.js";
+import { texPackage as pkg_helvet } from "./helvet.js";
 import { texPackage as pkg_32_hyperref } from "./hyperref.js";
 import { texPackage as pkg_33_ifthen } from "./ifthen.js";
 import { texPackage as pkg_34_inputenc } from "./inputenc.js";
@@ -58,6 +60,7 @@ import { texPackage as pkg_52_preview } from "./preview.js";
 import { texPackage as pkg_53_PTSansNarrow } from "./PTSansNarrow.js";
 import { texPackage as pkg_54_ragged2e } from "./ragged2e.js";
 import { texPackage as pkg_55_relsize } from "./relsize.js";
+import { texPackage as pkg_sansmath } from "./sansmath.js";
 import { texPackage as pkg_56_showframe } from "./showframe.js";
 import { texPackage as pkg_57_sidecap } from "./sidecap.js";
 import { texPackage as pkg_58_siunitx } from "./siunitx.js";
@@ -128,7 +131,9 @@ const texPackages = [
   pkg_28_fp,
   pkg_29_fullpage,
   pkg_30_geometry,
+  pkg_gensymb,
   pkg_31_graphicx,
+  pkg_helvet,
   pkg_32_hyperref,
   pkg_33_ifthen,
   pkg_34_inputenc,
@@ -154,6 +159,7 @@ const texPackages = [
   pkg_53_PTSansNarrow,
   pkg_54_ragged2e,
   pkg_55_relsize,
+  pkg_sansmath,
   pkg_56_showframe,
   pkg_57_sidecap,
   pkg_58_siunitx,

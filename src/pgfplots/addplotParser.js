@@ -27,6 +27,12 @@ export function parseAddplots(body, options = {}, diagnostics = []) {
     }
     const parsedOptions = parseOptionalOptions(body, cursor);
     const plotOptions = expandPgfplotsNamedOptions(parseOptions(parsedOptions.raw), options.pgfplotsStyleDefinitions || {});
+    // PGFPlots uses an empty mark declaration as an explicit request for no
+    // marks. Keeping it as an empty string lets downstream truthy fallbacks
+    // select a circle for legend images.
+    if (Object.hasOwn(plotOptions, "mark") && String(plotOptions.mark ?? "").trim() === "") {
+      plotOptions.mark = "none";
+    }
     if (appendCycle) plotOptions["pgfplots plus"] = true;
     if (String(parsedOptions.raw || "").trim()) plotOptions["pgfplots explicit options"] = true;
     cursor = parsedOptions.end;

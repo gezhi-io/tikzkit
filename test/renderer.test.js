@@ -581,7 +581,7 @@ test("renders TikZ north east line patterns as SVG pattern fills", () => {
 
   assert.equal(box.style.pattern, "north east lines");
   assert.equal(box.style.patternColor, "red");
-  assert.match(result.svg, /<defs><pattern[^>]+id="tikz-pattern-/);
+  assert.match(result.svg, /<pattern[^>]+id="tikz-pattern-/);
   assert.match(result.svg, /<path d="M -4 8 L 8 -4 M 0 12 L 12 0"/);
   assert.match(result.svg, /fill="url\(#tikz-pattern-/);
 });
@@ -809,7 +809,18 @@ test("uses the arrows.meta Latex geometry for thick paths", () => {
   const svg = tikzToSvg(String.raw`\draw[thick,-Latex] (0,0) -- (2,0);`).svg;
   const tip = svg.match(/<path class="tikz-arrow-tip tikz-arrow-latex"[^>]+/u)?.[0] || "";
   assert.match(tip, /stroke-width="2\.811678"/);
-  assert.match(tip, /C -5\.39[0-9]+ -3\.24[0-9]+ -14\.02[0-9]+ -0\.48[0-9]+ -15\.99[0-9]+ -6\.25[0-9]+/);
+  assert.match(tip, /C -1\.98[0-9]+ -0\.48[0-9]+ -10\.62[0-9]+ -3\.24[0-9]+ -15\.99[0-9]+ -6\.25[0-9]+/);
+});
+
+test("applies Latex tip scale after deriving its PGF line-width geometry", () => {
+  const svg = tikzToSvg(String.raw`\draw[thick,arrows={{Latex[scale=0.5]}-}] (0,0) -- (2,0);`).svg;
+  const tip = svg.match(/<path class="tikz-arrow-tip tikz-arrow-latex"[^>]+/u)?.[0] || "";
+
+  // MacTeX emits a 0.6575pt outline here: it is capped by one fifth of the
+  // scaled 3.3pt arrow length, rather than blindly halving the 0.8pt path.
+  assert.match(tip, /stroke-width="2\.319[0-9]+"/);
+  assert.match(tip, /stroke-linecap="butt" stroke-linejoin="miter"/);
+  assert.match(tip, /C -0\.701[0-9]+ -0\.179[0-9]+ -3\.755[0-9]+ -1\.209[0-9]+ -5\.656[0-9]+ -2\.330[0-9]+/);
 });
 
 test("scales default to arrow tips from IR with the current line width", () => {
@@ -2701,6 +2712,50 @@ test("uses a display formula node's text width as the minimum KaTeX viewport wid
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(width >= 600, `expected the display formula viewport to honor text width, got ${width}`);
+});
+
+test("renders scripts on grouped math nuclei in SVG text fallback", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[draw] {$P_k^{(P)} H^\top {\left(H P_k^{(P)} H^\top + C_k^{(r_m)}\right)}^{-1}$};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-math-script-group"/);
+  assert.match(result.svg, /baseline-shift="super"[^>]*>−1<\/tspan>/);
+  assert.doesNotMatch(result.svg, /\)\^-1/);
+  assert.doesNotMatch(result.svg, /\\left|\\right/);
+});
+
+test("keeps a bold math nucleus when it carries a script", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node {$\mathbf{x}_k^{(P)}$};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /font-weight="700"[^>]*><tspan>x<\/tspan><\/tspan>/);
+  assert.match(result.svg, /baseline-shift="super"[^>]*>\(P\)<\/tspan>/);
+  assert.match(result.svg, /baseline-shift="sub"[^>]*>k<\/tspan>/);
+  assert.doesNotMatch(result.svg, /mathbfx/);
+});
+
+test("uses script-cluster widths when aligning SVG text equations", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[draw,text width=6cm] at (0,0) {\begin{align*}
+    K_k &= P_k^{(P)} H^\top {\left(H P_k^{(P)} H^\top + C_k^{(r_m)}\right)}^{-1}\\
+    P_k &= (I-K_kH)P_k^{(P)}
+  \end{align*}};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const leftColumnX = [...result.svg.matchAll(/<text x="([^"]+)" y="[^"]+" text-anchor="end"[^>]*><tspan>K<\/tspan>/g)]
+    .map((match) => Number(match[1]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(leftColumnX.length, 1);
+  // The legacy character-count estimate put this column beyond -500 SVG units.
+  assert.ok(leftColumnX[0] > -360, `expected script-aware alignment, got K column at ${leftColumnX[0]}`);
+  assert.match(result.svg, /tikz-math-aligned-fallback[^]*?scale\(1\.[0-9]+ 1\)/);
 });
 
 test("uses amsmath's opened-up baseline skip for aligned display rows", () => {

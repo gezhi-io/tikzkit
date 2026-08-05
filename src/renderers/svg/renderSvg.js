@@ -3,7 +3,7 @@ import { isEmptyNormalizedTikzText, normalizeTikzText } from "../../tikz/text.js
 import { computeSvgBounds } from "./bounds.js";
 import { renderDecorationTextPath } from "./decorationText.js";
 import { renderDefaultFontStyleDef } from "./defaultFontCss.js";
-import { clipRectId, collectSvgDefs, formOnlyPatternClipId } from "./defs.js";
+import { clipCircleId, clipRectId, collectSvgDefs, formOnlyPatternClipId } from "./defs.js";
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
 import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
@@ -152,10 +152,16 @@ function renderItem(item, unit, options = {}, index = 0) {
   if (item.type === "path" && hasPathCommands(item)) {
     const rendered = hasRenderableFormOnlyPattern(item)
       ? `${renderFormOnlyPatternFill(item, unit, formOnlyPatternClipId(index))}${renderPathElement({
-        ...item, style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
-      }, unit)}` : renderPathElement(item, unit);
-    if (!item.clipRect) return rendered;
-    return `<g clip-path="url(#${escapeAttribute(clipRectId(item.clipRect))})">${rendered}</g>`;
+        ...item,
+        style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
+      }, unit)}`
+      : renderPathElement(item, unit);
+    const clip = item.clipCircle
+      ? clipCircleId(item.clipCircle)
+      : item.clipRect
+        ? clipRectId(item.clipRect)
+        : null;
+    return clip ? `<g clip-path="url(#${escapeAttribute(clip)})">${rendered}</g>` : rendered;
   }
   if (item.shape === "circle") {
     return `<circle cx="${format(item.cx * unit)}" cy="${format(-item.cy * unit)}" r="${format(

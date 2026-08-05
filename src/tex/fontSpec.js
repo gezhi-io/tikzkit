@@ -58,20 +58,28 @@ export function parseTikzFontPatch(source, options = {}) {
     patch.baselineSkipPt = baselineSkipPt;
   }
 
-  const family = lastFontCommand(text, /\\(rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt)\b/g);
+  const family = lastFontCommand(text, /\\(tikzkithelvetfamily|rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt)\b/g);
   if (family) {
-    patch.family = family === "sffamily" || family === "sf"
-      ? "sans-serif"
-      : family === "ttfamily" || family === "tt"
-        ? "monospace"
-        : "serif";
+    patch.family = family === "tikzkithelvetfamily"
+      ? "helvetica"
+      : family === "sffamily" || family === "sf"
+        ? "sans-serif"
+        : family === "ttfamily" || family === "tt"
+          ? "monospace"
+          : "serif";
   }
 
   const weight = lastFontCommand(text, /\\(mdseries|bfseries|bf)\b/g);
   if (weight) patch.weight = weight === "mdseries" ? 400 : 700;
 
-  const mathVersion = lastFontCommand(text, /\\(boldmath|unboldmath)\b/g);
-  if (mathVersion) patch.mathVersion = mathVersion === "boldmath" ? "bold" : "normal";
+  const mathVersion = lastFontCommand(text, /\\(boldmath|unboldmath|sansmath|unsansmath)\b/g);
+  if (mathVersion) {
+    patch.mathVersion = mathVersion === "boldmath"
+      ? "bold"
+      : mathVersion === "sansmath"
+        ? "sans"
+        : "normal";
+  }
 
   const style = lastFontCommand(text, /\\(upshape|itshape|slshape)\b/g);
   if (style) patch.style = style === "upshape" ? "normal" : "italic";

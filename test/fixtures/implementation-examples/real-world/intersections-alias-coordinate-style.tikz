@@ -1,0 +1,10 @@
+\usetikzlibrary{intersections}
+\tikzset{intersection mark/.style={circle,draw=purple,fill=yellow!50,minimum size=7pt,label=above:$C$}}
+\begin{tikzpicture}
+  \draw[help lines] (-2,-1) grid (2,2);
+  \draw[blue, very thick, name path=vertical] (0,-1) -- (0,1.5);
+  \draw[red, very thick, name path=sloped] (-2,-1) -- (2,1);
+
+  \path[name intersections={of=vertical and sloped,
+    by={[intersection mark]C}}];
+\end{tikzpicture}

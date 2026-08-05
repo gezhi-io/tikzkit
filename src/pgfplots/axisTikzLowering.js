@@ -17,11 +17,13 @@ import { preparePgfplotsHistogram } from "./histogram.js";
 import { renderAxisTicks } from "./ticks.js";
 import { defaultPgfplotsCycleMarkStyle } from "./plotStyle.js";
 import { createPgfplotsDateContext, normalizePgfplotsDateAxisOptions } from "./dateCoordinates.js";
+import { renderAxisFillBetween } from "./fillBetween.js";
 
-// `current axis.outer south west` includes the rotated ylabel description
-// node, not only its painted glyphs. The evaluator's live current-bbox tracks
-// painted text, so restore the native PGF description-node reserve here.
-const PGFPLOTS_ROTATED_YLABEL_OUTER_RESERVE = "3.72pt";
+// PGF's axis-description node box is about 1.7pt narrower on its rotated
+// cross-axis than the browser's CMU text layout box. Apply the correction only
+// when exporting `current axis.outer south west`, which is defined from that
+// TeX bounding box and is commonly reused by clipping/cropping macros.
+const PGFPLOTS_OUTER_BBOX_X_COMPENSATION = "1.7pt";
 
 export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagnostics = [], dependencies = {}) {
   const preparedAxisOptions = dependencies.preparePgfplotsAxisOptions(axisOptions, options);
@@ -44,7 +46,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   const declaredColormaps = dependencies.parsePgfplotsColormaps?.(options.pgfplotsStyleOptions?.colormap) || {};
   const axisColormaps = dependencies.parsePgfplotsColormaps?.(preparedAxisOptions.colormap) || {};
   const axisColormapName = Object.keys(axisColormaps)[0] || "";
-  const resolvedAxisOptions = {
+  let resolvedAxisOptions = {
     ...symbolic.axisOptions,
     "colormap name": symbolic.axisOptions["colormap name"] ?? axisColormapName ?? symbolic.axisOptions["colormap name"],
     "pgfplots declared functions": declaredFunctions,
@@ -55,12 +57,27 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     },
     "pgfplots 3d surface": has3dPlot
   };
+  const inheritedPlotBox = inheritedPgfplotsOverlayPlotBox(
+    resolvedAxisOptions,
+    options.__tikzkitPgfplotsAxisLayoutState
+  );
+  if (inheritedPlotBox) {
+    resolvedAxisOptions = {
+      ...resolvedAxisOptions,
+      "tikzkit pgfplots inherited plot box": inheritedPlotBox
+    };
+  }
   addplots = applyPgfplotsConstantScatterColors(addplots, resolvedAxisOptions);
   if (resolvedAxisOptions["pgfplots ternary axis"]) {
     return dependencies.renderTernaryAxisAsTikz(resolvedAxisOptions, addplots);
   }
   const ranges = dependencies.computeAxisRanges(resolvedAxisOptions, addplots);
   const geometry = createAxisGeometry(resolvedAxisOptions, ranges);
+  rememberPgfplotsPrimaryAxis(
+    resolvedAxisOptions,
+    geometry,
+    options.__tikzkitPgfplotsAxisLayoutState
+  );
   const axisModel = createAxisModel({
     axisOptions: resolvedAxisOptions,
     addplots,
@@ -70,6 +87,14 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   });
   const axisReplayModel = createAxisReplayModel(axisModel);
   const axisOnTop = optionEnabled(axisModel.options["axis on top"]);
+  const fillBetweenCommands = (dependencies.renderAxisFillBetween || renderAxisFillBetween)(
+    body,
+    addplots,
+    axisModel.options,
+    axisModel.ranges,
+    axisModel.geometry,
+    options
+  );
   const commands = [renderAxisBounds(axisModel.geometry)];
   const axisBox = renderAxisBox(axisModel.options, axisModel.geometry);
   if (has3dPlot && !isPgfplotsTopView(axisModel.options)) {
@@ -94,6 +119,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       commands.push(...renderAxisGrid(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
     }
   }
+  commands.push(...fillBetweenCommands);
   if (!axisOnTop && !axisReplayModel) {
     commands.push(...renderAxisLineCommands(axisModel));
     commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
@@ -118,6 +144,55 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots));
   commands.push(...renderCurrentAxisCoordinates(axisModel));
   return `\n${commands.join("\n")}\n`;
+}
+
+function inheritedPgfplotsOverlayPlotBox(axisOptions = {}, layoutState) {
+  const primary = layoutState?.primaryAxis;
+  if (!primary || !isRightYAxisOverlay(axisOptions) || hasExplicitAxisPlacement(axisOptions)) return null;
+  if (!hasMatchingAxisDimensions(axisOptions, primary.dimensions)) return null;
+  return {
+    origin: { ...primary.origin },
+    width: primary.width,
+    height: primary.height
+  };
+}
+
+function rememberPgfplotsPrimaryAxis(axisOptions = {}, geometry = {}, layoutState) {
+  if (!layoutState || isAxisHidden(axisOptions, "x") || isAxisHidden(axisOptions, "y")) return;
+  if (![geometry.width, geometry.height, geometry.origin?.x, geometry.origin?.y].every(Number.isFinite)) return;
+  layoutState.primaryAxis = {
+    origin: { ...geometry.origin },
+    width: geometry.width,
+    height: geometry.height,
+    dimensions: { width: axisOptions.width, height: axisOptions.height }
+  };
+}
+
+function isRightYAxisOverlay(axisOptions = {}) {
+  const side = String(axisOptions["axis y line*"] ?? axisOptions["axis y line"] ?? "").trim().toLowerCase();
+  return isAxisHidden(axisOptions, "x") && side === "right";
+}
+
+function isAxisHidden(axisOptions = {}, axis) {
+  return isEnabled(axisOptions["hide axis"]) || isEnabled(axisOptions.hide) || isEnabled(axisOptions[`hide ${axis} axis`]);
+}
+
+function hasExplicitAxisPlacement(axisOptions = {}) {
+  const value = axisOptions.at;
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+function hasMatchingAxisDimensions(axisOptions = {}, dimensions = {}) {
+  return ["width", "height"].every((key) => normalizeAxisDimension(axisOptions[key]) === normalizeAxisDimension(dimensions[key]));
+}
+
+function normalizeAxisDimension(value) {
+  return String(value ?? "").replace(/\s+/g, "").toLowerCase();
+}
+
+function isEnabled(value) {
+  if (value === undefined || value === null || value === false) return false;
+  return !["false", "0", "none", "off", "no"].includes(String(value).trim().toLowerCase());
 }
 
 function createAxisReplayModel(axisModel = {}) {
@@ -163,14 +238,11 @@ function renderCurrentAxisCoordinates(axisModel = {}) {
   const north = south + (Number(geometry.height) || 0);
   const xCenter = (west + east) / 2;
   const yCenter = (south + north) / 2;
-  const outerSouthWest = axisModel.options?.ylabel
-    ? `([xshift=-${PGFPLOTS_ROTATED_YLABEL_OUTER_RESERVE}]current bounding box.south west)`
-    : "(current bounding box.south west)";
   return [
     `\\coordinate (current axis.south east) at (${formatCoordinate(east)},${formatCoordinate(south)});`,
     `\\coordinate (current axis.north) at (${formatCoordinate(xCenter)},${formatCoordinate(north)});`,
     `\\coordinate (current axis.east) at (${formatCoordinate(east)},${formatCoordinate(yCenter)});`,
-    `\\coordinate (current axis.outer south west) at ${outerSouthWest};`,
+    `\\coordinate (current axis.outer south west) at ([xshift=${PGFPLOTS_OUTER_BBOX_X_COMPENSATION}]current bounding box.south west);`,
     "\\coordinate (current axis.outer north) at (current bounding box.north);",
     "\\coordinate (current axis.outer east) at (current bounding box.east);"
   ];

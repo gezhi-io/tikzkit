@@ -1,6 +1,7 @@
 import { measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
 import {
   TIKZ_FONT_FAMILY,
+  TIKZ_HELVETICA_FONT_FAMILY,
   TIKZ_MONOSPACE_FONT_FAMILY,
   TIKZ_SANS_SERIF_FONT_FAMILY
 } from "../../tikz/metrics.js";
@@ -162,7 +163,19 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
   }
   if (!payload?.body) return "";
   const verticalOffset = plainTextVisualCenterOffset(item, unit);
-  return `<g class="tikz-text-engine-cache" transform="translate(${format(item.x * unit)} ${format(-item.y * unit + verticalOffset)})">${payload.body}</g>`;
+  const horizontalOffset = cachedPlainTextHorizontalOffset(item, align, payload);
+  return `<g class="tikz-text-engine-cache" transform="translate(${format(item.x * unit + horizontalOffset)} ${format(-item.y * unit + verticalOffset)})">${payload.body}</g>`;
+}
+
+function cachedPlainTextHorizontalOffset(item, align, payload) {
+  if (svgTextAnchorForItem(item)) return 0;
+  const wrapWidth = Number(item.wrapWidth);
+  if (Number.isFinite(wrapWidth) && wrapWidth > 0) return 0;
+  const width = Number(payload?.viewBox?.width);
+  if (!Number.isFinite(width) || width <= 0) return 0;
+  if (align === "left") return -width / 2;
+  if (align === "right") return width / 2;
+  return 0;
 }
 
 function plainTextVisualCenterOffset(item, unit) {
@@ -323,6 +336,7 @@ function resolvedFontFamily(item = {}, normalized = {}) {
 }
 
 function renderFontFamily(family) {
+  if (family === "helvetica") return TIKZ_HELVETICA_FONT_FAMILY;
   if (family === "sans-serif") return TIKZ_SANS_SERIF_FONT_FAMILY;
   if (family === "monospace") return TIKZ_MONOSPACE_FONT_FAMILY;
   if (!family || family === "serif") return TIKZ_FONT_FAMILY;

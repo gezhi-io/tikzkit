@@ -10,6 +10,7 @@ export const PGFPLOTS_DEFAULT_FUNCTION_DOMAIN = "-5:5";
 
 export function computeAxisRanges(axisOptions, addplots) {
   const domain = parseDomain(axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
+  const hasSurfacePlot = addplots.some((plot) => isSurfacePlot(plot, axisOptions));
   const xLog = isLogAxis(axisOptions, "x");
   const yLog = isLogAxis(axisOptions, "y");
   const hasExplicitXMin = hasAxisBound(axisOptions.xmin);
@@ -136,7 +137,7 @@ export function computeAxisRanges(axisOptions, addplots) {
   if (!hasExplicitXMax && keepXZero && xMax <= 0) xMax = 0;
   if (!hasExplicitYMin && keepYZero && yMin >= 0) yMin = 0;
   if (!hasExplicitYMax && keepYZero && yMax <= 0) yMax = 0;
-  const xEnlarge = axisEnlargeLimitConfig(axisOptions, "x");
+  const xEnlarge = axisEnlargeLimitConfig(axisOptions, "x", { hasSurfacePlot });
   const enlargeXMin = shouldApplyAxisEnlarge(xEnlarge.lower, hasExplicitXMin);
   const enlargeXMax = shouldApplyAxisEnlarge(xEnlarge.upper, hasExplicitXMax);
   if (!xLog && (enlargeXMin || enlargeXMax)) {
@@ -145,7 +146,7 @@ export function computeAxisRanges(axisOptions, addplots) {
     if (enlargeXMin) xMin = keepXZero && shouldKeepMiddleAxisZeroLower(xMin) ? 0 : xMin - xPad;
     if (enlargeXMax) xMax = keepXZero && shouldKeepMiddleAxisZeroUpper(xMax) ? 0 : xMax + xPad;
   }
-  const yEnlarge = axisEnlargeLimitConfig(axisOptions, "y");
+  const yEnlarge = axisEnlargeLimitConfig(axisOptions, "y", { hasSurfacePlot });
   const enlargeYMin = shouldApplyAxisEnlarge(yEnlarge.lower, hasExplicitYMin);
   const enlargeYMax = shouldApplyAxisEnlarge(yEnlarge.upper, hasExplicitYMax);
   if (!yLog && (enlargeYMin || enlargeYMax)) {
@@ -319,11 +320,17 @@ function hasAxisBound(value) {
   return value !== undefined && value !== null && value !== true && String(value).trim() !== "";
 }
 
-function axisEnlargeLimitConfig(axisOptions = {}, axis) {
+function axisEnlargeLimitConfig(axisOptions = {}, axis, { hasSurfacePlot = false } = {}) {
   const raw =
     axisOptions[`enlarge ${axis} limits`] ??
     axisOptions[`enlarge ${axis} limits*`] ??
     axisOptions.enlargelimits;
+  // PGFPlots keeps automatically inferred surface domains tight. Its 3D
+  // scaling code fits the projected plot box itself, so applying the 2D 10%
+  // data-range padding here shrinks every data unit and distorts the mesh.
+  if ((raw === undefined || raw === null || raw === "") && hasSurfacePlot) {
+    return { lower: false, upper: false };
+  }
   if ((raw === undefined || raw === null || raw === "") && axisUsesNonBoxedLine(axisOptions, axis)) {
     // Middle/center axes in the legacy compatibility modes stay tight unless
     // enlargement is requested explicitly. An edge axis (notably an overlaid

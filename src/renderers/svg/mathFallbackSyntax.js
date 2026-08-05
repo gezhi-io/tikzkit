@@ -5,8 +5,16 @@ export function readMathScriptAtom(raw, start) {
   if (!char || /\s/.test(char)) return null;
   if (char === "{") {
     const group = readBalancedGroup(raw, start);
-    if (!group || !/^\\(?:bf|bfseries|mathbf|boldsymbol)\b/.test(group.content.trim())) return null;
-    return { source: raw.slice(start, group.end), end: group.end };
+    const next = group ? skipInlineWhitespace(raw, group.end) : null;
+    // A TeX group can be the nucleus of a script, such as
+    // `{\left(HPH^\top\right)}^{-1}`. Retain the group body so the SVG
+    // fallback can recursively lay out its inner scripts.
+    if (!group || (raw[next] !== "_" && raw[next] !== "^")) return null;
+    return {
+      source: raw.slice(start, group.end),
+      end: group.end,
+      groupContent: group.content
+    };
   }
   if (char === "(") {
     const end = readBalancedParenthesis(raw, start);

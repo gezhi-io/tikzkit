@@ -86,6 +86,22 @@ test("inherits global pgfplots tick and axis-label styles into each axis", () =>
   assert.match(result.source, /axis label[^\]]*anchor=south[^\]]*font=\\boldmath\\Large/);
 });
 
+test("inherits an axis-local every axis append style into PGFPlots font roles", () => {
+  const result = preprocessTikzSource(String.raw`
+\begin{tikzpicture}
+  \begin{axis}[
+    every axis/.append style={font=\small\sffamily},
+    xmin=0,xmax=1,ymin=0,ymax=1,xtick={0},ytick={0},xlabel=Time,ylabel=Value,
+  ]
+    \addplot coordinates {(0,0) (1,1)};
+  \end{axis}
+\end{tikzpicture}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.source, /axis tick label[^\]]*font=\\small\\sffamily/);
+  assert.match(result.source, /axis label[^\]]*font=\\small\\sffamily/);
+});
+
 test("expands def macros when TeX whitespace separates def from the control sequence", () => {
   const result = preprocessTikzSource(String.raw`
 \def \leveldist {-1.9}
@@ -156,6 +172,23 @@ test("frontend lowers nested inline tikz nodes into fitted background and named 
 
   assert.match(result.source, /\\node\[rectangle split,rectangle split parts=3,xshift=-0\.2625em\] \(A\) at \(3,3\)/);
   assert.match(result.source, /\{\[on background layer\]/);
+  assert.match(result.source, /\\node\[draw,fill=yellow,inner xsep=0\.5964em,inner ysep=0\.3333em,xshift=0\.2625em,fit=\(A\)\]/);
+  assert.doesNotMatch(result.source, /\\tikz\s+\\node/);
+});
+
+test("frontend lowers nested inline tikz nodes when the outer node uses the current point", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw,fill=yellow] {
+    \tikz \node[rectangle split,rectangle split horizontal,rectangle split parts=3] (A) {
+      \nodepart{one}\tiny False\nodepart{two}5\nodepart{three}
+    };
+  };
+  \draw (A.one) -- (A.three);
+\end{tikzpicture}`;
+  const result = preprocessTikzSource(source);
+
+  assert.match(result.source, /\\node\[rectangle split,rectangle split horizontal,rectangle split parts=3,xshift=-0\.2625em\] \(A\) at \(0,0\)/);
   assert.match(result.source, /\\node\[draw,fill=yellow,inner xsep=0\.5964em,inner ysep=0\.3333em,xshift=0\.2625em,fit=\(A\)\]/);
   assert.doesNotMatch(result.source, /\\tikz\s+\\node/);
 });

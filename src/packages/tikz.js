@@ -1,10 +1,12 @@
 export const texPackage = {
   "name": "tikz",
   "status": "builtin",
-  "implementedBy": "src/frontend/parser.js + src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
+  "implementedBy": "src/frontend/parser.js + src/engine/evaluate.js + src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
   "features": [
     "tikzpicture extraction",
-    "draw/path/fill/node/coordinate subset"
+    "draw/path/fill/node/coordinate subset",
+    "compact textstyle/scriptstyle metrics for simple math node labels",
+    "resolved scope font metrics for node and rectangle-split layout"
   ],
   "requires": [
     "pgf",
@@ -28,5 +30,5 @@ export const texPackage = {
     "CRT rendering / crt_rendering"
   ],
   "observedOptions": [],
-  "notes": "TeX Live tikz.sty loads pgf and pgffor, then inputs tikz.code.tex."
+  "notes": "TeX Live tikz.sty loads pgf and pgffor, then inputs tikz.code.tex. Simple math scripts use a shared TeX textstyle/scriptstyle box metric so minimum-size nodes are not over-expanded. Text-box measurement preserves the resolved scope font family, so font=\\tt affects rectangle-split geometry as it does in PGF."
 };

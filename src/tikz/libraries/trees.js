@@ -10,6 +10,7 @@ export const tikzLibrary = {
     "sibling distance",
     "sibling angle",
     "clockwise/counterclockwise from",
+    "picture-level stroke style inheritance for generated child edges",
     "focused TCS logo macro expansion"
   ],
   "implements": [
@@ -20,6 +21,7 @@ export const tikzLibrary = {
     "sibling distance",
     "sibling angle",
     "clockwise/counterclockwise from",
+    "picture-level stroke style inheritance for generated child edges",
     "focused TCS logo macro expansion"
   ]
 };

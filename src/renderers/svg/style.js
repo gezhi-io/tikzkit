@@ -54,23 +54,51 @@ export function svgPaint(value) {
 }
 
 export function pathFadingName(value) {
-  const name = String(value || "").trim().toLowerCase();
-  if (["west", "east", "north", "south"].includes(name)) return name;
+  const name = String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (
+    [
+      "west",
+      "east",
+      "north",
+      "south",
+      "circle with fuzzy edge 10 percent",
+      "circle with fuzzy edge 15 percent",
+      "circle with fuzzy edge 20 percent",
+      "fuzzy ring 15 percent"
+    ].includes(name)
+  ) return name;
   return "";
 }
 
+export function pathFadingKey(name) {
+  return (pathFadingName(name) || "custom")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export function pathFadingGradientId(name) {
-  return `tikz-fading-gradient-${pathFadingName(name) || "custom"}-linear`;
+  return `tikz-fading-gradient-${pathFadingKey(name)}-${pathFadingIsRadial(name) ? "radial" : "linear"}`;
 }
 
 export function pathFadingMaskId(name) {
-  return `tikz-fading-${pathFadingName(name) || "custom"}-mask`;
+  return `tikz-fading-${pathFadingKey(name)}-mask`;
+}
+
+export function pathFadingIsRadial(name) {
+  return [
+    "circle with fuzzy edge 10 percent",
+    "circle with fuzzy edge 15 percent",
+    "circle with fuzzy edge 20 percent",
+    "fuzzy ring 15 percent"
+  ].includes(pathFadingName(name));
 }
 
 export function axisGradientId(style = {}) {
   const top = String(style.topColor || "white").trim();
+  const middle = String(style.middleColor || "gray").trim();
   const bottom = String(style.bottomColor || style.fill || "black").trim();
-  const key = `${top}-${bottom}`
+  const angle = String(style.shadingAngle ?? 0).trim();
+  const key = `${top}-${middle}-${bottom}-${angle}`
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "axis";

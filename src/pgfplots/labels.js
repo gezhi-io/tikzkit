@@ -166,7 +166,8 @@ function fontFromStyle(raw) {
 }
 
 function roleFontOption(role, axisOptions, explicit) {
-  if (pgfplotsPictureFontScale(axisOptions) === 1 && !String(explicit || "").trim() && !hasPgfplotsFontProfile(axisOptions)) return "";
+  const inherited = String(axisOptions.font || "").trim();
+  if (pgfplotsPictureFontScale(axisOptions) === 1 && !String(explicit || "").trim() && !inherited && !hasPgfplotsFontProfile(axisOptions)) return "";
   return pgfplotsRoleFontCommand(role, axisOptions, explicit);
 }
 
@@ -220,7 +221,10 @@ function defaultXAxisLabelOffset(axisOptions = {}, geometry = {}, fallback, midd
       : 0;
   const tickFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "x"));
   const tickFontSizePt = Number(parseTikzFontPatch(tickFont).sizePt) || 10;
-  const tickFontHeight = parseDimension(`${tickFontSizePt}pt`, {});
+  // The next xlabel is separated from the tick-label baseline by the TeX
+  // glyph box, not by the full font em square. Computer Modern's compact
+  // text glyphs occupy roughly three fifths of that square at this point.
+  const tickFontHeight = parseDimension(`${tickFontSizePt * 0.6}pt`, {});
   const tickInnerSep = explicitTickLabelInnerSep(axisOptions, "x");
   const baselineShift = parseDimension("0.8pt", {});
   return Math.max(fallback, tickProjection + baselineShift + tickFontHeight + tickInnerSep * 2);

@@ -26,6 +26,7 @@ export {
   flattenPath,
   lineCircleIntersections,
   lineLineIntersection,
+  pathIntersectionDetails,
   pathIntersections,
   pathLength,
   pointAtLength

@@ -202,7 +202,8 @@ function includePathBounds(item, include, unit) {
     maxX: pathBounds.maxX + pad,
     maxY: pathBounds.maxY + pad
   };
-  const clippedBounds = intersectPathClipBounds(paintedBounds, item.clipRect);
+  const rectangularBounds = intersectPathClipBounds(paintedBounds, item.clipRect);
+  const clippedBounds = intersectPathClipCircleBounds(rectangularBounds, item.clipCircle);
   if (!clippedBounds) return;
   include(clippedBounds.minX, clippedBounds.minY);
   include(clippedBounds.maxX, clippedBounds.maxY);
@@ -217,6 +218,20 @@ function intersectPathClipBounds(bounds, clipRect) {
   const maxY = Math.min(bounds.maxY, Number(clipRect.maxY));
   if (![minX, minY, maxX, maxY].every(Number.isFinite) || minX > maxX || minY > maxY) return null;
   return { minX, minY, maxX, maxY };
+}
+
+function intersectPathClipCircleBounds(bounds, clipCircle) {
+  if (!bounds || !clipCircle) return bounds;
+  const radius = Number(clipCircle.radius);
+  const x = Number(clipCircle.x);
+  const y = Number(clipCircle.y);
+  if (![radius, x, y].every(Number.isFinite) || radius <= 0) return bounds;
+  return intersectPathClipBounds(bounds, {
+    minX: x - radius,
+    minY: y - radius,
+    maxX: x + radius,
+    maxY: y + radius
+  });
 }
 
 function includeInlineArrowBounds(item, include, unit) {

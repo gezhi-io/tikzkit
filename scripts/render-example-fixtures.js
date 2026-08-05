@@ -48,6 +48,23 @@ const MANAGED_TIKZKIT_FONT_FILES = [
   "TikZKitMath_Math-Italic.ttf"
 ];
 const TEX_PT_PER_CM = 28.4527559;
+const TIKZTOSVG_BUILT_IN_PACKAGES = new Set(["amsmath", "amssymb", "pgfplots", "tikz", "tikz-cd", "xcolor"]);
+const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
+  "bchart",
+  "brunnian",
+  "circuitikz",
+  "gensymb",
+  "helvet",
+  "ifthen",
+  "mathtools",
+  "nicefrac",
+  "sansmath",
+  "tikz-3dplot",
+  "tkz-base",
+  "tkz-euclide",
+  "tkz-fct",
+  "units"
+]);
 
 export async function renderExampleFixtures(options = {}) {
   const fixtureRoot = path.resolve(options.fixtureRoot || DEFAULT_FIXTURE_ROOT);
@@ -148,6 +165,15 @@ export async function renderExampleFixtures(options = {}) {
     let tikztosvgStatus = "skipped";
     let referenceKind = "tikztosvg";
     if (tikztosvgAvailable) {
+      const tikztosvgCaseEnv = await createTikztosvgPackageOptionEnv(
+        external,
+        tikztosvgEnv,
+        outputRoot,
+        entry,
+        source,
+        fixtureRoot,
+        { timeoutMs: externalCommandTimeoutMs }
+      );
       tikztosvgSvg = path.join(outputRoot, "tikztosvg-svg", `${entry.id}.svg`);
       tikztosvgInput = await writeTikztosvgInput(
         outputRoot,
@@ -166,7 +192,7 @@ export async function renderExampleFixtures(options = {}) {
       ];
       const result = await external.runCommand("tikztosvg", tikztosvgArgs, {
         cwd: fixtureRoot,
-        env: tikztosvgEnv,
+        env: tikztosvgCaseEnv,
         timeoutMs: externalCommandTimeoutMs
       });
       tikztosvgStatus = result.exitCode === 0 ? "rendered" : "failed";
@@ -174,7 +200,7 @@ export async function renderExampleFixtures(options = {}) {
         const diagnosticResult = shouldRetryTikztosvgWithoutQuiet(result)
           ? await external.runCommand("tikztosvg", tikztosvgArgs.filter((arg) => arg !== "-q"), {
               cwd: fixtureRoot,
-              env: tikztosvgEnv,
+              env: tikztosvgCaseEnv,
               timeoutMs: externalCommandTimeoutMs
             })
           : null;
@@ -271,7 +297,8 @@ function shouldUseNativeLatexReference(source) {
   const text = String(source || "");
   return (
     /\\(?:input\s*\{?kvmacros|karnaughmap|kvmap)\b/.test(text) ||
-    (/\\begin\{preview\}/.test(text) && /\\tikzmark\s*\{/.test(text) && /\\begin\{array\}/.test(text))
+    (/\\begin\{preview\}/.test(text) && /\\tikzmark\s*\{/.test(text) && /\\begin\{array\}/.test(text)) ||
+    /\\usetkzobj\{[^}]*\}/.test(text)
   );
 }
 
@@ -280,7 +307,9 @@ async function renderNativeLatexReference(external, options = {}) {
   const texPath = path.join(workDir, "reference.tex");
   const pdfPath = path.join(workDir, "reference.pdf");
   await mkdir(workDir, { recursive: true });
-  await writeFile(texPath, `${String(options.source || "").trimEnd()}\n`, "utf8");
+  // tkz-euclide 5 loads every object itself; the old loader is now undefined.
+  // Keep user fixtures intact and adapt only the disposable MacTeX reference.
+  await writeFile(texPath, `${normalizeLegacyTkzEuclideSource(options.source).trimEnd()}\n`, "utf8");
 
   const latexArgs = [
     "-interaction=nonstopmode",
@@ -564,7 +593,7 @@ function shouldRetryTikztosvgWithoutQuiet(result) {
 }
 
 export function normalizeTikztosvgInput(source, options = {}) {
-  const selectedSource = selectActiveFigureSource(source, options.activeFigureId);
+  const selectedSource = normalizeLegacyTkzEuclideSource(selectActiveFigureSource(source, options.activeFigureId));
   const withoutDocumentShell = selectedSource
     .split(/\r?\n/)
     .filter((line) => !/^\\documentclass\b/.test(line.trim()))
@@ -576,8 +605,81 @@ export function normalizeTikztosvgInput(source, options = {}) {
     .filter((line) => !/^\\usetkzobj\{[^}]*\}\s*$/.test(line.trim()))
     .join("\n");
   const body = unwrapResizebox(unwrapEnvironment(withoutDocumentShell, "preview"));
-  const loweredBody = lowerRawGnuplotAddplotsToCoordinates(body);
+  const loweredBody = normalizeCircuitikzEnvironment(
+    normalizeLegacyTkzOrthogonalCircleDraws(
+      normalizeLegacyTkzTangentCommands(normalizeLegacyTkzAngleSizes(lowerRawGnuplotAddplotsToCoordinates(body)))
+    )
+  );
   return `${tikztosvgInputPreamble(selectedSource, loweredBody)}${loweredBody}`;
+}
+
+function normalizeLegacyTkzEuclideSource(source) {
+  const withoutObsoleteObjectLoader = String(source || "")
+    .split(/\r?\n/)
+    .filter((line) => !/^\\usetkzobj\{[^}]*\}\s*$/.test(line.trim()))
+    .join("\n");
+  return normalizeLegacyTkzAngleSizes(withoutObsoleteObjectLoader);
+}
+
+// circuitikz aliases this environment to tikzpicture. Making the alias
+// explicit lets tikztosvg's standalone crop mode identify the picture.
+function normalizeCircuitikzEnvironment(source) {
+  return String(source || "")
+    .replace(/\\begin\{circuitikz\}/g, "\\begin{tikzpicture}")
+    .replace(/\\end\{circuitikz\}/g, "\\end{tikzpicture}");
+}
+
+// tkz-euclide 5 renamed the old geometry constructor from \tkzTangent to
+// \tkzDefTangent. Keep the user fixture untouched and make only the local
+// reference input use the current macro name.
+function normalizeLegacyTkzTangentCommands(source) {
+  return String(source || "").replace(/\\tkzTangent\b/g, "\\tkzDefTangent");
+}
+
+// tkz-euclide's legacy ll/lll implementation appends `cm` to `size` itself.
+// Older examples often pass an explicit unit, which modern TeX then reads as
+// `0.4cmcm`. Normalize the disposable reference input, not the user source.
+function normalizeLegacyTkzAngleSizes(source) {
+  return String(source || "").replace(/\\tkzMarkAngles?\[([^\]]*)\]/g, (match, rawOptions) => {
+    const arc = rawOptions.match(/(?:^|,)\s*arc\s*=\s*(l{2,3})\s*(?:,|$)/)?.[1];
+    if (!arc) return match;
+    const normalizedOptions = rawOptions.replace(
+      /(\bsize\s*=\s*)([-+]?(?:\d+\.?\d*|\.\d+)\s*(?:pt|mm|cm|in))(?=\s*(?:,|$))/i,
+      (sizeMatch, prefix, rawSize) => {
+        const centimeters = tkzAngleSizeInCentimeters(rawSize);
+        return Number.isFinite(centimeters) ? `${prefix}${formatTikztosvgNumber(centimeters)}` : sizeMatch;
+      }
+    );
+    return `\\${match.slice(1).replace(rawOptions, normalizedOptions)}`;
+  });
+}
+
+// tkz-euclide 5 keeps the geometry constructor for orthogonal circles, but
+// legacy examples pass that option directly to tkzDrawCircle. Lower that
+// deprecated spelling only in disposable tikztosvg input so the local TeX
+// reference uses the same circle construction as the original source.
+function normalizeLegacyTkzOrthogonalCircleDraws(source) {
+  return String(source || "").replace(/\\tkzDrawCircle\[([^\]]*)\]\(([^,()]+),([^()]+)\)/g, (match, rawOptions, center, through) => {
+    const optionParts = rawOptions.split(",").map((part) => part.trim()).filter(Boolean);
+    const orthogonalIndex = optionParts.findIndex((part) => /^orthogonal\s+through\s*=\s*.+\s+and\s+.+$/i.test(part));
+    if (orthogonalIndex === -1) return match;
+    const orthogonal = optionParts[orthogonalIndex].match(/^orthogonal\s+through\s*=\s*(.+?)\s+and\s+(.+)$/i);
+    if (!orthogonal) return match;
+    const drawOptions = optionParts.filter((_, index) => index !== orthogonalIndex).join(",");
+    const renderedOptions = ["draw", "circle through=(tkzSecondPointResult)", drawOptions].filter(Boolean).join(",");
+    return `\\tkzDefCircle[orthogonal through=${orthogonal[1].trim()} and ${orthogonal[2].trim()}](${center.trim()},${through.trim()})\n\\node[${renderedOptions}] at (tkzFirstPointResult) {};`;
+  });
+}
+
+function tkzAngleSizeInCentimeters(value) {
+  const match = String(value || "").trim().match(/^([-+]?(?:\d+\.?\d*|\.\d+))\s*(pt|mm|cm|in)$/i);
+  if (!match) return Number.NaN;
+  const scale = { pt: 1 / 28.45274, mm: 0.1, cm: 1, in: 2.54 }[match[2].toLowerCase()];
+  return Number(match[1]) * scale;
+}
+
+function formatTikztosvgNumber(value) {
+  return String(Number(value.toFixed(10)));
 }
 
 export function selectActiveFigureSource(source, activeFigureId) {
@@ -744,6 +846,41 @@ export async function createTikztosvgCompatibilityEnv(
     ...baseEnv,
     PATH: `${wrapperDir}${path.delimiter}${baseEnv.PATH || ""}`,
     TEXINPUTS: `${path.resolve(fixtureRoot)}//${path.delimiter}${baseEnv.TEXINPUTS || ""}`
+  };
+}
+
+async function createTikztosvgPackageOptionEnv(external, baseEnv, outputRoot, entry, source, fixtureRoot, options = {}) {
+  const packagesWithOptions = tikztosvgPackageDeclarations(source)
+    .filter(({ name, options: packageOptions }) => packageOptions && !TIKZTOSVG_BUILT_IN_PACKAGES.has(name))
+    .filter(({ name }) => TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES.has(name));
+  if (!packagesWithOptions.length) return baseEnv;
+
+  const wrapperDir = path.join(path.resolve(outputRoot), ".tikzkit-package-options", entry.id);
+  await mkdir(wrapperDir, { recursive: true });
+  for (const { name, options: packageOptions } of packagesWithOptions) {
+    const result = await external.runCommand("kpsewhich", [`${name}.sty`], {
+      cwd: fixtureRoot,
+      env: baseEnv,
+      timeoutMs: options.timeoutMs
+    });
+    const packagePath = String(result.stdout || "").trim();
+    if (result.exitCode !== 0 || !packagePath) {
+      throw new Error(`Could not resolve ${name}.sty for tikztosvg package options`);
+    }
+    await writeFile(
+      path.join(wrapperDir, `${name}.sty`),
+      [
+        `% TikZKit QA wrapper: preserves \\usepackage[${packageOptions}]{${name}} options for tikztosvg.`,
+        `\\PassOptionsToPackage{${packageOptions}}{${name}}`,
+        `\\input{${packagePath.replaceAll("\\\\", "/")}}`,
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+  }
+  return {
+    ...baseEnv,
+    TEXINPUTS: `${wrapperDir}${path.delimiter}${baseEnv.TEXINPUTS || ""}`
   };
 }
 
@@ -968,22 +1105,9 @@ function tikztosvgEngineArgs(engine, source = "") {
 }
 
 function tikztosvgPackageArgs(source) {
-  const builtInPackages = new Set(["amsmath", "amssymb", "pgfplots", "tikz", "tikz-cd", "xcolor"]);
-  const supportedExternalPackages = new Set([
-    "bchart",
-    "brunnian",
-    "circuitikz",
-    "helvet",
-    "nicefrac",
-    "sansmath",
-    "tikz-3dplot",
-    "tkz-base",
-    "tkz-euclide",
-    "tkz-fct"
-  ]);
   const packages = [];
-  for (const packageName of tikztosvgPackageNames(source)) {
-    if (builtInPackages.has(packageName) || !supportedExternalPackages.has(packageName)) continue;
+  for (const { name: packageName } of tikztosvgPackageDeclarations(source)) {
+    if (TIKZTOSVG_BUILT_IN_PACKAGES.has(packageName) || !TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES.has(packageName)) continue;
     if (packageName === "tkz-euclide" && !packages.includes("tkz-base")) packages.push("tkz-base");
     if (!packages.includes(packageName)) packages.push(packageName);
   }
@@ -991,12 +1115,18 @@ function tikztosvgPackageArgs(source) {
 }
 
 function tikztosvgPackageNames(source) {
+  return tikztosvgPackageDeclarations(source).map(({ name }) => name);
+}
+
+function tikztosvgPackageDeclarations(source) {
   const packages = [];
-  const pattern = /^\\usepackage(?:\[[^\]]*\])?\{([^}]*)\}/gm;
+  const pattern = /^\\usepackage(?:\[([^\]]*)\])?\{([^}]*)\}/gm;
   for (const match of String(source || "").matchAll(pattern)) {
-    for (const name of match[1].split(",")) {
+    for (const name of match[2].split(",")) {
       const packageName = name.trim();
-      if (packageName && !packages.includes(packageName)) packages.push(packageName);
+      if (packageName && !packages.some((entry) => entry.name === packageName)) {
+        packages.push({ name: packageName, options: match[1] ? match[1].trim() : "" });
+      }
     }
   }
   return packages;

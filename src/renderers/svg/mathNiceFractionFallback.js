@@ -41,6 +41,14 @@ export function niceFractionMathFallback(tex) {
 
 export function renderNiceFractionMathFallback(item, parts, baseFontSize, unit, color, fontWeight) {
   const anchor = svgTextAnchorPoint(item, unit);
+  return `<text class="tikz-nicefrac" x="${format(anchor.x)}" y="${format(anchor.y)}" fill="${color}" text-anchor="${anchor.anchor}" dominant-baseline="middle" font-size="${format(
+    baseFontSize
+  )}" font-style="italic"${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+    TIKZ_MATH_ITALIC_FONT_FAMILY
+  )}">${renderNiceFractionMathContent(parts, baseFontSize)}</text>`;
+}
+
+export function renderNiceFractionMathContent(parts, baseFontSize) {
   const scriptFontSize = baseFontSize * 0.7;
   const numeratorRaise = baseFontSize * 0.2;
   const beforeSolidusKern = -2 * (baseFontSize / 18);
@@ -50,12 +58,7 @@ export function renderNiceFractionMathFallback(item, parts, baseFontSize, unit, 
   const suffix = renderSurroundingMath(parts.suffix, baseFontSize, binaryOperatorSpace, true);
   const numerator = renderNiceFractionPart(parts.numerator);
   const denominator = renderNiceFractionPart(parts.denominator);
-
-  return `<text class="tikz-nicefrac" x="${format(anchor.x)}" y="${format(anchor.y)}" fill="${color}" text-anchor="${anchor.anchor}" dominant-baseline="middle" font-size="${format(
-    baseFontSize
-  )}" font-style="italic"${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
-    TIKZ_MATH_ITALIC_FONT_FAMILY
-  )}">${prefix}<tspan class="tikz-nicefrac-numerator" dy="${format(-numeratorRaise)}" font-size="${format(
+  return `${prefix}<tspan class="tikz-nicefrac-numerator" dy="${format(-numeratorRaise)}" font-size="${format(
     scriptFontSize
   )}" font-family="${escapeAttribute(niceFractionPartFont(parts.numerator))}" font-style="${niceFractionPartStyle(
     parts.numerator
@@ -67,7 +70,7 @@ export function renderNiceFractionMathFallback(item, parts, baseFontSize, unit, 
     afterSolidusKern
   )}" font-size="${format(scriptFontSize)}" font-family="${escapeAttribute(
     niceFractionPartFont(parts.denominator)
-  )}" font-style="${niceFractionPartStyle(parts.denominator)}">${denominator}</tspan>${suffix}</text>`;
+  )}" font-style="${niceFractionPartStyle(parts.denominator)}">${denominator}</tspan>${suffix}`;
 }
 
 function parseNiceFractionBody(value) {
@@ -114,10 +117,14 @@ function niceFractionPartStyle(value) {
 }
 
 function renderSurroundingMath(value, baseFontSize, binaryOperatorSpace, isSuffix = false) {
-  const plain = mathFallbackText(value).replace(/\s+/g, " ").trim();
+  const source = String(value || "");
+  const preserveLeadingSpace = /^\s*~/.test(source);
+  const preserveTrailingSpace = /~\s*$/.test(source);
+  const plain = mathFallbackText(source).replace(/\s+/g, " ").trim();
   if (!plain) return "";
-  if (isSuffix && plain.startsWith("⋅")) {
-    const remainder = plain.slice(1).trimStart();
+  const spaced = `${preserveLeadingSpace ? "\u00a0" : ""}${plain}${preserveTrailingSpace ? "\u00a0" : ""}`;
+  if (isSuffix && spaced.startsWith("⋅")) {
+    const remainder = spaced.slice(1).trimStart();
     return `<tspan class="tikz-nicefrac-suffix" dx="${format(binaryOperatorSpace)}"><tspan font-family="${escapeAttribute(
       TIKZ_MATH_MAIN_FONT_FAMILY
     )}" font-style="normal">⋅</tspan><tspan dx="${format(binaryOperatorSpace)}"></tspan>${renderMathTextWithUprightOperators(
@@ -125,5 +132,5 @@ function renderSurroundingMath(value, baseFontSize, binaryOperatorSpace, isSuffi
     )}</tspan>`;
   }
   const className = isSuffix ? "tikz-nicefrac-suffix" : "tikz-nicefrac-prefix";
-  return `<tspan class="${className}">${renderMathTextWithUprightOperators(plain)}</tspan>`;
+  return `<tspan class="${className}">${renderMathTextWithUprightOperators(spaced)}</tspan>`;
 }

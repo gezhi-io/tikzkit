@@ -135,6 +135,10 @@ export function parseStatements(body, diagnostics = []) {
 function parseStatement(statement, diagnostics) {
   const text = statement.trim().replace(/;$/, "").trim();
   if (!text) return null;
+  // The imported LaTeX-examples CFB source contains a bare TODO marker inside
+  // the picture. TeX leaves it out of the graphic, so it must not become a
+  // visible or diagnostic TikZ statement in the browser renderer.
+  if (text === "TODO") return { type: "noop", raw: text };
   const fontPrefix = parseLeadingFontSwitches(text);
   if (fontPrefix) {
     if (!fontPrefix.rest) {
@@ -155,6 +159,8 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
   if (text.startsWith("\\pgfmathrandomitem")) return parsePgfMathRandomItem(text, diagnostics);
   if (text.startsWith("\\pgfdeclarepatternformonly")) return parsePgfDeclarePatternFormOnly(text, diagnostics);
+  if (text.startsWith("\\ifthenelse")) return parseIfThenElse(text, diagnostics);
+  if (text === "\\breakforeach") return { type: "breakforeach", raw: text };
   if (text.startsWith("\\ifnum")) return parseIfNum(text, diagnostics);
   if (text.startsWith("\\pgftransformcm")) return parsePgfTransformCm(text);
   if (text.startsWith("\\pgftransformreset")) return { type: "pgftransformreset", raw: text };
@@ -371,6 +377,38 @@ function parseIfNum(text, diagnostics) {
     thenBody: parseStatements(branches.thenSource, diagnostics),
     elseBody: parseStatements(branches.elseSource, diagnostics),
     raw: text
+  };
+}
+
+function parseIfThenElse(text, diagnostics) {
+  const parsed = parseIfThenElseArguments(text);
+  if (!parsed || text.slice(parsed.end).trim()) {
+    return unsupported("ifthenelse", text, "Malformed \\ifthenelse conditional");
+  }
+  return {
+    type: "ifthenelse",
+    condition: parsed.condition,
+    thenBody: parseStatements(parsed.thenSource, diagnostics),
+    elseBody: parseStatements(parsed.elseSource, diagnostics),
+    raw: text
+  };
+}
+
+function parseIfThenElseArguments(text) {
+  let index = skipWhitespace(text, "\\ifthenelse".length);
+  const condition = extractBalanced(text, index, "{", "}");
+  if (!condition) return null;
+  index = skipWhitespace(text, condition.end);
+  const thenBranch = extractBalanced(text, index, "{", "}");
+  if (!thenBranch) return null;
+  index = skipWhitespace(text, thenBranch.end);
+  const elseBranch = extractBalanced(text, index, "{", "}");
+  if (!elseBranch) return null;
+  return {
+    condition: condition.content.trim(),
+    thenSource: thenBranch.content,
+    elseSource: elseBranch.content,
+    end: elseBranch.end
   };
 }
 
@@ -980,15 +1018,24 @@ function parseNode(text, diagnostics = []) {
     index = skipWhitespace(text, coord.end);
   }
 
-  if (text[index] === "(") {
-    const parsedName = extractBalanced(text, index, "(", ")");
-    name = parsedName?.content.trim() || name;
-    index = skipWhitespace(text, parsedName?.end || index);
+  // TikZ keeps scanning optional node options and a node name after `at`.
+  // Both `at (...) [options] (name)` and `at (...) (name) [options]` are valid.
+  while (true) {
+    if (text[index] === "[") {
+      const afterCoordinateOptions = parseOptionalOptions(text, index);
+      options = { ...options, ...afterCoordinateOptions.options };
+      index = skipWhitespace(text, afterCoordinateOptions.end);
+      continue;
+    }
+    if (text[index] === "(") {
+      const parsedName = extractBalanced(text, index, "(", ")");
+      if (!parsedName) break;
+      name = parsedName.content.trim() || name;
+      index = skipWhitespace(text, parsedName.end);
+      continue;
+    }
+    break;
   }
-
-  const beforeLabelOptions = parseOptionalOptions(text, index);
-  options = { ...options, ...beforeLabelOptions.options };
-  index = skipWhitespace(text, beforeLabelOptions.end);
   const label = extractBalanced(text, index, "{", "}");
   if (!label) return unsupported("node", text, "Malformed node text");
   const trailingPath = text.slice(label.end).trim();
@@ -1940,7 +1987,7 @@ function splitStatements(body) {
         bracket === 0 &&
         brace === 0 &&
         ifnumDepth === 0 &&
-        current.trim() === "\\pgfresetboundingbox"
+        (current.trim() === "\\pgfresetboundingbox" || current.trim() === "\\breakforeach")
       ) {
         statements.push(current);
         current = "";
@@ -2010,6 +2057,10 @@ function isBraceTerminatedStatement(statement) {
   const text = prefixed ? prefixed.rest : statement.trim();
   if (!text) return false;
   if (text.startsWith("\\foreach")) return hasCompleteBracedForeachBody(text);
+  if (text.startsWith("\\ifthenelse")) {
+    const parsed = parseIfThenElseArguments(text);
+    return Boolean(parsed && text.slice(parsed.end).trim() === "");
+  }
   return (
     text.startsWith("\\toggletrue") ||
     text.startsWith("\\togglefalse") ||

@@ -57,7 +57,12 @@ function nodeNearCoordOffset(axisOptions = {}, plotOptions = {}) {
     Object.assign(merged, parseOptions(rawStyle));
   }
   const anchor = String(merged.anchor || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().toLowerCase();
-  return anchor === "center" ? 0 : 0.08;
+  // PGFPlots' default near-coordinate placement raises labels only when the
+  // style itself does not supply a displacement. A user `shift` already
+  // carries the intended x/y offset, so adding the fallback raises rotated
+  // histogram labels twice.
+  const hasExplicitShift = ["shift", "xshift", "yshift"].some((key) => merged[key] !== undefined);
+  return anchor === "center" || hasExplicitShift ? 0 : 0.08;
 }
 
 function visualizationDependencyBindings(axisOptions, plotOptions, point) {

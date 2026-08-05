@@ -30,6 +30,10 @@ export function expandPgfplotsAxes(
 ) {
   let output = "";
   let index = 0;
+  // Consecutive `axis` environments can form one visual coordinate system.
+  // Keep the prior primary plot box available to a hidden-x right-axis overlay
+  // without adding an observable option to callers of this public seam.
+  const layoutState = { pictureStart: null, primaryAxis: null };
   while (index < source.length) {
     const axisEnvironment = findNextPgfplotsEnvironment(source, index);
     if (!axisEnvironment) {
@@ -49,7 +53,19 @@ export function expandPgfplotsAxes(
     const body = source.slice(cursor, endIndex);
     const parsedAxisOptions = parseOptions(axisOptions.raw);
     const pictureOptions = findContainingTikzPictureOptions(source, axisEnvironment.beginIndex);
+    const pictureStart = source.lastIndexOf("\\begin{tikzpicture}", axisEnvironment.beginIndex);
+    if (layoutState.pictureStart !== pictureStart) {
+      layoutState.pictureStart = pictureStart;
+      layoutState.primaryAxis = null;
+    }
     const pictureScale = uniformPictureScale(pictureOptions);
+    const localRuntimeOptions = withLocalPgfplotsStyleDefinitions(source, axisEnvironment.beginIndex, options);
+    // Do not retain this rendering-only layout state on the caller's options.
+    const runtimeOptions = localRuntimeOptions === options ? { ...options } : localRuntimeOptions;
+    Object.defineProperty(runtimeOptions, "__tikzkitPgfplotsAxisLayoutState", {
+      value: layoutState,
+      enumerable: false
+    });
     const renderedAxis = renderAxis(
       {
         ...axisEnvironment.defaultOptions,
@@ -59,7 +75,7 @@ export function expandPgfplotsAxes(
         ...(pictureScale === 1 ? {} : { "tikzkit pgfplots picture scale": pictureScale })
       },
       body,
-      withLocalPgfplotsStyleDefinitions(source, axisEnvironment.beginIndex, options),
+      runtimeOptions,
       diagnostics,
       axisDependencies
     );

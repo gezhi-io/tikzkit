@@ -2,6 +2,7 @@ import { arrowsExtension } from "./arrows.js";
 import { bchartExtension } from "./bchart.js";
 import { chemfigExtension } from "./chemfig.js";
 import { kvmacrosExtension } from "./kvmacros.js";
+import { lindenmayerSystemsExtension } from "./lindenmayersystems.js";
 import { tikzBaguaExtension } from "./tikz-bagua.js";
 import { tikzBayesnetExtension } from "./tikz-bayesnet.js";
 import { tikzBpmnExtension } from "./tikz-bpmn.js";
@@ -29,6 +30,7 @@ export const BUILTIN_EXTENSIONS = [
   bchartExtension,
   chemfigExtension,
   kvmacrosExtension,
+  lindenmayerSystemsExtension,
   tikzNetworkExtension,
   tikzThreeDPlotExtension,
   tikzBaguaExtension,

@@ -1025,7 +1025,7 @@ test("example fixture renderer uses pdfLaTeX for a local brunnian reference", as
   assert.equal(summary.renderedTikztosvg, 1);
 });
 
-test("example fixture renderer forwards helvet and sansmath to tikztosvg", async () => {
+test("example fixture renderer forwards packages and preserves package options with a local wrapper", async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-font-package-fixtures-"));
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-font-package-output-"));
   await writeFile(
@@ -1046,10 +1046,14 @@ test("example fixture renderer forwards helvet and sansmath to tikztosvg", async
     async commandExists(command) {
       return command === "tikztosvg";
     },
-    async runCommand(command, args) {
+    async runCommand(command, args, options = {}) {
+      if (command === "kpsewhich") return { exitCode: 0, stdout: `/tmp/${args[0]}\n`, stderr: "" };
       assert.equal(command, "tikztosvg");
       const packages = args.flatMap((arg, index) => arg === "-p" ? [args[index + 1]] : []);
       assert.deepEqual(packages, ["helvet", "sansmath"]);
+      const wrapperDir = String(options.env.TEXINPUTS).split(path.delimiter)[0];
+      const wrapper = await readFile(path.join(wrapperDir, "sansmath.sty"), "utf8");
+      assert.match(wrapper, /\\PassOptionsToPackage\{eulergreek\}\{sansmath\}/);
       const outputIndex = args.indexOf("-o");
       await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
       return { exitCode: 0, stdout: "", stderr: "" };
@@ -1060,7 +1064,40 @@ test("example fixture renderer forwards helvet and sansmath to tikztosvg", async
   assert.equal(summary.renderedTikztosvg, 1);
 });
 
-test("example fixture renderer forwards circuitikz to tikztosvg", async () => {
+test("example fixture renderer forwards mathtools to tikztosvg for coloneqq", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-mathtools-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-mathtools-output-"));
+  await writeFile(
+    path.join(fixtureRoot, "coloneqq.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{mathtools}",
+      "\\begin{document}",
+      "\\tikz \\node {$x \\coloneqq s$};",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const external = {
+    async commandExists(command) {
+      return command === "tikztosvg";
+    },
+    async runCommand(command, args) {
+      assert.equal(command, "tikztosvg");
+      assert.equal(args[args.indexOf("-p") + 1], "mathtools");
+      const outputIndex = args.indexOf("-o");
+      await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  };
+
+  const summary = await renderExampleFixtures({ fixtureRoot, outputRoot, external });
+  assert.equal(summary.renderedTikztosvg, 1);
+});
+
+test("example fixture renderer preserves circuitikz package options for tikztosvg", async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-circuit-fixtures-"));
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-circuit-output-"));
   await writeFile(
@@ -1080,9 +1117,13 @@ test("example fixture renderer forwards circuitikz to tikztosvg", async () => {
     async commandExists(command) {
       return command === "tikztosvg";
     },
-    async runCommand(command, args) {
+    async runCommand(command, args, options = {}) {
+      if (command === "kpsewhich") return { exitCode: 0, stdout: `/tmp/${args[0]}\n`, stderr: "" };
       assert.equal(command, "tikztosvg");
       assert.equal(args[args.indexOf("-p") + 1], "circuitikz");
+      const wrapperDir = String(options.env.TEXINPUTS).split(path.delimiter)[0];
+      const wrapper = await readFile(path.join(wrapperDir, "circuitikz.sty"), "utf8");
+      assert.match(wrapper, /\\PassOptionsToPackage\{siunitx,RPvoltages\}\{circuitikz\}/);
       const outputIndex = args.indexOf("-o");
       await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
       return { exitCode: 0, stdout: "", stderr: "" };
@@ -1151,6 +1192,72 @@ test("example fixture renderer forwards nicefrac to tikztosvg", async () => {
     async runCommand(command, args) {
       assert.equal(command, "tikztosvg");
       assert.equal(args[args.indexOf("-p") + 1], "nicefrac");
+      const outputIndex = args.indexOf("-o");
+      await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  };
+
+  const summary = await renderExampleFixtures({ fixtureRoot, outputRoot, external });
+  assert.equal(summary.renderedTikztosvg, 1);
+});
+
+test("example fixture renderer forwards gensymb to tikztosvg", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-gensymb-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-gensymb-output-"));
+  await writeFile(
+    path.join(fixtureRoot, "degree.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{gensymb}",
+      "\\begin{document}",
+      "\\begin{tikzpicture}\\node {$63 \\degree$};\\end{tikzpicture}",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const external = {
+    async commandExists(command) {
+      return command === "tikztosvg";
+    },
+    async runCommand(command, args) {
+      assert.equal(command, "tikztosvg");
+      assert.equal(args[args.indexOf("-p") + 1], "gensymb");
+      const outputIndex = args.indexOf("-o");
+      await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  };
+
+  const summary = await renderExampleFixtures({ fixtureRoot, outputRoot, external });
+  assert.equal(summary.renderedTikztosvg, 1);
+});
+
+test("example fixture renderer forwards units so its nicefrac dependency is available", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-units-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-units-output-"));
+  await writeFile(
+    path.join(fixtureRoot, "fraction.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{units}",
+      "\\begin{document}",
+      "\\begin{tikzpicture}\\node {$\\nicefrac{1}{2}x$};\\end{tikzpicture}",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const external = {
+    async commandExists(command) {
+      return command === "tikztosvg";
+    },
+    async runCommand(command, args) {
+      assert.equal(command, "tikztosvg");
+      assert.equal(args[args.indexOf("-p") + 1], "units");
       const outputIndex = args.indexOf("-o");
       await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
       return { exitCode: 0, stdout: "", stderr: "" };
@@ -1231,6 +1338,77 @@ test("example fixture renderer forwards tkz-euclide and removes obsolete usetkzo
   assert.equal(summary.renderedTikztosvg, 1);
 });
 
+test("example fixture renderer removes obsolete usetkzobj before a native MacTeX fallback", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-legacy-tkz-native-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-legacy-tkz-native-output-"));
+  const calls = [];
+  await writeFile(
+    path.join(fixtureRoot, "frame.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{tkz-euclide}",
+      "\\begin{document}",
+      "\\usetkzobj{all}",
+      "\\begin{tikzpicture}\\tkzDefPoints{0/0/A,1/0/B,0/1/C}\\tkzMarkAngle[arc=lll,size=0.6cm](A,B,C)\\tkzDrawPoints(A)\\end{tikzpicture}",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const external = {
+    async commandExists(command) {
+      return command === "tikztosvg";
+    },
+    async runCommand(command, args) {
+      calls.push(command);
+      if (command === "tikztosvg") {
+        return { exitCode: 1, stdout: "", stderr: "legacy fixture requires native fallback" };
+      }
+      if (command === "pdflatex") {
+        const nativeInput = await readFile(args.at(-1), "utf8");
+        assert.doesNotMatch(nativeInput, /\\usetkzobj/);
+        assert.doesNotMatch(nativeInput, /arc=lll,size=0\.6cm/);
+        assert.match(nativeInput, /arc=lll,size=0\.6/);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+      assert.equal(command, "pdf2svg");
+      await writeFile(args[1], "<svg data-renderer=\"native-latex\"></svg>", "utf8");
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  };
+
+  const summary = await renderExampleFixtures({ fixtureRoot, outputRoot, external });
+  assert.equal(summary.renderedTikztosvg, 1);
+  assert.equal(summary.cases[0].referenceKind, "native-latex");
+  assert.deepEqual(calls, ["tikztosvg", "pdflatex", "pdflatex", "pdf2svg"]);
+});
+
+test("example fixture renderer maps legacy tkzTangent to the current tkz-euclide constructor", () => {
+  const input = String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzTangent[from with R=Z](O,1cm)\tkzGetPoints{T1}{T2}
+\end{tikzpicture}`;
+  const normalized = normalizeTikztosvgInput(input);
+
+  assert.match(normalized, /\\tkzDefTangent\[from with R=Z\]\(O,1cm\)/);
+  assert.doesNotMatch(normalized, /\\tkzTangent\b/);
+});
+
+test("tikztosvg normalization lowers circuitikz environment aliases for tight cropping", () => {
+  const input = String.raw`
+\usepackage{circuitikz}
+\begin{circuitikz}[american]
+  \draw (0,0) to[R=$R$] (2,0);
+\end{circuitikz}`;
+  const normalized = normalizeTikztosvgInput(input);
+
+  assert.match(normalized, /\\begin\{tikzpicture\}\[american\]/);
+  assert.match(normalized, /\\end\{tikzpicture\}/);
+  assert.doesNotMatch(normalized, /\\begin\{circuitikz\}/);
+});
+
 test("tikztosvg normalization preserves xcolor dvipsnames used by body colors", () => {
   const input = [
     "\\usepackage[usenames,dvipsnames]{xcolor}",
@@ -1246,6 +1424,38 @@ test("tikztosvg normalization preserves xcolor dvipsnames used by body colors", 
   assert.equal(normalized.includes("\\definecolor{SkyBlue}{cmyk}{0.62,0,0.12,0}"), true);
   assert.equal(normalized.includes("\\definecolor{SpringGreen}{cmyk}{0.26,0,0.76,0}"), true);
   assert.doesNotMatch(normalized, /\\usepackage/);
+});
+
+test("tikztosvg normalization converts unit-bearing legacy multi-angle sizes to centimeters", () => {
+  const input = [
+    "\\usepackage{tkz-euclide}",
+    "\\begin{tikzpicture}",
+    "\\tkzMarkAngle[arc=lll,size=0.4cm,color=green](A,B,C)",
+    "\\tkzMarkAngle[arc=l,size=4mm,color=red](A,B,C)",
+    "\\end{tikzpicture}",
+    ""
+  ].join("\n");
+
+  const normalized = normalizeTikztosvgInput(input);
+
+  assert.match(normalized, /\\tkzMarkAngle\[arc=lll,size=0\.4,color=green\]/);
+  assert.match(normalized, /\\tkzMarkAngle\[arc=l,size=4mm,color=red\]/);
+});
+
+test("tikztosvg normalization lowers legacy orthogonal-through circle draws through the current tkz definition macro", () => {
+  const input = [
+    "\\usepackage{tkz-euclide}",
+    "\\begin{tikzpicture}",
+    "\\tkzDrawCircle[fill,orthogonal through=A and B,color=white](O,Z)",
+    "\\end{tikzpicture}",
+    ""
+  ].join("\n");
+
+  const normalized = normalizeTikztosvgInput(input);
+
+  assert.match(normalized, /\\tkzDefCircle\[orthogonal through=A and B\]\(O,Z\)/);
+  assert.match(normalized, /\\node\[draw,circle through=\(tkzSecondPointResult\),fill,color=white\] at \(tkzFirstPointResult\) \{\};/);
+  assert.doesNotMatch(normalized, /\\tkzDrawCircle\[fill,orthogonal through=A and B,color=white\]/);
 });
 
 test("tikztosvg normalization adds TikZ libraries required by extracted path decorations and layers", () => {

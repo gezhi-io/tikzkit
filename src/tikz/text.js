@@ -1,4 +1,4 @@
-import { TIKZ_FONT_FAMILY, TIKZ_MONOSPACE_FONT_FAMILY, TIKZ_SANS_SERIF_FONT_FAMILY } from "./metrics.js";
+import { TIKZ_FONT_FAMILY, TIKZ_HELVETICA_FONT_FAMILY, TIKZ_MONOSPACE_FONT_FAMILY, TIKZ_SANS_SERIF_FONT_FAMILY } from "./metrics.js";
 import { replaceExtensibleMathArrowsWithGlyphs } from "./mathArrows.js";
 import { preprocessTikzSource } from "../frontend/latex-shell.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
@@ -92,7 +92,9 @@ const MATHBB_CAPITAL_EXCEPTIONS = Object.freeze({
 
 export function normalizeBrowserMathMacros(value) {
   return replaceBrowserNiceFractionCommands(String(value ?? ""))
-    .replace(/(?<!\\)\\coloneqq(?![A-Za-z])/g, String.raw`\mathrel{≔}`);
+    .replace(/(?<!\\)\\coloneqq(?![A-Za-z])/g, String.raw`\mathrel{≔}`)
+    // gensymb's default fallback defines \degree as a math superscript.
+    .replace(/(?<!\\)[ \t]*\\degree(?![A-Za-z])/g, String.raw`^\circ`);
 }
 
 function replaceBrowserNiceFractionCommands(value) {
@@ -267,11 +269,16 @@ export function normalizeTikzText(value, options = {}) {
   } else {
     text = expandScopedTextFontWrappers(text);
   }
-  text = replaceCommand(text, "bm", 1, (args) => args[0]);
-  text = replaceCommand(text, "mathbf", 1, (args) => args[0]);
-  text = replaceCommand(text, "boldsymbol", 1, (args) => args[0]);
-  text = replaceCommand(text, "bf", 1, (args) => args[0]);
-  text = text.replace(/\\boldsymbol\s*(\\[A-Za-z]+)/g, "$1");
+  // Math font commands carry semantic information. Keep them until the math
+  // renderer has built its script atoms, otherwise `\mathbf{x}_k` becomes an
+  // indistinguishable ordinary `x_k` before SVG rendering begins.
+  if (!isMathText(text)) {
+    text = replaceCommand(text, "bm", 1, (args) => args[0]);
+    text = replaceCommand(text, "mathbf", 1, (args) => args[0]);
+    text = replaceCommand(text, "boldsymbol", 1, (args) => args[0]);
+    text = replaceCommand(text, "bf", 1, (args) => args[0]);
+    text = text.replace(/\\boldsymbol\s*(\\[A-Za-z]+)/g, "$1");
+  }
   const largerCount = (text.match(/\\mathlarger\b/g) || []).length;
   if (largerCount) {
     scale *= Math.min(2.8, Math.pow(1.2, largerCount));
@@ -603,6 +610,7 @@ function normalizeTextColorTokenArguments(source) {
 function detectTextFontFamily(source) {
   const text = String(source || "");
   const declarations = leadingFontDeclarationPrefix(text);
+  if (/\\tikzkithelvetfamily\b/i.test(declarations)) return TIKZ_HELVETICA_FONT_FAMILY;
   if (/^\s*\\texttt\s*\{/i.test(stripOuterTextBraces(text.trim())) || /\\(?:tt|ttfamily)\b/i.test(declarations)) {
     return TIKZ_MONOSPACE_FONT_FAMILY;
   }
@@ -798,7 +806,8 @@ function hasWholeTextBoldCommand(value) {
     }
   }
   if (/^\\(?:bf|bfseries)\b/.test(text)) return true;
-  if (/^\\(?:bm|boldsymbol|mathbf|textbf)\s*(?:\{[\s\S]*\}|\\[A-Za-z]+|[^\s{}])\s*$/.test(text)) return true;
+  if (["bm", "boldsymbol", "mathbf", "textbf"].some((command) => readWholeCommand(text, command, 1))) return true;
+  if (/^\\(?:bm|boldsymbol|mathbf|textbf)\s*(?:\\[A-Za-z]+|[^\s{}])\s*$/.test(text)) return true;
   return false;
 }
 
@@ -944,7 +953,7 @@ function compactDollarMathWhitespace(raw) {
   return `${delimiter}${content}${delimiter}`;
 }
 
-const FONT_DECLARATION_PATTERN = /^(?:\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b|\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b|\\(rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt|mdseries|bfseries|bf|upshape|itshape|slshape|scshape)\b)\s*/;
+const FONT_DECLARATION_PATTERN = /^(?:\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b|\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b|\\(tikzkithelvetfamily|rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt|mdseries|bfseries|bf|upshape|itshape|slshape|scshape)\b)\s*/;
 
 function createTextFontState(scale = 1) {
   return { scale, family: null, weight: null, style: null, variant: null };
@@ -997,6 +1006,7 @@ function applyTextFontDeclaration(state, match) {
   } else {
     const command = match[4];
     if (command === "normalfont") Object.assign(next, { family: "serif", weight: 400, style: "normal", variant: "normal" });
+    else if (command === "tikzkithelvetfamily") next.family = "helvetica";
     else if (command === "rmfamily" || command === "rm") next.family = "serif";
     else if (command === "sffamily" || command === "sf") next.family = "sans-serif";
     else if (command === "ttfamily" || command === "tt") next.family = "monospace";
@@ -1357,6 +1367,8 @@ export function mathFallbackText(tex) {
     .replace(/\s*([=≔≤≥≠≈∈∼∥])\s*/g, " $1 ")
     .replace(/\{\s+/g, "{")
     .replace(/\s+\}/g, "}")
+    // In TeX math, an unescaped tilde is an active non-breaking space, not a visible glyph.
+    .replace(/~/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

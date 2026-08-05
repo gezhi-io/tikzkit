@@ -1,9 +1,10 @@
 import { estimateFormulaBox, formulaTotalHeight } from "../../tikz/textMetrics.js";
-import { mathFallbackText } from "../../tikz/text.js";
+import { MATH_FALLBACK_NAMED_OPERATORS, mathFallbackText } from "../../tikz/text.js";
 import { createFontSpec } from "../../tex/fontSpec.js";
 import {
   TIKZ_DISPLAY_MATH_FONT_SIZE,
   TIKZ_FONT_FAMILY,
+  TIKZ_HELVETICA_FONT_FAMILY,
   TIKZ_MATH_CALLIGRAPHIC_FONT_FAMILY,
   TIKZ_MATH_ITALIC_FONT_FAMILY,
   TIKZ_SANS_SERIF_FONT_FAMILY,
@@ -45,6 +46,7 @@ import {
   renderScriptedSegmentsContent,
   renderScriptedMathFallback,
   renderSimpleSubscriptMathFallback,
+  estimateScriptedSegmentsWidth,
   scriptedMathFallback,
   simpleNumericSubscriptFallback,
   styledScriptedMathFallback,
@@ -71,7 +73,7 @@ const AMSMATH_ALIGN_ROW_BASELINE_FACTOR = 1.5;
 export function measureMathBoxPt(tex, options = {}) {
   const source = normalizeKatexTex(tex);
   const font = createFontSpec(options.font || {});
-  const mathVersion = options.mathVersion === "bold" || font.mathVersion === "bold" ? "bold" : "normal";
+  const mathVersion = resolveMathVersion(options.mathVersion || font.mathVersion);
   const displayMode = Boolean(options.displayMode);
   const extraScale = finitePositiveScale(options.scale);
   const baseMathSizePt = font.sizePt * extraScale;
@@ -113,7 +115,8 @@ export function measureMathBoxPt(tex, options = {}) {
 export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const fitFontSizeToBox = deps.fitFontSizeToBox || ((fontSize) => fontSize);
   const tex = normalizeKatexTex(math.tex);
-  const mathVersion = item?.font?.mathVersion === "bold" ? "bold" : "normal";
+  const mathVersion = resolveMathVersion(item?.font?.mathVersion);
+  const sourceTex = mathVersion === "sans" ? originalMathTex(item, tex) : tex;
   const contentScale = (math.scale || 1) * textFontScale(item, math);
   const styleScale = mathStyleScale(tex, 10 * contentScale);
   const box = estimateMathBox(tex, math.displayMode, unit, contentScale * styleScale, { mathVersion });
@@ -139,17 +142,16 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const color = escapeAttribute(math.color || item.style?.fill || "black");
   const fontStyle = mathFallbackFontStyle(tex);
   const fontWeight = math.fontWeight || (mathVersion === "bold" ? "700" : mathFallbackFontWeight(tex));
-  const fallbackFontFamily = mathFallbackFontFamily(item);
-  const useSansMathFallback = fallbackFontFamily === TIKZ_SANS_SERIF_FONT_FAMILY;
+  const fallbackFontFamily = mathFallbackFontFamily(item, mathVersion);
   const fallbackFontSize = box.fontSize * mathGlyphFallbackFontScale(tex);
-  const fallbackText = mathFallbackText(tex);
+  const fallbackText = mathFallbackText(mathVersion === "sans" ? markSansMathWrappers(sourceTex) : tex);
   const switchFallbackFontSize =
     options.mathRenderer === "svg-text"
       ? fallbackFontSize
       : fitSwitchFallbackFontSize(fallbackText, fallbackFontSize, htmlBox.width, htmlBox.height);
   const relationTextLength = texNeedsOperatorSpacing(tex) && !math.displayMode
     ? estimateFormulaBox(tex, {
-        scale: contentScale * fitScale * mathStyleScale(tex),
+        scale: contentScale * fitScale * styleScale,
         minWidth: 0.08,
         widthPadding: 0,
         texTextMetrics: true,
@@ -159,15 +161,17 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const relationTextLengthAttrs = Number.isFinite(relationTextLength)
     ? ` textLength="${format(relationTextLength)}" lengthAdjust="spacingAndGlyphs"`
     : "";
-  const fallbackContent = renderCalligraphicMathFallback(tex, switchFallbackFontSize) || (
-    texNeedsOperatorSpacing(tex)
-      ? renderMathOperatorSpacedText(fallbackText, switchFallbackFontSize)
-      : renderMathTextWithUprightOperators(fallbackText)
-  );
+  const fallbackContent = mathVersion === "sans"
+    ? renderSansMathText(fallbackText, switchFallbackFontSize, sansMathTextFontFamily(item))
+    : renderCalligraphicMathFallback(tex, switchFallbackFontSize) || (
+      texNeedsOperatorSpacing(tex)
+        ? renderMathOperatorSpacedText(fallbackText, switchFallbackFontSize)
+        : renderMathTextWithUprightOperators(fallbackText)
+    );
   const fallbackAnchor = htmlAnchor;
   const plainFallback = `<text x="${format(fallbackAnchor.x)}" y="${format(fallbackAnchor.y)}" fill="${color}" text-anchor="${fallbackAnchor.anchor}" dominant-baseline="middle" font-size="${format(
     switchFallbackFontSize
-  )}"${relationTextLengthAttrs} font-style="italic"${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+  )}"${relationTextLengthAttrs}${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
     fallbackFontFamily
   )}">${fallbackContent}</text>`;
   const alignedRows = parseAlignedMathRows(tex);
@@ -184,10 +188,10 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   }
   const glyphFallback = simpleMathGlyphFallback(tex);
   const glyphFormulaFallback = simpleMathGlyphFormulaFallback(tex);
-  if (glyphFormulaFallback && options.mathRenderer === "svg-text" && !useSansMathFallback && !fontWeight) {
+  if (glyphFormulaFallback && options.mathRenderer === "svg-text" && !fontWeight && mathVersion !== "sans") {
     return renderSimpleMathGlyphFormulaFallback(item, glyphFormulaFallback, fallbackFontSize, unit, color);
   }
-  if (glyphFallback && options.mathRenderer === "svg-text" && !useSansMathFallback && !fontWeight) {
+  if (glyphFallback && options.mathRenderer === "svg-text" && !fontWeight) {
     return renderSimpleMathGlyphFallback(item, glyphFallback, fallbackFontSize, unit, color);
   }
   const fractionFallback = simpleFractionFallback(tex);
@@ -217,6 +221,10 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   if (coloredMathFallback && options.mathRenderer === "svg-text") {
     return renderColoredMathTextFallback(item, coloredMathFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
   }
+  const styledScriptFallback = styledScriptedMathFallback(tex);
+  if (styledScriptFallback && options.mathRenderer === "svg-text" && mathVersion !== "sans") {
+    return renderScriptedMathFallback(item, styledScriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
+  }
   const hatSubscriptFallback = hatAccentSubscriptFallback(tex);
   if (hatSubscriptFallback && options.mathRenderer === "svg-text") {
     return renderHatSubscriptMathFallback(item, hatSubscriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
@@ -229,18 +237,16 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   if (scriptedFallback && options.mathRenderer === "svg-text") {
     return renderScriptedMathFallback(item, scriptedFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
   }
-  const styledScriptFallback = styledScriptedMathFallback(tex);
-  if (styledScriptFallback && options.mathRenderer === "svg-text") {
-    return renderScriptedMathFallback(item, styledScriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
-  }
   const mixedSubscriptFallback = mixedAlphabeticSubscriptFallback(tex);
   if (mixedSubscriptFallback && options.mathRenderer === "svg-text") {
     return renderMixedSubscriptMathFallback(item, mixedSubscriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
   }
   if (options.mathRenderer === "svg-text") return plainFallback;
 
-  const html = renderScopedMathHtml(mathTexForVersion(tex, mathVersion), {
-    displayMode: math.displayMode
+  const html = renderScopedMathHtml(mathTexForVersion(sourceTex, mathVersion), {
+    displayMode: math.displayMode,
+    mathVersion,
+    sansFontFamily: item.font?.family === "helvetica" ? "helvetica" : undefined
   });
   const switchFallback =
     inlineMatrixFallback
@@ -307,8 +313,10 @@ function splitAlignedMath(source, mode) {
 function renderAlignedMathFallback(item, rows, fontSize, unit, color, fontWeight) {
   const anchor = svgTextAnchorPoint(item, unit);
   const normalizedRows = rows.map((row) => [row[0] || "", row.slice(1).join("&")]);
-  const leftWidth = Math.max(...normalizedRows.map((row) => estimateAlignedCellWidth(row[0], fontSize)), 0);
-  const rightWidth = Math.max(...normalizedRows.map((row) => estimateAlignedCellWidth(row[1], fontSize)), 0);
+  const leftCellWidths = normalizedRows.map((row) => estimateAlignedCellWidth(row[0], fontSize, unit));
+  const rightCellWidths = normalizedRows.map((row) => estimateAlignedCellWidth(row[1], fontSize, unit));
+  const leftWidth = Math.max(...leftCellWidths, 0);
+  const rightWidth = Math.max(...rightCellWidths, 0);
   const gap = fontSize * 0.22;
   const totalWidth = leftWidth + gap + rightWidth;
   const startX =
@@ -328,16 +336,48 @@ function renderAlignedMathFallback(item, rows, fontSize, unit, color, fontWeight
       const y = firstY + index * lineHeight;
       const left = renderAlignedMathCell(row[0], fontSize);
       const right = renderAlignedMathCell(row[1], fontSize);
-      return `<text x="${format(alignX - gap / 2)}" y="${format(y)}" text-anchor="end" ${common}>${left}</text><text x="${format(
-        alignX + gap / 2
-      )}" y="${format(y)}" text-anchor="start" ${common}>${right}</text>`;
+      const leftX = alignX - gap / 2;
+      const rightX = alignX + gap / 2;
+      return renderAlignedMathCellText(leftX, y, "end", left, common) + renderAlignedMathCellText(
+        rightX,
+        y,
+        "start",
+        right,
+        common,
+        alignedMathRenderScale(row[1], rightCellWidths[index], fontSize)
+      );
     })
     .join("")}</g>`;
+}
+
+function renderAlignedMathCellText(x, y, anchor, content, common, scale = 1) {
+  const text = `<text x="${format(x)}" y="${format(y)}" text-anchor="${anchor}" ${common}>${content}</text>`;
+  if (!Number.isFinite(scale) || Math.abs(scale - 1) < 0.02) return text;
+  return `<g transform="translate(${format(x)} 0) scale(${format(scale)} 1)"><text x="0" y="${format(y)}" text-anchor="${anchor}" ${common}>${content}</text></g>`;
+}
+
+function alignedMathRenderScale(tex, targetWidth, fontSize) {
+  const source = String(tex || "");
+  if (!/[_^]|\\(?:left|right|mathbf|boldsymbol|color)\b/.test(source)) return 1;
+  const segments = styledScriptedMathFallback(source) || scriptedMathFallback(source, { allowSimpleScripts: true });
+  const fallbackWidth = segments
+    ? estimateScriptedSegmentsWidth(segments, fontSize)
+    : estimateAlignedFallbackWidth(source, fontSize);
+  if (!Number.isFinite(targetWidth) || !Number.isFinite(fallbackWidth) || fallbackWidth <= 0) return 1;
+  return Math.min(1.5, Math.max(0.85, targetWidth / fallbackWidth));
+}
+
+function estimateAlignedFallbackWidth(tex, fontSize) {
+  const plain = mathFallbackText(tex);
+  const relationCount = [...plain].filter((char) => "=+≤≥≠≈∼".includes(char)).length;
+  return [...plain].length * fontSize * 0.42 + relationCount * fontSize * (10 / 18);
 }
 
 function renderAlignedMathCell(tex, fontSize) {
   const scoped = renderScopedAlignedColors(String(tex || ""), fontSize);
   if (scoped !== null) return scoped;
+  const styled = styledScriptedMathFallback(tex);
+  if (styled) return renderScriptedSegmentsContent(styled, fontSize);
   const scripted = scriptedMathFallback(tex, { allowSimpleScripts: true });
   if (scripted) return renderScriptedSegmentsContent(scripted, fontSize);
   return renderMathTextWithUprightOperators(mathFallbackText(tex));
@@ -402,14 +442,30 @@ function renderScopedAlignedColors(tex, fontSize) {
 }
 
 function renderAlignedMathCellWithoutColors(tex, fontSize) {
+  const styled = styledScriptedMathFallback(tex);
+  if (styled) return renderScriptedSegmentsContent(styled, fontSize);
   const scripted = scriptedMathFallback(tex, { allowSimpleScripts: true });
   if (scripted) return renderScriptedSegmentsContent(scripted, fontSize);
   return renderMathTextWithUprightOperators(mathFallbackText(tex));
 }
 
-function estimateAlignedCellWidth(tex, fontSize) {
-  const plain = mathFallbackText(String(tex || "").replace(/\{\\color\s*\{[^{}]+\}/g, "").replace(/\}/g, ""));
-  return Math.max(fontSize * 0.22, [...plain].length * fontSize * 0.46);
+function estimateAlignedCellWidth(tex, fontSize, unit) {
+  const source = String(tex || "").trim();
+  if (!source) return 0;
+
+  // amsmath aligns the completed math lists, including grouped nuclei and
+  // scripts. Reuse the TeX-aware formula box used by ordinary math nodes so
+  // the alignment pass does not flatten `P_k^{(P)}` into unrelated characters.
+  const baseFontSize = TIKZ_TEXT_FONT_SIZE * renderUnitScale(unit);
+  const scale = baseFontSize > 0 ? fontSize / baseFontSize : 1;
+  const box = estimateMathBox(source, false, unit, scale);
+  if (Number.isFinite(box.width) && box.width > 0) return box.width;
+
+  const scripted = scriptedMathFallback(source, { allowSimpleScripts: true });
+  if (scripted) return Math.max(fontSize * 0.22, estimateScriptedSegmentsWidth(scripted, fontSize));
+  const plain = mathFallbackText(source);
+  const relationCount = [...plain].filter((char) => "=+≤≥≠≈∼".includes(char)).length;
+  return Math.max(fontSize * 0.22, [...plain].length * fontSize * 0.42 + relationCount * fontSize * (10 / 18));
 }
 
 function findClosingBrace(source, start) {
@@ -452,12 +508,19 @@ function mathGlyphFallbackFontScale(tex) {
   return /^\\(?:downarrow|uparrow|leftarrow|rightarrow|Downarrow|Uparrow|Leftarrow|Rightarrow)(?![A-Za-z])$/.test(String(tex || "").trim()) ? 0.9 : 1;
 }
 
-function mathFallbackFontFamily(item = {}) {
+function mathFallbackFontFamily(item = {}, mathVersion = "normal") {
+  if (mathVersion === "sans") return TIKZ_MATH_ITALIC_FONT_FAMILY;
   const family = String(item.font?.family || item.style?.fontFamily || "").trim();
   if (family === "sans-serif" || /(?:CMUSans|Sans Serif|sans-serif|Helvetica|Arial)/i.test(family)) {
     return TIKZ_SANS_SERIF_FONT_FAMILY;
   }
   return TIKZ_MATH_ITALIC_FONT_FAMILY;
+}
+
+function sansMathTextFontFamily(item = {}) {
+  return item.font?.family === "helvetica" || item.style?.fontFamily === TIKZ_HELVETICA_FONT_FAMILY
+    ? TIKZ_HELVETICA_FONT_FAMILY
+    : TIKZ_SANS_SERIF_FONT_FAMILY;
 }
 
 export function scopedMathHostFontSize(fontSize) {
@@ -551,7 +614,122 @@ export function estimateMathBox(tex, displayMode, unit, scale = 1, options = {})
 }
 
 function mathTexForVersion(tex, mathVersion) {
-  return mathVersion === "bold" ? `\\boldsymbol{${tex}}` : tex;
+  if (mathVersion === "bold") return `\\boldsymbol{${tex}}`;
+  if (mathVersion === "sans") return String(tex || "").replace(/\\mathbf\b/g, "\\mathsfbf");
+  return tex;
+}
+
+function originalMathTex(item, fallback) {
+  const raw = String(item?.text || "").trim();
+  const dollar = raw.match(/^\$([\s\S]*)\$$/);
+  if (dollar) return normalizeKatexTex(dollar[1]);
+  const paren = raw.match(/^\\\(([\s\S]*)\\\)$/);
+  if (paren) return normalizeKatexTex(paren[1]);
+  const bracket = raw.match(/^\\\[([\s\S]*)\\\]$/);
+  if (bracket) return normalizeKatexTex(bracket[1]);
+  return fallback;
+}
+
+function resolveMathVersion(value) {
+  const version = String(value || "").trim();
+  return version === "bold" || version === "sans" ? version : "normal";
+}
+
+// sansmath deliberately remains a hybrid math version: variables stay in
+// math italic, while digits, punctuation, named operators, \mathrm and
+// \mathbf use \sfdefault. Preserve the explicit group intent through the
+// plain SVG-text fallback, where KaTeX's scoped CSS is not available.
+const SANS_MATH_ROMAN_START = "\uE000";
+const SANS_MATH_ROMAN_END = "\uE001";
+const SANS_MATH_BOLD_START = "\uE002";
+const SANS_MATH_BOLD_END = "\uE003";
+const SANS_MATH_OPERATOR_WORDS = new Set(MATH_FALLBACK_NAMED_OPERATORS);
+
+function markSansMathWrappers(tex) {
+  let source = String(tex || "");
+  let changed = true;
+  while (changed) {
+    changed = false;
+    source = source.replace(/\\(?:mathrm|mathsf)\s*\{([^{}]*)\}/g, (_match, value) => {
+      changed = true;
+      return `${SANS_MATH_ROMAN_START}${value}${SANS_MATH_ROMAN_END}`;
+    });
+    source = source.replace(/\\(?:mathbf|mathsfbf|boldsymbol)\s*\{([^{}]*)\}/g, (_match, value) => {
+      changed = true;
+      return `${SANS_MATH_BOLD_START}${value}${SANS_MATH_BOLD_END}`;
+    });
+  }
+  return source;
+}
+
+function renderSansMathText(text, baseFontSize, sansFamily = TIKZ_SANS_SERIF_FONT_FAMILY) {
+  const source = String(text || "");
+  const relationSpace = Math.max(1.5, baseFontSize * (5 / 18));
+  let output = "";
+  let mode = "italic";
+  let index = 0;
+
+  const sansSpan = (value, weight = "") => `<tspan font-family="${escapeAttribute(
+    sansFamily
+  )}" font-style="normal"${weight ? ` font-weight="${weight}"` : ""}>${escapeMathText(value)}</tspan>`;
+  const italicSpan = (value) => escapeMathText(value);
+
+  while (index < source.length) {
+    const char = source[index];
+    if (char === SANS_MATH_ROMAN_START) {
+      mode = "roman";
+      index += 1;
+      continue;
+    }
+    if (char === SANS_MATH_ROMAN_END) {
+      mode = "italic";
+      index += 1;
+      continue;
+    }
+    if (char === SANS_MATH_BOLD_START) {
+      mode = "bold";
+      index += 1;
+      continue;
+    }
+    if (char === SANS_MATH_BOLD_END) {
+      mode = "italic";
+      index += 1;
+      continue;
+    }
+
+    const word = source.slice(index).match(/^[A-Za-z]+/)?.[0];
+    if (word) {
+      output += mode === "italic" && !SANS_MATH_OPERATOR_WORDS.has(word)
+        ? italicSpan(word)
+        : sansSpan(word, mode === "bold" ? "700" : "");
+      index += word.length;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      output += escapeMathText(char);
+      index += 1;
+      continue;
+    }
+    if (/[=+\-*/<>≤≥≠≈∼]/.test(char)) {
+      output += `<tspan dx="${format(relationSpace)}">${sansSpan(char, mode === "bold" ? "700" : "")}</tspan><tspan dx="${format(relationSpace)}"></tspan>`;
+      index += 1;
+      continue;
+    }
+
+    output += mode === "italic" && !/[0-9()[\]{},.;:!?]/.test(char)
+      ? italicSpan(char)
+      : sansSpan(char, mode === "bold" ? "700" : "");
+    index += 1;
+  }
+  return output;
+}
+
+function escapeMathText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function finitePositiveScale(value) {

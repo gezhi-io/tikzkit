@@ -1,5 +1,5 @@
 import { parseDimension } from "../engine/math.js";
-import { parseOptions, splitTopLevel } from "../engine/options.js";
+import { parseOptions } from "../engine/options.js";
 import { axisNumber, axisNumberList } from "./coordinates.js";
 import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
@@ -59,6 +59,13 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
   const yTicksDisabled = allTicksDisabled || pgfplotsAxisHidden(axisOptions, "y") || yLineMode === "none" || ticksDisabled(axisOptions.ytick) || ticksDisabled(axisOptions["y tick"]);
   const xDistanceTicks = tickDistanceValues(axisOptions, "x", ranges.xMin, ranges.xMax);
   const yDistanceTicks = tickDistanceValues(axisOptions, "y", ranges.yMin, ranges.yMax);
+  // PGFPlots selects automatic major-step candidates from the final axis
+  // transform range. The displayed labels are still filtered against the
+  // surveyed data range below. This matters for enlarged middle axes: a
+  // domain such as 0.01:8 becomes roughly -0.8:8.8 and should select unit
+  // ticks, not half-unit ticks.
+  const xTickPlanningRange = automaticTickPlanningRange(axisOptions, "x", ranges, geometry);
+  const yTickPlanningRange = automaticTickPlanningRange(axisOptions, "y", ranges, geometry);
   const explicitXTicks = xTicksDisabled || hasExplicitTickOption(axisOptions.xtick) || xDistanceTicks.length > 0;
   const explicitYTicks = yTicksDisabled || hasExplicitTickOption(axisOptions.ytick) || yDistanceTicks.length > 0;
   const rawXTicks = xTicksDisabled
@@ -67,14 +74,24 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
     ? axisTickValues(axisOptions.xtick, "x", addplots)
     : xDistanceTicks.length
     ? xDistanceTicks
-    : autoMajorTickValues(axisOptions, ranges.xMin, ranges.xMax, axisAutoMajorTickCountForOptions(axisOptions, "x", ranges.xMin, ranges.xMax, geometry, 7));
+    : autoMajorTickValues(
+      axisOptions,
+      xTickPlanningRange.min,
+      xTickPlanningRange.max,
+      axisAutoMajorTickCountForOptions(axisOptions, "x", xTickPlanningRange.min, xTickPlanningRange.max, geometry, 7)
+    );
   const rawYTicks = yTicksDisabled
     ? []
     : hasExplicitTickOption(axisOptions.ytick)
     ? axisTickValues(axisOptions.ytick, "y", addplots)
     : yDistanceTicks.length
     ? yDistanceTicks
-    : autoMajorTickValues(axisOptions, ranges.yMin, ranges.yMax, axisAutoMajorTickCountForOptions(axisOptions, "y", ranges.yMin, ranges.yMax, geometry, 6));
+    : autoMajorTickValues(
+      axisOptions,
+      yTickPlanningRange.min,
+      yTickPlanningRange.max,
+      axisAutoMajorTickCountForOptions(axisOptions, "y", yTickPlanningRange.min, yTickPlanningRange.max, geometry, 6)
+    );
   const xTicks = explicitXTicks ? rawXTicks : rawXTicks.filter((tick) => !autoTickLabelOutsideRange(tick, ranges.xMin, ranges.xMax));
   const yTicks = explicitYTicks ? rawYTicks : rawYTicks.filter((tick) => !autoTickLabelOutsideRange(tick, ranges.yMin, ranges.yMax));
   const xMinorTicks = xTicksDisabled
@@ -314,6 +331,19 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
   commands.push(...renderTickScaleLabel(axisOptions, "x", xTicks, geometry, xTickLabelsOnUpperSide ? "top" : xLineMode));
   commands.push(...renderTickScaleLabel(axisOptions, "y", yTicks, geometry, yTickLabelsOnUpperSide ? "right" : yLineMode));
   return commands;
+}
+
+function automaticTickPlanningRange(axisOptions = {}, axis, ranges = {}, geometry = {}) {
+  const min = Number(ranges[`${axis}Min`]);
+  const max = Number(ranges[`${axis}Max`]);
+  if (!isMiddleAxis(axisOptions) || !axisTransformRangeIsEnlarged(geometry, axis, min, max)) {
+    return { min, max };
+  }
+  const transformedMin = Number(geometry.transformRanges?.[`${axis}Min`]);
+  const transformedMax = Number(geometry.transformRanges?.[`${axis}Max`]);
+  return Number.isFinite(transformedMin) && Number.isFinite(transformedMax) && transformedMax > transformedMin
+    ? { min: transformedMin, max: transformedMax }
+    : { min, max };
 }
 
 function multilineTickLabelLayoutOptions(label, fontCommand = "", labelStyle = {}, innerSep = undefined) {
@@ -1055,7 +1085,44 @@ function splitBracedList(raw) {
   const text = stripBalancedOuterBracesForList(String(raw || "").trim());
   if (!text) return [];
   if (text === "\\empty" || text.toLowerCase() === "empty") return [];
-  return splitTopLevel(text, ",").map((part) => stripBalancedOuterBracesForList(part.trim()));
+  // Unlike general TikZ option lists, PGFPlots tick-label lists are positional:
+  // `{0,$a$,, $b$,}` intentionally has five entries. Keep blank entries so a
+  // later label cannot slide onto the wrong tick.
+  return splitTopLevelPreservingEmpty(text, ",").map((part) => stripBalancedOuterBracesForList(part.trim()));
+}
+
+function splitTopLevelPreservingEmpty(input, delimiter = ",") {
+  const parts = [];
+  let current = "";
+  let paren = 0;
+  let bracket = 0;
+  let brace = 0;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (char === "(") paren += 1;
+    if (char === ")") paren = Math.max(0, paren - 1);
+    if (char === "[") bracket += 1;
+    if (char === "]") bracket = Math.max(0, bracket - 1);
+    if (char === "{") brace += 1;
+    if (char === "}") brace = Math.max(0, brace - 1);
+
+    if (char === delimiter && !isEscapedListDelimiter(input, index) && paren === 0 && bracket === 0 && brace === 0) {
+      parts.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  parts.push(current.trim());
+  return parts;
+}
+
+function isEscapedListDelimiter(input, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && input[cursor] === "\\"; cursor -= 1) backslashes += 1;
+  return backslashes % 2 === 1;
 }
 
 function stripBalancedOuterBracesForList(raw) {

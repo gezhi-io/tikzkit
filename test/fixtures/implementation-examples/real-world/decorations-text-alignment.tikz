@@ -1,0 +1,36 @@
+\usetikzlibrary{decorations.text}
+\begin{tikzpicture}
+  \draw[help lines] (0,-1) grid (7,3);
+
+  \draw[gray, dashed] (0,2) -- (6,2);
+  \path[decorate, decoration={
+    text along path,
+    text={left indent},
+    text align={left,left indent=8mm},
+    raise=2pt
+  }] (0,2) -- (6,2);
+
+  \draw[gray, dashed] (0,1) -- (6,1);
+  \path[decorate, decoration={
+    text along path,
+    text={right indent},
+    text align={right,right indent=8mm},
+    raise=-2pt
+  }] (0,1) -- (6,1);
+
+  \draw[gray, dashed] (0,0) .. controls (1.5,1.3) and (4.5,1.3) .. (6,0);
+  \path[decorate, decoration={
+    text along path,
+    text={centered curve},
+    text align={center},
+    raise=2pt
+  }] (0,0) .. controls (1.5,1.3) and (4.5,1.3) .. (6,0);
+
+  \draw[gray, dashed] (0,-0.6) -- (6,-0.6);
+  \path[decorate, decoration={
+    text along path,
+    text={fit the words to this path},
+    text align={fit to path stretching spaces},
+    raise=-2pt
+  }] (0,-0.6) -- (6,-0.6);
+\end{tikzpicture}

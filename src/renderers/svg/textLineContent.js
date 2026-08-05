@@ -15,6 +15,7 @@ import {
   simpleNumericSubscriptFallback
 } from "./mathScriptFallback.js";
 import { renderSumLimitsContentFallback } from "./mathSumFallback.js";
+import { niceFractionMathFallback, renderNiceFractionMathContent } from "./mathNiceFractionFallback.js";
 import { formatPlainTexText, renderPlainSvgTextContent } from "./text.js";
 import { hasInlineMathSource } from "./textLayout.js";
 
@@ -59,6 +60,8 @@ export function renderSvgMathFallbackContent(tex, fontSize) {
 }
 
 export function renderSvgMathFallbackContentWithoutColor(tex, fontSize) {
+  const niceFraction = niceFractionMathFallback(tex);
+  if (niceFraction) return renderNiceFractionMathContent(niceFraction, fontSize);
   const leadingScript = leadingScriptFallback(tex);
   if (leadingScript) return renderLeadingScriptContent(leadingScript, fontSize);
   const sumLimits = renderSumLimitsContentFallback(tex, fontSize);

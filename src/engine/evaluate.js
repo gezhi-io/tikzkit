@@ -3934,10 +3934,13 @@ function keepTextAngleUpright(angle) {
 function resolveSlopedInlineNodePoint(point, options = {}, size, env, rotation) {
   const directionEntries = nodeDirectionEntries(options);
   const explicitShift = nodeExplicitShift(options, env);
+  // TikZ applies shifts in the node's local coordinate frame. For a sloped
+  // label that frame follows the path, so a yshift moves normal to the line.
+  const rotatedExplicitShift = rotateVector(explicitShift.x, explicitShift.y, rotation);
   if (!directionEntries.length) {
     return roundPoint({
-      x: point.x + explicitShift.x,
-      y: point.y + explicitShift.y
+      x: point.x + rotatedExplicitShift.x,
+      y: point.y + rotatedExplicitShift.y
     });
   }
   let localX = 0;
@@ -3956,8 +3959,8 @@ function resolveSlopedInlineNodePoint(point, options = {}, size, env, rotation) 
   };
   const rotated = rotateVector(local.x, local.y, rotation);
   return roundPoint({
-    x: point.x + rotated.x + explicitShift.x,
-    y: point.y + rotated.y + explicitShift.y
+    x: point.x + rotated.x + rotatedExplicitShift.x,
+    y: point.y + rotated.y + rotatedExplicitShift.y
   });
 }
 
@@ -5060,6 +5063,7 @@ function createMatrix(statement, env, ir, diagnostics = []) {
       shape: "rectangle"
     };
     env.coordinates[name] = origin;
+    materializeMatrixGridCoordinates(name, env, origin, columnWidths, columnLayout, rowHeights, rowLayout, boundsWidth, boundsHeight);
   }
 
   const { style: rawMatrixStyle, semantic: matrixSemantic } = normalizeOptions("node", matrixOptions, env);
@@ -5150,6 +5154,41 @@ function createMatrix(statement, env, ir, diagnostics = []) {
 
 function matrixCellText(text, matrixOptions = {}) {
   return matrixLibraryCellText(text, matrixOptions);
+}
+
+function materializeMatrixGridCoordinates(name, env, origin, columnWidths, columnLayout, rowHeights, rowLayout, boundsWidth, boundsHeight) {
+  const left = roundNumber(origin.x - boundsWidth / 2);
+  const right = roundNumber(origin.x + boundsWidth / 2);
+  const top = roundNumber(origin.y + boundsHeight / 2);
+  const bottom = roundNumber(origin.y - boundsHeight / 2);
+  const coordinate = (suffix, point) => {
+    env.coordinates[`${name}-${suffix}`] = roundPoint(point);
+  };
+
+  coordinate("outer-north-west", { x: left, y: top });
+  coordinate("outer-north-east", { x: right, y: top });
+  coordinate("outer-south-west", { x: left, y: bottom });
+  coordinate("outer-south-east", { x: right, y: bottom });
+
+  columnWidths.forEach((width, index) => {
+    const center = origin.x + columnLayout.offsets[index];
+    const west = roundNumber(center - width / 2);
+    const east = roundNumber(center + width / 2);
+    coordinate(`column-${index + 1}-north-west`, { x: west, y: top });
+    coordinate(`column-${index + 1}-north-east`, { x: east, y: top });
+    coordinate(`column-${index + 1}-south-west`, { x: west, y: bottom });
+    coordinate(`column-${index + 1}-south-east`, { x: east, y: bottom });
+  });
+
+  rowHeights.forEach((height, index) => {
+    const center = origin.y + rowLayout.offsets[index];
+    const north = roundNumber(center + height / 2);
+    const south = roundNumber(center - height / 2);
+    coordinate(`row-${index + 1}-north-west`, { x: left, y: north });
+    coordinate(`row-${index + 1}-north-east`, { x: right, y: north });
+    coordinate(`row-${index + 1}-south-west`, { x: left, y: south });
+    coordinate(`row-${index + 1}-south-east`, { x: right, y: south });
+  });
 }
 
 function addMatrixDelimiters(ir, options = {}, origin, width, height, matrixStyle = {}, env = {}) {

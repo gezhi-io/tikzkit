@@ -989,6 +989,30 @@ test("preserves explicit node names inside matrix cells", () => {
   assert.notDeepEqual(ir.coordinates["00"], ir.coordinates["01"]);
 });
 
+test("expands named node styles for explicit matrix cells before layout", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \tikzstyle{record}=[ellipse,draw,fill=white,inner sep=0pt,text width=3cm,align=center]
+  \matrix[row sep=0.5cm,column sep=0.5cm] {
+    \node[record] (left) {\textbf{Left}\\A wrapped matrix record}; &
+    \node[record] (right) {\textbf{Right}\\Another wrapped matrix record}; \\
+  };
+  \draw[->] (left) -- (right);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = ir.items.filter((item) => item.type === "nodeBox");
+  const texts = ir.items.filter((item) => item.type === "textNode");
+  const arrow = ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(boxes.length, 2);
+  assert.ok(boxes.every((box) => box.shape === "ellipse"), "expected styled matrix cells to remain ellipses");
+  assert.ok(boxes.every((box) => box.width > 4.2 && box.width < 4.3), "expected ellipse sizing to expand the 3cm text box");
+  assert.ok(texts.every((text) => Math.abs(text.wrapWidth - 3) < 0.01), "expected wrapped text to inherit text width");
+  assert.ok(arrow.commands[0].x > boxes[0].x, "expected arrow to start at the ellipse boundary, not its center");
+});
+
 test("expands matrix styles and keeps nodes in empty cells for GameBoy tile grids", () => {
   const source = String.raw`
 \tikzset{

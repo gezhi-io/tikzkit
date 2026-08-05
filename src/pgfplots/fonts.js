@@ -8,9 +8,12 @@ export function pgfplotsPictureFontScale(axisOptions = {}) {
 }
 
 export function pgfplotsRoleFontCommand(role, axisOptions = {}, explicit = "") {
+  // The axis-level TikZ `font` key is inherited by every PGFPlots role.
+  // A role-specific style still wins, matching the normal TikZ option order.
+  const inherited = String(axisOptions.font || "").trim();
   return libraryRoleFontCommand("pgfplots", role, {
     profile: libraryFontProfile("pgfplots", axisOptions),
-    explicit,
+    explicit: String(explicit || "").trim() || inherited,
     scale: pgfplotsPictureFontScale(axisOptions)
   });
 }

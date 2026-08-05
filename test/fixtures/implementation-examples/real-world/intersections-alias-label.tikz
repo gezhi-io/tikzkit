@@ -1,0 +1,10 @@
+\usetikzlibrary{intersections}
+\begin{tikzpicture}
+  \draw[help lines] (-2,-1) grid (2,2);
+  \draw[blue, very thick, name path=vertical] (0,-1) -- (0,1.5);
+  \draw[red, very thick, name path=sloped] (-2,-1) -- (2,1);
+
+  \path[name intersections={of=vertical and sloped,
+    by={[label={[fill=white,inner sep=1pt]above:$C$}]C}}];
+  \fill[black] (C) circle (2pt);
+\end{tikzpicture}

@@ -9,11 +9,13 @@ export function resolveTexPackage(name, options = {}) {
     name,
     options,
     status: support?.status || "unsupported",
+    implementationStatus: support?.implementationStatus || support?.status || "unsupported",
     implementedBy: support?.implementedBy || null,
     features: support ? [...(support.features || [])] : [],
     requires: support ? [...(support.requires || [])] : [],
     localSource: support?.localSource || null,
     localDoc: support?.localDoc || null,
+    localSourceReviewed: support?.localSourceReviewed || null,
     notes: support?.notes || ""
   };
 }

@@ -235,6 +235,34 @@ test("uses the last boldmath or unboldmath declaration", () => {
   });
 });
 
+test("tracks sansmath independently from the surrounding sans-serif text family", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\sansmath\sffamily`, { source: "scope" }), {
+    family: "sans-serif",
+    mathVersion: "sans",
+    source: "scope"
+  });
+  assert.deepEqual(parseTikzFontPatch(String.raw`\sansmath\unsansmath`, { source: "scope" }), {
+    mathVersion: "normal",
+    source: "scope"
+  });
+  assert.deepEqual(parseTikzFontPatch(String.raw`\boldmath\sansmath`, { source: "scope" }), {
+    mathVersion: "sans",
+    source: "scope"
+  });
+});
+
+test("tracks the internal helvet family marker independently from generic sans text", () => {
+  assert.deepEqual(parseTikzFontPatch(String.raw`\tikzkithelvetfamily\sansmath`, { source: "scope" }), {
+    family: "helvetica",
+    mathVersion: "sans",
+    source: "scope"
+  });
+  assert.deepEqual(parseTikzFontPatch(String.raw`\tikzkithelvetfamily\rmfamily`, { source: "scope" }), {
+    family: "serif",
+    source: "scope"
+  });
+});
+
 test("ignores empty and irrelevant font text without changing the source", () => {
   assert.deepEqual(parseTikzFontPatch(""), {});
   assert.deepEqual(parseTikzFontPatch(String.raw`\color{red} ordinary text`, { source: "content-command" }), {});

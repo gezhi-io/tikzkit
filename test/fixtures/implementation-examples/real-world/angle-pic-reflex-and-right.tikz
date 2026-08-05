@@ -1,0 +1,13 @@
+\usetikzlibrary{angles,quotes}
+\begin{tikzpicture}[angle radius=8mm]
+  \coordinate (right) at (1,0);
+  \coordinate (up) at (0,1);
+  \coordinate (origin) at (0,0);
+
+  \draw[thick] (origin) -- (right);
+  \draw[thick] (origin) -- (up);
+  \pic[draw=blue, fill=blue!20, "$90^\circ$"]
+    {right angle=right--origin--up};
+  \pic[draw=red, fill=red!20, "$270^\circ$", angle eccentricity=1.3]
+    {angle=up--origin--right};
+\end{tikzpicture}

@@ -95,6 +95,8 @@ test("pgfplots interval near-coordinate nodes honor appended node styles and omi
   assert.ok(commands.every((command) => command.includes("font=\\footnotesize")));
   assert.ok(commands.every((command) => command.includes("rotate=45")));
   assert.ok(commands.every((command) => command.includes("text=mycolor!80!white")));
+  assert.match(commands[0], /at \(0,122\)/);
+  assert.match(commands[1], /at \(1,66\)/);
   assert.ok(!commands.some((command) => command.endsWith("{70};")));
 });
 

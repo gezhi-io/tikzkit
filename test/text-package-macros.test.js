@@ -8,18 +8,80 @@ import {
   normalizeBrowserMathMacros,
   normalizeTikzText
 } from "../src/tikz/text.js";
-import { estimateFormulaBox, parseMathText } from "../src/tikz/textMetrics.js";
+import { estimateFormulaBox, parseMathText, wrapTeXTextLineByWidth } from "../src/tikz/textMetrics.js";
 
 test("normalizes mathtools and nicefrac macros to browser math primitives", () => {
   const relation = normalizeTikzText(String.raw`$x \coloneqq s$`);
   assert.equal(relation.text, String.raw`$x \mathrel{≔} s$`);
   assert.equal(mathFallbackText(relation.text), "x ≔ s");
+  assert.equal(mathFallbackText(String.raw`A~B`), "A B");
 
   const fraction = normalizeBrowserMathMacros(String.raw`\nicefrac[\mathrm]{a+b}{c_{d+1}}`);
   assert.doesNotMatch(fraction, /\\nicefrac/);
   assert.match(fraction, /\\raisebox\{0\.2em\}/);
   assert.match(fraction, /\\scriptsize\{\}\\mathrm\{a\+b\}/);
   assert.equal(mathFallbackText(fraction), "(a+b)/(c_d+1)");
+});
+
+test("normalizes the used gensymb degree macro to a real math superscript", () => {
+  const degree = normalizeBrowserMathMacros(String.raw`63 \degree`);
+  assert.equal(degree, String.raw`63^\circ`);
+  assert.equal(mathFallbackText(degree), "63°");
+
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}\node {$\scriptscriptstyle \varphi = 63 \degree$};\end{tikzpicture}`, {
+    mathRenderer: "svg-text"
+  });
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /baseline-shift="super"[^>]*>°<\/tspan>/);
+  assert.doesNotMatch(result.svg, />degree</);
+});
+
+test("keeps scoped textbf formatting off later matrix-node lines", () => {
+  const normalized = normalizeTikzText(String.raw`\textbf{Enum}\\{\small (), Bool, Char}`);
+
+  assert.equal(normalized.fontWeight, null);
+  assert.equal(normalized.lineStyles[0].fontWeight, 700);
+  assert.equal(normalized.lineStyles[1].fontWeight, null);
+  assert.equal(normalized.lineStyles[1].scale, 0.9);
+});
+
+test("uses conservative English hyphenation for constrained TeX paragraphs", () => {
+  const lines = wrapTeXTextLineByWidth(
+    "(), Bool, Char, Ordering, Int, Integer, Float, Double",
+    3,
+    0.9
+  );
+
+  assert.deepEqual(lines, [
+    "(), Bool, Char, Or-",
+    "dering, Int, Integer,",
+    "Float, Double"
+  ]);
+});
+
+test("uses strict, balanced line breaking for centered TikZ text widths", () => {
+  assert.deepEqual(
+    wrapTeXTextLineByWidth("All except IO, (->), IOError", 3, 1, { lineBreakMode: "center" }),
+    ["All except IO,", "(->), IOError"]
+  );
+  assert.deepEqual(
+    wrapTeXTextLineByWidth("Int, Integer, Float, Double", 3, 1, { lineBreakMode: "center" }),
+    ["Int, Integer,", "Float, Double"]
+  );
+  assert.deepEqual(
+    wrapTeXTextLineByWidth("Int, Char, Bool, (), Ordering, tuples", 3, 1, { lineBreakMode: "center" }),
+    ["Int, Char, Bool, (),", "Ordering, tuples"]
+  );
+});
+
+test("does not hyphenate TeX commands, URLs, or acronyms while wrapping text", () => {
+  const command = wrapTeXTextLineByWidth(String.raw`before \\textbf{Ordering} after words`, 2, 0.9);
+  const url = wrapTeXTextLineByWidth("before https://example.com/Ordering after words", 2, 0.9);
+  const acronym = wrapTeXTextLineByWidth("before ORDERING after words", 2, 0.9);
+
+  assert.ok(command.every((line) => !line.includes("Or-")));
+  assert.ok(url.every((line) => !line.includes("Or-")));
+  assert.ok(acronym.every((line) => !line.includes("OR-")));
 });
 
 test("measures nicefrac as a compact script-sized slash fraction", () => {
@@ -51,6 +113,11 @@ test("renders nicefrac with optical script glyphs and TeX mu kerns", () => {
   assert.match(result.svg, /class="tikz-nicefrac-suffix"/);
   assert.match(result.svg, />⋅<\/tspan><tspan dx="[^"]+"><\/tspan>x/);
   assert.doesNotMatch(result.svg, />1\/2\s/);
+
+  const inline = tikzToSvg(String.raw`\begin{tikzpicture}\node[align=left] {$A~\nicefrac{6}{10}$\\$B~\nicefrac{2}{10}$};\end{tikzpicture}`, {
+    mathRenderer: "svg-text"
+  });
+  assert.match(inline.svg, /tikz-nicefrac-prefix">A\u00a0<\/tspan>/);
 });
 
 test("measures simple ASCII math with Computer Modern height and depth", () => {
@@ -80,9 +147,17 @@ test("renders the force-distance and hidden-markov fixtures without package macr
     );
     const result = tikzToSvg(source);
     assert.deepEqual(result.diagnostics, [], fixture.name);
-    assert.doesNotMatch(result.svg, /coloneqq|nicefrac/, fixture.name);
+    assert.doesNotMatch(result.svg, /coloneqq|\\nicefrac/, fixture.name);
     for (const expected of fixture.expected) {
-      assert.ok(result.svg.includes(expected), `${fixture.name}: expected ${expected}`);
+      if (!expected.includes("/")) {
+        assert.ok(result.svg.includes(expected), `${fixture.name}: expected ${expected}`);
+        continue;
+      }
+      const [numerator, denominator] = expected.split("/");
+      const opticalFraction = new RegExp(
+        `tikz-nicefrac-numerator[^>]*>${numerator}</tspan>[\\s\\S]*tikz-nicefrac-denominator[^>]*>${denominator}</tspan>`
+      );
+      assert.ok(result.svg.includes(expected) || opticalFraction.test(result.svg), `${fixture.name}: expected ${expected}`);
     }
   }
 });

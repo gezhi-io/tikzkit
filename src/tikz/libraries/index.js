@@ -39,6 +39,7 @@ import { tikzLibrary as fpuLibrary } from "./fpu.js";
 import { tikzLibrary as graphsLibrary } from "./graphs.js";
 import { tikzLibrary as hobbyLibrary } from "./hobby.js";
 import { tikzLibrary as intersectionsLibrary } from "./intersections.js";
+import { tikzLibrary as lindenmayerSystemsLibrary } from "./lindenmayersystems.js";
 import { tikzLibrary as matrixLibrary } from "./matrix.js";
 import { tikzLibrary as mindmapLibrary } from "./mindmap.js";
 import { tikzLibrary as patternsLibrary } from "./patterns.js";
@@ -107,6 +108,7 @@ const tikzLibraries = Object.freeze([
   graphsLibrary,
   hobbyLibrary,
   intersectionsLibrary,
+  lindenmayerSystemsLibrary,
   matrixLibrary,
   mindmapLibrary,
   patternsLibrary,
