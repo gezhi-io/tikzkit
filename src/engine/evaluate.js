@@ -9953,7 +9953,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       height: roundNumber(height)
     }, shapeScale);
   }
-  const lines = textMetricLines(normalized);
   const shape = nodeShape(options);
   const isCircleShape = shape === "circle" || shape === "circleCrossSplit";
   const typewriter = nodeUsesTypewriterFont(normalized, options, env);
@@ -9962,12 +9961,34 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const multilineFormulaCircle = isCircleShape && nodeHasMultipleMathLines(normalized);
   const formulaNeedsTexMetrics = normalizedFormulaNeedsTexMetrics(normalized);
   const textWidth = options["text width"] ? parseDimension(options["text width"], env.variables) : null;
-  const textWidthForTextEngine = Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape ? textWidth : null;
+  const normalizedOptions = normalizeOptions("node", options, env);
+  const wholeMathLines =
+    normalized.lines?.length &&
+    normalized.lines.every((line) => Boolean(parseMathText(String(line || "").trim())));
+  const hasScopedLineFontScale = normalized.lineStyles?.some(
+    (style) => Math.abs((Number(style?.scale) || 1) - 1) > 1e-6
+  );
+  const prewrapTextWidth =
+    Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape && !wholeMathLines && hasScopedLineFontScale;
+  // TeX applies a scoped font declaration before it packs a text-width
+  // paragraph. Reuse the renderer's per-line wrapping input here so a line
+  // such as `{\small ...}` cannot reserve a normal-size phantom line in the
+  // node's PGF bounding box.
+  const metricNormalized =
+    prewrapTextWidth
+      ? wrappedTextMetricNormalized(normalized, textWidth, nodeTextWrapMode(normalizedOptions.options, normalizedOptions.semantic))
+      : normalized;
+  // The text engine can measure an unwrapped paragraph at `text width`, but
+  // metricNormalized already contains those wrapped lines. Passing the width
+  // again would make every physical line reserve a full paragraph height.
+  const textWidthForTextEngine =
+    Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape && !prewrapTextWidth ? textWidth : null;
+  const lines = textMetricLines(metricNormalized);
   const textBox = scaleTextMetricBox(estimateTextMetricBox(
-    normalized,
+    metricNormalized,
     isCircleShape
       ? {
-          ...textEngineMetricOptions(env, text, options, normalized),
+          ...textEngineMetricOptions(env, text, options, metricNormalized),
           textWidth: textWidthForTextEngine,
           texTextMetrics: !typewriter,
           fixedCharWidth: typewriter ? 0.187 : undefined,
@@ -9985,7 +10006,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           shortFormulaMaxUnits: 1.6
         }
       : {
-          ...textEngineMetricOptions(env, text, options, normalized),
+          ...textEngineMetricOptions(env, text, options, metricNormalized),
           textWidth: textWidthForTextEngine,
           texTextMetrics: !typewriter,
           fixedCharWidth: typewriter ? 0.187 : undefined,
@@ -10015,13 +10036,12 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const isEmptyText = lines.every((line) => !line.trim());
   const isEmptyCircle = isCircleShape && isEmptyText;
   const fixedCircleSize = isCircleShape ? fixedCircularMinimumSize(options, env) : null;
-  const wholeMathLines =
-    normalized.lines?.length &&
-    normalized.lines.every((line) => Boolean(parseMathText(String(line || "").trim())));
   if (Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape && !wholeMathLines) {
-    const wrappedLines = wrapTextMetricLines(lines, textWidth, options, env);
-    if (wrappedLines.length > lines.length) {
-      textBox.height = Math.max(textBox.height, wrappedPlainTextHeightCm(wrappedLines, unscaledTextMetricScale));
+    if (!prewrapTextWidth) {
+      const wrappedLines = wrapTextMetricLines(lines, textWidth, options, env);
+      if (wrappedLines.length > lines.length) {
+        textBox.height = Math.max(textBox.height, wrappedPlainTextHeightCm(wrappedLines, unscaledTextMetricScale));
+      }
     }
     textBox.width = Math.min(textBox.width, textWidth);
   }

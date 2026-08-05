@@ -45,6 +45,28 @@ test("keeps scoped textbf formatting off later matrix-node lines", () => {
   assert.equal(normalized.lineStyles[1].scale, 0.9);
 });
 
+test("measures text-width nodes using scoped line font sizes before wrapping", () => {
+  const scoped = tikzToSvg(String.raw`
+    \begin{tikzpicture}
+      \node[ellipse,thick,draw,inner sep=0pt,text width=3cm,align=center]
+        {\textbf{Enum}\\{\small (), Bool, Char, Ordering, Int, Integer, Float, Double}};
+    \end{tikzpicture}
+  `);
+  const normal = tikzToSvg(String.raw`
+    \begin{tikzpicture}
+      \node[ellipse,thick,draw,inner sep=0pt,text width=3cm,align=center]
+        {\textbf{Enum}\\(), Bool, Char, Ordering, Int, Integer, Float, Double};
+    \end{tikzpicture}
+  `);
+  const scopedBox = scoped.ir.items.find((item) => item.type === "nodeBox");
+  const normalBox = normal.ir.items.find((item) => item.type === "nodeBox");
+
+  assert.deepEqual(scoped.diagnostics, []);
+  assert.deepEqual(normal.diagnostics, []);
+  assert.ok(scopedBox.height > 2 && scopedBox.height < 2.2, `expected scoped small text to use its native three-line layout, got ${scopedBox.height}`);
+  assert.ok(normalBox.height > scopedBox.height + 0.45, `expected normal text to need one extra wrapped line, got ${scopedBox.height} -> ${normalBox.height}`);
+});
+
 test("uses conservative English hyphenation for constrained TeX paragraphs", () => {
   const lines = wrapTeXTextLineByWidth(
     "(), Bool, Char, Ordering, Int, Integer, Float, Double",

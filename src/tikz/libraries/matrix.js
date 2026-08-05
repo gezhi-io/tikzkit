@@ -5,6 +5,8 @@ export const tikzLibrary = {
   name: "matrix",
   status: "builtin",
   implementedBy: "src/tikz/libraries/matrix.js + src/frontend/parser.js:parseMatrix",
+  localSourceReviewed: "yes",
+  notes: "Matrix cells inherit their actual node boxes. Text-width cells with scoped line-size declarations are wrapped at each line's effective font scale before their matrix row size is computed.",
   features: ["matrix of nodes", "matrix of math nodes", "cell anchors", "bracket delimiters"],
   implements: ["matrix of nodes", "matrix of math nodes", "cell anchors", "bracket delimiters"]
 };
