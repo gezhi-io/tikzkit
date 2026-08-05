@@ -214,6 +214,7 @@ node scripts/render-example-fixtures.js \
   --fixtures test/fixtures/examples \
   --output outputs/qa-my-feature \
   --only <fixture-id> \
+  --native-reference \
   --preserve-output
 
 node scripts/diff-example-pngs.js --output outputs/qa-my-feature
@@ -221,7 +222,12 @@ node scripts/diff-example-pngs.js --output outputs/qa-my-feature
 
 The output directory contains TikZKit SVG/PNG, tikztosvg SVG/PNG, optional
 1cm-grid variants, per-case diff PNGs, and an `index.html` comparison page.
-Use `node scripts/render-example-fixtures.js --help` and
+`--native-reference` also writes a local MacTeX PNG under `mactex-png/`, its
+build log under `mactex-log/`, and a four-panel
+`diff/<fixture-id>-native-sheet.png` containing MacTeX, tikztosvg, TikZKit,
+and the TikZKit/tikztosvg diff. The browser page stays a focused two-panel
+TikZKit/tikztosvg comparison; the native reference and four-panel sheet are
+linked from the case's artifact row. Use `node scripts/render-example-fixtures.js --help` and
 `node scripts/diff-example-pngs.js --help` to inspect the supported switches.
 
 ### Compare One Snippet Locally

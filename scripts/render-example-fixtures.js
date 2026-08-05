@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { access, chmod, copyFile, mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
@@ -75,6 +75,11 @@ export async function renderExampleFixtures(options = {}) {
   const selected = limitCases(selectCases(allCases, options.only), options.limit);
   const tikztosvgAvailable = options.skipTikztosvg ? false : await external.commandExists("tikztosvg");
   const svgToPngAvailable = options.skipPng ? false : await external.commandExists("rsvg-convert");
+  const nativeReferenceRequested = options.nativeReference === true;
+  const nativeLatexEngine = options.nativeLatexEngine || "pdflatex";
+  const nativeLatexAvailable = nativeReferenceRequested
+    ? await nativeMacTeXAvailable(external, nativeLatexEngine)
+    : false;
   const tikztosvgEnv = tikztosvgAvailable
     ? await createTikztosvgCompatibilityEnv(outputRoot, options.env || process.env, fixtureRoot)
     : null;
@@ -97,6 +102,10 @@ export async function renderExampleFixtures(options = {}) {
   if (!options.preserveOutput) await clearManagedOutputArtifacts(outputRoot);
   await copyManagedFontAssets(outputRoot);
   await mkdir(path.join(outputRoot, "tikzkit-svg"), { recursive: true });
+  if (nativeReferenceRequested) {
+    await mkdir(path.join(outputRoot, "mactex-png"), { recursive: true });
+    await mkdir(path.join(outputRoot, "mactex-log"), { recursive: true });
+  }
   if (svgToPngAvailable) await mkdir(path.join(outputRoot, "tikzkit-png"), { recursive: true });
   if (svgComparisonGrid) {
     await mkdir(path.join(outputRoot, "tikzkit-grid-svg"), { recursive: true });
@@ -243,6 +252,23 @@ export async function renderExampleFixtures(options = {}) {
       }
     }
 
+    let mactexPng = null;
+    let mactexLog = null;
+    let mactexPngStatus = nativeReferenceRequested ? "unavailable" : "skipped";
+    if (nativeLatexAvailable) {
+      const nativeReference = await renderNativeMacTeXPng(external, {
+        entry,
+        sourcePath,
+        outputRoot,
+        engine: nativeLatexEngine,
+        env: options.env || process.env,
+        timeoutMs: externalCommandTimeoutMs
+      });
+      mactexPng = nativeReference.pngPath;
+      mactexLog = nativeReference.logPath;
+      mactexPngStatus = nativeReference.status;
+    }
+
     cases.push({
       id: entry.id,
       title: entry.title,
@@ -265,6 +291,9 @@ export async function renderExampleFixtures(options = {}) {
       tikztosvgGridPngStatus,
       tikztosvgStatus,
       referenceKind,
+      mactexPng: mactexPng ? path.relative(outputRoot, mactexPng) : null,
+      mactexLog: mactexLog ? path.relative(outputRoot, mactexLog) : null,
+      mactexPngStatus,
       diagnostics: tikzkit.diagnostics
     });
   }
@@ -280,12 +309,16 @@ export async function renderExampleFixtures(options = {}) {
     total: summaryCases.length,
     tikztosvgAvailable,
     svgToPngAvailable,
+    nativeReferenceRequested,
+    nativeLatexAvailable,
+    nativeLatexEngine: nativeReferenceRequested ? nativeLatexEngine : null,
     tikztosvgEngine,
     comparisonGridMode,
     renderedTikzkit: summaryCases.filter((entry) => entry.tikzkitSvg).length,
     renderedTikztosvg: summaryCases.filter((entry) => entry.tikztosvgStatus === "rendered").length,
     renderedTikzkitPng: summaryCases.filter((entry) => entry.tikzkitPngStatus === "rendered").length,
     renderedTikztosvgPng: summaryCases.filter((entry) => entry.tikztosvgPngStatus === "rendered").length,
+    renderedMacTeXPng: summaryCases.filter((entry) => entry.mactexPngStatus === "rendered").length,
     cases: summaryCases
   };
   await writeFile(path.join(outputRoot, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
@@ -331,6 +364,61 @@ async function renderNativeLatexReference(external, options = {}) {
     timeoutMs: options.timeoutMs
   });
   return { rendered: converted.exitCode === 0, stage: "pdf2svg", result: converted };
+}
+
+async function nativeMacTeXAvailable(external, engine) {
+  const [latexAvailable, rasterAvailable] = await Promise.all([
+    external.commandExists(engine),
+    external.commandExists("pdftocairo")
+  ]);
+  return latexAvailable && rasterAvailable;
+}
+
+export async function renderNativeMacTeXPng(external, options = {}) {
+  const engine = options.engine || "pdflatex";
+  const sourcePath = path.resolve(options.sourcePath);
+  const entryId = options.entry?.id || path.basename(sourcePath, path.extname(sourcePath));
+  const workDir = path.join(options.outputRoot, ".mactex-work", entryId);
+  const outputPng = path.join(options.outputRoot, "mactex-png", `${entryId}.png`);
+  const outputLog = path.join(options.outputRoot, "mactex-log", `${entryId}.log`);
+  const latexArgs = [
+    "-interaction=nonstopmode",
+    "-halt-on-error",
+    "-jobname=reference",
+    `-output-directory=${workDir}`,
+    sourcePath
+  ];
+  const logs = [`engine: ${engine}`, `source: ${sourcePath}`, ""];
+
+  await rm(workDir, { recursive: true, force: true });
+  await mkdir(workDir, { recursive: true });
+  await mkdir(path.dirname(outputPng), { recursive: true });
+  await mkdir(path.dirname(outputLog), { recursive: true });
+
+  for (let pass = 0; pass < 2; pass += 1) {
+    const latex = await external.runCommand(engine, latexArgs, {
+      cwd: path.dirname(sourcePath),
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+    logs.push(`MacTeX pass ${pass + 1}: exitCode ${latex.exitCode}`, latex.stdout || "", latex.stderr || "", "");
+    if (latex.exitCode !== 0) {
+      await writeFile(outputLog, logs.join("\n"), "utf8");
+      return { status: "failed", pngPath: null, logPath: outputLog };
+    }
+  }
+
+  const pdfPath = path.join(workDir, "reference.pdf");
+  const raster = await external.runCommand(
+    "pdftocairo",
+    ["-png", "-singlefile", "-r", "96", pdfPath, outputPng.slice(0, -".png".length)],
+    { cwd: workDir, env: options.env, timeoutMs: options.timeoutMs }
+  );
+  logs.push(`pdftocairo: exitCode ${raster.exitCode}`, raster.stdout || "", raster.stderr || "", "");
+  await writeFile(outputLog, logs.join("\n"), "utf8");
+  return raster.exitCode === 0
+    ? { status: "rendered", pngPath: outputPng, logPath: outputLog }
+    : { status: "failed", pngPath: null, logPath: outputLog };
 }
 
 async function loadExampleResourceMap(entry, fixtureRoot) {
@@ -505,8 +593,11 @@ async function clearManagedOutputArtifacts(outputRoot) {
     "tikztosvg-log",
     "tikztosvg-png",
     "tikztosvg-grid-svg",
-    "tikztosvg-grid-png"
+    "tikztosvg-grid-png",
+    "mactex-png",
+    "mactex-log"
   ];
+  await rm(path.join(outputRoot, ".mactex-work"), { recursive: true, force: true });
   for (const directory of managedDirectories) {
     const directoryPath = path.join(outputRoot, directory);
     let entries = [];
@@ -1042,6 +1133,8 @@ export function parseExampleRenderArgs(argv = process.argv.slice(2)) {
     skipTikztosvg: argv.includes("--skip-tikztosvg"),
     skipPng: argv.includes("--skip-png"),
     strictTikztosvg: argv.includes("--strict-tikztosvg"),
+    nativeReference: argv.includes("--native-reference"),
+    nativeLatexEngine: valueAfter(argv, "--native-latex-engine") || "pdflatex",
     preserveOutput: argv.includes("--preserve-output"),
     tikztosvgEngine: valueAfter(argv, "--tikztosvg-engine") || "xelatex",
     externalCommandTimeoutMs: normalizedTimeoutMs(valueAfter(argv, "--external-timeout-ms")),
@@ -1076,6 +1169,8 @@ function exampleRenderUsage() {
     "  --skip-tikztosvg                Do not invoke the local tikztosvg reference",
     "  --skip-png                      Keep SVG artifacts only",
     "  --strict-tikztosvg              Fail when tikztosvg cannot render a case",
+    "  --native-reference              Render one local MacTeX PNG reference per case",
+    "  --native-latex-engine <engine>  MacTeX engine for references (default: pdflatex)",
     "  --tikztosvg-engine <engine>     TeX engine for tikztosvg (default: xelatex)",
     "  --no-comparison-grid            Do not add the 1cm comparison grid",
     "  --math-renderer <renderer>      TikZKit math renderer, such as svg-text"
@@ -1087,7 +1182,8 @@ export function formatExampleRenderSummary(summary) {
     `Rendered ${summary.renderedTikzkit}/${summary.total} TikZKit SVG files` +
     `, ${summary.renderedTikztosvg}/${summary.total} tikztosvg SVG files` +
     `, ${summary.renderedTikzkitPng}/${summary.total} TikZKit PNG files` +
-    `, and ${summary.renderedTikztosvgPng}/${summary.total} tikztosvg PNG files` +
+    `, ${summary.renderedTikztosvgPng}/${summary.total} tikztosvg PNG files` +
+    `, and ${summary.renderedMacTeXPng || 0}/${summary.total} MacTeX PNG files` +
     ` into ${summary.outputRoot}\n`
   );
 }
@@ -1280,6 +1376,7 @@ function renderComparisonHtml(summary, diffById) {
       <span>${escapeHtml(String(summary.total || 0))} cases</span>
       <span>TikZKit SVG: ${escapeHtml(String(summary.renderedTikzkit || 0))}</span>
       <span>tikztosvg SVG: ${escapeHtml(String(summary.renderedTikztosvg || 0))}</span>
+      ${summary.nativeReferenceRequested ? `<span>MacTeX PNG: ${escapeHtml(String(summary.renderedMacTeXPng || 0))}</span>` : ""}
       <span>output: ${escapeHtml(summary.outputRoot || "")}</span>
     </div>
   </header>
@@ -1312,8 +1409,11 @@ function renderCaseHtml(entry, diff) {
     ${renderArtifactLink("TikZKit grid SVG", entry.tikzkitGridSvg)}
     ${renderArtifactLink("tikztosvg SVG", entry.tikztosvgSvg)}
     ${renderArtifactLink("tikztosvg grid SVG", entry.tikztosvgGridSvg)}
+    ${renderArtifactLink("MacTeX PNG", entry.mactexPng)}
+    ${renderArtifactLink("MacTeX log", entry.mactexLog)}
     ${renderArtifactLink("tikztosvg log", entry.tikztosvgLog)}
     ${renderArtifactLink("diff PNG", diff?.diffPng)}
+    ${renderArtifactLink("MacTeX comparison sheet", diff?.nativeSheetPng)}
   </div>
   ${renderDiagnostics(entry.diagnostics)}
 </section>`;

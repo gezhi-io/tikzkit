@@ -24,6 +24,10 @@ test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifa
     [255, 0, 0, 255],
     [255, 255, 255, 255]
   ]);
+  await writeFixturePng(path.join(outputRoot, "mactex-png", "different.png"), [
+    [0, 0, 0, 255],
+    [255, 255, 255, 255]
+  ]);
   await writeFixturePng(path.join(outputRoot, "tikzkit-png", "mismatch.png"), [
     [0, 0, 0, 255]
   ]);
@@ -47,7 +51,9 @@ test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifa
           tikzkitPng: "tikzkit-png/different.png",
           tikztosvgPng: "tikztosvg-png/different.png",
           tikzkitPngStatus: "rendered",
-          tikztosvgPngStatus: "rendered"
+          tikztosvgPngStatus: "rendered",
+          mactexPng: "mactex-png/different.png",
+          mactexPngStatus: "rendered"
         },
         {
           id: "mismatch",
@@ -73,16 +79,20 @@ test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifa
   assert.equal(summary.cases[1].changedRatio, 0.5);
   assert.equal(summary.cases[1].diffPng.endsWith("different.png"), true);
   assert.equal(summary.cases[1].sheetPng, "diff/different-sheet.png");
+  assert.equal(summary.cases[1].nativeSheetPng, "diff/different-native-sheet.png");
   assert.equal(summary.cases[2].status, "dimension-mismatch");
 
   const writtenSummary = JSON.parse(await readFile(path.join(outputRoot, "diff", "summary.json"), "utf8"));
   const diffPng = await readFile(path.join(outputRoot, "diff-png", "different.png"));
   const sheetPng = decodePng(await readFile(path.join(outputRoot, "diff", "different-sheet.png")));
+  const nativeSheetPng = decodePng(await readFile(path.join(outputRoot, "diff", "different-native-sheet.png")));
   assert.equal(writtenSummary.cases.length, 3);
   assert.equal(writtenSummary.cases[1].sheetPng, "diff/different-sheet.png");
   assert.equal(diffPng.subarray(1, 4).toString("ascii"), "PNG");
   assert.ok(sheetPng.width > 6);
   assert.ok(sheetPng.height >= 1);
+  assert.ok(nativeSheetPng.width > sheetPng.width / 2);
+  assert.ok(nativeSheetPng.height > sheetPng.height);
 });
 
 test("example PNG diff summary text reports compared and changed case counts", () => {

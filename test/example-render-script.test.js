@@ -11,6 +11,7 @@ import {
   renderExampleFixtures,
   selectActiveFigureSource
 } from "../scripts/render-example-fixtures.js";
+import { encodePng } from "../scripts/diff-example-pngs.js";
 import { tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 
 test("example fixture renderer writes TikZKit and tikztosvg artifacts from manifest cases", async () => {
@@ -350,12 +351,54 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
     "second-case",
     "third-case",
     "--preserve-output",
-    "--skip-png"
+    "--skip-png",
+    "--native-reference",
+    "--native-latex-engine",
+    "lualatex"
   ]);
 
   assert.deepEqual(options.only, ["first-case", "second-case", "third-case"]);
   assert.equal(options.preserveOutput, true);
   assert.equal(options.skipPng, true);
+  assert.equal(options.nativeReference, true);
+  assert.equal(options.nativeLatexEngine, "lualatex");
+});
+
+test("example fixture renderer writes an opt-in native MacTeX PNG reference", async () => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-reference-"));
+  const calls = [];
+  const nativePng = encodePng({ width: 1, height: 1, data: Buffer.from([255, 255, 255, 255]) });
+  const summary = await renderExampleFixtures({
+    fixtureRoot: path.resolve("test", "fixtures", "examples"),
+    outputRoot,
+    only: ["axis-basic-range"],
+    skipTikztosvg: true,
+    skipPng: true,
+    nativeReference: true,
+    external: {
+      async commandExists(command) {
+        return command === "pdflatex" || command === "pdftocairo";
+      },
+      async runCommand(command, args, options = {}) {
+        calls.push({ command, args, options });
+        if (command === "pdftocairo") await writeFile(`${args.at(-1)}.png`, nativePng);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+    }
+  });
+
+  assert.equal(summary.nativeReferenceRequested, true);
+  assert.equal(summary.nativeLatexAvailable, true);
+  assert.equal(summary.renderedMacTeXPng, 1);
+  assert.equal(summary.cases[0].mactexPngStatus, "rendered");
+  await access(path.join(outputRoot, "mactex-png", "axis-basic-range.png"));
+  const html = await readFile(path.join(outputRoot, "index.html"), "utf8");
+  assert.match(html, /MacTeX PNG/);
+  assert.equal(calls.filter((call) => call.command === "pdflatex").length, 2);
+  assert.equal(calls.some((call) => call.command === "pdftocairo"), true);
+  const compile = calls.find((call) => call.command === "pdflatex");
+  assert.equal(compile.args.includes("-jobname=reference"), true);
+  assert.match(compile.options.cwd, /test[\\/]fixtures[\\/]examples[\\/]pgfplots/);
 });
 
 test("example fixture renderer writes a comparison index page for generated artifacts", async () => {

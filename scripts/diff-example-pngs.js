@@ -75,6 +75,16 @@ async function compareCase(outputRoot, entry) {
   const sheetPng = path.join(outputRoot, "diff", `${entry.id}-sheet.png`);
   await writeFile(diffPng, encodePng(comparison.diff));
   await writeFile(sheetPng, encodePng(composeComparisonSheet(tikzkit, tikztosvg, comparison.diff)));
+  let nativeSheetPng = null;
+  if (entry.mactexPngStatus === "rendered" && entry.mactexPng) {
+    const native = decodePng(await readFile(path.join(outputRoot, entry.mactexPng)));
+    const nativeSheetPath = path.join(outputRoot, "diff", `${entry.id}-native-sheet.png`);
+    await writeFile(
+      nativeSheetPath,
+      encodePng(composeImageSheet([native, tikztosvg, tikzkit, comparison.diff], { columns: 2, gap: 24, padding: 16 }))
+    );
+    nativeSheetPng = path.relative(outputRoot, nativeSheetPath);
+  }
 
   return {
     id: entry.id,
@@ -92,7 +102,8 @@ async function compareCase(outputRoot, entry) {
     tikzkitPng: entry.tikzkitPng,
     tikztosvgPng: entry.tikztosvgPng,
     diffPng: path.relative(outputRoot, diffPng),
-    sheetPng: path.relative(outputRoot, sheetPng)
+    sheetPng: path.relative(outputRoot, sheetPng),
+    nativeSheetPng
   };
 }
 
