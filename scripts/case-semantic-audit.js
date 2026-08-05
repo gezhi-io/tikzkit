@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -971,6 +971,22 @@ export function createReviewTemplate(report) {
   };
 }
 
+export function writeAuditArtifacts({ report, outputPath = null, initReviewPath = null, json = false }) {
+  if (initReviewPath) {
+    const templatePath = path.resolve(initReviewPath);
+    if (existsSync(templatePath)) throw new Error(`Refusing to overwrite existing review: ${templatePath}`);
+    mkdirSync(path.dirname(templatePath), { recursive: true });
+    writeFileSync(templatePath, `${JSON.stringify(createReviewTemplate(report), null, 2)}\n`);
+  }
+
+  const output = json ? `${JSON.stringify(report, null, 2)}\n` : renderAuditMarkdown(report);
+  if (!outputPath) return output;
+  const resolvedOutputPath = path.resolve(outputPath);
+  mkdirSync(path.dirname(resolvedOutputPath), { recursive: true });
+  writeFileSync(resolvedOutputPath, output);
+  return output;
+}
+
 function main() {
   const args = parseCliArgs(process.argv.slice(2));
   if (args.help) {
@@ -986,14 +1002,13 @@ function main() {
   const source = readFileSync(sourcePath, "utf8");
   const review = args.reviewPath ? JSON.parse(readFileSync(path.resolve(args.reviewPath), "utf8")) : {};
   const report = auditTikzSource(source, { sourcePath, review });
-  if (args.initReviewPath) {
-    const templatePath = path.resolve(args.initReviewPath);
-    if (existsSync(templatePath)) throw new Error(`Refusing to overwrite existing review: ${templatePath}`);
-    writeFileSync(templatePath, `${JSON.stringify(createReviewTemplate(report), null, 2)}\n`);
-  }
-  const output = args.json ? `${JSON.stringify(report, null, 2)}\n` : renderAuditMarkdown(report);
-  if (args.outputPath) writeFileSync(path.resolve(args.outputPath), output);
-  else process.stdout.write(output);
+  const output = writeAuditArtifacts({
+    report,
+    outputPath: args.outputPath,
+    initReviewPath: args.initReviewPath,
+    json: args.json
+  });
+  if (!args.outputPath) process.stdout.write(output);
   if (args.strict && !report.gate.accepted) process.exitCode = 1;
 }
 

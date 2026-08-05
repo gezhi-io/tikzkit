@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
-import { auditTikzSource, createReviewTemplate, renderAuditMarkdown } from "../scripts/case-semantic-audit.js";
+import { auditTikzSource, createReviewTemplate, renderAuditMarkdown, writeAuditArtifacts } from "../scripts/case-semantic-audit.js";
 
 const SOURCE = String.raw`
 \documentclass[border=2pt]{standalone}
@@ -203,4 +206,22 @@ test("a discovered or listed MacTeX path is not reviewed without semantic source
     }
   });
   assert.equal(withNotes.dependencies[0].localSourceReviewed, true);
+});
+
+test("audit artifact writing creates missing QA directories without overwriting a review", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "tikzkit-case-audit-"));
+  const reviewPath = path.join(root, "new", "case", "review.json");
+  const outputPath = path.join(root, "new", "case", "audit.md");
+  try {
+    const report = auditTikzSource(String.raw`\draw (0,0) -- (1,1);`, { localSourceResolver: fakeResolver });
+    writeAuditArtifacts({ report, initReviewPath: reviewPath, outputPath });
+
+    assert.equal(existsSync(reviewPath), true);
+    assert.equal(existsSync(outputPath), true);
+    assert.equal(JSON.parse(readFileSync(reviewPath, "utf8")).caseStatus, "incomplete");
+    assert.match(readFileSync(outputPath, "utf8"), /Semantic Audit/);
+    assert.throws(() => writeAuditArtifacts({ report, initReviewPath: reviewPath }), /Refusing to overwrite/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

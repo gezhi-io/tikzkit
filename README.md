@@ -483,6 +483,10 @@ source and the remaining unsupported syntax in `docs/qa/`; do not accept a
 case from a canvas-size or mean-difference number alone. Generated `outputs/`
 artifacts are local QA evidence and are intentionally ignored by Git.
 
+The audit creates missing parent directories for both `--output` and
+`--init-review`, making it safe to start a case in a fresh QA folder. An
+existing review file is never overwritten.
+
 Some TikZ libraries delegate to a PGF implementation file whose name does not
 match the TikZ library name. The audit preserves declared local source metadata
 for these aliases, for example `arrows.meta` maps to
