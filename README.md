@@ -109,6 +109,30 @@ the clean current TikZKit SVG without the QA grid. The grid toggle applies to
 both the browser SVG and the `tikztosvg` reference so their visible coordinate
 guides stay in the same mode.
 
+Each catalog fixture also has a collapsible **Semantic inventory** below its
+heading. It is produced from the exact fixture source and shows the individual
+packages/libraries, commands, environments, nested parameter paths, source
+definitions, numeric values, and plot expressions. Every row reports the
+current JavaScript owner and implementation/review state. The dependency rows
+perform a local MacTeX lookup and show the discovered file name, but deliberately
+do not expose absolute local paths in the browser. The top status separates
+unmapped or unsupported blockers from ordinary items that still need visual or
+source-level review.
+
+The inventory is a case-planning aid, not a compatibility claim. In particular,
+`partial`, `requires-case-verification`, and `todo` mean that the emitted SVG
+still needs comparison with the reference. Scratch documents do not have a
+fixture inventory or a reference artifact; use the CLI audit when preparing a
+new case. Editing a catalog fixture does not automatically re-audit the local
+draft; the inventory header then says `fixture source only`. Use the CLI audit
+when the draft itself becomes the next reviewed source:
+
+```bash
+npm run case:audit -- path/to/case.tex \
+  --output outputs/case-audit.md \
+  --init-review outputs/case-review.json
+```
+
 For a new source, paste a complete `tikzpicture` or document source into the
 editor and render it locally. A successful SVG is not an acceptance signal on
 its own: inspect diagnostics and, for compatibility work, compare it with a

@@ -41,6 +41,15 @@
         </div>
         <output id="draft-status" aria-live="polite"></output>
       </header>
+      <section class="semantic-inventory" aria-label="Semantic inventory">
+        <details id="semantic-details">
+          <summary>
+            <span>Semantic inventory</span>
+            <output id="semantic-summary" aria-live="polite">Loading source inventory</output>
+          </summary>
+          <div id="semantic-content" class="semantic-content"></div>
+        </details>
+      </section>
       <textarea id="source-editor" spellcheck="false" aria-label="TikZ source editor"></textarea>
       <section id="diagnostics" class="diagnostics" aria-label="Diagnostics"></section>
     </section>

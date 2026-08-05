@@ -15,6 +15,8 @@ test("workbench server exposes browser assets and fixture source without renderi
   const html = await index.text();
   const catalog = await fetch(`http://127.0.0.1:${port}/api/fixtures`).then((response) => response.json());
   const source = await fetch(`http://127.0.0.1:${port}${catalog[0].sourceUrl}`).then((response) => response.text());
+  const auditResponse = await fetch(`http://127.0.0.1:${port}/api/fixtures/${encodeURIComponent(catalog[0].id)}/audit`);
+  const audit = await auditResponse.json();
   const classTree = catalog.find((entry) => entry.id === "latex-examples-class-tree");
   const roadResource = classTree?.resources.find((resource) => resource.name === "road.jpg");
   const road = await fetch(`http://127.0.0.1:${port}${roadResource?.url}`);
@@ -73,7 +75,10 @@ test("workbench server exposes browser assets and fixture source without renderi
     "render-status",
     "fixture-title",
     "fixture-summary",
-    "draft-status"
+    "draft-status",
+    "semantic-details",
+    "semantic-summary",
+    "semantic-content"
   ]) {
     assert.ok(
       openingTags.some((tag) => hasAttributeValue(tag, "id", id)),
@@ -105,6 +110,14 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.equal(road.headers.get("content-type"), "image/jpeg");
   assert.deepEqual([...roadBytes.slice(0, 2)], [0xff, 0xd8]);
   assert.match(source, /\\begin\{(?:tikzpicture|axis)\}/);
+  assert.equal(auditResponse.status, 200);
+  assert.ok(audit.summary.commands > 0);
+  assert.ok(Array.isArray(audit.dependencies));
+  assert.ok(Array.isArray(audit.commands));
+  assert.ok(Array.isArray(audit.options));
+  assert.ok(audit.commands.every((entry) => !Object.hasOwn(entry, "localSource")));
+  assert.ok(audit.dependencies.every((entry) => !Object.hasOwn(entry, "localSource")));
+  assert.ok(audit.dependencies.some((entry) => entry.lookup));
   assert.equal(compiler.status, 200);
   assert.equal(chevrotain.status, 200);
   assert.equal(katex.status, 200);

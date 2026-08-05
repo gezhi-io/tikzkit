@@ -20,6 +20,7 @@ const state = {
   lastRenderedSource: "",
   lastSvg: "",
   previewIsStale: false,
+  audit: null,
   resources: new Map()
 };
 const requestGate = createRequestGate();
@@ -35,23 +36,39 @@ async function loadFixture(id) {
       if (!response.ok) throw new Error(`Could not load ${fixture.id}`);
       return response.text();
     });
-  const resourceRows = await Promise.all((fixture.resources || []).map(loadFixtureResource));
+  const [resourceRows, audit] = await Promise.all([
+    Promise.all((fixture.resources || []).map(loadFixtureResource)),
+    loadFixtureAudit(fixture)
+  ]);
   if (!requestGate.isCurrent(token)) return;
 
   state.active = fixture;
   state.originalSource = source;
   state.lastRenderedSource = readDraft(fixture.id) ?? source;
   state.previewIsStale = false;
+  state.audit = audit;
   state.resources = new Map(resourceRows);
   document.querySelector("#fixture-select").value = fixture.id;
   document.querySelector("#source-editor").value = state.lastRenderedSource;
   history.replaceState(null, "", `#${encodeURIComponent(fixture.id)}`);
 
   showFixtureDetails();
+  showSemanticInventory();
   showReference();
   updateDraftStatus();
 
   await renderCurrentSource(token);
+}
+
+async function loadFixtureAudit(fixture) {
+  if (fixture.isScratch) return null;
+  try {
+    const response = await fetch(`/api/fixtures/${encodeURIComponent(fixture.id)}/audit`);
+    if (!response.ok) throw new Error(`Could not audit ${fixture.id}`);
+    return response.json();
+  } catch (error) {
+    return { error: error.message };
+  }
 }
 
 async function renderCurrentSource(token = requestGate.current()) {
@@ -199,6 +216,177 @@ function showFixtureDetails() {
   document.querySelector("#fixture-summary").textContent = `${fixture?.id || "scratch"} · ${features}`;
 }
 
+function showSemanticInventory() {
+  const summary = document.querySelector("#semantic-summary");
+  const container = document.querySelector("#semantic-content");
+  container.replaceChildren();
+  const audit = state.audit;
+  if (!audit) {
+    summary.textContent = "Scratch source";
+    const message = document.createElement("p");
+    message.className = "semantic-empty";
+    message.textContent = "Select a fixture to inspect its semantic inventory.";
+    container.append(message);
+    return;
+  }
+  if (audit.error) {
+    summary.textContent = "Audit unavailable";
+    const message = document.createElement("p");
+    message.className = "semantic-empty";
+    message.textContent = audit.error;
+    container.append(message);
+    return;
+  }
+
+  const { summary: counts, gate } = audit;
+  summary.textContent = semanticSummaryText(counts, gate);
+  container.append(
+    semanticOverview(audit),
+    semanticGroup("Dependencies", audit.dependencies, renderDependency),
+    semanticGroup("Commands", audit.commands, renderCommand),
+    semanticGroup("Environments", audit.environments, renderEnvironment),
+    semanticGroup("Parameters", audit.options, renderOption),
+    semanticGroup("Variables and definitions", audit.declarations, renderDeclaration),
+    semanticGroup("Numbers and dimensions", audit.numbers, renderNumber),
+    semanticGroup("Plot expressions", audit.expressions, renderExpression)
+  );
+}
+
+function semanticSummaryText(counts, gate, suffix = "") {
+  return `${counts.commands} commands · ${counts.options} options · ${counts.numbers} values · ${gate.status}${suffix}`;
+}
+
+function updateSemanticDraftState(modified) {
+  const details = document.querySelector("#semantic-details");
+  const summary = document.querySelector("#semantic-summary");
+  details.classList.toggle("is-stale", Boolean(modified && state.audit && !state.audit.error));
+  if (state.audit?.summary && state.audit?.gate) {
+    summary.textContent = semanticSummaryText(
+      state.audit.summary,
+      state.audit.gate,
+      modified ? " · fixture source only" : ""
+    );
+  }
+}
+
+function semanticOverview(audit) {
+  const section = document.createElement("section");
+  section.className = `semantic-overview semantic-${audit.gate.status}`;
+  const summary = document.createElement("p");
+  summary.textContent = audit.gate.accepted
+    ? "All semantic items have been reviewed with evidence."
+    : `${audit.gate.blockers.length} blockers · ${audit.gate.todos.length} reviews still required`;
+  section.append(summary);
+  const items = [...audit.gate.blockers, ...audit.gate.todos];
+  if (items.length) {
+    const list = document.createElement("ul");
+    for (const item of items) {
+      const row = document.createElement("li");
+      row.textContent = item;
+      list.append(row);
+    }
+    section.append(list);
+  }
+  return section;
+}
+
+function semanticGroup(title, entries, renderEntry) {
+  const section = document.createElement("details");
+  section.className = "semantic-group";
+  section.open = title === "Dependencies" || title === "Commands" || title === "Parameters";
+  const heading = document.createElement("summary");
+  heading.textContent = `${title} (${entries.length})`;
+  section.append(heading);
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "semantic-empty";
+    empty.textContent = "None";
+    section.append(empty);
+    return section;
+  }
+  const list = document.createElement("div");
+  list.className = "semantic-list";
+  for (const entry of entries) list.append(renderEntry(entry));
+  section.append(list);
+  return section;
+}
+
+function semanticRow(primary, metadata, status) {
+  const row = document.createElement("div");
+  row.className = "semantic-row";
+  const main = document.createElement("code");
+  main.textContent = primary;
+  const details = document.createElement("span");
+  details.textContent = metadata.filter(Boolean).join(" · ");
+  const badge = document.createElement("span");
+  badge.className = `semantic-badge semantic-badge-${status || "todo"}`;
+  badge.textContent = status || "todo";
+  row.append(main, details, badge);
+  return row;
+}
+
+function renderDependency(entry) {
+  return semanticRow(
+    `${entry.kind}: ${entry.name}`,
+    [
+      entry.implementedBy || "no JS owner",
+      entry.localSourceFound ? `MacTeX: ${entry.localSourceName}` : `MacTeX not found: ${entry.lookup}`,
+      entry.localSourceReviewed ? "source reviewed" : "source not reviewed"
+    ],
+    entry.implementationStatus
+  );
+}
+
+function renderCommand(entry) {
+  return semanticRow(entry.name, [
+    `${entry.count} uses`,
+    `line ${entry.lines.join(", ")}`,
+    entry.implementedBy || "no JS owner",
+    entry.localSourceName ? `MacTeX: ${entry.localSourceName}` : null
+  ], entry.implementationStatus);
+}
+
+function renderEnvironment(entry) {
+  return semanticRow(`\\begin{${entry.name}}`, [
+    `${entry.count} uses`,
+    `line ${entry.lines.join(", ")}`,
+    entry.implementedBy || "no JS owner"
+  ], entry.implementationStatus);
+}
+
+function renderOption(entry) {
+  return semanticRow(entry.keyPath.join(" / "), [
+    entry.context,
+    entry.rawValues.join(" | "),
+    `line ${entry.lines.join(", ")}`,
+    entry.implementedBy || "no JS owner"
+  ], entry.reviewStatus);
+}
+
+function renderDeclaration(entry) {
+  return semanticRow(`${entry.kind}: ${entry.name || "anonymous"}`, [
+    entry.value || "no value",
+    `line ${entry.line}`,
+    `${entry.referenceCount || 0} references`
+  ], entry.reviewStatus);
+}
+
+function renderNumber(entry) {
+  return semanticRow(entry.literal, [
+    entry.context,
+    `${entry.count} uses`,
+    `line ${entry.lines.join(", ")}`,
+    entry.implementedBy || "no JS owner"
+  ], entry.reviewStatus);
+}
+
+function renderExpression(entry) {
+  return semanticRow(entry.expression, [
+    `line ${entry.line}`,
+    entry.implementedBy || "no JS owner"
+  ], entry.reviewStatus);
+}
+
 function updateDraftStatus() {
   const editor = document.querySelector("#source-editor");
   const modified = isFixtureDraft(editor.value, state.originalSource);
@@ -209,6 +397,7 @@ function updateDraftStatus() {
   status.textContent = stale ? "Draft changed · render to refresh" : modified ? "Local draft saved" : "Fixture source";
   status.classList.toggle("is-draft", modified);
   status.classList.toggle("is-stale", stale);
+  updateSemanticDraftState(modified);
 }
 
 function setRenderStatus(message) {

@@ -1,8 +1,10 @@
 import { createReadStream } from "node:fs";
 import { readFile, realpath, stat } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { auditTikzSource } from "../scripts/case-semantic-audit.js";
 import { loadMilestoneCatalog } from "./fixtureCatalog.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -10,6 +12,8 @@ const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 export async function createWorkbenchServer(options = {}) {
   const fixtureRoot = path.resolve(options.fixtureRoot || path.join(PROJECT_ROOT, "test/fixtures/examples"));
   const outputRoot = path.resolve(options.outputRoot || path.join(fixtureRoot, "output"));
+  const auditCache = new Map();
+  const localSourceCache = new Map();
   await loadMilestoneCatalog({ fixtureRoot, outputRoot });
 
   return http.createServer(async (request, response) => {
@@ -31,6 +35,16 @@ export async function createWorkbenchServer(options = {}) {
         return sendText(response, await readFile(fixture.sourcePath, "utf8"), "text/plain; charset=utf-8");
       }
 
+      const auditMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)\/audit$/);
+      if (auditMatch) {
+        const currentCatalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
+        const fixture = currentCatalog.find((entry) => entry.id === decodeURIComponent(auditMatch[1]));
+        if (!fixture) return sendStatus(response, 404);
+        const source = await readFile(fixture.sourcePath, "utf8");
+        const audit = fixtureAudit(fixture, source, auditCache, localSourceCache);
+        return sendJson(response, audit);
+      }
+
       const resourceMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)\/resources\/(\d+)$/);
       if (resourceMatch) {
         const currentCatalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
@@ -47,6 +61,69 @@ export async function createWorkbenchServer(options = {}) {
       return sendJson(response, { error: error.message }, 500);
     }
   });
+}
+
+function fixtureAudit(fixture, source, auditCache, localSourceCache) {
+  const cached = auditCache.get(fixture.id);
+  if (cached?.source === source) return cached.value;
+
+  const report = auditTikzSource(source, {
+    sourcePath: fixture.sourcePath,
+    localSourceResolver: (lookup) => resolveLocalSource(lookup, localSourceCache)
+  });
+  const value = publicAudit(report);
+  auditCache.set(fixture.id, { source, value });
+  return value;
+}
+
+function resolveLocalSource(lookup, cache) {
+  if (cache.has(lookup)) return cache.get(lookup);
+  let resolved = null;
+  for (const executable of ["/Library/TeX/texbin/kpsewhich", "kpsewhich"]) {
+    const result = spawnSync(executable, [lookup], { encoding: "utf8" });
+    if (result.status === 0 && result.stdout.trim()) {
+      resolved = result.stdout.trim();
+      break;
+    }
+  }
+  cache.set(lookup, resolved);
+  return resolved;
+}
+
+function publicAudit(report) {
+  return {
+    schemaVersion: report.schemaVersion,
+    summary: report.summary,
+    gate: report.gate,
+    dependencies: report.dependencies.map((entry) => ({
+      id: entry.id,
+      kind: entry.kind,
+      name: entry.name,
+      implementationStatus: entry.implementationStatus,
+      implementedBy: entry.implementedBy,
+      localSourceFound: entry.localSourceFound,
+      localSourceReviewed: entry.localSourceReviewed,
+      localSourceName: entry.localSource ? path.basename(entry.localSource) : null,
+      lookup: entry.lookup,
+      features: entry.features,
+      notes: entry.notes,
+      reviewStatus: entry.reviewStatus
+    })),
+    commands: report.commands.map(publicFeature),
+    environments: report.environments.map(publicFeature),
+    options: report.options.map(publicFeature),
+    declarations: report.declarations.map(publicFeature),
+    numbers: report.numbers.map(publicFeature),
+    expressions: report.expressions.map(publicFeature)
+  };
+}
+
+function publicFeature(entry) {
+  const { localSource, sourceRange, ...feature } = entry;
+  return {
+    ...feature,
+    localSourceName: localSource ? path.basename(localSource) : null
+  };
 }
 
 function publicFixture(entry) {
