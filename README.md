@@ -48,7 +48,9 @@ It is designed for browser rendering of fenced TikZ code blocks, CLI conversion,
   PDF-to-SVG output even when geometry and text placement agree.
 - `shapes.multipart` now verifies horizontal `rectangle split` alignment
   (`center`, `top`, `bottom`, `base`) and vertical alignment (`center`, `left`,
-  `right`); the broader multipart shape family remains partial.
+  `right`). Wide typewriter B-tree nodes use cmtt10 advance widths so repeated
+  split-part anchors do not drift; the broader multipart shape family remains
+  partial.
 - The array compatibility slice can lower a marked top-level tabular into a
   TikZ matrix, preserving vertical rules and single/double hline rules so a
   same-picture tikzmark overlay can resolve its anchors. It is not a general

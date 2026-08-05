@@ -8377,7 +8377,18 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
         boxDepth: 0
       };
     }
-    const size = estimateCompactTextSize(part.text, metricOptions, env);
+    // The browser measurement backend sees KaTeX's typewriter face before
+    // the renderer applies its cmtt10 advance-width correction.  A rectangle
+    // split accumulates every part width, so that small per-glyph mismatch is
+    // amplified in wide B-tree nodes.  For split layout, use the known TeX
+    // typewriter metrics directly; SVG text still uses the normal renderer.
+    const size = estimateCompactTextSize(
+      part.text,
+      nodeUsesTypewriterFont(part.text, options, env)
+        ? { ...metricOptions, "tikzkit fixed typewriter metrics": true }
+        : metricOptions,
+      env
+    );
     const normalized = normalizeTikzText(part.text, env);
     const plain = normalized.kind === "text" && normalized.lines?.length === 1
       ? measurePlainTextTeXBoxPt(normalized.lines[0], {
@@ -8861,7 +8872,7 @@ function textEngineMetricOptions(env = {}, text = null, options = {}, normalized
   const normalizedOptions = normalizeOptions("node", options, env);
   const { semantic } = normalizedOptions;
   const metricOptions = {
-    textEngine: env.textEngine || null,
+    textEngine: options["tikzkit fixed typewriter metrics"] ? null : env.textEngine || null,
     textEngineUnit: Number(env.textEngineUnit) || TIKZ_UNIT,
     lineBreakMode: nodeTextWrapMode(normalizedOptions.options, semantic)
   };
@@ -9023,7 +9034,9 @@ function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
     fixedCharWidth: typewriter ? 0.184516 : undefined,
     texTextMetrics: Boolean(options["axis tick label"]),
     formulaTexTextMetrics: Boolean(options["axis tick label"] || options["axis label"]),
-    lineHeight: typewriter ? 0.232 : 0.18,
+    // cmtt10's visual glyph box is about 6.38pt at \normalsize.  Keep its
+    // width fixed separately above while matching PGF's native split height.
+    lineHeight: typewriter ? 0.2244 : 0.18,
     lineGap: typewriter ? 0.184516 : undefined,
     minHeight: 0.18,
     formulaMinWidth: 0.08,

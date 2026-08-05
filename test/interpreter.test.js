@@ -897,6 +897,41 @@ test("matches PGF horizontal split accumulation, separators, and global typewrit
   assert.match(result.svg, /class="tikz-rectangle-split"/);
 });
 
+test("uses cmtt10 advances for a wide horizontal rectangle split", () => {
+  const result = tikzToSvg(String.raw`
+\tikzset{font=\tt,every picture/.style={thick},node/.style={rectangle split,rectangle split horizontal,rectangle split parts=#1,draw,
+  rectangle split empty part width=1.5,rectangle split part fill={orange!50,blue!50,white}}}
+\begin{tikzpicture}
+  \node[node=13] (A) {
+    \nodepart{one}\tiny False
+    \nodepart{two}5
+    \nodepart{three}
+    \nodepart{four}-3
+    \nodepart{five}
+    \nodepart{six}0
+    \nodepart{seven}
+    \nodepart{eight}4
+    \nodepart{nine}
+    \nodepart{ten}17
+    \nodepart{eleven}
+    \nodepart{twelve}42
+    \nodepart{thirteen}
+  };
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const box = result.ir.items.find((item) => item.type === "nodeBox" && item.id === "A");
+  const layout = box.shapeData.rectangleSplit;
+  const widthPt = box.width * 28.4527559;
+  const partOriginsPt = layout.parts.map((part) => part.originX * 28.4527559);
+
+  assert.deepEqual(result.diagnostics, []);
+  // Local PGF 3.1.10 reports a 192.42pt outer-anchor span. The scene node
+  // excludes the default 0.4pt outer separation on both sides, leaving its
+  // 191.47pt drawing box. A digit-to-empty advance is 12.716pt.
+  assert.ok(widthPt >= 191.4 && widthPt <= 191.55, `expected wide split drawing width near 191.47pt, got ${widthPt}pt`);
+  assert.ok(Math.abs((partOriginsPt[2] - partOriginsPt[1]) - 12.716) < 0.08, JSON.stringify(partOriginsPt));
+  assert.ok(Math.abs((partOriginsPt[3] - partOriginsPt[2]) - 13.271) < 0.08, JSON.stringify(partOriginsPt));
+});
+
 test("preserves the inline TeX box spacing around nested tikz nodes", () => {
   const result = tikzToSvg(String.raw`
 \tikzset{font=\tt,every picture/.style={thick},node/.style={rectangle split,rectangle split horizontal,rectangle split parts=#1,draw,
