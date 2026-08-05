@@ -326,7 +326,8 @@ The independent sinusoidal source slice follows the local Circuitikz manual:
 Supported here: `sV`, `sI`, `vsourcesin`, `isourcesin`, the named sinusoidal
 source styles, `sources/scale`, `sources/symbol/thickness`, the external
 `sI=$...$` current marker, and `bipoles/isourcesin/angle` between `0` and
-`90`.
+`90`. In `[american]` mode, `sV=$...$` also places the native external `+/-`
+polarity pair below the voltage label; `l=$...$` remains a component label.
 
 ### Circuitikz Waveform Symbols and Rotation
 
@@ -369,12 +370,16 @@ circle used by `sV` and `sI`:
 Supported here: `csV`, `csI`, `cvsourcesin`, `cisourcesin`, `controlled
 vsourcesin`, `controlled isourcesin`, the complete controlled-sinusoidal
 style names, direction suffixes, `csources/scale`,
-`csources/symbol/thickness`, external `v/i` labels, and `l=...`. In native
+`csources/symbol/thickness`, external `v/i` labels, and `l=...`. In American
+mode, `csV=$...$` includes native external `+/-` polarity below the voltage
+label, whereas `l=$...$` deliberately does not. In native
 Circuitikz, `csources/symbol/thickness` is deliberately separate from the
 independent-source `sources/symbol/thickness` key. Numeric
 `csources/symbol/rotate=<angle>` and `csources/symbol/rotate=auto` apply to
-the controlled sinusoidal symbol. Source fills and DC/square/triangular
-controlled sources are outside this verified slice.
+the controlled sinusoidal symbol. Source fills, DC/square/triangular
+controlled sources, and arbitrary voltage-symbol/plus/minus overrides are
+outside this verified slice. The visual reference record is in
+[`docs/qa/2026-08-06-circuitikz-controlled-sinusoidal-sources.md`](docs/qa/2026-08-06-circuitikz-controlled-sinusoidal-sources.md).
 
 ### Circuitikz Battery Plate Families
 

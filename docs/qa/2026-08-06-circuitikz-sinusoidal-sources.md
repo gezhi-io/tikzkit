@@ -59,7 +59,9 @@ and the third source's top/bottom opening visibly match the local references.
 The source-label node now keeps the real math glyph bounds, so the JS canvas
 is also `115x140px` and no longer clips `$V$`.
 
-The diff is now primarily glyph rasterization, cubic rounding, and the small
+The later American-voltage-label follow-up also adds the native external `+/-`
+pair beneath `sV=$V$`; a plain `l=$...$` remains a component label and does
+not receive polarity. The diff is now primarily glyph rasterization, cubic rounding, and the small
 anti-aliasing halo around otherwise coincident source strokes: changed ratio
 `0.11478`, mean absolute RGBA difference `0.02883`. Those figures are only
 supporting evidence; the accepted visual change is the recovery and placement

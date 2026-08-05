@@ -36,12 +36,33 @@ test("renders scaled circuitikz controlled sinusoidal sources", () => {
   assert.equal(currentInnerArrow, undefined, "controlled sinusoidal current sources contain a wave, not the plain-source arrow");
   assert.equal(sourceLine, undefined, "controlled sinusoidal voltage sources contain a wave, not the plain-source line");
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$g v_x$"));
+  const firstSourcePolarity = result.ir.items.filter((item) => item.type === "textNode" && ["+", "-"].includes(item.text));
+  assert.equal(firstSourcePolarity.length, 2, "expected external polarity markers for csV=$...$, but not l=$...$");
+  assert.ok(firstSourcePolarity.some((item) => item.text === "+" && item.x < 1.5 && item.y > 2));
+  assert.ok(firstSourcePolarity.some((item) => item.text === "-" && item.x > 1.5 && item.y > 2));
   assert.equal(
     result.ir.items.filter((item) => item.type === "textNode" && item.text === "$g i_x$").length,
     1,
     "expected csI=$...$ to render once beside its external arrow"
   );
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$\\mu v_x$"));
+});
+
+test("places American polarity markers outside labelled sinusoidal voltage sources", () => {
+  const result = tikzToSvg(String.raw`\begin{circuitikz}[american]
+  \draw (0,0) to[sV=$V$] (3,0);
+  \draw (0,2) to[csV=$U$] (3,2);
+  \draw (0,4) to[csV<=$W$] (3,4);
+\end{circuitikz}`, { mathRenderer: "svg-text" });
+  const polarity = result.ir.items.filter((item) => item.type === "textNode" && ["+", "-"].includes(item.text));
+  const atHeight = (text, y) => polarity.find((item) => item.text === text && Math.abs(item.y - y) < 1);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(polarity.length, 6);
+  assert.ok(atHeight("+", 0).x < 1.5, "forward sV puts + at the source input");
+  assert.ok(atHeight("-", 0).x > 1.5, "forward sV puts - at the source output");
+  assert.ok(atHeight("+", 2).x < 1.5, "forward csV keeps external polarity on its input");
+  assert.ok(atHeight("+", 4).x > 1.5, "csV< reverses the external polarity direction");
 });
 
 test("accepts circuitikz controlled sinusoidal source aliases", () => {

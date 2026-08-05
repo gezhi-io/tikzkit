@@ -4201,6 +4201,9 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
   const scale = circuitikzLengthScale(env);
   const normal = circuitikzVoltageNormal(geometry, voltage, spec);
   if (spec.kind === "controlledVoltageSource") {
+    if (spec.sourceKind === "sinusoidal" && circuitikzUsesAmericanVoltageSource(env)) {
+      appendCircuitikzAmericanSinusoidalVoltagePolarity(nodes, geometry, voltage, spec, normal, env);
+    }
     const { point, anchor } = circuitikzControlledSourceLabelPlacement(
       { ...geometry, n: normal },
       env
@@ -4218,9 +4221,12 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
     return;
   }
 
-  // American voltage notation keeps the polarity signs even with RPvoltages.
-  // Independent American sources already place those signs inside their symbol.
+  // Sinusoidal voltage sources use the generic circuitikz voltage-label routine:
+  // their polarity signs sit outside the source symbol, underneath the label.
   if (spec.kind === "voltageSource") {
+    if (spec.sourceKind === "sinusoidal") {
+      appendCircuitikzAmericanSinusoidalVoltagePolarity(nodes, geometry, voltage, spec, normal, env);
+    }
     const sourceDistance = spec.sourceKind === "sinusoidal"
       ? 0.8 * circuitikzSourceScale(env)
       : 0.62;
@@ -4239,6 +4245,34 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
   addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, plusAlong), normal, signOffset), "+", { "inner sep": "0pt" });
   addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, -plusAlong), normal, signOffset), "-", { "inner sep": "0pt" });
   addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, labelOffset), label);
+}
+
+function appendCircuitikzAmericanSinusoidalVoltagePolarity(nodes, geometry, voltage, spec, normal, env = {}) {
+  const scale = circuitikzLengthScale(env);
+  const sourceScale = spec.kind === "controlledVoltageSource"
+    ? circuitikzControlledSourceScale(env)
+    : circuitikzSourceScale(env);
+  const signOffset = 0.58 * sourceScale * scale;
+  const along = 0.37 * sourceScale * scale;
+  const backward = circuitikzVoltageDirectionIsBackward(voltage, spec, env);
+  const plusAlong = backward ? along : -along;
+  const signOptions = {
+    anchor: "center",
+    "inner sep": "0pt",
+    "tikzkit layout bbox": true
+  };
+  addCircuitikzTextNode(
+    nodes,
+    pointNormal(pointAlong(geometry.mid, geometry.u, plusAlong), normal, signOffset),
+    "+",
+    signOptions
+  );
+  addCircuitikzTextNode(
+    nodes,
+    pointNormal(pointAlong(geometry.mid, geometry.u, -plusAlong), normal, signOffset),
+    "-",
+    signOptions
+  );
 }
 
 function circuitikzVoltageSpec(options = {}, spec = {}, env = {}) {
