@@ -45,9 +45,30 @@ export function parseTikz(source, options = {}) {
   }
 
   const scannedPictures = extractTikzPictures(preprocessed.source);
+  const tabularLayouts = extractTabularPictureLayouts(preprocessed.source, scannedPictures);
   const figures = scannedPictures.map((picture, index) => createFigureInventoryItem(picture, index));
   const activeFigureIndex = resolveActiveFigureIndex(options.activeFigureId, scannedPictures.length);
   const picturesToParse = activeFigureIndex == null ? scannedPictures : [scannedPictures[activeFigureIndex]].filter(Boolean);
+  const activePictureIndices = new Set(picturesToParse.map((picture) => picture.index));
+  const activeTabularLayouts = activeFigureIndex == null
+    ? tabularLayouts
+    : tabularLayouts.filter((layout) => layout.rows.every((row) => row.cells.every((cell) =>
+      cell.pictureIndices.every((pictureIndex) => activePictureIndices.has(pictureIndex))
+    )));
+  const tabularLayoutsByPicture = new Map();
+  for (const layout of activeTabularLayouts) {
+    for (const row of layout.rows) {
+      for (const cell of row.cells) {
+        for (const pictureIndex of cell.pictureIndices) {
+          tabularLayoutsByPicture.set(pictureIndex, {
+            layoutId: layout.id,
+            row: row.index,
+            column: cell.column
+          });
+        }
+      }
+    }
+  }
   const pictures = picturesToParse.map((picture) => {
     const prePictureSource = preprocessed.source.slice(0, picture.beginIndex);
     const globalStyles = collectStyleDefinitions(prePictureSource);
@@ -64,6 +85,7 @@ export function parseTikz(source, options = {}) {
       endIndex: picture.endIndex,
       figureId: `figure:${picture.index}`,
       figureIndex: picture.index,
+      tabularLayout: tabularLayoutsByPicture.get(picture.index) || null,
       options: { ...globalOptions, ...parseOptions(picture.optionsRaw) },
       styles: globalStyles,
       codeHandlers: globalCodeHandlers,
@@ -95,6 +117,7 @@ export function parseTikz(source, options = {}) {
       previewBorder,
       shadings: shadingDefinitions,
       coordinateSystems,
+      tabularLayouts: activeTabularLayouts,
       figures,
       activeFigureId: activeFigureIndex == null ? null : `figure:${activeFigureIndex}`,
       pictures
@@ -2184,6 +2207,195 @@ function extractTikzPictures(source) {
     pictures.push({ index: 0, beginIndex: 0, bodyEndIndex: source.length, endIndex: source.length, optionsRaw: "", body: source });
   }
   return pictures;
+}
+
+// TeX lays a tabular by measuring every cell first, then centering each cell
+// within its column box. Keep that structural information in the AST so the
+// evaluator can arrange multiple independently interpreted tikzpictures
+// without making the parser SVG-aware.
+function extractTabularPictureLayouts(source, pictures) {
+  const text = String(source || "");
+  const layouts = [];
+  const beginToken = "\\begin{tabular}";
+  const endToken = "\\end{tabular}";
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const begin = text.indexOf(beginToken, cursor);
+    if (begin === -1) break;
+    let headerCursor = skipWhitespace(text, begin + beginToken.length);
+    const columns = extractBalanced(text, headerCursor, "{", "}");
+    if (!columns) {
+      cursor = begin + beginToken.length;
+      continue;
+    }
+    const end = findMatchingEnvironmentEnd(text, columns.end, beginToken, endToken);
+    if (end === -1) {
+      cursor = columns.end;
+      continue;
+    }
+
+    const included = pictures.filter((picture) => picture.beginIndex >= columns.end && picture.endIndex <= end);
+    if (included.length) {
+      const layout = parseTabularPictureLayout(text, {
+        id: `tabular:${layouts.length}`,
+        bodyStart: columns.end,
+        bodyEnd: end,
+        columnSpec: columns.content,
+        pictures: included
+      });
+      if (layout) layouts.push(layout);
+    }
+    cursor = end + endToken.length;
+  }
+  return layouts;
+}
+
+function parseTabularPictureLayout(source, definition) {
+  const { pictures, bodyStart, bodyEnd } = definition;
+  let body = "";
+  let cursor = bodyStart;
+  for (const picture of pictures) {
+    body += source.slice(cursor, picture.beginIndex);
+    body += `@@tikzkit-picture-${picture.index}@@`;
+    cursor = picture.endIndex;
+  }
+  body += source.slice(cursor, bodyEnd);
+
+  const columns = parseTabularColumnSpec(definition.columnSpec);
+  if (!columns.length) return null;
+  const rows = [];
+  let pendingRules = 0;
+  for (const rawRow of splitTabularRows(body)) {
+    const hlines = (rawRow.match(/\\hline\b/g) || []).length;
+    const rawCells = splitTabularCells(rawRow.replace(/\\hline\b/g, ""));
+    const cells = rawCells.map((rawCell, column) => parseTabularCell(rawCell, column));
+    const hasContent = cells.some((cell) => cell.pictureIndices.length || cell.text);
+    if (!hasContent && hlines) {
+      // `\hline` followed by an explicit `\\` has a real, short strut row
+      // in LaTeX. Preserve it so the next picture does not collapse upward.
+      if (rows.length) rows.push(createTabularRow(rows.length, columns.length, pendingRules + hlines, true));
+      else pendingRules += hlines;
+      pendingRules = 0;
+      continue;
+    }
+    if (!hasContent && !rawRow.trim()) {
+      if (rows.length) rows.push(createTabularRow(rows.length, columns.length, pendingRules));
+      pendingRules = 0;
+      continue;
+    }
+    if (!hasContent) continue;
+    const normalizedCells = Array.from({ length: columns.length }, (_unused, column) => cells[column] || emptyTabularCell(column));
+    rows.push({
+      index: rows.length,
+      cells: normalizedCells,
+      // A \hline can share the source row with the following text cell.
+      // In that form it is still a rule *before* the cell, not after it.
+      rulesBefore: pendingRules + hlines
+    });
+    pendingRules = 0;
+  }
+  if (pendingRules && rows.length) rows[rows.length - 1].rulesAfter = pendingRules;
+  if (!rows.length) return null;
+  return {
+    id: definition.id,
+    columns,
+    rows
+  };
+}
+
+function parseTabularColumnSpec(raw) {
+  const columns = [];
+  let pendingLeftRule = false;
+  for (const char of String(raw || "")) {
+    if (char === "|") {
+      if (columns.length) columns[columns.length - 1].rightRule = true;
+      else pendingLeftRule = true;
+      continue;
+    }
+    if (!/[lcr]/.test(char)) continue;
+    columns.push({ align: char, leftRule: pendingLeftRule, rightRule: false });
+    pendingLeftRule = false;
+  }
+  if (pendingLeftRule && columns.length) columns.at(-1).rightRule = true;
+  return columns;
+}
+
+function splitTabularRows(raw) {
+  const rows = [];
+  let current = "";
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  let parenDepth = 0;
+  const text = String(raw || "");
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (char === "[") bracketDepth += 1;
+    else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (char === "(") parenDepth += 1;
+    else if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+    if (char === "\\" && text[index + 1] === "\\" && braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
+      rows.push(current);
+      current = "";
+      index += 1;
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim() || rows.length) rows.push(current);
+  return rows;
+}
+
+function splitTabularCells(raw) {
+  const cells = [];
+  let current = "";
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  let parenDepth = 0;
+  const text = String(raw || "");
+  for (const char of text) {
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (char === "[") bracketDepth += 1;
+    else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (char === "(") parenDepth += 1;
+    else if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+    if (char === "&" && braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
+      cells.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  cells.push(current);
+  return cells;
+}
+
+function parseTabularCell(raw, column) {
+  const pictureIndices = [...String(raw || "").matchAll(/@@tikzkit-picture-(\d+)@@/g)]
+    .map((match) => Number(match[1]))
+    .filter(Number.isFinite);
+  const text = String(raw || "")
+    .replace(/@@tikzkit-picture-\d+@@/g, "")
+    .replace(/%[^\n]*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { column, pictureIndices, text };
+}
+
+function emptyTabularCell(column) {
+  return { column, pictureIndices: [], text: "" };
+}
+
+function createTabularRow(index, columnCount, rulesBefore = 0, blank = false) {
+  return {
+    index,
+    cells: Array.from({ length: columnCount }, (_unused, column) => emptyTabularCell(column)),
+    rulesBefore,
+    blank
+  };
 }
 
 function collectStyleDefinitions(source) {

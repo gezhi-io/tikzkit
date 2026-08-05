@@ -156,12 +156,14 @@ export function interpretTikz(ast, options = {}) {
   // presentation-only translation.
   const documentCoordinates = {};
   const documentNodes = {};
+  const tabularPictureIrs = new Map();
   let inlineCursorX = 0;
   let lastPictureBounds = null;
 
   for (let pictureIndex = 0; pictureIndex < pictures.length; pictureIndex += 1) {
     const picture = pictures[pictureIndex];
-    const targetIr = inlinePictureLayout ? createSceneGraph({ backgroundItems: [] }) : ir;
+    const isTabularPicture = Boolean(picture.tabularLayout);
+    const targetIr = inlinePictureLayout || isTabularPicture ? createSceneGraph({ backgroundItems: [] }) : ir;
     const pictureCoordinates = documentCoordinates;
     const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
@@ -216,7 +218,9 @@ export function interpretTikz(ast, options = {}) {
     if (tikzBoolean(pictureOptions.framed)) {
       addFramedPicture(targetIr, pictureStart, env);
     }
-    if (inlinePictureLayout) {
+    if (isTabularPicture) {
+      tabularPictureIrs.set(picture.figureIndex ?? pictureIndex, targetIr);
+    } else if (inlinePictureLayout) {
       const layout = appendInlinePicture(ir, targetIr, {
         ast,
         picture,
@@ -229,6 +233,8 @@ export function interpretTikz(ast, options = {}) {
       lastPictureBounds = layout.bounds;
     }
   }
+
+  appendTabularPictureLayouts(ir, ast.tabularLayouts || [], tabularPictureIrs);
 
   // Keep the document-wide semantic coordinate registry observable on the
   // returned scene graph. Inline multi-picture placement can translate paint
@@ -269,6 +275,185 @@ function appendInlinePicture(documentIr, pictureIr, context) {
     cursorX: translatedBounds.maxX,
     bounds: translatedBounds
   };
+}
+
+const TABULAR_COLUMN_PADDING = parseDimension("6pt", {});
+const TABULAR_ROW_PADDING = parseDimension("3pt", {});
+const TABULAR_TEXT_HEIGHT = parseDimension("12pt", {});
+const TABULAR_EMPTY_ROW_HEIGHT = parseDimension("11pt", {});
+const TABULAR_BLOCK_GAP = 0.45;
+
+// A document tabular is a measuring layout, not a TikZ transform. Evaluate
+// every picture in its own local coordinate space, then reproduce TeX's
+// column-width / row-height pass before translating paint items into the
+// document scene. This keeps TikZ semantics in the engine and SVG details in
+// the renderer.
+function appendTabularPictureLayouts(documentIr, layouts, pictureIrs) {
+  if (!layouts?.length || !pictureIrs?.size) return;
+  for (const layout of layouts) {
+    const rendered = new Map();
+    for (const row of layout.rows || []) {
+      for (const cell of row.cells || []) {
+        for (const pictureIndex of cell.pictureIndices || []) {
+          const pictureIr = pictureIrs.get(pictureIndex);
+          if (!pictureIr) continue;
+          const items = [...(pictureIr.backgroundItems || []), ...(pictureIr.items || [])];
+          const bounds = computeItemsBoundingBox(items, null);
+          if (bounds) rendered.set(pictureIndex, { pictureIr, bounds });
+        }
+      }
+    }
+    if (!rendered.size) continue;
+    appendSingleTabularPictureLayout(documentIr, layout, rendered);
+  }
+}
+
+function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
+  const columns = layout.columns || [];
+  if (!columns.length) return;
+  const rows = layout.rows || [];
+  const columnContentWidths = columns.map(() => 0);
+  const rowContentHeights = rows.map((row) => row.blank ? 0 : TABULAR_TEXT_HEIGHT);
+
+  for (const row of rows) {
+    for (const cell of row.cells || []) {
+      const column = Number(cell.column);
+      if (!Number.isInteger(column) || column < 0 || column >= columns.length) continue;
+      let cellHeight = cell.text ? TABULAR_TEXT_HEIGHT : 0;
+      let cellWidth = cell.text ? texTextWidthCm(cell.text) : 0;
+      for (const pictureIndex of cell.pictureIndices || []) {
+        const renderedPicture = rendered.get(pictureIndex);
+        if (!renderedPicture) continue;
+        cellWidth = Math.max(cellWidth, renderedPicture.bounds.maxX - renderedPicture.bounds.minX);
+        cellHeight = Math.max(cellHeight, renderedPicture.bounds.maxY - renderedPicture.bounds.minY);
+      }
+      columnContentWidths[column] = Math.max(columnContentWidths[column], cellWidth);
+      rowContentHeights[row.index] = Math.max(rowContentHeights[row.index], cellHeight || TABULAR_TEXT_HEIGHT);
+    }
+  }
+
+  const columnWidths = columnContentWidths.map((width) => Math.max(TABULAR_TEXT_HEIGHT, width) + TABULAR_COLUMN_PADDING * 2);
+  const rowHeights = rowContentHeights.map((height, index) => rows[index].blank
+    ? TABULAR_EMPTY_ROW_HEIGHT
+    : Math.max(TABULAR_TEXT_HEIGHT, height) + TABULAR_ROW_PADDING * 2);
+  const existingBounds = computeItemsBoundingBox([
+    ...(documentIr.backgroundItems || []),
+    ...(documentIr.items || [])
+  ], null);
+  const originX = existingBounds ? existingBounds.maxX + TABULAR_BLOCK_GAP : 0;
+  const originY = existingBounds ? existingBounds.maxY : 0;
+  const columnStarts = [];
+  let tableWidth = 0;
+  for (const width of columnWidths) {
+    columnStarts.push(tableWidth);
+    tableWidth += width;
+  }
+  const tableHeight = rowHeights.reduce((total, height) => total + height, 0);
+  const rowCenters = [];
+  let cursorY = originY;
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    if (row.rulesBefore) addTabularHorizontalRules(documentIr.backgroundItems, originX, cursorY, tableWidth, row.rulesBefore);
+    const height = rowHeights[rowIndex];
+    rowCenters[rowIndex] = cursorY - height / 2;
+    cursorY -= height;
+  }
+  const lastRow = rows.at(-1);
+  if (lastRow?.rulesAfter) addTabularHorizontalRules(documentIr.backgroundItems, originX, cursorY, tableWidth, lastRow.rulesAfter);
+  addTabularVerticalRules(documentIr.backgroundItems, originX, originY, columns, columnWidths, tableHeight);
+
+  for (const row of rows) {
+    const centerY = rowCenters[row.index];
+    for (const cell of row.cells || []) {
+      const column = Number(cell.column);
+      if (!Number.isInteger(column) || column < 0 || column >= columns.length) continue;
+      const contentWidth = columnContentWidths[column];
+      const contentLeft = originX + columnStarts[column] + TABULAR_COLUMN_PADDING;
+      for (const pictureIndex of cell.pictureIndices || []) {
+        const renderedPicture = rendered.get(pictureIndex);
+        if (!renderedPicture) continue;
+        const bounds = renderedPicture.bounds;
+        const width = bounds.maxX - bounds.minX;
+        const centerX = tabularContentAnchorX(columns[column].align, contentLeft, contentWidth, width);
+        const dx = centerX - (bounds.minX + width / 2);
+        const dy = centerY - (bounds.minY + (bounds.maxY - bounds.minY) / 2);
+        translateItems(renderedPicture.pictureIr.backgroundItems || [], dx, dy);
+        translateItems(renderedPicture.pictureIr.items || [], dx, dy);
+        documentIr.backgroundItems.push(...(renderedPicture.pictureIr.backgroundItems || []));
+        documentIr.items.push(...(renderedPicture.pictureIr.items || []));
+      }
+      if (cell.text) {
+        const textWidth = texTextWidthCm(cell.text);
+        const textX = tabularTextAnchorX(columns[column].align, contentLeft, contentWidth, textWidth);
+        documentIr.items.push(createTextShape(
+          cell.text,
+          textX,
+          centerY,
+          tabularTextStyle(),
+          {
+            subtype: "tabular-text",
+            svgTextAnchor: tabularSvgTextAnchor(columns[column].align),
+            svgTextX: textX,
+            font: createFontSpec()
+          }
+        ));
+      }
+    }
+  }
+}
+
+function tabularContentAnchorX(align, left, width, itemWidth) {
+  if (align === "l") return left + itemWidth / 2;
+  if (align === "r") return left + width - itemWidth / 2;
+  return left + width / 2;
+}
+
+function tabularTextAnchorX(align, left, width, textWidth) {
+  if (align === "l") return left;
+  if (align === "r") return left + width;
+  return left + width / 2;
+}
+
+function tabularSvgTextAnchor(align) {
+  if (align === "l") return "start";
+  if (align === "r") return "end";
+  return "middle";
+}
+
+function tabularTextStyle() {
+  return {
+    stroke: "none",
+    fill: "black",
+    textFill: "black",
+    lineWidth: lineWidthFromPt(0.4),
+    fontScale: 1,
+    fontSizeBaseScale: 1,
+    fontFamily: TIKZ_FONT_FAMILY
+  };
+}
+
+function addTabularHorizontalRules(items, x, y, width, count) {
+  for (let index = 0; index < count; index += 1) {
+    const ruleY = y - index * parseDimension("2pt", {});
+    items.push(createPathShape(
+      [moveToCommand({ x, y: ruleY }), lineToCommand({ x: x + width, y: ruleY })],
+      { stroke: "black", fill: "none", lineWidth: lineWidthFromPt(0.4) },
+      { subtype: "tabular-hline" }
+    ));
+  }
+}
+
+function addTabularVerticalRules(items, x, top, columns, widths, height) {
+  let cursorX = x;
+  for (let index = 0; index < columns.length; index += 1) {
+    cursorX += widths[index];
+    if (!columns[index].rightRule) continue;
+    items.push(createPathShape(
+      [moveToCommand({ x: cursorX, y: top }), lineToCommand({ x: cursorX, y: top - height })],
+      { stroke: "black", fill: "none", lineWidth: lineWidthFromPt(0.4) },
+      { subtype: "tabular-vrule" }
+    ));
+  }
 }
 
 function appendInterPictureText(documentIr, context, cursorX) {
