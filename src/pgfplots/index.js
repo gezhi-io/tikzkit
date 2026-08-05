@@ -131,3 +131,10 @@ export {
   parsePgfplotsDateCoordinate,
   pgfplotsDateDay
 } from "./dateCoordinates.js";
+export {
+  dateplotLibrary,
+  fillbetweenLibrary,
+  groupplotsLibrary,
+  knownPgfplotsLibraries,
+  pgfplotsLibraryCatalog
+} from "./libraries/index.js";

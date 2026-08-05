@@ -161,6 +161,26 @@ test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", ()
   assert.equal(dependency.implementedBy, "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip");
 });
 
+test("semantic audit preserves reviewed PGFPlots library metadata and date label ownership", () => {
+  const report = auditTikzSource(String.raw`
+    \usepgfplotslibrary{dateplot}
+    \usetikzlibrary{pgfplots.dateplot}
+    \begin{axis}[date coordinates in=x,date ZERO=1946-06-30,xtick=data,xticklabel={\year}]
+    \end{axis}
+  `, {
+    localSourceResolver: (_lookup, dependency) => dependency.localSource || null
+  });
+  const pgfplotsDependency = report.dependencies.find((entry) => entry.kind === "pgfplots-library" && entry.name === "dateplot");
+  const tikzDependency = report.dependencies.find((entry) => entry.kind === "tikz-library" && entry.name === "pgfplots.dateplot");
+  const year = report.commands.find((entry) => entry.name === "\\year");
+
+  assert.match(pgfplotsDependency.localSource, /tikzlibrarypgfplots\.dateplot\.code\.tex$/);
+  assert.equal(pgfplotsDependency.localSourceReviewed, true);
+  assert.equal(tikzDependency.localSourceReviewed, true);
+  assert.equal(year.implementedBy, "src/pgfplots/dateCoordinates.js:formatPgfplotsDateLabel");
+  assert.equal(year.implementationStatus, "partial");
+});
+
 test("review evidence can satisfy individual semantic features without hiding remaining work", () => {
   const report = auditTikzSource(String.raw`\draw[line width=1pt] (0,0) -- (1,1);`, {
     localSourceResolver: fakeResolver,

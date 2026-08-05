@@ -59,7 +59,8 @@ const COMMAND_OWNERS = {
   tt: owner("src/tex/fontSpec.js", "partial", "latex.ltx"),
   usepackage: owner("src/packages/declarations.js", "stable", "latex.ltx"),
   usepgfplotslibrary: owner("src/pgfplots/axisOptions.js", "stable", "pgfplots.code.tex"),
-  usetikzlibrary: owner("src/tikz/libraries/declarations.js", "stable", "tikz.code.tex")
+  usetikzlibrary: owner("src/tikz/libraries/declarations.js", "stable", "tikz.code.tex"),
+  year: owner("src/pgfplots/dateCoordinates.js:formatPgfplotsDateLabel", "partial")
 };
 
 const OPTION_COMMANDS = new Set([
@@ -184,7 +185,9 @@ function collectDependencies(source, resolver, review) {
   const pgfplotsLibraries = collectPgfplotsLibraries(source).map((entry) => ({
     kind: "pgfplots-library",
     ...entry,
-    localSource: entry.localSourceReviewed || null,
+    localSource: entry.localSource || null,
+    localDoc: entry.localDoc || null,
+    declaredLocalSourceReviewed: Boolean(entry.localSourceReviewed),
     lookup: `tikzlibrarypgfplots.${entry.name}.code.tex`
   }));
 

@@ -8,6 +8,13 @@ import {
   normalizePgfplotsDateAxisOptions,
   parsePgfplotsDateCoordinate
 } from "../src/pgfplots/dateCoordinates.js";
+import {
+  collectPgfplotsLibraries,
+  dateplotLibrary,
+  knownPgfplotsLibraries,
+  pgfplotsLibraryCatalog
+} from "../src/pgfplots/index.js";
+import { collectTikzLibraries } from "../src/tikz/libraries/declarations.js";
 
 const SOURCE = readFileSync(
   new URL("fixtures/examples/latex-examples/landtagswahlen-in-bayern.tex", import.meta.url),
@@ -39,6 +46,19 @@ test("dateplot derives year labels for xtick=data", () => {
 
   assert.equal(options.xticklabels, "{1946,1947}");
   assert.equal(options["scaled x ticks"], false);
+});
+
+test("dateplot declarations resolve through independent PGFPlots and TikZ library modules", () => {
+  const pgfplotsLibraries = collectPgfplotsLibraries(String.raw`\usepgfplotslibrary{dateplot}`);
+  const tikzLibraries = collectTikzLibraries(String.raw`\usetikzlibrary{pgfplots.dateplot}`);
+
+  assert.ok(knownPgfplotsLibraries.includes("dateplot"));
+  assert.equal(dateplotLibrary.status, "partial");
+  assert.equal(pgfplotsLibraryCatalog.dateplot.localSourceReviewed, dateplotLibrary.localSource);
+  assert.equal(pgfplotsLibraries[0].status, "partial");
+  assert.equal(pgfplotsLibraries[0].localSource, dateplotLibrary.localSource);
+  assert.equal(tikzLibraries[0].status, "partial");
+  assert.match(tikzLibraries[0].implementedBy, /dateCoordinates/);
 });
 
 test("real Bavaria election dateplot keeps a bounded axis and renders all series", () => {

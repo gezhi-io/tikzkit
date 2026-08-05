@@ -73,6 +73,7 @@ const OBSERVED_TIKZ_LIBRARIES = [
   "mindmap",
   "patterns",
   "petri",
+  "pgfplots.dateplot",
   "plotmarks",
   "positioning",
   "quotes",

@@ -44,6 +44,7 @@ import { tikzLibrary as matrixLibrary } from "./matrix.js";
 import { tikzLibrary as mindmapLibrary } from "./mindmap.js";
 import { tikzLibrary as patternsLibrary } from "./patterns.js";
 import { tikzLibrary as petriLibrary } from "./petri.js";
+import { tikzLibrary as pgfplotsDateplotLibrary } from "./pgfplots.dateplot.js";
 import { tikzLibrary as plotmarksLibrary } from "./plotmarks.js";
 import { tikzLibrary as positioningLibrary } from "./positioning.js";
 import { tikzLibrary as quotesLibrary } from "./quotes.js";
@@ -113,6 +114,7 @@ const tikzLibraries = Object.freeze([
   mindmapLibrary,
   patternsLibrary,
   petriLibrary,
+  pgfplotsDateplotLibrary,
   plotmarksLibrary,
   positioningLibrary,
   quotesLibrary,

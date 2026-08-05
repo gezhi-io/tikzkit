@@ -281,6 +281,30 @@ Keep the resulting `mactex-png/`, `tikzkit-svg/`, `tikzkit-png/`,
 `tikztosvg-svg/`, `tikztosvg-png/`, and `diff/` directories together. They are
 the minimum evidence bundle for a visual compatibility change.
 
+### Inspect Library Support Before Extending It
+
+Each observed `\usetikzlibrary{...}` name has a declaration module under
+`src/tikz/libraries/`; each observed `\usepgfplotslibrary{...}` name has one
+under `src/pgfplots/libraries/`. The declaration is the compatibility contract:
+it records the support boundary, owning implementation, and reviewed local
+MacTeX source. For example, the focused ISO-date subset is declared in
+`src/pgfplots/libraries/dateplot.js`, while TikZ's loader spelling lives in
+`src/tikz/libraries/pgfplots.dateplot.js`.
+
+Run the semantic audit on the same source before making a renderer change:
+
+```bash
+npm run case:audit -- \
+  test/fixtures/examples/latex-examples/landtagswahlen-in-bayern.tex \
+  --output outputs/qa-dateplot-library/audit.md \
+  --init-review outputs/qa-dateplot-library/review.json
+```
+
+The generated report lists every package, library, command, option, numeric
+literal, and unresolved diagnostic detected in the source. Keep the review
+status `incomplete` until the visual QA panel has been inspected and the
+declared partial boundary is accurate.
+
 ### Verification And Commit Gate
 
 Run the complete automated suite before calling a renderer change accepted:

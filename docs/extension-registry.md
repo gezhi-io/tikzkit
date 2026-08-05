@@ -28,8 +28,6 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | pgfplotslibrary | patchplots | 2 | found | no | Needs pgfplotslibrary compatibility pass |
 | package | brunnian | 1 | missing | not-found | Needs package compatibility pass |
 | tikzlibrary | 3d | 1 | found | no |  |
-| tikzlibrary | pgfplots.dateplot | 1 | found | no | Needs tikzlibrary compatibility pass |
-| pgfplotslibrary | dateplot | 1 | found | no | Needs pgfplotslibrary compatibility pass |
 
 
 ## Highest-Priority Partial Entries
@@ -71,9 +69,9 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | tikzlibrary | calendar | 1 | found | yes | Week-list placement follows PGF's Monday-first calendar advancement and month yshift rule. day/month list variants, localized names, and executable calendar hooks remain unsupported. |
 | package | chemfig | 1 | found | yes | This is a deliberately bounded pure-JS compatibility slice. General chemfig atom grammars, Cram bonds, distant hooks, chemmove, and arbitrary scheme layouts remain unsupported. The captured example uses deprecated setatomsep and lewis commands that need a compatibility shim in current TeX Live. |
 | package | chemmacros | 1 | found | yes | Only the inline formula needed by the chemfig scheme slice is lowered. chemmacros environments and reaction modules remain unsupported. |
+| pgfplotslibrary | dateplot | 1 | found | yes | Reviewed locally: PGFPlots maps ISO dates through pgfcalendar Julian days, subtracts date ZERO, and installs forward/inverse coordinate transforms that expose \year, \month, \day, \hour, and \minute to tick labels. TikZKit implements that focused coordinate/tick path. Arbitrary date default inverse templates, calendar-localized formatting, seconds rounding parity, and date math outside axis coordinates remain unsupported. |
+| tikzlibrary | pgfplots.dateplot | 1 | found | yes | TikZ's pgfplots.dateplot loader is registered separately from the PGFPlots dateplot declaration. It shares the focused ISO-date coordinate lowering; complete PGF calendar formatting and all inverse-template hooks remain partial. |
 | tikzlibrary | plotmarks | 1 | found | yes | mark=x; mark=+; mark=*; mark=o; square/triangle subset; mark size |
-| tikzlibrary | shadings | 1 | found | yes | TikZ declares axis shading as bottom/bottom/middle/top/top at 0/25/50/75/100 percent; pgfshadepath maps the path onto its central interval, which this renderer preserves as a continuous bottom/middle/top SVG gradient with the PGF path-bounding-box rotation model. Bilinear, functional, and arbitrary declared axial shadings remain unsupported; declared radial shading parsing is intentionally limited. |
-| tikzlibrary | trees | 1 | found | yes | node child trees; grow direction; grow cyclic; level distance; sibling distance; sibling angle; clockwise/counterclockwise from; picture-level stroke style inheritance for generated child edges; focused TCS logo macro expansion |
 
 
 ## Implementation Workflow
