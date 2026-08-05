@@ -6553,7 +6553,9 @@ function addNodeItems(node, ir, env) {
       doubleColor: semantic.double === undefined ? undefined : semantic.double || "white",
       shadows: nodeGeneralShadows({ ...node.options, ...semantic }, nodeEnv),
       parts: shape === "rectangleSplit" ? node.rectangleSplit?.count || rectangleSplitParts(semantic) : undefined,
+      rectangleSplitHorizontal: shape === "rectangleSplit" ? node.rectangleSplit?.horizontal : undefined,
       partWidths: shape === "rectangleSplit" ? node.rectangleSplit?.partWidths : undefined,
+      partHeights: shape === "rectangleSplit" ? node.rectangleSplit?.partHeights : undefined,
       separatorWidth: shape === "rectangleSplit" ? node.rectangleSplit?.separatorWidth : undefined,
       partFills:
         shape === "rectangleSplit"
@@ -6583,7 +6585,7 @@ function addNodeItems(node, ir, env) {
       }
     });
   }
-  if (shape === "rectangleSplit" && node.rectangleSplit?.horizontal) {
+  if (shape === "rectangleSplit" && node.rectangleSplit) {
     addRectangleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "circleSplit" && node.circleSplit) {
     addCircleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
@@ -8234,12 +8236,13 @@ function rectangleSplitParts(semantic = {}) {
   return Number.isFinite(parts) && parts > 0 ? Math.round(parts) : 1;
 }
 
-function rectangleSplitPartAlignments(options = {}, count = 1) {
+function rectangleSplitPartAlignments(options = {}, count = 1, horizontal = false) {
   const raw = options["rectangle split part align"];
+  const supported = horizontal ? new Set(["top", "bottom", "base"]) : new Set(["left", "right"]);
   const requested = splitTopLevel(String(raw === undefined ? "center" : raw))
     .map((entry) => stripOuterBraces(entry).trim().toLowerCase())
     .filter(Boolean)
-    .map((entry) => (entry === "top" || entry === "bottom" || entry === "base" ? entry : "center"));
+    .map((entry) => (supported.has(entry) ? entry : "center"));
   const fallback = requested.at(-1) || "center";
   return Array.from({ length: count }, (_unused, index) => requested[index] || fallback);
 }
@@ -8254,7 +8257,8 @@ const RECTANGLE_SPLIT_PART_ORDINALS = [
 ];
 
 function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
-  if (!options["rectangle split"] || !options["rectangle split horizontal"]) return null;
+  if (!options["rectangle split"]) return null;
+  const horizontal = tikzBoolean(options["rectangle split horizontal"]);
   const parsed = rectangleSplitTextParts(text);
   const declared = Number(options["rectangle split parts"]);
   const ignoreEmptyParts = tikzBoolean(options["rectangle split ignore empty parts"]);
@@ -8326,16 +8330,70 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
       boxDepth: roundNumber(plain ? plain.depth / TEX_PT_PER_CM : fallbackBoxDepth)
     };
   });
-  const partWidths = partSizes.map((size) => size.width);
   const visibleCount = visibleLogicalParts.length;
-  let width = partWidths.reduce((sum, value) => sum + value, 0) + separatorWidth * Math.max(0, visibleCount - 1);
-  let height = Math.max(...partSizes.map((size) => size.height), 0.02);
-  if (options["minimum width"]) width = Math.max(width, parseNodeLengthDimension(options["minimum width"], env));
-  if (options["minimum height"]) height = Math.max(height, parseNodeLengthDimension(options["minimum height"], env));
-  if (options["minimum size"]) {
-    const minimumSize = parseNodeLengthDimension(options["minimum size"], env);
-    width = Math.max(width, minimumSize);
-    height = Math.max(height, minimumSize);
+  const partWidths = partSizes.map((size) => size.width);
+  const partHeights = partSizes.map((size) => size.height);
+  let width = horizontal
+    ? partWidths.reduce((sum, value) => sum + value, 0) + separatorWidth * Math.max(0, visibleCount - 1)
+    : Math.max(...partWidths, 0.02);
+  let height = horizontal
+    ? Math.max(...partHeights, 0.02)
+    : partHeights.reduce((sum, value) => sum + value, 0) + separatorWidth * Math.max(0, visibleCount - 1);
+  const minimumWidth = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0;
+  const minimumHeight = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0;
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  if (horizontal) {
+    height = Math.max(height, minimumHeight, minimumSize);
+    width = Math.max(width, minimumWidth, minimumSize);
+  } else {
+    // PGF's vertical rectangle split honors a common minimum width but does
+    // not stretch individual rows to a requested minimum height.
+    width = Math.max(width, minimumWidth, minimumSize);
+  }
+  if (!horizontal) {
+    const contentWidth = Math.max(...partSizes.map((size) => Math.max(0.02, size.width - innerXSep * 2)), 0.02);
+    width = Math.max(width, contentWidth + innerXSep * 2);
+    const partAlignments = rectangleSplitPartAlignments(options, visibleCount, false);
+    let cursor = height / 2;
+    const laidOutParts = visibleLogicalParts.map((part, index) => {
+      const partHeight = partHeights[index];
+      const partSize = partSizes[index];
+      const boxWidth = Math.max(0.02, partSize.width - innerXSep * 2);
+      const boxHeight = partSize.boxHeight || 0;
+      const boxDepth = partSize.boxDepth || 0;
+      const alignment = partAlignments[index];
+      const centerY = cursor - partHeight / 2;
+      const visualCenterX = alignment === "left"
+        ? -width / 2 + innerXSep + boxWidth / 2
+        : alignment === "right"
+          ? width / 2 - innerXSep - boxWidth / 2
+          : 0;
+      const originX = visualCenterX - boxWidth / 2;
+      const originY = centerY + (boxDepth - boxHeight) / 2;
+      cursor -= partHeight + (index < visibleCount - 1 ? separatorWidth : 0);
+      return {
+        ...part,
+        width: width,
+        height: partHeight,
+        centerX: roundNumber(visualCenterX),
+        centerY: roundNumber(centerY),
+        originX: roundNumber(originX),
+        originY: roundNumber(originY),
+        alignment
+      };
+    });
+    return {
+      horizontal: false,
+      count: visibleCount,
+      parts: laidOutParts,
+      logicalParts,
+      partWidths: Array.from({ length: visibleCount }, () => roundNumber(width)),
+      partHeights,
+      innerXSep: roundNumber(innerXSep),
+      innerYSep: roundNumber(innerYSep),
+      separatorWidth: roundNumber(separatorWidth),
+      size: { width: roundNumber(width), height: roundNumber(height) }
+    };
   }
   // PGF's horizontal rectangle split first measures the maximum TeX-box
   // height/depth, then places each part's baseline according to the per-part
@@ -8345,7 +8403,7 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
   const contentHeight = Math.max(0.02, height - innerYSep * 2);
   const maxBoxHeight = Math.max(...partSizes.map((size) => size.boxHeight || 0), 0);
   const maxBoxDepth = Math.max(...partSizes.map((size) => size.boxDepth || 0), 0);
-  const partAlignments = rectangleSplitPartAlignments(options, visibleCount);
+  const partAlignments = rectangleSplitPartAlignments(options, visibleCount, true);
   let cursor = -width / 2;
   const laidOutParts = visibleLogicalParts.map((part, index) => {
     const partWidth = partWidths[index];
@@ -8377,6 +8435,7 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     parts: laidOutParts,
     logicalParts,
     partWidths,
+    partHeights,
     innerXSep: roundNumber(innerXSep),
     innerYSep: roundNumber(innerYSep),
     separatorWidth: roundNumber(separatorWidth),
@@ -11950,7 +12009,7 @@ function circuitikzInductorLocalAnchor(anchor, size = {}) {
 
 function rectangleSplitLocalAnchor(anchor, size = {}) {
   const layout = size.shapeData?.rectangleSplit;
-  if (!layout?.horizontal || !layout.parts?.length) return null;
+  if (!layout?.parts?.length) return null;
   const match = String(anchor || "").match(/^([a-z]+|\d+)(?:\s+(north|south|east|west|split))?$/);
   if (!match) return null;
   const namedIndex = RECTANGLE_SPLIT_PART_NAMES.indexOf(match[1]);
@@ -11959,6 +12018,22 @@ function rectangleSplitLocalAnchor(anchor, size = {}) {
   const logicalPart = layout.logicalParts?.[index];
   const part = logicalPart ? layout.parts[logicalPart.visibleIndex] : layout.parts[index];
   if (!part) return null;
+  if (!layout.horizontal) {
+    const xScale = (Number(size.width) || layout.size.width) / Math.max(layout.size.width, 1e-9);
+    const yScale = (Number(size.height) || layout.size.height) / Math.max(layout.size.height, 1e-9);
+    const centerX = part.centerX * xScale;
+    const centerY = part.centerY * yScale;
+    const halfWidth = (Number(size.width) || layout.size.width) / 2;
+    const halfPartHeight = (part.height * yScale) / 2;
+    const originX = (Number(part.originX) || 0) * xScale;
+    const originY = (Number(part.originY) || 0) * yScale;
+    if (match[2] === "north") return { x: centerX, y: centerY + halfPartHeight };
+    if (match[2] === "south") return { x: centerX, y: centerY - halfPartHeight };
+    if (match[2] === "east") return { x: halfWidth, y: centerY };
+    if (match[2] === "west") return { x: -halfWidth, y: centerY };
+    if (match[2] === "split") return { x: 0, y: centerY - halfPartHeight };
+    return { x: originX, y: originY };
+  }
   const scale = (Number(size.width) || layout.size.width) / Math.max(layout.size.width, 1e-9);
   const centerX = part.centerX * scale;
   const halfPartWidth = (part.width * scale) / 2;

@@ -38,9 +38,9 @@ It is designed for browser rendering of fenced TikZ code blocks, CLI conversion,
   focused compatibility gate, not a claim that arbitrary TikZ input works.
 - Exact glyph hinting and antialiasing can still differ between browser SVG and
   PDF-to-SVG output even when geometry and text placement agree.
-- `shapes.multipart` now verifies horizontal `rectangle split` part alignment
-  for `center`, `top`, `bottom`, and `base`; vertical split alignment and the
-  broader multipart shape family remain partial.
+- `shapes.multipart` now verifies horizontal `rectangle split` alignment
+  (`center`, `top`, `bottom`, `base`) and vertical alignment (`center`, `left`,
+  `right`); the broader multipart shape family remains partial.
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
@@ -397,7 +397,7 @@ Current support is pragmatic and growing. Highlights:
 - Built-in TikZ/PGF libraries: `\usetikzlibrary{shapes}` and `\usepgflibrary{bbox}` style declarations are treated as core library imports; common `shapes.geometric` and `shapes.symbols` nodes render as SVG paths with node-border anchors, and `bezier bounding box` tightens cubic Bézier viewBox/current-bounding-box calculations.
 - Extension-backed libraries: `tikz-network`, `tikz-3dplot`, `tikz-bagua`, `tikz-bpmn`, `tikz-cd`, `tikz-decofonts`, `tikz-dimline`, `tikz-ext`, `tikz-feynhand`, `tikz-feynman`, `tikz-palattice`, `tikz-qtree`, `tikzquads`, and `tikzfxgraph` subsets, plus small compatibility layers for selected graph-style macros.
 - Chemistry packages: a bounded `chemfig` / `chemmacros` scheme slice lowers horizontal reaction schemes into ordinary TikZ paths. It covers the tested aromatic six-member rings, single and double carbonyl bonds, peroxide bridges, reaction arrows, legacy `\setatomsep`, legacy `\lewis`, and the simple `\ch{...}` formula used by the corpus fixture.
-- Multipart nodes: horizontal `rectangle split` nodes support `\nodepart`, per-part fills, named anchors, and `rectangle split ignore empty parts`; ignored slots are removed while their bare anchors resolve to the preceding visible part, matching PGF's B-tree and manual examples.
+- Multipart nodes: horizontal and vertical `rectangle split` nodes support `\nodepart`, per-part fills, named anchors, per-orientation part alignment, and `rectangle split ignore empty parts`; ignored slots are removed while their bare anchors resolve to the preceding visible part, matching PGF's B-tree and manual examples.
 
 Unsupported or partially supported syntax should produce diagnostics instead of silently disappearing.
 
@@ -426,9 +426,11 @@ for the visual comparison and known differences.
 
 ### Rectangle-Split Nodes
 
-Load the library in the usual TikZ form. For a horizontal split, `\nodepart`
-starts the next logical part. `rectangle split ignore empty parts` removes empty
-parts after the first text part; fills retain their original logical part index.
+Load the library in the usual TikZ form. With `rectangle split horizontal`,
+`\nodepart` creates columns and supports `center`, `top`, `bottom`, and `base`.
+Without that key it creates rows and supports `center`, `left`, and `right`.
+`rectangle split ignore empty parts` removes empty parts after the first text
+part; fills retain their original logical part index.
 
 ```tex
 \usetikzlibrary{shapes.multipart}
@@ -440,9 +442,11 @@ parts after the first text part; fills retain their original logical part index.
 \end{tikzpicture}
 ```
 
-The implemented slice covers horizontal layouts. Vertical rectangle splits,
-all per-part `top`/`base`/`bottom` alignment modes, and the full PGF anchor
-surface remain under test.
+Horizontal and vertical rectangle splits, their orientation-specific alignment
+families, and named bare part anchors are implemented for the supported part
+names. `rectangle split part align=none`,
+the full PGF anchor surface, arbitrary nested/multiline part boxes, and the
+broader multipart shape family remain under test.
 
 ## TikZ Library Registry
 

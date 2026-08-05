@@ -7,8 +7,9 @@ This slice implements the horizontal `rectangle split part align` values
 fewer values are supplied than node parts, the last value applies to all
 remaining parts.
 
-It deliberately does not add vertical rectangle splits, the vertical
-`center`/`left`/`right` alignment family, or the `none` alignment value.
+The complementary vertical `center`/`left`/`right` slice is recorded in
+[`2026-08-05-rectangle-split-vertical.md`](2026-08-05-rectangle-split-vertical.md).
+`none` alignment remains outside this scope.
 
 ## Local MacTeX Reading
 
@@ -48,7 +49,6 @@ still keeps the B-tree keys centered and its pointer anchors unchanged.
 
 Still partial:
 
-- vertical `rectangle split` geometry and `left`/`right` part alignment;
 - `rectangle split part align=none`;
 - every multipart style hook and all low-level PGF box allocation controls;
 - exact TeX text metrics for arbitrary macro-expanded or multi-line part text.

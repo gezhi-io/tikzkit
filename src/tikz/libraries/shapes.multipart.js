@@ -5,6 +5,8 @@ export const tikzLibrary = {
   "features": [
     "horizontal rectangle split",
     "per-part horizontal center/top/bottom/base alignment",
+    "vertical rectangle split",
+    "per-part vertical center/left/right alignment",
     "circle split with text/lower node parts",
     "nodepart text boxes",
     "named part anchors",
