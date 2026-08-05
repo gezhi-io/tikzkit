@@ -153,6 +153,16 @@ by Git. Review the native comparison sheet before treating a case as visually
 aligned; a zero-diagnostic audit alone only confirms that the input resource
 and supported syntax were processed.
 
+### Beamer Sources
+
+TikZKit emits one SVG per source. For a Beamer document with multiple
+`frame` environments, it keeps the complete preamble and renders the first
+frame only. This matches the local reference workflow, which rasterizes page 1
+of the Beamer PDF, and prevents later slides from being merged into the same
+SVG. Presentation wrappers such as `figure` and `center` are ignored around
+the selected drawing. Frame titles, overlays, slide navigation, and rendering
+all slides as separate SVGs are not implemented yet.
+
 ## Visual Compatibility Contract
 
 TikZKit is developed as an interpreter, not by matching isolated PNG pixels.

@@ -52,6 +52,28 @@ test("explicit PreviewBorder overrides the standalone document border", () => {
   assert.equal(preprocessTikzSource(source).previewBorder, 0.2);
 });
 
+test("keeps the first beamer frame with its preamble styles and removes layout wrappers", () => {
+  const source = String.raw`\documentclass{beamer}
+\usepackage{tikz}
+\tikzset{shared/.style={draw,fill=blue!20}}
+\begin{document}
+\begin{frame}<1->[fragile]{First page}
+  \begin{figure}
+    \begin{tikzpicture}\node[shared] {First};\end{tikzpicture}
+  \end{figure}
+\end{frame}
+\begin{frame}{Second page}
+  \begin{tikzpicture}\node[shared] {Second};\end{tikzpicture}
+\end{frame}
+\end{document}`;
+
+  const result = preprocessTikzSource(source);
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.source, /shared\/\.style=\{draw,fill=blue!20\}/);
+  assert.match(result.source, /\{First\}/);
+  assert.doesNotMatch(result.source, /Second|\\(?:begin|end)\{(?:frame|figure)\}/);
+});
+
 test("lowers cmyk definecolor values through the tikztosvg DeviceCMYK profile", () => {
   const result = preprocessTikzSource(String.raw`
 \definecolor{printcyan}{cmyk}{1,0,0,0}
