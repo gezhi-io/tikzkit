@@ -2850,6 +2850,31 @@ test("uses TikZ positioning node distance pairs as vertical and horizontal edge 
   assert.equal(ir.coordinates.latent.x, ir.coordinates.encode.x * 2);
 });
 
+test("uses positioning on grid to keep node centres one requested distance apart", () => {
+  const source = String.raw`
+\begin{tikzpicture}[every node/.style={draw,rectangle}]
+  \node (a1) at (0,0) {not gridded};
+  \node (b1) [above=1cm of a1] {fooy};
+  \node (a2) at (2,0) {gridded};
+  \node (b2) [on grid,above=1cm of a2] {fooy};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  const plainDistance = ir.coordinates.b1.y - ir.coordinates.a1.y;
+  const griddedDistance = ir.coordinates.b2.y - ir.coordinates.a2.y;
+  assert.ok(plainDistance > 1.2, `expected border placement to include node heights, got ${plainDistance}`);
+  assert.ok(Math.abs(griddedDistance - 1) < 1e-6, `expected on grid centres to be 1cm apart, got ${griddedDistance}`);
+
+  const inherited = interpretTikz(parseTikz(String.raw`
+\begin{tikzpicture}[on grid]
+  \node (a) at (0,0) {wide};
+  \node [above=1cm of a] (b) {tiny};
+\end{tikzpicture}`).ast).ir.coordinates;
+  assert.ok(Math.abs(inherited.b.y - inherited.a.y - 1) < 1e-6, "expected picture-level on grid to reach child nodes");
+});
+
 test("accepts compact positioning syntax without whitespace before of", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -3841,6 +3841,21 @@
         "dash on/off pairs",
         "dash=none"
       ]
+    },
+    {
+      "id": "positioning-on-grid-center-placement",
+      "title": "PGF positioning on grid centre-to-centre placement",
+      "source": "positioning/on-grid-center-placement.tex",
+      "sourceCorpus": "PGF manual positioning library on grid example",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/positioning.js:resolvePositioningPoint",
+      "features": [
+        "positioning",
+        "above=... of",
+        "on grid",
+        "center-to-center placement",
+        "node distance"
+      ]
     }
   ]
 }

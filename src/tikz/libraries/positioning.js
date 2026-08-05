@@ -5,8 +5,11 @@ export const tikzLibrary = {
   name: "positioning",
   status: "builtin",
   implementedBy: "src/tikz/libraries/positioning.js",
-  features: ["right/left/above/below=... of", "node distance", "legacy right of syntax"],
-  implements: ["right/left/above/below=... of", "node distance", "legacy right of syntax"]
+  localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+  localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-shapes.tex",
+  features: ["right/left/above/below=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
+  implements: ["right/left/above/below=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
+  notes: "Normal positioning preserves PGF border-to-border spacing. on grid makes modern above/below/left/right of placements ignore both node sizes, matching the native center-to-center rule at picture or node scope. base/mid anchors and the legacy right of family remain separate semantics."
 };
 
 export function resolvePositioningPoint(options, env, selfSize = { width: 0, height: 0 }, helpers) {
@@ -14,8 +17,9 @@ export function resolvePositioningPoint(options, env, selfSize = { width: 0, hei
   if (legacy) return legacy;
   const placement = resolvePositioningPlacement(options, env, helpers);
   if (!placement) return null;
-  const dx = positioningDelta(placement.direction, "x", placement.distance, placement.reference, selfSize);
-  const dy = positioningDelta(placement.direction, "y", placement.distance, placement.reference, selfSize);
+  const geometry = positioningGeometry(placement, selfSize);
+  const dx = positioningDelta(placement.direction, "x", placement.distance, geometry.reference, geometry.selfSize);
+  const dy = positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize);
   return roundPoint({ x: placement.reference.point.x + dx, y: placement.reference.point.y + dy });
 }
 
@@ -25,9 +29,10 @@ export function resolveExplicitAtPositioningOffsetPoint(options, env, selfSize =
   const placement = resolvePositioningPlacement(options, env, helpers);
   if (!placement) return null;
   const origin = { point: { x: 0, y: 0 }, width: 0, height: 0 };
+  const geometry = positioningGeometry({ ...placement, reference: origin }, selfSize);
   return {
-    x: positioningDelta(placement.direction, "x", placement.distance, origin, selfSize),
-    y: positioningDelta(placement.direction, "y", placement.distance, origin, selfSize)
+    x: positioningDelta(placement.direction, "x", placement.distance, geometry.reference, geometry.selfSize),
+    y: positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize)
   };
 }
 
@@ -44,9 +49,26 @@ function resolvePositioningPlacement(options, env, helpers) {
     const distance = scalePositioningDistance(placement.distance, env, helpers);
     const reference = resolvePositioningReference(placement.reference, env, helpers);
     if (!reference) continue;
-    return { direction, distance, reference };
+    return { direction, distance, reference, onGrid: positioningUsesGrid(options, env) };
   }
   return null;
+}
+
+function positioningGeometry(placement, selfSize) {
+  if (!placement.onGrid) return { reference: placement.reference, selfSize };
+  return {
+    reference: { ...placement.reference, width: 0, height: 0 },
+    selfSize: { width: 0, height: 0 }
+  };
+}
+
+function positioningUsesGrid(options = {}, env = {}) {
+  const value = Object.hasOwn(options, "on grid")
+    ? options["on grid"]
+    : env.pictureOptions?.["on grid"];
+  if (value === undefined || value === null || value === false || value === 0) return false;
+  const text = stripOuterBraces(String(value).trim()).toLowerCase();
+  return !["false", "no", "off", "0"].includes(text);
 }
 
 function parsePositioningOfExpression(text, env) {
