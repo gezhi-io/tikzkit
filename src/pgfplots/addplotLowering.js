@@ -24,10 +24,19 @@ import {
   sampleParametricDataPoints
 } from "./rangeResolver.js";
 import { isAxisQuiverPlot, renderAxisQuiverPlot } from "./quiver.js";
-import { renderAxisParametricSurfacePlot, renderAxisSurfaceCoordinatePlot, renderAxisSurfacePlot } from "./surface.js";
+import {
+  isAxisTrianglePatchPlot,
+  renderAxisParametricSurfacePlot,
+  renderAxisSurfaceCoordinatePlot,
+  renderAxisSurfacePlot,
+  renderAxisTrianglePatchCoordinatePlot
+} from "./surface.js";
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
   if (plot.type === "coordinates") {
+    if (isAxisTrianglePatchPlot(plot, axisOptions)) {
+      return renderAxisTrianglePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
+    }
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }

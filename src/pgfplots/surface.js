@@ -8,6 +8,38 @@ import { isPgfplotsTopView, pgfplotsViewDirection } from "./geometry.js";
 import { colorToRgb, normalizeColor } from "../engine/options.js";
 import { encodeRgbaPngDataUri } from "./rasterPng.js";
 
+export function isAxisTrianglePatchPlot(plot, axisOptions = {}) {
+  if (!plot?.is3d) return false;
+  const options = plot.options || {};
+  if (!options.patch && !axisOptions.patch) return false;
+  return String(options["patch type"] ?? axisOptions["patch type"] ?? "").trim().toLowerCase() === "triangle";
+}
+
+export function renderAxisTrianglePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
+  const points = plot.points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
+  const patches = [];
+  for (let index = 0; index + 2 < points.length; index += 3) {
+    const patch = surfacePatchFromCorners(points.slice(index, index + 3), ranges, axisOptions);
+    if (patch) patches.push(patch);
+  }
+  if (!patches.length) return [];
+
+  const colorRanges = surfaceColorRanges(ranges, [points], axisOptions, plot.options);
+  const zBuffer = String(plot.options["z buffer"] ?? axisOptions["z buffer"] ?? "sort").trim().toLowerCase();
+  const orderedPatches = zBuffer === "none" ? patches : [...patches].sort((left, right) => left.depth - right.depth);
+  const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
+  return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
+    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
+    // PGFPlots' linear patch handler uses its faceted mesh color even when
+    // the plot also provides a generic draw key. This matches the native
+    // triangle patch's separate orange fill and darker mesh outline.
+    const draw = pgfplotsSurfacePatchStrokeColor({ ...plot.options, surf: true }, fill);
+    const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
+    const pointsText = patch.corners.map((corner) => formatAxisPoint(geometry.mapPoint3d(corner))).join(" -- ");
+    return renderAxisSurfacePatchLayers(pointsText, { fill, draw, opacity, lineWidth });
+  }));
+}
+
 export function renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
   const points = plot.points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
   const coordinateRows = finiteSurfaceCoordinateRows(plot.coordinateRows);

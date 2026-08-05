@@ -3761,6 +3761,22 @@
       ]
     },
     {
+      "id": "pgfplots-patchplots-triangle",
+      "title": "PGFPlots patchplots planar triangle",
+      "source": "pgfplots/patchplots-triangle.tex",
+      "sourceCorpus": "TeX Live PGFPlots patchplots library",
+      "externalSource": "tex/generic/pgfplots/libs/tikzlibrarypgfplots.patchplots.code.tex",
+      "semanticOwner": "src/pgfplots/surface.js:renderAxisTrianglePatchCoordinatePlot",
+      "features": [
+        "usepgfplotslibrary patchplots",
+        "addplot3 patch",
+        "patch type triangle",
+        "three-coordinate planar patch",
+        "3D projection",
+        "faceted mesh outline"
+      ]
+    },
+    {
       "id": "chains-placed-chain-layout",
       "title": "TikZ chains placed positioning layout",
       "source": "chains/placed-chain-layout.tex",

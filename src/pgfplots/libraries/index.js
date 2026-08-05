@@ -1,15 +1,16 @@
 import { pgfplotsLibrary as dateplotLibrary } from "./dateplot.js";
 import { pgfplotsLibrary as fillbetweenLibrary } from "./fillbetween.js";
 import { pgfplotsLibrary as groupplotsLibrary } from "./groupplots.js";
+import { pgfplotsLibrary as patchplotsLibrary } from "./patchplots.js";
 
-const libraries = Object.freeze([dateplotLibrary, fillbetweenLibrary, groupplotsLibrary].map(normalizePgfplotsLibrary));
+const libraries = Object.freeze([dateplotLibrary, fillbetweenLibrary, groupplotsLibrary, patchplotsLibrary].map(normalizePgfplotsLibrary));
 
 export const pgfplotsLibraryCatalog = Object.freeze(
   Object.fromEntries(libraries.map((library) => [library.name, library]))
 );
 
 export const knownPgfplotsLibraries = Object.freeze(libraries.map((library) => library.name));
-export { dateplotLibrary, fillbetweenLibrary, groupplotsLibrary };
+export { dateplotLibrary, fillbetweenLibrary, groupplotsLibrary, patchplotsLibrary };
 
 function normalizePgfplotsLibrary(library) {
   return Object.freeze({

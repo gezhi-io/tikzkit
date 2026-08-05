@@ -55,7 +55,12 @@ export {
   sampleParametricDataPoints
 } from "./rangeResolver.js";
 export { isAxisQuiverPlot, renderAxisQuiverPlot } from "./quiver.js";
-export { renderAxisSurfaceCoordinatePlot, renderAxisSurfacePlot } from "./surface.js";
+export {
+  isAxisTrianglePatchPlot,
+  renderAxisSurfaceCoordinatePlot,
+  renderAxisSurfacePlot,
+  renderAxisTrianglePatchCoordinatePlot
+} from "./surface.js";
 export {
   createAxisGeometry,
   axisScaleFactor,
@@ -135,6 +140,7 @@ export {
   dateplotLibrary,
   fillbetweenLibrary,
   groupplotsLibrary,
+  patchplotsLibrary,
   knownPgfplotsLibraries,
   pgfplotsLibraryCatalog
 } from "./libraries/index.js";

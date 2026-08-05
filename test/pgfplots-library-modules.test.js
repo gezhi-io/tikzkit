@@ -7,11 +7,12 @@ import {
   dateplotLibrary,
   fillbetweenLibrary,
   groupplotsLibrary,
+  patchplotsLibrary,
   knownPgfplotsLibraries,
   pgfplotsLibraryCatalog
 } from "../src/pgfplots/index.js";
 
-const OBSERVED_PGFPLOTS_LIBRARIES = ["dateplot", "fillbetween", "groupplots"];
+const OBSERVED_PGFPLOTS_LIBRARIES = ["dateplot", "fillbetween", "groupplots", "patchplots"];
 
 test("keeps observed PGFPlots libraries in one module per library name", () => {
   assert.deepEqual(knownPgfplotsLibraries, OBSERVED_PGFPLOTS_LIBRARIES);
@@ -25,5 +26,7 @@ test("keeps observed PGFPlots libraries in one module per library name", () => {
   assert.equal(dateplotLibrary.name, "dateplot");
   assert.equal(fillbetweenLibrary.status, "partial");
   assert.equal(groupplotsLibrary.name, "groupplots");
+  assert.equal(patchplotsLibrary.name, "patchplots");
   assert.equal(pgfplotsLibraryCatalog.dateplot.implementationStatus, "partial");
+  assert.equal(pgfplotsLibraryCatalog.patchplots.implementationStatus, "partial");
 });
