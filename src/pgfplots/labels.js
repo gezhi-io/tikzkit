@@ -9,11 +9,6 @@ import { parseTikzFontPatch } from "../tex/fontSpec.js";
 const PGFPLOTS_MIDDLE_AXIS_TITLE_OFFSET = parseDimension("8.5pt", {});
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
 const PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING = "1.98pt";
-// With middle axes and outside ticks, legacy PGFPlots resolves the terminal
-// label from the completed open-axis picture, not the data-line endpoint.
-// For the 0.4pt legacy axis, the combined arrow and node-anchor result lands
-// 2.5pt beyond TikZKit's lowered data-end coordinate in this output layer.
-const PGFPLOTS_OUTSIDE_MIDDLE_AXIS_LABEL_EXTENT = parseDimension("2.5pt", {});
 
 export function createAxisLabelModel(axisOptions = {}) {
   return {
@@ -31,8 +26,6 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
   const middleAxis = isMiddleAxis(axisOptions);
   const xAxisMiddle = isAxisLineMiddle(axisOptions, "x");
   const yAxisMiddle = isAxisLineMiddle(axisOptions, "y");
-  const xMiddleLabelExtent = middleAxisOutsideTickLabelExtent(axisOptions, "x", xAxisMiddle);
-  const yMiddleLabelExtent = middleAxisOutsideTickLabelExtent(axisOptions, "y", yAxisMiddle);
   const labelFont = (axis) => roleFontOption("axisLabel", axisOptions, axisLabelFontOption(axisOptions, axis));
   const titleFont = roleFontOption("title", axisOptions, fontFromStyle(axisOptions["title style"]) || axisOptions["axis title font"]);
   const xLabelOffset = parseAxisLabelOffset(
@@ -66,7 +59,7 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
   if (axisOptions.xlabel && !pgfplotsAxisHidden(axisOptions, "x")) {
     const xlabelStyle = axisOptions["xlabel style"] || axisOptions["x label style"];
     const point = xAxisMiddle
-      ? offsetPoint(geometry.mapPoint({ x: labelRanges.xMax, y: yAxis }), xMiddleLabelExtent, 0)
+      ? geometry.mapPoint({ x: labelRanges.xMax, y: yAxis })
       : offsetPoint(geometry.mapPoint({ x: (ranges.xMin + ranges.xMax) / 2, y: ranges.yMin }), 0, -xLabelOffset);
     const placement = applyAxisLabelStyle(point, xAxisMiddle ? "south east" : "north", xlabelStyle, {
       geometry,
@@ -96,7 +89,7 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
           ? Math.max(xOffset * 1.65, 0.7)
           : Math.max(xOffset * 2.6, 1.1);
     const point = yAxisMiddle
-      ? offsetPoint(geometry.mapPoint({ x: xAxis, y: labelRanges.yMax }), 0, yMiddleLabelExtent)
+      ? geometry.mapPoint({ x: xAxis, y: labelRanges.yMax })
       : offsetPoint(geometry.mapPoint({ x: ranges.xMin, y: (ranges.yMin + ranges.yMax) / 2 }), -ylabelXOffset, 0);
     const placement = applyAxisLabelStyle(
       point,
@@ -187,14 +180,6 @@ function isAxisLineMiddle(axisOptions = {}, axis) {
   const raw = explicit ?? axisOptions["axis lines"] ?? axisOptions["axis lines*"] ?? axisOptions.axis ?? axisOptions.axisLines;
   const mode = String(raw || "").trim().toLowerCase();
   return mode === "middle" || mode === "center";
-}
-
-function middleAxisOutsideTickLabelExtent(axisOptions = {}, axis, middleAxis) {
-  if (!middleAxis) return 0;
-  const alignment = axisOptions[`${axis} tick align`] ?? axisOptions["tick align"];
-  return String(alignment || "").trim().toLowerCase() === "outside"
-    ? PGFPLOTS_OUTSIDE_MIDDLE_AXIS_LABEL_EXTENT
-    : 0;
 }
 
 function middleAxisMathLabelLayoutOptions(value, rawStyle, middleAxis) {

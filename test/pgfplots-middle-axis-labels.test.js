@@ -44,6 +44,21 @@ test("PGFPlots middle labels anchor exactly at ticklabel* cs:1", () => {
   );
 });
 
+test("PGFPlots legacy outside ticks do not move middle-axis terminal labels beyond current axis anchors", () => {
+  const { geometry, commands } = renderLabels({ "tick align": "outside" });
+  const xTip = geometry.mapPoint({ x: geometry.lineRanges.xMax, y: 0 });
+  const yTip = geometry.mapPoint({ x: 0, y: geometry.lineRanges.yMax });
+
+  assert.ok(
+    commands.some((command) => command.includes(`anchor=south east] at (${xTip.x.toFixed(3)},${xTip.y.toFixed(3)}) {$x$}`)),
+    `outside ticks must retain the PGFPlots current-axis x terminal:\n${commands.join("\n")}`
+  );
+  assert.ok(
+    commands.some((command) => command.includes(`anchor=north west] at (${yTip.x.toFixed(3)},${yTip.y.toFixed(3)}) {$y$}`)),
+    `outside ticks must retain the PGFPlots current-axis y terminal:\n${commands.join("\n")}`
+  );
+});
+
 test("PGFPlots applies near-ticklabel placement to each middle axis independently", () => {
   const xOnly = renderLabels({ "axis y line": "left" });
   const xTip = xOnly.geometry.mapPoint({ x: xOnly.geometry.lineRanges.xMax, y: 0 });

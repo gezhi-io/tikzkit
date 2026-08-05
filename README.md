@@ -452,6 +452,37 @@ retains the locally measured native canvas contract. Visual changes must also
 be reviewed with the generated TikZKit/reference/diff sheets; a numeric image
 diff alone is not considered sufficient acceptance.
 
+### Real-Case Visual QA Workflow
+
+TikZKit is still under active testing, so use this workflow before treating a
+new feature or a changed real-world case as compatible:
+
+```bash
+# 1. Inventory every command, option, dependency, value, and expression.
+npm run case:audit -- path/to/case.tex \
+  --output outputs/case-audit.md \
+  --init-review outputs/case-review.json
+
+# 2. Create MacTeX, TikZKit, tikztosvg, PNG, and comparison artifacts.
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/examples \
+  --output outputs/qa-my-feature \
+  --only <fixture-id> \
+  --native-reference \
+  --comparison-grid-mode svg
+
+# 3. Produce per-pixel supporting diffs and open the generated comparison page.
+node scripts/diff-example-pngs.js --output outputs/qa-my-feature
+open outputs/qa-my-feature/index.html
+```
+
+Inspect the native, tikztosvg, TikZKit, and diff panels together. Check missing
+elements, coordinate scale and origin, labels/fonts, arrows, line weight,
+paint order, clipping, and canvas bounds. Record the reviewed local MacTeX
+source and the remaining unsupported syntax in `docs/qa/`; do not accept a
+case from a canvas-size or mean-difference number alone. Generated `outputs/`
+artifacts are local QA evidence and are intentionally ignored by Git.
+
 ## Supported TikZ Surface
 
 Current support is pragmatic and growing. Highlights:

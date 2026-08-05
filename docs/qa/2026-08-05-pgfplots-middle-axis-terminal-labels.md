@@ -22,9 +22,15 @@ styles, or the broader axis-description layout system.
     `5 * (0.28pt + 0.3 * linewidth)`; this is `2pt` for the driver's `0.4pt`
     axis line.
 
-The final JS label shift is `2.5pt`, rather than a direct copy of the arrow
-extension: it calibrates the finished SVG node anchor after the arrow and text
-box are combined in TikZKit's lowered coordinate layer.
+### Superseded calibration
+
+This record originally applied a `2.5pt` label shift. Follow-up visual QA on
+`learn-curve-ml` and `linear-functions` showed that the shift was too broad:
+it inflated the canvas while the labels already had the correct semantic anchor.
+The active implementation now follows the source literally: labels attach at
+`current axis.right/above origin`; the arrow renderer alone contributes the
+visible arrow-tip extension. The corrective evidence is recorded in
+[`2026-08-05-pgfplots-middle-axis-anchor-bounds.md`](./2026-08-05-pgfplots-middle-axis-anchor-bounds.md).
 
 ## Reference Artifacts
 
@@ -42,13 +48,13 @@ locally with `/opt/homebrew/bin/rsvg-convert`.
 - Visual comparison sheet:
   `outputs/qa-pgfplots-activation-labels/diff/latex-examples-activation-functions-sheet.png`
 
-## Visual Result
+## Historical Visual Result
 
-Before this change, the TikZKit `x` and `y` labels stopped visibly inside their
-middle-axis arrow tips. After applying the outside-tick terminal calibration,
-both labels land at the same terminal position as the tikztosvg and native
-references. The JS and tikztosvg panels retain the same `576 x 261` canvas and
-grid alignment.
+The initial calibration corrected an under-extended label position in
+`activation-functions`, but it was not a general rule. The later review found
+that applying it to every `tick align=outside` middle axis incorrectly enlarged
+other completed pictures. Do not use this document as evidence for an additive
+label offset.
 
 Residual differences remain visible in formula glyph metrics, legend text
 rasterization, dashing, and dense function sampling. Those are separate
@@ -57,13 +63,13 @@ claim.
 
 ## Regression and Acceptance
 
-Focused regression:
+Focused regression for the corrected rule:
 
 ```sh
-node --test --test-name-pattern='activation-functions' test/pgfplots-seams.test.js
+node --test test/pgfplots-middle-axis-labels.test.js
+node --test test/latex-examples-new30-acceptance.test.js
 ```
 
-All four activation-functions tests pass, including zero diagnostics, label
-attachment, legend alignment, and public font size. The broad PGFPlots seam
-suite remains partial: 163 of 205 tests pass, with 42 existing or unrelated
-failures covering broader middle-axis, tick-label, and plot-layout behavior.
+The focused label suite passes, and the 30-case compatibility gate passes for
+all 30 fixtures. PGFPlots remains partial outside the explicitly tested
+middle-axis, range, tick-label, and plot-layout slices.
