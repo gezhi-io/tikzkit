@@ -328,10 +328,25 @@ Current support is pragmatic and growing. Highlights:
   verified boundary.
 - `tkz-fct` Cartesian frame: `\tkzInit`, `\tkzGrid`, and `\tkzAxeXY` support
   separate x/y scales, same-sign local origins, explicit grid ranges, and
-  `sub` grids. The scalar `\tkzFct` subset samples source-unit expressions;
-  parametric/polar functions, gnuplot cache identifiers, tangents, areas, and
-  asymptotes remain outside the verified boundary. See
-  [`docs/qa/2026-08-05-tkz-fct-grid-origin.md`](docs/qa/2026-08-05-tkz-fct-grid-origin.md).
+  `sub` grids. `\tkzFct` samples scalar source-unit expressions, while
+  `\tkzFctPar[domain=...,samples=...]{x(t)}{y(t)}` evaluates `t`-based
+  parametric curves, scales each coordinate with its own `xstep`/`ystep`, and
+  clips to the initialized frame. The documented defaults are `domain=-5:5`
+  and `samples=200`; ordinary draw options such as `color`, `style`, and
+  `line width` pass through. `\tkzFctPolar`, cache IDs, tangents, areas,
+  asymptotes, adaptive sampling, and general parametric discontinuity analysis
+  remain outside the verified boundary. See
+  [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md).
+
+  ```tex
+  \usepackage{tkz-fct}
+  \begin{tikzpicture}
+    \tkzInit[ymax=2.25,ystep=.5]
+    \tkzGrid
+    \tkzAxeXY
+    \tkzFctPar[samples=400,domain=0:2*pi]{t-sin(t)}{1-cos(t)}
+  \end{tikzpicture}
+  ```
 - PGFPlots subset: common `axis`, `addplot`, function sampling, coordinates, labels, legends, middle axes.
 - 3D subset: TikZ `x=`, `y=`, `z=` basis projection.
 - TeX-lite macros: common `\def`, `\newcommand`, `\foreach`, `\pgfmathsetmacro`.

@@ -13,7 +13,7 @@ const DISCONTINUITY_FIXTURE = new URL(
 
 test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", () => {
   assert.equal(tkzFctExtension.phase, "preprocess");
-  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct"]);
+  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct", "tkzFctPar"]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
   assert.equal(pkg.implementedBy, "src/extensions/tkz-fct.js");
@@ -45,6 +45,36 @@ test("renders tkzFct expressions in source units before xstep and ystep scaling"
   assert.deepEqual(
     path.commands.map((command) => [command.x, command.y]),
     [[0, 1], [2.5, 3], [3.75, 4]]
+  );
+});
+
+test("lowers tkzFctPar by evaluating t in source units and scaling each coordinate", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=10,ymin=0,ymax=20,ystep=5]
+  \tkzFctPar[color=red,style=dashed,samples=3,domain=0:10]{t}{2*t+5}
+\end{tikzpicture}`);
+
+  assert.doesNotMatch(expanded, /\\tkzFctPar/);
+  assert.match(expanded, /\\begin\{scope\}\\clip \(0,0\) rectangle \(10,4\);/);
+  assert.match(expanded, /\\draw\[color=red,dashed,line width=0\.4pt\] \(0,1\) -- \(5,3\) -- \(7\.5,4\);/);
+});
+
+test("uses tkzFctPar's native -5:5 default domain independently of the frame", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-2,xmax=2,ymin=-2,ymax=2]
+  \tkzFctPar[color=blue,samples=3]{t}{t}
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(paths.length, 1);
+  assert.deepEqual(
+    paths[0].commands.map((command) => [command.x, command.y]),
+    [[-2, -2], [0, 0], [2, 2]]
   );
 });
 
