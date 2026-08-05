@@ -177,6 +177,25 @@ The output directory contains TikZKit SVG/PNG, tikztosvg SVG/PNG, optional
 Use `node scripts/render-example-fixtures.js --help` and
 `node scripts/diff-example-pngs.js --help` to inspect the supported switches.
 
+For a native MacTeX reference, compile the exact fixture separately and put
+the PNG beside the generated artifacts. This makes the acceptance target
+explicit: TikZKit geometry, clipping, labels, arrows, and visible text must be
+compared with both an independent SVG converter and the local TeX result. A
+low pixel difference is only a triage signal; inspect the sheet before calling
+a case compatible.
+
+```bash
+mkdir -p /private/tmp/tikzkit-native outputs/qa-my-feature/mactex-png
+cp test/fixtures/examples/<topic>/<case>.tex /private/tmp/tikzkit-native/main.tex
+(cd /private/tmp/tikzkit-native && pdflatex -interaction=nonstopmode -halt-on-error main.tex)
+pdftoppm -png -r 144 -singlefile /private/tmp/tikzkit-native/main.pdf \
+  outputs/qa-my-feature/mactex-png/<case>
+```
+
+Keep the resulting `mactex-png/`, `tikzkit-svg/`, `tikzkit-png/`,
+`tikztosvg-svg/`, `tikztosvg-png/`, and `diff/` directories together. They are
+the minimum evidence bundle for a visual compatibility change.
+
 ## Browser and Markdown Usage
 
 TikZKit also renders Markdown-like TikZ code blocks. Both backtick fences and

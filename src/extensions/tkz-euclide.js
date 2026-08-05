@@ -10,6 +10,7 @@ const IMPLEMENTED_COMMANDS = [
   "tkzDefPoint",
   "tkzDefPoints",
   "tkzDefMidPoint",
+  "tkzDefBarycentricPoint",
   "tkzDefCircle",
   "tkzDefLine",
   "tkzTangent",
@@ -172,6 +173,7 @@ function expandCommand(source, name, afterName, state, diagnostics) {
   if (name === "tkzDefPoints") return expandDefPoints(source, afterName, state, diagnostics);
   if (name === "tkzDefPoint") return expandDefPoint(source, afterName, state, diagnostics);
   if (name === "tkzDefMidPoint") return expandDefMidPoint(source, afterName, state, diagnostics);
+  if (name === "tkzDefBarycentricPoint") return expandDefBarycentricPoint(source, afterName, state, diagnostics);
   if (name === "tkzDefCircle") return expandDefCircle(source, afterName, state, diagnostics);
   if (name === "tkzDefLine") return expandDefLine(source, afterName, state, diagnostics);
   if (name === "tkzTangent" || name === "tkzDefTangent") return expandTangent(source, afterName, state, diagnostics);
@@ -317,6 +319,51 @@ function expandDefMidPoint(source, afterName, state, diagnostics) {
   return {
     text: `\\coordinate (tkzPointResult) at (${formatNumber(state.pointResult.x)},${formatNumber(state.pointResult.y)});`,
     end: pair.end
+  };
+}
+
+function expandDefBarycentricPoint(source, afterName, state, diagnostics) {
+  const weights = parseParenthesizedArg(source, afterName);
+  state.pointResult = null;
+  state.pointResults = [];
+  if (!weights) return malformed(diagnostics, "tkzDefBarycentricPoint");
+
+  const entries = [];
+  for (const part of splitTopLevel(weights.content, ",")) {
+    const separator = part.indexOf("=");
+    const pointName = separator < 0 ? "" : part.slice(0, separator).trim();
+    const weightExpression = separator < 0 ? "" : part.slice(separator + 1).trim();
+    const point = state.points.get(pointName);
+    const weight = evaluateMath(resolveNumericMacros(weightExpression, state));
+    if (!pointName || !point || !Number.isFinite(weight)) {
+      warn(diagnostics, `Could not resolve tkzDefBarycentricPoint entry ${part.trim() || "(empty)"}`);
+      return { text: "", end: weights.end };
+    }
+    entries.push({ point, weight });
+  }
+
+  if (entries.length < 2) {
+    warn(diagnostics, "tkzDefBarycentricPoint requires at least two weighted points");
+    return { text: "", end: weights.end };
+  }
+
+  const weightSum = entries.reduce((sum, entry) => sum + entry.weight, 0);
+  if (Math.abs(weightSum) < 1e-12) {
+    warn(diagnostics, "tkzDefBarycentricPoint has zero total weight");
+    return { text: "", end: weights.end };
+  }
+
+  // TeX Live delegates directly to `barycentric cs:`: the resulting point is
+  // the weighted vector sum divided by the sum of all weights. Negative
+  // weights deliberately construct exterior points, which the real geometry
+  // examples use for extended triangle sides.
+  state.pointResult = {
+    x: roundNumber(entries.reduce((sum, entry) => sum + entry.weight * entry.point.x, 0) / weightSum, 10),
+    y: roundNumber(entries.reduce((sum, entry) => sum + entry.weight * entry.point.y, 0) / weightSum, 10)
+  };
+  return {
+    text: `\\coordinate (tkzPointResult) at (${formatNumber(state.pointResult.x)},${formatNumber(state.pointResult.y)});`,
+    end: weights.end
   };
 }
 

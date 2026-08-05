@@ -21,7 +21,7 @@ function structuralPaths(result) {
 test("exposes tkz-euclide as a built-in preprocess extension", () => {
   assert.equal(tkzEuclideExtension.name, "tkz-euclide");
   assert.equal(tkzEuclideExtension.phase, "preprocess");
-  for (const command of ["tkzSetUpLabel", "tkzSetUpStyle", "tkzDefPoints", "tkzDefMidPoint", "tkzDefCircle", "tkzInterLL", "tkzInterLC", "tkzGetLength", "tkzDrawSegments", "tkzDrawPolygon", "tkzDrawCircle", "tkzClipCircle", "tkzDrawArc", "tkzDrawSector", "tkzMarkSegment", "tkzMarkSegments", "tkzMarkAngle", "tkzMarkAngles", "tkzMarkRightAngle", "tkzMarkRightAngles", "tkzFillAngle", "tkzFillAngles", "tkzLabelAngle", "tkzLabelPoint", "tkzLabelPoints", "tkzLabelSegment", "tkzLabelSegments"]) {
+  for (const command of ["tkzSetUpLabel", "tkzSetUpStyle", "tkzDefPoints", "tkzDefMidPoint", "tkzDefBarycentricPoint", "tkzDefCircle", "tkzInterLL", "tkzInterLC", "tkzGetLength", "tkzDrawSegments", "tkzDrawPolygon", "tkzDrawCircle", "tkzClipCircle", "tkzDrawArc", "tkzDrawSector", "tkzMarkSegment", "tkzMarkSegments", "tkzMarkAngle", "tkzMarkAngles", "tkzMarkRightAngle", "tkzMarkRightAngles", "tkzFillAngle", "tkzFillAngles", "tkzLabelAngle", "tkzLabelPoint", "tkzLabelPoints", "tkzLabelSegment", "tkzLabelSegments"]) {
     assert.ok(tkzEuclideExtension.commands.includes(command));
   }
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-euclide}`)[0];
@@ -48,6 +48,26 @@ test("constructs named tkz-euclide midpoints from the centers of two points", ()
   assert.deepEqual(result.ir.coordinates.M, { x: 2, y: -1 });
   assert.deepEqual(result.ir.coordinates.ReverseM, { x: 2, y: -1 });
   assert.deepEqual(result.ir.coordinates.OnMedian, { x: 2, y: -1 });
+});
+
+test("constructs tkz-euclide barycentric points with positive, negative, and macro weights", () => {
+  const source = String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/A,6/0/B,0/9/C}
+  \tkzDefBarycentricPoint(A=1,B=2,C=3)\tkzGetPoint{Interior}
+  \tkzDefBarycentricPoint(A=-5,C=1)\tkzGetPoint{Exterior}
+  \pgfmathsetmacro{\two}{2}
+  \tkzDefBarycentricPoint(A=1,C=\two)\tkzGetPoint{MacroWeight}
+  \tkzDrawSegments[red](A,Interior A,Exterior A,MacroWeight)
+\end{tikzpicture}`;
+  const diagnostics = [];
+  const expanded = expandTkzEuclide(source, diagnostics);
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(expanded, /\\coordinate \(tkzPointResult\) at \(2,4\.5\);\\coordinate \(Interior\) at \(tkzPointResult\);/);
+  assert.match(expanded, /\\coordinate \(tkzPointResult\) at \(0,-2\.25\);\\coordinate \(Exterior\) at \(tkzPointResult\);/);
+  assert.match(expanded, /\\coordinate \(tkzPointResult\) at \(0,6\);\\coordinate \(MacroWeight\) at \(tkzPointResult\);/);
 });
 
 test("preserves a midpoint between ordinary TikZ node anchors as a calc coordinate", () => {

@@ -150,13 +150,19 @@ export function interpretTikz(ast, options = {}) {
   const ir = createSceneGraph({ backgroundItems: [], previewBorder: ast.previewBorder });
   const pictures = ast.pictures || [];
   const inlinePictureLayout = pictures.length > 1 && options.multiPictureLayout !== false;
+  // PGF registers named nodes and coordinates at document scope. Keep that
+  // semantic registry separate from the renderer's optional inline layout:
+  // later pictures can refer to an earlier name without inheriting its
+  // presentation-only translation.
+  const documentCoordinates = {};
+  const documentNodes = {};
   let inlineCursorX = 0;
   let lastPictureBounds = null;
 
   for (let pictureIndex = 0; pictureIndex < pictures.length; pictureIndex += 1) {
     const picture = pictures[pictureIndex];
     const targetIr = inlinePictureLayout ? createSceneGraph({ backgroundItems: [] }) : ir;
-    const pictureCoordinates = inlinePictureLayout ? targetIr.coordinates : ir.coordinates;
+    const pictureCoordinates = documentCoordinates;
     const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
     const baseVariables = evaluatePicturePgfMathMacros(picture.pgfMathMacros || [], DEFAULT_TEX_VARIABLES);
@@ -170,7 +176,7 @@ export function interpretTikz(ast, options = {}) {
     const pictureTransformEnv = {
       variables: { ...baseVariables },
       coordinates: pictureCoordinates,
-      nodes: {},
+      nodes: documentNodes,
       coordinateSystems: { ...(picture.coordinateSystems || {}) },
       basis: pictureBasis,
       textEngine: options.textEngine || null,
@@ -181,7 +187,7 @@ export function interpretTikz(ast, options = {}) {
     const env = {
       variables: { ...baseVariables },
       coordinates: pictureCoordinates,
-      nodes: {},
+      nodes: documentNodes,
       coordinateSystems: { ...(picture.coordinateSystems || {}) },
       styles,
       codeHandlers: { ...(picture.codeHandlers || {}) },
@@ -223,6 +229,12 @@ export function interpretTikz(ast, options = {}) {
       lastPictureBounds = layout.bounds;
     }
   }
+
+  // Keep the document-wide semantic coordinate registry observable on the
+  // returned scene graph. Inline multi-picture placement can translate paint
+  // items for presentation, but named TikZ coordinates retain document-space
+  // values for later paths, bounds users, and public diagnostics.
+  ir.coordinates = documentCoordinates;
 
   if (ir.backgroundItems.length) {
     ir.items = [...ir.backgroundItems, ...ir.items];

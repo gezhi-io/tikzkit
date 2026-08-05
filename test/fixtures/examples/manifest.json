@@ -34,6 +34,22 @@
       ]
     },
     {
+      "id": "tkz-euclide-triangle-menelaos-1",
+      "title": "tkz-euclide Menelaus triangle using a barycentric construction",
+      "source": "tkz-euclide/triangle-menelaos-1.tex",
+      "sourceCorpus": "LaTeX-examples-master/tikz/triangle-menelaos-1",
+      "externalSource": "tex/latex/tkz-euclide/tkz-obj-eu-points-spc.tex",
+      "semanticOwner": "src/extensions/tkz-euclide.js:expandDefBarycentricPoint",
+      "features": [
+        "tkzDefBarycentricPoint",
+        "positive barycentric weights",
+        "tkzGetPoint",
+        "tkzInterLL",
+        "tkzDrawPolygon",
+        "tkzDrawLines"
+      ]
+    },
+    {
       "id": "arrows-declared-leaf-tip",
       "title": "PGF manual declared leaf arrow tip",
       "source": "arrows/declared-leaf-tip.tex",
