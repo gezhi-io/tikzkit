@@ -336,9 +336,11 @@ Current support is pragmatic and growing. Highlights:
   commands now lower source-unit numeric graduations and their tick redraws,
   including `step`, bare `orig` (hide the source origin), `frac=N`, `trig=N`
   (reduced `\pi` fractions), and ordinary node positioning, `text=...`, and
-  `node font=...` options. `\tkzAxeX` and `\tkzAxeY` compose those commands in
-  the same order as tkz-base. TeX's `np off`/`numprint` formatting and global
-  `xlabel style` / `ylabel style` hooks remain partial. `\tkzFct` samples scalar source-unit expressions, while
+  `node font=...` options. `\tikzset{xlabel style=...}` and `ylabel style=...`
+  now reach both axis-end and graduation labels, with tkz-base's native order:
+  built-in defaults, global `.style`/`.append style`, then command-local node
+  keys. `\tkzAxeX` and `\tkzAxeY` compose those commands in the same order as
+  tkz-base. TeX's `np off`/`numprint` formatting remains partial. `\tkzFct` samples scalar source-unit expressions, while
   `\tkzFctPar[domain=...,samples=...]{x(t)}{y(t)}` evaluates `t`-based
   parametric curves, scales each coordinate with its own `xstep`/`ystep`, and
   clips to the initialized frame. `\tkzFctPolar[domain=...,samples=...]{r(t)}`
@@ -349,10 +351,11 @@ Current support is pragmatic and growing. Highlights:
   `style`, and `line width` pass through. Cache IDs, tangents, areas,
   asymptotes, adaptive sampling, advanced paint keys, and general parametric
   discontinuity analysis remain outside the verified boundary. See
-  [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md)
+  [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md),
   [`docs/qa/2026-08-05-tkz-fct-polar.md`](docs/qa/2026-08-05-tkz-fct-polar.md),
   [`docs/qa/2026-08-05-tkz-draw-axes.md`](docs/qa/2026-08-05-tkz-draw-axes.md),
-  and [`docs/qa/2026-08-05-tkz-axis-labels.md`](docs/qa/2026-08-05-tkz-axis-labels.md).
+  [`docs/qa/2026-08-05-tkz-axis-labels.md`](docs/qa/2026-08-05-tkz-axis-labels.md),
+  and [`docs/qa/2026-08-05-tkz-axis-styles.md`](docs/qa/2026-08-05-tkz-axis-styles.md).
 
   ```tex
   \usepackage{tkz-fct}

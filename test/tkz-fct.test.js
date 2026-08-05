@@ -42,8 +42,8 @@ test("lowers tkzDrawX and tkzDrawY without adding the separate numeric-label com
 \end{tikzpicture}`);
 
   assert.doesNotMatch(expanded, /\\tkzDraw[XY]/);
-  assert.match(expanded, /\\draw\[color=red,line width=0\.4pt,-latex\] \(-5,0\) -- \(6,0\) node\[below=3pt,inner sep=1pt,outer sep=0pt\] \{\$u\$\};/);
-  assert.match(expanded, /\\draw\[color=blue,line width=0\.4pt,-latex\] \(0,-5\) -- \(0,6\) node\[left=3pt,inner sep=1pt,outer sep=0pt\] \{\$v\$\};/);
+  assert.match(expanded, /\\draw\[color=red,line width=0\.4pt,-latex\] \(-5,0\) -- \(6,0\) node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style\] \{\$u\$\};/);
+  assert.match(expanded, /\\draw\[color=blue,line width=0\.4pt,-latex\] \(0,-5\) -- \(0,6\) node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\] \{\$v\$\};/);
   assert.doesNotMatch(expanded, /color=red,line width=0\.8pt/);
   assert.match(expanded, /\\draw\[color=blue,line width=0\.8pt\] \(4pt,-5\) -- \(-3pt,-5\);/);
   assert.match(expanded, /\\draw\[color=blue,line width=0\.8pt\] \(4pt,-3\) -- \(-3pt,-3\);/);
@@ -77,9 +77,9 @@ test("lowers tkzLabelX and tkzLabelY in source units with origin, fraction, and 
 \end{tikzpicture}`);
 
   assert.doesNotMatch(expanded, /\\tkzLabel[XY]/);
-  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,below right=4pt,text=blue\] \{\$40\$\}/);
-  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white\] \{\$-\\pi\$\}/);
-  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white\] \{\$\\frac\{-\\pi\}\{2\}\$\}/);
+  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style,below right=4pt,text=blue\] \{\$40\$\}/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\] \{\$-\\pi\$\}/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\] \{\$\\frac\{-\\pi\}\{2\}\$\}/);
   assert.doesNotMatch(expanded, /node\[left=3pt,[^\n]*\] \{\$0\$\}/);
   assert.match(expanded, /\$\\frac\{-2\}\{3\}\$/);
   assert.match(expanded, /\$\\frac\{1\}\{3\}\$/);
@@ -98,6 +98,37 @@ test("combines tkzAxeX and tkzAxeY from their native draw and label commands", (
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$1$"));
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$x$"));
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$y$"));
+});
+
+test("applies global tkz-base xlabel and ylabel styles to terminal and graduation labels", () => {
+  const source = String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tikzset{
+    xlabel style/.append style={rotate=-30,text=blue,below=12pt},
+    ylabel style/.style={right=8pt,text=green}
+  }
+  \tkzInit[xmin=-1,xmax=1,ymin=-1,ymax=1]
+  \tkzDrawX[label=$x$]
+  \tkzDrawY[label=$y$]
+  \tkzLabelX[below right=4pt,text=red]
+  \tkzLabelY
+\end{tikzpicture}`;
+  const expanded = expandTkzFct(source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.type === "textNode");
+  const xTerminal = labels.find((item) => item.text === "$x$");
+  const yTerminal = labels.find((item) => item.text === "$y$");
+  const xGraduation = labels.find((item) => item.text === "$1$" && item.style?.textFill === "red");
+
+  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style,below right=4pt,text=red\]/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\]/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(xTerminal.style.textFill, "blue");
+  assert.match(yTerminal.style.textFill, /^(?:green|rgb\(0 255 0\))$/);
+  assert.ok(yTerminal.x > 0, "ylabel style=right should move the terminal label right of the axis");
+  assert.ok(xGraduation, "local label options should override the global xlabel text color");
+  assert.match(result.svg, /rotate\(30 /, "xlabel style rotation should reach the SVG renderer after the SVG y-axis flip");
 });
 
 test("lowers tkzFct gnuplot syntax into scaled, clipped ordinary TikZ segments", () => {

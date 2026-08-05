@@ -216,8 +216,8 @@ function renderAxes(state, rawOptions, context = {}) {
   const yAxisLabel = sharedLabel === null ? "$y$" : sharedLabel;
   const textOption = textColor === color ? "" : `,text=${textColor}`;
   const xLabelOverlay = context.scriptsize ? "overlay," : "";
-  const xLabelOptions = `${xLabelOverlay}below=3pt,inner sep=1pt,outer sep=0pt,fill=white${textOption}`;
-  const yLabelOptions = `left=3pt,inner sep=1pt,outer sep=0pt,fill=white${textOption}`;
+  const xLabelOptions = `${xLabelOverlay}below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style${textOption}`;
+  const yLabelOptions = `left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style${textOption}`;
 
   const drawX = [
     `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt] {${xAxisLabel}};`
@@ -289,7 +289,7 @@ function renderXAxis(state, rawOptions) {
   const bounds = normalizedBounds(state);
   const textOption = textColor === color ? "" : `,text=${textColor}`;
   const commands = [
-    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt${textOption}] {${label}};`
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style${textOption}] {${label}};`
   ];
 
   if (optionBoolean(options.noticks, false)) return commands.join("\n");
@@ -319,7 +319,7 @@ function renderYAxis(state, rawOptions) {
   const bounds = normalizedBounds(state);
   const textOption = textColor === color ? "" : `,text=${textColor}`;
   const commands = [
-    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt${textOption}] {${label}};`
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style${textOption}] {${label}};`
   ];
 
   if (optionBoolean(options.noticks, false)) return commands.join("\n");
@@ -652,7 +652,11 @@ function axisLabelOptions(options, axis) {
     ? ["below=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white"]
     : ["left=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white"];
   const forwarded = forwardAxisLabelOptions(options);
-  return [...base, ...forwarded].join(",");
+  // tkz-base first applies its config-level xlabel/ylabel style and then the
+  // command options. Keeping the built-in defaults before the style gives a
+  // user .style definition replacement semantics, while .append style builds
+  // on the same defaults exactly as the installed package does.
+  return [...base, axis === "x" ? "xlabel style" : "ylabel style", ...forwarded].join(",");
 }
 
 function forwardAxisLabelOptions(options) {
