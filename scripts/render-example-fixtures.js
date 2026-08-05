@@ -1427,6 +1427,7 @@ function renderCaseHtml(entry, diff) {
   </div>
   <div class="status">
     <span>diff: ${escapeHtml(diff?.status || "not generated")} ${renderDiffNumbers(diff)}</span>
+    ${renderMactexComparison(diff?.mactexComparison)}
     <span>diagnostics: ${escapeHtml(String(entry.diagnostics?.length || 0))}</span>
     ${entry.activeFigureId ? `<span>active figure: ${escapeHtml(entry.activeFigureId)}</span>` : ""}
     ${renderArtifactLink("TikZKit SVG", entry.tikzkitSvg)}
@@ -1458,6 +1459,17 @@ function renderDiffNumbers(diff) {
   const registration = diff.registration;
   if (!registration || typeof registration.changedRatio !== "number") return raw;
   return `${raw} · aligned dx=${registration.offsetX}, dy=${registration.offsetY}: ${(registration.changedRatio * 100).toFixed(2)}%`;
+}
+
+function renderMactexComparison(comparison) {
+  if (!comparison?.tikzkit || !comparison?.tikztosvg) return "";
+  return `<span>MacTeX aligned: JS ${formatMactexPair(comparison.tikzkit)} · reference ${formatMactexPair(comparison.tikztosvg)}</span>`;
+}
+
+function formatMactexPair(pair) {
+  const registration = pair.registration;
+  if (!registration) return `${(pair.changedRatio * 100).toFixed(2)}%`;
+  return `${(registration.changedRatio * 100).toFixed(2)}% @ ${registration.offsetX},${registration.offsetY}`;
 }
 
 function renderDiagnostics(diagnostics = []) {

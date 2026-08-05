@@ -67,7 +67,7 @@ test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifa
     "utf8"
   );
 
-  const summary = await compareExamplePngs({ outputRoot });
+  const summary = await compareExamplePngs({ outputRoot, register: true });
 
   assert.equal(summary.total, 3);
   assert.equal(summary.compared, 3);
@@ -80,6 +80,8 @@ test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifa
   assert.equal(summary.cases[1].diffPng.endsWith("different.png"), true);
   assert.equal(summary.cases[1].sheetPng, "diff/different-sheet.png");
   assert.equal(summary.cases[1].nativeSheetPng, "diff/different-native-sheet.png");
+  assert.equal(summary.cases[1].mactexComparison.tikzkit.changedPixels, 0);
+  assert.equal(summary.cases[1].mactexComparison.tikztosvg.registration.offsetX, 0);
   assert.equal(summary.cases[2].status, "dimension-mismatch");
 
   const writtenSummary = JSON.parse(await readFile(path.join(outputRoot, "diff", "summary.json"), "utf8"));

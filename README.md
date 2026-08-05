@@ -503,6 +503,10 @@ PNG. It is an investigation aid, not a pass criterion: a nonzero translation
 means the canvas/bounding-box contract still needs review, while a large
 aligned residual points to missing or incorrectly rendered geometry. Use
 `--alignment-radius <pixels>` only when a wider inspection window is justified.
+When the directory contains a MacTeX PNG, the report also records TikZKit and
+tikztosvg aligned residuals against MacTeX. Follow the lower residual only as
+a clue; inspect the linked four-panel sheet before deciding which renderer is
+closer for a particular TikZ feature.
 
 ### Compare One Snippet Locally
 

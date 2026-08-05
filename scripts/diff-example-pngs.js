@@ -91,6 +91,7 @@ async function compareCase(outputRoot, entry, options = {}) {
     registeredDiffPng = path.relative(outputRoot, registeredDiffPath);
   }
   let nativeSheetPng = null;
+  let mactexComparison = null;
   if (entry.mactexPngStatus === "rendered" && entry.mactexPng) {
     const native = decodePng(await readFile(path.join(outputRoot, entry.mactexPng)));
     const nativeSheetPath = path.join(outputRoot, "diff", `${entry.id}-native-sheet.png`);
@@ -99,6 +100,12 @@ async function compareCase(outputRoot, entry, options = {}) {
       encodePng(composeImageSheet([native, tikztosvg, tikzkit, comparison.diff], { columns: 2, gap: 24, padding: 16 }))
     );
     nativeSheetPng = path.relative(outputRoot, nativeSheetPath);
+    if (options.register) {
+      mactexComparison = {
+        tikzkit: summarizePairComparison(tikzkit, native, options),
+        tikztosvg: summarizePairComparison(tikztosvg, native, options)
+      };
+    }
   }
 
   return {
@@ -128,7 +135,32 @@ async function compareCase(outputRoot, entry, options = {}) {
     tikztosvgPng: entry.tikztosvgPng,
     diffPng: path.relative(outputRoot, diffPng),
     sheetPng: path.relative(outputRoot, sheetPng),
-    nativeSheetPng
+    nativeSheetPng,
+    mactexComparison
+  };
+}
+
+function summarizePairComparison(actual, expected, options) {
+  const raw = compareDecodedPngs(actual, expected);
+  const registration = findBestPixelAlignment(actual, expected, {
+    radius: options.alignmentRadius,
+    sampleStep: options.alignmentSampleStep
+  });
+  return {
+    status: raw.status,
+    comparedPixels: raw.comparedPixels,
+    changedPixels: raw.changedPixels,
+    changedRatio: raw.changedRatio,
+    meanAbsoluteRGBA: raw.meanAbsoluteRGBA,
+    registration: {
+      offsetX: registration.offsetX,
+      offsetY: registration.offsetY,
+      status: registration.status,
+      comparedPixels: registration.comparedPixels,
+      changedPixels: registration.changedPixels,
+      changedRatio: registration.changedRatio,
+      meanAbsoluteRGBA: registration.meanAbsoluteRGBA
+    }
   };
 }
 
