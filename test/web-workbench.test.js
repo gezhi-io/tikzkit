@@ -2,10 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as publicApi from "../src/index.js";
 import {
+  SCRATCH_FIXTURE_ID,
+  createScratchFixture,
+  createScratchSource,
   createRequestGate,
   diagnosticRows,
+  filterFixtures,
+  isFixtureDraft,
   renderWorkbenchSource,
-  selectTikzRenderer
+  selectTikzRenderer,
+  sourceOffsetForLocation,
+  svgDownloadName
 } from "../web/workbench.js";
 
 test("workbench falls back to the synchronous renderer from the committed public API", async () => {
@@ -57,4 +64,22 @@ test("workbench diagnostic rows preserve severity, code, message, and source loc
     diagnosticRows([{ severity: "warning", code: "x", message: "Unsupported x", line: 3, column: 7 }]),
     [{ severity: "warning", code: "x", message: "Unsupported x", location: "3:7" }]
   );
+});
+
+test("workbench fixture helpers provide a searchable scratch case and preserve source locations", () => {
+  const scratch = createScratchFixture();
+  assert.equal(scratch.id, SCRATCH_FIXTURE_ID);
+  assert.match(createScratchSource(), /\\begin\{tikzpicture\}/);
+  assert.deepEqual(
+    filterFixtures([
+      { id: "axis", title: "Scientific axes", features: ["pgfplots"] },
+      { id: "tree", title: "Tree layout", features: ["trees"] }
+    ], "TREE"),
+    [{ id: "tree", title: "Tree layout", features: ["trees"] }]
+  );
+  assert.equal(sourceOffsetForLocation("one\ntwo\nthree", "2:2"), 5);
+  assert.equal(sourceOffsetForLocation("one", "4:1"), null);
+  assert.equal(isFixtureDraft("changed", "original"), true);
+  assert.equal(isFixtureDraft("same", "same"), false);
+  assert.equal(svgDownloadName("A complicated / case"), "A-complicated-case.svg");
 });

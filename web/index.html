@@ -17,25 +17,44 @@
 </head>
 <body>
   <header class="toolbar">
-    <label for="fixture-select">Fixture</label>
-    <select id="fixture-select"></select>
-    <button id="render-button" type="button">Render</button>
-    <label class="toggle"><input id="grid-toggle" type="checkbox" checked> 1cm grid</label>
+    <div class="toolbar-group fixture-controls">
+      <label for="fixture-select">Case</label>
+      <select id="fixture-select"></select>
+      <input id="fixture-filter" type="search" placeholder="Filter cases" autocomplete="off" aria-label="Filter cases">
+      <button id="new-source-button" type="button">New source</button>
+    </div>
+    <div class="toolbar-group render-controls">
+      <button id="render-button" type="button">Render</button>
+      <button id="reset-source-button" type="button" disabled>Reset</button>
+      <button id="copy-svg-button" type="button" disabled>Copy SVG</button>
+      <button id="download-svg-button" type="button" disabled>Download SVG</button>
+      <label class="toggle"><input id="grid-toggle" type="checkbox" checked> 1cm grid</label>
+    </div>
     <output id="render-status" aria-live="polite">Ready</output>
   </header>
   <main class="workbench">
     <section class="editor-pane" aria-label="TikZ source">
+      <header class="editor-heading">
+        <div>
+          <h1 id="fixture-title">TikZ source</h1>
+          <p id="fixture-summary">Choose a case or start a new source.</p>
+        </div>
+        <output id="draft-status" aria-live="polite"></output>
+      </header>
       <textarea id="source-editor" spellcheck="false" aria-label="TikZ source editor"></textarea>
       <section id="diagnostics" class="diagnostics" aria-label="Diagnostics"></section>
     </section>
     <section class="preview-pane" aria-label="Render comparison">
       <article class="preview-column">
-        <h2>TikZKit browser SVG</h2>
+        <h2 id="tikzkit-heading">TikZKit browser SVG</h2>
         <div id="tikzkit-result" class="render-surface"></div>
       </article>
       <article class="preview-column">
-        <h2>tikztosvg reference</h2>
-        <object id="reference-result" class="render-surface" type="image/svg+xml"></object>
+        <h2 id="reference-heading">tikztosvg reference</h2>
+        <div class="reference-surface">
+          <object id="reference-result" class="render-surface" type="image/svg+xml"></object>
+          <p id="reference-empty" class="reference-empty" hidden></p>
+        </div>
       </article>
     </section>
   </main>

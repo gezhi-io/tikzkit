@@ -100,6 +100,15 @@ The workbench discovers the unified fixture catalog, including the selected
 when comparing the browser result with the `tikztosvg` reference; the fixture
 selection is retained in the URL hash.
 
+Use **Filter cases** to narrow the catalog by ID, title, or declared feature.
+Edits are saved as a browser-local draft per case and never modify fixture
+files. A changed source marks the existing preview as stale until it is
+rendered again; **Reset** discards that local draft. **New source** opens an
+independent scratch document, while **Copy SVG** and **Download SVG** export
+the clean current TikZKit SVG without the QA grid. The grid toggle applies to
+both the browser SVG and the `tikztosvg` reference so their visible coordinate
+guides stay in the same mode.
+
 For a new source, paste a complete `tikzpicture` or document source into the
 editor and render it locally. A successful SVG is not an acceptance signal on
 its own: inspect diagnostics and, for compatibility work, compare it with a

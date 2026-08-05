@@ -58,13 +58,22 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.equal(index.status, 200);
   for (const id of [
     "fixture-select",
+    "fixture-filter",
+    "new-source-button",
     "source-editor",
     "render-button",
+    "reset-source-button",
+    "copy-svg-button",
+    "download-svg-button",
     "grid-toggle",
     "tikzkit-result",
     "reference-result",
+    "reference-empty",
     "diagnostics",
-    "render-status"
+    "render-status",
+    "fixture-title",
+    "fixture-summary",
+    "draft-status"
   ]) {
     assert.ok(
       openingTags.some((tag) => hasAttributeValue(tag, "id", id)),
@@ -103,7 +112,7 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.equal(katexFont.headers.get("content-type"), "font/woff2");
   for (const font of cmuFonts) {
     assert.equal(font.status, 200);
-    assert.equal(font.headers.get("content-type"), "font/otf");
+    assert.equal(font.headers.get("content-type"), font.url.endsWith(".ttf") ? "font/ttf" : "font/otf");
   }
 });
 
