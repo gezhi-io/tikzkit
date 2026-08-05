@@ -4188,7 +4188,7 @@ test("pgfplots boxed auto ticks keep terminal max tick labels", () => {
   assert.ok(commands.some((command) => command.includes("anchor=east") && command.includes("at (0,0) {0};")), "boxed y labels should place their node boundary on the axis");
 });
 
-test("pgfplots label lowering emits TikZ nodes from axis geometry", () => {
+test("pgfplots label lowering reserves complete default tick-label nodes", () => {
   const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 1 };
   const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "1cm" }, ranges);
   const commands = renderAxisLabels(
@@ -4197,9 +4197,18 @@ test("pgfplots label lowering emits TikZ nodes from axis geometry", () => {
     geometry
   );
 
-  assert.ok(commands.includes(String.raw`\node[axis label, anchor=north, font=\small] at (1,-0.22) {$x$};`));
-  assert.ok(commands.includes(String.raw`\node[axis label, anchor=east, font=\small, rotate=90] at (-1.1,0.5) {$y$};`));
-  assert.ok(commands.includes(String.raw`\node[axis label, anchor=south] at (1,1.22) {Title};`));
+  assert.ok(
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,-0.461) {$x$};`),
+    commands.join("\n")
+  );
+  assert.ok(
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=center, font=\small, rotate=90] at (-1.1,0.5) {$y$};`),
+    commands.join("\n")
+  );
+  assert.ok(
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south] at (1,1.211) {Title};`),
+    commands.join("\n")
+  );
 });
 
 test("pgfplots legend lowering owns legend box, samples, labels, and entry splitting", () => {

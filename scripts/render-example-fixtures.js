@@ -259,6 +259,8 @@ export async function renderExampleFixtures(options = {}) {
       const nativeReference = await renderNativeMacTeXPng(external, {
         entry,
         sourcePath,
+        source,
+        fixtureRoot,
         outputRoot,
         engine: nativeLatexEngine,
         env: options.env || process.env,
@@ -381,23 +383,27 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   const workDir = path.join(options.outputRoot, ".mactex-work", entryId);
   const outputPng = path.join(options.outputRoot, "mactex-png", `${entryId}.png`);
   const outputLog = path.join(options.outputRoot, "mactex-log", `${entryId}.log`);
+  const texPath = path.join(workDir, "reference.tex");
+  const source = rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || []);
   const latexArgs = [
     "-interaction=nonstopmode",
     "-halt-on-error",
     "-jobname=reference",
     `-output-directory=${workDir}`,
-    sourcePath
+    texPath
   ];
   const logs = [`engine: ${engine}`, `source: ${sourcePath}`, ""];
 
   await rm(workDir, { recursive: true, force: true });
   await mkdir(workDir, { recursive: true });
+  await materializeNativeReferenceResources(options.entry?.resources || [], options.fixtureRoot, workDir);
+  await writeFile(texPath, `${source.trimEnd()}\n`, "utf8");
   await mkdir(path.dirname(outputPng), { recursive: true });
   await mkdir(path.dirname(outputLog), { recursive: true });
 
   for (let pass = 0; pass < 2; pass += 1) {
     const latex = await external.runCommand(engine, latexArgs, {
-      cwd: path.dirname(sourcePath),
+      cwd: workDir,
       env: options.env,
       timeoutMs: options.timeoutMs
     });
@@ -419,6 +425,24 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   return raster.exitCode === 0
     ? { status: "rendered", pngPath: outputPng, logPath: outputLog }
     : { status: "failed", pngPath: null, logPath: outputLog };
+}
+
+async function materializeNativeReferenceResources(resources, fixtureRoot, workDir) {
+  if (!fixtureRoot) return;
+  const root = path.resolve(fixtureRoot);
+  for (const resource of resources || []) {
+    const resourcePath = normalizeResourceName(resource?.source);
+    if (!resourcePath) continue;
+    const sourcePath = path.resolve(root, resourcePath);
+    const targetPath = path.resolve(workDir, resourcePath);
+    if (!isWithinDirectory(sourcePath, root) || !isWithinDirectory(targetPath, workDir)) continue;
+    try {
+      await mkdir(path.dirname(targetPath), { recursive: true });
+      await copyFile(sourcePath, targetPath);
+    } catch {
+      // Let MacTeX report the original missing-resource diagnostic in its log.
+    }
+  }
 }
 
 async function loadExampleResourceMap(entry, fixtureRoot) {

@@ -398,7 +398,63 @@ test("example fixture renderer writes an opt-in native MacTeX PNG reference", as
   assert.equal(calls.some((call) => call.command === "pdftocairo"), true);
   const compile = calls.find((call) => call.command === "pdflatex");
   assert.equal(compile.args.includes("-jobname=reference"), true);
-  assert.match(compile.options.cwd, /test[\\/]fixtures[\\/]examples[\\/]pgfplots/);
+  assert.match(compile.options.cwd, /\.mactex-work[\\/]axis-basic-range$/);
+});
+
+test("native MacTeX references materialize manifest resources beside their rewritten source", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-resource-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-resource-output-"));
+  const nativePng = encodePng({ width: 1, height: 1, data: Buffer.from([255, 255, 255, 255]) });
+  await mkdir(path.join(fixtureRoot, "resources", "chart"), { recursive: true });
+  await writeFile(
+    path.join(fixtureRoot, "chart.tex"),
+    String.raw`\documentclass{standalone}\usepackage{pgfplots}\begin{document}\begin{tikzpicture}\begin{axis}\addplot table[x=x,y=y,col sep=comma] {data.csv};\end{axis}\end{tikzpicture}\end{document}`,
+    "utf8"
+  );
+  await writeFile(path.join(fixtureRoot, "resources", "chart", "data.csv"), "x,y\n0,1\n1,2\n", "utf8");
+  await writeFile(
+    path.join(fixtureRoot, "manifest.json"),
+    `${JSON.stringify({
+      version: 1,
+      cases: [{
+        id: "resource-chart",
+        title: "Resource chart",
+        source: "chart.tex",
+        resources: [{ name: "data.csv", source: "resources/chart/data.csv" }]
+      }]
+    })}\n`,
+    "utf8"
+  );
+
+  const summary = await renderExampleFixtures({
+    fixtureRoot,
+    outputRoot,
+    skipTikztosvg: true,
+    skipPng: true,
+    nativeReference: true,
+    external: {
+      async commandExists(command) {
+        return command === "pdflatex" || command === "pdftocairo";
+      },
+      async runCommand(command, args) {
+        if (command === "pdflatex") {
+          const input = await readFile(args.at(-1), "utf8");
+          assert.match(input, /\{resources\/chart\/data\.csv\}/);
+          assert.equal(
+            await readFile(path.join(path.dirname(args.at(-1)), "resources", "chart", "data.csv"), "utf8"),
+            "x,y\n0,1\n1,2\n"
+          );
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        assert.equal(command, "pdftocairo");
+        await writeFile(`${args.at(-1)}.png`, nativePng);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+    }
+  });
+
+  assert.equal(summary.renderedMacTeXPng, 1);
+  assert.equal(summary.cases[0].mactexPngStatus, "rendered");
 });
 
 test("example fixture renderer writes a comparison index page for generated artifacts", async () => {

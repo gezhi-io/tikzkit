@@ -236,13 +236,15 @@ function defaultXAxisLabelOffset(axisOptions = {}, geometry = {}, fallback, midd
       : 0;
   const tickFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "x"));
   const tickFontSizePt = Number(parseTikzFontPatch(tickFont).sizePt) || 10;
-  // The next xlabel is separated from the tick-label baseline by the TeX
-  // glyph box, not by the full font em square. Computer Modern's compact
-  // text glyphs occupy roughly three fifths of that square at this point.
-  const tickFontHeight = parseDimension(`${tickFontSizePt * 0.6}pt`, {});
-  const tickInnerSep = explicitTickLabelInnerSep(axisOptions, "x");
-  const baselineShift = parseDimension("0.8pt", {});
-  return Math.max(fallback, tickProjection + baselineShift + tickFontHeight + tickInnerSep * 2);
+  // `xlabel near ticks` resolves through PGFPlots' `ticklabel cs`: it shifts
+  // by the whole largest tick-label node, not just a glyph's cap height.
+  // The unstyled TikZ node has the default .3333em inner separation on both
+  // sides. At 10pt, a CMR digit hbox is 6.4444pt tall, so a typical label
+  // needs about 13.11pt in the outward normal direction.
+  const tickGlyphHeight = parseDimension(`${tickFontSizePt * 0.64444}pt`, {});
+  const defaultTickInnerSep = parseDimension(`${tickFontSizePt * 0.3333}pt`, {});
+  const tickInnerSep = explicitTickLabelInnerSep(axisOptions, "x") || defaultTickInnerSep;
+  return Math.max(fallback, tickProjection + tickGlyphHeight + tickInnerSep * 2);
 }
 
 function axisTickLabelFontOption(axisOptions = {}, axis) {

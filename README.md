@@ -227,7 +227,10 @@ build log under `mactex-log/`, and a four-panel
 `diff/<fixture-id>-native-sheet.png` containing MacTeX, tikztosvg, TikZKit,
 and the TikZKit/tikztosvg diff. The browser page stays a focused two-panel
 TikZKit/tikztosvg comparison; the native reference and four-panel sheet are
-linked from the case's artifact row. Use `node scripts/render-example-fixtures.js --help` and
+linked from the case's artifact row. For a manifest case with CSV or image
+resources, the native run writes its rewritten `reference.tex` and copies the
+declared resources beneath `.mactex-work/<fixture-id>/`; all three renderers
+therefore resolve the same paths. Use `node scripts/render-example-fixtures.js --help` and
 `node scripts/diff-example-pngs.js --help` to inspect the supported switches.
 
 ### Compare One Snippet Locally
