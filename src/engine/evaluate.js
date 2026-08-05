@@ -6810,10 +6810,11 @@ function applyNodeOverlay(ir, firstItemIndex, overlay) {
 }
 
 function addRectangleSplitTextItems(node, point, size, rotation, textStyle, env, ir) {
-  const scale = size.width / Math.max(node.rectangleSplit.size.width, 1e-9);
+  const xScale = size.width / Math.max(node.rectangleSplit.size.width, 1e-9);
+  const yScale = size.height / Math.max(node.rectangleSplit.size.height, 1e-9);
   for (const part of node.rectangleSplit.parts || []) {
     if (!part.text) continue;
-    const local = rotateVector(part.centerX * scale, 0, rotation || 0);
+    const local = rotateVector(part.centerX * xScale, (part.centerY || 0) * yScale, rotation || 0);
     ir.items.push({
       type: "textNode",
       x: roundNumber(point.x + local.x),
@@ -8233,6 +8234,16 @@ function rectangleSplitParts(semantic = {}) {
   return Number.isFinite(parts) && parts > 0 ? Math.round(parts) : 1;
 }
 
+function rectangleSplitPartAlignments(options = {}, count = 1) {
+  const raw = options["rectangle split part align"];
+  const requested = splitTopLevel(String(raw === undefined ? "center" : raw))
+    .map((entry) => stripOuterBraces(entry).trim().toLowerCase())
+    .filter(Boolean)
+    .map((entry) => (entry === "top" || entry === "bottom" || entry === "base" ? entry : "center"));
+  const fallback = requested.at(-1) || "center";
+  return Array.from({ length: count }, (_unused, index) => requested[index] || fallback);
+}
+
 const RECTANGLE_SPLIT_PART_NAMES = [
   "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"
@@ -8295,9 +8306,9 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
         width: roundNumber(Math.max(0.02, emptyWidth + innerXSep * 2)),
         height: roundNumber(Math.max(0.02, emptyHeight + innerYSep * 2)),
         // PGF represents an empty split part with a rule whose default
-        // height is 1ex and depth is zero. Its bare part anchor is the
-        // rule's TeX origin, so it sits half an ex below the cell center.
-        originY: roundNumber(-emptyHeight / 2)
+        // height is 1ex and depth is zero.
+        boxHeight: roundNumber(emptyHeight),
+        boxDepth: 0
       };
     }
     const size = estimateCompactTextSize(part.text, metricOptions, env);
@@ -8307,11 +8318,12 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
           fontSizePt: 10 * nodeFontScaleForText(normalized, metricOptions, env)
         })
       : null;
+    const fallbackBoxHeight = Math.max(0.02, size.height - innerYSep * 2) * 0.75;
+    const fallbackBoxDepth = Math.max(0, size.height - innerYSep * 2 - fallbackBoxHeight);
     return {
       ...size,
-      // PGF stores each horizontal part anchor at the TeX text-box origin.
-      // Relative to the vertically centered cell this is (depth-height)/2.
-      originY: plain ? roundNumber((plain.depth - plain.height) / (2 * TEX_PT_PER_CM)) : 0
+      boxHeight: roundNumber(plain ? plain.height / TEX_PT_PER_CM : fallbackBoxHeight),
+      boxDepth: roundNumber(plain ? plain.depth / TEX_PT_PER_CM : fallbackBoxDepth)
     };
   });
   const partWidths = partSizes.map((size) => size.width);
@@ -8325,13 +8337,39 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     width = Math.max(width, minimumSize);
     height = Math.max(height, minimumSize);
   }
+  // PGF's horizontal rectangle split first measures the maximum TeX-box
+  // height/depth, then places each part's baseline according to the per-part
+  // alignment list. Keep the existing node extent calculation above (it is
+  // already calibrated against native output), but use its inner content
+  // height as PGF's max-total-height for the baseline placement.
+  const contentHeight = Math.max(0.02, height - innerYSep * 2);
+  const maxBoxHeight = Math.max(...partSizes.map((size) => size.boxHeight || 0), 0);
+  const maxBoxDepth = Math.max(...partSizes.map((size) => size.boxDepth || 0), 0);
+  const partAlignments = rectangleSplitPartAlignments(options, visibleCount);
   let cursor = -width / 2;
   const laidOutParts = visibleLogicalParts.map((part, index) => {
     const partWidth = partWidths[index];
     const centerX = cursor + partWidth / 2;
     const originX = cursor + innerXSep;
+    const partSize = partSizes[index];
+    const boxHeight = partSize.boxHeight || 0;
+    const boxDepth = partSize.boxDepth || 0;
+    const alignment = partAlignments[index];
+    let originY = (boxDepth - boxHeight) / 2;
+    if (alignment === "top") originY = contentHeight / 2 - boxHeight;
+    if (alignment === "bottom") originY = -contentHeight / 2 + boxDepth;
+    if (alignment === "base") originY = (maxBoxDepth - maxBoxHeight) / 2;
+    const centerY = originY + (boxHeight - boxDepth) / 2;
     cursor += partWidth + (index < visibleCount - 1 ? separatorWidth : 0);
-    return { ...part, width: partWidth, centerX, originX, originY: partSizes[index].originY || 0 };
+    return {
+      ...part,
+      width: partWidth,
+      centerX: roundNumber(centerX),
+      centerY: roundNumber(centerY),
+      originX: roundNumber(originX),
+      originY: roundNumber(originY),
+      alignment
+    };
   });
   return {
     horizontal: true,

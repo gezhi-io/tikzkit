@@ -38,6 +38,9 @@ It is designed for browser rendering of fenced TikZ code blocks, CLI conversion,
   focused compatibility gate, not a claim that arbitrary TikZ input works.
 - Exact glyph hinting and antialiasing can still differ between browser SVG and
   PDF-to-SVG output even when geometry and text placement agree.
+- `shapes.multipart` now verifies horizontal `rectangle split` part alignment
+  for `center`, `top`, `bottom`, and `base`; vertical split alignment and the
+  broader multipart shape family remain partial.
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.

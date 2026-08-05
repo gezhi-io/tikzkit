@@ -4,6 +4,7 @@ export const tikzLibrary = {
   "implementedBy": "src/engine/evaluate.js + src/renderers/svg/rectangleSplitNodes.js + src/renderers/svg/circleSplitNodes.js + src/renderers/svg/mathNode.js",
   "features": [
     "horizontal rectangle split",
+    "per-part horizontal center/top/bottom/base alignment",
     "circle split with text/lower node parts",
     "nodepart text boxes",
     "named part anchors",
