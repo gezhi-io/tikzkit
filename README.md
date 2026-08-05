@@ -38,6 +38,22 @@ source -> preprocess extensions -> parser -> semantic interpreter -> drawing IR 
 
 It is designed for browser rendering of fenced TikZ code blocks, CLI conversion, and incremental support for common TikZ libraries.
 
+### Choose A Workflow
+
+| Goal | Command | What it does |
+| --- | --- | --- |
+| Try or edit TikZ in the browser | `npm run web` | Starts the local workbench at `http://127.0.0.1:5173/`; rendering stays entirely in browser JavaScript. |
+| Start a second local workbench | `PORT=5174 npm run web` | Leaves the first workbench running and starts an independent local page. |
+| Convert one `.tex` or `.tikz` file | `node bin/tikz2svg.js path/to/source.tex -o outputs/source.svg` | Writes one clean TikZKit SVG without the visual-QA grid. |
+| Check every maintained fixture semantically | `npm run gallery:audit` | Verifies parse/evaluation diagnostics for the catalog; it is not a pixel-parity check. |
+| Compare one real case visually | `npm run examples:render -- --fixtures test/fixtures/examples --output outputs/qa-case --only <fixture-id> --native-reference --comparison-grid-mode svg` | Generates TikZKit, local MacTeX, and `tikztosvg` artifacts in one ignored directory. Run `npm run examples:diff -- --output outputs/qa-case` next. |
+
+The browser needs no TeX installation. The comparison workflow does: MacTeX,
+`tikztosvg`, and `rsvg-convert` are local development references, never browser
+runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
+out of commits; commit the source fixture, shared implementation, regression,
+and written QA conclusion instead.
+
 ### Current validation scope
 
 - A selected 30-case LaTeX-examples batch currently renders without diagnostics
@@ -156,7 +172,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `266/266 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `267/267 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
