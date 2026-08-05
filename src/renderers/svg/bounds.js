@@ -205,7 +205,7 @@ function includePathBounds(item, include, unit) {
   if (!clippedBounds) return;
   include(clippedBounds.minX, clippedBounds.minY);
   include(clippedBounds.maxX, clippedBounds.maxY);
-  includeInlineArrowBounds(item, include, unit);
+  if (item.includeArrowBounds !== false) includeInlineArrowBounds(item, include, unit);
 }
 
 function intersectPathClipBounds(bounds, clipRect) {

@@ -1013,6 +1013,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
           overlay: tikzBoolean(pathOptions.overlay),
           clipRect,
           clipCircle,
+          includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(pathOptions),
           tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
         }
       );
@@ -1432,7 +1433,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
             start: currentNodeRef,
             end: toNodeRef
           }),
-          style: edgeStyle
+          style: edgeStyle,
+          includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(combinedEdgeOptions)
         });
       }
       pendingInlineNodes = [];
@@ -9797,6 +9799,14 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
     if ("x" in command) current = { x: command.x, y: command.y };
   }
   return morphed;
+}
+
+function decoratedSnakeOmitsArrowPaintBounds(pathOptions = {}) {
+  if (!tikzBoolean(pathOptions.decorate)) return false;
+  const decoration = parseOptions(String(pathOptions.decoration || ""));
+  // PGF computes a snake's bounding box from its decorated path. Arrow tips
+  // are installed afterwards, so their wing span does not enlarge the canvas.
+  return tikzBoolean(decoration.snake);
 }
 
 function applyKochSnowflakeDecoration(commands) {
