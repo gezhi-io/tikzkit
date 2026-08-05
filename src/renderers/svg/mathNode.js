@@ -55,6 +55,7 @@ import {
 import { renderSumLimitsInlineFallback, sumLimitsInlineFallback } from "./mathSumFallback.js";
 import { svgTextAnchorPoint, textFontScale } from "./textLayout.js";
 import { renderTensorMatrixFallback, tensorMatrixFallbackParts } from "./tensorMatrixFallback.js";
+import { svgPaint } from "./style.js";
 
 const KATEX_ROOT_FONT_SCALE = 1.21;
 const KATEX_INLINE_LINE_BOX_SCALE = 1.1;
@@ -139,7 +140,7 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
       ? htmlAnchor.x - htmlBox.width
       : htmlAnchor.x - htmlBox.width / 2;
   const y = htmlAnchor.y - htmlBox.height / 2;
-  const color = escapeAttribute(math.color || item.style?.fill || "black");
+  const color = escapeAttribute(svgPaint(math.color || item.style?.fill || "black"));
   const fontStyle = mathFallbackFontStyle(tex);
   const fontWeight = math.fontWeight || (mathVersion === "bold" ? "700" : mathFallbackFontWeight(tex));
   const fallbackFontFamily = mathFallbackFontFamily(item, mathVersion);

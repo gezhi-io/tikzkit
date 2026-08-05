@@ -4470,6 +4470,30 @@ test("uses leading math font size macros when sizing circular nodes", () => {
   }
 });
 
+test("inherits standalone xcolor declarations through draws and nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \color{blue}
+  \draw (0,0) -- (1,0);
+  \node at (0.5,0.25) {$x$};
+  \begin{scope}
+    \color{red}
+    \draw (0,1) -- (1,1);
+  \end{scope}
+  \draw (0,2) -- (1,2);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "$x$");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 3);
+  assert.equal(paths[0].style.stroke, "blue");
+  assert.equal(paths[1].style.stroke, "red");
+  assert.equal(paths[2].style.stroke, "blue");
+  assert.equal(label?.style.fill, "blue");
+});
+
 test("keeps simple math subscripts inside compact minimum-size circles", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -400,6 +400,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     applyFontSwitch(statement.font, env);
     return;
   }
+  if (statement.type === "color") {
+    applyColorDeclaration(statement.color, env);
+    return;
+  }
   if (statement.type === "unsupported") {
     diagnostics.push(statement.diagnostic);
     return;
@@ -6316,6 +6320,15 @@ function applyFontSwitch(font, env) {
   env.pictureOptions = {
     ...(env.pictureOptions || {}),
     font: [current, next].filter(Boolean).join(" ")
+  };
+}
+
+function applyColorDeclaration(color, env) {
+  const next = String(color || "").trim();
+  if (!next) return;
+  env.pictureOptions = {
+    ...(env.pictureOptions || {}),
+    color: next
   };
 }
 

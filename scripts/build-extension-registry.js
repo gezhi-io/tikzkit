@@ -13,8 +13,9 @@ const outputMd = "docs/extension-registry.md";
 const CORE_PACKAGE_SUPPORT = {
   xcolor: {
     status: "builtin",
-    implementedBy: "src/frontend/latex-shell.js:collectColorDefinitions",
-    notes: "\\definecolor, HTML/rgb/RGB/gray, color mixes, \\textcolor subset"
+    implementedBy: "src/frontend/latex-shell.js:collectColorDefinitions + src/frontend/parser.js + src/engine/evaluate.js + src/tikz/text.js + src/renderers/svg/mathNode.js",
+    localSourceReviewed: "yes",
+    notes: "\\definecolor, HTML/rgb/RGB/gray, color mixes, \\textcolor, leading text/math \\color declarations, and scoped standalone \\color{name} state. Optional xcolor models and arbitrary mid-text color-state segmentation remain partial."
   },
   tikz: {
     status: "builtin",

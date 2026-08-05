@@ -283,6 +283,34 @@ test("uses the canonical tiny scale in TikZ font parsing and text normalization"
   assert.equal(normalizeTikzText(String.raw`\tiny x`).scale, 0.5);
 });
 
+test("consumes leading xcolor declarations before parsing math node content", () => {
+  const normalized = normalizeTikzText(String.raw`\color{green!40!black}$\tiny w_0$`);
+
+  assert.equal(normalized.color, "green!40!black");
+  assert.equal(normalized.text, String.raw`$\tiny w_0$`);
+  assert.equal(parseMathText(normalized.text)?.tex, String.raw`w_0`);
+  assert.equal(parseMathText(normalized.text)?.scale, 0.5);
+  assert.doesNotMatch(normalized.text, /\\color/);
+});
+
+test("keeps the last named font size absolute across a leading xcolor declaration", () => {
+  const normalized = normalizeTikzText(String.raw`\tiny\color{red}\small x`);
+
+  assert.equal(normalized.color, "red");
+  assert.equal(normalized.scale, 0.9);
+  assert.equal(normalized.text, "x");
+});
+
+test("renders leading xcolor math declarations without leaking TeX controls", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}\node {\color{green!40!black}$\tiny w_0$};\end{tikzpicture}`, {
+    mathRenderer: "svg-text"
+  });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.doesNotMatch(result.svg, /\\color/);
+  assert.match(result.svg, /fill="rgb\(0 102 0\)"/);
+});
+
 test("uses the canonical named size table for leading math font commands", () => {
   const parsed = parseMathText(String.raw`$\tiny x$`);
 

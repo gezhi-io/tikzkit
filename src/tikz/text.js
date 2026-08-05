@@ -251,11 +251,39 @@ export function normalizeTikzText(value, options = {}) {
     text = wholePhantom.args[0].trim();
 	  }
 
-	  text = unwrapOptionalAxisScalebox(text);
-	  text = unwrapParboxCommands(stripOuterTextBraces(text));
-	  text = normalizeWholeAmsDisplayEnvironment(text);
-	  text = normalizeAdjacentDisplayMathBlocks(text);
-	  text = replaceCommand(text, "scalebox", 2, (args) => args[1]);
+  text = unwrapOptionalAxisScalebox(text);
+  text = unwrapParboxCommands(stripOuterTextBraces(text));
+  text = normalizeWholeAmsDisplayEnvironment(text);
+  text = normalizeAdjacentDisplayMathBlocks(text);
+  text = replaceCommand(text, "scalebox", 2, (args) => args[1]);
+  // xcolor's \color is a declaration: it changes the following material's
+  // paint but never contributes glyphs. Consume leading declarations before
+  // deciding whether the remaining content is a whole math expression.
+  // Otherwise `\color{green}$w_0$` falls through to plain-text handling and
+  // leaks the control sequence into the SVG (and, consequently, its bbox).
+  let presentationChanged = true;
+  let leadingFontScale = 1;
+  while (presentationChanged) {
+    presentationChanged = false;
+    const leadingColor = readLeadingTextColor(text);
+    if (leadingColor) {
+      color = leadingColor.color;
+      text = leadingColor.text;
+      presentationChanged = true;
+    }
+    const fontSize = readLeadingFontSize(text);
+    if (fontSize) {
+      // TeX named font sizes are absolute selections. A color declaration
+      // between two selectors must not turn `\tiny\color{red}\small` into
+      // a multiplicative 0.45 scale.
+      scale *= fontSize.scale / leadingFontScale;
+      contentFontScale = fontSize.scale;
+      leadingFontScale = fontSize.scale;
+      explicitFontSize = true;
+      text = fontSize.text;
+      presentationChanged = true;
+    }
+  }
   if (!isMathText(text)) text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
   text = replaceCommand(text, "phantom", 1, () => "");
   text = replaceCommand(text, "tikzinlinebox", 2, (args) => args[1]);
@@ -287,13 +315,6 @@ export function normalizeTikzText(value, options = {}) {
       previous = text;
       text = replaceCommand(text, "mathlarger", 1, (args) => args[0]);
     } while (text !== previous && text.includes(String.raw`\mathlarger`));
-  }
-  const fontSize = readLeadingFontSize(text);
-  if (fontSize) {
-    scale *= fontSize.scale;
-    contentFontScale = fontSize.scale;
-    explicitFontSize = true;
-    text = fontSize.text;
   }
   text = stripZeroWidthTextCommands(text);
   text = restoreEscapedMathDelimiters(text);
@@ -783,6 +804,16 @@ function readLeadingFontSize(text) {
   return {
     scale: size,
     text: [...preservedDeclarations, remaining].filter(Boolean).join(" ")
+  };
+}
+
+function readLeadingTextColor(text) {
+  const source = String(text || "").trim();
+  const match = source.match(/^\\color\s*\{([^{}]+)\}\s*/);
+  if (!match) return null;
+  return {
+    color: match[1].trim(),
+    text: source.slice(match[0].length).trim()
   };
 }
 

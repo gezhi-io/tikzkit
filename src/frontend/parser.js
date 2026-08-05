@@ -174,6 +174,10 @@ function parseStatement(statement, diagnostics) {
   }
   if (text.startsWith("\\tikzset")) return parseTikzsetStatement(text, diagnostics);
   if (text.startsWith("\\tikzstyle")) return parseTikzstyleStatement(text);
+  if (text.startsWith("\\color")) {
+    const color = parseColorDeclaration(text);
+    if (color) return { type: "color", color, raw: text };
+  }
   if (text.startsWith("\\calendar")) return { type: "calendar", raw: text };
   if (text.startsWith("\\matrix")) return parseMatrix(text);
   if (text.startsWith("\\pic")) return parsePic(text);
@@ -224,6 +228,11 @@ function parseStatement(statement, diagnostics) {
       message: `Unsupported TikZ statement: ${text.slice(0, 40)}`
     }
   };
+}
+
+function parseColorDeclaration(text) {
+  const match = String(text || "").trim().match(/^\\color\s*\{([^{}]+)\}\s*$/);
+  return match?.[1]?.trim() || null;
 }
 
 function parseForeach(text, diagnostics) {
