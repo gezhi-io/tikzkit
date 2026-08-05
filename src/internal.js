@@ -67,6 +67,7 @@ export {
   renderAxisPlotInlineNodes,
   renderAxisSurfaceCoordinatePlot,
   renderAxisSurfacePlot,
+  renderAxisRectanglePatchCoordinatePlot,
   renderAxisTrianglePatchCoordinatePlot,
   renderAxisTicks,
   renderDatavisualizationCleanAxes,

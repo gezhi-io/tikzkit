@@ -34,6 +34,32 @@ test("patchplots triangle renders one filled planar three-vertex patch", () => {
   assert.notEqual(meshes[0].style.stroke, "none");
 });
 
+test("patchplots rectangle preserves the A-to-B-to-C-to-D vertex stream", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{patchplots}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[view={45}{30},xmin=0,xmax=2,ymin=0,ymax=2,zmin=0,zmax=2]
+    \addplot3[patch,patch type=rectangle,draw=black,fill=cyan!50]
+      coordinates {(0,0,0) (2,0,1) (2,2,2) (0,2,1)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  const surfaces = result.ir.items.filter((item) => item.type === "path" && role(item) === "axis-surface");
+  const fills = surfaces.filter((item) => item.style.fill && item.style.fill !== "none");
+  const meshes = surfaces.filter((item) => item.style.stroke && item.style.stroke !== "none");
+  assert.equal(fills.length, 1);
+  assert.equal(meshes.length, 1);
+  assert.equal(fills[0].commands.filter((command) => command.type === "lineTo").length, 3);
+  assert.ok(fills[0].commands.some((command) => command.type === "closePath"));
+  assert.equal(meshes[0].commands.filter((command) => command.type === "lineTo").length, 3);
+  assert.ok(meshes[0].commands.some((command) => command.type === "closePath"));
+});
+
 test("patchplots declaration resolves to its dedicated partial library module", () => {
   const libraries = collectPgfplotsLibraries(String.raw`\usepgfplotslibrary{patchplots}`);
 
@@ -42,4 +68,5 @@ test("patchplots declaration resolves to its dedicated partial library module", 
   assert.equal(libraries[0].status, "partial");
   assert.equal(libraries[0].localSource, patchplotsLibrary.localSource);
   assert.match(libraries[0].implementedBy, /renderAxisTrianglePatchCoordinatePlot/);
+  assert.match(libraries[0].implementedBy, /renderAxisRectanglePatchCoordinatePlot/);
 });

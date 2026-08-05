@@ -25,8 +25,10 @@ import {
 } from "./rangeResolver.js";
 import { isAxisQuiverPlot, renderAxisQuiverPlot } from "./quiver.js";
 import {
+  isAxisRectanglePatchPlot,
   isAxisTrianglePatchPlot,
   renderAxisParametricSurfacePlot,
+  renderAxisRectanglePatchCoordinatePlot,
   renderAxisSurfaceCoordinatePlot,
   renderAxisSurfacePlot,
   renderAxisTrianglePatchCoordinatePlot
@@ -36,6 +38,9 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
   if (plot.type === "coordinates") {
     if (isAxisTrianglePatchPlot(plot, axisOptions)) {
       return renderAxisTrianglePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
+    }
+    if (isAxisRectanglePatchPlot(plot, axisOptions)) {
+      return renderAxisRectanglePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);

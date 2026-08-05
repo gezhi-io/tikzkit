@@ -192,6 +192,31 @@ by Git. Review the native comparison sheet before treating a case as visually
 aligned; a zero-diagnostic audit alone only confirms that the input resource
 and supported syntax were processed.
 
+### PGFPlots Patchplots Slice
+
+The `patchplots` library is deliberately partial. The maintained fixtures
+cover linear 3D `patch type=triangle` and `patch type=rectangle`: ordered
+coordinate streams are projected into one closed face per three or four input
+vertices, respectively. They support an explicit `fill`, opacity, painter
+ordering, and a faceted mesh outline.
+
+```tex
+\usepackage{pgfplots}
+\usepgfplotslibrary{patchplots}
+\begin{tikzpicture}
+  \begin{axis}[view={45}{30}, xmin=0, xmax=2, ymin=0, ymax=2, zmin=0, zmax=2]
+    \addplot3[patch, patch type=rectangle, fill=cyan!50]
+      coordinates {(0,0,0) (2,0,1) (2,2,2) (0,2,1)};
+  \end{axis}
+\end{tikzpicture}
+```
+
+`patch type=line`, tables, per-vertex point meta, `shader=interp`,
+quadratic/biquadratic/Coons patch types, custom patch declarations, and PDF
+shading are not implemented. See
+[the rectangle-patch QA record](docs/qa/2026-08-06-pgfplots-patchplots-rectangle.md)
+for the exact local-reference comparison and acceptance boundary.
+
 ### Beamer Sources
 
 TikZKit emits one SVG per source. For a Beamer document with multiple

@@ -3777,6 +3777,23 @@
       ]
     },
     {
+      "id": "pgfplots-patchplots-rectangle",
+      "title": "PGFPlots patchplots planar rectangle",
+      "source": "pgfplots/patchplots-rectangle.tex",
+      "sourceCorpus": "TeX Live PGFPlots patchplots library",
+      "externalSource": "tex/generic/pgfplots/pgfplotsmeshplothandler.code.tex",
+      "semanticOwner": "src/pgfplots/surface.js:renderAxisRectanglePatchCoordinatePlot",
+      "features": [
+        "usepgfplotslibrary patchplots",
+        "addplot3 patch",
+        "patch type rectangle",
+        "four-coordinate planar patch",
+        "ordered A-B-C-D vertex stream",
+        "3D projection",
+        "faceted mesh outline"
+      ]
+    },
+    {
       "id": "chains-placed-chain-layout",
       "title": "TikZ chains placed positioning layout",
       "source": "chains/placed-chain-layout.tex",

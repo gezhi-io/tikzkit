@@ -46,7 +46,7 @@ that was not present.
 | `draw=black` | parsed; native mesh semantics applied | PGFPlots' linear handler produces a faceted dark-orange mesh outline, so the renderer mirrors that result rather than forcing a black SVG stroke |
 | `opacity` and `z buffer=none` | supported in this path | otherwise patches are painted far-to-near |
 
-Not implemented: linear `patch type=line` and `rectangle`; tables and
+Not implemented: linear `patch type=line`; tables and
 point-meta streams; `shader=interp`; per-vertex interpolation; quadratic,
 biquadratic, and Coons patches; PDF shading; and all custom patch class
 declarations.
@@ -124,6 +124,8 @@ fixture audit reports `269/269 rendered, 0 diagnostics`.
 
 ## Next Slice
 
-Implement either `patch type=rectangle` as two native-order triangles or
-`patch type=line`; keep high-order patch classes and interpolation separate
-because they require their own ordered control-point and shading model.
+`patch type=rectangle` is now covered by the follow-up
+[rectangle QA record](2026-08-06-pgfplots-patchplots-rectangle.md). The next
+meaningful slice is `patch type=line`; high-order patch classes and
+interpolation remain separate because they require their own ordered
+control-point and shading model.

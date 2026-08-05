@@ -1,0 +1,23 @@
+% Core PGFPlots rectangle patch vertex order: A -> B -> C -> D.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{patchplots}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    view={45}{30},
+    width=7cm,
+    height=5cm,
+    xmin=0,xmax=2,
+    ymin=0,ymax=2,
+    zmin=0,zmax=2,
+    xlabel=$x$,
+    ylabel=$y$,
+    zlabel=$z$
+  ]
+    \addplot3[patch,patch type=rectangle,draw=black,fill=cyan!50]
+      coordinates {(0,0,0) (2,0,1) (2,2,2) (0,2,1)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

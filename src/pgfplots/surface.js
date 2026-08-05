@@ -9,17 +9,38 @@ import { colorToRgb, normalizeColor } from "../engine/options.js";
 import { encodeRgbaPngDataUri } from "./rasterPng.js";
 
 export function isAxisTrianglePatchPlot(plot, axisOptions = {}) {
-  if (!plot?.is3d) return false;
-  const options = plot.options || {};
-  if (!options.patch && !axisOptions.patch) return false;
-  return String(options["patch type"] ?? axisOptions["patch type"] ?? "").trim().toLowerCase() === "triangle";
+  return axisLinearPatchType(plot, axisOptions) === "triangle";
 }
 
 export function renderAxisTrianglePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
+  return renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
+}
+
+export function isAxisRectanglePatchPlot(plot, axisOptions = {}) {
+  return axisLinearPatchType(plot, axisOptions) === "rectangle";
+}
+
+export function renderAxisRectanglePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
+  return renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
+}
+
+function axisLinearPatchType(plot, axisOptions = {}) {
+  if (!plot?.is3d) return "";
+  const options = plot.options || {};
+  if (!options.patch && !axisOptions.patch) return "";
+  const type = String(options["patch type"] ?? axisOptions["patch type"] ?? "").trim().toLowerCase();
+  return type === "triangle" || type === "rectangle" ? type : "";
+}
+
+function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
+  const patchType = axisLinearPatchType(plot, axisOptions);
+  const verticesPerPatch = patchType === "rectangle" ? 4 : 3;
   const points = plot.points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
   const patches = [];
-  for (let index = 0; index + 2 < points.length; index += 3) {
-    const patch = surfacePatchFromCorners(points.slice(index, index + 3), ranges, axisOptions);
+  for (let index = 0; index + verticesPerPatch - 1 < points.length; index += verticesPerPatch) {
+    // PGFPlots' linear patch classes consume vertex streams directly. In
+    // particular, a rectangle is A -> B -> C -> D, not a coordinate grid.
+    const patch = surfacePatchFromCorners(points.slice(index, index + verticesPerPatch), ranges, axisOptions);
     if (patch) patches.push(patch);
   }
   if (!patches.length) return [];
