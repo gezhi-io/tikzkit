@@ -1,0 +1,12 @@
+% Adapted from the TeX Live circuitikz manual's sinusoidal-source section.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american, thick]
+  \ctikzset{sources/scale=1.2, sources/symbol/thickness=1.5}
+  \draw (0,2) to[sV=$V$] ++(3,0);
+  \draw (0,1) to[sI=$I$] ++(3,0);
+  \ctikzset{bipoles/isourcesin/angle=80}
+  \draw (0,0) to[sI] ++(3,0);
+\end{circuitikz}
+\end{document}

@@ -221,8 +221,31 @@ following small circuit is covered by the browser renderer and the CLI:
 an external arrow. Resistors, capacitors, independent voltage sources, current
 annotations, common inductor styles, and cute chokes are covered by focused
 fixtures. Controlled sources and the standard battery plate families are also
-covered; transformers, source transforms, and the broad circuitikz component
-catalog remain partial.
+covered. Independent sinusoidal voltage/current sources are covered through a
+small verified slice; transformers, source transforms, and the broad
+circuitikz component catalog remain partial.
+
+### Circuitikz Sinusoidal Sources
+
+The independent sinusoidal source slice follows the local Circuitikz manual:
+
+```tex
+\usepackage{circuitikz}
+\begin{circuitikz}[american, thick]
+  \ctikzset{sources/scale=1.2, sources/symbol/thickness=1.5}
+  \draw (0,2) to[sV=$V$] ++(3,0);
+  \draw (0,1) to[sI=$I$] ++(3,0);
+  \ctikzset{bipoles/isourcesin/angle=80}
+  \draw (0,0) to[sI] ++(3,0);
+\end{circuitikz}
+```
+
+Supported here: `sV`, `sI`, `vsourcesin`, `isourcesin`, the named sinusoidal
+source styles, `sources/scale`, `sources/symbol/thickness`, the external
+`sI=$...$` current marker, and `bipoles/isourcesin/angle` between `0` and
+`90`. The controlled `csV`/`csI` variants, `sources/symbol/rotate` (including
+`auto`), source fills, and the other waveform families are still outside this
+verified slice.
 
 ### Circuitikz Battery Plate Families
 

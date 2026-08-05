@@ -2257,9 +2257,24 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       name
     };
   }
-  const sinusoidalVoltage = circuitikzFirstMatchingOption(options, /^sV[<>_^]*$/);
+  const sinusoidalVoltage = circuitikzFirstMatchingOption(options, /^(?:sV[<>_^]*|vsourcesin|sinusoidal voltage source)$/i);
   if (sinusoidalVoltage) {
-    return { kind: "voltageSource", sourceKind: "sinusoidal", label: sinusoidalVoltage.label, voltageKey: sinusoidalVoltage.key };
+    return {
+      kind: "voltageSource",
+      sourceKind: "sinusoidal",
+      label: circuitikzLabelValue(options.l) || sinusoidalVoltage.label,
+      voltageKey: sinusoidalVoltage.key
+    };
+  }
+  const sinusoidalCurrent = circuitikzFirstMatchingOption(options, /^(?:sI[<>_^]*|isourcesin|sinusoidal current source)$/i);
+  if (sinusoidalCurrent) {
+    return {
+      kind: "isource",
+      sourceKind: "sinusoidal",
+      label: circuitikzLabelValue(options.l) || sinusoidalCurrent.label,
+      currentLabel: sinusoidalCurrent.label,
+      currentKey: sinusoidalCurrent.key
+    };
   }
   const voltage = circuitikzFirstMatchingOption(options, /^V[<>_^]*$/);
   if (voltage) return { kind: "voltageSource", sourceKind: "plain", label: voltage.label, voltageKey: voltage.key };
@@ -2548,9 +2563,10 @@ function circuitikzBodyLength(kind, segmentLength, env = {}, settings = null) {
   const scale = circuitikzLengthScale(env);
   const controlledScale = kind === "controlledSource" ? circuitikzControlledSourceScale(env) : 1;
   const batteryScale = kind === "battery" ? circuitikzBatteryScale(env) : 1;
+  const sourceScale = kind === "voltageSource" || kind === "isource" ? circuitikzSourceScale(env) : 1;
   const desired = kind === "inductor"
     ? (settings?.bodyLength || 0.84 * scale)
-    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : 0.84) * scale;
+    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : (kind === "voltageSource" || kind === "isource") ? 0.84 * sourceScale : 0.84) * scale;
   return Math.min(desired, Math.max(0, segmentLength * 0.78));
 }
 
@@ -2576,6 +2592,42 @@ function circuitikzBatteryScale(env = {}) {
     }
   }
   return 1;
+}
+
+function circuitikzSourceScale(env = {}) {
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/sources/scale", "sources/scale"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return 1;
+}
+
+function circuitikzSourceSymbolThickness(env = {}) {
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/sources/symbol/thickness", "sources/symbol/thickness"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return 1;
+}
+
+function circuitikzSinusoidalCurrentAngle(env = {}) {
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/bipoles/isourcesin/angle", "bipoles/isourcesin/angle"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed)) return Math.max(0, Math.min(90, parsed));
+    }
+  }
+  return 90;
 }
 
 function circuitikzControlledSourceStyle(options = {}, env = {}, kind = "voltage") {
@@ -3083,7 +3135,10 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
     }
     return items;
   }
-  const radius = 0.42 * scale;
+  if (spec.sourceKind === "sinusoidal") {
+    return circuitikzSinusoidalSourceItems(geometry, "current", pathStyle, env);
+  }
+  const radius = 0.42 * scale * circuitikzSourceScale(env);
   const arrowHalf = 0.28 * scale;
   const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
   const arrowEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
@@ -3135,7 +3190,10 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
     }
     return items;
   }
-  const radius = 0.42 * scale;
+  if (spec.sourceKind === "sinusoidal") {
+    return circuitikzSinusoidalSourceItems(geometry, "voltage", pathStyle, env);
+  }
+  const radius = 0.42 * scale * circuitikzSourceScale(env);
   const style = circuitikzComponentStyle(pathStyle);
   const items = [
     {
@@ -3150,24 +3208,7 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
       commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
     }
   ];
-  if (spec.sourceKind === "sinusoidal") {
-    const waveHalf = 0.24 * scale;
-    const start = pointAlong(geometry.mid, geometry.n, -waveHalf);
-    const c1 = pointAlong(pointAlong(geometry.mid, geometry.n, -waveHalf * 0.5), geometry.u, waveHalf * 0.7);
-    const mid = geometry.mid;
-    const c2 = pointAlong(pointAlong(geometry.mid, geometry.n, waveHalf * 0.5), geometry.u, -waveHalf * 0.7);
-    const end = pointAlong(geometry.mid, geometry.n, waveHalf);
-    items.push({
-      type: "path",
-      subtype: "circuitikz-voltage-source-wave",
-      style,
-      commands: [
-        { type: "moveTo", x: start.x, y: start.y },
-        { type: "curveTo", x1: c1.x, y1: c1.y, x2: mid.x, y2: mid.y, x: mid.x, y: mid.y },
-        { type: "curveTo", x1: mid.x, y1: mid.y, x2: c2.x, y2: c2.y, x: end.x, y: end.y }
-      ]
-    });
-  } else if (!circuitikzUsesAmericanVoltageSource(env)) {
+  if (!circuitikzUsesAmericanVoltageSource(env)) {
     const lineHalf = 0.24 * scale;
     const start = pointAlong(geometry.mid, geometry.u, -lineHalf);
     const end = pointAlong(geometry.mid, geometry.u, lineHalf);
@@ -3182,6 +3223,106 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
     });
   }
   return items;
+}
+
+function circuitikzSinusoidalSourceItems(geometry, sourceType, pathStyle = {}, env = {}) {
+  const scale = circuitikzLengthScale(env) * circuitikzSourceScale(env);
+  const radius = 0.42 * scale;
+  const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+  const currentAngle = sourceType === "current" ? circuitikzSinusoidalCurrentAngle(env) : 90;
+  const sourceShape = sourceType === "current" && currentAngle < 89.999 ? "open" : "closed";
+  const outlineCommands = sourceShape === "open"
+    ? circuitikzOpenSinusoidalCurrentOutline(geometry, radius, currentAngle)
+    : circleToPath(geometry.mid.x, geometry.mid.y, radius);
+  const sourceName = sourceType === "voltage" ? "voltage" : "current";
+  return [
+    {
+      type: "path",
+      subtype: `circuitikz-sinusoidal-${sourceName}-source`,
+      sourceShape,
+      shape: "circle",
+      cx: geometry.mid.x,
+      cy: geometry.mid.y,
+      r: radius,
+      style,
+      commands: outlineCommands
+    },
+    circuitikzSinusoidalSourceWaveItem(geometry, radius, style, env)
+  ];
+}
+
+function circuitikzSinusoidalSourceWaveItem(geometry, radius, sourceStyle, env = {}) {
+  // Circuitikz halves the source radius, then applies PGF's sine/cosine
+  // primitives. The coefficients below are those primitives' cubic form.
+  const axis = geometry.n;
+  const lateral = { x: -geometry.u.x, y: -geometry.u.y };
+  const unit = radius / 4;
+  const point = (axisOffset, lateralOffset) => roundPoint({
+    x: geometry.mid.x + axis.x * axisOffset + lateral.x * lateralOffset,
+    y: geometry.mid.y + axis.y * axisOffset + lateral.y * lateralOffset
+  });
+  const start = point(-2 * unit, 0);
+  const first = point(-unit, unit);
+  const second = point(0, 0);
+  const third = point(unit, -unit);
+  const end = point(2 * unit, 0);
+  return {
+    type: "path",
+    subtype: "circuitikz-sinusoidal-source-wave",
+    style: {
+      ...sourceStyle,
+      lineWidth: roundNumber(sourceStyle.lineWidth * circuitikzSourceSymbolThickness(env))
+    },
+    commands: [
+      { type: "moveTo", x: start.x, y: start.y },
+      curveToCommand(point(-2 * unit + 0.327 * unit, 0.512 * unit), point(-unit - 0.4 * unit, unit), first),
+      curveToCommand(point(-unit + 0.4 * unit, unit), point(-0.512 * unit, 0.512 * unit), second),
+      curveToCommand(point(0.327 * unit, -0.512 * unit), point(unit - 0.4 * unit, -unit), third),
+      curveToCommand(point(unit + 0.4 * unit, -unit), point(2 * unit - 0.512 * unit, -0.512 * unit), end)
+    ]
+  };
+}
+
+function circuitikzOpenSinusoidalCurrentOutline(geometry, radius, angle) {
+  return [
+    ...circuitikzCircularArcCommands(geometry, radius, angle, -angle),
+    ...circuitikzCircularArcCommands(geometry, radius, 180 - angle, 180 + angle)
+  ];
+}
+
+function circuitikzCircularArcCommands(geometry, radius, startAngle, endAngle) {
+  const radians = (angle) => (angle * Math.PI) / 180;
+  const pointAt = (angle) => {
+    const rad = radians(angle);
+    return roundPoint({
+      x: geometry.mid.x + geometry.u.x * radius * Math.cos(rad) + geometry.n.x * radius * Math.sin(rad),
+      y: geometry.mid.y + geometry.u.y * radius * Math.cos(rad) + geometry.n.y * radius * Math.sin(rad)
+    });
+  };
+  const derivativeAt = (angle) => {
+    const rad = radians(angle);
+    return {
+      x: -geometry.u.x * radius * Math.sin(rad) + geometry.n.x * radius * Math.cos(rad),
+      y: -geometry.u.y * radius * Math.sin(rad) + geometry.n.y * radius * Math.cos(rad)
+    };
+  };
+  const parts = Math.max(1, Math.ceil(Math.abs(endAngle - startAngle) / 90));
+  const commands = [{ type: "moveTo", ...pointAt(startAngle) }];
+  for (let index = 0; index < parts; index += 1) {
+    const a0 = startAngle + ((endAngle - startAngle) * index) / parts;
+    const a1 = startAngle + ((endAngle - startAngle) * (index + 1)) / parts;
+    const tangent = (4 / 3) * Math.tan(radians(a1 - a0) / 4);
+    const p0 = pointAt(a0);
+    const p1 = pointAt(a1);
+    const d0 = derivativeAt(a0);
+    const d1 = derivativeAt(a1);
+    commands.push(curveToCommand(
+      roundPoint({ x: p0.x + tangent * d0.x, y: p0.y + tangent * d0.y }),
+      roundPoint({ x: p1.x - tangent * d1.x, y: p1.y - tangent * d1.y }),
+      p1
+    ));
+  }
+  return commands;
 }
 
 function circuitikzUsesAmericanVoltageSource(env = {}) {
@@ -3714,6 +3855,7 @@ function circuitikzGroundItem(point, style = {}, env = {}) {
 
 function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {}) {
   if ((spec.kind === "voltageSource" || spec.kind === "controlledVoltageSource") && circuitikzVoltageSpec({}, spec, env)) return;
+  if (spec.kind === "isource" && spec.sourceKind === "sinusoidal") return;
   const label = circuitikzTextLabel(spec.label, env);
   if (!label) return;
   if (spec.kind === "controlledVoltageSource" || spec.kind === "controlledCurrentSource") {
@@ -3877,6 +4019,10 @@ function circuitikzCurrentSpec(options = {}, spec = {}, env = {}) {
     const label = circuitikzTextLabel(spec.currentLabel, env);
     if (label) return { key: String(spec.currentKey || "cI").replace(/^cI/, "i"), label };
   }
+  if (spec.kind === "isource" && spec.sourceKind === "sinusoidal" && spec.currentLabel) {
+    const label = circuitikzTextLabel(spec.currentLabel, env);
+    if (label) return { key: String(spec.currentKey || "sI").replace(/^sI/, "i"), label };
+  }
   return null;
 }
 
@@ -3920,7 +4066,13 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
   // American voltage notation keeps the polarity signs even with RPvoltages.
   // Independent American sources already place those signs inside their symbol.
   if (spec.kind === "voltageSource") {
-    addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, 0.62 * scale), label);
+    const sourceDistance = spec.sourceKind === "sinusoidal"
+      ? 0.8 * circuitikzSourceScale(env)
+      : 0.62;
+    const labelOptions = spec.sourceKind === "sinusoidal"
+      ? { "tikzkit layout bbox": true, "minimum height": "0.38cm" }
+      : {};
+    addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, sourceDistance * scale), label, labelOptions);
     return;
   }
 

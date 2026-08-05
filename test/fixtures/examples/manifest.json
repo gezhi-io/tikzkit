@@ -3682,6 +3682,21 @@
         "1cm unit scaling",
         "asymmetric origin tick labels"
       ]
+    },
+    {
+      "id": "circuitikz-sinusoidal-sources",
+      "title": "circuitikz independent sinusoidal voltage and current sources",
+      "source": "circuitikz/sinusoidal-sources.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzSinusoidalSourceItems/circuitikzSourceScale",
+      "features": [
+        "to[sV] sinusoidal voltage source",
+        "to[sI] sinusoidal current source",
+        "sources/scale",
+        "sources/symbol/thickness",
+        "bipoles/isourcesin/angle"
+      ]
     }
   ]
 }
