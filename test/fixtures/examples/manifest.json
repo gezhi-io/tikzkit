@@ -19,6 +19,22 @@
       ]
     },
     {
+      "id": "tkz-fct-tangent-poles",
+      "title": "tkz-fct sampled tangent branches across poles",
+      "source": "tkz-fct/tangent-poles.tex",
+      "sourceCorpus": "tkz-fct documented gnuplot syntax",
+      "externalSource": "doc/latex/tkz-fct/TKZdoc-fct-fonctions.tex",
+      "semanticOwner": "src/extensions/tkz-fct.js:hasDiscontinuityBetween",
+      "features": [
+        "tkzFct",
+        "domain",
+        "samples",
+        "radian tan",
+        "pole branch splitting",
+        "frame clipping"
+      ]
+    },
+    {
       "id": "tkz-euclide-thales-circle-triangle",
       "title": "tkz-euclide Thales circle triangle with sector",
       "source": "tkz-euclide/thales-circle-triangle.tex",

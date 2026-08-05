@@ -48,6 +48,46 @@ test("renders tkzFct expressions in source units before xstep and ystep scaling"
   );
 });
 
+test("splits tkzFct paths at sampled poles instead of drawing a vertical bridge", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-2,xmax=2,ymin=-5,ymax=5]
+  \tkzFct[color=red,domain=-2:2,samples=81]{tan(x)}
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path" && item.style?.stroke === "red");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(paths.length, 3);
+  assert.ok(
+    paths.every((path) =>
+      !path.commands.some(
+        (command, index) =>
+          index > 0 &&
+          Math.abs(command.y - path.commands[index - 1].y) >= 10 &&
+          Math.abs(command.x - path.commands[index - 1].x) < 0.01
+      )
+    )
+  );
+});
+
+test("keeps a continuous steep tkzFct segment connected across opposite frame bounds", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-5,xmax=5,ymin=-5,ymax=5]
+  \tkzFct[color=blue,domain=-10:10,samples=2]{x}
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(paths.length, 1);
+  assert.deepEqual(
+    paths[0].commands.map((command) => [command.x, command.y]),
+    [[-5, -5], [5, 5]]
+  );
+});
+
 test("lowers tkzInit, tkzGrid, and tkzAxeXY using tkz-base dimensions", () => {
   const expanded = expandTkzFct(String.raw`
 \usepackage{tkz-fct}

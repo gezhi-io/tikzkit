@@ -6,7 +6,9 @@ This pass implements one bounded `tkz-fct` family: continuous scalar
 `\tkzFct[options]{expression}` plots. It accepts `domain`, `samples`,
 `color`, `line width`, `style`, and the enclosing `\tkzInit`
 `xstep`/`ystep` mapping. Each sampled line segment is clipped geometrically to
-the initialized Cartesian frame before it reaches the renderer.
+the initialized Cartesian frame before it reaches the renderer. A follow-up
+pole slice also splits a sampled branch when consecutive finite samples cross
+opposite vertical frame bounds and the midpoint remains out of frame.
 
 The driver is the three-line example from the local `tkz-fct` manual:
 `test/fixtures/examples/tkz-fct/linear-functions.tex`. It deliberately uses
@@ -14,7 +16,8 @@ The driver is the three-line example from the local `tkz-fct` manual:
 and clipping are both visible.
 
 Deferred: `\tkzFctPar`, `\tkzFctPolar`, gnuplot files and `id` caches,
-tangents, areas, asymptotes, and robust discontinuity splitting.
+tangents, areas, asymptotes, adaptive sampling, and general discontinuity
+analysis.
 
 ## Local MacTeX Reading
 
@@ -42,7 +45,8 @@ the browser renderer's still-partial `\clip` handling.
 | clip to `\tkzInit` bounds | implemented | Every segment is clipped, including a boundary crossing between samples. |
 | `\tkzFctPar`, `\tkzFctPolar` | deferred | Different parameter spaces and point construction. |
 | gnuplot cache `id`, files, tangents, areas, asymptotes | deferred | Need the native gnuplot workflow or dedicated equivalents. |
-| discontinuity-aware branch splitting | deferred | Non-finite samples split paths, but finite samples across a pole still need a detector. |
+| finite-sample pole branch splitting | implemented | Splits when opposite frame bounds are crossed and a midpoint check identifies a pole/out-of-frame discontinuity. |
+| general discontinuity analysis | deferred | Removable discontinuities, arbitrary jumps, and undersampled poles need adaptive sampling or symbolic information. |
 
 ## Reference Artifacts
 
@@ -110,6 +114,6 @@ LaTeX-examples corpus; this pass does not modify it.
 
 ## Next Boundary
 
-Keep the next change separate: either refine the shared SVG text/bounds model
-used by axis labels, or add a discontinuity detector for functions such as
-`tan(x)`. Do not fold parametric/polar plotting into this scalar slice.
+Keep the next change separate: refine the shared SVG text/bounds model used by
+axis labels or add parametric/polar plotting. Do not fold either into the
+finite-sample pole slice.

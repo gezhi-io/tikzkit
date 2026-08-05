@@ -201,19 +201,24 @@ function renderFunction(state, rawOptions, rawExpression) {
       previous = null;
       continue;
     }
-    const current = { x: sourceX / state.xstep, y: sourceY / state.ystep };
+    const current = { sourceX, x: sourceX / state.xstep, y: sourceY / state.ystep };
     if (previous) {
-      const clipped = clipSegmentToBounds(previous, current, bounds);
-      if (clipped) {
-        const [start, end] = clipped;
-        if (!active.length || !samePoint(active[active.length - 1], start)) {
-          if (active.length) points.push(active);
-          active = [start];
-        }
-        if (!samePoint(active[active.length - 1], end)) active.push(end);
-      } else if (active.length) {
-        points.push(active);
+      if (hasDiscontinuityBetween(rawExpression, previous, current, state, bounds)) {
+        if (active.length) points.push(active);
         active = [];
+      } else {
+        const clipped = clipSegmentToBounds(previous, current, bounds);
+        if (clipped) {
+          const [start, end] = clipped;
+          if (!active.length || !samePoint(active[active.length - 1], start)) {
+            if (active.length) points.push(active);
+            active = [start];
+          }
+          if (!samePoint(active[active.length - 1], end)) active.push(end);
+        } else if (active.length) {
+          points.push(active);
+          active = [];
+        }
       }
     }
     previous = current;
@@ -227,6 +232,25 @@ function renderFunction(state, rawOptions, rawExpression) {
     .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
     .join("\n");
   return paths ? `${clips}\n${paths}\n\\end{scope}` : "";
+}
+
+function hasDiscontinuityBetween(expression, start, end, state, bounds) {
+  if (!crossesOppositeVerticalBounds(start.y, end.y, bounds)) return false;
+  const midpointX = (start.sourceX + end.sourceX) / 2;
+  const midpointY = evaluateAxisExpression(expression, midpointX, { "trig format": "rad" });
+  if (!Number.isFinite(midpointY)) return true;
+  return isOutsideVerticalBounds(midpointY / state.ystep, bounds);
+}
+
+function crossesOppositeVerticalBounds(startY, endY, bounds) {
+  return (
+    (startY > bounds.ymax && endY < bounds.ymin) ||
+    (startY < bounds.ymin && endY > bounds.ymax)
+  );
+}
+
+function isOutsideVerticalBounds(value, bounds) {
+  return value < bounds.ymin || value > bounds.ymax;
 }
 
 function clipSegmentToBounds(start, end, bounds) {

@@ -1,0 +1,12 @@
+% Derived from the tkz-fct manual's documented gnuplot expression grammar.
+% This case isolates the finite-sample pole behavior of \tkzFct.
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-fct}
+\begin{document}
+\begin{tikzpicture}
+  \tkzInit[xmin=-2,xmax=2,ymin=-5,ymax=5]
+  \tkzGrid[color=gray!30]
+  \tkzAxeXY
+  \tkzFct[color=red,domain=-2:2,samples=81]{tan(x)}
+\end{tikzpicture}
+\end{document}
