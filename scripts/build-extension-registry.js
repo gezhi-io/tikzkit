@@ -307,7 +307,7 @@ function packageMetadataSupport(metadata) {
     notes: [metadata.notes, metadata.registryNoteSuffix].filter(Boolean).join(" ") || (metadata.features || []).join("; "),
     localSource: metadata.localSource || "",
     localDoc: metadata.localDoc || "",
-    localSourceReviewed: metadata.localSourceReviewed || ""
+    localSourceReviewed: [metadata.localSourceReviewed, metadata.localSourceReviewedExtra].filter(Boolean).join("; ")
   };
 }
 

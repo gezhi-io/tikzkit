@@ -343,6 +343,22 @@ test("constructs line-circle intersections with native tkz-euclide ordering cont
   assert.deepEqual(result.ir.coordinates.NodeRight, { x: 3, y: 0 });
 });
 
+test("keeps tkz-euclide line-circle default result order under a magnifying picture transform", () => {
+  const source = String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}[scale=1.5]
+  \tkzDefPoints{0/0/A,4/0/B,2/0/M,3/2/H}
+  \tkzInterLC[/tikz/overlay](M,H)(M,B)\tkzGetPoints{E}{C}
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.abs(result.ir.coordinates.E.x - 4.3416407865) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.E.y - 2.683281573) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.C.x - 1.6583592135) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.C.y + 2.683281573) < 1e-9);
+});
+
 test("constructs external circle tangents in tkz-euclide order and preserves their inversion intersection", () => {
   const source = String.raw`
 \usepackage{tkz-euclide}

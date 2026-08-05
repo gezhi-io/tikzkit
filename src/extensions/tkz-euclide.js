@@ -110,6 +110,9 @@ function createState() {
       color: "black!50",
       style: "solid"
     },
+    // TeX Live's tkzInterLCR root construction is sensitive to picture-scale
+    // magnification. This records its observable first-result convention.
+    lineCircleFirstFollowsDirection: false,
     circleClip: null,
     warned: new Set()
   };
@@ -126,8 +129,10 @@ function expandWithState(text, state, diagnostics) {
       state.pointResults = [];
       state.lengthResult = null;
       state.circleClip = null;
-      output += pictureBegin;
-      index += pictureBegin.length;
+      const pictureOptions = parseOptionalArg(text, index + pictureBegin.length);
+      state.lineCircleFirstFollowsDirection = usesNativeForwardLineCircleRootOrder(pictureOptions.content);
+      output += text.slice(index, pictureOptions.end);
+      index = pictureOptions.end;
       continue;
     }
     if (text[index] !== "\\") {
@@ -2150,6 +2155,7 @@ function orderCircleCircleIntersections(intersections, firstCenter, secondCenter
 
 function orderLineCircleIntersections(intersections, lineStart, center, options, state) {
   let [first, second] = intersections;
+  if (state.lineCircleFirstFollowsDirection) [first, second] = [second, first];
   const nearestTo = (target) => {
     if (!target || distanceBetween(target, first) < distanceBetween(target, second)) return;
     [first, second] = [second, first];
@@ -2163,11 +2169,20 @@ function orderLineCircleIntersections(intersections, lineStart, center, options,
     nearestTo(state.points.get(options["next to"].trim()));
   }
 
-  // tkzInterLCR produces the point opposite the line direction first and
-  // the point in the line direction second. tkzInterLC preserves that order
-  // unless an explicit near/common/next to selector asks for a reordering.
+  // tkzInterLCR normally produces the point opposite the line direction
+  // first. Under a magnifying picture transform, TeX Live's point-border
+  // construction emits the forward point first. Preserve that observable
+  // order before explicit near/common/next to selectors run.
 
   return [first, second];
+}
+
+function usesNativeForwardLineCircleRootOrder(pictureOptions) {
+  const options = parseOptions(pictureOptions);
+  const scales = [options.scale, options.xscale, options.yscale]
+    .map((value) => value === undefined || value === true ? 1 : evaluateMath(String(value)))
+    .filter(Number.isFinite);
+  return scales.some((scale) => Math.abs(scale) > 1 + 1e-10);
 }
 
 function numericOption(value, fallback) {

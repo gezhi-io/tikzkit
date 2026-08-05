@@ -463,6 +463,20 @@ Keep the resulting `mactex-png/`, `tikzkit-svg/`, `tikzkit-png/`,
 `tikztosvg-svg/`, `tikztosvg-png/`, and `diff/` directories together. They are
 the minimum evidence bundle for a visual compatibility change.
 
+For `tkz-euclide` construction results, include `--native-reference` and use
+the native MacTeX panel as the acceptance target. The converter's fixed wrapper
+preamble can expose a different root order for scale-sensitive legacy geometry
+macros. The focused line-circle check is:
+
+```bash
+node --test test/tkz-euclide.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-tkz-interlc \
+  --only tkz-euclide-line-circle-intersections \
+  --native-reference --comparison-grid-mode svg
+npm run examples:diff -- --output outputs/qa-tkz-interlc
+```
+
 ### Inspect Library Support Before Extending It
 
 Each observed `\usetikzlibrary{...}` name has a declaration module under
