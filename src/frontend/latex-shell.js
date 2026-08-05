@@ -6684,6 +6684,10 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     "datavis hide out of range tick labels": true,
     "axis line width": schoolBookAxes || xyCartesianAxes ? majorStrokeWidth : undefined,
     "axis school book padding": schoolBookAxes ? "7.5pt" : undefined,
+    // PGF's school-book axis system suppresses the x=0 tick label but keeps
+    // the y=0 label at the intersection, anchored north east without a tick.
+    // Keep that asymmetric rule explicit for the generic tick renderer.
+    "datavis school book y origin label": schoolBookAxes ? true : undefined,
     "axis tick color": schoolBookAxes ? "black" : "black!50",
     "x axis tick color": xTickColor || undefined,
     "y axis tick color": yTickColor || undefined,

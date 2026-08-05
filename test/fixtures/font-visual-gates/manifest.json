@@ -16,6 +16,11 @@
       "nativeEngine": "pdflatex"
     },
     {
+      "id": "datavisualization-school-book-axes",
+      "source": "test/fixtures/examples/datavisualization/school-book-axes.tex",
+      "nativeEngine": "pdflatex"
+    },
+    {
       "id": "circuitikz-labels",
       "source": "test/fixtures/font-visual-gates/circuitikz-labels.tex",
       "nativeEngine": "pdflatex"

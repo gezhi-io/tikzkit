@@ -1095,6 +1095,31 @@ test("pgfplots x-square major grid follows native y tick density", () => {
   assert.deepEqual(observed, [1.529, 2.583, 3.638, 4.692]);
 });
 
+test("datavisualization school-book axes preserve only the native y-origin label", () => {
+  const axisOptions = {
+    width: "2cm",
+    height: "2cm",
+    "axis lines": "center",
+    "datavis school book y origin label": true,
+    xtick: "{0,1,2}",
+    ytick: "{0,1,2}",
+    "axis tick label font": String.raw`\footnotesize`,
+    "major tick length": "2pt"
+  };
+  const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 2 };
+  const commands = renderAxisTicks(axisOptions, [], ranges, createAxisGeometry(axisOptions, ranges));
+  const originLabels = commands.filter((command) => command.endsWith("{0};"));
+
+  assert.equal(originLabels.length, 1, `expected only the y-origin label, got ${originLabels.join("\\n")}`);
+  assert.match(originLabels[0], /anchor=north east/);
+  assert.match(originLabels[0], /at \(0,0\)/);
+  assert.equal(
+    commands.some((command) => command.startsWith(String.raw`\draw[axis tick`) && /\(0,0\)/.test(command)),
+    false,
+    "native school-book y origin has a label but no short tick line"
+  );
+});
+
 test("pgfplots x-square skips out-of-range automatic terminal major ticks", () => {
   const source = readFileSync("test/fixtures/examples/latex-examples/2d-x-square-with-circle.tex", "utf8");
   let observed = null;

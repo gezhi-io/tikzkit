@@ -281,11 +281,14 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
     if (shouldHideObscuredAxisTick(axisOptions, "y", y, ranges)) return;
     const base = geometry.mapPoint({ x: axisTickBaseValue(yMajorTickVisual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
+    const schoolBookOriginLabel = isDatavisualizationSchoolBookOriginLabel(axisOptions, "y", y, ranges);
     const [from, to] =
       middleAxis && !yMajorTickVisual
         ? alignedMiddleAxisTickSegment(base, "y", tickLength, yTickAlignment)
         : axisTickSegment(base, yMajorTickVisual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
-    commands.push(`\\draw[${yMajorTickVisual?.style || yTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+    if (!schoolBookOriginLabel) {
+      commands.push(`\\draw[${yMajorTickVisual?.style || yTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+    }
     if (oppositeYBoxTicks) {
       const rightBase = geometry.mapPoint({ x: boxRanges.xMax, y });
       commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightBase)} -- ${formatAxisPoint(offsetPoint(rightBase, innerBoxTicks ? -tickLength : tickLength, 0))};`);
@@ -315,7 +318,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
       const labelStyle = joinOptions([
         "axis tick label",
         "tikzkit skip implicit node bbox",
-        `anchor=${axisTickLabelAnchor(yTickLabelStyle, rightSide ? "west" : "east", "y")}`,
+        `anchor=${axisTickLabelAnchor(yTickLabelStyle, schoolBookOriginLabel ? "north east" : rightSide ? "west" : "east", "y")}`,
         axisTickLabelRotation(yTickLabelStyle),
         axisTickLabelAlignment(yTickLabelStyle),
         `font=${yTickLabelFont}`,
@@ -325,7 +328,10 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
         yTickLabelColor ? `text=${yTickLabelColor}` : ""
       ]);
       const labelDistance = Number.isFinite(yTickLabelDistance) ? yTickLabelDistance : defaultTickLabelDistance(axisOptions, "y", tickLength, yTickAlignment);
-      commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(labelBase, rightSide ? labelDistance : -labelDistance, 0))} {${yLabels[index]}};`);
+      const labelPoint = schoolBookOriginLabel
+        ? labelBase
+        : offsetPoint(labelBase, rightSide ? labelDistance : -labelDistance, 0);
+      commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(labelPoint)} {${yLabels[index]}};`);
     }
   });
   commands.push(...renderTickScaleLabel(axisOptions, "x", xTicks, geometry, xTickLabelsOnUpperSide ? "top" : xLineMode));
@@ -938,6 +944,7 @@ function automaticAxisTickScale(axisOptions = {}, ticks = []) {
 }
 
 function shouldHideObscuredAxisTick(axisOptions, axis, value, ranges) {
+  if (isDatavisualizationSchoolBookOriginLabel(axisOptions, axis, value, ranges)) return false;
   if (!obscuredAxisTicksEnabled(axisOptions, axis)) return false;
   const ownMode = effectiveAxisLineMode(axisOptions, axis);
   if (ownMode !== "middle" && ownMode !== "center") return false;
@@ -959,6 +966,16 @@ function shouldHideObscuredAxisTick(axisOptions, axis, value, ranges) {
   if (otherMode === "right" || otherMode === "top") return touches(max);
   if (otherMode === "none") return false;
   return touches(min) || touches(max);
+}
+
+function isDatavisualizationSchoolBookOriginLabel(axisOptions = {}, axis, value, ranges = {}) {
+  if (axis !== "y" || !axisOptions["datavis school book y origin label"]) return false;
+  const min = Number(ranges.yMin);
+  const max = Number(ranges.yMax);
+  const tick = Number(value);
+  if (![min, max, tick].every(Number.isFinite) || !(min <= 0 && max >= 0)) return false;
+  const tolerance = Math.max(Math.abs(max - min) * 1e-9, 1e-9);
+  return Math.abs(tick) <= tolerance;
 }
 
 function obscuredAxisTicksEnabled(axisOptions, axis) {

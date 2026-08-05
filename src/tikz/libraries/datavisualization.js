@@ -3,6 +3,9 @@ export const tikzLibrary = {
   status: "partial",
   category: "datavisualization",
   implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions",
+  localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex",
+  localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-axes.tex",
+  localSourceReviewed: "yes",
   features: [
     "basic scientific axes lowering",
     "table data blocks with x/y/set columns",
@@ -28,7 +31,7 @@ export const tikzLibrary = {
     "explicit data point [x=..., y=..., set=...] streams",
     "data [format=named] attribute assignments with list and range cartesian expansion",
     "data groups containing explicit data point streams",
-    "school book axes lowering",
+    "school book axes lowering with native asymmetric x/y origin tick labels",
     "nested scientific axes styles including clean and end labels",
     "Cartesian x/y axis attribute mapping for numeric point attributes",
     "linear Cartesian axis scaling via scaling=<source> at <target> and <source> at <target>",
@@ -38,5 +41,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented through the same focused preprocessor as datavisualization.formats.functions. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline or custom pgfooclass visualizers."
+    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally on 2026-08-05 against the school-book axis declaration: x=0 suppresses its label, while y=0 keeps a north-east-anchored label with no short tick. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline or custom pgfooclass visualizers."
 };

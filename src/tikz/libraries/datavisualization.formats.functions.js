@@ -3,6 +3,9 @@ export const tikzLibrary = {
   status: "partial",
   category: "datavisualization",
   implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions",
+  localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.formats.functions.code.tex",
+  localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-formats.tex",
+  localSourceReviewed: "yes",
   features: [
     "function format data blocks with interval samples and step variables",
     "table data blocks with x/y/set columns",
@@ -42,7 +45,7 @@ export const tikzLibrary = {
     "named datavisualization legends via new legend plus label in legend legend=<name>",
     "east-outside legend matrix placement with requested columns and max columns",
     "deterministic PGF-style rand/rnd/random support",
-    "school book axes lowering",
+    "school book axes lowering with native asymmetric x/y origin tick labels",
     "nested scientific axes styles including clean, inner ticks, end labels, and upright labels",
     "non-clean scientific axes boxed frames with black!50 outer/inner tick styling",
     "Cartesian x/y axis attribute mapping for function data such as angle/radius attributes",
@@ -61,5 +64,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact native matrix legends remain partial."
+    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally on 2026-08-05 against the documented function-format loader and school-book function examples. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact native matrix legends remain partial."
 };

@@ -3636,6 +3636,22 @@
         "month labels",
         "calendar conditions"
       ]
+    },
+    {
+      "id": "datavisualization-school-book-axes",
+      "title": "PGF manual school-book axes cubic function",
+      "source": "datavisualization/school-book-axes.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-dv-axes.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:datavisualizationAxisOptions; src/pgfplots/ticks.js:renderAxisTicks",
+      "features": [
+        "datavisualization.formats.functions",
+        "school book axes",
+        "function interval",
+        "smooth line",
+        "1cm unit scaling",
+        "asymmetric origin tick labels"
+      ]
     }
   ]
 }
