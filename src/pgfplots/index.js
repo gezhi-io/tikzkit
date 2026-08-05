@@ -56,8 +56,10 @@ export {
 } from "./rangeResolver.js";
 export { isAxisQuiverPlot, renderAxisQuiverPlot } from "./quiver.js";
 export {
+  isAxisLinePatchPlot,
   isAxisRectanglePatchPlot,
   isAxisTrianglePatchPlot,
+  renderAxisLinePatchCoordinatePlot,
   renderAxisRectanglePatchCoordinatePlot,
   renderAxisSurfaceCoordinatePlot,
   renderAxisSurfacePlot,

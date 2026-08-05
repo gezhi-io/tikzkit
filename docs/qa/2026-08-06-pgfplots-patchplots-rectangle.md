@@ -52,9 +52,11 @@ claimed.
 | `draw=black` | parsed; native mesh rule used | generic plot draw does not replace the PGFPlots default faceted mesh rule |
 | `opacity`, `z buffer=none` | supported | controls alpha and preserves source paint order; otherwise faces sort by depth |
 
-Not implemented: `patch type=line`, tables, point-meta input, per-vertex
-interpolation, `shader=interp`, explicit `faceted color` fidelity, quadratic,
-biquadratic, and Coons patches, PDF shading, and user-defined patch classes.
+The linear `patch type=line` follow-up is documented in
+[the line-patch QA record](2026-08-06-pgfplots-patchplots-line.md). Tables,
+point-meta input, per-vertex interpolation, `shader=interp`, explicit
+`faceted color` fidelity, quadratic, biquadratic, and Coons patches, PDF
+shading, and user-defined patch classes remain out of scope.
 
 ## References And Artifacts
 
@@ -91,10 +93,10 @@ reference parallelogram's upper and lower edges.
 After the fix, MacTeX, tikztosvg, and TikZKit all show the same cyan
 four-sided plane from the origin through the right-hand top corner and back
 through the left mid-height corner. The 3D frame, labels, ticks, and the face
-position now agree. The JS outline remains dark cyan while the native default
-is a darker mapped orange; final canvas bounds and TeX/browser glyph
-rasterization also differ. Those are recorded as remaining color/bbox work,
-not hidden as full parity.
+position now agree. The subsequent line-patch source study also corrected the
+shared default mesh outline to the native darker mapped orange. Final canvas
+bounds and TeX/browser glyph rasterization still differ and remain separate
+bbox/font work, not hidden as full parity.
 
 The registered changed-pixel ratio is not the acceptance metric here: it rose
 from 23.93% to 24.85% because the corrected face covers the proper larger
@@ -133,7 +135,7 @@ Focused regression tests pass, and the one-fixture semantic audit reports
 
 ## Next Slice
 
-Implement `patch type=line` as an ordered two-vertex mesh primitive, then
-separately address mapped-color/faceted-outline semantics. High-order patch
-classes, interpolation, and shading need their own TeX-source-driven design
-and should not be folded into this linear face path.
+`patch type=line` and default mapped-color/faceted-outline semantics are now
+covered by the follow-up [line QA record](2026-08-06-pgfplots-patchplots-line.md).
+High-order patch classes, interpolation, and shading need their own
+TeX-source-driven design and should not be folded into this linear path.

@@ -195,26 +195,26 @@ and supported syntax were processed.
 ### PGFPlots Patchplots Slice
 
 The `patchplots` library is deliberately partial. The maintained fixtures
-cover linear 3D `patch type=triangle` and `patch type=rectangle`: ordered
-coordinate streams are projected into one closed face per three or four input
-vertices, respectively. They support an explicit `fill`, opacity, painter
-ordering, and a faceted mesh outline.
+cover the linear 3D patch families: `patch type=line` projects each ordered
+pair as one open mapped-color segment, while `patch type=triangle` and
+`patch type=rectangle` project ordered triples or quadruples into closed
+faces. Faces support an explicit `fill`, opacity, painter ordering, and the
+native-like faceted mesh outline.
 
 ```tex
 \usepackage{pgfplots}
 \usepgfplotslibrary{patchplots}
 \begin{tikzpicture}
   \begin{axis}[view={45}{30}, xmin=0, xmax=2, ymin=0, ymax=2, zmin=0, zmax=2]
-    \addplot3[patch, patch type=rectangle, fill=cyan!50]
-      coordinates {(0,0,0) (2,0,1) (2,2,2) (0,2,1)};
+    \addplot3[patch, patch type=line, line width=1.2pt]
+      coordinates {(0,0,0) (2,2,2)};
   \end{axis}
 \end{tikzpicture}
 ```
 
-`patch type=line`, tables, per-vertex point meta, `shader=interp`,
-quadratic/biquadratic/Coons patch types, custom patch declarations, and PDF
-shading are not implemented. See
-[the rectangle-patch QA record](docs/qa/2026-08-06-pgfplots-patchplots-rectangle.md)
+Tables, per-vertex point meta, `shader=interp`, quadratic/biquadratic/Coons
+patch types, custom patch declarations, and PDF shading are not implemented.
+See [the line-patch QA record](docs/qa/2026-08-06-pgfplots-patchplots-line.md)
 for the exact local-reference comparison and acceptance boundary.
 
 ### Beamer Sources

@@ -24,17 +24,25 @@ export function renderAxisRectanglePatchCoordinatePlot(plot, axisOptions, ranges
   return renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
 }
 
+export function isAxisLinePatchPlot(plot, axisOptions = {}) {
+  return axisLinearPatchType(plot, axisOptions) === "line";
+}
+
+export function renderAxisLinePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
+  return renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
+}
+
 function axisLinearPatchType(plot, axisOptions = {}) {
   if (!plot?.is3d) return "";
   const options = plot.options || {};
   if (!options.patch && !axisOptions.patch) return "";
   const type = String(options["patch type"] ?? axisOptions["patch type"] ?? "").trim().toLowerCase();
-  return type === "triangle" || type === "rectangle" ? type : "";
+  return type === "line" || type === "triangle" || type === "rectangle" ? type : "";
 }
 
 function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
   const patchType = axisLinearPatchType(plot, axisOptions);
-  const verticesPerPatch = patchType === "rectangle" ? 4 : 3;
+  const verticesPerPatch = patchType === "line" ? 2 : patchType === "rectangle" ? 4 : 3;
   const points = plot.points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
   const patches = [];
   for (let index = 0; index + verticesPerPatch - 1 < points.length; index += verticesPerPatch) {
@@ -49,12 +57,33 @@ function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry
   const zBuffer = String(plot.options["z buffer"] ?? axisOptions["z buffer"] ?? "sort").trim().toLowerCase();
   const orderedPatches = zBuffer === "none" ? patches : [...patches].sort((left, right) => left.depth - right.depth);
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
+  if (patchType === "line") {
+    const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
+    return orderedPatches.map((patch) => {
+      const mappedColor = pgfplotsLinearPatchMappedColor(
+        surfacePatchColorValue(patch),
+        colorRanges,
+        plot.options,
+        axisOptions,
+        plotIndex
+      );
+      const pointsText = patch.corners.map((corner) => formatAxisPoint(geometry.mapPoint3d(corner))).join(" -- ");
+      return `\\draw[axis surface mesh, draw=${mappedColor}, fill=none, opacity=${opacity}, line width=${lineWidth}] ${pointsText};`;
+    });
+  }
   return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
     const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
     // PGFPlots' linear patch handler uses its faceted mesh color even when
     // the plot also provides a generic draw key. This matches the native
     // triangle patch's separate orange fill and darker mesh outline.
-    const draw = pgfplotsSurfacePatchStrokeColor({ ...plot.options, surf: true }, fill);
+    const mappedColor = pgfplotsLinearPatchMappedColor(
+      surfacePatchColorValue(patch),
+      colorRanges,
+      plot.options,
+      axisOptions,
+      plotIndex
+    );
+    const draw = pgfplotsSurfacePatchStrokeColor({ ...plot.options, surf: true }, mappedColor);
     const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
     const pointsText = patch.corners.map((corner) => formatAxisPoint(geometry.mapPoint3d(corner))).join(" -- ");
     return renderAxisSurfacePatchLayers(pointsText, { fill, draw, opacity, lineWidth });
@@ -802,7 +831,18 @@ function surfaceColorContext(options = {}, axisOptions = {}) {
 }
 
 function pgfplotsBuiltinColormaps(name) {
-  if (String(name || "").trim().toLowerCase() !== "viridis") return {};
+  const normalizedName = String(name || "").trim().toLowerCase();
+  if (normalizedName === "hot") {
+    return {
+      hot: [
+        { position: 0, color: "blue" },
+        { position: 1, color: "yellow" },
+        { position: 2, color: "orange" },
+        { position: 3, color: "red" }
+      ]
+    };
+  }
+  if (normalizedName !== "viridis") return {};
   const colors = [
     [0.267, 0.00487, 0.32942], [0.28192, 0.08966, 0.41241], [0.28026, 0.1657, 0.4765],
     [0.26366, 0.23763, 0.51877], [0.23744, 0.3052, 0.54192], [0.20862, 0.36775, 0.55267],
@@ -842,7 +882,21 @@ function pgfplotsSurfacePatchStrokeColor(options = {}, fill) {
 }
 
 function pgfplotsSurfacePatchLineWidth(options = {}) {
-  return String(options.shader || "").trim().toLowerCase() === "interp" ? "0pt" : "0.4pt";
+  if (String(options.shader || "").trim().toLowerCase() === "interp") return "0pt";
+  if (options["line width"] && options["line width"] !== true) return String(options["line width"]);
+  return "0.4pt";
+}
+
+function pgfplotsLinearPatchMappedColor(z, ranges, options, axisOptions, plotIndex) {
+  const context = surfaceColorContext(options, axisOptions);
+  if (!context["colormap name"]) {
+    context["colormap name"] = "hot";
+    context["pgfplots colormaps"] = {
+      ...pgfplotsBuiltinColormaps("hot"),
+      ...(context["pgfplots colormaps"] || {})
+    };
+  }
+  return pgfplotsSurfaceColor(z, ranges, plotIndex, context);
 }
 
 function pgfplotsFacetedStrokeColor(fill) {

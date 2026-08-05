@@ -60,6 +60,30 @@ test("patchplots rectangle preserves the A-to-B-to-C-to-D vertex stream", () => 
   assert.ok(meshes[0].commands.some((command) => command.type === "closePath"));
 });
 
+test("patchplots line renders one open two-vertex mapped-color segment", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usepgfplotslibrary{patchplots}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[view={45}{30},xmin=0,xmax=2,ymin=0,ymax=2,zmin=0,zmax=2]
+    \addplot3[patch,patch type=line,line width=1.2pt]
+      coordinates {(0,0,0) (2,2,2)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  const surfaces = result.ir.items.filter((item) => item.type === "path" && role(item) === "axis-surface");
+  assert.equal(surfaces.length, 1);
+  assert.equal(surfaces[0].commands.filter((command) => command.type === "lineTo").length, 1);
+  assert.equal(surfaces[0].commands.some((command) => command.type === "closePath"), false);
+  assert.equal(surfaces[0].style.fill, "none");
+  assert.equal(surfaces[0].style.stroke, "rgb(255 191.5 0)");
+  assert.ok(Math.abs(surfaces[0].style.lineWidth - 4.217517642992186) < 1e-9);
+});
+
 test("patchplots declaration resolves to its dedicated partial library module", () => {
   const libraries = collectPgfplotsLibraries(String.raw`\usepgfplotslibrary{patchplots}`);
 
@@ -69,4 +93,5 @@ test("patchplots declaration resolves to its dedicated partial library module", 
   assert.equal(libraries[0].localSource, patchplotsLibrary.localSource);
   assert.match(libraries[0].implementedBy, /renderAxisTrianglePatchCoordinatePlot/);
   assert.match(libraries[0].implementedBy, /renderAxisRectanglePatchCoordinatePlot/);
+  assert.match(libraries[0].implementedBy, /renderAxisLinePatchCoordinatePlot/);
 });

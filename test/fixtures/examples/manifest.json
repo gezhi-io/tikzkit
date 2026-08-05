@@ -3794,6 +3794,23 @@
       ]
     },
     {
+      "id": "pgfplots-patchplots-line",
+      "title": "PGFPlots patchplots linear segment",
+      "source": "pgfplots/patchplots-line.tex",
+      "sourceCorpus": "TeX Live PGFPlots mesh patch handler",
+      "externalSource": "tex/generic/pgfplots/pgfplotsmeshplothandler.code.tex",
+      "semanticOwner": "src/pgfplots/surface.js:renderAxisLinePatchCoordinatePlot",
+      "features": [
+        "usepgfplotslibrary patchplots",
+        "addplot3 patch",
+        "patch type line",
+        "two-coordinate open patch",
+        "default hot mapped color",
+        "line width",
+        "3D projection"
+      ]
+    },
+    {
       "id": "chains-placed-chain-layout",
       "title": "TikZ chains placed positioning layout",
       "source": "chains/placed-chain-layout.tex",
