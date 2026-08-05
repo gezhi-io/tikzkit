@@ -1,4 +1,5 @@
 import { bchartExtension } from "./bchart.js";
+import { chemfigExtension } from "./chemfig.js";
 import { kvmacrosExtension } from "./kvmacros.js";
 import { tikzBaguaExtension } from "./tikz-bagua.js";
 import { tikzBayesnetExtension } from "./tikz-bayesnet.js";
@@ -24,6 +25,7 @@ import { stanliExtension } from "./stanli.js";
 
 export const BUILTIN_EXTENSIONS = [
   bchartExtension,
+  chemfigExtension,
   kvmacrosExtension,
   tikzNetworkExtension,
   tikzThreeDPlotExtension,

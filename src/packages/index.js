@@ -13,6 +13,8 @@ import { texPackage as pkg_10_braids } from "./braids.js";
 import { texPackage as pkg_11_calc } from "./calc.js";
 import { texPackage as pkg_12_cfr_lm } from "./cfr-lm.js";
 import { texPackage as pkg_13_chemformula } from "./chemformula.js";
+import { texPackage as pkg_chemfig } from "./chemfig.js";
+import { texPackage as pkg_chemmacros } from "./chemmacros.js";
 import { texPackage as pkg_14_chronology } from "./chronology.js";
 import { texPackage as pkg_15_circuitikz } from "./circuitikz.js";
 import { texPackage as pkg_16_color } from "./color.js";
@@ -107,6 +109,8 @@ const texPackages = [
   pkg_11_calc,
   pkg_12_cfr_lm,
   pkg_13_chemformula,
+  pkg_chemfig,
+  pkg_chemmacros,
   pkg_14_chronology,
   pkg_15_circuitikz,
   pkg_16_color,

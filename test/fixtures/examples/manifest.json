@@ -1358,11 +1358,12 @@
       "source": "latex-examples/chemistry-example.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "chemistry-example/chemistry-example.tex",
-      "semanticOwner": "src/engine/evaluate.js",
+      "semanticOwner": "src/extensions/chemfig.js:expandChemfigSchemes",
       "features": [
-        "arrow tips",
-        "math labels",
-        "third-party package"
+        "chemfig aromatic rings",
+        "chemfig carbonyl and peroxide bonds",
+        "reaction scheme arrows",
+        "legacy setatomsep and lewis compatibility"
       ]
     },
     {

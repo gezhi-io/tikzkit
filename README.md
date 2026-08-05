@@ -307,8 +307,32 @@ Current support is pragmatic and growing. Highlights:
 - TeX-lite macros: common `\def`, `\newcommand`, `\foreach`, `\pgfmathsetmacro`.
 - Built-in TikZ/PGF libraries: `\usetikzlibrary{shapes}` and `\usepgflibrary{bbox}` style declarations are treated as core library imports; common `shapes.geometric` and `shapes.symbols` nodes render as SVG paths with node-border anchors, and `bezier bounding box` tightens cubic Bézier viewBox/current-bounding-box calculations.
 - Extension-backed libraries: `tikz-network`, `tikz-3dplot`, `tikz-bagua`, `tikz-bpmn`, `tikz-cd`, `tikz-decofonts`, `tikz-dimline`, `tikz-ext`, `tikz-feynhand`, `tikz-feynman`, `tikz-palattice`, `tikz-qtree`, `tikzquads`, and `tikzfxgraph` subsets, plus small compatibility layers for selected graph-style macros.
+- Chemistry packages: a bounded `chemfig` / `chemmacros` scheme slice lowers horizontal reaction schemes into ordinary TikZ paths. It covers the tested aromatic six-member rings, single and double carbonyl bonds, peroxide bridges, reaction arrows, legacy `\setatomsep`, legacy `\lewis`, and the simple `\ch{...}` formula used by the corpus fixture.
 
 Unsupported or partially supported syntax should produce diagnostics instead of silently disappearing.
+
+### Chemfig Scheme Slice
+
+The current chemistry support is intentionally narrow and remains under visual
+QA. A scheme shaped like the tested source below renders directly in JavaScript:
+
+```tex
+\schemestart
+  \chemfig{*6(=-=(-(=[2]O)-[::-60]O-[0]O-[::30](=[2]O)-[::-60]*6(=-=-=-))-=-)}
+  \arrow{->[$\Delta$]}
+  2 \chemfig{*6(=-=(-(=[2]O)-[::-60]\lewis{0.,O})-=-)}
+  \arrow
+  2 \chemfig{*6(=-=(-[,.15,,,draw=none]\lewis{0.,})-=-)}\+\ch{2 CO2 ^}
+\schemestop
+```
+
+It does not parse arbitrary Chemfig atom grammars, Cram bonds, distant hooks,
+`\chemmove`, custom reaction layouts, or general chemmacros environments. The
+fixture predates the current TeX Live names: native reference generation adds a
+local compatibility shim from `\setatomsep` to `\setchemfig{atom sep=...}` and
+loads `chemfig-lewis.tex`. See
+[`docs/qa/2026-08-05-chemfig-scheme.md`](docs/qa/2026-08-05-chemfig-scheme.md)
+for the visual comparison and known differences.
 
 ## TikZ Library Registry
 
