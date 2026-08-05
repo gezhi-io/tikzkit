@@ -1,0 +1,23 @@
+% Adapted from the TeX Live circuitikz manual's waveform-symbol rotation example.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[thick]
+  % The default is 90 degrees in the component-local frame.
+  \draw (0,2) to[sqV] (3,2);
+  \draw (4,2) to[sqV] (4,5);
+
+  % auto cancels the component's line rotation, keeping the symbol orientation fixed.
+  \ctikzset{sources/symbol/rotate=auto, sources/symbol/thickness=1.5}
+  \draw[red] (0,0) to[sqV] (3,0);
+  \draw[red] (4,0) to[sqV] (4,-3);
+
+  \draw (0,-5) to[tV] (3,-5);
+  \draw (4,-5) to[tV] (4,-8);
+
+  \ctikzset{sources/symbol/rotate=45}
+  \draw[blue] (0,-10) to[sV] (3,-10);
+  \ctikzset{csources/symbol/rotate=auto}
+  \draw[blue] (4,-10) to[csV] (4,-13);
+\end{circuitikz}
+\end{document}

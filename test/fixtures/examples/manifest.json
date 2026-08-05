@@ -3712,6 +3712,21 @@
         "csources/scale",
         "csources/symbol/thickness"
       ]
+    },
+    {
+      "id": "circuitikz-waveform-symbol-rotation",
+      "title": "circuitikz waveform symbols with local and automatic rotation",
+      "source": "circuitikz/waveform-symbol-rotation.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzWaveformSourceItems/circuitikzWaveformRotation",
+      "features": [
+        "square voltage source sqV",
+        "triangle voltage source tV",
+        "sources/symbol/rotate",
+        "sources/symbol/rotate=auto",
+        "csources/symbol/rotate=auto"
+      ]
     }
   ]
 }

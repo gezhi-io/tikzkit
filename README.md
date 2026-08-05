@@ -221,8 +221,9 @@ following small circuit is covered by the browser renderer and the CLI:
 an external arrow. Resistors, capacitors, independent voltage sources, current
 annotations, common inductor styles, and cute chokes are covered by focused
 fixtures. Controlled sources and the standard battery plate families are also
-covered. Independent sinusoidal voltage/current sources are covered through a
-small verified slice; transformers, source transforms, and the broad
+covered. Independent waveform voltage sources and controlled sinusoidal
+sources are covered through small verified slices; transformers, source fills,
+and the broad
 circuitikz component catalog remain partial.
 
 ### Circuitikz Sinusoidal Sources
@@ -243,8 +244,30 @@ The independent sinusoidal source slice follows the local Circuitikz manual:
 Supported here: `sV`, `sI`, `vsourcesin`, `isourcesin`, the named sinusoidal
 source styles, `sources/scale`, `sources/symbol/thickness`, the external
 `sI=$...$` current marker, and `bipoles/isourcesin/angle` between `0` and
-`90`. `sources/symbol/rotate` (including `auto`), source fills, and the other
-independent waveform families are still outside this verified slice.
+`90`.
+
+### Circuitikz Waveform Symbols and Rotation
+
+Independent voltage sources also support the documented square and triangular
+waveform aliases. Their internal symbol can be rotated by a local angle or
+held in a global orientation with `auto`:
+
+```tex
+\begin{circuitikz}[thick]
+  \draw (0,2) to[sqV] (3,2);
+  \draw (4,2) to[tV] (4,5);
+  \ctikzset{sources/symbol/rotate=auto, sources/symbol/thickness=1.5}
+  \draw[red] (0,0) to[sqV] (3,0);
+  \draw[red] (4,0) to[sqV] (4,-3);
+\end{circuitikz}
+```
+
+Supported: `sqV`, `vsourcesquare`, `square voltage source`, `tV`,
+`vsourcetri`, `triangle voltage source`, plus numeric
+`sources/symbol/rotate=<angle>` and `sources/symbol/rotate=auto`. The shared
+`sources/symbol/thickness` multiplier applies to sine, square, and triangle
+symbols. Independent square/triangle current sources and DC waveform symbols
+remain outside this slice.
 
 ### Circuitikz Controlled Sinusoidal Sources
 
@@ -266,8 +289,10 @@ vsourcesin`, `controlled isourcesin`, the complete controlled-sinusoidal
 style names, direction suffixes, `csources/scale`,
 `csources/symbol/thickness`, external `v/i` labels, and `l=...`. In native
 Circuitikz, `csources/symbol/thickness` is deliberately separate from the
-independent-source `sources/symbol/thickness` key. Source rotations, fills,
-and DC/square/triangular controlled sources are outside this verified slice.
+independent-source `sources/symbol/thickness` key. Numeric
+`csources/symbol/rotate=<angle>` and `csources/symbol/rotate=auto` apply to
+the controlled sinusoidal symbol. Source fills and DC/square/triangular
+controlled sources are outside this verified slice.
 
 ### Circuitikz Battery Plate Families
 
