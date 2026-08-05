@@ -5,6 +5,7 @@ import { tikzToSvg } from "../src/index.js";
 import { loadRealGalleryCases } from "./gallery-case-source.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
 import { measureIrGridUnits } from "./gallery-unit-metrics.js";
+import { galleryRenderOptions } from "./gallery-resources.js";
 
 const outputRoot = "outputs/real-gallery/js";
 await mkdir(outputRoot, { recursive: true });
@@ -14,7 +15,7 @@ const rows = [];
 for (const [index, item] of gallery.cases.entries()) {
   const id = String(index + 1).padStart(3, "0");
   const source = withGalleryDebugGrid(item.source);
-  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const result = tikzToSvg(source, galleryRenderOptions(item, { mathRenderer: "svg-text" }));
   const svgPath = path.join(outputRoot, `${id}.svg`);
   const pngPath = path.join(outputRoot, `${id}.png`);
   await writeFile(svgPath, result.svg, "utf8");

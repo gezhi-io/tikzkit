@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeGalleryResourceName } from "./gallery-resources.js";
 
 export const DEFAULT_REAL_GALLERY_CORPUS_ID = "core";
 
@@ -30,12 +31,27 @@ export async function loadFixtureCorpus(corpusId = DEFAULT_REAL_GALLERY_CORPUS_I
   const cases = await Promise.all((manifest.cases || []).map(async (entry) => {
     const path = String(entry.source || "");
     const source = path ? await readFile(resolve(fixtureRoot, path), "utf8") : "";
+    const resources = await Promise.all((entry.resources || []).map(async (resource) => {
+      const name = normalizeGalleryResourceName(resource?.name);
+      const source = normalizeGalleryResourceName(resource?.source);
+      const sourcePath = source ? resolve(fixtureRoot, source) : "";
+      let content = null;
+      if (sourcePath) {
+        try {
+          content = await readFile(sourcePath, "utf8");
+        } catch {
+          // The renderer keeps this resource unresolved so its normal diagnostic remains visible.
+        }
+      }
+      return { name, source, sourcePath, content };
+    }));
     return {
       id: entry.id,
       title: entry.title || entry.id,
       source,
       origin: entry.sourceCorpus || "fixture-core",
-      path
+      path,
+      resources
     };
   }));
   return {

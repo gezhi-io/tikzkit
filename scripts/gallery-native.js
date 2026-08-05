@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { loadRealGalleryCases } from "./gallery-case-source.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
+import { materializeGalleryResources } from "./gallery-resources.js";
 
 const outputRoot = "outputs/real-gallery/native";
 await mkdir(outputRoot, { recursive: true });
@@ -17,6 +18,7 @@ for (const [index, item] of gallery.cases.entries()) {
   const texPath = path.join(workDir, "case.tex");
   const source = withGalleryDebugGrid(toStandaloneTex(item.source));
   await writeFile(texPath, source, "utf8");
+  const resources = await materializeGalleryResources(item, workDir);
   const assetFallbacks = await materializeFallbackAssets(item.source, workDir, fallbackAssets);
 
   const latex = spawnSync("xelatex", ["-interaction=nonstopmode", "-halt-on-error", "case.tex"], {
@@ -40,6 +42,7 @@ for (const [index, item] of gallery.cases.entries()) {
     ok,
     texPath,
     pngPath,
+    resources,
     assetFallbacks,
     error: ok ? "" : (latex.stderr || latex.stdout || "").slice(-2000)
   });

@@ -115,6 +115,44 @@ change:
 npm run extension-registry
 ```
 
+### Batch Gallery And Data Files
+
+The maintained fixture manifest is also the input catalog for whole-gallery
+checks. Cases that declare CSV or other table resources receive those exact
+files during JavaScript rendering; native reference jobs materialize the same
+relative file names in their isolated TeX work directories.
+
+```bash
+# Semantic gate: reports every fixture diagnostic.
+npm run gallery:audit
+
+# Write JS SVG/PNG output for all catalog fixtures (with a 1cm QA grid).
+npm run gallery:js
+
+# Optional, slower local-MacTeX reference batch.
+npm run gallery:native
+```
+
+`gallery:audit` should currently report `260/260 rendered, 0 diagnostics`.
+These commands use only the resources declared in
+`test/fixtures/examples/manifest.json`; they do not grant browser-authored
+TikZ arbitrary filesystem access. For a visual three-way review of one case,
+including MacTeX, `tikztosvg`, PNG conversion, grids, and a diff sheet:
+
+```bash
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-case-name \
+  --only latex-examples-csv-line-plot-two-axes \
+  --native-reference --comparison-grid-mode svg \
+  --external-timeout-ms 120000
+npm run examples:diff -- --output outputs/qa-case-name
+```
+
+Generated `outputs/` directories are QA evidence and are intentionally ignored
+by Git. Review the native comparison sheet before treating a case as visually
+aligned; a zero-diagnostic audit alone only confirms that the input resource
+and supported syntax were processed.
+
 ## Visual Compatibility Contract
 
 TikZKit is developed as an interpreter, not by matching isolated PNG pixels.

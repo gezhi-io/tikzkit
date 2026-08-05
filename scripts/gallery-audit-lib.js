@@ -1,8 +1,9 @@
 import { tikzToSvg } from "../src/index.js";
+import { galleryRenderOptions } from "./gallery-resources.js";
 
 export function auditGalleryCases(cases) {
   const rows = cases.map((item, index) => {
-    const result = tikzToSvg(item.source);
+    const result = tikzToSvg(item.source, galleryRenderOptions(item));
     return {
       id: String(index + 1).padStart(3, "0"),
       origin: item.origin,
