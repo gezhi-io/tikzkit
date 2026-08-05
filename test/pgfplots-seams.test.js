@@ -503,6 +503,43 @@ test("pgfplots addplot parser samples supported raw gnuplot chi-squared plots in
   assert.ok(plots[1].points.some((point) => point.y > 0.18 && point.y < 0.19), "k=2 pdf should sample near 0.184");
 });
 
+test("pgfplots raw gnuplot evaluates generic constants, functions, ranges, and radian trigonometry", () => {
+  const diagnostics = [];
+  const plots = parseAddplots(String.raw`\addplot[blue, very thick] gnuplot[raw gnuplot] {
+    scale = 2;
+    wave(t) = scale * sin(t);
+    set xrange [0:pi];
+    set yrange [-2:2];
+    set samples 5;
+    plot wave(x)
+  };`, {}, diagnostics);
+
+  assert.equal(diagnostics.length, 0, diagnostics.map((entry) => entry.message).join("; "));
+  assert.equal(plots.length, 1);
+  assert.equal(plots[0].points.length, 5);
+  assert.equal(plots[0].points[0].x, 0);
+  assert.equal(plots[0].points.at(-1).x, 3.141593);
+  assert.ok(Math.abs(plots[0].points[2].y - 2) < 1e-6);
+});
+
+test("pgfplots raw gnuplot no longer depends on a chisq function name", () => {
+  const diagnostics = [];
+  const plots = parseAddplots(String.raw`\addplot gnuplot[raw gnuplot] {
+    isint(t) = (int(t) == t);
+    logtwo = 0.693147180559945;
+    density(t, freedom) = freedom <= 0 || !isint(freedom) ? 1/0 : t <= 0 ? 0 : exp((0.5*freedom-1.0)*log(t)-0.5*t-lgamma(0.5*freedom)-freedom*0.5*logtwo);
+    set xrange [0.00001:8];
+    set yrange [0:0.5];
+    samples = 5;
+    plot density(x,2)
+  };`, {}, diagnostics);
+
+  assert.equal(diagnostics.length, 0, diagnostics.map((entry) => entry.message).join("; "));
+  assert.equal(plots.length, 1);
+  assert.equal(plots[0].points.length, 5);
+  assert.ok(plots[0].points.some((point) => point.y > 0.18 && point.y < 0.19));
+});
+
 test("pgfplots addplot parser samples supported raw gnuplot chi-squared CDF plots", () => {
   const plots = parseAddplots(String.raw`\addplot+[mark={}] gnuplot[raw gnuplot] {%
     igamma2(a,x) = igamma(a,x)*gamma(a);

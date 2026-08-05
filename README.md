@@ -156,7 +156,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `265/265 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `266/266 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -230,6 +230,33 @@ node bin/tikz2svg.js examples/diagram.tex -o outputs/diagram.svg --strict --svg-
 ```
 
 Run `node bin/tikz2svg.js --help` for the complete CLI options.
+
+### PGFPlots Raw Gnuplot Subset
+
+For browser safety, `gnuplot[raw gnuplot]` is interpreted as a bounded numeric
+language and lowered to ordinary coordinates. It supports one plot expression,
+numeric constants, one-expression functions, `set xrange`, `set yrange`, and
+`set samples`; it does not execute a local gnuplot process or arbitrary
+JavaScript.
+
+```tex
+\begin{axis}[grid=major]
+  \addplot[blue, very thick] gnuplot[raw gnuplot] {
+    gain = 2;
+    envelope(t) = exp(-abs(t));
+    set xrange [-6:6];
+    set samples 121;
+    plot gain * envelope(x)
+  };
+\end{axis}
+```
+
+Supported numeric functions include trigonometric functions, `sqrt`, `exp`,
+logarithms, `min`, `max`, `gamma`, `lgamma`, and `igamma`. Multi-plot scripts,
+3D/parametric programs, gnuplot file I/O, shell commands, strings, and
+unsupported gnuplot functions remain unsupported. See
+[`docs/qa/2026-08-06-pgfplots-raw-gnuplot.md`](docs/qa/2026-08-06-pgfplots-raw-gnuplot.md)
+for the checked local-MacTeX boundary and visual-QA caveat.
 
 ### Circuitikz Voltage Notation
 

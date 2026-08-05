@@ -3727,6 +3727,23 @@
         "sources/symbol/rotate=auto",
         "csources/symbol/rotate=auto"
       ]
+    },
+    {
+      "id": "pgfplots-raw-gnuplot-functions",
+      "title": "PGF manual raw gnuplot function blocks",
+      "source": "pgfplots/raw-gnuplot-functions.tex",
+      "sourceCorpus": "TeX Live PGF manual raw gnuplot workflow",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex",
+      "semanticOwner": "src/pgfplots/rawGnuplotRuntime.js",
+      "features": [
+        "addplot gnuplot raw gnuplot",
+        "set xrange/yrange",
+        "set samples",
+        "constants",
+        "user-defined functions",
+        "radian trigonometry",
+        "exp and abs"
+      ]
     }
   ]
 }
