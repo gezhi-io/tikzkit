@@ -24,16 +24,16 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
     const mapped = plot.is3d && typeof geometry.mapPoint3d === "function"
       ? geometry.mapPoint3d(point)
       : geometry.mapPoint(point);
-    const label = nodeNearCoordLabel(point, plot, axisOptions, pointIndex);
-    return `\\node[${style}] at ${formatAxisPoint(offsetPoint(mapped, 0, offset))} {${label}};`;
+    const template = nodeNearCoordTemplate(point, plot, axisOptions, pointIndex);
+    return `\\node[${joinOptions([style, ...template.styles])}] at ${formatAxisPoint(offsetPoint(mapped, 0, offset))} {${template.label}};`;
   });
 }
 
-function nodeNearCoordLabel(point, plot = {}, axisOptions = {}, pointIndex = 0) {
+function nodeNearCoordTemplate(point, plot = {}, axisOptions = {}, pointIndex = 0) {
   const rawTemplate = plot.options?.["nodes near coords"] ?? axisOptions["nodes near coords"];
   const fallback = point.meta ?? (plot.is3d ? point.z : point.y);
   if (rawTemplate === true || rawTemplate === undefined || rawTemplate === null || String(rawTemplate).trim() === "") {
-    return formatAxisNumber(fallback);
+    return { label: formatAxisNumber(fallback), styles: [] };
   }
 
   const bindings = visualizationDependencyBindings(axisOptions, plot.options || {}, point);
@@ -48,7 +48,61 @@ function nodeNearCoordLabel(point, plot = {}, axisOptions = {}, pointIndex = 0) 
     const value = evaluateMath(expression);
     return Number.isFinite(value) ? formatAxisNumber(value) : "0";
   });
-  return label;
+  return lowerNodeNearCoordTextTemplate(label);
+}
+
+function lowerNodeNearCoordTextTemplate(template) {
+  let label = String(template || "").trim();
+  const styles = [];
+  const rotatebox = unwrapRotatebox(label);
+  if (rotatebox) {
+    label = rotatebox.content;
+    const angle = evaluateMath(rotatebox.angle);
+    if (Number.isFinite(angle)) styles.push(`rotate=${formatAxisNumber(angle)}`);
+  }
+
+  // PGFPlots' default is `\\pgfmathprintnumber\\pgfplotspointmeta`; its
+  // output is the formatted numeric token, not the macro name.  A node's
+  // font switch is local in TeX, so carry the common switches into the
+  // lowered node options rather than letting the SVG text renderer print it.
+  label = label.replace(/\\pgfmathprintnumber(?![A-Za-z@])/g, "");
+  const fontMatch = label.match(/\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)(?![A-Za-z@])/);
+  if (fontMatch) {
+    if (fontMatch[1] !== "scriptsize") styles.push(`font=\\${fontMatch[1]}`);
+    label = label.replace(/\\(?:tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)(?![A-Za-z@])/g, "");
+  }
+  return { label: label.trim(), styles };
+}
+
+function unwrapRotatebox(value) {
+  const prefix = "\\rotatebox";
+  if (!value.startsWith(prefix)) return null;
+  let cursor = prefix.length;
+  const angle = readBalancedBraces(value, cursor);
+  if (!angle) return null;
+  cursor = angle.end;
+  const content = readBalancedBraces(value, cursor);
+  if (!content || value.slice(content.end).trim()) return null;
+  return { angle: angle.content, content: content.content };
+}
+
+function readBalancedBraces(value, start) {
+  let cursor = start;
+  while (/\s/.test(value[cursor] || "")) cursor += 1;
+  if (value[cursor] !== "{") return null;
+  const contentStart = cursor + 1;
+  let depth = 1;
+  cursor += 1;
+  for (; cursor < value.length; cursor += 1) {
+    if (value[cursor] === "\\") {
+      cursor += 1;
+      continue;
+    }
+    if (value[cursor] === "{") depth += 1;
+    if (value[cursor] === "}") depth -= 1;
+    if (depth === 0) return { content: value.slice(contentStart, cursor), end: cursor + 1 };
+  }
+  return null;
 }
 
 function nodeNearCoordOffset(axisOptions = {}, plotOptions = {}) {

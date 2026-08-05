@@ -100,6 +100,24 @@ test("pgfplots interval near-coordinate nodes honor appended node styles and omi
   assert.ok(!commands.some((command) => command.endsWith("{70};")));
 });
 
+test("pgfplots bar labels lower rotatebox and formatted point meta into node semantics", () => {
+  const commands = renderNodesNearCoords(
+    {
+      options: {
+        "nodes near coords": String.raw`\rotatebox{90}{\scriptsize\pgfmathprintnumber\pgfplotspointmeta}`
+      },
+      points: [{ x: 1, y: 42 }]
+    },
+    { ybar: true },
+    identityGeometry
+  );
+
+  assert.deepEqual(commands, [
+    String.raw`\node[axis near coord, anchor=south, font=\scriptsize, rotate=90] at (1,42.08) {42};`
+  ]);
+  assert.doesNotMatch(commands[0], /rotatebox|pgfmathprintnumber|pgfplotspointmeta/);
+});
+
 test("pgfplots histogram interval tick labels span adjacent bin edges", () => {
   const plot = { points: [{ x: 1 }, { x: 4 }, { x: 7 }, { x: 10 }] };
   const commands = renderAxisTicks(
