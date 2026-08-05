@@ -1,0 +1,10 @@
+% Adapted from the TeX Live circuitikz manual's transformer-core customization example.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \draw (0,0) node[transformer core](A){};
+  \ctikzset{transformer core/.cd, relative thickness=2, color=red, dash={{4pt}{2pt}}}
+  \draw (2,0) node[transformer core](B){};
+\end{circuitikz}
+\end{document}

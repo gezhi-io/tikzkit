@@ -373,6 +373,28 @@ sources are covered through small verified slices; transformers, source fills,
 and the broad
 circuitikz component catalog remain partial.
 
+### Circuitikz Transformer Cores
+
+`transformer core` accepts the manual's narrow core-style directory. This
+does not claim general transformer compatibility: it covers only the two core
+strokes, not the full coil/anchor geometry configuration.
+
+```tex
+\begin{circuitikz}
+  \draw (0,0) node[transformer core](A){};
+  \ctikzset{transformer core/.cd,
+    relative thickness=2,
+    color=red,
+    dash={{4pt}{2pt}}}
+  \draw (2,0) node[transformer core](B){};
+\end{circuitikz}
+```
+
+Supported: `relative thickness`, `color`, a zero-phase sequence of
+`{on}{off}` dash dimensions, `dash=default` (inherit the component pattern),
+and `dash=none` (force solid core strokes). The reference and visual record is
+[`docs/qa/2026-08-06-circuitikz-transformer-core.md`](docs/qa/2026-08-06-circuitikz-transformer-core.md).
+
 ### Circuitikz Sinusoidal Sources
 
 The independent sinusoidal source slice follows the local Circuitikz manual:

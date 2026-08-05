@@ -212,14 +212,34 @@ function renderCircuitikzQuadpoleNodeBox(item, unit) {
     style,
     { lineCap: "butt", lineJoin: "round" }
   )} />`;
-  const core = kind === "transformer core"
-    ? `<path class="tikz-node-circuitikzQuadpole-core" d="${localTubePathData(circuitikzTransformerCoreCommands(item), cx, cy, unit)}" fill="none" stroke="${escapeAttribute(
-        stroke
-      )}" stroke-width="${format(lineWidth)}" stroke-linecap="butt" stroke-linejoin="round" />`
-    : "";
+  const core = kind === "transformer core" ? renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth) : "";
   return `<g class="tikz-node-shape tikz-node-circuitikzQuadpole tikz-node-circuitikzQuadpole-${escapeAttribute(
     kind.replace(/\s+/g, "-")
   )}">${body}${core}</g>`;
+}
+
+function renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth) {
+  const settings = item.shapeData?.quadpoleSettings?.core || {};
+  const dashArray = settings.dashMode === "custom"
+    ? settings.dashArray
+    : settings.dashMode === "solid"
+      ? undefined
+      : item.style?.dashArray;
+  const coreStyle = {
+    ...item.style,
+    stroke: settings.color || stroke,
+    fill: "none",
+    lineWidth: lineWidth * (Number.isFinite(settings.relativeThickness) ? settings.relativeThickness : 1),
+    dashArray,
+    lineCap: "butt",
+    lineJoin: "round"
+  };
+  return `<path class="tikz-node-circuitikzQuadpole-core" d="${localTubePathData(
+    circuitikzTransformerCoreCommands(item),
+    cx,
+    cy,
+    unit
+  )}"${styleAttributes(coreStyle, { lineCap: "butt", lineJoin: "round" })} />`;
 }
 
 function circuitikzTransformerCommands(item) {

@@ -57,6 +57,7 @@ import {
   TIKZ_UNIT,
   createArrowTip,
   lineWidthFromPt,
+  lineWidthFromTikzDimension,
   stealthArrowLengthFromLineWidth,
   stealthPrimeArrowDimensions,
   stealthArrowShortenFromLength
@@ -2531,8 +2532,54 @@ function circuitikzQuadpoleSettings(options = {}, env = {}) {
       L1: circuitikzTransformerCoilStyle("L1", options, env),
       L2: circuitikzTransformerCoilStyle("L2", options, env)
     },
+    core: kind === "transformer core" ? circuitikzTransformerCoreSettings(options, env) : null,
     inductorKind: env.circuitikz?.["inductors/kind"] || null
   };
+}
+
+function circuitikzTransformerCoreSettings(options = {}, env = {}) {
+  const rawColor = circuitikzTransformerCoreRawOption("color", options, env);
+  const rawDash = circuitikzTransformerCoreRawOption("dash", options, env);
+  const dash = circuitikzTransformerCoreDash(rawDash, env);
+  return {
+    relativeThickness: Math.max(0, circuitikzTransformerCoreNumber("relative thickness", options, env, 1)),
+    color: rawColor === undefined || String(rawColor).trim().toLowerCase() === "default"
+      ? null
+      : normalizeColor(String(rawColor)),
+    dashMode: dash.mode,
+    dashArray: dash.array
+  };
+}
+
+function circuitikzTransformerCoreRawOption(key, options = {}, env = {}) {
+  const names = [`circuitikz/transformer core/${key}`, `transformer core/${key}`];
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const name of names) {
+      if (source[name] !== undefined) return source[name];
+    }
+  }
+  return undefined;
+}
+
+function circuitikzTransformerCoreNumber(key, options = {}, env = {}, fallback = 0) {
+  const raw = circuitikzTransformerCoreRawOption(key, options, env);
+  if (raw === undefined || raw === null || raw === true || raw === "") return fallback;
+  const parsed = evaluateMath(String(raw), env.variables || {});
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function circuitikzTransformerCoreDash(raw, env = {}) {
+  if (raw === undefined || raw === null || raw === true) return { mode: "inherit", array: undefined };
+  const value = String(raw).trim();
+  const normalized = value.toLowerCase();
+  if (!value || normalized === "default") return { mode: "inherit", array: undefined };
+  if (normalized === "none") return { mode: "solid", array: undefined };
+  const parts = [...value.matchAll(/\{([^{}]+)\}/g)]
+    .map((match) => lineWidthFromTikzDimension(match[1], NaN))
+    .filter(Number.isFinite);
+  return parts.length >= 2
+    ? { mode: "custom", array: parts }
+    : { mode: "inherit", array: undefined };
 }
 
 function circuitikzTransformerCoilStyle(coil, options = {}, env = {}) {
@@ -3650,6 +3697,7 @@ function circuitikzTransistorNodeStyle(style = {}, env = {}) {
     stroke: style.stroke && style.stroke !== "none" ? style.stroke : "black",
     fill: "none",
     lineWidth: Math.max(0.8, Number(style.lineWidth) || 1),
+    ...(Array.isArray(style.dashArray) ? { dashArray: style.dashArray, dashLineCap: style.dashLineCap } : {}),
     lineCap: "butt",
     lineJoin: "miter"
   };
@@ -4676,6 +4724,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     displayPoint: nodePoint,
     text,
     options: expandedOptions,
+    inlinePathStyle: pathStyle,
     name: nodeName,
     size: scaledSize,
     anchorSize: scaledAnchorSize,
@@ -4683,6 +4732,16 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     rotation: slopedRotation ?? undefined,
     fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   });
+}
+
+function circuitikzInlinePathNodeStyle(style = {}, pathStyle = {}, options = {}) {
+  if (Object.hasOwn(options || {}, "draw")) return style;
+  const inherited = {};
+  if (pathStyle.stroke && pathStyle.stroke !== "none") inherited.stroke = pathStyle.stroke;
+  if (Number.isFinite(Number(pathStyle.lineWidth))) inherited.lineWidth = pathStyle.lineWidth;
+  if (Array.isArray(pathStyle.dashArray)) inherited.dashArray = pathStyle.dashArray;
+  if (pathStyle.dashLineCap) inherited.dashLineCap = pathStyle.dashLineCap;
+  return { ...style, ...inherited };
 }
 
 function resolveNodeTextContent(text, options = {}) {
@@ -7139,9 +7198,15 @@ function applyColorDeclaration(color, env) {
 
 function normalizeCtikzSetOptions(rawOptions = {}) {
   const normalized = {};
+  let directory = "";
   for (const [key, value] of Object.entries(rawOptions || {})) {
-    const normalizedKey = String(key).trim();
+    const originalKey = String(key).trim();
     const normalizedValue = value === true ? true : stripOuterBraces(String(value));
+    if (/^(?:circuitikz\/)?[^/]+(?:\s+[^/]+)*\/\.cd$/i.test(originalKey)) {
+      directory = originalKey.replace(/^(?:circuitikz\/)?/, "").replace(/\/\.cd$/i, "").trim();
+      continue;
+    }
+    const normalizedKey = directory && !originalKey.includes("/") ? `${directory}/${originalKey}` : originalKey;
     const lowerKey = normalizedKey.toLowerCase();
     const lowerValue = String(normalizedValue).trim().toLowerCase();
     if (lowerKey === "quadpoles style" && lowerValue === "inline") {
@@ -7409,7 +7474,10 @@ function addNodeItems(node, ir, env) {
       y: point.y,
       width: size.width,
       height: size.height,
-      style: circuitikzTransistorNodeStyle(style, nodeEnv)
+      style: circuitikzTransistorNodeStyle(
+        circuitikzInlinePathNodeStyle(style, node.inlinePathStyle, node.options),
+        nodeEnv
+      )
     });
   } else if (style.fill !== "none" || style.stroke !== "none" || semantic.draw || shadedFill) {
     ir.items.push({

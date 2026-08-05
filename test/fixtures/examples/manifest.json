@@ -3824,6 +3824,22 @@
         "chain aliases",
         "positioning node borders"
       ]
+    },
+    {
+      "id": "circuitikz-transformer-core-customization",
+      "title": "circuitikz transformer-core style directory",
+      "source": "circuitikz/transformer-core-customization.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzTransformerCoreSettings/normalizeCtikzSetOptions;src/renderers/svg/circuitikzNodes.js:renderCircuitikzTransformerCore",
+      "features": [
+        "transformer core node",
+        "transformer core/.cd",
+        "relative thickness",
+        "color",
+        "dash on/off pairs",
+        "dash=none"
+      ]
     }
   ]
 }
