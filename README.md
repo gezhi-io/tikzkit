@@ -92,6 +92,29 @@ Then open `http://127.0.0.1:5174/`.
 The browser renderer has no server-side TeX dependency. MacTeX and
 `tikztosvg` are used only to generate reference artifacts for comparison.
 
+### Everyday Browser Workflow
+
+The browser workbench is the fast feedback loop: choose a catalog case, edit
+the source, then render it locally in JavaScript. Its output is always a
+TikZKit SVG; it never executes TeX, reads arbitrary local files, or delegates
+the render to MacTeX/`tikztosvg`.
+
+When a source change is intended to improve compatibility, use the following
+two gates in order:
+
+1. Run `npm run gallery:audit` to check that the catalog still parses and
+   evaluates without new diagnostics. This is a semantic gate, not a visual
+   pass.
+2. Render the affected fixture into one `outputs/qa-*` directory with
+   `npm run examples:render -- --native-reference`, then run
+   `npm run examples:diff`. Inspect the MacTeX, tikztosvg, TikZKit, and diff
+   panels before accepting the change.
+
+Keep the source fixture under version control; keep generated SVG/PNG sheets
+under `outputs/`. The latter are intentionally ignored so a commit contains
+the reusable parser, interpreter, renderer, test, and written QA conclusion,
+rather than a pile of regenerated pixels.
+
 ### Test Status And Focused Checks
 
 `npm test` runs the entire experimental suite. It is useful for exposing the
