@@ -127,6 +127,12 @@ the broad circuitikz component catalog remain partial.
 
 ## Browser Workbench
 
+The local source editor has line numbers, TikZ-aware highlighting, and inline
+diagnostic markers. Selecting a diagnostic moves the caret to its source line;
+`Cmd/Ctrl+Enter` renders the current source and `Cmd/Ctrl+S` saves its local
+draft. Its enhanced editor assets are bundled locally for offline use; when the
+enhancement cannot load, the source field remains usable as a plain text editor.
+
 The workbench discovers the unified fixture catalog, including the selected
 30-case visual acceptance batch. Choose a fixture, edit its TikZ source, click
 **Render**, and inspect the TikZKit SVG and diagnostics. Toggle the 1cm grid

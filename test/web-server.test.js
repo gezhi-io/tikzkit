@@ -22,6 +22,8 @@ test("workbench server exposes browser assets and fixture source without renderi
   const road = await fetch(`http://127.0.0.1:${port}${roadResource?.url}`);
   const roadBytes = new Uint8Array(await road.arrayBuffer());
   const compiler = await fetch(`http://127.0.0.1:${port}/src/index.js`);
+  const codeMirror = await fetch(`http://127.0.0.1:${port}/vendor/codemirror/codemirror.min.js`);
+  const codeMirrorStyles = await fetch(`http://127.0.0.1:${port}/vendor/codemirror/codemirror.min.css`);
   const chevrotain = await fetch(`http://127.0.0.1:${port}/vendor/chevrotain/chevrotain.mjs`);
   const katex = await fetch(`http://127.0.0.1:${port}/vendor/katex/katex.mjs`);
   const katexFont = await fetch(`http://127.0.0.1:${port}/node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2`);
@@ -75,6 +77,7 @@ test("workbench server exposes browser assets and fixture source without renderi
     "render-status",
     "fixture-title",
     "fixture-summary",
+    "cursor-status",
     "draft-status",
     "semantic-details",
     "semantic-summary",
@@ -119,6 +122,10 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.ok(audit.dependencies.every((entry) => !Object.hasOwn(entry, "localSource")));
   assert.ok(audit.dependencies.some((entry) => entry.lookup));
   assert.equal(compiler.status, 200);
+  assert.equal(codeMirror.status, 200);
+  assert.equal(codeMirror.headers.get("content-type"), "text/javascript; charset=utf-8");
+  assert.equal(codeMirrorStyles.status, 200);
+  assert.equal(codeMirrorStyles.headers.get("content-type"), "text/css; charset=utf-8");
   assert.equal(chevrotain.status, 200);
   assert.equal(katex.status, 200);
   assert.equal(katexFont.status, 200);

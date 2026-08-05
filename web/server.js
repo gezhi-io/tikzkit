@@ -136,6 +136,7 @@ async function staticRoute(pathname, { outputRoot }) {
   const routes = [
     ["/fonts/", path.join(PROJECT_ROOT, "web", "fonts")],
     ["/src/", path.join(PROJECT_ROOT, "src")],
+    ["/vendor/codemirror/", path.join(PROJECT_ROOT, "web", "vendor", "codemirror")],
     ["/vendor/chevrotain/", path.join(PROJECT_ROOT, "node_modules/chevrotain/lib")],
     ["/vendor/katex/", path.join(PROJECT_ROOT, "node_modules/katex/dist")],
     ["/node_modules/katex/dist/fonts/", path.join(PROJECT_ROOT, "node_modules/katex/dist/fonts")],

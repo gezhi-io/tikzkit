@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TikZKit Workbench</title>
 <link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/vendor/codemirror/codemirror.min.css">
 <script type="importmap">
 {
   "imports": {
@@ -13,6 +14,7 @@
   }
 }
 </script>
+<script src="/vendor/codemirror/codemirror.min.js"></script>
 <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -24,7 +26,7 @@
       <button id="new-source-button" type="button">New source</button>
     </div>
     <div class="toolbar-group render-controls">
-      <button id="render-button" type="button">Render</button>
+      <button id="render-button" type="button" title="Render source (Cmd/Ctrl+Enter)">Render</button>
       <button id="reset-source-button" type="button" disabled>Reset</button>
       <button id="copy-svg-button" type="button" disabled>Copy SVG</button>
       <button id="download-svg-button" type="button" disabled>Download SVG</button>
@@ -39,7 +41,10 @@
           <h1 id="fixture-title">TikZ source</h1>
           <p id="fixture-summary">Choose a case or start a new source.</p>
         </div>
-        <output id="draft-status" aria-live="polite"></output>
+        <div class="editor-meta">
+          <output id="cursor-status" aria-live="polite">Ln 1, Col 1</output>
+          <output id="draft-status" aria-live="polite"></output>
+        </div>
       </header>
       <section class="semantic-inventory" aria-label="Semantic inventory">
         <details id="semantic-details">
@@ -50,7 +55,9 @@
           <div id="semantic-content" class="semantic-content"></div>
         </details>
       </section>
-      <textarea id="source-editor" spellcheck="false" aria-label="TikZ source editor"></textarea>
+      <section class="editor-surface" aria-label="TikZ source editor">
+        <textarea id="source-editor" spellcheck="false" aria-label="TikZ source editor"></textarea>
+      </section>
       <section id="diagnostics" class="diagnostics" aria-label="Diagnostics"></section>
     </section>
     <section class="preview-pane" aria-label="Render comparison">

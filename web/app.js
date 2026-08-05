@@ -6,9 +6,9 @@ import {
   filterFixtures,
   isFixtureDraft,
   renderWorkbenchSource,
-  sourceOffsetForLocation,
   svgDownloadName
 } from "./workbench.js";
+import { createTikzEditor } from "./tikzEditor.js";
 import { withQaGrid } from "./qaGrid.js";
 
 const DRAFT_PREFIX = "tikzkit.workbench.draft.v1:";
@@ -21,7 +21,8 @@ const state = {
   lastSvg: "",
   previewIsStale: false,
   audit: null,
-  resources: new Map()
+  resources: new Map(),
+  editor: null
 };
 const requestGate = createRequestGate();
 
@@ -49,12 +50,13 @@ async function loadFixture(id) {
   state.audit = audit;
   state.resources = new Map(resourceRows);
   document.querySelector("#fixture-select").value = fixture.id;
-  document.querySelector("#source-editor").value = state.lastRenderedSource;
+  state.editor.setValue(state.lastRenderedSource, { silent: true });
   history.replaceState(null, "", `#${encodeURIComponent(fixture.id)}`);
 
   showFixtureDetails();
   showSemanticInventory();
   showReference();
+  showDiagnostics([]);
   updateDraftStatus();
 
   await renderCurrentSource(token);
@@ -74,7 +76,7 @@ async function loadFixtureAudit(fixture) {
 async function renderCurrentSource(token = requestGate.current()) {
   const button = document.querySelector("#render-button");
   button.disabled = true;
-  const source = document.querySelector("#source-editor").value;
+  const source = state.editor.getValue();
   const activeFigureId = state.active?.activeFigureId || undefined;
   try {
     const result = await renderWorkbenchSource(source, {
@@ -171,6 +173,7 @@ function showReference() {
 }
 
 function showDiagnostics(rows) {
+  state.editor?.setDiagnostics(rows);
   const container = document.querySelector("#diagnostics");
   container.replaceChildren();
   if (!rows.length) {
@@ -199,14 +202,7 @@ function showDiagnostics(rows) {
 }
 
 function focusDiagnostic(location) {
-  const editor = document.querySelector("#source-editor");
-  const offset = sourceOffsetForLocation(editor.value, location);
-  if (offset === null) return;
-  editor.focus();
-  editor.setSelectionRange(offset, offset);
-  const lineHeight = Number.parseFloat(getComputedStyle(editor).lineHeight) || 20;
-  const line = Number(location.split(":")[0]) || 1;
-  editor.scrollTop = Math.max(0, (line - 3) * lineHeight);
+  state.editor?.focusLocation(location);
 }
 
 function showFixtureDetails() {
@@ -388,8 +384,7 @@ function renderExpression(entry) {
 }
 
 function updateDraftStatus() {
-  const editor = document.querySelector("#source-editor");
-  const modified = isFixtureDraft(editor.value, state.originalSource);
+  const modified = isFixtureDraft(state.editor.getValue(), state.originalSource);
   const stale = state.previewIsStale;
   const status = document.querySelector("#draft-status");
   const reset = document.querySelector("#reset-source-button");
@@ -412,26 +407,25 @@ function updateExportButtons() {
 
 function rememberDraft() {
   if (!state.active) return;
-  const editor = document.querySelector("#source-editor");
-  if (isFixtureDraft(editor.value, state.originalSource)) {
-    writeDraft(state.active.id, editor.value);
+  const source = state.editor.getValue();
+  if (isFixtureDraft(source, state.originalSource)) {
+    writeDraft(state.active.id, source);
   } else {
     removeDraft(state.active.id);
   }
-  state.previewIsStale = editor.value !== state.lastRenderedSource;
+  state.previewIsStale = source !== state.lastRenderedSource;
   document.querySelector("#tikzkit-result").classList.toggle("is-stale", state.previewIsStale);
   updateDraftStatus();
 }
 
 async function resetSource() {
   if (!state.active) return;
-  const editor = document.querySelector("#source-editor");
-  if (isFixtureDraft(editor.value, state.originalSource) && !window.confirm("Discard this locally saved draft and restore the fixture source?")) {
+  if (isFixtureDraft(state.editor.getValue(), state.originalSource) && !window.confirm("Discard this locally saved draft and restore the fixture source?")) {
     return;
   }
   removeDraft(state.active.id);
-  editor.value = state.originalSource;
-  state.previewIsStale = editor.value !== state.lastRenderedSource;
+  state.editor.setValue(state.originalSource, { silent: true });
+  state.previewIsStale = state.editor.getValue() !== state.lastRenderedSource;
   updateDraftStatus();
   await renderCurrentSource();
 }
@@ -533,9 +527,29 @@ function refreshFixtureOptions() {
   if (!choices.length) setRenderStatus("No cases match this filter");
 }
 
+function showCursorPosition(position = { line: 1, column: 1 }) {
+  document.querySelector("#cursor-status").textContent = `Ln ${position.line}, Col ${position.column}`;
+}
+
+function handleEditorKeydown(event) {
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    renderCurrentSource();
+  }
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    rememberDraft();
+    setRenderStatus("Draft saved locally");
+  }
+}
+
 async function boot() {
   const fixtures = await fetch("/api/fixtures").then((response) => response.json());
   state.fixtures = [createScratchFixture(), ...fixtures];
+  state.editor = createTikzEditor(document.querySelector("#source-editor"));
+  state.editor.onChange(rememberDraft);
+  state.editor.onKeydown(handleEditorKeydown);
+  state.editor.onCursorActivity(showCursorPosition);
   applyGridPreference();
   refreshFixtureOptions();
 
@@ -552,19 +566,6 @@ async function boot() {
     if (state.lastSvg) showTikzkitSvg(state.lastSvg);
     showReference();
   });
-  document.querySelector("#source-editor").addEventListener("input", rememberDraft);
-  document.querySelector("#source-editor").addEventListener("keydown", (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault();
-      renderCurrentSource();
-    }
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      rememberDraft();
-      setRenderStatus("Draft saved locally");
-    }
-  });
-
   const requested = decodeURIComponent(location.hash.replace(/^#/, "")) || state.fixtures[1]?.id;
   await loadFixture(requested);
 }
