@@ -54,6 +54,43 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### 使用速览
+
+用下面这条最短路径就可以开始。浏览器页面只运行 TikZKit 的 JavaScript
+解释器；它不会悄悄调用本机 TeX。只有在需要判断是否接近原生 TikZ 时，才
+执行本地参考渲染。
+
+```bash
+# 1. 安装并打开本地编辑器。
+npm install
+npm run web
+
+# 2. 在浏览器打开 http://127.0.0.1:5173/，选择一个案例或直接编辑源码。
+
+# 3. 将单个源文件转换成可嵌入的 SVG。
+node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
+
+# 4. 修改渲染逻辑后，先检查维护中的案例没有新增诊断。
+npm run gallery:audit
+```
+
+要验证一个视觉改动，使用该案例在清单中的完整 fixture ID，例如
+`decorations-snake-arrow-lengths`。下面的命令会把 JavaScript SVG/PNG、
+`tikztosvg` SVG/PNG、可选的 MacTeX 原生 PNG 和差异面板写入同一个忽略的
+`outputs/qa-*` 目录：
+
+```bash
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-snake \
+  --only decorations-snake-arrow-lengths \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius 3
+```
+
+打开 `outputs/qa-snake/index.html` 查看并排结果。接受一次兼容性改动前，既要
+通过相关窄测试，也要实际查看 JS、`tikztosvg`、MacTeX 与 diff 面板；不要只
+根据“页面能显示”或单一 diff 数值下结论。
+
 ### Current validation scope
 
 - A selected 30-case LaTeX-examples batch currently renders without diagnostics
@@ -172,7 +209,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `267/267 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `272/272 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
