@@ -138,8 +138,10 @@ export function computeAxisRanges(axisOptions, addplots) {
   if (!hasExplicitYMin && keepYZero && yMin >= 0) yMin = 0;
   if (!hasExplicitYMax && keepYZero && yMax <= 0) yMax = 0;
   const xEnlarge = axisEnlargeLimitConfig(axisOptions, "x", { hasSurfacePlot });
-  const enlargeXMin = shouldApplyAxisEnlarge(xEnlarge.lower, hasExplicitXMin);
-  const enlargeXMax = shouldApplyAxisEnlarge(xEnlarge.upper, hasExplicitXMax);
+  const enlargeXMin = shouldApplyAxisEnlarge(xEnlarge.lower, hasExplicitXMin) ||
+    shouldApplyMiddleAxisSurveyEnlarge(axisOptions, "x", "lower", keepXZero, hasExplicitXMin);
+  const enlargeXMax = shouldApplyAxisEnlarge(xEnlarge.upper, hasExplicitXMax) ||
+    shouldApplyMiddleAxisSurveyEnlarge(axisOptions, "x", "upper", keepXZero, hasExplicitXMax);
   if (!xLog && (enlargeXMin || enlargeXMax)) {
     const xSpan = Math.abs(xMax - xMin) || 1;
     const xPad = xSpan * PGFPLOTS_DEFAULT_ENLARGE_LIMITS;
@@ -147,8 +149,10 @@ export function computeAxisRanges(axisOptions, addplots) {
     if (enlargeXMax) xMax = keepXZero && shouldKeepMiddleAxisZeroUpper(xMax) ? 0 : xMax + xPad;
   }
   const yEnlarge = axisEnlargeLimitConfig(axisOptions, "y", { hasSurfacePlot });
-  const enlargeYMin = shouldApplyAxisEnlarge(yEnlarge.lower, hasExplicitYMin);
-  const enlargeYMax = shouldApplyAxisEnlarge(yEnlarge.upper, hasExplicitYMax);
+  const enlargeYMin = shouldApplyAxisEnlarge(yEnlarge.lower, hasExplicitYMin) ||
+    shouldApplyMiddleAxisSurveyEnlarge(axisOptions, "y", "lower", keepYZero, hasExplicitYMin);
+  const enlargeYMax = shouldApplyAxisEnlarge(yEnlarge.upper, hasExplicitYMax) ||
+    shouldApplyMiddleAxisSurveyEnlarge(axisOptions, "y", "upper", keepYZero, hasExplicitYMax);
   if (!yLog && (enlargeYMin || enlargeYMax)) {
     const ySpan = Math.abs(yMax - yMin) || 1;
     const yPad = ySpan * PGFPLOTS_DEFAULT_ENLARGE_LIMITS;
@@ -373,6 +377,24 @@ function isNonBoxedAxisLineValue(value) {
 function shouldApplyAxisEnlarge(flag, hasExplicitBound) {
   if (hasExplicitBound) return false;
   return flag === true || flag === "auto";
+}
+
+function shouldApplyMiddleAxisSurveyEnlarge(axisOptions, axis, side, keepsZero, hasExplicitBound) {
+  // `enlargelimits=true` is applied to the surveyed range before PGFPlots
+  // maps it onto the plot box. For a middle axis whose orthogonal explicit
+  // range anchors a positive/negative inferred range at zero, keep that zero
+  // boundary in the public range and add the requested 10% to its inferred
+  // far end. The geometry layer then supplies the opposite visual reserve.
+  // Applying this to arbitrary fully inferred middle ranges would duplicate
+  // the transform-layer enlargement, so it is intentionally limited to the
+  // zero-preserving family.
+  if (!keepsZero || hasExplicitBound || !axisUsesNonBoxedLine(axisOptions, axis)) return false;
+  const raw = axisOptions[`enlarge ${axis} limits`] ?? axisOptions[`enlarge ${axis} limits*`] ?? axisOptions.enlargelimits;
+  if (raw === undefined || raw === null || raw === "" || raw === false) return false;
+  const value = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().toLowerCase();
+  if (!value || ["false", "0", "off", "none", "auto"].includes(value)) return false;
+  if (side === "lower") return !/(?:^|,)\s*upper\s*(?:,|$)/.test(value);
+  return !/(?:^|,)\s*lower\s*(?:,|$)/.test(value);
 }
 
 function middleAxisKeepsZeroRange(axisOptions = {}, axis, perpendicularAxisHasExplicitBound = false) {

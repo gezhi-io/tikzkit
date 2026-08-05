@@ -296,9 +296,33 @@ node scripts/render-example-fixtures.js \
   --fixtures test/fixtures/examples \
   --output outputs/qa-<feature> \
   --only <fixture-id> \
+  --native-reference \
   --preserve-output
 node scripts/diff-example-pngs.js --output outputs/qa-<feature>
 ```
+
+For PGFPlots range, tick, or axis-placement work, start with the focused
+regression before opening the generated sheet:
+
+```bash
+node --test test/pgfplots-seams.test.js
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/examples \
+  --output outputs/qa-pgfplots-<slice> \
+  --only latex-examples-2d-x-square-with-circle \
+  --native-reference \
+  --strict-tikztosvg \
+  --comparison-grid-mode svg
+node scripts/diff-example-pngs.js --output outputs/qa-pgfplots-<slice>
+```
+
+Open `outputs/qa-pgfplots-<slice>/index.html`. The page shows TikZKit and
+tikztosvg side by side with the same optional grid; use the linked native
+MacTeX PNG and four-panel sheet to decide whether a visual change is actually
+an improvement. SVG document dimensions may differ slightly because each
+renderer computes text bounds and tight crops independently; judge the
+plot-frame geometry, labels, line work, and clipping rather than treating a
+single canvas number as the acceptance condition.
 
 Only commit a compatibility slice after its fixture has been inspected against
 both local MacTeX and `tikztosvg`, its diagnostics have not increased, and its
