@@ -7,6 +7,10 @@ const IMPLEMENTED_COMMANDS = [
   "tkzAxeXY",
   "tkzDrawX",
   "tkzDrawY",
+  "tkzLabelX",
+  "tkzLabelY",
+  "tkzAxeX",
+  "tkzAxeY",
   "tkzFct",
   "tkzFctPar",
   "tkzFctPolar"
@@ -71,6 +75,27 @@ export function expandTkzFct(source) {
       index = optional.end;
       continue;
     }
+    if (command.value === "tkzLabelX") {
+      output += renderXAxisLabels(state, optional.content);
+      index = optional.end;
+      continue;
+    }
+    if (command.value === "tkzLabelY") {
+      output += renderYAxisLabels(state, optional.content);
+      index = optional.end;
+      continue;
+    }
+    if (command.value === "tkzAxeX") {
+      // tkz-base labels first so the axis can cover a graduation at the origin.
+      output += `${renderXAxisLabels(state, optional.content)}\n${renderXAxis(state, optional.content)}`;
+      index = optional.end;
+      continue;
+    }
+    if (command.value === "tkzAxeY") {
+      output += `${renderYAxis(state, optional.content)}\n${renderYAxisLabels(state, optional.content)}`;
+      index = optional.end;
+      continue;
+    }
     if (command.value === "tkzFct") {
       const expression = parseRequiredArg(text, optional.end);
       if (!expression) {
@@ -116,7 +141,7 @@ export function expandTkzFct(source) {
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY|Draw[XY]|Fct(?:Par|Polar)?)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw[XY]|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
 }
 
 function createState() {
@@ -305,6 +330,52 @@ function renderYAxis(state, rawOptions) {
   for (const position of positions) {
     commands.push(
       `\\draw[color=${color},line width=${tickWidth}] (${tickRight},${format(position)}) -- (${negateLength(tickLeft)},${format(position)});`
+    );
+  }
+  return commands.join("\n");
+}
+
+function renderXAxisLabels(state, rawOptions) {
+  const options = parseOptions(rawOptions);
+  const bounds = normalizedBounds(state);
+  const tickUp = optionText(options.tickup, "2pt");
+  const tickDown = optionText(options.tickdn, "2pt");
+  const tickWidth = optionText(options.tickwd, "0.8pt");
+  const labelOptions = axisLabelOptions(options, "x");
+  const markers = axisLabelMarkers(bounds.xmin, bounds.xmax, state.xstep, options);
+  const showOrigin = labelShowsOrigin(options);
+  const commands = [];
+  for (const marker of markers) {
+    if (!shouldRenderAxisLabel(marker.position, bounds.xmin, state.xmin, state.xmax, showOrigin)) continue;
+    const label = formatAxisLabel(marker, options, state.xstep, state.xorigin);
+    commands.push(
+      `\\path (${format(marker.position)},${tickUp}) -- (${format(marker.position)},${negateLength(tickDown)}) node[${labelOptions}] {${label}};`
+    );
+    commands.push(
+      `\\draw[${labelTickDrawOptions(options, tickWidth)}] (${format(marker.position)},${tickUp}) -- (${format(marker.position)},${negateLength(tickDown)});`
+    );
+  }
+  return commands.join("\n");
+}
+
+function renderYAxisLabels(state, rawOptions) {
+  const options = parseOptions(rawOptions);
+  const bounds = normalizedBounds(state);
+  const tickLeft = optionText(options.ticklt, "2pt");
+  const tickRight = optionText(options.tickrt, "2pt");
+  const tickWidth = optionText(options.tickwd, "0.8pt");
+  const labelOptions = axisLabelOptions(options, "y");
+  const markers = axisLabelMarkers(bounds.ymin, bounds.ymax, state.ystep, options);
+  const showOrigin = labelShowsOrigin(options);
+  const commands = [];
+  for (const marker of markers) {
+    if (!shouldRenderAxisLabel(marker.position, bounds.ymin, state.ymin, state.ymax, showOrigin)) continue;
+    const label = formatAxisLabel(marker, options, state.ystep, state.yorigin);
+    commands.push(
+      `\\path (${tickRight},${format(marker.position)}) -- (${negateLength(tickLeft)},${format(marker.position)}) node[${labelOptions}] {${label}};`
+    );
+    commands.push(
+      `\\draw[${labelTickDrawOptions(options, tickWidth)}] (${tickRight},${format(marker.position)}) -- (${negateLength(tickLeft)},${format(marker.position)});`
     );
   }
   return commands.join("\n");
@@ -565,6 +636,119 @@ function integerPositions(min, max) {
   return values;
 }
 
+function axisLabelMarkers(min, max, sourceStep, options) {
+  const trig = optionNumber(options.trig, 0);
+  if (trig !== 0) return trigAxisMarkers(min, max, trig);
+  const denominator = Math.round(optionNumber(options.frac, 0));
+  if (denominator > 0) {
+    return integerPositions(Math.round(min), Math.trunc(max)).map((position) => ({ position, numerator: position }));
+  }
+  const increment = optionNumber(options.step, sourceStep) / sourceStep;
+  return steppedAxisPositions(min, max, increment).map((position) => ({ position }));
+}
+
+function axisLabelOptions(options, axis) {
+  const base = axis === "x"
+    ? ["below=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white"]
+    : ["left=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white"];
+  const forwarded = forwardAxisLabelOptions(options);
+  return [...base, ...forwarded].join(",");
+}
+
+function forwardAxisLabelOptions(options) {
+  const tkzKeys = new Set([
+    "frac",
+    "trig",
+    "step",
+    "tickwd",
+    "tickup",
+    "tickdn",
+    "ticklt",
+    "tickrt",
+    "np off",
+    "orig"
+  ]);
+  const parts = [];
+  for (const [rawKey, value] of Object.entries(options)) {
+    if (tkzKeys.has(rawKey)) continue;
+    const key = rawKey === "node font" ? "font" : rawKey;
+    if (value === true) parts.push(key);
+    else parts.push(`${key}=${value}`);
+  }
+  return parts;
+}
+
+function labelTickDrawOptions(options, tickWidth) {
+  const color = optionText(options.color, "black");
+  const text = optionText(options.text, color);
+  const textOption = text === color ? "" : `,text=${text}`;
+  return `color=${color},line width=${tickWidth}${textOption}`;
+}
+
+function labelShowsOrigin(options) {
+  if (options.orig === undefined) return true;
+  // In tkz-base, the bare `orig` key has `.default=false`.
+  if (options.orig === true) return false;
+  return optionBoolean(options.orig, true);
+}
+
+function shouldRenderAxisLabel(position, localMinimum, sourceMinimum, sourceMaximum, showOrigin) {
+  if (showOrigin) return true;
+  if (sameSignedInterval(sourceMinimum, sourceMaximum)) return Math.abs(position - Math.trunc(localMinimum)) > 1e-9;
+  return Math.abs(position) > 1e-9;
+}
+
+function formatAxisLabel(marker, options, sourceStep, sourceOrigin) {
+  const trig = optionNumber(options.trig, 0);
+  if (trig !== 0) return formatPiFraction(marker.numerator, trig);
+  const denominator = Math.round(optionNumber(options.frac, 0));
+  if (denominator > 0) return formatFraction(marker.numerator, denominator);
+  return `$${format(marker.position * sourceStep + sourceOrigin)}$`;
+}
+
+function formatFraction(numerator, denominator) {
+  const reduced = reduceIntegerFraction(numerator, denominator);
+  if (reduced.numerator === 0) return "$0$";
+  if (reduced.denominator === 1) return `$${reduced.numerator}$`;
+  if (reduced.numerator === 1) return `$\\frac{1}{${reduced.denominator}}$`;
+  if (reduced.numerator === -1) return `$\\frac{-1}{${reduced.denominator}}$`;
+  return `$\\frac{${reduced.numerator}}{${reduced.denominator}}$`;
+}
+
+function formatPiFraction(numerator, denominator) {
+  const reduced = reduceIntegerFraction(numerator, denominator);
+  if (reduced.numerator === 0) return "$0$";
+  if (reduced.denominator === 1) {
+    if (reduced.numerator === 1) return "$\\pi$";
+    if (reduced.numerator === -1) return "$-\\pi$";
+    return `$${reduced.numerator}\\pi$`;
+  }
+  if (reduced.numerator === 1) return `$\\frac{\\pi}{${reduced.denominator}}$`;
+  if (reduced.numerator === -1) return `$\\frac{-\\pi}{${reduced.denominator}}$`;
+  return `$\\frac{${reduced.numerator}\\pi}{${reduced.denominator}}$`;
+}
+
+function reduceIntegerFraction(numerator, denominator) {
+  const normalizedDenominator = Math.max(1, Math.abs(Math.round(denominator)));
+  const normalizedNumerator = Math.round(numerator);
+  const divisor = greatestCommonDivisor(Math.abs(normalizedNumerator), normalizedDenominator);
+  return {
+    numerator: normalizedNumerator / divisor,
+    denominator: normalizedDenominator / divisor
+  };
+}
+
+function greatestCommonDivisor(first, second) {
+  let a = Math.max(0, Math.round(first));
+  let b = Math.max(0, Math.round(second));
+  while (b !== 0) {
+    const remainder = a % b;
+    a = b;
+    b = remainder;
+  }
+  return a || 1;
+}
+
 function steppedAxisPositions(min, max, increment) {
   const start = Math.trunc(min);
   const end = Math.trunc(max);
@@ -575,11 +759,17 @@ function steppedAxisPositions(min, max, increment) {
 }
 
 function trigAxisPositions(min, max, trig) {
-  if (!Number.isFinite(trig) || trig === 0) return integerPositions(min, max);
+  return trigAxisMarkers(min, max, trig).map((marker) => marker.position);
+}
+
+function trigAxisMarkers(min, max, trig) {
+  if (!Number.isFinite(trig) || trig === 0) return integerPositions(min, max).map((position) => ({ position }));
   const start = Math.round(((Math.trunc(min) + 0.5) / Math.PI) * trig);
-  const end = Math.round((Math.trunc(max) / Math.PI) * trig);
+  const end = Math.floor((Math.trunc(max) / Math.PI) * trig + 1e-9);
   const values = [];
-  for (let value = start; value <= end; value += 1) values.push((value * Math.PI) / trig);
+  for (let numerator = start; numerator <= end; numerator += 1) {
+    values.push({ numerator, position: (numerator * Math.PI) / trig });
+  }
   return values;
 }
 

@@ -19,6 +19,10 @@ test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", (
     "tkzAxeXY",
     "tkzDrawX",
     "tkzDrawY",
+    "tkzLabelX",
+    "tkzLabelY",
+    "tkzAxeX",
+    "tkzAxeY",
     "tkzFct",
     "tkzFctPar",
     "tkzFctPolar"
@@ -57,6 +61,43 @@ test("uses tkz-base trig positions for independent axis ticks", () => {
   assert.match(expanded, /\(0,2pt\) -- \(0,-2pt\);/);
   assert.match(expanded, /\(1\.5707963268,2pt\) -- \(1\.5707963268,-2pt\);/);
   assert.match(expanded, /\(-1\.5707963268,2pt\) -- \(-1\.5707963268,-2pt\);/);
+});
+
+test("lowers tkzLabelX and tkzLabelY in source units with origin, fraction, and pi formatting", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=20,xmax=60,xstep=10,ymin=-3.2,ymax=3.2]
+  \tkzLabelX[step=20,orig,below right=4pt,text=blue]
+  \tkzLabelY[trig=2,orig]
+\end{tikzpicture}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=1.75,xstep=.33333]
+  \tkzLabelX[frac=3]
+\end{tikzpicture}`);
+
+  assert.doesNotMatch(expanded, /\\tkzLabel[XY]/);
+  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,below right=4pt,text=blue\] \{\$40\$\}/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white\] \{\$-\\pi\$\}/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white\] \{\$\\frac\{-\\pi\}\{2\}\$\}/);
+  assert.doesNotMatch(expanded, /node\[left=3pt,[^\n]*\] \{\$0\$\}/);
+  assert.match(expanded, /\$\\frac\{-2\}\{3\}\$/);
+  assert.match(expanded, /\$\\frac\{1\}\{3\}\$/);
+});
+
+test("combines tkzAxeX and tkzAxeY from their native draw and label commands", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=2,ymin=0,ymax=2]
+  \tkzAxeX
+  \tkzAxeY
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$1$"));
+  assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$x$"));
+  assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text === "$y$"));
 });
 
 test("lowers tkzFct gnuplot syntax into scaled, clipped ordinary TikZ segments", () => {
