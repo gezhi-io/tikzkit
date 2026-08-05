@@ -15,6 +15,7 @@ export const texPackage = {
     "short wires",
     "R/C/basic independent current and voltage source slices",
     "controlled cV/cI diamond sources in European and American styles with csources/scale",
+    "controlled sinusoidal csV/csI sources with csources/scale and csources/symbol/thickness",
     "independent sV/sI sinusoidal sources with sources/scale, sources/symbol/thickness, and bipoles/isourcesin/angle",
     "battery, battery1, and battery2 plate families with batteries/scale",
     "american voltage-source circle with internal + and - polarity symbols, including backward V< direction",
@@ -44,7 +45,9 @@ export const texPackage = {
     "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (battery class and supported battery types, lines 2902-2914)",
     "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (independent sinusoidal sV/sI sources and open-current example, lines 2928-2947)",
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirc.defines.tex (sources scale class, lines 1058-1061)",
-    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (source symbol thickness/rotation defaults, sV waveform, sI open outline, and aliases, lines 1937-1975, 2270-2278, 2384-2407, 3353-3383, and 3849-3952)"
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (source symbol thickness/rotation defaults, sV waveform, sI open outline, and aliases, lines 1937-1975, 2270-2278, 2384-2407, 3353-3383, and 3849-3952)",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (controlled sinusoidal aliases and dependent symbol-thickness class, lines 2970-2971 and 3157-3159)",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (controlled sinusoidal diamond/wave geometry and aliases, lines 3454-3520 and 3855-3860, 3949-3953)"
   ],
   "caseCount": 488,
   "caseExamples": [
@@ -64,10 +67,11 @@ export const texPackage = {
     "circuitikz chokes and core anchors",
     "circuitikz basic bipoles",
     "circuitikz battery plate families",
-    "circuitikz independent sinusoidal voltage and current sources"
+    "circuitikz independent sinusoidal voltage and current sources",
+    "circuitikz controlled sinusoidal voltage and current sources"
   ],
   "observedOptions": [
     "siunitx,RPvoltages"
   ],
-  "notes": "Current implementation is a case-driven circuitikz subset, not the full circuitikz engine. The verified basic-bipoles fixture covers R/C, an independent V source, [american] internal +/- polarity, V< direction, siunitx unit labels, and RPvoltages reference polarity: American bipoles use +/- signs while European notation uses voltage arrows. Independent sV/sI plus vsourcesin/isourcesin and the named sinusoidal styles now share the local four-cubic wave form, sources/scale, sources/symbol/thickness, the sI external current label, and bipoles/isourcesin/angle's two-arc open outline. Controlled cV/cI, cvsource/cisource, and explicit EU/AM variants now draw the native diamond exterior, its EU center line or AM internal signs/current arrow, and honor csources/scale. The battery fixture verifies the default battery's four alternating plates, battery1's long/short pair with equal line width, battery2's three-times-thick short plate, default vertical leads, batteries/scale, and generic l= labels. L/vL select cute, American, or European bodies through explicit styles, tikzpicture style keys, or \\ctikzset{inductor=...}; documented inductors/scale, inductors/width, and inductors/coils are honored. \\ctikzset style changes now override inherited tikzpicture defaults. cute choke supports onelinechoke/twolineschoke and bipoles/cutechoke/cthick; named L/vL/choke elements expose core west/east with bipoles/inductors/core distance. Labels and annotations inherit the current TikZ font; internal symbol roles follow the 5/6pt, 10/12pt, and 12/14pt sizes declared by pgfcirc.defines.tex. Battery voltage-direction conventions, battery inversion/mirroring, solar and baertty symbols, controlled sinusoidal source variants, sources/symbol/rotate, transformers, inductive sensors, dot anchors, and the broader bipole catalog remain partial or unsupported."
+  "notes": "Current implementation is a case-driven circuitikz subset, not the full circuitikz engine. The verified basic-bipoles fixture covers R/C, an independent V source, [american] internal +/- polarity, V< direction, siunitx unit labels, and RPvoltages reference polarity: American bipoles use +/- signs while European notation uses voltage arrows. Independent sV/sI plus vsourcesin/isourcesin and the named sinusoidal styles now share the local four-cubic wave form, sources/scale, sources/symbol/thickness, the sI external current label, and bipoles/isourcesin/angle's two-arc open outline. Controlled cV/cI, cvsource/cisource, and explicit EU/AM variants draw the native diamond exterior, its EU center line or AM internal signs/current arrow, and honor csources/scale. Controlled csV/csI plus cvsourcesin/cisourcesin and their documented aliases now use that same diamond exterior with four wave cubics, csources/scale, csources/symbol/thickness, external v/i labels, and no plain-source signs/arrow/line. The battery fixture verifies the default battery's four alternating plates, battery1's long/short pair with equal line width, battery2's three-times-thick short plate, default vertical leads, batteries/scale, and generic l= labels. L/vL select cute, American, or European bodies through explicit styles, tikzpicture style keys, or \\ctikzset{inductor=...}; documented inductors/scale, inductors/width, and inductors/coils are honored. \\ctikzset style changes now override inherited tikzpicture defaults. cute choke supports onelinechoke/twolineschoke and bipoles/cutechoke/cthick; named L/vL/choke elements expose core west/east with bipoles/inductors/core distance. Labels and annotations inherit the current TikZ font; internal symbol roles follow the 5/6pt, 10/12pt, and 12/14pt sizes declared by pgfcirc.defines.tex. Battery voltage-direction conventions, battery inversion/mirroring, solar and baertty symbols, source rotations, source fills, DC/square/triangular waveforms, transformers, inductive sensors, dot anchors, and the broader bipole catalog remain partial or unsupported."
 };

@@ -3697,6 +3697,21 @@
         "sources/symbol/thickness",
         "bipoles/isourcesin/angle"
       ]
+    },
+    {
+      "id": "circuitikz-controlled-sinusoidal-sources",
+      "title": "circuitikz controlled sinusoidal voltage and current sources",
+      "source": "circuitikz/controlled-sinusoidal-sources.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzControlledSinusoidalSourceItems",
+      "features": [
+        "to[csV] controlled sinusoidal voltage source",
+        "to[csI] controlled sinusoidal current source",
+        "controlled sinusoidal voltage source alias",
+        "csources/scale",
+        "csources/symbol/thickness"
+      ]
     }
   ]
 }

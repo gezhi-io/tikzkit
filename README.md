@@ -243,9 +243,31 @@ The independent sinusoidal source slice follows the local Circuitikz manual:
 Supported here: `sV`, `sI`, `vsourcesin`, `isourcesin`, the named sinusoidal
 source styles, `sources/scale`, `sources/symbol/thickness`, the external
 `sI=$...$` current marker, and `bipoles/isourcesin/angle` between `0` and
-`90`. The controlled `csV`/`csI` variants, `sources/symbol/rotate` (including
-`auto`), source fills, and the other waveform families are still outside this
-verified slice.
+`90`. `sources/symbol/rotate` (including `auto`), source fills, and the other
+independent waveform families are still outside this verified slice.
+
+### Circuitikz Controlled Sinusoidal Sources
+
+Controlled sinusoidal sources are diamonds with a sine wave, rather than the
+circle used by `sV` and `sI`:
+
+```tex
+\usepackage{circuitikz}
+\begin{circuitikz}[american, thick]
+  \ctikzset{csources/scale=1.2, csources/symbol/thickness=1.5}
+  \draw (0,2) to[csV=$g v_x$] ++(3,0);
+  \draw (0,1) to[csI=$g i_x$] ++(3,0);
+  \draw (0,0) to[controlled sinusoidal voltage source, l=$\mu v_x$] ++(3,0);
+\end{circuitikz}
+```
+
+Supported here: `csV`, `csI`, `cvsourcesin`, `cisourcesin`, `controlled
+vsourcesin`, `controlled isourcesin`, the complete controlled-sinusoidal
+style names, direction suffixes, `csources/scale`,
+`csources/symbol/thickness`, external `v/i` labels, and `l=...`. In native
+Circuitikz, `csources/symbol/thickness` is deliberately separate from the
+independent-source `sources/symbol/thickness` key. Source rotations, fills,
+and DC/square/triangular controlled sources are outside this verified slice.
 
 ### Circuitikz Battery Plate Families
 

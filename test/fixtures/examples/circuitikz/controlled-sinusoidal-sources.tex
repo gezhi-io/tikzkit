@@ -1,0 +1,11 @@
+% Adapted from the TeX Live circuitikz manual's controlled-source section.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american, thick]
+  \ctikzset{csources/scale=1.2, csources/symbol/thickness=1.5}
+  \draw (0,2) to[csV=$g v_x$] ++(3,0);
+  \draw (0,1) to[csI=$g i_x$] ++(3,0);
+  \draw (0,0) to[controlled sinusoidal voltage source, l=$\mu v_x$] ++(3,0);
+\end{circuitikz}
+\end{document}
