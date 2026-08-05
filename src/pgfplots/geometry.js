@@ -32,7 +32,10 @@ export const PGFPLOTS_SCALED_Y_MIDDLE_AXIS_RESERVE_X = parseDimension("46.4pt", 
 export const PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RESERVE_X = parseDimension("43.77pt", {});
 export const PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_X = parseDimension("47.345pt", {});
 export const PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_Y = parseDimension("46.398pt", {});
-const PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RIGHT_RESERVE = parseDimension("6.1pt", {});
+// For an explicit-width oblique 3D axis, PGFPlots retains an outer layout
+// reserve for the colorbar tick labels. It changes the picture bbox only;
+// the projected plot box remains unchanged.
+const PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RIGHT_RESERVE = parseDimension("8.7pt", {});
 const PGFPLOTS_COMPACT_3D_LEFT_RESERVE = 0.52;
 const PGFPLOTS_COMPACT_3D_RIGHT_RESERVE = 0.43;
 const PGFPLOTS_COMPACT_3D_TOP_RESERVE = 0.073;
@@ -433,9 +436,12 @@ function axisContainerMargin(axisOptions = {}, options = {}) {
     const hasScaledZTickScaleLabel = scaledZTickScaleLabelActive(axisOptions, options.ranges);
     const top = hasScaledZTickScaleLabel
       ? Math.max(PGFPLOTS_COMPACT_3D_TOP_RESERVE, PGFPLOTS_COMPACT_3D_SCALED_Z_TICK_TOP_RESERVE)
-      : PGFPLOTS_COMPACT_3D_TOP_RESERVE;
-    let right = PGFPLOTS_COMPACT_3D_RIGHT_RESERVE;
-    if (options.hasExplicitWidth) right += PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RIGHT_RESERVE;
+      : 0;
+    // Explicit-width axes use a narrower, measured bbox reserve than the
+    // generic 3D gutter. This preserves the native colorbar whitespace.
+    let right = options.hasExplicitWidth
+      ? PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RIGHT_RESERVE
+      : PGFPLOTS_COMPACT_3D_RIGHT_RESERVE;
     if (hasScaledZTickScaleLabel) right += PGFPLOTS_COMPACT_3D_SCALED_Z_TICK_RIGHT_RESERVE;
     return { ...TIKZ_AXIS_CONTAINER_MARGIN, left: PGFPLOTS_COMPACT_3D_LEFT_RESERVE, right, top };
   }

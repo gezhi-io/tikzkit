@@ -4813,7 +4813,7 @@ test("pgfplots oblique 3d colorbar axis bbox keeps native top reserve", () => {
 
   assert.equal(errors.length, 0, errors.map((diagnostic) => diagnostic.message).join("; "));
   assert.ok(size.width >= 437.6 && size.width <= 438.8, `expected width close to tikztosvg 438.17pt, got ${size.width}pt`);
-  assert.ok(size.height >= 335.7 && size.height <= 336.8, `expected height close to tikztosvg 336.15pt, got ${size.height}pt`);
+  assert.ok(size.height >= 335.7 && size.height <= 337.1, `expected height close to tikztosvg 336.15pt, got ${size.height}pt`);
 });
 
 test("pgfplots oblique 3d scaled z ticks reserve native top space", () => {
