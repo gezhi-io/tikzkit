@@ -176,7 +176,8 @@ function collectDependencies(source, resolver, review) {
     kind: "tikz-library",
     ...entry,
     implementationStatus: entry.status,
-    localSource: null,
+    localSource: entry.localSource || null,
+    localDoc: entry.localDoc || null,
     declaredLocalSourceReviewed: Boolean(entry.localSourceReviewed),
     lookup: `tikzlibrary${entry.name}.code.tex`
   }));

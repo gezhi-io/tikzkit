@@ -285,6 +285,8 @@ function implementationSupport(entry) {
         status: builtin.status,
         implementedBy: builtin.implementedBy,
         notes: builtin.notes || builtin.features.join("; "),
+        localSource: builtin.localSource || "",
+        localDoc: builtin.localDoc || "",
         localSourceReviewed: builtin.localSourceReviewed || ""
       };
     }

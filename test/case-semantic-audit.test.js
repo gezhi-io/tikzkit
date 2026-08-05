@@ -143,6 +143,21 @@ test("semantic audit maps calendar commands, options, and reviewed library metad
   assert.ok(report.options.some((entry) => entry.id === "option:calendar:month yshift"));
 });
 
+test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", () => {
+  const report = auditTikzSource(String.raw`\usetikzlibrary{arrows.meta}`, {
+    localSourceResolver: (_lookup, dependency) => dependency.localSource || null
+  });
+  const dependency = report.dependencies.find((entry) => entry.name === "arrows.meta");
+
+  assert.equal(
+    dependency.localSource,
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  );
+  assert.equal(dependency.localSourceFound, true);
+  assert.equal(dependency.localSourceReviewed, true);
+  assert.equal(dependency.implementedBy, "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip");
+});
+
 test("review evidence can satisfy individual semantic features without hiding remaining work", () => {
   const report = auditTikzSource(String.raw`\draw[line width=1pt] (0,0) -- (1,1);`, {
     localSourceResolver: fakeResolver,

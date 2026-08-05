@@ -28,7 +28,9 @@ export function resolveTikzLibraries(names = []) {
         status: support.status,
         implementedBy: support.implementedBy,
         features: [...support.features],
-        localSourceReviewed: Boolean(support.localSourceReviewed),
+        localSource: support.localSource || null,
+        localDoc: support.localDoc || null,
+        localSourceReviewed: support.localSourceReviewed || null,
         notes: support.notes || ""
       };
     }

@@ -483,6 +483,12 @@ source and the remaining unsupported syntax in `docs/qa/`; do not accept a
 case from a canvas-size or mean-difference number alone. Generated `outputs/`
 artifacts are local QA evidence and are intentionally ignored by Git.
 
+Some TikZ libraries delegate to a PGF implementation file whose name does not
+match the TikZ library name. The audit preserves declared local source metadata
+for these aliases, for example `arrows.meta` maps to
+`pgflibraryarrows.meta.code.tex`, so a locally installed dependency is not
+mistaken for a missing source.
+
 ## Supported TikZ Surface
 
 Current support is pragmatic and growing. Highlights:
