@@ -274,6 +274,12 @@ uses `3d-cmos-loss-diagram` and `3d-gradient-cos` against local MacTeX and
 of every PGFPlots 3D feature. Per-view projection calibration, exact TeX text
 metrics, and advanced 3D plot handlers remain partial.
 
+Axis titles now use the top edge of the complete projected 3D box, not the
+top-face midpoint. This prevents a title from overlapping a surface and makes
+its real SVG text bounds participate in cropping. The focused comparison for
+`color-blind-friendly-mesh-colormap` is recorded in
+[`docs/qa/2026-08-06-pgfplots-3d-title-placement.md`](docs/qa/2026-08-06-pgfplots-3d-title-placement.md).
+
 ### Circuitikz Voltage Notation
 
 The current `circuitikz` support is intentionally a focused subset. The

@@ -518,7 +518,12 @@ export function renderAxisLabels3D(axisOptions, ranges, geometry) {
     commands.push(`\\node[${joinOptions(["axis label", `anchor=${axisAnnotationAnchor(axisOptions, "z", layout.z.normal)}`, "rotate=90", labelFont("z") ? `font=${labelFont("z")}` : ""])}] at ${formatAxisPoint(offsetAlongNormal(layout.z.midpoint, layout.z.normal, zAxisLabelDistance(axisOptions, ranges, geometry)))} {${axisOptions.zlabel}};`);
   }
   if (axisOptions.title) {
-    const titlePoint = geometry.mapPoint3d({ x: (ranges.xMin + ranges.xMax) / 2, y: (ranges.yMin + ranges.yMax) / 2, z: ranges.zMax });
+    // A 3D top-face midpoint can be materially below the projected box's
+    // highest corner. PGFPlots positions an axis title above the full axis
+    // picture, so anchor it from the projected bbox rather than the top-face
+    // midpoint.
+    const bounds = axis3DProjectedBounds(ranges, geometry);
+    const titlePoint = { x: (bounds.minX + bounds.maxX) / 2, y: bounds.maxY };
     const titleFont = roleFontOption("title", axisOptions, fontFromStyle(axisOptions["title style"]) || axisOptions["axis title font"]);
     commands.push(`\\node[${joinOptions(["axis label", "anchor=south", titleFont ? `font=${titleFont}` : ""])}] at ${formatAxisPoint(offsetPoint(titlePoint, 0, 0.25))} {${axisOptions.title}};`);
   }

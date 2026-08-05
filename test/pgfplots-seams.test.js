@@ -2424,6 +2424,28 @@ test("pgfplots 3d colorbar lowers colormap state to right-side primitives", () =
   assert.ok(commands.some((command) => command.endsWith("{100};")));
 });
 
+test("pgfplots 3d titles sit above the projected box rather than its top-face midpoint", () => {
+  const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -25, zMax: 25 };
+  const geometry = createAxisGeometry(
+    { "pgfplots 3d surface": true },
+    ranges
+  );
+  const commands = renderAxisLabels3D(
+    { title: "Projected title" },
+    ranges,
+    geometry
+  );
+  const title = commands.find((command) => command.includes("Projected title"));
+  const topCorner = geometry.mapPoint3d({ x: ranges.xMin, y: ranges.yMax, z: ranges.zMax });
+  const topFaceMidpoint = geometry.mapPoint3d({ x: 0, y: 0, z: ranges.zMax });
+
+  assert.ok(title);
+  const coordinates = title.match(/at \(([-+]?\d*\.?\d+),([-+]?\d*\.?\d+)\)/);
+  assert.ok(coordinates);
+  assert.ok(Number(coordinates[2]) > topCorner.y, "title must clear the projected top edge");
+  assert.ok(Number(coordinates[2]) > topFaceMidpoint.y, "title must not overlap the top face");
+});
+
 test("pgfplots 3d colorbar uses scaled tick labels for small positive ranges", () => {
   const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: 0.0155, zMax: 0.0175 };
   const geometry = createAxisGeometry(
