@@ -260,7 +260,10 @@ function includeArrowTipBounds(rawTip, style, endpoint, ux, uy, include, unit, i
     x: endpoint.x - ux * placement,
     y: endpoint.y - uy * placement
   };
-  const terminalPad = (Number(tip.strokeWidth) || Number(style.lineWidth) || 0) / unit;
+  // Legacy PGF arrow declarations include half the current line width in
+  // `\pgfarrowsrightextend`. The emitted tip geometry carries that extension
+  // already, so only its remaining stroke half-width belongs outside it.
+  const terminalPad = (Number(tip.strokeWidth) || Number(style.lineWidth) || 0) / unit / 2;
   const strokePad = (Number(tip.strokeWidth) || 0) / unit / 2;
   const perpendicular = { x: -uy, y: ux };
   for (const x of [bounds.minX / unit, bounds.maxX / unit + terminalPad]) {
