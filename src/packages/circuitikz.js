@@ -17,7 +17,7 @@ export const texPackage = {
     "terminal markers",
     "op amp and tube node subset",
     "package option siunitx: normalize \\SI and circuitikz angle-unit labels",
-    "package option RPvoltages: use reference-polarity voltage arrows instead of +/- labels"
+    "package option RPvoltages: set reference-polarity direction for American +/- and European arrow voltage notation"
   ],
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/circuitikz/circuitikz.sty",

@@ -100,6 +100,31 @@ node bin/tikz2svg.js examples/diagram.tex -o outputs/diagram.svg --strict --svg-
 
 Run `node bin/tikz2svg.js --help` for the complete CLI options.
 
+### Circuitikz Voltage Notation
+
+The current `circuitikz` support is intentionally a focused subset. The
+following small circuit is covered by the browser renderer and the CLI:
+
+```tex
+\usepackage[siunitx,RPvoltages]{circuitikz}
+\begin{circuitikz}[american]
+  \draw (0,0)
+    to[R=2<\ohm>, i=?, v=84<\volt>] (3,0)
+    -- (3,2)
+    to[C=$C_1$] (1.5,2)
+    to[V<=$\SI{5}{\volt}$] (0,2)
+    -- (0,0);
+\end{circuitikz}
+```
+
+`siunitx` normalizes the common `\SI{...}{\volt}` and `<\ohm>` labels. In
+`[american]` drawings, `RPvoltages` determines the polarity direction but keeps
+`+/-` signs; in European notation the same voltage metadata is represented by
+an external arrow. Resistors, capacitors, independent voltage sources, current
+annotations, common inductor styles, and cute chokes are covered by focused
+fixtures. Controlled sources, batteries, transformers, source transforms, and
+the broad circuitikz component catalog remain partial.
+
 ## Browser Workbench
 
 The workbench discovers the unified fixture catalog, including the selected

@@ -3444,17 +3444,27 @@ function appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, o
   const { label } = voltage;
   const scale = circuitikzLengthScale(env);
   const normal = circuitikzVoltageNormal(geometry, voltage, spec);
-  if (circuitikzUsesRPVoltages(env)) {
+  if (!circuitikzUsesAmericanVoltageSource(env)) {
     shapes.push(circuitikzRpVoltageArrowItem(spec, geometry, voltage, normal, pathStyle, env));
     const labelOffset = (spec.kind === "voltageSource" ? 0.78 : 0.78) * scale;
     addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, labelOffset), label);
     return;
   }
+
+  // American voltage notation keeps the polarity signs even with RPvoltages.
+  // Independent American sources already place those signs inside their symbol.
+  if (spec.kind === "voltageSource") {
+    addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, 0.62 * scale), label);
+    return;
+  }
+
   const signOffset = (spec.kind === "isource" ? 0.28 : 0.38) * scale;
   const labelOffset = (spec.kind === "isource" ? 0.72 : 0.62) * scale;
   const along = 0.55 * scale;
-  addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, along), normal, signOffset), "+", { "inner sep": "0pt" });
-  addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, -along), normal, signOffset), "-", { "inner sep": "0pt" });
+  const backward = circuitikzVoltageDirectionIsBackward(voltage, spec, env);
+  const plusAlong = backward ? -along : along;
+  addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, plusAlong), normal, signOffset), "+", { "inner sep": "0pt" });
+  addCircuitikzTextNode(nodes, pointNormal(pointAlong(geometry.mid, geometry.u, -plusAlong), normal, signOffset), "-", { "inner sep": "0pt" });
   addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, labelOffset), label);
 }
 
@@ -3474,6 +3484,13 @@ function circuitikzVoltageSpec(options = {}, spec = {}, env = {}) {
 function circuitikzUsesRPVoltages(env = {}) {
   const settings = env.circuitikz || {};
   return Boolean(settings.RPvoltages || /^RPvoltages$/i.test(String(settings.voltageMode || settings.voltage || "")));
+}
+
+function circuitikzVoltageDirectionIsBackward(voltage = {}, spec = {}, env = {}) {
+  const key = String(voltage.key || "");
+  if (key.includes("<")) return true;
+  if (key.includes(">")) return false;
+  return spec.kind !== "voltageSource" && circuitikzUsesRPVoltages(env);
 }
 
 function circuitikzVoltageNormal(geometry, voltage = {}, spec = {}) {

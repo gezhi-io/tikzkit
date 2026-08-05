@@ -1,0 +1,14 @@
+% Adapted from the TeX Live circuitikz manual's basic mesh examples.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage[siunitx,RPvoltages]{circuitikz}
+
+\begin{document}
+\begin{circuitikz}[american]
+  \draw (0,0)
+    to[R=2<\ohm>, i=?, v=84<\volt>] (3,0)
+    -- (3,2)
+    to[C=$C_1$] (1.5,2)
+    to[V<=$\SI{5}{\volt}$] (0,2)
+    -- (0,0);
+\end{circuitikz}
+\end{document}
