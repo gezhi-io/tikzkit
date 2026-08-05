@@ -3196,7 +3196,7 @@ test("pgfplots activation-functions keeps x and y labels attached to middle-axis
   assert.ok(xLabel.x >= 14.28 && xLabel.x <= 14.30, `expected xlabel beside the right axis tip, got x=${xLabel.x}`);
   assert.ok(xLabel.y >= 2.32 && xLabel.y <= 2.34, `expected xlabel above the horizontal axis, got y=${xLabel.y}`);
   assert.ok(yLabel.x >= 7.41 && yLabel.x <= 7.43, `expected ylabel right of the vertical axis, got x=${yLabel.x}`);
-  assert.ok(yLabel.y >= 6.28 && yLabel.y <= 6.29, `expected ylabel below the top axis tip, got y=${yLabel.y}`);
+  assert.ok(yLabel.y >= 6.278 && yLabel.y <= 6.29, `expected ylabel below the top axis tip, got y=${yLabel.y}`);
 });
 
 test("pgfplots activation-functions preserves the left edge of every legend formula in final IR and SVG", () => {

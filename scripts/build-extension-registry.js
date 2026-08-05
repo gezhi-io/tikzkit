@@ -301,7 +301,7 @@ function packageMetadataSupport(metadata) {
   return {
     status: metadata.implementationStatus || metadata.status || "unsupported",
     implementedBy: metadata.implementedBy || "",
-    notes: metadata.notes || (metadata.features || []).join("; "),
+    notes: [metadata.notes, metadata.registryNoteSuffix].filter(Boolean).join(" ") || (metadata.features || []).join("; "),
     localSource: metadata.localSource || "",
     localDoc: metadata.localDoc || "",
     localSourceReviewed: metadata.localSourceReviewed || ""
