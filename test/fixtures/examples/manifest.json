@@ -3495,6 +3495,20 @@
         "path drawing",
         "third-party package"
       ]
+    },
+    {
+      "id": "pgf-rectangle-split-ignore-empty",
+      "title": "PGF rectangle split ignores empty parts",
+      "source": "latex-examples/rectangle-split-ignore-empty.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
+      "features": [
+        "rectangle split horizontal",
+        "rectangle split ignore empty parts",
+        "nodepart anchors",
+        "per-part fill"
+      ]
     }
   ]
 }

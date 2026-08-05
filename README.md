@@ -308,6 +308,7 @@ Current support is pragmatic and growing. Highlights:
 - Built-in TikZ/PGF libraries: `\usetikzlibrary{shapes}` and `\usepgflibrary{bbox}` style declarations are treated as core library imports; common `shapes.geometric` and `shapes.symbols` nodes render as SVG paths with node-border anchors, and `bezier bounding box` tightens cubic Bézier viewBox/current-bounding-box calculations.
 - Extension-backed libraries: `tikz-network`, `tikz-3dplot`, `tikz-bagua`, `tikz-bpmn`, `tikz-cd`, `tikz-decofonts`, `tikz-dimline`, `tikz-ext`, `tikz-feynhand`, `tikz-feynman`, `tikz-palattice`, `tikz-qtree`, `tikzquads`, and `tikzfxgraph` subsets, plus small compatibility layers for selected graph-style macros.
 - Chemistry packages: a bounded `chemfig` / `chemmacros` scheme slice lowers horizontal reaction schemes into ordinary TikZ paths. It covers the tested aromatic six-member rings, single and double carbonyl bonds, peroxide bridges, reaction arrows, legacy `\setatomsep`, legacy `\lewis`, and the simple `\ch{...}` formula used by the corpus fixture.
+- Multipart nodes: horizontal `rectangle split` nodes support `\nodepart`, per-part fills, named anchors, and `rectangle split ignore empty parts`; ignored slots are removed while their bare anchors resolve to the preceding visible part, matching PGF's B-tree and manual examples.
 
 Unsupported or partially supported syntax should produce diagnostics instead of silently disappearing.
 
@@ -333,6 +334,26 @@ local compatibility shim from `\setatomsep` to `\setchemfig{atom sep=...}` and
 loads `chemfig-lewis.tex`. See
 [`docs/qa/2026-08-05-chemfig-scheme.md`](docs/qa/2026-08-05-chemfig-scheme.md)
 for the visual comparison and known differences.
+
+### Rectangle-Split Nodes
+
+Load the library in the usual TikZ form. For a horizontal split, `\nodepart`
+starts the next logical part. `rectangle split ignore empty parts` removes empty
+parts after the first text part; fills retain their original logical part index.
+
+```tex
+\usetikzlibrary{shapes.multipart}
+\begin{tikzpicture}
+  \node[rectangle split,rectangle split horizontal,rectangle split parts=4,
+    rectangle split ignore empty parts,draw] (record)
+    {left\nodepart{two}\nodepart{three}right\nodepart{four}};
+  \draw (record.two) -- (record.three);
+\end{tikzpicture}
+```
+
+The implemented slice covers horizontal layouts. Vertical rectangle splits,
+all per-part `top`/`base`/`bottom` alignment modes, and the full PGF anchor
+surface remain under test.
 
 ## TikZ Library Registry
 

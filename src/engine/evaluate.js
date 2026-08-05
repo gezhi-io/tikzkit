@@ -6501,7 +6501,7 @@ function addNodeItems(node, ir, env) {
       separatorWidth: shape === "rectangleSplit" ? node.rectangleSplit?.separatorWidth : undefined,
       partFills:
         shape === "rectangleSplit"
-          ? rectangleSplitPartFills(semantic, node.rectangleSplit?.count || rectangleSplitParts(semantic))
+          ? rectangleSplitPartFills(semantic, node.rectangleSplit || rectangleSplitParts(semantic))
           : undefined,
       rotation: rotation || undefined,
       style: {
@@ -8190,12 +8190,28 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
   if (!options["rectangle split"] || !options["rectangle split horizontal"]) return null;
   const parsed = rectangleSplitTextParts(text);
   const declared = Number(options["rectangle split parts"]);
-  const defaultCount = options["rectangle split ignore empty parts"] ? parsed.highestPart : 4;
+  const ignoreEmptyParts = tikzBoolean(options["rectangle split ignore empty parts"]);
+  const defaultCount = ignoreEmptyParts ? parsed.highestPart : 4;
   const count = Math.max(1, Number.isFinite(declared) && declared > 0 ? Math.round(declared) : defaultCount || 1);
-  const parts = Array.from({ length: count }, (_unused, index) => ({
+  const logicalParts = Array.from({ length: count }, (_unused, index) => ({
     name: RECTANGLE_SPLIT_PART_NAMES[index] || String(index + 1),
-    text: String(parsed.parts[index] || "").trim()
+    text: String(parsed.parts[index] || "").trim(),
+    logicalIndex: index
   }));
+  // PGF retains the first text part even when it is empty, then removes
+  // subsequent empty parts and aliases their bare anchors to the prior part.
+  const visibleLogicalParts = ignoreEmptyParts
+    ? logicalParts.filter((part, index) => index === 0 || Boolean(part.text))
+    : logicalParts;
+  let visibleIndex = 0;
+  for (const part of logicalParts) {
+    if (visibleLogicalParts.includes(part)) {
+      part.visibleIndex = visibleIndex;
+      visibleIndex += 1;
+    } else {
+      part.visibleIndex = Math.max(0, visibleIndex - 1);
+    }
+  }
   const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const emptyWidth =
@@ -8217,7 +8233,7 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
   delete metricOptions.shape;
   delete metricOptions.draw;
   delete metricOptions.fill;
-  const partSizes = parts.map((part) => {
+  const partSizes = visibleLogicalParts.map((part) => {
     if (!part.text) {
       return {
         width: roundNumber(Math.max(0.02, emptyWidth + innerXSep * 2)),
@@ -8243,7 +8259,8 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     };
   });
   const partWidths = partSizes.map((size) => size.width);
-  let width = partWidths.reduce((sum, value) => sum + value, 0) + separatorWidth * Math.max(0, count - 1);
+  const visibleCount = visibleLogicalParts.length;
+  let width = partWidths.reduce((sum, value) => sum + value, 0) + separatorWidth * Math.max(0, visibleCount - 1);
   let height = Math.max(...partSizes.map((size) => size.height), 0.02);
   if (options["minimum width"]) width = Math.max(width, parseNodeLengthDimension(options["minimum width"], env));
   if (options["minimum height"]) height = Math.max(height, parseNodeLengthDimension(options["minimum height"], env));
@@ -8253,17 +8270,18 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     height = Math.max(height, minimumSize);
   }
   let cursor = -width / 2;
-  const laidOutParts = parts.map((part, index) => {
+  const laidOutParts = visibleLogicalParts.map((part, index) => {
     const partWidth = partWidths[index];
     const centerX = cursor + partWidth / 2;
     const originX = cursor + innerXSep;
-    cursor += partWidth + (index < count - 1 ? separatorWidth : 0);
+    cursor += partWidth + (index < visibleCount - 1 ? separatorWidth : 0);
     return { ...part, width: partWidth, centerX, originX, originY: partSizes[index].originY || 0 };
   });
   return {
     horizontal: true,
-    count,
+    count: visibleCount,
     parts: laidOutParts,
+    logicalParts,
     partWidths,
     innerXSep: roundNumber(innerXSep),
     innerYSep: roundNumber(innerYSep),
@@ -8341,13 +8359,14 @@ function rectangleSplitTextParts(text) {
   return { parts, highestPart };
 }
 
-function rectangleSplitPartFills(semantic = {}, partCount = 0) {
+function rectangleSplitPartFills(semantic = {}, layoutOrPartCount = 0) {
   if (!semantic["rectangle split part fill"]) return [];
   const fills = splitTopLevel(String(semantic["rectangle split part fill"])).map((color) => normalizeColor(color));
-  const count = Math.max(0, Math.round(Number(partCount) || 0));
+  const layout = layoutOrPartCount && typeof layoutOrPartCount === "object" ? layoutOrPartCount : null;
+  const count = layout?.logicalParts?.length || layout?.count || Math.max(0, Math.round(Number(layoutOrPartCount) || 0));
   const last = fills.at(-1);
   while (last && fills.length < count) fills.push(last);
-  return fills;
+  return layout?.parts ? layout.parts.map((part) => fills[part.logicalIndex] || last) : fills;
 }
 
 function rectangleSplitHorizontalMinPartWidth(env = { variables: {} }) {
@@ -11839,7 +11858,8 @@ function rectangleSplitLocalAnchor(anchor, size = {}) {
   const namedIndex = RECTANGLE_SPLIT_PART_NAMES.indexOf(match[1]);
   const numericIndex = Number(match[1]) - 1;
   const index = namedIndex >= 0 ? namedIndex : Number.isFinite(numericIndex) ? numericIndex : -1;
-  const part = layout.parts[index];
+  const logicalPart = layout.logicalParts?.[index];
+  const part = logicalPart ? layout.parts[logicalPart.visibleIndex] : layout.parts[index];
   if (!part) return null;
   const scale = (Number(size.width) || layout.size.width) / Math.max(layout.size.width, 1e-9);
   const centerX = part.centerX * scale;
