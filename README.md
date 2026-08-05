@@ -133,7 +133,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `260/260 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `262/262 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -220,8 +220,30 @@ following small circuit is covered by the browser renderer and the CLI:
 `+/-` signs; in European notation the same voltage metadata is represented by
 an external arrow. Resistors, capacitors, independent voltage sources, current
 annotations, common inductor styles, and cute chokes are covered by focused
-fixtures. Controlled sources, batteries, transformers, source transforms, and
-the broad circuitikz component catalog remain partial.
+fixtures. Controlled sources and the standard battery plate families are also
+covered; transformers, source transforms, and the broad circuitikz component
+catalog remain partial.
+
+### Circuitikz Battery Plate Families
+
+This is a verified, deliberately small battery slice. It supports the three
+standard symbols, the shared scale key, and a conventional component label:
+
+```tex
+\usepackage{circuitikz}
+\begin{circuitikz}[thick]
+  \ctikzset{batteries/scale=1.2}
+  \draw (0,0) to[battery, l=$B$] (0,3);
+  \draw (2.5,0) to[battery1, l=$B_1$] (2.5,3);
+  \draw (5,0) to[battery2, l=$B_2$] (5,3);
+\end{circuitikz}
+```
+
+Supported in this slice: `battery`, `battery1`, `battery2`,
+`batteries/scale`, the verified vertical bipole placement, and `l=` labels.
+Not yet accepted as compatible: `invert`, battery voltage-direction labels,
+solar/baertty symbols, arbitrary source rotation, or the rest of the battery
+class options.
 
 ## Browser Workbench
 

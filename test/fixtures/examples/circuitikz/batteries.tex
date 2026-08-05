@@ -1,0 +1,11 @@
+% Adapted from the TeX Live circuitikz manual's battery section.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[thick]
+  \ctikzset{batteries/scale=1.2}
+  \draw (0,0) to[battery, l=$B$] (0,3);
+  \draw (2.5,0) to[battery1, l=$B_1$] (2.5,3);
+  \draw (5,0) to[battery2, l=$B_2$] (5,3);
+\end{circuitikz}
+\end{document}

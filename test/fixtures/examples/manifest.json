@@ -215,6 +215,21 @@
       ]
     },
     {
+      "id": "circuitikz-batteries",
+      "title": "circuitikz battery, battery1, and battery2 plate families",
+      "source": "circuitikz/batteries.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzBatteryItems/circuitikzBatteryScale",
+      "features": [
+        "to[battery] four alternating plates",
+        "to[battery1] long/short plates with equal line width",
+        "to[battery2] asymmetric plate thickness",
+        "batteries/scale",
+        "component labels"
+      ]
+    },
+    {
       "id": "tkz-euclide-incircle",
       "title": "tkz-euclide triangle incircle",
       "source": "tkz-euclide/incircle.tex",

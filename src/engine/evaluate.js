@@ -2120,6 +2120,20 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     );
     shapes.push(circuitikzCapacitorItem(from, to, geometry, pathStyle, env));
     if (split.postLead) shapes.push(split.postLead);
+  } else if (spec.kind === "battery") {
+    const split = appendCircuitikzSplitWire(
+      commands,
+      from,
+      to,
+      geometry,
+      circuitikzBodyLength("battery", geometry.length, env),
+      pathStyle,
+      styleHints,
+      options,
+      env
+    );
+    shapes.push(...circuitikzBatteryItems(geometry, spec, pathStyle, env));
+    if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "inductor" || spec.kind === "choke") {
     const settings = circuitikzInductorSettings(spec, options, env);
     const bodyLength = circuitikzBodyLength("inductor", geometry.length, env, settings);
@@ -2203,6 +2217,15 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
   if (resistorLabel !== null) return { kind: "resistor", label: resistorLabel, name };
   const capacitorLabel = circuitikzFirstLabel(options, ["C", "capacitor"]);
   if (capacitorLabel !== null) return { kind: "capacitor", label: capacitorLabel, name };
+  const battery = circuitikzFirstMatchingOption(options, /^battery(?:1|2)?$/i);
+  if (battery) {
+    return {
+      kind: "battery",
+      batteryKind: battery.key.toLowerCase(),
+      label: circuitikzLabelValue(options.l) || battery.label,
+      name
+    };
+  }
   const chokeLabel = circuitikzFirstLabel(options, ["cute choke", "cutechoke"]);
   if (chokeLabel !== null) {
     return {
@@ -2524,15 +2547,28 @@ function circuitikzTubeShape(kind) {
 function circuitikzBodyLength(kind, segmentLength, env = {}, settings = null) {
   const scale = circuitikzLengthScale(env);
   const controlledScale = kind === "controlledSource" ? circuitikzControlledSourceScale(env) : 1;
+  const batteryScale = kind === "battery" ? circuitikzBatteryScale(env) : 1;
   const desired = kind === "inductor"
     ? (settings?.bodyLength || 0.84 * scale)
-    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : 0.84) * scale;
+    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : 0.84) * scale;
   return Math.min(desired, Math.max(0, segmentLength * 0.78));
 }
 
 function circuitikzControlledSourceScale(env = {}) {
   for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
     for (const key of ["circuitikz/csources/scale", "csources/scale"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return 1;
+}
+
+function circuitikzBatteryScale(env = {}) {
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/batteries/scale", "batteries/scale"]) {
       const value = source[key];
       if (value === undefined || value === null || value === true || value === "") continue;
       const parsed = evaluateMath(String(value), env.variables || {});
@@ -2800,6 +2836,56 @@ function circuitikzCapacitorItem(from, to, geometry, pathStyle = {}, env = {}) {
       { type: "lineTo", x: r2.x, y: r2.y }
     ]
   };
+}
+
+function circuitikzBatteryItems(geometry, spec = {}, pathStyle = {}, env = {}) {
+  const scale = circuitikzLengthScale(env) * circuitikzBatteryScale(env);
+  const style = { ...circuitikzComponentStyle(pathStyle), lineCap: "butt", lineJoin: "miter" };
+  const longHalf = 0.42 * scale;
+  const shortHalf = 0.21 * scale;
+  const outerAlong = 0.21 * scale;
+  const innerAlong = 0.069 * scale;
+  const plate = (along, halfSpan, name, lineWidth = style.lineWidth) => {
+    const center = pointAlong(geometry.mid, geometry.u, along);
+    return {
+      type: "path",
+      subtype: "circuitikz-battery-plate",
+      batteryKind: spec.batteryKind,
+      plate: name,
+      style: { ...style, lineWidth: roundNumber(lineWidth) },
+      commands: [
+        { type: "moveTo", ...pointNormal(center, geometry.n, -halfSpan) },
+        { type: "lineTo", ...pointNormal(center, geometry.n, halfSpan) }
+      ]
+    };
+  };
+  const connector = (fromAlong, toAlong) => ({
+    type: "path",
+    subtype: "circuitikz-battery-connector",
+    batteryKind: spec.batteryKind,
+    style,
+    commands: [
+      { type: "moveTo", ...pointAlong(geometry.mid, geometry.u, fromAlong) },
+      { type: "lineTo", ...pointAlong(geometry.mid, geometry.u, toAlong) }
+    ]
+  });
+
+  if (spec.batteryKind === "battery1" || spec.batteryKind === "battery2") {
+    const shortLineWidth = spec.batteryKind === "battery2" ? style.lineWidth * 3 : style.lineWidth;
+    return [
+      connector(-outerAlong, -innerAlong),
+      connector(innerAlong, outerAlong),
+      plate(-innerAlong, longHalf, "long"),
+      plate(innerAlong, shortHalf, "short", shortLineWidth)
+    ];
+  }
+
+  return [
+    plate(-outerAlong, longHalf, "long"),
+    plate(-innerAlong, shortHalf, "short"),
+    plate(innerAlong, longHalf, "long"),
+    plate(outerAlong, shortHalf, "short")
+  ];
 }
 
 function circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle = {}) {
@@ -3635,9 +3721,23 @@ function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {
     addCircuitikzTextNode(nodes, point, label, { anchor });
     return;
   }
+  if (spec.kind === "battery") {
+    const { point, anchor } = circuitikzBatteryLabelPlacement(geometry, env);
+    addCircuitikzTextNode(nodes, point, label, { anchor });
+    return;
+  }
   const scale = circuitikzLengthScale(env);
   const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource" ? 0.7 : spec.kind === "inductor" && spec.variable ? 0.8 : 0.46) * scale;
   addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label);
+}
+
+function circuitikzBatteryLabelPlacement(geometry, env = {}) {
+  const scale = circuitikzLengthScale(env) * circuitikzBatteryScale(env);
+  const normal = geometry.n;
+  return {
+    point: pointNormal(geometry.mid, normal, 0.42 * scale + 0.17 * circuitikzLengthScale(env)),
+    anchor: circuitikzOuterTextAnchor(normal)
+  };
 }
 
 function circuitikzControlledSourceLabelPlacement(geometry, env = {}) {
