@@ -242,7 +242,17 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const baseStroke = style.stroke === "none" ? "black" : style.stroke || "black";
   const explicitStroke = source.stroke && source.stroke !== "context-stroke";
   const fill = raw.fill && raw.fill !== "context-stroke" ? raw.fill : baseStroke;
-  const geometry = inlineArrowGeometry(raw, style, {
+  const geometry = raw.declaredArrow
+    ? {
+        path: raw.declaredArrow.path,
+        shorten: raw.declaredArrow.usesLegacyExtents
+          ? raw.declaredArrow.tipEnd - raw.declaredArrow.lineEnd
+          : 0,
+        placement: 0,
+        bounds: raw.declaredArrow.bounds,
+        includeBounds: !raw.declaredArrow.usesLegacyExtents
+      }
+    : inlineArrowGeometry(raw, style, {
     customLength: usesCustomArrowDimension(source, raw, "length"),
     customWidth: usesCustomArrowDimension(source, raw, "width")
   });
@@ -267,17 +277,22 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
   const filledStrokedTip = legacyStealthPrime || raw.kind === "dimline" || raw.kind === "dimline reverse";
+  const declaredPaint = raw.declaredArrow?.paint;
   return {
     kind: raw.kind,
     geometry,
     stroke:
-      openTip || barTip || filledCircleTip || filledStrokedTip || raw.kind === "latex" || explicitStroke
+      declaredPaint === "stroke" || declaredPaint === "fillstroke"
+        ? baseStroke
+        : openTip || barTip || filledCircleTip || filledStrokedTip || raw.kind === "latex" || explicitStroke
         ? raw.stroke === "context-stroke"
           ? baseStroke
           : raw.stroke || baseStroke
         : "none",
-    fill: openTip || barTip ? "none" : fill,
-    strokeWidth: barTip
+    fill: declaredPaint === "stroke" || openTip || barTip ? "none" : fill,
+    strokeWidth: declaredPaint === "stroke" || declaredPaint === "fillstroke"
+      ? style.lineWidth ?? 1
+      : barTip
       ? raw.lineWidth || style.lineWidth || 1
       : openTip
       ? style.lineWidth ?? 1

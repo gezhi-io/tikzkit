@@ -1,7 +1,11 @@
+import { evaluateMath, parseDimension } from "../../engine/math.js";
+import { splitTopLevel } from "../../engine/options.js";
+import { TIKZ_UNIT } from "../metrics.js";
+
 export const tikzLibrary = {
   "name": "arrows",
   "status": "partial",
-  "implementedBy": "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros",
+  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros",
   "features": [
     "->",
     "<-",
@@ -9,6 +13,7 @@ export const tikzLibrary = {
     "-stealth",
     "-latex",
     "-latex'",
+    "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion"
   ],
   "implements": [
@@ -18,6 +23,320 @@ export const tikzLibrary = {
     "-stealth",
     "-latex",
     "-latex'",
+    "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion"
-  ]
+  ],
+  "notes": "Supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred."
 };
+
+// PGF's arrow declarations store a local path plus placement extents. We lower
+// the self-contained drawing subset into a compact SVG-path payload, leaving
+// the normal arrow renderer responsible for endpoint placement and rotation.
+export function lowerDeclaredArrowTips(source, diagnostics = []) {
+  const text = String(source || "");
+  if (!/\\pgfarrowsdeclare\b/.test(text)) return text;
+  const declarations = new Map();
+  const withoutDeclarations = collectDeclarations(text, declarations, diagnostics);
+  return declarations.size ? rewriteArrowOptions(withoutDeclarations, declarations) : withoutDeclarations;
+}
+
+function collectDeclarations(source, declarations, diagnostics) {
+  const command = "\\pgfarrowsdeclare";
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    const start = source.indexOf(command, index);
+    if (start < 0) return output + source.slice(index);
+    output += source.slice(index, start);
+    let cursor = skipWhitespace(source, start + command.length);
+    const forward = readBalanced(source, cursor, "{", "}");
+    cursor = forward ? skipWhitespace(source, forward.end) : cursor;
+    const backward = forward && readBalanced(source, cursor, "{", "}");
+    cursor = backward ? skipWhitespace(source, backward.end) : cursor;
+    const setup = backward && readBalanced(source, cursor, "{", "}");
+    cursor = setup ? skipWhitespace(source, setup.end) : cursor;
+    const drawing = setup && readBalanced(source, cursor, "{", "}");
+    if (!forward || !backward || !setup || !drawing) {
+      output += command;
+      index = start + command.length;
+      continue;
+    }
+    const declared = parseDeclaredArrow(setup.content, drawing.content);
+    if (!declared) {
+      diagnostics.push({ severity: "warning", message: "Unsupported pgfarrowsdeclare drawing program" });
+      output += source.slice(start, drawing.end);
+    } else {
+      for (const name of [forward.content.trim(), backward.content.trim()]) {
+        if (name) declarations.set(name, { ...declared, name });
+      }
+    }
+    index = drawing.end;
+  }
+  return output;
+}
+
+function parseDeclaredArrow(setup, drawing) {
+  const commands = [];
+  const bounds = createBounds();
+  let current = null;
+  let paint = null;
+  const commandPattern = /\\(pgfpathmoveto|pgfpathlineto|pgfpathcurveto|pgfpatharc|pgfpathclose|pgfusepathqfillstroke|pgfusepathqfill|pgfusepathqstroke)\b/g;
+  let cursor = 0;
+  let match;
+  while ((match = commandPattern.exec(drawing))) {
+    if (drawing.slice(cursor, match.index).replace(/[\s%]/g, "").length) return null;
+    cursor = commandPattern.lastIndex;
+    const name = match[1];
+    if (name === "pgfpathclose") {
+      commands.push("Z");
+      continue;
+    }
+    if (name.startsWith("pgfusepath")) {
+      paint = name === "pgfusepathqstroke" ? "stroke" : name === "pgfusepathqfill" ? "fill" : "fillstroke";
+      continue;
+    }
+    if (name === "pgfpatharc") {
+      const first = readBalanced(drawing, skipWhitespace(drawing, cursor), "{", "}");
+      const second = first && readBalanced(drawing, skipWhitespace(drawing, first.end), "{", "}");
+      const third = second && readBalanced(drawing, skipWhitespace(drawing, second.end), "{", "}");
+      if (!first || !second || !third || !current) return null;
+      const start = evaluateMath(first.content);
+      const end = evaluateMath(second.content);
+      const radius = parseRadius(third.content);
+      if (![start, end, radius.x, radius.y].every(Number.isFinite) || radius.x <= 0 || radius.y <= 0) return null;
+      const arc = arcSegments(current, start, end, radius, bounds);
+      if (!arc) return null;
+      commands.push(...arc.commands);
+      current = arc.end;
+      cursor = third.end;
+      commandPattern.lastIndex = cursor;
+      continue;
+    }
+    const points = [];
+    const count = name === "pgfpathcurveto" ? 3 : 1;
+    for (let pointIndex = 0; pointIndex < count; pointIndex += 1) {
+      const argument = readBalanced(drawing, skipWhitespace(drawing, cursor), "{", "}");
+      const point = argument && parsePgfPoint(argument.content);
+      if (!argument || !point) return null;
+      points.push(point);
+      cursor = argument.end;
+    }
+    commandPattern.lastIndex = cursor;
+    if (name === "pgfpathmoveto") {
+      current = points[0];
+      includePoint(bounds, current);
+      commands.push(`M ${format(current.x)} ${format(-current.y)}`);
+    } else if (name === "pgfpathlineto") {
+      if (!current) return null;
+      current = points[0];
+      includePoint(bounds, current);
+      commands.push(`L ${format(current.x)} ${format(-current.y)}`);
+    } else {
+      if (!current) return null;
+      for (const point of points) includePoint(bounds, point);
+      includeCubicBounds(bounds, current, points[0], points[1], points[2]);
+      current = points[2];
+      commands.push(`C ${format(points[0].x)} ${format(-points[0].y)} ${format(points[1].x)} ${format(-points[1].y)} ${format(points[2].x)} ${format(-points[2].y)}`);
+    }
+  }
+  if (drawing.slice(cursor).replace(/[\s%]/g, "").length || !commands.length || !paint || !isFiniteBounds(bounds)) return null;
+  const legacyExtents = parseLegacyArrowExtents(setup);
+  return {
+    path: commands.join(" "),
+    paint,
+    bounds: {
+      minX: bounds.minX,
+      maxX: bounds.maxX,
+      minY: -bounds.maxY,
+      maxY: -bounds.minY
+    },
+    ...(legacyExtents || {})
+  };
+}
+
+function parseLegacyArrowExtents(setup) {
+  const backEnd = setupDimension(setup, "pgfarrowsleftextend", "pgfarrowssetbackend");
+  const tipEnd = setupDimension(setup, "pgfarrowsrightextend", "pgfarrowssettipend");
+  const lineEnd = setupDimension(setup, "pgfarrowssetlineend");
+  if (![backEnd, tipEnd, lineEnd].some(Number.isFinite)) return null;
+  // The old compatibility declaration only exposes the arrow's longitudinal
+  // ends; it does not register a PGF arrow hull. PGF therefore keeps the
+  // original path's picture bounds rather than expanding them around paint.
+  return {
+    usesLegacyExtents: true,
+    backEnd: Number.isFinite(backEnd) ? backEnd : 0,
+    tipEnd: Number.isFinite(tipEnd) ? tipEnd : 0,
+    lineEnd: Number.isFinite(lineEnd) ? lineEnd : 0
+  };
+}
+
+function setupDimension(setup, ...commands) {
+  for (const command of commands) {
+    const match = String(setup || "").match(new RegExp(`\\\\${command}\\s*\\{([^{}]+)\\}`));
+    if (!match) continue;
+    const dimension = String(match[1]).trim().replace(/^\+/, "");
+    const value = parseDimension(dimension) * TIKZ_UNIT;
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function rewriteArrowOptions(source, declarations) {
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    const open = source.indexOf("[", index);
+    if (open < 0) return output + source.slice(index);
+    const group = readBalanced(source, open, "[", "]");
+    if (!group) return output + source.slice(index);
+    output += source.slice(index, open);
+    output += `[${rewriteArrowOptionList(group.content, declarations)}]`;
+    index = group.end;
+  }
+  return output;
+}
+
+function rewriteArrowOptionList(content, declarations) {
+  return splitTopLevel(content, ",").map((part) => rewriteArrowOption(part, declarations)).join(",");
+}
+
+function rewriteArrowOption(part, declarations) {
+  const text = part.trim();
+  if (!text || text.includes("=")) return part;
+  const names = [...declarations.keys()].sort((left, right) => right.length - left.length);
+  for (const first of names) {
+    for (const second of names) {
+      if (text === `${first}-${second}` || text === `{${first}}-{${second}}`) {
+        return `{${encodedArrow(first, declarations)} }-{${encodedArrow(second, declarations)} }`.replace(/ \}/g, "}");
+      }
+    }
+    if (text === `-${first}` || text === `-{${first}}`) return `-{${encodedArrow(first, declarations)}}`;
+    if (text === `${first}-` || text === `{${first}}-`) return `{${encodedArrow(first, declarations)}}-`;
+  }
+  return part;
+}
+
+function encodedArrow(name, declarations) {
+  const declaration = declarations.get(name);
+  return `${name}[tikzkit declared arrow=${encodeArrowPayload(declaration)}]`;
+}
+
+function encodeArrowPayload(declaration) {
+  // `%` starts a TeX comment, so URL encoding cannot safely travel through a
+  // TikZ option list. URI-encode first, then represent the ASCII bytes as hex.
+  return [...encodeURIComponent(JSON.stringify(declaration))]
+    .map((character) => character.charCodeAt(0).toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function parsePgfPoint(text) {
+  const source = String(text || "").trim();
+  if (!source.startsWith("\\pgfpoint")) return null;
+  let cursor = skipWhitespace(source, "\\pgfpoint".length);
+  const x = readBalanced(source, cursor, "{", "}");
+  cursor = x ? skipWhitespace(source, x.end) : cursor;
+  const y = x && readBalanced(source, cursor, "{", "}");
+  if (!x || !y || source.slice(y.end).trim()) return null;
+  const xValue = parseDimension(x.content) * TIKZ_UNIT;
+  const yValue = parseDimension(y.content) * TIKZ_UNIT;
+  return Number.isFinite(xValue) && Number.isFinite(yValue) ? { x: xValue, y: yValue } : null;
+}
+
+function parseRadius(text) {
+  const point = parsePgfPoint(text);
+  if (point) return { x: Math.abs(point.x), y: Math.abs(point.y) };
+  const value = parseDimension(String(text || "")) * TIKZ_UNIT;
+  return { x: value, y: value };
+}
+
+function arcSegments(current, startDegrees, endDegrees, radius, bounds) {
+  const startRadians = (startDegrees * Math.PI) / 180;
+  const deltaDegrees = normalizeArcDelta(startDegrees, endDegrees);
+  const count = Math.max(1, Math.ceil(Math.abs(deltaDegrees) / 90));
+  const deltaRadians = ((deltaDegrees / count) * Math.PI) / 180;
+  const center = {
+    x: current.x - radius.x * Math.cos(startRadians),
+    y: current.y - radius.y * Math.sin(startRadians)
+  };
+  let angle = startRadians;
+  let point = current;
+  const commands = [];
+  for (let index = 0; index < count; index += 1) {
+    const nextAngle = angle + deltaRadians;
+    const control = (4 / 3) * Math.tan((nextAngle - angle) / 4);
+    const controlOne = {
+      x: point.x - control * radius.x * Math.sin(angle),
+      y: point.y + control * radius.y * Math.cos(angle)
+    };
+    const end = {
+      x: center.x + radius.x * Math.cos(nextAngle),
+      y: center.y + radius.y * Math.sin(nextAngle)
+    };
+    const controlTwo = {
+      x: end.x + control * radius.x * Math.sin(nextAngle),
+      y: end.y - control * radius.y * Math.cos(nextAngle)
+    };
+    includeCubicBounds(bounds, point, controlOne, controlTwo, end);
+    commands.push(`C ${format(controlOne.x)} ${format(-controlOne.y)} ${format(controlTwo.x)} ${format(-controlTwo.y)} ${format(end.x)} ${format(-end.y)}`);
+    point = end;
+    angle = nextAngle;
+  }
+  return { commands, end: point };
+}
+
+function normalizeArcDelta(start, end) {
+  let delta = end - start;
+  if (delta === 0) return 360;
+  while (delta <= -360) delta += 360;
+  while (delta > 360) delta -= 360;
+  return delta;
+}
+
+function createBounds() {
+  return { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+}
+
+function includePoint(bounds, point) {
+  bounds.minX = Math.min(bounds.minX, point.x);
+  bounds.minY = Math.min(bounds.minY, point.y);
+  bounds.maxX = Math.max(bounds.maxX, point.x);
+  bounds.maxY = Math.max(bounds.maxY, point.y);
+}
+
+function includeCubicBounds(bounds, start, controlOne, controlTwo, end) {
+  for (let step = 0; step <= 24; step += 1) {
+    const t = step / 24;
+    const inverse = 1 - t;
+    includePoint(bounds, {
+      x: inverse ** 3 * start.x + 3 * inverse ** 2 * t * controlOne.x + 3 * inverse * t ** 2 * controlTwo.x + t ** 3 * end.x,
+      y: inverse ** 3 * start.y + 3 * inverse ** 2 * t * controlOne.y + 3 * inverse * t ** 2 * controlTwo.y + t ** 3 * end.y
+    });
+  }
+}
+
+function isFiniteBounds(bounds) {
+  return [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite);
+}
+
+function readBalanced(source, start, open, close) {
+  if (source[start] !== open) return null;
+  let depth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    if (source[index] === open) depth += 1;
+    else if (source[index] === close) {
+      depth -= 1;
+      if (depth === 0) return { content: source.slice(start + 1, index), end: index + 1 };
+    }
+  }
+  return null;
+}
+
+function skipWhitespace(source, index) {
+  let cursor = index;
+  while (cursor < source.length && /\s/.test(source[cursor])) cursor += 1;
+  return cursor;
+}
+
+function format(value) {
+  return Number(value.toFixed(6)).toString();
+}

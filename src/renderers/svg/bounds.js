@@ -236,6 +236,7 @@ function includeInlineArrowBounds(item, include, unit) {
 
 function includeArrowTipBounds(rawTip, style, endpoint, ux, uy, include, unit) {
   const tip = resolveInlineArrowTip(rawTip, style);
+  if (tip.geometry?.includeBounds === false) return;
   const bounds = tip.geometry?.bounds;
   if (!bounds) return;
   const placement = (Number(tip.geometry.placement) || 0) / unit;

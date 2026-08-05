@@ -653,6 +653,12 @@ function parseArrowTipSpec(input) {
   }
   if (options.color || options.draw) overrides.stroke = normalizeColor(String(options.color || options.draw));
   if (options.fill) overrides.fill = normalizeColor(String(options.fill));
+  const declaredArrow = parseDeclaredArrowPayload(options["tikzkit declared arrow"]);
+  if (declaredArrow) {
+    overrides.declaredArrow = declaredArrow;
+    if (declaredArrow.paint === "fill" || declaredArrow.paint === "fillstroke") overrides.fill = "context-stroke";
+    if (declaredArrow.paint === "stroke" || declaredArrow.paint === "fillstroke") overrides.stroke = "context-stroke";
+  }
   const tip = createArrowTip(match[1], overrides);
   const scale = Number(options.scale);
   if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 1e-12) return tip;
@@ -663,6 +669,35 @@ function parseArrowTipSpec(input) {
     ...(tip.lineWidth ? { lineWidth: tip.lineWidth * scale } : {})
   };
 }
+function parseDeclaredArrowPayload(value) {
+  if (typeof value !== "string" || !value) return null;
+  try {
+    if (!/^(?:[0-9a-f]{2})+$/i.test(value)) return null;
+    let encoded = "";
+    for (let index = 0; index < value.length; index += 2) {
+      encoded += String.fromCharCode(Number.parseInt(value.slice(index, index + 2), 16));
+    }
+    const decoded = JSON.parse(decodeURIComponent(encoded));
+    if (!decoded || typeof decoded.path !== "string" || !decoded.path || !decoded.bounds) return null;
+    const bounds = decoded.bounds;
+    if (![bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite)) return null;
+    if (!["fill", "stroke", "fillstroke"].includes(decoded.paint)) return null;
+    const usesLegacyExtents = decoded.usesLegacyExtents === true;
+    const extents = usesLegacyExtents
+      ? {
+          usesLegacyExtents,
+          backEnd: Number(decoded.backEnd),
+          tipEnd: Number(decoded.tipEnd),
+          lineEnd: Number(decoded.lineEnd)
+        }
+      : {};
+    if (usesLegacyExtents && ![extents.backEnd, extents.tipEnd, extents.lineEnd].every(Number.isFinite)) return null;
+    return { name: String(decoded.name || "declared"), path: decoded.path, paint: decoded.paint, bounds, ...extents };
+  } catch {
+    return null;
+  }
+}
+
 
 function isColorToken(value) {
   const text = String(value).trim();

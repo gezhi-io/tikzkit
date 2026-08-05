@@ -1,3 +1,4 @@
+import { arrowsExtension } from "./arrows.js";
 import { bchartExtension } from "./bchart.js";
 import { chemfigExtension } from "./chemfig.js";
 import { kvmacrosExtension } from "./kvmacros.js";
@@ -24,6 +25,7 @@ import { neuralNetworkExtension } from "./neuralnetwork.js";
 import { stanliExtension } from "./stanli.js";
 
 export const BUILTIN_EXTENSIONS = [
+  arrowsExtension,
   bchartExtension,
   chemfigExtension,
   kvmacrosExtension,
