@@ -13,10 +13,39 @@ const DISCONTINUITY_FIXTURE = new URL(
 
 test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", () => {
   assert.equal(tkzFctExtension.phase, "preprocess");
-  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY"]);
+  assert.deepEqual(tkzFctExtension.commands, ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct"]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
   assert.equal(pkg.implementedBy, "src/extensions/tkz-fct.js");
+});
+
+test("lowers tkzFct gnuplot syntax into scaled, clipped ordinary TikZ segments", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=10,ymin=0,ymax=20,ystep=5]
+  \tkzFct[color=red,style=dashed,samples=3,domain=0:10]{2*x+5}
+\end{tikzpicture}`);
+
+  assert.doesNotMatch(expanded, /\\tkzFct/);
+  assert.match(expanded, /\\begin\{scope\}\\clip \(0,0\) rectangle \(10,4\);/);
+  assert.match(expanded, /\\draw\[color=red,dashed,line width=1pt\] \(0,1\) -- \(5,3\) -- \(7\.5,4\);/);
+});
+
+test("renders tkzFct expressions in source units before xstep and ystep scaling", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=10,xstep=2,ymin=0,ymax=20,ystep=5]
+  \tkzFct[color=blue,samples=3,domain=0:10]{2*\x+5}
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    path.commands.map((command) => [command.x, command.y]),
+    [[0, 1], [2.5, 3], [3.75, 4]]
+  );
 });
 
 test("lowers tkzInit, tkzGrid, and tkzAxeXY using tkz-base dimensions", () => {

@@ -2,6 +2,23 @@
   "version": 1,
   "cases": [
     {
+      "id": "tkz-fct-linear-functions",
+      "title": "tkz-fct manual linear function plots",
+      "source": "tkz-fct/linear-functions.tex",
+      "sourceCorpus": "TeX Live tkz-fct manual",
+      "externalSource": "doc/latex/tkz-fct/TKZdoc-fct-fonctions.tex",
+      "semanticOwner": "src/extensions/tkz-fct.js:renderFunction",
+      "features": [
+        "tkzFct",
+        "domain",
+        "samples",
+        "xstep",
+        "ystep",
+        "color",
+        "style"
+      ]
+    },
+    {
       "id": "tkz-euclide-thales-circle-triangle",
       "title": "tkz-euclide Thales circle triangle with sector",
       "source": "tkz-euclide/thales-circle-triangle.tex",

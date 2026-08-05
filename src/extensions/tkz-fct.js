@@ -1,6 +1,7 @@
 import { parseOptions } from "../engine/options.js";
+import { evaluateAxisExpression } from "../pgfplots/expressions.js";
 
-const IMPLEMENTED_COMMANDS = ["tkzInit", "tkzGrid", "tkzAxeXY"];
+const IMPLEMENTED_COMMANDS = ["tkzInit", "tkzGrid", "tkzAxeXY", "tkzFct"];
 const COMMANDS = new Set(IMPLEMENTED_COMMANDS);
 const TEX_PT_PER_CM = 28.4527559;
 const TKZ_LABEL_DISTANCE_PT = 3;
@@ -10,7 +11,7 @@ const CMR7_DIGIT_HEIGHT_PT = 4.48;
 export const tkzFctExtension = {
   name: "tkz-fct",
   phase: "preprocess",
-  description: "Lowers the tkz-base initialization, Cartesian grid, and paired axes used by tkz-fct into ordinary TikZ.",
+  description: "Lowers the tkz-base Cartesian frame and sampled tkz-fct function plots into ordinary TikZ.",
   commands: IMPLEMENTED_COMMANDS,
   preprocess(source) {
     return expandTkzFct(source);
@@ -50,6 +51,17 @@ export function expandTkzFct(source) {
       index = optional.end;
       continue;
     }
+    if (command.value === "tkzFct") {
+      const expression = parseRequiredArg(text, optional.end);
+      if (!expression) {
+        output += text.slice(index, optional.end);
+        index = optional.end;
+        continue;
+      }
+      output += renderFunction(state, optional.content, expression.content);
+      index = expression.end;
+      continue;
+    }
     output += renderAxes(state, optional.content, {
       scriptsize: insideScriptsizeScope(text, index)
     });
@@ -59,7 +71,7 @@ export function expandTkzFct(source) {
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|AxeXY|Fct)\b/.test(source);
 }
 
 function createState() {
@@ -170,6 +182,124 @@ function renderAxes(state, rawOptions, context = {}) {
   return commands.join("\n");
 }
 
+function renderFunction(state, rawOptions, rawExpression) {
+  const options = parseOptions(rawOptions);
+  const domain = parseFunctionDomain(options.domain, state);
+  const samples = functionSamples(options.samples);
+  const style = functionDrawOptions(options);
+  const bounds = normalizedBounds(state);
+  const points = [];
+  let active = [];
+  let previous = null;
+  for (let index = 0; index < samples; index += 1) {
+    const ratio = samples === 1 ? 0 : index / (samples - 1);
+    const sourceX = domain.start + (domain.end - domain.start) * ratio;
+    const sourceY = evaluateAxisExpression(rawExpression, sourceX, { "trig format": "rad" });
+    if (!Number.isFinite(sourceY)) {
+      if (active.length) points.push(active);
+      active = [];
+      previous = null;
+      continue;
+    }
+    const current = { x: sourceX / state.xstep, y: sourceY / state.ystep };
+    if (previous) {
+      const clipped = clipSegmentToBounds(previous, current, bounds);
+      if (clipped) {
+        const [start, end] = clipped;
+        if (!active.length || !samePoint(active[active.length - 1], start)) {
+          if (active.length) points.push(active);
+          active = [start];
+        }
+        if (!samePoint(active[active.length - 1], end)) active.push(end);
+      } else if (active.length) {
+        points.push(active);
+        active = [];
+      }
+    }
+    previous = current;
+  }
+  if (active.length) points.push(active);
+  if (!points.length) return "";
+
+  const clips = `\\begin{scope}\\clip (${format(bounds.xmin)},${format(bounds.ymin)}) rectangle (${format(bounds.xmax)},${format(bounds.ymax)});`;
+  const paths = points
+    .filter((segment) => segment.length >= 2)
+    .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
+    .join("\n");
+  return paths ? `${clips}\n${paths}\n\\end{scope}` : "";
+}
+
+function clipSegmentToBounds(start, end, bounds) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const limits = [
+    [-dx, start.x - bounds.xmin],
+    [dx, bounds.xmax - start.x],
+    [-dy, start.y - bounds.ymin],
+    [dy, bounds.ymax - start.y]
+  ];
+  let lower = 0;
+  let upper = 1;
+
+  for (const [p, q] of limits) {
+    if (Math.abs(p) < 1e-12) {
+      if (q < 0) return null;
+      continue;
+    }
+    const ratio = q / p;
+    if (p < 0) {
+      if (ratio > upper) return null;
+      lower = Math.max(lower, ratio);
+    } else {
+      if (ratio < lower) return null;
+      upper = Math.min(upper, ratio);
+    }
+  }
+
+  return [
+    { x: start.x + lower * dx, y: start.y + lower * dy },
+    { x: start.x + upper * dx, y: start.y + upper * dy }
+  ];
+}
+
+function samePoint(first, second) {
+  return Math.abs(first.x - second.x) < 1e-9 && Math.abs(first.y - second.y) < 1e-9;
+}
+
+function parseFunctionDomain(rawDomain, state) {
+  const fallback = { start: state.xmin, end: state.xmax };
+  const text = String(rawDomain ?? "").trim();
+  if (!text) return fallback;
+  const separator = text.indexOf(":");
+  if (separator === -1) return fallback;
+  const start = evaluateAxisExpression(text.slice(0, separator), 0, { "trig format": "rad" });
+  const end = evaluateAxisExpression(text.slice(separator + 1), 0, { "trig format": "rad" });
+  return Number.isFinite(start) && Number.isFinite(end) ? { start, end } : fallback;
+}
+
+function functionSamples(rawSamples) {
+  const value = Number(String(rawSamples ?? "200").trim());
+  return Number.isFinite(value) ? Math.max(2, Math.min(1000, Math.round(value))) : 200;
+}
+
+function functionDrawOptions(options) {
+  const parts = [];
+  for (const [key, value] of Object.entries(options)) {
+    if (["domain", "samples", "id", "fp"].includes(key)) continue;
+    if (key === "style") {
+      const style = optionText(value, "solid");
+      if (style && style !== "solid") parts.push(style);
+      continue;
+    }
+    if (value === true) parts.push(key);
+    else parts.push(`${key}=${value}`);
+  }
+  if (!parts.some((part) => /^line width=/.test(part) || /^(?:thin|thick|very thick|ultra thick)$/.test(part))) {
+    parts.push("line width=1pt");
+  }
+  return parts.join(",");
+}
+
 function normalizedBounds(state) {
   return {
     xmin: state.xmin / state.xstep,
@@ -259,6 +389,12 @@ function parseOptionalArg(source, start) {
   if (source[cursor] !== "[") return { content: "", end: cursor };
   const balanced = readBalanced(source, cursor, "[", "]");
   return balanced || { content: "", end: cursor };
+}
+
+function parseRequiredArg(source, start) {
+  const cursor = skipWhitespace(source, start);
+  if (source[cursor] !== "{") return null;
+  return readBalanced(source, cursor, "{", "}");
 }
 
 function readBalanced(source, start, open, close) {
