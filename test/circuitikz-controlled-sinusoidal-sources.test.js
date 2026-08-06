@@ -32,6 +32,29 @@ test("renders scaled circuitikz controlled sinusoidal sources", () => {
     Math.abs(waves[0].style.lineWidth - outlines[0].style.lineWidth * 1.5) < 1e-9,
     "expected csources/symbol/thickness to affect the waveform only"
   );
+  const [start, firstCurve, secondCurve, thirdCurve, fourthCurve] = waves[0].commands;
+  const end = fourthCurve;
+  const unit = {
+    x: (end.x - start.x) / 4,
+    y: (end.y - start.y) / 4
+  };
+  const lateral = {
+    x: firstCurve.x - start.x - unit.x,
+    y: firstCurve.y - start.y - unit.y
+  };
+  const point = (axisFactor, lateralFactor) => ({
+    x: start.x + unit.x * axisFactor + lateral.x * lateralFactor,
+    y: start.y + unit.y * axisFactor + lateral.y * lateralFactor
+  });
+  const closeTo = (actual, expected) => Math.hypot(actual.x - expected.x, actual.y - expected.y) < 1e-5;
+  assert.ok(closeTo({ x: firstCurve.x1, y: firstCurve.y1 }, point(0.326, 0.512)));
+  assert.ok(closeTo({ x: firstCurve.x2, y: firstCurve.y2 }, point(0.638, 1)));
+  assert.ok(closeTo({ x: secondCurve.x1, y: secondCurve.y1 }, point(1.362, 1)));
+  assert.ok(closeTo({ x: secondCurve.x2, y: secondCurve.y2 }, point(1.674, 0.512)));
+  assert.ok(closeTo({ x: thirdCurve.x1, y: thirdCurve.y1 }, point(2.326, -0.512)));
+  assert.ok(closeTo({ x: thirdCurve.x2, y: thirdCurve.y2 }, point(2.638, -1)));
+  assert.ok(closeTo({ x: fourthCurve.x1, y: fourthCurve.y1 }, point(3.362, -1)));
+  assert.ok(closeTo({ x: fourthCurve.x2, y: fourthCurve.y2 }, point(3.674, -0.512)));
   assert.ok(currentLabelArrow, "expected csI=$...$ to retain its external current annotation");
   assert.equal(currentInnerArrow, undefined, "controlled sinusoidal current sources contain a wave, not the plain-source arrow");
   assert.equal(sourceLine, undefined, "controlled sinusoidal voltage sources contain a wave, not the plain-source line");

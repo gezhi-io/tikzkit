@@ -3586,7 +3586,8 @@ function circuitikzWaveformSymbolItem(geometry, radius, waveform, sourceStyle, e
     };
   }
   // Circuitikz halves the source radius, then applies PGF's sine/cosine
-  // primitives. The coefficients below are those primitives' cubic form.
+  // primitives. These are the exact cubic coefficients from
+  // pgfcorepathconstruct.code.tex (\pgfpathsine and \pgfpathcosine).
   const unit = radius / 4;
   const start = point(-2 * unit, 0);
   const first = point(-unit, unit);
@@ -3600,10 +3601,10 @@ function circuitikzWaveformSymbolItem(geometry, radius, waveform, sourceStyle, e
     style,
     commands: [
       { type: "moveTo", x: start.x, y: start.y },
-      curveToCommand(point(-2 * unit + 0.327 * unit, 0.512 * unit), point(-unit - 0.4 * unit, unit), first),
-      curveToCommand(point(-unit + 0.4 * unit, unit), point(-0.512 * unit, 0.512 * unit), second),
-      curveToCommand(point(0.327 * unit, -0.512 * unit), point(unit - 0.4 * unit, -unit), third),
-      curveToCommand(point(unit + 0.4 * unit, -unit), point(2 * unit - 0.512 * unit, -0.512 * unit), end)
+      curveToCommand(point(-2 * unit + 0.326 * unit, 0.512 * unit), point(-2 * unit + 0.638 * unit, unit), first),
+      curveToCommand(point(-unit + 0.362 * unit, unit), point(-unit + 0.674 * unit, 0.512 * unit), second),
+      curveToCommand(point(0.326 * unit, -0.512 * unit), point(0.638 * unit, -unit), third),
+      curveToCommand(point(unit + 0.362 * unit, -unit), point(unit + 0.674 * unit, -0.512 * unit), end)
     ]
   };
 }
