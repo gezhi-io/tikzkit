@@ -108,6 +108,25 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### Formula And Matrix Sizing
+
+Formula boxes participate in node dimensions, label anchors, clipping, and
+PGFPlots legend frames. For common inline `matrix`/`pmatrix` expressions,
+TikZKit uses Computer Modern's actual standard LaTeX design sizes (`5pt`,
+`7pt`, `8pt`, `9pt`, and `10pt`) instead of scaling a 10pt matrix
+geometrically. This includes the fixed `\arraycolsep` column gap and focused
+math advances such as the italic correction of `U` and the native math minus.
+
+This is a compatibility slice, not a generic TeX math-layout engine. Before
+relying on an unfamiliar formula, use a focused comparison with a real source;
+the following command also checks the regression cases for tiny legend
+matrices and normal inline node matrices:
+
+```bash
+node --test --test-name-pattern='pmatrix|Computer Modern design sizes' \
+  test/convert.test.js test/svg-renderer.test.js test/pgfplots-seams.test.js
+```
+
 ### Reference Order
 
 The three renderers have different roles. When they disagree, do not tune

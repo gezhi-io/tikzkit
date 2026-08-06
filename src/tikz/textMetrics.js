@@ -370,7 +370,29 @@ const SIMPLE_GLYPH_FORMULA_METRICS = {
   }
 };
 
-const MATRIX_SMALL_FONT_SCALE_BLEND = 0.38;
+const MATH_RELATION_SYMBOLS = new Set(["=", "≔", "≤", "≥", "≠", "≈", "∼", "<", ">"]);
+const MATH_BINARY_SYMBOLS = new Set(["+", "-", "*"]);
+
+// Computer Modern selects design-size TFM files for the standard LaTeX text
+// sizes. The figures below were measured from local TeX Live 2025 cmr/cmmi/
+// cmsy/cmex output. \arraycolsep is a 5pt register, so its pairwise 10pt
+// matrix gap does not scale with \scriptsize or \tiny.
+const INLINE_MATRIX_DESIGN_METRICS_PT = new Map([
+  [5, {
+    italicScale: 1.381501,
+    relationScale: 1.321422,
+    digitScale: 1.361132,
+    fiveMu: 2.04476,
+    delimiter: 4.23366,
+    // CMMI5/CMSY5 advances include the math italic correction where TeX
+    // applies it at the end of an atom. These are not linear 10pt scales.
+    mathAdvancePt: { U: 5.2646, "+": 5.13898, "-": 5.41673 }
+  }],
+  [7, { italicScale: 1.145509, relationScale: 1.127522, digitScale: 1.138895, fiveMu: 2.27624, delimiter: 5.92712 }],
+  [8, { italicScale: 1.061127, relationScale: 1.062484, digitScale: 1.062515, fiveMu: 2.36115, delimiter: 6.25704 }],
+  [9, { italicScale: 1.027563, relationScale: 1.027742, digitScale: 1.027771, fiveMu: 2.56943, delimiter: 6.80896 }],
+  [10, { italicScale: 1, relationScale: 1, digitScale: 1, fiveMu: 2.77778, delimiter: 7.36116 }]
+]);
 
 export function parseMathText(value) {
   const text = String(value).trim();
@@ -448,12 +470,9 @@ export function formulaTotalHeight(box) {
 
 export function effectiveMathFontScale(tex, scale = 1) {
   const factor = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
-  if (factor >= 1 || !hasMatrixEnvironmentTex(tex)) return factor;
-  // TeX matrix formulas do not shrink linearly with the surrounding text command.
-  // This blend is calibrated against local tikztosvg output for a west-anchored
-  // \scriptsize inline pmatrix so node anchors, renderer bounds, and svg-text
-  // fallback share one effective matrix scale instead of independent patches.
-  return 1 - (1 - factor) * MATRIX_SMALL_FONT_SCALE_BLEND;
+  // Standard inline matrices select their own Computer Modern design font in
+  // inlineMathMatrixLayoutCm. Do not apply the retired empirical matrix blend.
+  return factor;
 }
 
 export function hasMatrixEnvironmentTex(tex) {
@@ -1119,57 +1138,131 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
   const parts = extractInlineMatrixFormula(tex);
   if (!parts || (!parts.prefix.trim() && !parts.suffix.trim())) return null;
 
-  // Keep this in sync with renderers/svg/mathMatrixFallback.js renderInlineMatrixMathFallback.
   const baseFont = (10 / TEX_PT_PER_CM) * scale;
-  const inlineFont = baseFont;
-  const cellFont = baseFont;
-  const prefix = mathFallbackText(parts.prefix).trim();
-  const suffix = mathFallbackText(parts.suffix).trim();
-  const prefixWidth = prefix ? inlineMatrixTextWidthCm(prefix, inlineFont) : 0;
-  const suffixWidth = suffix ? inlineMatrixTextWidthCm(suffix, inlineFont) : 0;
-  const colCount = Math.max(...parts.rows.map((row) => row.length));
-  const rowGap = cellFont * 0.1;
-  const rowHeight = cellFont * 1.16;
-  const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
-    Math.max(
-      cellFont * 0.44,
-      ...(parts.rawRows || parts.rows).map((row) => inlineMatrixTextWidthCm(row[colIndex] || "", cellFont))
-    )
-  );
-  const interColumnGaps = Array.from({ length: Math.max(0, colCount - 1) }, (_value, index) =>
-    parts.interColumnGaps?.[index] === 0 ? 0 : cellFont
-  );
-  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + interColumnGaps.reduce((sum, value) => sum + value, 0);
-  const delimiters = parts.delimiters || { left: null, right: null };
-  const delimiterWidth = cellFont * 0.72;
-  const delimiterPad = cellFont * 0.1;
-  const leftDelimiterWidth = delimiters.left ? delimiterWidth : 0;
-  const rightDelimiterWidth = delimiters.right ? delimiterWidth : 0;
-  const leftDelimiterPad = delimiters.left ? delimiterPad : 0;
-  const rightDelimiterPad = delimiters.right ? delimiterPad : 0;
-  // amsmath's \env@matrix is an array with a compensating final
-  // \arraycolsep. Keep the reserved column allowance shared with the SVG
-  // fallback so the node box contains the rendered delimiters and cells.
-  // The amsmath array's edge bearing is 3pt at textstyle. This is the
-  // remaining visible width after the paired \arraycolsep compensation and
-  // matches the local pdfTeX/tikztosvg pmatrix node border.
-  const arrayColumnAllowance = parts.env === "array" ? 0 : (3 * scale) / TEX_PT_PER_CM;
-  const matrixWidth = contentWidth + leftDelimiterWidth + rightDelimiterWidth + leftDelimiterPad + rightDelimiterPad + arrayColumnAllowance;
-  const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
-  const gap = (2 * scale) / TEX_PT_PER_CM;
-  const width = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);
-  const height = Math.max(baseFont * 0.34, matrixHeight / 2);
-  const depth = Math.max(baseFont * 0.16, matrixHeight / 2);
+  const layout = inlineMathMatrixLayoutCm(parts, baseFont);
+  const width = layout.prefixWidth + layout.prefixGap + layout.matrixWidth + layout.suffixGap + layout.suffixWidth;
+  const height = Math.max(baseFont * 0.34, layout.matrixHeight / 2);
+  const depth = Math.max(baseFont * 0.16, layout.matrixHeight / 2);
   return { width, height, depth };
 }
 
-function inlineMatrixTextWidthCm(value, fontSizeCm) {
+// amsmath's \env@matrix starts and ends with a compensating -\arraycolsep.
+// Consequently the matrix variants (matrix, pmatrix, bmatrix, ...) have no
+// residual outer array bearing. Delimiter, text, and mu metrics are selected
+// from the surrounding TeX textstyle instead of geometrically scaling 10pt.
+export function inlineMathMatrixLayoutCm(parts, fontSizeCm) {
+  const font = Number.isFinite(Number(fontSizeCm)) && Number(fontSizeCm) > 0 ? Number(fontSizeCm) : 10 / TEX_PT_PER_CM;
+  const design = inlineMatrixDesignMetrics(font * TEX_PT_PER_CM);
+  const prefix = mathFallbackText(parts.prefix).trim();
+  const suffix = mathFallbackText(parts.suffix).trim();
+  const colCount = Math.max(...parts.rows.map((row) => row.length));
+  const rowGap = font * 0.1;
+  const rowHeight = font * 1.16;
+  const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
+    Math.max(
+      font * 0.44,
+      ...(parts.rawRows || parts.rows).map((row) => inlineMatrixMathFragmentWidthCm(row[colIndex] || "", font))
+    )
+  );
+  const interColumnGaps = Array.from({ length: Math.max(0, colCount - 1) }, (_value, index) =>
+    parts.interColumnGaps?.[index] === 0 ? 0 : 10 / TEX_PT_PER_CM
+  );
+  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + interColumnGaps.reduce((sum, value) => sum + value, 0);
+  const delimiters = parts.delimiters || { left: null, right: null };
+  const delimiterWidth = design?.delimiter / TEX_PT_PER_CM || font * 0.736116;
+  const leftDelimiterWidth = delimiters.left ? delimiterWidth : 0;
+  const rightDelimiterWidth = delimiters.right ? delimiterWidth : 0;
+  // Plain LaTeX arrays have separate outer \arraycolsep semantics. Preserve
+  // their existing fallback bearing here; amsmath matrix variants use none.
+  const arrayDelimiterPad = parts.env === "array" ? font * 0.1 : 0;
+  const leftDelimiterPad = delimiters.left ? arrayDelimiterPad : 0;
+  const rightDelimiterPad = delimiters.right ? arrayDelimiterPad : 0;
+  const matrixWidth = contentWidth + leftDelimiterWidth + rightDelimiterWidth + leftDelimiterPad + rightDelimiterPad;
+  const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
+  return {
+    prefix,
+    suffix,
+    prefixWidth: prefix ? inlineMatrixMathFragmentWidthCm(parts.prefix, font) : 0,
+    suffixWidth: suffix ? inlineMatrixMathFragmentWidthCm(parts.suffix, font) : 0,
+    prefixGap: prefix ? inlineMatrixBoundarySpacingCm(parts.prefix, "trailing", font) : 0,
+    suffixGap: suffix ? inlineMatrixBoundarySpacingCm(parts.suffix, "leading", font) : 0,
+    colWidths,
+    interColumnGaps,
+    rowGap,
+    rowHeight,
+    matrixWidth,
+    matrixHeight,
+    leftDelimiterWidth,
+    rightDelimiterWidth,
+    leftDelimiterPad,
+    rightDelimiterPad
+  };
+}
+
+function inlineMatrixMathFragmentWidthCm(value, fontSizeCm) {
   const sample = parseInlinePlotReferenceSample(value);
   if (sample) return sample.reservedWidthCm;
-  const text = mathFallbackText(value).trim();
+  const text = compactMathMetricText(mathFallbackText(value));
   const scale = (fontSizeCm * TEX_PT_PER_CM) / 10;
-  const glyphCount = [...text].filter((char) => !/\s/.test(char)).length;
-  return texTextWidthCm(text, scale) + Math.max(0, glyphCount - 1) / TEX_PT_PER_CM;
+  return texTextWidthCm(text, scale) + inlineMatrixDesignAdvanceAdjustmentCm(text, scale) + inlineMatrixInternalMathSpacingCm(text, fontSizeCm);
+}
+
+function inlineMatrixDesignAdvanceAdjustmentCm(text, scale) {
+  const design = inlineMatrixDesignMetrics(10 * scale);
+  if (!design) return 0;
+  let adjustment = 0;
+  for (const char of String(text || "")) {
+    const targetAdvancePt = design.mathAdvancePt?.[char];
+    if (Number.isFinite(targetAdvancePt)) {
+      adjustment += targetAdvancePt / TEX_PT_PER_CM - texTextWidthCm(char, scale);
+    } else if (/\d/.test(char)) adjustment += texTextWidthCm(char, scale) * (design.digitScale - 1);
+    else if (/[A-Za-zα-ωΑ-Ω]/u.test(char)) adjustment += texTextWidthCm(char, scale) * (design.italicScale - 1);
+    else if (MATH_RELATION_SYMBOLS.has(char)) adjustment += texTextWidthCm(char, scale) * (design.relationScale - 1);
+  }
+  return adjustment;
+}
+
+function inlineMatrixInternalMathSpacingCm(text, fontSizeCm) {
+  const chars = [...String(text || "")];
+  let width = 0;
+  for (let index = 0; index < chars.length; index += 1) {
+    const mu = inlineMatrixOperatorMu(chars[index], chars[index - 1], chars[index + 1]);
+    if (!mu) continue;
+    if (index > 0) width += inlineMatrixMuToCm(mu, fontSizeCm);
+    if (index < chars.length - 1) width += inlineMatrixMuToCm(mu, fontSizeCm);
+  }
+  return width;
+}
+
+function inlineMatrixBoundarySpacingCm(value, side, fontSizeCm) {
+  const text = compactMathMetricText(mathFallbackText(value));
+  if (!text) return 0;
+  const chars = [...text];
+  const index = side === "leading" ? 0 : chars.length - 1;
+  return inlineMatrixMuToCm(inlineMatrixOperatorMu(chars[index], chars[index - 1], chars[index + 1]), fontSizeCm);
+}
+
+function inlineMatrixOperatorMu(char, previous, next) {
+  if (MATH_RELATION_SYMBOLS.has(char)) return 5;
+  if (!MATH_BINARY_SYMBOLS.has(char)) return 0;
+  // A leading minus is unary rather than a binary operator in TeX math lists.
+  if (char === "-" && (!previous || /[(\[{=+\-*/]/.test(previous))) return 0;
+  return next || previous ? 4 : 0;
+}
+
+function inlineMatrixMuToCm(mu, fontSizeCm) {
+  const design = inlineMatrixDesignMetrics(fontSizeCm * TEX_PT_PER_CM);
+  if (design) return (Number(mu) * design.fiveMu / 5) / TEX_PT_PER_CM;
+  return (Number(mu) * (fontSizeCm * TEX_PT_PER_CM) / 18) / TEX_PT_PER_CM;
+}
+
+function inlineMatrixDesignMetrics(fontSizePt) {
+  const size = Number(fontSizePt);
+  if (!Number.isFinite(size)) return null;
+  for (const [designSize, metrics] of INLINE_MATRIX_DESIGN_METRICS_PT) {
+    if (Math.abs(size - designSize) < 0.01) return metrics;
+  }
+  return null;
 }
 
 function extractInlineMatrixFormula(tex) {

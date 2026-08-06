@@ -6,7 +6,7 @@ import {
   parseInlineMathMatrix,
   splitMathMatrixTopLevel
 } from "../../tikz/mathMatrixSyntax.js";
-import { texTextWidthCm } from "../../tikz/textMetrics.js";
+import { inlineMathMatrixLayoutCm } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
 import { normalizeOptions, parseOptions } from "../../engine/options.js";
 import { parseInlinePlotReferenceSample } from "../../tikz/plotReferenceSamples.js";
@@ -36,36 +36,23 @@ export function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, 
   const cellFontSize = fontSize;
   const prefix = mathFallbackText(parts.prefix).trim();
   const suffix = mathFallbackText(parts.suffix).trim();
-  const fontScale = (inlineFontSize * 28.45274) / (unit * 10);
-  const prefixWidth = prefix ? texTextWidthCm(prefix, fontScale) * unit : 0;
-  const suffixWidth = suffix ? texTextWidthCm(suffix, fontScale) * unit : 0;
-  const colCount = Math.max(...parts.rows.map((row) => row.length));
-  const rowGap = cellFontSize * 0.1;
-  const rowHeight = cellFontSize * 1.16;
-  const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
-    Math.max(
-      cellFontSize * 0.44,
-      ...(parts.rawRows || parts.rows).map((row) => inlineMatrixCellWidth(row[colIndex] || "", fontScale, unit))
-    )
-  );
-  const interColumnGaps = Array.from({ length: Math.max(0, colCount - 1) }, (_value, index) =>
-    parts.interColumnGaps?.[index] === 0 ? 0 : cellFontSize
-  );
-  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + interColumnGaps.reduce((sum, value) => sum + value, 0);
-  const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
+  const layout = inlineMathMatrixLayoutCm(parts, cellFontSize / unit);
+  const prefixWidth = layout.prefixWidth * unit;
+  const suffixWidth = layout.suffixWidth * unit;
+  const prefixGap = layout.prefixGap * unit;
+  const suffixGap = layout.suffixGap * unit;
+  const colCount = layout.colWidths.length;
+  const rowGap = layout.rowGap * unit;
+  const rowHeight = layout.rowHeight * unit;
+  const colWidths = layout.colWidths.map((width) => width * unit);
+  const interColumnGaps = layout.interColumnGaps.map((gap) => gap * unit);
+  const matrixHeight = layout.matrixHeight * unit;
   const delimiters = parts.delimiters || matrixDelimiterSides(parts.env);
-  const delimiterWidth = cellFontSize * 0.72;
-  const delimiterPad = cellFontSize * 0.1;
-  const leftDelimiterWidth = delimiters.left ? delimiterWidth : 0;
-  const rightDelimiterWidth = delimiters.right ? delimiterWidth : 0;
-  const leftDelimiterPad = delimiters.left ? delimiterPad : 0;
-  const rightDelimiterPad = delimiters.right ? delimiterPad : 0;
-  // Keep the fallback glyph layout aligned with the shared amsmath matrix
-  // metric: a textstyle matrix retains a 3pt edge bearing.
-  const arrayColumnAllowance = parts.env === "array" ? 0 : (3 / 28.45274) * unit;
-  const matrixWidth = contentWidth + leftDelimiterWidth + rightDelimiterWidth + leftDelimiterPad + rightDelimiterPad + arrayColumnAllowance;
-  const gap = (2 / 28.45274) * unit;
-  const totalWidth = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);
+  const leftDelimiterWidth = layout.leftDelimiterWidth * unit;
+  const rightDelimiterWidth = layout.rightDelimiterWidth * unit;
+  const leftDelimiterPad = layout.leftDelimiterPad * unit;
+  const matrixWidth = layout.matrixWidth * unit;
+  const totalWidth = prefixWidth + prefixGap + matrixWidth + suffixGap + suffixWidth;
   const anchor = item.svgTextAnchor || "middle";
   const anchorX = (Number.isFinite(Number(item.svgTextX)) ? Number(item.svgTextX) : Number(item.x) || 0) * unit;
   let cursor = anchor === "start" ? anchorX : anchor === "end" ? anchorX - totalWidth : anchorX - totalWidth / 2;
@@ -75,10 +62,10 @@ export function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, 
   const output = [`<g class="tikz-math-matrix-inline">`];
   if (prefix) {
     output.push(`<text x="${format(cursor)}" y="${format(y)}" ${textAttrs} text-anchor="start" font-size="${format(inlineFontSize)}">${escapeText(prefix)}</text>`);
-    cursor += prefixWidth + gap;
+    cursor += prefixWidth + prefixGap;
   }
   const matrixX = cursor;
-  const contentX = matrixX + leftDelimiterWidth + leftDelimiterPad + arrayColumnAllowance / 2;
+  const contentX = matrixX + leftDelimiterWidth + leftDelimiterPad;
   output.push(renderSvgMatrixDelimiters(delimiters, matrixX, y, matrixWidth, matrixHeight, leftDelimiterWidth, rightDelimiterWidth, cellFontSize, color));
   let cellY = y - matrixHeight / 2 + rowHeight / 2;
   const rawRows = parts.rawRows || parts.rows;
@@ -106,7 +93,7 @@ export function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, 
   }
   cursor += matrixWidth;
   if (suffix) {
-    cursor += gap;
+    cursor += suffixGap;
     output.push(`<text x="${format(cursor)}" y="${format(y)}" ${textAttrs} text-anchor="start" font-size="${format(inlineFontSize)}">${escapeText(suffix)}</text>`);
   }
   output.push("</g>");
@@ -177,14 +164,6 @@ export function inlineMathTextWidth(text, fontSize) {
   const normalized = String(text || "");
   if (!normalized) return 0;
   return Math.max(fontSize * 0.28, [...normalized].length * fontSize * 0.48);
-}
-
-function inlineMatrixCellWidth(value, fontScale, unit) {
-  const sample = parseInlinePlotReferenceSample(value);
-  if (sample) return sample.reservedWidthCm * unit;
-  const text = mathFallbackText(value).trim();
-  const glyphCount = [...text].filter((char) => !/\s/.test(char)).length;
-  return texTextWidthCm(text, fontScale) * unit + (Math.max(0, glyphCount - 1) / 28.45274) * unit;
 }
 
 function renderInlinePlotReferenceSample(sample, x, y, unit) {

@@ -269,6 +269,24 @@ test("agrees between browser and SVG fallback formula boxes", () => {
   assert.equal(browser.baselinePt, fallback.baselinePt);
 });
 
+test("uses local Computer Modern design sizes for inline pmatrix formula metrics", () => {
+  const base = String.raw`A=\begin{pmatrix}2&1\\0&3\end{pmatrix}`;
+  const samples = [
+    [String.raw`\tiny ${base}`, 39.6821],
+    [String.raw`\scriptsize ${base}`, 46.5318],
+    [String.raw`\footnotesize ${base}`, 48.71445],
+    [String.raw`\small ${base}`, 52.13716],
+    [base, 55.55556],
+    [String.raw`\tiny \begin{pmatrix}0\\-42\end{pmatrix} + U`, 34.3649]
+  ];
+
+  for (const [tex, expectedWidthPt] of samples) {
+    const box = estimateFormulaBox(tex, { texTextMetrics: true, minWidth: 0, widthPadding: 0 });
+    const widthPt = box.width * 28.45274;
+    assert.ok(Math.abs(widthPt - expectedWidthPt) <= 0.02, `expected ${tex} to measure ${expectedWidthPt}pt, got ${widthPt}pt`);
+  }
+});
+
 test("uses the same measured formula box in both SVG text engine modes", () => {
   const request = {
     text: String.raw`$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`,
