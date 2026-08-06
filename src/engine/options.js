@@ -691,21 +691,46 @@ function parseArrowTipSpec(input) {
     if (declaredArrow.paint === "stroke" || declaredArrow.paint === "fillstroke") overrides.stroke = "context-stroke";
   }
   const tip = createArrowTip(match[1], overrides);
-  const scale = Number(options.scale);
-  if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 1e-12) return tip;
-  // `Latex` is the arrows.meta geometric tip: its default dimensions depend
-  // on the current path width and its `scale` key is applied by that library.
-  // The core PGF `latex` spelling is a different, fixed tip and ignores this
-  // meta-library-only key.
-  if (tip.kind === "latex" && !tip.legacy && !overrides.customLength && !overrides.customWidth) {
-    return { ...tip, scale };
+  const scale = arrowTipScaleFactor(options.scale);
+  const lengthScale = arrowTipScaleFactor(options["scale length"]);
+  const widthScale = arrowTipScaleFactor(options["scale width"]);
+  const hasScale = Math.abs(scale - 1) >= 1e-12;
+  const hasIndependentScale = Math.abs(lengthScale - 1) >= 1e-12 || Math.abs(widthScale - 1) >= 1e-12;
+  if (!hasScale && !hasIndependentScale) return tip;
+
+  // `Latex` and `Stealth` are arrows.meta geometric tips only in their
+  // capitalized spelling. Their length and width scales must remain separate:
+  // the first also controls the tip inset/shortening while the latter does not.
+  if (tip.meta) {
+    const resolvedLengthScale = scale * lengthScale;
+    const resolvedWidthScale = scale * widthScale;
+    return {
+      ...tip,
+      scale,
+      lengthScale,
+      widthScale,
+      // Preserve the historic IR preview dimensions for default tips. They
+      // are not treated as explicit lengths downstream: the SVG renderer
+      // re-derives them from the active path line width, as PGF does.
+      ...(!overrides.customLength ? { length: tip.length * resolvedLengthScale } : {}),
+      ...(!overrides.customWidth ? { width: tip.width * resolvedWidthScale } : {})
+    };
   }
+
+  // Keep the established compatibility behavior for classic and third-party
+  // tips: only their generic `scale` key changes the fixed dimensions.
+  if (!hasScale) return tip;
   return {
     ...tip,
     length: tip.length * scale,
     width: tip.width * scale,
     ...(tip.lineWidth ? { lineWidth: tip.lineWidth * scale } : {})
   };
+}
+
+function arrowTipScaleFactor(value) {
+  const scale = Number(String(value ?? "").trim().replace(/^\{([\s\S]*)\}$/, "$1"));
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
 function parseDeclaredArrowPayload(value) {

@@ -823,6 +823,29 @@ test("applies Latex tip scale after deriving its PGF line-width geometry", () =>
   assert.match(tip, /C -0\.701[0-9]+ -0\.179[0-9]+ -3\.755[0-9]+ -1\.209[0-9]+ -5\.656[0-9]+ -2\.330[0-9]+/);
 });
 
+test("applies arrows.meta length and width scaling independently", () => {
+  const lineWidth = lineWidthFromPt(0.8);
+  const normal = latexArrowGeometryFromLineWidth(lineWidth);
+  const longer = latexArrowGeometryFromLineWidth(lineWidth, { lengthScale: 1.8 });
+  const wider = latexArrowGeometryFromLineWidth(lineWidth, { widthScale: 1.8 });
+
+  assert.ok(longer.length > normal.length * 1.75, `expected a longer arrow, got ${longer.length} from ${normal.length}`);
+  // PGF keeps the logical width unchanged for scale length, but the stroked
+  // outline's miter changes its visible bounds slightly. The inverse happens
+  // for scale width, so check the dimensional intent rather than an invalid
+  // pixel-identical outline assertion.
+  assert.ok(longer.halfWidth < normal.halfWidth * 1.1, "scale length must not proportionally widen the default Latex tip");
+  assert.ok(wider.length < normal.length * 1.2, "scale width must not proportionally lengthen the default Latex tip");
+  assert.ok(wider.halfWidth > normal.halfWidth * 1.75, `expected a wider arrow, got ${wider.halfWidth} from ${normal.halfWidth}`);
+
+  const svg = tikzToSvg(String.raw`\draw[thick,-{Latex[scale length=1.8]}] (0,0) -- (2,0);
+\draw[thick,-{Latex[scale width=1.8]}] (0,-1) -- (2,-1);`).svg;
+  const tips = [...svg.matchAll(/<path class="tikz-arrow-tip tikz-arrow-latex"[^>]*d="([^"]+)"/gu)].map((match) => match[1]);
+
+  assert.equal(tips.length, 2);
+  assert.notEqual(tips[0], tips[1], "independent scale keys must produce distinct visible tip geometry");
+});
+
 test("keeps classic latex distinct from arrows.meta Latex", () => {
   const classic = tikzToSvg(String.raw`\draw[very thick,-{latex[scale=3]}] (0,0) -- (2,0);`).svg;
   const meta = tikzToSvg(String.raw`\draw[very thick,-{Latex[scale=3]}] (0,0) -- (2,0);`).svg;

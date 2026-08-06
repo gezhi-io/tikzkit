@@ -191,13 +191,24 @@ export function createArrowTip(kind = "to", overrides = {}) {
       ? overrides.legacy === true
       : sourceKind === "latex"
     : undefined;
+  // PGF's arrows.meta uses capitalized names. Retaining this distinction lets
+  // the renderer apply arrows.meta-only keys without changing the classic
+  // core `latex` and `stealth` tips.
+  const meta = ["latex", "stealth"].includes(normalizedKind)
+    ? Object.hasOwn(overrides, "meta")
+      ? overrides.meta === true
+      : normalizedKind === "latex"
+        ? !legacy
+        : sourceKind === "Stealth"
+    : undefined;
   return {
     ...base,
     ...overrides,
     kind: normalizedKind,
     // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
     // the source spelling so their geometry can stay distinct downstream.
-    ...(normalizedKind === "latex" ? { legacy } : {})
+    ...(normalizedKind === "latex" ? { legacy } : {}),
+    ...(["latex", "stealth"].includes(normalizedKind) ? { meta } : {})
   };
 }
 
@@ -216,15 +227,27 @@ export function legacyLatexArrowGeometryFromLineWidth(lineWidth) {
   };
 }
 
-export function latexArrowGeometryFromLineWidth(lineWidth, scale = 1) {
+export function latexArrowGeometryFromLineWidth(lineWidth, scales = 1) {
   const unitsPerPt = lineWidthFromPt(1);
   const lineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;
-  // PGF applies `scale` to Latex's computed arrow length, then derives its
-  // width and capped outline from that scaled length. It does not simply
-  // scale the generic 3pt fallback dimensions.
-  const arrowScale = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
-  const arrowLengthPt = (3 + 4.5 * lineWidthPt) * arrowScale;
-  const arrowWidthPt = 0.75 * arrowLengthPt;
+  const options = typeof scales === "object" && scales !== null ? scales : { scale: scales };
+  const scaleFactor = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
+  // pgfcorearrows.code.tex applies `scale` to both dimension lists. The
+  // individual scale keys then act independently on the longitudinal length
+  // (and inset) or on the width. An explicit width' is still based on the
+  // final logical length unless a user replaces it with `width=...`.
+  const generalScale = scaleFactor(options.scale);
+  const lengthScale = generalScale * scaleFactor(options.lengthScale);
+  const widthScale = generalScale * scaleFactor(options.widthScale);
+  const explicitLengthPt = Number.isFinite(Number(options.lengthPt)) && Number(options.lengthPt) > 0
+    ? Number(options.lengthPt)
+    : null;
+  const explicitWidthPt = Number.isFinite(Number(options.widthPt)) && Number(options.widthPt) > 0
+    ? Number(options.widthPt)
+    : null;
+  const baseLengthPt = explicitLengthPt ?? (3 + 4.5 * lineWidthPt);
+  const arrowLengthPt = baseLengthPt * lengthScale;
+  const arrowWidthPt = (explicitWidthPt ?? (0.75 * baseLengthPt)) * widthScale;
   const arrowLineWidthPt = Math.min(lineWidthPt, 0.2 * arrowLengthPt);
 
   const lengthToWidth = arrowLengthPt / arrowWidthPt;

@@ -1,0 +1,15 @@
+% Derived from the local PGF arrows.meta manual's scale, scale length, and scale width examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+\begin{tikzpicture}[very thick]
+  \draw[-{Latex[]}] (0,0) -- (4,0);
+  \draw[-{Latex[scale length=1.8]}] (0,-0.8) -- (4,-0.8);
+  \draw[-{Latex[scale width=1.8]}] (0,-1.6) -- (4,-1.6);
+  \draw[-{Stealth[scale=1.5]}] (0,-2.4) -- (4,-2.4);
+  \draw[-{Stealth[scale length=1.8,scale width=.65]}] (0,-3.2) -- (4,-3.2);
+  \draw[-{Latex[scale length=1.5]},shorten <=4mm,shorten >=3mm] (0,-4) -- (4,-4);
+\end{tikzpicture}
+\end{document}

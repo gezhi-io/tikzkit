@@ -1001,6 +1001,15 @@ Current support is pragmatic and growing. Highlights:
 - Basic drawing commands: `\draw`, `\path`, `\fill`, `\filldraw`, `\node`, `\coordinate`.
 - Common paths: lines, rectangles, circles, ellipses, arcs, grids, orthogonal `|-` / `-|`, `to`, `edge`, bend edges, self loops.
 - Styles: `\tikzset`, `\tikzstyle`, color definitions, line widths, dash patterns, opacity, arrow tips.
+- `arrows.meta`: capitalized `Latex` and `Stealth` use the current path line
+  width. Their `scale`, `scale length`, and `scale width` keys now stay
+  independent, so longitudinal scaling also changes the endpoint inset while
+  width-only scaling does not. Explicit `shorten <=` / `shorten >=` combines
+  with that inset. Lower-case core `latex` remains a distinct PGF tip. The
+  checked source is
+  `test/fixtures/examples/arrows/meta-tip-scaling.tex`; see
+  `docs/qa/2026-08-06-arrows-meta-independent-scaling.md`. Composite tips,
+  padding/separation, and arbitrary arrows.meta setup-code keys remain partial.
 - Pattern fills: built-in pattern metadata plus a focused `\pgfdeclarepatternformonly` slice. Constant `\pgfpoint`/`\pgfqpoint` tile geometry and line, circle, rectangle, close, fill, and stroke primitives are supported; pattern transforms, mutable/inherently-colored patterns, and arbitrary TeX drawing procedures remain unsupported.
 - Nodes: named nodes, compass anchors, angle anchors, shape borders, circle/rectangle/diamond, text and math sizing approximations.
 - Positioning: `right=... of A`, `below right=... of A`, legacy `right of=A`, shifts, node distance.

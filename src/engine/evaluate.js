@@ -57,6 +57,7 @@ import {
   TIKZ_SANS_SERIF_FONT_FAMILY,
   TIKZ_UNIT,
   createArrowTip,
+  latexArrowGeometryFromLineWidth,
   lineWidthFromPt,
   lineWidthFromTikzDimension,
   stealthArrowLengthFromLineWidth,
@@ -11231,15 +11232,31 @@ function arrowTipShortenCoordinateLength(tip, style = {}) {
   const lineWidthPt = lineWidth / lineWidthFromPt(1);
   const customLength = usesCustomArrowDimension(source, raw, "length");
   const customWidth = usesCustomArrowDimension(source, raw, "width");
+  const arrowMetaScale = (key) => {
+    if (!raw.meta) return 1;
+    const scale = Number(raw[key]);
+    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+  };
+  const lengthScale = arrowMetaScale("scale") * arrowMetaScale("lengthScale");
+  const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   let shorten;
   if (raw.kind === "stealth") {
-    const length = customLength ? raw.length : stealthArrowLengthFromLineWidth(lineWidth);
+    const length = (customLength ? raw.length : stealthArrowLengthFromLineWidth(lineWidth)) * lengthScale;
     shorten = stealthArrowShortenFromLength(length);
   } else if (raw.kind === "stealth-prime") {
     shorten = stealthPrimeArrowDimensions(lineWidth).rightExtent;
   } else if (raw.kind === "latex") {
-    const length = customLength ? raw.length : lineWidthFromPt(3.2 + 2.4 * lineWidthPt);
-    shorten = length * 0.9;
+    if (raw.legacy) {
+      const length = customLength ? raw.length : lineWidthFromPt(3.2 + 2.4 * lineWidthPt);
+      shorten = length * 0.9;
+    } else {
+      shorten = latexArrowGeometryFromLineWidth(lineWidth, {
+        lengthScale,
+        widthScale,
+        ...(customLength ? { lengthPt: raw.length / lineWidthFromPt(1) } : {}),
+        ...(customWidth ? { widthPt: raw.width / lineWidthFromPt(1) } : {})
+      }).shorten;
+    }
   } else if (raw.kind === "two-heads") {
     shorten = lineWidth;
   } else if (raw.kind === "hook") {
@@ -11259,6 +11276,7 @@ function arrowTipShortenCoordinateLength(tip, style = {}) {
 
 function usesCustomArrowDimension(source = {}, raw = {}, key) {
   if (source[`custom${key[0].toUpperCase()}${key.slice(1)}`] || source[`${key}Explicit`]) return true;
+  if (source.meta && !source[`custom${key[0].toUpperCase()}${key.slice(1)}`]) return false;
   if (!Number.isFinite(source[key])) return false;
   const defaultTip = createArrowTip(raw.kind || source.kind || "to");
   return Math.abs(source[key] - defaultTip[key]) > 1e-6;

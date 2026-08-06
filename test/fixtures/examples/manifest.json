@@ -3944,6 +3944,22 @@
         "projected circle paths",
         "three-dimensional canvas basis"
       ]
+    },
+    {
+      "id": "arrows-meta-tip-scaling",
+      "title": "PGF arrows.meta independent tip scaling and endpoint shortening",
+      "source": "arrows/meta-tip-scaling.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+      "semanticOwner": "src/engine/options.js + src/renderers/svg/paths.js",
+      "features": [
+        "Latex scale length",
+        "Latex scale width",
+        "Stealth scale",
+        "Stealth independent scale length and scale width",
+        "shorten <=",
+        "shorten >="
+      ]
     }
   ]
 }

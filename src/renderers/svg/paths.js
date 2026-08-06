@@ -318,6 +318,10 @@ export function resolveInlineArrowTip(tip, style = {}) {
 
 export function usesCustomArrowDimension(source = {}, raw = {}, key) {
   if (source[`custom${key[0].toUpperCase()}${key.slice(1)}`] || source[`${key}Explicit`]) return true;
+  // Default arrows.meta tips keep a scaled preview dimension in the IR for
+  // callers that inspect it. PGF still calculates the painted dimensions from
+  // the current stroke width, so that preview must not become `length=...`.
+  if (source.meta && !source[`custom${key[0].toUpperCase()}${key.slice(1)}`]) return false;
   if (!Number.isFinite(source[key])) return false;
   const defaultTip = createArrowTip(raw.kind || source.kind || "to");
   return Math.abs(source[key] - defaultTip[key]) > 1e-6;
@@ -326,9 +330,18 @@ export function usesCustomArrowDimension(source = {}, raw = {}, key) {
 export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   const lineWidth = Math.max(0.01, style.lineWidth ?? 1);
   const lineWidthPt = lineWidth / lineWidthFromPt(1);
+  const arrowMetaScale = (key) => {
+    if (!tip.meta) return 1;
+    const scale = Number(tip[key]);
+    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+  };
+  const lengthScale = arrowMetaScale("scale") * arrowMetaScale("lengthScale");
+  const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   if (tip.kind === "stealth") {
-    const length = flags.customLength ? tip.length : stealthArrowLengthFromLineWidth(lineWidth);
-    const halfWidth = flags.customWidth ? tip.width / 2 : stealthArrowHalfWidthFromLength(length);
+    const baseLength = flags.customLength ? tip.length : stealthArrowLengthFromLineWidth(lineWidth);
+    const baseHalfWidth = flags.customWidth ? tip.width / 2 : stealthArrowHalfWidthFromLength(baseLength);
+    const length = baseLength * lengthScale;
+    const halfWidth = baseHalfWidth * widthScale;
     const inset = stealthArrowShortenFromLength(length);
     return {
       path: `M 0 0 L ${format(-length)} ${format(-halfWidth)} L ${format(-inset)} 0 L ${format(-length)} ${format(halfWidth)} Z`,
@@ -381,9 +394,14 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         }
       };
     }
-    const native = latexArrowGeometryFromLineWidth(lineWidth, tip.scale);
-    const length = flags.customLength ? tip.length : native.length;
-    const halfWidth = flags.customWidth ? tip.width / 2 : native.halfWidth;
+    const native = latexArrowGeometryFromLineWidth(lineWidth, {
+      lengthScale,
+      widthScale,
+      ...(flags.customLength ? { lengthPt: tip.length / lineWidthFromPt(1) } : {}),
+      ...(flags.customWidth ? { widthPt: tip.width / lineWidthFromPt(1) } : {})
+    });
+    const length = native.length;
+    const halfWidth = native.halfWidth;
     return {
       path: [
         `M 0 0`,
@@ -394,7 +412,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         `L ${format(-length)} ${format(halfWidth)}`,
         `C ${format(-length * 0.664)} ${format(halfWidth * 0.519)} ${format(-length * 0.124)} ${format(halfWidth * 0.077)} 0 0 Z`
       ].join(" "),
-      shorten: flags.customLength ? length * 0.9 : native.shorten,
+      shorten: native.shorten,
       lineWidth: native.lineWidth
     };
   }
