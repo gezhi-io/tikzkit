@@ -3698,6 +3698,27 @@ test("clips curved to-path arrows against node borders", () => {
   assert.ok(Math.abs(end.x - (targetBox.x - targetBox.width / 2 - outerSep)) < 1e-6, `expected curve to end at target border, got ${end.x}`);
 });
 
+test("extends curved arrow tips past circular node borders by half the path width", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[circle,draw,minimum size=12pt,inner sep=0pt] (source) at (-2,1) {};
+  \node[circle,draw,minimum size=25pt,inner sep=0pt] (target) at (0,0) {};
+  \draw[->,thick] (source) to[out=0,in=150] (target);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const target = ir.items.find((item) => item.type === "nodeBox" && item.id === "target");
+  const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
+  const end = arrow.commands.at(-1);
+  const defaultOuterSep = parseDimension("0.2pt");
+  const arrowHalfWidth = TIKZ_LINE_WIDTHS.thick / TIKZ_UNIT / 2;
+  const endRadius = Math.hypot(end.x - target.x, end.y - target.y);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(end.type, "curveTo");
+  expectClose(endRadius, target.width / 2 + defaultOuterSep + arrowHalfWidth);
+});
+
 test("approximates TikZ bend left and bend right edge arrows as curves", () => {
   const source = String.raw`
 \begin{tikzpicture}

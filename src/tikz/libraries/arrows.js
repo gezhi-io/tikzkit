@@ -5,7 +5,7 @@ import { TIKZ_UNIT } from "../metrics.js";
 export const tikzLibrary = {
   "name": "arrows",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyLatexArrowGeometryFromLineWidth + src/renderers/svg/paths.js:inlineArrowGeometry + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros",
+  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyLatexArrowGeometryFromLineWidth + src/renderers/svg/paths.js:inlineArrowGeometry + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   "localSourceReviewed": true,
@@ -18,7 +18,8 @@ export const tikzLibrary = {
     "core latex distinct from arrows.meta Latex",
     "-latex'",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
-    "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion"
+    "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
+    "curved terminal arrow crops on circular and elliptical nodes"
   ],
   "implements": [
     "->",
@@ -29,9 +30,10 @@ export const tikzLibrary = {
     "core latex distinct from arrows.meta Latex",
     "-latex'",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
-    "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion"
+    "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
+    "curved terminal arrow crops on circular and elliptical nodes"
   ],
-  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred."
+  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops after the PGF-style outer separation, matching the artificial-neuron target tips. Polygon and rectangle endpoint expansion remains unchanged."
 };
 
 // PGF's arrow declarations store a local path plus placement extents. We lower

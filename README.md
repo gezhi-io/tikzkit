@@ -190,6 +190,33 @@ This is a verified compatibility slice, not a claim that all TikZ arrow or
 shape combinations are complete. Keep using the per-case audit and visual
 comparison workflow while the project remains under active testing.
 
+### Curved Arrow Terminal Check
+
+`latex-examples-artificial-neuron` is the focused real case for a curved
+`to[out=...,in=...]` arrow which ends at a circular node. TikZKit now moves a
+terminal arrow crop out by half of the active path width after the node's outer
+separation. This keeps the tip clear of the visible circle outline without
+changing straight arrows or rectangular/polygon node borders.
+
+```bash
+node --test --test-name-pattern='clips curved to-path arrows|extends curved arrow tips|attaches bend edges|keeps arrow endpoints' \
+  test/interpreter.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-curved-arrow-terminal \
+  --only latex-examples-artificial-neuron,latex-examples-agent-environment-diagram-pomdp,latex-examples-doubly-linked-list,latex-examples-hidden-markov-model-abc-2 \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg \
+  --external-timeout-ms 120000
+npm run examples:diff -- --output outputs/qa-curved-arrow-terminal \
+  --register --alignment-radius 3
+```
+
+Inspect `diff/latex-examples-artificial-neuron-native-sheet.png`: the five
+arrow tips entering the central circle should end just outside the black
+outline, like the `tikztosvg` and MacTeX panels. Ellipses use the same terminal
+padding. Arbitrary shapes, tip-specific separation keys, and every PGF arrow
+declaration are still partial.
+
 ### PGFPlots Tickless Middle-Axis Check
 
 `test/fixtures/pgfplots-middle-axis-empty-ticks.tex` is the focused regression

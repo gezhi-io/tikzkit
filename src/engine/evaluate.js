@@ -1748,8 +1748,18 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       // 有弯时端点要沿曲线"切线方向"重新裁到节点边框，否则箭头会挂在角上（见 case 020 的两条 bend 弧）。
       const straightClipped = clipNodeLineEndpoints(edgeFrom, currentNodeRef, to, toNodeRef, env);
       const curve = edgeCurveSpec(combinedEdgeOptions, straightClipped.from, straightClipped.to, env, currentNodeRef, toNodeRef);
+      const edgeStyle = segment.kind === "edge" ? edgeDrawableStyle(combinedEdgeOptions, pathStyle, env) : null;
+      const curveStyle = edgeStyle || pathStyle;
       const clipped = curve
-        ? clipNodeCurveEndpoints(edgeFrom, currentNodeRef, to, toNodeRef, curve, env)
+        ? clipNodeCurveEndpoints(
+          edgeFrom,
+          currentNodeRef,
+          to,
+          toNodeRef,
+          curve,
+          env,
+          curveArrowTerminalBorderPadding(curveStyle)
+        )
         : straightClipped;
       const targetCommands = segment.kind === "edge" ? [moveToCommand(clipped.from)] : commands;
       if (curve) {
@@ -1768,7 +1778,6 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         lastSegment = { from: clipped.from, to: clipped.to };
       }
       if (segment.kind === "edge") {
-        const edgeStyle = edgeDrawableStyle(combinedEdgeOptions, pathStyle, env);
         const edgeCommands = applyPathMorphing(targetCommands, combinedEdgeOptions, env, edgeStyle);
         shapes.push({
           type: "path",
@@ -9950,10 +9959,10 @@ function clipNodeReferencePoint(ref, point, toward, env) {
 
 // Claude: 曲线边的端点应落在"离开/进入"切线方向上的边框点，而不是两节点中心连线上的点。
 // out = 从起点离开的角度；in = 进入终点的切线角度（指向控制点 c2 的方向），与控制点计算保持一致。
-function clipNodeCurveEndpoints(from, fromRef, to, toRef, curve, env) {
+function clipNodeCurveEndpoints(from, fromRef, to, toRef, curve, env, terminalPadding = {}) {
   return {
-    from: fromRef ? clipNodeReferenceAlongAngle(fromRef, from, curve.out, env) : roundPoint(from),
-    to: toRef ? clipNodeReferenceAlongAngle(toRef, to, curve.in, env) : roundPoint(to)
+    from: fromRef ? clipNodeReferenceAlongAngle(fromRef, from, curve.out, env, terminalPadding.start) : roundPoint(from),
+    to: toRef ? clipNodeReferenceAlongAngle(toRef, to, curve.in, env, terminalPadding.end) : roundPoint(to)
   };
 }
 
@@ -9964,11 +9973,19 @@ function clipNodeCubicEndpoints(from, fromRef, c1, c2, to, toRef, env) {
   };
 }
 
-function clipNodeReferenceAlongAngle(ref, center, angleDegrees, env) {
+function clipNodeReferenceAlongAngle(ref, center, angleDegrees, env, borderPadding = 0) {
   if (ref.mode === "anchor") return roundPoint(center);
   const radians = (angleDegrees * Math.PI) / 180;
   const toward = { x: center.x + Math.cos(radians), y: center.y + Math.sin(radians) };
-  return nodeBorderPoint(ref.node, center, toward, env);
+  return nodeBorderPoint(ref.node, center, toward, env, borderPadding);
+}
+
+function curveArrowTerminalBorderPadding(style = {}) {
+  const halfLineWidth = Math.max(0, Number(style.lineWidth) || 0) / TIKZ_UNIT / 2;
+  return {
+    start: style.markerStart ? halfLineWidth : 0,
+    end: style.markerEnd ? halfLineWidth : 0
+  };
 }
 
 function updateCurrentMoveTo(commands, point) {
@@ -10211,7 +10228,7 @@ function pointsAlmostEqual(a, b, epsilon = 1e-9) {
   return Boolean(a && b && Math.abs(a.x - b.x) <= epsilon && Math.abs(a.y - b.y) <= epsilon);
 }
 
-function nodeBorderPoint(node, center, toward, env) {
+function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   const dx = toward.x - center.x;
   const dy = toward.y - center.y;
   const distance = Math.hypot(dx, dy);
@@ -10224,12 +10241,15 @@ function nodeBorderPoint(node, center, toward, env) {
   const halfWidth = (Number(node.layoutWidth) || Number(node.width) || 0) / 2;
   const halfHeight = (Number(node.layoutHeight) || Number(node.height) || 0) / 2;
   if (halfWidth <= 0 || halfHeight <= 0) return roundPoint(center);
+  const terminalPadding = Math.max(0, Number(borderPadding) || 0);
   let localPoint;
   if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit") {
-    const radius = Math.max(halfWidth, halfHeight);
+    const radius = Math.max(halfWidth, halfHeight) + terminalPadding;
     localPoint = { x: (localDx / localDistance) * radius, y: (localDy / localDistance) * radius };
   } else if (node.shape === "ellipse" || node.shape === "cloud") {
-    const factor = 1 / Math.sqrt((localDx * localDx) / (halfWidth * halfWidth) + (localDy * localDy) / (halfHeight * halfHeight));
+    const paddedHalfWidth = halfWidth + terminalPadding;
+    const paddedHalfHeight = halfHeight + terminalPadding;
+    const factor = 1 / Math.sqrt((localDx * localDx) / (paddedHalfWidth * paddedHalfWidth) + (localDy * localDy) / (paddedHalfHeight * paddedHalfHeight));
     localPoint = { x: localDx * factor, y: localDy * factor };
   } else if (node.shape === "diamond") {
     const factor = localDistance / (Math.abs(localDx) / halfWidth + Math.abs(localDy) / halfHeight);
