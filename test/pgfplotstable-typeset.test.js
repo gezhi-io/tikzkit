@@ -28,6 +28,10 @@ const SCIENTIFIC_SUPERSCRIPT_SOURCE = readFileSync(
   new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-superscript.tex", import.meta.url),
   "utf8"
 );
+const SCIENTIFIC_GENERIC_SOURCE = readFileSync(
+  new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-generic.tex", import.meta.url),
+  "utf8"
+);
 
 test("lowers pgfplotstable typeset into a measured text table", () => {
   const parsed = parseTikz(SOURCE);
@@ -170,6 +174,25 @@ test("formats pgfplotstable scientific superscripts without inventing sci sep al
       "C", String.raw`$1.23^{2}$`, String.raw`$1.23^{2}$`,
       "D", String.raw`$1.00^{0}$`, String.raw`$1.00^{0}$`,
       "E", String.raw`$0.00^{0}$`, String.raw`$0.00^{0}$`
+    ]
+  );
+  assert.equal(result.ir.items.some((item) => item.subtype?.startsWith("tabular-scientific-")), false);
+});
+
+test("formats pgfplotstable sci generic templates and the hidden-unit-mantissa branch", () => {
+  const result = tikzToSvg(SCIENTIFIC_GENERIC_SOURCE, { mathRenderer: "svg-text" });
+  const tabularText = result.ir.items.filter((item) => item.subtype === "tabular-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    tabularText.map((item) => item.text),
+    [
+      "Sample", "Generic", "Unit mantissa false", "Generic align",
+      "A", String.raw`$1.00\,\times\,10^{-3}$`, String.raw`$10^{-3}$`, String.raw`$1.00\,\times\,10^{-3}$`,
+      "B", String.raw`$1.23\,\times\,10^{2}$`, String.raw`$1.23\,\times\,10^{2}$`, String.raw`$1.23\,\times\,10^{2}$`,
+      "C", String.raw`$1.00\,\times\,10^{0}$`, String.raw`$10^{0}$`, String.raw`$1.00\,\times\,10^{0}$`,
+      "D", String.raw`$0.00\,\times\,10^{0}$`, String.raw`$0.00\,\times\,10^{0}$`, String.raw`$0.00\,\times\,10^{0}$`,
+      "E", String.raw`$-1.00\,\times\,10^{-3}$`, String.raw`$-10^{-3}$`, String.raw`$-1.00\,\times\,10^{-3}$`
     ]
   );
   assert.equal(result.ir.items.some((item) => item.subtype?.startsWith("tabular-scientific-")), false);

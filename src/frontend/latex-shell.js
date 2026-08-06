@@ -4042,8 +4042,12 @@ function pgfplotstableFormatFixed(value, options) {
 }
 
 function pgfplotstableFormatScientific(value, options) {
-  const { mantissa, exponent } = pgfplotstableScientificParts(value, options);
+  const parts = pgfplotstableScientificParts(value, options);
+  const { mantissa, exponent } = parts;
   const presentation = pgfplotstableScientificPresentation(options);
+  if (presentation === "generic") {
+    return pgfplotstableFormatScientificGeneric(parts, options);
+  }
   if (presentation === "subscript" || presentation === "superscript") {
     // TeX Live's direct script formats always receive an exponent token,
     // including their zero branch. They bypass the regular scientific
@@ -4056,11 +4060,36 @@ function pgfplotstableFormatScientific(value, options) {
 }
 
 function pgfplotstableScientificPresentation(options) {
-  return pgfplotstableOptionEnabled(options["sci subscript"])
+  return pgfplotstableOptionEnabled(options["sci generic"])
+    ? "generic"
+    : pgfplotstableOptionEnabled(options["sci subscript"])
     ? "subscript"
     : pgfplotstableOptionEnabled(options["sci superscript"])
       ? "superscript"
       : "standard";
+}
+
+function pgfplotstableFormatScientificGeneric(parts, options) {
+  // TeX Live routes `sci generic={...}` through three number-format keys.
+  // Keep this deliberately data-only: documented #1 exponent substitution is
+  // preserved, while arbitrary TeX key callbacks and #2/#3 introspection are
+  // not executed by the JavaScript interpreter.
+  const generic = parseOptions(String(options["sci generic"] === true ? "" : options["sci generic"]));
+  const exponent = parts.exponent ?? 0;
+  const omitUnitMantissa = pgfplotstableOptionIsFalse(options["retain unit mantissa"])
+    && Math.abs(Math.abs(parts.mantissaValue) - 1) < 1e-12;
+  const separator = omitUnitMantissa
+    ? pgfplotstableScientificGenericTemplate(generic["empty mantissa sep"], exponent)
+    : pgfplotstableScientificGenericTemplate(generic["mantissa sep"], exponent);
+  const exponentTemplate = pgfplotstableScientificGenericTemplate(generic.exponent, exponent);
+  const mantissa = omitUnitMantissa
+    ? (parts.mantissaValue < 0 ? "-" : "")
+    : parts.mantissa;
+  return `$${mantissa}${separator}${exponentTemplate}$`;
+}
+
+function pgfplotstableScientificGenericTemplate(value, exponent) {
+  return String(value === undefined || value === true ? "" : value).replaceAll("#1", String(exponent));
 }
 
 function pgfplotstableScientificAlignedCell(value, options) {
@@ -4079,7 +4108,8 @@ function pgfplotstableScientificParts(value, options) {
         precision: options["sci precision"] ?? options.precision,
         "fixed zerofill": options["sci zerofill"]
       }),
-      exponent: null
+      exponent: null,
+      mantissaValue: 0
     };
   }
   const precision = pgfplotstableNumberPrecision(options["sci precision"] ?? options.precision, 2);
@@ -4096,7 +4126,8 @@ function pgfplotstableScientificParts(value, options) {
     : String(mantissa);
   return {
     mantissa: pgfplotstableFormatGroupedNumber(mantissaText, options),
-    exponent
+    exponent,
+    mantissaValue: mantissa
   };
 }
 
@@ -4118,6 +4149,10 @@ function pgfplotstableNumberPrecision(value, fallback) {
 
 function pgfplotstableOptionEnabled(value) {
   return value !== undefined && value !== false && !/^(?:false|0|no)$/i.test(String(value));
+}
+
+function pgfplotstableOptionIsFalse(value) {
+  return value === false || /^(?:false|0|no)$/i.test(String(value));
 }
 
 function pgfplotstableDecimalAlignedCell(value, options) {

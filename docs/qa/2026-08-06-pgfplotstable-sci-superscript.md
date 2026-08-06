@@ -52,7 +52,8 @@ stay renderer-neutral whole math cells.
 | zero and exponent zero | implemented | `1.00^{0}` and `0.00^{0}` keep the native exponent |
 | `sci superscript,sci sep align` | implemented | valid source; intentionally one complete cell |
 | `sci subscript` | implemented separately | direct `mantissa_{exponent}` form |
-| `sci generic`, custom exponent marks | not implemented | separate PGF display strategies |
+| `sci generic` | implemented subset separately | documented data templates remain whole under `sci sep align` |
+| custom exponent marks | not implemented | separate PGF display strategies |
 | `dcolumn`, non-finite values, arbitrary post-processing | partial | outside the focused table subset |
 
 ## Three-Way Visual QA

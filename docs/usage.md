@@ -4,7 +4,7 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-当前维护语料的语义基线为 `294/294 rendered, 0 diagnostics`。这只表示这批
+当前维护语料的语义基线为 `295/295 rendered, 0 diagnostics`。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
@@ -141,7 +141,7 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 294/294 rendered, 0 diagnostics。
+# 维护案例的语义检查；当前预期为 295/295 rendered, 0 diagnostics。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。

@@ -47,7 +47,8 @@ the renderer-neutral tabular layout.
 | zero and exponent zero | implemented | `0.00_{0}` and `1.00_{0}` retain the native subscript |
 | `sci subscript,sci sep align` | implemented | valid source; intentionally one complete cell, no shared exponent anchor |
 | `sci superscript` | implemented separately | direct `mantissa^{exponent}` form; it also remains whole under `sci sep align` |
-| `sci generic`, custom exponent marks | not implemented | separate PGF display strategies |
+| `sci generic` | implemented subset separately | documented data templates remain whole under `sci sep align` |
+| custom exponent marks | not implemented | separate PGF display strategies |
 | `dcolumn`, non-finite values, arbitrary post-processing | partial | outside the focused table subset |
 
 ## Three-Way Visual QA

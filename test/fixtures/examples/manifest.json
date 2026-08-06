@@ -4178,6 +4178,22 @@
         "sci superscript",
         "sci sep align interaction"
       ]
+    },
+    {
+      "id": "pgfplotstable-sci-generic",
+      "title": "pgfplotstable custom scientific formatter",
+      "source": "pgfplots/pgfplotstable-sci-generic.tex",
+      "sourceCorpus": "TeX Live pgfmathfloat sci generic documentation",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:pgfplotstableFormatScientific",
+      "features": [
+        "pgfplotstabletypeset",
+        "sci generic",
+        "sci generic/mantissa sep",
+        "sci generic/empty mantissa sep",
+        "sci generic/exponent",
+        "retain unit mantissa"
+      ]
     }
   ]
 }

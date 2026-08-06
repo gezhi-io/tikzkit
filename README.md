@@ -465,7 +465,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `294/294 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `295/295 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -605,7 +605,8 @@ the default plain-integer thousands grouping (for example `2021` becomes
 
 For a selected column, the focused number-printer subset also supports
 `int detect`, `fixed`, `fixed zerofill`, `sci`, `sci zerofill`, `sci subscript`,
-`sci superscript`, `precision`, `sci precision`, and `use comma`. For example:
+`sci superscript`, the controlled `sci generic` subset, `precision`,
+`sci precision`, and `use comma`. For example:
 
 ```tex
 columns/value/.style={
@@ -663,10 +664,28 @@ columns/value/.style={
 }
 ```
 
+`sci generic` accepts the locally documented data templates `mantissa sep`,
+`empty mantissa sep`, and `exponent`. TikZKit substitutes the literal `#1`
+exponent argument; it does not execute arbitrary TeX callbacks. This covers a
+custom multiplication form and the native omission of a unit mantissa:
+
+```tex
+columns/value/.style={
+  sci,sci zerofill,sci precision=2,
+  retain unit mantissa=false,
+  sci generic={
+    mantissa sep={\,\times\,},
+    empty mantissa sep={},
+    exponent={10^{#1}}
+  }
+}
+```
+
 The accepted scope is the standard `sci` presentation (and the existing
 scientific branch of `int detect`) plus `sci subscript` and
-`sci superscript`. `sci generic`, `dcolumn`, and non-finite special values
-remain outside it.
+`sci superscript`, together with the described `sci generic` templates.
+Generic `#2`/`#3` callbacks, arbitrary template ordering, `dcolumn`, and
+non-finite special values remain outside it.
 
 ```tex
 \pgfplotstabletypeset[col sep=comma, columns={year,vehicles}] {
@@ -690,6 +709,8 @@ and
 [`docs/qa/2026-08-06-pgfplotstable-sci-subscript.md`](docs/qa/2026-08-06-pgfplotstable-sci-subscript.md)
 and
 [`docs/qa/2026-08-06-pgfplotstable-sci-superscript.md`](docs/qa/2026-08-06-pgfplotstable-sci-superscript.md)
+and
+[`docs/qa/2026-08-06-pgfplotstable-sci-generic.md`](docs/qa/2026-08-06-pgfplotstable-sci-generic.md)
 for the local-source notes and visual acceptance records.
 
 To verify this supported slice locally, run:
@@ -697,7 +718,7 @@ To verify this supported slice locally, run:
 ```bash
 npm test -- test/pgfplotstable-typeset.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
-  --output outputs/qa-pgfplotstable --only pgfplotstable-sci-superscript \
+  --output outputs/qa-pgfplotstable --only pgfplotstable-sci-generic \
   --native-reference --comparison-grid-mode svg --strict-tikztosvg
 npm run examples:diff -- --output outputs/qa-pgfplotstable --register --alignment-radius 3
 ```

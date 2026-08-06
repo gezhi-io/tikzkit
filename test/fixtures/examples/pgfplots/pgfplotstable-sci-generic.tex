@@ -1,0 +1,32 @@
+% Adapted from the TeX Live pgfmathfloat sci generic documentation.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[
+  columns={sample,generic,unitless,aligned},
+  columns/sample/.style={column name=Sample,string type},
+  columns/generic/.style={
+    column name=Generic,
+    sci,sci zerofill,sci precision=2,
+    sci generic={mantissa sep={\,\times\,},exponent={10^{#1}}}
+  },
+  columns/unitless/.style={
+    column name=Unit mantissa false,
+    sci,sci zerofill,sci precision=2,
+    retain unit mantissa=false,
+    sci generic={mantissa sep={\,\times\,},empty mantissa sep={},exponent={10^{#1}}}
+  },
+  columns/aligned/.style={
+    column name=Generic align,
+    sci,sci zerofill,sci precision=2,sci sep align,
+    sci generic={mantissa sep={\,\times\,},exponent={10^{#1}}}
+  }
+]{
+sample generic unitless aligned
+A 0.001 0.001 0.001
+B 123.4 123.4 123.4
+C 1 1 1
+D 0 0 0
+E -0.001 -0.001 -0.001
+}
+\end{document}
