@@ -1,7 +1,7 @@
 export const tikzLibrary = {
   "name": "automata",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:BUILTIN_STYLES + nodeShape + diamondLayoutSize + addAutomataInitialArrow + addAutomataAcceptingArrow + circleSplitLayout",
+  "implementedBy": "src/engine/evaluate.js:BUILTIN_STYLES + nodeShape + diamondLayoutSize + addAutomataInitialArrow + addAutomataAcceptingArrow + circleSplitLayout/circleSplitPartMetric/circleSplitLocalAnchor",
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryautomata.code.tex",
   "features": [
     "state / state without output",
@@ -36,5 +36,5 @@ export const tikzLibrary = {
     "initial distance",
     "initial text"
   ],
-  "notes": "Every initial/accepting by arrow now inherits its documented path-local text, stroke, line, dash, opacity, and arrow styles. Path-local geometry keys beyond the shared renderer subset remain partial. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it."
+  "notes": "`state with output` now inherits the source-derived circle-split `text`/`lower` TeX-box geometry, including the actual lower-box origin used by `(state.lower)` paths. Every initial/accepting by arrow inherits its documented path-local text, stroke, line, dash, opacity, and arrow styles. Path-local geometry keys beyond the shared renderer subset remain partial. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it."
 };

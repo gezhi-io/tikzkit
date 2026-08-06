@@ -58,7 +58,17 @@ test("renders automata state with output as a circle split with a lower anchor",
   assert.ok(states.every((item) => item.width === item.height));
   assert.ok(labels.includes("idle") && labels.includes("ready") && labels.includes("done"));
   assert.ok(!labels.some((item) => /nodepart/.test(item)));
-  assert.ok(lowerGuide.commands[0].y < 0 && lowerGuide.commands[1].y < 0);
+  // PGF's circle split exposes `lower` at the origin of the lower TeX box:
+  // left of the state center and below its separator, not at the semicircle
+  // center. The dashed guide in this real fixture exercises both anchors.
+  assert.ok(lowerGuide.commands[0].x < -0.26 && lowerGuide.commands[0].x > -0.29);
+  assert.ok(lowerGuide.commands[1].x > 2.56 && lowerGuide.commands[1].x < 2.59);
+  assert.ok(lowerGuide.commands.every((command) => command.y < -0.35 && command.y > -0.39));
+  assert.notEqual(
+    states[0].shapeData.circleSplit.parts[0].centerY,
+    -states[0].shapeData.circleSplit.parts[1].centerY,
+    "upper and lower TeX boxes use their own height/depth metrics"
+  );
   assert.match(result.svg, /tikz-node-circle-split/);
   assert.match(result.svg, /tikz-bpmn-double/);
 });

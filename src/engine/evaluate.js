@@ -10438,27 +10438,96 @@ function circleSplitLayout(text, options = {}, env = { variables: {} }) {
     "minimum height": undefined,
     "minimum size": undefined
   };
-  const upperSize = estimateCompactTextSize(upper, metricOptions, env);
-  const lowerSize = estimateCompactTextSize(lower, metricOptions, env);
+  // pgflibraryshapes.multipart.code.tex defines circle split from two TeX
+  // boxes, not from two vertically centered labels. Keep their height/depth
+  // split so `text`, `lower`, and the separator all share PGF's geometry.
+  const upperBox = circleSplitPartMetric(upper, metricOptions, env);
+  const lowerBox = circleSplitPartMetric(lower, metricOptions, env);
   const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const { style } = normalizeOptions("node", options, env);
   const lineWidth = Math.max(0, Number(style.lineWidth) || 0) / TIKZ_UNIT;
-  const halfWidth = Math.max(upperSize.width, lowerSize.width) / 2 + innerXSep;
-  const halfHeight = Math.max(upperSize.height, lowerSize.height) + innerYSep * 2 + lineWidth / 2;
+  const halfWidth = Math.max(upperBox.width, lowerBox.width) / 2 + innerXSep;
+  const halfHeight = Math.max(upperBox.totalHeight, lowerBox.totalHeight) + innerYSep * 2 + lineWidth / 2;
   const minimumWidth = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0;
   const minimumHeight = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0;
   const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
   const radius = Math.max(Math.hypot(halfWidth, halfHeight), minimumWidth / 2, minimumHeight / 2, minimumSize / 2);
-  const textOffset = Math.min(radius * 0.46, Math.max(radius * 0.3, Math.max(upperSize.height, lowerSize.height) * 0.58 + innerYSep));
   const size = { width: roundNumber(radius * 2), height: roundNumber(radius * 2) };
   return {
     size,
     parts: [
-      { name: "text", text: upper, centerY: roundNumber(textOffset) },
-      { name: "lower", text: lower, centerY: roundNumber(-textOffset) }
+      {
+        name: "text",
+        text: upper,
+        // The upper text box starts above the separator by its own visual
+        // half-height. This follows the inherited circle centerpoint.
+        centerY: roundNumber(innerYSep + lineWidth / 2 + upperBox.totalHeight / 2)
+      },
+      {
+        name: "lower",
+        text: lower,
+        centerY: roundNumber(-(innerYSep + lineWidth / 2 + lowerBox.totalHeight / 2))
+      }
     ],
-    lowerAnchor: { x: 0, y: roundNumber(-textOffset) }
+    // The PGF `lower` anchor is the lower text box's origin. In particular,
+    // it is left of the circle center by half the lower text width, rather
+    // than at the geometric center of the lower semicircle.
+    lowerAnchor: {
+      x: roundNumber(-lowerBox.width / 2),
+      y: roundNumber(-(innerYSep + lowerBox.height + lineWidth / 2))
+    }
+  };
+}
+
+function circleSplitPartMetric(text, options = {}, env = { variables: {} }) {
+  const fallback = estimateCompactTextSize(text, options, env);
+  const normalized = normalizeTikzText(text, env);
+  const lines = normalized.lines?.length ? normalized.lines : String(normalized.text || "").split(/\\\\|\n/);
+  const line = String(lines[0] || "").trim();
+  const font = resolvedTextFontSpec(text, options, env);
+  const fontSizePt = Number(font.sizePt) || 10;
+  let width = Number(fallback.width) || 0.08;
+  let height = Number.NaN;
+  let depth = Number.NaN;
+
+  if (line && lines.length === 1) {
+    const math = parseMathText(line);
+    if (math) {
+      const formula = estimateFormulaBox(math.tex, {
+        scale: fontSizePt / 10,
+        minWidth: 0,
+        widthPadding: 0,
+        texTextMetrics: true
+      });
+      width = formula.width;
+      height = formula.height;
+      depth = formula.depth;
+    } else if (!nodeUsesTypewriterFont(normalized, options, env)) {
+      const measured = measurePlainTextTeXBoxPt(line, {
+        fontSizePt,
+        fontFamily: font.family
+      });
+      if (measured) {
+        width = measured.width / TEX_PT_PER_CM;
+        height = measured.height / TEX_PT_PER_CM;
+        depth = measured.depth / TEX_PT_PER_CM;
+      }
+    }
+  }
+
+  if (options["text height"] !== undefined) height = parseNodeLengthDimension(options["text height"], env);
+  if (options["text depth"] !== undefined) depth = parseNodeLengthDimension(options["text depth"], env);
+  if (!Number.isFinite(height) || !Number.isFinite(depth)) {
+    const fallbackHeight = Math.max(0.08, Number(fallback.height) || 0.08);
+    height = Number.isFinite(height) ? height : fallbackHeight * 0.8;
+    depth = Number.isFinite(depth) ? depth : fallbackHeight * 0.2;
+  }
+  return {
+    width: roundNumber(Math.max(0.02, width)),
+    height: roundNumber(Math.max(0, height)),
+    depth: roundNumber(Math.max(0, depth)),
+    totalHeight: roundNumber(Math.max(0.02, height + depth))
   };
 }
 
@@ -14060,7 +14129,13 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   }
   const anchor = rawAnchor.replace(/-/g, " ");
   if (!anchor || anchor === "center") return roundPoint(node.point);
-  const customAnchor = customNodeLocalAnchor(node.shape, rawAnchor, { width, height, shapeData: node.shapeData });
+  const customAnchor = customNodeLocalAnchor(node.shape, rawAnchor, {
+    width,
+    height,
+    visibleWidth,
+    visibleHeight,
+    shapeData: node.shapeData
+  });
   if (customAnchor) {
     const rotated = rotateVector(customAnchor.x, customAnchor.y, Number(node.rotation) || 0);
     return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
@@ -14294,7 +14369,10 @@ function circleSplitLocalAnchor(anchor, size = {}) {
   if (String(anchor || "").trim().toLowerCase() !== "lower") return null;
   const layout = size.shapeData?.circleSplit;
   if (!layout?.size || !layout.lowerAnchor) return null;
-  const scale = (Number(size.width) || 0) / Math.max(Number(layout.size.width) || 0, 1e-9);
+  // Shape-specific anchors do not inherit PGF's outer separation. Use the
+  // painted circle size (which includes canvas/node scaling) rather than the
+  // enlarged border-routing size.
+  const scale = (Number(size.visibleWidth) || Number(size.width) || 0) / Math.max(Number(layout.size.width) || 0, 1e-9);
   return {
     x: (Number(layout.lowerAnchor.x) || 0) * scale,
     y: (Number(layout.lowerAnchor.y) || 0) * scale
