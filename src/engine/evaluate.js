@@ -1394,6 +1394,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       );
       ir.items.push(item);
       addDecorationMarkers(item, options, ir);
+      const postactionDecoration = postactionDecorationPathItem(built, pathOptions, pathEnv);
+      if (postactionDecoration) ir.items.push(postactionDecoration);
     }
     for (const shape of shapesToRender) {
       addDecorationMarkers(shape, options, ir);
@@ -2026,6 +2028,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
   const roundedCommands = applyRoundedCornersToPath(commands, effectivePathOptions, env);
   return {
     commands: applyPathMorphing(roundedCommands, effectivePathOptions, env, pathStyle),
+    decorationInputCommands: roundedCommands,
     boundsCommands: roundedCommands === commands ? null : commands,
     shapes,
     nodes,
@@ -12390,6 +12393,7 @@ function parseArcRadii(options = {}, env = {}) {
 function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   const decoration = parseOptions(String(pathOptions.decoration || ""));
   if (pathOptions.decorate && decoration.brace) return applyBraceDecoration(commands, decoration, env);
+  if (pathOptions.decorate && decoration.border) return applyBorderDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration.ticks) return applyTicksDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration["Koch snowflake"]) return applyKochSnowflakeDecoration(commands);
   const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : null;
@@ -12444,6 +12448,42 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
     if ("x" in command) current = { x: command.x, y: command.y };
   }
   return morphed;
+}
+
+function postactionDecorationPathItem(built, pathOptions, env) {
+  const rawPostaction = String(pathOptions.postaction || "");
+  if (!rawPostaction.includes("decorate")) return null;
+  const parsedPostaction = parseOptions(rawPostaction);
+  // A postaction usually only says `decorate`; PGF resolves the named
+  // decoration through the enclosing path/picture options.
+  const rawOptions = {
+    ...(pathOptions.decoration === undefined ? {} : { decoration: pathOptions.decoration }),
+    ...parsedPostaction
+  };
+  if (!tikzBoolean(rawOptions.decorate) || !supportedPathDecoration(rawOptions)) return null;
+  const normalized = normalizeOptions("draw", rawOptions, env);
+  const postactionOptions = { ...normalized.options, ...normalized.semantic };
+  const sourceCommands = built.decorationInputCommands || built.boundsCommands || built.commands;
+  const commands = applyPathMorphing(sourceCommands, postactionOptions, env, normalized.style);
+  if (!commands.length) return null;
+  const style = drawablePathStyle(scaleCanvasStyle(normalized.style, pathStyleScaleEnv(env, rawOptions)));
+  return createPathShape(commands, style, {
+    subtype: "postaction-decoration",
+    includeStrokeBounds: true,
+    includeArrowNormalBounds: true,
+    includeArrowBounds: true,
+    tightBezierBounds: tikzBoolean(postactionOptions["bezier bounding box"])
+  });
+}
+
+function supportedPathDecoration(options = {}) {
+  const decoration = parseOptions(String(options.decoration || ""));
+  return tikzBoolean(decoration.brace)
+    || tikzBoolean(decoration.border)
+    || tikzBoolean(decoration.ticks)
+    || tikzBoolean(decoration["Koch snowflake"])
+    || tikzBoolean(decoration.snake)
+    || tikzBoolean(decoration.zigzag);
 }
 
 function applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength) {
@@ -12723,6 +12763,74 @@ function applyTicksDecoration(commands, decoration, env) {
   }
   flushSubpath();
   return replaced.length ? replaced : commands;
+}
+
+function applyBorderDecoration(commands, decoration, env) {
+  const replaced = [];
+  let subpath = [];
+
+  const flushSubpath = () => {
+    if (!subpath.length) return;
+    const startsWithMove = subpath[0]?.type === "moveTo";
+    const hasDrawableSegment = subpath.some((command) => ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type));
+    if (!startsWithMove || !hasDrawableSegment) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+    const points = flattenPath(subpath, 0.02);
+    const length = pathLength(points);
+    if (points.length < 2 || length <= 1e-12) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+    appendBorderOnPolyline(replaced, points, length, decoration, env);
+    subpath = [];
+  };
+
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      flushSubpath();
+      subpath.push(command);
+      continue;
+    }
+    if (subpath.length && ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type)) {
+      subpath.push(command);
+      if (command.type === "closePath") flushSubpath();
+      continue;
+    }
+    flushSubpath();
+    replaced.push(command);
+  }
+  flushSubpath();
+  return replaced.length ? replaced : commands;
+}
+
+function appendBorderOnPolyline(commands, points, length, decoration, env) {
+  const defaultSegmentLength = parseDimension("10pt", env.variables);
+  const defaultAmplitude = parseDimension("2.5pt", env.variables);
+  const segmentLength = Math.max(
+    1e-9,
+    parseFinitePgfLength(decoration["segment length"] ?? "10pt", env, defaultSegmentLength)
+  );
+  const amplitude = Math.max(
+    0,
+    parseFinitePgfLength(decoration.amplitude ?? "2.5pt", env, defaultAmplitude)
+  );
+  const rawAngle = evaluateMath(String(decoration.angle ?? "45"), env.variables || {});
+  const angle = Number.isFinite(rawAngle) ? (rawAngle * Math.PI) / 180 : Math.PI / 4;
+  for (let distance = 0; distance < length - 1e-9; distance += segmentLength) {
+    const point = pointOnPolyline(points, distance);
+    const tangent = { x: point.normal.y, y: -point.normal.x };
+    commands.push(
+      moveToCommand({ x: roundNumber(point.x), y: roundNumber(point.y) }),
+      lineToCommand({
+        x: roundNumber(point.x + amplitude * (tangent.x * Math.cos(angle) + point.normal.x * Math.sin(angle))),
+        y: roundNumber(point.y + amplitude * (tangent.y * Math.cos(angle) + point.normal.y * Math.sin(angle)))
+      })
+    );
+  }
 }
 
 function appendTicksOnPolyline(commands, points, length, decoration, env) {

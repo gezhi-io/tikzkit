@@ -4448,6 +4448,23 @@
         "curve tangent",
         "terminal tick"
       ]
+    },
+    {
+      "id": "decorations-pathreplacing-border",
+      "title": "PGF path-replacing border postaction",
+      "source": "decorations/pathreplacing-border.tex",
+      "sourceCorpus": "TeX Live PGF decorations manual",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyBorderDecoration + postactionDecorationPathItem",
+      "features": [
+        "decorations.pathreplacing",
+        "border",
+        "segment length",
+        "amplitude",
+        "angle",
+        "postaction",
+        "preserved source path"
+      ]
     }
   ]
 }

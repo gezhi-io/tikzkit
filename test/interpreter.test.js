@@ -2149,6 +2149,31 @@ test("replaces complete decorated subpaths with native-style normal ticks", () =
   assert.deepEqual(terminalTick, { type: "lineTo", x: 1.1, y: 0.75 });
 });
 
+test("renders border decoration as a red postaction over the preserved source path", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}[decoration={border,segment length=.5cm,amplitude=.2cm,angle=90}]
+  \draw[postaction={decorate,draw,red}] (0,0) -- (1,0) -- (1,1);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+  const [sourcePath, borderPath] = paths;
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 2);
+  assert.equal(sourcePath.style.stroke, "black");
+  assert.equal(borderPath.style.stroke, "red");
+  assert.equal(borderPath.subtype, "postaction-decoration");
+  assert.equal(borderPath.commands.length, 8);
+  assert.deepEqual(borderPath.commands.slice(0, 4), [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 0, y: 0.2 },
+    { type: "moveTo", x: 0.5, y: 0 },
+    { type: "lineTo", x: 0.5, y: 0.2 }
+  ]);
+  assert.deepEqual(borderPath.commands.at(-1), { type: "lineTo", x: 0.8, y: 0.5 });
+});
+
 test("places text decorations along invisible paths", () => {
   const source = String.raw`
 \begin{tikzpicture}
