@@ -2189,6 +2189,30 @@ test("supports decorations.text effects along path with reversed character order
   assert.equal(labels[1].pathTextAlign, "center");
 });
 
+test("preserves repeated decorations.text circle replacement mappings", () => {
+  const source = String.raw`
+\begin{tikzpicture}[decoration={text effects along path,
+  text={010-101}, text align=center,
+  text effects/.cd,
+    replace characters=0 with {\fill[purple] circle[radius=2pt];},
+    replace characters=1 with {\fill[orange] circle[radius=3pt];},
+    replace characters=- with {\draw[blue,line width=.5pt] circle[radius=1pt];}}]
+  \path[decorate] (0,0) -- (4,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(Object.keys(label.pathTextCharacterReplacements).sort(), ["-", "0", "1"]);
+  assert.equal(label.pathTextCharacterReplacements["0"].fill, "rgb(191 0 64)");
+  assert.equal(label.pathTextCharacterReplacements["1"].fill, "rgb(255 128 0)");
+  assert.equal(label.pathTextCharacterReplacements["-"].fill, "none");
+  assert.equal(label.pathTextCharacterReplacements["-"].stroke, "blue");
+  assert.equal((result.svg.match(/class="tikz-decoration-replacement"/g) || []).length, 7);
+  assert.match(result.svg, /stroke-width="1\.757299/);
+  assert.doesNotMatch(result.svg, />0<\/text>|>1<\/text>|>-<\/text>/);
+});
+
 test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   const source = String.raw`
 \begin{tikzpicture}

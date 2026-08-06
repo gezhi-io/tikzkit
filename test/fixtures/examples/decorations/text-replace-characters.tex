@@ -1,0 +1,16 @@
+% Derived from the PGF manual decorations.text replacement example.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}[decoration={text effects along path,
+  text={000-001-010-011-100-101-110-111}, text align=center,
+  text effects/.cd,
+    word separator=-,
+    replace characters=0 with {\fill [purple] circle [radius=2pt]; },
+    replace characters=1 with {\fill [orange] circle [radius=2pt]; },
+    replace characters=- with {\path circle [radius=2pt]; }}]
+\path [decorate] (0,0) .. controls ++(2,0) and ++(-2,0) .. (3,4);
+\end{tikzpicture}
+\end{document}

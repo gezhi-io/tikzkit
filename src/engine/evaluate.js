@@ -12720,20 +12720,26 @@ function addDecorationTextItems(built, pathOptions, style, ir, env) {
 
 function textAlongPathDecorationFromOptions(options = {}) {
   if (tikzBoolean(options.decorate)) {
-    const decoration = parseOptions(String(options.decoration || ""));
-    if (isTextAlongPathDecoration(decoration)) return decoration;
+    const rawDecoration = String(options.decoration || "");
+    const decoration = parseOptions(rawDecoration);
+    if (isTextAlongPathDecoration(decoration)) return decorationTextDecorationOptions(decoration, rawDecoration);
   }
 
   const postaction = options.postaction === undefined ? "" : String(options.postaction);
   if (!postaction.includes("decorate")) return null;
   const postOptions = parseOptions(postaction);
   if (!tikzBoolean(postOptions.decorate)) return null;
-  const decoration = parseOptions(String(postOptions.decoration || ""));
-  return isTextAlongPathDecoration(decoration) ? decoration : null;
+  const rawDecoration = String(postOptions.decoration || "");
+  const decoration = parseOptions(rawDecoration);
+  return isTextAlongPathDecoration(decoration) ? decorationTextDecorationOptions(decoration, rawDecoration) : null;
 }
 
 function isTextAlongPathDecoration(decoration = {}) {
   return tikzBoolean(decoration["text along path"]) || tikzBoolean(decoration["text effects along path"]);
+}
+
+function decorationTextDecorationOptions(decoration, rawDecoration) {
+  return { ...decoration, "tikzkit decoration raw": rawDecoration };
 }
 
 function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
@@ -12743,6 +12749,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   if (!payload.text) return;
   const layout = decorationTextLayout(decoration, env);
   const textEffects = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
+  const characterReplacements = decorationTextCharacterReplacements(decoration, pathOptions, env);
   const point = pointAtLength(flat, 0.5);
   const angle = Number(point.angle) || 0;
   const raise = parseFiniteDimension(decoration.raise || "0", env, 0);
@@ -12761,6 +12768,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextFitToPath: layout.fitToPath,
     pathTextFitToPathStretchingSpaces: layout.fitToPathStretchingSpaces,
     pathTextReverse: tikzBoolean(textEffects["reverse text"]) || tikzBoolean(decoration["reverse text"]),
+    pathTextCharacterReplacements: characterReplacements,
     x: roundNumber(point.x + nx * raise),
     y: roundNumber(point.y + ny * raise),
     rotation: roundNumber(angle),
@@ -12779,6 +12787,47 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
       fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
     }
   });
+}
+
+function decorationTextCharacterReplacements(decoration = {}, pathOptions = {}, env = {}) {
+  const sources = [
+    String(decoration["tikzkit decoration raw"] ?? ""),
+    String(pathOptions["text effects"] ?? "")
+  ];
+  const replacements = {};
+  for (const source of sources) {
+    for (const part of splitTopLevel(source, ",")) {
+      const match = part.match(/^replace\s+characters\s*=\s*([\s\S]*?)\s+with\s+([\s\S]+)$/i);
+      if (!match) continue;
+      const replacement = parseDecorationTextCharacterReplacement(match[2], env);
+      if (!replacement) continue;
+      for (const character of Array.from(stripOuterBraces(match[1]).trim())) {
+        replacements[character] = replacement;
+      }
+    }
+  }
+  return replacements;
+}
+
+function parseDecorationTextCharacterReplacement(raw, env) {
+  const source = stripOuterBraces(String(raw ?? "")).trim();
+  const match = source.match(/^\\(fill|draw|path)\s*(?:\[([^\]]*)\])?\s*circle\s*(?:\[([^\]]*)\]|\(([^()]*)\))\s*;?\s*$/i);
+  if (!match) return null;
+  const command = match[1].toLowerCase();
+  const { style } = normalizeOptions(command, parseOptions(match[2] || ""), env);
+  const radiusOptions = parseOptions(match[3] || "");
+  const radius = parseFiniteDimension(radiusOptions.radius ?? match[4], env, 0);
+  if (!(radius > 0)) return null;
+  return {
+    type: "circle",
+    radius: roundNumber(radius),
+    fill: style.fill || "none",
+    stroke: style.stroke || "none",
+    lineWidth: roundNumber(style.lineWidth || 0),
+    opacity: Number.isFinite(style.opacity) ? style.opacity : undefined,
+    fillOpacity: Number.isFinite(style.fillOpacity) ? style.fillOpacity : undefined,
+    strokeOpacity: Number.isFinite(style.strokeOpacity) ? style.strokeOpacity : undefined
+  };
 }
 
 function decorationTextLayout(decoration = {}, env = {}) {

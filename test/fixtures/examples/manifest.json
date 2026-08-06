@@ -62,6 +62,23 @@
       ]
     },
     {
+      "id": "decorations-text-replace-characters",
+      "title": "PGF decorations.text circle character replacements",
+      "source": "decorations/text-replace-characters.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextCharacterReplacements",
+      "features": [
+        "text effects along path",
+        "replace characters",
+        "repeated character mappings",
+        "fill circle payload",
+        "path circle payload",
+        "radius",
+        "per-character SVG placement"
+      ]
+    },
+    {
       "id": "decorations-snake-arrow-lengths",
       "title": "PGF snake decoration with explicit end lengths and stealth arrow",
       "source": "decorations/snake-arrow-lengths.tex",

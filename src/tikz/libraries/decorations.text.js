@@ -10,7 +10,7 @@ export const tikzLibrary = {
     "left/center/right alignment and indents",
     "fit to path and fit-to-path stretching spaces",
     "per-glyph tangent placement",
-    "text effects along path with reverse text",
+    "text effects along path with reverse text and circle character replacements",
     "braced inline math groups as single positioned TeX boxes"
   ],
   "implements": [
@@ -20,8 +20,8 @@ export const tikzLibrary = {
     "left/center/right alignment and indents",
     "fit to path and fit-to-path stretching spaces",
     "per-glyph tangent placement",
-    "text effects along path with reverse text",
+    "text effects along path with reverse text and circle character replacements",
     "braced inline math groups as single positioned TeX boxes"
   ],
-  "notes": "Text is sampled per glyph on a flattened path. The text-effects variant honors reverse text before character placement. Explicit brace groups containing inline math are measured, rotated, and positioned as one PGF-style text box with simple super/subscripts. Formatting delimiters and basic font/color commands work; character-specific styles, replacement, repeat text, grouping, scale/fit text effects, nested/general TeX grouping, and exact TeX box metrics remain partial."
+  "notes": "Text is sampled per glyph on a flattened path. The text-effects variant honors reverse text before character placement. Repeated replace characters mappings now preserve the native per-character registration for documented fill/draw/path circle payloads, including radius and paint options. Explicit brace groups containing inline math are measured, rotated, and positioned as one PGF-style text box with simple super/subscripts. Formatting delimiters and basic font/color commands work; arbitrary replacement TikZ code, character-specific styles, repeat text, grouping, scale/fit text effects, nested/general TeX grouping, and exact TeX box metrics remain partial."
 };

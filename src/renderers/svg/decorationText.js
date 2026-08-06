@@ -4,9 +4,10 @@ import { estimateFormulaBox, measurePlainTextTeXBoxPt } from "../../tikz/textMet
 import { TIKZ_FONT_FAMILY, TIKZ_MATH_ITALIC_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute, escapeText } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
-import { textFontSizeForUnit } from "./layout.js";
+import { renderUnitScale, textFontSizeForUnit } from "./layout.js";
 import { formatTextLine } from "./textLineContent.js";
 import { scriptedMathFallback } from "./mathScriptFallback.js";
+import { svgPaint } from "./style.js";
 import { textFontScale } from "./textLayout.js";
 
 export function renderDecorationTextPath(item, unit) {
@@ -24,7 +25,7 @@ export function renderDecorationTextPath(item, unit) {
   if (flat.length < 2 || totalLength <= 1e-9) return "";
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  const glyphs = decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize);
+  const glyphs = decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize, item.pathTextCharacterReplacements);
   if (item.pathTextReverse) glyphs.reverse();
   if (!glyphs.length) return "";
   const em = fontSize / unit;
@@ -37,25 +38,40 @@ export function renderDecorationTextPath(item, unit) {
     const glyph = glyphs[index];
     const advance = em * glyph.advance;
     const center = Math.min(totalLength, distance + advance / 2);
-    if (glyph.text !== " ") {
+    if (glyph.text !== " " || glyph.replacement) {
       const point = pointAtLength(flat, totalLength > 0 ? center / totalLength : 0);
       const radians = (point.angle * Math.PI) / 180;
       const normalOffset = raise + glyph.normalOffset;
       const x = (point.x - Math.sin(radians) * normalOffset) * unit;
       const y = -(point.y + Math.cos(radians) * normalOffset) * unit;
-      const glyphFontSize = fontSize * glyph.fontScale;
-      const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
-      const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
-      const className = glyph.kind === "math-box" ? "tikz-decoration-math-box" : "tikz-decoration-glyph";
-      const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
-      rendered.push(`<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(
-        glyphFontSize
-      )}" font-family="${glyphFontFamily}"${fontStyle} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`);
+      if (glyph.replacement?.type === "circle") {
+        rendered.push(renderDecorationReplacementCircle(glyph.replacement, x, y, unit));
+      } else {
+        const glyphFontSize = fontSize * glyph.fontScale;
+        const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
+        const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
+        const className = glyph.kind === "math-box" ? "tikz-decoration-math-box" : "tikz-decoration-glyph";
+        const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
+        rendered.push(`<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(
+          glyphFontSize
+        )}" font-family="${glyphFontFamily}"${fontStyle} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`);
+      }
     }
     distance += advance;
     if (index + 1 < glyphs.length) distance += fitShift(glyph);
   }
   return `<g class="tikz-decoration-text">${rendered.join("")}</g>`;
+}
+
+function renderDecorationReplacementCircle(replacement, x, y, unit) {
+  const radius = Math.max(0, finiteDistance(replacement.radius)) * unit;
+  const lineWidth = Math.max(0, finiteDistance(replacement.lineWidth)) * renderUnitScale(unit);
+  const opacity = Number.isFinite(replacement.opacity) ? ` opacity="${format(replacement.opacity)}"` : "";
+  const fillOpacity = Number.isFinite(replacement.fillOpacity) ? ` fill-opacity="${format(replacement.fillOpacity)}"` : "";
+  const strokeOpacity = Number.isFinite(replacement.strokeOpacity) ? ` stroke-opacity="${format(replacement.strokeOpacity)}"` : "";
+  return `<circle class="tikz-decoration-replacement" cx="${format(x)}" cy="${format(y)}" r="${format(radius)}" fill="${escapeAttribute(
+    svgPaint(replacement.fill || "none")
+  )}" stroke="${escapeAttribute(svgPaint(replacement.stroke || "none"))}" stroke-width="${format(lineWidth)}"${opacity}${fillOpacity}${strokeOpacity} />`;
 }
 
 function decorationTextStartDistance(item, totalLength, textLength) {
@@ -94,14 +110,14 @@ function finiteDistance(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function decorationGlyphs(source, formattedLine, unit, fontSize) {
+function decorationGlyphs(source, formattedLine, unit, fontSize, replacements = {}) {
   const segments = splitInlineMathSegments(String(source || ""));
-  if (!segments.some((segment) => segment.type === "math")) return plainDecorationGlyphs(formattedLine);
+  if (!segments.some((segment) => segment.type === "math")) return plainDecorationGlyphs(formattedLine, replacements);
   const glyphs = [];
   for (let index = 0; index < segments.length; index += 1) {
     const segment = segments[index];
     if (segment.type !== "math") {
-      glyphs.push(...plainDecorationGlyphs(formatTextLine(segment.text)));
+      glyphs.push(...plainDecorationGlyphs(formatTextLine(segment.text), replacements));
       continue;
     }
 
@@ -111,7 +127,7 @@ function decorationGlyphs(source, formattedLine, unit, fontSize) {
     if (!grouped) {
       // Unbraced math is scanned atom-by-atom by PGF. Preserve the existing
       // simple fallback here; explicit groups are the TeX boxes below.
-      glyphs.push(...plainDecorationGlyphs(formatTextLine(segment.raw)));
+      glyphs.push(...plainDecorationGlyphs(formatTextLine(segment.raw), replacements));
       continue;
     }
 
@@ -123,11 +139,11 @@ function decorationGlyphs(source, formattedLine, unit, fontSize) {
   return glyphs;
 }
 
-function plainDecorationGlyphs(text) {
+function plainDecorationGlyphs(text, replacements = {}) {
   return String(text || "")
     .replace(/[{}]/g, "")
     .split("")
-    .map((text) => baseDecorationGlyph(text));
+    .map((text) => baseDecorationGlyph(text, replacements));
 }
 
 function mathDecorationBox(tex, unit, fontSize) {
@@ -165,14 +181,15 @@ function renderDecorationMathBoxContent(tex, fontSize) {
     .join("");
 }
 
-function baseDecorationGlyph(text) {
+function baseDecorationGlyph(text, replacements = {}) {
   return {
     text,
     advance: decorationGlyphAdvance(text),
     fontScale: 1,
     normalOffset: 0,
     fontFamily: "",
-    fontStyle: ""
+    fontStyle: "",
+    replacement: replacements?.[text] || null
   };
 }
 
