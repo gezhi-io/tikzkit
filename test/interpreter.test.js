@@ -2149,6 +2149,32 @@ test("replaces complete decorated subpaths with native-style normal ticks", () =
   assert.deepEqual(terminalTick, { type: "lineTo", x: 1.1, y: 0.75 });
 });
 
+test("replaces paths with fixed-radius and expanding wave arcs", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={waves,segment length=1cm,radius=.25cm,angle=45}] (0,0) -- (4,0);
+  \draw[decorate,decoration={expanding waves,segment length=1cm,angle=30}] (0,-1) -- (4,-1);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [fixed, expanding] = ir.items.filter((item) => item.type === "path");
+  const fixedArcs = fixed.commands.filter((command) => command.type === "curveTo");
+  const expandingArcs = expanding.commands.filter((command) => command.type === "curveTo");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(fixedArcs.length, 4, `expected one fixed-radius arc per 1cm state, got ${JSON.stringify(fixed.commands)}`);
+  assert.equal(expandingArcs.length, 4, `expected initial empty state followed by the terminal growing arc, got ${JSON.stringify(expanding.commands)}`);
+  assert.equal(fixed.commands[0].type, "moveTo");
+  expectClose(fixed.commands[0].x, 0.926776695297);
+  expectClose(fixed.commands[0].y, 0.176776695297);
+  assert.equal(expanding.commands[0].type, "moveTo");
+  expectClose(expanding.commands[0].x, 0.866025403784);
+  expectClose(expanding.commands[0].y, -0.5);
+  assert.ok(expandingArcs.at(-1).y < -2.4, `expected the last expanding arc to grow below the source path, got ${JSON.stringify(expandingArcs.at(-1))}`);
+  assert.deepEqual(fixed.commands.at(-1), { type: "moveTo", x: 4, y: 0 });
+  assert.deepEqual(expanding.commands.at(-1), { type: "moveTo", x: 4, y: -1 });
+});
+
 test("renders border decoration as a red postaction over the preserved source path", () => {
   const source = String.raw`
 \usetikzlibrary{decorations.pathreplacing}

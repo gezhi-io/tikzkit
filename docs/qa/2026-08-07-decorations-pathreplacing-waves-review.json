@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex": {
+      "symbols": [
+        "\\pgfdeclaredecoration{waves}",
+        "\\pgfdeclaredecoration{expanding waves}",
+        "\\pgfpatharc",
+        "\\pgfdecoratedcompleteddistance"
+      ],
+      "findings": "Fixed waves has one positive-width state per complete segment. Expanding waves consumes an initial empty state, then draws arcs whose radius and negative local x offset equal completed decoration distance; its zero-width last state still runs at an exact terminal state."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex": {
+      "symbols": [
+        "/pgf/decoration/segment length",
+        "/pgf/decoration/angle",
+        "/pgf/decoration/start radius",
+        "/pgf/decoration/radius"
+      ],
+      "findings": "The shared defaults are 10pt segment length, 45 degree angle, and 2.5pt start radius; radius assigns both start and end radius."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex": {
+      "symbols": [
+        "\\tikzset{decoration/.style=...}",
+        "decorate"
+      ],
+      "findings": "TikZ routes the decoration key and decorate action into the PGF decoration module before normal rendering."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": [
+        "\\draw",
+        "\\path"
+      ],
+      "findings": "The fixture uses ordinary TikZ path construction and color/style keys; no package-specific macro expansion is required beyond the decorations library."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": "Loads the TikZ frontend used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides the document environment and documentclass shell stripped by the frontend."
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-pathreplacing-waves.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-pathreplacing-waves.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-pathreplacing-waves.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-pathreplacing-waves.md"
+      ]
+    }
+  ]
+}

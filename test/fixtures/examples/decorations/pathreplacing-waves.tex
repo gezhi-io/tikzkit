@@ -1,0 +1,15 @@
+% Derived from the TeX Live PGF decorations.pathreplacing manual wave examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] grid (4,3);
+  \draw[blue,very thick,decorate,
+    decoration={waves,segment length=8mm,radius=2.4mm,angle=40}]
+    (0,2) -- (4,2);
+  \draw[red,very thick,decorate,
+    decoration={expanding waves,segment length=8mm,angle=12}]
+    (0,0.4) -- (4,0.4);
+\end{tikzpicture}
+\end{document}

@@ -4,7 +4,7 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-截至 2026-08-07，当前维护语料的语义基线为 `312/312 rendered, 0 diagnostics`。这只表示这批
+截至 2026-08-07，当前维护语料的语义基线为 `313/313 rendered, 0 diagnostics`。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
@@ -113,23 +113,26 @@ diff 面板，写下可见的修复前后变化和遗留边界。
 
 ### 路径替换装饰
 
-`\usetikzlibrary{decorations.pathreplacing}` 当前已验证 `brace`、`ticks` 和
-`border`。`ticks` 将路径替换为沿局部法线的独立短线，`amplitude` 是短线的半长；
-`border` 使用单侧短线，其方向由 `angle` 决定。两者都按完整的 `segment length`
-状态推进，最后不足一个状态的路径尾部不会强行补到几何终点。
+`\usetikzlibrary{decorations.pathreplacing}` 当前已验证 `brace`、`ticks`、`border`、
+`waves` 和 `expanding waves`。`ticks` 将路径替换为沿局部法线的独立短线，`amplitude`
+是短线的半长；`border` 使用单侧短线，其方向由 `angle` 决定。`waves` 用固定
+`radius` 的圆弧替换路径；`expanding waves` 先空走一个 segment，再按累计路径长度
+增大圆弧半径。它们都按完整的 `segment length` 状态推进；固定 `waves` 的
+最后不足一个状态的路径尾部不会强行补到几何终点，而 `expanding waves` 在终点
+恰好落在完整状态边界时仍会执行原生的零宽终态。
 
 手册常用的 `postaction={decorate,draw,red}` 形式会保留原路径，再叠加使用外层
 `decoration=...` 的彩色装饰。它目前只对解释器已有的路径装饰生效；任意 TeX
-postaction 代码、`waves`、`expanding waves` 和 `show path construction` 仍在测试中。
+postaction 代码与 `show path construction` 仍在测试中。
 
 ```sh
-node --test --test-name-pattern='border decoration|normal ticks|brace decoration' \
+node --test --test-name-pattern='fixed-radius and expanding wave arcs|border decoration|normal ticks|brace decoration' \
   test/interpreter.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
-  --only decorations-pathreplacing-border \
-  --output outputs/qa-pathreplacing-border \
+  --only decorations-pathreplacing-waves \
+  --output outputs/qa-pathreplacing-waves \
   --native-reference --comparison-grid-mode svg --strict-tikztosvg
-npm run examples:diff -- --output outputs/qa-pathreplacing-border \
+npm run examples:diff -- --output outputs/qa-pathreplacing-waves \
   --register --alignment-radius 3
 ```
 

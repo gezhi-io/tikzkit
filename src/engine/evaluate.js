@@ -12395,6 +12395,7 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   if (pathOptions.decorate && decoration.brace) return applyBraceDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration.border) return applyBorderDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration.ticks) return applyTicksDecoration(commands, decoration, env);
+  if (pathOptions.decorate && (decoration.waves || decoration["expanding waves"])) return applyWavesDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration["Koch snowflake"]) return applyKochSnowflakeDecoration(commands);
   const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : null;
   if (!pathOptions.decorate || !mode) return commands;
@@ -12481,6 +12482,8 @@ function supportedPathDecoration(options = {}) {
   return tikzBoolean(decoration.brace)
     || tikzBoolean(decoration.border)
     || tikzBoolean(decoration.ticks)
+    || tikzBoolean(decoration.waves)
+    || tikzBoolean(decoration["expanding waves"])
     || tikzBoolean(decoration["Koch snowflake"])
     || tikzBoolean(decoration.snake)
     || tikzBoolean(decoration.zigzag);
@@ -12807,6 +12810,48 @@ function applyBorderDecoration(commands, decoration, env) {
   return replaced.length ? replaced : commands;
 }
 
+function applyWavesDecoration(commands, decoration, env) {
+  const replaced = [];
+  let subpath = [];
+
+  const flushSubpath = () => {
+    if (!subpath.length) return;
+    const startsWithMove = subpath[0]?.type === "moveTo";
+    const hasDrawableSegment = subpath.some((command) => ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type));
+    if (!startsWithMove || !hasDrawableSegment) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+    const points = flattenPath(subpath, 0.02);
+    const length = pathLength(points);
+    if (points.length < 2 || length <= 1e-12) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+    appendPathReplacingWaves(replaced, points, length, decoration, env);
+    subpath = [];
+  };
+
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      flushSubpath();
+      subpath.push(command);
+      continue;
+    }
+    if (subpath.length && ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type)) {
+      subpath.push(command);
+      if (command.type === "closePath") flushSubpath();
+      continue;
+    }
+    flushSubpath();
+    replaced.push(command);
+  }
+  flushSubpath();
+  return replaced.length ? replaced : commands;
+}
+
 function appendBorderOnPolyline(commands, points, length, decoration, env) {
   const defaultSegmentLength = parseDimension("10pt", env.variables);
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
@@ -12861,6 +12906,78 @@ function appendTicksOnPolyline(commands, points, length, decoration, env) {
       y: roundNumber(point.y - point.normal.y * amplitude)
     };
     commands.push(moveToCommand(positive), lineToCommand(negative));
+  }
+}
+
+function appendPathReplacingWaves(commands, points, length, decoration, env) {
+  const defaultSegmentLength = parseDimension("10pt", env.variables);
+  const defaultRadius = parseDimension("2.5pt", env.variables);
+  const segmentLength = Math.max(
+    1e-9,
+    parseFinitePgfLength(decoration["segment length"] ?? "10pt", env, defaultSegmentLength)
+  );
+  const angleDegrees = evaluateMath(String(decoration.angle ?? "45"), env.variables || {});
+  const angle = Number.isFinite(angleDegrees) ? (angleDegrees * Math.PI) / 180 : Math.PI / 4;
+  const expanding = tikzBoolean(decoration["expanding waves"]);
+  const radius = Math.max(
+    0,
+    parseFinitePgfLength(decoration.radius ?? decoration["start radius"] ?? "2.5pt", env, defaultRadius)
+  );
+
+  // `waves` starts immediately: every full state has a fixed circle radius.
+  // `expanding waves` consumes its initial empty state first, then uses the
+  // completed decoration distance as both its radius and local x offset. The
+  // latter is the native `-\pgfdecoratedcompleteddistance` transform.
+  const firstDistance = expanding ? segmentLength : 0;
+  // The fixed wave state has positive width, so it only runs while a full
+  // segment remains. `expanding waves` instead switches its final partial
+  // state to `last` with width zero; this includes the exact endpoint when
+  // the input length is a whole number of segments.
+  const terminalLimit = expanding ? length + 1e-9 : length - 1e-9;
+  for (let distance = firstDistance; distance <= terminalLimit; distance += segmentLength) {
+    const state = pointOnPolyline(points, distance);
+    const tangent = { x: state.normal.y, y: -state.normal.x };
+    const waveRadius = expanding ? distance : radius;
+    if (!(waveRadius > 1e-12)) continue;
+    const centerOffset = expanding ? -distance : segmentLength - waveRadius;
+    const center = {
+      x: state.x + tangent.x * centerOffset,
+      y: state.y + tangent.y * centerOffset
+    };
+    appendOrientedCircularArc(commands, center, tangent, state.normal, waveRadius, angle, -angle);
+  }
+
+  // The PGF `final` state is a move-to at the original decorated endpoint.
+  // Retaining it keeps terminal arrow placement tied to the source path
+  // without painting an accidental closing line.
+  const end = points.at(-1);
+  if (end) commands.push(moveToCommand(roundPoint(end)));
+}
+
+function appendOrientedCircularArc(commands, center, tangent, normal, radius, startAngle, endAngle) {
+  const steps = Math.max(1, Math.ceil(Math.abs(endAngle - startAngle) / (Math.PI / 2)));
+  const pointAt = (angle) => ({
+    x: center.x + radius * (tangent.x * Math.cos(angle) + normal.x * Math.sin(angle)),
+    y: center.y + radius * (tangent.y * Math.cos(angle) + normal.y * Math.sin(angle))
+  });
+  const derivativeAt = (angle) => ({
+    x: radius * (-tangent.x * Math.sin(angle) + normal.x * Math.cos(angle)),
+    y: radius * (-tangent.y * Math.sin(angle) + normal.y * Math.cos(angle))
+  });
+  commands.push(moveToCommand(roundPoint(pointAt(startAngle))));
+  for (let index = 1; index <= steps; index += 1) {
+    const fromAngle = startAngle + ((endAngle - startAngle) * (index - 1)) / steps;
+    const toAngle = startAngle + ((endAngle - startAngle) * index) / steps;
+    const k = (4 / 3) * Math.tan((toAngle - fromAngle) / 4);
+    const from = pointAt(fromAngle);
+    const to = pointAt(toAngle);
+    const fromDerivative = derivativeAt(fromAngle);
+    const toDerivative = derivativeAt(toAngle);
+    commands.push(curveToCommand(
+      roundPoint({ x: from.x + k * fromDerivative.x, y: from.y + k * fromDerivative.y }),
+      roundPoint({ x: to.x - k * toDerivative.x, y: to.y - k * toDerivative.y }),
+      roundPoint(to)
+    ));
   }
 }
 
