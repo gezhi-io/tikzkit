@@ -388,7 +388,7 @@ function shouldApplyMiddleAxisSurveyEnlarge(axisOptions, axis, side, keepsZero, 
   // Applying this to arbitrary fully inferred middle ranges would duplicate
   // the transform-layer enlargement, so it is intentionally limited to the
   // zero-preserving family.
-  if (!keepsZero || hasExplicitBound || !axisUsesNonBoxedLine(axisOptions, axis)) return false;
+  if (!keepsZero || hasExplicitBound || !axisUsesMiddleLine(axisOptions, axis)) return false;
   const raw = axisOptions[`enlarge ${axis} limits`] ?? axisOptions[`enlarge ${axis} limits*`] ?? axisOptions.enlargelimits;
   if (raw === undefined || raw === null || raw === "" || raw === false) return false;
   const value = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().toLowerCase();
@@ -400,7 +400,13 @@ function shouldApplyMiddleAxisSurveyEnlarge(axisOptions, axis, side, keepsZero, 
 function middleAxisKeepsZeroRange(axisOptions = {}, axis, perpendicularAxisHasExplicitBound = false) {
   if (!perpendicularAxisHasExplicitBound) return false;
   const perpendicularAxis = axis === "x" ? "y" : "x";
-  return axisUsesNonBoxedLine(axisOptions, perpendicularAxis);
+  return axisUsesMiddleLine(axisOptions, perpendicularAxis);
+}
+
+function axisUsesMiddleLine(axisOptions = {}, axis) {
+  const global = normalizeAxisLineValue(axisOptions["axis lines"] ?? axisOptions.axis);
+  const local = normalizeAxisLineValue(axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`]);
+  return [global, local].some((value) => value === "middle" || value === "center");
 }
 
 function shouldKeepMiddleAxisZeroLower(value) {

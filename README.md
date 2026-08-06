@@ -1145,6 +1145,35 @@ renderings in the QA record. This makes the accepted PGF state transition
 explicit and prevents a visual fix for one example from silently changing
 another path family.
 
+### PGFPlots Open Axes With Equal Units
+
+The browser subset supports the common 2D combination below. It is useful for
+geometric plots where one data unit on the x and y axes must have the same
+physical length, while a small final reserve keeps the last x tick visible.
+
+```tex
+\begin{axis}[
+  xmin=0, ymin=0,
+  axis lines*=left,
+  enlarge y limits=false,
+  enlarge x limits={upper,abs=0.02},
+  unit vector ratio*={1 1 1},
+  width=6cm,
+  tick align=center
+]
+  \addplot[mark=square*] table {function.data};
+\end{axis}
+```
+
+For this supported slice, `axis lines*=left` draws only the left and bottom
+frame edges; it is not interpreted as a pair of axes through zero. The absolute
+upper enlargement is included once in the final coordinate transform before
+the star-form unit ratio chooses the fitted plot-box size. `unit vector ratio`
+without `*`, expression-valued ratios, custom basis vectors, log axes, and
+full 3D equal-image semantics remain partial. The reference workflow and
+visual acceptance record are in
+[`docs/qa/2026-08-06-pgfplots-open-axis-unit-vector-ratio.md`](docs/qa/2026-08-06-pgfplots-open-axis-unit-vector-ratio.md).
+
 ## Browser and Markdown Usage
 
 TikZKit also renders Markdown-like TikZ code blocks. Both backtick fences and

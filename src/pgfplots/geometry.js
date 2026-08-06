@@ -62,13 +62,18 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
   } else if (!hasExplicitWidth && hasExplicitHeight && !xUnitWidth) {
     requestedWidth = requestedHeight * PGFPLOTS_DEFAULT_AXIS_ASPECT;
   }
-  const unitRatio = parsePgfplotsUnitVectorRatio(axisOptions["unit vector ratio*"]) || (axisEqualImageEnabled(axisOptions) ? { x: 1, y: 1, z: 1 } : null);
+  const explicitUnitRatio = parsePgfplotsUnitVectorRatio(axisOptions["unit vector ratio*"]);
+  const unitRatio = explicitUnitRatio || (axisEqualImageEnabled(axisOptions) ? { x: 1, y: 1, z: 1 } : null);
   let plotBoxAlreadyLabelAdjusted = false;
   if (unitRatio) {
-    const mappedXMinForRatio = scaleAxisValue(ranges.xMin, isLogAxis(axisOptions, "x"));
-    const mappedXMaxForRatio = scaleAxisValue(ranges.xMax, isLogAxis(axisOptions, "x"));
-    const mappedYMinForRatio = scaleAxisValue(ranges.yMin, isLogAxis(axisOptions, "y"));
-    const mappedYMaxForRatio = scaleAxisValue(ranges.yMax, isLogAxis(axisOptions, "y"));
+    // PGFPlots applies `enlarge ... limits` to the coordinate transform before
+    // it enforces `unit vector ratio*`. Keep `axis equal image` on its
+    // existing range rule: its 3D projection semantics are different.
+    const ratioRanges = explicitUnitRatio ? axisTransformRanges(axisOptions, ranges) : ranges;
+    const mappedXMinForRatio = scaleAxisValue(ratioRanges.xMin, isLogAxis(axisOptions, "x"));
+    const mappedXMaxForRatio = scaleAxisValue(ratioRanges.xMax, isLogAxis(axisOptions, "x"));
+    const mappedYMinForRatio = scaleAxisValue(ratioRanges.yMin, isLogAxis(axisOptions, "y"));
+    const mappedYMaxForRatio = scaleAxisValue(ratioRanges.yMax, isLogAxis(axisOptions, "y"));
     const xSpanForRatio = Math.abs(mappedXMaxForRatio - mappedXMinForRatio) || 1;
     const ySpanForRatio = Math.abs(mappedYMaxForRatio - mappedYMinForRatio) || 1;
     const targetAspect = (xSpanForRatio * unitRatio.x) / (ySpanForRatio * unitRatio.y);

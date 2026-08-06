@@ -516,7 +516,7 @@ test("try min ticks raises automatic density for compact integer axes", () => {
 });
 
 test("absolute upper enlargement is applied once and preserves unit-scale axes", () => {
-  const axisOptions = {
+  const axisOptions = createAxisOptions({
     xmin: "0",
     ymin: "0",
     width: "6cm",
@@ -524,14 +524,17 @@ test("absolute upper enlargement is applied once and preserves unit-scale axes",
     "enlarge y limits": "false",
     "axis lines*": "left",
     "unit vector ratio*": "1 1 1"
-  };
+  });
   const plots = [{ type: "coordinates", points: [{ x: 1, y: 1 }, { x: 5, y: 1 }, { x: 1, y: 5 }] }];
   const ranges = computeAxisRanges(axisOptions, plots);
   const geometry = createAxisGeometry(axisOptions, ranges);
 
   assert.deepEqual(ranges, { xMin: 0, xMax: 5, yMin: 0, yMax: 5, zMin: 0, zMax: 1 });
   assert.deepEqual(geometry.transformRanges, { xMin: 0, xMax: 5.02, yMin: 0, yMax: 5, zMin: 0, zMax: 1 });
-  assert.ok(Math.abs(geometry.mapPoint({ x: 2, y: 0 }).x - geometry.mapPoint({ x: 1, y: 0 }).x - geometry.height / 5.02) < 1e-9);
+  const xUnit = geometry.mapPoint({ x: 1, y: 0 }).x - geometry.mapPoint({ x: 0, y: 0 }).x;
+  const yUnit = geometry.mapPoint({ x: 0, y: 1 }).y - geometry.mapPoint({ x: 0, y: 0 }).y;
+  assert.ok(Math.abs(xUnit - yUnit) < 1e-9, `expected equal mapped units, got x=${xUnit}, y=${yUnit}`);
+  assert.ok(Math.abs(geometry.width / geometry.height - 5.02 / 5) < 1e-9);
 });
 
 test("left open axes place rotated y labels near tick labels", () => {
