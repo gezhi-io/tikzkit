@@ -85,6 +85,7 @@ export function parseTikz(source, options = {}) {
       endIndex: picture.endIndex,
       figureId: `figure:${picture.index}`,
       figureIndex: picture.index,
+      graphicxResize: picture.graphicxResize,
       tabularLayout: tabularLayoutsByPicture.get(picture.index) || null,
       options: { ...globalOptions, ...parseOptions(picture.optionsRaw) },
       styles: globalStyles,
@@ -2199,6 +2200,7 @@ function extractTikzPictures(source) {
       bodyEndIndex: endIndex,
       endIndex: endIndex + end.length,
       optionsRaw: options.raw,
+      graphicxResize: findWrappingGraphicxResizebox(source, beginIndex, endIndex + end.length),
       body: source.slice(cursor, endIndex)
     });
     index = endIndex + end.length;
@@ -2207,6 +2209,36 @@ function extractTikzPictures(source) {
     pictures.push({ index: 0, beginIndex: 0, bodyEndIndex: source.length, endIndex: source.length, optionsRaw: "", body: source });
   }
   return pictures;
+}
+
+function findWrappingGraphicxResizebox(source, beginIndex, pictureEnd) {
+  const command = String.raw`\resizebox`;
+  const wrapperStart = source.lastIndexOf(command, beginIndex);
+  if (wrapperStart === -1) return null;
+
+  let cursor = skipWhitespace(source, wrapperStart + command.length);
+  let starred = false;
+  if (source[cursor] === "*") {
+    starred = true;
+    cursor = skipWhitespace(source, cursor + 1);
+  }
+  const width = extractBalanced(source, cursor, "{", "}");
+  if (!width) return null;
+  const height = extractBalanced(source, skipWhitespace(source, width.end), "{", "}");
+  if (!height) return null;
+  const content = extractBalanced(source, skipWhitespace(source, height.end), "{", "}");
+  if (!content) return null;
+
+  if (skipWhitespace(source, content.start + 1) !== beginIndex) return null;
+  let contentEnd = content.end - 1;
+  while (contentEnd > content.start && /\s/.test(source[contentEnd - 1])) contentEnd -= 1;
+  if (contentEnd !== pictureEnd) return null;
+
+  return {
+    width: width.content.trim(),
+    height: height.content.trim(),
+    starred
+  };
 }
 
 // TeX lays a tabular by measuring every cell first, then centering each cell

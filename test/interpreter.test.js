@@ -633,6 +633,28 @@ test("renders circuitikz npn and pnp transistor nodes with B C E anchors", () =>
   assert.match(result.svg, /tikz-node-circuitikzTransistor/);
 });
 
+test("matches graphicx resizebox dimensions around a single TikZ picture", () => {
+  const result = tikzToSvg(String.raw`
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\resizebox{250px}{250px}{
+  \begin{tikzpicture}
+    \draw (0,0) circle (1.3cm);
+  \end{tikzpicture}
+}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  const size = result.svg.match(/width="([\d.]+)pt" height="([\d.]+)pt"/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.ast.pictures[0].graphicxResize.width, "250px");
+  assert.equal(result.ast.pictures[0].graphicxResize.height, "250px");
+  assert.ok(size, "expected a physical SVG document size");
+  assert.ok(Math.abs(Number(size[1]) - 254) < 0.1, `expected 254pt width, got ${size[1]}`);
+  assert.ok(Math.abs(Number(size[2]) - 254) < 0.1, `expected 254pt height, got ${size[2]}`);
+  assert.match(result.svg, /<g transform="translate\([^)]*\) scale\([^)]*\)">/);
+});
+
 test("renders labels attached to coordinate statements", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -50,7 +50,9 @@ export function renderSvg(ir, options = {}) {
   const sourceMargin = Number(ir.previewBorder);
   const margin = options.margin ?? (Number.isFinite(sourceMargin) ? sourceMargin * unit : TIKZ_MARGIN);
   const items = scaleItemsForRenderUnit(ir.items || [], unit);
-  const bounds = computeSvgBounds(items, options);
+  const naturalBounds = computeSvgBounds(items, options);
+  const graphicxResize = normalizeGraphicxResize(ir.graphicxResize, naturalBounds);
+  const bounds = graphicxResize ? scaleBoundsForGraphicxResize(naturalBounds, graphicxResize) : naturalBounds;
   const view = createSvgView(bounds, unit, margin);
   const viewBox = svgViewBox(view);
 
@@ -59,14 +61,43 @@ export function renderSvg(ir, options = {}) {
   const defaultFontStyleDef = renderDefaultFontStyleDef({ fontUrlPrefix: options.fontUrlPrefix || "/fonts/" });
   const background = options.background === undefined ? "white" : options.background;
   body.push(renderSvgBackground(view, background));
+  const itemMarkup = [];
   for (let index = 0; index < items.length; index += 1) {
-    body.push(renderItem(items[index], unit, options, index));
+    itemMarkup.push(renderItem(items[index], unit, options, index));
   }
+  body.push(graphicxResize ? wrapGraphicxResize(itemMarkup.join(""), naturalBounds, graphicxResize, unit) : itemMarkup.join(""));
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {
     defs.unshift(renderScopedMathStyleDef());
   }
   defs.unshift(defaultFontStyleDef);
   return renderSvgDocument(viewBox, body, defs, svgDocumentSize(view, unit));
+}
+
+function normalizeGraphicxResize(value, bounds) {
+  const xscale = Number(value?.xscale);
+  const yscale = Number(value?.yscale);
+  if (!(xscale > 0) || !(yscale > 0)) return null;
+  if (!(bounds.maxX > bounds.minX) || !(bounds.maxY > bounds.minY)) return null;
+  return { xscale, yscale };
+}
+
+function scaleBoundsForGraphicxResize(bounds, resize) {
+  const width = (bounds.maxX - bounds.minX) * resize.xscale;
+  const height = (bounds.maxY - bounds.minY) * resize.yscale;
+  return {
+    minX: bounds.minX,
+    maxX: bounds.minX + width,
+    maxY: bounds.maxY,
+    minY: bounds.maxY - height
+  };
+}
+
+function wrapGraphicxResize(markup, bounds, resize, unit) {
+  const originX = bounds.minX * unit;
+  const originY = -bounds.maxY * unit;
+  const translateX = originX * (1 - resize.xscale);
+  const translateY = originY * (1 - resize.yscale);
+  return `<g transform="translate(${format(translateX)} ${format(translateY)}) scale(${format(resize.xscale)} ${format(resize.yscale)})">${markup}</g>`;
 }
 
 function svgDocumentSize(view, unit) {

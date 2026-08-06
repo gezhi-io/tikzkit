@@ -1,6 +1,7 @@
 import { parseTikz } from "./frontend/index.js";
 import { interpretTikz } from "./engine/index.js";
-import { createSvgTextEngine, renderSvg } from "./renderers/svg/index.js";
+import { parseDimension } from "./engine/math.js";
+import { computeSvgBounds, createSvgTextEngine, renderSvg } from "./renderers/svg/index.js";
 import { createConversionResult, mergeDiagnostics } from "./shared/result.js";
 import { TIKZ_UNIT } from "./tikz/metrics.js";
 
@@ -12,6 +13,7 @@ export function tikzToSvg(source, options = {}) {
   const conversionOptions = conversionRenderOptions(options);
   const parsed = parseTikz(source, options);
   const interpreted = interpretTikz(parsed.ast, conversionOptions);
+  applyGraphicxResizeboxTransform(parsed.ast, interpreted.ir, conversionOptions);
   const diagnostics = mergeDiagnostics(parsed.diagnostics, interpreted.diagnostics);
   const svg = renderSvg(interpreted.ir, conversionOptions);
   return createConversionResult({
@@ -36,6 +38,7 @@ export async function tikzToSvgAsync(source, options = {}) {
     interpreted = interpretTikz(parsed.ast, conversionOptions);
     exhaustedTextEnginePasses = pass === maxTextEnginePasses - 1;
   }
+  applyGraphicxResizeboxTransform(parsed.ast, interpreted.ir, conversionOptions);
   const diagnostics = mergeDiagnostics(
     parsed.diagnostics,
     interpreted.diagnostics,
@@ -51,6 +54,35 @@ export async function tikzToSvgAsync(source, options = {}) {
 }
 
 export const convertTikzToSvgAsync = tikzToSvgAsync;
+
+function applyGraphicxResizeboxTransform(ast, ir, options = {}) {
+  const pictures = ast?.pictures || [];
+  if (pictures.length !== 1) return false;
+  const picture = pictures[0];
+  const resize = picture?.graphicxResize;
+  if (!resize || resize.applied || resize.starred) return false;
+
+  const targetWidth = parseDimension(resize.width, {});
+  const targetHeight = parseDimension(resize.height, {});
+  if (!(targetWidth > 0) || !(targetHeight > 0)) return false;
+
+  const bounds = computeSvgBounds(ir?.items || [], options);
+  const naturalWidth = bounds.maxX - bounds.minX;
+  const naturalHeight = bounds.maxY - bounds.minY;
+  if (!(naturalWidth > 0) || !(naturalHeight > 0)) return false;
+
+  const xscale = targetWidth / naturalWidth;
+  const yscale = targetHeight / naturalHeight;
+  if (!Number.isFinite(xscale) || !Number.isFinite(yscale)) return false;
+
+  ir.graphicxResize = {
+    xscale,
+    yscale,
+    bounds
+  };
+  resize.applied = true;
+  return true;
+}
 
 function maxAsyncTextEnginePasses(options = {}) {
   const value = Number(options.maxTextEnginePasses ?? options.textEnginePasses);

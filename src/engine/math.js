@@ -65,7 +65,7 @@ export function parseDimension(input, variables = {}) {
     const value = evaluateMath(normalizedExpression, variables);
     return Number.isFinite(value) ? value : 0;
   }
-  const match = text.match(/^\{?([^a-zA-Z}]*)\}?\s*(cm|mm|pt|em|ex|in)?$/);
+  const match = text.match(/^\{?([^a-zA-Z}]*)\}?\s*(cm|mm|pt|em|ex|in|px)?$/);
   if (!match) return evaluateMath(text, variables);
   const value = evaluateMath(match[1], variables);
   return convertDimensionUnit(value, match[2] || "cm");
@@ -114,7 +114,7 @@ function normalizeMathExpression(input) {
 }
 
 function normalizeDimensionExpression(input) {
-  return String(input || "").replace(/([-+]?(?:\d+\.?\d*|\.\d+))\s*(cm|mm|pt|em|ex|in)\b/g, (_match, value, unit, offset) => {
+  return String(input || "").replace(/([-+]?(?:\d+\.?\d*|\.\d+))\s*(cm|mm|pt|em|ex|in|px)\b/g, (_match, value, unit, offset) => {
     const converted = String(convertDimensionUnit(Number(value), unit));
     return value.startsWith("+") && offset > 0 ? `+${converted}` : converted;
   });
@@ -127,6 +127,8 @@ function convertDimensionUnit(value, unit) {
   if (unit === "em") return value * (10 / 28.4527559);
   if (unit === "ex") return value * (4.30554 / 28.4527559);
   if (unit === "in") return value * 2.54;
+  // LaTeX's pdfTeX/xetex `px` unit is one PostScript point (1/72in).
+  if (unit === "px") return value * (2.54 / 72);
   return value;
 }
 
