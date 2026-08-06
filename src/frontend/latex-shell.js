@@ -1,5 +1,6 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
 import { applyPreprocessExtensions } from "../extensions/index.js";
+import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
 import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../engine/options.js";
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
@@ -109,6 +110,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = normalizeWalmesInlineAnchors(expanded);
   expanded = expandPgfplotsInvokeForeachMacroWrappers(expanded);
   expanded = expandTexLiteEnvironments(expanded, diagnostics, options);
+  expanded = preserveBchartFontStyleDeclarations(expanded);
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
   expanded = lowerStandalonePgfplotsCustomLegends(expanded);

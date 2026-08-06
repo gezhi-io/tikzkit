@@ -4210,6 +4210,20 @@
         "olive",
         "CMYK mixing"
       ]
+    },
+    {
+      "id": "bchart-font-style",
+      "title": "bchart documented font-style hook and geometric scale",
+      "source": "bchart/font-style.tex",
+      "sourceCorpus": "TeX Live bchart manual",
+      "externalSource": "doc/latex/bchart/bchart.tex",
+      "semanticOwner": "src/extensions/bchart.js:preserveBchartFontStyleDeclarations",
+      "features": [
+        "bchart",
+        "bcfontstyle",
+        "renewcommand",
+        "scale without text scaling"
+      ]
     }
   ]
 }

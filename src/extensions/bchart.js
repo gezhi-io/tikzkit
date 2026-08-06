@@ -6,6 +6,8 @@ const END_BCHART = String.raw`\end{bchart}`;
 const BAR_HEIGHT = 0.5;
 const INITIAL_BAR_TOP = -0.25;
 const TICK_LENGTH = 0.1;
+const DEFAULT_FONT_STYLE = String.raw`\sffamily`;
+export const BCHART_FONT_STYLE_MARKER = String.raw`\tikzkitbchartfontstyle`;
 
 export const bchartExtension = {
   name: "bchart",
@@ -18,13 +20,27 @@ export const bchartExtension = {
 };
 
 export function expandBchart(source, diagnostics = []) {
-  const text = String(source);
+  const text = preserveBchartFontStyleDeclarations(source);
   if (!text.includes(BEGIN_BCHART)) return text;
 
   let output = "";
   let cursor = 0;
+  let fontStyle = DEFAULT_FONT_STYLE;
   while (cursor < text.length) {
+    const marker = text.indexOf(BCHART_FONT_STYLE_MARKER, cursor);
     const begin = text.indexOf(BEGIN_BCHART, cursor);
+    if (marker !== -1 && (begin === -1 || marker < begin)) {
+      output += text.slice(cursor, marker);
+      const declaration = readFontStyleMarker(text, marker);
+      if (!declaration) {
+        output += text.slice(marker, marker + BCHART_FONT_STYLE_MARKER.length);
+        cursor = marker + BCHART_FONT_STYLE_MARKER.length;
+        continue;
+      }
+      fontStyle = declaration.fontStyle;
+      cursor = declaration.end;
+      continue;
+    }
     if (begin === -1) {
       output += text.slice(cursor);
       break;
@@ -35,7 +51,12 @@ export function expandBchart(source, diagnostics = []) {
       output += text.slice(begin);
       break;
     }
-    output += renderBchart(environment.options, environment.body, diagnostics);
+    output += renderBchart(
+      environment.options,
+      environment.body,
+      fontStyle,
+      diagnostics
+    );
     cursor = environment.end;
   }
   return output;
@@ -85,8 +106,8 @@ function findBchartEnd(source, bodyStart) {
   return null;
 }
 
-function renderBchart(rawOptions, body, diagnostics) {
-  const chart = chartOptions(rawOptions, diagnostics);
+function renderBchart(rawOptions, body, fontStyle, diagnostics) {
+  const chart = chartOptions(rawOptions, fontStyle, diagnostics);
   const state = {
     position: INITIAL_BAR_TOP,
     xLabel: "",
@@ -102,13 +123,13 @@ function renderBchart(rawOptions, body, diagnostics) {
   renderScale(chart, state, axisY, diagnostics);
 
   return [
-    `\\begin{tikzpicture}[scale=${fmt(chart.scale)},font=\\sffamily]`,
+    `\\begin{tikzpicture}[${pictureOptions(chart)}]`,
     ...state.lines,
     String.raw`\end{tikzpicture}`
   ].join("\n");
 }
 
-function chartOptions(rawOptions, diagnostics) {
+function chartOptions(rawOptions, fontStyle, diagnostics) {
   const options = parseOptions(rawOptions);
   const min = numericOption(options.min, 0, diagnostics, "min");
   const max = numericOption(options.max, 100, diagnostics, "max");
@@ -126,8 +147,63 @@ function chartOptions(rawOptions, diagnostics) {
     step: numericOption(options.step, range, diagnostics, "step"),
     steps: Object.hasOwn(options, "steps") ? optionText(options.steps, "") : null,
     scale: numericOption(options.scale, 1, diagnostics, "scale"),
+    fontStyle,
     plain: Object.hasOwn(options, "plain")
   };
+}
+
+function pictureOptions(chart) {
+  const options = [`scale=${fmt(chart.scale)}`];
+  if (chart.fontStyle) options.push(`font=${chart.fontStyle}`);
+  return options.join(",");
+}
+
+export function preserveBchartFontStyleDeclarations(source) {
+  const text = String(source);
+  let output = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const match = text.slice(cursor).match(/\\(?:re)?newcommand\*?\b/);
+    if (!match) return output + text.slice(cursor);
+    const start = cursor + match.index;
+    output += text.slice(cursor, start);
+    const declaration = readBchartFontStyleDeclaration(text, start);
+    if (!declaration) {
+      output += text.slice(start, start + match[0].length);
+      cursor = start + match[0].length;
+      continue;
+    }
+    output += `${BCHART_FONT_STYLE_MARKER}{${declaration.fontStyle}}`;
+    cursor = declaration.end;
+  }
+  return output;
+}
+
+function readBchartFontStyleDeclaration(source, start) {
+  const command = source.slice(start).match(/^\\(?:re)?newcommand\*?/);
+  if (!command) return null;
+  let cursor = skipWhitespace(source, start + command[0].length);
+  const controlSequence = source[cursor] === "{" ? null : readCommand(source, cursor);
+  const name = source[cursor] === "{"
+    ? readBalanced(source, cursor, "{", "}")
+    : controlSequence && { content: `\\${controlSequence.name}`, end: controlSequence.end };
+  if (!name || name.content.trim() !== String.raw`\bcfontstyle`) return null;
+  cursor = skipWhitespace(source, name.end);
+  if (source[cursor] === "[") {
+    const argumentCount = readBalanced(source, cursor, "[", "]");
+    if (!argumentCount || argumentCount.content.trim() !== "0") return null;
+    cursor = skipWhitespace(source, argumentCount.end);
+  }
+  const body = readBalanced(source, cursor, "{", "}");
+  if (!body) return null;
+  return { fontStyle: body.content.trim(), end: body.end };
+}
+
+function readFontStyleMarker(source, start) {
+  let cursor = skipWhitespace(source, start + BCHART_FONT_STYLE_MARKER.length);
+  const body = readBalanced(source, cursor, "{", "}");
+  if (!body) return null;
+  return { fontStyle: body.content.trim(), end: body.end };
 }
 
 function expandBchartBody(body, chart, state, diagnostics) {

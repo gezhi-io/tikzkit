@@ -1,0 +1,11 @@
+% Source: TeX Live 2025 bchart manual, bchart.tex (font-style and scale examples).
+\documentclass[varwidth=true, border=2pt]{standalone}
+\usepackage{bchart}
+
+\begin{document}
+\renewcommand{\bcfontstyle}{\bfseries}
+\begin{bchart}[max=10,step=2,scale=.7]
+  \bcbar[text=Bold]{7.5}
+  \bcxlabel{score}
+\end{bchart}
+\end{document}

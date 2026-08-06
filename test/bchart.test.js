@@ -79,6 +79,41 @@ test("supports plain charts and default step progression", () => {
   assert.equal(labels.includes("10"), false, "plain chart should suppress scale labels");
 });
 
+test("honors the current bchart font-style hook without scaling text", () => {
+  const source = String.raw`
+\usepackage{bchart}
+\renewcommand{\bcfontstyle}{\bfseries}
+\begin{bchart}[max=10,step=2,scale=.7]
+  \bcbar[text=Bold]{7.5}
+\end{bchart}
+\renewcommand{\bcfontstyle}{}
+\begin{bchart}[max=10,step=2,scale=1.5]
+  \bcbar[text=Document]{3.2}
+\end{bchart}`;
+  const diagnostics = [];
+  const expanded = bchartExtension.preprocess(source, { diagnostics });
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(expanded, /\\begin\{tikzpicture\}\[scale=0\.7,font=\\bfseries\]/);
+  assert.match(expanded, /\\begin\{tikzpicture\}\[scale=1\.5\]/);
+  assert.doesNotMatch(expanded, /scale=1\.5,font=/);
+
+  const rendered = tikzToSvg(source, { mathRenderer: "svg-text" });
+  assert.deepEqual(rendered.diagnostics, []);
+  const textNodes = rendered.ir.items.filter((item) => item.type === "textNode");
+  const bold = textNodes.find((item) => item.text === "Bold");
+  const document = textNodes.find((item) => item.text === "Document");
+  assert.equal(bold.font.weight, 700);
+  assert.equal(document.font.weight, 400);
+  assert.match(bold.style.fontFamily, /Serif|serif/i);
+  assert.match(document.style.fontFamily, /Serif|serif/i);
+  assert.equal(
+    bold.font.sizePt,
+    document.font.sizePt,
+    "bchart scale changes coordinates but not the text font size"
+  );
+});
+
 test("renders the real bchart fixture with native bar and scale geometry", async () => {
   const source = await readFile(FIXTURE_URL, "utf8");
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });

@@ -253,6 +253,10 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
 通过相关窄测试，也要实际查看 JS、`tikztosvg`、MacTeX 与 diff 面板；不要只
 根据“页面能显示”或单一 diff 数值下结论。
 
+`bchart` 的横向柱图可用 `npm test -- test/bchart.test.js` 验证；当前支持
+`\renewcommand{\bcfontstyle}{...}` 的零参数字体钩子，且 `scale` 只缩放几何、
+不缩放文字。完整选项范围和三方对照命令见[使用指南](docs/usage.md#bchart-横向柱图)。
+
 ### Current validation scope
 
 - A selected 30-case LaTeX-examples batch currently renders without diagnostics
@@ -465,7 +469,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `295/295 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `297/297 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,

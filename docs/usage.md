@@ -4,7 +4,7 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-当前维护语料的语义基线为 `295/295 rendered, 0 diagnostics`。这只表示这批
+当前维护语料的语义基线为 `297/297 rendered, 0 diagnostics`。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
@@ -125,6 +125,26 @@ npm run examples:diff -- --output outputs/qa-xcolor-cmyk \
 检查 `xcolor-natural-cmyk` 的八个色块是否逐一一致，并在散点图中确认
 `cyan!50!black` 点云为蓝灰色而不是明亮青绿色。
 
+### bchart 横向柱图
+
+`\usepackage{bchart}` 的当前兼容切片覆盖 `bchart`、`\bcbar`、`\bclabel`、
+`\bcskip`、`\smallskip`/`\medskip`/`\bigskip` 和 `\bcxlabel`，包括 `min`、
+`max`、`step`、`steps`、`width`、`unit`、`plain`、`scale` 与柱的
+`color`/`text`/`label`/`value`。与本机 `bchart.sty` 一致，`scale` 只缩放柱和
+坐标轴，不缩放文字；可在每个图表之前用零参数
+`\renewcommand{\bcfontstyle}{\bfseries}` 改为粗体，或定义为空以回到文档字体。
+通用 TeX 宏展开、任意长度寄存器和完整 bchart API 仍在测试范围之外。
+
+```sh
+npm test -- test/bchart.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only bchart-font-style \
+  --output outputs/qa-bchart-font-style \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-bchart-font-style \
+  --register --alignment-radius 3
+```
+
 ### 图例和文字锚点
 
 PGFPlots 的 `legend cell align=left` 不是把每一行文字“看起来靠左”即可；本机
@@ -167,7 +187,7 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 295/295 rendered, 0 diagnostics。
+# 维护案例的语义检查；当前预期为 297/297 rendered, 0 diagnostics。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。
