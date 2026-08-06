@@ -18,6 +18,11 @@ const PGFPLOTS_LEGEND_OUTER_YSEP = 2 / TEX_PT_PER_CM;
 const PGFPLOTS_LEGEND_CELL_INNER_SEP = 2 / TEX_PT_PER_CM;
 const PGFPLOTS_LEGEND_IMAGE_WIDTH = 0.6;
 const PGFPLOTS_LEGEND_TEXT_GAP = 4 / TEX_PT_PER_CM;
+// `every axis legend` is a TikZ matrix.  The formula box estimator already
+// includes glyph bearings, so this is only the residual node/matrix clearance
+// observed in the local TeX output, not a second generic text padding.
+const PGFPLOTS_LEGEND_FORMULA_WIDTH_PADDING = 2.1 / TEX_PT_PER_CM;
+const PGFPLOTS_LEGEND_MATRIX_CELL_ALLOWANCE = 7.84 / TEX_PT_PER_CM;
 const PGFPLOTS_PLAIN_LEGEND_IMAGE_LEFT = 3.2 / TEX_PT_PER_CM;
 const PGFPLOTS_PLAIN_LEGEND_TEXT_GAP = 2.2 / TEX_PT_PER_CM;
 const PGFPLOTS_PLAIN_LEGEND_TEXT_RIGHT = 5 / TEX_PT_PER_CM;
@@ -199,7 +204,7 @@ function mathLegendBoxWidth(entries, fontScale, imageWidth, options = {}) {
   const matrixCellAllowance = entries.some((entry) => {
     const parsed = parseMathText(entry);
     return parsed && hasMatrixEnvironmentTex(parsed.tex);
-  }) ? 9.5 / TEX_PT_PER_CM : 0;
+  }) ? PGFPLOTS_LEGEND_MATRIX_CELL_ALLOWANCE : 0;
   const textWidth = Math.max(
     ...entries.map((entry) => {
       const parsed = parseMathText(entry);
@@ -209,7 +214,7 @@ function mathLegendBoxWidth(entries, fontScale, imageWidth, options = {}) {
         scale: fontScale,
         texTextMetrics: true,
         minWidth: 0,
-        widthPadding: (options.compact ? 0 : 0.28) * fontScale
+        widthPadding: (options.compact ? 0 : PGFPLOTS_LEGEND_FORMULA_WIDTH_PADDING) * fontScale
       }).width;
     })
   );

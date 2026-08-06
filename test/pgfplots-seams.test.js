@@ -4366,7 +4366,7 @@ test("pgfplots tiny pmatrix legends use native matrix rows and box dimensions", 
   const width = legendBoxWidthFromCommand(commands[0]);
   const height = legendBoxHeightFromCommand(commands[0]);
   const rowYs = commands.filter((command) => command.includes(String.raw`\node[axis legend`)).map(legendNodeYFromCommand);
-  assert.ok(width >= 2.12 && width <= 2.2, `expected native-like 2.18cm legend width, got ${width}cm`);
+  assert.ok(width >= 2.176 && width <= 2.183, `expected 62.008pt tikztosvg pmatrix legend width, got ${width}cm`);
   assert.ok(height >= 1.91 && height <= 1.94, `expected native 1.926cm legend height, got ${height}cm`);
   assert.equal(rowYs.length, 4);
   for (let index = 0; index < rowYs.length - 1; index += 1) {
@@ -4406,7 +4406,7 @@ test("pgfplots legend lowering reserves native-like width for math-heavy entries
 
   const width = legendBoxWidthFromCommand(commands[0]);
   const height = legendBoxHeightFromCommand(commands[0]);
-  assert.ok(width >= 4.54 && width <= 4.59, `expected math-heavy legend width close to tikztosvg 4.57cm, got ${width}cm`);
+  assert.ok(width >= 4.548 && width <= 4.556, `expected 129.504pt tikztosvg formula legend width, got ${width}cm`);
   assert.ok(height >= 2.44 && height <= 2.48, `expected math-heavy legend height close to tikztosvg 2.46cm, got ${height}cm`);
 
   const rowYs = commands.filter((command) => command.includes(String.raw`\node[axis legend`)).map(legendNodeYFromCommand);

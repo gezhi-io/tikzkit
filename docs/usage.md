@@ -114,8 +114,22 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-anchor \
 ```
 
 打开 `outputs/qa-pgfplots-legend-anchor/index.html`，检查 legend 边框、每条样线、
-每行文字的共同左边缘，以及最长文字是否被 SVG 裁切。图例精确矩阵间距、复杂公式
-宽度和最终浏览器/TeX bbox 校准仍在测试中。
+每行文字的共同左边缘，以及最长文字是否被 SVG 裁切。普通公式与 tiny `pmatrix`
+图例可用下列两个真实案例复核其框宽；自定义多列布局、任意 font 组合与最终
+浏览器/TeX bbox 校准仍在测试中。
+
+```bash
+node --test --test-name-pattern='pmatrix legends|math-heavy entries' \
+  test/pgfplots-seams.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-activation-functions \
+  --only latex-examples-faktorraum \
+  --output outputs/qa-pgfplots-legend-matrix \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
+  --register --alignment-radius 3
+```
 
 ## 5. 日常检查与提交
 

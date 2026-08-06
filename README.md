@@ -114,9 +114,11 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
   TeX table implementation: complex column preambles, multicolumn, multirow,
   and native cross-picture remember-picture cropping remain unsupported.
 - PGFPlots legend rows with `legend cell align=left` retain their shared left
-  anchor when the browser uses its cached SVG text engine. This removes a real
-  clipping/misalignment defect in `latex-examples-2d-epochs-overfitting`; exact
-  legend-box sizing and final text/bounding-box calibration remain partial.
+  anchor when the browser uses its cached SVG text engine. Formula-heavy and
+  tiny `pmatrix` legend frames are also calibrated against local `tikztosvg`
+  output in `activation-functions` and `faktorraum`. Custom multi-column
+  legends, arbitrary font combinations, and final browser/TeX bbox parity
+  remain partial.
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
