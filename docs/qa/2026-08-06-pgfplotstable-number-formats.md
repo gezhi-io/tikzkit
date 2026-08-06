@@ -46,7 +46,8 @@ instead of counting TeX control-word characters as visible width.
 | `use comma` for supported fixed/default output | implemented |
 | `std`, `relative`, `frac`, custom thousands strings | not implemented |
 | `dec sep align` for supported fixed decimal cells | implemented separately in `2026-08-06-pgfplotstable-dec-sep-align.md` |
-| `sci sep align`, `dcolumn` | not implemented |
+| `sci sep align` for supported standard scientific cells | implemented separately in `2026-08-06-pgfplotstable-sci-sep-align.md` |
+| `dcolumn` | not implemented |
 | arbitrary printer key ordering and post-processing | not implemented |
 
 ## Visual Acceptance

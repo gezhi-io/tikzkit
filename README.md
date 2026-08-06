@@ -611,9 +611,25 @@ columns/value/.style={
 ```
 
 This currently covers fixed numeric values that actually contain the selected
-decimal separator, including the `use comma` variant. Scientific decimal
-alignment (`sci sep align`), `dcolumn`, and TeX's special multi-column behavior
-for values without a separator are still outside this subset.
+decimal separator, including the `use comma` variant. `dcolumn` and TeX's
+special multi-column behavior for values without a separator are still outside
+this subset.
+
+For supported scientific output, `sci sep align` anchors the start of the
+exponent block across a column. It keeps `\cdot 10^0` when the exponent is zero,
+which is important for matching the native aligned table form:
+
+```tex
+columns/value/.style={
+  column name=Power,
+  sci,sci precision=2,
+  sci sep align
+}
+```
+
+The accepted scope is the standard `sci` presentation (and the existing
+scientific branch of `int detect`). `sci subscript`, `sci generic`, `dcolumn`,
+and non-finite special values remain outside it.
 
 ```tex
 \pgfplotstabletypeset[col sep=comma, columns={year,vehicles}] {
@@ -623,7 +639,7 @@ year,vehicles,share
 }
 ```
 
-External table files, full PGF number formatting, scientific decimal alignment,
+External table files, full PGF number formatting, alternate scientific styles,
 printer-order interactions, postprocessing, and arbitrary row/column styles
 remain partial. See
 [`docs/qa/2026-08-06-pgfplotstable-typeset.md`](docs/qa/2026-08-06-pgfplotstable-typeset.md)
@@ -631,6 +647,8 @@ and
 [`docs/qa/2026-08-06-pgfplotstable-number-formats.md`](docs/qa/2026-08-06-pgfplotstable-number-formats.md)
 and
 [`docs/qa/2026-08-06-pgfplotstable-dec-sep-align.md`](docs/qa/2026-08-06-pgfplotstable-dec-sep-align.md)
+and
+[`docs/qa/2026-08-06-pgfplotstable-sci-sep-align.md`](docs/qa/2026-08-06-pgfplotstable-sci-sep-align.md)
 for the local-source notes and visual acceptance records.
 
 To verify this supported slice locally, run:
@@ -638,7 +656,7 @@ To verify this supported slice locally, run:
 ```bash
 npm test -- test/pgfplotstable-typeset.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
-  --output outputs/qa-pgfplotstable --only pgfplotstable-dec-sep-align \
+  --output outputs/qa-pgfplotstable --only pgfplotstable-sci-sep-align \
   --native-reference --comparison-grid-mode svg --strict-tikztosvg
 npm run examples:diff -- --output outputs/qa-pgfplotstable --register --alignment-radius 3
 ```

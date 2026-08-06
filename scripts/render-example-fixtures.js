@@ -88,7 +88,6 @@ export async function renderExampleFixtures(options = {}) {
   const tikztosvgEngine = options.tikztosvgEngine || "xelatex";
   const externalCommandTimeoutMs = normalizedTimeoutMs(options.externalCommandTimeoutMs);
   const renderOptions = {
-    margin: 0,
     mathRenderer: "svg-text",
     fontUrlPrefix: "../fonts/",
     ...definedRenderOptions(options.renderOptions)

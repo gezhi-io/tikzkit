@@ -4009,13 +4009,16 @@ function pgfplotstableDisplayCell(value, options) {
   const numeric = Number(text);
   if (!Number.isFinite(numeric)) return text;
   const formatter = pgfplotstableNumberFormatter(options);
+  const usesScientificFormatter = formatter === "sci"
+    || (formatter === "int detect" && !Number.isInteger(numeric));
+  if (usesScientificFormatter && pgfplotstableOptionEnabled(options["sci sep align"])) {
+    return pgfplotstableScientificAlignedCell(numeric, options);
+  }
   const formatted = formatter === "fixed"
     ? pgfplotstableFormatFixed(numeric, options)
-    : formatter === "sci"
+    : usesScientificFormatter
       ? pgfplotstableFormatScientific(numeric, options)
-      : formatter === "int detect" && !Number.isInteger(numeric)
-        ? pgfplotstableFormatScientific(numeric, options)
-        : pgfplotstableFormatGroupedNumber(text, options);
+      : pgfplotstableFormatGroupedNumber(text, options);
   return pgfplotstableDecimalAlignedCell(formatted, options);
 }
 
@@ -4037,11 +4040,30 @@ function pgfplotstableFormatFixed(value, options) {
 }
 
 function pgfplotstableFormatScientific(value, options) {
-  if (value === 0) return pgfplotstableFormatFixed(0, {
-    ...options,
-    precision: options["sci precision"] ?? options.precision,
-    "fixed zerofill": options["sci zerofill"]
-  });
+  const { mantissa, exponent } = pgfplotstableScientificParts(value, options);
+  if (exponent === null || exponent === 0) return mantissa;
+  return `$${mantissa}\\cdot 10^{${exponent}}$`;
+}
+
+function pgfplotstableScientificAlignedCell(value, options) {
+  const { mantissa, exponent } = pgfplotstableScientificParts(value, options);
+  // Native sci sep align replaces the exponent marker with the r@{}l column
+  // separator. Retain that semantic division until the generic tabular scene
+  // layout measures and positions both math fragments.
+  return `\\tikzkitscialign{${mantissa}}{${exponent === null ? "" : exponent}}`;
+}
+
+function pgfplotstableScientificParts(value, options) {
+  if (value === 0) {
+    return {
+      mantissa: pgfplotstableFormatFixed(0, {
+        ...options,
+        precision: options["sci precision"] ?? options.precision,
+        "fixed zerofill": options["sci zerofill"]
+      }),
+      exponent: null
+    };
+  }
   const precision = pgfplotstableNumberPrecision(options["sci precision"] ?? options.precision, 2);
   let exponent = Math.floor(Math.log10(Math.abs(value)));
   let mantissa = value / (10 ** exponent);
@@ -4054,8 +4076,10 @@ function pgfplotstableFormatScientific(value, options) {
   const mantissaText = zeroFill
     ? mantissa.toFixed(precision)
     : String(mantissa);
-  if (exponent === 0) return pgfplotstableFormatGroupedNumber(mantissaText, options);
-  return `$${pgfplotstableFormatGroupedNumber(mantissaText, options)}\\cdot 10^{${exponent}}$`;
+  return {
+    mantissa: pgfplotstableFormatGroupedNumber(mantissaText, options),
+    exponent
+  };
 }
 
 function pgfplotstableFormatGroupedNumber(raw, options) {

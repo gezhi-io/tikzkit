@@ -1,0 +1,16 @@
+% Adapted from the TeX Live pgfplotstable sci sep align documentation.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[
+  columns={sample,value},
+  columns/sample/.style={column name=Sample,string type},
+  columns/value/.style={column name=Power,sci,sci precision=2,sci sep align}
+]{
+sample value
+A 0.001
+B 0.098
+C 123.4
+D 1
+}
+\end{document}

@@ -289,6 +289,9 @@ const TABULAR_ROW_PADDING = 0;
 const TABULAR_TEXT_HEIGHT = parseDimension("12pt", {});
 const TABULAR_EMPTY_ROW_HEIGHT = parseDimension("11pt", {});
 const TABULAR_BLOCK_GAP = 0.45;
+// TeX's separate math fragments retain a small glyph side-bearing allowance
+// even when a tabular r@{}l pair removes its inter-column material.
+const TABULAR_SCIENTIFIC_FRAGMENT_PADDING = parseDimension("1.4pt", {});
 
 // A document tabular is a measuring layout, not a TikZ transform. Evaluate
 // every picture in its own local coordinate space, then reproduce TeX's
@@ -319,7 +322,7 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
   if (!columns.length) return;
   const rows = layout.rows || [];
   const columnContentWidths = columns.map(() => 0);
-  const columnDecimalMetrics = columns.map(() => ({ left: 0, right: 0 }));
+  const columnPairedTextMetrics = columns.map(() => ({ left: 0, right: 0 }));
   const rowContentHeights = rows.map((row) => row.blank ? 0 : TABULAR_TEXT_HEIGHT);
 
   for (const row of rows) {
@@ -329,9 +332,9 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
       let cellHeight = cell.text ? TABULAR_TEXT_HEIGHT : 0;
       const textLayout = tabularCellTextLayout(cell.text);
       let cellWidth = textLayout.width;
-      if (textLayout.decimal) {
-        columnDecimalMetrics[column].left = Math.max(columnDecimalMetrics[column].left, textLayout.leftWidth);
-        columnDecimalMetrics[column].right = Math.max(columnDecimalMetrics[column].right, textLayout.rightWidth);
+      if (textLayout.alignment) {
+        columnPairedTextMetrics[column].left = Math.max(columnPairedTextMetrics[column].left, textLayout.leftWidth);
+        columnPairedTextMetrics[column].right = Math.max(columnPairedTextMetrics[column].right, textLayout.rightWidth);
       }
       for (const pictureIndex of cell.pictureIndices || []) {
         const renderedPicture = rendered.get(pictureIndex);
@@ -406,26 +409,26 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
       }
       if (cell.text) {
         const textLayout = tabularCellTextLayout(cell.text);
-        if (textLayout.decimal) {
-          const decimalMetrics = columnDecimalMetrics[column];
-          const decimalGroupWidth = decimalMetrics.left + decimalMetrics.right;
-          const decimalAnchorX = contentLeft + Math.max(0, (contentWidth - decimalGroupWidth) / 2) + decimalMetrics.left;
+        if (textLayout.alignment) {
+          const pairedMetrics = columnPairedTextMetrics[column];
+          const pairedGroupWidth = pairedMetrics.left + pairedMetrics.right;
+          const pairedAnchorX = contentLeft + Math.max(0, (contentWidth - pairedGroupWidth) / 2) + pairedMetrics.left;
           if (textLayout.left) {
             documentIr.items.push(createTextShape(
               textLayout.left,
-              decimalAnchorX,
+              pairedAnchorX,
               centerY,
               tabularTextStyle(),
-              { subtype: "tabular-decimal-leading", svgTextAnchor: "end", svgTextX: decimalAnchorX, font: createFontSpec() }
+              { subtype: `tabular-${textLayout.alignment}-leading`, svgTextAnchor: "end", svgTextX: pairedAnchorX, font: createFontSpec() }
             ));
           }
           if (textLayout.right) {
             documentIr.items.push(createTextShape(
               textLayout.right,
-              decimalAnchorX,
+              pairedAnchorX,
               centerY,
               tabularTextStyle(),
-              { subtype: "tabular-decimal-trailing", svgTextAnchor: "start", svgTextX: decimalAnchorX, font: createFontSpec() }
+              { subtype: `tabular-${textLayout.alignment}-trailing`, svgTextAnchor: "start", svgTextX: pairedAnchorX, font: createFontSpec() }
             ));
           }
           continue;
@@ -466,20 +469,48 @@ function tabularTextWidthCm(text) {
 function tabularCellTextLayout(text) {
   const source = String(text || "").trim();
   const decimal = source.match(/^\\tikzkitdecimal\s*\{([^{}]*)\}\s*\{([^{}]*)\}$/);
-  if (!decimal) return { text: source, width: source ? tabularTextWidthCm(source) : 0, decimal: false };
-  const left = decimal[1];
-  const right = decimal[2];
-  const leftWidth = tabularTextWidthCm(left);
-  const rightWidth = tabularTextWidthCm(right);
+  if (decimal) return tabularPairedTextLayout(source, "decimal", decimal[1], decimal[2]);
+  const scientific = source.match(/^\\tikzkitscialign\s*\{([^{}]*)\}\s*\{(-?\d*)\}$/);
+  if (scientific) {
+    const exponent = scientific[2];
+    return tabularPairedTextLayout(
+      source,
+      "scientific",
+      `$${scientific[1]}$`,
+      exponent ? `$\\cdot 10^{${exponent}}$` : ""
+    );
+  }
+  return { text: source, width: source ? tabularTextWidthCm(source) : 0, alignment: null };
+}
+
+function tabularPairedTextLayout(source, alignment, left, right) {
+  // A scientific cell has been deliberately split at TeX's exponent marker.
+  // Formula-box padding belongs around the combined cell, not around both
+  // fragments; otherwise the tabular's r@{}l-equivalent column grows twice.
+  const width = alignment === "scientific" ? tabularScientificFragmentWidthCm : tabularTextWidthCm;
+  const leftWidth = width(left);
+  const rightWidth = width(right);
   return {
     text: source,
     width: leftWidth + rightWidth,
-    decimal: true,
+    alignment,
     left,
     right,
     leftWidth,
     rightWidth
   };
+}
+
+function tabularScientificFragmentWidthCm(text) {
+  const source = String(text || "").trim();
+  if (/^\$[\s\S]*\$$/.test(source)) {
+    const formula = estimateFormulaBox(source, {
+      minWidth: 0,
+      widthPadding: TABULAR_SCIENTIFIC_FRAGMENT_PADDING
+    });
+    if (Number.isFinite(formula?.width) && formula.width > 0) return formula.width;
+  }
+  return texTextWidthCm(source);
 }
 
 function tabularTextAnchorX(align, left, width, textWidth) {

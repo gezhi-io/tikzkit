@@ -4131,6 +4131,21 @@
         "dec sep align",
         "per-column decimal anchor"
       ]
+    },
+    {
+      "id": "pgfplotstable-sci-sep-align",
+      "title": "pgfplotstable scientific exponent alignment",
+      "source": "pgfplots/pgfplotstable-sci-sep-align.tex",
+      "sourceCorpus": "TeX Live pgfplotstable manual",
+      "externalSource": "tex/generic/pgfplots/numtable/pgfplotstable.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:pgfplotstableScientificAlignedCell; src/engine/evaluate.js:tabularCellTextLayout",
+      "features": [
+        "pgfplotstabletypeset",
+        "sci",
+        "sci precision",
+        "sci sep align",
+        "per-column scientific anchor"
+      ]
     }
   ]
 }

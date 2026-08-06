@@ -929,7 +929,7 @@ test("example fixture renderer can disable the comparison grid for tight TikZKit
   });
 
   const actual = await readFile(path.join(outputRoot, "tikzkit-svg", "workbench-line-smoke.svg"), "utf8");
-  const expected = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" }).svg;
+  const expected = tikzToSvg(source, { mathRenderer: "svg-text" }).svg;
 
   assert.equal(actual.split("\n")[0], expected.split("\n")[0]);
   assert.doesNotMatch(actual, /<foreignObject/);

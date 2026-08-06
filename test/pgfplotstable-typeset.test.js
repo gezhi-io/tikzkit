@@ -16,6 +16,10 @@ const DECIMAL_ALIGNMENT_SOURCE = readFileSync(
   new URL("./fixtures/examples/pgfplots/pgfplotstable-dec-sep-align.tex", import.meta.url),
   "utf8"
 );
+const SCIENTIFIC_ALIGNMENT_SOURCE = readFileSync(
+  new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-sep-align.tex", import.meta.url),
+  "utf8"
+);
 
 test("lowers pgfplotstable typeset into a measured text table", () => {
   const parsed = parseTikz(SOURCE);
@@ -106,6 +110,21 @@ test("aligns supported fixed pgfplotstable values on one decimal anchor", () => 
   assert.ok(leading.every((item) => item.x === leading[0].x));
   assert.ok(trailing.every((item) => item.x === trailing[0].x));
   assert.ok(leading.every((item, index) => item.x === trailing[index].x));
+  assert.match(result.svg, /text-anchor="end"/);
+  assert.match(result.svg, /text-anchor="start"/);
+});
+
+test("aligns supported pgfplotstable scientific exponents on one shared anchor", () => {
+  const result = tikzToSvg(SCIENTIFIC_ALIGNMENT_SOURCE, { mathRenderer: "svg-text" });
+  const leading = result.ir.items.filter((item) => item.subtype === "tabular-scientific-leading");
+  const trailing = result.ir.items.filter((item) => item.subtype === "tabular-scientific-trailing");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(leading.map((item) => item.text), ["$1$", "$9.8$", "$1.23$", "$1$"]);
+  assert.deepEqual(trailing.map((item) => item.text), ["$\\cdot 10^{-3}$", "$\\cdot 10^{-2}$", "$\\cdot 10^{2}$", "$\\cdot 10^{0}$"]);
+  assert.ok(leading.every((item) => item.x === leading[0].x));
+  assert.ok(trailing.every((item) => item.x === trailing[0].x));
+  assert.ok(trailing.every((item) => item.x === leading[0].x));
   assert.match(result.svg, /text-anchor="end"/);
   assert.match(result.svg, /text-anchor="start"/);
 });
