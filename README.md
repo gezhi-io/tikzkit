@@ -1591,6 +1591,10 @@ const result = tikzToSvg(source, { mathRenderer: "svg-text" });
 `svg-text` avoids SVG `foreignObject` and is useful for raster comparison
 tools. It is intentionally a compact fallback, so dense `align*`, matrix,
 and nested-script formulas cannot reproduce every TeX spacing decision.
+Within that portable path, `\begin{array}` now has a structured subset:
+`l`/`c`/`r` columns, empty `@{}` column joins, basic `*{n}{...}` repetition,
+and `\left...\right` delimiters. Custom preamble material, nonempty `@{...}`
+inserts, and reference-driven formula cells remain partial.
 
 The local workbench uses TikZKit's isolated browser-math path by default. It
 embeds its styles beneath TikZKit-owned class names, so complex node formulas

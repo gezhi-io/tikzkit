@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { renderSvg, tikzToSvg } from "../src/index.js";
+import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
 import { mathFallbackText, normalizeTikzText } from "../src/tikz/text.js";
 import {
@@ -139,10 +140,13 @@ test("unwraps shortstack math and inline tikz node references", () => {
 });
 
 test("normalizes TeX array spacing columns for the browser math renderer", () => {
-  const normalized = normalizeTikzText(String.raw`$\left\lbrace\begin{array}{@{}l@{}l@{}l@{}}??&1&x\in\mathbb Q\end{array}\right.$`);
+  const source = String.raw`$\left\lbrace\begin{array}{@{}l@{}l@{}l@{}}??&1&x\in\mathbb Q\end{array}\right.$`;
+  const normalized = normalizeTikzText(source);
+  const svgTextNormalized = normalizeTikzText(source, { mathRenderer: "svg-text" });
 
   assert.match(normalized.text, /\\begin\{array\}\{lll\}/);
   assert.doesNotMatch(normalized.text, /@\{\}/);
+  assert.match(svgTextNormalized.text, /\\begin\{array\}\{@\{\}l@\{\}l@\{\}l@\{\}\}/);
   const fallback = mathFallbackText(normalized.text);
   assert.doesNotMatch(fallback, /beginarray|lll|lbrace/);
   assert.match(fallback, /\?\? 1 x ∈ ℚ/);
@@ -1916,6 +1920,48 @@ test("renders inline pmatrix as a structured SVG math fallback", () => {
   assert.match(svg, />3<\/text>/);
   assert.doesNotMatch(svg, /\\begin|pmatrix|\\end/);
   assert.doesNotMatch(svg, />A = \(2 1; 0 3\)<\/text>/);
+});
+
+test("renders amsmath arrays as aligned SVG rows with zero @{} column spacing", () => {
+  const result = tikzToSvg(
+    String.raw`\begin{tikzpicture}
+      \node at (0,0) {$f(x)=\left\lbrace\begin{array}{@{}l@{}l@{}l@{}}??&1&\text{ if }x\in\mathbb Q\\??&0&\text{ if }x\in\mathbb R\setminus\mathbb Q\end{array}\right.$};
+    \end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  );
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-math-matrix-inline"/);
+  assert.match(result.svg, /tikz-matrix-delimiter-left/);
+  assert.doesNotMatch(result.svg, /beginarray|@\{\}|lbrace/);
+  assert.match(result.svg, />\?\?<\/text>/);
+  assert.match(result.svg, />1<\/text>/);
+  assert.match(result.svg, />if x ∈ ℚ<\/text>/);
+  assert.match(result.svg, />if x ∈ ℝ\s*∖\s*ℚ<\/text>/);
+  assert.doesNotMatch(result.svg, /\\setminus/);
+  assert.match(result.svg, /text-anchor="start"[^>]*>\?\?<\/text>/);
+});
+
+test("keeps the real Dirichlet function array structured in SVG-text output", () => {
+  const source = readFileSync(new URL("fixtures/examples/latex-examples/dirichlet-function.tex", import.meta.url), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-math-matrix-inline"/);
+  assert.match(result.svg, /tikz-matrix-delimiter-left/);
+  assert.match(result.svg, />if x ∈ ℝ\s*∖\s*ℚ<\/text>/);
+  assert.doesNotMatch(result.svg, />\{\?\? 1 if x ∈ ℚ; \?\? 0 if x ∈ ℝ(?: setminus |∖)ℚ\.<\/text>/);
+});
+
+test("keeps array layout when async SVG text measurement is enabled", async () => {
+  const source = readFileSync(new URL("fixtures/examples/latex-examples/dirichlet-function.tex", import.meta.url), "utf8");
+  const result = await tikzToSvgAsync(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /class="tikz-math-matrix-inline"/);
+  assert.match(result.svg, /tikz-matrix-delimiter-left/);
+  assert.match(result.svg, />if x ∈ ℝ\s*∖\s*ℚ<\/text>/);
+  assert.doesNotMatch(result.svg, />\{\?\? 1 if x ∈ ℚ; \?\? 0 if x ∈ ℝ(?: setminus |∖)ℚ\.<\/text>/);
 });
 
 test("renders tiny axis-legend pmatrix with exact physical font size", () => {

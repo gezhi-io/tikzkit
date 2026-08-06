@@ -1,11 +1,12 @@
 export const texPackage = {
   "name": "amsmath",
   "status": "partial",
-  "implementedBy": "src/tikz/text.js + src/tikz/textMetrics.js + src/renderers/svg/mathNode.js + src/renderers/svg/mathScriptFallback.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator + web/workbench.js",
+  "implementedBy": "src/tikz/text.js + src/tikz/textMetrics.js + src/tikz/mathMatrixSyntax.js + src/renderers/svg/mathMatrixFallback.js + src/renderers/svg/mathNode.js + src/renderers/svg/textEngine.js + src/renderers/svg/mathScriptFallback.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator + web/workbench.js",
   "features": [
     "KaTeX delegated environments/macros",
     "SVG-text aligned display fallback with amsmath \\jot row spacing",
     "explicit paired superscript/subscript cursor restoration in SVG-text fallback",
+    "SVG-text array fallback: l/c/r columns, @{} zero intercolumn gaps, basic *{n}{...} repeat, and \\left...\\right delimiters",
     "\\DeclareMathOperator macro expansion"
   ],
   "requires": [],
@@ -28,5 +29,5 @@ export const texPackage = {
   ],
   "observedOptions": [],
   "localSourceReviewed": true,
-  "notes": "Reviewed TeX Live 2025 amsmath.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances plus explicit paired-script baseline/cursor restoration for the SVG-text fallback. Tags, intertext, split, gathered, multline, and full TeX macro expansion remain unsupported or partial."
+  "notes": "Reviewed TeX Live 2025 amsmath.sty and array.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing; matrix uses array with arraycolsep compensation. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances plus explicit paired-script baseline/cursor restoration for the SVG-text fallback. The portable fallback structurally lays out array l/c/r columns, @{} zero gaps, basic *{n}{...} repetition, and \\left...\\right delimiters. Tags, intertext, split, gathered, multline, nonempty/custom array preambles, cross-reference expansion, and full TeX macro expansion remain unsupported or partial."
 };

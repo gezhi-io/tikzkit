@@ -354,7 +354,7 @@ export function normalizeTikzText(value, options = {}) {
   text = replaceCommand(text, "tikzinlinebox", 2, (args) => args[1]);
   text = replaceCommand(text, "contour", 2, (args) => args[1]);
   text = replaceCommand(text, "rule", 2, () => "");
-  text = normalizeMathArrayColumnSpecs(text);
+  text = normalizeMathArrayColumnSpecs(text, { preserveZeroSpacing: options.mathRenderer === "svg-text" });
   if (isMathText(text)) {
     for (const command of ["texttt", "textsf", "textrm", "textbf", "textit", "emph"]) {
       text = replaceCommand(text, command, 1, (args) => args[0]);
@@ -823,7 +823,7 @@ function unwrapWholeShortstack(text) {
   return body.content.trim();
 }
 
-function normalizeMathArrayColumnSpecs(text) {
+function normalizeMathArrayColumnSpecs(text, options = {}) {
   let source = String(text || "");
   const command = String.raw`\begin{array}`;
   let index = source.indexOf(command);
@@ -834,13 +834,42 @@ function normalizeMathArrayColumnSpecs(text) {
       index = source.indexOf(command, index + command.length);
       continue;
     }
+    const preservedSpacing = options.preserveZeroSpacing ? spec.content.match(/@\{\}/g)?.join("") || "" : "";
     const columns = spec.content
       .replace(/@\{[^{}]*\}/g, "")
       .replace(/[^lcrpmb|]/g, "") || "l";
-    source = `${source.slice(0, specStart)}{${columns}}${source.slice(spec.end)}`;
-    index = source.indexOf(command, specStart + columns.length + 2);
+    // KaTeX deliberately rejects TeX's @{...} preamble syntax, so browser
+    // math retains the historical simplified form. The portable SVG-text
+    // fallback can honor the only safe common case, @{}, without exposing it
+    // to the browser renderer.
+    const normalizedColumns = options.preserveZeroSpacing && preservedSpacing
+      ? preserveZeroSpacingInArraySpec(spec.content, columns)
+      : columns;
+    source = `${source.slice(0, specStart)}{${normalizedColumns}}${source.slice(spec.end)}`;
+    index = source.indexOf(command, specStart + normalizedColumns.length + 2);
   }
   return source;
+}
+
+function preserveZeroSpacingInArraySpec(spec, fallbackColumns) {
+  const source = String(spec || "");
+  let output = "";
+  let fallbackIndex = 0;
+  let cursor = 0;
+  while (cursor < source.length) {
+    const zeroGap = source.slice(cursor).match(/^@\{\}/);
+    if (zeroGap) {
+      output += "@{}";
+      cursor += zeroGap[0].length;
+      continue;
+    }
+    if (/[lcrpmb]/.test(source[cursor])) {
+      output += fallbackColumns[fallbackIndex] || source[cursor];
+      fallbackIndex += 1;
+    }
+    cursor += 1;
+  }
+  return output || fallbackColumns;
 }
 
 export function fontScaleFromTikzFont(font) {
@@ -1370,6 +1399,7 @@ export function mathFallbackText(tex) {
     .replace(/\\cdot\s*/g, "⋅")
     .replace(/\\otimes/g, "(x)")
     .replace(/\\oplus/g, "(+)")
+    .replace(/\\setminus(?![A-Za-z])/g, "∖")
     .replace(/\\infty(?![A-Za-z])/g, "∞")
     .replace(/\\partial(?![A-Za-z])/g, "∂")
     .replace(/\\(?:in)(?![A-Za-z])/g, "∈")

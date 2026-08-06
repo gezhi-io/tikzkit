@@ -85,6 +85,7 @@ import {
   renderInlineMatrixMathFallback,
   splitSvgMatrixTopLevel
 } from "../src/renderers/svg/mathMatrixFallback.js";
+import { parseInlineMathMatrix } from "../src/tikz/mathMatrixSyntax.js";
 import { renderScopedMathHtml } from "../src/renderers/svg/mathHtml.js";
 import { scopeMathHtml, TIKZKIT_SCOPED_MATH_CSS } from "../src/renderers/svg/mathScopedCss.js";
 import { nodeShapeCommands, renderLibraryShapeNodeBox } from "../src/renderers/svg/nodeShapes.js";
@@ -745,21 +746,39 @@ test("svg renderer keeps SVG viewBox bounds computation in its own module", () =
   assert.doesNotMatch(source, /function fitFontSizeToBox/);
 });
 
-test("svg renderer keeps inline matrix math fallback parsing and rendering in its own module", () => {
+test("shared matrix syntax feeds the SVG matrix fallback without renderer parser duplication", () => {
   const source = readFileSync(new URL("../src/renderers/svg/renderSvg.js", import.meta.url), "utf8");
   const mathNodeSource = readFileSync(new URL("../src/renderers/svg/mathNode.js", import.meta.url), "utf8");
+  const syntaxSource = readFileSync(new URL("../src/tikz/mathMatrixSyntax.js", import.meta.url), "utf8");
   const matrix = inlineMatrixMathFallback(String.raw`A=\begin{pmatrix}1&0\\0&1\end{pmatrix}`);
+  const parsed = parseInlineMathMatrix(String.raw`A=\begin{pmatrix}1&0\\0&1\end{pmatrix}`);
   const svg = renderInlineMatrixMathFallback({ x: 0, y: 0 }, matrix, 18, 100, "black", "italic", "");
 
   assert.deepEqual(splitSvgMatrixTopLevel(String.raw`1&0\\0&1`, "row"), ["1&0", "0&1"]);
   assert.equal(matrix.env, "pmatrix");
   assert.deepEqual(matrix.rows, [["1", "0"], ["0", "1"]]);
+  assert.deepEqual(parsed.rows, [["1", "0"], ["0", "1"]]);
   assert.match(svg, /tikz-math-matrix-inline/);
   assert.match(svg, />A\s*=<\/text>/);
   assert.match(mathNodeSource, /from "\.\/mathMatrixFallback\.js"/);
+  assert.match(syntaxSource, /export function parseInlineMathMatrix/);
   assert.doesNotMatch(source, /function inlineMatrixMathFallback/);
   assert.doesNotMatch(source, /function renderInlineMatrixMathFallback/);
   assert.doesNotMatch(source, /function splitSvgMatrixTopLevel/);
+});
+
+test("svg matrix fallback retains array column alignment and @{} zero spacing", () => {
+  const array = inlineMatrixMathFallback(
+    String.raw`f(x)=\left\lbrace\begin{array}{@{}l@{}r@{}}a&1\\bb&22\end{array}\right.`
+  );
+
+  assert.equal(array.env, "array");
+  assert.equal(array.prefix, "f(x)=");
+  assert.equal(array.suffix, "");
+  assert.deepEqual(array.rows, [["a", "1"], ["bb", "22"]]);
+  assert.deepEqual(array.columnAlignments, ["left", "right"]);
+  assert.deepEqual(array.interColumnGaps, [0]);
+  assert.deepEqual(array.delimiters, { left: "curly", right: null });
 });
 
 test("svg renderer keeps tensor matrix fallback parsing and rendering in its own module", () => {

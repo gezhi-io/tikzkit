@@ -6,6 +6,7 @@ import {
   stripTikzHspaceMarkers
 } from "./text.js";
 import { parseExtensibleMathArrow } from "./mathArrows.js";
+import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 
 const TEX_PT_PER_CM = 28.45274;
@@ -1126,7 +1127,6 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
   const prefixWidth = prefix ? inlineMatrixTextWidthCm(prefix, inlineFont) : 0;
   const suffixWidth = suffix ? inlineMatrixTextWidthCm(suffix, inlineFont) : 0;
   const colCount = Math.max(...parts.rows.map((row) => row.length));
-  const colGap = cellFont;
   const rowGap = cellFont * 0.1;
   const rowHeight = cellFont * 1.16;
   const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
@@ -1135,17 +1135,25 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
       ...parts.rows.map((row) => inlineMatrixTextWidthCm(row[colIndex] || "", cellFont))
     )
   );
-  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + colGap * Math.max(0, colCount - 1);
-  const delimiterWidth = parts.env === "matrix" ? 0 : cellFont * 0.72;
-  const delimiterPad = parts.env === "matrix" ? 0 : cellFont * 0.1;
+  const interColumnGaps = Array.from({ length: Math.max(0, colCount - 1) }, (_value, index) =>
+    parts.interColumnGaps?.[index] === 0 ? 0 : cellFont
+  );
+  const contentWidth = colWidths.reduce((sum, value) => sum + value, 0) + interColumnGaps.reduce((sum, value) => sum + value, 0);
+  const delimiters = parts.delimiters || { left: null, right: null };
+  const delimiterWidth = cellFont * 0.72;
+  const delimiterPad = cellFont * 0.1;
+  const leftDelimiterWidth = delimiters.left ? delimiterWidth : 0;
+  const rightDelimiterWidth = delimiters.right ? delimiterWidth : 0;
+  const leftDelimiterPad = delimiters.left ? delimiterPad : 0;
+  const rightDelimiterPad = delimiters.right ? delimiterPad : 0;
   // amsmath's \env@matrix is an array with a compensating final
   // \arraycolsep. Keep the reserved column allowance shared with the SVG
   // fallback so the node box contains the rendered delimiters and cells.
   // The amsmath array's edge bearing is 3pt at textstyle. This is the
   // remaining visible width after the paired \arraycolsep compensation and
   // matches the local pdfTeX/tikztosvg pmatrix node border.
-  const arrayColumnAllowance = (3 * scale) / TEX_PT_PER_CM;
-  const matrixWidth = contentWidth + delimiterWidth * 2 + delimiterPad * 2 + arrayColumnAllowance;
+  const arrayColumnAllowance = parts.env === "array" ? 0 : (3 * scale) / TEX_PT_PER_CM;
+  const matrixWidth = contentWidth + leftDelimiterWidth + rightDelimiterWidth + leftDelimiterPad + rightDelimiterPad + arrayColumnAllowance;
   const matrixHeight = rowHeight * parts.rows.length + rowGap * Math.max(0, parts.rows.length - 1);
   const gap = (2 * scale) / TEX_PT_PER_CM;
   const width = prefixWidth + (prefix ? gap : 0) + matrixWidth + (suffix ? gap + suffixWidth : 0);
@@ -1155,51 +1163,19 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
 }
 
 function inlineMatrixTextWidthCm(value, fontSizeCm) {
-  return Math.max(0, mathFallbackText(value).length * fontSizeCm * 0.48);
+  const text = mathFallbackText(value).trim();
+  const scale = (fontSizeCm * TEX_PT_PER_CM) / 10;
+  const glyphCount = [...text].filter((char) => !/\s/.test(char)).length;
+  return texTextWidthCm(text, scale) + Math.max(0, glyphCount - 1) / TEX_PT_PER_CM;
 }
 
 function extractInlineMatrixFormula(tex) {
-  const text = String(tex || "");
-  for (let index = 0; index < text.length; index += 1) {
-    const begin = matchEnvToken(text, index, "begin");
-    if (!begin || !MATRIX_ENV_NAMES.includes(begin.env)) continue;
-    const end = findMatrixEnvironmentEnd(text, begin);
-    if (!end) return null;
-    const body = text.slice(begin.end, end.start);
-    const rows = splitMatrixTopLevel(body, "row")
-      .map((row) => splitMatrixTopLevel(row, "col").map((cell) => mathFallbackText(cell).trim()))
-      .filter((row) => row.length);
-    if (!rows.length) return null;
-    return {
-      env: begin.env,
-      prefix: text.slice(0, index),
-      rows,
-      suffix: text.slice(end.end)
-    };
-  }
-  return null;
-}
-
-function findMatrixEnvironmentEnd(text, begin) {
-  let depth = 1;
-  let cursor = begin.end;
-  while (cursor < text.length) {
-    const open = matchEnvToken(text, cursor, "begin");
-    const close = matchEnvToken(text, cursor, "end");
-    if (open && MATRIX_ENV_NAMES.includes(open.env)) {
-      depth += 1;
-      cursor = open.end;
-      continue;
-    }
-    if (close && MATRIX_ENV_NAMES.includes(close.env)) {
-      depth -= 1;
-      if (depth === 0) return { start: cursor, end: close.end };
-      cursor = close.end;
-      continue;
-    }
-    cursor += 1;
-  }
-  return null;
+  const parts = parseInlineMathMatrix(tex);
+  if (!parts) return null;
+  return {
+    ...parts,
+    rows: parts.rows.map((row) => row.map((cell) => mathFallbackText(cell).trim()))
+  };
 }
 
 function estimateTensorMatrixParts(tex, scale) {

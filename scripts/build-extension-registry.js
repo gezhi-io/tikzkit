@@ -54,8 +54,8 @@ const CORE_PACKAGE_SUPPORT = {
   },
   amsmath: {
     status: "partial",
-    implementedBy: "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
-    notes: "Many formulas are delegated to KaTeX; TeX macro package itself is not interpreted"
+    implementedBy: "src/tikz/text.js + src/tikz/textMetrics.js + src/tikz/mathMatrixSyntax.js + src/renderers/svg/mathMatrixFallback.js + src/renderers/svg/mathNode.js + src/renderers/svg/textEngine.js",
+    notes: "Scoped browser math handles interactive formulas. The SVG-text fallback structurally lays out array l/c/r columns, @{} zero gaps, basic *{n}{...} repetition, and \\left...\\right delimiters; tags, cross-reference expansion, nonempty/custom array preambles, and complete TeX macro semantics remain partial."
   },
   amssymb: {
     status: "partial",

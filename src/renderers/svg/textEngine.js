@@ -28,7 +28,7 @@ export function createSvgTextEngine(options = {}) {
       const parsedMath = parseTextEngineMathRequest(request);
       const entry = parsedMath
         ? measureMathRequest(parsedMath, request, unit, mathRenderer)
-        : measurePlainTextRequest(request, unit);
+        : measurePlainTextRequest(request, unit, mathRenderer);
       cache.set(entry.cacheKey, entry);
       return entry.metrics;
     },
@@ -146,8 +146,11 @@ function measureMathRequest(math, request, unit, mathRenderer) {
   };
 }
 
-function measurePlainTextRequest(request, unit) {
-  const normalized = normalizeTikzText(String(request.text ?? ""));
+function measurePlainTextRequest(request, unit, mathRenderer) {
+  // SVG-text math owns constructs such as array's @{...} preamble. Keep the
+  // normalization mode identical to the main renderer so cached text cannot
+  // silently flatten a structured formula during tikzToSvgAsync().
+  const normalized = normalizeTikzText(String(request.text ?? ""), { mathRenderer });
   const font = textEngineFont(request);
   const alignment = normalizedTextAlign(request.alignment);
   const color = request.color || "black";
@@ -186,6 +189,7 @@ function measurePlainTextRequest(request, unit) {
   const cacheKey = textEngineCacheKey("plain", {
     text: normalized.text,
     unit,
+    mathRenderer,
     width: renderWidth,
     height: renderHeight,
     fontScale: item.style.fontScale,
