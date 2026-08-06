@@ -2213,6 +2213,28 @@ test("preserves repeated decorations.text circle replacement mappings", () => {
   assert.doesNotMatch(result.svg, />0<\/text>|>1<\/text>|>-<\/text>/);
 });
 
+test("renders general shadows as path preactions around the path bounding-box center", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}[even odd rule]
+  \draw[general shadow={fill=red,shadow scale=1.25,shadow xshift=2pt,shadow yshift=-1pt}]
+    (0,0) circle (.5) (0.5,0) circle (.5);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.shadows.length, 1);
+  assert.equal(path.shadows[0].scale, 1.25);
+  expectClose(path.shadows[0].xshift, 2 / 28.4527559, 1e-12);
+  expectClose(path.shadows[0].yshift, -1 / 28.4527559, 1e-12);
+  assert.equal(path.shadows[0].style.fill, "red");
+  assert.equal(path.shadows[0].style.stroke, "none");
+  assert.match(result.svg, /class="tikz-path-shadow"/);
+  assert.match(result.svg, /fill="red"/);
+  assert.match(result.svg, /fill-rule="evenodd"/);
+  assert.match(result.svg, /stroke="black" fill="none"/);
+});
+
 test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   const source = String.raw`
 \begin{tikzpicture}

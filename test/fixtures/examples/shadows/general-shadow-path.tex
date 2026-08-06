@@ -1,0 +1,11 @@
+% Derived from the documented PGF shadows library general-shadow example.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadows}
+
+\begin{document}
+\begin{tikzpicture}[even odd rule]
+  \draw[general shadow={fill=red,shadow scale=1.25,shadow xshift=-2pt,shadow yshift=1pt}]
+    (0,0) circle (.5) (0.5,0) circle (.5);
+\end{tikzpicture}
+\end{document}

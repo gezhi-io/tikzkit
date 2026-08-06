@@ -11,8 +11,35 @@ import {
 } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
+import { renderUnitScale, scaleStyleForRenderUnit } from "./layout.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
+import { includePathCommandBounds } from "../../scene/index.js";
+
+export function renderPathWithShadows(item, unit) {
+  const shadows = Array.isArray(item.shadows) ? item.shadows : [];
+  if (!shadows.length) return renderPathElement(item, unit);
+  return `${shadows.map((shadow) => renderPathShadow(item, shadow, unit)).join("")}${renderPathElement(item, unit)}`;
+}
+
+export function renderPathShadow(item, shadow, unit) {
+  const bounds = pathCommandBounds(item.commands || [], item.tightBezierBounds);
+  if (!bounds) return "";
+  const scale = Number(shadow?.scale) > 0 ? Number(shadow.scale) : 1;
+  const centerX = ((bounds.minX + bounds.maxX) / 2) * unit;
+  const centerY = -((bounds.minY + bounds.maxY) / 2) * unit;
+  const xshift = (Number(shadow?.xshift) || 0) * unit;
+  const yshift = -(Number(shadow?.yshift) || 0) * unit;
+  const shadowStyle = {
+    ...(item.style || {}),
+    ...scaleStyleForRenderUnit(shadow?.style || {}, renderUnitScale(unit)),
+    markerStart: undefined,
+    markerEnd: undefined
+  };
+  const shadowItem = { ...item, style: shadowStyle, shadows: undefined };
+  const transform = `translate(${format(xshift)} ${format(yshift)}) translate(${format(centerX)} ${format(centerY)}) scale(${format(scale)}) translate(${format(-centerX)} ${format(-centerY)})`;
+  return `<g class="tikz-path-shadow" transform="${transform}">${renderPathElement(shadowItem, unit)}</g>`;
+}
 
 export function renderPathElement(item, unit) {
   if (!item.style?.markerStart && !item.style?.markerEnd) {
@@ -28,6 +55,17 @@ export function renderPathElement(item, unit) {
     return `<path d="${pathData(item.commands, unit)}"${styleAttributes(item.style)} />`;
   }
   return renderArrowedPath(item, unit);
+}
+
+function pathCommandBounds(commands = [], tightBezierBounds = false) {
+  const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  includePathCommandBounds(commands, (x, y) => {
+    bounds.minX = Math.min(bounds.minX, x);
+    bounds.minY = Math.min(bounds.minY, y);
+    bounds.maxX = Math.max(bounds.maxX, x);
+    bounds.maxY = Math.max(bounds.maxY, y);
+  }, { tightBezierBounds });
+  return Number.isFinite(bounds.minX) ? bounds : null;
 }
 
 export function renderArrowedPath(item, unit) {

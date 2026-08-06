@@ -1,8 +1,9 @@
 export const tikzLibrary = {
   "name": "decorations.text",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:addDecorationTextItems; src/renderers/svg/decorationText.js:renderDecorationTextPath",
+  "implementedBy": "src/engine/evaluate.js:addDecorationTextItems/decorationTextCharacterReplacements; src/renderers/svg/decorationText.js:renderDecorationTextPath",
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.text.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.text.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+  "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
   "features": [
     "text along path",
     "text={|style|content}",

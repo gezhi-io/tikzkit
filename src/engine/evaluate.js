@@ -1354,6 +1354,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
+  const shadows = pathGeneralShadows(semantic, pathEnv);
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
   if (visible) {
     const doubleStyle = doublePathStyle(semantic, env);
@@ -1364,9 +1365,11 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       overlay: tikzBoolean(pathOptions.overlay),
       clipRect: shape.clipRect || clipRect,
       clipCircle: shape.clipCircle || clipCircle,
+      shadows,
       style: { ...style, ...shadingStyle, ...doubleStyle, ...(shape.style || {}) }
     }));
     const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype);
+    if (compoundShape && shadows) compoundShape.shadows = shadows;
     const shapesToRender = compoundShape ? [compoundShape] : styledShapes;
     for (const shape of shapesToRender) {
       ir.items.push(shape);
@@ -1385,7 +1388,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
           includeStrokeBounds,
           includeArrowNormalBounds: includeStrokeBounds,
           includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(pathOptions),
-          tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
+          tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
+          shadows
         }
       );
       ir.items.push(item);
@@ -9124,7 +9128,7 @@ function svgTextAnchorForNode(options = {}, semantic = {}) {
   return undefined;
 }
 
-function nodeGeneralShadows(semantic = {}, env) {
+function pathGeneralShadows(semantic = {}, env) {
   const shadows = [];
   if (semantic["general shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["general shadow"]).map((value) => parseGeneralShadow(value, env)).filter(Boolean));
@@ -9134,6 +9138,8 @@ function nodeGeneralShadows(semantic = {}, env) {
   }
   return shadows.length ? shadows : undefined;
 }
+
+const nodeGeneralShadows = pathGeneralShadows;
 
 function parseGeneralShadow(value, env) {
   const shadowOptions = parseOptions(String(value === true ? "" : value));

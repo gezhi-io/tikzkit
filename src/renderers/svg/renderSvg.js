@@ -27,7 +27,7 @@ import {
   renderLibraryShapeNodeBox
 } from "./nodeShapes.js";
 import { renderMiscOutNodeBox, renderNodeBoxWithOverlay } from "./nodeOverlays.js";
-import { renderPathElement } from "./paths.js";
+import { renderPathElement, renderPathWithShadows } from "./paths.js";
 import { hasRenderableFormOnlyPattern, renderFormOnlyPatternFill } from "./formOnlyPatterns.js";
 import { renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
@@ -186,7 +186,7 @@ function renderItem(item, unit, options = {}, index = 0) {
         ...item,
         style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
       }, unit)}`
-      : renderPathElement(item, unit);
+      : renderPathWithShadows(item, unit);
     const clip = item.clipCircle
       ? clipCircleId(item.clipCircle)
       : item.clipRect
