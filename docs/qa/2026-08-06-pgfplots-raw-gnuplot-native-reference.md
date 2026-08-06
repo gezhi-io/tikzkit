@@ -102,6 +102,21 @@ claim the full repository test suite is green.
 
 Raw gnuplot remains intentionally partial: 3D/parametric programs, arbitrary
 files, shell commands, strings, and unsupported functions still do not lower.
+
 The Milestone-30 `latex-examples-3d-gaussian-distribution` tikztosvg reference
-still times out at 30 seconds and is recorded as an oracle availability issue,
-not a passing visual comparison.
+does time out at the deliberate 30-second batch budget. It is a high-sample
+3D surface, not a gnuplot case. Keeping its original `samples=60` source and
+retrying with `--external-timeout-ms 120000` produced all three artifacts in
+`/private/tmp/tikzkit-qa-3d-gaussian-120s-2026-08-06`:
+
+- TikZKit SVG/PNG: 1/1;
+- tikztosvg SVG/PNG: 1/1;
+- MacTeX native PNG: 1/1;
+- external failures: 0.
+
+The inspected native sheet is
+`diff/latex-examples-3d-gaussian-distribution-native-sheet.png`. All panels
+show the two blue/orange Gaussian lobes, their gridded perspective box, the
+`x_1`, `x_2`, and `P` axis labels, and the two pinned `P(x_1)`/`P(x_2)`
+annotations. Thus the batch timeout is an oracle-performance boundary only;
+the source must be retried at a longer limit before drawing a visual conclusion.

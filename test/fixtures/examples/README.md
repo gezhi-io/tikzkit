@@ -55,6 +55,19 @@ npm run examples:render -- --only case-one case-two \
   --strict-tikztosvg --continue-on-external-failure
 ```
 
+For an individual high-sample 3D surface that times out in that intentionally
+short batch budget, preserve the original source and retry only that fixture
+with a longer external-reference limit. For example:
+
+```sh
+npm run examples:render -- --only latex-examples-3d-gaussian-distribution \
+  --native-reference --strict-tikztosvg --external-timeout-ms 120000
+```
+
+An external timeout is reference availability evidence, not a TikZKit visual
+acceptance or rejection by itself. Inspect the completed three-way sheet after
+the retry.
+
 The script writes:
 
 ```txt

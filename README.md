@@ -127,6 +127,29 @@ references and visual panels. A failed reference can be an unavailable local
 tool or an oracle timeout; it is not, by itself, proof that TikZKit rendered
 the source incorrectly.
 
+### Retry A Heavy 3D Reference
+
+The batch command above intentionally uses a 30-second external-reference
+limit so one unusually expensive case cannot hide the rest of the report. A
+high-sample PGFPlots surface can legitimately need longer on the local TeX
+toolchain. For example, the original 60-sample
+`latex-examples-3d-gaussian-distribution` source completes in the local
+TikZKit, `tikztosvg`, and MacTeX renderers with a two-minute reference limit:
+
+```bash
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-3d-gaussian \
+  --only latex-examples-3d-gaussian-distribution \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg \
+  --external-timeout-ms 120000
+npm run examples:diff -- --output outputs/qa-3d-gaussian \
+  --register --alignment-radius 3
+```
+
+Keep the original source and its sampling contract intact when retrying. Do
+not lower `samples` merely to make the reference command finish: that would
+change the visual target rather than diagnose it.
+
 For the supported `gnuplot[raw gnuplot]` numerical subset, the disposable
 MacTeX reference source uses the same bounded coordinate lowering as TikZKit
 and `tikztosvg`. This produces an inspectable native PNG when `gnuplot` is not
