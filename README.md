@@ -58,6 +58,26 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### Commit A Verified Change
+
+Keep one commit to one accepted capability slice. Before staging, run the
+focused test and the catalog semantic gate, regenerate the affected visual-QA
+directory, and inspect its panels. A normal compatibility commit contains only
+the shared implementation, a regression test, the source fixture, the registry
+entry, and its `docs/qa/` record:
+
+```bash
+npm test -- test/<focused-test>.test.js
+npm run gallery:audit
+git diff --check
+git status --short
+```
+
+Do not stage `outputs/`, `output/`, browser screenshots, or generated
+reference PNG/SVG files. They are reproducible evidence rather than source;
+the checked-in fixture plus the command and findings in `docs/qa/` are the
+durable review record.
+
 ### What A Result Means
 
 TikZKit deliberately keeps three different outcomes separate. This matters
@@ -445,7 +465,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `276/276 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `292/292 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,

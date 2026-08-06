@@ -4,7 +4,7 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-当前维护语料的语义基线为 `283/283 rendered, 0 diagnostics`。这只表示这批
+当前维护语料的语义基线为 `292/292 rendered, 0 diagnostics`。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
@@ -141,7 +141,7 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 283/283 rendered, 0 diagnostics。
+# 维护案例的语义检查；当前预期为 292/292 rendered, 0 diagnostics。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。
@@ -157,6 +157,19 @@ git diff --check
 完整 `npm test` 适合观察实验性基线，但不是当前发布门槛；其中仍有已知的历史失败。
 提交一个功能时，应只包含共享实现、最小回归测试、对应 fixture、registry 更新和
 `docs/qa/` 的视觉验收记录。不要加入 `outputs/`、`output/` 或浏览器临时截图。
+
+提交前至少运行以下检查，并确认视觉-QA 页面已经实际查看过：
+
+```bash
+npm test -- test/<focused-test>.test.js
+npm run gallery:audit
+git diff --check
+git status --short
+```
+
+`git status --short` 中的 `outputs/`、`output/`、临时 PNG/SVG 不是源代码，保持
+未暂存即可。一次提交只覆盖一个经过验收的功能切片；不要把尚未检查的案例、无关
+重构或本地图片混入同一次提交。
 
 ## 6. 常见问题
 
