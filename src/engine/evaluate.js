@@ -12390,6 +12390,7 @@ function parseArcRadii(options = {}, env = {}) {
 function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   const decoration = parseOptions(String(pathOptions.decoration || ""));
   if (pathOptions.decorate && decoration.brace) return applyBraceDecoration(commands, decoration, env);
+  if (pathOptions.decorate && decoration.ticks) return applyTicksDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration["Koch snowflake"]) return applyKochSnowflakeDecoration(commands);
   const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : null;
   if (!pathOptions.decorate || !mode) return commands;
@@ -12676,6 +12677,83 @@ function applyBraceDecoration(commands, decoration, env) {
   }
   flushSubpath();
   return replaced.length ? replaced : commands;
+}
+
+function applyTicksDecoration(commands, decoration, env) {
+  const replaced = [];
+  let subpath = [];
+
+  const flushSubpath = () => {
+    if (!subpath.length) return;
+    const startsWithMove = subpath[0]?.type === "moveTo";
+    const hasDrawableSegment = subpath.some((command) => ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type));
+    if (!startsWithMove || !hasDrawableSegment) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+
+    // `ticks` is a path-replacing decoration. The PGF state machine advances
+    // through the complete decorated subpath, so a tick after a corner uses
+    // the following segment's local tangent rather than restarting there.
+    const points = flattenPath(subpath, 0.02);
+    const length = pathLength(points);
+    if (points.length < 2 || length <= 1e-12) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+    appendTicksOnPolyline(replaced, points, length, decoration, env);
+    subpath = [];
+  };
+
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      flushSubpath();
+      subpath.push(command);
+      continue;
+    }
+    if (subpath.length && ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type)) {
+      subpath.push(command);
+      if (command.type === "closePath") flushSubpath();
+      continue;
+    }
+    flushSubpath();
+    replaced.push(command);
+  }
+  flushSubpath();
+  return replaced.length ? replaced : commands;
+}
+
+function appendTicksOnPolyline(commands, points, length, decoration, env) {
+  const defaultSegmentLength = parseDimension("10pt", env.variables);
+  const defaultAmplitude = parseDimension("2.5pt", env.variables);
+  const segmentLength = Math.max(
+    1e-9,
+    parseFinitePgfLength(decoration["segment length"] ?? "10pt", env, defaultSegmentLength)
+  );
+  const amplitude = Math.max(
+    0,
+    parseFinitePgfLength(decoration.amplitude ?? "2.5pt", env, defaultAmplitude)
+  );
+  const offsets = [];
+  for (let distance = 0; distance < length - 1e-9; distance += segmentLength) offsets.push(distance);
+  // PGF's `final` state runs at the current decoration-state origin. It does
+  // not relocate the tick to the raw path endpoint when a partial segment is
+  // left over, so only fully reached segment origins receive tick marks.
+
+  for (const distance of offsets) {
+    const point = pointOnPolyline(points, distance);
+    const positive = {
+      x: roundNumber(point.x + point.normal.x * amplitude),
+      y: roundNumber(point.y + point.normal.y * amplitude)
+    };
+    const negative = {
+      x: roundNumber(point.x - point.normal.x * amplitude),
+      y: roundNumber(point.y - point.normal.y * amplitude)
+    };
+    commands.push(moveToCommand(positive), lineToCommand(negative));
+  }
 }
 
 function appendBraceLine(commands, from, to, decoration, env) {

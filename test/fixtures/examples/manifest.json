@@ -4431,6 +4431,23 @@
         "draw inheritance",
         "path preaction order"
       ]
+    },
+    {
+      "id": "decorations-pathreplacing-ticks",
+      "title": "PGF path-replacing normal ticks",
+      "source": "decorations/pathreplacing-ticks.tex",
+      "sourceCorpus": "TeX Live PGF decorations manual",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyTicksDecoration",
+      "features": [
+        "decorations.pathreplacing",
+        "ticks",
+        "segment length",
+        "amplitude",
+        "line tangent",
+        "curve tangent",
+        "terminal tick"
+      ]
     }
   ]
 }

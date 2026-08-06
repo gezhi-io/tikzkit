@@ -2128,6 +2128,27 @@ test("uses brace decoration amplitude for path replacement depth", () => {
   assert.ok(largeDepth > smallDepth * 3, `expected 15pt brace to be visibly deeper than 3pt: ${smallDepth}, ${largeDepth}`);
 });
 
+test("replaces complete decorated subpaths with native-style normal ticks", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={ticks,segment length=.25cm,amplitude=.1cm}]
+    (0,0) -- (1,0) -- (1,1);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const [firstMove, firstTick, secondMove, secondTick] = path.commands;
+  const terminalTick = path.commands.at(-1);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(path.commands.length, 16, `expected periodic ticks only at complete state origins, got ${JSON.stringify(path.commands)}`);
+  assert.deepEqual(firstMove, { type: "moveTo", x: 0, y: 0.1 });
+  assert.deepEqual(firstTick, { type: "lineTo", x: 0, y: -0.1 });
+  assert.deepEqual(secondMove, { type: "moveTo", x: 0.25, y: 0.1 });
+  assert.deepEqual(secondTick, { type: "lineTo", x: 0.25, y: -0.1 });
+  assert.deepEqual(terminalTick, { type: "lineTo", x: 1.1, y: 0.75 });
+});
+
 test("places text decorations along invisible paths", () => {
   const source = String.raw`
 \begin{tikzpicture}
