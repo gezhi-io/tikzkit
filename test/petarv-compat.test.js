@@ -799,6 +799,23 @@ test("uses PGF-like capsule radius for empty rounded-rectangle layer boxes", () 
   assert.ok(Math.abs(box.rx - box.height / 2) < parseDimension("0.1pt"), `expected capsule radius near half-height, got rx=${box.rx}, height=${box.height}`);
 });
 
+test("sizes default convex rounded rectangles from the PGF text-box chord", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[draw, outer sep=0pt, rounded rectangle, minimum height=.8cm, align=center] (ped) {pedestrian};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const box = ir.items.find((item) => item.type === "nodeBox" && item.id === "ped");
+  // Local PGF/tikztosvg paints this box at 53.633pt.  Its two convex ends
+  // extend by the text-box chord, not by a fixed horizontal em padding.
+  const expectedWidth = 53.633 / 28.45274;
+
+  assert.equal(diagnostics.length, 0);
+  assert.ok(Math.abs(box.width - expectedWidth) < 0.01, `expected PGF rounded-rectangle width near ${expectedWidth}, got ${box.width}`);
+  assert.ok(Math.abs(box.height - 0.8) < 0.01, `expected PGF minimum height, got ${box.height}`);
+});
+
 test("keeps A3C-style rounded math nodes compact and rounded", () => {
   const source = String.raw`
 \begin{tikzpicture}

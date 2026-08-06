@@ -10871,8 +10871,18 @@ function rectangleSplitHorizontalMinPartWidth(env = { variables: {} }) {
   return parseDimension("1.14em", env.variables);
 }
 
-function roundedRectangleTextExtraXSep(env = { variables: {} }) {
-  return parseDimension("0.54em", env.variables);
+function roundedRectangleTextExtraXSep(textBox, outerHeight) {
+  const contentHeight = Math.max(0, Number(textBox?.height) || 0);
+  const halfTextHeight = contentHeight / 2;
+  const halfHeight = Math.max(0, Number(outerHeight) || 0) / 2;
+  if (!halfTextHeight || !halfHeight) return 0;
+
+  // `rounded rectangle` defaults to two convex 180-degree arcs. PGF derives
+  // their horizontal allowance from the chord that encloses the text box;
+  // fixed em padding makes short text nodes noticeably too wide.
+  const radius = halfHeight;
+  const ratio = Math.min(1, halfTextHeight / radius);
+  return radius * (1 - Math.sqrt(Math.max(0, 1 - ratio * ratio)));
 }
 
 function splitMatrixRows(body) {
@@ -11694,7 +11704,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     if (isEmptyText && options["minimum width"]) {
       width = Math.max(parseDimension("1pt", env.variables), parseNodeLengthDimension(options["minimum width"], env) - innerXSep * 2);
     } else if (!isEmptyText) {
-      width += roundedRectangleTextExtraXSep(env) * 2;
+      width += roundedRectangleTextExtraXSep(textBox, height) * 2;
     }
   }
   if (shape === "regularPolygon") {
