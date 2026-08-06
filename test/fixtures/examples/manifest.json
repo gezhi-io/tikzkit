@@ -225,6 +225,16 @@
       ]
     },
     {
+      "id": "circuitikz-varcap-diodes",
+      "title": "circuitikz varcap diode plate variants",
+      "source": "circuitikz/varcap-diodes.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "libraries": [],
+      "packages": [
+        "circuitikz"
+      ]
+    },
+    {
       "id": "circuitikz-chokes-and-core-anchors",
       "title": "circuitikz cute chokes and inductor core anchors",
       "source": "circuitikz/chokes-and-core-anchors.tex",

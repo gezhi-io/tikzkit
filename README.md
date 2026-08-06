@@ -579,7 +579,7 @@ Supported in this slice: the documented full/empty aliases `D*` and `Do`,
 the base `D` form, `sD*`/`sD` Schottky diodes, `leD*`/`leD` LEDs,
 `diodes/scale`, `diodes/fill`, and `l=` labels. LEDs include the two native
 outgoing emission arrows and put the label on their outer side. The additional
-Zener/TVS and photo/laser slices are documented below; tunnel, varcap,
+Zener/TVS, photo/laser, and varcap slices are documented below; tunnel,
 Shockley, bidirectional, tripole, and custom-diode families remain partial.
 
 The source fixture is
@@ -619,7 +619,7 @@ Accepted aliases are `zD`/`zD*`/`zDo`, `zzD`/`zzD*`/`zzD-`, and
 `diode straight whiskers` produces the right-angle terminals, while
 `diode sloped whiskers` restores the default slanted form. TVS uses the native
 double-width, opposing-triangle body. This adds no claim for tunnel, optical,
-varcap, Shockley, bidirectional, or tripole families.
+Shockley, bidirectional, or tripole families.
 
 The checked source and reproducible three-way record are
 [`test/fixtures/examples/circuitikz/zener-tvs-diodes.tex`](test/fixtures/examples/circuitikz/zener-tvs-diodes.tex)
@@ -648,12 +648,39 @@ full/empty/stroke long names, the laser diode's second cathode bar,
 `pd arrows to anode`, `pd arrows to cathode`, `opto arrows/color`,
 `opto arrows/relative thickness`, `diodes/scale`, `diodes/fill`, and outer
 `l=` labels. This does not yet claim arbitrary opto dash/end-arrow syntax,
-photoresistors, phototransistors, solar cells, tunnel diodes, or varcaps.
+photoresistors, phototransistors, solar cells, or tunnel diodes.
 
 The checked source and three-way visual record are
 [`test/fixtures/examples/circuitikz/opto-diodes.tex`](test/fixtures/examples/circuitikz/opto-diodes.tex)
 and
 [`docs/qa/2026-08-06-circuitikz-opto-diodes.md`](docs/qa/2026-08-06-circuitikz-opto-diodes.md).
+
+### Circuitikz Varcap Diodes
+
+The varcap slice implements Circuitikz's diode-like variable-capacitance
+symbol: its triangular plate ends at the first vertical plate, with the second
+plate offset by the source-defined two-bipole-line-width gap.
+
+```tex
+\begin{circuitikz}
+  \draw (0,0) to[VC,l=$C_{\mathrm{auto}}$] (3,0);
+  \draw (0,-1.8) to[VCo,diodes/fill=orange!30,l=$C_{\mathrm{empty}}$] (3,-1.8);
+  \draw (4,0) to[VC-,l=$C_{\mathrm{stroke}}$] (7,0);
+  \draw (4,-1.8) to[VC*,diodes/scale=.7,l=$C_{\mathrm{full}}$] (7,-1.8);
+\end{circuitikz}
+```
+
+Supported forms are `VC`, `VCo`, `VC-`, `VC*`, plus `full varcap`, `empty
+varcap`, and `stroke varcap`. The automatic `VC` form follows Circuitikz's
+global `diode=empty|full|stroke` choice (native default: `empty`). The shared
+`diodes/scale`, `diodes/fill`, and `l=` behavior applies. This is the
+diode-like varcap family only; `vC` variable capacitors, tunnel/Schottky
+variants, and wider diode families remain separate work.
+
+The checked source and three-way visual record are
+[`test/fixtures/examples/circuitikz/varcap-diodes.tex`](test/fixtures/examples/circuitikz/varcap-diodes.tex)
+and
+[`docs/qa/2026-08-06-circuitikz-varcap-diodes.md`](docs/qa/2026-08-06-circuitikz-varcap-diodes.md).
 
 ### Circuitikz Transformer Cores
 

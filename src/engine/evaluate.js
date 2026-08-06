@@ -2432,7 +2432,7 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
 function circuitikzDiodeSpec(options = {}, env = {}) {
   for (const [rawKey, rawValue] of Object.entries(options || {})) {
     const key = String(rawKey).trim().replace(/\s+/g, " ");
-    const short = key.match(/^(tvsD|zzD|lasD|pD|zD|leD|sD|D)([o*-])?$/i);
+    const short = key.match(/^(tvsD|zzD|lasD|pD|zD|leD|sD|VC|D)([o*-])?$/i);
     if (short) {
       const diodeKind = circuitikzDiodeKind(short[1]);
       return {
@@ -2442,7 +2442,7 @@ function circuitikzDiodeSpec(options = {}, env = {}) {
         label: circuitikzLabelValue(options.l) || circuitikzLabelValue(rawValue)
       };
     }
-    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|laser diode|photodiode|led|schottky diode|diode)$/i);
+    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|laser diode|photodiode|varcap|led|schottky diode|diode)$/i);
     if (!long) continue;
     const diodeKind = circuitikzDiodeKind(long[2]);
     return {
@@ -2460,6 +2460,7 @@ function circuitikzDiodeKind(raw = "") {
   if (kind === "led" || kind === "lediode") return "led";
   if (kind === "pd" || kind === "photodiode") return "photodiode";
   if (kind === "lasd" || kind === "laser diode") return "laser";
+  if (kind === "vc" || kind === "varcap") return "varcap";
   if (kind === "sd" || kind === "schottky diode") return "schottky";
   if (kind === "zd" || kind === "zener diode") return "zener";
   if (kind === "zzd" || kind === "zzener diode") return "zzener";
@@ -2468,9 +2469,9 @@ function circuitikzDiodeKind(raw = "") {
 }
 
 function circuitikzDiodeVariant(explicit, options = {}, env = {}) {
-  if (explicit === "*") return "full";
-  if (explicit === "o") return "empty";
-  if (explicit === "-") return "stroke";
+  if (explicit === "*" || explicit === "full") return "full";
+  if (explicit === "o" || explicit === "empty") return "empty";
+  if (explicit === "-" || explicit === "stroke") return "stroke";
   const sources = [options, env.circuitikz || {}, env.pictureOptions || {}];
   for (const source of sources) {
     const configured = String(source.diode ?? source.diodes ?? "").trim().toLowerCase();
@@ -2479,7 +2480,9 @@ function circuitikzDiodeVariant(explicit, options = {}, env = {}) {
     if (source["empty diodes"] !== undefined) return "empty";
     if (source["stroke diodes"] !== undefined) return "stroke";
   }
-  return "full";
+  // circuitikz initializes its auto-selecting `diode` key to empty. Explicit
+  // `*`, `o`, and `-` aliases select full, empty, and stroke respectively.
+  return "empty";
 }
 
 function circuitikzComponentName(options = {}, fallback = "") {
@@ -3186,14 +3189,15 @@ function circuitikzDiodeSettings(spec = {}, options = {}, env = {}) {
   // then uses width=.40 Rlen and height=.50 Rlen (pgfcircbipoles.tex).
   const rlen = 1.4 * circuitikzLengthScale(env) * scale;
   const tvs = spec.diodeKind === "tvs";
+  const varcap = spec.diodeKind === "varcap";
   const rawFill = circuitikzDiodeRawOption("fill", options, env);
   const fill = rawFill === undefined || rawFill === null || rawFill === true || rawFill === "" || String(rawFill).trim().toLowerCase() === "none"
     ? "none"
     : normalizeColor(String(rawFill));
   return {
     scale,
-    bodyLength: (tvs ? 0.8 : 0.4) * rlen,
-    halfWidth: (tvs ? 0.4 : 0.2) * rlen,
+    bodyLength: (tvs ? 0.8 : varcap ? 0.45 : 0.4) * rlen,
+    halfWidth: (tvs ? 0.4 : varcap ? 0.225 : 0.2) * rlen,
     halfHeight: 0.25 * rlen,
     fill,
     whiskers: circuitikzDiodeWhiskers(options, env)
@@ -3220,6 +3224,9 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
   const baseBottom = pointNormal(base, geometry.n, -halfHeight);
   const outlineStyle = { ...circuitikzComponentStyle(pathStyle), fill: "none", lineJoin: "miter" };
   const fill = spec.variant === "full" ? outlineStyle.stroke : spec.variant === "empty" ? settings.fill : "none";
+  if (spec.diodeKind === "varcap") {
+    return circuitikzVarcapItems(geometry, spec, settings, outlineStyle, fill);
+  }
   if (spec.diodeKind === "tvs") {
     const mid = geometry.mid;
     const rightTop = pointNormal(cathode, geometry.n, halfHeight);
@@ -3300,6 +3307,58 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
   if (spec.diodeKind === "led") items.push(...circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
   if (spec.diodeKind === "photodiode") items.push(...circuitikzPhotodiodeArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
   if (spec.diodeKind === "laser") items.push(...circuitikzLaserArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
+  return items;
+}
+
+function circuitikzVarcapItems(geometry, spec = {}, settings = {}, outlineStyle = {}, fill = "none") {
+  const bodyLength = Math.min(settings.bodyLength || 0, geometry.length * 0.78);
+  const halfWidth = Math.min(settings.halfWidth || bodyLength / 2, bodyLength / 2);
+  const halfHeight = settings.halfHeight || halfWidth * 1.1;
+  const base = pointAlong(geometry.mid, geometry.u, -halfWidth);
+  const rightPlate = pointAlong(geometry.mid, geometry.u, halfWidth);
+  // pgfcircbipoles.tex places the triangular plate's apex two temporary
+  // bipole line widths before the second vertical plate. The component style
+  // already carries that temporary doubled width in screen units.
+  const plateGap = Math.min(halfWidth * 0.65, Math.max(0, (Number(outlineStyle.lineWidth) || 0) * 2 / TIKZ_UNIT));
+  const leftPlate = pointAlong(rightPlate, geometry.u, -plateGap);
+  const baseTop = pointNormal(base, geometry.n, halfHeight);
+  const baseBottom = pointNormal(base, geometry.n, -halfHeight);
+  const leftTop = pointNormal(leftPlate, geometry.n, halfHeight);
+  const leftBottom = pointNormal(leftPlate, geometry.n, -halfHeight);
+  const rightTop = pointNormal(rightPlate, geometry.n, halfHeight);
+  const rightBottom = pointNormal(rightPlate, geometry.n, -halfHeight);
+  const body = {
+    type: "path",
+    subtype: "circuitikz-varcap",
+    diodeKind: "varcap",
+    variant: spec.variant,
+    fill,
+    label: spec.label || "",
+    bodyLength: roundNumber(bodyLength),
+    orientation: Math.abs(geometry.u.y) > Math.abs(geometry.u.x) ? "vertical" : "horizontal",
+    style: { ...outlineStyle, fill },
+    commands: [moveToCommand(leftPlate), lineToCommand(baseTop), lineToCommand(baseBottom), closePathCommand()]
+  };
+  const plates = {
+    type: "path",
+    subtype: "circuitikz-varcap-plates",
+    diodeKind: "varcap",
+    style: outlineStyle,
+    commands: [
+      moveToCommand(leftBottom), lineToCommand(leftTop),
+      moveToCommand(rightBottom), lineToCommand(rightTop)
+    ]
+  };
+  const items = [body, plates];
+  if (spec.variant === "stroke") {
+    items.push({
+      type: "path",
+      subtype: "circuitikz-diode-stroke",
+      diodeKind: "varcap",
+      style: outlineStyle,
+      commands: [moveToCommand(base), lineToCommand(leftPlate)]
+    });
+  }
   return items;
 }
 

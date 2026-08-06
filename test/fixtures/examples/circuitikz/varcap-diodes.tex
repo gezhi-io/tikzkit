@@ -1,0 +1,15 @@
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+  % Adapted from the TeX Live circuitikz varcap manual entries.
+  \draw (0,0) to[VC,l=$C_{\mathrm{full}}$] (3,0);
+  \draw (0,-1.8) to[VCo,diodes/fill=orange!30,l=$C_{\mathrm{empty}}$] (3,-1.8);
+  \draw (4,0) to[VC-,l=$C_{\mathrm{stroke}}$] (7,0);
+  \draw (4,-1.8) to[VC*,diodes/scale=.7,l=$C_{\mathrm{small}}$] (7,-1.8);
+
+  \draw (0,-3.8) to[empty varcap,diodes/fill=green!20,l=$C_{\mathrm{long}}$] (3,-3.8);
+  \draw (4,-3.8) to[stroke varcap,diodes/scale=.8,l=$C_{\mathrm{long-}}$] (7,-3.8);
+\end{circuitikz}
+\end{document}
