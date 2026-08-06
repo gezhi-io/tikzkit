@@ -3872,6 +3872,22 @@
         "mid east/mid west anchors",
         "node distance"
       ]
+    },
+    {
+      "id": "pgf-rectangle-split-empty-metrics",
+      "title": "PGF rectangle split empty-part height and depth",
+      "source": "workbench/rectangle-split-empty-metrics.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
+      "features": [
+        "rectangle split horizontal",
+        "empty part width",
+        "empty part height",
+        "empty part depth",
+        "per-part baseline alignment",
+        "nodepart anchors"
+      ]
     }
   ]
 }

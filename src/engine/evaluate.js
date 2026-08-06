@@ -9319,11 +9319,21 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     (options["rectangle split empty part width"] === undefined
       ? 0
       : parseNodeLengthDimension(options["rectangle split empty part width"], env));
-  const emptyHeight =
-    parseNodeLengthDimension("1ex", env) +
-    (options["rectangle split empty part height"] === undefined
+  // PGF appends a zero-width rule for each height/depth key. TeX combines
+  // those rules in an hbox by taking the maximum height and depth, whereas
+  // successive width rules remain adjacent and therefore accumulate above.
+  const emptyHeight = Math.max(
+    parseNodeLengthDimension("1ex", env),
+    options["rectangle split empty part height"] === undefined
       ? 0
-      : parseNodeLengthDimension(options["rectangle split empty part height"], env));
+      : parseNodeLengthDimension(options["rectangle split empty part height"], env)
+  );
+  const emptyDepth = Math.max(
+    0,
+    options["rectangle split empty part depth"] === undefined
+      ? 0
+      : parseNodeLengthDimension(options["rectangle split empty part depth"], env)
+  );
   const { style: splitStyle } = normalizeOptions("node", options, env);
   const separatorWidth = Math.max(0, (Number(splitStyle.lineWidth) || 0) / TIKZ_UNIT);
   const metricOptions = { ...options };
@@ -9337,11 +9347,12 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
     if (!part.text) {
       return {
         width: roundNumber(Math.max(0.02, emptyWidth + innerXSep * 2)),
-        height: roundNumber(Math.max(0.02, emptyHeight + innerYSep * 2)),
-        // PGF represents an empty split part with a rule whose default
-        // height is 1ex and depth is zero.
+        height: roundNumber(Math.max(0.02, emptyHeight + emptyDepth + innerYSep * 2)),
+        // PGF represents empty split parts with zero-width rules. Their
+        // default dimensions are 1ex height and zero depth; custom rules can
+        // raise either maximum independently.
         boxHeight: roundNumber(emptyHeight),
-        boxDepth: 0
+        boxDepth: roundNumber(emptyDepth)
       };
     }
     // The browser measurement backend sees KaTeX's typewriter face before
