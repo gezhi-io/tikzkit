@@ -7,6 +7,7 @@ const FIXTURE = new URL("./fixtures/examples/automata/initial-accepting-states.t
 const OUTPUT_FIXTURE = new URL("./fixtures/examples/automata/state-with-output.tex", import.meta.url);
 const ACCEPTING_FIXTURE = new URL("./fixtures/examples/automata/accepting-arrows.tex", import.meta.url);
 const DIAMOND_FIXTURE = new URL("./fixtures/examples/automata/initial-by-diamond.tex", import.meta.url);
+const ARROW_STYLE_FIXTURE = new URL("./fixtures/examples/automata/every-arrow-styles.tex", import.meta.url);
 
 test("renders automata state, accepting double outline, and directional initial arrows", () => {
   const result = tikzToSvg(readFileSync(FIXTURE, "utf8"), { mathRenderer: "svg-text" });
@@ -90,4 +91,22 @@ test("lets automata initial by diamond override the state circle", () => {
   assert.ok(nodes[0].width > 0.99 && nodes[0].width < 1.02, `unexpected natural diamond width: ${nodes[0].width}`);
   assert.ok(nodes[1].width > 1.19 && nodes[1].width < 1.21, `unexpected minimum-size diamond width: ${nodes[1].width}`);
   assert.match(result.svg, /<polygon points=/);
+});
+
+test("applies every initial and accepting by arrow styles to their generated paths and text", () => {
+  const result = tikzToSvg(readFileSync(ARROW_STYLE_FIXTURE, "utf8"), { mathRenderer: "svg-text" });
+  const initial = result.ir.items.find((item) => item.subtype === "automata-initial");
+  const accepting = result.ir.items.find((item) => item.subtype === "automata-accepting");
+  const initialText = result.ir.items.find((item) => item.subtype === "automata-initial-text");
+  const acceptingText = result.ir.items.find((item) => item.subtype === "automata-accepting-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(initial?.style.stroke, "blue");
+  assert.equal(accepting?.style.stroke, "rgb(255 128 0)");
+  assert.ok(initial?.style.lineWidth > 2, `expected initial arrow to inherit very thick, got ${initial?.style.lineWidth}`);
+  assert.ok(Array.isArray(accepting?.style.dashArray), "expected accepting arrow to inherit dashed");
+  assert.equal(initial?.style.markerEnd?.kind, "stealth");
+  assert.equal(accepting?.style.markerEnd?.kind, "latex");
+  assert.equal(initialText?.style.fill, "red");
+  assert.equal(acceptingText?.style.fill, "rgb(0 255 0)");
 });

@@ -7735,13 +7735,17 @@ function addAutomataInitialArrow(node, point, semantic, nodeStyle, textStyle, te
     x: border.x + direction.x * distance,
     y: border.y + direction.y * distance
   });
+  // PGF builds this post-node path as `[->,double=none,every initial by arrow]`.
+  // It is deliberately independent from the state node's border style.
   const arrowOptions = {
-    "->": true
+    "->": true,
+    double: "none",
+    "every initial by arrow": true
   };
   if (env.pictureOptions?.[">"] !== undefined) arrowOptions[">"] = env.pictureOptions[">"];
   const { style: initialStyle } = normalizeOptions("draw", arrowOptions, env);
-  const stroke = nodeStyle.stroke && nodeStyle.stroke !== "none" ? nodeStyle.stroke : initialStyle.stroke || "black";
-  const lineWidth = nodeStyle.lineWidth || initialStyle.lineWidth || lineWidthFromPt(0.4);
+  const stroke = initialStyle.stroke || "black";
+  const lineWidth = initialStyle.lineWidth || lineWidthFromPt(0.4);
   ir.items.push(createPathShape(
     [moveToCommand(start), lineToCommand(border)],
     {
@@ -7750,6 +7754,10 @@ function addAutomataInitialArrow(node, point, semantic, nodeStyle, textStyle, te
       lineWidth,
       lineCap: initialStyle.lineCap,
       lineJoin: initialStyle.lineJoin,
+      dashArray: initialStyle.dashArray,
+      dashLineCap: initialStyle.dashLineCap,
+      opacity: initialStyle.opacity,
+      strokeOpacity: initialStyle.strokeOpacity,
       markerEnd: initialStyle.markerEnd || createArrowTip("to", { fill: stroke, stroke })
     },
     { subtype: "automata-initial" }
@@ -7809,11 +7817,17 @@ function addAutomataAcceptingArrow(node, point, semantic, nodeStyle, textStyle, 
     x: border.x + direction.x * distance,
     y: border.y + direction.y * distance
   });
-  const arrowOptions = { "->": true };
+  // PGF uses the same path-local hook for an accepting arrow, after its
+  // default arrow and double-line reset have been installed.
+  const arrowOptions = {
+    "->": true,
+    double: "none",
+    "every accepting by arrow": true
+  };
   if (env.pictureOptions?.[">"] !== undefined) arrowOptions[">"] = env.pictureOptions[">"];
   const { style: acceptingStyle } = normalizeOptions("draw", arrowOptions, env);
-  const stroke = nodeStyle.stroke && nodeStyle.stroke !== "none" ? nodeStyle.stroke : acceptingStyle.stroke || "black";
-  const lineWidth = nodeStyle.lineWidth || acceptingStyle.lineWidth || lineWidthFromPt(0.4);
+  const stroke = acceptingStyle.stroke || "black";
+  const lineWidth = acceptingStyle.lineWidth || lineWidthFromPt(0.4);
   ir.items.push(createPathShape(
     [moveToCommand(border), lineToCommand(end)],
     {
@@ -7822,6 +7836,10 @@ function addAutomataAcceptingArrow(node, point, semantic, nodeStyle, textStyle, 
       lineWidth,
       lineCap: acceptingStyle.lineCap,
       lineJoin: acceptingStyle.lineJoin,
+      dashArray: acceptingStyle.dashArray,
+      dashLineCap: acceptingStyle.dashLineCap,
+      opacity: acceptingStyle.opacity,
+      strokeOpacity: acceptingStyle.strokeOpacity,
       markerEnd: acceptingStyle.markerEnd || createArrowTip("to", { fill: stroke, stroke })
     },
     { subtype: "automata-accepting", nodeId: node.name }

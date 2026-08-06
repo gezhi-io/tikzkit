@@ -13,7 +13,8 @@ export const tikzLibrary = {
     "initial by diamond (requires shapes.geometric, matching PGF)",
     "initial arrows at the default, above, below, left, and right positions",
     "initial distance",
-    "default and custom initial text"
+    "default and custom initial text",
+    "every initial by arrow and every accepting by arrow text/stroke/line/dash/opacity/arrow styles"
   ],
   "implements": [
     "state",
@@ -35,5 +36,5 @@ export const tikzLibrary = {
     "initial distance",
     "initial text"
   ],
-  "notes": "Does not yet implement every accepting/initial by arrow custom styles. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it."
+  "notes": "Every initial/accepting by arrow now inherits its documented path-local text, stroke, line, dash, opacity, and arrow styles. Path-local geometry keys beyond the shared renderer subset remain partial. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it."
 };
