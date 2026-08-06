@@ -57,6 +57,53 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### What A Result Means
+
+TikZKit deliberately keeps three different outcomes separate. This matters
+when deciding whether a diagram is ready to rely on:
+
+| Result | Meaning | What it does **not** prove |
+| --- | --- | --- |
+| **Rendered** | The JavaScript parser and interpreter produced an SVG without a diagnostic for that source. | Native TikZ geometry, fonts, crop, or package semantics match. |
+| **Reference generated** | TikZKit, local `tikztosvg`, and optionally MacTeX artifacts were produced in one QA directory. | The panels were visually inspected or judged acceptable. |
+| **Accepted feature slice** | A shared implementation change has a focused regression test, no new diagnostics, and an inspected real-case comparison recorded under `docs/qa/`. | The whole package or every possible TikZ option is implemented. |
+
+Use the workbench for the fast edit-render loop. Use the reference workflow
+before accepting a visual change. A small image difference can be ordinary
+font rasterization; a low difference alone does not prove that coordinates,
+clipping, arrows, labels, or layering are correct.
+
+### First Real-Case Review
+
+This is the recommended end-to-end loop for one catalog fixture. It keeps all
+generated files together while leaving the repository clean:
+
+```bash
+# Start the browser editor (a second copy can use PORT=5174).
+npm run web
+
+# Inspect the source's commands, libraries, options, literals, and diagnostics.
+npm run case:audit -- \
+  test/fixtures/examples/latex-examples/feed-forward-perceptron.tex \
+  --output outputs/qa-feed-forward/audit.md \
+  --init-review outputs/qa-feed-forward/review.json
+
+# Create the JavaScript, tikztosvg, and native MacTeX reference bundle.
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-feed-forward \
+  --only latex-examples-feed-forward-perceptron \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-feed-forward \
+  --register --alignment-radius 3
+```
+
+Open `outputs/qa-feed-forward/index.html` for the JS and `tikztosvg` panels.
+The same directory also contains `mactex-png/` and
+`diff/<fixture-id>-native-sheet.png` for the four-way inspection. Check the
+source against its package/library contract in `docs/extension-registry.md`,
+then record a narrow conclusion in `docs/qa/` before declaring a feature
+accepted.
+
 ### 使用速览
 
 用下面这条最短路径就可以开始。浏览器页面只运行 TikZKit 的 JavaScript
