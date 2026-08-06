@@ -2996,6 +2996,35 @@ function circuitikzSourceSymbolRotation(geometry, env = {}, sourceClass = "sourc
   return Number.isFinite(parsed) ? roundNumber(parsed) : 90;
 }
 
+function circuitikzSourceSignRotation(geometry, env = {}) {
+  let raw = null;
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of [
+      "circuitikz/sources/symbol/sign rotation",
+      "sources/symbol/sign rotation"
+    ]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      raw = String(value).trim();
+      break;
+    }
+    if (raw != null) break;
+  }
+
+  // pgfcircbipoles.tex keeps the traditional American-source signs vertical
+  // by default. The auto and straight modes use the current path transform.
+  const mode = String(raw || "default").trim().toLowerCase();
+  if (mode === "default") return 90;
+  const pathRotation = roundNumber((-Math.atan2(geometry.u.y, geometry.u.x) * 180) / Math.PI);
+  if (mode === "auto") {
+    const absolute = Math.abs(pathRotation);
+    return absolute < 46 || absolute > 134 ? 0 : 90;
+  }
+  if (mode === "straight") return pathRotation;
+  const parsed = evaluateMath(raw, env.variables || {});
+  return Number.isFinite(parsed) ? roundNumber(parsed) : 90;
+}
+
 function circuitikzWaveformBasis(geometry, rotation) {
   const radians = (rotation * Math.PI) / 180;
   const cos = Math.cos(radians);
@@ -4413,8 +4442,13 @@ function appendCircuitikzVoltageSourceSymbolNodes(nodes, spec, geometry, env = {
   const plusDirection = backward ? geometry.u : { x: -geometry.u.x, y: -geometry.u.y };
   const plusPoint = pointAlong(geometry.mid, plusDirection, signOffset);
   const minusPoint = pointAlong(geometry.mid, plusDirection, -signOffset);
-  addCircuitikzTextNode(nodes, plusPoint, "+", { "inner sep": "0pt", anchor: "center" });
-  addCircuitikzTextNode(nodes, minusPoint, "-", { "inner sep": "0pt", anchor: "center" });
+  const signOptions = {
+    "inner sep": "0pt",
+    anchor: "center",
+    rotate: circuitikzSourceSignRotation(geometry, env)
+  };
+  addCircuitikzTextNode(nodes, plusPoint, "+", signOptions);
+  addCircuitikzTextNode(nodes, minusPoint, "-", signOptions);
 }
 
 function circuitikzDiamondPath(geometry, halfExtent) {

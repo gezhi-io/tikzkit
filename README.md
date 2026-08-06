@@ -824,6 +824,14 @@ sources are covered through small verified slices; transformers, source fills,
 and the broad
 circuitikz component catalog remain partial.
 
+For independent American `V` sources, the internal sign orientation follows
+Circuitikz's `sources/symbol/sign rotation` key. The browser renderer supports
+the native `default`, `auto`, `straight`, and numeric-angle forms, for example
+`\ctikzset{sources/symbol/sign rotation=auto}`. This is limited to the built-in
+`+/-` signs: custom `inner plus`/`inner minus` glyphs and source sign margins
+remain unsupported. The local MacTeX/tikztosvg visual check is recorded in
+[`docs/qa/2026-08-07-circuitikz-american-source-sign-rotation.md`](docs/qa/2026-08-07-circuitikz-american-source-sign-rotation.md).
+
 ### Circuitikz Tunable Inductors
 
 The `vL` control arrow follows Circuitikz's source-defined `latexslim` tip,
