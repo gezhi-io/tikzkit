@@ -1,0 +1,16 @@
+% Adapted from the TeX Live pgfplotstable manual's inline table examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstableread[col sep=comma]{
+year,vehicles,share
+2021,642,2.1
+2022,904,2.8
+2023,1402,4.3
+}\electricvehicles
+\pgfplotstabletypeset[
+  columns={year,vehicles},
+  columns/year/.style={column name=Year},
+  columns/vehicles/.style={column name=Vehicles}
+]\electricvehicles
+\end{document}

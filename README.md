@@ -572,6 +572,45 @@ unsupported gnuplot functions remain unsupported. See
 [`docs/qa/2026-08-06-pgfplots-raw-gnuplot.md`](docs/qa/2026-08-06-pgfplots-raw-gnuplot.md)
 for the checked local-MacTeX boundary and visual-QA caveat.
 
+### pgfplotstable Basic Table Typesetting
+
+`\pgfplotstabletypeset` now renders its small, document-level table subset
+instead of being ignored. It accepts inline data or a table registered with
+`\pgfplotstableread`, detects a normal header row, supports
+`col sep=space|comma|tab|&`, `columns={...}`, and
+`columns/<name>/.style={column name=...}`. The output is measured through the
+same renderer-neutral `tabular` scene layout used for other text tables, with
+the default plain-integer thousands grouping (for example `2021` becomes
+`2,021`).
+
+```tex
+\pgfplotstabletypeset[col sep=comma, columns={year,vehicles}] {
+year,vehicles,share
+2021,642,2.1
+2022,904,2.8
+}
+```
+
+External table files, full PGF number formatting, decimal alignment,
+postprocessing, and arbitrary row/column styles remain partial. See
+[`docs/qa/2026-08-06-pgfplotstable-typeset.md`](docs/qa/2026-08-06-pgfplotstable-typeset.md)
+for the local-source notes and visual acceptance record.
+
+To verify this supported slice locally, run:
+
+```bash
+npm test -- test/pgfplotstable-typeset.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-pgfplotstable --only pgfplotstable-inline-typeset \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplotstable --register --alignment-radius 3
+```
+
+Open `outputs/qa-pgfplotstable/index.html` to compare the JavaScript and
+`tikztosvg` SVG panels; the same directory retains the native MacTeX panel and
+the comparison sheet. This is a focused compatibility check, not evidence that
+all `pgfplotstable` formatting is complete.
+
 ### PGFPlots 3D Axis Bounds
 
 The supported 3D subset lowers the surface, projected box, grid, ticks, and

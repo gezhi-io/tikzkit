@@ -240,6 +240,20 @@ test("does not select a tikzpicture nested inside a preamble environment definit
   assert.equal(selectActiveFigureSource(source, "figure:0"), source);
 });
 
+test("tikztosvg wraps standalone pgfplotstable output in a tight zero-padding node", () => {
+  const normalized = normalizeTikztosvgInput(String.raw`\documentclass{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[col sep=comma]{year,value
+2021,1402}
+\end{document}`);
+
+  assert.match(normalized, /\\begin\{tikzpicture\}/);
+  assert.match(normalized, /\\node\[anchor=north west,inner sep=0pt\] at \(0,0\) \{/);
+  assert.match(normalized, /\\pgfplotstabletypeset/);
+  assert.match(normalized, /\\end\{tikzpicture\}/);
+});
+
 test("example fixture renderer discovers TikZ files that are not listed in the manifest", async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-example-fixtures-"));
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-examples-"));

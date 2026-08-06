@@ -58,6 +58,7 @@ const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
   "ifthen",
   "mathtools",
   "nicefrac",
+  "pgfplotstable",
   "sansmath",
   "tikz-3dplot",
   "tkz-base",
@@ -733,7 +734,23 @@ export function normalizeTikztosvgInput(source, options = {}) {
       normalizeLegacyTkzTangentCommands(normalizeLegacyTkzAngleSizes(lowerRawGnuplotAddplotsToCoordinates(body)))
     )
   );
-  return `${tikztosvgInputPreamble(selectedSource, loweredBody)}${loweredBody}`;
+  const tikztosvgBody = wrapStandalonePgfplotstableTypeset(loweredBody);
+  return `${tikztosvgInputPreamble(selectedSource, tikztosvgBody)}${tikztosvgBody}`;
+}
+
+// tikztosvg crops a TikZ picture, while a document-level pgfplotstable table
+// otherwise becomes a letter-sized page. A zero-padding node preserves the
+// LaTeX table while giving the external reference the same tight-picture
+// contract as TikZKit and MacTeX standalone output.
+function wrapStandalonePgfplotstableTypeset(body) {
+  if (/\\begin\{tikzpicture\}/.test(body) || !/\\pgfplotstabletypeset\b/.test(body)) return body;
+  return [
+    "\\begin{tikzpicture}",
+    "\\node[anchor=north west,inner sep=0pt] at (0,0) {",
+    body.trim(),
+    "};",
+    "\\end{tikzpicture}"
+  ].join("\n");
 }
 
 function normalizeLegacyTkzEuclideSource(source) {

@@ -46,6 +46,9 @@ export function parseTikz(source, options = {}) {
 
   const scannedPictures = extractTikzPictures(preprocessed.source);
   const tabularLayouts = extractTabularPictureLayouts(preprocessed.source, scannedPictures);
+  if (scannedPictures.length === 0 && tabularLayouts.length === 0 && preprocessed.source.trim()) {
+    scannedPictures.push({ index: 0, beginIndex: 0, bodyEndIndex: preprocessed.source.length, endIndex: preprocessed.source.length, optionsRaw: "", body: preprocessed.source });
+  }
   const figures = scannedPictures.map((picture, index) => createFigureInventoryItem(picture, index));
   const activeFigureIndex = resolveActiveFigureIndex(options.activeFigureId, scannedPictures.length);
   const picturesToParse = activeFigureIndex == null ? scannedPictures : [scannedPictures[activeFigureIndex]].filter(Boolean);
@@ -2205,9 +2208,6 @@ function extractTikzPictures(source) {
     });
     index = endIndex + end.length;
   }
-  if (pictures.length === 0 && source.trim()) {
-    pictures.push({ index: 0, beginIndex: 0, bodyEndIndex: source.length, endIndex: source.length, optionsRaw: "", body: source });
-  }
   return pictures;
 }
 
@@ -2268,16 +2268,14 @@ function extractTabularPictureLayouts(source, pictures) {
     }
 
     const included = pictures.filter((picture) => picture.beginIndex >= columns.end && picture.endIndex <= end);
-    if (included.length) {
-      const layout = parseTabularPictureLayout(text, {
-        id: `tabular:${layouts.length}`,
-        bodyStart: columns.end,
-        bodyEnd: end,
-        columnSpec: columns.content,
-        pictures: included
-      });
-      if (layout) layouts.push(layout);
-    }
+    const layout = parseTabularPictureLayout(text, {
+      id: `tabular:${layouts.length}`,
+      bodyStart: columns.end,
+      bodyEnd: end,
+      columnSpec: columns.content,
+      pictures: included
+    });
+    if (layout) layouts.push(layout);
     cursor = end + endToken.length;
   }
   return layouts;

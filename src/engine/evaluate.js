@@ -283,7 +283,9 @@ function appendInlinePicture(documentIr, pictureIr, context) {
 }
 
 const TABULAR_COLUMN_PADDING = parseDimension("6pt", {});
-const TABULAR_ROW_PADDING = parseDimension("3pt", {});
+// LaTeX's normal tabular strut already occupies the 12pt text-box height;
+// adding arbitrary vertical cell padding makes every regular row too tall.
+const TABULAR_ROW_PADDING = 0;
 const TABULAR_TEXT_HEIGHT = parseDimension("12pt", {});
 const TABULAR_EMPTY_ROW_HEIGHT = parseDimension("11pt", {});
 const TABULAR_BLOCK_GAP = 0.45;
@@ -294,7 +296,7 @@ const TABULAR_BLOCK_GAP = 0.45;
 // document scene. This keeps TikZ semantics in the engine and SVG details in
 // the renderer.
 function appendTabularPictureLayouts(documentIr, layouts, pictureIrs) {
-  if (!layouts?.length || !pictureIrs?.size) return;
+  if (!layouts?.length) return;
   for (const layout of layouts) {
     const rendered = new Map();
     for (const row of layout.rows || []) {
@@ -308,7 +310,6 @@ function appendTabularPictureLayouts(documentIr, layouts, pictureIrs) {
         }
       }
     }
-    if (!rendered.size) continue;
     appendSingleTabularPictureLayout(documentIr, layout, rendered);
   }
 }
@@ -354,6 +355,16 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
     tableWidth += width;
   }
   const tableHeight = rowHeights.reduce((total, height) => total + height, 0);
+  // A tabular's TeX box includes its calculated column separation and row
+  // struts, not merely the ink bounds of its glyphs. Keep that box in the
+  // scene graph as a non-rendered bbox so SVG cropping follows TeX layout.
+  documentIr.backgroundItems.push(createBoundingBoxShape([
+    moveToCommand({ x: originX, y: originY }),
+    lineToCommand({ x: originX + tableWidth, y: originY }),
+    lineToCommand({ x: originX + tableWidth, y: originY - tableHeight }),
+    lineToCommand({ x: originX, y: originY - tableHeight }),
+    closePathCommand()
+  ], { subtype: "tabular-layout-bounds" }));
   const rowCenters = [];
   let cursorY = originY;
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {

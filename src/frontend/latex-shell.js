@@ -130,7 +130,8 @@ export function preprocessTikzSource(source, options = {}) {
   const filecontentsResult = collectFilecontentsTables(expanded);
   expanded = filecontentsResult.source;
   const tableResult = collectPgfplotstableReads(expanded);
-  expanded = replacePgfplotstableReferences(tableResult.source, tableResult.tables);
+  expanded = lowerPgfplotstableTypeset(tableResult.source, tableResult.tables);
+  expanded = replacePgfplotstableReferences(expanded, tableResult.tables);
   const pgfplotsRuntimeOptions = {
     ...withFilecontentsTableResolver(options, filecontentsResult.tables),
     ...createPgfplotsStyleContext(expanded, pgfplotsSet.options),
@@ -3874,6 +3875,134 @@ function collectPgfplotstableReads(source) {
     if (source[index] === ";") index += 1;
   }
   return { source: output, tables };
+}
+
+// PgfplotsTable eventually delegates its simple output form to LaTeX's
+// tabular environment. Lower that stable semantic subset before the parser so
+// the shared document-table scene layout can measure and paint it like any
+// other table instead of treating the command as a harmless no-op.
+function lowerPgfplotstableTypeset(source, tables) {
+  const text = String(source || "");
+  let output = "";
+  let index = 0;
+
+  while (index < text.length) {
+    if (!text.startsWith("\\pgfplotstabletypeset", index)) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+    let cursor = index + "\\pgfplotstabletypeset".length;
+    const optionGroup = parseOptionalOptions(text, cursor);
+    cursor = skipWhitespace(text, optionGroup.end);
+    const inlineTable = extractBalanced(text, cursor, "{", "}");
+    const macro = inlineTable ? null : text.slice(cursor).match(/^\\([A-Za-z@][A-Za-z0-9@]*)/);
+    const table = inlineTable
+      ? inlineTable.content
+      : macro && tables?.has(macro[1])
+        ? tables.get(macro[1])
+        : null;
+    if (table == null) {
+      output += text[index];
+      index += 1;
+      continue;
+    }
+
+    const lowered = pgfplotstableTypesetTabular(table, optionGroup.raw);
+    if (!lowered) {
+      output += text.slice(index, inlineTable?.end || cursor + macro[0].length);
+      index = inlineTable?.end || cursor + macro[0].length;
+      continue;
+    }
+    output += lowered;
+    index = inlineTable?.end || cursor + macro[0].length;
+  }
+  return output;
+}
+
+function pgfplotstableTypesetTabular(rawTable, rawOptions) {
+  const options = parseOptions(rawOptions || "");
+  let rows = parsePgfplotstableTypesetRows(rawTable, options);
+  // `\pgfplotstableread[col sep=comma]{...}\macro` retains its parsed cells
+  // in TeX. Our focused read registry intentionally stores raw data for
+  // addplot too, so recover the common comma form when typeset is invoked on
+  // that macro without repeating the read option.
+  if (options["col sep"] === undefined && rows[0]?.length === 1 && String(rawTable).includes(",")) {
+    rows = parsePgfplotstableTypesetRows(rawTable, { ...options, "col sep": "comma" });
+  }
+  if (!rows.length) return "";
+  const headerMode = String(options.header ?? "true").trim().toLowerCase();
+  const hasHeader = headerMode === "has colnames" || (headerMode !== "false" && rows[0].some((cell) => !pgfplotstableNumericCell(cell)));
+  const sourceHeaders = hasHeader ? rows.shift() : rows[0].map((_cell, index) => String(index));
+  const selected = pgfplotstableSelectedColumns(options.columns, sourceHeaders);
+  if (!selected.length) return "";
+  const columnSpec = selected.map(() => "c").join("");
+  const header = selected.map(({ index, name }) => pgfplotstableDisplayColumnName(options, name, sourceHeaders[index])).join(" & ");
+  const body = rows
+    .map((row) => selected.map(({ index }) => pgfplotstableDisplayCell(row[index], options)).join(" & "))
+    .join("\\\\\n");
+  return `\\begin{tabular}{${columnSpec}}\n${header}${body ? `\\\\\n${body}` : ""}\n\\end{tabular}`;
+}
+
+function parsePgfplotstableTypesetRows(rawTable, options) {
+  const separator = pgfplotstableColumnSeparator(options["col sep"]);
+  return String(rawTable || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("%") && !line.startsWith("#"))
+    .map((line) => pgfplotstableSplitRow(line, separator));
+}
+
+function pgfplotstableColumnSeparator(value) {
+  const normalized = String(value || "space").trim().toLowerCase();
+  if (normalized === "comma") return ",";
+  if (normalized === "ampersand" || normalized === "&") return "&";
+  if (normalized === "tab") return "\t";
+  return "space";
+}
+
+function pgfplotstableSplitRow(line, separator) {
+  if (separator === "space") return line.trim().split(/\s+/).map((cell) => cell.trim());
+  return splitTopLevel(line, separator).map((cell) => cell.trim());
+}
+
+function pgfplotstableSelectedColumns(rawColumns, headers) {
+  const requested = stripOuterBracesText(String(rawColumns || "").trim());
+  if (!requested) return headers.map((name, index) => ({ index, name }));
+  return splitTopLevel(requested)
+    .map((entry) => stripOuterBracesText(entry.trim()))
+    .map((name) => {
+      const indexed = name.match(/^\[index\](\d+)$/i);
+      const index = indexed ? Number(indexed[1]) : headers.indexOf(name);
+      return Number.isInteger(index) && index >= 0 && index < headers.length ? { index, name: headers[index] } : null;
+    })
+    .filter(Boolean);
+}
+
+function pgfplotstableDisplayColumnName(options, name, fallback) {
+  const style = options[`columns/${name}/.style`];
+  if (style !== undefined) {
+    const columnName = parseOptions(String(style))["column name"];
+    if (columnName !== undefined) return stripOuterBracesText(String(columnName));
+  }
+  return fallback;
+}
+
+function pgfplotstableDisplayCell(value, options) {
+  const text = String(value ?? "").trim();
+  if (!text || options["string type"] !== undefined) return text;
+  // Pgfplotstable's default `assign cell content` delegates ordinary numbers
+  // to pgfmathprintnumber. Preserve its most visible default: grouping plain
+  // integer values such as 2021 as 2,021. Decimal/scientific formatting stays
+  // intentionally outside this small table-layout slice.
+  const match = /^([+-]?)(\d+)(\.\d+)?$/.exec(text);
+  if (!match) return text;
+  const [, sign, integerPart, fraction = ""] = match;
+  return `${sign}${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction}`;
+}
+
+function pgfplotstableNumericCell(value) {
+  return /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i.test(String(value || "").trim());
 }
 
 function collectFilecontentsTables(source) {

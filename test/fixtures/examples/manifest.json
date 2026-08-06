@@ -4080,6 +4080,22 @@
         "bipoles/fix tunable direction",
         "wiper/W/tip anchors"
       ]
+    },
+    {
+      "id": "pgfplotstable-inline-typeset",
+      "title": "pgfplotstable inline comma table typeset",
+      "source": "pgfplots/pgfplotstable-inline-typeset.tex",
+      "sourceCorpus": "TeX Live pgfplotstable manual",
+      "externalSource": "doc/latex/pgfplots/pgfplotstable.pdf",
+      "semanticOwner": "src/frontend/latex-shell.js:lowerPgfplotstableTypeset; src/frontend/parser.js:extractTabularPictureLayouts; src/engine/evaluate.js:appendTabularPictureLayouts",
+      "features": [
+        "pgfplotstableread",
+        "pgfplotstabletypeset",
+        "col sep=comma",
+        "columns selection",
+        "column name style",
+        "tabular text layout"
+      ]
     }
   ]
 }
