@@ -4062,6 +4062,24 @@
         "south east outside",
         "bounding-box legend anchor"
       ]
+    },
+    {
+      "id": "circuitikz-variable-capacitors",
+      "title": "circuitikz variable capacitor controls and anchors",
+      "source": "circuitikz/variable-capacitors.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "tex/generic/circuitikz/pgfcircbipoles.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzVariableCapacitorItems/registerCircuitikzVariableCapacitorNode",
+      "features": [
+        "vC",
+        "variable capacitor",
+        "capacitors/scale",
+        "capacitors/width",
+        "capacitors/height",
+        "capacitors/modifier thickness",
+        "bipoles/fix tunable direction",
+        "wiper/W/tip anchors"
+      ]
     }
   ]
 }

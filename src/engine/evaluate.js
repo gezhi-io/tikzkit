@@ -2125,18 +2125,27 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     shapes.push(circuitikzResistorItem(from, to, geometry, pathStyle, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "capacitor") {
+    const settings = spec.variable ? circuitikzVariableCapacitorSettings(options, env) : null;
+    const bodyLength = spec.variable
+      ? Math.min(settings.bodyLength, geometry.length * 0.78)
+      : circuitikzBodyLength("capacitor", geometry.length, env);
     const split = appendCircuitikzSplitWire(
       commands,
       from,
       to,
       geometry,
-      circuitikzBodyLength("capacitor", geometry.length, env),
+      bodyLength,
       pathStyle,
       styleHints,
       options,
       env
     );
-    shapes.push(circuitikzCapacitorItem(from, to, geometry, pathStyle, env));
+    if (spec.variable) {
+      shapes.push(...circuitikzVariableCapacitorItems(geometry, settings, pathStyle));
+      registerCircuitikzVariableCapacitorNode(spec, geometry, settings, bodyLength, env);
+    } else {
+      shapes.push(circuitikzCapacitorItem(from, to, geometry, pathStyle, env));
+    }
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "diode") {
     const settings = circuitikzDiodeSettings(spec, options, env);
@@ -2248,6 +2257,18 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
   const name = circuitikzComponentName(options);
   const resistorLabel = circuitikzFirstLabel(options, ["R", "resistor", "american resistor", "european resistor"]);
   if (resistorLabel !== null) return { kind: "resistor", label: resistorLabel, name };
+  // `vC` is case-sensitive at the Circuitikz level: it is a tunable capacitor,
+  // while the uppercase `VC` alias belongs to the diode-like varcap family.
+  // Resolve it before the case-insensitive diode alias matcher below.
+  const variableCapacitorLabel = circuitikzFirstLabel(options, ["vC", "variable capacitor"]);
+  if (variableCapacitorLabel !== null) {
+    return {
+      kind: "capacitor",
+      variable: true,
+      label: circuitikzLabelValue(options.l) || variableCapacitorLabel,
+      name
+    };
+  }
   const capacitorLabel = circuitikzFirstLabel(options, ["C", "capacitor"]);
   if (capacitorLabel !== null) return { kind: "capacitor", label: capacitorLabel, name };
   const diode = circuitikzDiodeSpec(options, env);
@@ -3164,6 +3185,152 @@ function circuitikzCapacitorItem(from, to, geometry, pathStyle = {}, env = {}) {
       { type: "lineTo", x: r2.x, y: r2.y }
     ]
   };
+}
+
+function circuitikzCapacitorRawOption(key, options = {}, env = {}) {
+  const names = [
+    `circuitikz/bipoles/vcapacitor/${key}`,
+    `bipoles/vcapacitor/${key}`,
+    `circuitikz/capacitors/${key}`,
+    `capacitors/${key}`
+  ];
+  if (key === "fix tunable direction") {
+    names.unshift("circuitikz/bipoles/fix tunable direction", "bipoles/fix tunable direction");
+  }
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const name of names) {
+      if (source[name] !== undefined) return source[name];
+    }
+  }
+  return undefined;
+}
+
+function circuitikzCapacitorNumber(key, options = {}, env = {}, fallback = 0) {
+  const raw = circuitikzCapacitorRawOption(key, options, env);
+  if (raw === undefined || raw === null || raw === true || raw === "") return fallback;
+  const parsed = evaluateMath(String(raw), env.variables || {});
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function circuitikzVariableCapacitorSettings(options = {}, env = {}) {
+  const scale = Math.max(0.05, circuitikzCapacitorNumber("scale", options, env, 1));
+  const width = Math.max(0.02, circuitikzCapacitorNumber("width", options, env, 0.2));
+  const height = Math.max(0.02, circuitikzCapacitorNumber("height", options, env, 0.6));
+  const tunableWidth = Math.max(0.1, circuitikzCapacitorNumber("tunable width", options, env, 3));
+  const modifierThickness = Math.max(0.05, circuitikzCapacitorNumber("modifier thickness", options, env, 1));
+  // pgfcircbipoles.tex uses a capacitor-class Rlen. The plate centres are
+  // +/- width*Rlen/2, and the control line extends tunable-width times farther.
+  const rlen = 1.4 * circuitikzLengthScale(env) * scale;
+  const plateGap = width * rlen;
+  const halfHeight = (height * rlen) / 2;
+  const rawDirection = circuitikzCapacitorRawOption("fix tunable direction", options, env);
+  const fixedDirection = rawDirection === undefined || rawDirection === null || rawDirection === true || rawDirection === ""
+    ? true
+    : !/^(?:false|0|no)$/i.test(String(rawDirection).trim());
+  const rawFill = circuitikzCapacitorRawOption("fill", options, env);
+  const fill = rawFill === undefined || rawFill === null || rawFill === true || rawFill === "" || String(rawFill).trim().toLowerCase() === "none"
+    ? "none"
+    : normalizeColor(String(rawFill));
+  return {
+    scale,
+    width,
+    height,
+    plateGap,
+    halfHeight,
+    bodyLength: plateGap,
+    tunableHalf: (tunableWidth * plateGap) / 2,
+    modifierThickness,
+    fixedDirection,
+    fill
+  };
+}
+
+function circuitikzVariableCapacitorPoint(geometry, along, normal) {
+  return roundPoint({
+    x: geometry.mid.x + geometry.u.x * along + geometry.n.x * normal,
+    y: geometry.mid.y + geometry.u.y * along + geometry.n.y * normal
+  });
+}
+
+function circuitikzVariableCapacitorItems(geometry, settings = {}, pathStyle = {}) {
+  const bodyLength = Math.min(settings.bodyLength || 0, geometry.length * 0.78);
+  const plateGap = bodyLength;
+  const halfPlateGap = plateGap / 2;
+  const halfHeight = settings.halfHeight || 0;
+  const tunableHalf = Math.max(halfPlateGap, settings.tunableHalf || halfPlateGap);
+  const componentStyle = circuitikzComponentStyle(pathStyle, settings.fill);
+  const outlineStyle = { ...componentStyle, fill: "none", lineCap: "butt", lineJoin: "miter" };
+  const left = circuitikzVariableCapacitorPoint(geometry, -halfPlateGap, 0);
+  const right = circuitikzVariableCapacitorPoint(geometry, halfPlateGap, 0);
+  const leftTop = pointNormal(left, geometry.n, halfHeight);
+  const leftBottom = pointNormal(left, geometry.n, -halfHeight);
+  const rightTop = pointNormal(right, geometry.n, halfHeight);
+  const rightBottom = pointNormal(right, geometry.n, -halfHeight);
+  const arrowStart = circuitikzVariableCapacitorPoint(
+    geometry,
+    -tunableHalf,
+    settings.fixedDirection ? -halfHeight : halfHeight
+  );
+  const arrowEnd = circuitikzVariableCapacitorPoint(
+    geometry,
+    tunableHalf,
+    settings.fixedDirection ? halfHeight : -halfHeight
+  );
+  const items = [];
+  if (settings.fill && settings.fill !== "none") {
+    items.push({
+      type: "path",
+      subtype: "circuitikz-variable-capacitor-fill",
+      style: { ...componentStyle, stroke: "none", lineWidth: 0 },
+      commands: [moveToCommand(leftTop), lineToCommand(leftBottom), lineToCommand(rightBottom), lineToCommand(rightTop), closePathCommand()]
+    });
+  }
+  items.push({
+    type: "path",
+    subtype: "circuitikz-variable-capacitor",
+    plateGap: roundNumber(plateGap),
+    plateSpan: roundNumber(halfHeight * 2),
+    style: outlineStyle,
+    commands: [
+      moveToCommand(leftTop), lineToCommand(leftBottom),
+      moveToCommand(rightTop), lineToCommand(rightBottom)
+    ]
+  });
+  items.push({
+    type: "path",
+    subtype: "circuitikz-variable-capacitor-arrow",
+    direction: settings.fixedDirection ? "bottom-left-to-top-right" : "top-left-to-bottom-right",
+    lineWidth: roundNumber(outlineStyle.lineWidth * settings.modifierThickness),
+    style: {
+      ...circuitikzArrowStyle(pathStyle),
+      lineWidth: roundNumber(outlineStyle.lineWidth * settings.modifierThickness)
+    },
+    commands: [moveToCommand(arrowStart), lineToCommand(arrowEnd)]
+  });
+  return items;
+}
+
+function registerCircuitikzVariableCapacitorNode(spec, geometry, settings = {}, requestedBodyLength = 0, env = {}) {
+  const name = spec.name ? resolveDynamicName(spec.name, env) : "";
+  if (!name) return;
+  const bodyLength = Math.min(Number(requestedBodyLength) || settings.bodyLength || 0, geometry.length * 0.78);
+  const node = {
+    point: roundPoint(geometry.mid),
+    width: roundNumber(bodyLength),
+    height: roundNumber((settings.halfHeight || 0) * 2),
+    layoutWidth: roundNumber(bodyLength),
+    layoutHeight: roundNumber((settings.halfHeight || 0) * 2),
+    shape: "circuitikzVariableCapacitor",
+    shapeData: {
+      tunableHalf: roundNumber(Math.max(bodyLength / 2, settings.tunableHalf || bodyLength / 2)),
+      halfHeight: roundNumber(settings.halfHeight || 0),
+      fixedDirection: settings.fixedDirection !== false
+    },
+    rotation: (Math.atan2(geometry.u.y, geometry.u.x) * 180) / Math.PI
+  };
+  env.nodes[name] = node;
+  env.coordinates[name] = roundPoint(geometry.mid);
+  materializeCircuitikzNodeAnchors(name, env);
 }
 
 function circuitikzDiodeRawOption(key, options = {}, env = {}) {
@@ -4463,7 +4630,8 @@ function materializeCircuitikzNodeAnchors(name, env) {
       "outer dot B1",
       "outer dot B2"
     ],
-    circuitikzInductor: ["midtap", "core west", "core east"]
+    circuitikzInductor: ["midtap", "core west", "core east"],
+    circuitikzVariableCapacitor: ["wiper", "W", "tip"]
   };
   const anchors = anchorsByShape[node.shape] || [];
   for (const anchor of anchors) {
@@ -4630,6 +4798,8 @@ function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {
     ? 0.7
     : spec.kind === "inductor" && spec.variable
       ? 0.8
+      : spec.kind === "capacitor" && spec.variable
+        ? 0.75
       : opticalDiode
         ? 0.78
         : 0.46) * scale;
@@ -13781,6 +13951,18 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
   if (shape === "circuitikzInductor") {
     const inductorAnchor = circuitikzInductorLocalAnchor(anchor, size);
     if (inductorAnchor) return inductorAnchor;
+  }
+  if (shape === "circuitikzVariableCapacitor") {
+    const tunableHalf = Number(size.shapeData?.tunableHalf) || halfWidth;
+    const halfHeightFromShape = Number(size.shapeData?.halfHeight) || halfHeight;
+    const fixed = size.shapeData?.fixedDirection !== false;
+    const anchors = {
+      wiper: { x: -tunableHalf, y: fixed ? -halfHeightFromShape : halfHeightFromShape },
+      w: { x: -tunableHalf, y: fixed ? -halfHeightFromShape : halfHeightFromShape },
+      W: { x: -tunableHalf, y: fixed ? -halfHeightFromShape : halfHeightFromShape },
+      tip: { x: tunableHalf, y: fixed ? halfHeightFromShape : -halfHeightFromShape }
+    };
+    return anchors[rawAnchor] || anchors[anchor] || null;
   }
   const scaledKnotAnchor = size.shapeData?.knotCrossing
     ? anchor.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+(.+)$/)

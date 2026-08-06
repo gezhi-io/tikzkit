@@ -674,13 +674,52 @@ Supported forms are `VC`, `VCo`, `VC-`, `VC*`, plus `full varcap`, `empty
 varcap`, and `stroke varcap`. The automatic `VC` form follows Circuitikz's
 global `diode=empty|full|stroke` choice (native default: `empty`). The shared
 `diodes/scale`, `diodes/fill`, and `l=` behavior applies. This is the
-diode-like varcap family only; `vC` variable capacitors, tunnel/Schottky
-variants, and wider diode families remain separate work.
+diode-like varcap family only; tunnel/Schottky variants and wider diode
+families remain separate work.
 
 The checked source and three-way visual record are
 [`test/fixtures/examples/circuitikz/varcap-diodes.tex`](test/fixtures/examples/circuitikz/varcap-diodes.tex)
 and
 [`docs/qa/2026-08-06-circuitikz-varcap-diodes.md`](docs/qa/2026-08-06-circuitikz-varcap-diodes.md).
+
+### Circuitikz Variable Capacitors
+
+The independent variable-capacitor slice uses Circuitikz's `vC` spelling,
+which is deliberately distinct from the diode-like uppercase `VC` family:
+
+```tex
+\begin{circuitikz}
+  \draw (0,0) to[vC,l=$C_{\mathrm{default}}$,name=default] (3,0);
+  \draw (4,0) to[variable capacitor,
+    capacitors/scale=.8,
+    capacitors/width=.3,
+    capacitors/height=.45,
+    capacitors/modifier thickness=.5,
+    l=$C_{\mathrm{compact}}$] (7,0);
+  \draw (default.wiper) -- (default.tip);
+\end{circuitikz}
+```
+
+Supported in this verified slice: `vC` and `variable capacitor`; the two
+capacitor plates; `capacitors/scale`, `capacitors/width`,
+`capacitors/height`, and `capacitors/modifier thickness`; the documented
+`bipoles/fix tunable direction` switch; `l=` labels; and the named `wiper`,
+`W`, and `tip` anchors. It does not yet cover the wider capacitor catalogue,
+arbitrary custom tunable-arrow tips, or every capacitor style directory.
+
+The fixture, four-way artifacts, and visual acceptance record are
+[`test/fixtures/examples/circuitikz/variable-capacitors.tex`](test/fixtures/examples/circuitikz/variable-capacitors.tex)
+and
+[`docs/qa/2026-08-06-circuitikz-variable-capacitors.md`](docs/qa/2026-08-06-circuitikz-variable-capacitors.md).
+To reproduce the local MacTeX, TikZKit, tikztosvg, PNG, grid, and difference
+artifacts:
+
+```bash
+npm run examples:render -- --only circuitikz-variable-capacitors \
+  --output outputs/qa-circuitikz-variable-capacitors \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-circuitikz-variable-capacitors
+```
 
 ### Circuitikz Transformer Cores
 

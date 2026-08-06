@@ -1,0 +1,19 @@
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+  % Adapted from the TeX Live circuitikz variable-capacitor manual entries.
+  \draw (0,0) to[vC,l=$C_{\mathrm{default}}$,name=default] (3,0);
+  \draw (4,0) to[variable capacitor,capacitors/scale=.8,
+    capacitors/width=.3,capacitors/height=.45,
+    capacitors/modifier thickness=.5,l=$C_{\mathrm{compact}}$] (7,0);
+
+  \ctikzset{bipoles/fix tunable direction=false}
+  \draw (0,-2) to[vC,l=$C_{\mathrm{legacy}}$] (3,-2);
+  \ctikzset{bipoles/fix tunable direction=true}
+  \draw (4,-2) to[vC,capacitors/width=.15,l=$C_{\mathrm{narrow}}$] (7,-2);
+
+  \draw[gray,dashed] (default.wiper) -- (default.tip);
+\end{circuitikz}
+\end{document}
