@@ -4371,6 +4371,21 @@
         "shadow yshift",
         "even odd rule"
       ]
+    },
+    {
+      "id": "shadows-drop-shadow-opacity",
+      "title": "PGF shadows drop shadow opacity defaults",
+      "source": "shadows/drop-shadow-opacity.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shadows.tex",
+      "semanticOwner": "src/engine/evaluate.js:parseDropShadow",
+      "features": [
+        "drop shadow",
+        "default shadow offset",
+        "default opacity",
+        "shadow option override",
+        "path preaction"
+      ]
     }
   ]
 }

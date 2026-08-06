@@ -1368,7 +1368,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       shadows,
       style: { ...style, ...shadingStyle, ...doubleStyle, ...(shape.style || {}) }
     }));
-    const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype);
+    const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype, { allowShadows: Boolean(shadows?.length) });
     if (compoundShape && shadows) compoundShape.shadows = shadows;
     const shapesToRender = compoundShape ? [compoundShape] : styledShapes;
     for (const shape of shapesToRender) {
@@ -9133,6 +9133,9 @@ function pathGeneralShadows(semantic = {}, env) {
   if (semantic["general shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["general shadow"]).map((value) => parseGeneralShadow(value, env)).filter(Boolean));
   }
+  if (semantic["drop shadow"] !== undefined) {
+    shadows.push(...optionValueList(semantic["drop shadow"]).map((value) => parseDropShadow(value, env)).filter(Boolean));
+  }
   if (semantic["blur shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["blur shadow"]).map((value) => parseBlurShadow(value, env)).filter(Boolean));
   }
@@ -9144,6 +9147,31 @@ const nodeGeneralShadows = pathGeneralShadows;
 function parseGeneralShadow(value, env) {
   const shadowOptions = parseOptions(String(value === true ? "" : value));
   return parseShadowFromOptions(shadowOptions, env);
+}
+
+function parseDropShadow(value, env) {
+  const shadowOptions = orderedShadowOptions({
+    "shadow scale": 1,
+    "shadow xshift": ".5ex",
+    "shadow yshift": "-.5ex",
+    opacity: 0.5,
+    fill: "black!50",
+    // PGF's `drop shadow` style runs this hook after its defaults, while
+    // the caller's option list still has the final word.
+    "every shadow": true
+  }, parseOptions(String(value === true ? "" : value)));
+  return parseShadowFromOptions(shadowOptions, env);
+}
+
+function orderedShadowOptions(defaults, overrides) {
+  const options = { ...defaults };
+  for (const [key, value] of Object.entries(overrides || {})) {
+    // TikZ keys are ordered. Deleting first lets the caller's duplicate key
+    // stay after `every shadow`, rather than retaining its default position.
+    delete options[key];
+    options[key] = value;
+  }
+  return options;
 }
 
 function parseBlurShadow(value, env) {
@@ -9174,10 +9202,10 @@ function parseBlurShadow(value, env) {
 }
 
 function parseShadowFromOptions(shadowOptions, env) {
-  const xshift = parseDimension(shadowOptions["shadow xshift"] || "0", env.variables) * env.canvasScale;
-  const yshift = parseDimension(shadowOptions["shadow yshift"] || "0", env.variables) * env.canvasScale;
-  const scale = evaluateMath(shadowOptions["shadow scale"] || 1, env.variables);
-  const { style: rawStyle, semantic } = normalizeOptions("node", shadowOptions, env);
+  const { style: rawStyle, semantic, options } = normalizeOptions("node", shadowOptions, env);
+  const xshift = parseDimension(options["shadow xshift"] || "0", env.variables) * env.canvasScale;
+  const yshift = parseDimension(options["shadow yshift"] || "0", env.variables) * env.canvasScale;
+  const scale = evaluateMath(options["shadow scale"] || 1, env.variables);
   const style = scaleCanvasStyle(rawStyle, env);
   if (!Number.isFinite(xshift) || !Number.isFinite(yshift)) return null;
   return {
@@ -13678,9 +13706,9 @@ function hasDrawableCommands(commands, shapes) {
   return true;
 }
 
-function compoundFillRuleShape(shapes = [], pathOptions = {}, subtype) {
+function compoundFillRuleShape(shapes = [], pathOptions = {}, subtype, { allowShadows = false } = {}) {
   if (shapes.length < 2) return null;
-  if (!shapes[0]?.style?.fillRule) return null;
+  if (!shapes[0]?.style?.fillRule && !allowShadows) return null;
   if (!shapes.every((shape) => shape?.type === "path" && shape.commands?.length && isClosedPath(shape.commands))) return null;
   if (!shapes.every((shape) => compatibleCompoundShapeStyle(shapes[0].style || {}, shape.style || {}))) return null;
   return {

@@ -1,0 +1,14 @@
+% Derived from the documented PGF shadows library drop-shadow opacity example.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadows}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (0,0) grid (3,2);
+  \filldraw[drop shadow={opacity=1},fill=white]
+    (1,2) circle (.5) (1.5,2) circle (.5);
+  \filldraw[drop shadow={opacity=.25},fill=white]
+    (1,.5) circle (.5) (1.5,.5) circle (.5);
+\end{tikzpicture}
+\end{document}

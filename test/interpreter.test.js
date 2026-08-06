@@ -2235,6 +2235,60 @@ test("renders general shadows as path preactions around the path bounding-box ce
   assert.match(result.svg, /stroke="black" fill="none"/);
 });
 
+test("lowers documented drop-shadow defaults and caller opacity overrides", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}
+  \filldraw[drop shadow,fill=white] (0,0) circle (.5) (0.5,0) circle (.5);
+  \filldraw[drop shadow={opacity=.25},fill=white] (0,1.5) circle (.5) (0.5,1.5) circle (.5);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(paths.length, 2);
+  assert.equal(paths[0].commands.filter((command) => command.type === "closePath").length, 2);
+  assert.equal(paths[1].commands.filter((command) => command.type === "closePath").length, 2);
+  assert.equal(paths[0].shadows.length, 1);
+  assert.equal(paths[1].shadows.length, 1);
+  assert.equal(paths[0].shadows[0].scale, 1);
+  expectClose(paths[0].shadows[0].xshift, 0.5 * 4.30554 / 28.4527559, 1e-12);
+  expectClose(paths[0].shadows[0].yshift, -0.5 * 4.30554 / 28.4527559, 1e-12);
+  assert.equal(paths[0].shadows[0].style.fill, "rgb(128 128 128)");
+  expectClose(paths[0].shadows[0].style.opacity, 0.5, 1e-12);
+  expectClose(paths[1].shadows[0].style.opacity, 0.25, 1e-12);
+  assert.equal((result.svg.match(/class="tikz-path-shadow"/g) || []).length, 2);
+});
+
+test("runs every shadow between drop-shadow defaults and caller options", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}[every shadow/.style={opacity=.8,fill=blue!50!black,shadow xshift=1pt}]
+  \filldraw[drop shadow={opacity=.25},fill=white] (0,0) circle (.5);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.shadows.length, 1);
+  assert.equal(path.shadows[0].style.fill, "rgb(0 0 128)");
+  expectClose(path.shadows[0].style.opacity, 0.25, 1e-12);
+  expectClose(path.shadows[0].xshift, 1 / 28.4527559, 1e-12);
+});
+
+test("applies drop-shadow defaults to node preactions", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}
+  \node[drop shadow,fill=white,draw] at (0,0) {Shadow};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const node = result.ir.items.find((item) => item.type === "nodeBox");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(node.shadows.length, 1);
+  assert.equal(node.shadows[0].style.fill, "rgb(128 128 128)");
+  expectClose(node.shadows[0].style.opacity, 0.5, 1e-12);
+  assert.match(result.svg, /class="tikz-node-shadow"/);
+});
+
 test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   const source = String.raw`
 \begin{tikzpicture}

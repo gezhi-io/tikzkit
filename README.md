@@ -2096,6 +2096,12 @@ Current core examples:
   `{ [<TikZ options>] <statements> }`, including nested groups whose options
   are separated from the opening brace by whitespace.
 - `automata`: supports state circles, split output states, accepting/initial arrows, and `initial by diamond` when the source also loads `shapes.geometric`.
+- `shadows`: supports `general shadow` plus the documented `drop shadow`
+  defaults for ordinary path and node preactions. A simple
+  `every shadow/.style={...}` runs between those defaults and explicit caller
+  overrides. Blur/fading/copy shadows, arbitrary hook code, marker-tip
+  shadows, and form-only-pattern combinations remain partial; see
+  [`docs/qa/2026-08-07-shadows-drop-shadow.md`](docs/qa/2026-08-07-shadows-drop-shadow.md).
 
 The per-library metadata lives in `src/tikz/libraries/`; the generated
 compatibility table is `docs/extension-registry.md`. Regenerate it after a
