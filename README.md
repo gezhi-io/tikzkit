@@ -1647,7 +1647,7 @@ Current support is pragmatic and growing. Highlights:
   `test/fixtures/examples/arrows/meta-tip-scaling.tex`; see
   `docs/qa/2026-08-06-arrows-meta-independent-scaling.md`. Composite tips,
   padding/separation, and arbitrary arrows.meta setup-code keys remain partial.
-- Pattern fills: built-in pattern metadata plus a focused `\pgfdeclarepatternformonly` slice. Constant `\pgfpoint`/`\pgfqpoint` tile geometry and line, circle, rectangle, close, fill, and stroke primitives are supported; pattern transforms, mutable/inherently-colored patterns, and arbitrary TeX drawing procedures remain unsupported.
+- Pattern fills: built-in pattern metadata plus a focused `\pgfdeclarepatternformonly` slice. Constant `\pgfpoint`/`\pgfqpoint` tile geometry and line, circle, rectangle, close, fill, and stroke primitives are supported. Simple preamble `/.store in` values can drive a declared tile's bounds, step, coordinates, and line width. Pattern transforms, mutable/inherently-colored patterns, post-declaration argument changes, and arbitrary TeX drawing procedures remain unsupported.
 - Nodes: named nodes, compass anchors, angle anchors, shape borders, circle/rectangle/diamond, text and math sizing approximations.
 - Positioning: `right=... of A`, `below right=... of A`, legacy `right of=A`, shifts, node distance.
 - Matrices: common `matrix of nodes`, empty cells, row style overrides, matrix cell anchors.
@@ -1830,9 +1830,19 @@ third point is the repeat step; the final group is a small PGF drawing procedure
 ```
 
 The verified procedure subset is move/line/circle/rectangle/close plus
-`\pgfusepath{fill}` and `\pgfusepath{stroke}`. Keep the tile geometry constant;
-pattern transforms and declarations with executable TeX arguments are still
-outside the supported boundary.
+`\pgfusepath{fill}` and `\pgfusepath{stroke}`. Simple `/.store in` values in
+the preamble are available while the declaration is interpreted, so this common
+pattern form works:
+
+```tex
+\tikzset{hatch distance/.store in=\hatchdistance,hatch distance=10pt}
+\pgfdeclarepatternformonly[\hatchdistance]{flexible hatch}
+  {\pgfpointorigin}{\pgfpoint{\hatchdistance}{\hatchdistance}}
+  {\pgfpoint{\hatchdistance-1pt}{\hatchdistance-1pt}}{...}
+```
+
+Pattern transforms, post-declaration argument changes, and declarations with
+arbitrary executable TeX remain outside the supported boundary.
 
 ## TikZ Library Registry
 

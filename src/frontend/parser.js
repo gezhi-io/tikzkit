@@ -78,6 +78,8 @@ export function parseTikz(source, options = {}) {
     const globalOptions = collectTikzsetDirectOptions(prePictureSource);
     const globalCodeHandlers = collectCodeDefinitions(prePictureSource);
     const globalPics = collectPicDefinitions(prePictureSource);
+    const globalStoredVariables = collectTikzsetStoredVariables(prePictureSource);
+    const globalPatternDeclarations = collectPgfFormOnlyPatternDeclarations(prePictureSource);
     const globalPgfMath = collectPgfMathMacros(prePictureSource);
     const globalCoordinateSystems = collectCoordinateSystemDefinitions(prePictureSource);
     const statements = parseStatements(picture.body, diagnostics);
@@ -94,6 +96,8 @@ export function parseTikz(source, options = {}) {
       styles: globalStyles,
       codeHandlers: globalCodeHandlers,
       pics: globalPics,
+      storedVariables: globalStoredVariables,
+      patternDeclarations: globalPatternDeclarations,
       coordinateSystems: globalCoordinateSystems,
       pgfMathMacros: globalPgfMath,
       randomLists,
@@ -2488,6 +2492,84 @@ function collectTikzsetDirectOptions(source) {
     index += 1;
   }
   return options;
+}
+
+function collectTikzsetStoredVariables(source) {
+  const variables = {};
+  const stores = new Map();
+  let index = 0;
+  while (index < source.length) {
+    if (!source.startsWith("\\tikzset", index)) {
+      index += 1;
+      continue;
+    }
+    const parsed = parseTikzsetDefinition(source, index);
+    if (!parsed) {
+      index += "\\tikzset".length;
+      continue;
+    }
+    for (const [rawKey, rawValue] of Object.entries(parsed.styleOptions || {})) {
+      const key = String(rawKey).trim();
+      const storeMatch = key.match(/^(.+?)\s*\/\.store\s+in$/);
+      if (storeMatch && typeof rawValue === "string") {
+        const macro = rawValue.trim().match(/^\\([A-Za-z@]+)$/);
+        if (macro) stores.set(storeMatch[1].trim(), macro[1]);
+        continue;
+      }
+      const macro = stores.get(key);
+      if (macro && rawValue !== undefined && rawValue !== null && rawValue !== true) {
+        variables[macro] = String(rawValue).trim();
+      }
+    }
+    index = parsed.end;
+  }
+  return variables;
+}
+
+function collectPgfFormOnlyPatternDeclarations(source) {
+  const declarations = [];
+  let index = 0;
+  while (index < source.length) {
+    const start = source.indexOf("\\pgfdeclarepatternformonly", index);
+    if (start < 0) break;
+    const parsed = parsePgfDeclarePatternFormOnlyAt(source, start);
+    if (parsed) {
+      declarations.push(parsed.statement);
+      index = parsed.end;
+    } else {
+      index = start + "\\pgfdeclarepatternformonly".length;
+    }
+  }
+  return declarations;
+}
+
+function parsePgfDeclarePatternFormOnlyAt(source, start) {
+  let index = skipWhitespace(source, start + "\\pgfdeclarepatternformonly".length);
+  const optional = source[index] === "[" ? extractBalanced(source, index, "[", "]") : null;
+  if (optional) index = skipWhitespace(source, optional.end);
+  const name = extractBalanced(source, index, "{", "}");
+  if (!name) return null;
+  index = skipWhitespace(source, name.end);
+  const groups = [];
+  for (let count = 0; count < 4; count += 1) {
+    const group = extractBalanced(source, index, "{", "}");
+    if (!group) return null;
+    groups.push(group.content);
+    index = skipWhitespace(source, group.end);
+  }
+  return {
+    statement: {
+      type: "pgfdeclarepatternformonly",
+      name: name.content.trim(),
+      arguments: optional?.content.trim() || "",
+      lowerLeft: groups[0].trim(),
+      upperRight: groups[1].trim(),
+      tileSize: groups[2].trim(),
+      body: groups[3],
+      raw: source.slice(start, index)
+    },
+    end: index
+  };
 }
 
 function tikzsetDirectOptions(options = {}) {

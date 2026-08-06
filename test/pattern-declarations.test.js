@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseTikz, tikzToSvg } from "../src/index.js";
 
@@ -75,4 +76,27 @@ test("renders form-only circle and rectangle primitives with their PGF fill acti
   assert.match(result.svg, /<circle cx="3\.514598" cy="3\.514598"/);
   assert.match(result.svg, /<circle[^>]+fill="red" stroke="none"/);
   assert.match(result.svg, /<rect[^>]+fill="blue" stroke="none"/);
+});
+
+test("uses preamble /.store in variables for a parameterized form-only tile", async () => {
+  const source = await readFile(
+    new URL("./fixtures/examples/patterns/parameterized-flexible-hatch.tex", import.meta.url),
+    "utf8"
+  );
+  const parsed = parseTikz(source);
+  const result = tikzToSvg(source);
+  const fill = result.ir.items.find((item) => item.type === "path" && item.style?.pattern === "flexible hatch");
+
+  assert.deepEqual(parsed.diagnostics, []);
+  assert.deepEqual(parsed.ast.pictures[0].storedVariables, {
+    hatchdistance: "10pt",
+    hatchthickness: "2pt"
+  });
+  assert.deepEqual(parsed.ast.pictures[0].patternDeclarations.map((pattern) => pattern.name), ["flexible hatch"]);
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(fill?.style?.patternDefinition);
+  assert.equal(fill.style.patternDefinition.tileSize.x, 9 / 28.4527559);
+  assert.equal(fill.style.patternDefinition.tileSize.y, 9 / 28.4527559);
+  assert.equal(fill.style.patternDefinition.lineWidth, 2 / 28.4527559);
+  assert.match(result.svg, /stroke-width="7\.029196"/);
 });

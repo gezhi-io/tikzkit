@@ -657,6 +657,21 @@
       ]
     },
     {
+      "id": "pgf-pattern-parameterized-flexible-hatch",
+      "title": "PGF parameterized form-only flexible hatch",
+      "source": "patterns/parameterized-flexible-hatch.tex",
+      "sourceCorpus": "LaTeX-examples bias-variance pattern declaration",
+      "externalSource": "latex-examples/bias-variance/bias-variance.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyTikzsetStoredVariables + pgfFormOnlyPatternDefinition",
+      "features": [
+        "tikz /.store in",
+        "pgfdeclarepatternformonly parameter list",
+        "macro-derived tile size",
+        "macro-derived line width",
+        "pattern color"
+      ]
+    },
+    {
       "id": "addplot-coordinates",
       "title": "Coordinate plot path",
       "source": "pgfplots/addplot-coordinates.tex",

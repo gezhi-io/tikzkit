@@ -170,7 +170,10 @@ export function interpretTikz(ast, options = {}) {
     const pictureCoordinates = documentCoordinates;
     const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
-    const baseVariables = evaluatePicturePgfMathMacros(picture.pgfMathMacros || [], DEFAULT_TEX_VARIABLES);
+    const baseVariables = {
+      ...evaluatePicturePgfMathMacros(picture.pgfMathMacros || [], DEFAULT_TEX_VARIABLES),
+      ...(picture.storedVariables || {})
+    };
     const pictureOptions = stripStyleDefinitionOptions(
       normalizeOptions("path", withImplicitStyleOption("every picture", picture.options || {}, styles), {
         variables: baseVariables,
@@ -216,6 +219,10 @@ export function interpretTikz(ast, options = {}) {
       basis: picturePlane?.basis || pictureBasis,
       pictureOptions
     };
+    for (const declaration of picture.patternDeclarations || []) {
+      const pattern = pgfFormOnlyPatternDefinition(declaration, env);
+      if (pattern) env.patterns[pattern.name] = pattern;
+    }
     const pictureStart = { itemCount: targetIr.items.length, backgroundItemCount: targetIr.backgroundItems.length };
     for (const statement of picture.statements || []) {
       interpretStatement(statement, env, targetIr, diagnostics, options);
@@ -805,6 +812,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     return;
   }
   if (statement.type === "tikzset") {
+    applyTikzsetStoredVariables(statement.styleOptions || {}, env);
     env.styles = {
       ...env.styles,
       ...(statement.styleOptions ? styleDefinitionsFromOptions(statement.styleOptions, env.styles) : statement.styles)
@@ -1220,6 +1228,23 @@ function stripStyleDefinitionOptions(options = {}) {
 
 function tikzsetDirectOptions(options = {}) {
   return Object.fromEntries(Object.entries(options || {}).filter(([key]) => !/\/\./.test(String(key))));
+}
+
+function applyTikzsetStoredVariables(options = {}, env = {}) {
+  const styleOptions = options || {};
+  for (const [rawKey, rawMacro] of Object.entries(styleOptions)) {
+    const key = String(rawKey).trim();
+    const storeMatch = key.match(/^(.+?)\s*\/\.store\s+in$/);
+    if (!storeMatch || typeof rawMacro !== "string") continue;
+    const macroMatch = rawMacro.trim().match(/^\\([A-Za-z@]+)$/);
+    if (!macroMatch) continue;
+
+    const sourceKey = storeMatch[1].trim();
+    const value = styleOptions[sourceKey];
+    if (value === undefined || value === null || value === true) continue;
+    env.variables ||= {};
+    env.variables[macroMatch[1]] = String(value).trim();
+  }
 }
 
 function interpretPathStatement(statement, env, ir, diagnostics) {
