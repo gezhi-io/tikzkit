@@ -304,10 +304,10 @@ function packageMetadataSupport(metadata) {
   return {
     status: metadata.implementationStatus || metadata.status || "unsupported",
     implementedBy: [metadata.implementedBy, metadata.registryImplementedBySuffix].filter(Boolean).join(";"),
-    notes: [metadata.notes, metadata.registryNoteSuffix].filter(Boolean).join(" ") || (metadata.features || []).join("; "),
+    notes: [metadata.notes, metadata.registryNoteSuffix, metadata.registryNoteSuffixExtra].filter(Boolean).join(" ") || (metadata.features || []).join("; "),
     localSource: metadata.localSource || "",
     localDoc: metadata.localDoc || "",
-    localSourceReviewed: [metadata.localSourceReviewed, metadata.localSourceReviewedExtra].filter(Boolean).join("; ")
+    localSourceReviewed: [metadata.localSourceReviewed, metadata.localSourceReviewedExtra, metadata.localSourceReviewedExtraAppend].filter(Boolean).join("; ")
   };
 }
 

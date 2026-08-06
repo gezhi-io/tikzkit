@@ -118,6 +118,30 @@ This is a verified compatibility slice, not a claim that all TikZ arrow or
 shape combinations are complete. Keep using the per-case audit and visual
 comparison workflow while the project remains under active testing.
 
+### PGFPlots Tickless Middle-Axis Check
+
+`test/fixtures/pgfplots-middle-axis-empty-ticks.tex` is the focused regression
+case for `axis lines=middle` with both `xtick=\empty` and `ytick=\empty`.
+PGFPlots keeps its documented 45pt plot-description reserve while the final
+SVG crop should contain only real arrow, stroke, and plot-mark paint bounds.
+
+```bash
+node --test --test-name-pattern='middle-axis plot area|tickless middle axes' \
+  test/extensions.test.js test/pgfplots-seams.test.js
+
+npm run examples:render -- --fixtures test/fixtures \
+  --only pgfplots-middle-axis-empty-ticks \
+  --output outputs/qa-pgfplots-tickless-middle-axis \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-tickless-middle-axis \
+  --register --alignment-radius 3
+```
+
+Inspect `outputs/qa-pgfplots-tickless-middle-axis/diff/pgfplots-middle-axis-empty-ticks-native-sheet.png`.
+The checked local reference is approximately `270.97pt × 56.57pt`; this is a
+crop and arrow-paint rule only. Tick labels, titles, legends, 3D axes, and
+general multi-axis layouts remain separate partial PGFPlots capabilities.
+
 ### 使用速览
 
 用下面这条最短路径就可以开始。浏览器页面只运行 TikZKit 的 JavaScript

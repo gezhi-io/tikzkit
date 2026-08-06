@@ -5623,10 +5623,17 @@ test("uses PGFPlots middle-axis plot area inside declared width and height", () 
   const yAxis = axisLines.find((item) => item.commands[0].x === item.commands[1].x);
   const xLength = Math.abs(xAxis.commands[1].x - xAxis.commands[0].x);
   const yLength = Math.abs(yAxis.commands[1].y - yAxis.commands[0].y);
+  // pgfplots.scaling.code.tex computes an explicit plot box as the requested
+  // width/height less its fixed 45pt description reserve. The axis arrow
+  // contributes its own final 0.2pt painted extension.
+  const descriptionReserve = parseDimension("45pt", {});
+  const arrowPaintReserve = parseDimension("0.2pt", {});
+  const expectedXLength = 11 - descriptionReserve + arrowPaintReserve;
+  const expectedYLength = 3.5 - descriptionReserve + arrowPaintReserve;
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(Math.abs(xLength - 9.28) < 0.01, `expected native-like PGFPlots x-axis length, got ${xLength}`);
-  assert.ok(Math.abs(yLength - 1.8) < 0.01, `expected native-like PGFPlots y-axis length, got ${yLength}`);
+  assert.ok(Math.abs(xLength - expectedXLength) < 0.01, `expected PGFPlots 45pt x description reserve, got ${xLength}`);
+  assert.ok(Math.abs(yLength - expectedYLength) < 0.01, `expected PGFPlots 45pt y description reserve, got ${yLength}`);
 });
 
 test("keeps PGFPlots middle-axis container bounds tight for compare grids", () => {

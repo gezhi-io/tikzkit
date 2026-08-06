@@ -3266,6 +3266,19 @@ test("pgfplots activation-functions fixture keeps explicit middle-axis bbox clos
   assert.ok(size.height >= 194.8 && size.height <= 196.1, `expected height close to tikztosvg 195.41pt, got ${size.height}pt`);
 });
 
+test("pgfplots tickless middle axes keep only the native arrow paint bbox", () => {
+  const source = readFileSync("test/fixtures/pgfplots-middle-axis-empty-ticks.tex", "utf8");
+  const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
+  const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
+  const size = svgDocumentSizePt(result.svg);
+
+  assert.equal(errors.length, 0, errors.map((diagnostic) => diagnostic.message).join("; "));
+  // Local tikztosvg: 270.97pt x 56.57pt. The small tolerance is only for SVG
+  // stroke/raster bounds, not a generic axis-label reserve.
+  assert.ok(size.width >= 270.5 && size.width <= 271.2, `expected tickless middle-axis width close to 270.97pt, got ${size.width}pt`);
+  assert.ok(size.height >= 56.3 && size.height <= 56.9, `expected tickless middle-axis height close to 56.57pt, got ${size.height}pt`);
+});
+
 test("pgfplots linear-functions omits unused middle-axis boundary reserves", () => {
   const source = readFileSync("test/fixtures/examples/latex-examples/linear-functions.tex", "utf8");
   const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });

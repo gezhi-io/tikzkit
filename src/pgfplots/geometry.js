@@ -438,7 +438,11 @@ function axisContainerMargin(axisOptions = {}, options = {}) {
     if (axisHasExplicitDescriptionPlacement(axisOptions)) {
       return { left: 0, right: 0, top: 0, bottom: 0 };
     }
-    if (middleAxisUsesTightBounds(axisOptions)) return { left: 0.06, right: 0.12, top: 0.06, bottom: 0.06 };
+    // With both tick lists disabled, the native picture bbox is determined by
+    // the painted axis arrows and plot marks alone. This small asymmetric
+    // reserve is the arrow/stroke paint extent; the generic middle-axis gutter
+    // makes an otherwise empty SVG materially wider and taller than PGFPlots.
+    if (middleAxisUsesTightBounds(axisOptions)) return { left: 0.04, right: 0.08, top: 0.04, bottom: 0.04 };
     if (options.hasExplicitWidth || options.hasExplicitHeight) {
       if (hasTopDescriptionYLabel(axisOptions)) return TIKZ_EXPLICIT_MIDDLE_AXIS_TOP_DESCRIPTION_LABEL_MARGIN;
       if (

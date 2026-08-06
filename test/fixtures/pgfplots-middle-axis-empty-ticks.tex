@@ -1,0 +1,20 @@
+% Minimal PGFPlots middle-axis geometry regression fixture.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=11cm,
+      height=3.5cm,
+      xmin=0,
+      xmax=11*pi,
+      ymin=-0.5,
+      ymax=7.5,
+      axis lines=middle,
+      xtick=\empty,
+      ytick=\empty
+    ]
+      \addplot coordinates {(0,0) (11*pi,7.5)};
+    \end{axis}
+  \end{tikzpicture}
+\end{document}
