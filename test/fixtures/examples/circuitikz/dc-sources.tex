@@ -1,0 +1,13 @@
+% Adapted from the TeX Live circuitikz manual's DC-sources example.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}[thick]
+  \draw (0,0) to[dcvsource] ++(2,0)
+        to[dcisource, fill=yellow] ++(2,0);
+  \ctikzset{bipoles/dcisource/angle=45}
+  \draw (0,-2) to[dcvsource] ++(2,0)
+        to[dcisource, fill=yellow] ++(2,0);
+\end{circuitikz}
+\end{document}

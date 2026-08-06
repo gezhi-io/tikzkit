@@ -2258,6 +2258,28 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       name
     };
   }
+  const dcVoltage = circuitikzFirstMatchingOption(options, /^(?:dcvsource|dc voltage source)$/i);
+  if (dcVoltage) {
+    return {
+      kind: "voltageSource",
+      sourceKind: "dc",
+      componentFill: circuitikzComponentFill(options),
+      label: circuitikzLabelValue(options.l) || dcVoltage.label,
+      voltageKey: dcVoltage.key,
+      voltageLabel: dcVoltage.label
+    };
+  }
+  const dcCurrent = circuitikzFirstMatchingOption(options, /^(?:dcisource|dc current source)$/i);
+  if (dcCurrent) {
+    return {
+      kind: "isource",
+      sourceKind: "dc",
+      componentFill: circuitikzComponentFill(options),
+      label: circuitikzLabelValue(options.l) || dcCurrent.label,
+      currentKey: dcCurrent.key,
+      currentLabel: dcCurrent.label
+    };
+  }
   const sinusoidalVoltage = circuitikzFirstMatchingOption(options, /^(?:sV[<>_^]*|vsourcesin|sinusoidal voltage source)$/i);
   if (sinusoidalVoltage) {
     return {
@@ -2406,6 +2428,12 @@ function circuitikzFirstMatchingOption(options = {}, pattern) {
 function circuitikzLabelValue(value) {
   if (value === undefined || value === null || value === true || value === false) return "";
   return String(value).trim();
+}
+
+function circuitikzComponentFill(options = {}) {
+  const raw = options.fill;
+  if (raw === undefined || raw === null || raw === true || raw === false || raw === "") return null;
+  return normalizeColor(String(raw));
 }
 
 const CIRCUITIKZ_UNIT_SYMBOLS = {
@@ -2771,6 +2799,18 @@ function circuitikzSinusoidalCurrentAngle(env = {}) {
     }
   }
   return 90;
+}
+
+function circuitikzDcCurrentAngle(env = {}) {
+  for (const source of [env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/bipoles/dcisource/angle", "bipoles/dcisource/angle"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed)) return Math.max(0, Math.min(90, parsed));
+    }
+  }
+  return 80;
 }
 
 function circuitikzControlledSourceStyle(options = {}, env = {}, kind = "voltage") {
@@ -3288,6 +3328,65 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
     return circuitikzWaveformSourceItems(geometry, "current", "sinusoidal", pathStyle, env);
   }
   const radius = 0.42 * scale * circuitikzSourceScale(env);
+  if (spec.sourceKind === "dc") {
+    const sourceAngle = circuitikzDcCurrentAngle(env);
+    const arrowStart = pointAlong(geometry.mid, geometry.u, -0.7 * radius);
+    const arrowEnd = pointAlong(geometry.mid, geometry.u, 0.6 * radius);
+    const arrowBase = pointAlong(geometry.mid, geometry.u, 0.35 * radius);
+    const arrowTip = pointAlong(geometry.mid, geometry.u, 0.7 * radius);
+    const arrowHalfHeight = 0.16 * radius;
+    const style = circuitikzComponentStyle(pathStyle);
+    const items = [];
+    if (spec.componentFill) {
+      items.push({
+        type: "path",
+        subtype: "circuitikz-dc-current-source-fill",
+        sourceKind: "dc",
+        shape: "circle",
+        cx: geometry.mid.x,
+        cy: geometry.mid.y,
+        r: radius,
+        style: { ...style, stroke: "none", fill: spec.componentFill, lineWidth: 0 },
+        commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
+      });
+    }
+    items.push(
+      {
+        type: "path",
+        subtype: "circuitikz-dc-current-source",
+        sourceKind: "dc",
+        sourceShape: "open",
+        sourceAngle,
+        shape: "circle",
+        cx: geometry.mid.x,
+        cy: geometry.mid.y,
+        r: radius,
+        style,
+        commands: circuitikzOpenSinusoidalCurrentOutline(geometry, radius, sourceAngle)
+      },
+      {
+        type: "path",
+        subtype: "circuitikz-dc-current-source-arrow",
+        style,
+        commands: [
+          { type: "moveTo", x: arrowStart.x, y: arrowStart.y },
+          { type: "lineTo", x: arrowEnd.x, y: arrowEnd.y }
+        ]
+      },
+      {
+        type: "path",
+        subtype: "circuitikz-dc-current-source-arrow-head",
+        style: { ...style, fill: style.stroke, lineJoin: "miter" },
+        commands: [
+          { type: "moveTo", x: arrowBase.x + geometry.n.x * arrowHalfHeight, y: arrowBase.y + geometry.n.y * arrowHalfHeight },
+          { type: "lineTo", x: arrowTip.x, y: arrowTip.y },
+          { type: "lineTo", x: arrowBase.x - geometry.n.x * arrowHalfHeight, y: arrowBase.y - geometry.n.y * arrowHalfHeight },
+          { type: "close" }
+        ]
+      }
+    );
+    return items;
+  }
   const arrowHalf = 0.28 * scale;
   const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
   const arrowEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
@@ -3348,7 +3447,7 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
     return circuitikzWaveformSourceItems(geometry, "voltage", spec.sourceKind, pathStyle, env);
   }
   const radius = 0.42 * scale * circuitikzSourceScale(env);
-  const style = circuitikzComponentStyle(pathStyle);
+  const style = circuitikzComponentStyle(pathStyle, spec.componentFill);
   const items = [
     {
       type: "path",
@@ -3362,6 +3461,24 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
       commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
     }
   ];
+  if (spec.sourceKind === "dc") {
+    for (const along of [-0.2 * radius, 0.2 * radius]) {
+      const start = pointAlong(pointAlong(geometry.mid, geometry.u, along), geometry.n, -0.5 * radius);
+      const end = pointAlong(pointAlong(geometry.mid, geometry.u, along), geometry.n, 0.5 * radius);
+      items.push({
+        type: "path",
+        subtype: "circuitikz-dc-voltage-source-plate",
+        sourceKind: "dc",
+        style,
+        commands: [
+          { type: "moveTo", x: start.x, y: start.y },
+          { type: "lineTo", x: end.x, y: end.y }
+        ]
+      });
+    }
+    items[0].subtype = "circuitikz-dc-voltage-source";
+    return items;
+  }
   if (!circuitikzUsesAmericanVoltageSource(env)) {
     const lineHalf = 0.24 * scale;
     const start = pointAlong(geometry.mid, geometry.u, -lineHalf);
@@ -3665,11 +3782,11 @@ function registerCircuitikzMosfetNode(spec, from, to, geometry, env) {
   env.coordinates[name] = roundPoint(geometry.mid);
 }
 
-function circuitikzComponentStyle(pathStyle = {}) {
+function circuitikzComponentStyle(pathStyle = {}, componentFill = null) {
   const lineWidth = Number(pathStyle.lineWidth) || 1;
   return {
     stroke: pathStyle.stroke || "black",
-    fill: "none",
+    fill: pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : componentFill || "none",
     lineWidth: roundNumber(lineWidth * 2),
     markerStart: undefined,
     markerEnd: undefined,

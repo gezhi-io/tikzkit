@@ -212,6 +212,20 @@
       ]
     },
     {
+      "id": "circuitikz-dc-sources",
+      "title": "circuitikz DC voltage and current sources",
+      "source": "circuitikz/dc-sources.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzVoltageSourceItems/circuitikzCurrentSourceItems",
+      "features": [
+        "to[dcvsource]",
+        "to[dcisource]",
+        "bipoles/dcisource/angle",
+        "source fill"
+      ]
+    },
+    {
       "id": "circuitikz-controlled-sources",
       "title": "circuitikz controlled voltage and current source styles",
       "source": "circuitikz/controlled-sources.tex",
