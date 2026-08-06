@@ -4275,6 +4275,22 @@
       ]
     },
     {
+      "id": "transform-canvas-manual",
+      "title": "PGF manual canvas transform path matrix",
+      "source": "paths/transform-canvas-manual.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-transformations.tex",
+      "semanticOwner": "src/engine/evaluate.js:transformCanvasTransform",
+      "features": [
+        "transform canvas",
+        "canvas scale",
+        "canvas rotation",
+        "path coordinates",
+        "line width scaling",
+        "grid reference"
+      ]
+    },
+    {
       "id": "decorations-zigzag-native-state",
       "title": "PGF zigzag decoration phase across a polyline",
       "source": "decorations/zigzag-native-state.tex",

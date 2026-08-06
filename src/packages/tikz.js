@@ -1,12 +1,13 @@
 export const texPackage = {
   "name": "tikz",
   "status": "builtin",
-  "implementedBy": "src/frontend/parser.js + src/engine/evaluate.js + src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
+  "implementedBy": "src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform + src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
   "features": [
     "tikzpicture extraction",
     "draw/path/fill/node/coordinate subset",
     "compact textstyle/scriptstyle metrics for simple math node labels",
-    "resolved scope font metrics for node and rectangle-split layout"
+    "resolved scope font metrics for node and rectangle-split layout",
+    "transform canvas scale/rotate/shift kept separate from TikZ coordinate transforms"
   ],
   "requires": [
     "pgf",
@@ -14,6 +15,7 @@ export const texPackage = {
   ],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
   "localDoc": null,
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex (/tikz/transform canvas); /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-transformations.tex (transform canvas semantics)",
   "caseCount": 1077,
   "caseExamples": [
     "1D 2D cross connection / 1d 2d_cross connection",
@@ -30,5 +32,5 @@ export const texPackage = {
     "CRT rendering / crt_rendering"
   ],
   "observedOptions": [],
-  "notes": "TeX Live tikz.sty loads pgf and pgffor, then inputs tikz.code.tex. Simple math scripts use a shared TeX textstyle/scriptstyle box metric so minimum-size nodes are not over-expanded. Text-box measurement preserves the resolved scope font family, so font=\\tt affects rectangle-split geometry as it does in PGF."
+  "notes": "TeX Live tikz.sty loads pgf and pgffor, then inputs tikz.code.tex. Simple math scripts use a shared TeX textstyle/scriptstyle box metric so minimum-size nodes are not over-expanded. Text-box measurement preserves the resolved scope font family, so font=\\tt affects rectangle-split geometry as it does in PGF. Reviewed on 2026-08-07: transform canvas now keeps PGF's backend matrix separate from coordinate transforms for uniform scale, rotation, and shifts on paths and nodes, scales canvas stroke/text geometry, and locally disables automatic picture-size tracking. Arbitrary non-uniform node-anchor geometry and downstream anchor reuse after transform canvas remain partial."
 };

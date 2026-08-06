@@ -19,8 +19,9 @@ const CORE_PACKAGE_SUPPORT = {
   },
   tikz: {
     status: "builtin",
-    implementedBy: "src/frontend/parser.js + src/engine/evaluate.js + src/renderers/svg/renderSvg.js",
-    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations"
+    implementedBy: "src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform + src/renderers/svg/renderSvg.js",
+    localSourceReviewed: "yes",
+    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations. transform canvas now keeps the backend matrix separate from coordinate transforms for scale/rotate/xshift/yshift paths and nodes, scales stroke/text geometry, and preserves PGF's locally disabled automatic picture-size tracking; arbitrary non-uniform node-anchor geometry remains partial."
   },
   pgf: {
     status: "partial",

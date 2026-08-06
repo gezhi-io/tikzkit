@@ -57,6 +57,13 @@ export const tikzCommand = {
       status: "partial",
       implementedBy: "src/engine/options.js:defaultStyleForCommand + src/engine/evaluate.js",
       notes: "Fill and stroke are core; clip is limited to practical gallery slices."
+    },
+    {
+      name: "transform canvas={...}",
+      category: "canvas transform",
+      status: "partial",
+      implementedBy: "src/engine/evaluate.js:transformCanvasTransform + src/engine/evaluate.js:interpretPathStatement",
+      notes: "Uniform scale, rotation, and shifts are applied after normal coordinate transforms, including path stroke metrics. PGF's automatic picture-size tracking is locally disabled; general non-uniform node anchor geometry remains partial."
     }
   ],
   examples: [

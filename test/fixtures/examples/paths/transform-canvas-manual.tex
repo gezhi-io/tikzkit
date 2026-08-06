@@ -1,0 +1,11 @@
+% Source: /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-transformations.tex
+\documentclass[border=0pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (0,0) grid (3,2);
+  \draw                                    (0,0) -- (1,1) -- (1,0);
+  \draw[transform canvas={scale=2},blue]   (0,0) -- (1,1) -- (1,0);
+  \draw[transform canvas={rotate=180},red] (0,0) -- (1,1) -- (1,0);
+\end{tikzpicture}
+\end{document}

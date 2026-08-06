@@ -193,6 +193,7 @@ export function interpretTikz(ast, options = {}) {
       transform: identityTransform()
     };
     const pictureTransform = composeTransform(identityTransform(), pictureOptions, pictureTransformEnv);
+    const pictureCanvasTransform = transformCanvasTransform(pictureOptions, pictureTransformEnv);
     const picturePlane = canvasPlaneEnvironment(pictureTransformEnv, pictureOptions, pictureTransform);
     const env = {
       variables: { ...baseVariables },
@@ -215,6 +216,11 @@ export function interpretTikz(ast, options = {}) {
       activeChain: initialActiveChain(pictureOptions),
       toggles: {},
       transform: picturePlane?.transform || pictureTransform,
+      // TikZ keeps coordinate and canvas transformations distinct. Coordinates
+      // resolve through `transform`, then the drawing backend applies this
+      // transform canvas matrix to the completed path/node geometry.
+      canvasTransform: pictureCanvasTransform,
+      canvasTrackingDisabled: hasTransformCanvas(pictureOptions),
       canvasScale: transformCanvasScale(pictureOptions, pictureTransformEnv),
       basis: picturePlane?.basis || pictureBasis,
       pictureOptions
@@ -794,7 +800,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     }
     const point = statement.at
       ? resolveCoordinate(statement.at, env, diagnostics)
-      : resolvePositioning(statement.options || {}, env) || applyTransform({ x: 0, y: 0 }, env.transform);
+      : resolvePositioning(statement.options || {}, env) || applyCoordinateTransform({ x: 0, y: 0 }, env);
     const name = statement.name ? resolveDynamicName(statement.name, env) : null;
     if (name) env.coordinates[name] = point;
     addCoordinateLabels(statement.options || {}, point, env, ir);
@@ -879,11 +885,17 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     );
     applyOptionCodeHandlers(scopeOptions, codeEnv);
     const scopedTransform = composeTransform(env.transform, scopeOptions, codeEnv);
+    const scopedCanvasTransform = multiplyTransforms(
+      env.canvasTransform || identityTransform(),
+      transformCanvasTransform(scopeOptions, codeEnv)
+    );
     const scopePlane = canvasPlaneEnvironment(env, scopeOptions, scopedTransform);
     const scopedEnv = {
       ...env,
       variables: scopedVariables,
       transform: scopePlane?.transform || scopedTransform,
+      canvasTransform: scopedCanvasTransform,
+      canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(scopeOptions)),
       canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
       basis: scopePlane?.basis || composeBasis(env.basis, scopeOptions, codeEnv),
       pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, scopeOptions),
@@ -1248,6 +1260,7 @@ function applyTikzsetStoredVariables(options = {}, env = {}) {
 }
 
 function interpretPathStatement(statement, env, ir, diagnostics) {
+  const firstItemIndex = ir.items.length;
   const pathStyles = {
     ...(env.styles || {}),
     ...styleDefinitionsFromOptions(statement.options || {}, env.styles || {})
@@ -1260,9 +1273,6 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     optionEnv
   );
   const normalized = normalizeOptions(statement.command, rawOptions, optionEnv);
-  const scaledStyle = scaleCanvasStyle(normalized.style, pathStyleScaleEnv(optionEnv, rawOptions));
-  const patternDefinition = scaledStyle.pattern ? optionEnv.patterns?.[scaledStyle.pattern] : null;
-  const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
   const { semantic, options } = normalized;
   const pathOptions = { ...options, ...semantic };
   const statementTransformOptions = normalizeOptions(
@@ -1273,12 +1283,24 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathTransform = shouldApplyStatementTransformToPath(statement)
     ? composeTransform(env.transform, statementTransformOptions, optionEnv)
     : env.transform;
+  const pathCanvasScale = env.canvasScale * transformCanvasScale(statementTransformOptions, optionEnv);
+  const pathCanvasTransform = multiplyTransforms(
+    env.canvasTransform || identityTransform(),
+    transformCanvasTransform(statementTransformOptions, optionEnv)
+  );
+  const pathStyleEnv = { ...optionEnv, canvasScale: pathCanvasScale };
+  const scaledStyle = scaleCanvasStyle(normalized.style, pathStyleScaleEnv(pathStyleEnv, rawOptions));
+  const patternDefinition = scaledStyle.pattern ? optionEnv.patterns?.[scaledStyle.pattern] : null;
+  const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
   const pathPlane = canvasPlaneEnvironment(env, options, pathTransform);
   const pathEnv = {
     ...optionEnv,
     pathLet: { points: {}, numbers: {} },
     variables: { ...(env.variables || {}) },
     transform: pathPlane?.transform || pathTransform,
+    canvasTransform: pathCanvasTransform,
+    canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(statementTransformOptions)),
+    canvasScale: pathCanvasScale,
     basis: pathPlane?.basis || composeBasis(env.basis, options, optionEnv)
   };
   const subtype = semanticSubtype(pathOptions);
@@ -1309,6 +1331,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     for (const node of built.nodes) {
       addNodeItems(node, ir, pathEnv);
     }
+    applyCanvasTransformBounds(ir, firstItemIndex, pathEnv.canvasTrackingDisabled);
     return;
   }
 
@@ -1371,6 +1394,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   for (const node of built.nodes) {
     addNodeItems(node, ir, pathEnv);
   }
+  applyCanvasTransformBounds(ir, firstItemIndex, pathEnv.canvasTrackingDisabled);
 }
 
 function parseInternalClipRect(raw, env = {}) {
@@ -1394,8 +1418,8 @@ function parseInternalClipCircle(raw, env = {}) {
   if (values.length !== 3 || !values.every(Number.isFinite)) return undefined;
   const [x, y, radius] = values;
   if (!(radius > 0)) return undefined;
-  const center = applyTransform({ x, y }, env.transform);
-  const transformedRadius = Math.hypot(...Object.values(applyTransformVector({ x: radius, y: 0 }, env.transform)));
+  const center = applyCoordinateTransform({ x, y }, env);
+  const transformedRadius = Math.hypot(...Object.values(applyCoordinateTransformVector({ x: radius, y: 0 }, env)));
   if (!(transformedRadius > 0)) return undefined;
   return { x: center.x, y: center.y, radius: transformedRadius };
 }
@@ -1495,7 +1519,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     if (segment.kind === "coordinate") {
       const pendingValue = pending?.value ?? pending;
       const pendingOptions = pending?.options || {};
-      const relativeOrigin = relativeBase || currentBase || current || applyTransform({ x: 0, y: 0 }, env.transform);
+      const relativeOrigin = relativeBase || currentBase || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       const turnedPoint = !segment.relative && currentBase && lastSegment
         ? resolveTurnCoordinate(segment.raw, currentBase, lastSegment, env, diagnostics)
         : null;
@@ -1515,7 +1539,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       // （只剩一个 moveTo）。这里在遇到这类挂起操作且尚无当前点时，先把经过当前变换的局部原点
       // 设为起点，让后面的 rectangle/grid 分支正常生成图形（变换会把它剪成平行四边形，见 case 047）。
       if (!current && (pendingValue === "rectangle" || pendingValue === "grid")) {
-        const origin = applyTransform({ x: 0, y: 0 }, env.transform);
+        const origin = applyCoordinateTransform({ x: 0, y: 0 }, env);
         commands.push(moveToCommand(origin));
         current = origin;
         currentLocal = { x: 0, y: 0 };
@@ -1550,7 +1574,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       } else if (pendingValue === "rectangle") {
         const corners =
           currentLocal && localPoint
-            ? transformedRectangleCorners(currentLocal, localPoint, env.transform)
+            ? transformedRectangleCorners(currentLocal, localPoint, coordinateTransformForEnvironment(env))
             : [
                 { x: point.x, y: current.y },
                 point,
@@ -1860,7 +1884,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       continue;
     }
     if (segment.kind === "circle") {
-      const center = current || applyTransform({ x: 0, y: 0 }, env.transform);
+      const center = current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       const r = parseDimension(segment.radius, env.variables);
       const commands = circleCommands(center, r, env);
       shapes.push(
@@ -1978,7 +2002,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       }
       const point = segment.at
         ? resolveCoordinate(segment.at, env, diagnostics)
-        : inlineNodePathPoint(segment.options, lastSegment) || current || applyTransform({ x: 0, y: 0 }, env.transform);
+        : inlineNodePathPoint(segment.options, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       addInlinePathNode(segment, text, point, nodes, env, pathStyle, lastSegment, effectivePathOptions);
       continue;
     }
@@ -5485,7 +5509,7 @@ function angleBetweenCcw(angle, start, end) {
 }
 
 function resolveLocalCoordinate(raw, env, diagnostics) {
-  return resolveCoordinate(raw, { ...env, transform: identityTransform() }, diagnostics);
+  return resolveCoordinate(raw, localCoordinateEnvironment(env), diagnostics);
 }
 
 function shouldResolveAsLocalRectangleCorner(raw) {
@@ -5554,11 +5578,7 @@ function projectLocalPathCommands(commands, center, env) {
 
 function projectLocalOffset(x, y, env) {
   const projected = projectBasisPoint(x, y, 0, env.basis);
-  const transform = normalizeTransform(env.transform);
-  return roundPoint({
-    x: projected.x * transform.a + projected.y * transform.c,
-    y: projected.x * transform.b + projected.y * transform.d
-  });
+  return applyCoordinateTransformVector(projected, env);
 }
 
 function usesCustomBasis(basis = parsePictureBasis()) {
@@ -5574,7 +5594,7 @@ function usesCustomBasis(basis = parsePictureBasis()) {
 
 function usesProjectedLocalGeometry(env = {}) {
   if (usesCustomBasis(env.basis)) return true;
-  const transform = normalizeTransform(env.transform);
+  const transform = coordinateTransformForEnvironment(env);
   return (
     Math.abs(transform.a - 1) > 1e-9 ||
     Math.abs(transform.b) > 1e-9 ||
@@ -6562,7 +6582,7 @@ function createCalendar(statement, env, ir, diagnostics = []) {
   }
   const origin = spec.at
     ? resolveCoordinate(spec.at, env, diagnostics)
-    : resolvePositioning(spec.options || {}, env) || applyTransform({ x: 0, y: 0 }, env.transform);
+    : resolvePositioning(spec.options || {}, env) || applyCoordinateTransform({ x: 0, y: 0 }, env);
   createCalendarItems(spec, origin, env, ir, diagnostics);
 }
 
@@ -7075,7 +7095,7 @@ function createMatrix(statement, env, ir, diagnostics = []) {
   const requestedOrigin =
     (statement.at ? resolveCoordinate(statement.at, env, diagnostics) : null) ||
     resolvePositioning(matrixOptions || {}, env, { width: layoutWidth, height: layoutHeight }) ||
-    applyTransform({ x: 0, y: 0 }, env.transform);
+    applyCoordinateTransform({ x: 0, y: 0 }, env);
   const anchorCell = findMatrixAnchorCell(rows, matrixOptions.anchor);
   const anchorOffset = anchorCell
     ? {
@@ -7399,7 +7419,7 @@ function picOrigin(options = {}, env, diagnostics = []) {
   if (at !== undefined && at !== null && at !== true && at !== "") {
     return resolveCoordinate(stripOuterBraces(String(at)), env, diagnostics);
   }
-  return resolvePositioning(options.options || options || {}, env) || applyTransform({ x: 0, y: 0 }, env.transform);
+  return resolvePositioning(options.options || options || {}, env) || applyCoordinateTransform({ x: 0, y: 0 }, env);
 }
 
 function createCustomPic(statement, env, ir, diagnostics = [], name = null, origin = { x: 0, y: 0 }) {
@@ -8576,6 +8596,7 @@ function addNodeItems(node, ir, env) {
   if (shape === "ground") {
     ir.items.push(circuitikzGroundItem(point, style, nodeEnv));
     applyNodeOverlay(ir, firstItemIndex, overlay);
+    applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
     return;
   }
   if (shape === "opAmp") {
@@ -8755,6 +8776,7 @@ function addNodeItems(node, ir, env) {
   addAutomataInitialArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
   addAutomataAcceptingArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
   applyNodeOverlay(ir, firstItemIndex, overlay);
+  applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
 }
 
 function addAutomataInitialArrow(node, point, semantic, nodeStyle, textStyle, textFont, env, ir) {
@@ -8961,6 +8983,13 @@ function applyNodeOverlay(ir, firstItemIndex, overlay) {
   if (!overlay) return;
   for (let index = firstItemIndex; index < ir.items.length; index += 1) {
     ir.items[index].overlay = true;
+  }
+}
+
+function applyCanvasTransformBounds(ir, firstItemIndex, disabled) {
+  if (!disabled) return;
+  for (let index = firstItemIndex; index < ir.items.length; index += 1) {
+    ir.items[index].excludeFromBounds = true;
   }
 }
 
@@ -9452,7 +9481,7 @@ function resolveNodePoint(statement, env, diagnostics, selfSize) {
   if (chainPoint) return chainPoint;
   const positioning = resolvePositioning(statement.options || {}, env, selfSize);
   if (positioning) return positioning;
-  return applyTransform({ x: 0, y: 0 }, env.transform);
+  return applyCoordinateTransform({ x: 0, y: 0 }, env);
 }
 
 function initialChains(pictureOptions = {}) {
@@ -9579,7 +9608,7 @@ function resolveChainPosition(options = {}, env, selfSize = { width: 0, height: 
   if (placement?.kind === "placed") {
     return resolvePlacedChainPosition(placement.value, chain, env, selfSize);
   }
-  if (!chain.last) return applyTransform({ x: 0, y: 0 }, env.transform);
+  if (!chain.last) return applyCoordinateTransform({ x: 0, y: 0 }, env);
   const distance = scalePositioningLibraryDistance(positioningLibraryDefaultDistance(env), env, positioningLibraryHelpers());
   const direction = placement?.value || "right";
   return roundPoint({
@@ -12076,7 +12105,7 @@ function buildGrid(from, to, pathOptions, env = {}, localCoordinates = false) {
   const maxY = Math.max(from.y, to.y);
   const xTolerance = Math.max(1e-9, xstep * 0.05);
   const yTolerance = Math.max(1e-9, ystep * 0.05);
-  const gridPoint = (point) => localCoordinates ? applyTransform(point, env.transform) : roundPoint(point);
+  const gridPoint = (point) => localCoordinates ? applyCoordinateTransform(point, env) : roundPoint(point);
   const addHorizontal = (y) => {
     const start = gridPoint({ x: minX, y: roundNumber(y) });
     const end = gridPoint({ x: maxX, y: roundNumber(y) });
@@ -12953,7 +12982,7 @@ function buildPlotFunction(expression, env, pathOptions = {}) {
     const y = evaluatePlotFunctionExpression(expression, value, variable, env.variables);
     if (!Number.isFinite(y)) continue;
     const local = roundPoint(projectBasisPoint(value, y, 0, env.basis));
-    points.push({ ...applyTransform(local, env.transform), sourceX: value, sourceY: y });
+    points.push({ ...applyCoordinateTransform(local, env), sourceX: value, sourceY: y });
   }
   if (!points.length) return { commands: [], points };
   if (tikzBoolean(pathOptions.ycomb) || tikzBoolean(pathOptions.xcomb)) {
@@ -12963,7 +12992,7 @@ function buildPlotFunction(expression, env, pathOptions = {}) {
       const baselineLocal = isXComb
         ? roundPoint(projectBasisPoint(0, point.sourceY, 0, env.basis))
         : roundPoint(projectBasisPoint(point.sourceX, 0, 0, env.basis));
-      const baseline = applyTransform(baselineLocal, env.transform);
+      const baseline = applyCoordinateTransform(baselineLocal, env);
       commands.push({ type: "moveTo", x: baseline.x, y: baseline.y });
       commands.push({ type: "lineTo", x: point.x, y: point.y });
     }
@@ -13351,8 +13380,8 @@ function resolveControlPoint(raw, current, env, diagnostics) {
   const text = String(raw).trim();
   const relative = text.match(/^\+{1,2}\((.+)\)$/);
   if (!relative) return resolveCoordinate(stripCurveCoordinateParens(text), env, diagnostics);
-  const local = resolveCoordinate(relative[1], { ...env, transform: identityTransform() }, diagnostics);
-  const offset = applyTransformVector(local, env.transform);
+  const local = resolveCoordinate(relative[1], localCoordinateEnvironment(env), diagnostics);
+  const offset = applyCoordinateTransformVector(local, env);
   return roundPoint({ x: current.x + offset.x, y: current.y + offset.y });
 }
 
@@ -13360,8 +13389,8 @@ function resolveCurveEndpoint(raw, start, env, diagnostics) {
   const text = String(raw || "").trim();
   const relative = text.match(/^\+{1,2}\((.+)\)$/);
   if (!relative) return resolveCoordinate(stripCurveCoordinateParens(text), env, diagnostics);
-  const local = resolveCoordinate(relative[1], { ...env, transform: identityTransform() }, diagnostics);
-  const offset = applyTransformVector(local, env.transform);
+  const local = resolveCoordinate(relative[1], localCoordinateEnvironment(env), diagnostics);
+  const offset = applyCoordinateTransformVector(local, env);
   return roundPoint({ x: start.x + offset.x, y: start.y + offset.y });
 }
 
@@ -13371,9 +13400,9 @@ function stripCurveCoordinateParens(value) {
 }
 
 function resolveRelativeCoordinate(raw, current, env, diagnostics) {
-  const base = current || applyTransform({ x: 0, y: 0 }, env.transform);
-  const local = resolveCoordinate(raw, { ...env, transform: identityTransform() }, diagnostics);
-  const offset = applyTransformVector(local, env.transform);
+  const base = current || applyCoordinateTransform({ x: 0, y: 0 }, env);
+  const local = resolveCoordinate(raw, localCoordinateEnvironment(env), diagnostics);
+  const offset = applyCoordinateTransformVector(local, env);
   return roundPoint({
     x: base.x + offset.x,
     y: base.y + offset.y
@@ -13550,15 +13579,49 @@ function composeTransform(parent, options = {}, env) {
       continue;
     }
     if (key === "transform canvas") {
-      if (value !== undefined && value !== null && value !== true && value !== "") {
-        current = composeTransform(current, parseOptions(String(value)), env);
-      }
+      // `transform canvas` changes PGF's backend matrix, not TikZ's
+      // coordinate matrix. It is applied after normal coordinate resolution.
       continue;
     }
     const operation = coordinateTransformOperation(key, value, env);
     if (operation) current = multiplyTransforms(current, operation);
   }
   return current;
+}
+
+function transformCanvasOptions(options = {}) {
+  const raw = options["transform canvas"];
+  if (raw === undefined || raw === null || raw === true || raw === "") return {};
+  return parseOptions(String(raw));
+}
+
+function hasTransformCanvas(options = {}) {
+  const raw = options["transform canvas"];
+  return raw !== undefined && raw !== null && raw !== false && raw !== true && String(raw).trim() !== "";
+}
+
+function transformCanvasTransform(options = {}, env = {}) {
+  return composeTransform(identityTransform(), transformCanvasOptions(options), env);
+}
+
+function coordinateTransformForEnvironment(env = {}) {
+  return multiplyTransforms(env.canvasTransform || identityTransform(), env.transform || identityTransform());
+}
+
+function applyCoordinateTransform(point, env = {}) {
+  return applyTransform(point, coordinateTransformForEnvironment(env));
+}
+
+function applyCoordinateTransformVector(point, env = {}) {
+  return applyTransformVector(point, coordinateTransformForEnvironment(env));
+}
+
+function localCoordinateEnvironment(env = {}) {
+  return {
+    ...env,
+    transform: identityTransform(),
+    canvasTransform: identityTransform()
+  };
 }
 
 function coordinateLocalTransform(options = {}, env) {
@@ -13622,7 +13685,7 @@ function aroundTransform(value, env, createLinearTransform) {
   const parts = splitTopLevel(text, ":");
   if (parts.length < 2) return null;
   const centerText = parts.slice(1).join(":").trim();
-  const center = resolveCoordinate(centerText, { ...env, transform: identityTransform() }, []);
+  const center = resolveCoordinate(centerText, localCoordinateEnvironment(env), []);
   const linear = createLinearTransform(parts[0].trim());
   return transformAroundPoint(linear, center);
 }
@@ -13635,7 +13698,7 @@ function parseCmTransform(value, env) {
     return Number.isFinite(parsed) ? parsed : index % 3 === 0 ? 1 : 0;
   });
   const shift = parts.length > 4
-    ? resolveCoordinate(parts.slice(4).join(","), { ...env, transform: identityTransform() }, [])
+    ? resolveCoordinate(parts.slice(4).join(","), localCoordinateEnvironment(env), [])
     : { x: 0, y: 0 };
   return affineTransform(coefficients[0], coefficients[1], coefficients[2], coefficients[3], shift.x, shift.y);
 }
@@ -13664,9 +13727,7 @@ function translationTransform(x, y) {
 }
 
 function transformCanvasScale(options = {}, env) {
-  const raw = options["transform canvas"];
-  if (raw === undefined || raw === null || raw === true || raw === "") return 1;
-  const parsed = parseOptions(String(raw));
+  const parsed = transformCanvasOptions(options);
   const value = parsed.scale ?? parsed["scale around"] ?? 1;
   const scale = evaluateMath(value, env.variables);
   return Number.isFinite(scale) && scale > 0 ? scale : 1;
@@ -13733,7 +13794,7 @@ function tikzExtMirrorTransform(options = {}, env) {
 function mirrorReferencePoint(value, env) {
   if (value === true || value === "") return { x: 0, y: 0 };
   const text = String(value).trim();
-  if (text.startsWith("(")) return resolveCoordinate(text, { ...env, transform: identityTransform() }, []);
+  if (text.startsWith("(")) return resolveCoordinate(text, localCoordinateEnvironment(env), []);
   const scalar = parseDimension(text, env.variables);
   return Number.isFinite(scalar) ? { x: scalar, y: scalar } : { x: 0, y: 0 };
 }
@@ -13845,7 +13906,7 @@ function canvasPlaneEnvironment(parentEnv, options = {}, transform = parentEnv.t
   // Resolve the three defining points through the parent 3D basis, but before
   // the new scope/path affine transform. Their differences are the local
   // canvas x/y vectors; the origin is composed into the canvas transform.
-  const coordinateEnv = { ...parentEnv, transform: identityTransform() };
+  const coordinateEnv = localCoordinateEnvironment(parentEnv);
   const origin = resolveCoordinate(spec.origin, coordinateEnv, []);
   const xPoint = resolveCoordinate(spec.x, coordinateEnv, []);
   const yPoint = resolveCoordinate(spec.y, coordinateEnv, []);
@@ -13895,7 +13956,7 @@ function parseBasisVector(value, variables = {}, axis = "x") {
 function parseShift(value, env) {
   if (!value) return { x: 0, y: 0 };
   if (typeof value === "string" && value.startsWith("(")) {
-    const point = resolveCoordinate(value, { ...env, transform: identityTransform() }, []);
+    const point = resolveCoordinate(value, localCoordinateEnvironment(env), []);
     return point;
   }
   return { x: parseDimension(value, env.variables), y: parseDimension(value, env.variables) };
@@ -13964,13 +14025,13 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   }
   const declaredCoordinate = resolveDeclaredCoordinateSystem(text, env);
   if (declaredCoordinate) {
-    return applyTransform(declaredCoordinate, env.transform);
+    return applyCoordinateTransform(declaredCoordinate, env);
   }
   const explicitCoordinate = resolveExplicitCoordinateSystem(text, env, diagnostics);
   if (explicitCoordinate) {
     return explicitCoordinate.absolute
       ? roundPoint(explicitCoordinate.point)
-      : applyTransform(explicitCoordinate.point, env.transform);
+      : applyCoordinateTransform(explicitCoordinate.point, env);
   }
   const polar = text.match(/^(.+):(.+)$/);
   if (polar) {
@@ -13990,7 +14051,7 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
           0,
           env.basis
         );
-    return applyTransform(roundPoint(point), env.transform);
+    return applyCoordinateTransform(roundPoint(point), env);
   }
   const comma = splitTopLevel(text, ",");
   if (comma.length >= 2) {
@@ -14001,9 +14062,9 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
         parseCoordinateFactor(comma[2], env.variables),
         env.basis
       );
-      return applyTransform(projected, env.transform);
+      return applyCoordinateTransform(projected, env);
     }
-    return applyTransform(resolveImplicitTwoPartCoordinate(comma[0], comma[1], env), env.transform);
+    return applyCoordinateTransform(resolveImplicitTwoPartCoordinate(comma[0], comma[1], env), env);
   }
   diagnostics.push({ severity: "warning", message: `Unknown coordinate ${raw}` });
   return { x: 0, y: 0 };

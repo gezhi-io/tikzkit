@@ -40,6 +40,13 @@ export const tikzCommand = {
       notes: "Picture basis and transform options are mapped into canvas coordinates."
     },
     {
+      name: "transform canvas={scale / rotate / shift}",
+      category: "canvas transform",
+      status: "partial",
+      implementedBy: "src/engine/evaluate.js:transformCanvasTransform",
+      notes: "Backend canvas transforms remain separate from the TikZ coordinate matrix and disable automatic picture-size tracking as in PGF."
+    },
+    {
       name: "name/.style={...}",
       category: "style definition",
       status: "implemented",

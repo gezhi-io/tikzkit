@@ -119,6 +119,28 @@ test("applies transform canvas scale to scoped node geometry and text", () => {
   assert.equal(text.style.fontScale, 0.5);
 });
 
+test("keeps transform canvas separate from coordinate transforms on manual paths", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[help lines] (0,0) grid (3,2);
+  \draw                                    (0,0) -- (1,1) -- (1,0);
+  \draw[transform canvas={scale=2},blue,very thick]   (0,0) -- (1,1) -- (1,0);
+  \draw[transform canvas={rotate=180},red,very thick] (0,0) -- (1,1) -- (1,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const blue = ir.items.find((item) => item.type === "path" && item.style?.stroke === "blue");
+  const red = ir.items.find((item) => item.type === "path" && item.style?.stroke === "red");
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(blue.commands.map(({ x, y }) => [x, y]), [[0, 0], [2, 2], [2, 0]]);
+  assert.deepEqual(red.commands.map(({ x, y }) => [x, y]), [[0, 0], [-1, -1], [-1, 0]]);
+  assert.ok(Math.abs(blue.style.lineWidth - lineWidthFromPt(1.2) * 2) < 1e-6);
+  assert.ok(Math.abs(red.style.lineWidth - lineWidthFromPt(1.2)) < 1e-6);
+  assert.equal(blue.excludeFromBounds, true);
+  assert.equal(red.excludeFromBounds, true);
+});
+
 test("applies coordinate-level shifts before node anchor references", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -267,6 +267,30 @@ outline, like the `tikztosvg` and MacTeX panels. Ellipses use the same terminal
 padding. Arbitrary shapes, tip-specific separation keys, and every PGF arrow
 declaration are still partial.
 
+### Transform Canvas Check
+
+`transform-canvas-manual` is the maintained PGF manual fixture for backend
+canvas transforms. It verifies that `transform canvas={scale=...}` and
+`transform canvas={rotate=...}` are applied after ordinary TikZ coordinate
+transforms, while PGF-style automatic picture-size tracking stays disabled for
+the transformed items. Run the focused test and inspect the three local
+renderers with:
+
+```bash
+node --test --test-name-pattern='transform canvas' test/petarv-compat.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-transform-canvas \
+  --only transform-canvas-manual \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-transform-canvas
+```
+
+Open `outputs/qa-transform-canvas/index.html` and confirm that the grid and
+blue scaled path align across TikZKit, `tikztosvg`, and local MacTeX. The red
+rotated path is intentionally outside the normal picture bbox, so native PGF
+and TikZKit crop it rather than expanding the SVG canvas.
+
 ### PGFPlots Tickless Middle-Axis Check
 
 `test/fixtures/pgfplots-middle-axis-empty-ticks.tex` is the focused regression
