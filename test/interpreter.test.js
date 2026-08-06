@@ -2340,6 +2340,27 @@ test("copies ordinary node fill and draw styles behind copy shadows", () => {
   assert.match(result.svg, /class="tikz-node-shadow"/);
 });
 
+test("paints the farther double-copy shadow before the nearer copy", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}
+  \filldraw[double copy shadow={shadow xshift=1ex,shadow yshift=1ex,opacity=.5},fill=blue!20,draw=blue]
+    (0,0) rectangle (2,1);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path");
+  const ex = 4.30554 / 28.4527559;
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.shadows.length, 2);
+  expectClose(path.shadows[0].xshift, ex * 2, 1e-12);
+  expectClose(path.shadows[0].yshift, ex * 2, 1e-12);
+  expectClose(path.shadows[1].xshift, ex, 1e-12);
+  expectClose(path.shadows[1].yshift, ex, 1e-12);
+  assert.equal(path.shadows[0].style.fill, "rgb(204 204 255)");
+  assert.equal(path.shadows[1].style.stroke, "blue");
+  assert.equal((result.svg.match(/class="tikz-path-shadow"/g) || []).length, 2);
+});
+
 test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   const source = String.raw`
 \begin{tikzpicture}

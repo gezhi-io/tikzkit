@@ -2097,8 +2097,8 @@ Current core examples:
   are separated from the opening brace by whitespace.
 - `automata`: supports state circles, split output states, accepting/initial arrows, and `initial by diamond` when the source also loads `shapes.geometric`.
 - `shadows`: supports `general shadow` plus the documented `drop shadow`
-  defaults and foreground-paint-inheriting `copy shadow` for ordinary path and
-  node preactions. A simple
+  defaults, foreground-paint-inheriting `copy shadow`, and two-stage
+  `double copy shadow` for ordinary path and node preactions. A simple
   `every shadow/.style={...}` runs between those defaults and explicit caller
   overrides. `shadows.blur` additionally provides a browser SVG-filter
   approximation for ordinary path and node `blur shadow` preactions. Blur

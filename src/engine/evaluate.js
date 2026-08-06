@@ -9139,6 +9139,9 @@ function pathGeneralShadows(semantic = {}, env, mainStyle = {}) {
   if (semantic["copy shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["copy shadow"]).map((value) => parseCopyShadow(value, env, mainStyle)).filter(Boolean));
   }
+  if (semantic["double copy shadow"] !== undefined) {
+    shadows.push(...optionValueList(semantic["double copy shadow"]).flatMap((value) => parseDoubleCopyShadow(value, env, mainStyle)).filter(Boolean));
+  }
   if (semantic["blur shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["blur shadow"]).map((value) => parseBlurShadow(value, env)).filter(Boolean));
   }
@@ -9167,15 +9170,34 @@ function parseDropShadow(value, env) {
 }
 
 function parseCopyShadow(value, env, mainStyle = {}) {
-  const shadowOptions = orderedShadowOptions({
+  const shadowOptions = copyShadowOptions(value, mainStyle, { everyShadow: true });
+  return parseShadowFromOptions(shadowOptions, env);
+}
+
+function parseDoubleCopyShadow(value, env, mainStyle = {}) {
+  // The local `double copy shadow` source has two general-shadow preactions:
+  // the farther copy first, then the ordinary copy closest to the foreground.
+  // Unlike `copy shadow`, its implementation does not insert `every shadow`.
+  const shadowOptions = copyShadowOptions(value, mainStyle, { everyShadow: false });
+  const nearShadow = parseShadowFromOptions(shadowOptions, env);
+  if (!nearShadow) return [];
+  return [{
+    ...nearShadow,
+    xshift: roundNumber(nearShadow.xshift * 2),
+    yshift: roundNumber(nearShadow.yshift * 2)
+  }, nearShadow];
+}
+
+function copyShadowOptions(value, mainStyle = {}, { everyShadow = false } = {}) {
+  const defaults = {
     "shadow scale": 1,
     "shadow xshift": ".5ex",
     "shadow yshift": ".5ex",
     fill: mainStyle.fill || "none",
-    draw: mainStyle.stroke || "none",
-    "every shadow": true
-  }, parseOptions(String(value === true ? "" : value)));
-  return parseShadowFromOptions(shadowOptions, env);
+    draw: mainStyle.stroke || "none"
+  };
+  if (everyShadow) defaults["every shadow"] = true;
+  return orderedShadowOptions(defaults, parseOptions(String(value === true ? "" : value)));
 }
 
 function orderedShadowOptions(defaults, overrides) {

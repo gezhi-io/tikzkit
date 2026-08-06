@@ -4416,6 +4416,21 @@
         "every shadow",
         "path preaction"
       ]
+    },
+    {
+      "id": "shadows-double-copy-shadow-path",
+      "title": "PGF double copy shadow preaction order",
+      "source": "shadows/double-copy-shadow-path.tex",
+      "sourceCorpus": "TeX Live PGF shadows manual",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshadows.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:parseDoubleCopyShadow",
+      "features": [
+        "double copy shadow",
+        "double shadow offset",
+        "fill inheritance",
+        "draw inheritance",
+        "path preaction order"
+      ]
     }
   ]
 }
