@@ -790,6 +790,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     excludeExistingItemsFromBoundingBox(ir);
     return;
   }
+  if (statement.type === "chainin") {
+    chainInExistingNode(statement, env, ir, diagnostics);
+    return;
+  }
   if (statement.type === "coordinate") {
     if (coordinateRendersAsNode(statement.options || {}, env)) {
       const node = createNode({ ...statement, text: "" }, env, ir, diagnostics);
@@ -9539,6 +9543,53 @@ function applyChainControlOptions(options = {}, env, diagnostics = []) {
     env.activeChain = name;
     if (parsed?.hasExplicitDirection) env.chains[name].placement = chainPlacementFromParsed(parsed);
   }
+  for (const spec of chainOptionValues(options["start branch"])) {
+    const parsed = parseStartChainSpec(spec);
+    const parentName = env.activeChain;
+    const parent = parentName ? env.chains?.[parentName] : null;
+    if (!parentName || !parent?.last) {
+      diagnostics.push({ level: "warning", message: "start branch requires an active chain with a last node" });
+      continue;
+    }
+    if (!parsed?.name || parsed.name === "chain") {
+      diagnostics.push({ level: "warning", message: "start branch requires a branch name" });
+      continue;
+    }
+    const name = `${parentName}/${parsed.name}`;
+    if (env.chains?.[name]) {
+      diagnostics.push({ level: "warning", message: `Chain ${name} is already active` });
+      continue;
+    }
+    seedBranchChain(name, parent, chainPlacementFromParsed(parsed), env);
+    env.activeChain = name;
+  }
+  for (const spec of chainOptionValues(options["continue branch"])) {
+    const parsed = parseStartChainSpec(spec);
+    const parentName = env.activeChain;
+    const name = parentName && parsed?.name ? `${parentName}/${parsed.name}` : null;
+    if (!name || !env.chains?.[name]) {
+      diagnostics.push({ level: "warning", message: `Unknown branch ${parsed?.name || ""}`.trim() });
+      continue;
+    }
+    env.activeChain = name;
+    if (parsed.hasExplicitDirection) env.chains[name].placement = chainPlacementFromParsed(parsed);
+  }
+}
+
+function seedBranchChain(name, parent, placement, env) {
+  const first = { ...parent.last };
+  const record = parent.last.name ? env.nodes?.[parent.last.name] : null;
+  if (record) {
+    registerNodeRecord(`${name}-1`, record, env);
+    registerNodeRecord(`${name}-begin`, record, env);
+    registerNodeRecord(`${name}-end`, record, env);
+  }
+  env.chains ||= {};
+  env.chains[name] = {
+    placement,
+    last: first,
+    count: 1
+  };
 }
 
 function parseStartChainSpec(value) {
@@ -9673,6 +9724,25 @@ function updateChainState(options = {}, env, point, size = { width: 0, height: 0
     previous,
     current: { ...chain.last }
   };
+}
+
+function chainInExistingNode(statement, env, ir, diagnostics) {
+  const options = normalizeOptions("path", resolveDynamicOptions(statement.options || {}, env), env).options;
+  const target = resolveDynamicName(statement.target, env);
+  const record = env.nodes?.[target];
+  const point = record?.point || env.coordinates?.[target];
+  if (!point) {
+    diagnostics.push({ level: "warning", message: `Unknown chain-in node ${target}` });
+    return;
+  }
+  const chainUpdate = updateChainState(
+    { ...options, "on chain": true },
+    env,
+    point,
+    record?.size || { width: 0, height: 0 },
+    { name: target, nodeRecord: record || null }
+  );
+  addChainJoinPath(chainUpdate, options, env, ir, diagnostics);
 }
 
 function addChainJoinPath(chainUpdate, options = {}, env, ir, diagnostics) {

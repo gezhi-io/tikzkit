@@ -131,6 +131,7 @@ export {
 export {
   addplotCommand,
   axisCommand,
+  chaininCommand,
   coordinateCommand,
   drawCommand,
   fillCommand,

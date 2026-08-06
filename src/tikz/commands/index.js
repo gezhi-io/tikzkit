@@ -1,5 +1,6 @@
 import { tikzCommand as addplotCommand } from "./addplot.js";
 import { tikzCommand as axisCommand } from "./axis.js";
+import { tikzCommand as chaininCommand } from "./chainin.js";
 import { tikzCommand as coordinateCommand } from "./coordinate.js";
 import { tikzCommand as drawCommand } from "./draw.js";
 import { tikzCommand as fillCommand } from "./fill.js";
@@ -14,6 +15,7 @@ const tikzCommands = Object.freeze([
   fillCommand,
   pathCommand,
   nodeCommand,
+  chaininCommand,
   coordinateCommand,
   foreachCommand,
   axisCommand,
@@ -28,6 +30,7 @@ export const supportedTikzCommands = Object.freeze(
 
 export { tikzCommand as addplotCommand } from "./addplot.js";
 export { tikzCommand as axisCommand } from "./axis.js";
+export { tikzCommand as chaininCommand } from "./chainin.js";
 export { tikzCommand as coordinateCommand } from "./coordinate.js";
 export { tikzCommand as drawCommand } from "./draw.js";
 export { tikzCommand as fillCommand } from "./fill.js";

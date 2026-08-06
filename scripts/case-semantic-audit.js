@@ -21,6 +21,7 @@ const COMMAND_OWNERS = {
   begin: owner("src/frontend/parser.js", "stable", "latex.ltx"),
   bcbar: owner("src/packages/bchart.js", "partial"),
   calendar: owner("src/engine/evaluate.js:createCalendar/calendarLayout", "partial", "tikzlibrarycalendar.code.tex"),
+  chainin: owner("src/tikz/commands/chainin.js", "partial", "tikzlibrarychains.code.tex"),
   coordinate: owner("src/tikz/commands/coordinate.js", "partial", "tikz.code.tex"),
   ctikzset: owner("src/packages/circuitikz.js", "partial"),
   datavisualization: owner("src/tikz/libraries/datavisualization.js", "partial"),

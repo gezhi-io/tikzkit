@@ -183,6 +183,7 @@ function parseStatement(statement, diagnostics) {
     return parsed;
   }
   if (text.startsWith("\\foreach")) return parseForeach(text, diagnostics);
+  if (text.startsWith("\\chainin")) return parseChaininStatement(text, diagnostics);
   if (text.startsWith("\\coordinate")) return parseCoordinateStatement(text, diagnostics);
   if (text.startsWith("\\pgfmathsetlengthmacro")) return parsePgfMathSetLength(text, diagnostics);
   if (text.startsWith("\\pgfmathsetmacro")) return parsePgfMath(text, diagnostics);
@@ -347,7 +348,7 @@ function isForeachBodyCandidate(content) {
   if (!text) return false;
   if (text.startsWith("\\foreach")) return true;
   if (text.startsWith("\\draw") || text.startsWith("\\path") || text.startsWith("\\node") || text.startsWith("\\fill")) return true;
-  if (text.startsWith("\\coordinate") || text.startsWith("\\begin{scope}") || text.startsWith("{[")) return true;
+  if (text.startsWith("\\coordinate") || text.startsWith("\\chainin") || text.startsWith("\\begin{scope}") || text.startsWith("{[")) return true;
   return /;\s*(?:$|\\|[{[])/.test(text);
 }
 
@@ -573,6 +574,21 @@ function parseCoordinateStatement(text, diagnostics = []) {
     name: name.content.trim(),
     options,
     at: coord.content.trim(),
+    raw: text
+  };
+}
+
+function parseChaininStatement(text, diagnostics = []) {
+  let index = "\\chainin".length;
+  index = skipWhitespace(text, index);
+  const target = extractBalanced(text, index, "(", ")");
+  if (!target) return unsupported("chainin", text, "Malformed \\chainin target");
+  index = skipWhitespace(text, target.end);
+  const parsedOptions = parseOptionalOptions(text, index);
+  return {
+    type: "chainin",
+    target: target.content.trim(),
+    options: parsedOptions.options,
     raw: text
   };
 }

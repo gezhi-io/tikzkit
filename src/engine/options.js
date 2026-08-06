@@ -1164,6 +1164,8 @@ function isRepeatableOption(key) {
     key === "outer axis line style" ||
     key === "start chain" ||
     key === "continue chain" ||
+    key === "start branch" ||
+    key === "continue branch" ||
     key === "if" ||
     key === "name intersections"
   );

@@ -3284,6 +3284,55 @@ test("changes placed chain placement from the documented node option", () => {
   assert.equal(ir.coordinates.c.y, ir.coordinates.b.y);
 });
 
+test("starts a branch at the active chain fork and continues it later", () => {
+  const source = String.raw`
+\begin{tikzpicture}[start chain=trunk going right]
+  \node[draw,on chain] (a) {A};
+  \node[draw,on chain] (b) {B};
+  \begin{scope}[start branch=numbers going below]
+    \node[draw,on chain,join] (one) {1};
+    \node[draw,on chain,join] (two) {2};
+  \end{scope}
+  \node[draw,on chain] (c) {C};
+  \begin{scope}[continue branch=numbers]
+    \node[draw,on chain,join] (three) {3};
+  \end{scope}
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const joins = ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(ir.coordinates["trunk/numbers-begin"], ir.coordinates.b);
+  assert.ok(ir.coordinates.one.y < ir.coordinates.b.y, `expected first branch node below fork, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.two.y < ir.coordinates.one.y, `expected branch to continue below, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.c.x > ir.coordinates.b.x, `expected trunk to remain horizontal, got ${JSON.stringify(ir.coordinates)}`);
+  assert.ok(ir.coordinates.three.y < ir.coordinates.two.y, `expected continued branch to resume after its endpoint, got ${JSON.stringify(ir.coordinates)}`);
+  assert.equal(joins.length, 3);
+});
+
+test("chains an existing node in without drawing it again", () => {
+  const source = String.raw`
+\begin{tikzpicture}[node distance=5mm,start chain=walk going right]
+  \node[draw] (existing) at (0,2) {E};
+  \node[draw,on chain,join] (a) {A};
+  \node[draw,on chain,join] (b) {B};
+  \chainin (existing) [join];
+  \node[draw,on chain,join] (c) {C};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const joins = ir.items.filter((item) => item.type === "path");
+  const existingBoxes = ir.items.filter((item) => item.type === "nodeBox" && item.id === "existing");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(existingBoxes.length, 1);
+  assert.deepEqual(ir.coordinates["walk-3"], ir.coordinates.existing);
+  assert.equal(ir.coordinates.c.y, ir.coordinates.existing.y);
+  assert.ok(ir.coordinates.c.x > ir.coordinates.existing.x, `expected chain to continue from the chained-in node, got ${JSON.stringify(ir.coordinates)}`);
+  assert.equal(joins.length, 3);
+});
+
 test("supports diamond node shape and compass anchors", () => {
   const source = String.raw`
 \begin{tikzpicture}

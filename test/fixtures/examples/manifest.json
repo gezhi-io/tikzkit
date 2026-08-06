@@ -3972,6 +3972,22 @@
       ]
     },
     {
+      "id": "chains-branches-and-chainin",
+      "title": "TikZ chains forked branches and existing-node insertion",
+      "source": "chains/branches-and-chainin.tex",
+      "sourceCorpus": "TeX Live TikZ chains library manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyChainControlOptions;src/engine/evaluate.js:chainInExistingNode",
+      "features": [
+        "start branch",
+        "continue branch",
+        "parent/branch aliases",
+        "chainin existing node",
+        "join",
+        "Stealth arrow"
+      ]
+    },
+    {
       "id": "circuitikz-transformer-core-customization",
       "title": "circuitikz transformer-core style directory",
       "source": "circuitikz/transformer-core-customization.tex",

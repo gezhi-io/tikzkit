@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   addplotCommand,
   axisCommand,
+  chaininCommand,
   drawCommand,
   fillCommand,
   foreachCommand,
@@ -16,7 +17,7 @@ import {
 import { foreachIterationVariables } from "../src/tikz/commands/foreach.js";
 import { drawCommand as compatDrawCommand } from "../src/commands/index.js";
 
-const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "fill", "path", "node", "coordinate", "foreach", "axis", "addplot"];
+const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "fill", "path", "node", "chainin", "coordinate", "foreach", "axis", "addplot"];
 
 test("keeps common TikZ commands in one module per command or environment", () => {
   assert.deepEqual(knownTikzCommands, OBSERVED_TIKZ_COMMANDS);
@@ -30,6 +31,8 @@ test("keeps common TikZ commands in one module per command or environment", () =
 
   assert.equal(tikzCommandCatalog.draw.kind, "command");
   assert.equal(tikzCommandCatalog.fill.kind, "command");
+  assert.equal(tikzCommandCatalog.chainin.kind, "command");
+  assert.equal(chaininCommand.name, "chainin");
   assert.equal(tikzCommandCatalog.foreach.kind, "command");
   assert.equal(tikzCommandCatalog.axis.kind, "environment");
   assert.equal(tikzCommandCatalog.addplot.package, "pgfplots");
