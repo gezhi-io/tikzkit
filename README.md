@@ -362,6 +362,15 @@ its real SVG text bounds participate in cropping. The focused comparison for
 `color-blind-friendly-mesh-colormap` is recorded in
 [`docs/qa/2026-08-06-pgfplots-3d-title-placement.md`](docs/qa/2026-08-06-pgfplots-3d-title-placement.md).
 
+Vertical 3D colorbars now plan their default labels from the colorbar's own
+rendered height. This mirrors the native child-axis rule of a 35pt target tick
+spacing and a generic `try min ticks=4` floor, so a short 50-unit colorbar can
+correctly show `-20`, `0`, and `20` rather than five crowded labels. Explicit
+`ytick={...}` remains authoritative. Horizontal/left colorbars, arbitrary
+tick-label formatters, and the full standalone colorbar-axis pipeline remain
+partial. The checked real fixture and reproduction steps are in
+[`docs/qa/2026-08-06-pgfplots-colorbar-auto-ticks.md`](docs/qa/2026-08-06-pgfplots-colorbar-auto-ticks.md).
+
 ### PGFPlots 3D Plot Box Ratio
 
 The browser renderer supports a focused `plot box ratio` subset for 3D

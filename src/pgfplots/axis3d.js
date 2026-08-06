@@ -562,7 +562,8 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   const ticks = colorbarTickValues(
     styleOptions.ytick,
     ranges,
-    height
+    height,
+    styleOptions
   );
   const tickFormat = createScaledTickFormat(ticks, scaledTickOptions({ ...axisOptions, ...styleOptions }, "z"));
   const tickPrecision = scaledTickLabelPrecision(ticks, tickFormat);
@@ -689,16 +690,37 @@ function colorbarAt(raw, bounds) {
   };
 }
 
-function colorbarTickValues(raw, ranges, height) {
+function colorbarTickValues(raw, ranges, height, styleOptions = {}) {
   const explicit = axisTickValues(raw, "z", []);
   if (explicit.length) return explicit;
-  const minimumDenseHeight = parseDimension("2cm", {});
-  const shortColorbar = Number.isFinite(height) && height < minimumDenseHeight;
-  const count = shortColorbar ? 3 : 5;
+  const count = colorbarAutoTickCount(styleOptions, height);
   const span = Math.abs(ranges.zMax - ranges.zMin);
   const endpointPadding = Number.isFinite(span) ? span * 0.005 : 0;
   return majorAxis3DTickValues(ranges.zMin - endpointPadding, ranges.zMax + endpointPadding, count)
     .filter((tick) => !autoColorbarTickOutsideRange(tick, ranges.zMin, ranges.zMax));
+}
+
+function colorbarAutoTickCount(styleOptions = {}, height) {
+  // PGFPlots realizes a colorbar as a standalone vertical axis.  Its tick
+  // planner uses the bar's physical axis height, the generic 35pt spacing,
+  // and the generic try-min-ticks=4 default rather than the parent's 3D
+  // try-min-ticks=3 setting.  This is why a 50-unit range can correctly use
+  // only -20, 0, and 20 while a compact -2..2 colorbar still uses unit ticks.
+  const rawSpacing = styleOptions["max space between ticks"];
+  const spacingSource = rawSpacing === undefined || rawSpacing === null || rawSpacing === ""
+    ? "35pt"
+    : /^[-+]?\d*\.?\d+$/.test(String(rawSpacing).trim())
+      ? `${String(rawSpacing).trim()}pt`
+      : String(rawSpacing);
+  const spacing = parseDimension(spacingSource, {});
+  const requestedMinimum = Math.floor(Number(styleOptions["try min ticks"]));
+  const minimum = Number.isFinite(requestedMinimum) && requestedMinimum >= 2 ? requestedMinimum : 4;
+  if (!Number.isFinite(height) || height <= 0 || !Number.isFinite(spacing) || spacing <= 0) return minimum;
+  // The implemented colorbar renderer deliberately caps this subset at five
+  // labels.  It matches the native examples we support while avoiding a long
+  // chain of overlapping fractional labels when a caller constructs an
+  // unusually tall standalone bar.
+  return Math.min(5, Math.max(minimum, Math.floor(height / spacing) + 1));
 }
 
 function autoColorbarTickOutsideRange(tick, min, max) {

@@ -2490,6 +2490,19 @@ test("pgfplots 3d colorbar automatic ticks use native-like dense scaled labels",
   assert.equal(tickLabels.includes("1.8"), false);
 });
 
+test("pgfplots colorbar derives default ticks from its own rendered axis height", () => {
+  const source = readFileSync("test/fixtures/examples/latex-examples/color-blind-friendly-mesh-colormap.tex", "utf8");
+  const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
+  const colorbarLabels = result.ir.items
+    .filter((item) => item.type === "textNode" && Number(item.x) < -0.5)
+    .map((item) => item.text)
+    .filter((text) => ["-20", "-10", "0", "10", "20"].includes(text));
+
+  // The local PGFPlots colorbar is an independent vertical axis. Its 35pt
+  // spacing and generic try-min-ticks=4 select a 20-unit step here.
+  assert.deepEqual(colorbarLabels, ["-20", "0", "20"]);
+});
+
 test("pgfplots short 3d colorbars reduce automatic tick density to their rendered height", () => {
   const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -125, zMax: 150 };
   const geometry = createAxisGeometry(
