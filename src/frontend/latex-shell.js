@@ -4011,7 +4011,9 @@ function pgfplotstableDisplayCell(value, options) {
   const formatter = pgfplotstableNumberFormatter(options);
   const usesScientificFormatter = formatter === "sci"
     || (formatter === "int detect" && !Number.isInteger(numeric));
-  if (usesScientificFormatter && pgfplotstableOptionEnabled(options["sci sep align"])) {
+  if (usesScientificFormatter
+    && pgfplotstableScientificPresentation(options) === "standard"
+    && pgfplotstableOptionEnabled(options["sci sep align"])) {
     return pgfplotstableScientificAlignedCell(numeric, options);
   }
   const formatted = formatter === "fixed"
@@ -4041,8 +4043,20 @@ function pgfplotstableFormatFixed(value, options) {
 
 function pgfplotstableFormatScientific(value, options) {
   const { mantissa, exponent } = pgfplotstableScientificParts(value, options);
+  if (pgfplotstableScientificPresentation(options) === "subscript") {
+    // TeX Live's pgfmathfloatrounddisplaystyle@subscript always receives an
+    // exponent token, including its zero branch. It does not use the regular
+    // scientific exponent marker, so sci sep align cannot split this form.
+    return `$${mantissa}_{${exponent ?? 0}}$`;
+  }
   if (exponent === null || exponent === 0) return mantissa;
   return `$${mantissa}\\cdot 10^{${exponent}}$`;
+}
+
+function pgfplotstableScientificPresentation(options) {
+  return pgfplotstableOptionEnabled(options["sci subscript"])
+    ? "subscript"
+    : "standard";
 }
 
 function pgfplotstableScientificAlignedCell(value, options) {

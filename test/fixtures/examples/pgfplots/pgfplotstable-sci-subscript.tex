@@ -1,0 +1,18 @@
+% Adapted from the TeX Live pgfplotstable number-format examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[
+  columns={sample,plain,aligned},
+  columns/sample/.style={column name=Sample,string type},
+  columns/plain/.style={column name=Subscript,sci,sci zerofill,sci precision=2,sci subscript},
+  columns/aligned/.style={column name=Subscript align,sci,sci zerofill,sci precision=2,sci subscript,sci sep align}
+]{
+sample plain aligned
+A 0.001 0.001
+B 0.098 0.098
+C 123.4 123.4
+D 1 1
+E 0 0
+}
+\end{document}

@@ -4146,6 +4146,22 @@
         "sci sep align",
         "per-column scientific anchor"
       ]
+    },
+    {
+      "id": "pgfplotstable-sci-subscript",
+      "title": "pgfplotstable scientific subscript formatting",
+      "source": "pgfplots/pgfplotstable-sci-subscript.tex",
+      "sourceCorpus": "TeX Live pgfplotstable manual",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:pgfplotstableFormatScientific; src/engine/evaluate.js:tabularCellTextLayout",
+      "features": [
+        "pgfplotstabletypeset",
+        "sci",
+        "sci zerofill",
+        "sci precision",
+        "sci subscript",
+        "sci sep align interaction"
+      ]
     }
   ]
 }

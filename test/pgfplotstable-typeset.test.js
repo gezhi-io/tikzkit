@@ -20,6 +20,10 @@ const SCIENTIFIC_ALIGNMENT_SOURCE = readFileSync(
   new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-sep-align.tex", import.meta.url),
   "utf8"
 );
+const SCIENTIFIC_SUBSCRIPT_SOURCE = readFileSync(
+  new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-subscript.tex", import.meta.url),
+  "utf8"
+);
 
 test("lowers pgfplotstable typeset into a measured text table", () => {
   const parsed = parseTikz(SOURCE);
@@ -127,4 +131,23 @@ test("aligns supported pgfplotstable scientific exponents on one shared anchor",
   assert.ok(trailing.every((item) => item.x === leading[0].x));
   assert.match(result.svg, /text-anchor="end"/);
   assert.match(result.svg, /text-anchor="start"/);
+});
+
+test("formats pgfplotstable scientific subscripts without inventing sci sep alignment", () => {
+  const result = tikzToSvg(SCIENTIFIC_SUBSCRIPT_SOURCE, { mathRenderer: "svg-text" });
+  const tabularText = result.ir.items.filter((item) => item.subtype === "tabular-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    tabularText.map((item) => item.text),
+    [
+      "Sample", "Subscript", "Subscript align",
+      "A", String.raw`$1.00_{-3}$`, String.raw`$1.00_{-3}$`,
+      "B", String.raw`$9.80_{-2}$`, String.raw`$9.80_{-2}$`,
+      "C", String.raw`$1.23_{2}$`, String.raw`$1.23_{2}$`,
+      "D", String.raw`$1.00_{0}$`, String.raw`$1.00_{0}$`,
+      "E", String.raw`$0.00_{0}$`, String.raw`$0.00_{0}$`
+    ]
+  );
+  assert.equal(result.ir.items.some((item) => item.subtype?.startsWith("tabular-scientific-")), false);
 });
