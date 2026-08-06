@@ -41,6 +41,7 @@ import { closePathCommand, curveToCommand, lineToCommand, moveToCommand } from "
 import {
   codeDefinitionsFromOptions,
   edgeStyleHintsFromOptions,
+  findTopLevel,
   normalizeColor,
   normalizeOptions,
   parseOptions,
@@ -13120,11 +13121,12 @@ function decorationTextDecorationOptions(decoration, rawDecoration) {
 function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   const flat = flattenPath(item.commands || [], 0.02);
   if (flat.length < 2) return;
-  const payload = decorationTextPayload(decoration.text, pathOptions, env);
+  const payload = decorationTextPayload(decoration.text, pathOptions, env, decoration["tikzkit decoration raw"]);
   if (!payload.text) return;
   const layout = decorationTextLayout(decoration, env);
   const textEffects = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
   const characterReplacements = decorationTextCharacterReplacements(decoration, pathOptions, env);
+  const repeatText = decorationTextRepeatCount(decoration, textEffects);
   const point = pointAtLength(flat, 0.5);
   const angle = Number(point.angle) || 0;
   const raise = parseFiniteDimension(decoration.raise || "0", env, 0);
@@ -13143,6 +13145,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextFitToPath: layout.fitToPath,
     pathTextFitToPathStretchingSpaces: layout.fitToPathStretchingSpaces,
     pathTextReverse: tikzBoolean(textEffects["reverse text"]) || tikzBoolean(decoration["reverse text"]),
+    pathTextRepeat: repeatText,
     pathTextCharacterReplacements: characterReplacements,
     x: roundNumber(point.x + nx * raise),
     y: roundNumber(point.y + ny * raise),
@@ -13162,6 +13165,17 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
       fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
     }
   });
+}
+
+function decorationTextRepeatCount(decoration = {}, textEffects = {}) {
+  const value = decoration["repeat text"] ?? textEffects["repeat text"];
+  if (value === undefined || value === false || value === "0") return 0;
+  // PGF treats a missing value as -1, then decrements it on every pass. Any
+  // negative value therefore repeats until the remaining path is exhausted.
+  if (value === true || String(value).trim() === "") return -1;
+  const numeric = Number(String(value).trim());
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.trunc(numeric);
 }
 
 function decorationTextCharacterReplacements(decoration = {}, pathOptions = {}, env = {}) {
@@ -13224,14 +13238,15 @@ function decorationTextLayout(decoration = {}, env = {}) {
   };
 }
 
-function decorationTextPayload(raw, pathOptions = {}, env = {}) {
-  let text = substituteTextVariables(stripOuterBraces(String(raw ?? "")).trim(), env.variables || {});
+function decorationTextPayload(raw, pathOptions = {}, env = {}, rawDecoration = "") {
+  const rawText = decorationTextValueFromRaw(rawDecoration) ?? String(raw ?? "");
+  let text = substituteTextVariables(stripDecorationTextOuterBraces(rawText), env.variables || {});
   let styleRaw = "";
   if (text.startsWith("|")) {
     const end = text.indexOf("|", 1);
     if (end !== -1) {
       styleRaw = text.slice(1, end).trim();
-      text = text.slice(end + 1).trim();
+      text = text.slice(end + 1);
     }
   }
   const style = {};
@@ -13241,11 +13256,35 @@ function decorationTextPayload(raw, pathOptions = {}, env = {}) {
   if (fontFamily) style.fontFamily = fontFamily;
   const fontPrefix = decorationTextFontPrefix(styleRaw);
   return {
-    text: `${fontPrefix}${text}`.trim(),
+    text: `${fontPrefix}${text}`,
     style,
     fontScale: fontScaleFromTikzFont(styleRaw),
     fontSource: styleRaw
   };
+}
+
+function decorationTextValueFromRaw(rawDecoration = "") {
+  for (const part of splitTopLevel(String(rawDecoration ?? ""), ",")) {
+    const equals = findTopLevel(part, "=");
+    if (equals === -1 || part.slice(0, equals).trim() !== "text") continue;
+    return part.slice(equals + 1).trim();
+  }
+  return null;
+}
+
+function stripDecorationTextOuterBraces(value = "") {
+  const text = String(value ?? "").trim();
+  if (!text.startsWith("{") || !text.endsWith("}")) return text;
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "{") depth += 1;
+    if (text[index] === "}") {
+      depth -= 1;
+      if (depth === 0 && index < text.length - 1) return text;
+    }
+    if (depth < 0) return text;
+  }
+  return depth === 0 ? text.slice(1, -1) : text;
 }
 
 function decorationTextColor(styleRaw) {

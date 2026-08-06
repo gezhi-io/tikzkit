@@ -139,6 +139,24 @@ npm run examples:diff -- --output outputs/qa-pathreplacing-waves \
 查看生成页时，确认原始黑色路径仍存在、装饰短线独立且连续跟随曲线切线，并将
 TikZKit、`tikztosvg`、MacTeX 和 diff 面板一起判断。
 
+### 路径文字重复
+
+`\usetikzlibrary{decorations.text}` 的文本效果装饰支持路径文字的受限重复形式。
+`repeat text` 不带数值时会重复到无法容纳下一个完整字符盒；`repeat text=N` 则在
+首轮之后再绘制 `N` 轮。花括号中的结尾空格是文字序列的一部分，可用于控制每轮之间
+的间隔。
+
+```tex
+\path[decorate,decoration={text effects along path,text={AB },
+  text effects/.cd,repeat text}] (0,0) -- (8,0);
+\path[decorate,decoration={text effects along path,text={WXY},
+  text effects/.cd,repeat text=1}] (0,-1) -- (8,-1);
+```
+
+该子集只处理完整字符盒的循环与路径末端截断。`group letters`、字符专属样式、任意
+替换 TikZ 代码，以及与 `fit text to path` / `scale text to path` 的组合仍在测试中；
+后两种组合在本机 PGF 手册中也标为未定义行为。
+
 ### Calendar 列表布局
 
 `\usetikzlibrary{calendar}` 当前支持 Monday-first `week list`、四种线性日列表

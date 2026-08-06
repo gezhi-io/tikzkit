@@ -1911,11 +1911,14 @@ Current support is pragmatic and growing. Highlights:
   partial. See `docs/qa/2026-08-05-brace-polyline-final-state.md`.
 - Path text: `decorations.text` supports ordinary `text along path` and the
   documented `text effects along path` character pipeline with
-  `text effects={reverse text}`. The reverse operation runs before per-glyph
-  path placement, as it does in PGF. Character-specific styles, replacement,
-  repeat/grouping, and scale/fit text effects remain partial; see
-  `test/fixtures/examples/decorations/text-reverse.tex` and
-  `docs/qa/2026-08-06-decorations-text-reverse.md`.
+  `text effects={reverse text}`. `repeat text` now mirrors PGF's cycle
+  counter: the bare form fills the remaining path with complete text boxes;
+  `repeat text=N` adds `N` complete copies after the first one. Explicit
+  terminal spaces inside `text={...}` remain part of the repeated text box.
+  Character-specific styles, arbitrary replacement snippets, grouping, and
+  scale/fit text effects remain partial; see
+  `test/fixtures/examples/decorations/text-repeat.tex` and
+  `docs/qa/2026-08-07-decorations-text-repeat.md`.
 - Calendar: Monday-first `week list`, all four linear `day list` directions,
   and `month list` calendars, including `day xshift`/`day yshift`,
   `month xshift`/`month yshift`, date predicates, day-node styles, and

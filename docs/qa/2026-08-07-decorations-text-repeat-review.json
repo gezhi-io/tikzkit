@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.text.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.text.code.tex": {
+      "symbols": [
+        "/pgf/decoration/text effects/repeat text",
+        "\\pgfdeclaredecoration{text effects along path}",
+        "\\tikz@lib@dec@te@charactercount"
+      ],
+      "findings": "The repeat key defaults to 0; the bare key assigns -1. When the character counter runs past the source text, PGF stops at 0 or decrements the repeat value and resets the character counter to 1. Thus a positive value is an additional-copy count and a negative value continues until the path state cannot advance."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": "Loads the TikZ frontend used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides the standalone document shell used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Provides ordinary path construction, help lines, and the decorate action consumed by the fixture."
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-text-repeat.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-text-repeat.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "test/svg-renderer.test.js",
+        "docs/qa/2026-08-07-decorations-text-repeat.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "test/svg-renderer.test.js",
+        "docs/qa/2026-08-07-decorations-text-repeat.md"
+      ]
+    }
+  ]
+}

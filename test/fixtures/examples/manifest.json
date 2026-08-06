@@ -1155,6 +1155,22 @@
       ]
     },
     {
+      "id": "decorations-text-repeat",
+      "title": "PGF decorations.text repeat text cycles",
+      "source": "decorations/text-repeat.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextRepeatCount;src/renderers/svg/decorationText.js:renderRepeatedDecorationText",
+      "features": [
+        "text effects along path",
+        "repeat text",
+        "finite repeat count",
+        "path-filling repeat",
+        "terminal text whitespace",
+        "complete glyph box clipping"
+      ]
+    },
+    {
       "id": "latex-examples-agent-environment-diagram-rl",
       "title": "LaTeX-examples Agent Environment Diagram Rl",
       "source": "latex-examples/agent-environment-diagram-rl.tex",

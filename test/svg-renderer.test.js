@@ -1139,6 +1139,42 @@ test("reverses decorations.text character boxes before sampling the path", () =>
   assert.deepEqual(letters, ["D", "C", "B", "A"]);
 });
 
+test("repeats decorations.text source glyphs without placing a partial terminal box", () => {
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "AB",
+        pathTextRepeat: 1,
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 5, y: 0 }
+        ],
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "AB ",
+        pathTextRepeat: -1,
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 1 },
+          { type: "lineTo", x: 2, y: 1 }
+        ],
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const textRuns = [...svg.matchAll(/class="tikz-decoration-glyph"[^>]*>([A-Z])<\/text>/g)].map((match) => match[1]);
+  const xPositions = [...svg.matchAll(/class="tikz-decoration-glyph" x="([^"]+)"/g)].map((match) => Number(match[1]));
+
+  assert.deepEqual(textRuns.slice(0, 4), ["A", "B", "A", "B"]);
+  assert.ok(textRuns.length > 6, "negative repeat text should keep cycling until the path ends");
+  assert.ok(xPositions.every((x) => x <= 500 + 1e-6), `glyph centers must stay inside their path: ${xPositions.join(", ")}`);
+});
+
 test("places braced inline decoration math as one TeX box with a lowered script", () => {
   const scene = createSceneGraph({
     items: [

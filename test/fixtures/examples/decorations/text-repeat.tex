@@ -1,0 +1,18 @@
+% PGF manual decorations.text: finite and path-filling repeat text.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (0,-0.5) grid (8,2.5);
+  \draw[gray,dashed] (0,2) -- (8,2);
+  \path[decorate,decoration={text effects along path,text={AB },raise=2pt,
+    text effects/.cd,repeat text}]
+    (0,2) -- (8,2);
+  \draw[gray,dashed] (0,0.5) -- (8,0.5);
+  \path[decorate,decoration={text effects along path,text={WXY},raise=2pt,
+    text effects/.cd,repeat text=1}]
+    (0,0.5) -- (8,0.5);
+\end{tikzpicture}
+\end{document}

@@ -13,12 +13,13 @@ import { textFontScale } from "./textLayout.js";
 export function renderDecorationTextPath(item, unit) {
   const normalized = normalizeTikzText(item.text);
   if (normalized.invisible) return "";
-  const sourceLine = normalized.lines?.[0] || normalized.text || "";
   // The display-normalized line intentionally drops ordinary TeX braces.
   // Decorations need the raw braces because PGF gives an explicit group one
   // positionable text box instead of scanning it character by character.
-  const rawSourceLine = normalized.raw || sourceLine;
-  const formattedLine = formatTextLine(sourceLine);
+  // It also trims terminal whitespace, but a terminal space is a real text
+  // box for `repeat text` and must survive to become the inter-copy gap.
+  const rawSourceLine = String(item.text ?? normalized.raw ?? normalized.text ?? "");
+  const formattedLine = formatTextLine(rawSourceLine);
   const fontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const flat = flattenPath(item.pathCommands, 0.01);
   const totalLength = pathLength(flat);
@@ -34,6 +35,22 @@ export function renderDecorationTextPath(item, unit) {
   const fitShift = decorationTextFitShift(item, glyphs, totalLength, textLength);
   const raise = finiteDistance(item.pathRaise);
   const rendered = [];
+  const repeatText = normalizedRepeatText(item.pathTextRepeat);
+  if (repeatText !== 0) {
+    return renderRepeatedDecorationText({
+      glyphs,
+      item,
+      unit,
+      flat,
+      totalLength,
+      distance,
+      raise,
+      color,
+      fontFamily,
+      fontSize,
+      repeatText
+    });
+  }
   for (let index = 0; index < glyphs.length; index += 1) {
     const glyph = glyphs[index];
     const advance = em * glyph.advance;
@@ -61,6 +78,51 @@ export function renderDecorationTextPath(item, unit) {
     if (index + 1 < glyphs.length) distance += fitShift(glyph);
   }
   return `<g class="tikz-decoration-text">${rendered.join("")}</g>`;
+}
+
+function normalizedRepeatText(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
+}
+
+function renderRepeatedDecorationText({ glyphs, unit, flat, totalLength, distance, raise, color, fontFamily, fontSize, repeatText }) {
+  const rendered = [];
+  let glyphIndex = 0;
+  let completedCopies = 0;
+
+  // PGF's text-effects decoration returns to character 1 whenever the source
+  // text is exhausted. A positive value counts extra copies; a negative value
+  // continues until the decoration cannot consume the next character box.
+  while (glyphIndex < glyphs.length && distance < totalLength) {
+    const glyph = glyphs[glyphIndex];
+    const advance = glyph.advance * (fontSize / unit);
+    if (distance + advance > totalLength + 1e-9) break;
+    rendered.push(renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, raise, unit, color, fontFamily, fontSize }));
+    distance += advance;
+    glyphIndex += 1;
+    if (glyphIndex < glyphs.length) continue;
+    if (repeatText >= 0 && completedCopies >= repeatText) break;
+    completedCopies += 1;
+    glyphIndex = 0;
+  }
+  return `<g class="tikz-decoration-text">${rendered.join("")}</g>`;
+}
+
+function renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, raise, unit, color, fontFamily, fontSize }) {
+  if (glyph.text === " " && !glyph.replacement) return "";
+  const center = distance + advance / 2;
+  const point = pointAtLength(flat, totalLength > 0 ? center / totalLength : 0);
+  const radians = (point.angle * Math.PI) / 180;
+  const normalOffset = raise + glyph.normalOffset;
+  const x = (point.x - Math.sin(radians) * normalOffset) * unit;
+  const y = -(point.y + Math.cos(radians) * normalOffset) * unit;
+  if (glyph.replacement?.type === "circle") return renderDecorationReplacementCircle(glyph.replacement, x, y, unit);
+  const glyphFontSize = fontSize * glyph.fontScale;
+  const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
+  const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
+  const className = glyph.kind === "math-box" ? "tikz-decoration-math-box" : "tikz-decoration-glyph";
+  const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
+  return `<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(glyphFontSize)}" font-family="${glyphFontFamily}"${fontStyle} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`;
 }
 
 function renderDecorationReplacementCircle(replacement, x, y, unit) {

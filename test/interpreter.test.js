@@ -2278,6 +2278,25 @@ test("supports decorations.text effects along path with reversed character order
   assert.equal(labels[1].pathTextAlign, "center");
 });
 
+test("preserves decorations.text repeat text cycle semantics", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={AB },
+    text effects/.cd,repeat text}] (0,1) -- (6,1);
+  \path[decorate,decoration={text effects along path,text={WXY},
+    text effects/.cd,repeat text=1}] (0,0) -- (6,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.equal(labels[0].text, "AB ", "an explicit terminal text space must remain a glyph box");
+  assert.equal(labels[0].pathTextRepeat, -1, "bare repeat text repeats until the path ends");
+  assert.equal(labels[1].pathTextRepeat, 1, "a positive value means one extra source-text copy");
+});
+
 test("preserves repeated decorations.text circle replacement mappings", () => {
   const source = String.raw`
 \begin{tikzpicture}[decoration={text effects along path,
