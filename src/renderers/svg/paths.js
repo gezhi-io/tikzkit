@@ -1,5 +1,6 @@
 import {
   createArrowTip,
+  legacyLatexArrowGeometryFromLineWidth,
   latexArrowGeometryFromLineWidth,
   lineWidthFromPt,
   stealthArrowHalfWidthFromLength,
@@ -284,12 +285,12 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: raw.kind === "latex" ? "butt" : "round",
-    lineJoin: raw.kind === "latex" ? "miter" : "round",
+    lineCap: raw.kind === "latex" && !raw.legacy ? "butt" : "round",
+    lineJoin: raw.kind === "latex" && !raw.legacy ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
-        : openTip || barTip || filledCircleTip || filledStrokedTip || raw.kind === "latex" || explicitStroke
+        : openTip || barTip || filledCircleTip || filledStrokedTip || (raw.kind === "latex" && !raw.legacy) || explicitStroke
         ? raw.stroke === "context-stroke"
           ? baseStroke
           : raw.stroke || baseStroke
@@ -307,7 +308,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
         ? legacyStealthPrime
           ? style.lineWidth ?? 1
           : Math.max(0.2, (style.lineWidth ?? 1) * 0.5)
-        : raw.kind === "latex"
+        : raw.kind === "latex" && !raw.legacy
           ? geometry.lineWidth
         : explicitStroke
           ? Math.max(0.8, (style.lineWidth ?? 1) * 0.45)
@@ -361,6 +362,25 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     };
   }
   if (tip.kind === "latex") {
+    if (tip.legacy) {
+      const classic = legacyLatexArrowGeometryFromLineWidth(lineWidth);
+      const unit = classic.unit;
+      return {
+        path: [
+          "M 0 0",
+          `C ${format(-2.6667 * unit)} ${format(-0.5 * unit)} ${format(-7 * unit)} ${format(-2 * unit)} ${format(-10 * unit)} ${format(-3.75 * unit)}`,
+          `L ${format(-10 * unit)} ${format(3.75 * unit)}`,
+          `C ${format(-7 * unit)} ${format(2 * unit)} ${format(-2.6667 * unit)} ${format(0.5 * unit)} 0 0 Z`
+        ].join(" "),
+        shorten: classic.shorten,
+        bounds: {
+          minX: -classic.back,
+          maxX: 0,
+          minY: -classic.halfWidth,
+          maxY: classic.halfWidth
+        }
+      };
+    }
     const native = latexArrowGeometryFromLineWidth(lineWidth, tip.scale);
     const length = flags.customLength ? tip.length : native.length;
     const halfWidth = flags.customWidth ? tip.width / 2 : native.halfWidth;

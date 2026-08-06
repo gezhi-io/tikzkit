@@ -750,7 +750,7 @@ test("renders TikZ arrow tips as inline paths and shortens stroked path endpoint
       },
       {
         type: "path",
-        style: { stroke: "black", fill: "none", lineWidth: 1.4, markerEnd: { kind: "latex" } },
+        style: { stroke: "black", fill: "none", lineWidth: 1.4, markerEnd: { kind: "latex", legacy: false } },
         commands: [
           { type: "moveTo", x: 0, y: 3 },
           { type: "lineTo", x: 1, y: 3 }
@@ -821,6 +821,20 @@ test("applies Latex tip scale after deriving its PGF line-width geometry", () =>
   assert.match(tip, /stroke-width="2\.319[0-9]+"/);
   assert.match(tip, /stroke-linecap="butt" stroke-linejoin="miter"/);
   assert.match(tip, /C -0\.701[0-9]+ -0\.179[0-9]+ -3\.755[0-9]+ -1\.209[0-9]+ -5\.656[0-9]+ -2\.330[0-9]+/);
+});
+
+test("keeps classic latex distinct from arrows.meta Latex", () => {
+  const classic = tikzToSvg(String.raw`\draw[very thick,-{latex[scale=3]}] (0,0) -- (2,0);`).svg;
+  const meta = tikzToSvg(String.raw`\draw[very thick,-{Latex[scale=3]}] (0,0) -- (2,0);`).svg;
+  const classicTip = classic.match(/<path class="tikz-arrow-tip tikz-arrow-latex"[^>]+/u)?.[0] || "";
+  const metaTip = meta.match(/<path class="tikz-arrow-tip tikz-arrow-latex"[^>]+/u)?.[0] || "";
+
+  // The core arrow is defined by d=.28pt+.3*linewidth and does not honor the
+  // arrows.meta scale key. The meta spelling remains scaled and outlined.
+  assert.match(classicTip, /d="M 0 0 C -5\.998[0-9]+ -1\.124[0-9]+ -15\.745[0-9]+ -4\.498[0-9]+ -22\.493[0-9]+ -8\.435[0-9]+/);
+  assert.match(classicTip, /stroke="none"/);
+  assert.match(metaTip, /stroke-width="4\.217[0-9]+"/);
+  assert.doesNotMatch(metaTip, /stroke="none"/);
 });
 
 test("scales default to arrow tips from IR with the current line width", () => {

@@ -693,10 +693,11 @@ function parseArrowTipSpec(input) {
   const tip = createArrowTip(match[1], overrides);
   const scale = Number(options.scale);
   if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 1e-12) return tip;
-  // Latex is a geometric PGF tip: its default dimensions depend on the
-  // current path width. Preserve the scale so the renderer can apply it to
-  // that calculated geometry instead of scaling TikZKit's static fallback.
-  if (tip.kind === "latex" && !overrides.customLength && !overrides.customWidth) {
+  // `Latex` is the arrows.meta geometric tip: its default dimensions depend
+  // on the current path width and its `scale` key is applied by that library.
+  // The core PGF `latex` spelling is a different, fixed tip and ignores this
+  // meta-library-only key.
+  if (tip.kind === "latex" && !tip.legacy && !overrides.customLength && !overrides.customWidth) {
     return { ...tip, scale };
   }
   return {

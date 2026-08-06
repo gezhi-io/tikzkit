@@ -183,12 +183,36 @@ export const TIKZ_ARROW_TIPS = {
 };
 
 export function createArrowTip(kind = "to", overrides = {}) {
-  const normalizedKind = normalizeArrowKind(kind);
+  const sourceKind = String(kind || "to").trim().replace(/^>$/, "to");
+  const normalizedKind = normalizeArrowKind(sourceKind);
   const base = TIKZ_ARROW_TIPS[normalizedKind] || TIKZ_ARROW_TIPS.to;
+  const legacy = normalizedKind === "latex"
+    ? Object.hasOwn(overrides, "legacy")
+      ? overrides.legacy === true
+      : sourceKind === "latex"
+    : undefined;
   return {
     ...base,
     ...overrides,
-    kind: normalizedKind
+    kind: normalizedKind,
+    // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
+    // the source spelling so their geometry can stay distinct downstream.
+    ...(normalizedKind === "latex" ? { legacy } : {})
+  };
+}
+
+export function legacyLatexArrowGeometryFromLineWidth(lineWidth) {
+  const unitsPerPt = lineWidthFromPt(1);
+  const lineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;
+  // pgfcorearrows.code.tex: \pgfarrowsdeclare{latex}{latex}. The classic
+  // arrow has one unit d = .28pt + .3 * linewidth, extends to 9d at its tip,
+  // and reaches back to -d. Unlike arrows.meta's `Latex`, it has no scale key.
+  const unit = lineWidthFromPt(0.28 + 0.3 * lineWidthPt);
+  return {
+    unit,
+    back: 10 * unit,
+    halfWidth: 3.75 * unit,
+    shorten: 9 * unit
   };
 }
 
