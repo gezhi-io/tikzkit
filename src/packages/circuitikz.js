@@ -23,7 +23,7 @@ export const texPackage = {
     "independent square/triangle voltage sources sqV/tV with documented aliases and waveform-symbol rotation",
     "battery, battery1, and battery2 plate families with batteries/scale",
     "american voltage-source circle with internal + and - polarity symbols, including backward V< direction",
-    "L/vL cute, American, and European inductor slice with scale/width/coils",
+    "L/vL cute, American, and European inductor slice with scale/width/coils plus source-derived latexslim vL controls, inductors/modifier thickness, and the documented fixed-tunable-direction switch",
     "cute choke single/double core lines with cthick",
     "named inductor core west/east anchors with configurable core distance",
     "default cute transformer bodies with source-derived half-elliptical coils, lead geometry, and core styling",
@@ -34,6 +34,7 @@ export const texPackage = {
   ],
   "requires": [],
   "registryImplementedBySuffix": "src/engine/evaluate.js:circuitikzLatexSlimArrowStyle;src/tikz/metrics.js:latexSlimArrowGeometryFromLineWidth;src/renderers/svg/paths.js:inlineArrowGeometry;src/renderers/svg/markers.js:resolvedArrowMarker/renderArrowMarkerDef",
+  "registryNoteSuffix": "Reviewed locally on 2026-08-06: pgfcirc.defines.tex selects modifier thickness from the active class before multiplying the current line width. pgfcircbipoles.tex assigns a fill-only latexslim tunable arrow to vL; cute keeps its intrinsic diagonal while American and European vL bodies honor bipoles/fix tunable direction. The focused circuitikz-inductors fixture covers the normal and legacy European directions plus a reduced inductor modifier thickness; three-way visual evidence is in docs/qa/2026-08-06-circuitikz-variable-inductors-latexslim.md.",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/circuitikz/circuitikz.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.pdf",
   "localSourceReviewed": [
@@ -75,7 +76,9 @@ export const texPackage = {
     "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (documented VCo/VC*/VC- forms, lines 2697, 2711, and 2728)",
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (vC plate, tunable-arrow, fixed-direction switch, and wiper/W/tip anchor geometry, lines 915-920 and 1110-1151)",
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirc.defines.tex (latexslim qfill path, dynamic d unit, and -4d/+6d extents, lines 322-352)",
-    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (vC aliases/anchors, capacitor scaling keys, modifier thickness, and fixed tunable direction, lines 2360-2386, 2470-2522, and 10838-10857)"
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (vC aliases/anchors, capacitor scaling keys, modifier thickness, and fixed tunable direction, lines 2360-2386, 2470-2522, and 10838-10857)",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirc.defines.tex (class-relative modifier thickness lookup and inductors/modifier thickness default, lines 554-562 and 1033-1036)",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (vL European, cute, and American latexslim control-arrow paths plus fixed-direction branches, lines 1810-1842, 1583-1588, and 1718-1732)"
   ],
   "caseCount": 488,
   "caseExamples": [

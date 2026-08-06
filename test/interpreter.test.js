@@ -4084,6 +4084,7 @@ test("renders circuitikz inductor styles and the variable-inductor arrow", () =>
   assert.deepEqual(inductors.map((item) => item.inductorKind), ["cute", "cute", "american", "european"]);
   assert.deepEqual(inductors.map((item) => item.coils), [5, 9, 4, 0]);
   assert.ok(tunable?.style?.markerEnd, "expected the variable-inductor tuning arrow");
+  assert.equal(tunable.style.markerEnd.kind, "latexslim");
   assert.ok(tunable.commands[1].y - tunable.commands[0].y > 0.95, "expected the European tuning arrow to span the full generic body height");
   assert.ok(variableLabel.y > tunable.commands[1].y + 0.25, "expected the variable-inductor label to clear its tuning arrow");
   for (const label of ["$L_{\\mathrm{cute}}$", "$L_{\\mathrm{long}}$", "$L_{\\mathrm{american}}$", "$L_{\\mathrm{variable}}$"]) {

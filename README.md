@@ -558,6 +558,29 @@ sources are covered through small verified slices; transformers, source fills,
 and the broad
 circuitikz component catalog remain partial.
 
+### Circuitikz Tunable Inductors
+
+The `vL` control arrow follows Circuitikz's source-defined `latexslim` tip,
+rather than the ordinary TikZ `latex` marker. The focused European and American
+slice accepts `inductors/modifier thickness` and
+`bipoles/fix tunable direction`; the default arrow rises from bottom-left to
+top-right, while `false` uses the historical descending direction. Cute
+variable inductors retain their native fixed diagonal.
+
+```tex
+\usepackage{circuitikz}
+\begin{circuitikz}
+  \ctikzset{inductor=european}
+  \draw (0,0) to[vL,l=$L$] (3,0);
+  \ctikzset{bipoles/fix tunable direction=false,
+    inductors/modifier thickness=.5}
+  \draw (0,-1.5) to[vL,l=$L_{\mathrm{legacy}}$] (3,-1.5);
+\end{circuitikz}
+```
+
+This remains a Circuitikz subset: arbitrary custom tunable tips and the full
+inductor body/anchor catalogue are not yet implemented.
+
 ### Circuitikz Diode Bipoles
 
 The browser renderer also has a verified, narrow diode-bipole slice. It keeps

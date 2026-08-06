@@ -2991,6 +2991,7 @@ function circuitikzInductorSettings(spec, options = {}, env = {}) {
   const coils = kind === "european"
     ? 0
     : Math.max(minCoils, Math.round(circuitikzInductorNumber("coils", options, env, defaultCoils)));
+  const modifierThickness = Math.max(0.05, circuitikzInductorNumber("modifier thickness", options, env, 1));
   const rlen = 1.4 * scale * inductorScale;
   const bodyLength = width * rlen;
   const settings = {
@@ -3018,7 +3019,11 @@ function circuitikzInductorSettings(spec, options = {}, env = {}) {
       ? 0.35 * rlen
       : kind === "american"
         ? 0.1 * rlen
-        : 0.15 * rlen
+        : 0.15 * rlen,
+    modifierThickness,
+    // vcuteinductor always keeps its original diagonal. The generic European
+    // and American variable bodies explicitly honor this global Circuitikz key.
+    fixedTunableDirection: kind === "cute" || circuitikzFixedTunableDirection(options, env)
   };
   if (spec.choke) {
     settings.choke = {
@@ -3205,6 +3210,19 @@ function circuitikzCapacitorRawOption(key, options = {}, env = {}) {
   return undefined;
 }
 
+function circuitikzFixedTunableDirection(options = {}, env = {}) {
+  const names = ["circuitikz/bipoles/fix tunable direction", "bipoles/fix tunable direction"];
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const name of names) {
+      if (source[name] === undefined) continue;
+      const raw = source[name];
+      if (raw === null || raw === true || raw === "") return true;
+      return !/^(?:false|0|no)$/i.test(String(raw).trim());
+    }
+  }
+  return true;
+}
+
 function circuitikzCapacitorNumber(key, options = {}, env = {}, fallback = 0) {
   const raw = circuitikzCapacitorRawOption(key, options, env);
   if (raw === undefined || raw === null || raw === true || raw === "") return fallback;
@@ -3223,10 +3241,7 @@ function circuitikzVariableCapacitorSettings(options = {}, env = {}) {
   const rlen = 1.4 * circuitikzLengthScale(env) * scale;
   const plateGap = width * rlen;
   const halfHeight = (height * rlen) / 2;
-  const rawDirection = circuitikzCapacitorRawOption("fix tunable direction", options, env);
-  const fixedDirection = rawDirection === undefined || rawDirection === null || rawDirection === true || rawDirection === ""
-    ? true
-    : !/^(?:false|0|no)$/i.test(String(rawDirection).trim());
+  const fixedDirection = circuitikzFixedTunableDirection(options, env);
   const rawFill = circuitikzCapacitorRawOption("fill", options, env);
   const fill = rawFill === undefined || rawFill === null || rawFill === true || rawFill === "" || String(rawFill).trim().toLowerCase() === "none"
     ? "none"
@@ -3750,12 +3765,25 @@ function circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle =
     items.push(...circuitikzChokeCoreItems(geometry, startAlong, bodyLength, settings, pathStyle));
   }
   if (spec.variable) {
-    const arrowStart = circuitikzInductorPoint(geometry, -bodyLength * 0.2, -settings.tunableLowerAmplitude);
-    const arrowEnd = circuitikzInductorPoint(geometry, bodyLength * 0.2, settings.tunableUpperAmplitude);
+    const fixedDirection = settings.fixedTunableDirection !== false;
+    const arrowStyle = circuitikzLatexSlimArrowStyle(pathStyle);
+    const arrowLineWidth = roundNumber(arrowStyle.lineWidth * (settings.modifierThickness || 1));
+    const arrowStart = circuitikzInductorPoint(
+      geometry,
+      -bodyLength * 0.2,
+      fixedDirection ? -settings.tunableLowerAmplitude : settings.tunableUpperAmplitude
+    );
+    const arrowEnd = circuitikzInductorPoint(
+      geometry,
+      bodyLength * 0.2,
+      fixedDirection ? settings.tunableUpperAmplitude : -settings.tunableLowerAmplitude
+    );
     items.push({
       type: "path",
       subtype: "circuitikz-inductor-tunable-arrow",
-      style: circuitikzArrowStyle(pathStyle),
+      direction: fixedDirection ? "bottom-left-to-top-right" : "top-left-to-bottom-right",
+      lineWidth: arrowLineWidth,
+      style: { ...arrowStyle, lineWidth: arrowLineWidth },
       commands: [moveToCommand(arrowStart), lineToCommand(arrowEnd)]
     });
   }
