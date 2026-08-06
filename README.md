@@ -578,9 +578,9 @@ the native diode body dimensions and labels for horizontal and vertical paths:
 Supported in this slice: the documented full/empty aliases `D*` and `Do`,
 the base `D` form, `sD*`/`sD` Schottky diodes, `leD*`/`leD` LEDs,
 `diodes/scale`, `diodes/fill`, and `l=` labels. LEDs include the two native
-outgoing emission arrows and put the label on their outer side. Zener,
-tunnel, photo/laser, varcap, TVS, Shockley, bidirectional, tripole, and
-custom-diode families are not yet compatible.
+outgoing emission arrows and put the label on their outer side. The additional
+Zener/TVS and photo/laser slices are documented below; tunnel, varcap,
+Shockley, bidirectional, tripole, and custom-diode families remain partial.
 
 The source fixture is
 [`test/fixtures/examples/circuitikz/diodes.tex`](test/fixtures/examples/circuitikz/diodes.tex).
@@ -625,6 +625,35 @@ The checked source and reproducible three-way record are
 [`test/fixtures/examples/circuitikz/zener-tvs-diodes.tex`](test/fixtures/examples/circuitikz/zener-tvs-diodes.tex)
 and
 [`docs/qa/2026-08-06-circuitikz-zener-tvs-diodes.md`](docs/qa/2026-08-06-circuitikz-zener-tvs-diodes.md).
+
+### Circuitikz Photo and Laser Diodes
+
+The optical diode slice shares the native diode body but gives the optical
+marks their own geometry and style layer:
+
+```tex
+\begin{circuitikz}
+  \draw (0,0) to[pD*,l=$\mathrm{PD}$] (3,0);
+  \draw (4,0) to[lasDo,diodes/fill=green!20,l=$\mathrm{LD}$] (7,0);
+  \ctikzset{pd arrows to cathode}
+  \draw (0,-2) to[pD,diodes/scale=.7] (3,-2);
+  \ctikzset{pd arrows to anode}
+  \draw[blue] (4,-2) to[pD*,opto arrows/color=red,
+    opto arrows/relative thickness=1.5] (7,-2);
+\end{circuitikz}
+```
+
+Supported here: `pD`/`pD*`/`pDo`, `lasD`/`lasD*`/`lasDo`, the documented
+full/empty/stroke long names, the laser diode's second cathode bar,
+`pd arrows to anode`, `pd arrows to cathode`, `opto arrows/color`,
+`opto arrows/relative thickness`, `diodes/scale`, `diodes/fill`, and outer
+`l=` labels. This does not yet claim arbitrary opto dash/end-arrow syntax,
+photoresistors, phototransistors, solar cells, tunnel diodes, or varcaps.
+
+The checked source and three-way visual record are
+[`test/fixtures/examples/circuitikz/opto-diodes.tex`](test/fixtures/examples/circuitikz/opto-diodes.tex)
+and
+[`docs/qa/2026-08-06-circuitikz-opto-diodes.md`](docs/qa/2026-08-06-circuitikz-opto-diodes.md).
 
 ### Circuitikz Transformer Cores
 

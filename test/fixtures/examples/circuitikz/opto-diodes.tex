@@ -1,0 +1,17 @@
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+  % Adapted from the TeX Live circuitikz opto-arrow manual examples.
+  \draw (0,0) to[pD*,l=$\mathrm{PD}_{\mathrm{in}}$] (3,0);
+  \draw (0,-1.8) to[pDo,diodes/fill=orange!30,l=$\mathrm{PD}_{\mathrm{empty}}$] (3,-1.8);
+  \draw (4,0) to[lasD*,l=$\mathrm{LD}_{\mathrm{full}}$] (7,0);
+  \draw (4,-1.8) to[lasDo,diodes/fill=green!20,l=$\mathrm{LD}_{\mathrm{empty}}$] (7,-1.8);
+
+  \ctikzset{pd arrows to cathode}
+  \draw (0,-4) to[pD-,diodes/scale=.7,l=$\mathrm{PD}_{\mathrm{flip}}$] (3,-4);
+  \ctikzset{pd arrows to anode}
+  \draw[blue] (4,-4) to[pD*,diodes/scale=.7,opto arrows/color=red,opto arrows/relative thickness=1.5,l=$\mathrm{PD}_{\mathrm{red}}$] (7,-4);
+\end{circuitikz}
+\end{document}

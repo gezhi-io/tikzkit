@@ -2151,7 +2151,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
       options,
       env
     );
-    shapes.push(...circuitikzDiodeItems(geometry, spec, settings, pathStyle));
+    shapes.push(...circuitikzDiodeItems(geometry, spec, settings, pathStyle, options, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "battery") {
     const split = appendCircuitikzSplitWire(
@@ -2432,7 +2432,7 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
 function circuitikzDiodeSpec(options = {}, env = {}) {
   for (const [rawKey, rawValue] of Object.entries(options || {})) {
     const key = String(rawKey).trim().replace(/\s+/g, " ");
-    const short = key.match(/^(tvsD|zzD|zD|leD|sD|D)([o*-])?$/i);
+    const short = key.match(/^(tvsD|zzD|lasD|pD|zD|leD|sD|D)([o*-])?$/i);
     if (short) {
       const diodeKind = circuitikzDiodeKind(short[1]);
       return {
@@ -2442,7 +2442,7 @@ function circuitikzDiodeSpec(options = {}, env = {}) {
         label: circuitikzLabelValue(options.l) || circuitikzLabelValue(rawValue)
       };
     }
-    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|led|schottky diode|diode)$/i);
+    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|laser diode|photodiode|led|schottky diode|diode)$/i);
     if (!long) continue;
     const diodeKind = circuitikzDiodeKind(long[2]);
     return {
@@ -2458,6 +2458,8 @@ function circuitikzDiodeSpec(options = {}, env = {}) {
 function circuitikzDiodeKind(raw = "") {
   const kind = String(raw).trim().toLowerCase().replace(/\s+/g, " ");
   if (kind === "led" || kind === "lediode") return "led";
+  if (kind === "pd" || kind === "photodiode") return "photodiode";
+  if (kind === "lasd" || kind === "laser diode") return "laser";
   if (kind === "sd" || kind === "schottky diode") return "schottky";
   if (kind === "zd" || kind === "zener diode") return "zener";
   if (kind === "zzd" || kind === "zzener diode") return "zzener";
@@ -3208,7 +3210,7 @@ function circuitikzDiodeWhiskers(options = {}, env = {}) {
   return "sloped";
 }
 
-function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}) {
+function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}, options = {}, env = {}) {
   const bodyLength = Math.min(settings.bodyLength || 0, geometry.length * 0.78);
   const halfWidth = Math.min(settings.halfWidth || bodyLength / 2, bodyLength / 2);
   const halfHeight = settings.halfHeight || halfWidth * 1.25;
@@ -3277,6 +3279,15 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
     commands: cathodeCommands
   };
   const items = [diode, cathodeItem];
+  if (spec.diodeKind === "laser") {
+    items.push({
+      type: "path",
+      subtype: "circuitikz-laser-cathode",
+      diodeKind: "laser",
+      style: outlineStyle,
+      commands: circuitikzLaserCathodeCommands(geometry, cathode, halfWidth, halfHeight)
+    });
+  }
   if (spec.variant === "stroke") {
     items.push({
       type: "path",
@@ -3286,7 +3297,9 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
       commands: [moveToCommand(base), lineToCommand(cathode)]
     });
   }
-  if (spec.diodeKind === "led") items.push(...circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle));
+  if (spec.diodeKind === "led") items.push(...circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
+  if (spec.diodeKind === "photodiode") items.push(...circuitikzPhotodiodeArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
+  if (spec.diodeKind === "laser") items.push(...circuitikzLaserArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
   return items;
 }
 
@@ -3331,26 +3344,110 @@ function circuitikzTvsCathodeCommands(geometry, halfWidth, halfHeight, whiskers 
   ];
 }
 
-function circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle) {
+function circuitikzLaserCathodeCommands(geometry, cathode, halfWidth, halfHeight) {
+  const secondBar = pointAlong(cathode, geometry.u, -halfWidth);
+  return [
+    moveToCommand(pointNormal(secondBar, geometry.n, -halfHeight)),
+    lineToCommand(pointNormal(secondBar, geometry.n, halfHeight))
+  ];
+}
+
+function circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options = {}, env = {}) {
   const point = (along, normal) => pointNormal(pointAlong(geometry.mid, geometry.u, along), geometry.n, normal);
-  const arrowStyle = {
-    ...outlineStyle,
-    markerEnd: createArrowTip("Latex", { fill: outlineStyle.stroke, stroke: outlineStyle.stroke, scale: 0.42 })
-  };
+  const arrowStyle = circuitikzOptoArrowStyle(outlineStyle, options, env);
+  const fromCathode = circuitikzOptoArrowDirection("led", options, env) === "cathode";
+  const segments = fromCathode
+    ? [[point(0, 0.8 * halfHeight), point(-0.6 * halfWidth, 1.8 * halfHeight)], [point(0.6 * halfWidth, 0.6 * halfHeight), point(0, 1.6 * halfHeight)]]
+    : [[point(-0.4 * halfWidth, halfHeight), point(0.6 * halfWidth, 2 * halfHeight)], [point(0.2 * halfWidth, 0.8 * halfHeight), point(1.2 * halfWidth, 1.8 * halfHeight)]];
   return [
     {
       type: "path",
       subtype: "circuitikz-led-arrow",
+      direction: fromCathode ? "cathode" : "anode",
       style: arrowStyle,
-      commands: [moveToCommand(point(-0.4 * halfWidth, halfHeight)), lineToCommand(point(0.6 * halfWidth, 2 * halfHeight))]
+      commands: [moveToCommand(segments[0][0]), lineToCommand(segments[0][1])]
     },
     {
       type: "path",
       subtype: "circuitikz-led-arrow",
+      direction: fromCathode ? "cathode" : "anode",
       style: arrowStyle,
-      commands: [moveToCommand(point(0.2 * halfWidth, 0.8 * halfHeight)), lineToCommand(point(1.2 * halfWidth, 1.8 * halfHeight))]
+      commands: [moveToCommand(segments[1][0]), lineToCommand(segments[1][1])]
     }
   ];
+}
+
+function circuitikzPhotodiodeArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options = {}, env = {}) {
+  const point = (along, normal) => pointNormal(pointAlong(geometry.mid, geometry.u, along), geometry.n, normal);
+  const toCathode = circuitikzOptoArrowDirection("pd", options, env) === "cathode";
+  const segments = toCathode
+    ? [[point(-0.6 * halfWidth, 1.8 * halfHeight), point(0, 0.8 * halfHeight)], [point(0, 1.6 * halfHeight), point(0.6 * halfWidth, 0.6 * halfHeight)]]
+    : [[point(0.6 * halfWidth, 2 * halfHeight), point(-0.4 * halfWidth, halfHeight)], [point(1.2 * halfWidth, 1.8 * halfHeight), point(0.2 * halfWidth, 0.8 * halfHeight)]];
+  const style = circuitikzOptoArrowStyle(outlineStyle, options, env);
+  return segments.map(([from, to]) => ({
+    type: "path",
+    subtype: "circuitikz-opto-arrow",
+    diodeKind: "photodiode",
+    direction: toCathode ? "outward" : "inward",
+    style,
+    commands: [moveToCommand(from), lineToCommand(to)]
+  }));
+}
+
+function circuitikzLaserArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options = {}, env = {}) {
+  const point = (along, normal) => pointNormal(pointAlong(geometry.mid, geometry.u, along), geometry.n, normal);
+  const style = circuitikzOptoArrowStyle(outlineStyle, options, env);
+  return [-0.4, 0.2].map((along) => ({
+    type: "path",
+    subtype: "circuitikz-opto-arrow",
+    diodeKind: "laser",
+    direction: "outward",
+    style,
+    commands: [moveToCommand(point(along * halfWidth, 1.1 * halfHeight)), lineToCommand(point(along * halfWidth, 2.1 * halfHeight))]
+  }));
+}
+
+function circuitikzOptoArrowDirection(kind, options = {}, env = {}) {
+  const prefix = kind === "led" ? "led" : "pd";
+  const canonicalKey = `diodes/${prefix}-arrows`;
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    const canonical = String(source[canonicalKey] ?? "").trim().toLowerCase();
+    if (canonical === "anode" || canonical === "cathode") return canonical;
+    if (source[`${prefix} arrows from cathode`] !== undefined || source[`${prefix} arrows to cathode`] !== undefined) return "cathode";
+    if (source[`${prefix} arrows from anode`] !== undefined || source[`${prefix} arrows to anode`] !== undefined) return "anode";
+  }
+  return "anode";
+}
+
+function circuitikzOptoArrowStyle(outlineStyle = {}, options = {}, env = {}) {
+  const color = circuitikzOptoArrowOption("color", options, env);
+  const thickness = Math.max(0.05, circuitikzOptoArrowNumber("relative thickness", options, env, 1));
+  const stroke = color === undefined || color === null || color === true || String(color).trim().toLowerCase() === "default"
+    ? outlineStyle.stroke
+    : normalizeColor(String(color));
+  return {
+    ...outlineStyle,
+    stroke,
+    lineWidth: roundNumber((Number(outlineStyle.lineWidth) || 1) * thickness),
+    markerEnd: createArrowTip("Latex", { fill: stroke, stroke, scale: 0.42 })
+  };
+}
+
+function circuitikzOptoArrowOption(key, options = {}, env = {}) {
+  const names = [`circuitikz/opto arrows/${key}`, `opto arrows/${key}`];
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const name of names) {
+      if (source[name] !== undefined) return source[name];
+    }
+  }
+  return undefined;
+}
+
+function circuitikzOptoArrowNumber(key, options = {}, env = {}, fallback = 0) {
+  const raw = circuitikzOptoArrowOption(key, options, env);
+  if (raw === undefined || raw === null || raw === true || raw === "") return fallback;
+  const value = evaluateMath(String(raw), env.variables || {});
+  return Number.isFinite(value) ? value : fallback;
 }
 
 function circuitikzBatteryItems(geometry, spec = {}, pathStyle = {}, env = {}) {
@@ -4469,15 +4566,16 @@ function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {
     return;
   }
   const scale = circuitikzLengthScale(env);
+  const opticalDiode = spec.kind === "diode" && ["led", "photodiode", "laser"].includes(spec.diodeKind);
   const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource"
     ? 0.7
     : spec.kind === "inductor" && spec.variable
       ? 0.8
-      : spec.kind === "diode" && spec.diodeKind === "led"
+      : opticalDiode
         ? 0.78
         : 0.46) * scale;
   addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label, {
-    anchor: spec.kind === "diode" && spec.diodeKind === "led"
+    anchor: opticalDiode
       ? circuitikzOuterTextAnchor(geometry.n)
       : undefined
   });
@@ -7642,6 +7740,10 @@ function normalizeCtikzSetOptions(rawOptions = {}) {
     if (lowerKey === "european inductors" || lowerKey === "european") normalized["inductors/kind"] = "european";
     if (lowerKey === "diode straight whiskers") normalized["diodes/whiskers"] = "straight";
     if (lowerKey === "diode sloped whiskers") normalized["diodes/whiskers"] = "sloped";
+    if (lowerKey === "led arrows from cathode") normalized["diodes/led-arrows"] = "cathode";
+    if (lowerKey === "led arrows from anode") normalized["diodes/led-arrows"] = "anode";
+    if (lowerKey === "pd arrows to cathode") normalized["diodes/pd-arrows"] = "cathode";
+    if (lowerKey === "pd arrows to anode") normalized["diodes/pd-arrows"] = "anode";
     const styleMatch = normalizedKey.match(/^(?:circuitikz\/)?transformer\s+(L[12])\/\.style$/i);
     if (styleMatch) {
       const coil = styleMatch[1].toUpperCase();

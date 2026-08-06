@@ -210,6 +210,21 @@
       ]
     },
     {
+      "id": "circuitikz-opto-diodes",
+      "title": "circuitikz photodiode and laser-diode optical arrows",
+      "source": "circuitikz/opto-diodes.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzDiodeItems/circuitikzOptoArrowItems",
+      "features": [
+        "pD/pD*/pDo photodiode aliases",
+        "lasD/lasD*/lasDo laser diode aliases",
+        "pd arrows to anode/cathode",
+        "opto arrows/color",
+        "diodes/scale and diodes/fill"
+      ]
+    },
+    {
       "id": "circuitikz-chokes-and-core-anchors",
       "title": "circuitikz cute chokes and inductor core anchors",
       "source": "circuitikz/chokes-and-core-anchors.tex",
