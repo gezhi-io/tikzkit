@@ -1,0 +1,15 @@
+% Based on the local pgf-blur shadows.blur defaults, with an explicit path driver.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadows.blur}
+
+\begin{document}
+\begin{tikzpicture}
+  \filldraw[fill=yellow!20,draw=black,
+    blur shadow={shadow blur radius=1mm,shadow blur steps=8}]
+    (0,0) rectangle (2,1);
+  \filldraw[fill=blue!20,draw=black,
+    blur shadow={shadow blur radius=1mm,shadow blur steps=8}]
+    (0.35,1.5) circle (.45);
+\end{tikzpicture}
+\end{document}

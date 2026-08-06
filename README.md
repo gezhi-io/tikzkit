@@ -2099,9 +2099,12 @@ Current core examples:
 - `shadows`: supports `general shadow` plus the documented `drop shadow`
   defaults for ordinary path and node preactions. A simple
   `every shadow/.style={...}` runs between those defaults and explicit caller
-  overrides. Blur/fading/copy shadows, arbitrary hook code, marker-tip
+  overrides. `shadows.blur` additionally provides a browser SVG-filter
+  approximation for ordinary path and node `blur shadow` preactions. Blur
+  steps/inversion, fading/copy shadows, arbitrary hook code, marker-tip
   shadows, and form-only-pattern combinations remain partial; see
-  [`docs/qa/2026-08-07-shadows-drop-shadow.md`](docs/qa/2026-08-07-shadows-drop-shadow.md).
+  [`docs/qa/2026-08-07-shadows-drop-shadow.md`](docs/qa/2026-08-07-shadows-drop-shadow.md)
+  and [`docs/qa/2026-08-07-shadows-blur-path.md`](docs/qa/2026-08-07-shadows-blur-path.md).
 
 The per-library metadata lives in `src/tikz/libraries/`; the generated
 compatibility table is `docs/extension-registry.md`. Regenerate it after a

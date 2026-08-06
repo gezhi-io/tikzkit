@@ -4386,6 +4386,21 @@
         "shadow option override",
         "path preaction"
       ]
+    },
+    {
+      "id": "shadows-blur-shadow-path",
+      "title": "pgf-blur path preaction filter",
+      "source": "shadows/blur-shadow-path.tex",
+      "sourceCorpus": "TeX Live pgf-blur source",
+      "externalSource": "tex/latex/pgf-blur/tikzlibraryshadows.blur.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:parseBlurShadow + src/renderers/svg/paths.js:renderPathShadow",
+      "features": [
+        "blur shadow",
+        "shadow blur radius",
+        "shadow blur steps",
+        "path preaction",
+        "SVG filter"
+      ]
     }
   ]
 }

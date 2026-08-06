@@ -608,6 +608,23 @@ test("maps shadows.blur blur shadow to soft node shadows", () => {
   assert.match(result.svg, /tikzkit-blur-shadow/);
 });
 
+test("applies shadows.blur filters and every-shadow overrides to path preactions", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows.blur}
+\begin{tikzpicture}[every shadow/.style={shadow blur radius=1mm,shadow opacity=60}]
+  \filldraw[blur shadow={shadow opacity=25},fill=yellow!20] (0,0) rectangle (2,1);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.shadows.length, 1);
+  assert.equal(path.shadows[0].blur, true);
+  expectClose(path.shadows[0].blurRadius, 0.1, 1e-12);
+  expectClose(path.shadows[0].style.opacity, 0.25, 1e-12);
+  assert.match(result.svg, /class="tikz-path-shadow"/);
+  assert.match(result.svg, /filter="url\(#tikzkit-blur-shadow-100\)"/);
+});
+
 test("renders circuitikz npn and pnp transistor nodes with B C E anchors", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}

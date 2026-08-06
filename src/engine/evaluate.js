@@ -9175,19 +9175,20 @@ function orderedShadowOptions(defaults, overrides) {
 }
 
 function parseBlurShadow(value, env) {
-  const shadowOptions = {
+  const shadowOptions = orderedShadowOptions({
     "shadow scale": 1,
     "shadow xshift": ".5ex",
     "shadow yshift": "-.5ex",
     "shadow blur radius": ".4ex",
     "shadow opacity": 40,
-    ...parseOptions(String(value === true ? "" : value))
-  };
+    "every shadow": true
+  }, parseOptions(String(value === true ? "" : value)));
   const shadow = parseShadowFromOptions(shadowOptions, env, { blur: true });
   if (!shadow) return null;
-  const opacity = shadowOpacity(shadowOptions["shadow opacity"], 0.4, env);
-  const fill = normalizeColor(shadowOptions["shadow color"] || "black", env);
-  const blurRadius = parseDimension(shadowOptions["shadow blur radius"] || ".4ex", env.variables) * env.canvasScale;
+  const { options } = normalizeOptions("node", shadowOptions, env);
+  const opacity = shadowOpacity(options["shadow opacity"], 0.4, env);
+  const fill = normalizeColor(options["shadow color"] || "black", env);
+  const blurRadius = parseDimension(options["shadow blur radius"] || ".4ex", env.variables) * env.canvasScale;
   return {
     ...shadow,
     blur: true,

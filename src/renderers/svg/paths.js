@@ -9,6 +9,7 @@ import {
   stealthPrimeArrowDimensions,
   stealthArrowShortenFromLength
 } from "../../tikz/metrics.js";
+import { blurShadowFilterId } from "./defs.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { renderUnitScale, scaleStyleForRenderUnit } from "./layout.js";
@@ -33,6 +34,7 @@ export function renderPathShadow(item, shadow, unit) {
   const shadowStyle = {
     ...(item.style || {}),
     ...scaleStyleForRenderUnit(shadow?.style || {}, renderUnitScale(unit)),
+    filter: shadow?.blur ? `url(#${blurShadowFilterId(shadow)})` : shadow?.style?.filter,
     markerStart: undefined,
     markerEnd: undefined
   };
