@@ -38,8 +38,9 @@ source -> preprocess extensions -> parser -> semantic interpreter -> drawing IR 
 
 It is designed for browser rendering of fenced TikZ code blocks, CLI conversion, and incremental support for common TikZ libraries.
 
-For the shortest practical path through the workbench, CLI, JavaScript API, and
-three-way visual verification, see the Chinese [usage guide](docs/usage.md).
+For a copyable Chinese guide to the browser workbench, CLI export, JavaScript
+API, three-way visual verification, and the current testing boundary, see
+[使用指南](docs/usage.md).
 
 ### Choose A Workflow
 
