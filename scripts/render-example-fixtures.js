@@ -127,6 +127,7 @@ export async function renderExampleFixtures(options = {}) {
     const sourcePath = path.join(fixtureRoot, entry.source);
     const source = await readExampleSource(sourcePath, fixtureRoot);
     const renderSource = sourceComparisonGrid ? withGalleryDebugGrid(source) : source;
+    const referenceSource = normalizeLegacyTkzEuclideSource(renderSource);
     const resourceMap = await loadExampleResourceMap(entry, fixtureRoot);
     const imageResourceMap = await loadExampleImageResourceMap(entry, fixtureRoot);
     const entryRenderOptions = {
@@ -179,7 +180,7 @@ export async function renderExampleFixtures(options = {}) {
         tikztosvgEnv,
         outputRoot,
         entry,
-        source,
+        referenceSource,
         fixtureRoot,
         { timeoutMs: externalCommandTimeoutMs }
       );
@@ -187,13 +188,13 @@ export async function renderExampleFixtures(options = {}) {
       tikztosvgInput = await writeTikztosvgInput(
         outputRoot,
         entry,
-        rewriteExampleResourceReferences(renderSource, entry.resources || []),
+        rewriteExampleResourceReferences(referenceSource, entry.resources || []),
         { activeFigureId }
       );
       const tikztosvgArgs = [
-        ...tikztosvgEngineArgs(tikztosvgEngine, source),
-        ...tikztosvgPackageArgs(source),
-        ...tikztosvgLibraryArgs(source),
+        ...tikztosvgEngineArgs(tikztosvgEngine, referenceSource),
+        ...tikztosvgPackageArgs(referenceSource),
+        ...tikztosvgLibraryArgs(referenceSource),
         "-q",
         "-o",
         tikztosvgSvg,
@@ -735,7 +736,60 @@ function normalizeLegacyTkzEuclideSource(source) {
     .split(/\r?\n/)
     .filter((line) => !/^\\usetkzobj\{[^}]*\}\s*$/.test(line.trim()))
     .join("\n");
-  return normalizeLegacyTkzAngleSizes(withoutObsoleteObjectLoader);
+  return normalizeLegacyTkzAxeOptions(
+    normalizeLegacyTkzAngleSizes(
+      ensureLegacyTkzAxisPackageOrder(withoutObsoleteObjectLoader)
+    )
+  );
+}
+
+// tkz-base owns the historical \tkzInit and \tkzAxeXY commands, but its
+// current package explicitly requires being loaded before tkz-euclide. Older
+// examples commonly invert that order (and sometimes put tkz-fct after
+// tkz-euclide). Correct only the disposable reference source so local MacTeX
+// can render an authoritative comparison without changing the user's input.
+function ensureLegacyTkzAxisPackageOrder(source) {
+  const text = String(source || "");
+  if (!/\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw(?:X|Y)|Label[XY])\b/.test(text)) return text;
+
+  const lines = text.split(/\r?\n/);
+  const packageLine = /^\s*\\usepackage(?:\[[^\]]*\])?\{(tkz-base|tkz-fct)\}\s*$/;
+  const euclideLine = /^\s*\\usepackage(?:\[[^\]]*\])?\{tkz-euclide\}\s*$/;
+  const baseLines = [];
+  const fctLines = [];
+  const retained = [];
+  let insertionIndex = -1;
+
+  for (const line of lines) {
+    const packageMatch = line.match(packageLine);
+    if (packageMatch?.[1] === "tkz-base") {
+      baseLines.push(line);
+      continue;
+    }
+    if (packageMatch?.[1] === "tkz-fct") {
+      fctLines.push(line);
+      continue;
+    }
+    if (insertionIndex === -1 && euclideLine.test(line)) insertionIndex = retained.length;
+    retained.push(line);
+  }
+
+  if (insertionIndex === -1) return text;
+  const base = baseLines.length ? baseLines : ["\\usepackage{tkz-base}"];
+  retained.splice(insertionIndex, 0, ...base, ...fctLines);
+  return retained.join("\n");
+}
+
+// tkz-base 4 exposes `noticks` only on \tkzDrawX/Y; its convenience
+// \tkzAxeXY forwards unknown keys into TikZ. Lower the old `ticks=false`
+// convenience form to the equivalent draw-only form in disposable references.
+function normalizeLegacyTkzAxeOptions(source) {
+  return String(source || "").replace(/\\tkzAxeXY\[([^\]]*)\]/g, (match, rawOptions) => {
+    const optionParts = rawOptions.split(",");
+    const withoutDisabledTicks = optionParts.filter((option) => !/^\s*ticks\s*=\s*false\s*$/i.test(option));
+    if (withoutDisabledTicks.length === optionParts.length) return match;
+    return `\\tkzDrawXY[${[...withoutDisabledTicks, "noticks"].filter(Boolean).join(",")}]`;
+  });
 }
 
 // circuitikz aliases this environment to tikzpicture. Making the alias

@@ -445,6 +445,95 @@ test("native MacTeX references normalize legacy tkz-euclide object loaders", asy
   assert.equal(summary.renderedMacTeXPng, 1);
 });
 
+test("native MacTeX references load legacy tkz axes before tkz-euclide", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-legacy-axis-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-legacy-axis-output-"));
+  const nativePng = encodePng({ width: 1, height: 1, data: Buffer.from([255, 255, 255, 255]) });
+  await writeFile(
+    path.join(fixtureRoot, "frame.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{tkz-euclide}",
+      "\\usepackage{tkz-fct}",
+      "\\begin{document}",
+      "\\usetkzobj{all}",
+      "\\begin{tikzpicture}\\tkzInit[xmax=2,ymax=2]\\tkzAxeXY\\end{tikzpicture}",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summary = await renderExampleFixtures({
+    fixtureRoot,
+    outputRoot,
+    skipTikztosvg: true,
+    skipPng: true,
+    nativeReference: true,
+    external: {
+      async commandExists(command) {
+        return command === "pdflatex" || command === "pdftocairo";
+      },
+      async runCommand(command, args) {
+        if (command === "pdflatex") {
+          const nativeInput = await readFile(args.at(-1), "utf8");
+          assert.doesNotMatch(nativeInput, /\\usetkzobj/);
+          assert.ok(nativeInput.indexOf("\\usepackage{tkz-base}") < nativeInput.indexOf("\\usepackage{tkz-fct}"));
+          assert.ok(nativeInput.indexOf("\\usepackage{tkz-fct}") < nativeInput.indexOf("\\usepackage{tkz-euclide}"));
+        }
+        if (command === "pdftocairo") await writeFile(`${args.at(-1)}.png`, nativePng);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+    }
+  });
+
+  assert.equal(summary.renderedMacTeXPng, 1);
+});
+
+test("legacy tkz axis references translate ticks=false and reuse the migrated package order for tikztosvg", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-legacy-axis-options-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-legacy-axis-options-output-"));
+  await writeFile(
+    path.join(fixtureRoot, "frame.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{tkz-euclide}",
+      "\\usepackage{tkz-fct}",
+      "\\begin{document}",
+      "\\begin{tikzpicture}",
+      "\\tkzInit[xmin=0,xmax=1,ymin=0,ymax=1]",
+      "\\tkzAxeXY[ticks=false]",
+      "\\end{tikzpicture}",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summary = await renderExampleFixtures({
+    fixtureRoot,
+    outputRoot,
+    external: {
+      async commandExists(command) {
+        return command === "tikztosvg";
+      },
+      async runCommand(_command, args) {
+        assert.deepEqual(
+          args.flatMap((arg, index) => (arg === "-p" ? [args[index + 1]] : [])),
+          ["tkz-base", "tkz-fct", "tkz-euclide"]
+        );
+        const input = await readFile(args.at(-1), "utf8");
+        assert.match(input, /\\tkzDrawXY\[noticks\]/);
+        assert.doesNotMatch(input, /ticks=false/);
+        await writeFile(args[args.indexOf("-o") + 1], "<svg></svg>", "utf8");
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+    }
+  });
+
+  assert.equal(summary.renderedTikztosvg, 1);
+});
+
 test("native MacTeX references materialize manifest resources beside their rewritten source", async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-resource-fixtures-"));
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-resource-output-"));

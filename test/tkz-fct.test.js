@@ -320,6 +320,20 @@ test("lowers tkzInit, tkzGrid, and tkzAxeXY using tkz-base dimensions", () => {
   assert.match(expanded, /\\path \(4,2pt\) -- \(4,-2pt\) node\[below=3pt.*\{\$4\$\}/);
 });
 
+test("matches legacy tkzAxeXY ticks=false with draw-only axes", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=4,ymin=0,ymax=3]
+  \tkzAxeXY[ticks=false]
+\end{tikzpicture}`);
+
+  assert.match(expanded, /line width=0\.4pt,-latex\] \(-1,0\) -- \(4\.5,0\).*\{\$x\$\}/);
+  assert.match(expanded, /line width=0\.4pt,-latex\] \(0,0\) -- \(0,3\.5\).*\{\$y\$\}/);
+  assert.doesNotMatch(expanded, /line width=0\.8pt/);
+  assert.doesNotMatch(expanded, /\{\$-1\$\}|\{\$0\$\}|\{\$1\$\}/);
+});
+
 test("matches tkz-base local origins and subgrid ranges for non-normalized frames", () => {
   const source = String.raw`
 \usepackage{tkz-fct}

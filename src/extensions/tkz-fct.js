@@ -254,12 +254,14 @@ function renderAxes(state, rawOptions, context = {}) {
   }
 
   const labelX = [];
-  for (const position of integerPositions(bounds.xmin, bounds.xmax)) {
-    if (!showOrigin && Math.abs(position) < 1e-9) continue;
-    const label = format(position * state.xstep + state.xorigin);
-    labelX.push(
-      `\\path (${format(position)},${tickUp}) -- (${format(position)},${negateLength(tickDown)}) node[${xLabelOptions}] {$${label}$};`
-    );
+  if (!hideTicks) {
+    for (const position of integerPositions(bounds.xmin, bounds.xmax)) {
+      if (!showOrigin && Math.abs(position) < 1e-9) continue;
+      const label = format(position * state.xstep + state.xorigin);
+      labelX.push(
+        `\\path (${format(position)},${tickUp}) -- (${format(position)},${negateLength(tickDown)}) node[${xLabelOptions}] {$${label}$};`
+      );
+    }
   }
   if (context.scriptsize && labelX.length) {
     // TikZ positions the label below the lower tick endpoint.  The browser
@@ -274,12 +276,14 @@ function renderAxes(state, rawOptions, context = {}) {
   }
 
   const labelY = [];
-  for (const position of integerPositions(bounds.ymin, bounds.ymax)) {
-    if (!showOrigin && Math.abs(position) < 1e-9) continue;
-    const label = format(position * state.ystep + state.yorigin);
-    labelY.push(
-      `\\path (${tickRight},${format(position)}) -- (${negateLength(tickLeft)},${format(position)}) node[${yLabelOptions}] {$${label}$};`
-    );
+  if (!hideTicks) {
+    for (const position of integerPositions(bounds.ymin, bounds.ymax)) {
+      if (!showOrigin && Math.abs(position) < 1e-9) continue;
+      const label = format(position * state.ystep + state.yorigin);
+      labelY.push(
+        `\\path (${tickRight},${format(position)}) -- (${negateLength(tickLeft)},${format(position)}) node[${yLabelOptions}] {$${label}$};`
+      );
+    }
   }
 
   const swap = optionBoolean(options.swap, false);

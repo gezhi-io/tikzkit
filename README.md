@@ -654,6 +654,18 @@ This requires the local reference tools used by the project, including
 `tikztosvg` and `rsvg-convert`. Generated output is test evidence and is
 ignored by Git.
 
+#### Legacy tkz-base / tkz-euclide References
+
+Some archived sources use the removed `\usetkzobj{...}` loader, place
+`tkz-fct` after `tkz-euclide`, or use the older
+`\tkzAxeXY[ticks=false]` spelling. During `--native-reference` generation
+only, TikZKit creates a disposable equivalent source: it loads `tkz-base`,
+then `tkz-fct`, before `tkz-euclide`, removes the obsolete loader, and maps
+that axis shorthand to modern `\tkzDrawXY[noticks]`. It never rewrites the
+fixture on disk and never adds TeX as a browser dependency. The JavaScript
+renderer independently accepts the legacy `ticks=false` option and keeps the
+arrowed axes with their terminal `x`/`y` labels while suppressing graduations.
+
 ### Add A Focused Visual QA Case
 
 Put a reusable real-world source under `test/fixtures/examples/<topic>/`. Then
