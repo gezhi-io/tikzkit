@@ -1022,7 +1022,16 @@ Useful render option:
 const result = tikzToSvg(source, { mathRenderer: "svg-text" });
 ```
 
-`svg-text` avoids SVG `foreignObject` and is useful for raster comparison tools. The default renderer uses KaTeX for richer math in browser SVG.
+`svg-text` avoids SVG `foreignObject` and is useful for raster comparison
+tools. It is intentionally a compact fallback, so dense `align*`, matrix,
+and nested-script formulas cannot reproduce every TeX spacing decision.
+
+The local workbench uses TikZKit's isolated browser-math path by default. It
+embeds its styles beneath TikZKit-owned class names, so complex node formulas
+keep their scripts, fractions, matrices, and alignment without changing other
+formulas on the host page. Use `mathRenderer: "svg-text"` only when an
+external raster tool needs pure SVG text; the default renderer is the
+appropriate choice for the interactive preview.
 
 ## Testing
 

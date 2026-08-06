@@ -88,7 +88,9 @@ export async function renderWorkbenchSource(source, options = {}) {
   }
   const result = await renderer(String(source || ""), {
     margin: 0,
-    mathRenderer: "svg-text",
+    // Keep the workbench on the browser-focused math path. The SVG-text
+    // fallback remains available explicitly for raster comparison tooling.
+    mathRenderer: "katex",
     ...options
   });
   return {

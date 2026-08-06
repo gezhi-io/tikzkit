@@ -52,11 +52,20 @@ test("workbench uses the same zero-margin SVG bounds as fixture comparisons", as
 \end{preview}
 \end{document}`;
   const workbench = await renderWorkbenchSource(source);
-  const comparison = publicApi.tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
+  const comparison = publicApi.tikzToSvg(source, { margin: 0, mathRenderer: "katex" });
   const svgSize = (svg) => svg.match(/\b(?:width|height)="[^"]+"/g)?.slice(0, 2);
 
   assert.deepEqual(workbench.diagnostics, []);
   assert.deepEqual(svgSize(workbench.svg), svgSize(comparison.svg));
+});
+
+test("workbench uses TikZKit-scoped browser math for complex node formulas", async () => {
+  const result = await renderWorkbenchSource(String.raw`\begin{tikzpicture}\node {$\mathbf{x}_{k+1}^{(P)} = A\mathbf{x}_k$};\end{tikzpicture}`);
+
+  assert.match(result.svg, /<foreignObject\b/);
+  assert.match(result.svg, /tikzkit-math-scope/);
+  assert.doesNotMatch(result.svg, /class="[^"]*\bkatex\b/);
+  assert.deepEqual(result.diagnostics, []);
 });
 
 test("workbench diagnostic rows preserve severity, code, message, and source location", () => {

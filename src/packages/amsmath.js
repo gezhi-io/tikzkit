@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "amsmath",
   "status": "partial",
-  "implementedBy": "src/tikz/text.js + src/tikz/textMetrics.js + src/renderers/svg/mathNode.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator",
+  "implementedBy": "src/tikz/text.js + src/tikz/textMetrics.js + src/renderers/svg/mathNode.js + src/renderers/svg/mathScriptFallback.js + src/renderers/svg/renderSvg.js + src/frontend/latex-shell.js:parseDeclareMathOperator + web/workbench.js",
   "features": [
     "KaTeX delegated environments/macros",
     "SVG-text aligned display fallback with amsmath \\jot row spacing",
@@ -27,5 +27,5 @@ export const texPackage = {
   ],
   "observedOptions": [],
   "localSourceReviewed": true,
-  "notes": "Partial amsmath subset: align/aligned display rows, common scripts, color groups, matrices, and math fallback layout. Tags, intertext, split, gathered, multline, and full TeX macro expansion remain unsupported or partial."
+  "notes": "Reviewed TeX Live 2025 amsmath.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances for the SVG-text fallback. Tags, intertext, split, gathered, multline, and full TeX macro expansion remain unsupported or partial."
 };

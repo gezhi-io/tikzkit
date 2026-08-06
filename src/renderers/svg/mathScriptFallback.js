@@ -1,4 +1,5 @@
 import { MATH_FALLBACK_NAMED_OPERATORS, mathFallbackText } from "../../tikz/text.js";
+import { measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import {
   TIKZ_MATH_ITALIC_FONT_FAMILY,
   TIKZ_MATH_MAIN_FONT_FAMILY
@@ -254,7 +255,19 @@ export function startsWithNamedMathOperator(text) {
 }
 
 export function estimateScriptTextWidth(text, fontSize) {
-  return [...String(text || "")].length * fontSize * 0.42;
+  const source = mathFallbackText(String(text || "")).replace(/\s+/g, " ").trim();
+  if (!source) return 0;
+
+  // A paired superscript/subscript cluster returns its cursor to the start of
+  // the scripts before painting the second script. The old character-count
+  // estimate understated TeX's punctuation, relation, and digit advances;
+  // that made later atoms collide with a long subscript. Reuse the calibrated
+  // local Computer Modern table that already drives node text measurements.
+  const measured = measurePlainTextTeXBoxPt(source, { fontSizePt: 10 });
+  if (Number.isFinite(measured?.width) && measured.width > 0) {
+    return measured.width * ((Number(fontSize) || 0) / 10);
+  }
+  return [...source].length * fontSize * 0.42;
 }
 
 export function estimateScriptedSegmentsWidth(segments, baseFontSize) {
