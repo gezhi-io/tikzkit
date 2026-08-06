@@ -122,6 +122,8 @@ export function renderLeadingScriptContent(parts, baseFontSize) {
 export function renderScriptedSegmentsContent(segments, baseFontSize) {
   const scriptFontSize = baseFontSize * 0.66;
   const superscriptExtraDy = Math.max(2, baseFontSize * 0.22);
+  const pairedSuperscriptRise = Math.max(3, baseFontSize * 0.47);
+  const pairedSubscriptDrop = Math.max(2.5, baseFontSize * 0.25);
   const operatorSpacing =
     segments.some((segment) => segment.operatorSpacing) ||
     segments.some((segment) => segment.kind === "text" && /[=+≤≥≠≈∼]/.test(segment.text));
@@ -136,13 +138,23 @@ export function renderScriptedSegmentsContent(segments, baseFontSize) {
       if (segment.kind === "bold") return `<tspan font-weight="700" font-style="normal">${escapeText(segment.text)}</tspan>`;
       const base = renderMathScriptBase(segment, baseFontSize);
       if (segment.superscript && segment.subscript) {
-        const backtrack = Math.max(0, estimateScriptTextWidth(segment.superscript, scriptFontSize));
-        return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" baseline-shift="super">${renderNestedScriptText(
-          segment.superscript,
-          scriptFontSize
-        )}</tspan><tspan dx="${format(-backtrack)}" font-size="${format(
-          scriptFontSize
-        )}" font-style="normal" baseline-shift="sub">${renderNestedScriptText(segment.subscript, scriptFontSize)}</tspan>`;
+        const superscriptWidth = Math.max(0, estimateScriptTextWidth(segment.superscript, scriptFontSize));
+        const subscriptWidth = Math.max(0, estimateScriptTextWidth(segment.subscript, scriptFontSize));
+        const scriptAdvance = Math.max(superscriptWidth, subscriptWidth);
+        // Keep script placement explicit. SVG converters do not agree on how
+        // to restore the text cursor when `baseline-shift=super` is followed
+        // by `baseline-shift=sub`, which made paired scripts overlap in the
+        // non-HTML fallback. The final empty tspan restores the baseline and
+        // advances to the same cursor TeX uses: base plus the wider script.
+        return `${base}<tspan font-size="${format(scriptFontSize)}" font-style="normal" dy="${format(
+          -pairedSuperscriptRise
+        )}">${renderNestedScriptText(segment.superscript, scriptFontSize)}</tspan><tspan dx="${format(
+          -superscriptWidth
+        )}" font-size="${format(scriptFontSize)}" font-style="normal" dy="${format(
+          pairedSuperscriptRise + pairedSubscriptDrop
+        )}">${renderNestedScriptText(segment.subscript, scriptFontSize)}</tspan><tspan dx="${format(
+          scriptAdvance - subscriptWidth
+        )}" dy="${format(-pairedSubscriptDrop)}"></tspan>`;
       }
       if (segment.superscript) {
         const explicitShift = shouldUseExplicitSuperscriptDy(segment.superscript);

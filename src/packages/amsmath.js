@@ -5,6 +5,7 @@ export const texPackage = {
   "features": [
     "KaTeX delegated environments/macros",
     "SVG-text aligned display fallback with amsmath \\jot row spacing",
+    "explicit paired superscript/subscript cursor restoration in SVG-text fallback",
     "\\DeclareMathOperator macro expansion"
   ],
   "requires": [],
@@ -27,5 +28,5 @@ export const texPackage = {
   ],
   "observedOptions": [],
   "localSourceReviewed": true,
-  "notes": "Reviewed TeX Live 2025 amsmath.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances for the SVG-text fallback. Tags, intertext, split, gathered, multline, and full TeX macro expansion remain unsupported or partial."
+  "notes": "Reviewed TeX Live 2025 amsmath.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances plus explicit paired-script baseline/cursor restoration for the SVG-text fallback. Tags, intertext, split, gathered, multline, and full TeX macro expansion remain unsupported or partial."
 };

@@ -2772,22 +2772,24 @@ test("keeps a bold math nucleus when it carries a script", () => {
 
   assert.deepEqual(result.diagnostics, []);
   assert.match(result.svg, /font-weight="700"[^>]*><tspan>x<\/tspan><\/tspan>/);
-  assert.match(result.svg, /baseline-shift="super"[^>]*>\(P\)<\/tspan>/);
-  assert.match(result.svg, /baseline-shift="sub"[^>]*>k<\/tspan>/);
+  assert.match(result.svg, /font-size="[^"]+"[^>]*dy="-[^"]+">\(P\)<\/tspan>/);
+  assert.match(result.svg, /dx="-[^"]+"[^>]*font-size="[^"]+"[^>]*dy="[^"]+">k<\/tspan>/);
   assert.doesNotMatch(result.svg, /mathbfx/);
 });
 
-test("uses calibrated TeX advances when rewinding a paired script cluster", () => {
+test("uses calibrated TeX advances and explicit baseline restoration for paired scripts", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}
   \node {$\mathbf{x}_{k+1}^{(P)} H$};
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
-  const rewind = Number(result.svg.match(/<tspan dx="(-[^"]+)"[^>]*baseline-shift="sub">k\+1<\/tspan>/)?.[1]);
+  const rewind = Number(result.svg.match(/<tspan dx="(-[^"]+)"[^>]*font-size="[^"]+"[^>]*dy="[^"]+">k\+1<\/tspan>/)?.[1]);
 
   assert.deepEqual(result.diagnostics, []);
   // The old three-character estimate produced about -29px at the default
-  // SVG font size. CM's parenthesis/P advances need a larger rewind.
+  // SVG font size. CM's parenthesis/P advances need a larger rewind, while
+  // the empty tspan restores the parent baseline for the next atom.
   assert.ok(rewind < -32, `expected a TeX-metric script rewind, got ${rewind}`);
+  assert.match(result.svg, /<tspan dx="[^"]+" dy="-[^"]+"><\/tspan>/);
 });
 
 test("uses script-cluster widths when aligning SVG text equations", () => {

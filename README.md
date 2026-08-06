@@ -172,6 +172,12 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
   output in `activation-functions` and `faktorraum`. Custom multi-column
   legends, arbitrary font combinations, and final browser/TeX bbox parity
   remain partial.
+- The SVG-text fallback used by non-HTML converters keeps paired math scripts
+  such as `x_{k+1}^{(P)}` on explicit upper and lower baselines, then restores
+  the TeX cursor to the wider script. This is checked with the real
+  `latex-examples-kalman-filter` node-local `align*` case. It improves the
+  portable SVG/PNG artifact; it does not implement the complete `amsmath`
+  environment family.
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
