@@ -2,7 +2,7 @@ export const tikzLibrary = {
   name: "datavisualization.formats.functions",
   status: "partial",
   category: "datavisualization",
-  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions",
+  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions + src/engine/evaluate.js:estimateNodeSize",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.formats.functions.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-formats.tex",
   localSourceReviewed: "yes",
@@ -64,5 +64,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally on 2026-08-05 against the documented function-format loader and school-book function examples. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact native matrix legends remain partial."
+    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally on 2026-08-06 against the function-format loader plus the visualizer legend source: styled inline-math legend node boxes use compact TeX metrics while preserving the SVG math renderer for paint. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact arbitrary matrix legends remain partial."
 };

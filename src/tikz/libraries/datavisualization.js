@@ -2,9 +2,9 @@ export const tikzLibrary = {
   name: "datavisualization",
   status: "partial",
   category: "datavisualization",
-  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions",
+  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions + src/engine/evaluate.js:estimateNodeSize",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex",
-  localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-axes.tex",
+  localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-visualizers.tex",
   localSourceReviewed: "yes",
   features: [
     "basic scientific axes lowering",
@@ -19,6 +19,7 @@ export const tikzLibrary = {
     "explicit legend anchor/at placement for data visualization bounding box anchors",
     "focused legend at-coordinate projections using |- and -|",
     "focused legend label node style draw/circle routing through datavis legend entry node style",
+    "compact native-style TeX box metrics for styled inline-math legend labels without changing SVG math paint",
     "style sheet=strong colors, vary hue, vary dashing, vary thickness, and vary thickness and dashing for line visualizers",
     "default outside line legend samples positioned by native physical em offsets from the data area",
     "custom /pgf/data visualization/style sheets/<name>/<value>/.style definitions for set-based plot styling",
@@ -41,5 +42,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally on 2026-08-05 against the school-book axis declaration: x=0 suppresses its label, while y=0 keeps a north-east-anchored label with no short tick. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline or custom pgfooclass visualizers."
+    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally on 2026-08-06 against tikzlibrarydatavisualization.code.tex and pgfmanual-en-dv-visualizers.tex: styled legend labels use native em/ex sample coordinates and TeX-packed inline math dimensions, while SVG math paint remains renderer-owned. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline, custom pgfooclass visualizers, or exact arbitrary matrix legends."
 };

@@ -3974,6 +3974,21 @@
         "shorten <=",
         "shorten >="
       ]
+    },
+    {
+      "id": "datavisualization-legend-math-metrics",
+      "title": "PGF datavisualization styled math legend labels",
+      "source": "workbench/datavisualization-legend-math-metrics.tex",
+      "sourceCorpus": "TeX Live PGF datavisualization legend source",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-dv-visualizers.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:datavisualizationLegendLabelCommand; src/engine/evaluate.js:estimateNodeSize",
+      "features": [
+        "datavisualization function format",
+        "scientific axes",
+        "legend label style",
+        "legend math labels",
+        "styled legend node metrics"
+      ]
     }
   ]
 }

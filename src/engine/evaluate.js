@@ -10434,6 +10434,10 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
+          // The SVG math engine measures the renderer's line box, which is
+          // intentionally wider than TeX's packed inline math box.  Native
+          // datavisualization legends size styled label nodes from the latter.
+          disableMathTextEngine: datavisLegendMathMetrics,
           formulaTexTextMetrics: datavisLegendMathMetrics ? false : true,
           formulaWidthPadding: datavisLegendMathMetrics ? 0.02 : multilineFormulaCircle ? 0.38 : 0.08,
           compactVectorFormulaWidthPadding: 0,
@@ -10456,6 +10460,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
+          // Keep the renderer for paint, but use compact TeX metrics for
+          // datavisualization's styled legend labels during node layout.
+          disableMathTextEngine: datavisLegendMathMetrics,
           formulaTexTextMetrics: datavisLegendMathMetrics
             ? false
             : shortVectorExpressionNeedsCompactMetrics(normalized)
@@ -10783,6 +10790,7 @@ function estimateTextMetricBox(normalized, options = {}) {
 }
 
 function measureMathWithTextEngine(text, math, lineScale, options = {}) {
+  if (options.disableMathTextEngine) return null;
   const textEngine = options.textEngine;
   if (!textEngine || typeof textEngine.measure !== "function") return null;
   let metrics = null;

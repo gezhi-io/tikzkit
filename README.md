@@ -259,6 +259,34 @@ change should run its split-node tests before the case comparison:
 node --test test/interpreter.test.js test/shapes-multipart-vertical.test.js
 ```
 
+### Datavisualization Legend Calibration
+
+The maintained `datavisualization-legend-math-metrics` fixture is a narrow,
+repeatable check for legends that give their labels a TikZ node style, for
+example `legend={label style={node style=draw}}` or an entry-level
+`node style={circle,draw=red}`. TikZKit measures the inline math with compact
+TeX-style metrics for that layout decision, while the SVG math renderer remains
+responsible for drawing the formula. This avoids an SVG line-box reserve making
+the label frame wider than the local TeX reference.
+
+Run the semantic and visual checks together:
+
+```bash
+node --test --test-name-pattern="compact datavisualization legend math metrics" test/extensions.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-datavis-legend \
+  --only datavisualization-legend-math-metrics \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-datavis-legend \
+  --only datavisualization-legend-math-metrics
+```
+
+Open `outputs/qa-datavis-legend/diff/datavisualization-legend-math-metrics-native-sheet.png`
+and verify the styled label frames, sample paths, and axes. This checks a
+specific legend-layout slice; complex legend matrices and the wider native
+data-visualization survey pipeline remain partial.
+
 For a PGFPlots legend or cached text-placement change, use both the renderer
 test and the legend lowering tests, then inspect the real chart rather than
 accepting only text coordinates:
