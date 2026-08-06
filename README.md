@@ -122,6 +122,18 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
+- The `3d` library now has a focused canvas-plane slice: `plane origin`,
+  `plane x`, `plane y`, `canvas is plane`, and the six `canvas is ... plane at ...`
+  shortcuts project ordinary paths through the active 3D basis. The cylindrical
+  and spherical coordinate systems, plus full transform-order parity for complex
+  same-scope affine option combinations, remain partial. Reproduce the checked
+  manual driver and inspect the generated comparison page before relying on a
+  broader 3D source:
+
+  ```bash
+  npm run examples:render -- --only 3d-canvas-planes \
+    --native-reference --comparison-grid-mode svg
+  ```
 
 ## Requirements And Quick Start
 

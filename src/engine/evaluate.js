@@ -1,5 +1,6 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
+import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
@@ -187,6 +188,8 @@ export function interpretTikz(ast, options = {}) {
       imageResolver: options.imageResolver || null,
       transform: identityTransform()
     };
+    const pictureTransform = composeTransform(identityTransform(), pictureOptions, pictureTransformEnv);
+    const picturePlane = canvasPlaneEnvironment(pictureTransformEnv, pictureOptions, pictureTransform);
     const env = {
       variables: { ...baseVariables },
       coordinates: pictureCoordinates,
@@ -207,9 +210,9 @@ export function interpretTikz(ast, options = {}) {
       chains: initialChains(pictureOptions),
       activeChain: initialActiveChain(pictureOptions),
       toggles: {},
-      transform: composeTransform(identityTransform(), pictureOptions, pictureTransformEnv),
+      transform: picturePlane?.transform || pictureTransform,
       canvasScale: transformCanvasScale(pictureOptions, pictureTransformEnv),
-      basis: pictureBasis,
+      basis: picturePlane?.basis || pictureBasis,
       pictureOptions
     };
     const pictureStart = { itemCount: targetIr.items.length, backgroundItemCount: targetIr.backgroundItems.length };
@@ -757,12 +760,14 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
       normalizeOptions("path", withImplicitStyleOption("every scope", statement.options || {}, scopeStyles), codeEnv).options
     );
     applyOptionCodeHandlers(scopeOptions, codeEnv);
+    const scopedTransform = composeTransform(env.transform, scopeOptions, codeEnv);
+    const scopePlane = canvasPlaneEnvironment(env, scopeOptions, scopedTransform);
     const scopedEnv = {
       ...env,
       variables: scopedVariables,
-      transform: composeTransform(env.transform, scopeOptions, codeEnv),
+      transform: scopePlane?.transform || scopedTransform,
       canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
-      basis: composeBasis(env.basis, scopeOptions, codeEnv),
+      basis: scopePlane?.basis || composeBasis(env.basis, scopeOptions, codeEnv),
       pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, scopeOptions),
       styles: scopeStyles
     };
@@ -1064,6 +1069,15 @@ function fontOptionText(value) {
 }
 
 function isScopeTransformOption(key) {
+  const name = String(key).trim();
+  if (
+    ["plane origin", "plane x", "plane y", "canvas is plane"].includes(name) ||
+    /^canvas is (?:xy|yx) plane at z$/.test(name) ||
+    /^canvas is (?:xz|zx) plane at y$/.test(name) ||
+    /^canvas is (?:yz|zy) plane at x$/.test(name)
+  ) {
+    return true;
+  }
   return [
     "shift",
     "xshift",
@@ -1078,7 +1092,7 @@ function isScopeTransformOption(key) {
     "z",
     "layer",
     "on background layer"
-  ].includes(String(key).trim());
+  ].includes(name);
 }
 
 function isScopeDefinitionOption(key) {
@@ -1121,14 +1135,16 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     resolveDynamicOptions(statement.options || {}, optionEnv),
     optionEnv
   ).options;
+  const pathTransform = shouldApplyStatementTransformToPath(statement)
+    ? composeTransform(env.transform, statementTransformOptions, optionEnv)
+    : env.transform;
+  const pathPlane = canvasPlaneEnvironment(env, options, pathTransform);
   const pathEnv = {
     ...optionEnv,
     pathLet: { points: {}, numbers: {} },
     variables: { ...(env.variables || {}) },
-    transform: shouldApplyStatementTransformToPath(statement)
-      ? composeTransform(env.transform, statementTransformOptions, optionEnv)
-      : env.transform,
-    basis: composeBasis(env.basis, options, optionEnv)
+    transform: pathPlane?.transform || pathTransform,
+    basis: pathPlane?.basis || composeBasis(env.basis, options, optionEnv)
   };
   const subtype = semanticSubtype(pathOptions);
   const clipRect = parseInternalClipRect(pathOptions["tikzkit clip rect"], pathEnv);
@@ -12570,6 +12586,33 @@ function composeBasis(parent, options = {}, env) {
     if (options[key]) next[key] = parseBasisVector(options[key], env.variables, key) || next[key];
   }
   return next;
+}
+
+function canvasPlaneEnvironment(parentEnv, options = {}, transform = parentEnv.transform) {
+  const spec = canvasPlaneSpec(options);
+  if (!spec) return null;
+
+  // Resolve the three defining points through the parent 3D basis, but before
+  // the new scope/path affine transform. Their differences are the local
+  // canvas x/y vectors; the origin is composed into the canvas transform.
+  const coordinateEnv = { ...parentEnv, transform: identityTransform() };
+  const origin = resolveCoordinate(spec.origin, coordinateEnv, []);
+  const xPoint = resolveCoordinate(spec.x, coordinateEnv, []);
+  const yPoint = resolveCoordinate(spec.y, coordinateEnv, []);
+  if (![origin, xPoint, yPoint].every(isFinitePoint)) return null;
+
+  return {
+    transform: multiplyTransforms(transform, translationTransform(origin.x, origin.y)),
+    basis: {
+      ...parentEnv.basis,
+      x: roundPoint({ x: xPoint.x - origin.x, y: xPoint.y - origin.y }),
+      y: roundPoint({ x: yPoint.x - origin.x, y: yPoint.y - origin.y })
+    }
+  };
+}
+
+function isFinitePoint(point) {
+  return Number.isFinite(point?.x) && Number.isFinite(point?.y);
 }
 
 function parseBasisVector(value, variables = {}, axis = "x") {

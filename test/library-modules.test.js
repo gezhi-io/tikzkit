@@ -103,7 +103,8 @@ test("keeps observed TikZ libraries in one module per library name", () => {
   assert.ok(supportedTikzLibraries.includes("calc"));
   assert.ok(supportedTikzLibraries.includes("positioning"));
   assert.ok(supportedTikzLibraries.includes("matrix"));
-  assert.equal(tikzLibraryCatalog["3d"].status, "unsupported");
+  assert.equal(tikzLibraryCatalog["3d"].status, "partial");
+  assert.ok(supportedTikzLibraries.includes("3d"));
   assert.equal(calcLibrary.name, "calc");
   assert.equal(tikzPositioningLibrary.name, "positioning");
   assert.equal(matrixLibrary.name, "matrix");

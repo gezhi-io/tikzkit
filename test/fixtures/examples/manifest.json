@@ -3914,6 +3914,21 @@
         "per-part baseline alignment",
         "nodepart anchors"
       ]
+    },
+    {
+      "id": "3d-canvas-planes",
+      "title": "TikZ 3d orthogonal canvas planes",
+      "source": "3d/canvas-planes.tex",
+      "sourceCorpus": "TeX Live PGF 3d library manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-3d.tex",
+      "semanticOwner": "src/engine/evaluate.js:canvasPlaneEnvironment",
+      "features": [
+        "canvas is zy plane at x",
+        "canvas is zx plane at y",
+        "canvas is xy plane at z",
+        "projected circle paths",
+        "three-dimensional canvas basis"
+      ]
     }
   ]
 }
