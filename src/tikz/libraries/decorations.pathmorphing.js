@@ -1,17 +1,18 @@
 export const tikzLibrary = {
   "name": "decorations.pathmorphing",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:applyPathMorphing/applySnakeDecorationToSubpaths",
+  "implementedBy": "src/engine/evaluate.js:applyPathMorphingToSubpaths/appendNativeSnakePolyline/appendNativeZigzagPolyline",
   "localSourceReviewed": true,
   "features": [
     "native-style snake startup/cycle/end states",
     "snake phase continuity across line/curve subpaths",
     "whole-subpath pre length/post length independent of terminal arrow shortening",
-    "zigzag approximation"
+    "native zigzag quarter-apex, alternating-state, and center-finish phase",
+    "zigzag phase continuity across linear polyline subpaths"
   ],
   "implements": [
     "snake pathmorphing subset",
-    "zigzag approximation"
+    "zigzag pathmorphing subset"
   ],
-  "notes": "Snake follows the local PGF state-machine shape across a complete input subpath. Explicit pre/post lengths control only the decoration; late terminal-arrow shortening does not shift the wave phase. Zigzag and exact native handling at sharp corners or flattened curves remain partial."
+  "notes": "Snake and zigzag follow their local PGF state machines across a complete input subpath. Explicit pre/post lengths control only the decoration; late terminal-arrow shortening does not shift the wave phase. Zigzag now keeps its initial quarter-apex, alternating half-state phase, and center-finish behavior for straight and flattened polyline inputs. Exact native normal changes at sharp corners and arbitrary flattened curves remain partial."
 };

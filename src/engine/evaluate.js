@@ -12168,11 +12168,11 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   // final painted line when it places the tip.
   const preLength = Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0));
   const postLength = Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0));
-  // PGF runs a snake decoration over the complete input subpath. In
-  // particular, its state machine does not restart at each `--` corner and
+  // PGF runs path-morphing decorations over the complete input subpath. In
+  // particular, their state machines do not restart at each `--` corner and
   // pre/post lengths only apply at the subpath endpoints.
-  if (mode === "snake") {
-    return applySnakeDecorationToSubpaths(commands, amplitude, segmentLength, preLength, postLength);
+  if (mode === "snake" || mode === "zigzag") {
+    return applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength);
   }
   const morphed = [];
   let current = null;
@@ -12206,7 +12206,7 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   return morphed;
 }
 
-function applySnakeDecorationToSubpaths(commands, amplitude, segmentLength, preLength, postLength) {
+function applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength) {
   const morphed = [];
   let subpath = [];
 
@@ -12229,7 +12229,7 @@ function applySnakeDecorationToSubpaths(commands, amplitude, segmentLength, preL
 
     const start = points[0];
     morphed.push({ type: "moveTo", x: start.x, y: start.y });
-    appendMorphedPolyline(morphed, points, amplitude, segmentLength, "snake", preLength, postLength);
+    appendMorphedPolyline(morphed, points, amplitude, segmentLength, mode, preLength, postLength);
     if (subpath.at(-1)?.type === "closePath") morphed.push({ type: "closePath" });
     subpath = [];
   };
@@ -12710,19 +12710,7 @@ function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode,
     return;
   }
   if (mode === "zigzag") {
-    const halfSegment = Math.max(segmentLength / 2, 1e-12);
-    const steps = Math.max(1, Math.ceil(activeLength / halfSegment));
-    for (let index = 1; index <= steps; index += 1) {
-      const walked = Math.min(activeLength, index * halfSegment);
-      const sample = pointOnPolyline(points, activeStart + walked);
-      const atEnd = activeLength - walked <= 1e-9;
-      const offset = atEnd ? 0 : amplitude * (index % 2 === 1 ? 1 : -1);
-      commands.push({
-        type: "lineTo",
-        x: roundNumber(sample.x + sample.normal.x * offset),
-        y: roundNumber(sample.y + sample.normal.y * offset)
-      });
-    }
+    appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, activeStart, activeLength);
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
     return;
   }
@@ -12784,6 +12772,43 @@ function appendNativeSnakePolyline(commands, points, amplitude, segmentLength, a
   );
   distance += 0.3125 * segmentLength;
   if (activeLength - distance > 1e-9) commands.push({ type: "lineTo", x: finishAt.x, y: finishAt.y });
+}
+
+function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, activeStart, activeLength) {
+  const point = (distance, normalOffset = 0) => {
+    const sample = pointOnPolyline(points, activeStart + Math.max(0, Math.min(activeLength, distance)));
+    return {
+      x: roundNumber(sample.x + sample.normal.x * normalOffset),
+      y: roundNumber(sample.y + sample.normal.y * normalOffset)
+    };
+  };
+  const pushLineTo = (next) => {
+    const previous = commands.at(-1);
+    if (previous && Math.hypot((previous.x ?? 0) - next.x, (previous.y ?? 0) - next.y) < 1e-9) return;
+    commands.push({ type: "lineTo", x: next.x, y: next.y });
+  };
+  const finishAt = point(activeLength);
+  const halfSegment = segmentLength / 2;
+  if (activeLength < halfSegment - 1e-9) {
+    pushLineTo(finishAt);
+    return;
+  }
+
+  // pgflibrarydecorations.pathmorphing.code.tex declares `zigzag` as an
+  // `up from center` state followed by alternating `big down` / `big up`
+  // states. Each state has width segmentLength / 2 and places its apex at
+  // its local quarter point. If less than a half state remains, PGF emits
+  // `center finish` at the state origin, then joins the actual endpoint.
+  pushLineTo(point(segmentLength / 4, amplitude));
+  let stateOrigin = halfSegment;
+  let phase = -1;
+  while (activeLength - stateOrigin >= halfSegment - 1e-9) {
+    pushLineTo(point(stateOrigin + segmentLength / 4, phase * amplitude));
+    stateOrigin += halfSegment;
+    phase *= -1;
+  }
+  pushLineTo(point(stateOrigin));
+  pushLineTo(finishAt);
 }
 
 function appendSmoothCurveThroughPoints(commands, points) {

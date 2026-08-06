@@ -3915,7 +3915,7 @@ test("scales path arc radii with the TikZ coordinate transform", () => {
   assert.ok(Math.abs(end.y - 0.736121593217) < 1e-6, `expected scaled arc end y=0.7361, got ${end.y}`);
 });
 
-test("approximates zigzag path morphing on decorated edges", () => {
+test("keeps the PGF zigzag state machine active across a decorated edge", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \node (a) at (0,0) {};
@@ -3947,8 +3947,8 @@ test("treats unitless path morphing dimensions as TeX points", () => {
   assert.deepEqual(diagnostics, []);
   assert.ok(maxOffset > 0.04 && maxOffset < 0.09, `expected unitless amplitude=2 to mean 2pt, got ${maxOffset}cm`);
   assert.ok(
-    xValues.some((value) => value > 0.09 && value < 0.12),
-    "expected segment length=6 to create half-segment pt-sized zigzag vertices"
+    xValues.some((value) => value > 0.04 && value < 0.07),
+    "expected segment length=6 to create a native quarter-segment zigzag apex"
   );
 });
 

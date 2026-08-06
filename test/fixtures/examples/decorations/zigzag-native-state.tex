@@ -1,0 +1,13 @@
+% A focused visual regression from PGF's zigzag state declaration.
+% Keep the polyline: the decoration phase must continue through its corner.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,decorations.pathmorphing}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (0,0) -- (2.15,0) -- (2.15,1.25) -- (5.5,1.25);
+  \draw[-stealth, very thick, red, decorate,
+    decoration={zigzag,pre length=2mm,segment length=8mm,amplitude=1.5mm,post length=3mm}]
+    (0,0) -- (2.15,0) -- (2.15,1.25) -- (5.5,1.25);
+\end{tikzpicture}
+\end{document}

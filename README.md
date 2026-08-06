@@ -237,7 +237,7 @@ npm run gallery:audit
 ```
 
 要验证一个视觉改动，使用该案例在清单中的完整 fixture ID，例如
-`decorations-snake-arrow-lengths`。下面的命令会把 JavaScript SVG/PNG、
+`decorations-snake-arrow-lengths` 或 `decorations-zigzag-native-state`。下面的命令会把 JavaScript SVG/PNG、
 `tikztosvg` SVG/PNG、可选的 MacTeX 原生 PNG 和差异面板写入同一个忽略的
 `outputs/qa-*` 目录：
 
@@ -252,6 +252,22 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
 打开 `outputs/qa-snake/index.html` 查看并排结果。接受一次兼容性改动前，既要
 通过相关窄测试，也要实际查看 JS、`tikztosvg`、MacTeX 与 diff 面板；不要只
 根据“页面能显示”或单一 diff 数值下结论。
+
+`zigzag` 已覆盖本机 PGF 的首个四分之一 segment 尖峰、交替的半 segment 状态、
+`center finish` 收尾，以及完整折线路径上的相位连续性。可直接使用
+`pre length`、`segment length`、`amplitude`、`post length` 和终端箭头：
+
+```tex
+\usetikzlibrary{decorations.pathmorphing}
+\draw[-stealth, decorate,
+  decoration={zigzag,pre length=2mm,segment length=8mm,
+    amplitude=1.5mm,post length=3mm}]
+  (0,0) -- (2.15,0) -- (2.15,1.25) -- (5.5,1.25);
+```
+
+用 `node --test test/zigzag-decoration.test.js` 检查状态机顶点与折角相位，并用
+`decorations-zigzag-native-state` 生成三方视觉对照。尖锐折角的法线过渡和任意曲线
+的精确 PGF 展平仍在测试中，不应当作完整 path-morphing 兼容承诺。
 
 `bchart` 的横向柱图可用 `npm test -- test/bchart.test.js` 验证；当前支持
 `\renewcommand{\bcfontstyle}{...}` 的零参数字体钩子，且 `scale` 只缩放几何、
@@ -1637,13 +1653,21 @@ Current support is pragmatic and growing. Highlights:
 - Matrices: common `matrix of nodes`, empty cells, row style overrides, matrix cell anchors.
 - Calc-like coordinates: named coordinates, `($(A)+(1,2)$)`, interpolation, projections.
 - Intersections: named paths and common path intersections.
-- Decorations: markings, arrows along paths, snake/brace/zigzag approximations.
+- Decorations: markings, arrows along paths, verified snake/zigzag state-machine
+  slices, and brace replacement.
   The verified `snake` subset keeps `pre length`, `segment length`, `amplitude`,
   and `post length` on the complete input subpath. Adding `-stealth` or another
   terminal tip shortens only the final painted lead; it does not change the
   wave phase or the requested decoration lengths. See the Case 005 driver at
   `test/fixtures/examples/decorations/snake-arrow-lengths.tex` and its QA
   record in `docs/qa/2026-08-06-snake-arrow-phase.md`.
+- `zigzag` now mirrors PGF's `up from center`, `big down` / `big up`, and
+  `center finish` state sequence. Its apex starts one quarter of a segment
+  from the decoration start and continues across a polyline rather than
+  restarting at every `--`. See
+  `test/fixtures/examples/decorations/zigzag-native-state.tex` and
+  `docs/qa/2026-08-07-decorations-zigzag-state-machine.md`. Exact native
+  normals at sharp corners and arbitrary curve flattening remain partial.
 - Brace replacement follows PGF's remaining-distance state for a polyline:
   it measures the full decorated subpath, but constructs the brace in the
   initial tangent frame. `mirror`, `raise`, `amplitude`, and `aspect` remain

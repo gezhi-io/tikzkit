@@ -4258,6 +4258,23 @@
         "clockwise from",
         "tree child edges"
       ]
+    },
+    {
+      "id": "decorations-zigzag-native-state",
+      "title": "PGF zigzag decoration phase across a polyline",
+      "source": "decorations/zigzag-native-state.tex",
+      "sourceCorpus": "TikZKit regression derived from the local PGF zigzag state declaration",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyPathMorphingToSubpaths/appendNativeZigzagPolyline",
+      "features": [
+        "zigzag",
+        "pre length",
+        "segment length",
+        "amplitude",
+        "post length",
+        "polyline phase continuity",
+        "stealth arrow shortening"
+      ]
     }
   ]
 }
