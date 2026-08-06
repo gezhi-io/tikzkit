@@ -1,4 +1,4 @@
-import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pointAtLength } from "./geometry.js";
+import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
@@ -11266,30 +11266,54 @@ function usesCustomArrowDimension(source = {}, raw = {}, key) {
 
 function applyBraceDecoration(commands, decoration, env) {
   const replaced = [];
-  let current = null;
-  let braceReachedFinalState = false;
+  let subpath = [];
+
+  const flushSubpath = () => {
+    if (!subpath.length) return;
+    const startsWithMove = subpath[0]?.type === "moveTo";
+    const hasDrawableSegment = subpath.some((command) => ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type));
+    if (!startsWithMove || !hasDrawableSegment) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+
+    // PGF's brace state consumes the whole remaining decorated subpath. Its
+    // coordinate frame stays aligned to the initial tangent, even for a
+    // polyline, so the replacement endpoint is the total traversal length
+    // along that initial direction rather than the source subpath endpoint.
+    const points = flattenPath(subpath, 0.04);
+    const start = points[0];
+    const tangentPoint = points.find((point, index) => index > 0 && Math.hypot(point.x - start.x, point.y - start.y) > 1e-12);
+    const length = pathLength(points);
+    if (!start || !tangentPoint || length <= 1e-12) {
+      replaced.push(...subpath);
+      subpath = [];
+      return;
+    }
+    const tangentLength = Math.hypot(tangentPoint.x - start.x, tangentPoint.y - start.y);
+    appendBraceLine(replaced, start, {
+      x: start.x + ((tangentPoint.x - start.x) / tangentLength) * length,
+      y: start.y + ((tangentPoint.y - start.y) / tangentLength) * length
+    }, decoration, env);
+    subpath = [];
+  };
+
   for (const command of commands) {
     if (command.type === "moveTo") {
-      current = { x: command.x, y: command.y };
-      braceReachedFinalState = false;
+      flushSubpath();
+      subpath.push(command);
       continue;
     }
-    if (command.type === "lineTo" && current && !braceReachedFinalState) {
-      appendBraceLine(replaced, current, { x: command.x, y: command.y }, decoration, env);
-      current = { x: command.x, y: command.y };
-      // PGF's brace declaration consumes the current input segment with
-      // `next state=final`; later segments in this subpath are not restarted.
-      braceReachedFinalState = true;
+    if (subpath.length && ["lineTo", "quadTo", "curveTo", "closePath"].includes(command.type)) {
+      subpath.push(command);
+      if (command.type === "closePath") flushSubpath();
       continue;
     }
-    if (braceReachedFinalState) {
-      if ("x" in command) current = { x: command.x, y: command.y };
-      continue;
-    }
-    if (!replaced.length && current) replaced.push({ type: "moveTo", x: current.x, y: current.y });
+    flushSubpath();
     replaced.push(command);
-    if ("x" in command) current = { x: command.x, y: command.y };
   }
+  flushSubpath();
   return replaced.length ? replaced : commands;
 }
 

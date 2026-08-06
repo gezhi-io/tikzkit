@@ -1014,6 +1014,13 @@ Current support is pragmatic and growing. Highlights:
   wave phase or the requested decoration lengths. See the Case 005 driver at
   `test/fixtures/examples/decorations/snake-arrow-lengths.tex` and its QA
   record in `docs/qa/2026-08-06-snake-arrow-phase.md`.
+- Brace replacement follows PGF's remaining-distance state for a polyline:
+  it measures the full decorated subpath, but constructs the brace in the
+  initial tangent frame. `mirror`, `raise`, `amplitude`, and `aspect` remain
+  available. The checked driver is
+  `test/fixtures/examples/decorations/brace-polyline-continuity.tex`; arbitrary
+  non-linear input paths and the other path-replacing decorations remain
+  partial. See `docs/qa/2026-08-05-brace-polyline-final-state.md`.
 - Path text: `decorations.text` supports ordinary `text along path` and the
   documented `text effects along path` character pipeline with
   `text effects={reverse text}`. The reverse operation runs before per-glyph
