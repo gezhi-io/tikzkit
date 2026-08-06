@@ -42,6 +42,56 @@ For a copyable Chinese guide to the browser workbench, CLI export, JavaScript
 API, three-way visual verification, and the current testing boundary, see
 [使用指南](docs/usage.md).
 
+## Start Here
+
+Use the repository in this order. A successful browser render is useful for
+editing, but is not a claim of native TikZ compatibility.
+
+```bash
+# Install the JavaScript dependencies once.
+npm install
+
+# Open the local browser workbench.
+npm run web
+
+# Or keep an existing workbench running and use another port.
+PORT=5174 npm run web
+```
+
+Open <http://127.0.0.1:5173/> (or the chosen port), select a maintained case,
+edit the source, and inspect the TikZKit SVG plus diagnostics. The workbench
+uses only browser JavaScript: it does not call LaTeX or read arbitrary local
+files.
+
+To export one source without any QA overlay:
+
+```bash
+node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
+```
+
+To decide whether a changed real case is usable, generate one local comparison
+bundle and inspect it rather than relying on a pixel-diff score:
+
+```bash
+npm run case:audit -- path/to/case.tex \
+  --output outputs/qa-case/audit.md \
+  --init-review outputs/qa-case/review.json
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only <fixture-id> \
+  --output outputs/qa-case \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+
+npm run examples:diff -- --output outputs/qa-case \
+  --register --alignment-radius 3
+```
+
+Open `outputs/qa-case/index.html` for the TikZKit and `tikztosvg` SVG panels.
+The same directory contains the local MacTeX PNG and four-panel diff sheet.
+Check missing elements, coordinate origin and scale, labels, formulas, arrows,
+stroke weight, clipping, and paint order. `outputs/` and `output/` are local
+artifacts ignored by Git; never include them in a compatibility commit.
+
 ### Choose A Workflow
 
 | Goal | Command | What it does |

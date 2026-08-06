@@ -28,6 +28,7 @@ coverage/
 .playwright-cli/
 
 # Generated TikZ/gallery artifacts
+output/
 outputs/
 outputs_back/
 web_bak/

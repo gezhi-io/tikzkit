@@ -4,11 +4,23 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-当前维护语料的语义基线为 `297/297 rendered, 0 diagnostics`。这只表示这批
+当前维护语料的语义基线为 `301/301 rendered, 0 diagnostics`。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
 是 partial 或 unsupported。
+
+## 快速选择
+
+| 想做什么 | 使用方式 | 完成条件 |
+| --- | --- | --- |
+| 在线编辑和预览 | 启动网页编辑器 | SVG 出现且 diagnostics 已检查；不代表已与 LaTeX 一致。 |
+| 导出一个 SVG | 运行 CLI | 输出 SVG 已写入目标路径。 |
+| 改一个真实案例 | 先 audit，再生成三方图和 diff | 实际检查 TikZKit、`tikztosvg`、MacTeX 和 diff 面板，写明遗留差异。 |
+| 提交兼容性改动 | 运行聚焦测试、语义基线和视觉验收 | 只提交实现、测试、fixture、registry、QA 记录。 |
+
+`outputs/` 和 `output/` 都是被 Git 忽略的本地生成目录。可放心在其中放 SVG、PNG、
+审计 JSON 和对照页；不要将它们加入提交。
 
 ## 1. 启动网页编辑器
 
