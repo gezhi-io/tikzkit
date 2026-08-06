@@ -259,10 +259,19 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
 
 ### Current validation scope
 
-- A selected 30-case LaTeX-examples batch currently renders without diagnostics
-  and stays within 1.5pt of the local `tikztosvg` canvas dimensions.
-- Those 30 JS/reference/diff sheets have been reviewed visually. This is a
-  focused compatibility gate, not a claim that arbitrary TikZ input works.
+- A batch is only a triage run until every selected case has its JS,
+  `tikztosvg`, MacTeX, and diff panel inspected. Successful generation of all
+  reference files, a low aggregate diff, or a matching SVG canvas size does
+  **not** mean that the batch is visually accepted.
+- Use `npm run case:audit` before a change to inventory every package, library,
+  command, option, macro, and numeric expression in the source. Then use the
+  single-case commands in [使用指南](docs/usage.md#4-验证一个真实案例) to accept
+  one clearly bounded behavior. Use the batch command only to find the next
+  highest-impact visual discrepancy.
+- A compatibility commit must name its accepted case and feature slice in
+  `docs/qa/`, include a focused regression test, and leave generated
+  `output/` and `outputs/` directories untracked. The project has no blanket
+  “all examples are compatible” claim while it remains under active testing.
 - Exact glyph hinting and antialiasing can still differ between browser SVG and
   PDF-to-SVG output even when geometry and text placement agree.
 - `shapes.multipart` now verifies horizontal `rectangle split` alignment
