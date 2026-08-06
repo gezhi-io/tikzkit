@@ -130,6 +130,8 @@ npm install
 npm run web
 
 # 2. 在浏览器打开 http://127.0.0.1:5173/，选择一个案例或直接编辑源码。
+#    点击 Render 后，“Semantic inventory”会重新审计当前编辑内容，列出实际出现的
+#    package/library、命令、环境、参数、定义、数值和表达式；再次编辑后会提示重新渲染。
 
 # 3. 将单个源文件转换成可嵌入的 SVG。
 node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg

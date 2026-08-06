@@ -21,6 +21,7 @@ const state = {
   lastSvg: "",
   previewIsStale: false,
   audit: null,
+  auditSource: "",
   resources: new Map(),
   editor: null
 };
@@ -48,6 +49,7 @@ async function loadFixture(id) {
   state.lastRenderedSource = readDraft(fixture.id) ?? source;
   state.previewIsStale = false;
   state.audit = audit;
+  state.auditSource = source;
   state.resources = new Map(resourceRows);
   document.querySelector("#fixture-select").value = fixture.id;
   state.editor.setValue(state.lastRenderedSource, { silent: true });
@@ -73,32 +75,48 @@ async function loadFixtureAudit(fixture) {
   }
 }
 
+async function auditWorkbenchSource(source) {
+  const response = await fetch("/api/audit", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ source })
+  });
+  if (!response.ok) throw new Error(`Could not audit current source (${response.status})`);
+  return response.json();
+}
+
 async function renderCurrentSource(token = requestGate.current()) {
   const button = document.querySelector("#render-button");
   button.disabled = true;
   const source = state.editor.getValue();
   const activeFigureId = state.active?.activeFigureId || undefined;
   try {
-    const result = await renderWorkbenchSource(source, {
-      activeFigureId,
-      pgfplotsTableResolver: (file) => {
-        const resource = state.resources.get(normalizeResourceName(file));
-        return typeof resource === "string" ? resource : undefined;
-      },
-      imageResolver: (file) => {
-        const resource = state.resources.get(normalizeResourceName(file));
-        return resource && typeof resource === "object" ? resource : undefined;
-      }
-    });
+    const [result, audit] = await Promise.all([
+      renderWorkbenchSource(source, {
+        activeFigureId,
+        pgfplotsTableResolver: (file) => {
+          const resource = state.resources.get(normalizeResourceName(file));
+          return typeof resource === "string" ? resource : undefined;
+        },
+        imageResolver: (file) => {
+          const resource = state.resources.get(normalizeResourceName(file));
+          return resource && typeof resource === "object" ? resource : undefined;
+        }
+      }),
+      auditWorkbenchSource(source).catch((error) => ({ error: error.message }))
+    ]);
     if (!requestGate.isCurrent(token)) return;
 
     state.lastSvg = result.svg;
     state.lastRenderedSource = source;
     state.previewIsStale = false;
+    state.audit = audit;
+    state.auditSource = source;
     showTikzkitSvg(result.svg);
     showDiagnostics(result.diagnostics);
+    showSemanticInventory();
     updateDraftStatus();
-    setRenderStatus(`${result.elapsedMs}ms · ${result.diagnostics.length} diagnostics`);
+    setRenderStatus(`${result.elapsedMs}ms · ${result.diagnostics.length} diagnostics · source audit updated`);
   } finally {
     if (requestGate.isCurrent(token)) button.disabled = false;
   }
@@ -255,12 +273,13 @@ function semanticSummaryText(counts, gate, suffix = "") {
 function updateSemanticDraftState(modified) {
   const details = document.querySelector("#semantic-details");
   const summary = document.querySelector("#semantic-summary");
-  details.classList.toggle("is-stale", Boolean(modified && state.audit && !state.audit.error));
+  const auditIsCurrent = state.auditSource === state.editor?.getValue();
+  details.classList.toggle("is-stale", Boolean(state.audit && !state.audit.error && !auditIsCurrent));
   if (state.audit?.summary && state.audit?.gate) {
     summary.textContent = semanticSummaryText(
       state.audit.summary,
       state.audit.gate,
-      modified ? " · fixture source only" : ""
+      auditIsCurrent ? (modified ? " · current draft" : " · fixture source") : " · render to audit draft"
     );
   }
 }

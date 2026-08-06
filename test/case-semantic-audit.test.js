@@ -158,7 +158,10 @@ test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", ()
   );
   assert.equal(dependency.localSourceFound, true);
   assert.equal(dependency.localSourceReviewed, true);
-  assert.equal(dependency.implementedBy, "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip");
+  assert.equal(
+    dependency.implementedBy,
+    "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/latexArrowGeometryFromLineWidth + src/renderers/svg/paths.js:inlineArrowGeometry"
+  );
 });
 
 test("semantic audit preserves reviewed PGFPlots library metadata and date label ownership", () => {

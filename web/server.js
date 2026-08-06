@@ -45,6 +45,18 @@ export async function createWorkbenchServer(options = {}) {
         return sendJson(response, audit);
       }
 
+      if (url.pathname === "/api/audit" && request.method === "POST") {
+        const payload = await readJsonBody(request);
+        if (!payload || typeof payload !== "object" || Array.isArray(payload) || typeof payload.source !== "string") {
+          return sendJson(response, { error: "Expected a string field named source." }, 400);
+        }
+        const report = auditTikzSource(payload.source, {
+          sourcePath: "workbench-draft.tex",
+          localSourceResolver: (lookup) => resolveLocalSource(lookup, localSourceCache)
+        });
+        return sendJson(response, publicAudit(report));
+      }
+
       const resourceMatch = url.pathname.match(/^\/api\/fixtures\/([^/]+)\/resources\/(\d+)$/);
       if (resourceMatch) {
         const currentCatalog = await loadMilestoneCatalog({ fixtureRoot, outputRoot });
@@ -58,9 +70,33 @@ export async function createWorkbenchServer(options = {}) {
       if (!route) return sendStatus(response, 404);
       return sendFile(response, route);
     } catch (error) {
-      return sendJson(response, { error: error.message }, 500);
+      const status = error instanceof RequestBodyError ? error.status : 500;
+      return sendJson(response, { error: error.message }, status);
     }
   });
+}
+
+class RequestBodyError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function readJsonBody(request, maxBytes = 1_000_000) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBytes) throw new RequestBodyError(413, "Source is limited to 1 MB.");
+    chunks.push(chunk);
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new RequestBodyError(400, "Request body must be valid JSON.");
+  }
 }
 
 function fixtureAudit(fixture, source, auditCache, localSourceCache) {

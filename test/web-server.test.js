@@ -121,6 +121,35 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.ok(audit.commands.every((entry) => !Object.hasOwn(entry, "localSource")));
   assert.ok(audit.dependencies.every((entry) => !Object.hasOwn(entry, "localSource")));
   assert.ok(audit.dependencies.some((entry) => entry.lookup));
+
+  const draftSource = String.raw`\usetikzlibrary{calc}
+\begin{tikzpicture}
+  \draw[red, very thick] (0,0) -- (1,1);
+\end{tikzpicture}`;
+  const draftAuditResponse = await fetch(`http://127.0.0.1:${port}/api/audit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ source: draftSource })
+  });
+  const draftAudit = await draftAuditResponse.json();
+  assert.equal(draftAuditResponse.status, 200);
+  assert.ok(draftAudit.dependencies.some((entry) => entry.name === "calc"));
+  assert.ok(draftAudit.commands.some((entry) => entry.name === "\\draw"));
+  assert.ok(draftAudit.options.some((entry) => entry.key === "very thick"));
+
+  const invalidDraftAudit = await fetch(`http://127.0.0.1:${port}/api/audit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "not-json"
+  });
+  assert.equal(invalidDraftAudit.status, 400);
+
+  const missingSourceAudit = await fetch(`http://127.0.0.1:${port}/api/audit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "null"
+  });
+  assert.equal(missingSourceAudit.status, 400);
   assert.equal(compiler.status, 200);
   assert.equal(codeMirror.status, 200);
   assert.equal(codeMirror.headers.get("content-type"), "text/javascript; charset=utf-8");
