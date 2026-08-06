@@ -316,16 +316,22 @@ test("capability matrix records supported and partial renderer seams", () => {
   assert.ok(featureRegistries.pgfplots.includes("pgfplots_3d_surface"));
 });
 
-test("capability matrix feature fixtures point to concrete source fixtures", () => {
+test("capability matrix feature fixtures point to concrete sources or checked manifests", () => {
   for (const featureId of featureIds) {
     const entry = capabilityMatrix[featureId];
     assert.ok(Array.isArray(entry.fixtures), `missing fixture list for ${featureId}`);
     assert.ok(entry.fixtures.length > 0, `missing concrete fixtures for ${featureId}`);
     for (const fixture of entry.fixtures) {
       assert.match(fixture, /^test\/fixtures\//, `${featureId} fixture must live under test/fixtures: ${fixture}`);
-      assert.ok(/\.(?:tex|tikz)$/.test(fixture), `${featureId} fixture must be a .tex or .tikz source: ${fixture}`);
       assert.ok(existsSync(fixture), `${featureId} fixture does not exist: ${fixture}`);
       assert.equal(statSync(fixture).isFile(), true, `${featureId} fixture must be a file: ${fixture}`);
+      if (/\.json$/.test(fixture)) {
+        const manifest = JSON.parse(readFileSync(fixture, "utf8"));
+        assert.ok(Array.isArray(manifest.caseIds) && manifest.caseIds.length > 0, `${featureId} manifest must name at least one case: ${fixture}`);
+        assert.equal(typeof manifest.sourceManifest, "string", `${featureId} manifest must name its source manifest: ${fixture}`);
+      } else {
+        assert.ok(/\.(?:tex|tikz)$/.test(fixture), `${featureId} fixture must be a .tex, .tikz, or checked JSON manifest: ${fixture}`);
+      }
     }
   }
 });
