@@ -52,6 +52,25 @@ test("constructs tkz-euclide circle-circle intersections with native result orde
   assert.equal(structuralPaths(result).length, 1);
 });
 
+test("constructs tkz-euclide circle-circle intersections from documented with-nodes radii", () => {
+  const source = String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzDefPoints{0/0/A,4/0/P,5/0/B,8/0/Q}
+  \tkzInterCC[with nodes](A,A,P)(B,B,Q)\tkzGetPoints{Upper}{Lower}
+  \tkzDrawCircle(A,P)
+  \tkzDrawCircle(B,Q)
+  \tkzDrawSegments(A,Upper B,Upper A,Lower B,Lower)
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(result.ir.coordinates.Upper, { x: 3.2, y: 2.4 });
+  assert.deepEqual(result.ir.coordinates.Lower, { x: 3.2, y: -2.4 });
+  assert.equal(result.ir.items.filter((item) => item.type === "path" && item.shape === "circle").length, 2);
+  assert.equal(result.ir.items.filter((item) => item.type === "path" && item.commands.length === 2).length, 4);
+});
+
 test("keeps a tkzInterCC common point as the native second result", () => {
   const source = String.raw`
 \usepackage{tkz-euclide}

@@ -825,18 +825,13 @@ function expandInterCC(source, afterName, state, diagnostics) {
   if (!firstCircle || !secondCircle) return malformed(diagnostics, "tkzInterCC");
 
   const options = parseOptions(optional.content);
-  if (Object.hasOwn(options, "with nodes")) {
-    warnOnce(
-      state,
-      diagnostics,
-      "tkzInterCC-with-nodes",
-      "tkz-euclide compatibility currently supports tkzInterCC center-point and [R] radius forms, not [with nodes]"
-    );
-    return { text: "", end: secondCircle.end };
-  }
-
-  const first = resolveCircleCircleInput(firstCircle.content, Object.hasOwn(options, "R"), state);
-  const second = resolveCircleCircleInput(secondCircle.content, Object.hasOwn(options, "R"), state);
+  const radiusMode = Object.hasOwn(options, "with nodes")
+    ? "nodes"
+    : Object.hasOwn(options, "R")
+      ? "explicit"
+      : "center-point";
+  const first = resolveCircleCircleInput(firstCircle.content, radiusMode, state);
+  const second = resolveCircleCircleInput(secondCircle.content, radiusMode, state);
   if (!first || !second) {
     warn(diagnostics, `Could not resolve tkzInterCC inputs (${firstCircle.content})(${secondCircle.content})`);
     return { text: "", end: secondCircle.end };
@@ -2094,12 +2089,20 @@ function lineCircleIntersections(first, second, center, radius) {
   ];
 }
 
-function resolveCircleCircleInput(content, explicitRadius, state) {
+function resolveCircleCircleInput(content, radiusMode, state) {
   const parts = splitTopLevel(content, ",").map((part) => part.trim()).filter(Boolean);
+  if (radiusMode === "nodes") {
+    if (parts.length !== 3) return null;
+    const center = state.points.get(parts[0]);
+    const radiusStart = state.points.get(parts[1]);
+    const radiusEnd = state.points.get(parts[2]);
+    const radius = radiusStart && radiusEnd ? distanceBetween(radiusStart, radiusEnd) : Number.NaN;
+    return center && Number.isFinite(radius) && radius > 1e-12 ? { center, radius } : null;
+  }
   if (parts.length !== 2) return null;
   const center = state.points.get(parts[0]);
   if (!center) return null;
-  const radius = explicitRadius
+  const radius = radiusMode === "explicit"
     ? dimensionToCentimeters(resolveNumericMacros(parts[1], state))
     : distanceBetween(center, state.points.get(parts[1]) || {});
   return Number.isFinite(radius) && radius > 1e-12 ? { center, radius } : null;

@@ -1,0 +1,19 @@
+% Adapted from the documented tkz-euclide tkzInterCC[with nodes] form.
+% Each circle supplies a center and two points whose separation is its radius.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usepackage{tkz-euclide}
+\begin{document}
+\begin{tikzpicture}[scale=.8]
+  \tkzDefPoints{0/0/A,4/0/P,5/0/B,8/0/Q}
+  \tkzInterCC[with nodes](A,A,P)(B,B,Q)\tkzGetPoints{C}{D}
+
+  \tkzDrawCircle(A,P)
+  \tkzDrawCircle(B,Q)
+  \tkzDrawSegments[gray](A,C B,C A,D B,D)
+  \tkzDrawPoints(A,B,C,D)
+  \tkzLabelPoints[below](A,B)
+  \tkzLabelPoints[above](C)
+  \tkzLabelPoints[below](D)
+\end{tikzpicture}
+\end{document}
