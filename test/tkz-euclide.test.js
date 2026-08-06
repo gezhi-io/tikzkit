@@ -362,7 +362,7 @@ test("constructs line-circle intersections with native tkz-euclide ordering cont
   assert.deepEqual(result.ir.coordinates.NodeRight, { x: 3, y: 0 });
 });
 
-test("keeps tkz-euclide line-circle default result order under a magnifying picture transform", () => {
+test("keeps tkz-euclide line-circle named results stable under a magnifying picture transform", () => {
   const source = String.raw`
 \usepackage{tkz-euclide}
 \begin{tikzpicture}[scale=1.5]
@@ -372,10 +372,20 @@ test("keeps tkz-euclide line-circle default result order under a magnifying pict
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(Math.abs(result.ir.coordinates.E.x - 4.3416407865) < 1e-9);
-  assert.ok(Math.abs(result.ir.coordinates.E.y - 2.683281573) < 1e-9);
-  assert.ok(Math.abs(result.ir.coordinates.C.x - 1.6583592135) < 1e-9);
-  assert.ok(Math.abs(result.ir.coordinates.C.y + 2.683281573) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.E.x - 1.6583592135) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.E.y + 2.683281573) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.C.x - 4.3416407865) < 1e-9);
+  assert.ok(Math.abs(result.ir.coordinates.C.y - 2.683281573) < 1e-9);
+});
+
+test("keeps the scaled Thales triangle on the forward circle intersection", () => {
+  const source = readFileSync(new URL("./fixtures/examples/tkz-euclide/thales-circle-triangle.tex", import.meta.url), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(result.ir.coordinates.C.y > 0, "C should remain on the upper semicircle");
+  assert.ok(result.ir.coordinates.E.y < 0, "E should remain on the opposite line-circle contact");
+  assert.ok(result.ir.coordinates.C.y > result.ir.coordinates.E.y);
 });
 
 test("constructs external circle tangents in tkz-euclide order and preserves their inversion intersection", () => {

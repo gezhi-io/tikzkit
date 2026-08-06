@@ -1,5 +1,11 @@
 # tkz-euclide line-circle scale-order QA
 
+> Superseded on 2026-08-07 by
+> `docs/qa/2026-08-07-tkz-euclide-scaled-line-circle-results.md`.
+> The earlier scale-specific result swap was disproved by fresh MacTeX and
+> tikztosvg panels for the full Thales construction; do not use this note as
+> an acceptance claim.
+
 ## Scope
 
 This pass covers one construction family only: `\tkzInterLC` followed by

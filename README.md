@@ -1366,15 +1366,16 @@ Keep the resulting `mactex-png/`, `tikzkit-svg/`, `tikzkit-png/`,
 the minimum evidence bundle for a visual compatibility change.
 
 For `tkz-euclide` construction results, include `--native-reference` and use
-the native MacTeX panel as the acceptance target. The converter's fixed wrapper
-preamble can expose a different root order for scale-sensitive legacy geometry
-macros. The focused line-circle check is:
+the native MacTeX panel as the acceptance target. A picture transform changes
+the rendered coordinates but must not change the names bound by
+`\\tkzGetPoints`; the focused line-circle/Thales check is:
 
 ```bash
 node --test test/tkz-euclide.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
   --output outputs/qa-tkz-interlc \
   --only tkz-euclide-line-circle-intersections \
+  --only tkz-euclide-thales-circle-triangle \
   --native-reference --comparison-grid-mode svg
 npm run examples:diff -- --output outputs/qa-tkz-interlc
 ```
