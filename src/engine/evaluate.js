@@ -1354,7 +1354,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
-  const shadows = pathGeneralShadows(semantic, pathEnv);
+  const shadows = pathGeneralShadows(semantic, pathEnv, style);
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
   if (visible) {
     const doubleStyle = doublePathStyle(semantic, env);
@@ -8721,7 +8721,7 @@ function addNodeItems(node, ir, env) {
       tikzquadsKind: semantic["tikzquads kind"],
       tikzquadsOptions: tikzquadsNodeOptions(semantic),
       doubleColor: semantic.double === undefined ? undefined : semantic.double || "white",
-      shadows: nodeGeneralShadows({ ...node.options, ...semantic }, nodeEnv),
+      shadows: nodeGeneralShadows({ ...node.options, ...semantic }, nodeEnv, style),
       parts: shape === "rectangleSplit" ? node.rectangleSplit?.count || rectangleSplitParts(semantic) : undefined,
       rectangleSplitHorizontal: shape === "rectangleSplit" ? node.rectangleSplit?.horizontal : undefined,
       rectangleSplitDrawSplits:
@@ -9128,13 +9128,16 @@ function svgTextAnchorForNode(options = {}, semantic = {}) {
   return undefined;
 }
 
-function pathGeneralShadows(semantic = {}, env) {
+function pathGeneralShadows(semantic = {}, env, mainStyle = {}) {
   const shadows = [];
   if (semantic["general shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["general shadow"]).map((value) => parseGeneralShadow(value, env)).filter(Boolean));
   }
   if (semantic["drop shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["drop shadow"]).map((value) => parseDropShadow(value, env)).filter(Boolean));
+  }
+  if (semantic["copy shadow"] !== undefined) {
+    shadows.push(...optionValueList(semantic["copy shadow"]).map((value) => parseCopyShadow(value, env, mainStyle)).filter(Boolean));
   }
   if (semantic["blur shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["blur shadow"]).map((value) => parseBlurShadow(value, env)).filter(Boolean));
@@ -9158,6 +9161,18 @@ function parseDropShadow(value, env) {
     fill: "black!50",
     // PGF's `drop shadow` style runs this hook after its defaults, while
     // the caller's option list still has the final word.
+    "every shadow": true
+  }, parseOptions(String(value === true ? "" : value)));
+  return parseShadowFromOptions(shadowOptions, env);
+}
+
+function parseCopyShadow(value, env, mainStyle = {}) {
+  const shadowOptions = orderedShadowOptions({
+    "shadow scale": 1,
+    "shadow xshift": ".5ex",
+    "shadow yshift": ".5ex",
+    fill: mainStyle.fill || "none",
+    draw: mainStyle.stroke || "none",
     "every shadow": true
   }, parseOptions(String(value === true ? "" : value)));
   return parseShadowFromOptions(shadowOptions, env);

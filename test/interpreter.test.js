@@ -2306,6 +2306,40 @@ test("applies drop-shadow defaults to node preactions", () => {
   assert.match(result.svg, /class="tikz-node-shadow"/);
 });
 
+test("copies ordinary path fill and draw styles behind copy shadows", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}
+  \filldraw[copy shadow={opacity=.5},fill=blue!20,draw=blue,thick] (0,0) rectangle (2,1);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path.shadows.length, 1);
+  assert.equal(path.shadows[0].style.fill, "rgb(204 204 255)");
+  assert.equal(path.shadows[0].style.stroke, "blue");
+  expectClose(path.shadows[0].style.opacity, 0.5, 1e-12);
+  expectClose(path.shadows[0].xshift, 0.5 * 4.30554 / 28.4527559, 1e-12);
+  expectClose(path.shadows[0].yshift, 0.5 * 4.30554 / 28.4527559, 1e-12);
+  assert.match(result.svg, /class="tikz-path-shadow"/);
+  assert.match(result.svg, /stroke="blue" fill="rgb\(204 204 255\)"/);
+});
+
+test("copies ordinary node fill and draw styles behind copy shadows", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}
+  \node[copy shadow,fill=blue!20,draw=blue] at (0,0) {Copy};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const node = result.ir.items.find((item) => item.type === "nodeBox");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(node.shadows.length, 1);
+  assert.equal(node.shadows[0].style.fill, "rgb(204 204 255)");
+  assert.equal(node.shadows[0].style.stroke, "blue");
+  assert.match(result.svg, /class="tikz-node-shadow"/);
+});
+
 test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   const source = String.raw`
 \begin{tikzpicture}

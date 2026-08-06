@@ -4401,6 +4401,21 @@
         "path preaction",
         "SVG filter"
       ]
+    },
+    {
+      "id": "shadows-copy-shadow-path",
+      "title": "PGF copy shadow inherits path paint",
+      "source": "shadows/copy-shadow-path.tex",
+      "sourceCorpus": "TeX Live PGF shadows manual",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshadows.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:parseCopyShadow",
+      "features": [
+        "copy shadow",
+        "fill inheritance",
+        "draw inheritance",
+        "every shadow",
+        "path preaction"
+      ]
     }
   ]
 }

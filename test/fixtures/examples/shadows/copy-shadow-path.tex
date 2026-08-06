@@ -1,0 +1,12 @@
+% Derived from the local PGF shadows copy-shadow source and manual.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadows}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (-.25,-.25) grid (2.75,1.75);
+  \filldraw[copy shadow={opacity=.5},fill=blue!20,draw=blue,thick]
+    (0,0) rectangle (2,1);
+\end{tikzpicture}
+\end{document}
