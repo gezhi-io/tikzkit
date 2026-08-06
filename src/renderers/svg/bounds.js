@@ -25,11 +25,13 @@ export function computeSvgBounds(items, options = {}) {
     if (item.overlay || item.excludeFromBounds) continue;
     if (item.type === "nodeBox") {
       const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
+      const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
+      const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
       includeRotatedRectangleBounds(
-        item.x - item.width / 2 - strokePad,
-        item.y - item.height / 2 - strokePad,
-        item.x + item.width / 2 + strokePad,
-        item.y + item.height / 2 + strokePad,
+        item.x - item.width / 2 - strokePad - foregroundOuterX,
+        item.y - item.height / 2 - strokePad - foregroundOuterY,
+        item.x + item.width / 2 + strokePad + foregroundOuterX,
+        item.y + item.height / 2 + strokePad + foregroundOuterY,
         item.rotation,
         item.x,
         item.y,

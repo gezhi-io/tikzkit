@@ -7498,6 +7498,10 @@ function addNodeItems(node, ir, env) {
     circleSplit: node.circleSplit || null
   };
   const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, nodeEnv), nodeEnv.canvasScale);
+  // shapes.misc foreground paths use inherited rectangle anchors, which include outer sep.
+  const foregroundOuterSep = shape === "crossOut" || shape === "strikeOut"
+    ? scaleNodeOuterSep(nodeOuterSep(node.options || {}, nodeEnv), nodeEnv)
+    : undefined;
   const shadingStyle = pathShadingStyle(style, semantic, nodeEnv);
   const shadedFill = shadingStyle.fill || null;
   const textStyle = {
@@ -7635,6 +7639,7 @@ function addNodeItems(node, ir, env) {
       width: size.width,
       height: size.height,
       strokeBoundsIncluded: true,
+      foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
       appendAfterCommand: semantic["append after command"],
@@ -10177,6 +10182,14 @@ function nodeOuterSep(options = {}, env = { variables: {} }) {
   return {
     x: parseOuterSepDimension(options["outer xsep"] ?? options["outer sep"], defaultSep, env),
     y: parseOuterSepDimension(options["outer ysep"] ?? options["outer sep"], defaultSep, env)
+  };
+}
+
+function scaleNodeOuterSep(separation = {}, env = {}) {
+  const scale = canvasLengthScale(env);
+  return {
+    x: roundNumber(Math.max(0, Number(separation.x) || 0) * scale),
+    y: roundNumber(Math.max(0, Number(separation.y) || 0) * scale)
   };
 }
 
@@ -13697,11 +13710,13 @@ function computeItemsBoundingBox(items = [], fallback = { minX: 0, minY: 0, maxX
 function includeItemBounds(item, include) {
   if (item.overlay || item.excludeFromBounds) return;
   if (item.type === "nodeBox") {
+    const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
+    const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
     includeRotatedItemRectangle(
-      item.x - item.width / 2,
-      item.y - item.height / 2,
-      item.x + item.width / 2,
-      item.y + item.height / 2,
+      item.x - item.width / 2 - foregroundOuterX,
+      item.y - item.height / 2 - foregroundOuterY,
+      item.x + item.width / 2 + foregroundOuterX,
+      item.y + item.height / 2 + foregroundOuterY,
       item,
       include
     );

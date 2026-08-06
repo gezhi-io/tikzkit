@@ -131,10 +131,12 @@ export function renderPathPictureOverlay(item, unit) {
 }
 
 export function renderMiscOutNodeBox(item, unit) {
-  const x1 = (item.x - item.width / 2) * unit;
-  const x2 = (item.x + item.width / 2) * unit;
-  const y1 = -(item.y + item.height / 2) * unit;
-  const y2 = -(item.y - item.height / 2) * unit;
+  const outerX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
+  const outerY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
+  const x1 = (item.x - item.width / 2 - outerX) * unit;
+  const x2 = (item.x + item.width / 2 + outerX) * unit;
+  const y1 = -(item.y + item.height / 2 + outerY) * unit;
+  const y2 = -(item.y - item.height / 2 - outerY) * unit;
   const secondDiagonal = item.shape === "crossOut" ? ` M ${format(x1)} ${format(y1)} L ${format(x2)} ${format(y2)}` : "";
   return `<path class="tikz-shape-${item.shape === "crossOut" ? "cross-out" : "strike-out"}" d="M ${format(x1)} ${format(
     y2

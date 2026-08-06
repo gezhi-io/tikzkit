@@ -28,7 +28,7 @@ Every `*-sheet.png` was inspected. Panel order is TikZKit, tikztosvg, diff.
 - Segment endpoints and crossing coordinates agree. `lines-intersections` contains all 15 requested segments and 30 `to path` endpoint crosses. `knot-trefoil` contains the shared cubic path with six cubic segments.
 - No case emits an error diagnostic.
 
-One shared residual was located but not changed because its implementation is outside this pass's allowed files. Native `cross out` foreground diagonals extend to about `+/-2.39pt` from the node center, while the current JS foreground path extends to about `+/-1.99pt`. This produces the small red specks around endpoint crosses in the diff panels, especially when a cross overlaps an axis. The active geometry is emitted by `src/renderers/svg/nodeOverlays.js`, which is explicitly out of scope. Editing `src/tikz/libraries/shapes.misc.js` metadata would not improve the pixels, so no ineffective library-only patch was made.
+At the time of this pass, the remaining shared mismatch was `cross out` endpoint extent: native foreground diagonals used inherited rectangle corners including `outer sep`, while the JS path used only the visible node box. That follow-up is now implemented and recorded in [the shapes.misc outer-separation QA](2026-08-06-shapes-misc-cross-out-outer-sep.md); this document keeps the earlier observation so the source of the old diff specks remains traceable.
 
 `lines-intersections` also retains small glyph-raster differences in the `tkz-fct` tick labels. Its segment coordinates, widths, endpoints, grid, axes, and bbox agree. The remaining text behavior is owned by the `tkz-fct` preprocessing/text renderer path, also outside the permitted edit surface.
 

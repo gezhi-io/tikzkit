@@ -113,6 +113,11 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
   same-picture tikzmark overlay can resolve its anchors. It is not a general
   TeX table implementation: complex column preambles, multicolumn, multirow,
   and native cross-picture remember-picture cropping remain unsupported.
+- `shapes.misc` now verifies the `cross out` and `strike out` foreground-path
+  slice against the inherited rectangle-anchor model: each diagonal reaches
+  the anchor corners after automatic or explicit `outer sep`, and those
+  extents participate in the SVG picture bounding box. This is intentionally
+  narrower than the full `shapes.misc` library.
 - PGFPlots legend rows with `legend cell align=left` retain their shared left
   anchor when the browser uses its cached SVG text engine. Formula-heavy and
   tiny `pmatrix` legend frames are also calibrated against local `tikztosvg`

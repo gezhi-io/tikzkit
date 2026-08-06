@@ -4912,6 +4912,15 @@ test("renders shapes.misc cross out and strike out without rectangle outlines", 
   assert.deepEqual(result.diagnostics, []);
   assert.match(result.svg, /class="tikz-shape-cross-out"/);
   assert.match(result.svg, /class="tikz-shape-strike-out"/);
+  const [cross] = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "crossOut");
+  const [strike] = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "strikeOut");
+  assert.ok(cross.foregroundOuterSep.x > 0, "cross foreground should use the inherited rectangle outer separation");
+  assert.ok(cross.foregroundOuterSep.y > 0, "cross foreground should use the inherited rectangle outer separation");
+  assert.deepEqual(strike.foregroundOuterSep, cross.foregroundOuterSep, "strike foreground should use the same inherited outer separation");
+  const halfVisibleWidth = cross.width / 2;
+  const renderedCross = result.svg.match(/class="tikz-shape-cross-out" d="M ([^ ]+) ([^ ]+) L ([^ ]+) ([^ "]+)/);
+  assert.ok(renderedCross, "expected cross-out foreground path");
+  assert.ok(Math.abs(Number(renderedCross[1])) > halfVisibleWidth * 100, "cross foreground should extend beyond the visible box");
   assert.equal([...result.svg.matchAll(/<rect\b/g)].length, 1, "only the SVG background should be a rectangle");
 });
 
