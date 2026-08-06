@@ -105,6 +105,35 @@ source against its package/library contract in `docs/extension-registry.md`,
 then record a narrow conclusion in `docs/qa/` before declaring a feature
 accepted.
 
+### Audit A Batch Without Losing Failure Evidence
+
+For a milestone-sized review, retain strict reference requirements but let the
+renderer finish every requested case. The command writes `summary.json`, one
+`tikztosvg-log/<case-id>.log` per unavailable reference, and an `index.html`
+whose header and cards show the exact TikZKit, `tikztosvg`, and MacTeX status.
+It still exits nonzero when `tikztosvg` fails, so it cannot be mistaken for a
+passing acceptance run:
+
+```bash
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-milestone-30 \
+  --only "$(node -e 'const m=require("./test/fixtures/examples/milestone-1.json"); console.log(m.caseIds.slice(0,30).join(","))')" \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg \
+  --continue-on-external-failure --external-timeout-ms 30000
+```
+
+Use this mode to choose the next implementation slice from concrete failed
+references and visual panels. A failed reference can be an unavailable local
+tool or an oracle timeout; it is not, by itself, proof that TikZKit rendered
+the source incorrectly.
+
+For the supported `gnuplot[raw gnuplot]` numerical subset, the disposable
+MacTeX reference source uses the same bounded coordinate lowering as TikZKit
+and `tikztosvg`. This produces an inspectable native PNG when `gnuplot` is not
+installed, without turning on TeX shell escape. The original fixture stays
+unchanged; unsupported gnuplot programs remain explicitly reported as failed
+MacTeX references.
+
 ### Current Visual Checkpoint
 
 `latex-examples-feed-forward-perceptron` is the maintained reference case for

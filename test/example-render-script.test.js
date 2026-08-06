@@ -9,6 +9,7 @@ import {
   normalizeTikztosvgInput,
   parseExampleRenderArgs,
   renderExampleFixtures,
+  renderNativeMacTeXPng,
   selectActiveFigureSource
 } from "../scripts/render-example-fixtures.js";
 import { encodePng } from "../scripts/diff-example-pngs.js";
@@ -352,6 +353,7 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
     "third-case",
     "--preserve-output",
     "--skip-png",
+    "--continue-on-external-failure",
     "--native-reference",
     "--native-latex-engine",
     "lualatex"
@@ -360,8 +362,47 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
   assert.deepEqual(options.only, ["first-case", "second-case", "third-case"]);
   assert.equal(options.preserveOutput, true);
   assert.equal(options.skipPng, true);
+  assert.equal(options.continueOnExternalFailure, true);
   assert.equal(options.nativeReference, true);
   assert.equal(options.nativeLatexEngine, "lualatex");
+});
+
+test("strict batch rendering records every external failure before returning", async () => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-strict-batch-"));
+  const calls = [];
+  const summary = await renderExampleFixtures({
+    fixtureRoot: path.resolve("test", "fixtures", "examples"),
+    outputRoot,
+    only: ["axis-basic-range", "axis-labels-math"],
+    strictTikztosvg: true,
+    continueOnExternalFailure: true,
+    external: {
+      async commandExists(command) {
+        return command === "tikztosvg";
+      },
+      async runCommand(_command, args) {
+        const outputIndex = args.indexOf("-o");
+        const outputPath = args[outputIndex + 1];
+        const id = path.basename(outputPath, ".svg");
+        calls.push(id);
+        if (id === "axis-basic-range") return { exitCode: 1, stdout: "", stderr: "intentional failure" };
+        await writeFile(outputPath, "<svg></svg>", "utf8");
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+    }
+  });
+
+  assert.deepEqual([...new Set(calls)], ["axis-basic-range", "axis-labels-math"]);
+  assert.equal(summary.total, 2);
+  assert.equal(summary.renderedTikzkit, 2);
+  assert.equal(summary.renderedTikztosvg, 1);
+  assert.equal(summary.failedTikztosvg, 1);
+  assert.equal(summary.cases.find((entry) => entry.id === "axis-basic-range")?.tikztosvgStatus, "failed");
+  assert.equal(summary.cases.find((entry) => entry.id === "axis-labels-math")?.tikztosvgStatus, "rendered");
+
+  const persisted = JSON.parse(await readFile(path.join(outputRoot, "summary.json"), "utf8"));
+  assert.equal(persisted.failedTikztosvg, 1);
+  assert.match(await readFile(path.join(outputRoot, "index.html"), "utf8"), /tikztosvg failures: 1/);
 });
 
 test("example fixture renderer writes an opt-in native MacTeX PNG reference", async () => {
@@ -399,6 +440,36 @@ test("example fixture renderer writes an opt-in native MacTeX PNG reference", as
   const compile = calls.find((call) => call.command === "pdflatex");
   assert.equal(compile.args.includes("-jobname=reference"), true);
   assert.match(compile.options.cwd, /\.mactex-work[\\/]axis-basic-range$/);
+});
+
+test("native MacTeX references lower supported raw gnuplot programs without shell escape", async () => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-gnuplot-"));
+  const sourcePath = path.resolve("test", "fixtures", "examples", "latex-examples", "2d-chi-squared-pdf.tex");
+  const source = await readFile(sourcePath, "utf8");
+  const calls = [];
+  const result = await renderNativeMacTeXPng({
+    async runCommand(command, args) {
+      calls.push(command);
+      if (command === "pdflatex") {
+        const normalized = await readFile(args.at(-1), "utf8");
+        assert.doesNotMatch(normalized, /gnuplot\[raw gnuplot\]/);
+        assert.match(normalized, /\\addplot\+\[mark=\{\}\] coordinates \{/);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+      assert.equal(command, "pdftocairo");
+      await writeFile(`${args.at(-1)}.png`, encodePng({ width: 1, height: 1, data: Buffer.from([255, 255, 255, 255]) }));
+      return { exitCode: 0, stdout: "", stderr: "" };
+    }
+  }, {
+    entry: { id: "chi-squared-pdf", source: "latex-examples/2d-chi-squared-pdf.tex" },
+    fixtureRoot: path.resolve("test", "fixtures", "examples"),
+    outputRoot,
+    sourcePath,
+    source
+  });
+
+  assert.equal(result.status, "rendered");
+  assert.deepEqual(calls, ["pdflatex", "pdflatex", "pdftocairo"]);
 });
 
 test("native MacTeX references normalize legacy tkz-euclide object loaders", async () => {
@@ -1141,6 +1212,7 @@ test("example fixture renderer CLI summary includes PNG counts", () => {
   assert.match(text, /Rendered 2\/2 TikZKit SVG files/);
   assert.match(text, /2\/2 TikZKit PNG files/);
   assert.match(text, /1\/2 tikztosvg PNG files/);
+  assert.match(text, /external failures: tikztosvg 0, MacTeX 0/);
 });
 
 test("example fixture renderer normalizes LaTeX preview wrappers before tikztosvg", async () => {

@@ -45,6 +45,16 @@ Compare generated PNGs:
 npm run examples:diff
 ```
 
+For a multi-case audit that should keep going after a local reference timeout,
+combine `--strict-tikztosvg` with `--continue-on-external-failure`. It writes a
+complete `summary.json`, per-case logs, and the comparison page before exiting
+nonzero for the failed strict references:
+
+```sh
+npm run examples:render -- --only case-one case-two \
+  --strict-tikztosvg --continue-on-external-failure
+```
+
 The script writes:
 
 ```txt

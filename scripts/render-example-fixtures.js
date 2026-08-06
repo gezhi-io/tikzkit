@@ -232,7 +232,7 @@ export async function renderExampleFixtures(options = {}) {
       } else {
         await removeTikztosvgLog(outputRoot, entry);
       }
-      if (result.exitCode !== 0 && options.strictTikztosvg) {
+      if (result.exitCode !== 0 && options.strictTikztosvg && !options.continueOnExternalFailure) {
         throw new Error(`tikztosvg failed for ${entry.id}: ${result.stderr || result.stdout || "see tikztosvg log"}`);
       }
       if (tikztosvgStatus === "rendered" && svgComparisonGrid) {
@@ -322,6 +322,8 @@ export async function renderExampleFixtures(options = {}) {
     renderedTikzkitPng: summaryCases.filter((entry) => entry.tikzkitPngStatus === "rendered").length,
     renderedTikztosvgPng: summaryCases.filter((entry) => entry.tikztosvgPngStatus === "rendered").length,
     renderedMacTeXPng: summaryCases.filter((entry) => entry.mactexPngStatus === "rendered").length,
+    failedTikztosvg: summaryCases.filter((entry) => entry.tikztosvgStatus === "failed").length,
+    failedMacTeXPng: summaryCases.filter((entry) => entry.mactexPngStatus === "failed").length,
     cases: summaryCases
   };
   await writeFile(path.join(outputRoot, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
@@ -345,7 +347,8 @@ async function renderNativeLatexReference(external, options = {}) {
   await mkdir(workDir, { recursive: true });
   // tkz-euclide 5 loads every object itself; the old loader is now undefined.
   // Keep user fixtures intact and adapt only the disposable MacTeX reference.
-  await writeFile(texPath, `${normalizeLegacyTkzEuclideSource(options.source).trimEnd()}\n`, "utf8");
+  const referenceSource = normalizeLegacyTkzEuclideSource(lowerRawGnuplotAddplotsToCoordinates(options.source));
+  await writeFile(texPath, `${referenceSource.trimEnd()}\n`, "utf8");
 
   const latexArgs = [
     "-interaction=nonstopmode",
@@ -386,7 +389,9 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   const outputLog = path.join(options.outputRoot, "mactex-log", `${entryId}.log`);
   const texPath = path.join(workDir, "reference.tex");
   const source = normalizeLegacyTkzEuclideSource(
-    rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || [])
+    lowerRawGnuplotAddplotsToCoordinates(
+      rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || [])
+    )
   );
   const latexArgs = [
     "-interaction=nonstopmode",
@@ -1213,6 +1218,7 @@ export function parseExampleRenderArgs(argv = process.argv.slice(2)) {
     skipTikztosvg: argv.includes("--skip-tikztosvg"),
     skipPng: argv.includes("--skip-png"),
     strictTikztosvg: argv.includes("--strict-tikztosvg"),
+    continueOnExternalFailure: argv.includes("--continue-on-external-failure"),
     nativeReference: argv.includes("--native-reference"),
     nativeLatexEngine: valueAfter(argv, "--native-latex-engine") || "pdflatex",
     preserveOutput: argv.includes("--preserve-output"),
@@ -1232,8 +1238,10 @@ async function main() {
     process.stdout.write(exampleRenderUsage());
     return;
   }
-  const summary = await renderExampleFixtures(parseExampleRenderArgs(argv));
+  const options = parseExampleRenderArgs(argv);
+  const summary = await renderExampleFixtures(options);
   process.stdout.write(formatExampleRenderSummary(summary));
+  if (options.strictTikztosvg && summary.failedTikztosvg > 0) process.exitCode = 1;
 }
 
 function exampleRenderUsage() {
@@ -1248,7 +1256,8 @@ function exampleRenderUsage() {
     "  --preserve-output               Keep existing output-root artifacts",
     "  --skip-tikztosvg                Do not invoke the local tikztosvg reference",
     "  --skip-png                      Keep SVG artifacts only",
-    "  --strict-tikztosvg              Fail when tikztosvg cannot render a case",
+    "  --strict-tikztosvg              Exit nonzero when tikztosvg cannot render a case",
+    "  --continue-on-external-failure  Finish the batch and write logs before strict failure exits",
     "  --native-reference              Render one local MacTeX PNG reference per case",
     "  --native-latex-engine <engine>  MacTeX engine for references (default: pdflatex)",
     "  --tikztosvg-engine <engine>     TeX engine for tikztosvg (default: xelatex)",
@@ -1264,6 +1273,7 @@ export function formatExampleRenderSummary(summary) {
     `, ${summary.renderedTikzkitPng}/${summary.total} TikZKit PNG files` +
     `, ${summary.renderedTikztosvgPng}/${summary.total} tikztosvg PNG files` +
     `, and ${summary.renderedMacTeXPng || 0}/${summary.total} MacTeX PNG files` +
+    `; external failures: tikztosvg ${summary.failedTikztosvg || 0}, MacTeX ${summary.failedMacTeXPng || 0}` +
     ` into ${summary.outputRoot}\n`
   );
 }
@@ -1456,7 +1466,9 @@ function renderComparisonHtml(summary, diffById) {
       <span>${escapeHtml(String(summary.total || 0))} cases</span>
       <span>TikZKit SVG: ${escapeHtml(String(summary.renderedTikzkit || 0))}</span>
       <span>tikztosvg SVG: ${escapeHtml(String(summary.renderedTikztosvg || 0))}</span>
+      ${summary.failedTikztosvg ? `<span>tikztosvg failures: ${escapeHtml(String(summary.failedTikztosvg))}</span>` : ""}
       ${summary.nativeReferenceRequested ? `<span>MacTeX PNG: ${escapeHtml(String(summary.renderedMacTeXPng || 0))}</span>` : ""}
+      ${summary.failedMacTeXPng ? `<span>MacTeX failures: ${escapeHtml(String(summary.failedMacTeXPng))}</span>` : ""}
       <span>output: ${escapeHtml(summary.outputRoot || "")}</span>
     </div>
   </header>
@@ -1484,6 +1496,8 @@ function renderCaseHtml(entry, diff) {
   <div class="status">
     <span>diff: ${escapeHtml(diff?.status || "not generated")} ${renderDiffNumbers(diff)}</span>
     ${renderMactexComparison(diff?.mactexComparison)}
+    <span>tikztosvg: ${escapeHtml(entry.tikztosvgStatus || "skipped")}</span>
+    ${entry.mactexPngStatus !== "skipped" ? `<span>MacTeX: ${escapeHtml(entry.mactexPngStatus || "unavailable")}</span>` : ""}
     <span>diagnostics: ${escapeHtml(String(entry.diagnostics?.length || 0))}</span>
     ${entry.activeFigureId ? `<span>active figure: ${escapeHtml(entry.activeFigureId)}</span>` : ""}
     ${renderArtifactLink("TikZKit SVG", entry.tikzkitSvg)}
