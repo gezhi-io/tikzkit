@@ -177,6 +177,23 @@
       ]
     },
     {
+      "id": "circuitikz-diodes",
+      "title": "circuitikz diode, Schottky, and LED families",
+      "source": "circuitikz/diodes.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzDiodeSettings/circuitikzDiodeItems",
+      "features": [
+        "D* full diode",
+        "Do empty diode",
+        "sD* full Schottky diode",
+        "leD* full LED",
+        "diodes/scale",
+        "diodes/fill",
+        "component l= labels"
+      ]
+    },
+    {
       "id": "circuitikz-chokes-and-core-anchors",
       "title": "circuitikz cute chokes and inductor core anchors",
       "source": "circuitikz/chokes-and-core-anchors.tex",

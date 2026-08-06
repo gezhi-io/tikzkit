@@ -1,0 +1,13 @@
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage[siunitx,RPvoltages]{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+  % Adapted from the TeX Live circuitikz manual diode families.
+  \draw (0,0) to[D*,l=$D_{\mathrm{full}}$] (4,0);
+  \draw (0,-1.5) to[Do,l=$D_{\mathrm{empty}}$] (4,-1.5);
+  \draw (0,-3) to[sD*,l=$D_{\mathrm{Schottky}}$] (4,-3);
+  \draw (5,0) to[leD*,l=$\mathrm{LED}$] (5,-3);
+  \draw (6.5,-1.5) to[Do,diodes/scale=.65,diodes/fill=orange!30,l=$D_{\mathrm{small}}$] (9.5,-1.5);
+\end{circuitikz}
+\end{document}

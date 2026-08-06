@@ -558,6 +558,47 @@ sources are covered through small verified slices; transformers, source fills,
 and the broad
 circuitikz component catalog remain partial.
 
+### Circuitikz Diode Bipoles
+
+The browser renderer also has a verified, narrow diode-bipole slice. It keeps
+the native diode body dimensions and labels for horizontal and vertical paths:
+
+```tex
+\usepackage{circuitikz}
+\begin{circuitikz}
+  \draw (0,0) to[D*,l=$D_{\mathrm{full}}$] (4,0);
+  \draw (0,-1.5) to[Do,l=$D_{\mathrm{empty}}$] (4,-1.5);
+  \draw (0,-3) to[sD*,l=$D_{\mathrm{Schottky}}$] (4,-3);
+  \draw (5,0) to[leD*,l=$\mathrm{LED}$] (5,-3);
+  \draw (6.5,-1.5) to[Do,diodes/scale=.65,
+    diodes/fill=orange!30,l=$D_{\mathrm{small}}$] (9.5,-1.5);
+\end{circuitikz}
+```
+
+Supported in this slice: the documented full/empty aliases `D*` and `Do`,
+the base `D` form, `sD*`/`sD` Schottky diodes, `leD*`/`leD` LEDs,
+`diodes/scale`, `diodes/fill`, and `l=` labels. LEDs include the two native
+outgoing emission arrows and put the label on their outer side. Zener,
+tunnel, photo/laser, varcap, TVS, Shockley, bidirectional, tripole, and
+custom-diode families are not yet compatible.
+
+The source fixture is
+[`test/fixtures/examples/circuitikz/diodes.tex`](test/fixtures/examples/circuitikz/diodes.tex).
+To reproduce its three-way visual check locally:
+
+```bash
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-circuitikz-diodes --only circuitikz-diodes \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-circuitikz-diodes \
+  --only circuitikz-diodes
+```
+
+Open `outputs/qa-circuitikz-diodes/index.html` and compare the TikZKit SVG,
+`tikztosvg`, local MacTeX PNG, and difference panel. The source reading,
+observed visual changes, and acceptance record are in
+[`docs/qa/2026-08-06-circuitikz-diodes.md`](docs/qa/2026-08-06-circuitikz-diodes.md).
+
 ### Circuitikz Transformer Cores
 
 `transformer core` accepts the manual's narrow core-style directory and draws

@@ -2138,6 +2138,21 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     );
     shapes.push(circuitikzCapacitorItem(from, to, geometry, pathStyle, env));
     if (split.postLead) shapes.push(split.postLead);
+  } else if (spec.kind === "diode") {
+    const settings = circuitikzDiodeSettings(options, env);
+    const split = appendCircuitikzSplitWire(
+      commands,
+      from,
+      to,
+      geometry,
+      circuitikzBodyLength("diode", geometry.length, env, settings),
+      pathStyle,
+      styleHints,
+      options,
+      env
+    );
+    shapes.push(...circuitikzDiodeItems(geometry, spec, settings, pathStyle));
+    if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "battery") {
     const split = appendCircuitikzSplitWire(
       commands,
@@ -2235,6 +2250,8 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
   if (resistorLabel !== null) return { kind: "resistor", label: resistorLabel, name };
   const capacitorLabel = circuitikzFirstLabel(options, ["C", "capacitor"]);
   if (capacitorLabel !== null) return { kind: "capacitor", label: capacitorLabel, name };
+  const diode = circuitikzDiodeSpec(options, env);
+  if (diode) return { ...diode, name };
   const battery = circuitikzFirstMatchingOption(options, /^battery(?:1|2)?$/i);
   if (battery) {
     return {
@@ -2410,6 +2427,55 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
   if (nmosLabel !== null) return { kind: "mosfet", mosfetKind: "nmos", label: nmosLabel, name: circuitikzComponentName(options, nmosLabel) };
   if (options.short !== undefined) return { kind: "short", label: circuitikzLabelValue(options.l) };
   return null;
+}
+
+function circuitikzDiodeSpec(options = {}, env = {}) {
+  for (const [rawKey, rawValue] of Object.entries(options || {})) {
+    const key = String(rawKey).trim().replace(/\s+/g, " ");
+    const short = key.match(/^(leD|sD|D)([o*-])?$/i);
+    if (short) {
+      const diodeKind = short[1].toLowerCase() === "led"
+        ? "led"
+        : short[1].toLowerCase() === "sd"
+          ? "schottky"
+          : "diode";
+      return {
+        kind: "diode",
+        diodeKind,
+        variant: circuitikzDiodeVariant(short[2], options, env),
+        label: circuitikzLabelValue(options.l) || circuitikzLabelValue(rawValue)
+      };
+    }
+    const long = key.match(/^(?:(full|empty|stroke) )?(led|schottky diode|diode)$/i);
+    if (!long) continue;
+    const diodeKind = long[2].toLowerCase() === "led"
+      ? "led"
+      : long[2].toLowerCase() === "schottky diode"
+        ? "schottky"
+        : "diode";
+    return {
+      kind: "diode",
+      diodeKind,
+      variant: circuitikzDiodeVariant(long[1], options, env),
+      label: circuitikzLabelValue(options.l) || circuitikzLabelValue(rawValue)
+    };
+  }
+  return null;
+}
+
+function circuitikzDiodeVariant(explicit, options = {}, env = {}) {
+  if (explicit === "*") return "full";
+  if (explicit === "o") return "empty";
+  if (explicit === "-") return "stroke";
+  const sources = [options, env.circuitikz || {}, env.pictureOptions || {}];
+  for (const source of sources) {
+    const configured = String(source.diode ?? source.diodes ?? "").trim().toLowerCase();
+    if (configured === "full" || configured === "empty" || configured === "stroke") return configured;
+    if (source["full diodes"] !== undefined) return "full";
+    if (source["empty diodes"] !== undefined) return "empty";
+    if (source["stroke diodes"] !== undefined) return "stroke";
+  }
+  return "full";
 }
 
 function circuitikzComponentName(options = {}, fallback = "") {
@@ -2710,6 +2776,9 @@ function circuitikzBodyLength(kind, segmentLength, env = {}, settings = null) {
   const controlledScale = kind === "controlledSource" ? circuitikzControlledSourceScale(env) : 1;
   const batteryScale = kind === "battery" ? circuitikzBatteryScale(env) : 1;
   const sourceScale = kind === "voltageSource" || kind === "isource" ? circuitikzSourceScale(env) : 1;
+  if (kind === "diode") {
+    return Math.min(settings?.bodyLength || 0.56 * scale, Math.max(0, segmentLength * 0.78));
+  }
   const desired = kind === "inductor"
     ? (settings?.bodyLength || 0.84 * scale)
     : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : (kind === "voltageSource" || kind === "isource") ? 0.84 * sourceScale : 0.84) * scale;
@@ -3088,6 +3157,120 @@ function circuitikzCapacitorItem(from, to, geometry, pathStyle = {}, env = {}) {
       { type: "lineTo", x: r2.x, y: r2.y }
     ]
   };
+}
+
+function circuitikzDiodeRawOption(key, options = {}, env = {}) {
+  const names = [`circuitikz/diodes/${key}`, `diodes/${key}`];
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const name of names) {
+      if (source[name] !== undefined) return source[name];
+    }
+  }
+  return undefined;
+}
+
+function circuitikzDiodeNumber(key, options = {}, env = {}, fallback = 0) {
+  const raw = circuitikzDiodeRawOption(key, options, env);
+  if (raw === undefined || raw === null || raw === true || raw === "") return fallback;
+  const parsed = evaluateMath(String(raw), env.variables || {});
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function circuitikzDiodeSettings(options = {}, env = {}) {
+  const scale = Math.max(0.05, circuitikzDiodeNumber("scale", options, env, 1));
+  // pgfcirc.defines.tex establishes the diodes scale class. The diode shape
+  // then uses width=.40 Rlen and height=.50 Rlen (pgfcircbipoles.tex).
+  const rlen = 1.4 * circuitikzLengthScale(env) * scale;
+  const rawFill = circuitikzDiodeRawOption("fill", options, env);
+  const fill = rawFill === undefined || rawFill === null || rawFill === true || rawFill === "" || String(rawFill).trim().toLowerCase() === "none"
+    ? "none"
+    : normalizeColor(String(rawFill));
+  return {
+    scale,
+    bodyLength: 0.4 * rlen,
+    halfWidth: 0.2 * rlen,
+    halfHeight: 0.25 * rlen,
+    fill
+  };
+}
+
+function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}) {
+  const bodyLength = Math.min(settings.bodyLength || 0, geometry.length * 0.78);
+  const halfWidth = Math.min(settings.halfWidth || bodyLength / 2, bodyLength / 2);
+  const halfHeight = settings.halfHeight || halfWidth * 1.25;
+  const base = pointAlong(geometry.mid, geometry.u, -halfWidth);
+  const cathode = pointAlong(geometry.mid, geometry.u, halfWidth);
+  const baseTop = pointNormal(base, geometry.n, halfHeight);
+  const baseBottom = pointNormal(base, geometry.n, -halfHeight);
+  const outlineStyle = { ...circuitikzComponentStyle(pathStyle), fill: "none", lineJoin: "miter" };
+  const fill = spec.variant === "full" ? outlineStyle.stroke : spec.variant === "empty" ? settings.fill : "none";
+  const diode = {
+    type: "path",
+    subtype: "circuitikz-diode",
+    diodeKind: spec.diodeKind,
+    variant: spec.variant,
+    fill,
+    label: spec.label || "",
+    bodyLength: roundNumber(bodyLength),
+    orientation: Math.abs(geometry.u.y) > Math.abs(geometry.u.x) ? "vertical" : "horizontal",
+    style: { ...outlineStyle, fill },
+    commands: [moveToCommand(baseTop), lineToCommand(cathode), lineToCommand(baseBottom), closePathCommand()]
+  };
+  const cathodeCommands = spec.diodeKind === "schottky"
+    ? circuitikzSchottkyCathodeCommands(geometry, cathode, halfWidth, halfHeight)
+    : [moveToCommand(pointNormal(cathode, geometry.n, -halfHeight)), lineToCommand(pointNormal(cathode, geometry.n, halfHeight))];
+  const cathodeItem = {
+    type: "path",
+    subtype: "circuitikz-diode-cathode",
+    diodeKind: spec.diodeKind,
+    style: outlineStyle,
+    commands: cathodeCommands
+  };
+  const items = [diode, cathodeItem];
+  if (spec.variant === "stroke") {
+    items.push({
+      type: "path",
+      subtype: "circuitikz-diode-stroke",
+      diodeKind: spec.diodeKind,
+      style: outlineStyle,
+      commands: [moveToCommand(base), lineToCommand(cathode)]
+    });
+  }
+  if (spec.diodeKind === "led") items.push(...circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle));
+  return items;
+}
+
+function circuitikzSchottkyCathodeCommands(geometry, cathode, halfWidth, halfHeight) {
+  const point = (along, normal) => pointNormal(pointAlong(cathode, geometry.u, along), geometry.n, normal);
+  return [
+    moveToCommand(point(-0.4 * halfWidth, -0.6 * halfHeight)),
+    lineToCommand(point(0, -halfHeight)),
+    lineToCommand(point(0, halfHeight)),
+    lineToCommand(point(0.4 * halfWidth, halfHeight)),
+    lineToCommand(point(0.4 * halfWidth, 0.6 * halfHeight))
+  ];
+}
+
+function circuitikzLedArrowItems(geometry, halfWidth, halfHeight, outlineStyle) {
+  const point = (along, normal) => pointNormal(pointAlong(geometry.mid, geometry.u, along), geometry.n, normal);
+  const arrowStyle = {
+    ...outlineStyle,
+    markerEnd: createArrowTip("Latex", { fill: outlineStyle.stroke, stroke: outlineStyle.stroke, scale: 0.42 })
+  };
+  return [
+    {
+      type: "path",
+      subtype: "circuitikz-led-arrow",
+      style: arrowStyle,
+      commands: [moveToCommand(point(-0.4 * halfWidth, halfHeight)), lineToCommand(point(0.6 * halfWidth, 2 * halfHeight))]
+    },
+    {
+      type: "path",
+      subtype: "circuitikz-led-arrow",
+      style: arrowStyle,
+      commands: [moveToCommand(point(0.2 * halfWidth, 0.8 * halfHeight)), lineToCommand(point(1.2 * halfWidth, 1.8 * halfHeight))]
+    }
+  ];
 }
 
 function circuitikzBatteryItems(geometry, spec = {}, pathStyle = {}, env = {}) {
@@ -4206,8 +4389,18 @@ function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {
     return;
   }
   const scale = circuitikzLengthScale(env);
-  const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource" ? 0.7 : spec.kind === "inductor" && spec.variable ? 0.8 : 0.46) * scale;
-  addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label);
+  const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource"
+    ? 0.7
+    : spec.kind === "inductor" && spec.variable
+      ? 0.8
+      : spec.kind === "diode" && spec.diodeKind === "led"
+        ? 0.78
+        : 0.46) * scale;
+  addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label, {
+    anchor: spec.kind === "diode" && spec.diodeKind === "led"
+      ? circuitikzOuterTextAnchor(geometry.n)
+      : undefined
+  });
 }
 
 function circuitikzBatteryLabelPlacement(geometry, env = {}) {
