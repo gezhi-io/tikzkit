@@ -43,6 +43,7 @@ instead of counting TeX control-word characters as visible width.
 | `fixed zerofill` | implemented |
 | `sci`, `sci zerofill`, `sci precision` | implemented |
 | `sci subscript` | implemented separately in `2026-08-06-pgfplotstable-sci-subscript.md` |
+| `sci superscript` | implemented separately in `2026-08-06-pgfplotstable-sci-superscript.md` |
 | `int detect` for integer table cells | implemented |
 | `use comma` for supported fixed/default output | implemented |
 | `std`, `relative`, `frac`, custom thousands strings | not implemented |

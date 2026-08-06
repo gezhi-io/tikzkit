@@ -465,7 +465,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `293/293 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `294/294 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -605,7 +605,7 @@ the default plain-integer thousands grouping (for example `2021` becomes
 
 For a selected column, the focused number-printer subset also supports
 `int detect`, `fixed`, `fixed zerofill`, `sci`, `sci zerofill`, `sci subscript`,
-`precision`, `sci precision`, and `use comma`. For example:
+`sci superscript`, `precision`, `sci precision`, and `use comma`. For example:
 
 ```tex
 columns/value/.style={
@@ -648,22 +648,25 @@ columns/value/.style={
 ```
 
 `sci subscript` emits the native compact form `1.00_{-3}` (including
-`0.00_{0}` for zero) instead of `1.00\cdot10^{-3}`. It can be combined with
-`sci sep align` without corrupting the output, but native PGF does not split
-the subscript form at an exponent marker, so it remains one whole table cell
-rather than gaining a shared exponent anchor:
+`0.00_{0}` for zero), while `sci superscript` emits `1.00^{-3}`
+(including `0.00^{0}`). Both replace the standard
+`1.00\cdot10^{-3}` printer. They can be combined with `sci sep align`
+without corrupting the output, but native PGF does not split either direct
+script form at an exponent marker, so each remains one whole table cell rather
+than gaining a shared exponent anchor:
 
 ```tex
 columns/value/.style={
-  column name=Subscript,
+  column name=Script,
   sci,sci zerofill,sci precision=2,
-  sci subscript
+  sci superscript,sci sep align
 }
 ```
 
 The accepted scope is the standard `sci` presentation (and the existing
-scientific branch of `int detect`) plus `sci subscript`. `sci superscript`,
-`sci generic`, `dcolumn`, and non-finite special values remain outside it.
+scientific branch of `int detect`) plus `sci subscript` and
+`sci superscript`. `sci generic`, `dcolumn`, and non-finite special values
+remain outside it.
 
 ```tex
 \pgfplotstabletypeset[col sep=comma, columns={year,vehicles}] {
@@ -685,6 +688,8 @@ and
 [`docs/qa/2026-08-06-pgfplotstable-sci-sep-align.md`](docs/qa/2026-08-06-pgfplotstable-sci-sep-align.md)
 and
 [`docs/qa/2026-08-06-pgfplotstable-sci-subscript.md`](docs/qa/2026-08-06-pgfplotstable-sci-subscript.md)
+and
+[`docs/qa/2026-08-06-pgfplotstable-sci-superscript.md`](docs/qa/2026-08-06-pgfplotstable-sci-superscript.md)
 for the local-source notes and visual acceptance records.
 
 To verify this supported slice locally, run:
@@ -692,7 +697,7 @@ To verify this supported slice locally, run:
 ```bash
 npm test -- test/pgfplotstable-typeset.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
-  --output outputs/qa-pgfplotstable --only pgfplotstable-sci-sep-align \
+  --output outputs/qa-pgfplotstable --only pgfplotstable-sci-superscript \
   --native-reference --comparison-grid-mode svg --strict-tikztosvg
 npm run examples:diff -- --output outputs/qa-pgfplotstable --register --alignment-radius 3
 ```

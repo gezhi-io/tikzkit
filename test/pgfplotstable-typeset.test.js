@@ -24,6 +24,10 @@ const SCIENTIFIC_SUBSCRIPT_SOURCE = readFileSync(
   new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-subscript.tex", import.meta.url),
   "utf8"
 );
+const SCIENTIFIC_SUPERSCRIPT_SOURCE = readFileSync(
+  new URL("./fixtures/examples/pgfplots/pgfplotstable-sci-superscript.tex", import.meta.url),
+  "utf8"
+);
 
 test("lowers pgfplotstable typeset into a measured text table", () => {
   const parsed = parseTikz(SOURCE);
@@ -147,6 +151,25 @@ test("formats pgfplotstable scientific subscripts without inventing sci sep alig
       "C", String.raw`$1.23_{2}$`, String.raw`$1.23_{2}$`,
       "D", String.raw`$1.00_{0}$`, String.raw`$1.00_{0}$`,
       "E", String.raw`$0.00_{0}$`, String.raw`$0.00_{0}$`
+    ]
+  );
+  assert.equal(result.ir.items.some((item) => item.subtype?.startsWith("tabular-scientific-")), false);
+});
+
+test("formats pgfplotstable scientific superscripts without inventing sci sep alignment", () => {
+  const result = tikzToSvg(SCIENTIFIC_SUPERSCRIPT_SOURCE, { mathRenderer: "svg-text" });
+  const tabularText = result.ir.items.filter((item) => item.subtype === "tabular-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    tabularText.map((item) => item.text),
+    [
+      "Sample", "Superscript", "Superscript align",
+      "A", String.raw`$1.00^{-3}$`, String.raw`$1.00^{-3}$`,
+      "B", String.raw`$9.80^{-2}$`, String.raw`$9.80^{-2}$`,
+      "C", String.raw`$1.23^{2}$`, String.raw`$1.23^{2}$`,
+      "D", String.raw`$1.00^{0}$`, String.raw`$1.00^{0}$`,
+      "E", String.raw`$0.00^{0}$`, String.raw`$0.00^{0}$`
     ]
   );
   assert.equal(result.ir.items.some((item) => item.subtype?.startsWith("tabular-scientific-")), false);

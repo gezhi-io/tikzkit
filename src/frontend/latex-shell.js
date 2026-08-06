@@ -4043,11 +4043,13 @@ function pgfplotstableFormatFixed(value, options) {
 
 function pgfplotstableFormatScientific(value, options) {
   const { mantissa, exponent } = pgfplotstableScientificParts(value, options);
-  if (pgfplotstableScientificPresentation(options) === "subscript") {
-    // TeX Live's pgfmathfloatrounddisplaystyle@subscript always receives an
-    // exponent token, including its zero branch. It does not use the regular
-    // scientific exponent marker, so sci sep align cannot split this form.
-    return `$${mantissa}_{${exponent ?? 0}}$`;
+  const presentation = pgfplotstableScientificPresentation(options);
+  if (presentation === "subscript" || presentation === "superscript") {
+    // TeX Live's direct script formats always receive an exponent token,
+    // including their zero branch. They bypass the regular scientific
+    // exponent marker, so sci sep align cannot split either presentation.
+    const operator = presentation === "subscript" ? "_" : "^";
+    return `$${mantissa}${operator}{${exponent ?? 0}}$`;
   }
   if (exponent === null || exponent === 0) return mantissa;
   return `$${mantissa}\\cdot 10^{${exponent}}$`;
@@ -4056,7 +4058,9 @@ function pgfplotstableFormatScientific(value, options) {
 function pgfplotstableScientificPresentation(options) {
   return pgfplotstableOptionEnabled(options["sci subscript"])
     ? "subscript"
-    : "standard";
+    : pgfplotstableOptionEnabled(options["sci superscript"])
+      ? "superscript"
+      : "standard";
 }
 
 function pgfplotstableScientificAlignedCell(value, options) {

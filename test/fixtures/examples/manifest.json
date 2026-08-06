@@ -4162,6 +4162,22 @@
         "sci subscript",
         "sci sep align interaction"
       ]
+    },
+    {
+      "id": "pgfplotstable-sci-superscript",
+      "title": "pgfplotstable scientific superscript formatting",
+      "source": "pgfplots/pgfplotstable-sci-superscript.tex",
+      "sourceCorpus": "TeX Live pgfplotstable number-format display styles",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:pgfplotstableFormatScientific; src/engine/evaluate.js:tabularCellTextLayout",
+      "features": [
+        "pgfplotstabletypeset",
+        "sci",
+        "sci zerofill",
+        "sci precision",
+        "sci superscript",
+        "sci sep align interaction"
+      ]
     }
   ]
 }

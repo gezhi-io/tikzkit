@@ -45,6 +45,7 @@ the math cell no longer applies formula-box padding twice.
 | `sci sep align` | implemented | standard scientific cells; tail begins at one exponent anchor |
 | exponent `0` under `sci sep align` | implemented | emits `\cdot 10^0` like local TeX Live |
 | `sci subscript` | implemented separately | direct `mantissa_{exponent}` form; it does not create an `sci sep align` split |
+| `sci superscript` | implemented separately | direct `mantissa^{exponent}` form; it does not create an `sci sep align` split |
 | `sci generic`, `dcolumn` | not implemented | custom exponent representations or package behavior |
 | `NaN`, infinities, arbitrary post-processing | partial | native special-value/multicolumn path not generalized |
 
