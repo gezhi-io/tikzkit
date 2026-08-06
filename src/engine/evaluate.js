@@ -8522,12 +8522,31 @@ function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variable
   const sep = parseNodeLengthDimension(options["inner sep"] ?? options["outer sep"] ?? "0.08cm", env);
   const anchorSize = nodeAnchorTextWidthScaledSize(size, options, sep, env);
   const textAnchorOffsets = nodeTextAnchorOffsets(text, options, env, size);
-  const shift = nodeAnchorShift(options, anchorSize, sep, env, nodeRotation(options, env), textAnchorOffsets);
+  const rotation = nodeRotation(options, env);
+  const splitTextAnchor = rectangleSplitTextAnchorShift(text, options, env, size, rotation);
+  const shift = splitTextAnchor || nodeAnchorShift(options, anchorSize, sep, env, rotation, textAnchorOffsets);
   const explicitShift = nodeExplicitShift(options, env);
   return roundPoint({
     x: point.x + shift.x + explicitShift.x,
     y: point.y + shift.y + explicitShift.y
   });
+}
+
+function rectangleSplitTextAnchorShift(text, options = {}, env = {}, size = {}, rotation = 0) {
+  if (nodeShape(options) !== "rectangleSplit" || String(options.anchor || "").trim().toLowerCase() !== "text") {
+    return null;
+  }
+  const layout = rectangleSplitLayout(text, options, env);
+  if (!layout?.parts?.length) return null;
+  const xScale = (Number(size.width) || layout.size.width) / Math.max(layout.size.width, 1e-9);
+  const yScale = (Number(size.height) || layout.size.height) / Math.max(layout.size.height, 1e-9);
+  const firstPart = layout.parts[0];
+  const local = rotateVector(
+    (Number(firstPart.originX) || 0) * xScale,
+    (Number(firstPart.originY) || 0) * yScale,
+    rotation
+  );
+  return { x: -local.x, y: -local.y };
 }
 
 function nodeAnchorTextWidthScaledSize(size, options = {}, sep = 0, env = {}) {
@@ -13038,6 +13057,11 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   }
   const anchor = rawAnchor.replace(/-/g, " ");
   if (!anchor || anchor === "center") return roundPoint(node.point);
+  const customAnchor = customNodeLocalAnchor(node.shape, rawAnchor, { width, height, shapeData: node.shapeData });
+  if (customAnchor) {
+    const rotated = rotateVector(customAnchor.x, customAnchor.y, Number(node.rotation) || 0);
+    return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
+  }
   if (anchor === "text") return roundPoint({ x: node.point.x - visibleWidth * 0.18, y: node.point.y - visibleHeight * 0.04 });
   const textAnchor = textAnchorKind(anchor);
   if (textAnchor) {
@@ -13046,11 +13070,6 @@ function nodeAnchorCoordinate(node, anchorRaw) {
       y: Number(node[`${textAnchor}Offset`]) || (textAnchor === "base" ? -visibleHeight * 0.08 : 0)
     };
     const rotated = rotateVector(local.x, local.y, Number(node.rotation) || 0);
-    return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
-  }
-  const customAnchor = customNodeLocalAnchor(node.shape, rawAnchor, { width, height, shapeData: node.shapeData });
-  if (customAnchor) {
-    const rotated = rotateVector(customAnchor.x, customAnchor.y, Number(node.rotation) || 0);
     return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
   }
   if (node.shape === "diamond") {
@@ -13212,6 +13231,9 @@ function circuitikzInductorLocalAnchor(anchor, size = {}) {
 function rectangleSplitLocalAnchor(anchor, size = {}) {
   const layout = size.shapeData?.rectangleSplit;
   if (!layout?.parts?.length) return null;
+  if (String(anchor || "").trim().toLowerCase() === "text") {
+    return rectangleSplitLocalAnchor("one", size);
+  }
   const match = String(anchor || "").match(/^([a-z]+|\d+)(?:\s+(north|south|east|west|split))?$/);
   if (!match) return null;
   const namedIndex = RECTANGLE_SPLIT_PART_NAMES.indexOf(match[1]);

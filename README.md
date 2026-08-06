@@ -105,8 +105,9 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
 - `shapes.multipart` now verifies horizontal `rectangle split` alignment
   (`center`, `top`, `bottom`, `base`) and vertical alignment (`center`, `left`,
   `right`). Wide typewriter B-tree nodes use cmtt10 advance widths so repeated
-  split-part anchors do not drift; the broader multipart shape family remains
-  partial.
+  split-part anchors do not drift. `anchor=text` and `(node.text)` use the
+  first visible text-part origin, including nodes with `rectangle split ignore
+  empty parts`; the broader multipart shape family remains partial.
 - The array compatibility slice can lower a marked top-level tabular into a
   TikZ matrix, preserving vertical rules and single/double hline rules so a
   same-picture tikzmark overlay can resolve its anchors. It is not a general
@@ -212,7 +213,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `274/274 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `275/275 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
