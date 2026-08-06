@@ -23,6 +23,31 @@ test("normalizes mathtools and nicefrac macros to browser math primitives", () =
   assert.equal(mathFallbackText(fraction), "(a+b)/(c_d+1)");
 });
 
+test("normalizes units package math commands through upright units and nice fractions", () => {
+  const normalized = normalizeBrowserMathMacros(String.raw`d=\unit[12]{m},\quad v=\unitfrac[36]{km}{h}`);
+
+  assert.doesNotMatch(normalized, /\\unit(?:frac)?/);
+  assert.match(normalized, /12\\,\\mathrm\{m\}/);
+  assert.match(normalized, /36\\,\\mathord\{\\raisebox\{0\.2em\}/);
+  assert.match(normalized, /\\scriptsize\{\}\\mathrm\{km\}/);
+  assert.match(normalized, /\\scriptsize\{\}\\mathrm\{h\}/);
+
+  const result = tikzToSvg(String.raw`
+    \documentclass{standalone}
+    \usepackage{units}
+    \begin{document}
+    \begin{tikzpicture}
+      \node {$d=\unit[12]{m},\quad v=\unitfrac[36]{km}{h}$};
+    \end{tikzpicture}
+    \end{document}
+  `, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.doesNotMatch(result.svg, /\\unit(?:frac)?/);
+  assert.match(result.svg, /tikz-nicefrac-numerator[^>]*>km<\/tspan>/);
+  assert.match(result.svg, /tikz-nicefrac-denominator[^>]*>h<\/tspan>/);
+});
+
 test("normalizes the used gensymb degree macro to a real math superscript", () => {
   const degree = normalizeBrowserMathMacros(String.raw`63 \degree`);
   assert.equal(degree, String.raw`63^\circ`);

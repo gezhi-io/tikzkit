@@ -91,10 +91,75 @@ const MATHBB_CAPITAL_EXCEPTIONS = Object.freeze({
 });
 
 export function normalizeBrowserMathMacros(value) {
-  return replaceBrowserNiceFractionCommands(String(value ?? ""))
+  return replaceBrowserNiceFractionCommands(replaceBrowserUnitsCommands(String(value ?? "")))
     .replace(/(?<!\\)\\coloneqq(?![A-Za-z])/g, String.raw`\mathrel{≔}`)
     // gensymb's default fallback defines \degree as a math superscript.
     .replace(/(?<!\\)[ \t]*\\degree(?![A-Za-z])/g, String.raw`^\circ`);
+}
+
+function replaceBrowserUnitsCommands(value) {
+  const source = String(value ?? "");
+  const commands = [
+    { name: "unitfrac", requiredArguments: 2 },
+    { name: "unit", requiredArguments: 1 }
+  ];
+  let output = "";
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const next = commands
+      .map((command) => ({ command, index: source.indexOf(`\\${command.name}`, cursor) }))
+      .filter(({ index }) => index >= 0)
+      .sort((left, right) => left.index - right.index)[0];
+    if (!next) {
+      output += source.slice(cursor);
+      break;
+    }
+
+    const { command, index } = next;
+    const commandEnd = index + command.name.length + 1;
+    if (isEscapedAt(source, index) || /[A-Za-z]/.test(source[commandEnd] || "")) {
+      output += source.slice(cursor, commandEnd);
+      cursor = commandEnd;
+      continue;
+    }
+
+    let argumentStart = skipTextWhitespace(source, commandEnd);
+    let value = "";
+    if (source[argumentStart] === "[") {
+      const optional = readBalancedDelimited(source, argumentStart, "[", "]");
+      if (!optional) {
+        output += source.slice(cursor, commandEnd);
+        cursor = commandEnd;
+        continue;
+      }
+      value = normalizeBrowserMathMacros(optional.content.trim());
+      argumentStart = skipTextWhitespace(source, optional.end);
+    }
+
+    const argumentsList = [];
+    let end = argumentStart;
+    for (let argumentIndex = 0; argumentIndex < command.requiredArguments; argumentIndex += 1) {
+      const argument = readBalanced(source, end);
+      if (!argument) break;
+      argumentsList.push(normalizeBrowserMathMacros(argument.content));
+      end = skipTextWhitespace(source, argument.end);
+    }
+    if (argumentsList.length !== command.requiredArguments) {
+      output += source.slice(cursor, commandEnd);
+      cursor = commandEnd;
+      continue;
+    }
+
+    output += source.slice(cursor, index);
+    const prefix = value ? `${value}\\,` : "";
+    output += command.name === "unit"
+      ? `${prefix}\\mathrm{${argumentsList[0]}}`
+      : `${prefix}\\nicefrac[\\mathrm]{${argumentsList[0]}}{${argumentsList[1]}}`;
+    cursor = end;
+  }
+
+  return output;
 }
 
 function replaceBrowserNiceFractionCommands(value) {

@@ -1,0 +1,15 @@
+% MacTeX units.sty math-mode behavior: optional values use tight spacing,
+% units are upright, and unitfrac delegates to nicefrac with upright parts.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usepackage{units}
+
+\begin{document}
+\begin{tikzpicture}
+  \node[draw,rounded corners,inner sep=5pt,align=left] {
+    $d=\unit[12]{m}$\\
+    $v=\unitfrac[36]{km}{h}$\\
+    $a=\unitfrac{m}{s^2}$
+  };
+\end{tikzpicture}
+\end{document}
