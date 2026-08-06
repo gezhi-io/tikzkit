@@ -1,0 +1,16 @@
+% Adapted from the TeX Live pgfplotstable manual's number-printer examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[
+  columns={dof,fixed,sci},
+  columns/dof/.style={column name=DoF,int detect},
+  columns/fixed/.style={column name=Fixed,fixed,fixed zerofill,precision=3},
+  columns/sci/.style={column name=Scientific,sci,sci zerofill,sci precision=2}
+]{
+dof fixed sci
+4 0.25 0.25
+1024 0.0625 0.015625
+1048576 0.0009765625 0.000000953674316
+}
+\end{document}

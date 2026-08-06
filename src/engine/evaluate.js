@@ -326,7 +326,7 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
       const column = Number(cell.column);
       if (!Number.isInteger(column) || column < 0 || column >= columns.length) continue;
       let cellHeight = cell.text ? TABULAR_TEXT_HEIGHT : 0;
-      let cellWidth = cell.text ? texTextWidthCm(cell.text) : 0;
+      let cellWidth = cell.text ? tabularTextWidthCm(cell.text) : 0;
       for (const pictureIndex of cell.pictureIndices || []) {
         const renderedPicture = rendered.get(pictureIndex);
         if (!renderedPicture) continue;
@@ -399,7 +399,7 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
         documentIr.items.push(...(renderedPicture.pictureIr.items || []));
       }
       if (cell.text) {
-        const textWidth = texTextWidthCm(cell.text);
+        const textWidth = tabularTextWidthCm(cell.text);
         const textX = tabularTextAnchorX(columns[column].align, contentLeft, contentWidth, textWidth);
         documentIr.items.push(createTextShape(
           cell.text,
@@ -422,6 +422,15 @@ function tabularContentAnchorX(align, left, width, itemWidth) {
   if (align === "l") return left + itemWidth / 2;
   if (align === "r") return left + width - itemWidth / 2;
   return left + width / 2;
+}
+
+function tabularTextWidthCm(text) {
+  const source = String(text || "").trim();
+  if (/^\$[\s\S]*\$$/.test(source)) {
+    const formula = estimateFormulaBox(source, 1);
+    if (Number.isFinite(formula?.width) && formula.width > 0) return formula.width;
+  }
+  return texTextWidthCm(source);
 }
 
 function tabularTextAnchorX(align, left, width, textWidth) {

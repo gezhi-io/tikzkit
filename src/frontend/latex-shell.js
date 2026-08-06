@@ -3937,9 +3937,18 @@ function pgfplotstableTypesetTabular(rawTable, rawOptions) {
   const selected = pgfplotstableSelectedColumns(options.columns, sourceHeaders);
   if (!selected.length) return "";
   const columnSpec = selected.map(() => "c").join("");
-  const header = selected.map(({ index, name }) => pgfplotstableDisplayColumnName(options, name, sourceHeaders[index])).join(" & ");
+  const selectedColumns = selected.map(({ index, name }) => ({
+    index,
+    name,
+    options: pgfplotstableColumnOptions(options, name)
+  }));
+  const header = selectedColumns.map(({ index, name, options: columnOptions }) =>
+    pgfplotstableDisplayColumnName(columnOptions, sourceHeaders[index])
+  ).join(" & ");
   const body = rows
-    .map((row) => selected.map(({ index }) => pgfplotstableDisplayCell(row[index], options)).join(" & "))
+    .map((row) => selectedColumns.map(({ index, options: columnOptions }) =>
+      pgfplotstableDisplayCell(row[index], columnOptions)
+    ).join(" & "))
     .join("\\\\\n");
   return `\\begin{tabular}{${columnSpec}}\n${header}${body ? `\\\\\n${body}` : ""}\n\\end{tabular}`;
 }
@@ -3979,12 +3988,14 @@ function pgfplotstableSelectedColumns(rawColumns, headers) {
     .filter(Boolean);
 }
 
-function pgfplotstableDisplayColumnName(options, name, fallback) {
+function pgfplotstableColumnOptions(options, name) {
   const style = options[`columns/${name}/.style`];
-  if (style !== undefined) {
-    const columnName = parseOptions(String(style))["column name"];
-    if (columnName !== undefined) return stripOuterBracesText(String(columnName));
-  }
+  return style === undefined ? options : { ...options, ...parseOptions(String(style)) };
+}
+
+function pgfplotstableDisplayColumnName(options, fallback) {
+  const columnName = options["column name"];
+  if (columnName !== undefined) return stripOuterBracesText(String(columnName));
   return fallback;
 }
 
@@ -3993,12 +4004,76 @@ function pgfplotstableDisplayCell(value, options) {
   if (!text || options["string type"] !== undefined) return text;
   // Pgfplotstable's default `assign cell content` delegates ordinary numbers
   // to pgfmathprintnumber. Preserve its most visible default: grouping plain
-  // integer values such as 2021 as 2,021. Decimal/scientific formatting stays
-  // intentionally outside this small table-layout slice.
-  const match = /^([+-]?)(\d+)(\.\d+)?$/.exec(text);
-  if (!match) return text;
+  // integer values such as 2021 as 2,021. The explicit fixed/sci modes below
+  // mirror the locally reviewed pgfmathfloat number-printer subset.
+  const numeric = Number(text);
+  if (!Number.isFinite(numeric)) return text;
+  const formatter = pgfplotstableNumberFormatter(options);
+  if (formatter === "fixed") return pgfplotstableFormatFixed(numeric, options);
+  if (formatter === "sci") return pgfplotstableFormatScientific(numeric, options);
+  if (formatter === "int detect" && !Number.isInteger(numeric)) {
+    return pgfplotstableFormatScientific(numeric, options);
+  }
+  return pgfplotstableFormatGroupedNumber(text, options);
+}
+
+function pgfplotstableNumberFormatter(options) {
+  if (pgfplotstableOptionEnabled(options.sci)) return "sci";
+  if (pgfplotstableOptionEnabled(options.fixed)) return "fixed";
+  if (pgfplotstableOptionEnabled(options["int detect"])) return "int detect";
+  return "default";
+}
+
+function pgfplotstableFormatFixed(value, options) {
+  const precision = pgfplotstableNumberPrecision(options.precision, 2);
+  const rounded = Number(value.toFixed(precision));
+  const zeroFill = pgfplotstableOptionEnabled(options["fixed zerofill"]);
+  const fixed = zeroFill
+    ? rounded.toFixed(precision)
+    : String(rounded);
+  return pgfplotstableFormatGroupedNumber(fixed, options);
+}
+
+function pgfplotstableFormatScientific(value, options) {
+  if (value === 0) return pgfplotstableFormatFixed(0, {
+    ...options,
+    precision: options["sci precision"] ?? options.precision,
+    "fixed zerofill": options["sci zerofill"]
+  });
+  const precision = pgfplotstableNumberPrecision(options["sci precision"] ?? options.precision, 2);
+  let exponent = Math.floor(Math.log10(Math.abs(value)));
+  let mantissa = value / (10 ** exponent);
+  mantissa = Number(mantissa.toFixed(precision));
+  if (Math.abs(mantissa) >= 10) {
+    mantissa /= 10;
+    exponent += 1;
+  }
+  const zeroFill = pgfplotstableOptionEnabled(options["sci zerofill"]);
+  const mantissaText = zeroFill
+    ? mantissa.toFixed(precision)
+    : String(mantissa);
+  if (exponent === 0) return pgfplotstableFormatGroupedNumber(mantissaText, options);
+  return `$${pgfplotstableFormatGroupedNumber(mantissaText, options)}\\cdot 10^{${exponent}}$`;
+}
+
+function pgfplotstableFormatGroupedNumber(raw, options) {
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(String(raw));
+  if (!match) return String(raw);
   const [, sign, integerPart, fraction = ""] = match;
-  return `${sign}${integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fraction}`;
+  const useComma = pgfplotstableOptionEnabled(options["use comma"]);
+  const thousands = useComma ? "." : ",";
+  const decimal = useComma ? "," : ".";
+  const groupedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousands);
+  return `${sign}${groupedInteger}${fraction ? `${decimal}${fraction}` : ""}`;
+}
+
+function pgfplotstableNumberPrecision(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(15, Math.floor(number))) : fallback;
+}
+
+function pgfplotstableOptionEnabled(value) {
+  return value !== undefined && value !== false && !/^(?:false|0|no)$/i.test(String(value));
 }
 
 function pgfplotstableNumericCell(value) {

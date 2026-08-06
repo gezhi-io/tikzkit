@@ -41,7 +41,8 @@ printing or decimal-alignment macros.
 | `columns={year,vehicles}` | implemented by header-name selection |
 | `columns/year/.style={column name=Year}` | implemented |
 | default plain-integer thousands grouping (`2021` to `2,021`) | implemented |
-| `dec sep align`, column types, number formats | not implemented |
+| `fixed`/`sci` number-printer subset | implemented separately; see `pgfplotstable-number-formats` QA |
+| `dec sep align`, column types, remaining number formats | not implemented |
 | external file input, postprocessing, row-dependent styles | not implemented |
 
 ## Visual Procedure

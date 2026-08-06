@@ -8,6 +8,10 @@ const SOURCE = readFileSync(
   new URL("./fixtures/examples/pgfplots/pgfplotstable-inline-typeset.tex", import.meta.url),
   "utf8"
 );
+const NUMBER_FORMAT_SOURCE = readFileSync(
+  new URL("./fixtures/examples/pgfplots/pgfplotstable-number-formats.tex", import.meta.url),
+  "utf8"
+);
 
 test("lowers pgfplotstable typeset into a measured text table", () => {
   const parsed = parseTikz(SOURCE);
@@ -47,5 +51,42 @@ B,24,second
   assert.deepEqual(
     result.ir.items.filter((item) => item.subtype === "tabular-text").map((item) => item.text),
     ["name", "value", "A", "12", "B", "24"]
+  );
+});
+
+test("formats per-column fixed and scientific pgfplotstable values", () => {
+  const result = tikzToSvg(NUMBER_FORMAT_SOURCE, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    result.ir.items.filter((item) => item.subtype === "tabular-text").map((item) => item.text),
+    [
+      "DoF", "Fixed", "Scientific",
+      "4", "0.250", String.raw`$2.50\cdot 10^{-1}$`,
+      "1,024", "0.063", String.raw`$1.56\cdot 10^{-2}$`,
+      "1,048,576", "0.001", String.raw`$9.54\cdot 10^{-7}$`
+    ]
+  );
+  assert.match(result.svg, /2\.50/);
+  assert.match(result.svg, /9\.54/);
+});
+
+test("uses comma decimal and period thousands separators for fixed tables", () => {
+  const result = tikzToSvg(String.raw`\documentclass{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[
+  columns={value},
+  columns/value/.style={fixed,fixed zerofill,precision=2,use comma}
+]{
+value
+1234.5
+}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(
+    result.ir.items.filter((item) => item.subtype === "tabular-text").map((item) => item.text),
+    ["value", "1.234,50"]
   );
 });

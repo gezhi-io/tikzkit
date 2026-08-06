@@ -4096,6 +4096,25 @@
         "column name style",
         "tabular text layout"
       ]
+    },
+    {
+      "id": "pgfplotstable-number-formats",
+      "title": "pgfplotstable fixed and scientific number formats",
+      "source": "pgfplots/pgfplotstable-number-formats.tex",
+      "sourceCorpus": "TeX Live pgfplotstable manual",
+      "externalSource": "doc/latex/pgfplots/pgfplotstable.pdf",
+      "semanticOwner": "src/frontend/latex-shell.js:pgfplotstableDisplayCell; src/engine/evaluate.js:tabularTextWidthCm",
+      "features": [
+        "pgfplotstabletypeset",
+        "int detect",
+        "fixed",
+        "fixed zerofill",
+        "sci",
+        "sci zerofill",
+        "precision",
+        "sci precision",
+        "per-column style"
+      ]
     }
   ]
 }

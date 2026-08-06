@@ -583,6 +583,21 @@ same renderer-neutral `tabular` scene layout used for other text tables, with
 the default plain-integer thousands grouping (for example `2021` becomes
 `2,021`).
 
+For a selected column, the focused number-printer subset also supports
+`int detect`, `fixed`, `fixed zerofill`, `sci`, `sci zerofill`, `precision`,
+`sci precision`, and `use comma`. For example:
+
+```tex
+columns/value/.style={
+  column name=Value,
+  fixed,fixed zerofill,precision=3
+}
+columns/error/.style={
+  column name=Error,
+  sci,sci zerofill,sci precision=2
+}
+```
+
 ```tex
 \pgfplotstabletypeset[col sep=comma, columns={year,vehicles}] {
 year,vehicles,share
@@ -592,9 +607,12 @@ year,vehicles,share
 ```
 
 External table files, full PGF number formatting, decimal alignment,
-postprocessing, and arbitrary row/column styles remain partial. See
+printer-order interactions, postprocessing, and arbitrary row/column styles
+remain partial. See
 [`docs/qa/2026-08-06-pgfplotstable-typeset.md`](docs/qa/2026-08-06-pgfplotstable-typeset.md)
-for the local-source notes and visual acceptance record.
+and
+[`docs/qa/2026-08-06-pgfplotstable-number-formats.md`](docs/qa/2026-08-06-pgfplotstable-number-formats.md)
+for the local-source notes and visual acceptance records.
 
 To verify this supported slice locally, run:
 
