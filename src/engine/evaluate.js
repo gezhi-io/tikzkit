@@ -7652,6 +7652,12 @@ function addNodeItems(node, ir, env) {
       shadows: nodeGeneralShadows({ ...node.options, ...semantic }, nodeEnv),
       parts: shape === "rectangleSplit" ? node.rectangleSplit?.count || rectangleSplitParts(semantic) : undefined,
       rectangleSplitHorizontal: shape === "rectangleSplit" ? node.rectangleSplit?.horizontal : undefined,
+      rectangleSplitDrawSplits:
+        shape === "rectangleSplit"
+          ? semantic["rectangle split draw splits"] === undefined
+            ? true
+            : tikzBoolean(semantic["rectangle split draw splits"])
+          : undefined,
       partWidths: shape === "rectangleSplit" ? node.rectangleSplit?.partWidths : undefined,
       partHeights: shape === "rectangleSplit" ? node.rectangleSplit?.partHeights : undefined,
       separatorWidth: shape === "rectangleSplit" ? node.rectangleSplit?.separatorWidth : undefined,

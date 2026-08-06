@@ -30,6 +30,7 @@ export function renderRectangleSplitNodeBox(item, unit) {
   const lineWidth = item.style?.lineWidth ?? 1;
   const stroke = escapeAttribute(svgPaint(item.style?.stroke || "black"));
   const fills = item.partFills || [];
+  const drawSplits = item.rectangleSplitDrawSplits !== false;
   if (!horizontal) {
     const rawPartHeights = Array.isArray(item.partHeights) && item.partHeights.length === parts
       ? item.partHeights.map((value) => Math.max(0, Number(value) || 0))
@@ -50,12 +51,14 @@ export function renderRectangleSplitNodeBox(item, unit) {
         width
       )}" height="${format(partHeights[index])}" stroke="none" fill="${fill}" />`;
     }).join("");
-    const separators = Array.from({ length: parts - 1 }, (_unused, index) => {
-      const lineY = partY(index) + partHeights[index] + separatorHeight / 2;
-      return `<path d="M ${format(x)} ${format(lineY)} L ${format(x + width)} ${format(
-        lineY
-      )}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
-    }).join("");
+    const separators = drawSplits
+      ? Array.from({ length: parts - 1 }, (_unused, index) => {
+        const lineY = partY(index) + partHeights[index] + separatorHeight / 2;
+        return `<path class="tikz-split-separator" d="M ${format(x)} ${format(lineY)} L ${format(
+          x + width
+        )} ${format(lineY)}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
+      }).join("")
+      : "";
     const outer = `<rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
       height
     )}" rx="${format((item.rx || 0) * unit)}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
@@ -67,12 +70,14 @@ export function renderRectangleSplitNodeBox(item, unit) {
       partWidths[index]
     )}" height="${format(height)}" stroke="none" fill="${fill}" />`;
   }).join("");
-  const separators = Array.from({ length: parts - 1 }, (_unused, index) => {
-    const lineX = partX(index) + partWidths[index] + separatorWidth / 2;
-    return `<path d="M ${format(lineX)} ${format(y)} L ${format(lineX)} ${format(
-      y + height
-    )}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
-  }).join("");
+  const separators = drawSplits
+    ? Array.from({ length: parts - 1 }, (_unused, index) => {
+      const lineX = partX(index) + partWidths[index] + separatorWidth / 2;
+      return `<path class="tikz-split-separator" d="M ${format(lineX)} ${format(y)} L ${format(
+        lineX
+      )} ${format(y + height)}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
+    }).join("")
+    : "";
   const outer = `<rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
     height
   )}" rx="${format((item.rx || 0) * unit)}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;

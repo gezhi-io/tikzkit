@@ -3695,6 +3695,20 @@
       ]
     },
     {
+      "id": "pgf-rectangle-split-draw-splits",
+      "title": "PGF rectangle split can hide internal separators",
+      "source": "workbench/rectangle-split-draw-splits.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout; src/renderers/svg/rectangleSplitNodes.js",
+      "features": [
+        "rectangle split horizontal",
+        "rectangle split draw splits",
+        "per-part fill",
+        "nodepart anchors"
+      ]
+    },
+    {
       "id": "calendar-week-list-multimonth",
       "title": "PGF calendar multi-month week list",
       "source": "calendar/week-list-multimonth.tex",

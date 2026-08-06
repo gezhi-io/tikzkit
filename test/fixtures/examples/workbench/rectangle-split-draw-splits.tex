@@ -1,0 +1,19 @@
+% Regression slice derived from the PGF shapes.multipart manual.
+% `rectangle split draw splits` changes only internal separator painting.
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{shapes.multipart}
+\begin{document}
+\begin{tikzpicture}[
+  every node/.style={
+    rectangle split,
+    rectangle split horizontal,
+    rectangle split parts=3,
+    rectangle split part fill={blue!20,green!20,orange!20},
+    draw,
+    inner sep=2pt
+  }
+]
+  \node (drawn) at (0,0) {one\nodepart{two}two\nodepart{three}three};
+  \node[rectangle split draw splits=false] (hidden) at (0,-1) {one\nodepart{two}two\nodepart{three}three};
+\end{tikzpicture}
+\end{document}
