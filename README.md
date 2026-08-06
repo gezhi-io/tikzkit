@@ -105,6 +105,19 @@ source against its package/library contract in `docs/extension-registry.md`,
 then record a narrow conclusion in `docs/qa/` before declaring a feature
 accepted.
 
+### Current Visual Checkpoint
+
+`latex-examples-feed-forward-perceptron` is the maintained reference case for
+stroked circular nodes with a start-point `Latex[scale=0.5]-` arrow. It checks
+that TikZKit keeps the same physical SVG canvas as the local reference, so the
+browser renderer does not rescale the whole diagram because a circle outline
+extends past its calculated bounds. Re-run the commands above with the same
+fixture whenever changing node geometry, arrow tips, or SVG bounds.
+
+This is a verified compatibility slice, not a claim that all TikZ arrow or
+shape combinations are complete. Keep using the per-case audit and visual
+comparison workflow while the project remains under active testing.
+
 ### 使用速览
 
 用下面这条最短路径就可以开始。浏览器页面只运行 TikZKit 的 JavaScript
