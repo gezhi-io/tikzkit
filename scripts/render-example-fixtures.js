@@ -384,7 +384,9 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   const outputPng = path.join(options.outputRoot, "mactex-png", `${entryId}.png`);
   const outputLog = path.join(options.outputRoot, "mactex-log", `${entryId}.log`);
   const texPath = path.join(workDir, "reference.tex");
-  const source = rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || []);
+  const source = normalizeLegacyTkzEuclideSource(
+    rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || [])
+  );
   const latexArgs = [
     "-interaction=nonstopmode",
     "-halt-on-error",

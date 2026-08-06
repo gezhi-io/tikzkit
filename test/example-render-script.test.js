@@ -401,6 +401,50 @@ test("example fixture renderer writes an opt-in native MacTeX PNG reference", as
   assert.match(compile.options.cwd, /\.mactex-work[\\/]axis-basic-range$/);
 });
 
+test("native MacTeX references normalize legacy tkz-euclide object loaders", async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-legacy-tkz-fixtures-"));
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-legacy-tkz-output-"));
+  const nativePng = encodePng({ width: 1, height: 1, data: Buffer.from([255, 255, 255, 255]) });
+  await writeFile(
+    path.join(fixtureRoot, "frame.tex"),
+    [
+      "\\documentclass{standalone}",
+      "\\usepackage{tkz-euclide}",
+      "\\begin{document}",
+      "\\usetkzobj{all}",
+      "\\begin{tikzpicture}\\tkzDefPoints{0/0/A,1/0/B,0/1/C}\\tkzMarkAngle[arc=lll,size=0.6cm](A,B,C)\\end{tikzpicture}",
+      "\\end{document}",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+
+  const summary = await renderExampleFixtures({
+    fixtureRoot,
+    outputRoot,
+    skipTikztosvg: true,
+    skipPng: true,
+    nativeReference: true,
+    external: {
+      async commandExists(command) {
+        return command === "pdflatex" || command === "pdftocairo";
+      },
+      async runCommand(command, args) {
+        if (command === "pdflatex") {
+          const nativeInput = await readFile(args.at(-1), "utf8");
+          assert.doesNotMatch(nativeInput, /\\usetkzobj/);
+          assert.doesNotMatch(nativeInput, /arc=lll,size=0\.6cm/);
+          assert.match(nativeInput, /arc=lll,size=0\.6/);
+        }
+        if (command === "pdftocairo") await writeFile(`${args.at(-1)}.png`, nativePng);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+    }
+  });
+
+  assert.equal(summary.renderedMacTeXPng, 1);
+});
+
 test("native MacTeX references materialize manifest resources beside their rewritten source", async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-resource-fixtures-"));
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-native-resource-output-"));
