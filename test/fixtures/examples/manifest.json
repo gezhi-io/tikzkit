@@ -4323,6 +4323,21 @@
         "polyline phase continuity",
         "stealth arrow shortening"
       ]
+    },
+    {
+      "id": "scopes-braced-local-scopes",
+      "title": "TikZ scopes braced local style shorthand",
+      "source": "scopes/braced-local-scopes.tex",
+      "sourceCorpus": "TeX Live TikZ scopes library manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-scopes.tex",
+      "semanticOwner": "src/frontend/parser.js:parseScope;src/engine/evaluate.js:interpretStatement",
+      "features": [
+        "scopes library",
+        "braced scope shorthand",
+        "whitespace after opening brace",
+        "nested local styles",
+        "scope style restoration"
+      ]
     }
   ]
 }

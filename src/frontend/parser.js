@@ -232,7 +232,7 @@ function parseStatement(statement, diagnostics) {
     return { type: "noop", raw: text };
   }
   if (text.startsWith("\\node")) return parseNode(text, diagnostics);
-  if (text.startsWith("{[")) return parseScope(text, diagnostics);
+  if (isBracedScopeShorthand(text)) return parseScope(text, diagnostics);
   if (text.startsWith("{")) return parseBareScope(text, diagnostics);
 
   const command = text.match(/^\\([A-Za-z@]+)/)?.[1];
@@ -1253,16 +1253,22 @@ function parseNodeTreeChildBody(body, diagnostics = []) {
 }
 
 function parseScope(text, diagnostics) {
-  const options = extractBalanced(text, 1, "[", "]");
+  const opening = skipWhitespace(text, 1);
+  const options = extractBalanced(text, opening, "[", "]");
   if (!options) return unsupported("scope", text, "Malformed scope options");
-  const end = text.lastIndexOf("}");
-  if (end === -1) return unsupported("scope", text, "Malformed scope body");
+  const body = extractBalanced(text, 0, "{", "}");
+  if (!body || text.slice(body.end).trim()) return unsupported("scope", text, "Malformed scope body");
   return {
     type: "scope",
     options: parseOptions(options.content),
-    body: parseStatements(text.slice(options.end, end), diagnostics),
+    body: parseStatements(text.slice(options.end, body.end - 1), diagnostics),
     raw: text
   };
+}
+
+function isBracedScopeShorthand(text) {
+  const source = String(text || "");
+  return source.startsWith("{") && source[skipWhitespace(source, 1)] === "[";
 }
 
 function parseBareScope(text, diagnostics) {
@@ -2107,7 +2113,7 @@ function splitStatements(body) {
       brace === 0 &&
       ifnumDepth === 0 &&
       isBraceTerminatedStatement(current) &&
-      (nextNonWhitespace(body, i + 1)?.startsWith("\\") || nextNonWhitespace(body, i + 1)?.startsWith("{["))
+      (nextNonWhitespace(body, i + 1)?.startsWith("\\") || isBracedScopeShorthand(nextNonWhitespace(body, i + 1)))
     ) {
       statements.push(current);
       current = "";

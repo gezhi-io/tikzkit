@@ -3229,6 +3229,37 @@ test("keeps multiple named chains and exposes begin/end aliases across continue-
   assert.equal(paths.length, 2);
 });
 
+test("interprets documented braced scope shorthand with whitespace and restores outer styles", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  { [ultra thick]
+    { [red, shift={(0,1)}]
+      \draw (0,0) -- (1,0);
+    }
+    \draw (0,0) -- (1,0);
+  }
+  { [green]
+    \draw (0,0) -- (1,0);
+  }
+  \draw (0,0) -- (1,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(paths.length, 4);
+  assert.equal(paths[0].style.stroke, "red");
+  assert.equal(paths[0].style.lineWidth, TIKZ_LINE_WIDTHS.ultraThick);
+  assert.equal(paths[0].commands[0].y, 1);
+  assert.equal(paths[1].style.stroke, "black");
+  assert.equal(paths[1].style.lineWidth, TIKZ_LINE_WIDTHS.ultraThick);
+  assert.equal(paths[2].style.stroke, "rgb(0 255 0)");
+  assert.equal(paths[2].style.lineWidth, TIKZ_LINE_WIDTHS.thin);
+  assert.equal(paths[3].style.stroke, "black");
+  assert.equal(paths[3].style.lineWidth, TIKZ_LINE_WIDTHS.thin);
+});
+
 test("places chains with the local placed positioning syntax without changing the stored direction", () => {
   const source = String.raw`
 \begin{tikzpicture}[node distance=7mm, start chain=flow placed below]

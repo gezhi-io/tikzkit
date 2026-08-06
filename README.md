@@ -1859,6 +1859,14 @@ Current support is pragmatic and growing. Highlights:
 - Basic drawing commands: `\draw`, `\path`, `\fill`, `\filldraw`, `\node`, `\coordinate`.
 - Common paths: lines, rectangles, circles, ellipses, arcs, grids, orthogonal `|-` / `-|`, `to`, `edge`, bend edges, self loops.
 - Styles: `\tikzset`, `\tikzstyle`, color definitions, line widths, dash patterns, opacity, arrow tips.
+- Scopes: ordinary `\begin{scope}...\end{scope}` and the `scopes` library's
+  documented braced shorthand `{ [options] ... }`, including whitespace after
+  `{` and nesting. The shorthand restores outer styles, transforms, coordinate
+  bases, variables, and chain state when the group ends. It is intentionally
+  limited to statement positions; native after-command hooks and
+  catcode-sensitive TeX grouping remain partial. See
+  `test/fixtures/examples/scopes/braced-local-scopes.tex` and
+  `docs/qa/2026-08-07-scopes-braced-shorthand.md`.
 - xcolor color normalization: `\definecolor` for `HTML`/`rgb`/`RGB`/`gray`, scoped
   `\color` state, and natural default-model mixing. In particular
   `cyan`/`magenta`/`yellow`/`olive` and `!` mixes use TeX's CMYK defaults rather
@@ -2084,6 +2092,9 @@ Current core examples:
 
 - `positioning`: supports `node distance=<vertical> and <horizontal>`, normal edge-to-edge `right=of` / `below=of`, `on grid` centre-to-centre placement, and `base left/right` / `mid left/right` for one-line text and formula nodes. The latter use their corresponding TeX-style text anchors; complex multi-line box metrics remain partial.
 - `matrix`: supports `matrix of nodes`, `row sep`, `column sep`, `nodes={...}`, `nodes in empty cells`, and `m-row-column` cell anchors.
+- `scopes`: supports the manual's braced local-scope spelling
+  `{ [<TikZ options>] <statements> }`, including nested groups whose options
+  are separated from the opening brace by whitespace.
 - `automata`: supports state circles, split output states, accepting/initial arrows, and `initial by diamond` when the source also loads `shapes.geometric`.
 
 The per-library metadata lives in `src/tikz/libraries/`; the generated
