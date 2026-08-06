@@ -50,6 +50,8 @@ import {
   parseZRestriction,
   PGFPLOTS_ENVIRONMENTS,
   renderPgfplotsAxisAsTikz,
+  collectPgfplotsPlotReferences,
+  lowerPgfplotsPlotReferences,
   renderAddplot,
   renderAxis3DBox,
   renderAxis3DBoxForeground,
@@ -204,6 +206,28 @@ function legendSampleLeftInsetFromCommands(boxCommand, sampleCommand) {
   const boxLeft = Math.min(...boxMatches.map((match) => Number(match[1])));
   return Number(sampleMatches[0][1]) - boxLeft;
 }
+
+test("PGFPlots direct plot labels retain the current legend-line style for inline references", () => {
+  const body = String.raw`
+    \addplot[blue,ultra thick] {x};
+    \label{upper}
+    \addplot[red,densely dashed,thick] {-x};
+    \label{lower}
+    \node at (0,0) {\ref{upper}, \ref{lower}, \ref{ordinary}};
+  `;
+  const addplots = [
+    { options: { blue: true, "ultra thick": true } },
+    { options: { red: true, "densely dashed": true, thick: true } }
+  ];
+  const bindings = collectPgfplotsPlotReferences(body, addplots);
+  const lowered = lowerPgfplotsPlotReferences(body, addplots);
+
+  assert.equal(bindings.get("upper").replace(/\s/g, ""), "blue,ultrathick");
+  assert.equal(bindings.get("lower").replace(/\s/g, ""), "red,thick,denselydashed");
+  assert.match(lowered, /\\tikzkitplotsample\{blue,\s*ultra thick\}/);
+  assert.match(lowered, /\\tikzkitplotsample\{red,\s*thick,\s*densely dashed\}/);
+  assert.match(lowered, /\\ref\{ordinary\}/);
+});
 
 test("pgfplots axis model owns ranges, ticks, grid, plots, and labels", () => {
   const axis = createAxisModel({

@@ -5,6 +5,7 @@ export { createAxisModel, axisModelToSceneGraphPlan } from "./axis.js";
 export { renderAxis3DBox, renderAxis3DBoxForeground, renderAxis3DColorbar, renderAxis3DGrid, renderAxis3DTicks, renderAxisLabels3D } from "./axis3d.js";
 export { expandPgfplotsAxes, findContainingTikzPictureOptions, findNextPgfplotsEnvironment, PGFPLOTS_ENVIRONMENTS } from "./axisEnvironment.js";
 export { renderPgfplotsAxisAsTikz } from "./axisTikzLowering.js";
+export { collectPgfplotsPlotReferences, lowerPgfplotsPlotReferences } from "./plotReferences.js";
 export { parsePgfplotsFillBetween, renderAxisFillBetween } from "./fillBetween.js";
 export {
   axisOuterBounds,

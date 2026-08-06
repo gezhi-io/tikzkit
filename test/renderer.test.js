@@ -1949,6 +1949,10 @@ test("keeps the real Dirichlet function array structured in SVG-text output", ()
   assert.deepEqual(result.diagnostics, []);
   assert.match(result.svg, /class="tikz-math-matrix-inline"/);
   assert.match(result.svg, /tikz-matrix-delimiter-left/);
+  assert.equal((result.svg.match(/class="tikz-pgfplots-plot-reference-sample"/g) || []).length, 2);
+  assert.match(result.svg, /tikz-pgfplots-plot-reference-sample[^>]*stroke="blue"[^>]*stroke-width="5\.623/);
+  assert.match(result.svg, /tikz-pgfplots-plot-reference-sample[^>]*stroke="red"[^>]*stroke-width="5\.623/);
+  assert.doesNotMatch(result.svg, />\?\?<\/text>/);
   assert.match(result.svg, />if x ∈ ℝ\s*∖\s*ℚ<\/text>/);
   assert.doesNotMatch(result.svg, />\{\?\? 1 if x ∈ ℚ; \?\? 0 if x ∈ ℝ(?: setminus |∖)ℚ\.<\/text>/);
 });

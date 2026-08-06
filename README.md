@@ -241,6 +241,47 @@ The checked local reference is approximately `270.97pt × 56.57pt`; this is a
 crop and arrow-paint rule only. Tick labels, titles, legends, 3D axes, and
 general multi-axis layouts remain separate partial PGFPlots capabilities.
 
+### PGFPlots Plot References In Formula Nodes
+
+TikZKit now supports one narrow, inspectable PGFPlots cross-reference path in
+the portable SVG-text renderer. When a direct `\label{name}` follows a
+supported `\addplot`, an inline `\ref{name}` inside a formula array can show
+the plot's 0.6cm legend-line sample instead of `??`. The sample preserves the
+resolved line color, width, dash pattern, cap, and join. This is useful for
+piecewise definitions whose formula node documents the plots beside it:
+
+```tex
+\addplot[blue, ultra thick] {1};
+\label{plot one}
+\addplot[red, densely dashed] {0};
+\label{plot two}
+
+\node { $f(x)=\left\{\begin{array}{lll}
+  \tikz[baseline=-.5ex]\node{\ref{plot one}}; \phantom{1cm} & 1 & x\in\mathbb Q\\
+  \tikz[baseline=-.5ex]\node{\ref{plot two}}; & 0 & x\in\mathbb R\setminus\mathbb Q
+\end{array}\right.$ };
+```
+
+Run the focused test and visual inspection together:
+
+```bash
+node --test --test-name-pattern='PGFPlots direct plot labels|real Dirichlet' \
+  test/pgfplots-seams.test.js test/renderer.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-pgfplots-plot-ref \
+  --only latex-examples-dirichlet-function \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg \
+  --continue-on-external-failure --external-timeout-ms 120000
+npm run examples:diff -- --output outputs/qa-pgfplots-plot-ref \
+  --register --alignment-radius 3
+```
+
+This does **not** implement general LaTeX cross references: labels with
+scatter classes, custom `legend image code`, Beamer prefixes, auxiliary-file
+reuse across runs, and arbitrary external `\ref` values remain partial. The
+reference artifact should still be inspected because browser font metrics can
+make the enclosing formula frame slightly different from MacTeX.
+
 ### 使用速览
 
 用下面这条最短路径就可以开始。浏览器页面只运行 TikZKit 的 JavaScript

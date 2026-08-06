@@ -18,6 +18,7 @@ import { renderAxisTicks } from "./ticks.js";
 import { defaultPgfplotsCycleMarkStyle } from "./plotStyle.js";
 import { createPgfplotsDateContext, normalizePgfplotsDateAxisOptions } from "./dateCoordinates.js";
 import { renderAxisFillBetween } from "./fillBetween.js";
+import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
 
 // PGF's axis-description node box is about 1.7pt narrower on its rotated
 // cross-axis than the browser's CMU text layout box. Apply the correction only
@@ -68,6 +69,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     };
   }
   addplots = applyPgfplotsConstantScatterColors(addplots, resolvedAxisOptions);
+  const overlayBody = lowerPgfplotsPlotReferences(body, addplots);
   if (resolvedAxisOptions["pgfplots ternary axis"]) {
     return dependencies.renderTernaryAxisAsTikz(resolvedAxisOptions, addplots);
   }
@@ -106,7 +108,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
       commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
     });
-    commands.push(...dependencies.renderAxisOverlayStatements(body, axisModel.ranges, axisModel.geometry));
+    commands.push(...dependencies.renderAxisOverlayStatements(overlayBody, axisModel.ranges, axisModel.geometry));
     commands.push(...(axis3DBoxForeground.length ? axis3DBoxForeground : axis3DBox));
     commands.push(...dependencies.renderAxis3DTicks(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...dependencies.renderAxisLabels3D(axisModel.options, axisModel.ranges, axisModel.geometry));
@@ -128,7 +130,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
     commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
   });
-  commands.push(...dependencies.renderAxisOverlayStatements(body, axisModel.ranges, axisModel.geometry));
+  commands.push(...dependencies.renderAxisOverlayStatements(overlayBody, axisModel.ranges, axisModel.geometry));
   if (axisOnTop) {
     if (shouldRenderAnyAxisGrid(axisModel.options)) {
       commands.push(...renderAxisGrid(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));

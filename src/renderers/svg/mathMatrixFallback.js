@@ -8,6 +8,8 @@ import {
 } from "../../tikz/mathMatrixSyntax.js";
 import { texTextWidthCm } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
+import { normalizeOptions, parseOptions } from "../../engine/options.js";
+import { parseInlinePlotReferenceSample } from "../../tikz/plotReferenceSamples.js";
 import { escapeAttribute, escapeText } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 
@@ -22,7 +24,8 @@ export function inlineMatrixMathFallback(tex) {
   if (!parts) return null;
   return {
     ...parts,
-    rows: parts.rows.map((row) => row.map((cell) => mathFallbackText(cell).trim()))
+    rawRows: parts.rows,
+    rows: parts.rows.map((row) => row.map((cell) => parseInlinePlotReferenceSample(cell) ? "" : mathFallbackText(cell).trim()))
   };
 }
 
@@ -42,7 +45,7 @@ export function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, 
   const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
     Math.max(
       cellFontSize * 0.44,
-      ...parts.rows.map((row) => inlineMatrixCellWidth(row[colIndex] || "", fontScale, unit))
+      ...(parts.rawRows || parts.rows).map((row) => inlineMatrixCellWidth(row[colIndex] || "", fontScale, unit))
     )
   );
   const interColumnGaps = Array.from({ length: Math.max(0, colCount - 1) }, (_value, index) =>
@@ -78,12 +81,18 @@ export function renderInlineMatrixMathFallback(item, parts, baseFontSize, unit, 
   const contentX = matrixX + leftDelimiterWidth + leftDelimiterPad + arrayColumnAllowance / 2;
   output.push(renderSvgMatrixDelimiters(delimiters, matrixX, y, matrixWidth, matrixHeight, leftDelimiterWidth, rightDelimiterWidth, cellFontSize, color));
   let cellY = y - matrixHeight / 2 + rowHeight / 2;
-  for (const row of parts.rows) {
+  const rawRows = parts.rawRows || parts.rows;
+  for (let rowIndex = 0; rowIndex < rawRows.length; rowIndex += 1) {
+    const rawRow = rawRows[rowIndex];
+    const row = parts.rows[rowIndex] || [];
     let cellX = contentX;
     for (let colIndex = 0; colIndex < colCount; colIndex += 1) {
       const value = row[colIndex] || "";
+      const sample = parseInlinePlotReferenceSample(rawRow[colIndex] || "");
       const colWidth = colWidths[colIndex];
-      if (value) {
+      if (sample) {
+        output.push(renderInlinePlotReferenceSample(sample, cellX, cellY, unit));
+      } else if (value) {
         const alignment = parts.columnAlignments?.[colIndex] || "center";
         const textAnchor = alignment === "left" ? "start" : alignment === "right" ? "end" : "middle";
         const textX = alignment === "left" ? cellX : alignment === "right" ? cellX + colWidth : cellX + colWidth / 2;
@@ -171,7 +180,25 @@ export function inlineMathTextWidth(text, fontSize) {
 }
 
 function inlineMatrixCellWidth(value, fontScale, unit) {
+  const sample = parseInlinePlotReferenceSample(value);
+  if (sample) return sample.reservedWidthCm * unit;
   const text = mathFallbackText(value).trim();
   const glyphCount = [...text].filter((char) => !/\s/.test(char)).length;
   return texTextWidthCm(text, fontScale) * unit + (Math.max(0, glyphCount - 1) / 28.45274) * unit;
+}
+
+function renderInlinePlotReferenceSample(sample, x, y, unit) {
+  const style = normalizeOptions("draw", parseOptions(sample.style), { styles: {} }).style;
+  const attributes = [
+    `class="tikz-pgfplots-plot-reference-sample"`,
+    `d="M ${format(x)} ${format(y)} L ${format(x + sample.lineLengthCm * unit)} ${format(y)}"`,
+    `stroke="${escapeAttribute(style.stroke || "black")}"`,
+    'fill="none"',
+    `stroke-width="${format(style.lineWidth || 1)}"`,
+    `stroke-linecap="${escapeAttribute(style.strokeLinecap || "butt")}"`,
+    `stroke-linejoin="${escapeAttribute(style.strokeLinejoin || "miter")}"`
+  ];
+  if (style.strokeDasharray) attributes.push(`stroke-dasharray="${escapeAttribute(style.strokeDasharray)}"`);
+  if (Number.isFinite(style.strokeOpacity) && style.strokeOpacity !== 1) attributes.push(`stroke-opacity="${format(style.strokeOpacity)}"`);
+  return `<path ${attributes.join(" ")} />`;
 }

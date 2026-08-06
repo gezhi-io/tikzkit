@@ -7,6 +7,7 @@ import {
 } from "./text.js";
 import { parseExtensibleMathArrow } from "./mathArrows.js";
 import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
+import { parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 
 const TEX_PT_PER_CM = 28.45274;
@@ -1132,7 +1133,7 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
   const colWidths = Array.from({ length: colCount }, (_value, colIndex) =>
     Math.max(
       cellFont * 0.44,
-      ...parts.rows.map((row) => inlineMatrixTextWidthCm(row[colIndex] || "", cellFont))
+      ...(parts.rawRows || parts.rows).map((row) => inlineMatrixTextWidthCm(row[colIndex] || "", cellFont))
     )
   );
   const interColumnGaps = Array.from({ length: Math.max(0, colCount - 1) }, (_value, index) =>
@@ -1163,6 +1164,8 @@ function estimateInlineMatrixFormulaParts(tex, scale) {
 }
 
 function inlineMatrixTextWidthCm(value, fontSizeCm) {
+  const sample = parseInlinePlotReferenceSample(value);
+  if (sample) return sample.reservedWidthCm;
   const text = mathFallbackText(value).trim();
   const scale = (fontSizeCm * TEX_PT_PER_CM) / 10;
   const glyphCount = [...text].filter((char) => !/\s/.test(char)).length;
@@ -1174,7 +1177,8 @@ function extractInlineMatrixFormula(tex) {
   if (!parts) return null;
   return {
     ...parts,
-    rows: parts.rows.map((row) => row.map((cell) => mathFallbackText(cell).trim()))
+    rawRows: parts.rows,
+    rows: parts.rows.map((row) => row.map((cell) => parseInlinePlotReferenceSample(cell) ? "" : mathFallbackText(cell).trim()))
   };
 }
 

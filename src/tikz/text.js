@@ -2,6 +2,7 @@ import { TIKZ_FONT_FAMILY, TIKZ_HELVETICA_FONT_FAMILY, TIKZ_MONOSPACE_FONT_FAMIL
 import { replaceExtensibleMathArrowsWithGlyphs } from "./mathArrows.js";
 import { preprocessTikzSource } from "../frontend/latex-shell.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
+import { createMatrixPhantom, parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const TEX_EX_PT = 4.30554;
@@ -350,8 +351,10 @@ export function normalizeTikzText(value, options = {}) {
     }
   }
   if (!isMathText(text)) text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
-  text = replaceCommand(text, "phantom", 1, () => "");
+  const preserveMatrixPhantoms = options.mathRenderer === "svg-text" && /\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|cases|array)\}/.test(text);
+  text = replaceCommand(text, "phantom", 1, (args) => preserveMatrixPhantoms ? createMatrixPhantom(args[0]) : "");
   text = replaceCommand(text, "tikzinlinebox", 2, (args) => args[1]);
+  if (options.mathRenderer !== "svg-text") text = replaceCommand(text, "tikzkitplotsample", 1, () => String.raw`\text{—}`);
   text = replaceCommand(text, "contour", 2, (args) => args[1]);
   text = replaceCommand(text, "rule", 2, () => "");
   text = normalizeMathArrayColumnSpecs(text, { preserveZeroSpacing: options.mathRenderer === "svg-text" });
@@ -799,6 +802,8 @@ function extractInlineTikzNode(body) {
 }
 
 function normalizeInlineTikzNodeText(text) {
+  const sample = parseInlinePlotReferenceSample(text);
+  if (sample) return String.raw`\tikzkitplotsample{${sample.style}}`;
   return String(text || "")
     .replace(/\\ref\s*\{[^{}]*\}/g, "??")
     .replace(/\\textcolor\s*\{[^{}]+\}\s*\{([^{}]*)\}/g, "$1")

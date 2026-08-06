@@ -45,6 +45,8 @@ export {
   PGFPLOTS_DEFAULT_ENLARGE_LIMITS,
   PGFPLOTS_DEFAULT_FUNCTION_DOMAIN,
   renderPgfplotsAxisAsTikz,
+  collectPgfplotsPlotReferences,
+  lowerPgfplotsPlotReferences,
   normalizeAxisExpression,
   normalizePgfplotsSymbolicCoordinates,
   restrictSurfaceZ,
