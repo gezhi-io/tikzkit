@@ -1,0 +1,17 @@
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+  % Adapted from the TeX Live circuitikz diode-family manual examples.
+  \draw (0,0) to[zD*,l=$Z_{\mathrm{full}}$] (3,0);
+  \draw (0,-1.6) to[zDo,diodes/fill=orange!30,l=$Z_{\mathrm{empty}}$] (3,-1.6);
+  \draw (0,-3.2) to[zzD-,l=$ZZ_{\mathrm{sloped}}$] (3,-3.2);
+
+  \ctikzset{diode straight whiskers}
+  \draw (4,0) to[zzD*,l=$ZZ_{\mathrm{straight}}$] (7,0);
+  \draw (4,-2) to[tvsDo,l=$\mathrm{TVS}_{\mathrm{straight}}$] (8,-2);
+  \ctikzset{diode sloped whiskers}
+  \draw (4,-4) to[tvsD*,diodes/scale=.75,l=$\mathrm{TVS}_{\mathrm{sloped}}$] (8,-4);
+\end{circuitikz}
+\end{document}

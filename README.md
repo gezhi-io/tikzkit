@@ -599,6 +599,33 @@ Open `outputs/qa-circuitikz-diodes/index.html` and compare the TikZKit SVG,
 observed visual changes, and acceptance record are in
 [`docs/qa/2026-08-06-circuitikz-diodes.md`](docs/qa/2026-08-06-circuitikz-diodes.md).
 
+### Circuitikz Zener and TVS Diodes
+
+The diode slice also includes the shared cathode-whisker family used by Zener,
+ZZener, and TVS (transorb) bipoles:
+
+```tex
+\begin{circuitikz}
+  \draw (0,0) to[zD*,l=$Z$] (3,0);
+  \draw (0,-1.5) to[zzD-,l=$ZZ$] (3,-1.5);
+  \ctikzset{diode straight whiskers}
+  \draw (4,0) to[zzD*,l=$ZZ_{\mathrm{straight}}$] (7,0);
+  \draw (4,-1.5) to[tvsDo,l=$\mathrm{TVS}$] (8,-1.5);
+\end{circuitikz}
+```
+
+Accepted aliases are `zD`/`zD*`/`zDo`, `zzD`/`zzD*`/`zzD-`, and
+`tvsD`/`tvsD*`/`tvsDo`, including `full`, `empty`, and `stroke` long names.
+`diode straight whiskers` produces the right-angle terminals, while
+`diode sloped whiskers` restores the default slanted form. TVS uses the native
+double-width, opposing-triangle body. This adds no claim for tunnel, optical,
+varcap, Shockley, bidirectional, or tripole families.
+
+The checked source and reproducible three-way record are
+[`test/fixtures/examples/circuitikz/zener-tvs-diodes.tex`](test/fixtures/examples/circuitikz/zener-tvs-diodes.tex)
+and
+[`docs/qa/2026-08-06-circuitikz-zener-tvs-diodes.md`](docs/qa/2026-08-06-circuitikz-zener-tvs-diodes.md).
+
 ### Circuitikz Transformer Cores
 
 `transformer core` accepts the manual's narrow core-style directory and draws

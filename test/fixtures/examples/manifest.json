@@ -194,6 +194,22 @@
       ]
     },
     {
+      "id": "circuitikz-zener-tvs-diodes",
+      "title": "circuitikz Zener, ZZener, and TVS diode whiskers",
+      "source": "circuitikz/zener-tvs-diodes.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzDiodeSpec/circuitikzDiodeItems",
+      "features": [
+        "zD/zD*/zDo aliases",
+        "zzD/zzD*/zzD- aliases",
+        "tvsD/tvsD*/tvsDo aliases",
+        "diode straight whiskers",
+        "diode sloped whiskers",
+        "diodes/scale and diodes/fill"
+      ]
+    },
+    {
       "id": "circuitikz-chokes-and-core-anchors",
       "title": "circuitikz cute chokes and inductor core anchors",
       "source": "circuitikz/chokes-and-core-anchors.tex",

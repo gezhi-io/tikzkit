@@ -2139,7 +2139,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     shapes.push(circuitikzCapacitorItem(from, to, geometry, pathStyle, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "diode") {
-    const settings = circuitikzDiodeSettings(options, env);
+    const settings = circuitikzDiodeSettings(spec, options, env);
     const split = appendCircuitikzSplitWire(
       commands,
       from,
@@ -2432,13 +2432,9 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
 function circuitikzDiodeSpec(options = {}, env = {}) {
   for (const [rawKey, rawValue] of Object.entries(options || {})) {
     const key = String(rawKey).trim().replace(/\s+/g, " ");
-    const short = key.match(/^(leD|sD|D)([o*-])?$/i);
+    const short = key.match(/^(tvsD|zzD|zD|leD|sD|D)([o*-])?$/i);
     if (short) {
-      const diodeKind = short[1].toLowerCase() === "led"
-        ? "led"
-        : short[1].toLowerCase() === "sd"
-          ? "schottky"
-          : "diode";
+      const diodeKind = circuitikzDiodeKind(short[1]);
       return {
         kind: "diode",
         diodeKind,
@@ -2446,13 +2442,9 @@ function circuitikzDiodeSpec(options = {}, env = {}) {
         label: circuitikzLabelValue(options.l) || circuitikzLabelValue(rawValue)
       };
     }
-    const long = key.match(/^(?:(full|empty|stroke) )?(led|schottky diode|diode)$/i);
+    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|led|schottky diode|diode)$/i);
     if (!long) continue;
-    const diodeKind = long[2].toLowerCase() === "led"
-      ? "led"
-      : long[2].toLowerCase() === "schottky diode"
-        ? "schottky"
-        : "diode";
+    const diodeKind = circuitikzDiodeKind(long[2]);
     return {
       kind: "diode",
       diodeKind,
@@ -2461,6 +2453,16 @@ function circuitikzDiodeSpec(options = {}, env = {}) {
     };
   }
   return null;
+}
+
+function circuitikzDiodeKind(raw = "") {
+  const kind = String(raw).trim().toLowerCase().replace(/\s+/g, " ");
+  if (kind === "led" || kind === "lediode") return "led";
+  if (kind === "sd" || kind === "schottky diode") return "schottky";
+  if (kind === "zd" || kind === "zener diode") return "zener";
+  if (kind === "zzd" || kind === "zzener diode") return "zzener";
+  if (kind === "tvsd" || kind === "tvs diode") return "tvs";
+  return "diode";
 }
 
 function circuitikzDiodeVariant(explicit, options = {}, env = {}) {
@@ -3176,22 +3178,34 @@ function circuitikzDiodeNumber(key, options = {}, env = {}, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function circuitikzDiodeSettings(options = {}, env = {}) {
+function circuitikzDiodeSettings(spec = {}, options = {}, env = {}) {
   const scale = Math.max(0.05, circuitikzDiodeNumber("scale", options, env, 1));
   // pgfcirc.defines.tex establishes the diodes scale class. The diode shape
   // then uses width=.40 Rlen and height=.50 Rlen (pgfcircbipoles.tex).
   const rlen = 1.4 * circuitikzLengthScale(env) * scale;
+  const tvs = spec.diodeKind === "tvs";
   const rawFill = circuitikzDiodeRawOption("fill", options, env);
   const fill = rawFill === undefined || rawFill === null || rawFill === true || rawFill === "" || String(rawFill).trim().toLowerCase() === "none"
     ? "none"
     : normalizeColor(String(rawFill));
   return {
     scale,
-    bodyLength: 0.4 * rlen,
-    halfWidth: 0.2 * rlen,
+    bodyLength: (tvs ? 0.8 : 0.4) * rlen,
+    halfWidth: (tvs ? 0.4 : 0.2) * rlen,
     halfHeight: 0.25 * rlen,
-    fill
+    fill,
+    whiskers: circuitikzDiodeWhiskers(options, env)
   };
+}
+
+function circuitikzDiodeWhiskers(options = {}, env = {}) {
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    const configured = String(source["diodes/whiskers"] ?? "").trim().toLowerCase();
+    if (configured === "straight" || configured === "sloped") return configured;
+    if (source["diode straight whiskers"] !== undefined) return "straight";
+    if (source["diode sloped whiskers"] !== undefined) return "sloped";
+  }
+  return "sloped";
 }
 
 function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}) {
@@ -3204,6 +3218,37 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
   const baseBottom = pointNormal(base, geometry.n, -halfHeight);
   const outlineStyle = { ...circuitikzComponentStyle(pathStyle), fill: "none", lineJoin: "miter" };
   const fill = spec.variant === "full" ? outlineStyle.stroke : spec.variant === "empty" ? settings.fill : "none";
+  if (spec.diodeKind === "tvs") {
+    const mid = geometry.mid;
+    const rightTop = pointNormal(cathode, geometry.n, halfHeight);
+    const rightBottom = pointNormal(cathode, geometry.n, -halfHeight);
+    return [
+      {
+        type: "path",
+        subtype: "circuitikz-tvs-diode",
+        diodeKind: "tvs",
+        variant: spec.variant,
+        whiskers: settings.whiskers,
+        fill,
+        label: spec.label || "",
+        bodyLength: roundNumber(bodyLength),
+        orientation: Math.abs(geometry.u.y) > Math.abs(geometry.u.x) ? "vertical" : "horizontal",
+        style: { ...outlineStyle, fill },
+        commands: [
+          moveToCommand(baseTop), lineToCommand(mid), lineToCommand(baseBottom), closePathCommand(),
+          moveToCommand(rightTop), lineToCommand(mid), lineToCommand(rightBottom), closePathCommand()
+        ]
+      },
+      {
+        type: "path",
+        subtype: "circuitikz-diode-cathode",
+        diodeKind: "tvs",
+        whiskers: settings.whiskers,
+        style: outlineStyle,
+        commands: circuitikzTvsCathodeCommands(geometry, halfWidth, halfHeight, settings.whiskers)
+      }
+    ];
+  }
   const diode = {
     type: "path",
     subtype: "circuitikz-diode",
@@ -3213,12 +3258,17 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
     label: spec.label || "",
     bodyLength: roundNumber(bodyLength),
     orientation: Math.abs(geometry.u.y) > Math.abs(geometry.u.x) ? "vertical" : "horizontal",
+    whiskers: spec.diodeKind === "zzener" ? settings.whiskers : undefined,
     style: { ...outlineStyle, fill },
     commands: [moveToCommand(baseTop), lineToCommand(cathode), lineToCommand(baseBottom), closePathCommand()]
   };
   const cathodeCommands = spec.diodeKind === "schottky"
     ? circuitikzSchottkyCathodeCommands(geometry, cathode, halfWidth, halfHeight)
-    : [moveToCommand(pointNormal(cathode, geometry.n, -halfHeight)), lineToCommand(pointNormal(cathode, geometry.n, halfHeight))];
+    : spec.diodeKind === "zener"
+      ? circuitikzZenerCathodeCommands(geometry, cathode, halfWidth, halfHeight)
+      : spec.diodeKind === "zzener"
+        ? circuitikzZzenerCathodeCommands(geometry, cathode, halfWidth, halfHeight, settings.whiskers)
+        : [moveToCommand(pointNormal(cathode, geometry.n, -halfHeight)), lineToCommand(pointNormal(cathode, geometry.n, halfHeight))];
   const cathodeItem = {
     type: "path",
     subtype: "circuitikz-diode-cathode",
@@ -3248,6 +3298,36 @@ function circuitikzSchottkyCathodeCommands(geometry, cathode, halfWidth, halfHei
     lineToCommand(point(0, halfHeight)),
     lineToCommand(point(0.4 * halfWidth, halfHeight)),
     lineToCommand(point(0.4 * halfWidth, 0.6 * halfHeight))
+  ];
+}
+
+function circuitikzZenerCathodeCommands(geometry, cathode, halfWidth, halfHeight) {
+  return [
+    moveToCommand(pointNormal(cathode, geometry.n, -halfHeight)),
+    lineToCommand(pointNormal(cathode, geometry.n, halfHeight)),
+    lineToCommand(pointNormal(pointAlong(cathode, geometry.u, -0.4 * halfWidth), geometry.n, halfHeight))
+  ];
+}
+
+function circuitikzZzenerCathodeCommands(geometry, cathode, halfWidth, halfHeight, whiskers = "sloped") {
+  const multiplier = whiskers === "straight" ? 1 : 1.5;
+  return [
+    moveToCommand(pointNormal(pointAlong(cathode, geometry.u, 0.8 * halfWidth), geometry.n, -multiplier * halfHeight)),
+    lineToCommand(pointNormal(cathode, geometry.n, -halfHeight)),
+    lineToCommand(pointNormal(cathode, geometry.n, halfHeight)),
+    lineToCommand(pointNormal(pointAlong(cathode, geometry.u, -0.8 * halfWidth), geometry.n, multiplier * halfHeight))
+  ];
+}
+
+function circuitikzTvsCathodeCommands(geometry, halfWidth, halfHeight, whiskers = "sloped") {
+  const multiplier = whiskers === "straight" ? 1 : 1.3;
+  const top = pointNormal(geometry.mid, geometry.n, halfHeight);
+  const bottom = pointNormal(geometry.mid, geometry.n, -halfHeight);
+  return [
+    moveToCommand(pointNormal(pointAlong(geometry.mid, geometry.u, -0.4 * halfWidth), geometry.n, multiplier * halfHeight)),
+    lineToCommand(top),
+    lineToCommand(bottom),
+    lineToCommand(pointNormal(pointAlong(geometry.mid, geometry.u, 0.4 * halfWidth), geometry.n, -multiplier * halfHeight))
   ];
 }
 
@@ -7560,6 +7640,8 @@ function normalizeCtikzSetOptions(rawOptions = {}) {
     if (lowerKey === "cute inductors" || lowerKey === "cute") normalized["inductors/kind"] = "cute";
     if (lowerKey === "american inductors" || lowerKey === "american") normalized["inductors/kind"] = "american";
     if (lowerKey === "european inductors" || lowerKey === "european") normalized["inductors/kind"] = "european";
+    if (lowerKey === "diode straight whiskers") normalized["diodes/whiskers"] = "straight";
+    if (lowerKey === "diode sloped whiskers") normalized["diodes/whiskers"] = "sloped";
     const styleMatch = normalizedKey.match(/^(?:circuitikz\/)?transformer\s+(L[12])\/\.style$/i);
     if (styleMatch) {
       const coil = styleMatch[1].toUpperCase();
