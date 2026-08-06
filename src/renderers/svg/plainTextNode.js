@@ -164,7 +164,8 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
   if (!payload?.body) return "";
   const verticalOffset = plainTextVisualCenterOffset(item, unit);
   const horizontalOffset = cachedPlainTextHorizontalOffset(item, align, payload);
-  return `<g class="tikz-text-engine-cache" transform="translate(${format(item.x * unit + horizontalOffset)} ${format(-item.y * unit + verticalOffset)})">${payload.body}</g>`;
+  const x = svgTextAnchorForItem(item) ? svgTextAnchorX(item, unit) : item.x * unit;
+  return `<g class="tikz-text-engine-cache" transform="translate(${format(x + horizontalOffset)} ${format(-item.y * unit + verticalOffset)})">${payload.body}</g>`;
 }
 
 function cachedPlainTextHorizontalOffset(item, align, payload) {

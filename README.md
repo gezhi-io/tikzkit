@@ -113,6 +113,10 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
   same-picture tikzmark overlay can resolve its anchors. It is not a general
   TeX table implementation: complex column preambles, multicolumn, multirow,
   and native cross-picture remember-picture cropping remain unsupported.
+- PGFPlots legend rows with `legend cell align=left` retain their shared left
+  anchor when the browser uses its cached SVG text engine. This removes a real
+  clipping/misalignment defect in `latex-examples-2d-epochs-overfitting`; exact
+  legend-box sizing and final text/bounding-box calibration remain partial.
 - Package and library support is intentionally partial unless documented
   otherwise. See [the 30-case acceptance record](docs/qa/latex-examples-new30.md)
   for tested commands, parameters, and remaining boundaries.
@@ -186,6 +190,21 @@ change should run its split-node tests before the case comparison:
 
 ```bash
 node --test test/interpreter.test.js test/shapes-multipart-vertical.test.js
+```
+
+For a PGFPlots legend or cached text-placement change, use both the renderer
+test and the legend lowering tests, then inspect the real chart rather than
+accepting only text coordinates:
+
+```bash
+node --test --test-name-pattern='explicit SVG text anchors|legend cell alignment' \
+  test/svg-renderer.test.js test/pgfplots-seams.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-2d-epochs-overfitting \
+  --output outputs/qa-pgfplots-legend-anchor \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-legend-anchor \
+  --register --alignment-radius 3
 ```
 
 Regenerate the extension registry after a package or library implementation

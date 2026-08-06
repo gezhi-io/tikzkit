@@ -92,6 +92,31 @@ npm run examples:diff -- --output outputs/qa-my-change \
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
 
+### 图例和文字锚点
+
+PGFPlots 的 `legend cell align=left` 不是把每一行文字“看起来靠左”即可；本机
+PGFPlots 会将 legend 矩阵单元格设为 `anchor=west`。因此所有图例行应从同一个
+左边缘开始，不能因为文字宽度不同而被不同的节点中心推开。TikZKit 的缓存 SVG
+文字也会保留这种显式 `start`/`end` 锚点。
+
+修改图例、文字缓存、字体或 bbox 时，用实际图表验证锚点，而不是只看单行文本：
+
+```bash
+node --test --test-name-pattern='explicit SVG text anchors|legend cell alignment' \
+  test/svg-renderer.test.js test/pgfplots-seams.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-2d-epochs-overfitting \
+  --output outputs/qa-pgfplots-legend-anchor \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-legend-anchor \
+  --register --alignment-radius 3
+```
+
+打开 `outputs/qa-pgfplots-legend-anchor/index.html`，检查 legend 边框、每条样线、
+每行文字的共同左边缘，以及最长文字是否被 SVG 裁切。图例精确矩阵间距、复杂公式
+宽度和最终浏览器/TeX bbox 校准仍在测试中。
+
 ## 5. 日常检查与提交
 
 ```bash

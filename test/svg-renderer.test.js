@@ -807,6 +807,23 @@ test("svg text engine keeps an unwrapped left-aligned paragraph centered on its 
   assert.match(rendered, /class="tikz-nicefrac-numerator"/);
 });
 
+test("svg text engine honors explicit SVG text anchors instead of the centered node point", () => {
+  const engine = createSvgTextEngine({ unit: 100, mathRenderer: "svg-text" });
+  const item = {
+    type: "textNode",
+    x: 5,
+    y: 2,
+    svgTextAnchor: "start",
+    svgTextX: 3,
+    text: "Legend label",
+    style: { fill: "black" }
+  };
+  const rendered = renderPlainTextNodeWithTextEngine(item, normalizeTikzText(item.text), 100, { textEngine: engine });
+
+  assert.match(rendered, /transform="translate\(300\s+-200\)"/);
+  assert.match(rendered, /text-anchor="start"/);
+});
+
 test("svg text engine isolates cached payloads by render-affecting text style", () => {
   const engine = createSvgTextEngine({ unit: 100 });
   const baseTextRequest = {
