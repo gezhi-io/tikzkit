@@ -213,7 +213,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `275/275 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `276/276 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
@@ -999,14 +999,18 @@ Current support is pragmatic and growing. Highlights:
   origins shift the result, and the command does not implicitly clip. The
   documented defaults are `domain=-5:5` for `\tkzFctPar`, `domain=0:2*pi` for
   `\tkzFctPolar`, and `samples=200`; ordinary draw options such as `color`,
-  `style`, and `line width` pass through. Cache IDs, tangents, areas,
-  asymptotes, adaptive sampling, advanced paint keys, and general parametric
+  `style`, and `line width` pass through. The documented scalar-function
+  `\tkzDrawTangentLine` subset selects the last function or `with=a`, uses
+  `kl`/`kr` source-unit half lengths, preserves independent x/y scales, and
+  supports `draw` for the contact point. Global `tan style`, advanced tangent
+  paint keys, areas, asymptotes, adaptive sampling, and general parametric
   discontinuity analysis remain outside the verified boundary. See
   [`docs/qa/2026-08-05-tkz-fct-parametric.md`](docs/qa/2026-08-05-tkz-fct-parametric.md),
   [`docs/qa/2026-08-05-tkz-fct-polar.md`](docs/qa/2026-08-05-tkz-fct-polar.md),
   [`docs/qa/2026-08-05-tkz-draw-axes.md`](docs/qa/2026-08-05-tkz-draw-axes.md),
   [`docs/qa/2026-08-05-tkz-axis-labels.md`](docs/qa/2026-08-05-tkz-axis-labels.md),
-  and [`docs/qa/2026-08-05-tkz-axis-styles.md`](docs/qa/2026-08-05-tkz-axis-styles.md).
+  [`docs/qa/2026-08-05-tkz-axis-styles.md`](docs/qa/2026-08-05-tkz-axis-styles.md),
+  and [`docs/qa/2026-08-06-tkz-fct-tangent-line.md`](docs/qa/2026-08-06-tkz-fct-tangent-line.md).
 
   ```tex
   \usepackage{tkz-fct}

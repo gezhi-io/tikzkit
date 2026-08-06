@@ -35,6 +35,18 @@
       ]
     },
     {
+      "id": "tkz-fct-tangent-line",
+      "title": "tkz-fct tangent line",
+      "source": "tkz-fct/tangent-line.tex",
+      "features": [
+        "tkzInit",
+        "tkzGrid",
+        "tkzAxeXY",
+        "tkzFct",
+        "tkzDrawTangentLine"
+      ]
+    },
+    {
       "id": "tkz-euclide-thales-circle-triangle",
       "title": "tkz-euclide Thales circle triangle with sector",
       "source": "tkz-euclide/thales-circle-triangle.tex",

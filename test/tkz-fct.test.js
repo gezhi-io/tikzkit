@@ -25,7 +25,8 @@ test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", (
     "tkzAxeY",
     "tkzFct",
     "tkzFctPar",
-    "tkzFctPolar"
+    "tkzFctPolar",
+    "tkzDrawTangentLine"
   ]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
@@ -257,6 +258,50 @@ test("keeps a continuous steep tkzFct segment connected across opposite frame bo
     paths[0].commands.map((command) => [command.x, command.y]),
     [[-5, -5], [5, 5]]
   );
+});
+
+test("lowers tkzDrawTangentLine from the remembered function with native half-length scaling", () => {
+  const source = String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=2,ymin=-1,ymax=4,xstep=.5,ystep=2]
+  \tkzFct[color=red,domain=-1:2,samples=9]{x*x}
+  \tkzDrawTangentLine[color=blue,kl=.5,kr=1,draw](1)
+\end{tikzpicture}`;
+  const expanded = expandTkzFct(source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const tangentPaths = result.ir.items.filter((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.doesNotMatch(expanded, /\\tkzDrawTangentLine/);
+  assert.match(expanded, /\\draw\[-latex,color=blue\] \(2,0\.5\) -- \(4,1\.5000005\);/);
+  assert.match(expanded, /\\draw\[-latex,color=blue\] \(2,0\.5\) -- \(1,0\.00000025\);/);
+  assert.match(expanded, /\\fill\[black\] \(2,0\.5\) circle \(1pt\);/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(tangentPaths.length, 2);
+  assert.deepEqual(
+    tangentPaths.map((path) => path.commands.map((command) => [command.x, command.y])),
+    [
+      [[2, 0.5], [4, 1.5000005]],
+      [[2, 0.5], [1, 0.00000025]]
+    ]
+  );
+});
+
+test("selects a documented earlier tkzFct by its native with=a reference", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=3,ymin=0,ymax=5]
+  \tkzFct[color=red,domain=0:3,samples=5]{x*x}
+  \tkzFct[color=green,domain=0:3,samples=5]{2*x}
+  \tkzDrawTangentLine[with=a,color=blue,kl=0,kr=1](1)
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const tangent = result.ir.items.find((item) => item.type === "path" && item.style?.stroke === "blue");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(tangent.commands[0], { type: "moveTo", x: 1, y: 1 });
+  assert.equal(tangent.commands[1].x, 2);
+  assert.ok(Math.abs(tangent.commands[1].y - 3.000001) < 1e-9);
 });
 
 test("lowers tkzInit, tkzGrid, and tkzAxeXY using tkz-base dimensions", () => {

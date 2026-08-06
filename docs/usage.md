@@ -95,7 +95,7 @@ diff 面板，写下可见的修复前后变化和遗留边界。
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 274/274 rendered, 0 diagnostics。
+# 维护案例的语义检查；当前预期为 276/276 rendered, 0 diagnostics。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。

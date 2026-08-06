@@ -1,0 +1,12 @@
+% Derived from TKZdoc-fct-tangent.tex: documented function tangent behavior.
+\documentclass[border=2pt]{standalone}
+\usepackage{tkz-fct}
+\begin{document}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=2,ymin=-1,ymax=4]
+  \tkzGrid[color=gray!30]
+  \tkzAxeXY
+  \tkzFct[color=red,domain=-1:2,samples=121]{x*x}
+  \tkzDrawTangentLine[color=blue,kl=.75,kr=1.25,draw](1)
+\end{tikzpicture}
+\end{document}

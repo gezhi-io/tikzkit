@@ -13,7 +13,8 @@ const IMPLEMENTED_COMMANDS = [
   "tkzAxeY",
   "tkzFct",
   "tkzFctPar",
-  "tkzFctPolar"
+  "tkzFctPolar",
+  "tkzDrawTangentLine"
 ];
 const COMMANDS = new Set(IMPLEMENTED_COMMANDS);
 const TEX_PT_PER_CM = 28.4527559;
@@ -103,6 +104,7 @@ export function expandTkzFct(source) {
         index = optional.end;
         continue;
       }
+      rememberFunction(state, expression.content);
       output += renderFunction(state, optional.content, expression.content);
       index = expression.end;
       continue;
@@ -130,6 +132,17 @@ export function expandTkzFct(source) {
       index = expression.end;
       continue;
     }
+    if (command.value === "tkzDrawTangentLine") {
+      const abscissa = parseParenthesizedArg(text, optional.end);
+      if (!abscissa) {
+        output += text.slice(index, optional.end);
+        index = optional.end;
+        continue;
+      }
+      output += renderTangentLine(state, optional.content, abscissa.content);
+      index = abscissa.end;
+      continue;
+    }
     if (command.value === "tkzAxeXY") {
       output += renderAxes(state, optional.content, {
         scriptsize: insideScriptsizeScope(text, index)
@@ -141,7 +154,7 @@ export function expandTkzFct(source) {
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw[XY]|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw(?:X|Y|TangentLine)|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
 }
 
 function createState() {
@@ -153,7 +166,8 @@ function createState() {
     ymin: 0,
     ymax: 10,
     ystep: 1,
-    yorigin: 0
+    yorigin: 0,
+    functions: []
   };
 }
 
@@ -435,6 +449,69 @@ function renderFunction(state, rawOptions, rawExpression) {
     .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
     .join("\n");
   return paths ? `${clips}\n${paths}\n\\end{scope}` : "";
+}
+
+function rememberFunction(state, expression) {
+  const name = String.fromCharCode("a".charCodeAt(0) + state.functions.length);
+  state.functions.push({ name, expression: String(expression || "").trim() });
+}
+
+function renderTangentLine(state, rawOptions, rawAbscissa) {
+  const options = parseOptions(rawOptions);
+  const selectedName = optionText(options.with, "").toLowerCase();
+  const selected = selectedName
+    ? state.functions.find((entry) => entry.name === selectedName)
+    : state.functions.at(-1);
+  const sourceX = optionExpressionNumber(rawAbscissa);
+  if (!selected || !Number.isFinite(sourceX)) return "";
+
+  // tkz-fct differentiates via one-sided finite differences at 10^-6 source
+  // units, then independently converts the half-tangent's x/y components by
+  // tkzInit's xstep/ystep values.
+  const epsilon = 1e-6;
+  const sourceY = evaluateAxisExpression(selected.expression, sourceX, { "trig format": "rad" });
+  const rightY = evaluateAxisExpression(selected.expression, sourceX + epsilon, { "trig format": "rad" });
+  const leftY = evaluateAxisExpression(selected.expression, sourceX - epsilon, { "trig format": "rad" });
+  if (![sourceY, rightY, leftY].every(Number.isFinite)) return "";
+
+  const point = {
+    x: sourceToCanvas(sourceX, state.xorigin, state.xstep),
+    y: sourceToCanvas(sourceY, state.yorigin, state.ystep)
+  };
+  const kl = optionNumber(options.kl, 1);
+  const kr = optionNumber(options.kr, 1);
+  const style = tangentDrawOptions(options);
+  const commands = [];
+  if (kr !== 0) {
+    commands.push(
+      `\\draw[${style}] (${formatTangent(point.x)},${formatTangent(point.y)}) -- (${formatTangent(point.x + kr / state.xstep)},${formatTangent(point.y + (kr * (rightY - sourceY)) / (epsilon * state.ystep))});`
+    );
+  }
+  if (kl !== 0) {
+    commands.push(
+      `\\draw[${style}] (${formatTangent(point.x)},${formatTangent(point.y)}) -- (${formatTangent(point.x - kl / state.xstep)},${formatTangent(point.y - (kl * (sourceY - leftY)) / (epsilon * state.ystep))});`
+    );
+  }
+  if (optionBoolean(options.draw, false)) {
+    commands.push(`\\fill[black] (${formatTangent(point.x)},${formatTangent(point.y)}) circle (1pt);`);
+  }
+  return commands.join("\n");
+}
+
+function tangentDrawOptions(options) {
+  const ignored = new Set(["with", "kl", "kr", "draw"]);
+  const parts = ["-latex"];
+  for (const [key, value] of Object.entries(options)) {
+    if (ignored.has(key)) continue;
+    if (key === "style") {
+      const style = optionText(value, "solid");
+      if (style && style !== "solid") parts.push(style);
+      continue;
+    }
+    if (value === true) parts.push(key);
+    else parts.push(`${key}=${value}`);
+  }
+  return parts.join(",");
 }
 
 function renderParametricFunction(state, rawOptions, rawXExpression, rawYExpression) {
@@ -911,6 +988,14 @@ function format(value) {
   return Object.is(rounded, -0) ? "0" : String(rounded);
 }
 
+function formatTangent(value) {
+  const rounded = Math.round(Number(value) * 1e10) / 1e10;
+  if (Number.isFinite(rounded) && Math.abs(rounded) > 0 && Math.abs(rounded) < 1e-6) {
+    return rounded.toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
+  }
+  return format(rounded);
+}
+
 function readCommandName(source, start) {
   const match = source.slice(start).match(/^[A-Za-z@]+/);
   if (!match) return null;
@@ -928,6 +1013,12 @@ function parseRequiredArg(source, start) {
   const cursor = skipWhitespace(source, start);
   if (source[cursor] !== "{") return null;
   return readBalanced(source, cursor, "{", "}");
+}
+
+function parseParenthesizedArg(source, start) {
+  const cursor = skipWhitespace(source, start);
+  if (source[cursor] !== "(") return null;
+  return readBalanced(source, cursor, "(", ")");
 }
 
 function readBalanced(source, start, open, close) {
