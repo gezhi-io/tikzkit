@@ -3203,6 +3203,6 @@ test("includes circular node boxes in the SVG viewBox bounds", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /viewBox="-35 -235 70 70"/);
+  assert.match(svg, /viewBox="-35\.5 -235\.5 71 71"/);
   assert.doesNotMatch(svg, /viewBox="-10 -110 120 120"/);
 });

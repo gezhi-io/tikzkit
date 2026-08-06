@@ -847,6 +847,25 @@ test("parses arrows.meta value syntax and scales the selected tip", () => {
   assert.match(result.svg, /tikz-arrow-latex/);
 });
 
+test("keeps stroked circular node outlines inside the SVG bounds for scaled Latex edge tips", () => {
+  const source = String.raw`
+    \tikzset{vertex/.style={draw,circle,minimum size=10pt,inner sep=0pt}}
+    \tikzset{edge/.style={arrows={{Latex[scale=0.5]}-},thick}}
+    \begin{tikzpicture}
+      \node[vertex] (a) at (0,0) {};
+      \node[vertex] (b) at (4,0) {};
+      \draw (a) edge[edge] (b);
+    \end{tikzpicture}
+  `;
+  const result = tikzToSvg(source);
+  const viewBox = result.svg.match(/\bviewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
+
+  assert.ok(viewBox, "expected an SVG viewBox");
+  assert.ok(Math.abs(viewBox[0] + 18.276) < 0.01, `expected the left circle stroke in bounds, got ${viewBox}`);
+  assert.ok(Math.abs(viewBox[2] - 436.552) < 0.02, `expected both circle outlines in bounds, got ${viewBox}`);
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-latex"/);
+});
+
 test("lays out horizontal rectangle split node parts and named anchors", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{shapes.multipart}

@@ -8285,7 +8285,10 @@ function addNodeItems(node, ir, env) {
       y: point.y,
       width: size.width,
       height: size.height,
-      strokeBoundsIncluded: true,
+      // Rectangle-like node renderers inset the geometry by half the stroke,
+      // but SVG ellipses paint their stroke outside the supplied radii. Keep
+      // that outer half-stroke in the scene bounds for circles and ellipses.
+      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse",
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
