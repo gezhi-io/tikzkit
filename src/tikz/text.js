@@ -1182,7 +1182,11 @@ function cleanStyledTextContent(value) {
   const protectedMath = protectInlineMathSpans(text);
   text = protectedMath.text;
 
-	  text = normalizePlainTextAccents(text)
+  text = normalizePlainTextAccents(text)
+	    // TeX's `\\-` is discretionary: it has no glyph unless paragraph
+	    // packing chooses the break. Keep it as a soft-hyphen token for the
+	    // shared text wrapper rather than leaking a literal backslash.
+	    .replace(/\\-/g, "\u00ad")
 	    .replace(/\\(?:mathbf|textbf)\s*\{([^{}]*)\}/g, "$1")
 	    .replace(/\\(?:centering|raggedright|raggedleft|tt|ttfamily|rm|rmfamily|sf|sffamily|normalfont|bf|bfseries|itshape|slshape|scshape)\b/g, "")
     .replace(/\\,(?![A-Za-z])\s*/g, () => hspaceText("0.166667em"))

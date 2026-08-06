@@ -12,6 +12,7 @@ export function renderSvgText({ text, x = 0, y = 0, fill = "black", fontSize = 1
 
 export function formatPlainTexText(value) {
   return String(value ?? "")
+    .replace(/\u00ad/g, "")
     .replace(/\\strut(?![A-Za-z])\s*/g, "")
     .replace(/\\\$\s*/g, "$")
     .replace(/\\([%#&_{}])/g, "$1")

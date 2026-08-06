@@ -1256,7 +1256,7 @@ function parseBareScope(text, diagnostics) {
   };
 }
 
-function parsePathCommand(command, text) {
+function parsePathCommand(command, text, diagnostics = []) {
   let optionEnd = 0;
   const optionParts = [];
   while (true) {
@@ -1269,6 +1269,8 @@ function parsePathCommand(command, text) {
   }
   const options = parseOptions(optionParts.filter(Boolean).join(","));
   const pathText = text.slice(optionEnd).trim();
+  const treeNode = parsePathNodeTree(command, options, pathText, diagnostics);
+  if (treeNode) return treeNode;
   if (pathText.startsWith("\\foreach")) {
     const foreach = parseForeachPathCommand(command, options, pathText);
     if (foreach) return foreach;
@@ -1282,6 +1284,24 @@ function parsePathCommand(command, text) {
       segments: parsePathSegments(pathText)
     },
     raw: `\\${command}${text}`
+  };
+}
+
+// `\path[<options>] node ... child ...` is the documented mindmap spelling.
+// It does not paint the path itself: the node tree owns the visible concepts
+// and connection bars. Lower it to the existing node-tree AST while retaining
+// the path options as the context inherited by its descendants.
+function parsePathNodeTree(command, pathOptions, pathText, diagnostics = []) {
+  if (!/^(?:node\b)/.test(pathText)) return null;
+  const node = parseNode(`\\${pathText}`, diagnostics);
+  if (node?.type !== "node") return null;
+  return {
+    ...node,
+    options: { ...pathOptions, ...(node.options || {}) },
+    treeOptions: { ...pathOptions, ...(node.treeOptions || {}) },
+    treeInheritedOptions: pathOptions,
+    pathCommand: command,
+    raw: `\\${command}${pathText}`
   };
 }
 

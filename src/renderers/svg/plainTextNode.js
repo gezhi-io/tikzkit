@@ -54,7 +54,7 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
     item.wrapWidth,
     unit,
     baseFontSize,
-    { lineBreakMode: item.textWrapMode }
+    { lineBreakMode: item.textWrapMode, hyphenate: item.textWrapHyphenation }
   );
   const lines = wrappedText.lines;
   const contentLines = wrappedText.contentLines;
@@ -146,6 +146,7 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
       textWidthPt,
       alignment: align,
       lineBreakMode: item.textWrapMode,
+      hyphenate: item.textWrapHyphenation,
       color: normalized.color || item.style?.fill || "black",
       textWidthScale: item.style?.textWidthScale,
       textWidthScaleExplicit: item.style?.textWidthScaleExplicit
@@ -218,7 +219,7 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
     item.wrapWidth,
     unit,
     baseFontSize,
-    { lineBreakMode: item.textWrapMode }
+    { lineBreakMode: item.textWrapMode, hyphenate: item.textWrapHyphenation }
   );
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, wrapped.lines);
   const wrapWidth = Number(item.wrapWidth);

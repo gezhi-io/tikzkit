@@ -161,6 +161,7 @@ function measurePlainTextRequest(request, unit) {
     text: normalized.text,
     textAlign: alignment,
     textWrapMode: request.lineBreakMode,
+    textWrapHyphenation: request.hyphenate,
     font,
     style: {
       fill: color,
@@ -197,6 +198,7 @@ function measurePlainTextRequest(request, unit) {
     textStyle: normalizedTextRenderStyleSignature(normalized),
     alignment,
     lineBreakMode: request.lineBreakMode || null,
+    hyphenate: request.hyphenate === false ? false : null,
     textWidthPt: request.textWidthPt ?? null,
     textWidthScale: request.textWidthScaleExplicit ? request.textWidthScale : null
   });

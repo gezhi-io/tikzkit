@@ -4,6 +4,7 @@ import { svgPathData } from "./pathData.js";
 import {
   axisGradientId,
   ballGradientId,
+  mindmapConnectionGradientId,
   mixPaint,
   pathFadingGradientId,
   pathFadingIsRadial,
@@ -28,6 +29,7 @@ export function collectSvgDefs(items, unit) {
   const ballGradientDefs = collectBallGradientDefs(items);
   const axisGradientDefs = collectAxisGradientDefs(items);
   const radialGradientDefs = collectRadialGradientDefs(items);
+  const mindmapConnectionGradientDefs = collectMindmapConnectionGradientDefs(items, unit);
   const pathFadingDefs = collectPathFadingDefs(items);
   const blurShadowDefs = collectBlurShadowDefs(items, unit);
   return [
@@ -38,9 +40,38 @@ export function collectSvgDefs(items, unit) {
     ...ballGradientDefs.map(renderBallGradientDef),
     ...axisGradientDefs.map(renderAxisGradientDef),
     ...radialGradientDefs.map(renderRadialGradientDef),
+    ...mindmapConnectionGradientDefs.map(renderMindmapConnectionGradientDef),
     ...pathFadingDefs.flatMap(renderPathFadingDefs),
     ...blurShadowDefs.map(renderBlurShadowFilterDef)
   ];
+}
+
+export function collectMindmapConnectionGradientDefs(items = [], unit = 1) {
+  const defs = new Map();
+  for (const item of items || []) {
+    const connection = item?.style?.mindmapConnection;
+    const commands = item?.commands || [];
+    const start = commands.find((command) => command?.type === "moveTo");
+    const end = [...commands].reverse().find((command) => ["lineTo", "curveTo", "quadTo", "moveTo"].includes(command?.type));
+    if (!connection || !start || !end) continue;
+    const fromPoint = connection.fromPoint || start;
+    const toPoint = connection.toPoint || end;
+    const id = mindmapConnectionGradientId(item.style);
+    defs.set(id, {
+      id,
+      from: connection.from,
+      to: connection.to,
+      x1: (Number(fromPoint.x) || 0) * unit,
+      y1: -(Number(fromPoint.y) || 0) * unit,
+      x2: (Number(toPoint.x) || 0) * unit,
+      y2: -(Number(toPoint.y) || 0) * unit
+    });
+  }
+  return [...defs.values()];
+}
+
+export function renderMindmapConnectionGradientDef(def) {
+  return `<linearGradient id="${escapeAttribute(def.id)}" gradientUnits="userSpaceOnUse" x1="${format(def.x1)}" y1="${format(def.y1)}" x2="${format(def.x2)}" y2="${format(def.y2)}"><stop offset="0%" stop-color="${escapeAttribute(svgPaint(def.from || "black"))}" /><stop offset="100%" stop-color="${escapeAttribute(svgPaint(def.to || "black"))}" /></linearGradient>`;
 }
 
 export function formOnlyPatternClipId(index) {

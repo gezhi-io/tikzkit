@@ -4224,6 +4224,23 @@
         "renewcommand",
         "scale without text scaling"
       ]
+    },
+    {
+      "id": "mindmap-concept-color-connections",
+      "title": "TikZ mindmap concept-color connection bars",
+      "source": "mindmap/concept-color-connections.tex",
+      "sourceCorpus": "TeX Live PGF mindmap manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-mindmaps.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "mindmap",
+        "concept color",
+        "circle connection bar switch color",
+        "root concept",
+        "level concept styles",
+        "clockwise from",
+        "tree child edges"
+      ]
     }
   ]
 }

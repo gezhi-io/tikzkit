@@ -4,7 +4,10 @@ import { formatSvgNumber as format } from "./format.js";
 import { arrowMarkerId } from "./markers.js";
 
 export function styleAttributes(style = {}, options = {}) {
-  const fill = style.pattern
+  const mindmapPaint = style.mindmapConnection?.paint;
+  const fill = mindmapPaint === "fill"
+    ? `url(#${mindmapConnectionGradientId(style)})`
+    : style.pattern
     ? `url(#${patternId(style)})`
     : style.shading === "ball"
       ? `url(#${ballGradientId(style)})`
@@ -14,7 +17,7 @@ export function styleAttributes(style = {}, options = {}) {
           ? `url(#${radialGradientId(style)})`
           : svgPaint(style.fill || "none");
   const attrs = [
-    ["stroke", svgPaint(style.stroke || "none")],
+    ["stroke", mindmapPaint === "stroke" ? `url(#${mindmapConnectionGradientId(style)})` : svgPaint(style.stroke || "none")],
     ["fill", fill],
     ["stroke-width", style.lineWidth ?? 1]
   ];
@@ -32,6 +35,13 @@ export function styleAttributes(style = {}, options = {}) {
   if (!options.omitMarkers && style.markerStart) attrs.push(["marker-start", `url(#${arrowMarkerId(style.markerStart, style)})`]);
   if (!options.omitMarkers && style.markerEnd) attrs.push(["marker-end", `url(#${arrowMarkerId(style.markerEnd, style)})`]);
   return attrs.map(([key, value]) => ` ${key}="${escapeAttribute(String(value))}"`).join("");
+}
+
+export function mindmapConnectionGradientId(style = {}) {
+  const id = String(style.mindmapConnection?.id || "connection")
+    .replace(/[^A-Za-z0-9_-]+/g, "-")
+    .replace(/^-|-$/g, "") || "connection";
+  return `tikz-mindmap-connection-${id}`;
 }
 
 export function svgPaint(value) {

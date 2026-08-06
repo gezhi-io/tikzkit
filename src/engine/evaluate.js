@@ -839,7 +839,16 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   if (statement.type === "node") {
     const node = createNode(statement, env, ir, diagnostics);
     if (node && statement.children?.length) {
-      createNodeTreeChildren(node, statement.children, env, ir, diagnostics, 1, statement.treeOptions || {});
+      const treeEnv = statement.treeInheritedOptions
+        ? {
+            ...env,
+            pictureOptions: {
+              ...(env.pictureOptions || {}),
+              ...statement.treeInheritedOptions
+            }
+          }
+        : env;
+      createNodeTreeChildren(node, statement.children, treeEnv, ir, diagnostics, 1, statement.treeOptions || {});
     }
     return;
   }
@@ -6043,33 +6052,41 @@ function isConceptNodeOptions(options = {}) {
 function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics, level = 1, treeOptions = {}) {
   if (!parentNode || !children.length) return;
   const resolvedTreeOptions = normalizeOptions("node", resolveDynamicOptions(treeOptions || {}, env), env).options;
-  const levelOptions = treeLevelOptions(level, env);
+  // Options written between a node and its `child` clauses configure this
+  // one generation. Consume them before descendants are created so a nested
+  // `[clockwise from=...]` neither disappears nor leaks to all later levels.
+  const childBaseEnv = {
+    ...env,
+    pictureOptions: treeDescendantPictureOptions(env.pictureOptions, resolvedTreeOptions)
+  };
+  const levelOptions = treeLevelOptions(level, childBaseEnv);
   const layouts = children.map((child) => {
-    const childTreeOptions = normalizeOptions("node", resolveDynamicOptions(child.options || {}, env), env).options;
+    const childTreeOptions = normalizeOptions("node", resolveDynamicOptions(child.options || {}, childBaseEnv), childBaseEnv).options;
     const layoutOptions = { ...levelOptions, ...resolvedTreeOptions, ...childTreeOptions };
-    return { child, childTreeOptions, layoutOptions, grow: treeGrowDirection(env, layoutOptions) };
+    const grow = treeGrowDirection(childBaseEnv, layoutOptions);
+    return { child, childTreeOptions, layoutOptions, grow };
   });
   for (const [index, layout] of layouts.entries()) {
     const { child, childTreeOptions, layoutOptions, grow } = layout;
-    const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, env);
+    const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, childBaseEnv);
     const siblings = treeUsesFixedLateralShift(layoutOptions)
       ? [layout]
       : layouts.filter((candidate) => treeGrowKey(candidate.grow) === treeGrowKey(grow));
     const siblingIndex = siblings.indexOf(layout);
-    const siblingDistance = treeSiblingDistance(level, env, layoutOptions);
-    const levelDistance = treeLevelDistance(level, env, layoutOptions);
-    const offset = treeChildOffset(siblingIndex, siblings.length, siblingDistance, levelDistance, grow, layoutOptions, env);
-    offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", env);
-    offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", env);
-    const projected = projectLocalOffset(offset.x, offset.y, env);
+    const siblingDistance = treeSiblingDistance(level, childBaseEnv, layoutOptions);
+    const levelDistance = treeLevelDistance(level, childBaseEnv, layoutOptions);
+    const offset = treeChildOffset(siblingIndex, siblings.length, siblingDistance, levelDistance, grow, layoutOptions, childBaseEnv);
+    offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", childBaseEnv);
+    offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", childBaseEnv);
+    const projected = projectLocalOffset(offset.x, offset.y, childBaseEnv);
     const point = roundPoint({
       x: parentNode.point.x + projected.x,
       y: parentNode.point.y + projected.y
     });
     const childEnv = {
-      ...env,
+      ...childBaseEnv,
       pictureOptions: {
-        ...(env.pictureOptions || {}),
+        ...(childBaseEnv.pictureOptions || {}),
         ...levelOptions,
         ...childTreeOptions
       }
@@ -6110,7 +6127,19 @@ function treeGrowKey(grow) {
 }
 
 function treeDescendantPictureOptions(pictureOptions = {}, childOptions = {}) {
-  const placementKeys = ["level distance", "sibling distance", "xshift", "yshift", "shift", "anchor"];
+  const placementKeys = [
+    "level distance",
+    "sibling distance",
+    "sibling angle",
+    "clockwise from",
+    "counterclockwise from",
+    "grow",
+    "grow cyclic",
+    "xshift",
+    "yshift",
+    "shift",
+    "anchor"
+  ];
   const inherited = { ...pictureOptions };
   for (const key of placementKeys) {
     if (Object.hasOwn(childOptions, key)) delete inherited[key];
@@ -6119,7 +6148,7 @@ function treeDescendantPictureOptions(pictureOptions = {}, childOptions = {}) {
 }
 
 function treeGrowDirection(env, options = {}) {
-  if (options["grow cyclic"] || env.pictureOptions?.["grow cyclic"] || options["tikzkit mindmap"] || env.pictureOptions?.["tikzkit mindmap"]) {
+  if (isMindmapOptions(options) || isMindmapOptions(env.pictureOptions || {})) {
     return "cyclic";
   }
   const grow = String(options.grow ?? env.pictureOptions?.grow ?? "down").trim().toLowerCase();
@@ -6221,9 +6250,18 @@ function addTreeEdge(parentNode, childNode, options, env, ir) {
   );
   const normalized = normalizeOptions("draw", rawOptions, env);
   const style = scaleCanvasStyle(normalized.style, env);
+  let mindmapConnection = null;
   if (isMindmapOptions(env.pictureOptions || {}) || isMindmapOptions(options || {})) {
-    const conceptColor = options?.["concept color"] ?? env.pictureOptions?.["concept color"];
-    if (conceptColor) style.stroke = normalizeColor(String(conceptColor));
+    const parentColor = mindmapConceptColor(parentNode, env.pictureOptions?.["concept color"]);
+    const childColor = mindmapConceptColor(childNode, options?.["concept color"] ?? env.pictureOptions?.["concept color"]);
+    if (childColor) style.stroke = childColor;
+    if (parentColor && childColor) {
+      mindmapConnection = {
+        id: `tree-${ir.items.length}`,
+        from: parentColor,
+        to: childColor
+      };
+    }
     style.lineWidth = Math.max(Number(style.lineWidth) || 0, 0.1 * TIKZ_UNIT * canvasLengthScale(env));
     style.lineCap = "round";
   }
@@ -6236,13 +6274,120 @@ function addTreeEdge(parentNode, childNode, options, env, ir) {
     { node: childClipNode, mode: "center" },
     env
   );
-  const commands = treeEdgeCommands(parentClipNode, childClipNode, clipped, options || {});
+  const connectionBar = mindmapConnection
+    ? mindmapConnectionBarCommands(parentNode, childNode)
+    : null;
+  if (connectionBar) {
+    style.stroke = "none";
+    style.fill = "none";
+    style.mindmapConnection = {
+      ...mindmapConnection,
+      paint: "fill",
+      fromPoint: parentNode.point,
+      toPoint: childNode.point
+    };
+  } else if (mindmapConnection) {
+    style.mindmapConnection = { ...mindmapConnection, paint: "stroke" };
+  }
+  const commands = connectionBar || treeEdgeCommands(parentClipNode, childClipNode, clipped, options || {});
   ir.items.push({
     type: "path",
     subtype: "tree-edge",
     style,
     commands
   });
+}
+
+function mindmapConnectionBarCommands(parentNode, childNode) {
+  if (parentNode?.shape !== "circle" || childNode?.shape !== "circle") return null;
+  const from = parentNode.point;
+  const to = childNode.point;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  const parentRadius = Math.max(Number(parentNode.width) || 0, Number(parentNode.height) || 0) / 2;
+  const childRadius = Math.max(Number(childNode.width) || 0, Number(childNode.height) || 0) / 2;
+  if (!Number.isFinite(distance) || distance <= 1e-6 || parentRadius <= 0 || childRadius <= 0) return null;
+
+  const ux = dx / distance;
+  const uy = dy / distance;
+  const nx = -uy;
+  const ny = ux;
+  const segmentAngle = (20 * Math.PI) / 180;
+  const parentHalf = Math.min(parentRadius * Math.sin(segmentAngle), distance * 0.22);
+  const childHalf = Math.min(childRadius * Math.sin(segmentAngle), distance * 0.22);
+  const parentAlong = Math.sqrt(Math.max(0, parentRadius * parentRadius - parentHalf * parentHalf));
+  const childAlong = Math.sqrt(Math.max(0, childRadius * childRadius - childHalf * childHalf));
+  const openDistance = Math.max(0, distance - parentRadius - childRadius);
+  const parentNeck = parentRadius + Math.min(parentRadius * 0.38, openDistance * 0.38);
+  const childNeck = childRadius + Math.min(childRadius * 0.38, openDistance * 0.38);
+  const neckHalf = Math.max(0.03, 0.175 * Math.min(parentRadius, childRadius));
+
+  const point = (origin, along, lateral) => roundPoint({
+    x: origin.x + ux * along + nx * lateral,
+    y: origin.y + uy * along + ny * lateral
+  });
+  const parentTop = point(from, parentAlong, parentHalf);
+  const parentBottom = point(from, parentAlong, -parentHalf);
+  const parentInnerTop = point(from, parentNeck, neckHalf);
+  const parentInnerBottom = point(from, parentNeck, -neckHalf);
+  const childTop = point(to, -childAlong, childHalf);
+  const childBottom = point(to, -childAlong, -childHalf);
+  const childInnerTop = point(to, -childNeck, neckHalf);
+  const childInnerBottom = point(to, -childNeck, -neckHalf);
+  const parentControl = Math.max(parentRadius * 0.3, 0.08);
+  const childControl = Math.max(childRadius * 0.3, 0.08);
+
+  return [
+    { type: "moveTo", x: parentTop.x, y: parentTop.y },
+    {
+      type: "curveTo",
+      x1: parentTop.x + ux * parentControl,
+      y1: parentTop.y + uy * parentControl,
+      x2: parentInnerTop.x - ux * parentControl,
+      y2: parentInnerTop.y - uy * parentControl,
+      x: parentInnerTop.x,
+      y: parentInnerTop.y
+    },
+    { type: "lineTo", x: childInnerTop.x, y: childInnerTop.y },
+    {
+      type: "curveTo",
+      x1: childInnerTop.x + ux * childControl,
+      y1: childInnerTop.y + uy * childControl,
+      x2: childTop.x - ux * childControl,
+      y2: childTop.y - uy * childControl,
+      x: childTop.x,
+      y: childTop.y
+    },
+    { type: "lineTo", x: childBottom.x, y: childBottom.y },
+    {
+      type: "curveTo",
+      x1: childBottom.x - ux * childControl,
+      y1: childBottom.y - uy * childControl,
+      x2: childInnerBottom.x + ux * childControl,
+      y2: childInnerBottom.y + uy * childControl,
+      x: childInnerBottom.x,
+      y: childInnerBottom.y
+    },
+    { type: "lineTo", x: parentInnerBottom.x, y: parentInnerBottom.y },
+    {
+      type: "curveTo",
+      x1: parentInnerBottom.x - ux * parentControl,
+      y1: parentInnerBottom.y - uy * parentControl,
+      x2: parentBottom.x + ux * parentControl,
+      y2: parentBottom.y + uy * parentControl,
+      x: parentBottom.x,
+      y: parentBottom.y
+    },
+    { type: "closePath" }
+  ];
+}
+
+function mindmapConceptColor(node, fallback) {
+  const value = node?.options?.["concept color"] ?? fallback;
+  return value === undefined || value === null || value === true
+    ? null
+    : normalizeColor(String(value));
 }
 
 function treeEdgeCommands(parentNode, childNode, clipped, options = {}) {
@@ -8456,6 +8601,7 @@ function addNodeItems(node, ir, env) {
       rotation: rotation || undefined,
       textAlign: normalizedNodeTextAlign(normalizedNodeOptions.align, semantic),
       textWrapMode: nodeTextWrapMode(normalizedNodeOptions, semantic),
+      textWrapHyphenation: isConceptNodeOptions(node.options || {}) ? false : undefined,
       svgTextAnchor,
       svgTextX: svgTextAnchor ? (node.at || textPoint).x : undefined,
       wrapWidth: node.options?.["text width"] ? parseDimension(node.options["text width"], nodeEnv.variables) : undefined,
@@ -11219,24 +11365,34 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const wholeMathLines =
     normalized.lines?.length &&
     normalized.lines.every((line) => Boolean(parseMathText(String(line || "").trim())));
+  // Mindmap concepts are circles whose `text width` is a real paragraph
+  // constraint. Ordinary circles retain their compact label sizing.
+  const conceptCircleTextWidth = isCircleShape && isConceptNodeOptions(options);
+  const usesParagraphTextWidth =
+    Number.isFinite(textWidth) && textWidth > 0 && (!isCircleShape || conceptCircleTextWidth) && !wholeMathLines;
   const hasScopedLineFontScale = normalized.lineStyles?.some(
     (style) => Math.abs((Number(style?.scale) || 1) - 1) > 1e-6
   );
   const prewrapTextWidth =
-    Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape && !wholeMathLines && hasScopedLineFontScale;
+    usesParagraphTextWidth && (conceptCircleTextWidth || hasScopedLineFontScale);
   // TeX applies a scoped font declaration before it packs a text-width
   // paragraph. Reuse the renderer's per-line wrapping input here so a line
   // such as `{\small ...}` cannot reserve a normal-size phantom line in the
   // node's PGF bounding box.
   const metricNormalized =
     prewrapTextWidth
-      ? wrappedTextMetricNormalized(normalized, textWidth, nodeTextWrapMode(normalizedOptions.options, normalizedOptions.semantic))
+      ? wrappedTextMetricNormalized(
+          normalized,
+          textWidth,
+          nodeTextWrapMode(normalizedOptions.options, normalizedOptions.semantic),
+          { hyphenate: !conceptCircleTextWidth }
+        )
       : normalized;
   // The text engine can measure an unwrapped paragraph at `text width`, but
   // metricNormalized already contains those wrapped lines. Passing the width
   // again would make every physical line reserve a full paragraph height.
   const textWidthForTextEngine =
-    Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape && !prewrapTextWidth ? textWidth : null;
+    usesParagraphTextWidth && !prewrapTextWidth ? textWidth : null;
   const lines = textMetricLines(metricNormalized);
   const textBox = scaleTextMetricBox(estimateTextMetricBox(
     metricNormalized,
@@ -11297,7 +11453,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const isEmptyText = lines.every((line) => !line.trim());
   const isEmptyCircle = isCircleShape && isEmptyText;
   const fixedCircleSize = isCircleShape ? fixedCircularMinimumSize(options, env) : null;
-  if (Number.isFinite(textWidth) && textWidth > 0 && !isCircleShape && !wholeMathLines) {
+  if (usesParagraphTextWidth) {
     if (!prewrapTextWidth) {
       const wrappedLines = wrapTextMetricLines(lines, textWidth, options, env);
       if (wrappedLines.length > lines.length) {
@@ -14627,7 +14783,9 @@ function includeTextNodeItemBounds(item, include) {
     const wrapWidth = Number(item.wrapWidth);
     const usesWrappedWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
     const metricNormalized = usesWrappedWidth
-      ? wrappedTextMetricNormalized(normalized, wrapWidth, item.textWrapMode)
+      ? wrappedTextMetricNormalized(normalized, wrapWidth, item.textWrapMode, {
+          hyphenate: item.textWrapHyphenation
+        })
       : normalized;
     const textMetricScale = nodeTextMetricScaleForText(
       metricNormalized,
@@ -14672,7 +14830,7 @@ function includeRotatedItemRectangle(minX, minY, maxX, maxY, item, include) {
   }
 }
 
-function wrappedTextMetricNormalized(normalized, wrapWidth, lineBreakMode) {
+function wrappedTextMetricNormalized(normalized, wrapWidth, lineBreakMode, wrapOptions = {}) {
   const sourceLines = normalized.lines.length ? normalized.lines : String(normalized.text || "").split(/\\\\|\n/);
   const metricLines = textMetricLines(normalized);
   const lineStyles = Array.isArray(normalized.lineStyles) ? normalized.lineStyles : [];
@@ -14680,7 +14838,8 @@ function wrappedTextMetricNormalized(normalized, wrapWidth, lineBreakMode) {
   const wrappedStyles = [];
   metricLines.forEach((line, index) => {
     const wrapped = wrapTeXTextLineByWidth(line, wrapWidth, Number(lineStyles[index]?.scale) || 1, {
-      lineBreakMode
+      lineBreakMode,
+      ...wrapOptions
     });
     for (const wrappedLine of wrapped) {
       wrappedLines.push(wrappedLine);

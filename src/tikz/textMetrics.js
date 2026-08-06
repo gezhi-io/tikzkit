@@ -506,6 +506,7 @@ export function texTextWidthCm(line, scale = 1) {
   const chars = [...stripTikzHspaceMarkers(line)];
   for (let index = 0; index < chars.length; index += 1) {
     const char = chars[index];
+    if (char === "\u00ad") continue;
     if (ZERO_WIDTH_MATH_ACCENTS.has(char)) continue;
     if (char === "_" || char === "^") {
       const consumed = consumeFallbackScriptWidth(chars, index + 1);
@@ -535,10 +536,10 @@ function relativeTikzHspaceWidthPt(value, emSizePt = 10) {
 export function wrapTeXTextLineByWidth(line, maxWidthCm, scale = 1, options = {}) {
   const text = String(line || "").trim();
   const limit = Number(maxWidthCm);
-  if (!text || !Number.isFinite(limit) || limit <= 0 || !/\s/.test(text)) return [text];
+  if (!text || !Number.isFinite(limit) || limit <= 0) return [stripDiscretionaryHyphens(text)];
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length <= 1) return [text];
-  if (options.lineBreakMode === "flush") return wrapTeXWordsFlush(words, limit, scale);
+  if (words.length <= 1) return splitOverfullDiscretionaryWords(words, limit, scale, 1.02);
+  if (options.lineBreakMode === "flush") return wrapTeXWordsFlush(words.map(stripDiscretionaryHyphens), limit, scale);
   const centeredParagraph = options.lineBreakMode === "center";
   const tolerance = Number.isFinite(Number(options.overfullTolerance))
     ? Math.max(1, Number(options.overfullTolerance))
@@ -573,7 +574,52 @@ export function wrapTeXTextLineByWidth(line, maxWidthCm, scale = 1, options = {}
     lines.push(words.slice(cursor, next).join(" "));
     cursor = next;
   }
-  return applyConservativeEnglishHyphenation(lines, limit, scale, tolerance);
+  const discretionaryLines = splitOverfullDiscretionaryLines(lines, limit, scale, tolerance);
+  // A manually declared TeX breakpoint outranks our fallback English
+  // hyphenator. Re-hyphenating its suffix would turn `pro\\-gramming` into
+  // unrelated fragments such as `gram-` and `ming`.
+  if (text.includes("\u00ad") || options.hyphenate === false) return discretionaryLines;
+  return applyConservativeEnglishHyphenation(discretionaryLines, limit, scale, tolerance);
+}
+
+function splitOverfullDiscretionaryWords(words, maxWidthCm, scale, tolerance) {
+  return splitOverfullDiscretionaryLines([words.join(" ")], maxWidthCm, scale, tolerance);
+}
+
+function splitOverfullDiscretionaryLines(lines, maxWidthCm, scale, tolerance) {
+  const expanded = [];
+  for (const sourceLine of lines) {
+    let current = [];
+    for (const rawWord of String(sourceLine || "").split(/\s+/).filter(Boolean)) {
+      const pieces = discretionaryWordPieces(rawWord, maxWidthCm, scale, tolerance);
+      if (pieces.length === 1) {
+        current.push(pieces[0]);
+        continue;
+      }
+      if (current.length) expanded.push(current.join(" "));
+      expanded.push(...pieces.slice(0, -1));
+      current = [pieces.at(-1)];
+    }
+    if (current.length) expanded.push(current.join(" "));
+  }
+  return expanded;
+}
+
+function discretionaryWordPieces(rawWord, maxWidthCm, scale, tolerance) {
+  const word = String(rawWord || "");
+  const plain = stripDiscretionaryHyphens(word);
+  if (!word.includes("\u00ad") || texTextWidthCm(plain, scale) <= maxWidthCm * tolerance) return [plain];
+  const parts = word.split("\u00ad");
+  for (let index = parts.length - 1; index >= 1; index -= 1) {
+    const prefix = `${parts.slice(0, index).join("")}-`;
+    const suffix = parts.slice(index).join("");
+    if (suffix && texTextWidthCm(prefix, scale) <= maxWidthCm * tolerance) return [prefix, suffix];
+  }
+  return [plain];
+}
+
+function stripDiscretionaryHyphens(value) {
+  return String(value || "").replace(/\u00ad/g, "");
 }
 
 function applyConservativeEnglishHyphenation(lines, maxWidthCm, scale, tolerance) {
