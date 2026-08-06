@@ -39,6 +39,9 @@ const PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RIGHT_RESERVE = parseDimension("8.7pt",
 const PGFPLOTS_COMPACT_3D_LEFT_RESERVE = 0.52;
 const PGFPLOTS_COMPACT_3D_RIGHT_RESERVE = 0.43;
 const PGFPLOTS_COMPACT_3D_SCALED_Z_TICK_RIGHT_RESERVE = parseDimension("2.7pt", {});
+// A scaled z tick multiplier such as `\cdot 10^{-2}` extends the native
+// picture bbox below the 3D box by this default Computer Modern reserve.
+const PGFPLOTS_COMPACT_3D_SCALED_Z_TICK_BOTTOM_RESERVE = parseDimension("0.308cm", {});
 const PGFPLOTS_DEFAULT_TICK_FONT_SIZE_PT = 10;
 const PGFPLOTS_DEFAULT_NODE_INNER_SEP = parseDimension("3.33333pt", {});
 
@@ -450,16 +453,15 @@ function axisContainerMargin(axisOptions = {}, options = {}) {
   }
   if (axisOptions["pgfplots 3d surface"] && !isPgfplotsTopView(axisOptions)) {
     const hasScaledZTickScaleLabel = scaledZTickScaleLabelActive(axisOptions, options.ranges);
-    // `\u00b710^n` is a real tick-scale text node. Its measured paint bounds already
-    // participate in the SVG viewBox, so an additional invisible top reserve would
-    // count the same label twice and make explicit-width 3D axes visibly too tall.
     // Explicit-width axes use a narrower, measured bbox reserve than the
-    // generic 3D gutter. This preserves the native colorbar whitespace.
+    // generic 3D gutter. A scaled z multiplier is the exception: its native
+    // superscript extends the picture bbox below the projected 3D box.
     let right = options.hasExplicitWidth
       ? PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RIGHT_RESERVE
       : PGFPLOTS_COMPACT_3D_RIGHT_RESERVE;
     if (hasScaledZTickScaleLabel) right += PGFPLOTS_COMPACT_3D_SCALED_Z_TICK_RIGHT_RESERVE;
-    return { ...TIKZ_AXIS_CONTAINER_MARGIN, left: PGFPLOTS_COMPACT_3D_LEFT_RESERVE, right, top: 0 };
+    const bottom = TIKZ_AXIS_CONTAINER_MARGIN.bottom + (hasScaledZTickScaleLabel ? PGFPLOTS_COMPACT_3D_SCALED_Z_TICK_BOTTOM_RESERVE : 0);
+    return { ...TIKZ_AXIS_CONTAINER_MARGIN, left: PGFPLOTS_COMPACT_3D_LEFT_RESERVE, right, top: 0, bottom };
   }
   if (axisOptions["datavis clean axes"] && axisOptions["datavis candle stick plot"]) return { ...TIKZ_AXIS_CONTAINER_MARGIN, right: 0.3, top: 0, bottom: 0 };
   if (axisOptions["datavis clean axes"]) return { ...TIKZ_AXIS_CONTAINER_MARGIN, top: 0, bottom: 0 };

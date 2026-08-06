@@ -5149,7 +5149,7 @@ test("pgfplots oblique 3d colorbar axis bbox keeps native top reserve", () => {
   assert.ok(size.height >= 335.7 && size.height <= 337.1, `expected height close to tikztosvg 336.15pt, got ${size.height}pt`);
 });
 
-test("pgfplots oblique 3d scaled z ticks reserve native top space", () => {
+test("pgfplots oblique 3d scaled z ticks reserve the native lower picture extent", () => {
   const source = readFileSync("test/fixtures/implementation-examples/latex-examples-master/3d-function-8.tex", "utf8");
   const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
   const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
