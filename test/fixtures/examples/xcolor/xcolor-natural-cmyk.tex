@@ -1,0 +1,16 @@
+% Basic colors declared by color/xcolor use their natural TeX color models.
+\documentclass[border=2pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \foreach \shade/\x in {
+    cyan/0, cyan!50!black/1.25,
+    magenta/2.5, magenta!50!black/3.75,
+    yellow/5, yellow!50!black/6.25,
+    olive/7.5, olive!50!black/8.75
+  } {
+    \fill[\shade] (\x,0) rectangle +(1,1);
+  }
+\end{tikzpicture}
+\end{document}

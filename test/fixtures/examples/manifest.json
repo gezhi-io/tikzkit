@@ -4194,6 +4194,22 @@
         "sci generic/exponent",
         "retain unit mantissa"
       ]
+    },
+    {
+      "id": "xcolor-natural-cmyk",
+      "title": "xcolor natural CMYK basic colors",
+      "source": "xcolor/xcolor-natural-cmyk.tex",
+      "sourceCorpus": "TeX Live color/xcolor default color definitions",
+      "externalSource": "tex/latex/graphics/color.sty; tex/latex/xcolor/xcolor.sty",
+      "semanticOwner": "src/engine/options.js:normalizeColor",
+      "features": [
+        "xcolor natural color model",
+        "cyan",
+        "magenta",
+        "yellow",
+        "olive",
+        "CMYK mixing"
+      ]
     }
   ]
 }

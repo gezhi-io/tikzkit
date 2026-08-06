@@ -11,6 +11,10 @@ const TIKZ_UNIT = 100;
 const TEX_CSS_CONFLICT_COLOR_NAMES = new Set([
   "green",
   "brown",
+  "cyan",
+  "magenta",
+  "yellow",
+  "olive",
   "lime",
   "orange",
   "pink",
@@ -884,13 +888,13 @@ const XCOLOR_NATURAL_COLOR_SPECS = {
   purple: { model: "rgb", channels: [0.75, 0, 0.25] },
   teal: { model: "rgb", channels: [0, 0.5, 0.5] },
   violet: { model: "rgb", channels: [0.5, 0, 0.5] },
-  // xcolor gives these standard names both a CMYK definition and an RGB
-  // alternate. In normal TikZ rendering the RGB alternate is selected;
-  // explicit \definecolor{...}{cmyk}{...} still follows DeviceCMYK elsewhere.
-  cyan: { model: "rgb", channels: [0, 1, 1] },
-  magenta: { model: "rgb", channels: [1, 0, 1] },
-  yellow: { model: "rgb", channels: [1, 1, 0] },
-  olive: { model: "rgb", channels: [0.5, 0.5, 0] },
+  // color.sty defines these four defaults in CMYK. xcolor preserves that
+  // natural model until a document explicitly selects another target model,
+  // so `cyan!50!black` mixes the CMYK channels before the SVG conversion.
+  cyan: { model: "cmyk", channels: [1, 0, 0, 0] },
+  magenta: { model: "cmyk", channels: [0, 1, 0, 0] },
+  yellow: { model: "cmyk", channels: [0, 0, 1, 0] },
+  olive: { model: "cmyk", channels: [0, 0, 1, 0.5] },
   black: { model: "gray", channels: [0] },
   darkgray: { model: "gray", channels: [0.25] },
   gray: { model: "gray", channels: [0.5] },

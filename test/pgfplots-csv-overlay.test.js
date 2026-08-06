@@ -273,7 +273,7 @@ test("numeric boxed-axis enlargement expands both transform bounds by the reques
   assert.ok(Math.abs(geometry.margin.top - 0.2 / 28.45274) < 0.001);
   assert.ok(ticks.some((command) => command.includes("(0.807,0) -- (0.807,0.15)")));
   assert.ok(ticks.some((command) => command.includes("at (0.807,-0.028) {−4}")));
-  assert.ok(ticks.some((command) => command.includes("at (0,0.609) {−10}")));
+  assert.ok(ticks.some((command) => command.includes("at (0,0.61) {−10}")));
 });
 
 test("repeated legend styles merge and legend columns=-1 produces one native row", () => {

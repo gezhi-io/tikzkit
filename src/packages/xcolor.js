@@ -1,11 +1,12 @@
 export const texPackage = {
   "name": "xcolor",
   "status": "builtin",
-  "implementedBy": "src/frontend/latex-shell.js:collectColorDefinitions + src/frontend/parser.js + src/engine/evaluate.js + src/tikz/text.js + src/renderers/svg/mathNode.js",
+  "implementedBy": "src/frontend/latex-shell.js:collectColorDefinitions + src/frontend/parser.js + src/engine/options.js:normalizeColor + src/engine/evaluate.js + src/tikz/text.js + src/renderers/svg/mathNode.js",
   "features": [
     "\\definecolor",
     "\\colorlet aliases",
     "HTML/rgb/RGB/gray color models",
+    "natural CMYK defaults for cyan/magenta/yellow/olive and their ! mixes",
     "\\textcolor color-name replacement",
     "leading text/math \\color declarations",
     "scoped standalone \\color{name} state"
@@ -33,5 +34,5 @@ export const texPackage = {
     "table",
     "usenames,dvipsnames"
   ],
-  "notes": "Implemented as color definition/mix normalization plus leading text/math \\color declarations and scoped standalone \\color{name} state. Optional xcolor models and arbitrary mid-text color-state segmentation remain partial."
+  "notes": "Implemented as color definition/mix normalization plus leading text/math \\color declarations and scoped standalone \\color{name} state. Reviewed locally on 2026-08-06: color.sty declares cyan, magenta, yellow, and olive in CMYK, and xcolor preserves their natural model while applying ! mixes. TikZKit therefore blends their CMYK channels before the SVG DeviceCMYK conversion; xcolor-natural-cmyk and csv-2d-gaussian-multivarate-distributions verify the result. Optional xcolor target-model selection, color series, and arbitrary mid-text color-state segmentation remain partial."
 };

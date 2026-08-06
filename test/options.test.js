@@ -14,10 +14,14 @@ test("resolves TikZ color mixes to concrete SVG colors", () => {
   assert.equal(normalizeColor("SpringGreen"), "SpringGreen");
   assert.equal(normalizeColor("brown"), "rgb(191 128 64)");
   assert.equal(normalizeColor("lime"), "rgb(191 255 0)");
-  assert.equal(normalizeColor("cyan"), "cyan");
-  assert.equal(normalizeColor("magenta"), "magenta");
-  assert.equal(normalizeColor("yellow"), "yellow");
-  assert.equal(normalizeColor("cyan!50!black"), "rgb(0 128 128)");
+  assert.equal(normalizeColor("cyan"), "rgb(0 173 239)");
+  assert.equal(normalizeColor("magenta"), "rgb(236 0 140)");
+  assert.equal(normalizeColor("yellow"), "rgb(255 242 0)");
+  assert.equal(normalizeColor("olive"), "rgb(141 134 0)");
+  assert.equal(normalizeColor("cyan!50!black"), "rgb(73 118 141)");
+  assert.equal(normalizeColor("magenta!50!black"), "rgb(141 72 107)");
+  assert.equal(normalizeColor("yellow!50!black"), "rgb(143 139 72)");
+  assert.equal(normalizeColor("olive!50!black"), "rgb(87 84 44)");
   assert.doesNotMatch(normalizeColor("blue!60"), /color-mix/);
 });
 

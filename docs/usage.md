@@ -99,6 +99,32 @@ npm run examples:diff -- --output outputs/qa-my-change \
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
 
+### xcolor 默认色与混色
+
+TikZKit 会优先使用 TeX/xcolor 的自然色模型，而不是浏览器同名 CSS 颜色。已有
+`red`、`green`、`blue` 的 RGB 默认色；`cyan`、`magenta`、`yellow`、`olive`
+则按本机 `color.sty`/`xcolor.sty` 的 CMYK 默认色处理。因此 `cyan!50!black`
+不是浏览器的深青色，而是先在 CMYK 通道中混色、再转换成 SVG `rgb(73 118 141)`。
+
+当前这一切片覆盖上述四个默认色及常见 `!` 混色，也继续支持 `\definecolor` 的
+`HTML`、`rgb`、`RGB`、`gray` 模型。它不覆盖 `\selectcolormodel`、颜色序列、
+遮罩或任意的 `\color[model]{...}` 声明。修改颜色语义时，可用以下基准和真实案例
+复核：
+
+```bash
+npm test -- test/options.test.js test/pgfplots-csv-overlay.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only xcolor-natural-cmyk \
+  --only latex-examples-csv-2d-gaussian-multivarate-distributions \
+  --output outputs/qa-xcolor-cmyk \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-xcolor-cmyk \
+  --register --alignment-radius 3
+```
+
+检查 `xcolor-natural-cmyk` 的八个色块是否逐一一致，并在散点图中确认
+`cyan!50!black` 点云为蓝灰色而不是明亮青绿色。
+
 ### 图例和文字锚点
 
 PGFPlots 的 `legend cell align=left` 不是把每一行文字“看起来靠左”即可；本机

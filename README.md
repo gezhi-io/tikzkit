@@ -1596,6 +1596,11 @@ Current support is pragmatic and growing. Highlights:
 - Basic drawing commands: `\draw`, `\path`, `\fill`, `\filldraw`, `\node`, `\coordinate`.
 - Common paths: lines, rectangles, circles, ellipses, arcs, grids, orthogonal `|-` / `-|`, `to`, `edge`, bend edges, self loops.
 - Styles: `\tikzset`, `\tikzstyle`, color definitions, line widths, dash patterns, opacity, arrow tips.
+- xcolor color normalization: `\definecolor` for `HTML`/`rgb`/`RGB`/`gray`, scoped
+  `\color` state, and natural default-model mixing. In particular
+  `cyan`/`magenta`/`yellow`/`olive` and `!` mixes use TeX's CMYK defaults rather
+  than CSS homonyms; `\selectcolormodel`, color series, masks, and arbitrary
+  model-qualified declarations remain partial.
 - `arrows.meta`: capitalized `Latex` and `Stealth` use the current path line
   width. Their `scale`, `scale length`, and `scale width` keys now stay
   independent, so longitudinal scaling also changes the endpoint inset while
