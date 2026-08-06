@@ -108,6 +108,31 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### Reference Order
+
+The three renderers have different roles. When they disagree, do not tune
+TikZKit to the first SVG that happens to look plausible:
+
+1. **MacTeX native output is the acceptance oracle.** It owns the TikZ/PGF
+   semantics, geometry, crop, font decisions, and paint order that TikZKit is
+   trying to reproduce.
+2. **TikZKit is the implementation under test.** Compare its SVG and PNG to
+   the native panel after checking the source inventory and diagnostics.
+3. **`tikztosvg` is an independent SVG reference, not a tie-breaker.** It is
+   very useful for inspecting path structure, transforms, and browser-facing
+   SVG output, but a library or advanced key can legitimately differ from
+   current PGF.
+4. **The diff is a locator, not a verdict.** Inspect the rendered panels for
+   missing elements, origin/scale, arrows, labels, clipping, and layer order.
+
+For example, the maintained `latex-examples-feed-forward-perceptron` driver
+uses `arrows={{Latex[scale=0.5]}-}` on circular nodes. Its local MacTeX output
+and TikZKit share the same physical canvas and PGF `Latex` tip geometry, while
+the local `tikztosvg` output can crop the diagram more tightly. That difference
+is evidence to inspect the feature, not a reason to make TikZKit diverge from
+native PGF. Record this kind of finding in `docs/qa/` with the exact command
+and artifact directory before accepting a renderer change.
+
 ### Commit A Verified Change
 
 Keep one commit to one accepted capability slice. Before staging, run the
