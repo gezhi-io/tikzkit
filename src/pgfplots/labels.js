@@ -6,7 +6,6 @@ import { isMiddleAxis } from "./geometry.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 
-const PGFPLOTS_MIDDLE_AXIS_TITLE_OFFSET = parseDimension("8.5pt", {});
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
 const PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING = "1.98pt";
 
@@ -119,10 +118,12 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
     const titleStyle = axisOptions["title style"];
     const titleStyleOptions = parseOptions(String(titleStyle || ""));
     const styledPoint = axisDescriptionPoint(titleStyleOptions.at, geometry);
-    const basePoint = styledPoint || geometry.mapPoint({ x: (ranges.xMin + ranges.xMax) / 2, y: ranges.yMax });
-    const defaultShift = middleAxis
-      ? PGFPLOTS_MIDDLE_AXIS_TITLE_OFFSET
-      : axisTitleDefaultShift(axisOptions);
+    const titleRanges = geometry.transformRanges || ranges;
+    const basePoint = styledPoint || geometry.mapPoint({
+      x: (titleRanges.xMin + titleRanges.xMax) / 2,
+      y: titleRanges.yMax
+    });
+    const defaultShift = axisTitleDefaultShift(axisOptions);
     const point = offsetPoint(
       basePoint,
       explicitStyleShift(titleStyleOptions.xshift, 0),

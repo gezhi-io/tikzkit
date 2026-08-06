@@ -884,12 +884,12 @@ function middleAxisTransformAxisRange(axisOptions, axis, min, max) {
   }
   if (!lowerExplicit && Math.abs(min) < 1e-9 && max > min) {
     // A restricted positive data domain (for example
-    // `restrict y to domain=0:0.5`) keeps the middle axis on its zero
-    // boundary. PGFPlots still reserves the usual 10% at both ends, but the
-    // unavailable lower reserve is transferred above the data. This keeps
-    // the visible grid and clipped function geometry at the native scale.
+    // `restrict y to domain=0:0.5`) still receives PGFPlots' ordinary
+    // symmetric enlargement. The zero line then sits just inside the plot
+    // box, leaving the matching lower grid reserve for a middle axis.
     if (axisHasRestrictedDomain(axisOptions, axis)) {
-      return { min, max: max + span * 0.2 };
+      const pad = span * 0.1;
+      return { min: min - pad, max: max + pad };
     }
     return { min: min - span / 11, max };
   }
