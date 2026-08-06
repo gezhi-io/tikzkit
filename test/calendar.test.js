@@ -72,3 +72,50 @@ test("matches documented calendar weekday groups and text shorthands", () => {
   assert.equal(textNode(result, "Sat 02").style.fill, "blue");
   assert.equal(textNode(result, "Sun 03").style.fill, "blue");
 });
+
+test("lays out documented day-list directions and month-list weekday offsets", () => {
+  const renderSingleCalendar = (calendar) => renderCalendar(String.raw`
+\begin{tikzpicture}
+  ${calendar}
+\end{tikzpicture}`);
+  const dateNodes = (result) => result.ir.items.filter((item) => item.type === "textNode");
+
+  const down = renderSingleCalendar(String.raw`\calendar [dates=2000-01-30 to 2000-02-02, day list downward,
+    day yshift=1cm, month yshift=3cm, day text=\%m0/\%d0];
+  `);
+  const up = renderSingleCalendar(String.raw`\calendar [dates=2000-01-30 to 2000-02-02, day list upward,
+    day yshift=1cm, month yshift=3cm];
+  `);
+  const right = renderSingleCalendar(String.raw`\calendar [dates=2000-01-30 to 2000-02-02, day list right,
+    day xshift=1cm, month xshift=3cm];
+  `);
+  const left = renderSingleCalendar(String.raw`\calendar [dates=2000-01-30 to 2000-02-02, day list left,
+    day xshift=1cm, month xshift=3cm];
+  `);
+  const months = renderSingleCalendar(String.raw`\calendar [dates=2000-01-01 to 2000-02-02, month list,
+    month label left, day xshift=1cm, month yshift=3cm];
+  `);
+  for (const result of [down, up, right, left, months]) assert.deepEqual(result.diagnostics, []);
+
+  const [downJan30, downJan31, downFeb1] = dateNodes(down);
+  const [, upJan31, upFeb1] = dateNodes(up);
+  const [, rightJan31, rightFeb1] = dateNodes(right);
+  const [, leftJan31, leftFeb1] = dateNodes(left);
+  const january = textNode(months, "January");
+  const february = textNode(months, "February");
+  const monthDates = dateNodes(months).filter((item) => /^\d+$/.test(item.text));
+  const monthJan1 = monthDates[0];
+  const monthFeb1 = monthDates.find((item) => item.text === "1" && item.y < monthJan1.y);
+
+  assert.equal(downFeb1.x, downJan30.x);
+  assert.equal(downJan30.text, "01/30");
+  assert.equal(downFeb1.y, downJan31.y - 4);
+  assert.equal(upFeb1.y, upJan31.y + 4);
+  assert.equal(rightFeb1.x, rightJan31.x + 4);
+  assert.equal(leftFeb1.x, leftJan31.x - 4);
+  assert.ok(january && february);
+  assert.ok(january.x < monthJan1.x, "month label left stays to the left of its month row");
+  assert.equal(monthJan1.x, 5, "January 1, 2000 was a Saturday in Monday-first columns");
+  assert.equal(monthFeb1.x, 1, "February 1, 2000 was a Tuesday in Monday-first columns");
+  assert.equal(monthFeb1.y, monthJan1.y - 3);
+});

@@ -1650,11 +1650,16 @@ Current support is pragmatic and growing. Highlights:
   repeat/grouping, and scale/fit text effects remain partial; see
   `test/fixtures/examples/decorations/text-reverse.tex` and
   `docs/qa/2026-08-06-decorations-text-reverse.md`.
-- Calendar: normal Monday-first `week list` calendars, basic date predicates,
-  day-node styles, and multi-month vertical placement. `week list` variants,
-  localized names, and executable calendar hooks remain partial; use the
-  `calendar-week-list-multimonth` fixture and its QA record as the current
-  verified boundary.
+- Calendar: Monday-first `week list`, all four linear `day list` directions,
+  and `month list` calendars, including `day xshift`/`day yshift`,
+  `month xshift`/`month yshift`, date predicates, day-node styles, and
+  `month label above centered`/`month label left`. `month list` computes each
+  row from the weekday of that month's first date, even when the requested
+  range begins later in the month. Localized names, other month-label
+  variants, custom day/month code, and executable calendar hooks remain
+  partial. Use `calendar-list-arrangements` and
+  `calendar-week-list-multimonth`; the inspected three-way record is
+  `docs/qa/2026-08-07-calendar-list-arrangements.md`.
 - `tkz-fct` Cartesian frame: `\tkzInit`, `\tkzGrid`, and `\tkzAxeXY` support
   separate x/y scales, same-sign local origins, explicit grid ranges, and
   `sub` grids. Independent `\tkzDrawX` / `\tkzDrawY` support the native

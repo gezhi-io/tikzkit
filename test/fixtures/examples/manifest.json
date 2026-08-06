@@ -3781,6 +3781,23 @@
       ]
     },
     {
+      "id": "calendar-list-arrangements",
+      "title": "PGF calendar day-list directions and month-list alignment",
+      "source": "calendar/list-arrangements.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-calendar.tex",
+      "semanticOwner": "src/engine/evaluate.js:calendarLayout",
+      "features": [
+        "day list downward",
+        "day list upward",
+        "day list right",
+        "day list left",
+        "month list",
+        "month label left",
+        "month weekday offset"
+      ]
+    },
+    {
       "id": "datavisualization-school-book-axes",
       "title": "PGF manual school-book axes cubic function",
       "source": "datavisualization/school-book-axes.tex",

@@ -1,0 +1,32 @@
+% PGF calendar manual: all four day-list directions plus a compact month list.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{calendar}
+
+\begin{document}
+\begin{tikzpicture}[font=\scriptsize]
+  \calendar at (0,0)
+    [dates=2000-01-30 to 2000-02-02,
+     day list downward, day yshift=5mm, month yshift=7mm,
+     day text=\%m0/\%d0];
+  \calendar at (3.2,0)
+    [dates=2000-01-30 to 2000-02-02,
+     day list upward, day yshift=5mm, month yshift=7mm,
+     day text=\%m0/\%d0];
+  \calendar at (6.4,0)
+    [dates=2000-01-30 to 2000-02-02,
+     day list right, day xshift=5mm, month xshift=7mm,
+     day text=\%m0/\%d0];
+  \calendar at (6.4,-1.1)
+    [dates=2000-01-30 to 2000-02-02,
+     day list left, day xshift=5mm, month xshift=7mm,
+     day text=\%m0/\%d0];
+
+  \calendar at (0,-4.3)
+    [dates=2000-01-01 to 2000-02-05,
+     month list, month label left,
+     day xshift=3mm, month yshift=7mm,
+     every day/.style={draw, minimum size=3.3mm}]
+    if (Sunday) [red];
+\end{tikzpicture}
+\end{document}

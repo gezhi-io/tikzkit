@@ -99,6 +99,38 @@ npm run examples:diff -- --output outputs/qa-my-change \
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
 
+### Calendar 列表布局
+
+`\usetikzlibrary{calendar}` 当前支持 Monday-first `week list`、四种线性日列表
+（`day list downward`、`upward`、`right`、`left`）和紧凑 `month list`。月份切换
+会先加入对应的 `month xshift` 或 `month yshift`；`month list` 即使从月中开始，仍按
+该月 1 日的星期决定列偏移。可使用 `month label left` 将月份文字放在当月行左端。
+
+```tex
+\begin{tikzpicture}
+  \calendar [dates=2000-01-01 to 2000-02-05,
+    month list, month label left,
+    day xshift=3mm, month yshift=7mm,
+    every day/.style={draw, minimum size=3.3mm}]
+    if (Sunday) [red];
+\end{tikzpicture}
+```
+
+运行 `calendar-list-arrangements` 可以同时核对四种线性方向、跨月额外间距与
+month-list 的星期列：
+
+```bash
+node --test test/calendar.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only calendar-list-arrangements \
+  --output outputs/qa-calendar \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-calendar --register --alignment-radius 3
+```
+
+当前不支持本地化月份名称、`month label right`/vertical 变体、任意 `day code`/
+`month code` 和可执行 calendar hook；不要把没有验证的这些选项当作兼容承诺。
+
 ### xcolor 默认色与混色
 
 TikZKit 会优先使用 TeX/xcolor 的自然色模型，而不是浏览器同名 CSS 颜色。已有

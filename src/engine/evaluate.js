@@ -6505,12 +6505,12 @@ function createCalendarItems(spec, center, env, ir, diagnostics = []) {
     return;
   }
   const calendarEnv = { ...env, styles: layout.styles };
-  if (layout.options["month label above centered"] || layout.options["month label above left"] || layout.options["month label above right"]) {
+  if (calendarHasMonthLabels(layout.options)) {
     for (const month of layout.months) {
       addCalendarNode({
         point: calendarMonthLabelPoint(layout, month, center, env),
         text: calendarMonthText(layout, month.date),
-        options: calendarTextNodeOptions(layout.options, { "every month": true }, calendarEnv)
+        options: calendarMonthLabelOptions(layout.options, calendarEnv)
       }, ir, calendarEnv);
     }
   }
@@ -6566,41 +6566,85 @@ function calendarLayout(spec, env) {
   if (!dates.length) return null;
   const dayX = parseFiniteDimension(options["day xshift"], env, parseDimension("3.5ex", env.variables));
   const dayY = parseFiniteDimension(options["day yshift"], env, parseDimension("3ex", env.variables));
+  const monthX = parseFiniteDimension(options["month xshift"], env, parseDimension("9ex", env.variables));
   const monthY = parseFiniteDimension(options["month yshift"], env, parseDimension("9ex", env.variables));
   const sundayFirst = options["week list sunday"] === true || String(options["week list"] || "").trim().toLowerCase() === "sunday";
+  const arrangement = calendarArrangement(options);
   let cursorY = 0;
+  let cursorX = 0;
   const months = [];
   const positioned = dates.map((date, index) => {
-    // PGF's calendar library starts ordinary week lists with Monday (0) and
-    // moves down after Sunday. A new month receives its extra vertical gap
-    // before its first day is placed.
-    if (index > 0 && date.day === 1) cursorY -= monthY;
+    const startsMonth = index > 0 && date.day === 1;
+    if (arrangement === "day-down" && startsMonth) cursorY -= monthY;
+    if (arrangement === "day-up" && startsMonth) cursorY += monthY;
+    if (arrangement === "day-right" && startsMonth) cursorX += monthX;
+    if (arrangement === "day-left" && startsMonth) cursorX -= monthX;
+    if (arrangement === "month" && startsMonth) cursorY -= monthY;
+    if (arrangement === "week" && startsMonth) cursorY -= monthY;
+
     const weekday = sundayFirst ? date.date.getUTCDay() : calendarWeekdayMonday(date.date);
-    const point = { x: weekday * dayX, y: cursorY };
+    let point;
+    if (arrangement === "day-down" || arrangement === "day-up") {
+      point = { x: 0, y: cursorY };
+    } else if (arrangement === "day-right" || arrangement === "day-left") {
+      point = { x: cursorX, y: 0 };
+    } else if (arrangement === "month") {
+      // PGF's month-list style bases the row offset on the weekday of the
+      // first day of the containing month, even when the range starts later.
+      const monthStart = calendarMonthStartWeekday(date.date, sundayFirst);
+      point = { x: (monthStart + date.day - 1) * dayX, y: cursorY };
+    } else {
+      point = { x: weekday * dayX, y: cursorY };
+    }
     const positionedDate = { ...date, weekday, point };
-    // Month labels belong to the full week-list row, not to the weekday on
-    // which the first of the month happens to fall. PGF resets their x origin
-    // to the left edge before applying the centered-label offset.
-    if (date.day === 1) months.push({ date: positionedDate, point: { x: 0, y: cursorY } });
-    if (weekday === 6) cursorY -= dayY;
+    if (date.day === 1) months.push({ date: positionedDate, point: arrangement === "week" || arrangement === "month" ? { x: 0, y: cursorY } : { ...point } });
+    if (arrangement === "day-down") cursorY -= dayY;
+    if (arrangement === "day-up") cursorY += dayY;
+    if (arrangement === "day-right") cursorX += dayX;
+    if (arrangement === "day-left") cursorX -= dayX;
+    if (arrangement === "week" && weekday === 6) cursorY -= dayY;
     return positionedDate;
   });
+  const horizontalPoints = positioned.map((date) => date.point.x);
   const verticalPoints = positioned.map((date) => date.point.y);
   const minimumY = Math.min(...verticalPoints);
+  const maximumY = Math.max(...verticalPoints);
+  const minimumX = Math.min(...horizontalPoints);
+  const maximumX = Math.max(...horizontalPoints);
   return {
     options,
     styles,
     conditions: [...calendarConditionsFromOptions(options), ...(spec.conditions || [])],
     dates: positioned,
     months,
-    columns: 7,
+    arrangement,
+    columns: arrangement === "month" ? 37 : arrangement === "week" ? 7 : 1,
     dayX,
     dayY,
+    monthX,
     monthY,
     sundayFirst,
-    rowCount: Math.round(Math.abs(minimumY) / dayY) + 1,
-    height: Math.abs(minimumY)
+    rowCount: Math.round((maximumY - minimumY) / dayY) + 1,
+    minimumX,
+    maximumX,
+    minimumY,
+    maximumY,
+    height: Math.max(Math.abs(minimumY), Math.abs(maximumY))
   };
+}
+
+function calendarArrangement(options = {}) {
+  if (tikzBoolean(options["month list"])) return "month";
+  if (tikzBoolean(options["day list downward"])) return "day-down";
+  if (tikzBoolean(options["day list upward"])) return "day-up";
+  if (tikzBoolean(options["day list right"])) return "day-right";
+  if (tikzBoolean(options["day list left"])) return "day-left";
+  return "week";
+}
+
+function calendarMonthStartWeekday(date, sundayFirst) {
+  const first = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  return sundayFirst ? first.getUTCDay() : calendarWeekdayMonday(first);
 }
 
 function calendarWeekdayMonday(date) {
@@ -6608,10 +6652,33 @@ function calendarWeekdayMonday(date) {
 }
 
 function calendarMonthLabelPoint(layout, month, center, env) {
+  if (layout.options["month label left"]) {
+    return roundPoint({
+      x: center.x + month.point.x - parseDimension("3.5ex", env.variables),
+      y: center.y + month.point.y
+    });
+  }
   return roundPoint({
     x: center.x + month.point.x + ((layout.columns - 1) * layout.dayX) / 2 - parseDimension("1.5ex", env.variables),
     y: center.y + month.point.y + layout.dayY * 1.25
   });
+}
+
+function calendarHasMonthLabels(options = {}) {
+  return Boolean(
+    options["month label above centered"] ||
+      options["month label above left"] ||
+      options["month label above right"] ||
+      options["month label left"]
+  );
+}
+
+function calendarMonthLabelOptions(calendarOptions, env) {
+  const options = { "every month": true };
+  if (calendarOptions["month label left"]) {
+    options.anchor = "base east";
+  }
+  return calendarTextNodeOptions(calendarOptions, options, env);
 }
 
 function calendarEffectiveOptions(spec, env) {
@@ -6651,6 +6718,7 @@ function calendarOnlyOptionKeys() {
     "month label above centered",
     "month label above left",
     "month label above right",
+    "month label left",
     "month label left vertical",
     "month label right vertical",
     "week list",
