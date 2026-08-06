@@ -10,13 +10,24 @@ import {
 } from "../src/pgfplots/histogram.js";
 import { renderNodesNearCoords } from "../src/pgfplots/plotNodes.js";
 import { computeAxisRanges } from "../src/pgfplots/rangeResolver.js";
-import { renderAxisTicks } from "../src/pgfplots/ticks.js";
+import { renderAxisGrid } from "../src/pgfplots/grid.js";
+import { majorTickValues, renderAxisTicks } from "../src/pgfplots/ticks.js";
 
 const identityGeometry = {
   width: 10,
   height: 10,
   mapPoint: (point) => ({ ...point })
 };
+
+test("pgfplots automatic ticks and grid stay within an explicit fractional maximum", () => {
+  const ranges = { xMin: 1987, xMax: 2011.9, yMin: 340, yMax: 760 };
+  const geometry = { width: 12, height: 10, mapPoint: (point) => ({ ...point }) };
+  const axisOptions = { grid: "major" };
+
+  assert.ok(majorTickValues(ranges.xMin, ranges.xMax, 10).includes(2012), "planner may consider a convenient terminal candidate");
+  assert.ok(!renderAxisTicks(axisOptions, [], ranges, geometry).some((command) => /\{2012\};$/.test(command)));
+  assert.ok(!renderAxisGrid(axisOptions, [], ranges, geometry).some((command) => command.includes("(2012,")));
+});
 
 test("pgfplots histogram handler bins table samples and installs interval defaults", () => {
   const [plot] = parseAddplots(String.raw`

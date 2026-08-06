@@ -2,7 +2,7 @@ import { parseDimension } from "../engine/math.js";
 import { axisNumber } from "./coordinates.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isMiddleAxis } from "./geometry.js";
-import { axisAutoMajorTickCountForOptions, axisMinorTickValues, axisTickValues, majorTickValues } from "./ticks.js";
+import { autoTickOutsideRange, axisAutoMajorTickCountForOptions, axisMinorTickValues, axisTickValues, majorTickValues } from "./ticks.js";
 
 export function createAxisGridModel(axisOptions = {}) {
   return {
@@ -157,7 +157,7 @@ function parseAxisSchoolBookPadding(axisOptions = {}) {
 }
 
 function gridTickValues(min, max, maxTicks) {
-  return majorTickValues(min, max, maxTicks).filter((tick) => !autoGridTickOutsideRange(tick, min, max));
+  return majorTickValues(min, max, maxTicks).filter((tick) => !autoTickOutsideRange(tick, min, max));
 }
 
 function omitAutoOriginGridTick(axisOptions, axis, ticks, ranges, hasExplicitTicks) {
@@ -166,15 +166,6 @@ function omitAutoOriginGridTick(axisOptions, axis, ticks, ranges, hasExplicitTic
   const max = axis === "x" ? Number(ranges.xMax) : Number(ranges.yMax);
   if (!(Number.isFinite(min) && Number.isFinite(max) && min <= 0 && max >= 0)) return ticks;
   return ticks.filter((tick) => Math.abs(Number(tick)) > 1e-9);
-}
-
-function autoGridTickOutsideRange(value, min, max) {
-  const minNumber = Number(min);
-  const maxNumber = Number(max);
-  if (!Number.isFinite(minNumber) || !Number.isFinite(maxNumber)) return false;
-  const span = Math.abs(maxNumber - minNumber) || 1;
-  const epsilon = Math.max(span * 5e-3, 1e-9);
-  return value < minNumber - epsilon || value > maxNumber + epsilon;
 }
 
 function hasExplicitAxisTickOption(raw) {

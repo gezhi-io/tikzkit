@@ -92,8 +92,8 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
       yTickPlanningRange.max,
       axisAutoMajorTickCountForOptions(axisOptions, "y", yTickPlanningRange.min, yTickPlanningRange.max, geometry, 6)
     );
-  const xTicks = explicitXTicks ? rawXTicks : rawXTicks.filter((tick) => !autoTickLabelOutsideRange(tick, ranges.xMin, ranges.xMax));
-  const yTicks = explicitYTicks ? rawYTicks : rawYTicks.filter((tick) => !autoTickLabelOutsideRange(tick, ranges.yMin, ranges.yMax));
+  const xTicks = explicitXTicks ? rawXTicks : rawXTicks.filter((tick) => !autoTickOutsideRange(tick, ranges.xMin, ranges.xMax));
+  const yTicks = explicitYTicks ? rawYTicks : rawYTicks.filter((tick) => !autoTickOutsideRange(tick, ranges.yMin, ranges.yMax));
   const xMinorTicks = xTicksDisabled
     ? []
     : axisMinorTickValues(axisOptions, "x", xTicks, ranges.xMin, ranges.xMax, addplots);
@@ -110,7 +110,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
         axisTickNumberFormat(axisOptions, "x"),
         axisOptions.xticklabel
       ).map((label, index) =>
-    !explicitXTicks && autoTickLabelOutsideRange(xTicks[index], ranges.xMin, ranges.xMax) ? "" : label
+    !explicitXTicks && autoTickOutsideRange(xTicks[index], ranges.xMin, ranges.xMax) ? "" : label
     );
   const yLabels = axisOptions["pgfplots symbolic y labels"]
     ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic y labels"], yTicks)
@@ -120,7 +120,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
       axisTickNumberFormat(axisOptions, "y"),
       axisOptions.yticklabel
     ).map((label, index) =>
-    !explicitYTicks && autoTickLabelOutsideRange(yTicks[index], ranges.yMin, ranges.yMax) ? "" : label
+    !explicitYTicks && autoTickOutsideRange(yTicks[index], ranges.yMin, ranges.yMax) ? "" : label
     );
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
   const xTickLabelDistance = explicitNonnegativeDimension(axisOptions["x axis tick label distance"]);
@@ -213,7 +213,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
       const topBase = geometry.mapPoint({ x, y: boxRanges.yMax });
       commands.push(`\\draw[${xTickStyle}] ${formatAxisPoint(topBase)} -- ${formatAxisPoint(offsetPoint(topBase, 0, innerBoxTicks ? -tickLength : tickLength))};`);
     }
-    const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickLabelOutsideRange(x, ranges.xMin, ranges.xMax));
+    const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(x, ranges.xMin, ranges.xMax));
     if (xMajorTickVisual && shouldShowXLabel) {
       for (const spec of axisTickVisualLabelSpecs(xMajorTickVisual, from, to)) {
         const multilineLayout = multilineTickLabelLayoutOptions(
@@ -293,7 +293,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
       const rightBase = geometry.mapPoint({ x: boxRanges.xMax, y });
       commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightBase)} -- ${formatAxisPoint(offsetPoint(rightBase, innerBoxTicks ? -tickLength : tickLength, 0))};`);
     }
-    const shouldShowYLabel = !(hideOutOfRangeTickLabels && autoTickLabelOutsideRange(y, ranges.yMin, ranges.yMax));
+    const shouldShowYLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(y, ranges.yMin, ranges.yMax));
     if (yMajorTickVisual && shouldShowYLabel) {
       for (const spec of axisTickVisualLabelSpecs(yMajorTickVisual, from, to)) {
         const labelStyle = joinOptions([
@@ -1005,10 +1005,18 @@ function shouldTrimAutoTerminalTicks(axisOptions = {}) {
   return Boolean(axisOptions["datavis clean axes"]);
 }
 
-function autoTickLabelOutsideRange(value, min, max) {
-  const span = Math.abs(max - min) || 1;
-  const epsilon = Math.max(span * 5e-3, 1e-9);
-  return value < min - epsilon || value > max + epsilon;
+export function autoTickOutsideRange(value, min, max) {
+  const low = Number(min);
+  const high = Number(max);
+  const tick = Number(value);
+  if (![low, high, tick].every(Number.isFinite)) return false;
+  const span = Math.abs(high - low) || 1;
+  // PGFPlots may generate a convenient candidate just beyond the range, but
+  // its tick preparation suppresses it before drawing. Keep enough leeway
+  // for floating-point reconstruction only, never a visible fraction of a
+  // major step.
+  const epsilon = Math.max(span * 1e-10, Number.EPSILON * 16 * Math.max(1, Math.abs(low), Math.abs(high)));
+  return tick < low - epsilon || tick > high + epsilon;
 }
 
 function trimAutoTerminalTicks(values, min, max) {

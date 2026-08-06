@@ -1422,6 +1422,35 @@ renderer computes text bounds and tight crops independently; judge the
 plot-frame geometry, labels, line work, and clipping rather than treating a
 single canvas number as the acceptance condition.
 
+### PGFPlots Automatic Tick Bounds
+
+For a numeric axis with an explicit non-round bound such as
+`xmax=2011.9`, TikZKit now keeps automatically chosen major ticks and their
+matching automatic grid lines inside the final axis range. This mirrors
+PGFPlots' final `checktickmin` / `checktickmax` pass: a convenient candidate
+such as `2012` may be considered while planning, but it is not painted outside
+the declared range.
+
+The focused driver is `latex-examples-bar-chart-military-budget`:
+
+```bash
+node --test --test-name-pattern='fractional maximum' test/pgfplots-histogram.test.js
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/examples \
+  --output outputs/qa-pgfplots-automatic-tick-bounds \
+  --only latex-examples-bar-chart-military-budget \
+  --native-reference \
+  --strict-tikztosvg \
+  --comparison-grid-mode svg
+node scripts/diff-example-pngs.js --output outputs/qa-pgfplots-automatic-tick-bounds
+```
+
+Open `outputs/qa-pgfplots-automatic-tick-bounds/index.html` and inspect the
+native four-panel sheet. This supported slice covers automatic numeric major
+ticks and automatic major grids. Explicit `xtick`/`ytick` lists remain
+authoritative, while log axes, minor-tick policies, custom coordinate
+transforms, and arbitrary tick formatters are still partial.
+
 Only commit a compatibility slice after its fixture has been inspected against
 both local MacTeX and `tikztosvg`, its diagnostics have not increased, and its
 relevant tests pass. Keep separate parser, renderer, package, and library
