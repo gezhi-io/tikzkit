@@ -7190,9 +7190,9 @@ function createMatrix(statement, env, ir, diagnostics = []) {
 	          text: cellText,
 	          options,
 	          name: cellName,
-          size,
-          fitTextToBox: true
-        },
+	          size,
+	          fitTextToBox: !tikzBoolean(options["tikzkit preserve math size"])
+	        },
         ir,
         env
       );
@@ -8476,6 +8476,19 @@ function resolveFitNodeLayout(options = {}, env = {}, nodeEnv = env) {
   const scale = canvasLengthScale(nodeEnv);
   let width = Math.max(0, bounds.maxX - bounds.minX + xSep * 2);
   let height = Math.max(0, bounds.maxY - bounds.minY + ySep * 2);
+  // TikZ's fit library sets a node's text box from the collected bounds, but
+  // the normal node sizing pass still honours explicit minimum dimensions.
+  // This matters for empty fit overlays that deliberately preserve a matrix
+  // cell-sized highlight region.
+  const minimumWidth = parseNodeLengthDimension(options["minimum width"], nodeEnv);
+  const minimumHeight = parseNodeLengthDimension(options["minimum height"], nodeEnv);
+  const minimumSize = parseNodeLengthDimension(options["minimum size"], nodeEnv);
+  if (Number.isFinite(minimumWidth)) width = Math.max(width, minimumWidth);
+  if (Number.isFinite(minimumHeight)) height = Math.max(height, minimumHeight);
+  if (Number.isFinite(minimumSize)) {
+    width = Math.max(width, minimumSize);
+    height = Math.max(height, minimumSize);
+  }
   const shape = nodeShape(options);
   if (shape === "ellipse") {
     width *= Math.SQRT2;

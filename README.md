@@ -468,6 +468,12 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
   same-picture tikzmark overlay can resolve its anchors. It is not a general
   TeX table implementation: complex column preambles, multicolumn, multirow,
   and native cross-picture remember-picture cropping remain unsupported.
+- A standalone display-math `array` with internal `tikzmark` anchors can also
+  be lowered to a math-node matrix and used by a same-picture `fit` overlay.
+  This preserves the array's practical column glue, ordinary math glyph size,
+  `fit` minimum dimensions, and parenthesis delimiters for the reviewed Jordan
+  block case. It does not implement arbitrary TeX `array` glue, page-level
+  remembered-picture coordinates, or rotated `fit` transformations.
 - `shapes.misc` now verifies the `cross out` and `strike out` foreground-path
   slice against the inherited rectangle-anchor model: each diagonal reaches
   the anchor corners after automatic or explicit `outer sep`, and those

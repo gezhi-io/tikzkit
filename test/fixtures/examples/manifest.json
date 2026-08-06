@@ -3304,10 +3304,11 @@
       "source": "latex-examples/jordan-normal-form-block.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "jordan-normal-form-block/jordan-normal-form-block.tex",
-      "semanticOwner": "src/engine/evaluate.js",
+      "semanticOwner": "src/tikz/libraries/tikzmark.js + src/engine/evaluate.js:resolveFitNodeLayout",
       "features": [
         "node layout",
-        "math labels"
+        "math labels",
+        "matrix tikzmark fit overlays"
       ]
     },
     {

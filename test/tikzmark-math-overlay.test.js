@@ -42,8 +42,11 @@ test("lowers standalone tikzmark math arrays to matrix and fit semantics", () =>
   assert.doesNotMatch(preprocessed.source, /\\setlength/);
   assert.match(preprocessed.source, /\\matrix \(tikzkit-marked-array-1\)/);
   assert.match(preprocessed.source, /left delimiter=left parenthesis/);
+  assert.match(preprocessed.source, /tikzkit preserve math size/);
+  assert.match(preprocessed.source, /column sep=0\.30cm/);
   assert.match(preprocessed.source, /fit=\(1\.north west\) \(2\.south east\)/);
   assert.match(preprocessed.source, /fit=\(3\.north west\) \(3\.south east\)/);
+  assert.match(preprocessed.source, /minimum width=0\.48cm,minimum height=0\.56cm/);
   assert.equal(preprocessed.previewBorder, 0.2);
 });
 
@@ -72,7 +75,24 @@ test("renders the Jordan array, delimiters, and both native-sized highlight regi
   const lambdaFontSize = Number(result.svg.match(/<text[^>]+font-size="([0-9.]+)"[^>]*><tspan>λ<\/tspan>/)?.[1]);
   assert.ok(lambdaFontSize > 33, `matrix lambda was incorrectly shrunk to ${lambdaFontSize}`);
   const width = Number(result.svg.match(/\bwidth="([0-9.]+)pt"/)?.[1]);
+  const height = Number(result.svg.match(/\bheight="([0-9.]+)pt"/)?.[1]);
   assert.ok(width > 147 && width < 152, `unexpected document width ${width}pt`);
+  assert.ok(height > 76 && height < 80, `unexpected document height ${height}pt`);
+});
+
+test("keeps renderer cell fitting enabled for ordinary math matrices", () => {
+  const ordinary = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \matrix [matrix of math nodes] { \lambda_i & 1 \\ 0 & 3 \\ };
+\end{tikzpicture}`);
+  const lowered = tikzToSvg(jordanSource);
+  const ordinaryMatrixCells = ordinary.ir.items.filter((item) => item.type === "textNode" && item.text.includes("lambda"));
+  const loweredMatrixCells = lowered.ir.items.filter((item) => item.type === "textNode" && item.text === String.raw`$\lambda_i$`);
+
+  assert.deepEqual(ordinary.diagnostics, []);
+  assert.deepEqual(lowered.diagnostics, []);
+  assert.ok(ordinaryMatrixCells.some((item) => item.fitBox), "ordinary matrix cells should retain existing fitted text boxes");
+  assert.ok(loweredMatrixCells.every((item) => !item.fitBox), "only the lowered tikzmark matrix should preserve natural math size");
 });
 
 test("lowers inline tabular tikzmarks into matrix anchors for an overlay brace", () => {

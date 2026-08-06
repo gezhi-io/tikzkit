@@ -163,8 +163,12 @@ function lowerMarkedArrayMathBlock(rawBlock, serial) {
   const prefixName = `${matrixName}-prefix`;
   const matrixOptions = [
     "matrix of math nodes",
-    "nodes={inner sep=0pt,outer sep=0pt,minimum height=0.48cm}",
-    "column sep=0.216cm",
+    "nodes={inner sep=0pt,outer sep=0pt,minimum height=0.48cm,tikzkit preserve math size}",
+    // A TeX array inserts default \arraycolsep glue on both sides of each
+    // centered column. The lowered TikZ matrix needs this wider border gap
+    // because its cell-node bounds contain only rendered math, not TeX's
+    // alignment boxes.
+    "column sep=0.30cm",
     "row sep=-0.02cm",
     "inner sep=0pt",
     "delimiter sep=0.329cm",
@@ -188,7 +192,7 @@ function lowerMarkedArrayMathBlock(rawBlock, serial) {
   statements.push(...overlayNodes);
   if (rightDelimiter) {
     statements.push(
-      `\\path[use as bounding box] ([xshift=-0.109cm]${prefixName}.west) -- ([xshift=0.481cm]${matrixName}.east);`
+      `\\path[use as bounding box] ([xshift=-0.109cm]${prefixName}.west) -- ([xshift=0.364cm]${matrixName}.east);`
     );
   }
   statements.push("\\end{tikzpicture}");
@@ -278,7 +282,7 @@ function calibrateStandaloneArrayFitOverlay(statement) {
   const refs = [...fit[1].matchAll(/\(([^.()\s]+)(?:\.[^)]+)?\)/g)].map((match) => match[1]);
   if (refs.length < 2) return statement;
   const option = refs[0] === refs.at(-1)
-    ? "minimum height=0.56cm"
+    ? "minimum width=0.48cm,minimum height=0.56cm"
     : "inner xsep=3pt,inner ysep=0.22pt";
   return statement.replace(/\](\s*\{)/, `,${option}]$1`);
 }
