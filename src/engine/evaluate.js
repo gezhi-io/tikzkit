@@ -3302,7 +3302,7 @@ function circuitikzVariableCapacitorItems(geometry, settings = {}, pathStyle = {
     direction: settings.fixedDirection ? "bottom-left-to-top-right" : "top-left-to-bottom-right",
     lineWidth: roundNumber(outlineStyle.lineWidth * settings.modifierThickness),
     style: {
-      ...circuitikzArrowStyle(pathStyle),
+      ...circuitikzLatexSlimArrowStyle(pathStyle),
       lineWidth: roundNumber(outlineStyle.lineWidth * settings.modifierThickness)
     },
     commands: [moveToCommand(arrowStart), lineToCommand(arrowEnd)]
@@ -4674,6 +4674,18 @@ function circuitikzArrowStyle(pathStyle = {}) {
     fill: "none",
     lineWidth: roundNumber((Number(pathStyle.lineWidth) || 1) * 2),
     markerEnd: createArrowTip("latex", { fill: stroke, stroke })
+  };
+}
+
+function circuitikzLatexSlimArrowStyle(pathStyle = {}) {
+  const stroke = pathStyle.stroke || "black";
+  return {
+    stroke,
+    fill: "none",
+    lineWidth: roundNumber((Number(pathStyle.lineWidth) || 1) * 2),
+    // Circuitikz uses its own qfill-only latexslim declaration for tunable
+    // bipoles. Deliberately omit `stroke` from the tip to preserve that fill.
+    markerEnd: createArrowTip("latexslim", { fill: stroke })
   };
 }
 

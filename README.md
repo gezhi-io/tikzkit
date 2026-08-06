@@ -704,13 +704,17 @@ Supported in this verified slice: `vC` and `variable capacitor`; the two
 capacitor plates; `capacitors/scale`, `capacitors/width`,
 `capacitors/height`, and `capacitors/modifier thickness`; the documented
 `bipoles/fix tunable direction` switch; `l=` labels; and the named `wiper`,
-`W`, and `tip` anchors. It does not yet cover the wider capacitor catalogue,
+`W`, and `tip` anchors. The control arrow now uses Circuitikz's source-defined
+`latexslim` fill-only tip, including its dynamic line-width geometry and `6d`
+stem shortening. It does not yet cover the wider capacitor catalogue,
 arbitrary custom tunable-arrow tips, or every capacitor style directory.
 
 The fixture, four-way artifacts, and visual acceptance record are
 [`test/fixtures/examples/circuitikz/variable-capacitors.tex`](test/fixtures/examples/circuitikz/variable-capacitors.tex)
 and
 [`docs/qa/2026-08-06-circuitikz-variable-capacitors.md`](docs/qa/2026-08-06-circuitikz-variable-capacitors.md).
+The focused arrow-geometry follow-up is recorded in
+[`docs/qa/2026-08-06-circuitikz-latexslim-arrow.md`](docs/qa/2026-08-06-circuitikz-latexslim-arrow.md).
 To reproduce the local MacTeX, TikZKit, tikztosvg, PNG, grid, and difference
 artifacts:
 

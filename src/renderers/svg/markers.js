@@ -1,4 +1,4 @@
-import { createArrowTip, TIKZ_ARROW } from "../../tikz/metrics.js";
+import { createArrowTip, latexSlimArrowGeometryFromLineWidth, TIKZ_ARROW } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 
@@ -51,15 +51,22 @@ export function renderArrowMarkerDef(marker) {
           )} ${format(marker.width * 0.18)} ${format(marker.length * 0.62)} ${format(
             marker.width * 0.44
           )} ${format(marker.length)} ${format(halfWidth)} Z`
+      : marker.kind === "latexslim"
+        ? (() => {
+            const d = marker.unit;
+            return `M ${format(marker.length)} ${format(halfWidth)} C ${format(marker.length - 2.5 * d)} ${format(halfWidth - 0.5 * d)} ${format(marker.length - 7 * d)} ${format(halfWidth - 1.5 * d)} 0 0 C ${format(marker.length - 7.5 * d)} ${format(halfWidth - d)} ${format(marker.length - 7.5 * d)} ${format(halfWidth + d)} 0 ${format(marker.width)} C ${format(marker.length - 7 * d)} ${format(halfWidth + 1.5 * d)} ${format(marker.length - 2.5 * d)} ${format(halfWidth + 0.5 * d)} ${format(marker.length)} ${format(halfWidth)} Z`;
+          })()
       : `M 0 0 L ${format(marker.length)} ${format(halfWidth)} L 0 ${format(marker.width)}`;
   const openTip = marker.kind === "to" || marker.kind === "hook" || marker.kind === "two-heads";
+  const filledSlimTip = marker.kind === "latexslim";
   const fill = openTip ? "none" : marker.fill;
-  const strokeWidth = openTip ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
+  const stroke = filledSlimTip ? "none" : marker.stroke;
+  const strokeWidth = filledSlimTip ? 0 : openTip ? Math.max(1, marker.lineWidth * 0.85) : Math.max(0.8, marker.lineWidth * 0.45);
   return `<marker id="${escapeAttribute(marker.id)}" markerWidth="${format(marker.length)}" markerHeight="${format(
     marker.width
   )}" refX="${format(marker.length)}" refY="${format(halfWidth)}" orient="auto-start-reverse" markerUnits="userSpaceOnUse" viewBox="0 0 ${format(
     marker.length
-  )} ${format(marker.width)}"><path d="${path}" stroke="${escapeAttribute(marker.stroke)}" fill="${escapeAttribute(
+  )} ${format(marker.width)}"><path d="${path}" stroke="${escapeAttribute(stroke)}" fill="${escapeAttribute(
     fill
   )}" stroke-width="${format(strokeWidth)}" stroke-linejoin="round" stroke-linecap="round"/></marker>`;
 }
@@ -72,10 +79,12 @@ export function resolvedArrowMarker(tip, style = {}) {
   const raw = typeof tip === "string" ? createArrowTip(tip === "arrow" ? "to" : tip) : createArrowTip(tip?.kind, tip || {});
   const stroke = raw.stroke || (style.stroke === "none" ? "black" : style.stroke) || "black";
   const fill = raw.fill && raw.fill !== "context-stroke" ? raw.fill : stroke;
+  const slim = raw.kind === "latexslim" ? latexSlimArrowGeometryFromLineWidth(style.lineWidth ?? 1) : null;
   const marker = {
     kind: raw.kind,
-    length: raw.length,
-    width: raw.width,
+    length: slim?.back ?? raw.length,
+    width: slim ? slim.halfWidth * 2 : raw.width,
+    unit: slim?.unit,
     lineWidth: style.lineWidth ?? 1,
     stroke,
     fill

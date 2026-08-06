@@ -88,6 +88,6 @@ artifacts rendered, and the final sheets were visually inspected.
 
 The full capacitor catalogue remains partial. In particular, custom control
 arrow tip variants, every capacitor style directory, and unrelated capacitor
-families are outside this slice. `latexslim` is recorded from the source; the
-current browser renderer uses its existing compatible arrow marker rather than
-adding a broadly exposed custom marker type.
+families are outside this slice. The source-defined `latexslim` arrow is now
+implemented as a reusable renderer tip; its exact visual follow-up is recorded
+in [`2026-08-06-circuitikz-latexslim-arrow.md`](2026-08-06-circuitikz-latexslim-arrow.md).

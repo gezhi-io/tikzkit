@@ -303,7 +303,7 @@ function implementationSupport(entry) {
 function packageMetadataSupport(metadata) {
   return {
     status: metadata.implementationStatus || metadata.status || "unsupported",
-    implementedBy: metadata.implementedBy || "",
+    implementedBy: [metadata.implementedBy, metadata.registryImplementedBySuffix].filter(Boolean).join(";"),
     notes: [metadata.notes, metadata.registryNoteSuffix].filter(Boolean).join(" ") || (metadata.features || []).join("; "),
     localSource: metadata.localSource || "",
     localDoc: metadata.localDoc || "",

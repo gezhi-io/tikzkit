@@ -2,6 +2,7 @@ import {
   createArrowTip,
   legacyLatexArrowGeometryFromLineWidth,
   latexArrowGeometryFromLineWidth,
+  latexSlimArrowGeometryFromLineWidth,
   lineWidthFromPt,
   stealthArrowHalfWidthFromLength,
   stealthArrowLengthFromLineWidth,
@@ -371,6 +372,25 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         maxX: dimensions.rightExtent,
         minY: -dimensions.halfHeight,
         maxY: dimensions.halfHeight
+      }
+    };
+  }
+  if (tip.kind === "latexslim") {
+    const slim = latexSlimArrowGeometryFromLineWidth(lineWidth);
+    const unit = slim.unit;
+    return {
+      path: [
+        "M 0 0",
+        `C ${format(-2.5 * unit)} ${format(-0.5 * unit)} ${format(-7 * unit)} ${format(-1.5 * unit)} ${format(-10 * unit)} ${format(-3.75 * unit)}`,
+        `C ${format(-7.5 * unit)} ${format(-unit)} ${format(-7.5 * unit)} ${format(unit)} ${format(-10 * unit)} ${format(3.75 * unit)}`,
+        `C ${format(-7 * unit)} ${format(1.5 * unit)} ${format(-2.5 * unit)} ${format(0.5 * unit)} 0 0 Z`
+      ].join(" "),
+      shorten: slim.shorten,
+      bounds: {
+        minX: -slim.back,
+        maxX: 0,
+        minY: -slim.halfWidth,
+        maxY: slim.halfWidth
       }
     };
   }

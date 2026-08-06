@@ -88,6 +88,14 @@ export const TIKZ_ARROW_TIPS = {
     width: lineWidthFromPt(3.0),
     fill: "context-stroke"
   },
+  latexslim: {
+    kind: "latexslim",
+    // Circuitikz declares this classic arrow tip itself. Its painted size is
+    // derived from the current stroke width in the SVG renderer below.
+    length: lineWidthFromPt(3.0),
+    width: lineWidthFromPt(3.0),
+    fill: "context-stroke"
+  },
   "two-heads": {
     kind: "two-heads",
     length: lineWidthFromPt(4.1),
@@ -224,6 +232,21 @@ export function legacyLatexArrowGeometryFromLineWidth(lineWidth) {
     back: 10 * unit,
     halfWidth: 3.75 * unit,
     shorten: 9 * unit
+  };
+}
+
+export function latexSlimArrowGeometryFromLineWidth(lineWidth) {
+  const unitsPerPt = lineWidthFromPt(1);
+  const lineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;
+  // circuitikz/pgfcirc.defines.tex: \pgfarrowsdeclare{latexslim}{latexslim}.
+  // The declaration has a pinched waist, reaches back to -4d, and extends
+  // 6d past the path endpoint. It is qfill-only: no outline is painted.
+  const unit = lineWidthFromPt(0.28 + 0.3 * lineWidthPt);
+  return {
+    unit,
+    back: 10 * unit,
+    halfWidth: 3.75 * unit,
+    shorten: 6 * unit
   };
 }
 
@@ -392,6 +415,7 @@ function normalizeArrowKind(kind) {
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";
+  if (text === "latexslim" || text === "latex slim") return "latexslim";
   if (text === "straight barb" || text === "straight-barb") return "straight-barb";
   if (text === "arc barb" || text === "arc-barb" || text === "parenthesis") return "arc-barb";
   if (text === "tee barb" || text === "tee-barb" || text === "bracket") return "tee-barb";
