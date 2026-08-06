@@ -25,6 +25,7 @@ export function renderDecorationTextPath(item, unit) {
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
   const glyphs = decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize);
+  if (item.pathTextReverse) glyphs.reverse();
   if (!glyphs.length) return "";
   const em = fontSize / unit;
   const textLength = glyphs.reduce((sum, glyph) => sum + em * glyph.advance, 0);

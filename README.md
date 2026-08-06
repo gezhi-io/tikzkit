@@ -1014,6 +1014,13 @@ Current support is pragmatic and growing. Highlights:
   wave phase or the requested decoration lengths. See the Case 005 driver at
   `test/fixtures/examples/decorations/snake-arrow-lengths.tex` and its QA
   record in `docs/qa/2026-08-06-snake-arrow-phase.md`.
+- Path text: `decorations.text` supports ordinary `text along path` and the
+  documented `text effects along path` character pipeline with
+  `text effects={reverse text}`. The reverse operation runs before per-glyph
+  path placement, as it does in PGF. Character-specific styles, replacement,
+  repeat/grouping, and scale/fit text effects remain partial; see
+  `test/fixtures/examples/decorations/text-reverse.tex` and
+  `docs/qa/2026-08-06-decorations-text-reverse.md`.
 - Calendar: normal Monday-first `week list` calendars, basic date predicates,
   day-node styles, and multi-month vertical placement. `week list` variants,
   localized names, and executable calendar hooks remain partial; use the

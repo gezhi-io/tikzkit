@@ -2129,6 +2129,25 @@ test("places text decorations declared through postaction", () => {
   assert.ok(label.y > 0, `expected raised text above curved path, got y=${label.y}`);
 });
 
+test("supports decorations.text effects along path with reversed character ordering", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate, decoration={text effects along path,text={normal},text align=center,
+    text effects/.cd,characters={text along path}}] (0,1) -- (4,1);
+  \path[decorate,text effects={reverse text},decoration={text effects along path,text={normal},text align=center,
+    text effects/.cd,characters={text along path}}] (0,0) -- (4,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.equal(labels[0].pathTextReverse, false);
+  assert.equal(labels[1].pathTextReverse, true);
+  assert.equal(labels[1].pathTextAlign, "center");
+});
+
 test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   const source = String.raw`
 \begin{tikzpicture}

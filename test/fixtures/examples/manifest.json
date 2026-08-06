@@ -1067,6 +1067,21 @@
       ]
     },
     {
+      "id": "decorations-text-reverse",
+      "title": "PGF decorations.text reverse character ordering",
+      "source": "decorations/text-reverse.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text source",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.text.code.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.text.js",
+      "features": [
+        "decorations.text library",
+        "text along path",
+        "reverse text",
+        "center alignment",
+        "signed raise"
+      ]
+    },
+    {
       "id": "latex-examples-agent-environment-diagram-rl",
       "title": "LaTeX-examples Agent Environment Diagram Rl",
       "source": "latex-examples/agent-environment-diagram-rl.tex",

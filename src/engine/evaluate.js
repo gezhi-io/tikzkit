@@ -11408,7 +11408,7 @@ function addDecorationTextItems(built, pathOptions, style, ir, env) {
 function textAlongPathDecorationFromOptions(options = {}) {
   if (tikzBoolean(options.decorate)) {
     const decoration = parseOptions(String(options.decoration || ""));
-    if (decoration["text along path"]) return decoration;
+    if (isTextAlongPathDecoration(decoration)) return decoration;
   }
 
   const postaction = options.postaction === undefined ? "" : String(options.postaction);
@@ -11416,7 +11416,11 @@ function textAlongPathDecorationFromOptions(options = {}) {
   const postOptions = parseOptions(postaction);
   if (!tikzBoolean(postOptions.decorate)) return null;
   const decoration = parseOptions(String(postOptions.decoration || ""));
-  return decoration["text along path"] ? decoration : null;
+  return isTextAlongPathDecoration(decoration) ? decoration : null;
+}
+
+function isTextAlongPathDecoration(decoration = {}) {
+  return tikzBoolean(decoration["text along path"]) || tikzBoolean(decoration["text effects along path"]);
 }
 
 function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
@@ -11425,6 +11429,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   const payload = decorationTextPayload(decoration.text, pathOptions, env);
   if (!payload.text) return;
   const layout = decorationTextLayout(decoration, env);
+  const textEffects = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
   const point = pointAtLength(flat, 0.5);
   const angle = Number(point.angle) || 0;
   const raise = parseFiniteDimension(decoration.raise || "0", env, 0);
@@ -11442,6 +11447,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathRightIndent: roundNumber(layout.rightIndent),
     pathTextFitToPath: layout.fitToPath,
     pathTextFitToPathStretchingSpaces: layout.fitToPathStretchingSpaces,
+    pathTextReverse: tikzBoolean(textEffects["reverse text"]) || tikzBoolean(decoration["reverse text"]),
     x: roundNumber(point.x + nx * raise),
     y: roundNumber(point.y + ny * raise),
     rotation: roundNumber(angle),

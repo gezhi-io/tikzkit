@@ -1,0 +1,18 @@
+% PGF decorations.text: reverse the scanned character boxes along a path.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (0,-0.5) grid (6,1.5);
+  \draw[gray,dashed] (0,1) -- (6,1);
+  \path[decorate,decoration={text effects along path,text={normal text},text align={center},raise=2pt,
+    text effects/.cd,characters={text along path}}]
+    (0,1) -- (6,1);
+  \draw[gray,dashed] (0,0) -- (6,0);
+  \path[decorate,text effects={reverse text},decoration={text effects along path,text={normal text},text align={center},raise=2pt,
+    text effects/.cd,characters={text along path}}]
+    (0,0) -- (6,0);
+\end{tikzpicture}
+\end{document}

@@ -1099,6 +1099,28 @@ test("uses approximate glyph advances for decoration text along paths", () => {
   assert.ok(xs[1] - xs[0] < xs[2] - xs[1], `expected narrow i/i spacing before wide W: ${xs.join(", ")}`);
 });
 
+test("reverses decorations.text character boxes before sampling the path", () => {
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "ABCD",
+        pathTextReverse: true,
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 5, y: 0 }
+        ],
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const letters = [...svg.matchAll(/class="tikz-decoration-glyph"[^>]*>([A-Z])<\/text>/g)].map((match) => match[1]);
+
+  assert.deepEqual(letters, ["D", "C", "B", "A"]);
+});
+
 test("places braced inline decoration math as one TeX box with a lowered script", () => {
   const scene = createSceneGraph({
     items: [
