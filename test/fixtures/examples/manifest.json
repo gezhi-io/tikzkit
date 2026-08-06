@@ -4115,6 +4115,22 @@
         "sci precision",
         "per-column style"
       ]
+    },
+    {
+      "id": "pgfplotstable-dec-sep-align",
+      "title": "pgfplotstable fixed decimal separator alignment",
+      "source": "pgfplots/pgfplotstable-dec-sep-align.tex",
+      "sourceCorpus": "TeX Live pgfplotstable manual",
+      "externalSource": "tex/generic/pgfplots/numtable/pgfplotstable.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:pgfplotstableDecimalAlignedCell; src/engine/evaluate.js:tabularCellTextLayout",
+      "features": [
+        "pgfplotstabletypeset",
+        "fixed",
+        "fixed zerofill",
+        "precision",
+        "dec sep align",
+        "per-column decimal anchor"
+      ]
     }
   ]
 }

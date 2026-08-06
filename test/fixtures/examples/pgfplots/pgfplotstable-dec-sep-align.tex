@@ -1,0 +1,15 @@
+% Adapted from the TeX Live pgfplotstable dec sep align documentation.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplotstable}
+\begin{document}
+\pgfplotstabletypeset[
+  columns={sample,value},
+  columns/sample/.style={column name=Sample,string type},
+  columns/value/.style={column name=Measured,fixed,fixed zerofill,precision=2,dec sep align}
+]{
+sample value
+A 1.2
+B 12.34
+C 123.4
+}
+\end{document}

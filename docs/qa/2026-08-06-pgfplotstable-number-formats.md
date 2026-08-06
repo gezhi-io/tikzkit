@@ -45,7 +45,8 @@ instead of counting TeX control-word characters as visible width.
 | `int detect` for integer table cells | implemented |
 | `use comma` for supported fixed/default output | implemented |
 | `std`, `relative`, `frac`, custom thousands strings | not implemented |
-| `dec sep align`, `sci sep align`, `dcolumn` | not implemented |
+| `dec sep align` for supported fixed decimal cells | implemented separately in `2026-08-06-pgfplotstable-dec-sep-align.md` |
+| `sci sep align`, `dcolumn` | not implemented |
 | arbitrary printer key ordering and post-processing | not implemented |
 
 ## Visual Acceptance

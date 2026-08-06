@@ -598,6 +598,23 @@ columns/error/.style={
 }
 ```
 
+For a fixed decimal column, `dec sep align` gives every supported numeric cell
+the same decimal anchor. The table header remains a single centered cell, as in
+the native `r@{}l` implementation:
+
+```tex
+columns/value/.style={
+  column name=Measured,
+  fixed,fixed zerofill,precision=2,
+  dec sep align
+}
+```
+
+This currently covers fixed numeric values that actually contain the selected
+decimal separator, including the `use comma` variant. Scientific decimal
+alignment (`sci sep align`), `dcolumn`, and TeX's special multi-column behavior
+for values without a separator are still outside this subset.
+
 ```tex
 \pgfplotstabletypeset[col sep=comma, columns={year,vehicles}] {
 year,vehicles,share
@@ -606,12 +623,14 @@ year,vehicles,share
 }
 ```
 
-External table files, full PGF number formatting, decimal alignment,
+External table files, full PGF number formatting, scientific decimal alignment,
 printer-order interactions, postprocessing, and arbitrary row/column styles
 remain partial. See
 [`docs/qa/2026-08-06-pgfplotstable-typeset.md`](docs/qa/2026-08-06-pgfplotstable-typeset.md)
 and
 [`docs/qa/2026-08-06-pgfplotstable-number-formats.md`](docs/qa/2026-08-06-pgfplotstable-number-formats.md)
+and
+[`docs/qa/2026-08-06-pgfplotstable-dec-sep-align.md`](docs/qa/2026-08-06-pgfplotstable-dec-sep-align.md)
 for the local-source notes and visual acceptance records.
 
 To verify this supported slice locally, run:
@@ -619,7 +638,7 @@ To verify this supported slice locally, run:
 ```bash
 npm test -- test/pgfplotstable-typeset.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
-  --output outputs/qa-pgfplotstable --only pgfplotstable-inline-typeset \
+  --output outputs/qa-pgfplotstable --only pgfplotstable-dec-sep-align \
   --native-reference --comparison-grid-mode svg --strict-tikztosvg
 npm run examples:diff -- --output outputs/qa-pgfplotstable --register --alignment-radius 3
 ```

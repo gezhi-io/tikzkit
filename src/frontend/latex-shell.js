@@ -4009,12 +4009,14 @@ function pgfplotstableDisplayCell(value, options) {
   const numeric = Number(text);
   if (!Number.isFinite(numeric)) return text;
   const formatter = pgfplotstableNumberFormatter(options);
-  if (formatter === "fixed") return pgfplotstableFormatFixed(numeric, options);
-  if (formatter === "sci") return pgfplotstableFormatScientific(numeric, options);
-  if (formatter === "int detect" && !Number.isInteger(numeric)) {
-    return pgfplotstableFormatScientific(numeric, options);
-  }
-  return pgfplotstableFormatGroupedNumber(text, options);
+  const formatted = formatter === "fixed"
+    ? pgfplotstableFormatFixed(numeric, options)
+    : formatter === "sci"
+      ? pgfplotstableFormatScientific(numeric, options)
+      : formatter === "int detect" && !Number.isInteger(numeric)
+        ? pgfplotstableFormatScientific(numeric, options)
+        : pgfplotstableFormatGroupedNumber(text, options);
+  return pgfplotstableDecimalAlignedCell(formatted, options);
 }
 
 function pgfplotstableNumberFormatter(options) {
@@ -4074,6 +4076,19 @@ function pgfplotstableNumberPrecision(value, fallback) {
 
 function pgfplotstableOptionEnabled(value) {
   return value !== undefined && value !== false && !/^(?:false|0|no)$/i.test(String(value));
+}
+
+function pgfplotstableDecimalAlignedCell(value, options) {
+  if (!pgfplotstableOptionEnabled(options["dec sep align"])) return value;
+  const text = String(value || "");
+  // The native style splits a number through an r@{}l pair. Keep that exact
+  // semantic split as an internal cell marker, then let the generic tabular
+  // scene layout put the two halves on a shared decimal anchor.
+  if (!/^[+-]?[\d.,]+$/.test(text)) return text;
+  const separator = pgfplotstableOptionEnabled(options["use comma"]) ? "," : ".";
+  const index = text.lastIndexOf(separator);
+  if (index <= 0 || index === text.length - 1) return text;
+  return `\\tikzkitdecimal{${text.slice(0, index)}}{${text.slice(index)}}`;
 }
 
 function pgfplotstableNumericCell(value) {

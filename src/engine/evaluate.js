@@ -319,6 +319,7 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
   if (!columns.length) return;
   const rows = layout.rows || [];
   const columnContentWidths = columns.map(() => 0);
+  const columnDecimalMetrics = columns.map(() => ({ left: 0, right: 0 }));
   const rowContentHeights = rows.map((row) => row.blank ? 0 : TABULAR_TEXT_HEIGHT);
 
   for (const row of rows) {
@@ -326,7 +327,12 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
       const column = Number(cell.column);
       if (!Number.isInteger(column) || column < 0 || column >= columns.length) continue;
       let cellHeight = cell.text ? TABULAR_TEXT_HEIGHT : 0;
-      let cellWidth = cell.text ? tabularTextWidthCm(cell.text) : 0;
+      const textLayout = tabularCellTextLayout(cell.text);
+      let cellWidth = textLayout.width;
+      if (textLayout.decimal) {
+        columnDecimalMetrics[column].left = Math.max(columnDecimalMetrics[column].left, textLayout.leftWidth);
+        columnDecimalMetrics[column].right = Math.max(columnDecimalMetrics[column].right, textLayout.rightWidth);
+      }
       for (const pictureIndex of cell.pictureIndices || []) {
         const renderedPicture = rendered.get(pictureIndex);
         if (!renderedPicture) continue;
@@ -399,10 +405,34 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
         documentIr.items.push(...(renderedPicture.pictureIr.items || []));
       }
       if (cell.text) {
-        const textWidth = tabularTextWidthCm(cell.text);
-        const textX = tabularTextAnchorX(columns[column].align, contentLeft, contentWidth, textWidth);
+        const textLayout = tabularCellTextLayout(cell.text);
+        if (textLayout.decimal) {
+          const decimalMetrics = columnDecimalMetrics[column];
+          const decimalGroupWidth = decimalMetrics.left + decimalMetrics.right;
+          const decimalAnchorX = contentLeft + Math.max(0, (contentWidth - decimalGroupWidth) / 2) + decimalMetrics.left;
+          if (textLayout.left) {
+            documentIr.items.push(createTextShape(
+              textLayout.left,
+              decimalAnchorX,
+              centerY,
+              tabularTextStyle(),
+              { subtype: "tabular-decimal-leading", svgTextAnchor: "end", svgTextX: decimalAnchorX, font: createFontSpec() }
+            ));
+          }
+          if (textLayout.right) {
+            documentIr.items.push(createTextShape(
+              textLayout.right,
+              decimalAnchorX,
+              centerY,
+              tabularTextStyle(),
+              { subtype: "tabular-decimal-trailing", svgTextAnchor: "start", svgTextX: decimalAnchorX, font: createFontSpec() }
+            ));
+          }
+          continue;
+        }
+        const textX = tabularTextAnchorX(columns[column].align, contentLeft, contentWidth, textLayout.width);
         documentIr.items.push(createTextShape(
-          cell.text,
+          textLayout.text,
           textX,
           centerY,
           tabularTextStyle(),
@@ -431,6 +461,25 @@ function tabularTextWidthCm(text) {
     if (Number.isFinite(formula?.width) && formula.width > 0) return formula.width;
   }
   return texTextWidthCm(source);
+}
+
+function tabularCellTextLayout(text) {
+  const source = String(text || "").trim();
+  const decimal = source.match(/^\\tikzkitdecimal\s*\{([^{}]*)\}\s*\{([^{}]*)\}$/);
+  if (!decimal) return { text: source, width: source ? tabularTextWidthCm(source) : 0, decimal: false };
+  const left = decimal[1];
+  const right = decimal[2];
+  const leftWidth = tabularTextWidthCm(left);
+  const rightWidth = tabularTextWidthCm(right);
+  return {
+    text: source,
+    width: leftWidth + rightWidth,
+    decimal: true,
+    left,
+    right,
+    leftWidth,
+    rightWidth
+  };
 }
 
 function tabularTextAnchorX(align, left, width, textWidth) {
