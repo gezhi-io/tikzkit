@@ -345,7 +345,7 @@ rand + rand + rand + rand + rand);
   assert.ok(legendX < 5.7, `expected explicit south east outside legend marker near native x position, got x=${legendX}`);
   assert.ok(legendY < 0.35, `expected explicit south east outside legend near the lower axis edge, got y=${legendY}`);
   assert.ok(sumLegend.y < 0.35, `expected explicit south east outside legend label near the lower axis edge, got y=${sumLegend.y}`);
-  assert.ok(sumLegend.x > 7.15 && sumLegend.x < 7.45, `expected explicit outside legend text center near native position, got x=${sumLegend.x}`);
+  assert.ok(sumLegend.x > 7.45 && sumLegend.x < 7.75, `expected explicit outside legend text center near native position, got x=${sumLegend.x}`);
   assert.equal(cleanAxes.length, 2, "expected scientific axes=clean to render offset left/bottom axes");
   assert.equal(cleanBoundaries.length, 4, "expected scientific axes=clean to render light min/max boundaries");
   assert.ok(Math.abs((pinFrom?.x || 0) - 2.9) < 0.03, `expected Gaussian pin edge to start at the first sample after x=1, got x=${pinFrom?.x}`);

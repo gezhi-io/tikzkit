@@ -287,6 +287,27 @@ and verify the styled label frames, sample paths, and axes. This checks a
 specific legend-layout slice; complex legend matrices and the wider native
 data-visualization survey pipeline remain partial.
 
+For a `legend={south east outside}` scatter entry, use the maintained
+`datavisualization-scatter-south-east-outside` fixture. Its legend is anchored
+from the data-area south-east corner with the native `.8em` outside offset, so
+changing the axis width must move the sample and its label together:
+
+```bash
+node --test --test-name-pattern="datavisualization function data" test/extensions.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-datavis-scatter-legend \
+  --only datavisualization-scatter-south-east-outside \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-datavis-scatter-legend \
+  --only datavisualization-scatter-south-east-outside
+```
+
+Inspect `outputs/qa-datavis-scatter-legend/diff/datavisualization-scatter-south-east-outside-native-sheet.png`.
+The curve, random scatter samples, pin, one-mark sample, and the legend label
+should agree in visible placement. Arbitrary multi-column legend matrices are
+still outside this focused compatibility slice.
+
 For a PGFPlots legend or cached text-placement change, use both the renderer
 test and the legend lowering tests, then inspect the real chart rather than
 accepting only text coordinates:

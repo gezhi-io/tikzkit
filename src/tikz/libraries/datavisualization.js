@@ -20,6 +20,7 @@ export const tikzLibrary = {
     "focused legend at-coordinate projections using |- and -|",
     "focused legend label node style draw/circle routing through datavis legend entry node style",
     "compact native-style TeX box metrics for styled inline-math legend labels without changing SVG math paint",
+    "south east outside scatter legend matrix anchoring from data-bounding-box dimensions and native em offsets",
     "style sheet=strong colors, vary hue, vary dashing, vary thickness, and vary thickness and dashing for line visualizers",
     "default outside line legend samples positioned by native physical em offsets from the data area",
     "custom /pgf/data visualization/style sheets/<name>/<value>/.style definitions for set-based plot styling",
@@ -42,5 +43,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally on 2026-08-06 against tikzlibrarydatavisualization.code.tex and pgfmanual-en-dv-visualizers.tex: styled legend labels use native em/ex sample coordinates and TeX-packed inline math dimensions, while SVG math paint remains renderer-owned. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline, custom pgfooclass visualizers, or exact arbitrary matrix legends."
+    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally on 2026-08-06 against tikzlibrarydatavisualization.code.tex and pgfmanual-en-dv-visualizers.tex: styled legend labels use native em/ex sample coordinates and TeX-packed inline math dimensions, while SVG math paint remains renderer-owned. Explicit south-east outside scatter legends now use the source's data-bounding-box anchor with physical .8em/.5em/.333em offsets rather than normalized constants. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline, custom pgfooclass visualizers, or exact arbitrary matrix legends."
 };

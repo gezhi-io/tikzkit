@@ -3989,6 +3989,21 @@
         "legend math labels",
         "styled legend node metrics"
       ]
+    },
+    {
+      "id": "datavisualization-scatter-south-east-outside",
+      "title": "PGF datavisualization south-east outside scatter legend",
+      "source": "workbench/datavisualization-scatter-south-east-outside.tex",
+      "sourceCorpus": "TeX Live PGF datavisualization legend source",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-dv-visualizers.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:datavisualizationLegendPlacement; src/frontend/latex-shell.js:datavisualizationLineLegendRow",
+      "features": [
+        "datavisualization function format",
+        "scientific axes clean",
+        "scatter legend",
+        "south east outside",
+        "bounding-box legend anchor"
+      ]
     }
   ]
 }

@@ -9411,13 +9411,7 @@ function datavisualizationLineLegendRow(index, plot = {}, legendCount = 1, conte
     };
   }
   if (plot.legendExplicit && position === "south east outside" && (plot.kind === "scatter" || plot.noLines)) {
-    return {
-      x0: 1.075,
-      x1: 1.115,
-      localOriginX: 1.228,
-      textX: 1.2,
-      y: 0.09 - row * 0.13
-    };
+    return datavisualizationSouthEastOutsideScatterLegendRow(row, count, context);
   }
   const placement = plot.legendExplicit || position !== "south east outside"
     ? datavisualizationLegendPlacement(plot.legendPosition, row, count, plot, context)
@@ -9454,6 +9448,41 @@ function datavisualizationLineLegendRow(index, plot = {}, legendCount = 1, conte
     x1: 1.246,
     textX: 1.281,
     y: centerY + ((count - 1) / 2 - row) * rowStep,
+    physicalOutsideLegend: true
+  };
+}
+
+function datavisualizationSouthEastOutsideScatterLegendRow(row = 0, legendCount = 1, context = {}) {
+  const axisWidth = Number(context.axisWidth);
+  const axisHeight = Number(context.axisHeight);
+  if (!Number.isFinite(axisWidth) || axisWidth <= 0 || !Number.isFinite(axisHeight) || axisHeight <= 0) {
+    return {
+      x0: 1.075,
+      x1: 1.115,
+      localOriginX: 1.115,
+      textX: 1.14,
+      y: 0.09 - row * 0.13
+    };
+  }
+
+  // TeX Live anchors this matrix at the data bounding-box south east, shifted
+  // by .8em. A one-mark cell places its mark half an em inside the cell; the
+  // label node then applies its native .333em text-right shift.
+  const outsideShift = parseDimension(".8em", {});
+  const markCellInset = parseDimension(".5em", {});
+  const labelShift = parseDimension(".333em", {});
+  const rowHeight = parseDimension("1em", {});
+  const firstRowCenter = parseDimension(".8em", {});
+  const count = Math.max(1, Number(legendCount) || 1);
+  const x = (axisWidth + outsideShift + markCellInset) / axisWidth;
+  const textX = (axisWidth + outsideShift + markCellInset + labelShift) / axisWidth;
+  const y = (firstRowCenter + (count - 1 - row) * rowHeight) / axisHeight;
+  return {
+    x0: x,
+    x1: x,
+    localOriginX: x,
+    textX,
+    y,
     physicalOutsideLegend: true
   };
 }

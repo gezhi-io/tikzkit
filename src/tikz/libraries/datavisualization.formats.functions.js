@@ -29,6 +29,7 @@ export const tikzLibrary = {
     "legend label style=text left placement",
     "legend label style=text colored",
     "legend label node style draw/circle with compact math label metrics",
+    "south east outside scatter legend matrix anchoring from data-bounding-box dimensions and native em offsets",
     "legend entry visualizer in legend style for legend-only sample styling",
     "legend matrix node style background fill and focused native-width padding for Section 84 cases",
     "circular closed-path legend samples and gap circular legend samples for cycle visualizers",
@@ -64,5 +65,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally on 2026-08-06 against the function-format loader plus the visualizer legend source: styled inline-math legend node boxes use compact TeX metrics while preserving the SVG math renderer for paint. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact arbitrary matrix legends remain partial."
+    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally on 2026-08-06 against the function-format loader plus the visualizer legend source: styled inline-math legend node boxes use compact TeX metrics while preserving the SVG math renderer for paint, and explicit south-east outside scatter legends derive their marker/text locations from the native data-bounding-box anchor. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact arbitrary matrix legends remain partial."
 };
