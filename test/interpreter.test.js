@@ -4391,6 +4391,42 @@ test("matches PGF regular polygon sizing, orientation, rotation, and curved arro
   expectClose(thickRadius - thinRadius, expectedExtension, 1e-6);
 });
 
+test("extends curved terminal arrows beyond rectangle, diamond, star, and trapezium borders", () => {
+  const source = String.raw`
+\usetikzlibrary{arrows.meta,shapes.geometric}
+\begin{tikzpicture}
+  \node[draw,rectangle,minimum width=2cm,minimum height=1cm,inner sep=0pt] (rect) at (0,3) {};
+  \node[draw,diamond,aspect=1.4,minimum width=2cm,minimum height=1.5cm,inner sep=0pt] (diamond) at (0,1) {};
+  \node[draw,star,star points=5,star point ratio=1.8,minimum size=1.8cm,inner sep=0pt] (star) at (0,-1) {};
+  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,minimum width=2.2cm,minimum height=1.2cm,inner sep=0pt] (trap) at (0,-3) {};
+  \draw[-{Latex[length=3mm]},thin] (-4,3) to[out=0,in=180] (rect);
+  \draw[-{Latex[length=3mm]},line width=4pt] (-4,3) to[out=0,in=180] (rect);
+  \draw[-{Latex[length=3mm]},thin] (-4,1) to[out=0,in=180] (diamond);
+  \draw[-{Latex[length=3mm]},line width=4pt] (-4,1) to[out=0,in=180] (diamond);
+  \draw[-{Latex[length=3mm]},thin] (-4,-1) to[out=0,in=180] (star);
+  \draw[-{Latex[length=3mm]},line width=4pt] (-4,-1) to[out=0,in=180] (star);
+  \draw[-{Latex[length=3mm]},thin] (-4,-3) to[out=0,in=180] (trap);
+  \draw[-{Latex[length=3mm]},line width=4pt] (-4,-3) to[out=0,in=180] (trap);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const arrows = ir.items.filter((item) => item.type === "path" && item.style.markerEnd);
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(arrows.length, 8);
+  for (let index = 0; index < arrows.length; index += 2) {
+    const thinEnd = arrows[index].commands.at(-1);
+    const thickEnd = arrows[index + 1].commands.at(-1);
+    assert.equal(thinEnd.type, "curveTo");
+    assert.equal(thickEnd.type, "curveTo");
+    assert.ok(
+      thickEnd.x < thinEnd.x - 0.05,
+      `expected ${["rectangle", "diamond", "star", "trapezium"][index / 2]} thick arrow to clear its left border: thin=${thinEnd.x}, thick=${thickEnd.x}`
+    );
+    expectClose(thickEnd.y, thinEnd.y);
+  }
+});
+
 test("approximates TikZ bend left and bend right edge arrows as curves", () => {
   const source = String.raw`
 \begin{tikzpicture}

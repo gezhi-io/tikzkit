@@ -10619,8 +10619,15 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   } else if (node.shape === "roundedRectangle") {
     localPoint = roundedRectangleBorderPoint(localDx, localDy, halfWidth, halfHeight, terminalPadding);
   } else if (node.shape === "diamond") {
-    const factor = localDistance / (Math.abs(localDx) / halfWidth + Math.abs(localDy) / halfHeight);
-    localPoint = { x: (localDx / localDistance) * factor, y: (localDy / localDistance) * factor };
+    const points = [
+      { x: 0, y: halfHeight },
+      { x: halfWidth, y: 0 },
+      { x: 0, y: -halfHeight },
+      { x: -halfWidth, y: 0 }
+    ];
+    localPoint = terminalPadding > 0
+      ? polygonBorderPointWithPadding({ x: 0, y: 0 }, { x: localDx, y: localDy }, points, terminalPadding)
+      : polygonBorderPoint({ x: 0, y: 0 }, { x: localDx, y: localDy }, points);
   } else if (node.shape === "regularPolygon") {
     const sides = Math.max(3, Math.round(Number(node.shapeData?.regularPolygonSides) || 5));
     const radius = Math.max(halfWidth, halfHeight) + regularPolygonOuterRadiusExtension(terminalPadding, sides);
@@ -10636,17 +10643,25 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       )
     );
   } else if (polygonNodeShape(node.shape)) {
-    localPoint = polygonBorderPoint(
-      { x: 0, y: 0 },
-      { x: localDx, y: localDy },
-      nodePolygonPoints(node, { x: 0, y: 0 }, halfWidth, halfHeight)
-    );
+    const points = nodePolygonPoints(node, { x: 0, y: 0 }, halfWidth, halfHeight);
+    localPoint = terminalPadding > 0
+      ? polygonBorderPointWithPadding({ x: 0, y: 0 }, { x: localDx, y: localDy }, points, terminalPadding)
+      : polygonBorderPoint({ x: 0, y: 0 }, { x: localDx, y: localDy }, points);
   } else {
-    const xScale = Math.abs(localDx) > 1e-12 ? halfWidth / Math.abs(localDx) : Number.POSITIVE_INFINITY;
-    const yScale = Math.abs(localDy) > 1e-12 ? halfHeight / Math.abs(localDy) : Number.POSITIVE_INFINITY;
-    const factor = Math.min(xScale, yScale);
-    if (!Number.isFinite(factor)) return roundPoint(center);
-    localPoint = { x: localDx * factor, y: localDy * factor };
+    if (terminalPadding > 0) {
+      localPoint = polygonBorderPointWithPadding(
+        { x: 0, y: 0 },
+        { x: localDx, y: localDy },
+        rectanglePoints({ x: 0, y: 0 }, halfWidth, halfHeight),
+        terminalPadding
+      );
+    } else {
+      const xScale = Math.abs(localDx) > 1e-12 ? halfWidth / Math.abs(localDx) : Number.POSITIVE_INFINITY;
+      const yScale = Math.abs(localDy) > 1e-12 ? halfHeight / Math.abs(localDy) : Number.POSITIVE_INFINITY;
+      const factor = Math.min(xScale, yScale);
+      if (!Number.isFinite(factor)) return roundPoint(center);
+      localPoint = { x: localDx * factor, y: localDy * factor };
+    }
   }
   const rotated = rotateVector(localPoint.x, localPoint.y, rotation);
   return roundPoint({ x: center.x + rotated.x, y: center.y + rotated.y });
@@ -16470,16 +16485,57 @@ function rectanglePoints(center, halfWidth, halfHeight) {
 }
 
 function polygonBorderPoint(center, toward, points) {
+  const hit = polygonBorderHit(center, toward, points);
+  return hit ? roundPoint(hit.point) : roundPoint(center);
+}
+
+function polygonBorderPointWithPadding(center, toward, points, padding = 0) {
+  const hit = polygonBorderHit(center, toward, points);
+  if (!hit) return roundPoint(center);
+  const distance = Math.max(0, Number(padding) || 0);
+  if (distance <= 1e-12) return roundPoint(hit.point);
+
+  const direction = { x: toward.x - center.x, y: toward.y - center.y };
+  const directionLength = Math.hypot(direction.x, direction.y);
+  const edge = { x: hit.b.x - hit.a.x, y: hit.b.y - hit.a.y };
+  const edgeLength = Math.hypot(edge.x, edge.y);
+  if (directionLength <= 1e-12 || edgeLength <= 1e-12) return roundPoint(hit.point);
+
+  // PGF grows geometric node borders by the outer separation measured
+  // perpendicular to the active side, then joins adjacent sides with a miter.
+  // A curved arrow only needs the side hit by its tangent-directed ray.
+  const clockwise = polygonSignedArea(points) < 0;
+  const outward = clockwise
+    ? { x: -edge.y / edgeLength, y: edge.x / edgeLength }
+    : { x: edge.y / edgeLength, y: -edge.x / edgeLength };
+  const unitDirection = { x: direction.x / directionLength, y: direction.y / directionLength };
+  const outwardProjection = unitDirection.x * outward.x + unitDirection.y * outward.y;
+  if (outwardProjection <= 1e-12) return roundPoint(hit.point);
+  const offset = distance / outwardProjection;
+  return roundPoint({
+    x: hit.point.x + unitDirection.x * offset,
+    y: hit.point.y + unitDirection.y * offset
+  });
+}
+
+function polygonBorderHit(center, toward, points) {
   const direction = { x: toward.x - center.x, y: toward.y - center.y };
   const candidates = [];
   for (let index = 0; index < points.length; index += 1) {
     const a = points[index];
     const b = points[(index + 1) % points.length];
     const hit = raySegmentIntersection(center, direction, a, b);
-    if (hit && hit.t >= -1e-9) candidates.push(hit);
+    if (hit && hit.t >= -1e-9) candidates.push({ ...hit, a, b });
   }
   candidates.sort((a, b) => a.t - b.t);
-  return candidates[0] ? roundPoint(candidates[0].point) : roundPoint(center);
+  return candidates[0] || null;
+}
+
+function polygonSignedArea(points) {
+  return points.reduce((area, point, index) => {
+    const next = points[(index + 1) % points.length];
+    return area + point.x * next.y - next.x * point.y;
+  }, 0) / 2;
 }
 
 function raySegmentIntersection(origin, direction, a, b) {

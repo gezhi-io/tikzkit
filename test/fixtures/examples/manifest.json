@@ -160,6 +160,23 @@
       ]
     },
     {
+      "id": "arrows-shape-curved-terminal-padding",
+      "title": "PGF polygonal shape curves with terminal arrow padding",
+      "source": "arrows/shape-curved-terminal-padding.tex",
+      "sourceCorpus": "TikZKit regression derived from PGF geometric shape border semantics",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:nodeBorderPoint/polygonBorderPointWithPadding",
+      "features": [
+        "rectangle terminal arrow padding",
+        "diamond border anchor",
+        "star border anchor",
+        "trapezium border anchor",
+        "curved to path endpoint crop",
+        "Latex terminal arrow",
+        "path line width"
+      ]
+    },
+    {
       "id": "coordinates-declared-timeline-system",
       "title": "TikZ declared coordinate system with dynamic timeline argument",
       "source": "coordinates/declared-timeline-coordinate-system.tex",
