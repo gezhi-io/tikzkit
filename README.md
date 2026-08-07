@@ -66,6 +66,32 @@ semantic regression. The executable visual driver is
 are recorded in
 [docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md](docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md).
 
+### A Verified `circuitikz` MOS Node Example
+
+The experimental `circuitikz` subset also includes the common enhanced-mode
+MOS node forms. `nmos` and `pmos` expose the documented `G`, `D`, and `S`
+anchors; `tripoles/mos style=arrows` enables their current arrows, and a PMOS
+node accepts `emptycircle` at its gate. This is a focused compatibility slice,
+not a complete transistor implementation.
+
+```tex
+\usepackage{circuitikz}
+\begin{tikzpicture}
+  \ctikzset{tripoles/mos style=arrows}
+  \node[nmos] (n) at (0,0) {};
+  \node[pmos, emptycircle] (p) at (2,0) {};
+  \draw (n.G) -- ++(-.7,0) node[left] {$G_n$};
+  \draw (n.D) -- ++(0,.55) node[above] {$D_n$};
+  \draw (n.S) -- ++(0,-.55) node[below] {$S_n$};
+\end{tikzpicture}
+```
+
+Run the semantic regression with
+`node --test --test-name-pattern='renders circuitikz NMOS and PMOS nodes with G D S anchors' test/interpreter.test.js`.
+The permanent fixture is `circuitikz-mosfet-nodes`; the three-way visual
+evidence, command and parameter coverage, and remaining limitations are in
+[docs/qa/2026-08-07-circuitikz-mosfet-node-anchors.md](docs/qa/2026-08-07-circuitikz-mosfet-node-anchors.md).
+
 ### A Verified `shapes.arrows` Example
 
 The focused `shapes.arrows` slice gives `single arrow` and `double arrow` a

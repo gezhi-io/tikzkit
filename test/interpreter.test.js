@@ -650,6 +650,40 @@ test("renders circuitikz npn and pnp transistor nodes with B C E anchors", () =>
   assert.match(result.svg, /tikz-node-circuitikzTransistor/);
 });
 
+test("renders circuitikz NMOS and PMOS nodes with G D S anchors", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{circuitikz}
+\begin{tikzpicture}
+  \ctikzset{tripoles/mos style=arrows}
+  \node[nmos] (n) at (0,0) {};
+  \node[pmos, emptycircle] (p) at (2,0) {};
+  \node[pmos, nocircle, noarrowmos] (q) at (4,0) {};
+  \draw (n.G) -- ++(-.7,0);
+  \draw (n.D) -- ++(0,.55);
+  \draw (n.S) -- ++(0,-.55);
+  \draw (p.G) -- ++(-.7,0);
+  \draw (p.D) -- ++(0,-.55);
+  \draw (p.S) -- ++(0,.55);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const mosfets = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "circuitikzMosfet");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(mosfets.length, 3);
+  assert.equal(mosfets[0].shapeData.mosfetKind, "nmos");
+  assert.equal(mosfets[0].shapeData.mosfetArrows, true);
+  assert.equal(mosfets[1].shapeData.mosfetKind, "pmos");
+  assert.equal(mosfets[2].shapeData.mosfetArrows, false);
+  assert.equal(mosfets[2].shapeData.mosfetNoCircle, true);
+  assert.deepEqual(result.ir.coordinates["n.G"], { x: -0.7, y: 0 });
+  assert.deepEqual(result.ir.coordinates["n.D"], { x: 0, y: 0.55 });
+  assert.deepEqual(result.ir.coordinates["n.S"], { x: 0, y: -0.55 });
+  assert.deepEqual(result.ir.coordinates["p.D"], { x: 2, y: -0.55 });
+  assert.deepEqual(result.ir.coordinates["p.S"], { x: 2, y: 0.55 });
+  assert.match(result.svg, /tikz-node-circuitikzMosfet/);
+  assert.match(result.svg, /tikz-node-circuitikzMosfet-gate-circle/);
+  assert.equal((result.svg.match(/tikz-node-circuitikzMosfet-gate-circle/g) || []).length, 1);
+});
+
 test("matches graphicx resizebox dimensions around a single TikZ picture", () => {
   const result = tikzToSvg(String.raw`
 \documentclass[border=2pt]{standalone}

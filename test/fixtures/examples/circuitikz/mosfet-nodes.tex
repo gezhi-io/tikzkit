@@ -1,0 +1,18 @@
+% Adapted from the TeX Live circuitikz manual's MOS transistor example.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{tikzpicture}
+  \ctikzset{tripoles/mos style=arrows}
+  \node[nmos] (n) at (0,0) {};
+  \node[pmos, emptycircle] (p) at (2,0) {};
+
+  \draw (n.G) -- ++(-.7,0) node[left] {$G_n$};
+  \draw (n.D) -- ++(0,.55) node[above] {$D_n$};
+  \draw (n.S) -- ++(0,-.55) node[below] {$S_n$};
+  \draw (p.G) -- ++(-.7,0) node[left] {$G_p$};
+  \draw (p.D) -- ++(0,-.55) node[below] {$D_p$};
+  \draw (p.S) -- ++(0,.55) node[above] {$S_p$};
+\end{tikzpicture}
+\end{document}

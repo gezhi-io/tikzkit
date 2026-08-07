@@ -2802,6 +2802,13 @@ function circuitikzTransistorSize(env = {}) {
   return { width: roundNumber(1.75 * scale), height: roundNumber(1.55 * scale) };
 }
 
+function circuitikzMosfetNodeSize(env = {}) {
+  const scale = circuitikzLengthScale(env);
+  // pgfcirctripoles.tex gives the plain MOS body a width of .7 Rlen and a
+  // height of 1.1 Rlen. Its origin is the right-hand D/S spine.
+  return { width: roundNumber(0.7 * scale), height: roundNumber(1.1 * scale) };
+}
+
 function circuitikzTubeSize(env = {}, options = {}) {
   const scale = circuitikzLengthScale(env);
   const rlenScale = 1.4;
@@ -4773,6 +4780,15 @@ function circuitikzMosfetLocalAnchor(anchorRaw, size = {}) {
   const anchor = String(anchorRaw || "").trim().toUpperCase();
   const halfWidth = (Number(size.width) || 0) / 2;
   const halfHeight = (Number(size.height) || 0) / 2;
+  const kind = size.shapeData?.mosfetKind || "nmos";
+  if (size.shapeData?.mosfetNode) {
+    if (anchor === "G" || anchor === "GATE" || anchor === "B" || anchor === "BASE") {
+      return { x: -(Number(size.width) || 0), y: 0 };
+    }
+    if (anchor === "S" || anchor === "SOURCE") return { x: 0, y: kind === "pmos" ? halfHeight : -halfHeight };
+    if (anchor === "D" || anchor === "DRAIN") return { x: 0, y: kind === "pmos" ? -halfHeight : halfHeight };
+    return null;
+  }
   const gateDistance = Number(size.shapeData?.gateDistance) || halfWidth;
   if (anchor === "G" || anchor === "GATE") return { x: gateDistance, y: 0 };
   if (anchor === "S" || anchor === "SOURCE") return { x: 0, y: halfHeight };
@@ -4917,10 +4933,25 @@ function circuitikzTransistorTextPoint(point, size = {}, shapeData = {}) {
   return roundPoint({ x: point.x + xSign * 0.18, y: point.y - 0.08 });
 }
 
+function circuitikzMosfetNodeKind(options = {}) {
+  const shape = normalizeShapeName(options.shape);
+  if (options.nmos || shape === "nmos") return "nmos";
+  if (options.pmos || shape === "pmos") return "pmos";
+  return null;
+}
+
+function circuitikzMosfetNodeArrows(options = {}, env = {}) {
+  const local = String(options["tripoles/mos style"] || "").trim();
+  if (options.noarrowmos || local === "no arrows") return false;
+  if (options.arrowmos || local === "arrows") return true;
+  return String(env.circuitikz?.["tripoles/mos style"] || "").trim() === "arrows";
+}
+
 function materializeCircuitikzNodeAnchors(name, env) {
   const node = env.nodes?.[name];
   if (!node) return;
   const anchorsByShape = {
+    circuitikzMosfet: ["G", "gate", "D", "drain", "S", "source"],
     circuitikzTriode: ["anode", "plate", "cathode", "control", "grid", "east", "west", "north west", "south east"],
     circuitikzPentode: ["anode", "cathode", "control", "screen", "suppressor", "n", "e", "s", "w", "ne", "se", "sw", "nw"],
     circuitikzTetrode: ["anode", "cathode", "control", "screen", "n", "e", "s", "w", "ne", "se", "sw", "nw"],
@@ -8727,7 +8758,7 @@ function addNodeItems(node, ir, env) {
   }
   const textPoint = shape === "opAmp"
     ? roundPoint({ x: point.x - size.width * 0.08, y: point.y - size.height * 0.02 })
-    : shape === "circuitikzTransistor"
+    : shape === "circuitikzTransistor" || shape === "circuitikzMosfet"
       ? circuitikzTransistorTextPoint(point, size, shapeData)
       : point;
   if (node.options?.["tikzkit layout bbox"]) {
@@ -8759,6 +8790,19 @@ function addNodeItems(node, ir, env) {
       width: size.width,
       height: size.height,
       style: circuitikzOpAmpNodeStyle(style, nodeEnv)
+    });
+  } else if (shape === "circuitikzMosfet") {
+    ir.items.push({
+      type: "nodeBox",
+      id: node.name,
+      subtype: "circuitikz-mosfet",
+      shape,
+      shapeData,
+      x: point.x,
+      y: point.y,
+      width: size.width,
+      height: size.height,
+      style: circuitikzTransistorNodeStyle(style, nodeEnv)
     });
   } else if (shape === "circuitikzTransistor") {
     ir.items.push({
@@ -10659,6 +10703,7 @@ function nodeShape(options = {}) {
   const quadpoleKind = circuitikzQuadpoleKind(options);
   if (options["op amp"] || shape === "op amp" || shape === "opamp") return "opAmp";
   if (options.ground || shape === "ground") return "ground";
+  if (circuitikzMosfetNodeKind(options)) return "circuitikzMosfet";
   if (circuitikzTransistorKind(options)) return "circuitikzTransistor";
   if (tubeKind) return circuitikzTubeShape(tubeKind);
   if (quadpoleKind) return "circuitikzQuadpole";
@@ -10754,6 +10799,11 @@ function nodeShapeData(options = {}, env = {}) {
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"], 0);
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
+    mosfetKind: circuitikzMosfetNodeKind(options),
+    mosfetNode: Boolean(circuitikzMosfetNodeKind(options)),
+    mosfetArrows: circuitikzMosfetNodeArrows(options, env),
+    mosfetEmptyCircle: Boolean(options.emptycircle),
+    mosfetNoCircle: Boolean(options.nocircle),
     transistorKind: circuitikzTransistorKind(options),
     tubeKind: circuitikzTubeKind(options),
     quadpoleKind: circuitikzQuadpoleKind(options),
@@ -11671,6 +11721,7 @@ function estimateMatrixCellLayoutSize(text, options = {}, env = { variables: {} 
 function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
   if (options["op amp"]) return circuitikzOpAmpSize(env);
   if (options.ground) return circuitikzGroundSize(env);
+  if (circuitikzMosfetNodeKind(options)) return circuitikzMosfetNodeSize(env);
   if (circuitikzTransistorKind(options)) return circuitikzTransistorSize(env);
   if (circuitikzTubeKind(options)) return circuitikzTubeSize(env, options);
   if (circuitikzQuadpoleKind(options)) return circuitikzQuadpoleSize(env, options);

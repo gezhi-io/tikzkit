@@ -10,7 +10,7 @@ export const circuitikzFontRoles = Object.freeze({
 export const texPackage = {
   "name": "circuitikz",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:appendCircuitikzToSegment/circuitikzVoltageSourceItems/circuitikzCurrentSourceItems/circuitikzDcCurrentAngle/circuitikzComponentFill/circuitikzWaveformSourceItems/circuitikzWaveformSymbolItem/circuitikzSourceSymbolRotation/circuitikzSourceSignRotation/circuitikzSourceScale/circuitikzDiamondPath/circuitikzVoltageSourceSymbolNodes/appendCircuitikzVoltageLabel/appendCircuitikzAmericanSinusoidalVoltagePolarity/circuitikzBatteryItems/circuitikzBatteryScale/circuitikzInductorSettings/circuitikzInductorItems/circuitikzChokeCoreItems/circuitikzTransformerCoreSettings/circuitikzDiodeSpec/circuitikzDiodeSettings/circuitikzDiodeItems/circuitikzVarcapItems/circuitikzVariableCapacitorSettings/circuitikzVariableCapacitorItems/registerCircuitikzVariableCapacitorNode/circuitikzZenerCathodeCommands/circuitikzZzenerCathodeCommands/circuitikzTvsCathodeCommands/circuitikzDiodeWhiskers/circuitikzLedArrowItems/circuitikzPhotodiodeArrowItems/circuitikzLaserArrowItems/circuitikzOptoArrowStyle/circuitikzOptoArrowDirection/normalizeCtikzSetOptions/registerCircuitikzInductorNode;src/renderers/svg/circuitikzNodes.js:renderCircuitikzTransformerBody/renderCircuitikzTransformerCore",
+  "implementedBy": "src/engine/evaluate.js:appendCircuitikzToSegment/circuitikzVoltageSourceItems/circuitikzCurrentSourceItems/circuitikzDcCurrentAngle/circuitikzComponentFill/circuitikzWaveformSourceItems/circuitikzWaveformSymbolItem/circuitikzSourceSymbolRotation/circuitikzSourceSignRotation/circuitikzSourceScale/circuitikzDiamondPath/circuitikzVoltageSourceSymbolNodes/appendCircuitikzVoltageLabel/appendCircuitikzAmericanSinusoidalVoltagePolarity/circuitikzBatteryItems/circuitikzBatteryScale/circuitikzInductorSettings/circuitikzInductorItems/circuitikzChokeCoreItems/circuitikzTransformerCoreSettings/circuitikzDiodeSpec/circuitikzDiodeSettings/circuitikzDiodeItems/circuitikzVarcapItems/circuitikzVariableCapacitorSettings/circuitikzVariableCapacitorItems/registerCircuitikzVariableCapacitorNode/circuitikzZenerCathodeCommands/circuitikzZzenerCathodeCommands/circuitikzTvsCathodeCommands/circuitikzDiodeWhiskers/circuitikzLedArrowItems/circuitikzPhotodiodeArrowItems/circuitikzLaserArrowItems/circuitikzOptoArrowStyle/circuitikzOptoArrowDirection/normalizeCtikzSetOptions/registerCircuitikzInductorNode/circuitikzMosfetNodeKind/circuitikzMosfetNodeSize/circuitikzMosfetLocalAnchor;src/renderers/svg/circuitikzNodes.js:renderCircuitikzTransformerBody/renderCircuitikzTransformerCore/renderCircuitikzMosfetNodeBox",
   "features": [
     "short wires",
     "R/C/basic independent current and voltage source slices",
@@ -29,12 +29,13 @@ export const texPackage = {
     "default cute transformer bodies with source-derived half-elliptical coils, lead geometry, and core styling",
     "terminal markers",
     "op amp and tube node subset",
+    "enhancement MOS nmos/pmos nodes with G/D/S anchors, arrowmos/noarrowmos, tripoles/mos style=arrows|no arrows, and PMOS emptycircle/nocircle node options",
     "package option siunitx: normalize \\SI and circuitikz angle-unit labels",
     "package option RPvoltages: set reference-polarity direction for American +/- and European arrow voltage notation"
   ],
   "requires": [],
   "registryImplementedBySuffix": "src/engine/evaluate.js:circuitikzLatexSlimArrowStyle/circuitikzTunnelCathodeCommands/circuitikzBidirectionalDiodeItems/circuitikzOuterTextAnchor;src/tikz/metrics.js:latexSlimArrowGeometryFromLineWidth;src/renderers/svg/paths.js:inlineArrowGeometry;src/renderers/svg/markers.js:resolvedArrowMarker/renderArrowMarkerDef",
-  "registryNoteSuffix": "Reviewed locally on 2026-08-06: pgfcirc.defines.tex selects modifier thickness from the active class before multiplying the current line width. pgfcircbipoles.tex assigns a fill-only latexslim tunable arrow to vL; cute keeps its intrinsic diagonal while American and European vL bodies honor bipoles/fix tunable direction. The focused circuitikz-inductors fixture covers the normal and legacy European directions plus a reduced inductor modifier thickness; three-way visual evidence is in docs/qa/2026-08-06-circuitikz-variable-inductors-latexslim.md. Reviewed locally on 2026-08-07: American independent-source signs now use pgfcircbipoles.tex default/auto/straight/numeric rotation semantics; visual evidence is in docs/qa/2026-08-07-circuitikz-american-source-sign-rotation.md. Tunnel, Shockley, and bidirectional diode aliases/geometry are now verified against pgfcircbipoles.tex and the manual; this supersedes the earlier legacy caveat about those three families. Tripole and custom diode-shape families remain partial. Three-way visual evidence is in docs/qa/2026-08-07-circuitikz-extended-diodes.md.",
+  "registryNoteSuffix": "Reviewed locally on 2026-08-06: pgfcirc.defines.tex selects modifier thickness from the active class before multiplying the current line width. pgfcircbipoles.tex assigns a fill-only latexslim tunable arrow to vL; cute keeps its intrinsic diagonal while American and European vL bodies honor bipoles/fix tunable direction. The focused circuitikz-inductors fixture covers the normal and legacy European directions plus a reduced inductor modifier thickness; three-way visual evidence is in docs/qa/2026-08-06-circuitikz-variable-inductors-latexslim.md. Reviewed locally on 2026-08-07: American independent-source signs now use pgfcircbipoles.tex default/auto/straight/numeric rotation semantics; visual evidence is in docs/qa/2026-08-07-circuitikz-american-source-sign-rotation.md. Tunnel, Shockley, and bidirectional diode aliases/geometry are now verified against pgfcircbipoles.tex and the manual; this supersedes the earlier legacy caveat about those three families. Tripole and custom diode-shape families remain partial. Three-way visual evidence is in docs/qa/2026-08-07-circuitikz-extended-diodes.md. On 2026-08-07, source-derived enhancement MOS node forms add G/D/S anchors, arrowmos/noarrowmos, tripoles/mos style=arrows|no arrows, and PMOS emptycircle/nocircle node options; depletion/body-diode MOS variants remain partial. Evidence is in docs/qa/2026-08-07-circuitikz-mosfet-node-anchors.md.",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/circuitikz/circuitikz.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.pdf",
   "localSourceReviewed": [
@@ -81,7 +82,9 @@ export const texPackage = {
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirc.defines.tex (class-relative modifier thickness lookup and inductors/modifier thickness default, lines 554-562 and 1033-1036)",
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (vL European, cute, and American latexslim control-arrow paths plus fixed-direction branches, lines 1810-1842, 1583-1588, and 1718-1732)",
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (tunnel, Shockley, and bidirectional diode path geometry and aliases, lines 4000-4078 and 4440-4770)",
-    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (tD/tD*/tD-, shD/shD*, and biD/biD* documented variants, lines 2660-2755)"
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (tD/tD*/tD-, shD/shD*, and biD/biD* documented variants, lines 2660-2755)",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirctripoles.tex (nmos/pmos geometry, G/D/S anchors, arrow positions, and PMOS gate circle, lines 4999-5180)",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (MOS arrow and gate-circle options, lines 4798-4845)"
   ],
   "caseCount": 488,
   "caseExamples": [
@@ -108,6 +111,7 @@ export const texPackage = {
     "circuitikz transformer core customization",
     "circuitikz diode, Schottky, and LED bipoles",
     "circuitikz tunnel, Shockley, and bidirectional diode families",
+    "circuitikz NMOS and PMOS node anchors",
     "circuitikz Zener, ZZener, and TVS diode whiskers",
     "circuitikz photodiode and laser-diode optical arrows",
     "circuitikz varcap diode plate variants",

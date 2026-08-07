@@ -4,6 +4,7 @@ import { styleAttributes } from "./style.js";
 
 const CIRCUITIKZ_NODE_SHAPES = new Set([
   "opAmp",
+  "circuitikzMosfet",
   "circuitikzTransistor",
   "circuitikzTriode",
   "circuitikzPentode",
@@ -18,6 +19,7 @@ export function isCircuitikzNodeShape(shape) {
 
 export function renderCircuitikzNodeBox(item, unit) {
   if (item.shape === "opAmp") return renderCircuitikzOpAmpNodeBox(item, unit);
+  if (item.shape === "circuitikzMosfet") return renderCircuitikzMosfetNodeBox(item, unit);
   if (item.shape === "circuitikzTransistor") return renderCircuitikzTransistorNodeBox(item, unit);
   if (item.shape === "circuitikzTriode") return renderCircuitikzTriodeNodeBox(item, unit);
   if (["circuitikzPentode", "circuitikzTetrode", "circuitikzDiodeTube"].includes(item.shape)) {
@@ -25,6 +27,51 @@ export function renderCircuitikzNodeBox(item, unit) {
   }
   if (item.shape === "circuitikzQuadpole") return renderCircuitikzQuadpoleNodeBox(item, unit);
   return "";
+}
+
+function renderCircuitikzMosfetNodeBox(item, unit) {
+  const cx = item.x;
+  const cy = item.y;
+  const width = item.width;
+  const halfHeight = item.height / 2;
+  const kind = item.shapeData?.mosfetKind || "nmos";
+  const left = -width;
+  const right = 0;
+  const baseX = left * 0.5;
+  const gateX = left * 0.62;
+  const gateHeight = halfHeight * 0.35;
+  const baseHeight = halfHeight * 0.5;
+  const stroke = item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black";
+  const body = [
+    moveLine({ x: right, y: halfHeight }, { x: right, y: gateHeight }),
+    lineTo({ x: baseX, y: gateHeight }),
+    moveLine({ x: baseX, y: -gateHeight }, { x: right, y: -gateHeight }),
+    lineTo({ x: right, y: -halfHeight }),
+    moveLine({ x: baseX, y: baseHeight }, { x: baseX, y: -baseHeight }),
+    moveLine({ x: gateX, y: gateHeight }, { x: gateX, y: -gateHeight }),
+    moveLine({ x: gateX, y: 0 }, { x: left, y: 0 })
+  ].join(" ");
+  const parts = [
+    `<g class="tikz-node-shape tikz-node-circuitikzMosfet tikz-node-circuitikzMosfet-${escapeAttribute(kind)}">`,
+    `<path d="${localPathData(body, cx, cy, unit)}"${styleAttributes(item.style)} />`
+  ];
+  if (item.shapeData?.mosfetArrows) {
+    const from = kind === "nmos" ? { x: gateX, y: -gateHeight } : { x: right, y: gateHeight };
+    const to = kind === "nmos" ? { x: right, y: -gateHeight } : { x: gateX, y: gateHeight };
+    const points = transistorArrowPolygon(from, to, item)
+      .map((point) => `${format((cx + point.x) * unit)},${format(-(cy + point.y) * unit)}`)
+      .join(" ");
+    parts.push(`<polygon class="tikz-node-circuitikzMosfet-arrow" points="${points}" fill="${escapeAttribute(stroke)}" stroke="none" />`);
+  }
+  if (kind === "pmos" && !item.shapeData?.mosfetNoCircle) {
+    const radius = Math.max(0.035, Math.min(0.07, width * 0.1));
+    const fill = item.shapeData?.mosfetEmptyCircle ? "white" : stroke;
+    parts.push(
+      `<circle class="tikz-node-circuitikzMosfet-gate-circle" cx="${format((cx + gateX - radius) * unit)}" cy="${format(-cy * unit)}" r="${format(radius * unit)}" fill="${escapeAttribute(fill)}" stroke="${escapeAttribute(stroke)}" stroke-width="${format(item.style?.lineWidth || 1)}" />`
+    );
+  }
+  parts.push(`</g>`);
+  return parts.join("");
 }
 
 function renderCircuitikzOpAmpNodeBox(item, unit) {
@@ -497,6 +544,10 @@ function localTubePathData(commands, cx, cy, unit) {
 
 function moveLine(from, to) {
   return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+}
+
+function lineTo(to) {
+  return `L ${to.x} ${to.y}`;
 }
 
 function localPathData(data, cx, cy, unit) {

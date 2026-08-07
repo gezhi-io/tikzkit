@@ -210,6 +210,21 @@
       ]
     },
     {
+      "id": "circuitikz-mosfet-nodes",
+      "title": "circuitikz NMOS and PMOS node anchors",
+      "source": "circuitikz/mosfet-nodes.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "tex/generic/circuitikz/pgfcirctripoles.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzMosfetNodeKind/circuitikzMosfetNodeSize + src/renderers/svg/circuitikzNodes.js:renderCircuitikzMosfetNodeBox",
+      "features": [
+        "nmos node",
+        "pmos node",
+        "G/D/S anchors",
+        "tripoles/mos style=arrows",
+        "emptycircle"
+      ]
+    },
+    {
       "id": "circuitikz-diodes",
       "title": "circuitikz diode, Schottky, and LED families",
       "source": "circuitikz/diodes.tex",
