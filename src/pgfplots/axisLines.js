@@ -36,10 +36,18 @@ export function renderAxisBox(axisOptions = {}, geometry = {}) {
   const min = geometry.origin;
   const max = { x: geometry.origin.x + geometry.width, y: geometry.origin.y + geometry.height };
   const color = axisOptions["axis frame color"] || "black";
+  // PGFPlots installs `axis line style` on both outer axis styles. A default
+  // boxed axis is one closed outer path, so it must inherit that same style.
+  const frameStyle = joinOptions([
+    "axis frame",
+    color,
+    "line width=0.35pt",
+    ...axisLineStyleFragments(axisOptions["axis line style"])
+  ]);
   const xMode = pgfplotsAxisHidden(axisOptions, "x") ? "none" : specificAxisLineMode(axisOptions, "x");
   const yMode = pgfplotsAxisHidden(axisOptions, "y") ? "none" : specificAxisLineMode(axisOptions, "y");
   if (!xMode && !yMode) {
-    return `\\draw[axis frame, ${color}, line width=0.35pt] ${formatAxisPoint({
+    return `\\draw[${frameStyle}] ${formatAxisPoint({
       x: min.x,
       y: min.y
     })} -- ${formatAxisPoint({
@@ -62,7 +70,7 @@ export function renderAxisBox(axisOptions = {}, geometry = {}) {
     if (!yMode || yMode === "left") segments.push(axisFrameSegment({ x: min.x, y: min.y }, { x: min.x, y: max.y }));
     if (!yMode || yMode === "right") segments.push(axisFrameSegment({ x: max.x, y: min.y }, { x: max.x, y: max.y }));
   }
-  return segments.length ? `\\draw[axis frame, ${color}, line width=0.35pt] ${segments.join(" ")};` : "";
+  return segments.length ? `\\draw[${frameStyle}] ${segments.join(" ")};` : "";
 }
 
 export function shouldRenderAxisBox(axisOptions = {}) {

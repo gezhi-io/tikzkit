@@ -64,6 +64,26 @@ fixture, regression test, registry entry, and written QA conclusion, not
 generated PNG/SVG files. The complete Chinese walkthrough, including browser
 troubleshooting and acceptance criteria, is [docs/usage.md](docs/usage.md).
 
+### Compatibility Acceptance
+
+A browser preview is only the first checkpoint. Before calling a real source
+compatible, run the semantic audit, render TikZKit, local `tikztosvg`, and
+local MacTeX together, then inspect the generated sheet rather than relying on
+one pixel-difference number:
+
+```bash
+npm run case:audit -- path/to/case.tex --output outputs/case-audit.md
+npm run examples:render -- --fixtures test/fixtures/examples --only <fixture-id> \
+  --output outputs/qa-my-change --native-reference --comparison-grid-mode svg
+npm run examples:diff -- --output outputs/qa-my-change
+```
+
+The result page is `outputs/qa-my-change/index.html`. Check missing elements,
+coordinate scale and crop, layers, line/arrow geometry, labels, formulas, and
+font metrics against MacTeX. The implementation remains experimental until
+the corresponding feature slice has a focused regression and a written QA
+record; see [docs/usage.md](docs/usage.md) for the full Chinese workflow.
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and

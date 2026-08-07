@@ -188,6 +188,17 @@ test("large interval histogram preserves native foreground layers, tick styles, 
   assert.ok(heightPt >= 133 && heightPt <= 134, `expected native height near 133.24pt, got ${heightPt}pt`);
 });
 
+test("boxed axes apply axis line style visibility to the complete frame", () => {
+  const source = readFileSync("test/fixtures/examples/latex-examples/histogram-large-1d-dataset.tex", "utf8");
+  const result = tikzToSvg(source);
+
+  assert.match(result.svg, /stroke-opacity="0"/, "axis line style={draw opacity=0} should hide the boxed frame");
+  assert.doesNotMatch(
+    result.diagnostics.map((diagnostic) => diagnostic.message).join("\n"),
+    /axis line style|draw opacity/i
+  );
+});
+
 test("pgfplots table options after whitespace map comma-separated x and y headers", () => {
   const csv = [
     "dist,ele",
