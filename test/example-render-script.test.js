@@ -11,7 +11,8 @@ import {
   parseExampleRenderArgs,
   renderExampleFixtures,
   renderNativeMacTeXPng,
-  selectActiveFigureSource
+  selectActiveFigureSource,
+  tikztosvgPreambleInputNames
 } from "../scripts/render-example-fixtures.js";
 import { encodePng } from "../scripts/diff-example-pngs.js";
 import { tikzToSvg, tikzToSvgAsync } from "../src/index.js";
@@ -282,6 +283,44 @@ test("tikztosvg normalization preserves standalone and preview crop borders", ()
 
   assert.match(standalone, /\\path\[use as bounding box\][\s\S]*xshift=-2pt[\s\S]*xshift=2pt/);
   assert.match(preview, /\\path\[use as bounding box\][\s\S]*xshift=-2mm[\s\S]*xshift=2mm/);
+});
+
+test("tikztosvg crop normalization skips tikzpictures held inside command definitions", () => {
+  const normalized = normalizeTikztosvgInput(String.raw`\documentclass[border=2pt]{standalone}
+\begin{document}
+\newcommand{\DrawArrow}{%
+  \begin{tikzpicture}[overlay]
+    \draw (0,0) -- (1,0);
+  \end{tikzpicture}%
+}
+\begin{tikzpicture}
+  \DrawArrow
+  \draw (0,0) -- (2,0);
+\end{tikzpicture}
+\end{document}`);
+
+  const macroEnd = normalized.indexOf("\n}\n\\begin{tikzpicture}");
+  const boundingBoxIndex = normalized.indexOf("\\path[use as bounding box]");
+  assert.ok(macroEnd > 0);
+  assert.ok(boundingBoxIndex > macroEnd);
+  assert.equal((normalized.match(/\\path\[use as bounding box\]/g) || []).length, 1);
+});
+
+test("tikztosvg moves source preamble inputs into its package wrapper", () => {
+  const source = String.raw`\documentclass{standalone}
+\input{kvmacros}
+\input{local/setup.tex}
+\newcommand{\DrawArrow}{\draw (0,0) -- (1,0);}
+\begin{document}
+\input{body-fragment.tex}
+\end{document}`;
+  const normalized = normalizeTikztosvgInput(source);
+
+  assert.deepEqual(tikztosvgPreambleInputNames(source), ["kvmacros", "local/setup.tex"]);
+  assert.doesNotMatch(normalized, /\\input\{kvmacros\}/);
+  assert.doesNotMatch(normalized, /\\input\{local\/setup\.tex\}/);
+  assert.doesNotMatch(normalized, /\\newcommand\{\\DrawArrow\}/);
+  assert.match(normalized, /\\input\{body-fragment\.tex\}/);
 });
 
 test("example fixture renderer discovers TikZ files that are not listed in the manifest", async () => {
@@ -856,8 +895,18 @@ test("example fixture renderer can still inject source-level comparison grids wh
 
   const tikzkitSvg = await readFile(path.join(outputRoot, "tikzkit-svg", "axis-basic-range.svg"), "utf8");
   const tikztosvgInput = await readFile(path.join(outputRoot, "tikztosvg-input", "axis-basic-range.tex"), "utf8");
+  const tikztosvgPreamble = await readFile(
+    path.join(
+      outputRoot,
+      ".tikzkit-preamble-inputs",
+      "axis-basic-range",
+      "tikzkit-axis-basic-range-preamble.sty"
+    ),
+    "utf8"
+  );
 
-  assert.match(tikztosvgInput, /tikzkit compare grid/);
+  assert.doesNotMatch(tikztosvgInput, /tikzkit compare grid/);
+  assert.match(tikztosvgPreamble, /tikzkit compare grid/);
   assert.match(tikztosvgInput, /current bounding box\.south west/);
   assert.match(tikzkitSvg, /stroke-dasharray=/);
 });

@@ -25,7 +25,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| tikz | builtin | yes | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/{textLayout,richText}.js | every node and nodes={...} materialize their fonts into ordinary and inline-node SVG FontSpecs; an outer node-local minipage contributes its width to shared wrapping. The browser rich-text/foreignObject path now uses the same TeX-sized mixed-math token breaker as the SVG-text fallback, and bare .tikz corpus fragments can become native MacTeX references. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
+| tikz | builtin | yes | src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform/resolvedTextFontSpec + src/tex/fontSpec.js + src/tikz/textMetrics.js + src/renderers/svg/textLayout.js + src/renderers/svg/richText.js + src/renderers/svg/renderSvg.js;scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder/createTikztosvgPreambleInputEnv | The core renderer and its local reference harness are tracked together: explicit document crops only affect executable top-level pictures, while full-document preamble declarations are isolated before third-party reference rendering. Exact TeX paragraph layout, arbitrary non-uniform node anchors, and some third-party wrappers remain partial. |
 
 ## Latest Core TikZ Update
 

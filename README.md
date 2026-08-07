@@ -817,6 +817,14 @@ The same directory contains the local MacTeX PNG and four-panel diff sheet.
 The disposable `tikztosvg` input preserves an explicit `standalone` `border=`
 or `preview` `\\PreviewBorder`, so reference panels use the source document's
 crop rather than a tighter unrelated picture crop.
+For full `.tex` documents, its non-package preamble declarations are loaded
+through a temporary local style wrapper before `tikztosvg` starts the document;
+the body artifact therefore contains only executable document content. A
+`tikzpicture` nested inside a macro definition is never treated as a crop
+target. Some legacy `picture` plus overlay-TikZ sources remain incompatible
+with `tikztosvg`'s own fixed `standalone[crop,tikz,multi=false]` wrapper; the
+report then identifies the panel as a MacTeX native fallback and keeps the
+third-party failure log instead of calling it a successful `tikztosvg` render.
 Check missing elements, coordinate origin and scale, labels, formulas, arrows,
 stroke weight, clipping, and paint order. `outputs/` and `output/` are local
 artifacts ignored by Git; never include them in a compatibility commit.

@@ -184,9 +184,16 @@ export async function renderExampleFixtures(options = {}) {
     let tikztosvgStatus = "skipped";
     let referenceKind = "tikztosvg";
     if (tikztosvgAvailable) {
+      const tikztosvgPreambleWrapper = await createTikztosvgPreambleInputEnv(
+        tikztosvgEnv,
+        outputRoot,
+        entry,
+        referenceSource,
+        fixtureRoot
+      );
       const tikztosvgCaseEnv = await createTikztosvgPackageOptionEnv(
         external,
-        tikztosvgEnv,
+        tikztosvgPreambleWrapper.env,
         outputRoot,
         entry,
         referenceSource,
@@ -203,6 +210,7 @@ export async function renderExampleFixtures(options = {}) {
       const tikztosvgArgs = [
         ...tikztosvgEngineArgs(tikztosvgEngine, referenceSource),
         ...tikztosvgPackageArgs(referenceSource),
+        ...tikztosvgPreambleWrapper.packageArgs,
         ...tikztosvgLibraryArgs(referenceSource),
         "-q",
         "-o",
@@ -808,7 +816,8 @@ function shouldRetryTikztosvgWithoutQuiet(result) {
 
 export function normalizeTikztosvgInput(source, options = {}) {
   const selectedSource = normalizeLegacyTkzEuclideSource(selectActiveFigureSource(source, options.activeFigureId));
-  const withoutDocumentShell = selectedSource
+  const sourceBody = tikztosvgDocumentBody(selectedSource);
+  const withoutDocumentShell = sourceBody
     .split(/\r?\n/)
     .filter((line) => !/^\\documentclass\b/.test(line.trim()))
     .filter((line) => !/^\\usepackage\b/.test(line.trim()))
@@ -829,6 +838,41 @@ export function normalizeTikztosvgInput(source, options = {}) {
     tikztosvgDocumentCropBorder(selectedSource)
   );
   return `${tikztosvgInputPreamble(selectedSource, tikztosvgBody)}${tikztosvgBody}`;
+}
+
+export function tikztosvgPreambleInputNames(source) {
+  const preamble = tikztosvgSourcePreamble(source);
+  const inputs = [];
+  for (const match of preamble.matchAll(/^\s*\\input\s*\{([^}]+)\}\s*(?:%.*)?$/gm)) {
+    const inputName = match[1].trim();
+    if (inputName && !inputs.includes(inputName)) inputs.push(inputName);
+  }
+  return inputs;
+}
+
+function tikztosvgSourcePreamble(source) {
+  const text = String(source || "");
+  const documentStart = text.search(/^\\begin\{document\}\s*$/m);
+  if (documentStart < 0) return "";
+  return text.slice(0, documentStart);
+}
+
+function tikztosvgDocumentBody(source) {
+  const text = String(source || "");
+  const documentStart = text.match(/^\\begin\{document\}\s*$/m);
+  if (!documentStart) return text;
+  return text.slice(documentStart.index + documentStart[0].length);
+}
+
+function tikztosvgPreambleBody(source) {
+  return tikztosvgSourcePreamble(source)
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*\\documentclass\b/.test(line))
+    .filter((line) => !/^\s*\\usepackage\b/.test(line))
+    .filter((line) => !/^\s*\\(?:usetikzlibrary|usepgfplotslibrary)\b/.test(line))
+    .filter((line) => !/^\s*\\setlength\s*\\PreviewBorder\b/.test(line))
+    .join("\n")
+    .trim();
 }
 
 // tikztosvg crops a TikZ picture, while a document-level pgfplotstable table
@@ -859,7 +903,49 @@ function applyTikztosvgDocumentCropBorder(body, border) {
     `  ([xshift=-${dimension},yshift=-${dimension}]current bounding box.south west)`,
     `  rectangle ([xshift=${dimension},yshift=${dimension}]current bounding box.north east);`
   ].join("\n");
-  return String(body).replace(/\\end\{tikzpicture\}/g, `${boundingBoxPath}\n\\end{tikzpicture}`);
+
+  // A source can define a command containing an inner tikzpicture. The crop
+  // path is executable TikZ, so it belongs only in an actual top-level picture
+  // body, never inside the brace group that defines such a command.
+  const text = String(body);
+  const beginPicture = "\\begin{tikzpicture}";
+  const endPicture = "\\end{tikzpicture}";
+  let result = "";
+  let cursor = 0;
+  let braceDepth = 0;
+  let topLevelPictures = 0;
+
+  while (cursor < text.length) {
+    if (text[cursor] === "%" && !isEscapedCommand(text, cursor)) {
+      const lineEnd = text.indexOf("\n", cursor);
+      if (lineEnd < 0) return `${result}${text.slice(cursor)}`;
+      result += text.slice(cursor, lineEnd + 1);
+      cursor = lineEnd + 1;
+      continue;
+    }
+
+    if (braceDepth === 0 && text.startsWith(beginPicture, cursor)) {
+      topLevelPictures += 1;
+      result += beginPicture;
+      cursor += beginPicture.length;
+      continue;
+    }
+
+    if (braceDepth === 0 && topLevelPictures > 0 && text.startsWith(endPicture, cursor)) {
+      result += `${boundingBoxPath}\n${endPicture}`;
+      topLevelPictures -= 1;
+      cursor += endPicture.length;
+      continue;
+    }
+
+    const character = text[cursor];
+    result += character;
+    if (character === "{" && !isEscapedCommand(text, cursor)) braceDepth += 1;
+    if (character === "}" && !isEscapedCommand(text, cursor)) braceDepth = Math.max(0, braceDepth - 1);
+    cursor += 1;
+  }
+
+  return result;
 }
 
 function tikztosvgDocumentCropBorder(source) {
@@ -1195,6 +1281,32 @@ async function createTikztosvgPackageOptionEnv(external, baseEnv, outputRoot, en
   return {
     ...baseEnv,
     TEXINPUTS: `${wrapperDir}${path.delimiter}${baseEnv.TEXINPUTS || ""}`
+  };
+}
+
+async function createTikztosvgPreambleInputEnv(baseEnv, outputRoot, entry, source, fixtureRoot) {
+  const preamble = tikztosvgPreambleBody(source);
+  if (!preamble || !preamble.replace(/%.*/g, "").trim()) return { env: baseEnv, packageArgs: [] };
+
+  const wrapperDir = path.join(path.resolve(outputRoot), ".tikzkit-preamble-inputs", entry.id);
+  const packageName = `tikzkit-${entry.id}-preamble`;
+  await mkdir(wrapperDir, { recursive: true });
+  await writeFile(
+    path.join(wrapperDir, `${packageName}.sty`),
+    [
+      `% TikZKit QA wrapper: loads source declarations before \\begin{document}.`,
+      preamble,
+      "\\endinput",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  return {
+    env: {
+      ...baseEnv,
+      TEXINPUTS: `${wrapperDir}${path.delimiter}${path.resolve(fixtureRoot)}//${path.delimiter}${baseEnv.TEXINPUTS || ""}`
+    },
+    packageArgs: ["-p", packageName]
   };
 }
 
