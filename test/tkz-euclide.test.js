@@ -343,7 +343,7 @@ test("constructs line-circle intersections with native tkz-euclide ordering cont
   \tkzDefPoints{0/0/A,4/0/B,2/0/M,3/2/H,0/2/U,0/1/V}
   \tkzInterLC(M,H)(M,B)\tkzGetPoints{E}{C}
   \tkzInterLC[near](H,M)(M,B)\tkzGetPoints{Near}{Far}
-  \tkzInterLC[common=C](C,H)(M,B)\tkzGetPoints{Common}{Other}
+  \tkzInterLC[common=C](C,H)(M,B)\tkzGetPoints{Other}{Common}
   \tkzInterLC[R](A,B)(M,1.5)\tkzGetPoints{RadiusLeft}{RadiusRight}
   \tkzInterLC[with nodes](A,B)(M,U,V)\tkzGetPoints{NodeLeft}{NodeRight}
 \end{tikzpicture}`;
@@ -356,6 +356,7 @@ test("constructs line-circle intersections with native tkz-euclide ordering cont
   assert.ok(Math.abs(result.ir.coordinates.C.y - 1.788854382) < 1e-9);
   assert.deepEqual(result.ir.coordinates.Near, result.ir.coordinates.C);
   assert.deepEqual(result.ir.coordinates.Common, result.ir.coordinates.C);
+  assert.deepEqual(result.ir.coordinates.Other, result.ir.coordinates.E);
   assert.deepEqual(result.ir.coordinates.RadiusLeft, { x: 0.5, y: 0 });
   assert.deepEqual(result.ir.coordinates.RadiusRight, { x: 3.5, y: 0 });
   assert.deepEqual(result.ir.coordinates.NodeLeft, { x: 1, y: 0 });

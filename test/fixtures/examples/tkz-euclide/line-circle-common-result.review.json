@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-euclide.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-obj-eu-points.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-tools-eu-intersections.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/tkz-euclide/TKZdoc-euclide-intersection.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{tikz}"],
+      "findings": "The package wrapper supplies the ordinary TikZ path and node layer used after tkz-euclide preprocessing."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-euclide.sty": {
+      "symbols": ["\\ProvidesPackage{tkz-euclide}"],
+      "findings": "The installed package is tkz-euclide 5.11c and loads the Euclidean construction modules that define the focused line-circle operation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document environment", "\\documentclass"],
+      "findings": "The document shell is removed before browser conversion, leaving the focused TikZ picture as the drawable body."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\fill", "\\node"],
+      "findings": "The focused fixture uses only ordinary TikZ paths, point fills, node anchors, colors, and a picture scale after construction lowering."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-obj-eu-points.tex": {
+      "symbols": ["\\tkzDefPoint"],
+      "findings": "Named source-coordinate points are the inputs consumed by the intersection operator and its result handoff."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-tools-eu-intersections.tex": {
+      "symbols": ["\\tkzInterLC", "\\tkzGetPoints", "tkzSecondPointResult", "common"],
+      "findings": "The common branch measures the requested point against tkzSecondPointResult and swaps only when that result is not the common contact. Thus `common` belongs in the second result while `near` and `next to` choose the first result."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/tkz-euclide/TKZdoc-euclide-intersection.tex": {
+      "symbols": ["common=pt", "tkzFirstPoint"],
+      "findings": "The documented option table states that `common=pt` leaves the common point out of tkzFirstPoint, confirming that the other contact is returned first."
+    }
+  },
+  "rules": [
+    {
+      "match": "dependency:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-07-tkz-euclide-line-circle-common.md"]
+    },
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-07-tkz-euclide-line-circle-common.md"]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-07-tkz-euclide-line-circle-common.md"]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-07-tkz-euclide-line-circle-common.md"]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-07-tkz-euclide-line-circle-common.md"]
+    }
+  ]
+}

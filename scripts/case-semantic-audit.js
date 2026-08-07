@@ -59,6 +59,9 @@ const COMMAND_OWNERS = {
   tikz: owner("src/packages/tikz.js", "partial"),
   tikzset: owner("src/engine/options.js", "partial", "tikz.code.tex"),
   tikzstyle: owner("src/frontend/latex-shell.js", "partial", "tikz.code.tex"),
+  tkzDefPoint: owner("src/extensions/tkz-euclide.js:expandDefPoint", "partial", "tkz-obj-eu-points.tex"),
+  tkzGetPoints: owner("src/extensions/tkz-euclide.js:expandGetPoints", "partial", "tkz-tools-eu-intersections.tex"),
+  tkzInterLC: owner("src/extensions/tkz-euclide.js:expandInterLC/orderLineCircleIntersections", "partial", "tkz-tools-eu-intersections.tex"),
   tt: owner("src/tex/fontSpec.js", "partial", "latex.ltx"),
   usepackage: owner("src/packages/declarations.js", "stable", "latex.ltx"),
   usepgfplotslibrary: owner("src/pgfplots/axisOptions.js", "stable", "pgfplots.code.tex"),
@@ -82,6 +85,7 @@ const OPTION_COMMANDS = new Set([
   "node",
   "path",
   "shade",
+  "tkzInterLC",
   "tikz"
 ]);
 
@@ -107,6 +111,7 @@ const OPTION_CONTEXT_OWNERS = {
   graph: "src/tikz/libraries/graphs.js:expandTikzGraphs",
   groupplot: "src/pgfplots/axisOptions.js",
   pgfplotsset: "src/pgfplots/axisOptions.js",
+  tkzInterLC: "src/extensions/tkz-euclide.js:expandInterLC/orderLineCircleIntersections",
   tikzset: "src/engine/options.js"
 };
 

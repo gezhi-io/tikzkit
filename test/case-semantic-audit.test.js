@@ -103,6 +103,28 @@ test("a template todo entry does not shadow a later wildcard review", () => {
   assert.deepEqual(draw.evidence, ["test/interpreter.test.js"]);
 });
 
+test("semantic audit maps tkz-euclide line-circle result controls and their common option", () => {
+  const report = auditTikzSource(String.raw`
+\usepackage{tkz-euclide}
+\begin{tikzpicture}
+  \tkzDefPoint(0,0){O}
+  \tkzDefPoint(1,0){A}
+  \tkzInterLC[common=A](A,O)(O,A)\tkzGetPoints{Other}{Common}
+\end{tikzpicture}`, {
+    localSourceResolver: fakeResolver
+  });
+
+  assert.equal(
+    report.commands.find((entry) => entry.name === "\\tkzInterLC").implementedBy,
+    "src/extensions/tkz-euclide.js:expandInterLC/orderLineCircleIntersections"
+  );
+  assert.equal(
+    report.commands.find((entry) => entry.name === "\\tkzGetPoints").implementedBy,
+    "src/extensions/tkz-euclide.js:expandGetPoints"
+  );
+  assert.ok(report.options.some((entry) => entry.id === "option:tkzInterLC:common" && entry.rawValues.includes("A")));
+});
+
 test("declaration inventory connects parameterized macros and cycle lists to references", () => {
   const report = auditTikzSource(String.raw`
 \newcommand{\twice}[1]{2*#1}

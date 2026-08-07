@@ -1949,10 +1949,16 @@ node --test test/tkz-euclide.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
   --output outputs/qa-tkz-interlc \
   --only tkz-euclide-line-circle-intersections \
+  --only tkz-euclide-line-circle-common-result \
   --only tkz-euclide-thales-circle-triangle \
   --native-reference --comparison-grid-mode svg
 npm run examples:diff -- --output outputs/qa-tkz-interlc
 ```
+
+`\\tkzInterLC[common=<point>]` is deliberately different from `near` and
+`next to`: the named common contact remains the *second* `\\tkzGetPoints`
+result. The `tkz-euclide-line-circle-common-result` fixture labels both
+outputs so an accidental swap is visible in the comparison panel.
 
 ### Inspect Library Support Before Extending It
 

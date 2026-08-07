@@ -2161,7 +2161,13 @@ function orderLineCircleIntersections(intersections, lineStart, center, options,
   if (options.near === true || String(options.near).trim().toLowerCase() === "true") {
     nearestTo(lineStart);
   } else if (typeof options.common === "string" && options.common.trim()) {
-    nearestTo(state.points.get(options.common.trim()));
+    const common = state.points.get(options.common.trim());
+    // tkz-euclide keeps a requested common contact in tkzSecondPointResult.
+    // This intentionally differs from `near` and `next to`, which select the
+    // first result closest to their reference point.
+    if (common && distanceBetween(common, second) > distanceBetween(common, first)) {
+      [first, second] = [second, first];
+    }
   } else if (typeof options["next to"] === "string" && options["next to"].trim()) {
     nearestTo(state.points.get(options["next to"].trim()));
   }

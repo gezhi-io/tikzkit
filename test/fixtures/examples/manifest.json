@@ -4807,6 +4807,19 @@
         "xticklabel pos=upper",
         "yticklabel pos=right"
       ]
+    },
+    {
+      "id": "tkz-euclide-line-circle-common-result",
+      "title": "tkz-euclide line-circle common result ordering",
+      "source": "tkz-euclide/line-circle-common-result.tex",
+      "sourceCorpus": "TikZKit regression derived from LaTeX-examples-master/tikz/thales-circle-triangle",
+      "semanticOwner": "src/extensions/tkz-euclide.js:orderLineCircleIntersections",
+      "features": [
+        "tkzInterLC",
+        "common",
+        "tkzGetPoints",
+        "native second result"
+      ]
     }
   ]
 }
