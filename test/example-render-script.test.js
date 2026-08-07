@@ -254,6 +254,22 @@ test("tikztosvg wraps standalone pgfplotstable output in a tight zero-padding no
   assert.match(normalized, /\\end\{tikzpicture\}/);
 });
 
+test("tikztosvg normalization preserves standalone and preview crop borders", () => {
+  const standalone = normalizeTikztosvgInput(String.raw`\documentclass[border=2pt]{standalone}
+\begin{document}
+\begin{tikzpicture}\draw (0,0) -- (1,0);\end{tikzpicture}
+\end{document}`);
+  const preview = normalizeTikztosvgInput(String.raw`\documentclass{article}
+\usepackage[active,tightpage]{preview}
+\setlength\PreviewBorder{2mm}
+\begin{document}
+\begin{tikzpicture}\draw (0,0) -- (1,0);\end{tikzpicture}
+\end{document}`);
+
+  assert.match(standalone, /\\path\[use as bounding box\][\s\S]*xshift=-2pt[\s\S]*xshift=2pt/);
+  assert.match(preview, /\\path\[use as bounding box\][\s\S]*xshift=-2mm[\s\S]*xshift=2mm/);
+});
+
 test("example fixture renderer discovers TikZ files that are not listed in the manifest", async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-example-fixtures-"));
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-examples-"));

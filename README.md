@@ -293,6 +293,9 @@ npm run examples:diff -- --output outputs/qa-case \
 
 Open `outputs/qa-case/index.html` for the TikZKit and `tikztosvg` SVG panels.
 The same directory contains the local MacTeX PNG and four-panel diff sheet.
+The disposable `tikztosvg` input preserves an explicit `standalone` `border=`
+or `preview` `\\PreviewBorder`, so reference panels use the source document's
+crop rather than a tighter unrelated picture crop.
 Check missing elements, coordinate origin and scale, labels, formulas, arrows,
 stroke weight, clipping, and paint order. `outputs/` and `output/` are local
 artifacts ignored by Git; never include them in a compatibility commit.

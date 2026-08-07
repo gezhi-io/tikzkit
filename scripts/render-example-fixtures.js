@@ -739,7 +739,10 @@ export function normalizeTikztosvgInput(source, options = {}) {
       normalizeLegacyTkzTangentCommands(normalizeLegacyTkzAngleSizes(lowerRawGnuplotAddplotsToCoordinates(body)))
     )
   );
-  const tikztosvgBody = wrapStandalonePgfplotstableTypeset(loweredBody);
+  const tikztosvgBody = applyTikztosvgDocumentCropBorder(
+    wrapStandalonePgfplotstableTypeset(loweredBody),
+    tikztosvgDocumentCropBorder(selectedSource)
+  );
   return `${tikztosvgInputPreamble(selectedSource, tikztosvgBody)}${tikztosvgBody}`;
 }
 
@@ -756,6 +759,34 @@ function wrapStandalonePgfplotstableTypeset(body) {
     "};",
     "\\end{tikzpicture}"
   ].join("\n");
+}
+
+// tikztosvg deliberately crops an extracted picture to its painted bounds.
+// Documents using standalone's `border` option or preview's PreviewBorder
+// instead define an explicit output box. Preserve that document-level crop
+// contract in the disposable reference source so its SVG can be compared with
+// both MacTeX and TikZKit without a false all-edge offset.
+function applyTikztosvgDocumentCropBorder(body, border) {
+  const dimension = String(border || "").trim();
+  if (!dimension || !/\\begin\{tikzpicture\}/.test(body)) return body;
+  const boundingBoxPath = [
+    "\\path[use as bounding box]",
+    `  ([xshift=-${dimension},yshift=-${dimension}]current bounding box.south west)`,
+    `  rectangle ([xshift=${dimension},yshift=${dimension}]current bounding box.north east);`
+  ].join("\n");
+  return String(body).replace(/\\end\{tikzpicture\}/g, `${boundingBoxPath}\n\\end{tikzpicture}`);
+}
+
+function tikztosvgDocumentCropBorder(source) {
+  const text = String(source || "");
+  const preview = text.match(
+    /\\setlength\s*(?:\{\s*\\PreviewBorder\s*\}|\\PreviewBorder)\s*\{([^{}]+)\}/
+  );
+  if (preview?.[1]?.trim()) return preview[1].trim();
+
+  const documentClass = text.match(/\\documentclass\s*(?:\[([^\]]*)\])?\s*\{\s*standalone\s*\}/i);
+  const standaloneBorder = documentClass?.[1]?.match(/(?:^|,)\s*border\s*=\s*([^,\]]+)/i);
+  return standaloneBorder?.[1]?.trim() || null;
 }
 
 function normalizeLegacyTkzEuclideSource(source) {
