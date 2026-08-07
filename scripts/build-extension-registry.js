@@ -102,8 +102,8 @@ const PGF_LIBRARY_SUPPORT = {
   },
   "shapes.multipart": {
     status: "partial",
-    implementedBy: "src/engine/evaluate.js + src/renderers/svg/rectangleSplitNodes.js + src/renderers/svg/mathNode.js",
-    notes: "horizontal rectangle split; nodepart text boxes; named part anchors; per-part fill; TeX text/script/scriptscript math sizing. Arbitrary multipart shapes and complete TeX box metrics remain partial."
+    implementedBy: "src/engine/evaluate.js:rectangleSplitLayout/rectangleSplitTextAnchorShift/rectangleSplitLocalAnchor/circleSplitLayout + src/renderers/svg/rectangleSplitNodes.js + src/renderers/svg/circleSplitNodes.js + src/renderers/svg/mathNode.js",
+    notes: "Horizontal rectangle splits use intrinsic accumulated part widths: PGF ignores `minimum width` and the width component of `minimum size`, while preserving their shared minimum height. nodepart text boxes, named part anchors, per-part fill, and TeX text/script/scriptscript math sizing are supported. Arbitrary multipart shapes, repeated low-level empty-part rules, and complete TeX box metrics remain partial."
   }
 };
 

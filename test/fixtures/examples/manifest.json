@@ -4531,6 +4531,20 @@
         "local path tangent",
         "final decoration move"
       ]
+    },
+    {
+      "id": "pgf-rectangle-split-horizontal-minimums",
+      "title": "PGF horizontal rectangle split minimum sizing",
+      "source": "workbench/rectangle-split-horizontal-minimums.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
+      "features": [
+        "rectangle split horizontal",
+        "minimum width ignored",
+        "minimum height",
+        "nodepart anchors"
+      ]
     }
   ]
 }

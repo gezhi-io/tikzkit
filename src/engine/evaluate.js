@@ -10904,7 +10904,11 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
   const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
   if (horizontal) {
     height = Math.max(height, minimumHeight, minimumSize);
-    width = Math.max(width, minimumWidth, minimumSize);
+    // PGF's horizontal rectangle split builds its width by accumulating the
+    // individual part boxes.  `minimum width` (and the width component of
+    // `minimum size`) is deliberately ignored; only the shared height is
+    // enlarged.  See pgflibraryshapes.multipart.code.tex, where the computed
+    // maximum width is only consumed by the vertical branch.
   } else {
     // PGF's vertical rectangle split honors a common minimum width but does
     // not stretch individual rows to a requested minimum height.
