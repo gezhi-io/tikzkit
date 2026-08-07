@@ -4581,6 +4581,23 @@
       ]
     },
     {
+      "id": "decorations-pathreplacing-show-path-construction",
+      "title": "PGF path-replacing show path construction callbacks",
+      "source": "decorations/pathreplacing-show-path-construction.tex",
+      "sourceCorpus": "TeX Live PGF decorations manual",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:showPathConstructionCallbacks",
+      "features": [
+        "decorations.pathreplacing",
+        "show path construction",
+        "moveto code",
+        "lineto code",
+        "curveto code",
+        "closepath code",
+        "input segment first/last/support coordinates"
+      ]
+    },
+    {
       "id": "pgf-rectangle-split-horizontal-minimums",
       "title": "PGF horizontal rectangle split minimum sizing",
       "source": "workbench/rectangle-split-horizontal-minimums.tex",

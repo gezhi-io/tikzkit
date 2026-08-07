@@ -2260,6 +2260,54 @@ test("renders border decoration as a red postaction over the preserved source pa
   assert.deepEqual(borderPath.commands.at(-1), { type: "lineTo", x: 0.8, y: 0.5 });
 });
 
+test("runs show path construction callbacks against original input segments", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}[decoration={show path construction,
+  moveto code={\fill[red] (\tikzinputsegmentfirst) circle (2pt) node[below] {move};},
+  lineto code={\draw[blue,->] (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast) node[above] {line};},
+  curveto code={\draw[green,->] (\tikzinputsegmentfirst) .. controls (\tikzinputsegmentsupporta) and (\tikzinputsegmentsupportb) .. (\tikzinputsegmentlast) node[above] {curve};},
+  closepath code={\draw[orange,->] (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast) node[above] {close};}}]
+  \path[decorate] (0,0) -- (3,1) arc (0:180:1.5 and 1) -- cycle;
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const paths = ir.items.filter((item) => item.type === "path");
+  const texts = ir.items.filter((item) => item.type === "textNode");
+  const blue = paths.find((item) => item.style.stroke === "blue");
+  const green = paths.filter((item) => item.commands?.[1]?.type === "curveTo" && item.style.markerEnd);
+  const orange = paths.find((item) => item.commands?.[0]?.x === 0 && item.commands?.[0]?.y === 1 && item.commands?.[1]?.x === 0 && item.commands?.[1]?.y === 0);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(paths.some((item) => item.shape === "circle" && item.style.fill === "red"));
+  assert.deepEqual(blue.commands, [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 3, y: 1 }
+  ]);
+  assert.equal(green.length, 2, "the 180 degree arc expands to two original cubic input segments");
+  assert.deepEqual(green[0].commands[0], { type: "moveTo", x: 3, y: 1 });
+  assert.deepEqual(orange.commands, [
+    { type: "moveTo", x: 0, y: 1 },
+    { type: "lineTo", x: 0, y: 0 }
+  ]);
+  assert.deepEqual(texts.map((item) => item.text).sort(), ["close", "curve", "curve", "line", "move"]);
+});
+
+test("does not apply the outer coordinate transform twice inside show path construction callbacks", () => {
+  const source = String.raw`
+\begin{tikzpicture}[scale=2, decoration={show path construction,
+  lineto code={\draw[red] (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast);}}]
+  \path[decorate] (0,0) -- (1,0);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const callbackPath = ir.items.find((item) => item.type === "path" && item.style.stroke === "red");
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(callbackPath.commands, [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 2, y: 0 }
+  ]);
+});
+
 test("places text decorations along invisible paths", () => {
   const source = String.raw`
 \begin{tikzpicture}

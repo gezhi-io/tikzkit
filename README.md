@@ -2440,6 +2440,24 @@ Current core examples:
   [`docs/qa/2026-08-07-shadows-drop-shadow.md`](docs/qa/2026-08-07-shadows-drop-shadow.md),
   [`docs/qa/2026-08-07-shadows-blur-path.md`](docs/qa/2026-08-07-shadows-blur-path.md),
   and [`docs/qa/2026-08-07-shadows-blur-radius.md`](docs/qa/2026-08-07-shadows-blur-radius.md).
+- `decorations.pathreplacing`: supports brace/ticks/border/waves replacements
+  and the documented `show path construction` callback slice. With
+  `decorate, decoration={show path construction,...}`, callback values for
+  `moveto code`, `lineto code`, `curveto code`, and `closepath code` may use
+  `\tikzinputsegmentfirst`, `\tikzinputsegmentlast`,
+  `\tikzinputsegmentsupporta`, and `\tikzinputsegmentsupportb` inside normal
+  TikZ draw/fill code. Arbitrary TeX-only callbacks and low-level PGF point
+  macros remain partial. The maintained reference is
+  [`decorations/pathreplacing-show-path-construction.tex`](test/fixtures/examples/decorations/pathreplacing-show-path-construction.tex):
+
+  ```bash
+  node --test --test-name-pattern='show path construction callbacks' test/interpreter.test.js
+  npm run examples:render -- --fixtures test/fixtures/examples \
+    --only decorations-pathreplacing-show-path-construction \
+    --output outputs/qa-show-path-construction \
+    --native-reference --strict-tikztosvg
+  npm run examples:diff -- --output outputs/qa-show-path-construction
+  ```
 
 The per-library metadata lives in `src/tikz/libraries/`; the generated
 compatibility table is `docs/extension-registry.md`. Regenerate it after a

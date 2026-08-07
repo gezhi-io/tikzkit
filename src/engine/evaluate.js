@@ -1357,6 +1357,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
   const shadows = pathGeneralShadows(semantic, pathEnv, style);
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
+  addShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
   if (visible) {
     const doubleStyle = doublePathStyle(semantic, env);
     const shadingStyle = pathShadingStyle(style, semantic, pathEnv);
@@ -13004,6 +13005,99 @@ function postactionDecorationPathItem(built, pathOptions, env) {
     includeArrowBounds: true,
     tightBezierBounds: tikzBoolean(postactionOptions["bezier bounding box"])
   });
+}
+
+function addShowPathConstructionItems(built, pathOptions, env, ir, diagnostics) {
+  if (!tikzBoolean(pathOptions.decorate)) return;
+  const decoration = parseOptions(String(pathOptions.decoration || ""));
+  if (!tikzBoolean(decoration["show path construction"])) return;
+
+  const callbackFor = {
+    moveTo: decoration["moveto code"],
+    lineTo: decoration["lineto code"],
+    curveTo: decoration["curveto code"],
+    closePath: decoration["closepath code"]
+  };
+  if (!Object.values(callbackFor).some((code) => typeof code === "string" && code.trim())) return;
+
+  // PGF calls these callbacks with its decoration automaton transform disabled.
+  // The input commands are already in the outer path's canvas coordinates, so
+  // parse the callback in an identity coordinate frame to avoid transforming
+  // the injected points a second time.
+  const callbackEnv = showPathConstructionCallbackEnvironment(env);
+  let current = null;
+  let start = null;
+
+  for (const command of built.decorationInputCommands || []) {
+    let segment = null;
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      start = { ...current };
+      segment = { first: current, last: current };
+    } else if (command.type === "lineTo" && current) {
+      const last = { x: command.x, y: command.y };
+      segment = { first: current, last };
+      current = last;
+    } else if (command.type === "curveTo" && current) {
+      const last = { x: command.x, y: command.y };
+      segment = {
+        first: current,
+        last,
+        supportA: { x: command.x1, y: command.y1 },
+        supportB: { x: command.x2, y: command.y2 }
+      };
+      current = last;
+    } else if (command.type === "closePath" && current && start) {
+      segment = { first: current, last: start };
+      current = { ...start };
+    }
+    if (!segment) continue;
+
+    const callback = callbackFor[command.type];
+    if (typeof callback !== "string" || !callback.trim()) continue;
+    const source = expandShowPathConstructionCallback(callback, segment);
+    for (const callbackStatement of parseStatements(source, diagnostics)) {
+      interpretStatement(callbackStatement, callbackEnv, ir, diagnostics);
+    }
+  }
+}
+
+function showPathConstructionCallbackEnvironment(env) {
+  const pictureOptions = { ...(env.pictureOptions || {}) };
+  for (const key of [
+    "scale", "xscale", "yscale", "rotate", "rotate around", "scale around",
+    "cm", "xshift", "yshift", "shift", "xslant", "yslant", "mirror",
+    "mirror x", "mirror y", "reset cm", "transform canvas", "x", "y", "z"
+  ]) {
+    delete pictureOptions[key];
+  }
+  return {
+    ...env,
+    pictureOptions,
+    pathLet: { points: {}, numbers: {} },
+    transform: identityTransform(),
+    canvasTransform: identityTransform(),
+    canvasTrackingDisabled: false,
+    basis: parsePictureBasis({}, env.variables || {})
+  };
+}
+
+function expandShowPathConstructionCallback(callback, segment) {
+  const points = {
+    tikzinputsegmentfirst: segment.first,
+    tikzinputsegmentlast: segment.last,
+    tikzinputsegmentsupporta: segment.supportA || segment.first,
+    tikzinputsegmentsupportb: segment.supportB || segment.last
+  };
+  const source = String(callback).replace(
+    /\\(tikzinputsegmentfirst|tikzinputsegmentlast|tikzinputsegmentsupporta|tikzinputsegmentsupportb)\b/g,
+    (_match, name) => showPathConstructionPointText(points[name])
+  ).trim();
+  return /;\s*$/.test(source) ? source : `${source};`;
+}
+
+function showPathConstructionPointText(point) {
+  return `${roundNumber(point.x, 9)},${roundNumber(point.y, 9)}`;
 }
 
 function supportedPathDecoration(options = {}) {
