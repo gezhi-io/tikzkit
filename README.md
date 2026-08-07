@@ -1827,6 +1827,21 @@ variable inductors retain their native fixed diagonal.
 This remains a Circuitikz subset: arbitrary custom tunable tips and the full
 inductor body/anchor catalogue are not yet implemented.
 
+### Circuitikz Coil And Choke Geometry
+
+Cute and American `L`/`vL` bodies now use the local Circuitikz coil rule at
+their wire junctions: the painted coil extends half the component stroke width
+past each lead endpoint, and its baseline receives the same small correction as
+the cute-choke core. The supported choke forms retain `onelinechoke`,
+`twolineschoke`, `bipoles/cutechoke/cthick`, `cdist`, and `cstep`; named
+`core west`/`core east` anchors remain independent node anchors.
+
+This is a source-verified detail improvement, not blanket Circuitikz parity.
+The `circuitikz-inductors` panel improves at the 1cm-grid scale; label metrics
+and crop bounds for the choke panel remain partial. Reproduce and inspect the
+three-way check with the commands in
+[`docs/qa/2026-08-07-circuitikz-inductor-linewidth-baseline.md`](docs/qa/2026-08-07-circuitikz-inductor-linewidth-baseline.md).
+
 ### Circuitikz Diode Bipoles
 
 The browser renderer also has a verified, narrow diode-bipole slice. It keeps

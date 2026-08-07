@@ -4066,7 +4066,7 @@ function circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle =
   };
   const commands = settings.kind === "european"
     ? circuitikzEuropeanInductorCommands(geometry, startAlong, bodyLength, settings)
-    : circuitikzCoilInductorCommands(geometry, startAlong, bodyLength, settings);
+    : circuitikzCoilInductorCommands(geometry, startAlong, bodyLength, settings, style.lineWidth);
   const items = [{
     type: "path",
     subtype: spec.choke ? "circuitikz-choke" : "circuitikz-inductor",
@@ -4077,7 +4077,7 @@ function circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle =
     commands
   }];
   if (spec.choke) {
-    items.push(...circuitikzChokeCoreItems(geometry, startAlong, bodyLength, settings, pathStyle));
+    items.push(...circuitikzChokeCoreItems(geometry, startAlong, bodyLength, settings, style));
   }
   if (spec.variable) {
     const fixedDirection = settings.fixedTunableDirection !== false;
@@ -4105,18 +4105,21 @@ function circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle =
   return items;
 }
 
-function circuitikzChokeCoreItems(geometry, startAlong, bodyLength, settings, pathStyle = {}) {
+function circuitikzChokeCoreItems(geometry, startAlong, bodyLength, settings, componentStyle = {}) {
   const choke = settings.choke;
   if (!choke) return [];
-  const componentStyle = circuitikzComponentStyle(pathStyle);
   const style = {
     ...componentStyle,
     lineWidth: roundNumber(componentStyle.lineWidth * choke.coreThickness),
     lineCap: "butt",
     lineJoin: "bevel"
   };
+  // circuitikz starts both coil and core paths 0.4 of the incoming line
+  // width below the component baseline. Its bipole body stroke is twice that
+  // incoming width, hence the -0.2 component-stroke correction here.
+  const baselineOffset = -0.2 * (Number(componentStyle.lineWidth) || 0) / TIKZ_UNIT;
   const offsets = Array.from({ length: choke.coreLines }, (_unused, index) => {
-    return settings.upperAmplitude * (choke.coreDistance + index * choke.coreStep);
+    return baselineOffset + settings.upperAmplitude * (choke.coreDistance + index * choke.coreStep);
   });
   return offsets.map((normal, index) => ({
     type: "path",
@@ -4145,42 +4148,50 @@ function circuitikzEuropeanInductorCommands(geometry, startAlong, bodyLength, se
   ];
 }
 
-function circuitikzCoilInductorCommands(geometry, startAlong, bodyLength, settings) {
-  const commands = [moveToCommand(circuitikzInductorPoint(geometry, startAlong))];
-  let along = startAlong;
+function circuitikzCoilInductorCommands(geometry, startAlong, bodyLength, settings, lineWidth = 0) {
+  // pgfcircbipoles extends its coil path by half a bipole line width on each
+  // side. The line width also contributes to each outer coil step, while the
+  // inner return arcs retain their source-defined width.
+  const componentLineWidth = Math.max(0, Number(lineWidth) || 0) / TIKZ_UNIT;
+  const baselineOffset = -0.2 * componentLineWidth;
+  const drawingLength = bodyLength + componentLineWidth;
+  const drawingStart = startAlong - componentLineWidth / 2;
+  const pointAt = (along, normal = 0) => circuitikzInductorPoint(geometry, along, normal + baselineOffset);
+  const commands = [moveToCommand(pointAt(drawingStart))];
+  let along = drawingStart;
   if (settings.kind === "american") {
-    const halfStep = bodyLength / settings.coils / 2;
+    const halfStep = drawingLength / settings.coils / 2;
     for (let index = 0; index < settings.coils; index += 1) {
       const next = along + halfStep * 2;
-      circuitikzAppendHalfEllipse(commands, geometry, along, next, settings.upperAmplitude);
+      circuitikzAppendHalfEllipse(commands, geometry, along, next, settings.upperAmplitude, baselineOffset);
       along = next;
     }
     return commands;
   }
 
   const smallHalfWidth = (0.5 * 0.5 * bodyLength) / Math.max(1, settings.coils - 1);
-  const largeHalfWidth = (bodyLength + (settings.coils - 1) * smallHalfWidth * 2) / settings.coils / 2;
+  const largeHalfWidth = (drawingLength + (settings.coils - 1) * smallHalfWidth * 2) / settings.coils / 2;
   for (let index = 1; index < settings.coils; index += 1) {
     const outerEnd = along + largeHalfWidth * 2;
-    circuitikzAppendHalfEllipse(commands, geometry, along, outerEnd, settings.upperAmplitude);
+    circuitikzAppendHalfEllipse(commands, geometry, along, outerEnd, settings.upperAmplitude, baselineOffset);
     along = outerEnd;
     const innerEnd = along - smallHalfWidth * 2;
-    circuitikzAppendHalfEllipse(commands, geometry, along, innerEnd, -settings.lowerAmplitude);
+    circuitikzAppendHalfEllipse(commands, geometry, along, innerEnd, -settings.lowerAmplitude, baselineOffset);
     along = innerEnd;
   }
-  circuitikzAppendHalfEllipse(commands, geometry, along, along + largeHalfWidth * 2, settings.upperAmplitude);
+  circuitikzAppendHalfEllipse(commands, geometry, along, along + largeHalfWidth * 2, settings.upperAmplitude, baselineOffset);
   return commands;
 }
 
-function circuitikzAppendHalfEllipse(commands, geometry, fromAlong, toAlong, amplitude) {
-  const start = circuitikzInductorPoint(geometry, fromAlong);
-  const end = circuitikzInductorPoint(geometry, toAlong);
-  const midpoint = circuitikzInductorPoint(geometry, (fromAlong + toAlong) / 2, amplitude);
+function circuitikzAppendHalfEllipse(commands, geometry, fromAlong, toAlong, amplitude, baselineOffset = 0) {
+  const start = circuitikzInductorPoint(geometry, fromAlong, baselineOffset);
+  const end = circuitikzInductorPoint(geometry, toAlong, baselineOffset);
+  const midpoint = circuitikzInductorPoint(geometry, (fromAlong + toAlong) / 2, amplitude + baselineOffset);
   const halfAlong = (toAlong - fromAlong) / 2;
   const k = 0.5522847498;
   const startControl = pointNormal(start, geometry.n, amplitude * k);
-  const midpointInControl = circuitikzInductorPoint(geometry, (fromAlong + toAlong) / 2 - halfAlong * k, amplitude);
-  const midpointOutControl = circuitikzInductorPoint(geometry, (fromAlong + toAlong) / 2 + halfAlong * k, amplitude);
+  const midpointInControl = circuitikzInductorPoint(geometry, (fromAlong + toAlong) / 2 - halfAlong * k, amplitude + baselineOffset);
+  const midpointOutControl = circuitikzInductorPoint(geometry, (fromAlong + toAlong) / 2 + halfAlong * k, amplitude + baselineOffset);
   const endControl = pointNormal(end, geometry.n, amplitude * k);
   commands.push(curveToCommand(
     startControl,

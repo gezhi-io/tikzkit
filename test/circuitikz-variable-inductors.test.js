@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { tikzToSvg } from "../src/index.js";
+import { TIKZ_UNIT } from "../src/tikz/metrics.js";
 
 const SOURCE = readFileSync(
   new URL("./fixtures/examples/circuitikz/inductors.tex", import.meta.url),
@@ -48,4 +49,33 @@ test("keeps cute vL's intrinsic direction while American vL honors the global sw
     "top-left-to-bottom-right",
     "bottom-left-to-top-right"
   ]);
+});
+
+test("matches Circuitikz coil linewidth expansion and choke core baseline", () => {
+  const source = String.raw`\begin{tikzpicture}
+  \draw[thick] (0,0) to[cute inductor] (3,0);
+  \draw[thick] (0,-1) to[cute choke, twolineschoke] (3,-1);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
+  const [inductor] = result.ir.items.filter((item) => item.subtype === "circuitikz-inductor");
+  const [choke] = result.ir.items.filter((item) => item.subtype === "circuitikz-choke");
+  const cores = result.ir.items.filter((item) => item.subtype === "circuitikz-choke-core");
+  const coilXs = inductor.commands.flatMap((command) => [command.x, command.x1, command.x2]).filter(Number.isFinite);
+  const firstCoilPoint = inductor.commands[0];
+  const firstChokePoint = choke.commands[0];
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(cores.length, 2);
+  assert.ok(
+    Math.abs((Math.max(...coilXs) - Math.min(...coilXs)) - (inductor.bodyLength + inductor.style.lineWidth / TIKZ_UNIT)) < 1e-6,
+    "Circuitikz expands the coil extent by one complete bipole line width"
+  );
+  assert.ok(
+    Math.abs(firstCoilPoint.y + 0.2 * inductor.style.lineWidth / TIKZ_UNIT) < 1e-6,
+    "Circuitikz offsets the coil baseline by 0.4 of the incoming line width"
+  );
+  assert.ok(cores.every((core, index) => {
+    const expectedOffset = (1.3 + index * 0.3) * 0.15 * 1.4;
+    return Math.abs((core.commands[0].y - firstChokePoint.y) - expectedOffset) < 1e-6;
+  }), "the choke core shares the coil baseline correction before its cdist offset");
 });
