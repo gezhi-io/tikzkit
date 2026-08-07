@@ -45,7 +45,7 @@ export const tikzCommand = {
       category: "text layout",
       status: "partial",
       implementedBy: "src/engine/evaluate.js:estimateNodeLayoutSize + src/renderers/svg/renderSvg.js",
-      notes: "Text wrapping and line layout are approximated; TeX paragraph shaping is not complete."
+      notes: "Wrapped svg-text paragraphs keep inline math as TeX-sized word groups before line breaking; full TeX paragraph shaping, hyphenation, and justification remain partial."
     },
     {
       name: "font=\\tt / \\huge / \\scriptsize / \\bf",

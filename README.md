@@ -84,6 +84,24 @@ font metrics against MacTeX. The implementation remains experimental until
 the corresponding feature slice has a focused regression and a written QA
 record; see [docs/usage.md](docs/usage.md) for the full Chinese workflow.
 
+### Verified `text width` Inline-Math Wrap
+
+The `svg-text` renderer now measures every inline formula as one TeX-sized
+word group before applying a node's `text width` line break. This prevents a
+compact relation such as `\alpha = \gamma` from incorrectly becoming its own
+line after otherwise fitting prose. The focused visual driver is
+`test/fixtures/implementation-examples/real-world/parallel-line-angles.tikz`:
+
+```bash
+node --test --test-name-pattern='keeps compact inline math on the TeX-sized svg-text paragraph line' test/renderer.test.js
+```
+
+Its TikZKit, local `tikztosvg`, and local MacTeX evidence is recorded in
+[docs/qa/2026-08-07-text-width-inline-math-wrap.md](docs/qa/2026-08-07-text-width-inline-math-wrap.md).
+This is still an experimental paragraph-layout subset: TeX hyphenation,
+justification glue and penalties, and full `minipage` layout are not yet
+equivalent.
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and

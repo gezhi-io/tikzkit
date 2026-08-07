@@ -1,4 +1,4 @@
-import { effectiveMathFontScale, parseMathText, texTextWidthCm, wrapTeXTextLineByWidth } from "../../tikz/textMetrics.js";
+import { estimateFormulaBox, effectiveMathFontScale, parseMathText, texTextWidthCm, wrapTeXTextLineByWidth } from "../../tikz/textMetrics.js";
 import { mathFallbackText, splitInlineMathSegments } from "../../tikz/text.js";
 import { TIKZ_TYPEWRITER_WIDTH_SCALE } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
@@ -14,7 +14,10 @@ export const SVG_TEXT_WRAP_CHAR_WIDTH_EM = 0.54;
 export const SVG_SERIF_TEXT_WIDTH_SCALE = 1;
 export const SVG_SANS_SERIF_TEXT_WIDTH_SCALE = 1;
 const TEX_PT_PER_CM = 28.4527559;
-const MIXED_TEX_WRAP_WIDTH_CORRECTION = 1.1;
+// The physical CMU font render is fractionally wider than its TeX metric table.
+// Keep this small allowance after using real math-box widths; the retired 10%
+// correction was compensating for fallback-Unicode math rather than the font.
+const MIXED_INLINE_MATH_FONT_METRIC_SAFETY_SCALE = 1.03;
 
 export function normalizedTextAlign(value) {
   const align = String(value || "").trim().toLowerCase();
@@ -265,7 +268,14 @@ export function svgTextWrapTokens(sourceLine) {
   for (const segment of splitInlineMathSegments(sourceLine)) {
     if (segment.type === "math") {
       const source = `$${segment.tex}$`;
-      tokens.push({ source, formatted: mathFallbackText(segment.tex) });
+      tokens.push({
+        source,
+        formatted: mathFallbackText(segment.tex),
+        // TeX math has its own glyph widths and relation spacing. Measuring the
+        // fallback Unicode string here overstates compact expressions such as
+        // $\alpha = \gamma$, which moves a legal word group onto the next line.
+        widthCm: inlineMathTokenWidthCm(segment.tex)
+      });
       continue;
     }
     for (const match of String(segment.text || "").matchAll(/\S+/g)) {
@@ -320,7 +330,7 @@ export function wrapSvgTextTokensByWidth(tokens, maxWidthCm, fontScale = 1, opti
   for (let start = count - 1; start >= 0; start -= 1) {
     for (let end = start; end < count; end += 1) {
       const line = tokens.slice(start, end + 1);
-      const width = texTextWidthCm(joinWrappedTextTokens(line, "formatted"), fontScale) * MIXED_TEX_WRAP_WIDTH_CORRECTION;
+      const width = svgTextWrappedLineWidthCm(line, fontScale);
       if (width > maxWidthCm * 1.08 && end > start) break;
       const isLast = end === count - 1;
       const overfull = Math.max(0, width - maxWidthCm);
@@ -340,12 +350,31 @@ export function wrapSvgTextTokensByWidth(tokens, maxWidthCm, fontScale = 1, opti
   return lines;
 }
 
+function inlineMathTokenWidthCm(tex) {
+  const box = estimateFormulaBox(tex, { scale: 1, minWidth: 0, widthPadding: 0, texTextMetrics: true });
+  const width = Number(box?.width);
+  return Number.isFinite(width) && width > 0 ? width : null;
+}
+
+function svgTextWrappedLineWidthCm(tokens, fontScale) {
+  let width = 0;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index] || {};
+    if (index > 0) width += texTextWidthCm(" ", fontScale);
+    const measured = Number(token.widthCm);
+    width += Number.isFinite(measured) && measured > 0
+      ? measured * fontScale
+      : texTextWidthCm(token.formatted, fontScale);
+  }
+  return width * MIXED_INLINE_MATH_FONT_METRIC_SAFETY_SCALE;
+}
+
 function wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale) {
   const lines = [];
   let line = [];
   for (const token of tokens) {
     const candidate = [...line, token];
-    const width = texTextWidthCm(joinWrappedTextTokens(candidate, "formatted"), fontScale);
+    const width = svgTextWrappedLineWidthCm(candidate, fontScale);
     if (line.length && width > maxWidthCm) {
       lines.push(line);
       line = [token];

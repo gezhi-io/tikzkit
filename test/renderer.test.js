@@ -2940,6 +2940,22 @@ test("wraps rich TikZ text width paragraphs with TeX-like word metrics", () => {
   assert.match(lines[2], /^and β=δ|^and β = δ/);
 });
 
+test("keeps compact inline math on the TeX-sized svg-text paragraph line", () => {
+  const source = [
+    String.raw`When we assume that $\color{red}AB$ and $\color{blue}CD$ are`,
+    String.raw`parallel, i.e., $` + String.raw`{\color{red}AB} \mathbin{\|} \color{blue}CD$,`,
+    String.raw`then $\alpha = \gamma$ and $\beta = \delta$.`
+  ].join("\n");
+  const lines = wrapSvgTextLineWithSource(source, mathFallbackText(source), 6, 100, 100 / 28.4527559 * 10)
+    .map((entry) => entry.line);
+
+  assert.deepEqual(lines, [
+    "When we assume that AB and CD",
+    "are parallel, i.e., AB ∥ CD, then α = γ",
+    "and β = δ."
+  ]);
+});
+
 test("preserves grouped vector macros in mixed KaTeX rich text", () => {
   const svg = renderSvg({
     items: [

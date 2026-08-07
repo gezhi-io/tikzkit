@@ -61,14 +61,15 @@ export const capabilityMatrix = {
     modules: ["src/index.js", "src/tikz/textMetrics.js", "src/tikz/text.js", "src/renderers/svg/textEngine.js", "src/renderers/svg/mathNode.js", "src/renderers/svg/textLayout.js"],
     fixtures: [
       "test/fixtures/basic/node-text-measurement.tikz",
-      "test/fixtures/examples/latex-examples/aggregation-blocks.tex"
+      "test/fixtures/examples/latex-examples/aggregation-blocks.tex",
+      "test/fixtures/implementation-examples/real-world/parallel-line-angles.tikz"
     ],
     verification: {
       oracle: "unit-test+tikztosvg",
       tests: ["test/convert.test.js", "test/svg-renderer.test.js"],
       artifacts: ["outputs/qa-plain-node-logical-metrics"]
     },
-    notes: "KaTeX/svg-text sizing now has a dedicated renderer text-engine boundary with measured baseline/midline and cached render payloads; public svg-text conversion creates the textEngine before engine evaluation and node sizing can consume math and plain text metrics, including TikZ text width for plain wrapped nodes. SVG plain text rendering can reuse the same textEngine cache payload while preserving font weight/style. Async conversion can run bounded multi-pass text measurement flushes and reevaluate node layout until the text engine reports no pending work; exhausting the pass limit emits a warning diagnostic. Full paragraph shaping remains partial. Normal single-line unwrapped Main-Regular plain nodes now use verified logical TeX box metrics for semantic node sizing and anchors. Remaining gaps include wrapped paragraph/minipage text, mixed inline math, styled fonts, glyph paint fidelity, and broader shaping/unsupported characters."
+    notes: "KaTeX/svg-text sizing now has a dedicated renderer text-engine boundary with measured baseline/midline and cached render payloads; public svg-text conversion creates the textEngine before engine evaluation and node sizing can consume math and plain text metrics, including TikZ text width for wrapped nodes. SVG plain text rendering can reuse the same textEngine cache payload while preserving font weight/style. Async conversion can run bounded multi-pass text measurement flushes and reevaluate node layout until the text engine reports no pending work; exhausting the pass limit emits a warning diagnostic. Mixed inline-math paragraphs now retain every formula as one TeX-sized word group before SVG-text line breaking, preventing compact relations from forcing an otherwise legal following word group onto the next line. Full TeX paragraph shaping remains partial: hyphenation, glue/penalty justification, minipage layout, styled-font paragraph metrics, glyph paint fidelity, and unsupported characters still need work. Normal single-line unwrapped Main-Regular plain nodes use verified logical TeX box metrics for semantic node sizing and anchors."
   },
   foreach_statement: {
     id: "foreach_statement",
