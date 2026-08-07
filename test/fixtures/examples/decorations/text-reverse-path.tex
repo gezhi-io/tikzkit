@@ -1,0 +1,16 @@
+% PGF manual decorations.text: reverse the decorated path, not the text order.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[help lines,gray!35,step=1cm] (0,0) grid (6,3);
+  \draw[gray,->]
+    [postaction={decorate,decoration={text along path,text={a big juicy apple},
+      text color=red,raise=2pt},decorate}]
+    [postaction={decorate,decoration={text along path,text={a big juicy apple},
+      text color=blue,raise=2pt,reverse path},decorate}]
+    (5.5,0.4) .. controls (5.5,2.5) and (0.5,2.5) .. (0.5,0.4);
+\end{tikzpicture}
+\end{document}

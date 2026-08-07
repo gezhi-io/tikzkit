@@ -329,6 +329,37 @@ node --test test/snakes-legacy-options.test.js
 以及与 `fit text to path` / `scale text to path` 的组合仍在测试中；后两种组合在本机
 PGF 手册中也标为未定义行为。
 
+### 路径文字的多个后置装饰
+
+同一个路径可重复写 `postaction`。TikZKit 保留源码顺序，并为每一个装饰单独解释
+`text color` 与 `reverse path`；后者只改变沿路径取样的方向，不会等同于 `reverse text`
+而把字符次序颠倒。下面是本机 PGF 手册的真实模式：
+
+```tex
+\draw[gray,->]
+  [postaction={decorate,decoration={text along path,text={a big juicy apple},
+    text color=red,raise=2pt},decorate}]
+  [postaction={decorate,decoration={text along path,text={a big juicy apple},
+    text color=blue,raise=2pt,reverse path},decorate}]
+  (5.5,.4) .. controls (5.5,2.5) and (.5,2.5) .. (.5,.4);
+```
+
+用仓库 fixture 复现三方检查：
+
+```sh
+node --test --test-name-pattern='repeated decorations.text postactions|reverses the sampled decorations.text path' \
+  test/interpreter.test.js test/svg-renderer.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only decorations-text-reverse-path \
+  --output outputs/qa-decorations-text-postactions \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-decorations-text-postactions \
+  --register --alignment-radius 3
+```
+
+这不是任意 `postaction` TeX 代码的通用执行器。路径文字以外的后置图形操作、任意
+宏回调，以及完整 TeX 盒子度量仍需按案例实现和复核。
+
 ### 路径文字按词分组
 
 `text effects/.cd` 中的 `group letters` 与 `group letters into words` 会将简单的

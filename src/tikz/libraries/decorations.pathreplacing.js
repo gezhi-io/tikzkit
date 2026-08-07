@@ -1,7 +1,7 @@
 export const tikzLibrary = {
   "name": "decorations.pathreplacing",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration + addShowPathConstructionItems + addPostactionShowPathConstructionItems + resolvedNodeLayerFont + postactionDecorationPathItem",
+  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration + addShowPathConstructionItems + addPostactionShowPathConstructionItems + resolvedNodeLayerFont + postactionDecorationPathItems",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",

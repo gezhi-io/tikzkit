@@ -1166,6 +1166,7 @@ function isRepeatableOption(key) {
     key === "continue chain" ||
     key === "start branch" ||
     key === "continue branch" ||
+    key === "postaction" ||
     key === "if" ||
     key === "name intersections"
   );

@@ -1406,8 +1406,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       );
       ir.items.push(item);
       addDecorationMarkers(item, options, ir);
-      const postactionDecoration = postactionDecorationPathItem(built, pathOptions, pathEnv);
-      if (postactionDecoration) ir.items.push(postactionDecoration);
+      for (const postactionDecoration of postactionDecorationPathItems(built, pathOptions, pathEnv)) {
+        ir.items.push(postactionDecoration);
+      }
       addPostactionShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
     }
     for (const shape of shapesToRender) {
@@ -13139,43 +13140,50 @@ function appendLegacySnakeLine(commands, from, to, spec) {
   }
 }
 
-function postactionDecorationPathItem(built, pathOptions, env) {
-  const parsedPostaction = resolvedPostactionOptions(pathOptions, env);
-  // A postaction usually only says `decorate`; PGF resolves the named
-  // decoration through the enclosing path/picture options.
-  const rawOptions = {
-    ...(pathOptions.decoration === undefined ? {} : { decoration: pathOptions.decoration }),
-    ...parsedPostaction
-  };
-  if (!tikzBoolean(rawOptions.decorate) || !supportedPathDecoration(rawOptions)) return null;
-  const normalized = normalizeOptions("draw", rawOptions, env);
-  const postactionOptions = { ...normalized.options, ...normalized.semantic };
-  const sourceCommands = built.decorationInputCommands || built.boundsCommands || built.commands;
-  const commands = applyPathMorphing(sourceCommands, postactionOptions, env, normalized.style);
-  if (!commands.length) return null;
-  const style = drawablePathStyle(scaleCanvasStyle(normalized.style, pathStyleScaleEnv(env, rawOptions)));
-  return createPathShape(commands, style, {
-    subtype: "postaction-decoration",
-    includeStrokeBounds: true,
-    includeArrowNormalBounds: true,
-    includeArrowBounds: true,
-    tightBezierBounds: tikzBoolean(postactionOptions["bezier bounding box"])
-  });
+function postactionDecorationPathItems(built, pathOptions, env) {
+  const items = [];
+  for (const parsedPostaction of resolvedPostactionOptionsList(pathOptions, env)) {
+    // A postaction usually only says `decorate`; PGF resolves the named
+    // decoration through the enclosing path/picture options.
+    const rawOptions = {
+      ...(pathOptions.decoration === undefined ? {} : { decoration: pathOptions.decoration }),
+      ...parsedPostaction
+    };
+    if (!tikzBoolean(rawOptions.decorate) || !supportedPathDecoration(rawOptions)) continue;
+    const normalized = normalizeOptions("draw", rawOptions, env);
+    const postactionOptions = { ...normalized.options, ...normalized.semantic };
+    const sourceCommands = built.decorationInputCommands || built.boundsCommands || built.commands;
+    const commands = applyPathMorphing(sourceCommands, postactionOptions, env, normalized.style);
+    if (!commands.length) continue;
+    const style = drawablePathStyle(scaleCanvasStyle(normalized.style, pathStyleScaleEnv(env, rawOptions)));
+    items.push(createPathShape(commands, style, {
+      subtype: "postaction-decoration",
+      includeStrokeBounds: true,
+      includeArrowNormalBounds: true,
+      includeArrowBounds: true,
+      tightBezierBounds: tikzBoolean(postactionOptions["bezier bounding box"])
+    }));
+  }
+  return items;
 }
 
 function addPostactionShowPathConstructionItems(built, pathOptions, env, ir, diagnostics) {
-  const options = resolvedPostactionOptions(pathOptions, env);
-  if (!tikzBoolean(options.decorate)) return;
-  const decoration = parseOptions(String(options.decoration || ""));
-  if (!tikzBoolean(decoration["show path construction"])) return;
-  addShowPathConstructionItems(built, options, env, ir, diagnostics, pathOptions);
+  for (const options of resolvedPostactionOptionsList(pathOptions, env)) {
+    if (!tikzBoolean(options.decorate)) continue;
+    const decoration = parseOptions(String(options.decoration || ""));
+    if (!tikzBoolean(decoration["show path construction"])) continue;
+    addShowPathConstructionItems(built, options, env, ir, diagnostics, pathOptions);
+  }
 }
 
-function resolvedPostactionOptions(pathOptions = {}, env = {}) {
-  const rawPostaction = String(pathOptions.postaction || "").trim();
-  if (!rawPostaction) return {};
-  const normalized = normalizeOptions("draw", parseOptions(rawPostaction), env);
-  return { ...normalized.options, ...normalized.semantic };
+function resolvedPostactionOptionsList(pathOptions = {}, env = {}) {
+  return optionList(pathOptions.postaction)
+    .map((rawPostaction) => String(rawPostaction || "").trim())
+    .filter(Boolean)
+    .map((rawPostaction) => {
+      const normalized = normalizeOptions("draw", parseOptions(rawPostaction), env);
+      return { ...normalized.options, ...normalized.semantic };
+    });
 }
 
 function addShowPathConstructionItems(built, pathOptions, env, ir, diagnostics, inheritedPathOptions = pathOptions) {
@@ -13892,8 +13900,8 @@ function bracePoint(origin, ux, uy, nx, ny, distance, normalDistance) {
 }
 
 function addDecorationTextItems(built, pathOptions, style, ir, env) {
-  const decoration = textAlongPathDecorationFromOptions(pathOptions);
-  if (!decoration) return;
+  const decorations = textAlongPathDecorationsFromOptions(pathOptions);
+  if (!decorations.length) return;
   const targets = [];
   if (hasDrawableCommands(built.commands || [], built.shapes || [])) {
     targets.push({ commands: built.commands, style });
@@ -13901,23 +13909,28 @@ function addDecorationTextItems(built, pathOptions, style, ir, env) {
   for (const shape of built.shapes || []) {
     if (shape.commands?.length) targets.push({ commands: shape.commands, style: { ...style, ...(shape.style || {}) } });
   }
-  for (const target of targets) addDecorationTextItem(target, decoration, pathOptions, ir, env);
+  for (const decoration of decorations) {
+    for (const target of targets) addDecorationTextItem(target, decoration, pathOptions, ir, env);
+  }
 }
 
-function textAlongPathDecorationFromOptions(options = {}) {
+function textAlongPathDecorationsFromOptions(options = {}) {
+  const decorations = [];
   if (tikzBoolean(options.decorate)) {
     const rawDecoration = String(options.decoration || "");
     const decoration = parseOptions(rawDecoration);
-    if (isTextAlongPathDecoration(decoration)) return decorationTextDecorationOptions(decoration, rawDecoration);
+    if (isTextAlongPathDecoration(decoration)) decorations.push(decorationTextDecorationOptions(decoration, rawDecoration));
   }
-
-  const postaction = options.postaction === undefined ? "" : String(options.postaction);
-  if (!postaction.includes("decorate")) return null;
-  const postOptions = parseOptions(postaction);
-  if (!tikzBoolean(postOptions.decorate)) return null;
-  const rawDecoration = String(postOptions.decoration || "");
-  const decoration = parseOptions(rawDecoration);
-  return isTextAlongPathDecoration(decoration) ? decorationTextDecorationOptions(decoration, rawDecoration) : null;
+  for (const rawPostaction of optionList(options.postaction)) {
+    const postaction = String(rawPostaction || "");
+    if (!postaction.includes("decorate")) continue;
+    const postOptions = parseOptions(postaction);
+    if (!tikzBoolean(postOptions.decorate)) continue;
+    const rawDecoration = String(postOptions.decoration || "");
+    const decoration = parseOptions(rawDecoration);
+    if (isTextAlongPathDecoration(decoration)) decorations.push(decorationTextDecorationOptions(decoration, rawDecoration));
+  }
+  return decorations;
 }
 
 function isTextAlongPathDecoration(decoration = {}) {
@@ -13956,6 +13969,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextFitToPathStretchingSpaces: layout.fitToPathStretchingSpaces,
     pathTextEffects: textEffects.transforms,
     pathTextReverse: textEffects.reverseText,
+    pathTextReversePath: tikzBoolean(decoration["reverse path"]),
     pathTextGroupLetters: textEffects.groupLetters,
     pathTextWordSeparator: textEffects.wordSeparator,
     pathTextRepeat: repeatText,
@@ -13972,7 +13986,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     style: {
       ...item.style,
       ...payload.style,
-      fill: visibleTextFill(payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
+      fill: visibleTextFill(normalizeColor(decoration["text color"] || ""), payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
       fontFamily: payload.style.fontFamily || resolveInheritedFontFamily(pathOptions.font, env.pictureOptions?.font),
       fontVariant: payload.style.fontVariant || resolveInheritedFontVariant(pathOptions.font, env.pictureOptions?.font),
       fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
@@ -16828,35 +16842,45 @@ function repeatedSemanticValues(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+function optionList(value) {
+  return value === undefined || value === null ? [] : Array.isArray(value) ? value : [value];
+}
+
 function addDecorationMarkers(item, options, ir) {
-  const decoration = markingsDecorationFromOptions(options);
-  if (!decoration) return;
-  const mark = String(decoration).match(/mark\s*=\s*at\s+position\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/);
+  const decorations = markingsDecorationFromOptions(options);
+  if (!decorations.length) return;
   const flat = flattenPath(item.commands || []);
-  if (mark) {
-    addArrowMarkerAt(Number(mark[1]), mark[2], flat, item, ir);
-    return;
-  }
-  const between = String(decoration).match(
-    /mark\s*=\s*between\s+positions\s+([0-9.]+)\s+and\s+([0-9.]+)\s+step\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/
-  );
-  if (!between) return;
-  const start = Number(between[1]);
-  const end = Number(between[2]);
-  const step = Number(between[3]);
-  for (let position = start; position <= end + 1e-9; position += step) {
-    addArrowMarkerAt(position, between[4], flat, item, ir);
+  for (const decoration of decorations) {
+    const mark = String(decoration).match(/mark\s*=\s*at\s+position\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/);
+    if (mark) {
+      addArrowMarkerAt(Number(mark[1]), mark[2], flat, item, ir);
+      continue;
+    }
+    const between = String(decoration).match(
+      /mark\s*=\s*between\s+positions\s+([0-9.]+)\s+and\s+([0-9.]+)\s+step\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/
+    );
+    if (!between) continue;
+    const start = Number(between[1]);
+    const end = Number(between[2]);
+    const step = Number(between[3]);
+    for (let position = start; position <= end + 1e-9; position += step) {
+      addArrowMarkerAt(position, between[4], flat, item, ir);
+    }
   }
 }
 
 function markingsDecorationFromOptions(options = {}) {
+  const decorations = [];
   const topLevelDecoration = options.decoration === undefined ? "" : String(options.decoration);
-  if (topLevelDecoration.includes("markings")) return topLevelDecoration;
-  const postaction = options.postaction === undefined ? "" : String(options.postaction);
-  if (!postaction.includes("decorate")) return "";
-  const postOptions = parseOptions(postaction);
-  const nestedDecoration = postOptions.decoration === undefined ? "" : String(postOptions.decoration);
-  return nestedDecoration.includes("markings") ? nestedDecoration : "";
+  if (topLevelDecoration.includes("markings")) decorations.push(topLevelDecoration);
+  for (const rawPostaction of optionList(options.postaction)) {
+    const postaction = String(rawPostaction || "");
+    if (!postaction.includes("decorate")) continue;
+    const postOptions = parseOptions(postaction);
+    const nestedDecoration = postOptions.decoration === undefined ? "" : String(postOptions.decoration);
+    if (nestedDecoration.includes("markings")) decorations.push(nestedDecoration);
+  }
+  return decorations;
 }
 
 function addArrowMarkerAt(position, body, flat, item, ir) {

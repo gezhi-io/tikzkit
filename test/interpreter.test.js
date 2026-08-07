@@ -2499,6 +2499,26 @@ test("supports decorations.text effects along path with reversed character order
   assert.equal(labels[1].pathTextAlign, "center");
 });
 
+test("runs repeated decorations.text postactions and retains reverse path independently from reverse text", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[postaction={decorate,decoration={text along path,text={forward},text color=red}},
+    postaction={decorate,decoration={text along path,text={backward},text color=blue,reverse path}}]
+    (0,0) .. controls (1,2) and (3,2) .. (4,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.equal(labels[0].pathTextReversePath, false);
+  assert.equal(labels[1].pathTextReversePath, true);
+  assert.equal(labels[1].pathTextReverse, false);
+  assert.equal(labels[0].style.fill, "red");
+  assert.equal(labels[1].style.fill, "blue");
+});
+
 test("preserves decorations.text repeat text cycle semantics", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -1153,6 +1153,31 @@ test("reverses decorations.text character boxes before sampling the path", () =>
   assert.deepEqual(letters, ["D", "C", "B", "A"]);
 });
 
+test("reverses the sampled decorations.text path without reversing its text", () => {
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "AB",
+        pathTextReversePath: true,
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "lineTo", x: 5, y: 0 }
+        ],
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const glyphs = [...svg.matchAll(/class="tikz-decoration-glyph" x="([^"]+)"[^>]*transform="rotate\((-?\d+(?:\.\d+)?) [^"]+\)">([A-Z])<\/text>/g)]
+    .map((match) => ({ x: Number(match[1]), angle: Number(match[2]), text: match[3] }));
+
+  assert.deepEqual(glyphs.map((glyph) => glyph.text), ["A", "B"]);
+  assert.ok(glyphs[0].x > glyphs[1].x, `reverse path should start the text at the visual end: ${JSON.stringify(glyphs)}`);
+  assert.ok(Math.abs(Math.abs(glyphs[0].angle) - 180) < 1e-6, `expected reverse tangent angle, got ${glyphs[0].angle}`);
+});
+
 test("repeats decorations.text source glyphs without placing a partial terminal box", () => {
   const scene = createSceneGraph({
     items: [

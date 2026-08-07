@@ -22,6 +22,7 @@ export function renderDecorationTextPath(item, unit) {
   const formattedLine = formatTextLine(rawSourceLine);
   const fontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const flat = flattenPath(item.pathCommands, 0.01);
+  if (item.pathTextReversePath) flat.reverse();
   const totalLength = pathLength(flat);
   if (flat.length < 2 || totalLength <= 1e-9) return "";
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");

@@ -2698,10 +2698,14 @@ Current support is pragmatic and growing. Highlights:
   single custom separator, and transform order follows source order. `repeat
   text` mirrors PGF's cycle counter: the bare form fills the remaining path
   with complete text boxes; `repeat text=N` adds `N` complete copies after the
-  first one. Explicit terminal spaces inside `text={...}` remain part of the
-  repeated text box. Character-specific styles, arbitrary replacement
-  snippets, rich/math/replacement grouping, and scale/fit text effects remain
-  partial; see `test/fixtures/examples/decorations/text-group-words.tex`,
+  first one. Multiple `postaction` decorations reuse the same path in source
+  order, preserve individual `text color`, and support `reverse path` without
+  changing the text order. Explicit terminal spaces inside `text={...}` remain
+  part of the repeated text box. Character-specific styles, arbitrary
+  replacement snippets, rich/math/replacement grouping, and scale/fit text
+  effects remain partial; see
+  `test/fixtures/examples/decorations/text-reverse-path.tex`,
+  `docs/qa/2026-08-07-decorations-text-postactions-reverse-path.md`,
   `docs/qa/2026-08-07-decorations-text-group-words.md`, and
   `docs/qa/2026-08-07-decorations-text-repeat.md`.
 - Calendar: Monday-first `week list`, all four linear `day list` directions,

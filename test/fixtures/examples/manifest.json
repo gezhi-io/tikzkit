@@ -1236,6 +1236,22 @@
       ]
     },
     {
+      "id": "decorations-text-reverse-path",
+      "title": "PGF decorations.text reverse decorated path direction",
+      "source": "decorations/text-reverse-path.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:addDecorationTextItem;src/renderers/svg/decorationText.js:renderDecorationTextPath",
+      "features": [
+        "decorations.text library",
+        "text along path",
+        "reverse path",
+        "postaction decoration",
+        "curved path direction",
+        "per-decoration text color"
+      ]
+    },
+    {
       "id": "decorations-text-repeat",
       "title": "PGF decorations.text repeat text cycles",
       "source": "decorations/text-repeat.tex",
@@ -4568,7 +4584,7 @@
       "source": "decorations/pathreplacing-border.tex",
       "sourceCorpus": "TeX Live PGF decorations manual",
       "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
-      "semanticOwner": "src/engine/evaluate.js:applyBorderDecoration + postactionDecorationPathItem",
+      "semanticOwner": "src/engine/evaluate.js:applyBorderDecoration + postactionDecorationPathItems",
       "features": [
         "decorations.pathreplacing",
         "border",
