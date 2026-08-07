@@ -4560,6 +4560,21 @@
         "ordinary node background fill",
         "nodepart anchors"
       ]
+    },
+    {
+      "id": "pgf-rectangle-split-rounded-custom-fill",
+      "title": "PGF rounded rectangle split custom fill",
+      "source": "workbench/rectangle-split-rounded-custom-fill.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/renderers/svg/rectangleSplitNodes.js",
+      "features": [
+        "rectangle split",
+        "rectangle split horizontal",
+        "rectangle split part fill",
+        "rounded corners",
+        "internal square split corners"
+      ]
     }
   ]
 }

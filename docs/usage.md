@@ -4,11 +4,13 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-截至 2026-08-07，当前维护语料的语义基线为 `316/316 rendered, 0 diagnostics`。这只表示这批
+当前维护语料的语义基线应由 `npm run gallery:audit` 实时生成。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
-是 partial 或 unsupported。
+是 partial 或 unsupported。近期验收的 `shapes.multipart` 圆角分栏案例说明了
+这一区别：只有外缘应当圆角，内部格子的接缝仍应是直角；请不要用“页面有图”
+代替三方图的实际检查。
 
 ## 快速选择
 

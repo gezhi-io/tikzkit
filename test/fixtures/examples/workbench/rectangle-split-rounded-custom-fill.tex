@@ -1,0 +1,27 @@
+% Regression slice derived from PGF shapes.multipart's custom fill path.
+% Only the outer corners are rounded; internal split corners stay square.
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{shapes.multipart}
+\begin{document}
+\begin{tikzpicture}
+  \node[
+    rectangle split,
+    rectangle split parts=3,
+    rectangle split part fill={red!30,green!30,blue!30},
+    rounded corners=10pt,
+    draw,
+    minimum width=2.8cm,
+    inner sep=3pt
+  ] at (0,0) {Header\nodepart{two}Payload\nodepart{three}Checksum};
+
+  \node[
+    rectangle split,
+    rectangle split horizontal,
+    rectangle split parts=3,
+    rectangle split part fill={orange!30,cyan!30,violet!30},
+    rounded corners=10pt,
+    draw,
+    inner sep=3pt
+  ] at (5,0) {left\nodepart{two}middle\nodepart{three}right};
+\end{tikzpicture}
+\end{document}

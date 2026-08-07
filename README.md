@@ -42,6 +42,30 @@ For a copyable Chinese guide to the browser workbench, CLI export, JavaScript
 API, three-way visual verification, and the current testing boundary, see
 [使用指南](docs/usage.md).
 
+### A Verified Multipart Example
+
+The following `shapes.multipart` subset is covered by a shared regression and
+a local three-way visual check: vertical or horizontal rectangle splits,
+`rectangle split part fill`, the source-defined custom-fill toggle, ordinary
+`fill`, and `rounded corners`. Outer corners remain rounded while internal
+split corners remain square.
+
+```tex
+\usetikzlibrary{shapes.multipart}
+\begin{tikzpicture}
+  \node[rectangle split, rectangle split horizontal, rectangle split parts=3,
+    rectangle split part fill={orange!30,cyan!30,violet!30},
+    rounded corners=10pt, draw]
+    {left\nodepart{two}middle\nodepart{three}right};
+\end{tikzpicture}
+```
+
+Run `node --test test/shapes-multipart-rounded-custom-fill.test.js` for the
+semantic regression. The executable visual driver is
+`pgf-rectangle-split-rounded-custom-fill`; its evidence and remaining limits
+are recorded in
+[docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md](docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md).
+
 ## Start Here
 
 Use the repository in this order. A successful browser render is useful for
