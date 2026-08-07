@@ -1,0 +1,21 @@
+% Adapted from the TeX Live 2025 pgfgantt manual's documented link examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfgantt}
+
+\begin{document}
+\begin{ganttchart}[
+  x unit=0.5cm,
+  y unit title=0.55cm,
+  y unit chart=0.7cm,
+  hgrid,
+  vgrid,
+  link/.append style={blue, very thick}
+]{1}{12}
+  \gantttitle{Roadmap}{12} \\
+  \ganttbar[name=research]{Research}{2}{3} \\
+  \ganttbar[name=prototype]{Prototype}{5}{7} \\
+  \ganttbar[name=release]{Release}{9}{11}
+  \ganttlink{research}{prototype}
+  \ganttlink[link type=f-s,link label=F--S]{prototype}{release}
+\end{ganttchart}
+\end{document}

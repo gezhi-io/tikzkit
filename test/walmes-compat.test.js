@@ -336,6 +336,27 @@ test("uses pgfgantt title and element geometry defaults with local overrides", (
   assert.equal(taskLabel?.font?.sizePt, 10);
 });
 
+test("lowers named pgfgantt links through source anchors with auto and finish-to-start routes", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[x unit=.5cm,y unit chart=.7cm,link/.append style={blue,very thick}]{1}{12}
+  \ganttbar[name=research]{Research}{2}{3} \\
+  \ganttbar[name=prototype]{Prototype}{5}{7} \\
+  \ganttbar[name=release]{Release}{9}{11}
+  \ganttlink{research}{prototype}
+  \ganttlink[link type=f-s,link label=F--S]{prototype}{release}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const links = ir.items.filter((item) => item.type === "path" && item.style?.stroke === "blue" && item.style?.markerEnd?.kind === "latex");
+  assert.equal(links.length, 2);
+  assert.ok(links.some((item) => item.commands.length >= 4), "expected auto link to route with a rounded RDR polyline");
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "F--S"));
+});
+
 test("uses TeX control-word boundaries for dynamic coordinate names", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}

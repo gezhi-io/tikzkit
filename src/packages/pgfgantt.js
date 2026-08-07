@@ -8,15 +8,18 @@ export const texPackage = {
     "\\ganttbar",
     "\\ganttgroup",
     "\\ganttmilestone subset",
+    "\\ganttlink named-element subset",
     "hgrid=true",
     "vgrid style-list subset",
     "title/bar/group default geometry",
-    "per-element left/right/top/height shifts"
+    "per-element left/right/top/height shifts",
+    "link type=auto/r/rdr/rdldr/dr/s-s/s-f/f-s/f-f",
+    "link/.append style and link label"
   ],
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf",
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; generic element rectangle geometry at lines 851-1000; bar/group defaults and label fonts at lines 1025-1100; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented hgrid/vgrid repeated style-list syntax",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; generic element rectangle geometry and auto-naming at lines 851-1000; bar/group defaults and label fonts at lines 1025-1100; link default style, auto selection, RDR/RDLDR routes, finish/start anchors, and \\ganttlink dispatch at lines 1425-1619; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented hgrid/vgrid repeated style-list and basic link syntax",
   "caseCount": 311,
   "caseExamples": [
     "agronomia",
@@ -41,7 +44,14 @@ export const texPackage = {
     "title left/right/top shift",
     "title height",
     "bar/group left/right/top shift",
-    "bar/group height"
+    "bar/group height",
+    "name",
+    "link type",
+    "link label",
+    "link mid",
+    "link bulge",
+    "link tolerance",
+    "link/.append style"
   ],
-  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups now use the reviewed default geometry and title/bar/group local shift subset, with small/normal label fonts. The default title surface now matches pgfgantt's draw, fill=white style rather than inheriting a synthetic gray canvas tone. Gantt links, calendar/date slots, title lists, progress, and custom canvas/element shapes remain unsupported."
+  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups use reviewed default geometry and local shift subsets, with small/normal label fonts. Named bars, groups, and milestones now support basic \\ganttlink lowering: native default -latex plus rounded corners, auto/RDR/RDLDR routing, the documented start/finish link types, simple link labels, and link/.append style. Calendar/date slots, title lists, progress, \\ganttlinkedbar, custom link declarations, specialized canvas/element shapes, and arbitrary link-anchor styles remain unsupported."
 };

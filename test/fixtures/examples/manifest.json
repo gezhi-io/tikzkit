@@ -4721,6 +4721,23 @@
       ]
     },
     {
+      "id": "pgfgantt-basic-links",
+      "title": "pgfgantt manual named bar links",
+      "source": "pgfgantt/basic-links.tex",
+      "sourceCorpus": "TeX Live pgfgantt manual",
+      "externalSource": "doc/latex/pgfgantt/pgfgantt-doc.pdf",
+      "semanticOwner": "src/frontend/latex-shell.js:expandPgfganttCharts",
+      "features": [
+        "ganttchart",
+        "ganttbar name",
+        "ganttlink",
+        "link type=auto",
+        "link type=f-s",
+        "link label",
+        "link/.append style"
+      ]
+    },
+    {
       "id": "shapes-arrows-single-double",
       "title": "PGF shapes.arrows single and double arrow geometry",
       "source": "shapes/arrows-single-double.tex",

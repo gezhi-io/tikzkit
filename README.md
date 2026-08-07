@@ -503,7 +503,7 @@ The regression and three-way reference are documented in
 [docs/qa/2026-08-07-chains-every-chain-in.md](docs/qa/2026-08-07-chains-every-chain-in.md).
 Continuing an arbitrary `\path` after `\chainin` is still partial.
 
-### A Verified Gantt Grid Example
+### Verified Gantt Grids And Basic Links
 
 The basic `pgfgantt` lowering covers `\gantttitle`, bars, groups, and a focused
 grid style-list subset. It follows the package defaults for title height
@@ -523,11 +523,31 @@ PGF's dotted default; `vgrid` accepts the manual's repeated form
 \end{ganttchart}
 ```
 
-This does not yet implement pgfgantt links, calendar/date slots, progress,
-title lists, special bar/group shapes, or arbitrary canvas and element styles.
-The fixture is
-`pgfgantt-grid-style-list`; its visual QA record is in
-`docs/qa/2026-08-07-pgfgantt-grid-style-list.md`.
+Named bars, groups, and milestones can now be connected with a focused
+`\ganttlink` subset. The default `auto` route uses the package's 1pt
+same-row test plus its `link tolerance` to choose a direct, RDR, or RDLDR
+path. The standard `dr`, `s-s`, `s-f`, `f-s`, and `f-f` anchors, `link label`,
+and `link/.append style` are supported. The emitted links retain pgfgantt's
+default `-latex, rounded corners=1pt` style.
+
+```tex
+\begin{ganttchart}[x unit=.5cm,y unit chart=.7cm,
+  link/.append style={blue,very thick}]{1}{12}
+  \ganttbar[name=research]{Research}{2}{3} \\
+  \ganttbar[name=prototype]{Prototype}{5}{7} \\
+  \ganttbar[name=release]{Release}{9}{11}
+  \ganttlink{research}{prototype}
+  \ganttlink[link type=f-s,link label=F--S]{prototype}{release}
+\end{ganttchart}
+```
+
+This remains a partial package: calendar/date slots, title lists, progress,
+`\ganttlinkedbar`, custom `\newganttlinktype` declarations, specialised
+bar/group shapes, and arbitrary canvas or link-anchor styles are not yet
+implemented. The fixtures are `pgfgantt-grid-style-list` and
+`pgfgantt-basic-links`; visual QA records are in
+`docs/qa/2026-08-07-pgfgantt-grid-style-list.md` and
+`docs/qa/2026-08-07-pgfgantt-basic-links.md`.
 
 ## Start Here
 

@@ -4574,10 +4574,13 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
   const vgridStyles = ganttGridStyles(options.vgrid);
   const hgridStyles = ganttGridStyles(options.hgrid);
   const commands = [];
+  const ganttElements = new Map();
+  let ganttElementIndex = 0;
   const totalSlots = Math.max(1, end - start + 1);
   const entries = parseGanttCommands(body);
-  const rowCount = Math.max(1, ...entries.map((entry) => entry.rowIndex + 1));
-  const titleRows = new Set(entries.filter((entry) => entry.command === "gantttitle").map((entry) => entry.rowIndex));
+  const chartEntries = entries.filter((entry) => entry.command !== "ganttlink");
+  const rowCount = Math.max(1, ...chartEntries.map((entry) => entry.rowIndex + 1));
+  const titleRows = new Set(chartEntries.filter((entry) => entry.command === "gantttitle").map((entry) => entry.rowIndex));
   const rowHeights = Array.from({ length: rowCount }, (_unused, rowIndex) => (titleRows.has(rowIndex) ? yUnitTitle : yUnitChart));
   const rowTops = [];
   let chartHeight = 0;
@@ -4600,7 +4603,7 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
     }
   }
   const titleSlots = new Map();
-  entries.forEach((row) => {
+  chartEntries.forEach((row) => {
     const rowIndex = row.rowIndex;
     const rowTop = rowTops[rowIndex] ?? 0;
     const rowHeight = rowHeights[rowIndex] ?? yUnitChart;
@@ -4646,6 +4649,8 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
         const anchor = rowInline ? "south" : "east";
         const labelFont = ganttFontOption(row, options, "group label font", "\\normalsize\\bfseries");
         commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(y - h / 2)}) {${row.args[0] || ""}};`);
+        ganttElements.set(ganttElementName(row, ganttElementIndex), { x0, x1, top: y, bottom: y - h });
+        ganttElementIndex += 1;
         return;
       }
       const yUpper = top - topShift * yUnitChart;
@@ -4656,6 +4661,8 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const anchor = rowInline ? "center" : "east";
       const labelFont = ganttFontOption(row, options, "bar label font", "\\normalsize");
       commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(labelY)}) {${row.args[0] || ""}};`);
+      ganttElements.set(ganttElementName(row, ganttElementIndex), { x0, x1, top: yUpper, bottom: yLower });
+      ganttElementIndex += 1;
       return;
     }
     if (row.command === "ganttmilestone") {
@@ -4667,9 +4674,132 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const labelX = rowInline ? x + size * 1.4 : -0.15;
       const anchor = rowInline ? "west" : "east";
       commands.push(`\\node[anchor=${anchor},font=\\scriptsize] at (${roundTikzNumber(labelX)},${roundTikzNumber(midY - size * 1.15)}) {${row.args[0] || ""}};`);
+      ganttElements.set(ganttElementName(row, ganttElementIndex), {
+        x0: x - size,
+        x1: x + size,
+        top: midY + size,
+        bottom: midY - size
+      });
+      ganttElementIndex += 1;
     }
   });
+  for (const row of entries) {
+    if (row.command !== "ganttlink") continue;
+    const link = lowerGanttLink(row, ganttElements, options, xUnit);
+    if (link) commands.push(link);
+  }
   return `\\begin{tikzpicture}\n${commands.join("\n")}\n\\end{tikzpicture}`;
+}
+
+function ganttElementName(row, index) {
+  const explicitName = String(row?.options?.name || "").trim();
+  return explicitName || `elem${index}`;
+}
+
+function lowerGanttLink(row, elements, chartOptions, xUnit) {
+  const source = elements.get(String(row.args?.[0] || "").trim());
+  const target = elements.get(String(row.args?.[1] || "").trim());
+  if (!source || !target) return null;
+
+  const requestedType = String(row.options?.["link type"] ?? chartOptions?.["link type"] ?? "auto").trim() || "auto";
+  const linkMid = ganttNumberOption(row, chartOptions, "link mid", 0.5);
+  const linkBulge = ganttNumberOption(row, chartOptions, "link bulge", 0.4);
+  const linkTolerance = ganttNumberOption(row, chartOptions, "link tolerance", 0.6);
+  const style = ganttLinkStyle(row, chartOptions);
+  const label = ganttLinkLabel(row, chartOptions, requestedType);
+  const direct = (from, to, text = label) => ganttLinkPath([from, to], style, text);
+
+  if (requestedType === "dr") {
+    const from = ganttElementAnchor(source, "south");
+    const to = ganttElementAnchor(target, "west");
+    return ganttLinkPath([from, { x: from.x, y: to.y }, to], style, label);
+  }
+  if (requestedType === "s-s") return direct(ganttElementAnchor(source, "south west"), ganttElementAnchor(target, "north west"));
+  if (requestedType === "s-f") return direct(ganttElementAnchor(source, "on bottom=0"), ganttElementAnchor(target, "on top=1"));
+  if (requestedType === "f-s") return direct(ganttElementAnchor(source, "south east"), ganttElementAnchor(target, "north west"));
+  if (requestedType === "f-f") return direct(ganttElementAnchor(source, "south east"), ganttElementAnchor(target, "north east"));
+
+  const from = ganttElementAnchor(source, "east");
+  const to = ganttElementAnchor(target, "west");
+  const routeType = requestedType === "auto"
+    // pgfgantt compares the anchor displacement to one TeX point. A link on
+    // the same horizontal row is diagonal; links across chart rows choose a
+    // RDR or RDLDR route based on the horizontal tolerance.
+    ? (Math.abs(from.y - to.y) <= 1 / 28.45274
+      ? "r"
+      : (to.x - from.x >= linkTolerance * xUnit ? "rdr" : "rdldr"))
+    : requestedType;
+  if (routeType === "r") return direct(from, to);
+
+  const middleX = from.x + (to.x - from.x) * Math.min(1, Math.max(0, linkMid));
+  if (routeType === "rdr") {
+    return ganttLinkPath([from, { x: middleX, y: from.y }, { x: middleX, y: to.y }, to], style, label);
+  }
+  if (routeType === "rdldr") {
+    const bulge = Math.max(xUnit * 0.2, Math.abs(to.x - from.x) * Math.max(0, linkBulge));
+    const middleY = from.y + (to.y - from.y) * Math.min(1, Math.max(0, linkMid));
+    return ganttLinkPath([
+      from,
+      { x: from.x + bulge, y: from.y },
+      { x: from.x + bulge, y: middleY },
+      { x: to.x - bulge, y: middleY },
+      { x: to.x - bulge, y: to.y },
+      to
+    ], style, label);
+  }
+  return direct(from, to);
+}
+
+function ganttLinkStyle(row, chartOptions) {
+  return [
+    "-latex",
+    "rounded corners=1pt",
+    chartOptions?.link,
+    chartOptions?.["link/.append style"],
+    row.options?.link,
+    row.options?.["link/.append style"]
+  ]
+    .map((value) => stripOuterBracesText(String(value || "")).trim())
+    .filter(Boolean)
+    .join(",");
+}
+
+function ganttLinkLabel(row, chartOptions, linkType) {
+  const explicit = row.options?.["link label"] ?? chartOptions?.["link label"];
+  if (explicit !== undefined) return stripOuterBracesText(String(explicit));
+  const labels = {
+    "s-s": "SS",
+    "s-f": "SF",
+    "f-s": "FS",
+    "f-f": "FF"
+  };
+  return labels[linkType] || "";
+}
+
+function ganttLinkPath(points, style, label) {
+  if (!points.length) return null;
+  const path = points
+    .map((point, index) => `${index ? "-- " : ""}(${roundTikzNumber(point.x)},${roundTikzNumber(point.y)})`)
+    .join(" ");
+  const labelCommand = label
+    ? ` node[pos=.5,anchor=west,font=\\scriptsize\\itshape] {${label}}`
+    : "";
+  return `\\draw[${style}] ${path}${labelCommand};`;
+}
+
+function ganttElementAnchor(element, anchor) {
+  const text = String(anchor || "center").trim().toLowerCase();
+  const onEdge = text.match(/^on\s+(top|bottom)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))$/);
+  if (onEdge) {
+    const position = Math.min(1, Math.max(0, Number(onEdge[2])));
+    return {
+      x: element.x0 + (element.x1 - element.x0) * position,
+      y: onEdge[1] === "top" ? element.top : element.bottom
+    };
+  }
+  const x = text.includes("west") ? element.x0 : text.includes("east") ? element.x1 : (element.x0 + element.x1) / 2;
+  const y = text.includes("north") ? element.top : text.includes("south") ? element.bottom : (element.top + element.bottom) / 2;
+  return { x, y };
 }
 
 function ganttNumberOption(row, chartOptions, key, fallback) {
@@ -4722,7 +4852,7 @@ function ganttGridStyleAt(styles, index) {
 function parseGanttCommands(body) {
   const rows = [];
   let index = 0;
-  const pattern = /\\(gantttitle|ganttbar|ganttgroup|ganttmilestone)\b/g;
+  const pattern = /\\(gantttitle|ganttbar|ganttgroup|ganttmilestone|ganttlink)\b/g;
   let rowIndex = 0;
   let match;
   while ((match = pattern.exec(body))) {
@@ -4732,7 +4862,8 @@ function parseGanttCommands(body) {
     const parsedOptions = parseOptionalOptions(body, cursor);
     cursor = parsedOptions.end;
     const args = [];
-    while (args.length < 3) {
+    const argumentCount = match[1] === "ganttmilestone" || match[1] === "ganttlink" ? 2 : 3;
+    while (args.length < argumentCount) {
       cursor = skipWhitespace(body, cursor);
       const arg = extractBalanced(body, cursor, "{", "}");
       if (!arg) break;
