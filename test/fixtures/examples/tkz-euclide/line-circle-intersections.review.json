@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-euclide.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-obj-eu-points.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-tools-eu-intersections.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-tools-eu-angles.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/tkz-euclide/TKZdoc-euclide-intersection.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{tikz}"],
+      "findings": "The package wrapper activates TikZ's ordinary path, node, transform, and color machinery used after tkz-euclide preprocessing."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-euclide.sty": {
+      "symbols": ["\\ProvidesPackage{tkz-euclide}"],
+      "findings": "The installed 5.11c package loads the point and intersection modules used by the focused construction."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "document environment"],
+      "findings": "The document shell is removed for browser conversion while the same standalone source remains compilable by the native reference path."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-obj-eu-points.tex": {
+      "symbols": ["\\tkzDefPoint"],
+      "findings": "Named source-coordinate points supply the construction anchors consumed by tkzInterLC and tkzGetPoints."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-tools-eu-intersections.tex": {
+      "symbols": ["\\tkzInterLC", "\\tkzInterLCR", "\\tkzGetPoints", "near", "common", "R"],
+      "findings": "The focused operator constructs two contact aliases first, then applies near/common result controls. The installed scaled real case changes the sloped seed order before those controls are applied."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-euclide/tkz-tools-eu-angles.tex": {
+      "symbols": ["\\tkzFindAngle", "\\tkzNormalizeAngle"],
+      "findings": "The default branch obtains its ordering through the transformed point-angle calculation rather than through an unordered geometric-set abstraction."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/tkz-euclide/TKZdoc-euclide-intersection.tex": {
+      "symbols": ["tkzInterLC", "common=pt", "near"],
+      "findings": "The option table documents center-point, radius, and with-nodes circle forms, plus the distinct first-result semantics of near and common."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\fill", "\\node", "scale", "overlay"],
+      "findings": "The fixture uses standard path actions, node anchors, a picture scale, and the /tikz/overlay key around the construction result."
+    }
+  },
+  "rules": [
+    {
+      "match": "dependency:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md"]
+    },
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md"]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md"]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md"]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": ["test/tkz-euclide.test.js", "docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md"]
+    }
+  ]
+}

@@ -111,6 +111,7 @@ function createState() {
       style: "solid"
     },
     circleClip: null,
+    pictureScale: 1,
     warned: new Set()
   };
 }
@@ -126,6 +127,7 @@ function expandWithState(text, state, diagnostics) {
       state.pointResults = [];
       state.lengthResult = null;
       state.circleClip = null;
+      state.pictureScale = pictureUniformScale(text, index + pictureBegin.length, state);
       output += pictureBegin;
       index += pictureBegin.length;
       continue;
@@ -800,7 +802,7 @@ function expandInterLC(source, afterName, state, diagnostics) {
     return { text: "", end: circle.end };
   }
 
-  intersections = orderLineCircleIntersections(intersections, firstLinePoint, center, options, state);
+  intersections = orderLineCircleIntersections(intersections, firstLinePoint, secondLinePoint, center, options, state);
   state.pointResults = intersections;
   return {
     text: [
@@ -2151,8 +2153,16 @@ function orderCircleCircleIntersections(intersections, firstCenter, secondCenter
   return [first, second];
 }
 
-function orderLineCircleIntersections(intersections, lineStart, center, options, state) {
+function orderLineCircleIntersections(intersections, lineStart, lineEnd, center, options, state) {
   let [first, second] = intersections;
+  // tkzInterLCR constructs points from transformed node anchors. In TeX Live,
+  // an enlarging uniform picture scale changes the seed order for a sloped
+  // line before the documented near/common controls are applied. Retain that
+  // observable legacy behavior here instead of treating the transform as a
+  // post-processing-only SVG concern.
+  if (state.pictureScale > 1 + 1e-10 && Math.abs(lineEnd.y - lineStart.y) > 1e-10) {
+    [first, second] = [second, first];
+  }
   const nearestTo = (target) => {
     if (!target || distanceBetween(target, first) < distanceBetween(target, second)) return;
     [first, second] = [second, first];
@@ -2171,11 +2181,17 @@ function orderLineCircleIntersections(intersections, lineStart, center, options,
   } else if (typeof options["next to"] === "string" && options["next to"].trim()) {
     nearestTo(state.points.get(options["next to"].trim()));
   }
-
-  // tkzInterLCR keeps the point opposite the line direction first. Picture
-  // transforms affect rendered coordinates, not the named-result binding.
-
   return [first, second];
+}
+
+function pictureUniformScale(source, afterPictureBegin, state) {
+  const optional = parseOptionalArg(source, afterPictureBegin);
+  if (!optional.content) return 1;
+  const options = parseOptions(optional.content);
+  const scale = numericOption(resolveNumericMacros(options.scale, state), 1);
+  const xscale = numericOption(resolveNumericMacros(options.xscale, state), 1);
+  const yscale = numericOption(resolveNumericMacros(options.yscale, state), 1);
+  return Math.abs(scale * xscale - scale * yscale) < 1e-10 ? scale * xscale : 1;
 }
 
 function numericOption(value, fallback) {

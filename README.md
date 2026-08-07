@@ -2334,9 +2334,10 @@ Keep the resulting `mactex-png/`, `tikzkit-svg/`, `tikzkit-png/`,
 the minimum evidence bundle for a visual compatibility change.
 
 For `tkz-euclide` construction results, include `--native-reference` and use
-the native MacTeX panel as the acceptance target. A picture transform changes
-the rendered coordinates but must not change the names bound by
-`\\tkzGetPoints`; the focused line-circle/Thales check is:
+the native MacTeX panel as the acceptance target. Do not assume that a picture
+transform is purely post-processing: TeX Live's enlarging uniform picture scale
+changes the initial named order of a sloped `\\tkzInterLC` before `near` and
+`common` are applied. The focused line-circle/Thales check is:
 
 ```bash
 node --test test/tkz-euclide.test.js
@@ -2351,8 +2352,13 @@ npm run examples:diff -- --output outputs/qa-tkz-interlc
 
 `\\tkzInterLC[common=<point>]` is deliberately different from `near` and
 `next to`: the named common contact remains the *second* `\\tkzGetPoints`
-result. The `tkz-euclide-line-circle-common-result` fixture labels both
-outputs so an accidental swap is visible in the comparison panel.
+result. For an unscaled source, the Thales driver binds `E` below and `C`
+above; with its real `scale=1.5`, local MacTeX reverses those sloped contacts.
+The `tkz-euclide-line-circle-common-result` and
+`tkz-euclide-line-circle-intersections` fixtures label both outputs so either
+kind of accidental swap is visible in the comparison panel. The evidence and
+remaining transform boundary are documented in
+[docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md](docs/qa/2026-08-08-tkz-euclide-scaled-line-circle-order.md).
 
 ### Inspect Library Support Before Extending It
 
