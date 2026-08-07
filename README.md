@@ -66,6 +66,32 @@ semantic regression. The executable visual driver is
 are recorded in
 [docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md](docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md).
 
+### A Verified `shapes.arrows` Example
+
+The focused `shapes.arrows` slice gives `single arrow` and `double arrow` a
+shared PGF-derived geometry record: SVG polygons, path clipping, and named
+anchors therefore use the same tip, shoulder, and shaft locations. Physical
+`minimum height`, transverse `minimum width`, `tip angle`, `head extend`, and
+`head indent` are covered.
+
+```tex
+\usetikzlibrary{shapes.arrows}
+\begin{tikzpicture}
+  \node[single arrow, draw, fill=blue!15,
+    minimum height=3cm, minimum width=1.8cm,
+    single arrow head extend=.5cm,
+    single arrow head indent=.25cm] (a) {Single};
+  \draw[red,<->] (a.before tip) -- (a.after tip);
+\end{tikzpicture}
+```
+
+This is not yet complete `shapes.arrows` compatibility: arrow box, arbitrary
+radial border anchors, full outer-separation behavior, and all rotation/text
+metric variants remain partial. The permanent fixture is
+`shapes-arrows-single-double`; its MacTeX/tikztosvg/TikZKit comparison is
+recorded in
+[docs/qa/2026-08-07-shapes-arrows-single-double.md](docs/qa/2026-08-07-shapes-arrows-single-double.md).
+
 ### A Verified Tree-Anchor Example
 
 The focused `trees` slice supports the anchors which determine how a generated

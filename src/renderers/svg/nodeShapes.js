@@ -175,6 +175,16 @@ export function rectangleNodePoints(center, halfWidth, halfHeight) {
 }
 
 export function arrowNodePoints(center, halfWidth, halfHeight, shape, data = {}) {
+  const sourcePoints = Array.isArray(data.arrowGeometry?.points) && data.arrowGeometry.points.length
+    ? data.arrowGeometry.points.map((point) => ({ x: Number(point.x) || 0, y: Number(point.y) || 0 }))
+    : null;
+  if (sourcePoints) {
+    const rotate = Number(data.shapeBorderRotate) || 0;
+    return sourcePoints.map((point) => {
+      const rotated = rotate ? rotatePoint(point, rotate) : point;
+      return { x: center.x + rotated.x, y: center.y + rotated.y };
+    });
+  }
   const headExtend = Math.max(0, Number(data.arrowHeadExtend) || 0.25);
   const headIndent = Math.max(0, Number(data.arrowHeadIndent) || 0);
   const headLength = Math.min(halfWidth * 0.82, Math.max(halfHeight * 0.82, headExtend * 1.15, 0.12));

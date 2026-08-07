@@ -6011,6 +6011,10 @@ function createNode(statement, env, ir, diagnostics) {
   const anchorSize = scaleSize(rawAnchorSize, nodeEnv.canvasScale);
   const positioningSize = scaleSize(rawPositioningSize, nodeEnv.canvasScale);
   const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, size);
+  const arrowGeometry = scaleArrowNodeGeometry(
+    arrowNodeShapeGeometry(text, expandedOptions, nodeEnv),
+    nodeEnv.canvasScale
+  );
   const point = fitLayout?.point || resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, { ...positioningSize, ...textAnchorOffsets });
   const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, nodeEnv, size);
   const name = statement.name
@@ -6029,6 +6033,7 @@ function createNode(statement, env, ir, diagnostics) {
     displayPoint,
     rectangleSplit,
     circleSplit,
+    shapeData: arrowGeometry ? { arrowGeometry } : null,
     fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   };
   const nodeRecord = {
@@ -6042,7 +6047,8 @@ function createNode(statement, env, ir, diagnostics) {
     shapeData: {
       ...nodeShapeData(expandedOptions, nodeEnv),
       rectangleSplit,
-      circleSplit
+      circleSplit,
+      ...(arrowGeometry ? { arrowGeometry } : {})
     },
     rotation: nodeRotation(expandedOptions, nodeEnv)
   };
@@ -8684,7 +8690,8 @@ function addNodeItems(node, ir, env) {
   const shapeData = {
     ...nodeShapeData(node.options || {}, nodeEnv),
     rectangleSplit: node.rectangleSplit || null,
-    circleSplit: node.circleSplit || null
+    circleSplit: node.circleSplit || null,
+    ...(node.shapeData || {})
   };
   const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, nodeEnv), nodeEnv.canvasScale);
   // shapes.misc foreground paths use inherited rectangle anchors, which include outer sep.
@@ -12257,22 +12264,116 @@ function arrowNodeShape(shape) {
 }
 
 function arrowNodeLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  return arrowNodeShapeLayout(contentWidth, contentHeight, options, env).size;
+}
+
+function arrowNodeShapeGeometry(text, options = {}, env = { variables: {} }) {
+  const shape = nodeShape(options);
+  if (!arrowNodeShape(shape)) return null;
+  const contentSize = arrowNodeContentSize(text, options, env);
+  return arrowNodeShapeLayout(contentSize.width, contentSize.height, options, env).geometry;
+}
+
+function arrowNodeContentSize(text, options = {}, env = { variables: {} }) {
+  const contentOptions = { ...options };
+  delete contentOptions.shape;
+  delete contentOptions["single arrow"];
+  delete contentOptions["double arrow"];
+  delete contentOptions["minimum width"];
+  delete contentOptions["minimum height"];
+  delete contentOptions["minimum size"];
+  return estimateNodeSize(text, contentOptions, env);
+}
+
+function arrowNodeShapeLayout(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const shape = nodeShape(options);
   const data = nodeShapeData(options, env);
   const tipAngle = Math.max(5, Math.min(175, Number(data.arrowTipAngle) || 90));
   const halfTip = (tipAngle * Math.PI) / 360;
   const cotHalfTip = Math.cos(halfTip) / Math.max(1e-6, Math.sin(halfTip));
-  const headExtend = Math.max(0, Number(data.arrowHeadExtend) || 0);
-  const minLength = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0;
-  const minThickness = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0;
-  const bodyThickness = Math.max(0.08, Number(contentHeight) || 0.08);
-  const visualThickness = Math.max(minThickness, bodyThickness + headExtend * 2);
-  const headLength = Math.max(visualThickness * 0.5 * cotHalfTip, headExtend * cotHalfTip, 0.12);
-  const headCount = shape === "doubleArrow" ? 2 : 1;
-  const visualLength = Math.max(minLength, Number(contentWidth) + headLength * headCount, 0.18);
+  const { style } = normalizeOptions("node", options, env);
+  const halfStroke = Math.max(0, Number(style.lineWidth) || 0) / (2 * TIKZ_UNIT);
+  const contentHalfX = Math.max(0, Number(contentWidth) || 0) / 2 + halfStroke;
+  let bodyHalf = Math.max(0.01, Number(contentHeight) || 0) / 2 + halfStroke;
+  let headHeight = Math.max(0, Number(data.arrowHeadExtend) || 0);
+  let tipExtension = bodyHalf * cotHalfTip;
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const minimumWidth = Math.max(
+    minimumSize,
+    options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0
+  );
+  const minimumHeight = Math.max(
+    minimumSize,
+    options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
+  );
+
+  // pgflibraryshapes.arrows first grows the transverse text/head box for
+  // minimum width, then derives the longitudinal tip geometry from that box.
+  const transverseHalf = bodyHalf + headHeight;
+  if (transverseHalf > 0 && transverseHalf < minimumWidth / 2) {
+    const scale = (minimumWidth / 2) / transverseHalf;
+    bodyHalf *= scale;
+    headHeight *= scale;
+    tipExtension *= scale;
+  }
+
+  const headLength = headHeight * cotHalfTip;
+  const headIndent = Math.max(0, Number(data.arrowHeadIndent) || 0);
+  const naturalLength = shape === "doubleArrow"
+    ? 2 * (contentHalfX + tipExtension)
+    : 2 * contentHalfX + tipExtension;
+  const totalLength = Math.max(minimumHeight, naturalLength, 0.02);
+  const tailHalf = shape === "doubleArrow"
+    ? totalLength / 2 - tipExtension
+    : (totalLength - tipExtension) / 2;
+  const tipX = tailHalf + tipExtension;
+  const beforeTipX = tailHalf - headLength;
+  const beforeHeadX = beforeTipX + headIndent;
+  const fullHalfHeight = bodyHalf + headHeight;
+  const points = shape === "doubleArrow"
+    ? [
+        { name: "tip 1", x: tipX, y: 0 },
+        { name: "before tip 1", x: beforeTipX, y: fullHalfHeight },
+        { name: "before head 1", x: beforeHeadX, y: bodyHalf },
+        { name: "after head 2", x: -beforeHeadX, y: bodyHalf },
+        { name: "after tip 2", x: -beforeTipX, y: fullHalfHeight },
+        { name: "tip 2", x: -tipX, y: 0 },
+        { name: "before tip 2", x: -beforeTipX, y: -fullHalfHeight },
+        { name: "before head 2", x: -beforeHeadX, y: -bodyHalf },
+        { name: "after head 1", x: beforeHeadX, y: -bodyHalf },
+        { name: "after tip 1", x: beforeTipX, y: -fullHalfHeight }
+      ]
+    : [
+        { name: "tip", x: tipX, y: 0 },
+        { name: "before tip", x: beforeTipX, y: fullHalfHeight },
+        { name: "before head", x: beforeHeadX, y: bodyHalf },
+        { name: "after tail", x: -tailHalf, y: bodyHalf },
+        { name: "tail", x: -tailHalf, y: 0 },
+        { name: "before tail", x: -tailHalf, y: -bodyHalf },
+        { name: "after head", x: beforeHeadX, y: -bodyHalf },
+        { name: "after tip", x: beforeTipX, y: -fullHalfHeight }
+      ];
   return {
-    width: roundNumber(visualLength),
-    height: roundNumber(visualThickness)
+    size: {
+      width: roundNumber(totalLength),
+      height: roundNumber(fullHalfHeight * 2)
+    },
+    geometry: {
+      points: points.map((point) => ({ ...point, x: roundNumber(point.x), y: roundNumber(point.y) }))
+    }
+  };
+}
+
+function scaleArrowNodeGeometry(geometry, scale = 1) {
+  if (!geometry?.points?.length) return null;
+  const factor = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
+  return {
+    ...geometry,
+    points: geometry.points.map((point) => ({
+      ...point,
+      x: roundNumber((Number(point.x) || 0) * factor),
+      y: roundNumber((Number(point.y) || 0) * factor)
+    }))
   };
 }
 
@@ -15821,6 +15922,13 @@ function arrowNodeLocalPoints(shape, size = {}) {
   const halfWidth = (Number(size.width) || 0) / 2;
   const halfHeight = (Number(size.height) || 0) / 2;
   const data = size.shapeData || {};
+  const sourcePoints = Array.isArray(data.arrowGeometry?.points) && data.arrowGeometry.points.length
+    ? data.arrowGeometry.points.map((point) => ({ ...point }))
+    : null;
+  if (sourcePoints) {
+    const rotate = Number(data.shapeBorderRotate) || 0;
+    return rotate ? sourcePoints.map((point) => ({ ...point, ...rotateVector(point.x, point.y, rotate) })) : sourcePoints;
+  }
   const headExtend = Math.max(0, Number(data.arrowHeadExtend) || 0.25);
   const headIndent = Math.max(0, Number(data.arrowHeadIndent) || 0);
   const headLength = Math.min(halfWidth * 0.82, Math.max(halfHeight * 0.82, headExtend * 1.15, 0.12));

@@ -4073,6 +4073,34 @@ test("recognizes TikZ shapes.arrows node shapes and sizing options", () => {
   assert.ok(boxes[1].width > boxes[1].height, "double arrow should add both arrow heads to its node box");
 });
 
+test("uses PGF shapes.arrows source geometry for minimum sizes and named anchors", () => {
+  const source = String.raw`
+\usetikzlibrary{shapes.arrows}
+\begin{tikzpicture}
+  \node[single arrow, draw, minimum height=3cm, minimum width=1.8cm,
+    single arrow head extend=.5cm, single arrow head indent=.25cm] (single) {Single};
+  \node[double arrow, draw, minimum height=3cm, minimum width=1.8cm,
+    double arrow head extend=.5cm, double arrow head indent=.25cm] (double) at (5,0) {Double};
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [single, double] = ir.items.filter((item) => item.type === "nodeBox");
+  const singlePoints = single.shapeData.arrowGeometry.points;
+  const doublePoints = double.shapeData.arrowGeometry.points;
+  const singleTip = singlePoints.find((point) => point.name === "tip");
+  const singleTail = singlePoints.find((point) => point.name === "tail");
+  const singleBeforeTip = singlePoints.find((point) => point.name === "before tip");
+  const singleBeforeHead = singlePoints.find((point) => point.name === "before head");
+  const doubleTipOne = doublePoints.find((point) => point.name === "tip 1");
+  const doubleTipTwo = doublePoints.find((point) => point.name === "tip 2");
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(singleTip.x > 0 && singleTail.x < 0, "single-arrow endpoints should straddle the text center");
+  assert.ok(Math.abs(singleTip.x - singleTail.x - 3) < 1e-6, "single arrow should honor minimum height as tip-to-tail length");
+  assert.ok(Math.abs(doubleTipOne.x - doubleTipTwo.x - 3) < 1e-6, "double arrow should honor minimum height as tip-to-tip length");
+  assert.ok(Math.abs(singleBeforeHead.x - singleBeforeTip.x - 0.25) < 1e-6, "head indent should shift the shaft join toward the tip");
+  assert.ok(Math.abs(single.height - 1.8) < 1e-6, "minimum width should control the arrow's transverse extent");
+});
+
 test("breaks paths around intermediate text node borders", () => {
   const source = String.raw`
 \begin{tikzpicture}
