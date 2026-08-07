@@ -4738,6 +4738,21 @@
       ]
     },
     {
+      "id": "pgfgantt-linked-elements",
+      "title": "pgfgantt manual linked chart elements",
+      "source": "pgfgantt/linked-elements.tex",
+      "sourceCorpus": "TeX Live pgfgantt manual",
+      "externalSource": "doc/latex/pgfgantt/pgfgantt-doc.pdf",
+      "semanticOwner": "src/frontend/latex-shell.js:expandPgfganttCharts",
+      "features": [
+        "ganttchart",
+        "ganttlinkedbar",
+        "ganttlinkedmilestone",
+        "auto previous-element link",
+        "link/.append style"
+      ]
+    },
+    {
       "id": "shapes-arrows-single-double",
       "title": "PGF shapes.arrows single and double arrow geometry",
       "source": "shapes/arrows-single-double.tex",

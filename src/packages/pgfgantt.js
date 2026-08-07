@@ -9,6 +9,7 @@ export const texPackage = {
     "\\ganttgroup",
     "\\ganttmilestone subset",
     "\\ganttlink named-element subset",
+    "\\ganttlinkedbar and \\ganttlinkedmilestone",
     "hgrid=true",
     "vgrid style-list subset",
     "title/bar/group default geometry",
@@ -19,7 +20,7 @@ export const texPackage = {
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf",
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; generic element rectangle geometry and auto-naming at lines 851-1000; bar/group defaults and label fonts at lines 1025-1100; link default style, auto selection, RDR/RDLDR routes, finish/start anchors, and \\ganttlink dispatch at lines 1425-1619; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented hgrid/vgrid repeated style-list and basic link syntax",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; generic element geometry, previous/current automatic names, and linked-element macro expansion at lines 849-1025; bar/group defaults and label fonts at lines 1025-1100; milestone default fill/label/font/geometry at lines 1129-1151; link default style, auto selection, RDR/RDLDR routes, finish/start anchors, and \\ganttlink dispatch at lines 1425-1619; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented hgrid/vgrid repeated style-list and basic link syntax",
   "caseCount": 311,
   "caseExamples": [
     "agronomia",
@@ -51,7 +52,10 @@ export const texPackage = {
     "link mid",
     "link bulge",
     "link tolerance",
-    "link/.append style"
+    "link/.append style",
+    "ganttlinkedbar",
+    "ganttlinkedmilestone",
+    "milestone/.append style"
   ],
-  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups use reviewed default geometry and local shift subsets, with small/normal label fonts. Named bars, groups, and milestones now support basic \\ganttlink lowering: native default -latex plus rounded corners, auto/RDR/RDLDR routing, the documented start/finish link types, simple link labels, and link/.append style. Calendar/date slots, title lists, progress, \\ganttlinkedbar, custom link declarations, specialized canvas/element shapes, and arbitrary link-anchor styles remain unsupported."
+  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups use reviewed default geometry and local shift subsets, with small/normal label fonts. Named bars, groups, and milestones support basic \\ganttlink lowering: native default -latex plus rounded corners, auto/RDR/RDLDR routing, the documented start/finish link types, simple link labels, and link/.append style. \\ganttlinkedbar and \\ganttlinkedmilestone now create their native previous-element dependency; milestones use the reviewed black filled diamond, slot-center geometry, and italic normal-size external label, with local milestone fill styles. Calendar/date slots, title lists, progress, \\ganttlinkedgroup visual shape parity, custom link declarations, specialized canvas/element shapes, and arbitrary link-anchor styles remain unsupported."
 };

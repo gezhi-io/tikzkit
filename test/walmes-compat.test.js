@@ -357,6 +357,26 @@ test("lowers named pgfgantt links through source anchors with auto and finish-to
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "F--S"));
 });
 
+test("expands pgfgantt linked elements into the preceding element dependency", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[x unit=.5cm,y unit chart=.7cm,link/.append style={red,thick}]{1}{8}
+  \ganttbar{First}{1}{2} \\
+  \ganttlinkedbar{Second}{4}{5} \\
+  \ganttlinkedmilestone{Done}{6}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const links = ir.items.filter((item) => item.type === "path" && item.style?.stroke === "red" && item.style?.markerEnd?.kind === "latex");
+  assert.equal(links.length, 2);
+  assert.ok(ir.items.some((item) => item.type === "path" && item.style?.fill === "black"), "expected the linked milestone to retain pgfgantt's black diamond default");
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Second"));
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Done"));
+});
+
 test("uses TeX control-word boundaries for dynamic coordinate names", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}

@@ -530,6 +530,11 @@ path. The standard `dr`, `s-s`, `s-f`, `f-s`, and `f-f` anchors, `link label`,
 and `link/.append style` are supported. The emitted links retain pgfgantt's
 default `-latex, rounded corners=1pt` style.
 
+`\ganttlinkedbar` and `\ganttlinkedmilestone` also work for the reviewed
+bar/milestone subset: each draws the current element and automatically links
+the preceding chart element to it. The milestone uses its native black
+diamond, time-slot center, and italic external label.
+
 ```tex
 \begin{ganttchart}[x unit=.5cm,y unit chart=.7cm,
   link/.append style={blue,very thick}]{1}{12}
@@ -542,12 +547,13 @@ default `-latex, rounded corners=1pt` style.
 ```
 
 This remains a partial package: calendar/date slots, title lists, progress,
-`\ganttlinkedbar`, custom `\newganttlinktype` declarations, specialised
-bar/group shapes, and arbitrary canvas or link-anchor styles are not yet
+`\ganttlinkedgroup` shape parity, custom `\newganttlinktype` declarations,
+specialised bar/group shapes, and arbitrary canvas or link-anchor styles are not yet
 implemented. The fixtures are `pgfgantt-grid-style-list` and
-`pgfgantt-basic-links`; visual QA records are in
+`pgfgantt-basic-links`, and `pgfgantt-linked-elements`; visual QA records are in
 `docs/qa/2026-08-07-pgfgantt-grid-style-list.md` and
-`docs/qa/2026-08-07-pgfgantt-basic-links.md`.
+`docs/qa/2026-08-07-pgfgantt-basic-links.md`, plus
+`docs/qa/2026-08-07-pgfgantt-linked-elements.md`.
 
 ## Start Here
 

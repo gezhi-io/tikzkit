@@ -4575,7 +4575,18 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
   const hgridStyles = ganttGridStyles(options.hgrid);
   const commands = [];
   const ganttElements = new Map();
+  const implicitLinks = [];
   let ganttElementIndex = 0;
+  let lastGanttElementName = "";
+  const registerGanttElement = (row, bounds) => {
+    const currentElementName = ganttElementName(row, ganttElementIndex);
+    if (row.linked && lastGanttElementName) {
+      implicitLinks.push({ command: "ganttlink", options: row.options, args: [lastGanttElementName, currentElementName] });
+    }
+    ganttElements.set(currentElementName, bounds);
+    lastGanttElementName = currentElementName;
+    ganttElementIndex += 1;
+  };
   const totalSlots = Math.max(1, end - start + 1);
   const entries = parseGanttCommands(body);
   const chartEntries = entries.filter((entry) => entry.command !== "ganttlink");
@@ -4649,8 +4660,7 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
         const anchor = rowInline ? "south" : "east";
         const labelFont = ganttFontOption(row, options, "group label font", "\\normalsize\\bfseries");
         commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(y - h / 2)}) {${row.args[0] || ""}};`);
-        ganttElements.set(ganttElementName(row, ganttElementIndex), { x0, x1, top: y, bottom: y - h });
-        ganttElementIndex += 1;
+        registerGanttElement(row, { x0, x1, top: y, bottom: y - h });
         return;
       }
       const yUpper = top - topShift * yUnitChart;
@@ -4661,29 +4671,33 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const anchor = rowInline ? "center" : "east";
       const labelFont = ganttFontOption(row, options, "bar label font", "\\normalsize");
       commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(labelY)}) {${row.args[0] || ""}};`);
-      ganttElements.set(ganttElementName(row, ganttElementIndex), { x0, x1, top: yUpper, bottom: yLower });
-      ganttElementIndex += 1;
+      registerGanttElement(row, { x0, x1, top: yUpper, bottom: yLower });
       return;
     }
     if (row.command === "ganttmilestone") {
       const at = Number(row.args[1]);
-      const x = Math.max(0, (Number.isFinite(at) ? at - start + 0.5 : 0.5) * xUnit);
-      const size = Math.min(xUnit, yUnitChart) * 0.28;
-      commands.push(`\\draw[fill=orange!45,draw=black,line width=0.35pt] (${roundTikzNumber(x)},${roundTikzNumber(midY + size)}) -- (${roundTikzNumber(x + size)},${roundTikzNumber(midY)}) -- (${roundTikzNumber(x)},${roundTikzNumber(midY - size)}) -- (${roundTikzNumber(x - size)},${roundTikzNumber(midY)}) -- cycle;`);
+      // The source derives a one-slot milestone from left/right shifts .6/.4
+      // and top/height .3/.4. Its diamond therefore centers on the slot, not
+      // between slots, and uses asymmetric horizontal/vertical half extents.
+      const x = Math.max(0, (Number.isFinite(at) ? at - start + 1 : 1) * xUnit);
+      const halfWidth = xUnit * 0.4;
+      const halfHeight = yUnitChart * 0.2;
+      const fill = ganttElementFill(row, "black");
+      commands.push(`\\draw[fill=${fill},draw=black,line width=0.35pt] (${roundTikzNumber(x)},${roundTikzNumber(midY + halfHeight)}) -- (${roundTikzNumber(x + halfWidth)},${roundTikzNumber(midY)}) -- (${roundTikzNumber(x)},${roundTikzNumber(midY - halfHeight)}) -- (${roundTikzNumber(x - halfWidth)},${roundTikzNumber(midY)}) -- cycle;`);
       const rowInline = inlineChart || row.options.inline === true || String(row.options.inline || "").trim() === "true";
-      const labelX = rowInline ? x + size * 1.4 : -0.15;
-      const anchor = rowInline ? "west" : "east";
-      commands.push(`\\node[anchor=${anchor},font=\\scriptsize] at (${roundTikzNumber(labelX)},${roundTikzNumber(midY - size * 1.15)}) {${row.args[0] || ""}};`);
-      ganttElements.set(ganttElementName(row, ganttElementIndex), {
-        x0: x - size,
-        x1: x + size,
-        top: midY + size,
-        bottom: midY - size
+      const labelX = rowInline ? x : 0;
+      const anchor = rowInline ? "south" : "east";
+      const labelFont = ganttFontOption(row, options, "milestone label font", "\\itshape");
+      commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(midY)}) {${row.args[0] || ""}};`);
+      registerGanttElement(row, {
+        x0: x - halfWidth,
+        x1: x + halfWidth,
+        top: midY + halfHeight,
+        bottom: midY - halfHeight
       });
-      ganttElementIndex += 1;
     }
   });
-  for (const row of entries) {
+  for (const row of [...implicitLinks, ...entries]) {
     if (row.command !== "ganttlink") continue;
     const link = lowerGanttLink(row, ganttElements, options, xUnit);
     if (link) commands.push(link);
@@ -4852,7 +4866,7 @@ function ganttGridStyleAt(styles, index) {
 function parseGanttCommands(body) {
   const rows = [];
   let index = 0;
-  const pattern = /\\(gantttitle|ganttbar|ganttgroup|ganttmilestone|ganttlink)\b/g;
+  const pattern = /\\(gantttitle|ganttlinkedbar|ganttlinkedgroup|ganttlinkedmilestone|ganttbar|ganttgroup|ganttmilestone|ganttlink)\b/g;
   let rowIndex = 0;
   let match;
   while ((match = pattern.exec(body))) {
@@ -4862,7 +4876,10 @@ function parseGanttCommands(body) {
     const parsedOptions = parseOptionalOptions(body, cursor);
     cursor = parsedOptions.end;
     const args = [];
-    const argumentCount = match[1] === "ganttmilestone" || match[1] === "ganttlink" ? 2 : 3;
+    const sourceCommand = match[1];
+    const linked = sourceCommand.startsWith("ganttlinked");
+    const command = linked ? sourceCommand.replace("ganttlinked", "gantt") : sourceCommand;
+    const argumentCount = command === "ganttmilestone" || command === "ganttlink" ? 2 : 3;
     while (args.length < argumentCount) {
       cursor = skipWhitespace(body, cursor);
       const arg = extractBalanced(body, cursor, "{", "}");
@@ -4870,7 +4887,7 @@ function parseGanttCommands(body) {
       args.push(arg.content.trim());
       cursor = arg.end;
     }
-    rows.push({ command: match[1], options: parseOptions(parsedOptions.raw), args, rowIndex });
+    rows.push({ command, linked, options: parseOptions(parsedOptions.raw), args, rowIndex });
     index = cursor;
     pattern.lastIndex = Math.max(pattern.lastIndex, index);
   }
@@ -4878,8 +4895,13 @@ function parseGanttCommands(body) {
 }
 
 function ganttElementFill(row, fallback) {
-  const styleKey = row.command === "ganttgroup" ? "group/.append style" : "bar/.append style";
-  const directKey = row.command === "ganttgroup" ? "group" : "bar";
+  const elementName = row.command === "ganttgroup"
+    ? "group"
+    : row.command === "ganttmilestone"
+      ? "milestone"
+      : "bar";
+  const styleKey = `${elementName}/.append style`;
+  const directKey = elementName;
   const fromAppend = extractFillFromTikzOptionText(row.options?.[styleKey]);
   const fromDirect = extractFillFromTikzOptionText(row.options?.[directKey]);
   return fromAppend || fromDirect || fallback;

@@ -1,0 +1,19 @@
+% Adapted from the TeX Live 2025 pgfgantt manual linked-element example.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[
+  x unit=0.5cm,
+  y unit title=0.55cm,
+  y unit chart=0.7cm,
+  hgrid,
+  vgrid,
+  link/.append style={red, very thick}
+]{1}{10}
+  \gantttitle{Linked delivery plan}{10} \\
+  \ganttbar{Design}{1}{2} \\
+  \ganttlinkedbar{Build}{4}{6} \\
+  \ganttlinkedmilestone{Release}{7} \\
+  \ganttlinkedbar{Follow-up}{8}{10}
+\end{ganttchart}
+\end{document}
