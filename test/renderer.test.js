@@ -827,6 +827,20 @@ test("applies Latex tip scale after deriving its PGF line-width geometry", () =>
   assert.match(tip, /C -0\.701[0-9]+ -0\.179[0-9]+ -3\.755[0-9]+ -1\.209[0-9]+ -5\.656[0-9]+ -2\.330[0-9]+/);
 });
 
+test("places scaled arrows.meta Latex tips at their PGF-specific line ends", () => {
+  const svg = tikzToSvg(String.raw`
+    \draw[thick,arrows={{Latex[scale=.5]}-}] (0,0) -- (4,0);
+    \draw[thick,-{Latex[scale=.5]}] (0,-.8) -- (4,-.8);`).svg;
+
+  // PGF's Latex setup uses separate assembly points: its line ends at
+  // arrow length - half outline width, while the visible arrow point lies one
+  // inner-tip length nearer the raw path terminal. Both directions use them.
+  assert.match(svg, /<path d="M 10\.438[0-9]+ 0 L 400 0"/);
+  assert.match(svg, /transform="translate\(4\.782[0-9]+ 0\) rotate\(180\)"/);
+  assert.match(svg, /<path d="M 0 80 L 389\.561[0-9]+ 80"/);
+  assert.match(svg, /transform="translate\(395\.217[0-9]+ 80\) rotate\(0\)"/);
+});
+
 test("applies arrows.meta length and width scaling independently", () => {
   const lineWidth = lineWidthFromPt(0.8);
   const normal = latexArrowGeometryFromLineWidth(lineWidth);

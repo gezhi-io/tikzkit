@@ -4212,6 +4212,20 @@
       ]
     },
     {
+      "id": "arrows-meta-latex-reverse-line-end",
+      "title": "PGF arrows.meta reversed Latex line end",
+      "source": "arrows/meta-latex-reverse-line-end.tex",
+      "sourceCorpus": "TikZKit regression derived from PGF arrows.meta Latex setup code",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+      "semanticOwner": "src/renderers/svg/paths.js:renderArrowedPath",
+      "features": [
+        "Latex scale",
+        "reversed Latex start tip",
+        "forward Latex end tip",
+        "tip-specific line end"
+      ]
+    },
+    {
       "id": "datavisualization-legend-math-metrics",
       "title": "PGF datavisualization styled math legend labels",
       "source": "workbench/datavisualization-legend-math-metrics.tex",

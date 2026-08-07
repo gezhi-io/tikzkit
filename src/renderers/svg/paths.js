@@ -82,8 +82,12 @@ export function renderArrowedPath(item, unit) {
     (Number(style.shortenEnd) || 0) / unit
   );
   const placedTerminal = pathTerminalSegments(explicitCommands);
-  const startShorten = startTip && placedTerminal.first?.shortenable ? startTip.geometry.shorten / unit : 0;
-  const endShorten = endTip && placedTerminal.last?.shortenable ? endTip.geometry.shorten / unit : 0;
+  const startShorten = startTip && placedTerminal.first?.shortenable
+    ? (startTip.geometry.terminalPlacement ?? startTip.geometry.shorten) / unit
+    : 0;
+  const endShorten = endTip && placedTerminal.last?.shortenable
+    ? (endTip.geometry.terminalPlacement ?? endTip.geometry.shorten) / unit
+    : 0;
   const commands = shortenPathTerminals(explicitCommands, placedTerminal, startShorten, endShorten);
   const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
   const pieces = [
@@ -473,6 +477,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         `C ${format(-length * 0.664)} ${format(halfWidth * 0.519)} ${format(-length * 0.124)} ${format(halfWidth * 0.077)} 0 0 Z`
       ].join(" "),
       shorten: native.shorten,
+      placement: native.tipPlacement,
+      terminalPlacement: native.terminalPlacement,
       lineWidth: native.lineWidth
     };
   }

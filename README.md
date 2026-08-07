@@ -903,6 +903,32 @@ This is a verified compatibility slice, not a claim that all TikZ arrow or
 shape combinations are complete. Keep using the per-case audit and visual
 comparison workflow while the project remains under active testing.
 
+### Scaled `Latex` Start/End Check
+
+`arrows-meta-latex-reverse-line-end` is the focused check for the capitalized
+`arrows.meta` form `Latex[scale=.5]`. PGF does not model this tip as a generic
+SVG marker: the painted line stops at its arrow assembly base while the
+visible pointed outline is offset from that base. TikZKit applies the same
+separate placement for `Latex-` and `-Latex`:
+
+```bash
+node --test --test-name-pattern='Latex tips at their PGF-specific line ends' \
+  test/renderer.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --output outputs/qa-arrows-meta-line-end \
+  --only arrows-meta-latex-reverse-line-end,latex-examples-feed-forward-perceptron \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-arrows-meta-line-end \
+  --register --alignment-radius 3
+```
+
+Inspect `diff/latex-examples-feed-forward-perceptron-sheet.png`: the JS panel
+should put the tiny arrow points and the line joins at the output and hidden
+circles in the same places as the `tikztosvg` panel. This covers one terminal
+tip family only; composite arrows, arbitrary padding/separation, and custom
+arrow setup programs remain partial.
+
 ### Curved Arrow Terminal Check
 
 `latex-examples-artificial-neuron` is the focused real case for a curved

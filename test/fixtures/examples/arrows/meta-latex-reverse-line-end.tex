@@ -1,0 +1,12 @@
+% Derived from the local PGF arrows.meta implementation: a reversed Latex
+% tip has a different line end from a forward Latex tip.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[thick,arrows={{Latex[scale=.5]}-}] (0,0) -- (4,0);
+  \draw[thick,-{Latex[scale=.5]}] (0,-0.8) -- (4,-0.8);
+\end{tikzpicture}
+\end{document}

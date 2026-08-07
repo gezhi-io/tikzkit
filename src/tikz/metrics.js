@@ -288,7 +288,13 @@ export function latexArrowGeometryFromLineWidth(lineWidth, scales = 1) {
     length,
     halfWidth: lineWidthFromPt(halfWidthPt),
     lineWidth: lineWidthFromPt(arrowLineWidthPt),
-    shorten: length
+    shorten: length,
+    // `Latex` is drawn relative to PGF's arrow assembly point, rather than
+    // directly at the raw path terminal. The painted line stops at that base;
+    // its visible point is one inner-tip length nearer the raw terminal. See
+    // pgflibraryarrows.meta.code.tex's Latex setup and drawing code.
+    terminalPlacement: lineWidthFromPt(arrowLengthPt - 0.5 * arrowLineWidthPt),
+    tipPlacement: lineWidthFromPt(arrowLengthPt - 0.5 * arrowLineWidthPt - visibleLengthPt)
   };
 }
 
