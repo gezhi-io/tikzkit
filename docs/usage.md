@@ -127,6 +127,31 @@ npm run examples:diff -- --output outputs/qa-my-change \
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
 
+### `calc` 坐标计算
+
+`\usetikzlibrary{calc}` 的已验证坐标计算支持带正负号的任意项序列。每一项可带
+PGF math 系数，并可先使用已有的插值、距离、角度或投影修饰。首项是计算的基准
+坐标；后续显式 `(dx,dy)` 坐标继续按局部向量处理，因此它们会随当前 `x`/`y` 基向量
+变化而不会把 scope 的平移重复加进去。
+
+```tex
+\usetikzlibrary{calc}
+\coordinate (sum) at ($(A)+(B)+(C)$);
+\coordinate (weighted) at ($2*(A)-.5*(B)+(C)$);
+\coordinate (shifted) at ($(A)!.5!(B)+(0,1)$);
+```
+
+这不是完整的 TeX 展开器：需要任意宏展开的系数、模糊的未加花括号嵌套因子，以及
+所有 PGF 显式坐标系统组合仍需做真实案例验收。可复现本轮三方对照：
+
+```bash
+node --test --test-name-pattern='signed calc coordinate' test/interpreter.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only calc-multi-term-coordinate-sums --output outputs/qa-calc \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-calc --register --alignment-radius 3
+```
+
 ### PGFPlots 中轴科学计数法标签
 
 2D `axis y line=middle` 的大数 y 轴会显示 `\cdot 10^{n}`。TikZKit 已按本机

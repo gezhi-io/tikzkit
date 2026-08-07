@@ -4738,6 +4738,21 @@
       ]
     },
     {
+      "id": "calc-multi-term-coordinate-sums",
+      "title": "TikZ calc multi-term coordinate sums and factors",
+      "source": "calc/multi-term-coordinate-sums.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-coordinates.tex + tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+      "semanticOwner": "src/tikz/libraries/calc.js:resolveCalcExpression",
+      "features": [
+        "calc coordinate sum",
+        "calc coordinate subtraction",
+        "calc scalar factor",
+        "named coordinates",
+        "math factor expressions"
+      ]
+    },
+    {
       "id": "pgfplots-groupplots-shared-descriptions",
       "title": "PGFPlots groupplots shared edge descriptions",
       "source": "pgfplots/groupplots-shared-descriptions.tex",

@@ -5,51 +5,44 @@ export const tikzLibrary = {
   name: "calc",
   status: "builtin",
   implementedBy: "src/tikz/libraries/calc.js",
-  features: ["coordinate interpolation", "distance and angle modifiers", "orthogonal projection", "coordinate addition", "polar/vector offsets", "scalar coordinate multiplication"],
-  implements: ["coordinate interpolation", "distance and angle modifiers", "orthogonal projection", "coordinate addition", "polar/vector offsets", "scalar coordinate multiplication"]
+  localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+  localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-coordinates.tex",
+  localSourceReviewed: "yes",
+  notes: "Reviewed locally on 2026-08-07: TikZ calc accumulates an unbounded signed series of optional-factor coordinates, and each coordinate may own an interpolation, distance, angle, or projection modifier before the next sign. TikZKit supports that shared series grammar, local vector offsets, scalar pgfmath factors, and repeated modifiers. Arbitrary TeX expansion inside calc factors and every PGF coordinate system remain partial.",
+  features: ["coordinate interpolation", "distance and angle modifiers", "orthogonal projection", "multi-term coordinate addition and subtraction", "polar/vector offsets", "scalar coordinate multiplication"],
+  implements: ["coordinate interpolation", "distance and angle modifiers", "orthogonal projection", "multi-term coordinate addition and subtraction", "polar/vector offsets", "scalar coordinate multiplication"]
 };
 
 export function resolveCalcExpression(text, env, diagnostics, helpers) {
-  const interpolationPlusOffset = text.match(/^\((.+?)\)\s*!\s*(.+?)\s*!\s*\((.+?)\)\s*([+-])\s*\((.+)\)$/);
-  if (interpolationPlusOffset) {
-    const a = helpers.resolveCoordinate(interpolationPlusOffset[1], env, diagnostics);
-    const t = evaluateMath(interpolationPlusOffset[2], env.variables);
-    const b = helpers.resolveCoordinate(interpolationPlusOffset[3], env, diagnostics);
-    const offset = resolveCalcOffsetExpression(interpolationPlusOffset[5], env, diagnostics, helpers);
-    const sign = interpolationPlusOffset[4] === "+" ? 1 : -1;
-    return roundPoint({
-      x: a.x + (b.x - a.x) * t + sign * offset.x,
-      y: a.y + (b.y - a.y) * t + sign * offset.y
-    });
-  }
-  const modifierChain = resolveCalcModifierChain(text, env, diagnostics, helpers);
-  if (modifierChain) return modifierChain;
-
-  const interpolation = text.match(/^\((.+?)\)\s*!\s*(.+?)\s*!\s*\((.+?)\)$/);
-  if (interpolation) {
-    const a = helpers.resolveCoordinate(interpolation[1], env, diagnostics);
-    const t = evaluateMath(interpolation[2], env.variables);
-    const b = helpers.resolveCoordinate(interpolation[3], env, diagnostics);
-    return roundPoint({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
-  }
-
-  const addition = splitCalcAddition(text);
-  if (addition) {
-    const left = resolveCalcAdditionLeft(addition.left, env, diagnostics, helpers);
-    const right = addition.right.includes("!")
-      ? resolveCalcExpression(addition.right, env, diagnostics, helpers)
-      : resolveCalcOffsetExpression(addition.right, env, diagnostics, helpers);
-    return roundPoint({
-      x: left.x + addition.sign * right.x,
-      y: left.y + addition.sign * right.y
-    });
-  }
-
-  if (splitCalcScalarMultiplication(text)) {
-    return resolveCalcOffsetExpression(text, env, diagnostics, helpers);
+  const terms = splitCalcTerms(text);
+  if (terms?.length) {
+    const total = { x: 0, y: 0 };
+    for (let index = 0; index < terms.length; index += 1) {
+      const term = terms[index];
+      const point = resolveCalcTerm(term.text, index === 0, env, diagnostics, helpers);
+      total.x += term.sign * point.x;
+      total.y += term.sign * point.y;
+    }
+    return roundPoint(total);
   }
 
   return helpers.resolveCoordinate(text, env, diagnostics);
+}
+
+function resolveCalcTerm(text, isFirst, env, diagnostics, helpers) {
+  const multiplication = splitCalcTermFactor(text);
+  const coordinateText = multiplication ? multiplication.coordinate : text;
+  const modifierChain = resolveCalcModifierChain(coordinateText, env, diagnostics, helpers);
+  const point = modifierChain || (isFirst
+    ? resolveCalcAdditionLeft(coordinateText, env, diagnostics, helpers)
+    : resolveCalcOffsetExpression(coordinateText, env, diagnostics, helpers));
+
+  if (!multiplication) return point;
+  const factor = evaluateMath(multiplication.factor, env.variables);
+  return roundPoint({
+    x: point.x * factor,
+    y: point.y * factor
+  });
 }
 
 function resolveCalcModifierChain(text, env, diagnostics, helpers) {
@@ -153,12 +146,6 @@ export function resolveCalcOffsetExpression(text, env, diagnostics, helpers) {
 }
 
 function resolveCalcAdditionLeft(text, env, diagnostics, helpers) {
-  if (text.includes("!")) {
-    return resolveCalcExpression(text, env, diagnostics, helpers);
-  }
-  if (splitCalcScalarMultiplication(text)) {
-    return resolveCalcOffsetExpression(text, env, diagnostics, helpers);
-  }
   return helpers.resolveCoordinate(text, env, diagnostics);
 }
 
@@ -169,53 +156,140 @@ function resolveLocalVectorCoordinate(text, env, diagnostics, helpers) {
   return helpers.applyTransformVector(local, env.transform);
 }
 
-function splitCalcAddition(text) {
-  let depth = 0;
-  let braceDepth = 0;
-  let bracketDepth = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    if (char === "(") depth += 1;
-    if (char === ")") depth -= 1;
-    if (char === "{") braceDepth += 1;
-    if (char === "}") braceDepth -= 1;
-    if (char === "[") bracketDepth += 1;
-    if (char === "]") bracketDepth -= 1;
-    if ((char === "+" || char === "-") && depth === 0 && braceDepth === 0 && bracketDepth === 0 && i > 0) {
-      const previous = text.slice(0, i).trim().at(-1);
-      if (!previous || "+-*/^(".includes(previous)) continue;
-      return {
-        left: stripPointParens(text.slice(0, i).trim()),
-        right: stripPointParens(text.slice(i + 1).trim()),
-        sign: char === "+" ? 1 : -1
-      };
-    }
-  }
-  return null;
+function splitCalcScalarMultiplication(text) {
+  const multiplication = splitCalcTermFactor(text);
+  if (!multiplication || multiplication.coordinate.includes("!")) return null;
+  return multiplication;
 }
 
-function splitCalcScalarMultiplication(text) {
+// PGF's calc parser consumes a signed series of optional-factor coordinates.
+// A modifier belongs to the coordinate before it, so top-level +/- is a term
+// separator only after that coordinate (and its !...! target) is complete.
+function splitCalcTerms(text) {
+  const source = String(text || "").trim();
+  if (!source) return null;
+
+  const terms = [];
+  let index = 0;
+  while (index < source.length) {
+    index = skipWhitespace(source, index);
+    let sign = 1;
+    if (source[index] === "+" || source[index] === "-") {
+      sign = source[index] === "+" ? 1 : -1;
+      index = skipWhitespace(source, index + 1);
+    }
+    const term = consumeCalcTerm(source, index);
+    if (!term) return null;
+    terms.push({ sign, text: source.slice(index, term.end).trim() });
+    index = skipWhitespace(source, term.end);
+    if (index >= source.length) return terms;
+    if (source[index] !== "+" && source[index] !== "-") return null;
+  }
+  return terms;
+}
+
+function consumeCalcTerm(source, start) {
+  let coordinateStart = start;
+  if (source[coordinateStart] !== "(") {
+    const factorCoordinateStart = findCalcFactorCoordinateStart(source, start);
+    if (factorCoordinateStart === -1) return null;
+    coordinateStart = factorCoordinateStart;
+  }
+
+  let end = consumeBalancedParens(source, coordinateStart);
+  if (end === -1) return null;
+  while (true) {
+    const afterCoordinate = skipWhitespace(source, end);
+    if (source[afterCoordinate] !== "!") return { end: afterCoordinate };
+
+    const modifierEnd = findTopLevelBang(source, afterCoordinate + 1);
+    if (modifierEnd === -1) return null;
+    const targetStart = findCalcModifierTargetStart(source, modifierEnd + 1);
+    if (targetStart === -1) return null;
+    end = consumeBalancedParens(source, targetStart);
+    if (end === -1) return null;
+  }
+}
+
+function findCalcFactorCoordinateStart(source, start) {
   let depth = 0;
   let braceDepth = 0;
   let bracketDepth = 0;
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
+  for (let i = start; i < source.length - 1; i += 1) {
+    const char = source[i];
     if (char === "(") depth += 1;
     if (char === ")") depth -= 1;
     if (char === "{") braceDepth += 1;
     if (char === "}") braceDepth -= 1;
     if (char === "[") bracketDepth += 1;
     if (char === "]") bracketDepth -= 1;
-    if (char !== "*" || depth !== 0 || braceDepth !== 0 || bracketDepth !== 0) continue;
-    const factor = text.slice(0, i).trim();
-    const coordinate = text.slice(i + 1).trim();
-    if (!factor || !coordinate.startsWith("(") || !coordinate.endsWith(")")) continue;
-    return {
-      factor: stripOuterBraces(factor),
-      coordinate
-    };
+    if (char === "*" && source[i + 1] === "(" && depth === 0 && braceDepth === 0 && bracketDepth === 0) return i + 1;
   }
-  return null;
+  return -1;
+}
+
+function splitCalcTermFactor(text) {
+  const raw = String(text || "").trim();
+  const coordinateStart = findCalcFactorCoordinateStart(raw, 0);
+  if (coordinateStart <= 0) return null;
+  return {
+    factor: stripOuterBraces(raw.slice(0, coordinateStart - 1).trim()),
+    coordinate: raw.slice(coordinateStart).trim()
+  };
+}
+
+function consumeBalancedParens(source, start) {
+  if (source[start] !== "(") return -1;
+  let depth = 0;
+  let braceDepth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (braceDepth === 0 && char === "(") depth += 1;
+    else if (braceDepth === 0 && char === ")") {
+      depth -= 1;
+      if (depth === 0) return index + 1;
+    }
+  }
+  return -1;
+}
+
+function findTopLevelBang(source, start) {
+  let parenDepth = 0;
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "(") parenDepth += 1;
+    else if (char === ")") parenDepth = Math.max(0, parenDepth - 1);
+    else if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (char === "[") bracketDepth += 1;
+    else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (char === "!" && parenDepth === 0 && braceDepth === 0 && bracketDepth === 0) return index;
+  }
+  return -1;
+}
+
+function findCalcModifierTargetStart(source, start) {
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") braceDepth += 1;
+    else if (char === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (char === "[") bracketDepth += 1;
+    else if (char === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (char === "(" && braceDepth === 0 && bracketDepth === 0) return index;
+  }
+  return -1;
+}
+
+function skipWhitespace(source, start) {
+  let index = start;
+  while (index < source.length && /\s/.test(source[index])) index += 1;
+  return index;
 }
 
 function stripPointParens(text) {

@@ -34,6 +34,26 @@ test("interprets draw, foreach, pgfmath, named coordinates, and calc expressions
   assert.equal(interpreted.ir.items[0].style.lineWidth, TIKZ_LINE_WIDTHS.thick);
 });
 
+test("accumulates every signed calc coordinate term and its scalar factor", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{calc}
+\begin{tikzpicture}
+  \coordinate (A) at (1,0);
+  \coordinate (B) at (0,1);
+  \coordinate (C) at (1,1);
+  \coordinate (sum) at ($(A)+(B)+(C)$);
+  \coordinate (weighted) at ($2*(A)-.5*(B)+(C)$);
+  \coordinate (difference) at ($(A)+(B)-(C)$);
+  \coordinate (factorExpression) at ($cos(0)*sin(90)*(1,1)+{1+1}*(.5,.5)$);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(result.ir.coordinates.sum, { x: 2, y: 2 });
+  assert.deepEqual(result.ir.coordinates.weighted, { x: 3, y: 0.5 });
+  assert.deepEqual(result.ir.coordinates.difference, { x: 0, y: 0 });
+  assert.deepEqual(result.ir.coordinates.factorExpression, { x: 2, y: 2 });
+});
+
 test("evaluates dimension expressions with units inside arithmetic", () => {
   expectClose(parseDimension("{1.3cm*0.3}"), 0.39);
   expectClose(parseDimension("{{(1.3cm)*0.3}}"), 0.39);
