@@ -108,7 +108,12 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
       commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
     });
-    commands.push(...dependencies.renderAxisOverlayStatements(overlayBody, axisModel.ranges, axisModel.geometry));
+    commands.push(...dependencies.renderAxisOverlayStatements(
+      overlayBody,
+      axisModel.ranges,
+      axisModel.geometry,
+      axisModel.options
+    ));
     commands.push(...(axis3DBoxForeground.length ? axis3DBoxForeground : axis3DBox));
     commands.push(...dependencies.renderAxis3DTicks(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...dependencies.renderAxisLabels3D(axisModel.options, axisModel.ranges, axisModel.geometry));
@@ -130,7 +135,12 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
     commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
   });
-  commands.push(...dependencies.renderAxisOverlayStatements(overlayBody, axisModel.ranges, axisModel.geometry));
+  commands.push(...dependencies.renderAxisOverlayStatements(
+    overlayBody,
+    axisModel.ranges,
+    axisModel.geometry,
+    axisModel.options
+  ));
   if (axisOnTop) {
     if (shouldRenderAnyAxisGrid(axisModel.options)) {
       commands.push(...renderAxisGrid(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));

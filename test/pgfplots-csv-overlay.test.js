@@ -6,7 +6,7 @@ import { tikzToSvg } from "../src/index.js";
 import { parseOptions } from "../src/engine/options.js";
 import { renderAddplot } from "../src/pgfplots/addplotLowering.js";
 import { parsePgfplotsTablePoints } from "../src/pgfplots/addplotParser.js";
-import { transformAxisStatementCoordinates } from "../src/pgfplots/axisOverlay.js";
+import { renderAxisOverlayStatements, transformAxisStatementCoordinates } from "../src/pgfplots/axisOverlay.js";
 import { applyPgfplotsCycleStyles } from "../src/pgfplots/axisTikzLowering.js";
 import { renderAxisBox } from "../src/pgfplots/axisLines.js";
 import { createAxisOptions } from "../src/pgfplots/axisOptions.js";
@@ -497,6 +497,33 @@ test("axis overlay lowering leaves coordinate-looking math label text unchanged"
 
   assert.match(lowered, /\\filldraw \(6\.7,5\.833\)/);
   assert.match(lowered, /above left:\$\(65, 35\)\$/);
+});
+
+test("axis overlay annotations inherit the active every-axis font scope", () => {
+  const source = String.raw`
+\pgfplotsset{every axis/.append style={font=\large\sansmath\sffamily}}
+\begin{tikzpicture}
+  \begin{axis}[xmin=0,xmax=1,ymin=0,ymax=1]
+    \addplot coordinates {(0,0) (1,1)};
+    \filldraw (axis cs:.5,.5) circle[radius=2pt] node[label={above:$(65, 35)$}] {};
+  \end{axis}
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const annotation = result.ir.items.find((item) => item.type === "textNode" && item.text === "$(65, 35)$");
+  const lowered = renderAxisOverlayStatements(
+    String.raw`\filldraw (axis cs:.5,.5) circle[radius=2pt] node[label={above:$(65, 35)$}] {};`,
+    { xMin: 0, xMax: 1, yMin: 0, yMax: 1 },
+    createAxisGeometry({}, { xMin: 0, xMax: 1, yMin: 0, yMax: 1 }),
+    { font: String.raw`\large\sansmath\sffamily` }
+  );
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(annotation, "expected axis annotation label");
+  assert.equal(annotation.font?.sizePt, 12);
+  assert.equal(annotation.font?.family, "sans-serif");
+  assert.equal(annotation.font?.mathVersion, "sans");
+  assert.equal(lowered[0], String.raw`{[font={\large\sansmath\sffamily}]`);
+  assert.equal(lowered.at(-1), "}");
 });
 
 test("nodes near coords evaluate coordindex math and center labels when requested", () => {

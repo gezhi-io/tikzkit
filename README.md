@@ -346,6 +346,21 @@ as `\scriptsize` takes final precedence. The focused tests are in
 `test/font-spec.test.js`, and the real PGF visual QA record is
 [docs/qa/2026-08-07-every-node-font-inheritance.md](docs/qa/2026-08-07-every-node-font-inheritance.md).
 
+### PGFPlots Axis Annotation Font Scope
+
+An axis-level `font` now also applies to user-authored annotations retained
+inside the axis body: `\node`, path nodes, and `\draw`/`\fill`/`\filldraw`
+annotations. This includes a global
+`\pgfplotsset{every axis/.append style={font=...}}` active during the axis.
+Local `node[font=...]` options still take precedence.
+
+This is intentionally a focused compatibility slice, not a claim of complete
+TeX font parity. It covers the real
+`csv-2d-gaussian-multivarate-distributions` annotation label while preserving
+its coordinate, plot, and grid geometry. The regression is in
+`test/pgfplots-csv-overlay.test.js`; the visual record is
+[docs/qa/2026-08-07-pgfplots-axis-overlay-font-scope.md](docs/qa/2026-08-07-pgfplots-axis-overlay-font-scope.md).
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and

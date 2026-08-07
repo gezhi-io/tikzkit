@@ -35,8 +35,8 @@ const CORE_PACKAGE_SUPPORT = {
   },
   pgfplots: {
     status: "partial",
-    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsAxes + lowerStandalonePgfplotsCustomLegends",
-    notes: "axis/groupplot/addplot subset plus standalone custom legend samples; not a full PGFPlots engine"
+    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsAxes + lowerStandalonePgfplotsCustomLegends; src/pgfplots/axisTikzLowering.js:renderPgfplotsAxisAsTikz; src/pgfplots/axisOverlay.js:renderAxisOverlayStatements",
+    notes: "axis/groupplot/addplot subset plus standalone custom legend samples. Retained user annotations inherit the active axis font scope; not a full PGFPlots engine"
   },
   pgfplotstable: {
     status: "partial",

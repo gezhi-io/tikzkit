@@ -1,7 +1,7 @@
 import { axisNumber } from "./coordinates.js";
 import { formatAxisNumber, formatAxisPoint } from "./format.js";
 
-export function renderAxisOverlayStatements(body, ranges, geometry) {
+export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions = {}) {
   const commands = [];
   let cursor = 0;
   while (cursor < body.length) {
@@ -13,7 +13,15 @@ export function renderAxisOverlayStatements(body, ranges, geometry) {
     commands.push(...lowerAxisOverlayStatement(statement, ranges, geometry));
     cursor = end + 1;
   }
-  return commands;
+  return withAxisOverlayFont(commands, axisOptions.font);
+}
+
+function withAxisOverlayFont(commands, font) {
+  const value = String(font ?? "").trim();
+  if (!value || !commands.length) return commands;
+  // PGFPlots installs `every axis` while the axis is active. The lowered
+  // statements would otherwise run after that TeX scope has been discarded.
+  return ["{[font={" + value + "}]", ...commands, "}"];
 }
 
 function lowerAxisOverlayStatement(statement, ranges, geometry) {
