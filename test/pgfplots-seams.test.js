@@ -1447,6 +1447,61 @@ test("pgfplots surface lowering owns coordinate meshes and sampled surface patch
   );
 });
 
+test("pgfplots mesh lowers 3D function grids to unfilled cycle-colored wireframes", () => {
+  const axisOptions = {
+    domain: "0:1",
+    "y domain": "0:1",
+    samples: "2",
+    mesh: true
+  };
+  const plot = {
+    type: "function",
+    is3d: true,
+    options: {},
+    expression: "y"
+  };
+  const ranges = computeAxisRanges(axisOptions, [plot]);
+  const geometry = { mapPoint3d: ({ x, y }) => ({ x, y }) };
+  const commands = renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, {}, 0);
+
+  assert.deepEqual(commands, [
+    String.raw`\draw[axis surface mesh, draw=blue, fill=none, opacity=1, line width=0.4pt] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;`
+  ]);
+  assert.ok(commands.every((command) => !command.includes("axis surface fill")));
+
+  const explicitColorCommands = renderAxisSurfacePlot(
+    { ...plot, options: { draw: "red", "very thick": true } },
+    axisOptions,
+    ranges,
+    geometry,
+    {},
+    0
+  );
+  assert.match(explicitColorCommands[0], /draw=red, fill=none/);
+  assert.match(explicitColorCommands[0], /line width=1\.2pt/);
+
+  const meshInterpCommands = renderAxisSurfacePlot(
+    { ...plot, options: { mesh: true, shader: "interp" } },
+    { ...axisOptions, mesh: undefined },
+    ranges,
+    geometry,
+    {},
+    0
+  );
+  assert.match(meshInterpCommands[0], /line width=0\.4pt/);
+  assert.ok(meshInterpCommands.every((command) => !command.includes("axis surface fill")));
+
+  const styledMeshCommands = renderAxisSurfacePlot(
+    { ...plot, options: { mesh: true, dashed: true, "line cap": "round", "line join": "round" } },
+    { ...axisOptions, mesh: undefined },
+    ranges,
+    geometry,
+    {},
+    0
+  );
+  assert.match(styledMeshCommands[0], /line width=0\.4pt, dashed, line cap=round, line join=round/);
+});
+
 test("pgfplots faceted surface patch paint order alternates fill and mesh for each ordered patch", () => {
   const commands = renderAxisSurfacePlot(
     {

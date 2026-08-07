@@ -110,6 +110,9 @@ export function renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geome
     }
   }
   if (!patches?.length) return [];
+  if (isAxisMeshWireframe(plot.options, axisOptions)) {
+    return renderAxisMeshWireframePatches(patches, plot.options, axisOptions, geometry, plotIndex);
+  }
   const colorRanges = surfaceColorRanges(ranges, rowsForColor, axisOptions, plot.options);
   patches.sort(steppedCells.length > 0 ? (a, b) => b.depth - a.depth : (a, b) => a.depth - b.depth);
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
@@ -354,7 +357,7 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
     }
     grid.push(row);
   }
-  if (isTopViewShaderInterpSurface(plot.options, axisOptions)) {
+  if (isTopViewShaderInterpSurface(plot.options, axisOptions) && !isAxisMeshWireframe(plot.options, axisOptions)) {
     const colorRanges = surfaceColorRanges(ranges, grid, axisOptions, plot.options);
     return renderAxisSurfaceImageCells({
       grid,
@@ -370,7 +373,6 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
       plotIndex
     });
   }
-  const colorRanges = surfaceColorRanges(ranges, grid, axisOptions, plot.options);
   const patches = [];
   for (let yIndex = 0; yIndex < ySamples - 1; yIndex += 1) {
     for (let xIndex = 0; xIndex < xSamples - 1; xIndex += 1) {
@@ -391,6 +393,10 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
     }
   }
   const orderedPatches = orderFunctionSurfacePatches(patches, xSamples - 1, ySamples - 1, axisOptions, plot.options);
+  if (isAxisMeshWireframe(plot.options, axisOptions)) {
+    return renderAxisMeshWireframePatches(orderedPatches, plot.options, axisOptions, geometry, plotIndex);
+  }
+  const colorRanges = surfaceColorRanges(ranges, grid, axisOptions, plot.options);
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
   return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
     const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
@@ -428,6 +434,9 @@ export function renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geome
     axisOptions,
     plot.options
   );
+  if (isAxisMeshWireframe(plot.options, axisOptions)) {
+    return renderAxisMeshWireframePatches(orderedPatches, plot.options, axisOptions, geometry, plotIndex);
+  }
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
   return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
     const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
@@ -436,6 +445,39 @@ export function renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geome
     const points = patch.corners.map((corner) => formatAxisPoint(corner.projected)).join(" -- ");
     return renderAxisSurfacePatchLayers(points, { fill, draw, opacity, lineWidth });
   }));
+}
+
+function isAxisMeshWireframe(plotOptions = {}, axisOptions = {}) {
+  const value = plotOptions.mesh ?? axisOptions.mesh;
+  if (value === undefined || value === null || value === false) return false;
+  const text = String(value).trim().toLowerCase();
+  return text !== "false" && text !== "0" && text !== "none" && text !== "off";
+}
+
+function renderAxisMeshWireframePatches(patches, plotOptions, axisOptions, geometry, plotIndex) {
+  const draw = plotColorValue(selectPlotColor(plotOptions, plotIndex));
+  const opacity = axisOpacity(plotOptions.opacity ?? axisOptions.opacity ?? 1);
+  // PGFPlots forces mesh mode through its flat handler, so an incidental
+  // `shader=interp` must not suppress the wireframe stroke.
+  const lineWidth = pgfplotsSurfacePatchLineWidth(plotOptions, { ignoreShader: true });
+  const lineStyle = pgfplotsMeshWireframeLineStyle(plotOptions);
+  return patches.map((patch) => {
+    const points = patch.corners
+      .map((corner) => formatAxisPoint(corner.projected || geometry.mapPoint3d(corner)))
+      .join(" -- ");
+    return `\\draw[axis surface mesh, draw=${draw}, fill=none, opacity=${opacity}, line width=${lineWidth}${lineStyle}] ${points} -- cycle;`;
+  });
+}
+
+function pgfplotsMeshWireframeLineStyle(options = {}) {
+  const styles = [];
+  for (const key of ["dashed", "densely dashed", "loosely dashed", "dotted", "densely dotted", "loosely dotted"]) {
+    if (options[key]) styles.push(key);
+  }
+  if (options["dash pattern"] && options["dash pattern"] !== true) styles.push(`dash pattern=${options["dash pattern"]}`);
+  if (options["line cap"] && options["line cap"] !== true) styles.push(`line cap=${options["line cap"]}`);
+  if (options["line join"] && options["line join"] !== true) styles.push(`line join=${options["line join"]}`);
+  return styles.length ? `, ${styles.join(", ")}` : "";
 }
 
 function renderAxisSurfacePatchLayers(points, { fill, draw, opacity, lineWidth }) {
@@ -881,9 +923,16 @@ function pgfplotsSurfacePatchStrokeColor(options = {}, fill) {
   return fill;
 }
 
-function pgfplotsSurfacePatchLineWidth(options = {}) {
-  if (String(options.shader || "").trim().toLowerCase() === "interp") return "0pt";
+function pgfplotsSurfacePatchLineWidth(options = {}, { ignoreShader = false } = {}) {
+  if (!ignoreShader && String(options.shader || "").trim().toLowerCase() === "interp") return "0pt";
   if (options["line width"] && options["line width"] !== true) return String(options["line width"]);
+  if (options["ultra thin"]) return "0.1pt";
+  if (options["very thin"]) return "0.2pt";
+  if (options.thin) return "0.4pt";
+  if (options.semithick) return "0.6pt";
+  if (options.thick) return "0.8pt";
+  if (options["very thick"]) return "1.2pt";
+  if (options["ultra thick"]) return "1.6pt";
   return "0.4pt";
 }
 

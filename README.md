@@ -1359,6 +1359,26 @@ local MacTeX/tikztosvg visual audit, its real fixture, and reproduction
 commands are recorded in
 [`docs/qa/2026-08-06-pgfplots-3d-plot-box-ratio.md`](docs/qa/2026-08-06-pgfplots-3d-plot-box-ratio.md).
 
+### PGFPlots 3D Mesh Wireframes
+
+For a 3D `axis` with `mesh`, TikZKit now renders the sampled matrix as
+unfilled quadrilateral wireframes rather than as a mapped-color `surf`.
+The focused slice supports a cycle or explicit plot color, `opacity`, explicit
+or named line widths, and ordinary dash/cap/join path options:
+
+```tex
+\begin{axis}[mesh, no marks, samples=10, view={120}{35}]
+  \addplot3 {y};
+\end{axis}
+```
+
+The real `plot-box-ratio-3d` case is checked against local MacTeX and
+`tikztosvg`: its blue grid has no colored face fills. This remains a bounded
+subset: `shader` variants, per-vertex mapped colors, holes and non-rectangular
+scanlines, patch input, z-buffer ordering, and exact 3D tick/text bounds are
+still partial. See
+[`docs/qa/2026-08-07-pgfplots-mesh-wireframe.md`](docs/qa/2026-08-07-pgfplots-mesh-wireframe.md).
+
 ### Circuitikz Voltage Notation
 
 The current `circuitikz` support is intentionally a focused subset. The
