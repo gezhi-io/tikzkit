@@ -4623,6 +4623,21 @@
         "child anchor",
         "edge from parent"
       ]
+    },
+    {
+      "id": "pgfgantt-grid-style-list",
+      "title": "pgfgantt manual hgrid and vgrid style list",
+      "source": "pgfgantt/grid-style-list.tex",
+      "sourceCorpus": "TeX Live pgfgantt manual",
+      "externalSource": "doc/latex/pgfgantt/pgfgantt-doc.pdf",
+      "semanticOwner": "src/frontend/latex-shell.js:expandPgfganttCharts",
+      "features": [
+        "ganttchart",
+        "gantttitle",
+        "ganttbar",
+        "hgrid=true",
+        "vgrid style list"
+      ]
     }
   ]
 }

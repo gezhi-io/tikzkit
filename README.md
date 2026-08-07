@@ -89,6 +89,27 @@ and remaining boundary are in
 [docs/qa/2026-08-07-trees-anchor-routing.md](docs/qa/2026-08-07-trees-anchor-routing.md).
 This is not a graph-drawing or collision-avoidance implementation.
 
+### A Verified Gantt Grid Example
+
+The basic `pgfgantt` lowering covers `\gantttitle`, bars, and a focused grid
+style-list subset. `hgrid=true` uses PGF's dotted default; `vgrid` accepts the
+manual's repeated form `*{count}{style}` and cycles it across successive
+internal time boundaries.
+
+```tex
+\begin{ganttchart}[hgrid=true,
+  vgrid={*2{red},*1{green},*{10}{blue,dashed}}]{1}{20}
+  \gantttitle{Plan}{20} \\
+  \ganttbar{Phase A}{1}{8} \\
+  \ganttbar{Phase B}{9}{20}
+\end{ganttchart}
+```
+
+This does not yet implement pgfgantt links, calendar/date slots, progress,
+title lists, or arbitrary canvas and element styles. The fixture is
+`pgfgantt-grid-style-list`; its visual QA record is in
+`docs/qa/2026-08-07-pgfgantt-grid-style-list.md`.
+
 ## Start Here
 
 Use the repository in this order. A successful browser render is useful for

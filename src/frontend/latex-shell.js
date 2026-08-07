@@ -4454,8 +4454,8 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
   const groupHeight = Number(options["group height"] ?? 0.4) || 0.4;
   const groupTopShift = Number(options["group top shift"] ?? 0.3) || 0.3;
   const inlineChart = options.inline === true || String(options.inline || "").trim() === "true";
-  const drawVgrid = options.vgrid === true || (options.vgrid !== undefined && options.vgrid !== false);
-  const drawHgrid = options.hgrid === true || (options.hgrid !== undefined && options.hgrid !== false);
+  const vgridStyles = ganttGridStyles(options.vgrid);
+  const hgridStyles = ganttGridStyles(options.hgrid);
   const commands = [];
   const totalSlots = Math.max(1, end - start + 1);
   const entries = parseGanttCommands(body);
@@ -4470,16 +4470,16 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
   }
   const chartWidth = totalSlots * xUnit;
   commands.push(`\\draw[draw=black!45,fill=white,line width=0.25pt] (0,0) rectangle (${roundTikzNumber(chartWidth)},${roundTikzNumber(-chartHeight)});`);
-  if (drawVgrid) {
+  if (vgridStyles.length) {
     for (let slot = 1; slot < totalSlots; slot += 1) {
       const x = slot * xUnit;
-      commands.push(`\\draw[gray!35,line width=0.2pt] (${roundTikzNumber(x)},0) -- (${roundTikzNumber(x)},${roundTikzNumber(-chartHeight)});`);
+      commands.push(`\\draw[${ganttGridStyleAt(vgridStyles, slot - 1)},line width=0.2pt] (${roundTikzNumber(x)},0) -- (${roundTikzNumber(x)},${roundTikzNumber(-chartHeight)});`);
     }
   }
-  if (drawHgrid) {
+  if (hgridStyles.length) {
     for (let rowIndex = 1; rowIndex < rowCount; rowIndex += 1) {
       const y = rowTops[rowIndex];
-      commands.push(`\\draw[gray!35,line width=0.2pt] (0,${roundTikzNumber(y)}) -- (${roundTikzNumber(chartWidth)},${roundTikzNumber(y)});`);
+      commands.push(`\\draw[${ganttGridStyleAt(hgridStyles, rowIndex - 1)},line width=0.2pt] (0,${roundTikzNumber(y)}) -- (${roundTikzNumber(chartWidth)},${roundTikzNumber(y)});`);
     }
   }
   const titleSlots = new Map();
@@ -4538,6 +4538,41 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
     }
   });
   return `\\begin{tikzpicture}\n${commands.join("\n")}\n\\end{tikzpicture}`;
+}
+
+function ganttGridStyles(value) {
+  if (value === undefined || value === false || String(value || "").trim().toLowerCase() === "false") return [];
+  if (value === true || String(value || "").trim().toLowerCase() === "true") {
+    return [{ count: 1, style: "dotted" }];
+  }
+
+  const chunks = splitTopLevel(stripOuterBracesText(String(value)), ",");
+  const styles = [];
+  for (const chunk of chunks) {
+    const text = chunk.trim();
+    if (!text) continue;
+    const repeated = text.match(/^\*\s*(?:\{\s*(\d+)\s*\}|(\d+))\s*\{([\s\S]*)\}$/);
+    if (repeated) {
+      const count = Math.max(1, Number(repeated[1] || repeated[2]) || 1);
+      const style = stripOuterBracesText(repeated[3]);
+      if (style) styles.push({ count, style });
+      continue;
+    }
+    const style = stripOuterBracesText(text);
+    if (style) styles.push({ count: 1, style });
+  }
+  return styles.length ? styles : [{ count: 1, style: "dotted" }];
+}
+
+function ganttGridStyleAt(styles, index) {
+  const period = styles.reduce((sum, entry) => sum + entry.count, 0);
+  if (!period) return "dotted";
+  let remaining = ((index % period) + period) % period;
+  for (const entry of styles) {
+    if (remaining < entry.count) return entry.style;
+    remaining -= entry.count;
+  }
+  return styles[styles.length - 1].style;
 }
 
 function parseGanttCommands(body) {

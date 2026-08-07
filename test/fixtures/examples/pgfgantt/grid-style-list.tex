@@ -1,0 +1,17 @@
+% Adapted from the TeX Live 2025 pgfgantt manual's hgrid/vgrid style-list example.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfgantt}
+
+\begin{document}
+\begin{ganttchart}[
+  x unit=0.45cm,
+  y unit title=0.55cm,
+  y unit chart=0.7cm,
+  hgrid=true,
+  vgrid={*2{red}, *1{green}, *{10}{blue, dashed}}
+]{1}{20}
+  \gantttitle{Title 1}{20} \\
+  \ganttbar{Phase A}{1}{8} \\
+  \ganttbar{Phase B}{9}{20}
+\end{ganttchart}
+\end{document}

@@ -248,6 +248,11 @@ test("keeps adjacent pgfgantt titles on one row and leaves grids disabled by def
   assert.equal(year2003.y, year2004.y);
   assert.ok(year2004.x > year2003.x);
   assert.equal(ir.items.filter((item) => item.type === "path" && item.style?.stroke === "rgb(179 179 179)").length, 0);
+  assert.equal(
+    ir.items.filter((item) => item.type === "path" && item.style?.fill === "none" && item.style?.lineWidth < 0.8).length,
+    0,
+    "pgfgantt must not add grid paths until hgrid or vgrid is explicitly enabled"
+  );
 });
 
 test("honors pgfgantt inline labels and bar append fill styles", () => {
@@ -265,6 +270,32 @@ test("honors pgfgantt inline labels and bar append fill styles", () => {
   const label = ir.items.find((item) => item.type === "textNode" && item.text === "Task");
   assert.ok(label);
   assert.ok(label.x > 0.2, `expected inline label to sit inside the bar, got x=${label.x}`);
+});
+
+test("maps pgfgantt hgrid and repeated vgrid styles onto consecutive grid lines", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[
+  x unit=0.4cm,
+  y unit title=0.5cm,
+  y unit chart=0.7cm,
+  hgrid=true,
+  vgrid={*2{red}, *1{green}, *{10}{blue, dashed}}
+]{1}{6}
+  \gantttitle{Title}{6} \\
+  \ganttbar{One}{1}{3} \\
+  \ganttbar{Two}{4}{6}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const gridPaths = ir.items.filter((item) => item.type === "path" && item.style?.fill === "none" && item.style?.lineWidth < 0.8);
+  assert.ok(gridPaths.some((item) => item.style?.stroke === "red"));
+  assert.ok(gridPaths.some((item) => item.style?.stroke === "rgb(0 255 0)"));
+  assert.ok(gridPaths.some((item) => item.style?.stroke === "blue" && item.style?.dashArray));
+  assert.ok(gridPaths.some((item) => item.style?.dashArray && item.style?.stroke === "black"), "hgrid=true should lower to PGF's dotted default");
 });
 
 test("uses TeX control-word boundaries for dynamic coordinate names", () => {

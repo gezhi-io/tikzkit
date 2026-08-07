@@ -58,6 +58,7 @@ const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
   "ifthen",
   "mathtools",
   "nicefrac",
+  "pgfgantt",
   "pgfplotstable",
   "sansmath",
   "tikz-3dplot",
