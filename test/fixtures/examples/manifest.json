@@ -227,6 +227,22 @@
       ]
     },
     {
+      "id": "circuitikz-extended-diodes",
+      "title": "circuitikz tunnel, Shockley, and bidirectional diode families",
+      "source": "circuitikz/extended-diodes.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzDiodeSpec/circuitikzDiodeSettings/circuitikzDiodeItems",
+      "features": [
+        "tD/tD*/tD- tunnel diode aliases",
+        "shD/shD* Shockley diode aliases",
+        "biD/biD* bidirectional diode aliases",
+        "empty/full/stroke diode variants",
+        "diodes/scale and diodes/fill",
+        "horizontal and vertical bipoles"
+      ]
+    },
+    {
       "id": "circuitikz-zener-tvs-diodes",
       "title": "circuitikz Zener, ZZener, and TVS diode whiskers",
       "source": "circuitikz/zener-tvs-diodes.tex",

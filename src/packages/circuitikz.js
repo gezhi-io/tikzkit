@@ -14,7 +14,7 @@ export const texPackage = {
   "features": [
     "short wires",
     "R/C/basic independent current and voltage source slices",
-    "D/D*/Do, zD/zD*/zDo, zzD/zzD*/zzD-, sD/sD*, leD/leD*, pD/pD*/pDo, lasD/lasD*/lasDo, VC/VCo/VC-/VC*, and tvsD/tvsD*/tvsDo diode bipoles with diodes/scale, diodes/fill, l= labels, horizontal/vertical placement, optical-arrow direction/color/thickness, varcap plate geometry, and straight/sloped Zener/TVS whiskers",
+    "D/D*/Do, zD/zD*/zDo, zzD/zzD*/zzD-, sD/sD*, leD/leD*, pD/pD*/pDo, lasD/lasD*/lasDo, VC/VCo/VC-/VC*, tvsD/tvsD*/tvsDo, tD/tD*/tD-, shD/shD*, and biD/biD* diode bipoles with diodes/scale, diodes/fill, l= labels, horizontal/vertical placement, optical-arrow direction/color/thickness, varcap plate geometry, and straight/sloped Zener/TVS whiskers",
     "vC/variable capacitor with two-plate geometry, source-derived latexslim tunable control arrow, capacitors/scale, capacitors/width, capacitors/height, capacitors/modifier thickness, bipoles/fix tunable direction, l= labels, and wiper/W/tip anchors",
     "DC dcvsource/dcisource sources with fill and bipoles/dcisource/angle",
     "controlled cV/cI diamond sources in European and American styles with csources/scale",
@@ -33,8 +33,8 @@ export const texPackage = {
     "package option RPvoltages: set reference-polarity direction for American +/- and European arrow voltage notation"
   ],
   "requires": [],
-  "registryImplementedBySuffix": "src/engine/evaluate.js:circuitikzLatexSlimArrowStyle;src/tikz/metrics.js:latexSlimArrowGeometryFromLineWidth;src/renderers/svg/paths.js:inlineArrowGeometry;src/renderers/svg/markers.js:resolvedArrowMarker/renderArrowMarkerDef",
-  "registryNoteSuffix": "Reviewed locally on 2026-08-06: pgfcirc.defines.tex selects modifier thickness from the active class before multiplying the current line width. pgfcircbipoles.tex assigns a fill-only latexslim tunable arrow to vL; cute keeps its intrinsic diagonal while American and European vL bodies honor bipoles/fix tunable direction. The focused circuitikz-inductors fixture covers the normal and legacy European directions plus a reduced inductor modifier thickness; three-way visual evidence is in docs/qa/2026-08-06-circuitikz-variable-inductors-latexslim.md. Reviewed locally on 2026-08-07: American independent-source signs now use pgfcircbipoles.tex default/auto/straight/numeric rotation semantics; visual evidence is in docs/qa/2026-08-07-circuitikz-american-source-sign-rotation.md.",
+  "registryImplementedBySuffix": "src/engine/evaluate.js:circuitikzLatexSlimArrowStyle/circuitikzTunnelCathodeCommands/circuitikzBidirectionalDiodeItems/circuitikzOuterTextAnchor;src/tikz/metrics.js:latexSlimArrowGeometryFromLineWidth;src/renderers/svg/paths.js:inlineArrowGeometry;src/renderers/svg/markers.js:resolvedArrowMarker/renderArrowMarkerDef",
+  "registryNoteSuffix": "Reviewed locally on 2026-08-06: pgfcirc.defines.tex selects modifier thickness from the active class before multiplying the current line width. pgfcircbipoles.tex assigns a fill-only latexslim tunable arrow to vL; cute keeps its intrinsic diagonal while American and European vL bodies honor bipoles/fix tunable direction. The focused circuitikz-inductors fixture covers the normal and legacy European directions plus a reduced inductor modifier thickness; three-way visual evidence is in docs/qa/2026-08-06-circuitikz-variable-inductors-latexslim.md. Reviewed locally on 2026-08-07: American independent-source signs now use pgfcircbipoles.tex default/auto/straight/numeric rotation semantics; visual evidence is in docs/qa/2026-08-07-circuitikz-american-source-sign-rotation.md. Tunnel, Shockley, and bidirectional diode aliases/geometry are now verified against pgfcircbipoles.tex and the manual; this supersedes the earlier legacy caveat about those three families. Tripole and custom diode-shape families remain partial. Three-way visual evidence is in docs/qa/2026-08-07-circuitikz-extended-diodes.md.",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/circuitikz/circuitikz.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.pdf",
   "localSourceReviewed": [
@@ -79,7 +79,9 @@ export const texPackage = {
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirc.defines.tex (latexslim qfill path, dynamic d unit, and -4d/+6d extents, lines 322-352)",
     "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (vC aliases/anchors, capacitor scaling keys, modifier thickness, and fixed tunable direction, lines 2360-2386, 2470-2522, and 10838-10857)",
     "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcirc.defines.tex (class-relative modifier thickness lookup and inductors/modifier thickness default, lines 554-562 and 1033-1036)",
-    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (vL European, cute, and American latexslim control-arrow paths plus fixed-direction branches, lines 1810-1842, 1583-1588, and 1718-1732)"
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (vL European, cute, and American latexslim control-arrow paths plus fixed-direction branches, lines 1810-1842, 1583-1588, and 1718-1732)",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/circuitikz/pgfcircbipoles.tex (tunnel, Shockley, and bidirectional diode path geometry and aliases, lines 4000-4078 and 4440-4770)",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex (tD/tD*/tD-, shD/shD*, and biD/biD* documented variants, lines 2660-2755)"
   ],
   "caseCount": 488,
   "caseExamples": [
@@ -105,6 +107,7 @@ export const texPackage = {
     "circuitikz waveform symbols with local and automatic rotation",
     "circuitikz transformer core customization",
     "circuitikz diode, Schottky, and LED bipoles",
+    "circuitikz tunnel, Shockley, and bidirectional diode families",
     "circuitikz Zener, ZZener, and TVS diode whiskers",
     "circuitikz photodiode and laser-diode optical arrows",
     "circuitikz varcap diode plate variants",

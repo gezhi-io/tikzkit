@@ -2632,7 +2632,7 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
 function circuitikzDiodeSpec(options = {}, env = {}) {
   for (const [rawKey, rawValue] of Object.entries(options || {})) {
     const key = String(rawKey).trim().replace(/\s+/g, " ");
-    const short = key.match(/^(tvsD|zzD|lasD|pD|zD|leD|sD|VC|D)([o*-])?$/i);
+    const short = key.match(/^(tvsD|zzD|lasD|shD|biD|tD|pD|zD|leD|sD|VC|D)([o*-])?$/i);
     if (short) {
       const diodeKind = circuitikzDiodeKind(short[1]);
       return {
@@ -2642,7 +2642,7 @@ function circuitikzDiodeSpec(options = {}, env = {}) {
         label: circuitikzLabelValue(options.l) || circuitikzLabelValue(rawValue)
       };
     }
-    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|laser diode|photodiode|varcap|led|schottky diode|diode)$/i);
+    const long = key.match(/^(?:(full|empty|stroke) )?(tvs diode|zzener diode|zener diode|laser diode|photodiode|varcap|led|schottky diode|tunnel diode|shockley diode|bidirectional diode|bidirectionaldiode|diode)$/i);
     if (!long) continue;
     const diodeKind = circuitikzDiodeKind(long[2]);
     return {
@@ -2665,6 +2665,9 @@ function circuitikzDiodeKind(raw = "") {
   if (kind === "zd" || kind === "zener diode") return "zener";
   if (kind === "zzd" || kind === "zzener diode") return "zzener";
   if (kind === "tvsd" || kind === "tvs diode") return "tvs";
+  if (kind === "td" || kind === "tunnel diode") return "tunnel";
+  if (kind === "shd" || kind === "shockley diode") return "shockley";
+  if (kind === "bid" || kind === "bidirectional diode" || kind === "bidirectionaldiode") return "bidirectional";
   return "diode";
 }
 
@@ -3580,15 +3583,16 @@ function circuitikzDiodeSettings(spec = {}, options = {}, env = {}) {
   const rlen = 1.4 * circuitikzLengthScale(env) * scale;
   const tvs = spec.diodeKind === "tvs";
   const varcap = spec.diodeKind === "varcap";
+  const bidirectional = spec.diodeKind === "bidirectional";
   const rawFill = circuitikzDiodeRawOption("fill", options, env);
   const fill = rawFill === undefined || rawFill === null || rawFill === true || rawFill === "" || String(rawFill).trim().toLowerCase() === "none"
     ? "none"
     : normalizeColor(String(rawFill));
   return {
     scale,
-    bodyLength: (tvs ? 0.8 : varcap ? 0.45 : 0.4) * rlen,
-    halfWidth: (tvs ? 0.4 : varcap ? 0.225 : 0.2) * rlen,
-    halfHeight: 0.25 * rlen,
+    bodyLength: (bidirectional ? 1 : tvs ? 0.8 : varcap ? 0.45 : 0.4) * rlen,
+    halfWidth: (bidirectional ? 0.5 : tvs ? 0.4 : varcap ? 0.225 : 0.2) * rlen,
+    halfHeight: (bidirectional ? 0.55 : 0.25) * rlen,
     fill,
     whiskers: circuitikzDiodeWhiskers(options, env)
   };
@@ -3616,6 +3620,9 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
   const fill = spec.variant === "full" ? outlineStyle.stroke : spec.variant === "empty" ? settings.fill : "none";
   if (spec.diodeKind === "varcap") {
     return circuitikzVarcapItems(geometry, spec, settings, outlineStyle, fill);
+  }
+  if (spec.diodeKind === "bidirectional") {
+    return circuitikzBidirectionalDiodeItems(geometry, spec, settings, outlineStyle, fill);
   }
   if (spec.diodeKind === "tvs") {
     const mid = geometry.mid;
@@ -3659,7 +3666,9 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
     orientation: Math.abs(geometry.u.y) > Math.abs(geometry.u.x) ? "vertical" : "horizontal",
     whiskers: spec.diodeKind === "zzener" ? settings.whiskers : undefined,
     style: { ...outlineStyle, fill },
-    commands: [moveToCommand(baseTop), lineToCommand(cathode), lineToCommand(baseBottom), closePathCommand()]
+    commands: spec.diodeKind === "shockley"
+      ? [moveToCommand(baseBottom), lineToCommand(baseTop), lineToCommand(cathode), lineToCommand(base), closePathCommand()]
+      : [moveToCommand(baseTop), lineToCommand(cathode), lineToCommand(baseBottom), closePathCommand()]
   };
   const cathodeCommands = spec.diodeKind === "schottky"
     ? circuitikzSchottkyCathodeCommands(geometry, cathode, halfWidth, halfHeight)
@@ -3667,6 +3676,8 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
       ? circuitikzZenerCathodeCommands(geometry, cathode, halfWidth, halfHeight)
       : spec.diodeKind === "zzener"
         ? circuitikzZzenerCathodeCommands(geometry, cathode, halfWidth, halfHeight, settings.whiskers)
+        : spec.diodeKind === "tunnel"
+          ? circuitikzTunnelCathodeCommands(geometry, cathode, halfWidth, halfHeight)
         : [moveToCommand(pointNormal(cathode, geometry.n, -halfHeight)), lineToCommand(pointNormal(cathode, geometry.n, halfHeight))];
   const cathodeItem = {
     type: "path",
@@ -3698,6 +3709,64 @@ function circuitikzDiodeItems(geometry, spec = {}, settings = {}, pathStyle = {}
   if (spec.diodeKind === "photodiode") items.push(...circuitikzPhotodiodeArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
   if (spec.diodeKind === "laser") items.push(...circuitikzLaserArrowItems(geometry, halfWidth, halfHeight, outlineStyle, options, env));
   return items;
+}
+
+function circuitikzBidirectionalDiodeItems(geometry, spec = {}, settings = {}, outlineStyle = {}, fill = "none") {
+  const bodyLength = Math.min(settings.bodyLength || 0, geometry.length * 0.78);
+  const halfWidth = Math.min(settings.halfWidth || bodyLength / 2, bodyLength / 2);
+  // `emptybidirectionaldiode` in pgfcircbipoles.tex derives both compound
+  // triangles from the half-width. Keeping that local-coordinate geometry
+  // here makes the result rotate with the containing bipole without a
+  // separate horizontal/vertical implementation.
+  const other = -0.3 * halfWidth;
+  const step = 0.3 * halfWidth;
+  const delta = other - step;
+  const point = (along, normal = 0) => pointNormal(pointAlong(geometry.mid, geometry.u, along), geometry.n, normal);
+  const left = point(-halfWidth);
+  const right = point(halfWidth);
+  const firstStart = point(other);
+  const firstLower = point(0.95 * step, Math.SQRT1_2 * delta);
+  const firstTop = point(other, Math.SQRT2 * delta);
+  const firstBottom = point(other, -Math.SQRT2 * delta);
+  const secondStart = point(step);
+  const secondUpper = point(0.95 * other, -Math.SQRT1_2 * delta);
+  const secondBottom = point(step, -Math.SQRT2 * delta);
+  const secondTop = point(step, Math.SQRT2 * delta);
+  const common = {
+    type: "path",
+    subtype: "circuitikz-bidirectional-diode",
+    diodeKind: "bidirectional",
+    variant: spec.variant,
+    fill,
+    label: spec.label || "",
+    bodyLength: roundNumber(bodyLength),
+    orientation: Math.abs(geometry.u.y) > Math.abs(geometry.u.x) ? "vertical" : "horizontal",
+    style: { ...outlineStyle, fill },
+    commands: [
+      moveToCommand(firstStart), lineToCommand(firstLower), lineToCommand(firstTop), lineToCommand(firstBottom),
+      moveToCommand(secondStart), lineToCommand(secondUpper), lineToCommand(secondBottom), lineToCommand(secondTop)
+    ]
+  };
+  return [
+    common,
+    {
+      type: "path",
+      subtype: "circuitikz-bidirectional-diode-leads",
+      diodeKind: "bidirectional",
+      style: outlineStyle,
+      commands: [moveToCommand(left), lineToCommand(firstStart), moveToCommand(secondStart), lineToCommand(right)]
+    }
+  ];
+}
+
+function circuitikzTunnelCathodeCommands(geometry, cathode, halfWidth, halfHeight) {
+  const inner = pointAlong(cathode, geometry.u, -0.4 * halfWidth);
+  return [
+    moveToCommand(pointNormal(inner, geometry.n, -halfHeight)),
+    lineToCommand(pointNormal(cathode, geometry.n, -halfHeight)),
+    lineToCommand(pointNormal(cathode, geometry.n, halfHeight)),
+    lineToCommand(pointNormal(inner, geometry.n, halfHeight))
+  ];
 }
 
 function circuitikzVarcapItems(geometry, spec = {}, settings = {}, outlineStyle = {}, fill = "none") {
@@ -5057,9 +5126,12 @@ function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {
         ? 0.78
         : 0.46) * scale;
   addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label, {
+    // circuitikz labels start from the component's outer shape anchor and
+    // attach their inner text edge there. A centered SVG text node makes the
+    // glyph overlap the component, most visibly for compact diode bodies.
     anchor: opticalDiode
       ? circuitikzOuterTextAnchor(geometry.n)
-      : undefined
+      : circuitikzOuterTextAnchor(geometry.n)
   });
 }
 

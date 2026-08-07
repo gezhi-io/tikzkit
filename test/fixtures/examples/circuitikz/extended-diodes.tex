@@ -1,0 +1,18 @@
+% Adapted from the TeX Live circuitikz manual diode families.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}[line width=.7pt]
+  \draw (0,4) to[tD,l=$\mathrm{tD}$] (3,4);
+  \draw (4,4) to[tD*,l=$\mathrm{tD}_{\mathrm{full}}$] (7,4);
+  \draw (8,4) to[tD-,l=$\mathrm{tD}_{\mathrm{stroke}}$] (11,4);
+
+  \draw (0,2) to[shD,diodes/fill=orange!25,l=$\mathrm{shD}$] (3,2);
+  \draw (4,2) to[shD*,l=$\mathrm{shD}_{\mathrm{full}}$] (7,2);
+
+  \draw (0,0) to[biD,diodes/scale=1.1,diodes/fill=cyan!20,l=$\mathrm{biD}$] (3,0);
+  \draw (4,0) to[biD*,l=$\mathrm{biD}_{\mathrm{full}}$] (7,0);
+  \draw (9,-1.5) to[biD*,l=$\mathrm{biD}_{\mathrm{vertical}}$] (9,1.5);
+\end{circuitikz}
+\end{document}

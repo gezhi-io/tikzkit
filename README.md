@@ -1145,6 +1145,8 @@ the native diode body dimensions and labels for horizontal and vertical paths:
   \draw (5,0) to[leD*,l=$\mathrm{LED}$] (5,-3);
   \draw (6.5,-1.5) to[Do,diodes/scale=.65,
     diodes/fill=orange!30,l=$D_{\mathrm{small}}$] (9.5,-1.5);
+  \draw (0,-4.5) to[tD-,l=$\mathrm{tunnel}$] (4,-4.5);
+  \draw (5,-4.5) to[biD*,l=$\mathrm{bidirectional}$] (9,-4.5);
 \end{circuitikz}
 ```
 
@@ -1152,8 +1154,11 @@ Supported in this slice: the documented full/empty aliases `D*` and `Do`,
 the base `D` form, `sD*`/`sD` Schottky diodes, `leD*`/`leD` LEDs,
 `diodes/scale`, `diodes/fill`, and `l=` labels. LEDs include the two native
 outgoing emission arrows and put the label on their outer side. The additional
-Zener/TVS, photo/laser, and varcap slices are documented below; tunnel,
-Shockley, bidirectional, tripole, and custom-diode families remain partial.
+Zener/TVS, photo/laser, and varcap slices are documented below. Tunnel
+`tD`/`tD*`/`tD-`, Shockley `shD`/`shD*`, and bidirectional `biD`/`biD*`
+families have their native body geometry, `diodes/scale`, `diodes/fill`, and
+horizontal/vertical placement in this same subset; tripoles and custom-diode
+families remain partial.
 
 The source fixture is
 [`test/fixtures/examples/circuitikz/diodes.tex`](test/fixtures/examples/circuitikz/diodes.tex).
@@ -1171,6 +1176,10 @@ Open `outputs/qa-circuitikz-diodes/index.html` and compare the TikZKit SVG,
 `tikztosvg`, local MacTeX PNG, and difference panel. The source reading,
 observed visual changes, and acceptance record are in
 [`docs/qa/2026-08-06-circuitikz-diodes.md`](docs/qa/2026-08-06-circuitikz-diodes.md).
+The extended-diode source and its three-way comparison are
+[`test/fixtures/examples/circuitikz/extended-diodes.tex`](test/fixtures/examples/circuitikz/extended-diodes.tex)
+and
+[`docs/qa/2026-08-07-circuitikz-extended-diodes.md`](docs/qa/2026-08-07-circuitikz-extended-diodes.md).
 
 ### Circuitikz Zener and TVS Diodes
 
