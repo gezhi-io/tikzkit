@@ -2342,6 +2342,35 @@ test("runs show path construction callbacks against original input segments", ()
   assert.deepEqual(texts.map((item) => item.text).sort(), ["close", "curve", "curve", "line", "move"]);
 });
 
+test("inherits every node placement for direct curve labels and show-path callbacks", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}[every node/.style={midway,sloped},decoration={show path construction,
+  lineto code={\draw (\tikzinputsegmentfirst) -- (\tikzinputsegmentlast) node {callback line};},
+  curveto code={\draw (\tikzinputsegmentfirst) .. controls (\tikzinputsegmentsupporta) and (\tikzinputsegmentsupportb) .. (\tikzinputsegmentlast) node {callback curve};}}]
+  \draw (0,0) -- (3,1) node {line};
+  \draw (3,1) .. controls (3,2) and (0,2) .. (0,1) node {curve};
+  \path[decorate] (0,0) -- (3,1) arc (0:180:1.5 and 1);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const label = (text) => ir.items.find((item) => item.type === "textNode" && item.text === text);
+  const line = label("line");
+  const curve = label("curve");
+  const callbackLine = label("callback line");
+  const callbackCurves = ir.items.filter((item) => item.type === "textNode" && item.text === "callback curve");
+
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual({ x: line.x, y: line.y, rotation: line.rotation }, { x: 1.5, y: 0.5, rotation: 18.434948822922 });
+  assert.deepEqual({ x: curve.x, y: curve.y }, { x: 1.5, y: 1.75 });
+  assert.equal(curve.rotation, undefined, "the cubic tangent at its midpoint is horizontal");
+  assert.deepEqual({ x: callbackLine.x, y: callbackLine.y, rotation: callbackLine.rotation }, { x: 1.5, y: 0.5, rotation: 18.434948822922 });
+  assert.equal(callbackCurves.length, 2);
+  assert.ok(callbackCurves[0].x > 2 && callbackCurves[0].x < 3);
+  assert.ok(callbackCurves[0].y > 1 && callbackCurves[0].y < 2);
+  assert.ok(callbackCurves[1].x > 0 && callbackCurves[1].x < 1);
+  assert.ok(callbackCurves[1].y > 1 && callbackCurves[1].y < 2);
+});
+
 test("does not apply the outer coordinate transform twice inside show path construction callbacks", () => {
   const source = String.raw`
 \begin{tikzpicture}[scale=2, decoration={show path construction,

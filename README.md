@@ -120,6 +120,32 @@ It confirms matching outer width, placement, and wrapping instead of the old
 single overwide line. Native discretionary hyphenation, justification glue,
 footnotes, and nested minipage vertical layout remain outside this slice.
 
+### Verified Decorated Callback Labels
+
+`decorations.pathreplacing` can replay each original path command through
+`show path construction`. Callback paths inherit `every node` placement keys,
+so a terminal `node` uses `midway`, `sloped`, and `pos` on the actual line or
+cubic Bezier segment rather than being pinned to its endpoint. This covers
+the documented `moveto code`, `lineto code`, `curveto code`, and `closepath
+code` callback form:
+
+```tex
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}[every node/.style={midway,sloped},
+  decoration={show path construction,
+    lineto code={\draw[blue] (\tikzinputsegmentfirst) --
+      (\tikzinputsegmentlast) node[above]{line};}}]
+  \path[decorate] (0,0) -- (3,1);
+\end{tikzpicture}
+```
+
+Run the focused regression with
+`node --test --test-name-pattern='inherits every node placement' test/interpreter.test.js`.
+The real PGF manual driver and the three-way visual record are in
+[docs/qa/2026-08-07-decorations-pathreplacing-show-path-construction.md](docs/qa/2026-08-07-decorations-pathreplacing-show-path-construction.md).
+This is still a partial library slice: arbitrary TeX callback bodies and exact
+native CMR glyph-width/bounding-box parity are not claimed.
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and

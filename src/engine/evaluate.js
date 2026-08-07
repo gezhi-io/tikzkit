@@ -1881,6 +1881,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       lastSegment = {
         from: clipped.from,
         to: clipped.to,
+        c1,
+        c2,
         tangent: { x: clipped.to.x - c2.x, y: clipped.to.y - c2.y }
       };
       current = clipped.to;
@@ -2019,9 +2021,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         pendingInlineNodes.push({ ...segment, text });
         continue;
       }
+      const placementOptions = inlineNodeResolvedOptions(segment.options, env, pathStyle, effectivePathOptions);
       const point = segment.at
         ? resolveCoordinate(segment.at, env, diagnostics)
-        : inlineNodePathPoint(segment.options, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
+        : inlineNodePathPoint(placementOptions, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       addInlinePathNode(segment, text, point, nodes, env, pathStyle, lastSegment, effectivePathOptions);
       continue;
     }
@@ -2209,10 +2212,25 @@ function inlineNodePathPoint(options = {}, lastSegment) {
   if (!lastSegment) return null;
   const pos = inlineNodePosition(options);
   if (!Number.isFinite(pos)) return null;
+  if (lastSegment.c1 && lastSegment.c2) {
+    return roundPoint(cubicPointAt(lastSegment.from, lastSegment.c1, lastSegment.c2, lastSegment.to, pos));
+  }
   return roundPoint({
     x: lastSegment.from.x + (lastSegment.to.x - lastSegment.from.x) * pos,
     y: lastSegment.from.y + (lastSegment.to.y - lastSegment.from.y) * pos
   });
+}
+
+function inlineNodePathTangent(options = {}, lastSegment) {
+  if (!lastSegment?.from || !lastSegment?.to) return null;
+  const pos = inlineNodePosition(options, 1);
+  if (lastSegment.c1 && lastSegment.c2) {
+    return cubicTangentAt(lastSegment.from, lastSegment.c1, lastSegment.c2, lastSegment.to, pos);
+  }
+  const dx = lastSegment.to.x - lastSegment.from.x;
+  const dy = lastSegment.to.y - lastSegment.from.y;
+  const length = Math.hypot(dx, dy);
+  return length < 1e-9 ? null : { x: dx / length, y: dy / length };
 }
 
 function inlineNodePosition(options = {}, fallback = null) {
@@ -5730,7 +5748,8 @@ function flushInlinePathNodes(pendingInlineNodes, from, to, nodes, env, pathStyl
   if (!pendingInlineNodes.length || !from || !to) return;
   const pathSegment = { from, to };
   for (const segment of pendingInlineNodes) {
-    const point = inlineNodePathPoint(segment.options, pathSegment) || roundPoint({
+    const placementOptions = inlineNodeResolvedOptions(segment.options, env, pathStyle, pathOptions);
+    const point = inlineNodePathPoint(placementOptions, pathSegment) || roundPoint({
       x: (from.x + to.x) / 2,
       y: (from.y + to.y) / 2
     });
@@ -5751,7 +5770,8 @@ function flushOrthogonalInlinePathNodes(
   for (const segment of pendingInlineNodes) {
     // PGF's vh/hv timer gives each leg half of the [0,1] interval. At the
     // default pos=.5 the node is at the elbow and uses the second leg tangent.
-    const pos = inlineNodePosition(segment.options, 0.5);
+    const placementOptions = inlineNodeResolvedOptions(segment.options, env, pathStyle, pathOptions);
+    const pos = inlineNodePosition(placementOptions, 0.5);
     const active = pos < 0.5 ? first : second;
     const legPos = pos < 0.5 ? pos * 2 : pos * 2 - 1;
     const point = roundPoint({
@@ -5896,10 +5916,9 @@ function resolveAutoInlineNodePoint(point, options = {}, size, env, pathSegment 
 
 function slopedInlineNodeRotation(options = {}, pathSegment = null, env) {
   if (!isTruthyTikzOption(options.sloped) || !pathSegment?.from || !pathSegment?.to) return null;
-  const dx = pathSegment.to.x - pathSegment.from.x;
-  const dy = pathSegment.to.y - pathSegment.from.y;
-  if (Math.hypot(dx, dy) < 1e-9) return null;
-  const base = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const tangent = inlineNodePathTangent(options, pathSegment);
+  if (!tangent) return null;
+  const base = (Math.atan2(tangent.y, tangent.x) * 180) / Math.PI;
   const upright = isTruthyTikzOption(options["allow upside down"]) ? base : keepTextAngleUpright(base);
   return roundNumber(upright + nodeRotation(options, env));
 }
@@ -5964,6 +5983,14 @@ function inlineNodeOptions(options = {}, pathStyle = {}, pathOptions = {}) {
     "tikzkit inherited path text": inheritedText,
     ...merged
   };
+}
+
+function inlineNodeResolvedOptions(options = {}, env, pathStyle = {}, pathOptions = {}) {
+  const rawOptions = resolveDynamicOptions(options || {}, env);
+  return normalizeOptions("node", {
+    ...inlineNodeInheritedOptions(env, rawOptions),
+    ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
+  }, env).options;
 }
 
 function inlineNodePathPlacementOptions(pathOptions = {}) {
