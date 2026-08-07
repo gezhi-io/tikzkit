@@ -979,6 +979,48 @@ patch types, custom patch declarations, and PDF shading are not implemented.
 See [the line-patch QA record](docs/qa/2026-08-06-pgfplots-patchplots-line.md)
 for the exact local-reference comparison and acceptance boundary.
 
+### PGFPlots Groupplots Slice
+
+The `groupplots` library supports a focused 2D grid layout. `group size`,
+`horizontal sep`, `vertical sep`, `group name`, `group/every plot`,
+`group/plot c<column>r<row>/.style`, and `group/empty plot` are accepted.
+Placements are calculated from each rendered plot box, so a later column starts
+from the previous axis's east edge rather than from the requested outer
+`width`. The named anchors can be used after the group:
+
+```tex
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+\begin{tikzpicture}
+  \begin{groupplot}[
+    group style={
+      group name=measurements,
+      group size=2 by 2,
+      horizontal sep=0.5cm,
+      vertical sep=0.5cm,
+      x descriptions at=edge bottom,
+      y descriptions at=edge left
+    },
+    width=4cm, height=3.5cm, xmin=0, xmax=2, ymin=0, ymax=2,
+    xlabel={time}, ylabel={concentration}, grid=major
+  ]
+    \nextgroupplot \addplot coordinates {(0,0) (1,2) (2,1)};
+    \nextgroupplot \addplot coordinates {(0,0) (1,1) (2,2)};
+    \nextgroupplot \addplot coordinates {(0,2) (1,1) (2,1)};
+    \nextgroupplot \addplot coordinates {(0,2) (1,0) (2,1)};
+  \end{groupplot}
+  \draw[magenta] (measurements c1r1.east) -- (measurements c2r1.west);
+\end{tikzpicture}
+```
+
+`x/y labels at=edge ...`, `x/y ticklabels at=edge ...`, and the combined
+`x/y descriptions at=edge ...` modes suppress the inner text and retain it
+only on the requested outer edge. This remains a partial library: trimming,
+the full shared-label matrix, arbitrary nested PGF key styles, and all
+cross-group coordinate features are not yet complete. See
+[the groupplots QA record](docs/qa/2026-08-07-pgfplots-groupplots-shared-layout.md)
+for the local MacTeX and tikztosvg comparison.
+
 ### Beamer Sources
 
 TikZKit emits one SVG per source. For a Beamer document with multiple

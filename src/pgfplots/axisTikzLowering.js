@@ -240,7 +240,7 @@ function renderCurrentAxisCoordinates(axisModel = {}) {
   const north = south + (Number(geometry.height) || 0);
   const xCenter = (west + east) / 2;
   const yCenter = (south + north) / 2;
-  return [
+  const commands = [
     `\\coordinate (current axis.south east) at (${formatCoordinate(east)},${formatCoordinate(south)});`,
     `\\coordinate (current axis.north) at (${formatCoordinate(xCenter)},${formatCoordinate(north)});`,
     `\\coordinate (current axis.east) at (${formatCoordinate(east)},${formatCoordinate(yCenter)});`,
@@ -248,6 +248,23 @@ function renderCurrentAxisCoordinates(axisModel = {}) {
     "\\coordinate (current axis.outer north) at (current bounding box.north);",
     "\\coordinate (current axis.outer east) at (current bounding box.east);"
   ];
+  const name = String(axisModel.options?.name || "").trim();
+  if (!name) return commands;
+  const namedAnchors = {
+    center: { x: xCenter, y: yCenter },
+    west: { x: west, y: yCenter },
+    east: { x: east, y: yCenter },
+    north: { x: xCenter, y: north },
+    south: { x: xCenter, y: south },
+    "north west": { x: west, y: north },
+    "north east": { x: east, y: north },
+    "south west": { x: west, y: south },
+    "south east": { x: east, y: south }
+  };
+  for (const [anchor, point] of Object.entries(namedAnchors)) {
+    commands.push(`\\coordinate (${name}.${anchor}) at (${formatCoordinate(point.x)},${formatCoordinate(point.y)});`);
+  }
+  return commands;
 }
 
 function formatCoordinate(value) {

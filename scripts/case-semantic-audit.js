@@ -38,6 +38,7 @@ const COMMAND_OWNERS = {
   matrix: owner("src/tikz/libraries/matrix.js", "partial"),
   newcommand: owner("src/frontend/latex-shell.js", "partial", "latex.ltx"),
   newenvironment: owner("src/frontend/latex-shell.js", "partial", "latex.ltx"),
+  nextgroupplot: owner("src/frontend/latex-shell.js:renderGroupplotAsAxes", "partial", "tikzlibrarypgfplots.groupplots.code.tex"),
   node: owner("src/tikz/commands/node.js", "partial", "tikz.code.tex"),
   nodepart: owner("src/tikz/libraries/shapes.multipart.js", "partial", "tikzlibraryshapes.multipart.code.tex"),
   path: owner("src/tikz/commands/path.js", "partial", "tikz.code.tex"),

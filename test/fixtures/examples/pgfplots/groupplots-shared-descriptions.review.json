@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.groupplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {
+      "symbols": [
+        "\\RequirePackage{tikz}",
+        "\\ProvidesPackage{pgfplots}"
+      ],
+      "findings": "The package wrapper loads TikZ and the generic PGFPlots implementation. TikZKit accepts the declaration and lowers the supported axis/groupplot contents without a LaTeX runtime."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {
+      "symbols": [
+        "/pgfplots/max space between ticks",
+        "/pgfplots/try min ticks"
+      ],
+      "findings": "The installed defaults set max tick spacing to 35pt and try min ticks to 4. The groupplot lowering injects the latter only for its own axes, preserving the existing standalone-axis planner contract."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.groupplots.code.tex": {
+      "symbols": [
+        "\\nextgroupplot",
+        "/pgfplots/group/group size",
+        "/pgfplots/group/horizontal sep",
+        "/pgfplots/group/vertical sep",
+        "/pgfplots/group/x descriptions at",
+        "/pgfplots/group/y descriptions at",
+        "/pgfplots/group/group name",
+        "/pgfplots/group/empty plot"
+      ],
+      "findings": "New columns are positioned from the previous axis east anchor plus horizontal separation, rows from the axis above south anchor minus vertical separation, and description-edge modes jointly filter labels and tick labels. Empty plots map to hide axis while retaining the group cell anchor."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": [
+        "document environment",
+        "\\documentclass"
+      ],
+      "findings": "The standalone document shell is removed before the TikZ parser receives the picture, so it has no drawing-space side effect in this focused SVG conversion."
+    }
+  },
+  "rules": [
+    {
+      "match": "dependency:*",
+      "status": "verified",
+      "evidence": [
+        "test/pgfplots-groupplots.test.js",
+        "docs/qa/2026-08-07-pgfplots-groupplots-shared-layout.md"
+      ]
+    },
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/pgfplots-groupplots.test.js",
+        "docs/qa/2026-08-07-pgfplots-groupplots-shared-layout.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/pgfplots-groupplots.test.js",
+        "docs/qa/2026-08-07-pgfplots-groupplots-shared-layout.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/pgfplots-groupplots.test.js",
+        "docs/qa/2026-08-07-pgfplots-groupplots-shared-layout.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/pgfplots-groupplots.test.js",
+        "docs/qa/2026-08-07-pgfplots-groupplots-shared-layout.md"
+      ]
+    }
+  ]
+}

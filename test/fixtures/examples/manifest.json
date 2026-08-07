@@ -4670,6 +4670,26 @@
         "head indent",
         "named shape anchors"
       ]
+    },
+    {
+      "id": "pgfplots-groupplots-shared-descriptions",
+      "title": "PGFPlots groupplots shared edge descriptions",
+      "source": "pgfplots/groupplots-shared-descriptions.tex",
+      "sourceCorpus": "TeX Live PGFPlots groupplots manual",
+      "externalSource": "tex/generic/pgfplots/libs/tikzlibrarypgfplots.groupplots.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:expandPgfplotsGroupplots/renderGroupplotAsAxes",
+      "features": [
+        "groupplot environment",
+        "nextgroupplot",
+        "group size",
+        "horizontal sep",
+        "vertical sep",
+        "group name",
+        "x descriptions at=edge bottom",
+        "y descriptions at=edge left",
+        "shared axis labels",
+        "shared tick labels"
+      ]
     }
   ]
 }

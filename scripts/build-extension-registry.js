@@ -88,9 +88,12 @@ const CORE_PACKAGE_SUPPORT = {
 const PGFPLOTS_LIBRARY_SUPPORT = {
   ...RUNTIME_PGFPLOTS_LIBRARY_SUPPORT,
   groupplots: {
+    ...RUNTIME_PGFPLOTS_LIBRARY_SUPPORT.groupplots,
     status: "partial",
-    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsGroupplots",
-    notes: "groupplot/nextgroupplot/group size/horizontal sep/vertical sep subset"
+    implementationStatus: "partial",
+    implementedBy: "src/frontend/latex-shell.js:expandPgfplotsGroupplots/renderGroupplotAsAxes; src/pgfplots/axisTikzLowering.js:renderCurrentAxisCoordinates",
+    localSourceReviewed: "yes",
+    notes: "Reviewed locally on 2026-08-07: groupplots uses previous axis east/south anchors plus horizontal/vertical sep rather than requested axis dimensions. TikZKit supports a measured 2D group grid, group name cCrR anchors, group/every plot and per-cell styles, empty plot, and x/y labels, ticklabels, or descriptions at the outer edge. trim axis group, full nested style semantics, and general cross-group coordinate manipulation remain partial."
   }
 };
 

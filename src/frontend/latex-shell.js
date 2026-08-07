@@ -4265,7 +4265,7 @@ function expandPgfplotsGroupplots(source, diagnostics, options) {
       output += source.slice(beginIndex);
       break;
     }
-    output += renderGroupplotAsAxes(rawOptions.raw, source.slice(cursor, endIndex), options);
+    output += renderGroupplotAsAxes(rawOptions.raw, source.slice(cursor, endIndex), options, diagnostics);
     index = endIndex + end.length;
   }
   return output;
@@ -4343,28 +4343,126 @@ function numericRangeValues(start, end, options = {}) {
   return values;
 }
 
-function renderGroupplotAsAxes(rawOptions, body, options) {
+function renderGroupplotAsAxes(rawOptions, body, _options, diagnostics = []) {
   const baseOptions = parseOptions(rawOptions);
   const groupOptions = parseOptions(baseOptions["group style"] || "");
   delete baseOptions["group style"];
   const size = parseGroupplotSize(groupOptions["group size"]);
-  const axisWidth = parseAxisDimension(baseOptions.width, 5);
-  const axisHeight = parseAxisDimension(baseOptions.height, 4);
   const horizontalSep = parseDimension(groupOptions["horizontal sep"] || "1cm", {});
   const verticalSep = parseDimension(groupOptions["vertical sep"] || "1cm", {});
   const plots = parseNextGroupplots(body);
-  return plots
-    .map((plot, index) => {
-      const column = index % size.columns;
-      const row = Math.floor(index / size.columns);
-      const axisOptions = {
-        ...baseOptions,
-        ...plot.options,
-        at: `(${roundTikzNumber(column * (axisWidth + horizontalSep))}cm,${roundTikzNumber(-row * (axisHeight + verticalSep))}cm)`
-      };
-      return `\\begin{axis}[${formatPgfplotsOptionList(axisOptions)}]\n${plot.body}\n\\end{axis}`;
-    })
+  const capacity = size.columns * size.rows;
+  if (plots.length > capacity) {
+    diagnostics.push({
+      severity: "warning",
+      message: `PGFPlots groupplot contains ${plots.length} plots but group size allows ${capacity}; extra plots are ignored`
+    });
+  }
+  const groupName = String(groupOptions["group name"] || "group").trim() || "group";
+  const everyPlotOptions = groupplotStyleOptions(groupOptions["every plot/.style"] ?? groupOptions["every plot"]);
+  const placed = [];
+  for (const [index, plot] of plots.slice(0, capacity).entries()) {
+    const column = index % size.columns;
+    const row = Math.floor(index / size.columns);
+    const axisOptions = applyGroupplotEdgeDescriptions({
+      ...baseOptions,
+      ...everyPlotOptions,
+      ...groupplotCellStyleOptions(groupOptions, column, row),
+      ...plot.options
+    }, groupOptions, { column, row, size });
+    // PGFPlots defaults `try min ticks` to four. Scope that native default to
+    // groupplots while the broader axis tick planner retains its existing API.
+    if (axisOptions["try min ticks"] === undefined) axisOptions["try min ticks"] = 4;
+    if (groupplotOptionEnabled(axisOptions["group/empty plot"])) axisOptions["hide axis"] = true;
+    delete axisOptions["group/empty plot"];
+    const geometry = groupplotAxisGeometry(axisOptions);
+    const left = column > 0 ? placed[index - 1] : null;
+    const above = row > 0 ? placed[index - size.columns] : null;
+    const x = left ? left.x + left.geometry.width + horizontalSep : 0;
+    const y = above ? above.y - verticalSep - geometry.height : 0;
+    axisOptions.name = `${groupName} c${column + 1}r${row + 1}`;
+    axisOptions.at = `(${roundTikzNumber(x)}cm,${roundTikzNumber(y)}cm)`;
+    delete axisOptions.anchor;
+    placed.push({ x, y, geometry, axisOptions, body: plot.body });
+  }
+  return placed
+    .map((plot) => `\\begin{axis}[${formatPgfplotsOptionList(plot.axisOptions)}]\n${plot.body}\n\\end{axis}`)
     .join("\n");
+}
+
+function groupplotStyleOptions(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false) return {};
+  return parseOptions(String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1"));
+}
+
+function groupplotCellStyleOptions(groupOptions = {}, column = 0, row = 0) {
+  const key = `plot c${column + 1}r${row + 1}`;
+  return {
+    ...groupplotStyleOptions(groupOptions[`${key}/.style`] ?? groupOptions[key]),
+    ...groupplotStyleOptions(groupOptions[`${key}/.append style`])
+  };
+}
+
+function groupplotAxisGeometry(axisOptions = {}) {
+  const ranges = {
+    xMin: groupplotNumericOption(axisOptions.xmin, 0),
+    xMax: groupplotNumericOption(axisOptions.xmax, 1),
+    yMin: groupplotNumericOption(axisOptions.ymin, 0),
+    yMax: groupplotNumericOption(axisOptions.ymax, 1)
+  };
+  if (ranges.xMin === ranges.xMax) ranges.xMax = ranges.xMin + 1;
+  if (ranges.yMin === ranges.yMax) ranges.yMax = ranges.yMin + 1;
+  const geometry = createAxisGeometry({ ...axisOptions, at: "(0,0)" }, ranges);
+  return { width: geometry.width, height: geometry.height };
+}
+
+function groupplotNumericOption(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const numeric = evaluateMath(String(value));
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function applyGroupplotEdgeDescriptions(axisOptions = {}, groupOptions = {}, position = {}) {
+  const result = { ...axisOptions };
+  const isTop = position.row === 0;
+  const isBottom = position.row === position.size.rows - 1;
+  const isLeft = position.column === 0;
+  const isRight = position.column === position.size.columns - 1;
+  const suppressXLabels = groupplotEdgeSuppresses(groupOptions, "xlabels at", isTop, isBottom, isLeft, isRight);
+  const suppressYLabels = groupplotEdgeSuppresses(groupOptions, "ylabels at", isTop, isBottom, isLeft, isRight);
+  const suppressXTickLabels = groupplotEdgeSuppresses(groupOptions, "xticklabels at", isTop, isBottom, isLeft, isRight);
+  const suppressYTickLabels = groupplotEdgeSuppresses(groupOptions, "yticklabels at", isTop, isBottom, isLeft, isRight);
+  const suppressXDescriptions = groupplotEdgeSuppresses(groupOptions, "x descriptions at", isTop, isBottom, isLeft, isRight);
+  const suppressYDescriptions = groupplotEdgeSuppresses(groupOptions, "y descriptions at", isTop, isBottom, isLeft, isRight);
+  if (suppressXLabels || suppressXDescriptions) {
+    result.xlabel = "";
+    result["x label"] = "";
+  }
+  if (suppressYLabels || suppressYDescriptions) {
+    result.ylabel = "";
+    result["y label"] = "";
+  }
+  if (suppressXTickLabels || suppressXDescriptions) result.xticklabels = "";
+  if (suppressYTickLabels || suppressYDescriptions) result.yticklabels = "";
+  return result;
+}
+
+function groupplotEdgeSuppresses(groupOptions, key, isTop, isBottom, isLeft, isRight) {
+  const value = String(groupOptions[key] || "all").trim().toLowerCase();
+  if (!value || value === "all") return false;
+  if (key.startsWith("x")) {
+    if (value === "edge bottom" || value === "bottom" || value === "lower") return !isBottom;
+    if (value === "edge top" || value === "top" || value === "upper") return !isTop;
+  } else {
+    if (value === "edge left" || value === "left") return !isLeft;
+    if (value === "edge right" || value === "right") return !isRight;
+  }
+  return false;
+}
+
+function groupplotOptionEnabled(value) {
+  if (value === undefined || value === null || value === false) return false;
+  return !["false", "0", "off", "none", "no"].includes(String(value).trim().toLowerCase());
 }
 
 function parseGroupplotSize(value) {
