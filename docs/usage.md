@@ -175,6 +175,30 @@ shapes, and tip-specific padding/separation keys are still partial.
 对应 driver 是 `trees-anchor-routing`。图形绘制算法、碰撞回避、任意
 `edge from parent path` TeX 代码和复杂 forest 风格仍在测试中。
 
+### Chains 中插入既有节点
+
+`\usetikzlibrary{chains}` 的 `\chainin` 会把已创建的节点加入当前链，而不会重画
+节点。TikZKit 按本机链库的顺序先应用 `every chain in`，再应用 `\chainin` 方括号内
+的直接选项；因此可把连接箭头和样式集中放在链级样式中。
+
+```tex
+\begin{tikzpicture}[
+  start chain=walk going right,
+  every join/.style={-{Stealth[length=1.8mm]}},
+  every chain in/.style={join=by {red,very thick}}
+]
+  \node (existing) at (0,2) {existing};
+  \node[draw,on chain,join] {A};
+  \node[draw,on chain,join] {B};
+  \chainin (existing);
+  \node[draw,on chain,join] {C};
+\end{tikzpicture}
+```
+
+该子集包括 `start chain`、`continue chain`、`start branch`、`continue branch`、
+`on chain`、`join`、`every join` 与 `every chain in`。`\chainin` 之后继续同一条任意
+路径的完整 TeX late-options 行为仍在测试中。
+
 ### 路径替换装饰
 
 `\usetikzlibrary{decorations.pathreplacing}` 当前已验证 `brace`、`ticks`、`border`、

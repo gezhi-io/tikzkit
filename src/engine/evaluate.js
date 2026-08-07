@@ -9923,7 +9923,11 @@ function updateChainState(options = {}, env, point, size = { width: 0, height: 0
 }
 
 function chainInExistingNode(statement, env, ir, diagnostics) {
-  const options = normalizeOptions("path", resolveDynamicOptions(statement.options || {}, env), env).options;
+  // Native chains lowers \chainin to late options containing
+  // `every chain in/.try` before the command's explicit options.
+  const inheritedOptions = resolveDynamicOptions(env.styles?.["every chain in"] || {}, env);
+  const explicitOptions = resolveDynamicOptions(statement.options || {}, env);
+  const options = normalizeOptions("path", { ...inheritedOptions, ...explicitOptions }, env).options;
   const target = resolveDynamicName(statement.target, env);
   const record = env.nodes?.[target];
   const point = record?.point || env.coordinates?.[target];
@@ -9995,12 +9999,12 @@ function parseChainJoinSpec(value) {
   if (withMatch) {
     return {
       from: stripOuterBraces(withMatch[1].trim()),
-      style: (withMatch[2] || "").trim()
+      style: stripOuterBraces((withMatch[2] || "").trim())
     };
   }
   const byMatch = text.match(/^by(?:\s+([\s\S]*))?$/);
-  if (byMatch) return { style: (byMatch[1] || "").trim() };
-  return { style: text };
+  if (byMatch) return { style: stripOuterBraces((byMatch[1] || "").trim()) };
+  return { style: stripOuterBraces(text) };
 }
 
 function resolvePositioning(options, env, selfSize = { width: 0, height: 0 }) {

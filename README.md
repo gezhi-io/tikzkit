@@ -89,6 +89,32 @@ and remaining boundary are in
 [docs/qa/2026-08-07-trees-anchor-routing.md](docs/qa/2026-08-07-trees-anchor-routing.md).
 This is not a graph-drawing or collision-avoidance implementation.
 
+### A Verified `chains` Existing-Node Example
+
+`\chainin` can add an already drawn node to the active chain without drawing
+that node a second time. The verified subset applies `every chain in` first,
+then direct `\chainin` options, matching the local TikZ late-options order.
+This lets the inherited style provide the join and edge appearance.
+
+```tex
+\usetikzlibrary{chains,arrows.meta}
+\begin{tikzpicture}[
+  start chain=walk going right,
+  every join/.style={-{Stealth[length=1.8mm]}},
+  every chain in/.style={join=by {red,very thick}}
+]
+  \node (existing) at (0,2) {existing};
+  \node[draw,on chain,join] {A};
+  \node[draw,on chain,join] {B};
+  \chainin (existing);
+  \node[draw,on chain,join] {C};
+\end{tikzpicture}
+```
+
+The regression and three-way reference are documented in
+[docs/qa/2026-08-07-chains-every-chain-in.md](docs/qa/2026-08-07-chains-every-chain-in.md).
+Continuing an arbitrary `\path` after `\chainin` is still partial.
+
 ### A Verified Gantt Grid Example
 
 The basic `pgfgantt` lowering covers `\gantttitle`, bars, groups, and a focused

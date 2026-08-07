@@ -18,9 +18,9 @@ export const tikzCommand = {
     {
       name: "every chain in",
       category: "style",
-      status: "partial",
-      implementedBy: "src/tikz/libraries/chains.js",
-      notes: "Direct command options are handled; inherited every-chain-in styles are not yet expanded."
+      status: "implemented",
+      implementedBy: "src/engine/evaluate.js:chainInExistingNode",
+      notes: "Applied in native order before direct command options; the style can supply join=by and its edge style."
     }
   ],
   examples: [

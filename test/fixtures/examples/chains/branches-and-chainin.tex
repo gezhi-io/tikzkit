@@ -6,14 +6,15 @@
 \begin{tikzpicture}[
   node distance=3mm and 10mm,
   every node/.style={draw, minimum width=8mm, minimum height=6mm},
-  every join/.style={-{Stealth[length=1.8mm]}}
+  every join/.style={-{Stealth[length=1.8mm]}},
+  every chain in/.style={join=by {red,very thick}}
 ]
   % Adapted from the documented chains examples: chainin and delayed branches.
   \node (existing) at (0,2) {existing};
   \begin{scope}[start chain=walk going right]
     \node [on chain,join] {A};
     \node [on chain,join] (fork) {B};
-    \chainin (existing) [join];
+    \chainin (existing);
     \node [on chain,join] {C};
   \end{scope}
 

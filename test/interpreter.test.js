@@ -3677,6 +3677,54 @@ test("chains an existing node in without drawing it again", () => {
   assert.equal(joins.length, 3);
 });
 
+test("chainin inherits every chain in before its explicit late options", () => {
+  const source = String.raw`
+\begin{tikzpicture}[
+  node distance=5mm,
+  start chain=walk going right,
+  every join/.style={-{Stealth[length=1.8mm]}},
+  every chain in/.style={join=by {red,very thick}}
+]
+  \node[draw] (existing) at (0,2) {E};
+  \node[draw,on chain,join] (a) {A};
+  \node[draw,on chain,join] (b) {B};
+  \chainin (existing);
+  \node[draw,on chain,join] (c) {C};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const inheritedJoin = ir.items.find((item) =>
+    item.type === "path" && item.style?.stroke === "red" && item.style?.lineWidth === TIKZ_LINE_WIDTHS.veryThick
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(inheritedJoin, "expected every chain in to create the red very-thick join");
+  assert.equal(inheritedJoin.style.markerEnd?.kind, "stealth");
+  assert.deepEqual(ir.coordinates["walk-3"], ir.coordinates.existing);
+  assert.equal(ir.coordinates.c.y, ir.coordinates.existing.y);
+});
+
+test("explicit chainin options override every chain in in native order", () => {
+  const source = String.raw`
+\begin{tikzpicture}[
+  node distance=5mm,
+  start chain=walk going right,
+  every chain in/.style={join=by {red,very thick}}
+]
+  \node[draw] (existing) at (0,2) {E};
+  \node[draw,on chain] {A};
+  \node[draw,on chain] {B};
+  \chainin (existing) [join=by {blue,thick}];
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const join = ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(join?.style?.stroke, "blue");
+  assert.equal(join?.style?.lineWidth, TIKZ_LINE_WIDTHS.thick);
+});
+
 test("supports diamond node shape and compass anchors", () => {
   const source = String.raw`
 \begin{tikzpicture}
