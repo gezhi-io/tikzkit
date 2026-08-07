@@ -960,11 +960,14 @@ export function pgfplotsSurfaceColor(z, ranges, plotIndex = 0, axisOptions = {})
   if (custom) return custom;
   const zSpan = ranges.zMax - ranges.zMin || 1;
   const t = Math.max(0, Math.min(1, (z - ranges.zMin) / zSpan));
+  // PGFPlots initializes `colormap name=hot`: the historical default is the
+  // same four-stop map as the named `hot` colormap, not a bespoke surface
+  // palette. Keep the implicit and explicit forms visually identical.
   const stops = [
-    { t: 0, color: [38, 64, 190] },
-    { t: 0.42, color: [70, 120, 255] },
-    { t: 0.68, color: [255, 218, 60] },
-    { t: 1, color: [240, 45, 20] }
+    { t: 0, color: [0, 0, 255] },
+    { t: 1 / 3, color: [255, 255, 0] },
+    { t: 2 / 3, color: [255, 128, 0] },
+    { t: 1, color: [255, 0, 0] }
   ];
   for (let index = 1; index < stops.length; index += 1) {
     if (t <= stops[index].t) {

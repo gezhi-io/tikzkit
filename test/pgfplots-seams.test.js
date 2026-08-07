@@ -10,6 +10,7 @@ import {
   PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_Y
 } from "../src/pgfplots/geometry.js";
 import { axisAutoMajorTickCountForOptions } from "../src/pgfplots/ticks.js";
+import { pgfplotsSurfaceColor } from "../src/pgfplots/surface.js";
 import { sampleAxisQuiverPlot } from "../src/pgfplots/quiver.js";
 import {
   TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X,
@@ -687,6 +688,15 @@ test("pgfplots uses the built-in viridis colormap for surfaces", () => {
   assert.ok(fills.length > 0);
   assert.ok(fills.every((fill) => /^rgb\(/.test(fill)));
   assert.ok(fills.some((fill) => /^rgb\((?:3[0-9]|4[0-9])[,\s]+(?:1[0-9]{2}|2[0-9]{2})[,\s]+/.test(fill)));
+});
+
+test("pgfplots uses the native hot colormap for an implicit surface", () => {
+  const ranges = { zMin: 0, zMax: 3 };
+
+  assert.equal(pgfplotsSurfaceColor(0, ranges), "rgb(0,0,255)");
+  assert.equal(pgfplotsSurfaceColor(1, ranges), "rgb(255,255,0)");
+  assert.equal(pgfplotsSurfaceColor(2, ranges), "rgb(255,128,0)");
+  assert.equal(pgfplotsSurfaceColor(3, ranges), "rgb(255,0,0)");
 });
 
 test("pgfplots 3d axis lines left renders three open axes instead of a box", () => {
@@ -5158,6 +5168,48 @@ test("pgfplots 3d plot box ratio scales basis vectors before the projected box i
     / Math.hypot(stretchedX.x - stretchedOrigin.x, stretchedX.y - stretchedOrigin.y);
 
   assert.ok(stretchedYToX > baseYToX * 1.7, `expected plot box ratio to lengthen y relative to x, got ${baseYToX} -> ${stretchedYToX}`);
+});
+
+test("pgfplots 3D scale uniformly units only preserves the native compact unit box", () => {
+  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 2 };
+  const geometry = createAxisGeometry(
+    {
+      "scale only axis": true,
+      width: "6cm",
+      height: "3cm",
+      "pgfplots 3d surface": true,
+      view: "{65}{35}",
+      "scale mode": "scale uniformly",
+      "scale uniformly strategy": "units only"
+    },
+    ranges
+  );
+  const origin = geometry.mapPoint3d({ x: 0, y: 0, z: 0 });
+  const xUnit = geometry.mapPoint3d({ x: 1, y: 0, z: 0 });
+  const yUnit = geometry.mapPoint3d({ x: 0, y: 1, z: 0 });
+  const zUnit = geometry.mapPoint3d({ x: 0, y: 0, z: 2 });
+
+  const xLength = Math.hypot(xUnit.x - origin.x, xUnit.y - origin.y);
+  const yLength = Math.hypot(yUnit.x - origin.x, yUnit.y - origin.y);
+  const zLength = Math.hypot(zUnit.x - origin.x, zUnit.y - origin.y);
+  assert.ok(geometry.width < 1.3 && geometry.height < 2.3, "units-only must not reserve the requested 6cm by 3cm box");
+  assert.ok(Math.abs(xLength / yLength - 0.714109613) < 1e-6, "view projection keeps the x/y basis ratio");
+  assert.ok(Math.abs(zLength / xLength - 2.445402992) < 1e-6, "the z range remains physically twice the one-unit x range");
+
+  const magnified = createAxisGeometry(
+    {
+      "scale only axis": true,
+      width: "6cm",
+      height: "3cm",
+      "pgfplots 3d surface": true,
+      view: "{65}{35}",
+      "scale mode": "scale uniformly",
+      "scale uniformly strategy": "units only"
+    },
+    { xMin: 0, xMax: 10, yMin: 0, yMax: 10, zMin: 0, zMax: 20 }
+  );
+  assert.ok(Math.abs(magnified.width - geometry.width) < 1e-9, "a common range multiplier must cancel through the shared units-only scale");
+  assert.ok(Math.abs(magnified.height - geometry.height) < 1e-9, "a common range multiplier must preserve the compact projected box");
 });
 
 test("pgfplots default 3d surf z buffer follows native reverse-y scanline order", () => {

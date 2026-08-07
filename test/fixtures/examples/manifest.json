@@ -4051,6 +4051,39 @@
       ]
     },
     {
+      "id": "pgfplots-scale-mode-uniform-3d",
+      "title": "PGFPlots 3D scale mode uniformly",
+      "source": "pgfplots/scale-mode-uniform-3d.tex",
+      "sourceCorpus": "TeX Live PGFPlots scaling semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.scaling.code.tex",
+      "semanticOwner": "src/pgfplots/geometry.js:createPgfplots3DViewProjection",
+      "features": [
+        "PGFPlots 3D view",
+        "scale mode=scale uniformly",
+        "scale uniformly strategy=units only",
+        "relative x/y/z span preservation",
+        "mesh",
+        "grid"
+      ]
+    },
+    {
+      "id": "pgfplots-scale-mode-uniform-3d-large-range",
+      "title": "PGFPlots 3D scale mode uniformly, magnified range",
+      "source": "pgfplots/scale-mode-uniform-3d-large-range.tex",
+      "sourceCorpus": "TeX Live PGFPlots scaling semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.scaling.code.tex",
+      "semanticOwner": "src/pgfplots/geometry.js:createPgfplots3DViewProjection",
+      "features": [
+        "PGFPlots 3D view",
+        "scale mode=scale uniformly",
+        "scale uniformly strategy=units only",
+        "common x/y/z range multiplier",
+        "relative x/y/z span preservation",
+        "surf",
+        "grid"
+      ]
+    },
+    {
       "id": "pgfplots-patchplots-triangle",
       "title": "PGFPlots patchplots planar triangle",
       "source": "pgfplots/patchplots-triangle.tex",

@@ -174,6 +174,32 @@ npm run examples:diff -- --output outputs/qa-pgfplots-middle-y-scale-label
 三方视觉记录见
 [2026-08-07-pgfplots-middle-y-scale-label.md](qa/2026-08-07-pgfplots-middle-y-scale-label.md)。
 
+### PGFPlots 3D 等比例单位盒
+
+已验证的 `scale mode=scale uniformly, scale uniformly strategy=units only`
+子集用于保持 3D x/y/z 方向的一致单位比例。它不会把投影图形强行拉满请求的
+`width` 与 `height`；仅相对的 x/y/z 数据跨度会改变盒形状，三个范围同时乘以同一
+倍数后仍会得到同样的紧凑图盒。未指定 `colormap name` 的 `surf` 使用 PGFPlots 默认
+`hot` 色图：`blue -> yellow -> orange -> red`。
+
+```tex
+\begin{axis}[
+  width=6cm, height=3cm, scale only axis,
+  scale mode=scale uniformly,
+  scale uniformly strategy=units only,
+  view={65}{35},
+  xmin=0, xmax=1, ymin=0, ymax=1, zmin=0, zmax=2,
+  grid=major
+]
+  \addplot3[surf,domain=0:1,y domain=0:1,samples=9] {x+y};
+\end{axis}
+```
+
+对应 fixtures 是 `pgfplots-scale-mode-uniform-3d` 与
+`pgfplots-scale-mode-uniform-3d-large-range`。完整 `auto`、`change horizontal limits`、
+`change vertical limits`、混合的显式 unit-vector 比例、复杂 3D 描述与精确文字边界
+仍是 partial；请按第 4 节的三方流程验收。
+
 ### PGFPlots 3D quiver
 
 已验收的 `\addplot3` quiver 子集包含 `quiver/u`、`quiver/v`、`quiver/w`、

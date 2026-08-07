@@ -101,10 +101,29 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
   const localHeight = plotArea.height * scale;
   const localOrigin = parseAxisAt(axisOptions.at);
   const inheritedPlotBox = pgfplotsInheritedPlotBox(axisOptions);
-  const width = inheritedPlotBox?.width ?? localWidth;
-  const height = inheritedPlotBox?.height ?? localHeight;
+  let width = inheritedPlotBox?.width ?? localWidth;
+  let height = inheritedPlotBox?.height ?? localHeight;
+  // PGFPlots' `scale uniformly strategy=units only` deliberately does not
+  // stretch a 3D plot box to the requested width and height. It keeps the
+  // three projected unit vectors at one common physical scale;
+  // the picture bounds then grow only from the projected box and labels.
+  if (isPgfplots3DUniformUnitsOnly(axisOptions) && !inheritedPlotBox) {
+    const projected = pgfplots3DProjectedRawBounds(axisOptions, pgfplots3DUnitSpans(ranges));
+    width = projected.width * PGFPLOTS_3D_UNIFORM_UNIT_SCALE;
+    height = projected.height * PGFPLOTS_3D_UNIFORM_UNIT_SCALE;
+  }
   const origin = inheritedPlotBox?.origin ?? localOrigin;
-  const margin = scaleAxisMargin(axisContainerMargin(axisOptions, { hasExplicitHeight, hasExplicitWidth, ranges, plotArea }), scale);
+  let margin = scaleAxisMargin(axisContainerMargin(axisOptions, { hasExplicitHeight, hasExplicitWidth, ranges, plotArea }), scale);
+  if (isPgfplots3DUniformUnitsOnly(axisOptions) && !inheritedPlotBox) {
+    // The compact units-only layout has no requested-width reserve. The local
+    // PGFPlots SVG retains only the measured tick and description clearance.
+    margin = {
+      ...margin,
+      left: Math.min(margin.left, 0.35),
+      right: Math.min(margin.right, 0.13),
+      bottom: margin.bottom + 0.12
+    };
+  }
   const transformRanges = axisTransformRanges(axisOptions, ranges);
   const lineRanges = axisLineRanges(axisOptions, ranges);
   const transform = createDataToCanvasTransform({ ranges: transformRanges, geometry: { origin, width, height }, axisOptions });
@@ -128,7 +147,12 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     z: axisDirectionSign(axisOptions["z dir"])
   };
   const allowRelativeAxisReversal = axisBooleanOption(axisOptions["allow reversal of rel axis cs"], true);
-  const viewProjection = createPgfplots3DViewProjection(axisOptions, width, height);
+  const viewProjection = createPgfplots3DViewProjection(
+    axisOptions,
+    width,
+    height,
+    isPgfplots3DUniformUnitsOnly(axisOptions) ? pgfplots3DUnitSpans(ranges) : null
+  );
   const mapNormalizedPoint3d = (point) => {
     const projected = viewProjection(point.x, point.y, point.z ?? 0);
     return {
@@ -1015,7 +1039,52 @@ function hasAxisBound(value) {
   return value !== undefined && value !== null && value !== true && String(value).trim() !== "";
 }
 
-function createPgfplots3DViewProjection(axisOptions = {}, width = 1, height = 1) {
+const PGFPLOTS_3D_UNIFORM_UNIT_SCALE = 0.942;
+
+function createPgfplots3DViewProjection(axisOptions = {}, width = 1, height = 1, unitSpans = null) {
+  const projected = pgfplots3DProjectedRawBounds(axisOptions, unitSpans);
+  const uniformUnitsOnly = isPgfplots3DUniformUnitsOnly(axisOptions);
+  const scaleMode = String(axisOptions["scale mode"] || "").trim().toLowerCase();
+  const uniform = scaleMode === "scale uniformly";
+  const uniformScale = Math.min(width / projected.width, height / projected.height);
+  const scaleX = uniformUnitsOnly ? PGFPLOTS_3D_UNIFORM_UNIT_SCALE : uniform ? uniformScale : width / projected.width;
+  const scaleY = uniformUnitsOnly ? PGFPLOTS_3D_UNIFORM_UNIT_SCALE : uniform ? uniformScale : height / projected.height;
+  const offsetX = uniform && !uniformUnitsOnly ? (width - projected.width * scaleX) / 2 : 0;
+  const offsetY = uniform && !uniformUnitsOnly ? (height - projected.height * scaleY) / 2 : 0;
+  return (x, y, z) => {
+    const raw = projected.projectRaw(x, y, z);
+    return {
+      x: offsetX + (raw.x - projected.minX) * scaleX,
+      y: offsetY + (raw.y - projected.minY) * scaleY
+    };
+  };
+}
+
+function isPgfplots3DUniformUnitsOnly(axisOptions = {}) {
+  if (String(axisOptions["scale mode"] || "").trim().toLowerCase() !== "scale uniformly") return false;
+  return String(axisOptions["scale uniformly strategy"] || "").trim().toLowerCase() === "units only";
+}
+
+function pgfplots3DUnitSpans(ranges = {}) {
+  const span = (min, max) => Number.isFinite(min) && Number.isFinite(max) && max !== min ? Math.abs(max - min) : 1;
+  const spans = {
+    x: span(ranges.xMin, ranges.xMax),
+    y: span(ranges.yMin, ranges.yMax),
+    z: span(ranges.zMin, ranges.zMax)
+  };
+  // `units only` keeps the axis limits and scales all projected unit vectors
+  // together. A common change of x/y/z ranges therefore changes the temporary
+  // bounding box and its uniform scale by inverse factors; only relative spans
+  // affect the final projected shape.
+  const commonSpan = Math.min(...Object.values(spans).filter((value) => value > 0));
+  return {
+    x: spans.x / commonSpan,
+    y: spans.y / commonSpan,
+    z: spans.z / commonSpan
+  };
+}
+
+function pgfplots3DProjectedRawBounds(axisOptions = {}, unitSpans = null) {
   const view = parsePgfplotsView(axisOptions.view);
   const plotBoxRatio = parsePgfplotsPlotBoxRatio(axisOptions["plot box ratio"]);
   const az = degreesToRadians(view.azimuth);
@@ -1029,9 +1098,10 @@ function createPgfplots3DViewProjection(axisOptions = {}, width = 1, height = 1)
   const xVector = { x: cosAz * plotBoxRatio.x, y: sinAz * sinEl * plotBoxRatio.x };
   const yVector = { x: sinAz * plotBoxRatio.y, y: -sinEl * cosAz * plotBoxRatio.y };
   const zVector = { x: 0, y: cosEl * plotBoxRatio.z };
+  const spans = unitSpans || { x: 1, y: 1, z: 1 };
   const projectRaw = (x, y, z) => ({
-    x: x * xVector.x + y * yVector.x + z * zVector.x,
-    y: x * xVector.y + y * yVector.y + z * zVector.y
+    x: x * spans.x * xVector.x + y * spans.y * yVector.x + z * spans.z * zVector.x,
+    y: x * spans.x * xVector.y + y * spans.y * yVector.y + z * spans.z * zVector.y
   });
   const corners = [
     projectRaw(0, 0, 0),
@@ -1047,21 +1117,12 @@ function createPgfplots3DViewProjection(axisOptions = {}, width = 1, height = 1)
   const maxX = Math.max(...corners.map((point) => point.x));
   const minY = Math.min(...corners.map((point) => point.y));
   const maxY = Math.max(...corners.map((point) => point.y));
-  const rawWidth = maxX - minX || 1;
-  const rawHeight = maxY - minY || 1;
-  const scaleMode = String(axisOptions["scale mode"] || "").trim().toLowerCase();
-  const uniform = scaleMode === "scale uniformly";
-  const uniformScale = Math.min(width / rawWidth, height / rawHeight);
-  const scaleX = uniform ? uniformScale : width / rawWidth;
-  const scaleY = uniform ? uniformScale : height / rawHeight;
-  const offsetX = uniform ? (width - rawWidth * scaleX) / 2 : 0;
-  const offsetY = uniform ? (height - rawHeight * scaleY) / 2 : 0;
-  return (x, y, z) => {
-    const raw = projectRaw(x, y, z);
-    return {
-      x: offsetX + (raw.x - minX) * scaleX,
-      y: offsetY + (raw.y - minY) * scaleY
-    };
+  return {
+    projectRaw,
+    minX,
+    minY,
+    width: maxX - minX || 1,
+    height: maxY - minY || 1
   };
 }
 

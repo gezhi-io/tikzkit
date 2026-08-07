@@ -143,6 +143,29 @@ npm run examples:diff -- --output outputs/qa-case \
 一个可提交的兼容性改动应包含共享实现、最小回归测试、维护 fixture、登记表更新和
 一份 QA Markdown；不提交 `outputs/` 中的 PNG、SVG 或 diff。
 
+### 最近验收：PGFPlots 3D 等比例单位盒
+
+`scale mode=scale uniformly` 搭配 `scale uniformly strategy=units only` 现在有一个
+可复现的 3D `surf` 子集：它保留 x/y/z 的相对跨度，而不把图面硬拉满 `width` 和
+`height`。同一比例的范围放大 10 倍后，图盒仍保持紧凑；未显式设置色图的 `surf`
+也会使用本机 PGFPlots 的默认 `hot` 蓝、黄、橙、红停靠点。
+
+```bash
+node --test --test-name-pattern='native hot colormap|scale uniformly units only' \
+  test/pgfplots-seams.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only pgfplots-scale-mode-uniform-3d \
+  --only pgfplots-scale-mode-uniform-3d-large-range \
+  --output outputs/qa-pgfplots-scale-uniform \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-scale-uniform \
+  --register --alignment-radius 3
+```
+
+`scale uniformly strategy=auto`、水平/垂直 axis-limit compensation、复杂 legend 和
+全量 3D 文本边界仍在测试中。源码阅读、视觉差异与剩余边界见
+[PGFPlots 3D QA](docs/qa/2026-08-08-pgfplots-scale-uniform-units-only.md)。
+
 ### 最近验收：pgfgantt group 峰形轮廓
 
 `pgfgantt` 仍是 partial，但标准 `\ganttgroup` 与 `\ganttlinkedgroup` 现已使用
