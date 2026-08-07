@@ -413,6 +413,28 @@ test("honors pgfgantt numeric progress label text and font overrides", () => {
   assert.equal(label?.font?.sizePt, 5);
 });
 
+test("expands numeric and comma-list pgfgantt title lists into adjacent title cells", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[x unit=1cm,y unit title=1cm]{1}{7}
+  \gantttitlelist{1,3,...,7}{1} \\
+  \gantttitlelist{Mon,Wed,Fri}{1}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const labels = ir.items.filter((item) => item.type === "textNode").filter((item) => ["1", "3", "5", "7", "Mon", "Wed", "Fri"].includes(item.text));
+  assert.equal(labels.length, 7);
+  const numberLabels = labels.filter((item) => ["1", "3", "5", "7"].includes(item.text));
+  assert.ok(numberLabels[1].x > numberLabels[0].x);
+  assert.equal(numberLabels[0].y, numberLabels[1].y);
+  const dayLabels = labels.filter((item) => ["Mon", "Wed", "Fri"].includes(item.text));
+  assert.equal(dayLabels[0].y, dayLabels[1].y);
+  assert.ok(dayLabels[0].y < numberLabels[0].y);
+});
+
 test("uses TeX control-word boundaries for dynamic coordinate names", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}

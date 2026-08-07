@@ -547,6 +547,18 @@ bar. Chart-level styles apply first and local bar options override them.
 \end{ganttchart}
 ```
 
+`\gantttitlelist` supports literal comma lists and numeric PGF foreach ranges,
+including `1,...,12` and `1,3,...,7`. It expands to normal adjacent title
+cells, so it keeps the same title geometry and local options as `\gantttitle`.
+
+```tex
+\begin{ganttchart}[x unit=.45cm,y unit title=.5cm]{1}{12}
+  \gantttitle{Weeks}{12} \\
+  \gantttitlelist{1,...,12}{1} \\
+  \ganttbar{Planning}{1}{4}
+\end{ganttchart}
+```
+
 ```tex
 \begin{ganttchart}[x unit=.5cm,y unit chart=.7cm,
   link/.append style={blue,very thick}]{1}{12}
@@ -558,17 +570,20 @@ bar. Chart-level styles apply first and local bar options override them.
 \end{ganttchart}
 ```
 
-This remains a partial package: calendar/date slots, title lists,
+This remains a partial package: calendar/date slots, TeX-evaluated
+`title list options`,
 `progress=today`, group/milestone progress, `\ganttlinkedgroup` shape parity,
 custom `\newganttlinktype` declarations,
 specialised bar/group shapes, and arbitrary canvas or link-anchor styles are not yet
 implemented. The fixtures are `pgfgantt-grid-style-list` and
-`pgfgantt-basic-links`, `pgfgantt-linked-elements`, and `pgfgantt-bar-progress`;
+`pgfgantt-basic-links`, `pgfgantt-linked-elements`, `pgfgantt-bar-progress`,
+and `pgfgantt-title-list`;
 visual QA records are in
 `docs/qa/2026-08-07-pgfgantt-grid-style-list.md` and
 `docs/qa/2026-08-07-pgfgantt-basic-links.md`, plus
-`docs/qa/2026-08-07-pgfgantt-linked-elements.md`, and
-`docs/qa/2026-08-07-pgfgantt-bar-progress.md`.
+`docs/qa/2026-08-07-pgfgantt-linked-elements.md`,
+`docs/qa/2026-08-07-pgfgantt-bar-progress.md`, and
+`docs/qa/2026-08-07-pgfgantt-title-list.md`.
 
 ## Start Here
 

@@ -4588,7 +4588,7 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
     ganttElementIndex += 1;
   };
   const totalSlots = Math.max(1, end - start + 1);
-  const entries = parseGanttCommands(body);
+  const entries = parseGanttCommands(expandGanttTitleLists(body));
   const chartEntries = entries.filter((entry) => entry.command !== "ganttlink");
   const rowCount = Math.max(1, ...chartEntries.map((entry) => entry.rowIndex + 1));
   const titleRows = new Set(chartEntries.filter((entry) => entry.command === "gantttitle").map((entry) => entry.rowIndex));
@@ -4909,6 +4909,65 @@ function parseGanttCommands(body) {
     pattern.lastIndex = Math.max(pattern.lastIndex, index);
   }
   return rows;
+}
+
+function expandGanttTitleLists(body) {
+  const source = String(body || "");
+  const pattern = /\\gantttitlelist\b/g;
+  let output = "";
+  let index = 0;
+  let match;
+  while ((match = pattern.exec(source))) {
+    output += source.slice(index, match.index);
+    let cursor = match.index + match[0].length;
+    const parsedOptions = parseOptionalOptions(source, cursor);
+    cursor = parsedOptions.end;
+    const listArg = extractBalanced(source, skipWhitespace(source, cursor), "{", "}");
+    if (!listArg) {
+      output += match[0];
+      index = cursor;
+      continue;
+    }
+    const spanArg = extractBalanced(source, skipWhitespace(source, listArg.end), "{", "}");
+    if (!spanArg) {
+      output += source.slice(match.index, listArg.end);
+      index = listArg.end;
+      continue;
+    }
+    const labels = ganttTitleListItems(listArg.content);
+    if (!labels.length) {
+      output += source.slice(match.index, spanArg.end);
+      index = spanArg.end;
+      pattern.lastIndex = Math.max(pattern.lastIndex, index);
+      continue;
+    }
+    const optionText = parsedOptions.raw.trim();
+    const options = optionText ? `[${optionText}]` : "";
+    output += labels.map((label) => `\\gantttitle${options}{${label}}{${spanArg.content.trim()}}`).join("\n");
+    index = spanArg.end;
+    pattern.lastIndex = Math.max(pattern.lastIndex, index);
+  }
+  return output + source.slice(index);
+}
+
+function ganttTitleListItems(value) {
+  const text = stripOuterBracesText(String(value || ""));
+  const numeric = text.match(/^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*(?:([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*,\s*)?\.\.\.\s*,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*$/);
+  if (numeric) {
+    const start = Number(numeric[1]);
+    const next = numeric[2] === undefined ? null : Number(numeric[2]);
+    const end = Number(numeric[3]);
+    const step = next === null ? (end >= start ? 1 : -1) : next - start;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(step) || step === 0) return [];
+    const labels = [];
+    const epsilon = Math.abs(step) * 1e-8;
+    for (let current = start, count = 0; step > 0 ? current <= end + epsilon : current >= end - epsilon; current += step, count += 1) {
+      if (count > 10000) return [];
+      labels.push(Number.isInteger(current) ? String(Math.round(current)) : String(Math.round(current * 1e10) / 1e10));
+    }
+    return labels;
+  }
+  return splitTopLevel(text, ",").map((item) => item.trim()).filter(Boolean);
 }
 
 function ganttElementFill(row, fallback, chartOptions = {}) {
