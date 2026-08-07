@@ -36,12 +36,28 @@ test("plain addplot table entries receive the native default color-cycle marks",
   assert.equal(plots[2].options.mark, "halfcircle");
 });
 
-test("halfcircle plot marks use the PGF circle outline and diameter", () => {
+test("halfcircle plot marks use the PGF lower fill, diameter, and outline", () => {
   const command = renderPlotMark({ x: 1, y: 2 }, { orange: true, mark: "halfcircle", "mark size": "2pt" });
+  const transparent = renderPlotMark({ x: 1, y: 2 }, { orange: true, mark: "halfcircle", "mark color": "none", "mark size": "2pt" });
 
+  assert.match(command, /\\fill\[axis mark, draw=none, fill=white, fill opacity=1\]/);
   assert.match(command, /\(0\.93,2\) -- \(1\.07,2\)/);
   assert.match(command, /\(1,2\) circle\(0\.07\)/);
   assert.doesNotMatch(command, /fill=orange/);
+  assert.doesNotMatch(transparent, /\\fill\[/);
+  assert.match(transparent, /\(0\.93,2\) -- \(1\.07,2\)/);
+});
+
+test("starred halfcircle marks fill both halves without a divider and honor mark color rotation", () => {
+  const command = renderPlotMark(
+    { x: 1, y: 2 },
+    { blue: true, mark: "halfcircle*", "mark color": "orange", "mark size": "2pt", "mark options": "{rotate=90}" }
+  );
+
+  assert.match(command, /fill=blue/);
+  assert.match(command, /fill=orange/);
+  assert.match(command, /\(1,1\.93\) arc \(270:450:0\.07\)/);
+  assert.doesNotMatch(command, /\(1,1\.93\) -- \(1,2\.07\).*circle/);
 });
 
 test("triangle plot marks use PGF's polar triangle geometry", () => {

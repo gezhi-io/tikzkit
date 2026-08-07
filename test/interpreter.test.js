@@ -4242,6 +4242,26 @@ test("uses PGF plot mark fill semantics for filled and open circle marks", () =>
   assert.ok(marks[0].commands.some((command) => Math.abs(command.x) > 0.12), "expected mark size=4pt to enlarge plot marks");
 });
 
+test("uses PGF halfcircle fill and rotation semantics for direct plot marks", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[blue, mark size=4pt, mark color=orange]
+    plot[mark=halfcircle] coordinates{(0,0)}
+    plot[mark=halfcircle*,mark options={rotate=90}] coordinates{(1,0)};
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const outlines = ir.items.filter((item) => item.shape === "plot-mark");
+  const fills = ir.items.filter((item) => item.shape === "plot-mark-fill");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(outlines.length, 2);
+  assert.equal(fills.length, 3, "expected one lower fill plus upper/lower starred fills");
+  assert.equal(fills[0].style.fill, "rgb(255 128 0)");
+  assert.equal(fills[1].style.fill, "blue");
+  assert.equal(fills[2].style.fill, "rgb(255 128 0)");
+  assert.ok(Math.abs(fills[1].commands[0].x - 1) < 1e-6, "expected rotated starred halfcircle to start at top center");
+});
+
 test("substitutes foreach variables used as node option keys", () => {
   const source = String.raw`
 \begin{tikzpicture}

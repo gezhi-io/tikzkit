@@ -46,12 +46,10 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
     return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(offsetPoint(point, 0, -size))} -- ${formatAxisPoint(offsetPoint(point, 0, size))};`;
   }
   if (mark === "halfcircle") {
-    return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+    return renderHalfCircleMark(point, options, size, strokedStyle, fill, false);
   }
   if (mark === "halfcircle*") {
-    const left = formatAxisPoint(offsetPoint(point, -size, 0));
-    const right = formatAxisPoint(offsetPoint(point, size, 0));
-    return `\\draw[${filledStyle}] ${left} arc (180:360:${formatAxisNumber(size)}) -- cycle;\\draw[${strokedStyle}] ${left} -- ${right} ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+    return renderHalfCircleMark(point, options, size, strokedStyle, fill, true);
   }
   if (datavisualizationIsMercedesMark(mark)) {
     return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size);
@@ -78,6 +76,64 @@ export function axisMarkRadius(options = {}) {
   const text = String(raw ?? "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   const value = /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(text) ? parseDimension(`${text}pt`, {}) : parseDimension(text, {});
   return Number.isFinite(value) && value > 0 ? value : parseDimension("2pt", {});
+}
+
+function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred) {
+  const rotation = plotMarkRotation(options);
+  const left = rotatePointAround(point, -size, 0, rotation);
+  const right = rotatePointAround(point, size, 0, rotation);
+  const lowerFill = halfCircleMarkColor(options);
+  const fillStyle = (color) => joinOptions([
+    "axis mark",
+    "draw=none",
+    `fill=${color}`,
+    "fill opacity=1"
+  ]);
+  const radius = formatAxisNumber(size);
+  const lower = `${formatAxisPoint(left)} arc (${formatAxisNumber(180 + rotation)}:${formatAxisNumber(360 + rotation)}:${radius}) -- cycle;`;
+  const items = [];
+
+  if (starred) {
+    const upper = `${formatAxisPoint(right)} arc (${formatAxisNumber(rotation)}:${formatAxisNumber(180 + rotation)}:${radius}) -- cycle;`;
+    items.push(`\\fill[${fillStyle(fill)}] ${upper}`);
+  }
+  if (lowerFill) items.push(`\\fill[${fillStyle(lowerFill)}] ${lower}`);
+
+  const divider = starred ? "" : `${formatAxisPoint(left)} -- ${formatAxisPoint(right)} `;
+  items.push(`\\draw[${strokedStyle}] ${divider}${formatAxisPoint(point)} circle(${radius});`);
+  return items.join("");
+}
+
+function halfCircleMarkColor(options = {}) {
+  const raw = options["mark color"] ?? options.markColor;
+  if (raw !== undefined && raw !== null && raw !== true) {
+    const color = plotColorValue(raw);
+    return String(color).trim().toLowerCase() === "none" ? null : color;
+  }
+  // pgflibraryplotmarks.code.tex uses white when /pgf/mark color is unset.
+  return "white";
+}
+
+function plotMarkRotation(options = {}) {
+  const raw = options["mark options"];
+  if (!raw || raw === true) return 0;
+  const value = Number(parseOptions(stripOptionBraces(raw)).rotate);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function stripOptionBraces(value) {
+  const text = String(value || "").trim();
+  return text.startsWith("{") && text.endsWith("}") ? text.slice(1, -1).trim() : text;
+}
+
+function rotatePointAround(point, x, y, degrees) {
+  const radians = (degrees * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  return {
+    x: point.x + x * cosine - y * sine,
+    y: point.y + x * sine + y * cosine
+  };
 }
 
 function datavisualizationAxisMercedesMark(point, style, mark, size) {

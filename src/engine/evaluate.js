@@ -1551,7 +1551,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         ? resolveRelativeCoordinate(segment.raw, relativeOrigin, env, diagnostics)
         : resolveCoordinate(segment.raw, env, diagnostics));
       if (pendingPlotMark) {
-        shapes.push(buildPlotMark(point, pendingPlotMark, pathStyle, effectivePathOptions, env));
+        shapes.push(...plotMarkItems(point, pendingPlotMark, pathStyle, effectivePathOptions, env));
         pendingPlotMark = null;
       }
       const localPoint = segment.relative || !shouldResolveAsLocalRectangleCorner(segment.raw)
@@ -2002,7 +2002,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const mark = segment.options?.mark ?? pathOptions.mark;
       if (mark && String(mark).trim().toLowerCase() !== "none") {
         const markOptions = { ...pathOptions, ...(segment.options || {}) };
-        shapes.push(...plot.points.map((point) => buildPlotMark(point, mark, pathStyle, markOptions, env)));
+        shapes.push(...plot.points.flatMap((point) => plotMarkItems(point, mark, pathStyle, markOptions, env)));
       }
       if (!pathOptions["only marks"] && !segment.options?.["only marks"]) {
         for (const command of plot.commands) commands.push(command);
@@ -14667,6 +14667,11 @@ function sineCosineCurveCommand(from, to, op) {
   };
 }
 
+function plotMarkItems(point, mark, pathStyle = {}, markOptions = {}, env = {}) {
+  const markShape = buildPlotMark(point, mark, pathStyle, markOptions, env);
+  return Array.isArray(markShape) ? markShape : [markShape];
+}
+
 function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) {
   const kind = stripOuterBraces(String(mark || "*")).trim();
   const size = plotMarkSize(markOptions, env);
@@ -14683,6 +14688,45 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
     fill: markColor
   };
   const finalize = (item) => rotatePlotMark(item, point, markOptions, env);
+  const finalizeItems = (items) => items.map(finalize);
+
+  if (kind === "halfcircle" || kind === "halfcircle*") {
+    const stroke = pathStyle.stroke || "black";
+    const lowerFill = plotHalfCircleMarkColor(markOptions);
+    const outline = {
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: kind === "halfcircle"
+        ? [
+            { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y) },
+            { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y) },
+            ...circleToPath(point.x, point.y, size)
+          ]
+        : circleToPath(point.x, point.y, size),
+      style: { stroke, fill: "none", lineWidth: pathStyle.lineWidth || 1 }
+    };
+    const items = [];
+    if (kind === "halfcircle*") {
+      items.push({
+        type: "path",
+        shape: "plot-mark-fill",
+        mark: kind,
+        commands: plotHalfCirclePath(point, size, "upper"),
+        style: { stroke: "none", fill: pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : stroke, lineWidth: 0 }
+      });
+    }
+    if (lowerFill) {
+      items.push({
+        type: "path",
+        shape: "plot-mark-fill",
+        mark: kind,
+        commands: plotHalfCirclePath(point, size, "lower"),
+        style: { stroke: "none", fill: lowerFill, lineWidth: 0 }
+      });
+    }
+    return finalizeItems([...items, outline]);
+  }
 
   if (kind === "*" || kind === "." || kind === "o") {
     return {
@@ -14861,9 +14905,46 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
   };
 }
 
+function plotHalfCircleMarkColor(markOptions = {}) {
+  const raw = markOptions["mark color"];
+  if (raw !== undefined && raw !== null && raw !== true) {
+    const color = normalizeColor(String(raw));
+    return color === "none" ? null : color;
+  }
+  // PGF's /pgf/mark color default is white for half-filled plot marks.
+  return "white";
+}
+
+function plotHalfCirclePath(point, size, half) {
+  const k = 0.5522847498307936;
+  const cubic = (x1, y1, x2, y2, x, y) => ({
+    type: "curveTo",
+    x1: roundNumber(x1),
+    y1: roundNumber(y1),
+    x2: roundNumber(x2),
+    y2: roundNumber(y2),
+    x: roundNumber(x),
+    y: roundNumber(y)
+  });
+  if (half === "upper") {
+    return [
+      { type: "moveTo", x: roundNumber(point.x + size), y: roundNumber(point.y) },
+      cubic(point.x + size, point.y - k * size, point.x + k * size, point.y - size, point.x, point.y - size),
+      cubic(point.x - k * size, point.y - size, point.x - size, point.y - k * size, point.x - size, point.y),
+      { type: "closePath" }
+    ];
+  }
+  return [
+    { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y) },
+    cubic(point.x - size, point.y + k * size, point.x - k * size, point.y + size, point.x, point.y + size),
+    cubic(point.x + k * size, point.y + size, point.x + size, point.y + k * size, point.x + size, point.y),
+    { type: "closePath" }
+  ];
+}
+
 function rotatePlotMark(item, point, markOptions = {}, env = {}) {
   const options = markOptions["mark options"] && markOptions["mark options"] !== true
-    ? parseOptions(String(markOptions["mark options"]))
+    ? parseOptions(stripOuterBraces(String(markOptions["mark options"])))
     : {};
   const degrees = evaluateMath(options.rotate, env.variables || {});
   if (!Number.isFinite(degrees) || Math.abs(degrees) < 1e-12) return item;

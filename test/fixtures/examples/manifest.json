@@ -4926,6 +4926,23 @@
         "tkzGetPoints",
         "native second result"
       ]
+    },
+    {
+      "id": "plotmarks-halfcircle-variants",
+      "title": "PGF plotmarks halfcircle variants",
+      "source": "plotmarks/halfcircle-variants.tex",
+      "sourceCorpus": "TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:buildPlotMark",
+      "features": [
+        "plotmarks library",
+        "mark=halfcircle",
+        "mark=halfcircle*",
+        "mark color",
+        "mark color=none",
+        "mark options rotate",
+        "mark size"
+      ]
     }
   ]
 }
