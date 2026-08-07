@@ -6067,8 +6067,15 @@ function createNode(statement, env, ir, diagnostics) {
     point: displayPoint,
     width: size.width,
     height: size.height,
+    // Tree growth and explicit edge anchors are evaluated against PGF's
+    // anchor box, which can differ slightly from the painted text box after
+    // inner separation and text metrics are applied.
+    layoutWidth: anchorSize.width,
+    layoutHeight: anchorSize.height,
+    ...textAnchorOffsets,
     shape: nodeShape(expandedOptions),
     shapeData: nodeShapeData(expandedOptions, nodeEnv),
+    rotation: nodeRotation(expandedOptions, nodeEnv),
     options: expandedOptions
   };
 }
@@ -6251,9 +6258,10 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", childBaseEnv);
     offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", childBaseEnv);
     const projected = projectLocalOffset(offset.x, offset.y, childBaseEnv);
+    const growthParentPoint = treeGrowthParentPoint(parentNode, layoutOptions, childBaseEnv);
     const point = roundPoint({
-      x: parentNode.point.x + projected.x,
-      y: parentNode.point.y + projected.y
+      x: growthParentPoint.x + projected.x,
+      y: growthParentPoint.y + projected.y
     });
     const childEnv = {
       ...childBaseEnv,
@@ -6269,6 +6277,7 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
           {
             ...child.node,
             options: {
+              ...treeEveryChildNodeOptions(childBaseEnv),
               ...(child.node.options || {})
             },
             at: null,
@@ -6310,13 +6319,25 @@ function treeDescendantPictureOptions(pictureOptions = {}, childOptions = {}) {
     "xshift",
     "yshift",
     "shift",
-    "anchor"
+    "anchor",
+    "growth parent anchor",
+    "parent anchor",
+    "child anchor"
   ];
   const inherited = { ...pictureOptions };
   for (const key of placementKeys) {
     if (Object.hasOwn(childOptions, key)) delete inherited[key];
   }
   return inherited;
+}
+
+function treeEveryChildNodeOptions(env = {}) {
+  return resolveDynamicOptions(env.styles?.["every child node"] || {}, env);
+}
+
+function treeGrowthParentPoint(parentNode, options = {}, env = {}) {
+  const anchor = options["growth parent anchor"] ?? env.pictureOptions?.["growth parent anchor"] ?? "center";
+  return nodeAnchorCoordinate(parentNode, anchor);
 }
 
 function treeGrowDirection(env, options = {}) {
@@ -6439,13 +6460,7 @@ function addTreeEdge(parentNode, childNode, options, env, ir) {
   }
   const parentClipNode = treeEdgeClipNode(parentNode, env);
   const childClipNode = treeEdgeClipNode(childNode, env);
-  const clipped = clipNodeLineEndpoints(
-    parentNode.point,
-    { node: parentClipNode, mode: "center" },
-    childNode.point,
-    { node: childClipNode, mode: "center" },
-    env
-  );
+  const edgeEndpoints = treeEdgeEndpoints(parentClipNode, childClipNode, rawOptions, env);
   const connectionBar = mindmapConnection
     ? mindmapConnectionBarCommands(parentNode, childNode)
     : null;
@@ -6461,13 +6476,33 @@ function addTreeEdge(parentNode, childNode, options, env, ir) {
   } else if (mindmapConnection) {
     style.mindmapConnection = { ...mindmapConnection, paint: "stroke" };
   }
-  const commands = connectionBar || treeEdgeCommands(parentClipNode, childClipNode, clipped, options || {});
+  const commands = connectionBar || treeEdgeCommands(parentClipNode, childClipNode, edgeEndpoints, rawOptions);
   ir.items.push({
     type: "path",
     subtype: "tree-edge",
     style,
     commands
   });
+}
+
+function treeEdgeEndpoints(parentNode, childNode, options = {}, env = {}) {
+  const parent = treeEdgeEndpoint(parentNode, options["parent anchor"]);
+  const child = treeEdgeEndpoint(childNode, options["child anchor"]);
+  return clipNodeLineEndpoints(parent.point, parent.ref, child.point, child.ref, env);
+}
+
+function treeEdgeEndpoint(node, rawAnchor) {
+  const anchor = String(rawAnchor ?? "border").trim().toLowerCase();
+  if (anchor && anchor !== "border") {
+    return {
+      point: nodeAnchorCoordinate(node, anchor),
+      ref: { node, mode: "anchor", anchor }
+    };
+  }
+  return {
+    point: node.point,
+    ref: { node, mode: "center" }
+  };
 }
 
 function mindmapConnectionBarCommands(parentNode, childNode) {
@@ -6562,7 +6597,7 @@ function mindmapConceptColor(node, fallback) {
     : normalizeColor(String(value));
 }
 
-function treeEdgeCommands(parentNode, childNode, clipped, options = {}) {
+function treeEdgeCommands(parentNode, childNode, endpoints, options = {}) {
   const edgePath = String(options["edge from parent path"] || "");
   if (/tikzparentnode\.south/.test(edgePath) && /\|-/.test(edgePath) && /tikzchildnode\.west/.test(edgePath)) {
     const from = nodeAnchorCoordinate(parentNode, "south");
@@ -6573,9 +6608,8 @@ function treeEdgeCommands(parentNode, childNode, clipped, options = {}) {
       { type: "lineTo", x: to.x, y: to.y }
     ];
   }
-  if (options["edge from parent fork down"]) {
-    const from = nodeAnchorCoordinate(parentNode, "south");
-    const to = nodeAnchorCoordinate(childNode, "north");
+  if (options["edge from parent fork down"] || options["edge from parent fork up"]) {
+    const { from, to } = endpoints;
     const forkY = roundNumber((from.y + to.y) / 2);
     return [
       { type: "moveTo", x: from.x, y: from.y },
@@ -6584,9 +6618,19 @@ function treeEdgeCommands(parentNode, childNode, clipped, options = {}) {
       { type: "lineTo", x: to.x, y: to.y }
     ];
   }
+  if (options["edge from parent fork left"] || options["edge from parent fork right"]) {
+    const { from, to } = endpoints;
+    const forkX = roundNumber((from.x + to.x) / 2);
+    return [
+      { type: "moveTo", x: from.x, y: from.y },
+      { type: "lineTo", x: forkX, y: from.y },
+      { type: "lineTo", x: forkX, y: to.y },
+      { type: "lineTo", x: to.x, y: to.y }
+    ];
+  }
   return [
-    { type: "moveTo", x: clipped.from.x, y: clipped.from.y },
-    { type: "lineTo", x: clipped.to.x, y: clipped.to.y }
+    { type: "moveTo", x: endpoints.from.x, y: endpoints.from.y },
+    { type: "lineTo", x: endpoints.to.x, y: endpoints.to.y }
   ];
 }
 

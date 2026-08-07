@@ -4608,6 +4608,21 @@
         "rounded corners",
         "internal square split corners"
       ]
+    },
+    {
+      "id": "trees-anchor-routing",
+      "title": "PGF trees growth and edge anchor routing",
+      "source": "trees/anchor-routing.tex",
+      "sourceCorpus": "TeX Live PGF trees manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren/treeGrowthParentPoint/treeEdgeEndpoints",
+      "features": [
+        "growth parent anchor",
+        "every child node",
+        "parent anchor",
+        "child anchor",
+        "edge from parent"
+      ]
     }
   ]
 }

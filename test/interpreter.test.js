@@ -820,6 +820,32 @@ test("keeps orthogonal west-anchored tree children in one vertical column", () =
   assert.notEqual(children[0].y, children[1].y);
 });
 
+test("honors tree growth and edge anchors, including every child node", () => {
+  const source = String.raw`\begin{tikzpicture}[
+    level distance=1cm,
+    every node/.style={rectangle,draw,minimum height=6mm,inner sep=2pt},
+    every child node/.style={anchor=north}]
+    \node (south) at (0,0) {root}
+      [growth parent anchor=south,parent anchor=south,child anchor=north]
+      child {node {child} edge from parent[blue,thick]};
+    \node (northeast) at (3,0) {wide root}
+      [growth parent anchor=north east,parent anchor=north east,child anchor=west]
+      child {node[anchor=west] {child} edge from parent[red,dashed]};
+  \end{tikzpicture}`;
+  const result = tikzToSvg(source);
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge");
+  const blue = edges.find((item) => item.style?.stroke === "blue");
+  const red = edges.find((item) => item.style?.stroke === "red");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(blue, "expected the first anchored parent edge");
+  assert.ok(red, "expected the second anchored parent edge");
+  assert.ok(Math.abs(blue.commands[0].x - blue.commands[1].x) < 1e-9);
+  assert.ok(Math.abs(Math.abs(blue.commands[0].y - blue.commands[1].y) - 1) < 1e-9);
+  assert.ok(Math.abs(red.commands[0].x - red.commands[1].x) < 1e-9);
+  assert.ok(Math.abs(Math.abs(red.commands[0].y - red.commands[1].y) - 1) < 1e-9);
+});
+
 test("does not apply sibling offsets across different tree grow directions", () => {
   const source = String.raw`\begin{tikzpicture}
     \coordinate

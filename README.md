@@ -66,6 +66,29 @@ semantic regression. The executable visual driver is
 are recorded in
 [docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md](docs/qa/2026-08-07-shapes-multipart-rounded-custom-fill.md).
 
+### A Verified Tree-Anchor Example
+
+The focused `trees` slice supports the anchors which determine how a generated
+child is placed and where its generated parent edge starts and ends. In
+particular, `growth parent anchor`, `every child node`, `parent anchor`,
+`child anchor`, and the four standard `edge from parent fork` routes share the
+same node-anchor geometry.
+
+```tex
+\usetikzlibrary{trees}
+\begin{tikzpicture}[level distance=1cm,
+  every node/.style={draw,rectangle,minimum height=6mm,inner sep=2pt},
+  every child node/.style={anchor=north}]
+  \node {root}[growth parent anchor=south,parent anchor=south,child anchor=north]
+    child { node {child} edge from parent[blue,thick] };
+\end{tikzpicture}
+```
+
+The executable driver is `trees-anchor-routing`; its three-way visual evidence
+and remaining boundary are in
+[docs/qa/2026-08-07-trees-anchor-routing.md](docs/qa/2026-08-07-trees-anchor-routing.md).
+This is not a graph-drawing or collision-avoidance implementation.
+
 ## Start Here
 
 Use the repository in this order. A successful browser render is useful for

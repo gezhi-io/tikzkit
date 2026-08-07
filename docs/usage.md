@@ -137,6 +137,26 @@ workflow is the same as section 4, with
 PGF border-anchor algorithm: rectangle, diamond, star, trapezium, custom
 shapes, and tip-specific padding/separation keys are still partial.
 
+### 树的子节点与边锚点
+
+`\usetikzlibrary{trees}` 的已验收子集会从 `growth parent anchor` 放置下一层，
+在生成子节点前应用 `every child node`，并把生成树边的 `parent anchor` 与
+`child anchor` 交给同一套节点锚点计算。未设置这两个 key 时，`border` 仍按节点
+轮廓自动裁剪；`edge from parent fork down/up/left/right` 使用这些已解析的端点。
+
+```tex
+\begin{tikzpicture}[level distance=1cm,
+  every node/.style={rectangle,draw,minimum height=6mm,inner sep=2pt},
+  every child node/.style={anchor=north}]
+  \node (root) {root}
+    [growth parent anchor=south,parent anchor=south,child anchor=north]
+    child {node {child} edge from parent[blue,thick]};
+\end{tikzpicture}
+```
+
+对应 driver 是 `trees-anchor-routing`。图形绘制算法、碰撞回避、任意
+`edge from parent path` TeX 代码和复杂 forest 风格仍在测试中。
+
 ### 路径替换装饰
 
 `\usetikzlibrary{decorations.pathreplacing}` 当前已验证 `brace`、`ticks`、`border`、
