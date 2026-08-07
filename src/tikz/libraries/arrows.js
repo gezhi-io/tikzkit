@@ -19,7 +19,7 @@ export const tikzLibrary = {
     "-latex'",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
-    "curved terminal arrow crops on circular, elliptical, regular-polygon, rectangle, diamond, star, and trapezium nodes"
+    "curved terminal arrow crops on circular, elliptical, regular-polygon, rectangle, diamond, star, and trapezium nodes, including focused convex polygon-corner miters"
   ],
   "implements": [
     "->",
@@ -31,9 +31,9 @@ export const tikzLibrary = {
     "-latex'",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
-    "curved terminal arrow crops on circular, elliptical, regular-polygon, rectangle, diamond, star, and trapezium nodes"
+    "curved terminal arrow crops on circular, elliptical, regular-polygon, rectangle, diamond, star, and trapezium nodes, including focused convex polygon-corner miters"
   ],
-  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. Reviewed locally on 2026-08-07 in PGF's diamond, star, and trapezium border definitions: curve endpoints on rectangles, diamonds, stars, and trapezia now move out perpendicular to the active hit side, using the source's outer-separation/miter model. `arrows-shape-curved-terminal-padding` is the permanent visual driver. Exact corner-ray miters, arbitrary custom shapes, tip-specific separation options, and full declared-arrow hulls remain partial."
+  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. The focused 2026-08-07 trapezium slice intersects the fully mitered offset convex polygon contour, avoiding the prior arbitrary adjacent-side choice at a shared corner. `arrows-shape-curved-terminal-miters` is the permanent visual driver. Concave and custom shape miters, tip-specific separation options, and full declared-arrow hulls remain partial."
 };
 
 // PGF's arrow declarations store a local path plus placement extents. We lower

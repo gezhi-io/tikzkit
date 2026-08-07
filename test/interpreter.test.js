@@ -3,6 +3,7 @@ import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
 import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension, stealthArrowLengthFromLineWidth, stealthArrowShortenFromLength } from "../src/tikz-metrics.js";
+import { trapeziumLayoutSize, trapeziumNodePoints } from "../src/tikz/libraries/shapes.geometric.js";
 
 function expectClose(actual, expected, epsilon = 1e-9) {
   assert.ok(Math.abs(actual - expected) < epsilon, `expected ${actual} to be close to ${expected}`);
@@ -4425,6 +4426,58 @@ test("extends curved terminal arrows beyond rectangle, diamond, star, and trapez
     );
     expectClose(thickEnd.y, thinEnd.y);
   }
+});
+
+test("uses PGF trapezium cotangent sides and switches to the mitered corner contour for curved arrows", () => {
+  const layout = trapeziumLayoutSize(0, 0, {
+    minimumWidth: 4,
+    minimumHeight: 2,
+    leftAngle: 70,
+    rightAngle: 110
+  });
+  const points = trapeziumNodePoints({ x: 0, y: 0 }, layout.width / 2, layout.height / 2, {
+    trapeziumLeftAngle: 70,
+    trapeziumRightAngle: 110
+  });
+  const corner = points[2];
+  const originalCornerAngle = (Math.atan2(corner.y, corner.x) * 180) / Math.PI;
+  const miterAngle = originalCornerAngle - 0.45;
+  const source = String.raw`
+\usetikzlibrary{arrows.meta,shapes.geometric}
+\begin{tikzpicture}
+  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,minimum width=4cm,minimum height=2cm,inner sep=0pt] (trap) at (0,0) {};
+  \draw[-{Latex[length=3mm]},thin] (6,6) to[out=180,in=${miterAngle}] (trap);
+  \draw[-{Latex[length=3mm]},line width=6pt] (6,6) to[out=180,in=${miterAngle}] (trap);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [thin, thick] = ir.items.filter((item) => item.type === "path" && item.style.markerEnd);
+  const thinEnd = thin?.commands.at(-1);
+  const thickEnd = thick?.commands.at(-1);
+  const padding = lineWidthFromPt(6) / TIKZ_UNIT / 2;
+  const direction = {
+    x: Math.cos((miterAngle * Math.PI) / 180),
+    y: Math.sin((miterAngle * Math.PI) / 180)
+  };
+  const rightEdge = { x: points[3].x - points[2].x, y: points[3].y - points[2].y };
+  const rightNormalLength = Math.hypot(rightEdge.x, rightEdge.y);
+  const rightOutward = { x: -rightEdge.y / rightNormalLength, y: rightEdge.x / rightNormalLength };
+  const priorSingleSideOffset = padding / (direction.x * rightOutward.x + direction.y * rightOutward.y);
+  const priorSingleSide = {
+    x: thinEnd.x + direction.x * priorSingleSideOffset,
+    y: thinEnd.y + direction.y * priorSingleSideOffset
+  };
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(layout.width, 4);
+  assert.ok(layout.height > 2, `expected PGF default width scaling to retain trapezium angles, got ${layout.height}`);
+  assert.equal(thinEnd.type, "curveTo");
+  assert.equal(thickEnd.type, "curveTo");
+  assert.ok(thickEnd.x > thinEnd.x && thickEnd.y > thinEnd.y, "expected thick terminal arrow to clear the top-right border");
+  assert.ok(
+    Math.abs(thickEnd.x - priorSingleSide.x) > 0.01,
+    `expected the padded miter contour to differ from the old right-side-only offset: old=${priorSingleSide.x}, new=${thickEnd.x}`
+  );
 });
 
 test("approximates TikZ bend left and bend right edge arrows as curves", () => {

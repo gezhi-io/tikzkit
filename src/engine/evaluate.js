@@ -1,6 +1,7 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
+import { trapeziumLayoutSize as geometricTrapeziumLayoutSize, trapeziumNodePoints as geometricTrapeziumNodePoints } from "../tikz/libraries/shapes.geometric.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
@@ -10797,6 +10798,16 @@ function diamondLayoutSize(contentWidth, contentHeight, options = {}, env = { va
   };
 }
 
+function trapeziumLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return geometricTrapeziumLayoutSize(contentWidth, contentHeight, {
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
+    leftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
+    rightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60)
+  });
+}
+
 function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const sides = regularPolygonSides(options, env);
   const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
@@ -12172,6 +12183,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     let emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     let emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     if (arrowNodeShape(emptyNodeShape)) return scaleSize(arrowNodeLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+    if (emptyNodeShape === "trapezium") return scaleSize(trapeziumLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
     if (options["minimum width"]) emptyWidth = Math.max(emptyWidth, parseNodeLengthDimension(options["minimum width"], env));
     if (options["minimum height"]) emptyHeight = Math.max(emptyHeight, parseNodeLengthDimension(options["minimum height"], env));
     if (options["minimum size"]) {
@@ -12194,6 +12206,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       : Math.max(0.22, textBox.width + innerXSep * 2));
   let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(0.35, textBox.height + innerYSep * 2));
   if (arrowNodeShape(shape)) return scaleSize(arrowNodeLayoutSize(width, height, options, env), shapeScale);
+  if (shape === "trapezium") {
+    return scaleSize(trapeziumLayoutSize(width, height, options, env), shapeScale);
+  }
   if (shape === "diamond" && !options["bpmn gateway"]) {
     ({ width, height } = diamondLayoutSize(width, height, options, env));
   } else if (shape === "ellipse") {
@@ -12252,9 +12267,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const diameter = Math.max(width, height) * 1.35;
     width = diameter;
     height = diameter;
-  }
-  if (shape === "trapezium") {
-    width += Math.max(0.25, height * 0.45);
   }
   if (shape === "isoscelesTriangle") {
     ({ width, height } = isoscelesTriangleLayoutSize(width, height, options, env));
@@ -16455,16 +16467,7 @@ function starPolygonPoints(center, halfWidth, halfHeight, points, ratio) {
 }
 
 function trapeziumPoints(center, halfWidth, halfHeight, data = {}) {
-  const left = Math.max(10, Math.min(170, data.trapeziumLeftAngle || 60));
-  const right = Math.max(10, Math.min(170, data.trapeziumRightAngle || 60));
-  const leftInset = Math.cos((left * Math.PI) / 180) * halfHeight * 0.7;
-  const rightInset = Math.cos((right * Math.PI) / 180) * halfHeight * 0.7;
-  return [
-    { x: center.x - halfWidth + leftInset, y: center.y + halfHeight },
-    { x: center.x + halfWidth - rightInset, y: center.y + halfHeight },
-    { x: center.x + halfWidth + rightInset, y: center.y - halfHeight },
-    { x: center.x - halfWidth - leftInset, y: center.y - halfHeight }
-  ];
+  return geometricTrapeziumNodePoints(center, halfWidth, halfHeight, data);
 }
 
 function isoscelesTrianglePoints(center, halfWidth, halfHeight) {
@@ -16495,6 +16498,17 @@ function polygonBorderPointWithPadding(center, toward, points, padding = 0) {
   const distance = Math.max(0, Number(padding) || 0);
   if (distance <= 1e-12) return roundPoint(hit.point);
 
+  // PGF's convex geometric shapes build border anchors from all of the
+  // expanded side lines. Intersecting the ray with that mitered contour keeps
+  // an asymmetric trapezium corner on the shared corner instead of
+  // arbitrarily choosing the first adjacent side. Concave stars retain the
+  // established active-side path until their source-specific anchor math is
+  // implemented.
+  if (isConvexPolygon(points)) {
+    const miteredHit = polygonBorderHit(center, toward, polygonMiterOffsetPoints(points, distance));
+    if (miteredHit) return roundPoint(miteredHit.point);
+  }
+
   const direction = { x: toward.x - center.x, y: toward.y - center.y };
   const directionLength = Math.hypot(direction.x, direction.y);
   const edge = { x: hit.b.x - hit.a.x, y: hit.b.y - hit.a.y };
@@ -16516,6 +16530,66 @@ function polygonBorderPointWithPadding(center, toward, points, padding = 0) {
     x: hit.point.x + unitDirection.x * offset,
     y: hit.point.y + unitDirection.y * offset
   });
+}
+
+function polygonMiterOffsetPoints(points, distance) {
+  if (!Array.isArray(points) || points.length < 3) return points;
+  const clockwise = polygonSignedArea(points) < 0;
+  return points.map((vertex, index) => {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const next = points[(index + 1) % points.length];
+    const previousEdge = { x: vertex.x - previous.x, y: vertex.y - previous.y };
+    const nextEdge = { x: next.x - vertex.x, y: next.y - vertex.y };
+    const previousNormal = polygonOutwardNormal(previousEdge, clockwise);
+    const nextNormal = polygonOutwardNormal(nextEdge, clockwise);
+    if (!previousNormal || !nextNormal) return vertex;
+    const previousOffset = {
+      x: vertex.x + previousNormal.x * distance,
+      y: vertex.y + previousNormal.y * distance
+    };
+    const nextOffset = {
+      x: vertex.x + nextNormal.x * distance,
+      y: vertex.y + nextNormal.y * distance
+    };
+    return lineIntersection(previousOffset, previousEdge, nextOffset, nextEdge) || vertex;
+  });
+}
+
+function isConvexPolygon(points) {
+  if (!Array.isArray(points) || points.length < 3) return false;
+  let sign = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const first = { x: current.x - previous.x, y: current.y - previous.y };
+    const second = { x: next.x - current.x, y: next.y - current.y };
+    const turn = cross(first, second);
+    if (Math.abs(turn) <= 1e-12) continue;
+    const turnSign = Math.sign(turn);
+    if (sign && turnSign !== sign) return false;
+    sign = turnSign;
+  }
+  return Boolean(sign);
+}
+
+function polygonOutwardNormal(edge, clockwise) {
+  const length = Math.hypot(edge.x, edge.y);
+  if (length <= 1e-12) return null;
+  return clockwise
+    ? { x: -edge.y / length, y: edge.x / length }
+    : { x: edge.y / length, y: -edge.x / length };
+}
+
+function lineIntersection(firstPoint, firstDirection, secondPoint, secondDirection) {
+  const denominator = cross(firstDirection, secondDirection);
+  if (Math.abs(denominator) <= 1e-12) return null;
+  const delta = { x: secondPoint.x - firstPoint.x, y: secondPoint.y - firstPoint.y };
+  const t = cross(delta, secondDirection) / denominator;
+  return {
+    x: firstPoint.x + firstDirection.x * t,
+    y: firstPoint.y + firstDirection.y * t
+  };
 }
 
 function polygonBorderHit(center, toward, points) {

@@ -2,6 +2,7 @@ import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
+import { trapeziumNodePoints as geometricTrapeziumNodePoints } from "../../tikz/libraries/shapes.geometric.js";
 
 export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
@@ -145,16 +146,7 @@ export function starNodePoints(center, halfWidth, halfHeight, points, ratio) {
 }
 
 export function trapeziumNodePoints(center, halfWidth, halfHeight, data = {}) {
-  const left = Math.max(10, Math.min(170, data.trapeziumLeftAngle || 60));
-  const right = Math.max(10, Math.min(170, data.trapeziumRightAngle || 60));
-  const leftInset = Math.cos((left * Math.PI) / 180) * halfHeight * 0.7;
-  const rightInset = Math.cos((right * Math.PI) / 180) * halfHeight * 0.7;
-  return [
-    { x: center.x - halfWidth + leftInset, y: center.y + halfHeight },
-    { x: center.x + halfWidth - rightInset, y: center.y + halfHeight },
-    { x: center.x + halfWidth + rightInset, y: center.y - halfHeight },
-    { x: center.x - halfWidth - leftInset, y: center.y - halfHeight }
-  ];
+  return geometricTrapeziumNodePoints(center, halfWidth, halfHeight, data);
 }
 
 export function isoscelesTriangleNodePoints(center, halfWidth, halfHeight) {

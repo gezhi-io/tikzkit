@@ -140,6 +140,31 @@ metric variants remain partial. The permanent fixture is
 recorded in
 [docs/qa/2026-08-07-shapes-arrows-single-double.md](docs/qa/2026-08-07-shapes-arrows-single-double.md).
 
+### A Verified `shapes.geometric` Trapezium Boundary Example
+
+The default `trapezium` construction now follows PGF's cotangent-derived side
+extensions and normal minimum-size scaling. Curved terminal arrows to convex
+polygon corners use the mitered outer border rather than an arbitrary adjacent
+side. This is deliberately a narrow `shapes.geometric` and arrow-boundary
+slice: `trapezium stretches`, exact star parity, and all concave-shape border
+rules remain partial.
+
+```tex
+\usetikzlibrary{arrows.meta,shapes.geometric}
+\begin{tikzpicture}
+  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,
+    minimum width=2.4cm,minimum height=1.3cm] (trap) {trapezium};
+  \draw[-{Latex[length=4mm,width=3mm]},line width=10pt,orange]
+    (3.1,1.2) to[out=-160,in=14.5] (trap);
+\end{tikzpicture}
+```
+
+Run the focused regression with
+`node --test --test-name-pattern='trapezium cotangent|curved terminal arrows beyond' test/interpreter.test.js`.
+The independent driver is `test/fixtures/arrows/shape-curved-terminal-miters.tex`;
+the local MacTeX, `tikztosvg`, and TikZKit visual record is in
+[docs/qa/2026-08-07-shapes-geometric-trapezium-miters.md](docs/qa/2026-08-07-shapes-geometric-trapezium-miters.md).
+
 ### A Verified Tree-Anchor Example
 
 The focused `trees` slice supports the anchors which determine how a generated
