@@ -37,9 +37,14 @@ export function renderDecorationTextPath(item, unit) {
   }
   if (!glyphs.length) return "";
   const em = fontSize / unit;
+  const unscaledTextLength = glyphs.reduce((sum, glyph) => sum + em * glyph.advance, 0);
+  const effectScale = decorationTextEffectsScale(item, totalLength, unscaledTextLength);
+  if (effectScale !== 1) glyphs = scaleDecorationTextGlyphs(glyphs, effectScale);
   const textLength = glyphs.reduce((sum, glyph) => sum + em * glyph.advance, 0);
   let distance = decorationTextStartDistance(item, totalLength, textLength);
-  const fitShift = decorationTextFitShift(item, glyphs, totalLength, textLength);
+  const fitShift = item.pathTextEffectsFitToPath && !item.pathTextEffectsScaleToPath
+    ? decorationTextEffectsFitShift(glyphs, totalLength, textLength, em)
+    : decorationTextFitShift(item, glyphs, totalLength, textLength);
   const raise = finiteDistance(item.pathRaise);
   const rendered = [];
   const repeatText = normalizedRepeatText(item.pathTextRepeat);
@@ -86,7 +91,7 @@ export function renderDecorationTextPath(item, unit) {
       }
     }
     distance += advance;
-    if (index + 1 < glyphs.length) distance += fitShift(glyph);
+    if (index + 1 < glyphs.length) distance += fitShift(glyph, glyphs[index + 1]);
   }
   return `<g class="tikz-decoration-text">${rendered.join("")}</g>`;
 }
@@ -180,6 +185,36 @@ function decorationTextFitShift(item, glyphs, totalLength, textLength) {
   if (gaps <= 0) return () => 0;
   const shift = extra / gaps;
   return () => shift;
+}
+
+function decorationTextEffectsScale(item, totalLength, textLength) {
+  if (!item.pathTextEffectsScaleToPath || !(textLength > 1e-9)) return 1;
+  const scale = totalLength / textLength;
+  return Number.isFinite(scale) && scale > 0 ? scale : 1;
+}
+
+function scaleDecorationTextGlyphs(glyphs, scale) {
+  return glyphs.map((glyph) => ({
+    ...glyph,
+    advance: glyph.advance * scale,
+    fontScale: glyph.fontScale * scale
+  }));
+}
+
+function decorationTextEffectsFitShift(glyphs, totalLength, textLength, em) {
+  if (glyphs.length < 2 || !(textLength > 1e-9)) return () => 0;
+  const firstAdvance = (Number(glyphs[0]?.advance) || 0) * em;
+  const lastAdvance = (Number(glyphs.at(-1)?.advance) || 0) * em;
+  const fixedEnds = (firstAdvance + lastAdvance) / 2;
+  const scalableLength = textLength - fixedEnds;
+  const availableLength = totalLength - fixedEnds;
+  if (!(scalableLength > 1e-9) || !(availableLength > 0)) return () => 0;
+  const scale = availableLength / scalableLength;
+  if (!Number.isFinite(scale)) return () => 0;
+  return (glyph, nextGlyph) => {
+    const betweenCenters = (((Number(glyph?.advance) || 0) + (Number(nextGlyph?.advance) || 0)) * em) / 2;
+    return betweenCenters * (scale - 1);
+  };
 }
 
 function finiteDistance(value) {

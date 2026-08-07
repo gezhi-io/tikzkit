@@ -1364,6 +1364,48 @@ test("honors decorations.text alignment, indents, fit spacing, and signed raise"
   assert.ok(fittedA.y > 15 && fittedA.y < 25, `expected negative raise below the path, got y=${fittedA.y}`);
 });
 
+test("fits and scales text-effects glyph boxes across the full decorated path", () => {
+  const pathCommands = [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 10, y: 0 }
+  ];
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "ABC",
+        pathCommands,
+        pathTextEffectsFitToPath: true,
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "DEF",
+        pathCommands,
+        pathTextEffectsScaleToPath: true,
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const glyph = (character) => {
+    const match = svg.match(new RegExp(`<text class="tikz-decoration-glyph" x="([^"]+)" y="([^"]+)"[^>]*font-size="([^"]+)"[^>]*>${character}</text>`));
+    assert.ok(match, `expected ${character} decoration glyph`);
+    return { x: Number(match[1]), y: Number(match[2]), fontSize: Number(match[3]) };
+  };
+
+  const fittedA = glyph("A");
+  const fittedC = glyph("C");
+  const scaledD = glyph("D");
+  const scaledF = glyph("F");
+
+  assert.ok(fittedA.x < 40 && fittedC.x > 960, `expected fit text endpoints near the path edges: ${fittedA.x}, ${fittedC.x}`);
+  assert.ok(scaledD.x < 250 && scaledF.x > 750, `expected scaled glyph boxes to span the path: ${scaledD.x}, ${scaledF.x}`);
+  assert.ok(scaledD.fontSize > 100, `expected scale text to path to enlarge glyphs, got ${scaledD.fontSize}`);
+});
+
 test("uses the normal TikZ text size for decoration text", () => {
   const scene = createSceneGraph({
     items: [

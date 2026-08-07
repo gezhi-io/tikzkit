@@ -14028,7 +14028,10 @@ function textAlongPathDecorationsFromOptions(options = {}) {
     if (!postaction.includes("decorate")) continue;
     const postOptions = parseOptions(postaction);
     if (!tikzBoolean(postOptions.decorate)) continue;
-    const rawDecoration = String(postOptions.decoration || "");
+    // TikZ permits `decoration=...` on the outer path and a bare
+    // `postaction={decorate}`. The postaction then consumes that same
+    // decoration rather than requiring it to be repeated inside the braces.
+    const rawDecoration = String(postOptions.decoration ?? options.decoration ?? "");
     const decoration = parseOptions(rawDecoration);
     if (isTextAlongPathDecoration(decoration)) decorations.push(decorationTextDecorationOptions(decoration, rawDecoration));
   }
@@ -14070,6 +14073,8 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextFitToPath: layout.fitToPath,
     pathTextFitToPathStretchingSpaces: layout.fitToPathStretchingSpaces,
     pathTextEffects: textEffects.transforms,
+    pathTextEffectsFitToPath: textEffects.fitTextToPath,
+    pathTextEffectsScaleToPath: textEffects.scaleTextToPath,
     pathTextReverse: textEffects.reverseText,
     pathTextReversePath: tikzBoolean(decoration["reverse path"]),
     pathTextGroupLetters: textEffects.groupLetters,
@@ -14099,6 +14104,8 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
 function decorationTextEffects(decoration = {}, pathOptions = {}) {
   const transforms = [];
   let wordSeparator = " ";
+  let fitTextToPath = false;
+  let scaleTextToPath = false;
   const options = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
   const rawDecoration = String(decoration["tikzkit decoration raw"] ?? "");
   const sources = [
@@ -14121,6 +14128,10 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
         transforms.push("reverse");
       } else if (key === "group letters" || key === "group letters into words") {
         transforms.push("group");
+      } else if (key === "fit text to path") {
+        fitTextToPath = tikzBoolean(value);
+      } else if (key === "scale text to path") {
+        scaleTextToPath = tikzBoolean(value);
       } else if (key === "word separator") {
         const separator = stripOuterBraces(value).trim();
         wordSeparator = separator.toLowerCase() === "space" || !separator ? " " : Array.from(separator)[0] || " ";
@@ -14141,6 +14152,8 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
   return {
     options,
     transforms,
+    fitTextToPath,
+    scaleTextToPath,
     reverseText: transforms.includes("reverse"),
     groupLetters: transforms.includes("group"),
     wordSeparator

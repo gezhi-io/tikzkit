@@ -1284,6 +1284,21 @@
       ]
     },
     {
+      "id": "decorations-text-effects-fit-scale",
+      "title": "PGF decorations.text fit and scale text to path",
+      "source": "decorations/text-effects-fit-scale.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextEffects;src/renderers/svg/decorationText.js:renderDecorationTextPath",
+      "features": [
+        "text effects along path",
+        "fit text to path",
+        "scale text to path",
+        "character box spacing",
+        "curved path text"
+      ]
+    },
+    {
       "id": "latex-examples-agent-environment-diagram-rl",
       "title": "LaTeX-examples Agent Environment Diagram Rl",
       "source": "latex-examples/agent-environment-diagram-rl.tex",

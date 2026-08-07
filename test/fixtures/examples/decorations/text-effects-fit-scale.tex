@@ -1,0 +1,24 @@
+% PGF decorations.text manual: compare ordinary, fitted, and scaled path text.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[help lines,gray!30,step=1cm] (0,0) grid (6,4);
+
+  \draw[gray!60] (0,3.3) .. controls (1.7,4.1) and (4.3,4.1) .. (6,3.3);
+  \path[postaction={decorate},decoration={text effects along path,
+    text={FIT TEXT},text effects/.cd,every character/.style={text along path}}]
+    (0,3.3) .. controls (1.7,4.1) and (4.3,4.1) .. (6,3.3);
+
+  \draw[gray!60] (0,2) .. controls (1.7,2.8) and (4.3,2.8) .. (6,2);
+  \path[postaction={decorate},decoration={text effects along path,
+    text={FIT TEXT},text effects/.cd,every character/.style={text along path},fit text to path}]
+    (0,2) .. controls (1.7,2.8) and (4.3,2.8) .. (6,2);
+
+  \draw[gray!60] (0,0.7) .. controls (1.7,1.5) and (4.3,1.5) .. (6,0.7);
+  \path[postaction={decorate},decoration={text effects along path,
+    text={FIT TEXT},text effects/.cd,every character/.style={text along path},scale text to path}]
+    (0,0.7) .. controls (1.7,1.5) and (4.3,1.5) .. (6,0.7);
+\end{tikzpicture}
+\end{document}

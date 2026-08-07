@@ -2480,6 +2480,26 @@ test("retains decorations.text alignment, indents, fit options, and signed raise
   assert.ok(Math.abs(label.pathRaise + 2 / 28.45274) < 1e-6, `expected negative 2pt raise, got ${label.pathRaise}`);
 });
 
+test("inherits outer text effects decorations for postaction and retains path-fill modes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[postaction={decorate},decoration={text effects along path,text={FIT},
+    text effects/.cd,fit text to path}] (0,0) -- (4,0);
+  \path[postaction={decorate},decoration={text effects along path,text={SCALE},
+    text effects/.cd,scale text to path}] (0,1) -- (4,1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.equal(labels[0].pathTextEffectsFitToPath, true);
+  assert.equal(labels[0].pathTextEffectsScaleToPath, false);
+  assert.equal(labels[1].pathTextEffectsFitToPath, false);
+  assert.equal(labels[1].pathTextEffectsScaleToPath, true);
+});
+
 test("places text decorations declared through postaction", () => {
   const source = String.raw`
 \begin{tikzpicture}

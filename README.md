@@ -2925,10 +2925,18 @@ Current support is pragmatic and growing. Highlights:
   with complete text boxes; `repeat text=N` adds `N` complete copies after the
   first one. Multiple `postaction` decorations reuse the same path in source
   order, preserve individual `text color`, and support `reverse path` without
-  changing the text order. Explicit terminal spaces inside `text={...}` remain
-  part of the repeated text box. Character-specific styles, arbitrary
-  replacement snippets, rich/math/replacement grouping, and scale/fit text
-  effects remain partial; see
+  changing the text order. A bare `postaction={decorate}` consumes the outer
+  `decoration={...}` as TikZ does. Explicit terminal spaces inside `text={...}`
+  remain part of the repeated text box. `text effects/.cd,fit text to path`
+  holds the first and last half glyph boxes in place while proportionally
+  changing internal character gaps; `scale text to path` scales both glyph
+  size and advance through the full decorated path. This is verified for a
+  simple plain-text run in
+  `test/fixtures/examples/decorations/text-effects-fit-scale.tex` and
+  `docs/qa/2026-08-08-decorations-text-fit-scale.md`. Character-specific
+  styles, arbitrary replacement snippets, rich/math/replacement grouping,
+  nested/general TeX grouping, exact TeX box metrics, and native-undefined
+  repeat-with-scaling/fitting combinations remain partial; see
   `test/fixtures/examples/decorations/text-reverse-path.tex`,
   `docs/qa/2026-08-07-decorations-text-postactions-reverse-path.md`,
   `docs/qa/2026-08-07-decorations-text-group-words.md`, and
