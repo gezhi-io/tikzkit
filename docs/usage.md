@@ -24,6 +24,20 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 `outputs/` 和 `output/` 都是被 Git 忽略的本地生成目录。可放心在其中放 SVG、PNG、
 审计 JSON 和对照页；不要将它们加入提交。
 
+### 一次合格改动应包含什么
+
+浏览器中出现 SVG 只说明解释器没有立刻失败。若要把一个兼容性改动提交到仓库，
+请把同一份真实源码固定为 fixture，并且只提交以下可复现内容：
+
+1. 共享实现或 library/extension 的修改，而不是为单一案例写坐标特例。
+2. 最小语义回归测试与 fixture manifest 记录。
+3. `docs/extension-registry.*` 中的状态、实现位置、本机源码阅读记录与明确边界。
+4. 一份 QA Markdown：描述 MacTeX、`tikztosvg`、TikZKit 和 diff 面板的可见差异、
+   修复前后变化、执行命令和剩余限制。
+
+`outputs/` 下的 SVG、PNG、diff 和 HTML 是本地验收证据，不应加入 Git。这样一次
+提交既能在干净检出中重新生成，也不会把大量二进制图片当成实现本身。
+
 ## 1. 启动网页编辑器
 
 ```bash

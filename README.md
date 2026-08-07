@@ -42,6 +42,28 @@ For a copyable Chinese guide to the browser workbench, CLI export, JavaScript
 API, three-way visual verification, and the current testing boundary, see
 [使用指南](docs/usage.md).
 
+## Use It Today
+
+The repository has two separate jobs. The browser workbench is for quick,
+local JavaScript previews; the visual-QA tools are for deciding whether a
+renderer change is actually compatible with native TikZ. Keep those workflows
+separate so a visible preview is never mistaken for a completed implementation.
+
+| Goal | Run | Result |
+| --- | --- | --- |
+| Edit and preview locally | `npm install` then `npm run web` | Open `http://127.0.0.1:5173/`; rendering uses browser JavaScript only. |
+| Use a second browser port | `PORT=5174 npm run web` | Starts another independent workbench without stopping the first one. |
+| Export one source file | `node bin/tikz2svg.js path/to/source.tex -o outputs/source.svg` | Writes a clean TikZKit SVG. |
+| Audit a real source | `npm run case:audit -- path/to/source.tex --output outputs/audit.md --init-review outputs/review.json` | Lists packages, libraries, commands, options, values, and expressions that need a support decision. |
+| Verify one maintained fixture | Use the three commands in [Visual QA](docs/usage.md#4-验证一个真实案例) | Produces TikZKit, `tikztosvg`, MacTeX, and diff panels in one ignored output directory. |
+
+Start with a browser preview when writing a diagram. Before changing the
+renderer or declaring a case usable, run the audit and the three-way visual
+comparison. `outputs/` is intentionally ignored: commit the implementation,
+fixture, regression test, registry entry, and written QA conclusion, not
+generated PNG/SVG files. The complete Chinese walkthrough, including browser
+troubleshooting and acceptance criteria, is [docs/usage.md](docs/usage.md).
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and
