@@ -479,6 +479,49 @@ npm run examples:render -- --fixtures test/fixtures/examples \
 npm run examples:diff -- --output outputs/qa-3d-manhattan
 ```
 
+## Basic `graphs` chains
+
+The `graphs` library is supported as a **partial**, visually tested Cartesian
+subset. TikZKit lowers `\graph` to normal `\node` and `\draw` statements before
+the ordinary parser runs, retaining shared border clipping, anchors and arrow
+tips. The verified syntax is:
+
+```tex
+\usetikzlibrary{graphs}
+\tikz \graph[
+  grow right=1.4cm,
+  branch down=1cm,
+  nodes={draw,circle,minimum size=6mm},
+  edges={thick}
+] { a -> {b,c} -> d; };
+```
+
+Supported in this slice:
+
+- named node chains and comma-separated chain groups;
+- `->`, `--`, `<-`, `<->`;
+- graph-wide `nodes={...}` and `edges={...}` styles;
+- Cartesian `grow right|left|up|down` and `branch right|left|up|down`, using
+  `cm`, `mm` or `pt` distances;
+- the inline `\tikz \graph ...;` wrapper and `\graph ...;` inside a
+  `tikzpicture`.
+
+Subgraphs, graph-drawing algorithms, node sets, circular/grid placement,
+aliases, graph operators, per-edge node syntax and TeX key callbacks are not
+yet supported. Run the focused fixture and inspect all three renderers before
+extending this subset:
+
+```bash
+node --test test/graphs.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only graphs-basic-chain-group --output outputs/qa-graphs \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-graphs --register --alignment-radius 3
+```
+
+The source review, parameter audit and visual acceptance record are in
+[`docs/qa/2026-08-07-graphs-basic-chain-group.md`](qa/2026-08-07-graphs-basic-chain-group.md).
+
 ## 6. 常见问题
 
 **网页打不开或端口被占用**：使用 `PORT=5174 npm run web` 启动另一份服务，确认

@@ -34,6 +34,7 @@ const COMMAND_OWNERS = {
   fill: owner("src/tikz/commands/fill.js", "partial", "tikz.code.tex"),
   filldraw: owner("src/tikz/commands/fill.js", "partial", "tikz.code.tex"),
   foreach: owner("src/tikz/commands/foreach.js", "partial", "pgffor.code.tex"),
+  graph: owner("src/tikz/libraries/graphs.js:expandTikzGraphs", "partial", "tikzlibrarygraphs.code.tex"),
   legend: owner("src/pgfplots/legend.js", "partial"),
   matrix: owner("src/tikz/libraries/matrix.js", "partial"),
   newcommand: owner("src/frontend/latex-shell.js", "partial", "latex.ltx"),
@@ -76,6 +77,7 @@ const OPTION_COMMANDS = new Set([
   "fill",
   "filldraw",
   "foreach",
+  "graph",
   "matrix",
   "node",
   "path",
@@ -102,6 +104,7 @@ const OPTION_CONTEXT_OWNERS = {
   circuitikz: "src/packages/circuitikz.js",
   ctikzset: "src/packages/circuitikz.js",
   datavisualization: "src/tikz/libraries/datavisualization.js",
+  graph: "src/tikz/libraries/graphs.js:expandTikzGraphs",
   groupplot: "src/pgfplots/axisOptions.js",
   pgfplotsset: "src/pgfplots/axisOptions.js",
   tikzset: "src/engine/options.js"

@@ -4705,6 +4705,23 @@
       ]
     },
     {
+      "id": "graphs-basic-chain-group",
+      "title": "TikZ graphs basic chain group",
+      "source": "graphs/basic-chain-group.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-graphs.tex",
+      "semanticOwner": "src/tikz/libraries/graphs.js:expandTikzGraphs",
+      "features": [
+        "graph command",
+        "chain group fan-out",
+        "nodes style",
+        "edges style",
+        "grow right",
+        "branch down",
+        "directed graph edges"
+      ]
+    },
+    {
       "id": "pgfplots-groupplots-shared-descriptions",
       "title": "PGFPlots groupplots shared edge descriptions",
       "source": "pgfplots/groupplots-shared-descriptions.tex",

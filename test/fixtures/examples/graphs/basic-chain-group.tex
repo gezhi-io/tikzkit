@@ -1,0 +1,16 @@
+% Source: TeX Live PGF manual, pgfmanual-en-tikz-graphs.tex.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{graphs}
+
+\begin{document}
+\tikz
+  \graph[
+    grow right=1.4cm,
+    branch down=1cm,
+    nodes={draw,circle,minimum size=6mm},
+    edges={thick}
+  ] {
+    a -> {b,c} -> d;
+  };
+\end{document}

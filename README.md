@@ -2084,6 +2084,30 @@ Always inspect `result.diagnostics` before accepting a render. An SVG may still
 be returned for partially supported input so that compatibility problems can be
 debugged visually.
 
+### Basic `graphs` chains
+
+`\usetikzlibrary{graphs}` currently supports a deliberately small, verified
+Cartesian slice: named nodes, chain groups, `->` / `--` / `<-` / `<->`, shared
+`nodes={...}` and `edges={...}` styles, plus `grow right|left|up|down` and
+`branch right|left|up|down`. The graph syntax is lowered to ordinary TikZ
+nodes and paths before interpretation, so it uses the normal node-border and
+arrow rendering rules:
+
+```tex
+\usetikzlibrary{graphs}
+\tikz \graph[
+  grow right=1.4cm,
+  branch down=1cm,
+  nodes={draw,circle,minimum size=6mm},
+  edges={thick}
+] { a -> {b,c} -> d; };
+```
+
+This is not the entire PGF graph language. Subgraphs, graph-drawing
+algorithms, node sets, circular/grid placement, aliases, graph operators and
+per-edge node syntax remain partial. The reproducible three-way visual record
+is [`docs/qa/2026-08-07-graphs-basic-chain-group.md`](docs/qa/2026-08-07-graphs-basic-chain-group.md).
+
 Public API:
 
 - `parseTikz(source, options)`: returns `{ ast, diagnostics }`.

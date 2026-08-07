@@ -166,6 +166,23 @@ test("semantic audit maps calendar commands, options, and reviewed library metad
   assert.ok(report.options.some((entry) => entry.id === "option:calendar:month yshift"));
 });
 
+test("semantic audit maps graph commands and graph-wide Cartesian options", () => {
+  const report = auditTikzSource(String.raw`
+    \usetikzlibrary{graphs}
+    \tikz \graph[grow right=1.4cm,branch down=1cm,nodes={draw,circle},edges={thick}] {a -> {b,c} -> d};
+  `, { localSourceResolver: fakeResolver });
+  const graph = report.commands.find((entry) => entry.name === "\\graph");
+
+  assert.equal(graph.implementedBy, "src/tikz/libraries/graphs.js:expandTikzGraphs");
+  assert.equal(graph.implementationStatus, "partial");
+  assert.equal(graph.localSource, "/texlive/tikzlibrarygraphs.code.tex");
+  assert.ok(report.options.some((entry) => entry.id === "option:graph:grow right"));
+  assert.ok(report.options.some((entry) => entry.id === "option:graph:branch down"));
+  assert.ok(report.options.some((entry) => entry.id === "option:graph:nodes/draw"));
+  assert.ok(report.options.some((entry) => entry.id === "option:graph:edges" && entry.rawValues.includes("{thick}")));
+  assert.ok(!report.gate.blockers.some((entry) => entry.includes("command:\\graph")));
+});
+
 test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", () => {
   const report = auditTikzSource(String.raw`\usetikzlibrary{arrows.meta}`, {
     localSourceResolver: (_lookup, dependency) => dependency.localSource || null

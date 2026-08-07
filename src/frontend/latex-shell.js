@@ -4,6 +4,7 @@ import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
 import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../engine/options.js";
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
+import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
 import { libraryRoleFontCommand } from "../tex/fontPolicies.js";
@@ -140,6 +141,7 @@ export function preprocessTikzSource(source, options = {}) {
     pgfplotsCycleLists
   };
   expanded = expandTkzGraphMacros(expanded);
+  expanded = expandTikzGraphs(expanded, diagnostics);
   expanded = expandTikzScopeEnvironments(expanded, diagnostics);
   expanded = expandTransparentEnvironment(expanded, "pgfonlayer", diagnostics);
   expanded = expandPgfganttCharts(expanded, diagnostics);
