@@ -16,8 +16,8 @@ export const tikzCommand = {
       name: "circle / rectangle / ellipse / diamond",
       category: "shape",
       status: "partial",
-      implementedBy: "src/engine/evaluate.js:nodeShape + src/renderers/svg/renderSvg.js",
-      notes: "Common node shapes and anchors are implemented; specialized PGF shapes are incremental."
+      implementedBy: "src/engine/evaluate.js:nodeShape/estimateNodeSize + src/renderers/svg/renderSvg.js",
+      notes: "Common node shapes and anchors are implemented. Reviewed against PGF's circle text-box diagonal construction on 2026-08-07: multi-line math circles use calibrated TeX row metrics rather than the wider SVG renderer box. Specialized PGF shapes remain incremental."
     },
     {
       name: "draw / fill / text",

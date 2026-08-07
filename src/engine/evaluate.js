@@ -12192,11 +12192,16 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
           // The SVG math engine measures the renderer's line box, which is
-          // intentionally wider than TeX's packed inline math box.  Native
-          // datavisualization legends size styled label nodes from the latter.
-          disableMathTextEngine: datavisLegendMathMetrics,
+          // intentionally wider than TeX's packed inline math box. Native
+          // datavisualization legends and circle nodes with multiple math
+          // rows size themselves from the latter.
+          disableMathTextEngine: datavisLegendMathMetrics || multilineFormulaCircle,
           formulaTexTextMetrics: datavisLegendMathMetrics ? false : true,
-          formulaWidthPadding: datavisLegendMathMetrics ? 0.02 : multilineFormulaCircle ? 0.38 : 0.08,
+          // PGF's circle shape takes the Euclidean norm of the actual TeX
+          // text-box half-width and half-height. Multi-line math needs no
+          // circle-only horizontal reserve: its widest measured row already
+          // defines the TeX box used by that construction.
+          formulaWidthPadding: datavisLegendMathMetrics ? 0.02 : multilineFormulaCircle ? 0 : 0.08,
           compactVectorFormulaWidthPadding: 0,
           longSubscriptVectorFormulaWidthPadding: 0.08,
           shortFormulaWidthPadding: 0.02,

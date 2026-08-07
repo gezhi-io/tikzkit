@@ -10,11 +10,12 @@ export const texPackage = {
   "requires": ["ifthen", "nicefrac"],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/units/units.sty",
   "localDoc": null,
+  "localSourceReviewed": true,
   "caseCount": 4,
   "caseExamples": [
     "3d hypersurface 3",
     "hidden-markov-model-abc-2"
   ],
   "observedOptions": ["tight", "loose"],
-  "notes": "MacTeX units.sty loads nicefrac.sty and defines \\unit and \\unitfrac. TikZKit implements their default tight math-mode form: an optional value followed by \\, and an upright unit, with unitfrac reusing the existing upright nicefrac fallback. Text-mode spacing and the package's loose option remain unsupported."
+  "notes": "Reviewed TeX Live 2025 units.sty on 2026-08-07: it loads nicefrac.sty, emits the optional value plus tight \\, spacing, uses \\mathrm in math mode, and delegates \\unitfrac to nicefrac with an upright optional style. TikZKit implements that math-mode slice and uses the same packed fraction metrics when it determines multi-line circle-node geometry. Text-mode spacing and the package's loose option remain unsupported."
 };

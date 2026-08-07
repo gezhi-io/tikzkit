@@ -9,6 +9,21 @@ TikZKit is a pure JavaScript TikZ semantic interpreter. It is not a full TeX eng
 
 ## Current Status: Experimental
 
+### 从零开始
+
+从干净检出开始时，先安装依赖并启动本地工作台：
+
+```bash
+npm install
+npm run web
+```
+
+在 <http://127.0.0.1:5173/> 编辑或选择一个维护案例。浏览器预览完全由
+JavaScript 生成；它适合快速迭代，但不是 LaTeX 一致性的证明。需要导出时运行
+`node bin/tikz2svg.js input.tex -o outputs/output.svg`。需要修改兼容性实现时，按本
+README 的“三方验收”流程生成 TikZKit、`tikztosvg` 和本机 MacTeX 对照，再提交代码。
+完整的逐步说明、常见故障和命令清单在 [docs/usage.md](docs/usage.md)。
+
 ## 使用说明
 
 TikZKit 目前有两种明确不同的用途：
