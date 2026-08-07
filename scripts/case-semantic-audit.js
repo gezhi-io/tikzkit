@@ -648,7 +648,22 @@ function collectPlotExpressions(source, lineStarts, review) {
 }
 
 function applyReview(feature, review) {
-  const reviewed = review.features?.[feature.id] || matchingReviewRule(feature.id, review.rules) || {};
+  const explicit = review.features?.[feature.id] || {};
+  const rule = matchingReviewRule(feature.id, review.rules) || {};
+  // A newly generated template contains one explicit `todo` entry per feature.
+  // That placeholder must not hide a later wildcard review rule, while an
+  // intentional non-todo per-feature status remains the most specific source.
+  const explicitStatus = explicit.status && explicit.status !== "todo";
+  const reviewed = explicitStatus
+    ? explicit
+    : {
+        ...explicit,
+        ...rule,
+        status: rule.status || explicit.status,
+        evidence: Array.isArray(rule.evidence) ? rule.evidence : explicit.evidence,
+        notes: rule.notes || explicit.notes,
+        implementedBy: rule.implementedBy || explicit.implementedBy
+      };
   return {
     ...feature,
     reviewStatus: reviewed.status || "todo",

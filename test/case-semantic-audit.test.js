@@ -83,6 +83,26 @@ test("review prefix rules preserve individual numeric inventory while sharing ev
   assert.ok(Object.keys(createReviewTemplate(report).features).includes("expression:addplot:1"));
 });
 
+test("a template todo entry does not shadow a later wildcard review", () => {
+  const report = auditTikzSource(String.raw`\draw (0,0) -- (1,1);`, {
+    localSourceResolver: fakeResolver,
+    review: {
+      features: {
+        "command:\\draw": { status: "todo", evidence: [] }
+      },
+      rules: [{
+        match: "command:*",
+        status: "verified",
+        evidence: ["test/interpreter.test.js"]
+      }]
+    }
+  });
+
+  const draw = report.commands.find((entry) => entry.name === "\\draw");
+  assert.equal(draw.reviewStatus, "verified");
+  assert.deepEqual(draw.evidence, ["test/interpreter.test.js"]);
+});
+
 test("declaration inventory connects parameterized macros and cycle lists to references", () => {
   const report = auditTikzSource(String.raw`
 \newcommand{\twice}[1]{2*#1}

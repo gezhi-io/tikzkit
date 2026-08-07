@@ -4086,6 +4086,40 @@ test("extends curved arrow tips past circular node borders by half the path widt
   expectClose(endRadius, target.width / 2 + defaultOuterSep + arrowHalfWidth);
 });
 
+test("matches PGF regular polygon sizing, orientation, rotation, and curved arrow terminal padding", () => {
+  const source = String.raw`
+\usetikzlibrary{arrows.meta,shapes.geometric}
+\begin{tikzpicture}
+  \node[draw,regular polygon,regular polygon sides=6,minimum size=2cm,inner sep=0pt] (flat) at (0,0) {};
+  \node[draw,regular polygon,regular polygon sides=6,regular polygon rotate=15,minimum size=2cm,inner sep=0pt] (rotated) at (4,0) {};
+  \draw[-{Latex[length=3mm]},thin] (flat) to[out=0,in=180] (rotated);
+  \draw[-{Latex[length=3mm]},very thick] (flat) to[out=0,in=180] (rotated);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [flat, rotated] = ir.items.filter((item) => item.type === "nodeBox");
+  const arrows = ir.items.filter((item) => item.type === "path" && item.style.markerEnd);
+  const thinEnd = arrows.find((item) => item.style.lineWidth === TIKZ_LINE_WIDTHS.thin)?.commands.at(-1);
+  const thickEnd = arrows.find((item) => item.style.lineWidth === TIKZ_LINE_WIDTHS.veryThick)?.commands.at(-1);
+  const thinRadius = Math.hypot(thinEnd.x - rotated.x, thinEnd.y - rotated.y);
+  const thickRadius = Math.hypot(thickEnd.x - rotated.x, thickEnd.y - rotated.y);
+  const expectedExtension =
+    ((TIKZ_LINE_WIDTHS.veryThick - TIKZ_LINE_WIDTHS.thin) / TIKZ_UNIT / 2) /
+    // The incoming curve is horizontal, while the rotated hexagon's hit side
+    // is tilted by 15 degrees. PGF expands the border along that side normal.
+    Math.cos((15 * Math.PI) / 180);
+
+  assert.deepEqual(diagnostics, []);
+  expectClose(flat.width, 2);
+  expectClose(flat.height, 2);
+  assert.equal(flat.shapeData.regularPolygonStartAngle, 60);
+  assert.equal(rotated.shapeData.regularPolygonStartAngle, 75);
+  assert.equal(arrows.length, 2);
+  assert.equal(thinEnd.type, "curveTo");
+  assert.equal(thickEnd.type, "curveTo");
+  expectClose(thickRadius - thinRadius, expectedExtension, 1e-6);
+});
+
 test("approximates TikZ bend left and bend right edge arrows as curves", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -4,7 +4,7 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 渲染不会调用本机 LaTeX；本机 MacTeX 与 `tikztosvg` 只用于开发时对照。
 它适合编辑、研究和逐案例校准 TikZ，尚不是 TeX/TikZ/PGFPlots 的通用替代品。
 
-截至 2026-08-07，当前维护语料的语义基线为 `313/313 rendered, 0 diagnostics`。这只表示这批
+截至 2026-08-07，当前维护语料的语义基线为 `316/316 rendered, 0 diagnostics`。这只表示这批
 案例被解释器接收；是否与原生 TikZ 视觉一致，仍必须按第 4 节生成并检查三方
 参考图。新近验收的 `tkz-euclide` 例子包括带圆周节点的
 `\\tkzInterCC[with nodes]`；其他未登记的几何、排版和 package 语义依然可能
@@ -110,6 +110,30 @@ npm run examples:diff -- --output outputs/qa-my-change \
 
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
+
+### Regular polygon and curved terminal arrows
+
+The verified `shapes.geometric` slice covers a regular polygon's PGF-style
+content sizing, circumcircle `minimum size`, odd/even default orientation,
+`shape border rotate`/`regular polygon rotate`, and the border crop for a
+curved terminal arrow. Use both libraries explicitly:
+
+```tex
+\usetikzlibrary{arrows.meta,shapes.geometric}
+\begin{tikzpicture}
+  \node[draw,regular polygon,regular polygon sides=6,minimum size=1.7cm]
+    (hex) {hexagon};
+  \draw[-{Latex[length=4mm]},very thick]
+    (0,0) to[out=30,in=190] (hex);
+\end{tikzpicture}
+```
+
+The maintained driver is
+`test/fixtures/examples/arrows/regular-polygon-curved-terminal.tex`. Its QA
+workflow is the same as section 4, with
+`--only arrows-regular-polygon-curved-terminal`. This does not cover the full
+PGF border-anchor algorithm: rectangle, diamond, star, trapezium, custom
+shapes, and tip-specific padding/separation keys are still partial.
 
 ### 路径替换装饰
 

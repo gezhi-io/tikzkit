@@ -311,6 +311,33 @@ outline, like the `tikztosvg` and MacTeX panels. Ellipses use the same terminal
 padding. Arbitrary shapes, tip-specific separation keys, and every PGF arrow
 declaration are still partial.
 
+### Regular Polygon Geometry Check
+
+`arrows-regular-polygon-curved-terminal` is the focused check for
+`\usetikzlibrary{shapes.geometric,arrows.meta}`. A regular polygon now follows
+PGF's circumcircle interpretation of `minimum size`; even-sided polygons start
+with a flat top, while odd-sided polygons start at the upward corner.
+`shape border rotate` (and the common `regular polygon rotate` alias) rotates
+that border. Curved terminal arrows meet the rotated side after the matching
+outer-separation mitre extension.
+
+```bash
+node --test --test-name-pattern='regular polygon|clips curved to-path arrows|extends curved arrow tips' \
+  test/interpreter.test.js test/svg-renderer.test.js
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only arrows-regular-polygon-curved-terminal \
+  --output outputs/qa-regular-polygon \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg \
+  --tikztosvg-engine pdflatex
+npm run examples:diff -- --output outputs/qa-regular-polygon \
+  --register --alignment-radius 3
+```
+
+This is deliberately a regular-polygon slice. Rectangle, diamond, star,
+trapezium, custom-shape anchors, and per-tip padding/separation keys remain
+partial; do not infer full PGF border-anchor compatibility from this case.
+
 ### Transform Canvas Check
 
 `transform-canvas-manual` is the maintained PGF manual fixture for backend

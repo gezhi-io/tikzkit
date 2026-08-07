@@ -62,7 +62,16 @@ export function nodeShapeCommands(item) {
   const halfWidth = item.width / 2;
   const halfHeight = item.height / 2;
   if (item.shape === "regularPolygon") {
-    return closedPolygonCommands(regularPolygonNodePoints(center, halfWidth, halfHeight, item.shapeData?.regularPolygonSides || 5, 90));
+    const sides = item.shapeData?.regularPolygonSides || 5;
+    return closedPolygonCommands(
+      regularPolygonNodePoints(
+        center,
+        halfWidth,
+        halfHeight,
+        sides,
+        item.shapeData?.regularPolygonStartAngle ?? regularPolygonStartAngle(sides, item.shapeData?.shapeBorderRotate)
+      )
+    );
   }
   if (item.shape === "star") {
     return closedPolygonCommands(starNodePoints(center, halfWidth, halfHeight, item.shapeData?.starPoints || 5, item.shapeData?.starPointRatio || 1.5));
@@ -115,6 +124,11 @@ export function regularPolygonNodePoints(center, halfWidth, halfHeight, sides, s
       y: center.y + Math.sin(angle) * halfHeight
     };
   });
+}
+
+function regularPolygonStartAngle(sides, rotate = 0) {
+  const count = Math.max(3, Math.round(Number(sides) || 5));
+  return (count % 2 ? 90 : 90 - 180 / count) + (Number(rotate) || 0);
 }
 
 export function starNodePoints(center, halfWidth, halfHeight, points, ratio) {

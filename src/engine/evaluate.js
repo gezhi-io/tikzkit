@@ -10442,6 +10442,20 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   } else if (node.shape === "diamond") {
     const factor = localDistance / (Math.abs(localDx) / halfWidth + Math.abs(localDy) / halfHeight);
     localPoint = { x: (localDx / localDistance) * factor, y: (localDy / localDistance) * factor };
+  } else if (node.shape === "regularPolygon") {
+    const sides = Math.max(3, Math.round(Number(node.shapeData?.regularPolygonSides) || 5));
+    const radius = Math.max(halfWidth, halfHeight) + regularPolygonOuterRadiusExtension(terminalPadding, sides);
+    localPoint = polygonBorderPoint(
+      { x: 0, y: 0 },
+      { x: localDx, y: localDy },
+      regularPolygonPoints(
+        { x: 0, y: 0 },
+        radius,
+        radius,
+        sides,
+        regularPolygonStartAngle(sides, node.shapeData?.shapeBorderRotate)
+      )
+    );
   } else if (polygonNodeShape(node.shape)) {
     localPoint = polygonBorderPoint(
       { x: 0, y: 0 },
@@ -10541,7 +10555,23 @@ function diamondLayoutSize(contentWidth, contentHeight, options = {}, env = { va
   };
 }
 
+function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const sides = regularPolygonSides(options, env);
+  const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
+  const contentRadius = Math.SQRT2 * apothem / Math.cos(Math.PI / sides);
+  const minimumDiameter = Math.max(
+    0,
+    options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0,
+    options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0,
+    options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
+  );
+  const diameter = roundNumber(Math.max(contentRadius * 2, minimumDiameter));
+  return { width: diameter, height: diameter };
+}
+
 function nodeShapeData(options = {}, env = {}) {
+  const regularSides = regularPolygonSides(options, env);
+  const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"], 0);
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
     transistorKind: circuitikzTransistorKind(options),
@@ -10551,7 +10581,8 @@ function nodeShapeData(options = {}, env = {}) {
     transistorXScale: Math.sign(numberOption(options.xscale, 1)) || 1,
     transistorYScale: Math.sign(numberOption(options.yscale, 1)) || 1,
     opAmpNoInvInputUp: Boolean(options["noinv input up"]),
-    regularPolygonSides: Math.max(3, Math.round(numberOption(options["regular polygon sides"], 5))),
+    regularPolygonSides: regularSides,
+    regularPolygonStartAngle: regularPolygonStartAngle(regularSides, shapeBorderRotate),
     starPoints: Math.max(3, Math.round(numberOption(options["star points"], 5))),
     starPointRatio: Math.max(1.05, numberOption(options["star point ratio"], 1.5)),
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
@@ -10560,8 +10591,24 @@ function nodeShapeData(options = {}, env = {}) {
     arrowTipAngle: numberOption(options["single arrow tip angle"] ?? options["double arrow tip angle"], 90),
     arrowHeadExtend: parseFiniteDimension(options["single arrow head extend"] ?? options["double arrow head extend"], env, 0.25),
     arrowHeadIndent: parseFiniteDimension(options["single arrow head indent"] ?? options["double arrow head indent"], env, 0),
-    shapeBorderRotate: numberOption(options["shape border rotate"], 0)
+    shapeBorderRotate
   };
+}
+
+function regularPolygonSides(options = {}) {
+  return Math.max(3, Math.round(numberOption(options["regular polygon sides"], 5)));
+}
+
+function regularPolygonStartAngle(sides, rotate = 0) {
+  const count = Math.max(3, Math.round(Number(sides) || 5));
+  const base = count % 2 ? 90 : 90 - 180 / count;
+  return base + (Number(rotate) || 0);
+}
+
+function regularPolygonOuterRadiusExtension(separation, sides) {
+  const distance = Math.max(0, Number(separation) || 0);
+  const count = Math.max(3, Math.round(Number(sides) || 5));
+  return distance / Math.cos(Math.PI / count);
 }
 
 function circuitikzTransistorKind(options = {}) {
@@ -11435,6 +11482,16 @@ function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
   const size = visibleSize || estimateNodeLayoutSize(text, options, env);
   const outerSep = nodeOuterSep(options, env);
+  if (nodeShape(options) === "regularPolygon") {
+    const sides = regularPolygonSides(options, env);
+    // PGF grows a regular polygon's anchor border by the mitre distance of
+    // the side, rather than by a rectangular x/y outer separation.
+    const outerRadius =
+      Math.max(Number(size.width) || 0, Number(size.height) || 0) / 2 +
+      regularPolygonOuterRadiusExtension(Math.max(outerSep.x, outerSep.y), sides);
+    const diameter = roundNumber(Math.max(0, outerRadius * 2));
+    return { width: diameter, height: diameter };
+  }
   return {
     width: roundNumber((Number(size.width) || 0) + outerSep.x * 2),
     height: roundNumber((Number(size.height) || 0) + outerSep.y * 2)
@@ -11815,6 +11872,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const textHeight = options["text height"] ? parseDimension(options["text height"], env.variables) : NaN;
   const textDepth = options["text depth"] ? parseDimension(options["text depth"], env.variables) : 0;
   const emptyNodeShape = nodeShape(options);
+  if (isEmptyText && emptyNodeShape === "regularPolygon") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(regularPolygonLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (
     isEmptyText &&
     !isCircleShape &&
@@ -11896,9 +11958,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     }
   }
   if (shape === "regularPolygon") {
-    const diameter = Math.max(width, height) * 1.12;
-    width = diameter;
-    height = diameter;
+    const polygonContentWidth = textWidth ? textWidth + innerXSep * 2 : Math.max(0, textBox.width + innerXSep * 2);
+    const polygonContentHeight = Math.max(0, textBox.height + innerYSep * 2);
+    ({ width, height } = regularPolygonLayoutSize(polygonContentWidth, polygonContentHeight, options, env));
   }
   if (shape === "star") {
     const diameter = Math.max(width, height) * 1.35;
@@ -15709,7 +15771,14 @@ function polygonNodeShape(shape) {
 function nodePolygonPoints(node, center, halfWidth, halfHeight) {
   const data = node.shapeData || {};
   if (node.shape === "regularPolygon") {
-    return regularPolygonPoints(center, halfWidth, halfHeight, data.regularPolygonSides || 5, 90);
+    const sides = data.regularPolygonSides || 5;
+    return regularPolygonPoints(
+      center,
+      halfWidth,
+      halfHeight,
+      sides,
+      data.regularPolygonStartAngle ?? regularPolygonStartAngle(sides, data.shapeBorderRotate)
+    );
   }
   if (node.shape === "star") {
     return starPolygonPoints(center, halfWidth, halfHeight, data.starPoints || 5, data.starPointRatio || 1.5);

@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": "Loads the TikZ frontend used by this standalone fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": "Confirms the capitalized Latex tip's separate line-width-dependent geometry and terminal placement contract.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": "Regular polygons fit content through the incircle, use the circumcircle for minimum size, choose odd/even base orientations, and extend the outer border by the side mitre distance.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides the standalone document shell stripped before TikZ interpretation.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Unanchored curve endpoints resolve through pgfpointshapeborder along their terminal tangent."
+  },
+  "localSourceCandidates": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "features": {
+    "command:\\begin": {
+      "status": "todo",
+      "implementedBy": "src/frontend/parser.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "command:\\documentclass": {
+      "status": "todo",
+      "implementedBy": "src/frontend/latex-shell.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "command:\\draw": {
+      "status": "todo",
+      "implementedBy": "src/tikz/commands/draw.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "command:\\end": {
+      "status": "todo",
+      "implementedBy": "src/frontend/parser.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "command:\\node": {
+      "status": "todo",
+      "implementedBy": "src/tikz/commands/node.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "command:\\usepackage": {
+      "status": "todo",
+      "implementedBy": "src/packages/declarations.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "command:\\usetikzlibrary": {
+      "status": "todo",
+      "implementedBy": "src/tikz/libraries/declarations.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "environment:document": {
+      "status": "todo",
+      "implementedBy": "src/frontend/latex-shell.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "environment:tikzpicture": {
+      "status": "todo",
+      "implementedBy": "src/frontend/parser.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:documentclass:border": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:draw:-{Latex[length=3mm,width=2.25mm]}": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:draw:-{Latex[length=4mm,width=3mm]}": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:draw:{Latex[length=4mm,width=3mm]}-": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:draw:thick": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:draw:very thick": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:draw": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:minimum height": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:minimum size": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:minimum width": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:rectangle": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:regular polygon": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:regular polygon rotate": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:node:regular polygon sides": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:tikzpicture:x": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "option:tikzpicture:y": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:draw:-35": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:draw:0": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:draw:145": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:draw:190": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:draw:250": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:draw:30": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:node:-2.1": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:node:0": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:node:1.8": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:node:2.2": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:node:5": {
+      "status": "todo",
+      "implementedBy": "src/engine/units.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:documentclass:2pt": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:draw:2.25mm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:draw:3mm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:draw:4mm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:node:1.1cm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:node:1.35cm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:node:1.7cm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:node:15": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:node:2.2cm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:node:6": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    },
+    "number:option:tikzpicture:1cm": {
+      "status": "todo",
+      "implementedBy": "src/engine/options.js",
+      "evidence": [],
+      "notes": ""
+    }
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-regular-polygon-curved-terminal.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-regular-polygon-curved-terminal.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "test/fixtures/examples/arrows/regular-polygon-curved-terminal.tex",
+        "docs/qa/2026-08-07-regular-polygon-curved-terminal.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-regular-polygon-curved-terminal.md"
+      ]
+    }
+  ]
+}
