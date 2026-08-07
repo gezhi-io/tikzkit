@@ -1175,6 +1175,54 @@ test("repeats decorations.text source glyphs without placing a partial terminal 
   assert.ok(xPositions.every((x) => x <= 500 + 1e-6), `glyph centers must stay inside their path: ${xPositions.join(", ")}`);
 });
 
+test("groups decorations.text words into one tangent-aligned text box", () => {
+  const scene = createSceneGraph({
+    items: [
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "group words",
+        pathTextEffects: ["group"],
+        pathCommands: [
+          { type: "moveTo", x: 0, y: 0 },
+          { type: "curveTo", x1: 1, y1: 2, x2: 4, y2: 2, x: 5, y: 0 }
+        ],
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "left-right",
+        pathTextEffects: ["group", "reverse"],
+        pathTextWordSeparator: "-",
+        pathCommands: [
+          { type: "moveTo", x: 0, y: -1 },
+          { type: "lineTo", x: 5, y: -1 }
+        ],
+        style: { fill: "black" }
+      },
+      {
+        type: "textNode",
+        subtype: "decoration-text",
+        text: "left-right",
+        pathTextEffects: ["reverse", "group"],
+        pathTextWordSeparator: "-",
+        pathCommands: [
+          { type: "moveTo", x: 0, y: -2 },
+          { type: "lineTo", x: 5, y: -2 }
+        ],
+        style: { fill: "black" }
+      }
+    ]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const words = [...svg.matchAll(/class="tikz-decoration-word"[^>]*>([^<]+)<\/text>/g)].map((match) => match[1]);
+
+  assert.deepEqual(words, ["group", "words", "right", "left", "thgir", "tfel"]);
+  assert.equal((svg.match(/class="tikz-decoration-glyph"/g) || []).length, 2, "the two word separators remain individual boxes");
+  assert.match(svg, />-<\/text>/);
+});
+
 test("places braced inline decoration math as one TeX box with a lowered script", () => {
   const scene = createSceneGraph({
     items: [

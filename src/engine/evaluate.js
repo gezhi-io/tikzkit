@@ -13124,9 +13124,9 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   const payload = decorationTextPayload(decoration.text, pathOptions, env, decoration["tikzkit decoration raw"]);
   if (!payload.text) return;
   const layout = decorationTextLayout(decoration, env);
-  const textEffects = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
+  const textEffects = decorationTextEffects(decoration, pathOptions);
   const characterReplacements = decorationTextCharacterReplacements(decoration, pathOptions, env);
-  const repeatText = decorationTextRepeatCount(decoration, textEffects);
+  const repeatText = decorationTextRepeatCount(decoration, textEffects.options);
   const point = pointAtLength(flat, 0.5);
   const angle = Number(point.angle) || 0;
   const raise = parseFiniteDimension(decoration.raise || "0", env, 0);
@@ -13144,7 +13144,10 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathRightIndent: roundNumber(layout.rightIndent),
     pathTextFitToPath: layout.fitToPath,
     pathTextFitToPathStretchingSpaces: layout.fitToPathStretchingSpaces,
-    pathTextReverse: tikzBoolean(textEffects["reverse text"]) || tikzBoolean(decoration["reverse text"]),
+    pathTextEffects: textEffects.transforms,
+    pathTextReverse: textEffects.reverseText,
+    pathTextGroupLetters: textEffects.groupLetters,
+    pathTextWordSeparator: textEffects.wordSeparator,
     pathTextRepeat: repeatText,
     pathTextCharacterReplacements: characterReplacements,
     x: roundNumber(point.x + nx * raise),
@@ -13165,6 +13168,57 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
       fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
     }
   });
+}
+
+function decorationTextEffects(decoration = {}, pathOptions = {}) {
+  const transforms = [];
+  let wordSeparator = " ";
+  const options = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
+  const rawDecoration = String(decoration["tikzkit decoration raw"] ?? "");
+  const sources = [
+    rawDecoration,
+    String(pathOptions["text effects"] ?? "")
+  ];
+  if (!rawDecoration) sources.push(String(decoration["text effects"] ?? ""));
+
+  const read = (source, depth = 0) => {
+    if (depth > 4) return;
+    for (const part of splitTopLevel(stripOuterBraces(String(source ?? "")), ",")) {
+      const sourcePart = String(part ?? "").trim();
+      if (!sourcePart || sourcePart === "text effects/.cd") continue;
+      const equals = findTopLevel(sourcePart, "=");
+      const key = (equals === -1 ? sourcePart : sourcePart.slice(0, equals)).trim().toLowerCase();
+      const value = equals === -1 ? "" : sourcePart.slice(equals + 1).trim();
+      if (key === "text effects") {
+        read(value, depth + 1);
+      } else if (key === "reverse text") {
+        transforms.push("reverse");
+      } else if (key === "group letters" || key === "group letters into words") {
+        transforms.push("group");
+      } else if (key === "word separator") {
+        const separator = stripOuterBraces(value).trim();
+        wordSeparator = separator.toLowerCase() === "space" || !separator ? " " : Array.from(separator)[0] || " ";
+      }
+    }
+  };
+
+  for (const source of sources) read(source);
+  if (!transforms.includes("reverse") && tikzBoolean(options["reverse text"])) transforms.push("reverse");
+  if (!transforms.includes("group") && (tikzBoolean(options["group letters"]) || tikzBoolean(options["group letters into words"]))) {
+    transforms.push("group");
+  }
+  if (options["word separator"] !== undefined && wordSeparator === " ") {
+    const separator = stripOuterBraces(String(options["word separator"])).trim();
+    wordSeparator = separator.toLowerCase() === "space" || !separator ? " " : Array.from(separator)[0] || " ";
+  }
+
+  return {
+    options,
+    transforms,
+    reverseText: transforms.includes("reverse"),
+    groupLetters: transforms.includes("group"),
+    wordSeparator
+  };
 }
 
 function decorationTextRepeatCount(decoration = {}, textEffects = {}) {

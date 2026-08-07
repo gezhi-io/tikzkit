@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.text.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.text.code.tex": {
+      "symbols": [
+        "/pgf/decoration/text effects/group letters",
+        "/pgf/decoration/text effects/group letters into words",
+        "\\tikz@lib@dec@te@groupletters"
+      ],
+      "findings": "The word separator defaults to an actual space. Both grouping keys append the same grouping transform; the grouping scan combines consecutive non-separator source characters, flushes on a separator, and keeps that separator as its own decoration character. Transform insertion order is preserved, so reverse/group order is significant."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": "Loads the TikZ frontend used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides the standalone document shell used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Provides ordinary path construction, help lines, and the decorate action consumed by the fixture."
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-text-group-words.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-07-decorations-text-group-words.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "test/svg-renderer.test.js",
+        "docs/qa/2026-08-07-decorations-text-group-words.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "test/svg-renderer.test.js",
+        "docs/qa/2026-08-07-decorations-text-group-words.md"
+      ]
+    }
+  ]
+}

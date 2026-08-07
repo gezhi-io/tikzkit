@@ -2297,6 +2297,30 @@ test("preserves decorations.text repeat text cycle semantics", () => {
   assert.equal(labels[1].pathTextRepeat, 1, "a positive value means one extra source-text copy");
 });
 
+test("retains ordered decorations.text word grouping effects and separators", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={group words},
+    text effects/.cd,group letters into words}] (0,1) -- (6,1);
+  \path[decorate,decoration={text effects along path,text={left-right},
+    text effects/.cd,word separator=-,group letters,reverse text}] (0,0) -- (6,0);
+  \path[text effects={reverse text,group letters},decorate,
+    decoration={text effects along path,text={one two}}] (0,-1) -- (6,-1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 3);
+  assert.deepEqual(labels[0].pathTextEffects, ["group"]);
+  assert.equal(labels[0].pathTextGroupLetters, true);
+  assert.equal(labels[0].pathTextWordSeparator, " ");
+  assert.deepEqual(labels[1].pathTextEffects, ["group", "reverse"]);
+  assert.equal(labels[1].pathTextWordSeparator, "-");
+  assert.deepEqual(labels[2].pathTextEffects, ["reverse", "group"]);
+});
+
 test("preserves repeated decorations.text circle replacement mappings", () => {
   const source = String.raw`
 \begin{tikzpicture}[decoration={text effects along path,

@@ -1171,6 +1171,22 @@
       ]
     },
     {
+      "id": "decorations-text-group-words",
+      "title": "PGF decorations.text grouped words along curves",
+      "source": "decorations/text-group-words.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextEffects;src/renderers/svg/decorationText.js:groupDecorationTextGlyphs",
+      "features": [
+        "text effects along path",
+        "group letters into words",
+        "group letters alias",
+        "word separator=space",
+        "word separator=-",
+        "curved whole-word rotation"
+      ]
+    },
+    {
       "id": "latex-examples-agent-environment-diagram-rl",
       "title": "LaTeX-examples Agent Environment Diagram Rl",
       "source": "latex-examples/agent-environment-diagram-rl.tex",

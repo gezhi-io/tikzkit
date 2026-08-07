@@ -26,8 +26,14 @@ export function renderDecorationTextPath(item, unit) {
   if (flat.length < 2 || totalLength <= 1e-9) return "";
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  const glyphs = decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize, item.pathTextCharacterReplacements);
-  if (item.pathTextReverse) glyphs.reverse();
+  let glyphs = decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize, item.pathTextCharacterReplacements);
+  const textEffects = Array.isArray(item.pathTextEffects) && item.pathTextEffects.length
+    ? item.pathTextEffects
+    : [item.pathTextReverse ? "reverse" : null, item.pathTextGroupLetters ? "group" : null].filter(Boolean);
+  for (const effect of textEffects) {
+    if (effect === "reverse") glyphs.reverse();
+    if (effect === "group") glyphs = groupDecorationTextGlyphs(glyphs, item.pathTextWordSeparator);
+  }
   if (!glyphs.length) return "";
   const em = fontSize / unit;
   const textLength = glyphs.reduce((sum, glyph) => sum + em * glyph.advance, 0);
@@ -67,7 +73,11 @@ export function renderDecorationTextPath(item, unit) {
         const glyphFontSize = fontSize * glyph.fontScale;
         const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
         const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
-        const className = glyph.kind === "math-box" ? "tikz-decoration-math-box" : "tikz-decoration-glyph";
+        const className = glyph.kind === "math-box"
+          ? "tikz-decoration-math-box"
+          : glyph.kind === "word"
+            ? "tikz-decoration-word"
+            : "tikz-decoration-glyph";
         const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
         rendered.push(`<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(
           glyphFontSize
@@ -120,7 +130,11 @@ function renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, ra
   const glyphFontSize = fontSize * glyph.fontScale;
   const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
   const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
-  const className = glyph.kind === "math-box" ? "tikz-decoration-math-box" : "tikz-decoration-glyph";
+  const className = glyph.kind === "math-box"
+    ? "tikz-decoration-math-box"
+    : glyph.kind === "word"
+      ? "tikz-decoration-word"
+      : "tikz-decoration-glyph";
   const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
   return `<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(glyphFontSize)}" font-family="${glyphFontFamily}"${fontStyle} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`;
 }
@@ -206,6 +220,44 @@ function plainDecorationGlyphs(text, replacements = {}) {
     .replace(/[{}]/g, "")
     .split("")
     .map((text) => baseDecorationGlyph(text, replacements));
+}
+
+function groupDecorationTextGlyphs(glyphs, wordSeparator = " ") {
+  const separator = Array.from(String(wordSeparator || " "))[0] || " ";
+  const grouped = [];
+  let letters = [];
+  const flush = () => {
+    if (!letters.length) return;
+    if (letters.length === 1) {
+      grouped.push(letters[0]);
+      letters = [];
+      return;
+    }
+    const first = letters[0];
+    grouped.push({
+      kind: "word",
+      text: letters.map((glyph) => glyph.text).join(""),
+      advance: letters.reduce((sum, glyph) => sum + glyph.advance, 0),
+      fontScale: first.fontScale,
+      normalOffset: first.normalOffset,
+      fontFamily: first.fontFamily,
+      fontStyle: first.fontStyle,
+      replacement: null
+    });
+    letters = [];
+  };
+
+  for (const glyph of glyphs) {
+    const canJoinWord = glyph.kind === undefined && !glyph.replacement && glyph.text !== separator;
+    if (canJoinWord) {
+      letters.push(glyph);
+      continue;
+    }
+    flush();
+    grouped.push(glyph);
+  }
+  flush();
+  return grouped;
 }
 
 function mathDecorationBox(tex, unit, fontSize) {

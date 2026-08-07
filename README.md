@@ -1910,14 +1910,17 @@ Current support is pragmatic and growing. Highlights:
   non-linear input paths and the other path-replacing decorations remain
   partial. See `docs/qa/2026-08-05-brace-polyline-final-state.md`.
 - Path text: `decorations.text` supports ordinary `text along path` and the
-  documented `text effects along path` character pipeline with
-  `text effects={reverse text}`. `repeat text` now mirrors PGF's cycle
-  counter: the bare form fills the remaining path with complete text boxes;
-  `repeat text=N` adds `N` complete copies after the first one. Explicit
-  terminal spaces inside `text={...}` remain part of the repeated text box.
-  Character-specific styles, arbitrary replacement snippets, grouping, and
-  scale/fit text effects remain partial; see
-  `test/fixtures/examples/decorations/text-repeat.tex` and
+  documented `text effects along path` transform pipeline. Simple plain-text
+  runs support `reverse text`, `group letters` and the documented alias
+  `group letters into words`; `word separator` accepts the default space or a
+  single custom separator, and transform order follows source order. `repeat
+  text` mirrors PGF's cycle counter: the bare form fills the remaining path
+  with complete text boxes; `repeat text=N` adds `N` complete copies after the
+  first one. Explicit terminal spaces inside `text={...}` remain part of the
+  repeated text box. Character-specific styles, arbitrary replacement
+  snippets, rich/math/replacement grouping, and scale/fit text effects remain
+  partial; see `test/fixtures/examples/decorations/text-group-words.tex`,
+  `docs/qa/2026-08-07-decorations-text-group-words.md`, and
   `docs/qa/2026-08-07-decorations-text-repeat.md`.
 - Calendar: Monday-first `week list`, all four linear `day list` directions,
   and `month list` calendars, including `day xshift`/`day yshift`,

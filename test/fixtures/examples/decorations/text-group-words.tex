@@ -1,0 +1,21 @@
+% PGF decorations.text: whole words become one tangent-aligned character box.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \draw[help lines,gray!35,step=1cm] (0,0) grid (8,4);
+
+  \draw[gray!55] (0,1) .. controls (1.6,3.8) and (6.4,3.8) .. (8,1);
+  \path[decorate,decoration={text effects along path,
+    text={group words here},text align=center,raise=2pt,
+    text effects/.cd,group letters into words}]
+    (0,1) .. controls (1.6,3.8) and (6.4,3.8) .. (8,1);
+
+  \draw[gray!55] (0,0.4) .. controls (2.2,2.2) and (5.8,2.2) .. (8,0.4);
+  \path[decorate,decoration={text effects along path,
+    text={left-right},text align=center,raise=-2pt,
+    text effects/.cd,word separator=-,group letters}]
+    (0,0.4) .. controls (2.2,2.2) and (5.8,2.2) .. (8,0.4);
+\end{tikzpicture}
+\end{document}

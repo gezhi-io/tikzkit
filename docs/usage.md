@@ -153,9 +153,28 @@ TikZKit、`tikztosvg`、MacTeX 和 diff 面板一起判断。
   text effects/.cd,repeat text=1}] (0,-1) -- (8,-1);
 ```
 
-该子集只处理完整字符盒的循环与路径末端截断。`group letters`、字符专属样式、任意
-替换 TikZ 代码，以及与 `fit text to path` / `scale text to path` 的组合仍在测试中；
-后两种组合在本机 PGF 手册中也标为未定义行为。
+该子集只处理完整字符盒的循环与路径末端截断。字符专属样式、任意替换 TikZ 代码，
+以及与 `fit text to path` / `scale text to path` 的组合仍在测试中；后两种组合在本机
+PGF 手册中也标为未定义行为。
+
+### 路径文字按词分组
+
+`text effects/.cd` 中的 `group letters` 与 `group letters into words` 会将简单的
+连续文字合并成一个沿路径切线旋转的文字盒；单词之间的分隔符保留为单独的盒。默认
+分隔符为 `space`，也可以设置一个字符。`reverse text` 与分组按源代码顺序执行：先
+分组再反转会反转整个词的顺序，先反转再分组则会合并反转后的字母。
+
+```tex
+\path[decorate,decoration={text effects along path,text={group words},
+  text effects/.cd,group letters into words}]
+  (0,0) .. controls (2,2) and (4,2) .. (6,0);
+\path[decorate,decoration={text effects along path,text={left-right},
+  text effects/.cd,word separator=-,group letters}]
+  (0,-1) -- (6,-1);
+```
+
+带逐字符样式、替换回调、内联数学盒或复杂 TeX 组的文字目前不会跨盒合并；这些内容会
+保留为单独的路径文字盒。
 
 ### Calendar 列表布局
 
