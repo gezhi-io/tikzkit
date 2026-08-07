@@ -535,6 +535,18 @@ bar/milestone subset: each draws the current element and automatically links
 the preceding chart element to it. The milestone uses its native black
 diamond, time-slot center, and italic external label.
 
+Numeric `\ganttbar[progress=P]` is supported for `0 <= P <= 100`. The left
+completed percentage keeps the `bar` fill; the remainder uses `bar incomplete`.
+The default scriptsize `P% complete` label is emitted at the east side of the
+bar. Chart-level styles apply first and local bar options override them.
+
+```tex
+\begin{ganttchart}[bar/.append style={fill=green!55},
+  bar incomplete/.append style={fill=red!45}]{1}{10}
+  \ganttbar[progress=37]{In progress}{3}{8}
+\end{ganttchart}
+```
+
 ```tex
 \begin{ganttchart}[x unit=.5cm,y unit chart=.7cm,
   link/.append style={blue,very thick}]{1}{12}
@@ -546,14 +558,17 @@ diamond, time-slot center, and italic external label.
 \end{ganttchart}
 ```
 
-This remains a partial package: calendar/date slots, title lists, progress,
-`\ganttlinkedgroup` shape parity, custom `\newganttlinktype` declarations,
+This remains a partial package: calendar/date slots, title lists,
+`progress=today`, group/milestone progress, `\ganttlinkedgroup` shape parity,
+custom `\newganttlinktype` declarations,
 specialised bar/group shapes, and arbitrary canvas or link-anchor styles are not yet
 implemented. The fixtures are `pgfgantt-grid-style-list` and
-`pgfgantt-basic-links`, and `pgfgantt-linked-elements`; visual QA records are in
+`pgfgantt-basic-links`, `pgfgantt-linked-elements`, and `pgfgantt-bar-progress`;
+visual QA records are in
 `docs/qa/2026-08-07-pgfgantt-grid-style-list.md` and
 `docs/qa/2026-08-07-pgfgantt-basic-links.md`, plus
-`docs/qa/2026-08-07-pgfgantt-linked-elements.md`.
+`docs/qa/2026-08-07-pgfgantt-linked-elements.md`, and
+`docs/qa/2026-08-07-pgfgantt-bar-progress.md`.
 
 ## Start Here
 

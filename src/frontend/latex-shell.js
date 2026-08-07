@@ -4651,7 +4651,7 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const x0 = (Number.isFinite(from) ? from - start + leftShift : leftShift) * xUnit;
       const x1 = Math.max(x0 + xUnit * 0.25, ((Number.isFinite(to) ? to - start + 1 + rightShift : totalSlots + rightShift) * xUnit));
       const rowInline = inlineChart || row.options.inline === true || String(row.options.inline || "").trim() === "true";
-      const fill = ganttElementFill(row, row.command === "ganttgroup" ? "black" : "white");
+      const fill = ganttElementFill(row, row.command === "ganttgroup" ? "black" : "white", options);
       if (row.command === "ganttgroup") {
         const y = top - topShift * yUnitChart;
         const h = elementHeight * yUnitChart;
@@ -4671,6 +4671,23 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const anchor = rowInline ? "center" : "east";
       const labelFont = ganttFontOption(row, options, "bar label font", "\\normalsize");
       commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(labelY)}) {${row.args[0] || ""}};`);
+      const progress = ganttProgressValue(row, options);
+      if (progress !== null) {
+        const incompleteStart = x0 + (x1 - x0) * progress / 100;
+        const incompleteFill = ganttIncompleteFill(row, "black!25", options);
+        if (progress < 100) {
+          commands.push(`\\fill[fill=${incompleteFill}] (${roundTikzNumber(incompleteStart)},${roundTikzNumber(yUpper)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(yLower)});`);
+          commands.push(`\\draw[draw=black,line width=0.35pt] (${roundTikzNumber(x0)},${roundTikzNumber(yUpper)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(yLower)});`);
+          if (progress > 0) {
+            commands.push(`\\draw[draw=black,line width=0.35pt] (${roundTikzNumber(incompleteStart)},${roundTikzNumber(yUpper)}) -- (${roundTikzNumber(incompleteStart)},${roundTikzNumber(yLower)});`);
+          }
+        }
+        const progressLabel = ganttProgressLabel(row, options, progress);
+        if (progressLabel) {
+          const progressFont = ganttFontOption(row, options, "bar progress label font", "\\scriptsize");
+          commands.push(`\\node[anchor=west,font=${progressFont}] at (${roundTikzNumber(x1)},${roundTikzNumber(labelY)}) {${progressLabel}};`);
+        }
+      }
       registerGanttElement(row, { x0, x1, top: yUpper, bottom: yLower });
       return;
     }
@@ -4682,7 +4699,7 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const x = Math.max(0, (Number.isFinite(at) ? at - start + 1 : 1) * xUnit);
       const halfWidth = xUnit * 0.4;
       const halfHeight = yUnitChart * 0.2;
-      const fill = ganttElementFill(row, "black");
+      const fill = ganttElementFill(row, "black", options);
       commands.push(`\\draw[fill=${fill},draw=black,line width=0.35pt] (${roundTikzNumber(x)},${roundTikzNumber(midY + halfHeight)}) -- (${roundTikzNumber(x + halfWidth)},${roundTikzNumber(midY)}) -- (${roundTikzNumber(x)},${roundTikzNumber(midY - halfHeight)}) -- (${roundTikzNumber(x - halfWidth)},${roundTikzNumber(midY)}) -- cycle;`);
       const rowInline = inlineChart || row.options.inline === true || String(row.options.inline || "").trim() === "true";
       const labelX = rowInline ? x : 0;
@@ -4894,7 +4911,7 @@ function parseGanttCommands(body) {
   return rows;
 }
 
-function ganttElementFill(row, fallback) {
+function ganttElementFill(row, fallback, chartOptions = {}) {
   const elementName = row.command === "ganttgroup"
     ? "group"
     : row.command === "ganttmilestone"
@@ -4902,9 +4919,44 @@ function ganttElementFill(row, fallback) {
       : "bar";
   const styleKey = `${elementName}/.append style`;
   const directKey = elementName;
-  const fromAppend = extractFillFromTikzOptionText(row.options?.[styleKey]);
-  const fromDirect = extractFillFromTikzOptionText(row.options?.[directKey]);
-  return fromAppend || fromDirect || fallback;
+  const rowAppend = extractFillFromTikzOptionText(row.options?.[styleKey]);
+  const rowDirect = extractFillFromTikzOptionText(row.options?.[directKey]);
+  const chartAppend = extractFillFromTikzOptionText(chartOptions?.[styleKey]);
+  const chartDirect = extractFillFromTikzOptionText(chartOptions?.[directKey]);
+  return rowAppend || rowDirect || chartAppend || chartDirect || fallback;
+}
+
+function ganttIncompleteFill(row, fallback, chartOptions = {}) {
+  const elementName = row.command === "ganttgroup"
+    ? "group"
+    : row.command === "ganttmilestone"
+      ? "milestone"
+      : "bar";
+  const styleKey = `${elementName} incomplete/.append style`;
+  const directKey = `${elementName} incomplete`;
+  const rowAppend = extractFillFromTikzOptionText(row.options?.[styleKey]);
+  const rowDirect = extractFillFromTikzOptionText(row.options?.[directKey]);
+  const chartAppend = extractFillFromTikzOptionText(chartOptions?.[styleKey]);
+  const chartDirect = extractFillFromTikzOptionText(chartOptions?.[directKey]);
+  return rowAppend || rowDirect || chartAppend || chartDirect || fallback;
+}
+
+function ganttProgressValue(row, chartOptions) {
+  const raw = row?.options?.progress ?? chartOptions?.progress;
+  const text = String(raw ?? "none").trim().toLowerCase();
+  if (!text || text === "none" || text === "today") return null;
+  const progress = Number(text);
+  return Number.isFinite(progress) ? Math.min(100, Math.max(0, progress)) : null;
+}
+
+function ganttProgressLabel(row, chartOptions, progress) {
+  const configured = row?.options?.["progress label text"] ?? chartOptions?.["progress label text"];
+  if (configured !== undefined) {
+    const text = stripOuterBracesText(String(configured));
+    if (!text || text === "\\relax") return "";
+    return text.replaceAll("#1", String(Math.round(progress)));
+  }
+  return `${Math.round(progress)}\\% complete`;
 }
 
 function extractFillFromTikzOptionText(value) {

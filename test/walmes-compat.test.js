@@ -377,6 +377,42 @@ test("expands pgfgantt linked elements into the preceding element dependency", (
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Done"));
 });
 
+test("splits numeric pgfgantt bar progress into completed and incomplete styles", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[
+  x unit=1cm,
+  y unit chart=1cm,
+  bar/.append style={fill=blue},
+  bar incomplete/.append style={fill=red}
+]{1}{4}
+  \ganttbar[progress=37]{Task}{1}{4}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(ir.items.some((item) => item.type === "path" && item.style?.fill === "blue"));
+  assert.ok(ir.items.some((item) => item.type === "path" && item.style?.fill === "red"));
+  assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "37\\% complete"));
+});
+
+test("honors pgfgantt numeric progress label text and font overrides", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[progress label text={#1~pct}]{1}{2}
+  \ganttbar[progress=50,bar progress label font=\tiny]{Task}{1}{2}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const label = ir.items.find((item) => item.type === "textNode" && item.text === "50~pct");
+  assert.equal(label?.font?.sizePt, 5);
+});
+
 test("uses TeX control-word boundaries for dynamic coordinate names", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}

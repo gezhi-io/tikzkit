@@ -4753,6 +4753,20 @@
       ]
     },
     {
+      "id": "pgfgantt-bar-progress",
+      "title": "pgfgantt manual bar progress fills",
+      "source": "pgfgantt/bar-progress.tex",
+      "sourceCorpus": "TeX Live pgfgantt manual",
+      "externalSource": "doc/latex/pgfgantt/pgfgantt-doc.pdf",
+      "semanticOwner": "src/frontend/latex-shell.js:expandPgfganttCharts",
+      "features": [
+        "ganttchart",
+        "ganttbar progress numeric",
+        "bar incomplete/.append style",
+        "default progress label text"
+      ]
+    },
+    {
       "id": "shapes-arrows-single-double",
       "title": "PGF shapes.arrows single and double arrow geometry",
       "source": "shapes/arrows-single-double.tex",
