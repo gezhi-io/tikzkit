@@ -8734,11 +8734,15 @@ function addNodeItems(node, ir, env) {
             ? true
             : tikzBoolean(semantic["rectangle split draw splits"])
           : undefined,
+      rectangleSplitUsesCustomFill:
+        shape === "rectangleSplit"
+          ? rectangleSplitUsesCustomFill(semantic)
+          : undefined,
       partWidths: shape === "rectangleSplit" ? node.rectangleSplit?.partWidths : undefined,
       partHeights: shape === "rectangleSplit" ? node.rectangleSplit?.partHeights : undefined,
       separatorWidth: shape === "rectangleSplit" ? node.rectangleSplit?.separatorWidth : undefined,
       partFills:
-        shape === "rectangleSplit"
+        shape === "rectangleSplit" && rectangleSplitUsesCustomFill(semantic)
           ? rectangleSplitPartFills(semantic, node.rectangleSplit || rectangleSplitParts(semantic))
           : undefined,
       rotation: rotation || undefined,
@@ -11153,6 +11157,21 @@ function rectangleSplitPartFills(semantic = {}, layoutOrPartCount = 0) {
   const last = fills.at(-1);
   while (last && fills.length < count) fills.push(last);
   return layout?.parts ? layout.parts.map((part) => fills[part.logicalIndex] || last) : fills;
+}
+
+function rectangleSplitUsesCustomFill(semantic = {}) {
+  // PGF's `rectangle split part fill` key enables custom fills as it is
+  // encountered.  The documented boolean key may then turn them back off,
+  // so preserve the option ordering rather than treating any fill list as an
+  // unconditional request to paint the individual parts.
+  let enabled = false;
+  for (const [key, value] of Object.entries(semantic || {})) {
+    if (key === "rectangle split part fill") enabled = true;
+    if (key === "rectangle split uses custom fill") {
+      enabled = tikzBoolean(value);
+    }
+  }
+  return enabled;
 }
 
 function rectangleSplitHorizontalMinPartWidth(env = { variables: {} }) {

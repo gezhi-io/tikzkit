@@ -30,6 +30,8 @@ export function renderRectangleSplitNodeBox(item, unit) {
   const lineWidth = item.style?.lineWidth ?? 1;
   const stroke = escapeAttribute(svgPaint(item.style?.stroke || "black"));
   const fills = item.partFills || [];
+  const usesCustomFill = item.rectangleSplitUsesCustomFill === true;
+  const backgroundFill = escapeAttribute(svgPaint(item.style?.fill || "none"));
   const drawSplits = item.rectangleSplitDrawSplits !== false;
   if (!horizontal) {
     const rawPartHeights = Array.isArray(item.partHeights) && item.partHeights.length === parts
@@ -45,12 +47,15 @@ export function renderRectangleSplitNodeBox(item, unit) {
       : Array.from({ length: parts }, () => height / parts);
     const partY = (index) =>
       y + partHeights.slice(0, index).reduce((sum, value) => sum + value, 0) + separatorHeight * index;
-    const partRects = Array.from({ length: parts }, (_unused, index) => {
+    const background = usesCustomFill ? "" : `<rect class="tikz-split-background" x="${format(x)}" y="${format(
+      y
+    )}" width="${format(width)}" height="${format(height)}" stroke="none" fill="${backgroundFill}" />`;
+    const partRects = usesCustomFill ? Array.from({ length: parts }, (_unused, index) => {
       const fill = escapeAttribute(svgPaint(fills[index] || "none"));
       return `<rect class="tikz-split-part" x="${format(x)}" y="${format(partY(index))}" width="${format(
         width
       )}" height="${format(partHeights[index])}" stroke="none" fill="${fill}" />`;
-    }).join("");
+    }).join("") : "";
     const separators = drawSplits
       ? Array.from({ length: parts - 1 }, (_unused, index) => {
         const lineY = partY(index) + partHeights[index] + separatorHeight / 2;
@@ -62,14 +67,17 @@ export function renderRectangleSplitNodeBox(item, unit) {
     const outer = `<rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
       height
     )}" rx="${format((item.rx || 0) * unit)}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
-    return `<g class="tikz-rectangle-split">${partRects}${separators}${outer}</g>`;
+    return `<g class="tikz-rectangle-split">${background}${partRects}${separators}${outer}</g>`;
   }
-  const partRects = Array.from({ length: parts }, (_unused, index) => {
+  const background = usesCustomFill ? "" : `<rect class="tikz-split-background" x="${format(x)}" y="${format(
+    y
+  )}" width="${format(width)}" height="${format(height)}" stroke="none" fill="${backgroundFill}" />`;
+  const partRects = usesCustomFill ? Array.from({ length: parts }, (_unused, index) => {
     const fill = escapeAttribute(svgPaint(fills[index] || "none"));
     return `<rect class="tikz-split-part" x="${format(partX(index))}" y="${format(y)}" width="${format(
       partWidths[index]
     )}" height="${format(height)}" stroke="none" fill="${fill}" />`;
-  }).join("");
+  }).join("") : "";
   const separators = drawSplits
     ? Array.from({ length: parts - 1 }, (_unused, index) => {
       const lineX = partX(index) + partWidths[index] + separatorWidth / 2;
@@ -81,5 +89,5 @@ export function renderRectangleSplitNodeBox(item, unit) {
   const outer = `<rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(
     height
   )}" rx="${format((item.rx || 0) * unit)}" stroke="${stroke}" fill="none" stroke-width="${format(lineWidth)}" />`;
-  return `<g class="tikz-rectangle-split">${partRects}${separators}${outer}</g>`;
+  return `<g class="tikz-rectangle-split">${background}${partRects}${separators}${outer}</g>`;
 }

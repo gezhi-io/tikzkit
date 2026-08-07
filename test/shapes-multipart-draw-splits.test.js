@@ -33,7 +33,9 @@ test("rectangle split draw splits=false preserves part geometry but omits separa
   const verticalWithoutSplits = renderRectangleSplitNodeBox(vertical, 100);
   assert.equal((withSplits.match(/tikz-split-separator/g) || []).length, 2);
   assert.equal((withoutSplits.match(/tikz-split-separator/g) || []).length, 0);
-  assert.equal((withoutSplits.match(/tikz-split-part/g) || []).length, 3);
+  assert.equal((withoutSplits.match(/tikz-split-part/g) || []).length, 0);
+  assert.equal((withoutSplits.match(/tikz-split-background/g) || []).length, 1);
   assert.equal((verticalWithoutSplits.match(/tikz-split-separator/g) || []).length, 0);
-  assert.equal((verticalWithoutSplits.match(/tikz-split-part/g) || []).length, 3);
+  assert.equal((verticalWithoutSplits.match(/tikz-split-part/g) || []).length, 0);
+  assert.equal((verticalWithoutSplits.match(/tikz-split-background/g) || []).length, 1);
 });

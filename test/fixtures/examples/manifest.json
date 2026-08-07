@@ -4545,6 +4545,21 @@
         "minimum height",
         "nodepart anchors"
       ]
+    },
+    {
+      "id": "pgf-rectangle-split-custom-fill",
+      "title": "PGF rectangle split custom fill toggle",
+      "source": "workbench/rectangle-split-custom-fill.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitUsesCustomFill; src/renderers/svg/rectangleSplitNodes.js",
+      "features": [
+        "rectangle split",
+        "rectangle split part fill",
+        "rectangle split uses custom fill",
+        "ordinary node background fill",
+        "nodepart anchors"
+      ]
     }
   ]
 }
