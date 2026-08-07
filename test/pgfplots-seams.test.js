@@ -4826,8 +4826,16 @@ test("pgfplots plot node lowering owns nodes near coords and inline plot labels"
   const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "2cm" }, ranges);
 
   assert.deepEqual(renderNodesNearCoords({ options: {}, points: [{ x: 1, y: 2 }] }, { "nodes near coords": true }, geometry), [
-    String.raw`\node[axis near coord, anchor=south, font=\scriptsize] at (1,2.08) {2};`
+    String.raw`\node[axis near coord, anchor=south, font=\scriptsize, text=blue] at (1,2.08) {2};`
   ]);
+  assert.deepEqual(
+    renderNodesNearCoords(
+      { options: {}, points: [{ x: 1, y: 2 }] },
+      { "nodes near coords": true, "every node near coord/.append style": "text=black" },
+      geometry
+    ),
+    [String.raw`\node[axis near coord, anchor=south, font=\scriptsize, text=blue, text=black] at (1,2.08) {2};`]
+  );
   assert.deepEqual(
     renderNodesNearCoords(
       { is3d: true, options: {}, points: [{ x: 1, y: 2, z: 3 }] },
@@ -4837,7 +4845,7 @@ test("pgfplots plot node lowering owns nodes near coords and inline plot labels"
         mapPoint3d: ({ x, y, z }) => ({ x: x + y, y: z })
       }
     ),
-    [String.raw`\node[axis near coord, anchor=south, font=\scriptsize] at (3,3.08) {3};`]
+    [String.raw`\node[axis near coord, anchor=south, font=\scriptsize, text=blue] at (3,3.08) {3};`]
   );
   assert.deepEqual(
     renderAxisPlotInlineNodes(

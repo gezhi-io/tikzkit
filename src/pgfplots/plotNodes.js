@@ -137,7 +137,9 @@ function escapeRegExp(value) {
 }
 
 function nodeNearCoordTextColor(plotOptions, plotIndex) {
-  if (!plotOptions["pgfplots explicit options"]) return "";
+  // PGFPlots inserts the node while the current plot-coordinate style is
+  // active, so an implicit cycle color applies here too. Later node styles
+  // remain after this option in renderNodesNearCoords and can override it.
   const color = plotColorValue(selectPlotColor(plotOptions, plotIndex));
   return color && color !== "black" ? `text=${color}` : "";
 }

@@ -124,7 +124,7 @@ test("pgfplots bar labels lower rotatebox and formatted point meta into node sem
   );
 
   assert.deepEqual(commands, [
-    String.raw`\node[axis near coord, anchor=south, font=\scriptsize, rotate=90] at (1,42.08) {42};`
+    String.raw`\node[axis near coord, anchor=south, font=\scriptsize, text=blue, rotate=90] at (1,42.08) {42};`
   ]);
   assert.doesNotMatch(commands[0], /rotatebox|pgfmathprintnumber|pgfplotspointmeta/);
 });

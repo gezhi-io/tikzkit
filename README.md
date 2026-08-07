@@ -166,6 +166,26 @@ npm run examples:diff -- --output outputs/qa-pgfplots-scale-uniform \
 全量 3D 文本边界仍在测试中。源码阅读、视觉差异与剩余边界见
 [PGFPlots 3D QA](docs/qa/2026-08-08-pgfplots-scale-uniform-units-only.md)。
 
+### 最近验收：PGFPlots 柱状图数值颜色
+
+`nodes near coords` 的默认数值标签现在会继承当前 `\addplot` 的颜色，即使源码没有
+显式写 `color=...`。这与 PGFPlots 在 marker 后创建节点时保留 current-coordinate
+style 的顺序一致；随后写在 `every node near coord/.append style` 中的 `text=...`
+仍可覆盖该默认色。
+
+```bash
+node --test --test-name-pattern='plot node lowering owns nodes near coords|bar labels lower rotatebox' \
+  test/pgfplots-seams.test.js test/pgfplots-histogram.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-bar-chart-military-budget \
+  --output outputs/qa-pgfplots-near-coord-color \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+```
+
+该切片只承诺数字标签颜色和用户样式覆盖顺序；任意 TeX 标签模板、复杂 point meta、
+颜色透明度混合与精确文字度量仍在测试中。三方图和 MacTeX 源码记录见
+[PGFPlots 标签颜色 QA](docs/qa/2026-08-08-pgfplots-nodes-near-coord-cycle-color.md)。
+
 ### 最近验收：pgfgantt group 峰形轮廓
 
 `pgfgantt` 仍是 partial，但标准 `\ganttgroup` 与 `\ganttlinkedgroup` 现已使用
