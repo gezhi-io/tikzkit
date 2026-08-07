@@ -1,0 +1,25 @@
+% Derived from the TeX Live PGF decorations.pathreplacing manual.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing,shapes.misc}
+\begin{document}
+\tikzset{
+  show curve controls/.style={
+    decoration={
+      show path construction,
+      curveto code={
+        \draw [blue, dashed]
+          (\tikzinputsegmentfirst) -- (\tikzinputsegmentsupporta)
+          node [at end, cross out, draw, solid, red, inner sep=2pt]{};
+        \draw [blue, dashed]
+          (\tikzinputsegmentsupportb) -- (\tikzinputsegmentlast)
+          node [at start, cross out, draw, solid, red, inner sep=2pt]{};
+      }
+    },decorate
+  }
+}
+\begin{tikzpicture}
+  \draw [postaction=show curve controls, thick]
+    (0,2) .. controls (2.5,1.5) and (0.5,0.5) .. (3,0);
+\end{tikzpicture}
+\end{document}

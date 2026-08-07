@@ -2447,13 +2447,18 @@ Current core examples:
   `\tikzinputsegmentfirst`, `\tikzinputsegmentlast`,
   `\tikzinputsegmentsupporta`, and `\tikzinputsegmentsupportb` inside normal
   TikZ draw/fill code. Arbitrary TeX-only callbacks and low-level PGF point
-  macros remain partial. The maintained reference is
-  [`decorations/pathreplacing-show-path-construction.tex`](test/fixtures/examples/decorations/pathreplacing-show-path-construction.tex):
+  macros remain partial. The named `postaction=style` form resolves its style
+  before running callbacks, preserves the original path, and inherits source
+  paint settings such as `thick` without recursively applying the postaction.
+  Maintained references are
+  [`decorations/pathreplacing-show-path-construction.tex`](test/fixtures/examples/decorations/pathreplacing-show-path-construction.tex)
+  and
+  [`decorations/pathreplacing-show-curve-controls.tex`](test/fixtures/examples/decorations/pathreplacing-show-curve-controls.tex):
 
   ```bash
-  node --test --test-name-pattern='show path construction callbacks' test/interpreter.test.js
+  node --test --test-name-pattern='show path construction' test/interpreter.test.js
   npm run examples:render -- --fixtures test/fixtures/examples \
-    --only decorations-pathreplacing-show-path-construction \
+    --only decorations-pathreplacing-show-curve-controls \
     --output outputs/qa-show-path-construction \
     --native-reference --strict-tikztosvg
   npm run examples:diff -- --output outputs/qa-show-path-construction

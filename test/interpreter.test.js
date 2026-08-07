@@ -2308,6 +2308,40 @@ test("does not apply the outer coordinate transform twice inside show path const
   ]);
 });
 
+test("inherits source paint width through show path construction postactions", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing,shapes.misc}
+\tikzset{
+  show curve controls/.style={
+    decoration={
+      show path construction,
+      curveto code={
+        \draw [blue, dashed]
+          (\tikzinputsegmentfirst) -- (\tikzinputsegmentsupporta)
+          node [at end, cross out, draw, solid, red, inner sep=2pt]{};
+        \draw [blue, dashed]
+          (\tikzinputsegmentsupportb) -- (\tikzinputsegmentlast)
+          node [at start, cross out, draw, solid, red, inner sep=2pt]{};
+      }
+    },decorate
+  }
+}
+\begin{tikzpicture}
+  \draw [postaction=show curve controls, thick]
+    (0,2) .. controls (2.5,1.5) and (0.5,0.5) .. (3,0);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const callbackPaths = ir.items.filter((item) => item.type === "path" && item.style?.stroke === "blue");
+  const callbackMarkers = ir.items.filter((item) => item.type === "nodeBox" && item.shape === "crossOut" && item.style?.stroke === "red");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(callbackPaths.length, 2);
+  assert.equal(callbackMarkers.length, 2);
+  for (const item of [...callbackPaths, ...callbackMarkers]) {
+    expectClose(item.style.lineWidth, TIKZ_LINE_WIDTHS.thick);
+  }
+});
+
 test("places text decorations along invisible paths", () => {
   const source = String.raw`
 \begin{tikzpicture}
@@ -5603,6 +5637,20 @@ test("renders shapes.misc cross out and strike out without rectangle outlines", 
   assert.ok(renderedCross, "expected cross-out foreground path");
   assert.ok(Math.abs(Number(renderedCross[1])) > halfVisibleWidth * 100, "cross foreground should extend beyond the visible box");
   assert.equal([...result.svg.matchAll(/<rect\b/g)].length, 1, "only the SVG background should be a rectangle");
+});
+
+test("sizes empty shapes.misc crosses from inner separation instead of text line height", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shapes.misc}
+\begin{tikzpicture}
+  \node[draw,cross out,inner sep=2pt] at (0,0) {};
+\end{tikzpicture}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  const [cross] = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "crossOut");
+  const expected = parseDimension("4pt");
+  expectClose(cross.width, expected, 1e-6);
+  expectClose(cross.height, expected, 1e-6);
 });
 
 test("renders the equilateral triangle heights fixture with scoped geometry and labels", () => {

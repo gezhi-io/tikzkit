@@ -1,7 +1,7 @@
 export const tikzLibrary = {
   "name": "decorations.pathreplacing",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration + addShowPathConstructionItems + postactionDecorationPathItem",
+  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration + addShowPathConstructionItems + addPostactionShowPathConstructionItems + postactionDecorationPathItem",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
@@ -27,7 +27,9 @@ export const tikzLibrary = {
     "show path construction callbacks",
     "moveto/lineto/curveto/closepath code",
     "input segment first/last/support coordinates",
-    "supported decorate postactions preserve source path"
+    "supported decorate postactions preserve source path",
+    "named postaction styles",
+    "source paint-state inheritance for callbacks"
   ],
   "implements": [
     "brace path replacement",
@@ -51,7 +53,9 @@ export const tikzLibrary = {
     "show path construction callbacks",
     "moveto/lineto/curveto/closepath code",
     "input segment first/last/support coordinates",
-    "supported decorate postactions preserve source path"
+    "supported decorate postactions preserve source path",
+    "named postaction styles",
+    "source paint-state inheritance for callbacks"
   ],
-  "notes": "Brace replacement mirrors PGF's remaining-distance state: it measures the complete decorated subpath, then draws the replacement in the initial tangent frame. mirror, raise, amplitude, and aspect are supported. `ticks` replaces a complete decorated line/curve subpath with independent normal strokes at each full segment-length state origin; amplitude is the half-length and the final partial path remainder does not receive an endpoint tick. `border` emits single-sided tangent-frame strokes at each full state origin, controlled by segment length, amplitude, and angle. `waves` emits a constant-radius local-tangent circular arc per complete state; `expanding waves` consumes its initial empty state then uses the completed decoration distance as the arc radius and native local x offset. `show path construction` now invokes moveto/lineto/curveto/closepath callback code against original input-segment first, last, and cubic support points, reusing the normal TikZ command interpreter with the decoration transform disabled. The common postaction={decorate,draw,...} form now retains the foreground source path and appends a second supported decoration path with its local style. Arbitrary TeX-only callback bodies, low-level PGF point macros, and exact behavior for arbitrary non-linear brace input remain partial."
+  "notes": "Brace replacement mirrors PGF's remaining-distance state: it measures the complete decorated subpath, then draws the replacement in the initial tangent frame. mirror, raise, amplitude, and aspect are supported. `ticks` replaces a complete decorated line/curve subpath with independent normal strokes at each full segment-length state origin; amplitude is the half-length and the final partial path remainder does not receive an endpoint tick. `border` emits single-sided tangent-frame strokes at each full state origin, controlled by segment length, amplitude, and angle. `waves` emits a constant-radius local-tangent circular arc per complete state; `expanding waves` consumes its initial empty state then uses the completed decoration distance as the arc radius and native local x offset. `show path construction` invokes moveto/lineto/curveto/closepath callback code against original input-segment first, last, and cubic support points, reusing the normal TikZ command interpreter with the decoration transform disabled. It resolves the documented named `postaction=style` form, preserves the foreground source path, and lets callback draw/fill commands inherit the source paint state while stripping nested decoration/registration behavior. Arbitrary TeX-only callback bodies, low-level PGF point macros, arbitrary postaction keys, and exact behavior for arbitrary non-linear brace input remain partial."
 };

@@ -1398,6 +1398,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       addDecorationMarkers(item, options, ir);
       const postactionDecoration = postactionDecorationPathItem(built, pathOptions, pathEnv);
       if (postactionDecoration) ir.items.push(postactionDecoration);
+      addPostactionShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
     }
     for (const shape of shapesToRender) {
       addDecorationMarkers(shape, options, ir);
@@ -12128,6 +12129,25 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(regularPolygonLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  // shapes.misc cross out and strike out inherit rectangle anchors.  Their
+  // foreground is drawn from southwest to northeast, so an empty node must
+  // use only its configured inner/minimum dimensions rather than the normal
+  // text line-height floor.
+  if (isEmptyText && ["crossOut", "strikeOut"].includes(emptyNodeShape)) {
+    let emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    let emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    if (options["minimum width"]) emptyWidth = Math.max(emptyWidth, parseNodeLengthDimension(options["minimum width"], env));
+    if (options["minimum height"]) emptyHeight = Math.max(emptyHeight, parseNodeLengthDimension(options["minimum height"], env));
+    if (options["minimum size"]) {
+      const size = parseNodeLengthDimension(options["minimum size"], env);
+      emptyWidth = Math.max(emptyWidth, size);
+      emptyHeight = Math.max(emptyHeight, size);
+    }
+    return scaleSize({
+      width: roundNumber(Math.max(0.02, emptyWidth)),
+      height: roundNumber(Math.max(0.02, emptyHeight))
+    }, shapeScale);
+  }
   if (
     isEmptyText &&
     !isCircleShape &&
@@ -12982,9 +13002,7 @@ function appendLegacySnakeLine(commands, from, to, spec) {
 }
 
 function postactionDecorationPathItem(built, pathOptions, env) {
-  const rawPostaction = String(pathOptions.postaction || "");
-  if (!rawPostaction.includes("decorate")) return null;
-  const parsedPostaction = parseOptions(rawPostaction);
+  const parsedPostaction = resolvedPostactionOptions(pathOptions, env);
   // A postaction usually only says `decorate`; PGF resolves the named
   // decoration through the enclosing path/picture options.
   const rawOptions = {
@@ -13007,7 +13025,22 @@ function postactionDecorationPathItem(built, pathOptions, env) {
   });
 }
 
-function addShowPathConstructionItems(built, pathOptions, env, ir, diagnostics) {
+function addPostactionShowPathConstructionItems(built, pathOptions, env, ir, diagnostics) {
+  const options = resolvedPostactionOptions(pathOptions, env);
+  if (!tikzBoolean(options.decorate)) return;
+  const decoration = parseOptions(String(options.decoration || ""));
+  if (!tikzBoolean(decoration["show path construction"])) return;
+  addShowPathConstructionItems(built, options, env, ir, diagnostics, pathOptions);
+}
+
+function resolvedPostactionOptions(pathOptions = {}, env = {}) {
+  const rawPostaction = String(pathOptions.postaction || "").trim();
+  if (!rawPostaction) return {};
+  const normalized = normalizeOptions("draw", parseOptions(rawPostaction), env);
+  return { ...normalized.options, ...normalized.semantic };
+}
+
+function addShowPathConstructionItems(built, pathOptions, env, ir, diagnostics, inheritedPathOptions = pathOptions) {
   if (!tikzBoolean(pathOptions.decorate)) return;
   const decoration = parseOptions(String(pathOptions.decoration || ""));
   if (!tikzBoolean(decoration["show path construction"])) return;
@@ -13024,7 +13057,7 @@ function addShowPathConstructionItems(built, pathOptions, env, ir, diagnostics) 
   // The input commands are already in the outer path's canvas coordinates, so
   // parse the callback in an identity coordinate frame to avoid transforming
   // the injected points a second time.
-  const callbackEnv = showPathConstructionCallbackEnvironment(env);
+  const callbackEnv = showPathConstructionCallbackEnvironment(env, inheritedPathOptions);
   let current = null;
   let start = null;
 
@@ -13062,8 +13095,11 @@ function addShowPathConstructionItems(built, pathOptions, env, ir, diagnostics) 
   }
 }
 
-function showPathConstructionCallbackEnvironment(env) {
-  const pictureOptions = { ...(env.pictureOptions || {}) };
+function showPathConstructionCallbackEnvironment(env, inheritedPathOptions = {}) {
+  const pictureOptions = {
+    ...(env.pictureOptions || {}),
+    ...showPathConstructionInheritedOptions(inheritedPathOptions)
+  };
   for (const key of [
     "scale", "xscale", "yscale", "rotate", "rotate around", "scale around",
     "cm", "xshift", "yshift", "shift", "xslant", "yslant", "mirror",
@@ -13080,6 +13116,20 @@ function showPathConstructionCallbackEnvironment(env) {
     canvasTrackingDisabled: false,
     basis: parsePictureBasis({}, env.variables || {})
   };
+}
+
+function showPathConstructionInheritedOptions(options = {}) {
+  const inherited = { ...(options || {}) };
+  // Keep the outer paint state, but not decoration or registration behavior.
+  for (const key of [
+    "decorate", "decoration", "postaction", "preaction",
+    "name path", "name path global", "name intersections",
+    "use as bounding box", "bezier bounding box", "overlay",
+    "tikzkit clip rect", "tikzkit clip circle"
+  ]) {
+    delete inherited[key];
+  }
+  return inherited;
 }
 
 function expandShowPathConstructionCallback(callback, segment) {

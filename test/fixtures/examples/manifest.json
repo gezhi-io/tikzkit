@@ -4598,6 +4598,22 @@
       ]
     },
     {
+      "id": "decorations-pathreplacing-show-curve-controls",
+      "title": "PGF path-replacing curve controls postaction",
+      "source": "decorations/pathreplacing-show-curve-controls.tex",
+      "sourceCorpus": "TeX Live PGF decorations manual",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:postactionShowPathConstructionItems",
+      "features": [
+        "decorations.pathreplacing",
+        "show path construction",
+        "postaction named style",
+        "curveto code",
+        "cross out control markers",
+        "source curve preservation"
+      ]
+    },
+    {
       "id": "pgf-rectangle-split-horizontal-minimums",
       "title": "PGF horizontal rectangle split minimum sizing",
       "source": "workbench/rectangle-split-horizontal-minimums.tex",
