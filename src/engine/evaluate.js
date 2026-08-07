@@ -14071,6 +14071,16 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   const radians = (angle * Math.PI) / 180;
   const nx = -Math.sin(radians);
   const ny = Math.cos(radians);
+  const textFont = resolvedTextFontSpec(
+    payload.text,
+    { ...pathOptions, font: `${pathOptions.font || ""} ${payload.fontSource || ""}`.trim() },
+    env,
+    env.canvasScale
+  );
+  const inheritedFontFamily = payload.style.fontFamily || resolveInheritedFontFamily(pathOptions.font, env.pictureOptions?.font);
+  // Decoration text is still ordinary TeX text inside a positioned node. Keep
+  // its rendered face in sync with the CMR metrics used for its path advances.
+  const fontFamily = computerModernOpticalTextFamily(payload.text, textFont, inheritedFontFamily) || inheritedFontFamily;
   ir.items.push({
     type: "textNode",
     subtype: "decoration-text",
@@ -14094,17 +14104,12 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     x: roundNumber(point.x + nx * raise),
     y: roundNumber(point.y + ny * raise),
     rotation: roundNumber(angle),
-    font: resolvedTextFontSpec(
-      payload.text,
-      { ...pathOptions, font: `${pathOptions.font || ""} ${payload.fontSource || ""}`.trim() },
-      env,
-      env.canvasScale
-    ),
+    font: textFont,
     style: {
       ...item.style,
       ...payload.style,
       fill: visibleTextFill(normalizeColor(decoration["text color"] || ""), payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
-      fontFamily: payload.style.fontFamily || resolveInheritedFontFamily(pathOptions.font, env.pictureOptions?.font),
+      fontFamily,
       fontVariant: payload.style.fontVariant || resolveInheritedFontVariant(pathOptions.font, env.pictureOptions?.font),
       fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
     }

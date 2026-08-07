@@ -2601,6 +2601,26 @@ test("retains ordered decorations.text word grouping effects and separators", ()
   assert.deepEqual(labels[2].pathTextEffects, ["reverse", "group"]);
 });
 
+test("uses the resolved CMR design face for grouped decorations.text words", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={group words},
+    text effects/.cd,group letters into words}] (0,1) -- (6,1);
+  \path[decorate,decoration={text effects along path,text={left-right},
+    text effects/.cd,word separator=-,group letters}] (0,0) -- (6,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.deepEqual(labels.map((label) => label.style.fontFamily), [
+    "TikZKitCMR10, TikZKitCMUSerif, serif",
+    "TikZKitCMR10, TikZKitCMUSerif, serif"
+  ]);
+  assert.match(result.svg, /class="tikz-decoration-word"[^>]*font-family="TikZKitCMR10, TikZKitCMUSerif, serif"/);
+});
+
 test("preserves repeated decorations.text circle replacement mappings", () => {
   const source = String.raw`
 \begin{tikzpicture}[decoration={text effects along path,
