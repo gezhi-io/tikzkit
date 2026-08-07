@@ -1,0 +1,14 @@
+% Derived from the local PGF arrows.meta open, harpoon, swap, and reversed examples.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+\begin{tikzpicture}[ultra thick]
+  \draw[blue,-{Stealth[open]}] (0,0) -- (4,0);
+  \draw[red,-{Stealth[harpoon]}] (0,-0.9) -- (4,-0.9);
+  \draw[green!60!black,-{Stealth[harpoon,swap]}] (0,-1.8) -- (4,-1.8);
+  \draw[purple,-{Stealth[reversed]}] (0,-2.7) -- (4,-2.7);
+  \draw[orange,-{Stealth[reversed,open,scale=.8]}] (0,-3.6) -- (4,-3.6);
+\end{tikzpicture}
+\end{document}

@@ -885,6 +885,22 @@ test("uses PGF Stealth miter geometry and outlines for independent scale keys", 
   assert.match(tip, /L -[\d.]+ -[\d.]+ L -[\d.]+ 0/);
 });
 
+test("renders arrows.meta Stealth open, harpoon, swap, and reversed variants", () => {
+  const svg = tikzToSvg(String.raw`\begin{tikzpicture}[ultra thick]
+    \draw[blue,-{Stealth[open]}] (0,0) -- (2,0);
+    \draw[red,-{Stealth[harpoon]}] (0,-1) -- (2,-1);
+    \draw[green,-{Stealth[harpoon,swap]}] (0,-2) -- (2,-2);
+    \draw[purple,-{Stealth[reversed]}] (0,-3) -- (2,-3);
+  \end{tikzpicture}`).svg;
+  const tips = [...svg.matchAll(/<path class="tikz-arrow-tip tikz-arrow-stealth"[^>]+/gu)].map((match) => match[0]);
+
+  assert.equal(tips.length, 4);
+  assert.match(tips[0], /fill="none" stroke="blue"/);
+  assert.match(tips[1], /d="M 0 0 L -[\d.]+ -[\d.]+ L -[\d.]+ 0 Z"/);
+  assert.match(tips[2], /d="M 0 0 L -[\d.]+ [\d.]+ L -[\d.]+ 0 Z"/);
+  assert.match(tips[3], /d="M 0 0 L [\d.]+ -[\d.]+ L [\d.]+ 0 L [\d.]+ [\d.]+ Z"/);
+});
+
 test("keeps classic latex distinct from arrows.meta Latex", () => {
   const classic = tikzToSvg(String.raw`\draw[very thick,-{latex[scale=3]}] (0,0) -- (2,0);`).svg;
   const meta = tikzToSvg(String.raw`\draw[very thick,-{Latex[scale=3]}] (0,0) -- (2,0);`).svg;

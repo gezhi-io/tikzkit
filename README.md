@@ -2888,17 +2888,22 @@ Current support is pragmatic and growing. Highlights:
   than CSS homonyms; `\selectcolormodel`, color series, masks, and arbitrary
   model-qualified declarations remain partial.
 - `arrows.meta`: capitalized `Latex` and `Stealth` use the current path line
-  width. `Stealth` now follows its local PGF length/width'/inset' calculation,
+  width. `Stealth` follows its local PGF length/width'/inset' calculation,
   front/back/inset miter construction, butt/miter outline, and `line end`
   shortening. Its `scale`, `scale length`, and `scale width` keys stay
   independent, so longitudinal scaling also changes the endpoint inset while
   width-only scaling does not. Explicit `shorten <=` / `shorten >=` combines
-  with that inset. Lower-case core `latex` and `stealth` remain distinct PGF
-  tips. The checked source is
-  `test/fixtures/examples/arrows/meta-tip-scaling.tex`; see
-  `docs/qa/2026-08-08-arrows-meta-stealth-miters.md`. Composite tips,
-  padding/separation, harpoon/open/reversed variants, and arbitrary
-  arrows.meta setup-code keys remain partial.
+  with that inset. `Stealth[open]`, `Stealth[harpoon]`,
+  `Stealth[harpoon,swap]`, and `Stealth[reversed]` reuse that source-derived
+  miter geometry: `open` paints only the outline, `swap` selects the opposite
+  harpoon side, and `reversed` faces the original path endpoint. Lower-case
+  core `latex` and `stealth` remain distinct PGF tips. The checked sources are
+  `test/fixtures/examples/arrows/meta-tip-scaling.tex` and
+  `test/fixtures/examples/arrows/meta-stealth-variants.tex`; see
+  `docs/qa/2026-08-08-arrows-meta-stealth-miters.md` and
+  `docs/qa/2026-08-08-arrows-meta-stealth-variants.md`. Composite tips,
+  padding/separation, bend/flex, repeated `reversed` cancellation, and
+  arbitrary arrows.meta setup-code keys remain partial.
 - Pattern fills: built-in pattern metadata plus a focused `\pgfdeclarepatternformonly` slice. Constant `\pgfpoint`/`\pgfqpoint` tile geometry and line, circle, rectangle, close, fill, and stroke primitives are supported. Simple preamble `/.store in` values can drive a declared tile's bounds, step, coordinates, and line width. Pattern transforms, mutable/inherently-colored patterns, post-declaration argument changes, and arbitrary TeX drawing procedures remain unsupported.
 - Nodes: named nodes, compass anchors, angle anchors, shape borders, circle/rectangle/diamond, text and math sizing approximations.
 - Positioning: `right=... of A`, `below right=... of A`, legacy `right of=A`, shifts, node distance.

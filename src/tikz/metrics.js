@@ -404,6 +404,9 @@ export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
   const explicitWidthPt = Number.isFinite(Number(options.widthPt)) && Number(options.widthPt) > 0
     ? Number(options.widthPt)
     : null;
+  const harpoon = options.harpoon === true;
+  const reversed = options.reversed === true;
+  const swap = options.swap === true;
 
   // pgflibraryarrows.meta.code.tex: Stealth defaults to
   // length=+3pt 4.5, width'=+0pt .75, inset'=+0pt .325. PGF applies the
@@ -431,8 +434,16 @@ export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
   const halfWidthPt = Math.max(0, halfWidthBeforeMiterPt - topMiterPt);
   const adjustedInsetPt = insetPt + insetMiterPt;
   const insetDistancePt = Math.max(0, lengthPt - frontMiterPt - adjustedInsetPt);
-  const lineEndPt = adjustedInsetPt - 0.25 * arrowLineWidthPt;
-  const shortenPt = Math.max(0, lengthPt - lineEndPt);
+  const harpoonMiterPt = (lengthPt / safeWidthPt) * arrowLineWidthPt;
+  // The local Stealth setup code uses three different line ends. A harpoon
+  // joins at the exposed half tip; a reversed tip joins at its other end.
+  const lineEndPt = harpoon
+    ? adjustedInsetPt + 0.5 * arrowLineWidthPt
+    : reversed
+      ? innerLengthPt + backMiterPt - 0.25 * arrowLineWidthPt
+      : adjustedInsetPt - 0.25 * arrowLineWidthPt;
+  const tipEndPt = lengthPt + (harpoon ? harpoonMiterPt : 0);
+  const shortenPt = Math.max(0, tipEndPt - lineEndPt);
 
   return {
     length: lineWidthFromPt(innerLengthPt),
@@ -443,7 +454,10 @@ export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
     terminalPlacement: lineWidthFromPt(shortenPt),
     // PGF draws the arrow in a local coordinate system shifted by -tipend.
     // The visible point is therefore one front miter behind the raw terminal.
-    placement: lineWidthFromPt(frontMiterPt)
+    placement: lineWidthFromPt(reversed ? lengthPt - frontMiterPt : frontMiterPt),
+    harpoon,
+    reversed,
+    swap
   };
 }
 

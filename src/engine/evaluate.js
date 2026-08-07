@@ -13554,6 +13554,9 @@ function arrowTipShortenCoordinateLength(tip, style = {}) {
       ? stealthMetaArrowGeometryFromLineWidth(lineWidth, {
         lengthScale,
         widthScale,
+        harpoon: raw.harpoon,
+        reversed: raw.reversed,
+        swap: raw.swap,
         ...(customLength ? { lengthPt: raw.length / lineWidthFromPt(1) } : {}),
         ...(customWidth ? { widthPt: raw.width / lineWidthFromPt(1) } : {})
       }).shorten

@@ -342,7 +342,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
           ? baseStroke
           : raw.stroke || baseStroke
         : "none",
-    fill: declaredPaint === "stroke" || openTip || barTip ? "none" : fill,
+    fill: declaredPaint === "stroke" || openTip || barTip || raw.open ? "none" : fill,
     strokeWidth: declaredPaint === "stroke" || declaredPaint === "fillstroke"
       ? style.lineWidth ?? 1
       : barTip
@@ -391,23 +391,29 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
         lengthScale,
         widthScale,
+        harpoon: tip.harpoon,
+        reversed: tip.reversed,
+        swap: tip.swap,
         ...(flags.customLength ? { lengthPt: tip.length / lineWidthFromPt(1) } : {}),
         ...(flags.customWidth ? { widthPt: tip.width / lineWidthFromPt(1) } : {})
       });
+      const horizontal = native.reversed ? 1 : -1;
+      const vertical = native.swap ? -1 : 1;
       return {
         path: [
           "M 0 0",
-          `L ${format(-native.length)} ${format(-native.halfWidth)}`,
-          `L ${format(-native.insetDistance)} 0`,
-          `L ${format(-native.length)} ${format(native.halfWidth)} Z`
+          `L ${format(horizontal * native.length)} ${format(-vertical * native.halfWidth)}`,
+          `L ${format(horizontal * native.insetDistance)} 0`,
+          ...(native.harpoon ? [] : [`L ${format(horizontal * native.length)} ${format(vertical * native.halfWidth)}`]),
+          "Z"
         ].join(" "),
         shorten: native.shorten,
         terminalPlacement: native.terminalPlacement,
         placement: native.placement,
         lineWidth: native.lineWidth,
         bounds: {
-          minX: -native.length,
-          maxX: 0,
+          minX: native.reversed ? 0 : -native.length,
+          maxX: native.reversed ? native.length : 0,
           minY: -native.halfWidth,
           maxY: native.halfWidth
         }

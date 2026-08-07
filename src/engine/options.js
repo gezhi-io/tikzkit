@@ -686,6 +686,18 @@ function parseArrowTipSpec(input) {
   if (options["line width"]) {
     overrides.lineWidth = lineWidthFromTikzDimension(options["line width"]);
   }
+  // These are the arrows.meta option keys that affect Stealth's geometry or
+  // paint. Keep them on the tip object so the renderer can share the PGF
+  // setup calculation with ordinary forward Stealth tips.
+  const harpoon = options.harpoon === true || options.left === true || options.right === true;
+  const swap = options.swap === true || options.right === true;
+  if (harpoon) overrides.harpoon = true;
+  if (swap) overrides.swap = true;
+  if (options.reversed === true) overrides.reversed = true;
+  if (options.open === true) {
+    overrides.open = true;
+    overrides.fill = "none";
+  }
   if (options.color || options.draw) overrides.stroke = normalizeColor(String(options.color || options.draw));
   if (options.fill) overrides.fill = normalizeColor(String(options.fill));
   const declaredArrow = parseDeclaredArrowPayload(options["tikzkit declared arrow"]);
