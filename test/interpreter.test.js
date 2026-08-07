@@ -265,6 +265,35 @@ test("passes TikZ text width to injected text engine when sizing plain node boxe
   assert.ok(box.height > 0.85 && box.height < 0.95, `expected wrapped text engine height near 0.9cm, got ${box.height}`);
 });
 
+test("uses an outer minipage width for node wrapping and preserves explicit text width", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[draw, inner sep=0pt] (minipage) {
+    \begin{minipage}{0.35\textwidth}
+      When $\alpha = \gamma$, this explanatory sentence must wrap naturally.
+    \end{minipage}
+  };
+  \node[draw, inner sep=0pt, text width=2cm] (explicit) at (8,0) {
+    \begin{minipage}{0.35\textwidth}
+      Explicit TikZ text width still wins.
+    \end{minipage}
+  };
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const expectedMinipageWidth = parseDimension(String.raw`0.35\textwidth`, {
+    textwidth: parseDimension("345pt")
+  });
+  const boxes = Object.fromEntries(result.ir.items.filter((item) => item.type === "nodeBox" && item.id).map((item) => [item.id, item]));
+  const textNodes = Object.fromEntries(result.ir.items.filter((item) => item.type === "textNode").map((item) => [item.text.includes("Explicit") ? "explicit" : "minipage", item]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(Math.abs(parseDimension(String.raw`0.35\textwidth`, { textwidth: parseDimension("345pt") }) - expectedMinipageWidth) < 1e-9);
+  assert.ok(Math.abs(boxes.minipage.width - expectedMinipageWidth) < 1e-6, `expected minipage width ${expectedMinipageWidth}, got ${boxes.minipage.width}`);
+  assert.ok(Math.abs(textNodes.minipage.wrapWidth - expectedMinipageWidth) < 1e-6);
+  assert.equal(textNodes.minipage.textWrapMode, "flush");
+  assert.ok(Math.abs(boxes.explicit.width - 2) < 1e-6, `expected explicit width 2cm, got ${boxes.explicit.width}`);
+  assert.equal(textNodes.explicit.wrapWidth, 2);
+});
+
 test("resolves calc scalar multiplication of vector coordinates", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{calc}

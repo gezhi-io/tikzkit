@@ -59,7 +59,7 @@ export function evaluateMath(input, variables = {}) {
 }
 
 export function parseDimension(input, variables = {}) {
-  const text = stripBalancedOuterBraces(substituteVariables(input, variables).replace(/\{\}/g, "").trim());
+  const text = stripBalancedOuterBraces(substituteVariables(normalizeImplicitLengthProducts(input), variables).replace(/\{\}/g, "").trim());
   const normalizedExpression = normalizeDimensionExpression(text);
   if (normalizedExpression !== text) {
     const value = evaluateMath(normalizedExpression, variables);
@@ -69,6 +69,15 @@ export function parseDimension(input, variables = {}) {
   if (!match) return evaluateMath(text, variables);
   const value = evaluateMath(match[1], variables);
   return convertDimensionUnit(value, match[2] || "cm");
+}
+
+function normalizeImplicitLengthProducts(input) {
+  // TeX permits a scalar immediately before a dimension register, for example
+  // `0.35\textwidth`; JavaScript evaluation needs the multiplication made explicit.
+  return String(input || "").replace(
+    /(\d|\))\s*(\\(?:textwidth|textheight|linewidth|paperwidth|paperheight)\b)/g,
+    "$1*$2"
+  );
 }
 
 export function roundPoint(point, places = 12) {

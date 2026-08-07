@@ -21,7 +21,7 @@ const CORE_PACKAGE_SUPPORT = {
     status: "builtin",
     implementedBy: "src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform + src/renderers/svg/renderSvg.js",
     localSourceReviewed: "yes",
-    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations. transform canvas now keeps the backend matrix separate from coordinate transforms for scale/rotate/xshift/yshift paths and nodes, scales stroke/text geometry, and preserves PGF's locally disabled automatic picture-size tracking; arbitrary non-uniform node-anchor geometry remains partial."
+    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations. An outer node minipage maps its required width, including TeX's implicit scalar/register syntax such as 0.35\\textwidth, into shared text-width wrapping unless TikZ sets text width explicitly. transform canvas now keeps the backend matrix separate from coordinate transforms for scale/rotate/xshift/yshift paths and nodes, scales stroke/text geometry, and preserves PGF's locally disabled automatic picture-size tracking; TeX hyphenation, nested minipage layout, and arbitrary non-uniform node-anchor geometry remain partial."
   },
   pgf: {
     status: "partial",
@@ -421,7 +421,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | Mixed inline math in a node text-width paragraph is measured as a TeX-sized word group before SVG-text wrapping; TeX hyphenation, glue/penalty justification, and full minipage shaping remain partial. |
+| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/engine/math.js, src/engine/evaluate.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | An outer node-local minipage now contributes its width to shared text wrapping, including scalar TeX-register lengths such as 0.35\\textwidth; explicit text width wins. Mixed inline math is measured as a TeX-sized word group before SVG-text wrapping; TeX hyphenation, glue/penalty justification, nested minipage layout, and full minipage shaping remain partial. |
 
 ## Highest-Priority Unsupported Entries
 

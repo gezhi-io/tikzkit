@@ -82,6 +82,19 @@
       ]
     },
     {
+      "id": "real-world-minipage-text-width",
+      "title": "Minipage node text width with inline math",
+      "source": "real-world/minipage-text-width.tex",
+      "semanticOwner": "src/tikz/commands/node.js",
+      "features": [
+        "node command",
+        "minipage text box",
+        "implicit TeX length multiplication",
+        "text width wrapping",
+        "inline math"
+      ]
+    },
+    {
       "id": "real-world-angle-pic-reflex-and-right",
       "title": "Reflex and right-angle pics",
       "source": "real-world/angle-pic-reflex-and-right.tikz",

@@ -102,6 +102,24 @@ This is still an experimental paragraph-layout subset: TeX hyphenation,
 justification glue and penalties, and full `minipage` layout are not yet
 equivalent.
 
+### Verified Node-Local `minipage` Width
+
+When a TikZ node contains an outer `minipage`, TikZKit now maps that required
+width onto the same shared `text width` layout path. This includes native TeX
+scalar/register syntax such as `0.35\textwidth`; a supplied TikZ `text width`
+remains authoritative. The focused real driver is
+`test/fixtures/implementation-examples/real-world/minipage-text-width.tex`:
+
+```bash
+node --test --test-name-pattern='outer minipage width' test/interpreter.test.js
+```
+
+The three-way evidence is in
+[docs/qa/2026-08-07-minipage-text-width.md](docs/qa/2026-08-07-minipage-text-width.md).
+It confirms matching outer width, placement, and wrapping instead of the old
+single overwide line. Native discretionary hyphenation, justification glue,
+footnotes, and nested minipage vertical layout remain outside this slice.
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and

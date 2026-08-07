@@ -636,12 +636,27 @@ function readScaleboxWithOptionalAxis(source, start) {
   return { content: content.content, end: content.end };
 }
 
-// Claude: 一个节点里的 \begin{minipage}[pos]{width}...\end{minipage} 只是「文本盒子」语义，
-// 对纯 JS 渲染没有额外排版意义，却会挡住内部的 \[ ... \] 被识别成数学块（导致整块退化成
-// 逐行文本、把矩阵按 \\ 拆碎）。这里去掉 minipage 的 begin/end 包装，保留其内容。
+export function outerMinipageTextWidth(value) {
+  const source = stripOuterTextBraces(String(value ?? "").trim());
+  const begin = source.match(/^\\begin\s*\{\s*minipage\s*\}/);
+  if (!begin) return null;
+  let cursor = skipTextWhitespace(source, begin[0].length);
+  while (source[cursor] === "[") {
+    const optional = readBalancedDelimited(source, cursor, "[", "]");
+    if (!optional) return null;
+    cursor = skipTextWhitespace(source, optional.end);
+  }
+  const width = readBalancedDelimited(source, cursor, "{", "}");
+  if (!width || !width.content.trim()) return null;
+  if (!/\\end\s*\{\s*minipage\s*\}/.test(source.slice(width.end))) return null;
+  return width.content.trim();
+}
+
+// A node-local minipage is a fixed text box. Its wrapper is removed before
+// normalizing text so nested display math remains visible to the SVG renderer.
 function stripMinipageWrapper(source) {
   return String(source)
-    .replace(/\\begin\s*\{minipage\}\s*(?:\[[^\]]*\])?\s*(?:\{[^{}]*\})?/g, "")
+    .replace(/\\begin\s*\{minipage\}(?:\s*\[[^\]]*\]){0,3}\s*(?:\{[^{}]*\})?/g, "")
     .replace(/\\end\s*\{minipage\}/g, "");
 }
 

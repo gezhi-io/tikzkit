@@ -25,7 +25,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| tikz | builtin | yes | src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | Mixed inline math in a node text-width paragraph is measured as a TeX-sized word group before SVG-text wrapping; TeX hyphenation, glue/penalty justification, and full minipage shaping remain partial. |
+| tikz | builtin | yes | src/engine/math.js, src/engine/evaluate.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | An outer node-local minipage now contributes its width to shared text wrapping, including scalar TeX-register lengths such as 0.35\textwidth; explicit text width wins. Mixed inline math is measured as a TeX-sized word group before SVG-text wrapping; TeX hyphenation, glue/penalty justification, nested minipage layout, and full minipage shaping remain partial. |
 
 ## Highest-Priority Unsupported Entries
 

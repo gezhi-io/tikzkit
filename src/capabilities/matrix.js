@@ -58,18 +58,19 @@ export const capabilityMatrix = {
     parser: "stable",
     semantic: "partial",
     svg: "partial",
-    modules: ["src/index.js", "src/tikz/textMetrics.js", "src/tikz/text.js", "src/renderers/svg/textEngine.js", "src/renderers/svg/mathNode.js", "src/renderers/svg/textLayout.js"],
+    modules: ["src/index.js", "src/engine/math.js", "src/engine/evaluate.js", "src/tikz/textMetrics.js", "src/tikz/text.js", "src/renderers/svg/textEngine.js", "src/renderers/svg/mathNode.js", "src/renderers/svg/textLayout.js"],
     fixtures: [
       "test/fixtures/basic/node-text-measurement.tikz",
       "test/fixtures/examples/latex-examples/aggregation-blocks.tex",
-      "test/fixtures/implementation-examples/real-world/parallel-line-angles.tikz"
+      "test/fixtures/implementation-examples/real-world/parallel-line-angles.tikz",
+      "test/fixtures/implementation-examples/real-world/minipage-text-width.tex"
     ],
     verification: {
       oracle: "unit-test+tikztosvg",
-      tests: ["test/convert.test.js", "test/svg-renderer.test.js"],
-      artifacts: ["outputs/qa-plain-node-logical-metrics"]
+      tests: ["test/convert.test.js", "test/interpreter.test.js", "test/svg-renderer.test.js"],
+      artifacts: ["outputs/qa-plain-node-logical-metrics", "outputs/qa-minipage-text-width-2026-08-07/after-flush"]
     },
-    notes: "KaTeX/svg-text sizing now has a dedicated renderer text-engine boundary with measured baseline/midline and cached render payloads; public svg-text conversion creates the textEngine before engine evaluation and node sizing can consume math and plain text metrics, including TikZ text width for wrapped nodes. SVG plain text rendering can reuse the same textEngine cache payload while preserving font weight/style. Async conversion can run bounded multi-pass text measurement flushes and reevaluate node layout until the text engine reports no pending work; exhausting the pass limit emits a warning diagnostic. Mixed inline-math paragraphs now retain every formula as one TeX-sized word group before SVG-text line breaking, preventing compact relations from forcing an otherwise legal following word group onto the next line. Full TeX paragraph shaping remains partial: hyphenation, glue/penalty justification, minipage layout, styled-font paragraph metrics, glyph paint fidelity, and unsupported characters still need work. Normal single-line unwrapped Main-Regular plain nodes use verified logical TeX box metrics for semantic node sizing and anchors."
+    notes: "KaTeX/svg-text sizing now has a dedicated renderer text-engine boundary with measured baseline/midline and cached render payloads; public svg-text conversion creates the textEngine before engine evaluation and node sizing can consume math and plain text metrics, including TikZ text width for wrapped nodes. SVG plain text rendering can reuse the same textEngine cache payload while preserving font weight/style. Async conversion can run bounded multi-pass text measurement flushes and reevaluate node layout until the text engine reports no pending work; exhausting the pass limit emits a warning diagnostic. An outer node minipage now maps its width to the shared text-width path, including TeX's implicit scalar/register form such as `0.35\\textwidth`; an explicit TikZ text width remains authoritative. Mixed inline math paragraphs retain every formula as one TeX-sized word group before SVG-text line breaking. Full TeX paragraph shaping remains partial: wrapped paragraph/minipage text beyond this width propagation, hyphenation, glue/penalty justification, nested minipage vertical layout, styled fonts paragraph metrics, glyph paint fidelity, and broader shaping/unsupported characters still need work. Normal single-line unwrapped Main-Regular plain nodes use verified logical TeX box metrics for semantic node sizing and anchors."
   },
   foreach_statement: {
     id: "foreach_statement",

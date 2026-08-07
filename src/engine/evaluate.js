@@ -55,7 +55,7 @@ import {
   styleDefinitionsFromOptions,
   stripOuterBraces
 } from "./options.js";
-import { fontScaleFromTikzFont, mathFallbackText, normalizeTikzText } from "../tikz/text.js";
+import { fontScaleFromTikzFont, mathFallbackText, normalizeTikzText, outerMinipageTextWidth } from "../tikz/text.js";
 import { createFontSpec, mergeFontSpec, parseTikzFontPatch, resolveFontSpec } from "../tex/fontSpec.js";
 import {
   TIKZ_FONT_FAMILY,
@@ -5776,9 +5776,11 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     ...inlineNodeInheritedOptions(env, rawOptions),
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
-  const expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
+  let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
   expandedOptions[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
-  text = resolveTextContent(resolveNodeTextContent(text, expandedOptions), env);
+  const rawText = resolveNodeTextContent(text, expandedOptions);
+  expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
+  text = resolveTextContent(rawText, env);
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
   if (inlinePathLabelNeedsTexMetrics(text, rawOptions, expandedOptions)) {
     expandedOptions["tikzkit inline math label metrics"] = true;
@@ -5855,6 +5857,15 @@ function resolveNodeTextContent(text, options = {}) {
     return String(nodeContents);
   }
   return rawText;
+}
+
+function applyOuterMinipageTextWidth(options = {}, rawText, env = {}) {
+  if (Object.hasOwn(options, "text width")) return options;
+  const width = outerMinipageTextWidth(rawText);
+  if (!width) return options;
+  const parsedWidth = parseDimension(width, env.variables || {});
+  if (!Number.isFinite(parsedWidth) || parsedWidth <= 0) return options;
+  return { ...options, "text width": width, "tikzkit minipage text width": true };
 }
 
 function inlinePathLabelNeedsTexMetrics(text, rawOptions = {}, expandedOptions = {}) {
@@ -6006,7 +6017,9 @@ function createNode(statement, env, ir, diagnostics) {
   }, env).options;
   expandedOptions[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
-  const textMarks = extractTikzmarkNodes(resolveTextContent(resolveNodeTextContent(statement.text, expandedOptions), env));
+  const rawText = resolveNodeTextContent(statement.text, expandedOptions);
+  expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
+  const textMarks = extractTikzmarkNodes(resolveTextContent(rawText, env));
   const text = textMarks.text;
   if (isMatrixNodeOptions(expandedOptions)) {
     const name = statement.name
@@ -9300,6 +9313,7 @@ function normalizedNodeTextAlign(value, semantic = {}) {
 
 function nodeTextWrapMode(options = {}, semantic = {}) {
   if (tikzBoolean(semantic["text badly centered"])) return "flush";
+  if (options["tikzkit minipage text width"]) return "flush";
   return normalizedNodeTextAlign(options.align, semantic) === "center" ? "center" : undefined;
 }
 
