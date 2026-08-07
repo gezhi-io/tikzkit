@@ -10439,6 +10439,8 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
     const paddedHalfHeight = halfHeight + terminalPadding;
     const factor = 1 / Math.sqrt((localDx * localDx) / (paddedHalfWidth * paddedHalfWidth) + (localDy * localDy) / (paddedHalfHeight * paddedHalfHeight));
     localPoint = { x: localDx * factor, y: localDy * factor };
+  } else if (node.shape === "roundedRectangle") {
+    localPoint = roundedRectangleBorderPoint(localDx, localDy, halfWidth, halfHeight, terminalPadding);
   } else if (node.shape === "diamond") {
     const factor = localDistance / (Math.abs(localDx) / halfWidth + Math.abs(localDy) / halfHeight);
     localPoint = { x: (localDx / localDistance) * factor, y: (localDy / localDistance) * factor };
@@ -10471,6 +10473,53 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   }
   const rotated = rotateVector(localPoint.x, localPoint.y, rotation);
   return roundPoint({ x: center.x + rotated.x, y: center.y + rotated.y });
+}
+
+function roundedRectangleBorderPoint(dx, dy, halfWidth, halfHeight, padding = 0) {
+  // The default PGF rounded rectangle has convex 180-degree end caps. Its
+  // anchorborder first intersects the radial ray with the straight top/bottom
+  // chord or vertical side, then with the matching circular corner/end cap.
+  // This mirrors that shape rather than clipping paths to its outer rectangle.
+  const horizontal = Math.max(0, halfWidth + padding);
+  const vertical = Math.max(0, halfHeight + padding);
+  const radius = Math.min(horizontal, vertical);
+  if (radius <= 1e-12) return { x: 0, y: 0 };
+
+  const chordX = Math.max(0, horizontal - radius);
+  const chordY = Math.max(0, vertical - radius);
+  const candidates = [];
+  const epsilon = 1e-9;
+
+  if (Math.abs(dx) > epsilon) {
+    const t = horizontal / Math.abs(dx);
+    const y = dy * t;
+    if (Math.abs(y) <= chordY + epsilon) candidates.push({ t, x: dx * t, y });
+  }
+  if (Math.abs(dy) > epsilon) {
+    const t = vertical / Math.abs(dy);
+    const x = dx * t;
+    if (Math.abs(x) <= chordX + epsilon) candidates.push({ t, x, y: dy * t });
+  }
+
+  const signX = dx >= 0 ? 1 : -1;
+  const signY = dy >= 0 ? 1 : -1;
+  const centerX = signX * chordX;
+  const centerY = signY * chordY;
+  const directionSquared = dx * dx + dy * dy;
+  const directionCenterDot = dx * centerX + dy * centerY;
+  const centerSquaredMinusRadiusSquared = centerX * centerX + centerY * centerY - radius * radius;
+  const discriminant = directionCenterDot * directionCenterDot - directionSquared * centerSquaredMinusRadiusSquared;
+  if (discriminant >= -epsilon) {
+    const t = (directionCenterDot + Math.sqrt(Math.max(0, discriminant))) / directionSquared;
+    if (t > epsilon) {
+      const x = dx * t;
+      const y = dy * t;
+      if (signX * x >= chordX - epsilon && signY * y >= chordY - epsilon) candidates.push({ t, x, y });
+    }
+  }
+
+  const point = candidates.filter((candidate) => Number.isFinite(candidate.t) && candidate.t > epsilon).sort((left, right) => left.t - right.t)[0];
+  return point ? { x: point.x, y: point.y } : { x: (dx / Math.hypot(dx, dy)) * radius, y: (dy / Math.hypot(dx, dy)) * radius };
 }
 
 function nodeShape(options = {}) {

@@ -4065,6 +4065,39 @@ test("clips curved to-path arrows against node borders", () => {
   assert.ok(Math.abs(end.x - (targetBox.x - targetBox.width / 2 - outerSep)) < 1e-6, `expected curve to end at target border, got ${end.x}`);
 });
 
+test("clips rounded-rectangle paths against the convex PGF end caps", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node[rounded rectangle,draw,minimum width=4cm,minimum height=2cm,inner sep=0pt] (source) at (0,0) {};
+  \draw (source) -- (4,-1);
+  \draw[-stealth,thick] (source) to[out=-25,in=155] (4,-1);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const sourceBox = ir.items.find((item) => item.type === "nodeBox" && item.id === "source");
+  const [straight, curved] = ir.items.filter((item) => item.type === "path");
+  const outerSep = parseDimension("0.2pt");
+  const horizontal = sourceBox.width / 2 + outerSep;
+  const vertical = sourceBox.height / 2 + outerSep;
+  const radius = vertical;
+  const chordX = horizontal - radius;
+  const expectedT = (4 * chordX + Math.sqrt((4 * chordX) ** 2 - 17 * (chordX * chordX - radius * radius))) / 17;
+  const expected = { x: 4 * expectedT, y: -expectedT };
+  const curveAngle = (-25 * Math.PI) / 180;
+  const curveDx = Math.cos(curveAngle);
+  const curveDy = Math.sin(curveAngle);
+  const curveT = curveDx * chordX + Math.sqrt((curveDx * chordX) ** 2 - (chordX * chordX - radius * radius));
+  const curveExpected = { x: curveDx * curveT, y: curveDy * curveT };
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(sourceBox.rx > 0, "expected a rounded rectangle node box");
+  expectClose(straight.commands[0].x, expected.x);
+  expectClose(straight.commands[0].y, expected.y);
+  expectClose(curved.commands[0].x, curveExpected.x);
+  expectClose(curved.commands[0].y, curveExpected.y);
+  assert.ok(straight.commands[0].x < horizontal - 0.1, "rounded end cap should clip inside the rectangular corner");
+});
+
 test("extends curved arrow tips past circular node borders by half the path width", () => {
   const source = String.raw`
 \begin{tikzpicture}
