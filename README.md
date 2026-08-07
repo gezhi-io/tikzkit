@@ -1925,6 +1925,42 @@ renderer computes text bounds and tight crops independently; judge the
 plot-frame geometry, labels, line work, and clipping rather than treating a
 single canvas number as the acceptance condition.
 
+### PGFPlots Middle-Axis Scientific Labels
+
+For a 2D axis using `axis y line=middle`, a scientific y tick multiplier is
+now placed outside the left tick-label column and 3% above its top, matching
+PGFPlots' `yticklabel* cs:1.03,-0.3em` rule. This keeps it distinct from an
+upright middle-axis `ylabel`.
+
+```tex
+\begin{axis}[
+  axis x line=middle,
+  axis y line=middle,
+  ymin=0, ymax=20000000,
+  ylabel=Stored game situations
+]
+  \addplot coordinates {(0,0) (1,10000000) (2,20000000)};
+\end{axis}
+```
+
+This is a focused 2D placement rule. Arbitrary `every y tick scale label`
+styles, custom `ticklabel* cs` coordinates, logarithmic axes, and complete
+PGF number-format compatibility remain partial. Reproduce the checked
+primary/right-overlay case with:
+
+```bash
+node --test test/pgfplots-csv-overlay.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-csv-line-plot-two-axes \
+  --output outputs/qa-pgfplots-middle-y-scale-label \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-middle-y-scale-label
+```
+
+The local reference reading, visible before/after result, and remaining
+boundary are recorded in
+[docs/qa/2026-08-07-pgfplots-middle-y-scale-label.md](docs/qa/2026-08-07-pgfplots-middle-y-scale-label.md).
+
 ### PGFPlots Automatic Tick Bounds
 
 For a numeric axis with an explicit non-round bound such as

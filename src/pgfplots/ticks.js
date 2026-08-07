@@ -20,10 +20,15 @@ const PGF_DEFAULT_NODE_OUTER_EXTENT_PT = 0.4;
 const CMR8_DIGIT_WIDTH_SCALE = 0.531258 / 0.5;
 const CMR8_MULTILINE_LAYOUT_X_COMPENSATION_PT = 1.654;
 const CMR8_MULTILINE_LAYOUT_BOTTOM_COMPENSATION_PT = 1.125;
-// PGF's legacy style uses yshift=.3em. The SVG text fallback's superscript
-// paint box extends 1.45pt farther above its node center than the TeX glyph
-// box, so compensate that renderer difference at the lowering boundary.
+// The legacy left-axis style uses yshift=.3em. The SVG math paint box extends
+// farther above its node center than TeX's glyph box, so retain this calibrated
+// correction for non-middle axes.
 const PGFPLOTS_LEGACY_Y_SCALE_LABEL_SHIFT = parseDimension("1.55pt", {});
+// In the current PGFPlots compatibility styles, an y scale label on a middle
+// axis is placed at `yticklabel* cs:1.03,-0.3em` with the anchor opposite the
+// left-side tick labels. Keep those two directions explicit: the 3% follows
+// the axis height, while the normal offset starts beyond the centered tick.
+const PGFPLOTS_MIDDLE_Y_SCALE_LABEL_NORMAL_OFFSET = parseDimension("0.3em", {});
 
 export function createAxisTickModel(axisOptions = {}, ranges = {}, addplots = []) {
   return {
@@ -907,13 +912,29 @@ function renderTickScaleLabel(axisOptions, axis, ticks, geometry, lineMode) {
   const origin = geometry.origin || { x: 0, y: 0 };
   const width = Number(geometry.width) || 0;
   const height = Number(geometry.height) || 0;
+  const centeredYAxis = axis === "y" && (lineMode === "middle" || lineMode === "center");
+  const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
+  const yTickAlignment = normalizedTickAlignment(axisOptions, "y", isMiddleAxis(axisOptions));
+  const middleYAxisScaleOffset = tickLength * tickAlignmentOffsetFactor(yTickAlignment)
+    + PGFPLOTS_MIDDLE_Y_SCALE_LABEL_NORMAL_OFFSET;
   const point = axis === "x"
     ? { x: origin.x + width, y: lineMode === "top" ? origin.y + height + 0.12 : origin.y - 0.48 }
-    : {
-        x: lineMode === "right" ? origin.x + width : origin.x,
-        y: origin.y + height + PGFPLOTS_LEGACY_Y_SCALE_LABEL_SHIFT
-      };
-  const anchor = axis === "x" ? "north east" : lineMode === "right" ? "south east" : "south west";
+    : centeredYAxis
+      ? {
+          x: origin.x - middleYAxisScaleOffset,
+          y: origin.y + height * 1.03
+        }
+      : {
+          x: lineMode === "right" ? origin.x + width : origin.x,
+          y: origin.y + height + PGFPLOTS_LEGACY_Y_SCALE_LABEL_SHIFT
+        };
+  const anchor = axis === "x"
+    ? "north east"
+    : lineMode === "right"
+      ? "south east"
+      : centeredYAxis
+        ? "south east"
+        : "south west";
   const font = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, axis));
   return [`\\node[${joinOptions(["axis tick scale label", `anchor=${anchor}`, `font=${font}`, "inner sep=0pt"])}] at ${formatAxisPoint(point)} {$\\cdot 10^{${scale.displayExponent}}$};`];
 }

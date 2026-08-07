@@ -113,6 +113,28 @@ npm run examples:diff -- --output outputs/qa-my-change \
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
 
+### PGFPlots 中轴科学计数法标签
+
+2D `axis y line=middle` 的大数 y 轴会显示 `\cdot 10^{n}`。TikZKit 已按本机
+PGFPlots 的 `yticklabel* cs:1.03,-0.3em` 规则把它放到左侧刻度列外、顶部上方，避免
+与位于 y 轴顶部的水平 `ylabel` 重叠。该规则适用于普通数值轴与自动 scientific
+scale；自定义 `every y tick scale label`、自定义 `ticklabel* cs`、对数轴和完整数字
+格式仍是 partial。
+
+可直接复现双纵轴 CSV 案例：
+
+```bash
+node --test test/pgfplots-csv-overlay.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-csv-line-plot-two-axes \
+  --output outputs/qa-pgfplots-middle-y-scale-label \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-middle-y-scale-label
+```
+
+三方视觉记录见
+[2026-08-07-pgfplots-middle-y-scale-label.md](qa/2026-08-07-pgfplots-middle-y-scale-label.md)。
+
 ### PGFPlots 3D quiver
 
 已验收的 `\addplot3` quiver 子集包含 `quiver/u`、`quiver/v`、`quiver/w`、

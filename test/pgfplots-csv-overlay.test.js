@@ -100,6 +100,23 @@ test("default scaled ticks extract a shared power of ten for large values", () =
   assert.match(scaleLabel, /at \(0,3\.054\)/);
 });
 
+test("middle-axis y scale labels sit above and outside the left tick labels", () => {
+  const options = { "axis x line": "middle", "axis y line": "middle", ytick: "{0,10000000,20000000}" };
+  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 20000000 };
+  const geometry = {
+    origin: { x: 0, y: 0 },
+    width: 4,
+    height: 3,
+    mapPoint: ({ x, y }) => ({ x: x * 4, y: y * 3 / 20000000 })
+  };
+  const scaleLabel = renderAxisTicks(options, [], ranges, geometry)
+    .find((command) => command.includes(String.raw`\cdot 10^{7}`));
+
+  assert.match(scaleLabel, /anchor=south east/);
+  assert.match(scaleLabel, /at \(-0\.18,3\.09\)/);
+  assert.doesNotMatch(scaleLabel, /at \(0,3/);
+});
+
 test("middle-axis left y tick labels retain their TeX layout bounding boxes", () => {
   const options = { "axis x line": "middle", "axis y line": "middle", ytick: "{0,10000000,20000000}" };
   const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 20000000 };
