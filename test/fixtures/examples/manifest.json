@@ -4788,6 +4788,25 @@
         "shared axis labels",
         "shared tick labels"
       ]
+    },
+    {
+      "id": "pgfplots-groupplots-edge-descriptions-top-right",
+      "title": "PGFPlots groupplots top/right edge descriptions",
+      "source": "pgfplots/groupplots-edge-descriptions-top-right.tex",
+      "sourceCorpus": "TeX Live PGFPlots groupplots manual",
+      "externalSource": "tex/generic/pgfplots/libs/tikzlibrarypgfplots.groupplots.code.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:expandPgfplotsGroupplots/renderGroupplotAsAxes",
+      "features": [
+        "groupplot environment",
+        "nextgroupplot",
+        "group size",
+        "horizontal sep",
+        "vertical sep",
+        "x descriptions at=edge top",
+        "y descriptions at=edge right",
+        "xticklabel pos=upper",
+        "yticklabel pos=right"
+      ]
     }
   ]
 }

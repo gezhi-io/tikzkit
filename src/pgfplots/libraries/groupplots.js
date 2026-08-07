@@ -16,7 +16,8 @@ export const pgfplotsLibrary = {
     "group/plot cCrR style",
     "group/empty plot",
     "x/y labels and ticklabels at edge",
-    "x/y descriptions at edge"
+    "x/y descriptions at edge",
+    "top/right edge tick-label positions"
   ],
-  notes: "Reviewed locally on 2026-08-07: the source places each new column from the previous axis east anchor plus horizontal sep and each new row from the axis above south anchor minus vertical sep; descriptions-at-edge suppresses both inner labels and tick labels. TikZKit lowers the focused 2D grid/layout subset using measured plot boxes, exposes group cCrR anchors, accepts group/every plot and per-cell styles, and scopes the native try min ticks=4 default to these axes. trim axis group, arbitrary nested group styles, full shared-label modes, and general cross-group coordinate manipulation remain partial."
+  notes: "Reviewed locally on 2026-08-07: the source places each new column from the previous axis east anchor plus horizontal sep and each new row from the axis above south anchor minus vertical sep. Descriptions-at-edge suppresses both inner labels and tick labels; edge-top/right additionally injects xticklabel pos=upper or yticklabel pos=right for the retained outer axes, without moving the xlabel/ylabel anchor. TikZKit lowers this focused 2D grid/layout subset using measured plot boxes, exposes group cCrR anchors, accepts group/every plot and per-cell styles, and scopes the native try min ticks=4 default to these axes. trim axis group, arbitrary nested group styles, full shared-label modes, and general cross-group coordinate manipulation remain partial."
 };

@@ -4446,7 +4446,28 @@ function applyGroupplotEdgeDescriptions(axisOptions = {}, groupOptions = {}, pos
   }
   if (suppressXTickLabels || suppressXDescriptions) result.xticklabels = "";
   if (suppressYTickLabels || suppressYDescriptions) result.yticklabels = "";
+  // PGFPlots keeps the selected labels at their ordinary anchors, but moves
+  // the retained outer-edge tick labels: top x descriptions use the upper
+  // box edge and right y descriptions use the right box edge. Preserve that
+  // axis option so the generic lowering reserves and renders those ticks.
+  if (groupplotEdgeUsesOuterSide(groupOptions, "xlabels at", "top", isTop)
+    || groupplotEdgeUsesOuterSide(groupOptions, "xticklabels at", "top", isTop)
+    || groupplotEdgeUsesOuterSide(groupOptions, "x descriptions at", "top", isTop)) {
+    result["xticklabel pos"] = "upper";
+  }
+  if (groupplotEdgeUsesOuterSide(groupOptions, "ylabels at", "right", isRight)
+    || groupplotEdgeUsesOuterSide(groupOptions, "yticklabels at", "right", isRight)
+    || groupplotEdgeUsesOuterSide(groupOptions, "y descriptions at", "right", isRight)) {
+    result["yticklabel pos"] = "right";
+  }
   return result;
+}
+
+function groupplotEdgeUsesOuterSide(groupOptions, key, edge, onEdge) {
+  if (!onEdge) return false;
+  const value = String(groupOptions[key] || "").trim().toLowerCase();
+  if (edge === "top") return value === "edge top" || value === "top" || value === "upper";
+  return value === "edge right" || value === "right";
 }
 
 function groupplotEdgeSuppresses(groupOptions, key, isTop, isBottom, isLeft, isRight) {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { tikzToSvg } from "../src/index.js";
@@ -83,4 +84,31 @@ test("keeps groupplot empty cells addressable without rendering their axis", () 
   assert.ok(guide, "empty group cells must retain their named center anchor");
   assert.equal(ir.items.filter((item) => item.type === "textNode" && item.text === "0").length, 2);
   assert.equal(ir.items.filter((item) => item.type === "textNode" && item.text === "second").length, 1);
+});
+
+test("moves top/right groupplot descriptions and tick labels onto their retained outer edges", () => {
+  const source = readFileSync("test/fixtures/examples/pgfplots/groupplots-edge-descriptions-top-right.tex", "utf8");
+  const { diagnostics, ir } = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const frames = ir.items
+    .filter((item) => item.type === "path" && item.subtype === "axis-frame" && item.style?.stroke === "black")
+    .map((item) => item.commands);
+  assert.ok(frames.length >= 4, "expected four groupplot frames");
+  const topFrame = frames[0];
+  const rightFrame = frames[2];
+  const topY = topFrame[2].y;
+  const rightX = rightFrame[1].x;
+  const texts = ir.items.filter((item) => item.type === "textNode" && item.text);
+
+  assert.equal(texts.filter((item) => item.text === "time $t$ / h").length, 2);
+  assert.equal(texts.filter((item) => item.text === "$c$ / mol/L").length, 2);
+  assert.ok(
+    texts.filter((item) => ["0", "0.5", "1", "1.5", "2"].includes(item.text) && item.y > topY).length >= 5,
+    "top x tick labels must be above the top-row frames"
+  );
+  assert.ok(
+    texts.filter((item) => ["0", "0.5", "1", "1.5", "2"].includes(item.text) && item.x > rightX).length >= 5,
+    "right y tick labels must be right of the retained outer frames"
+  );
 });

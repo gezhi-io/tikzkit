@@ -337,6 +337,28 @@ This remains a focused implementation: point-meta coloring, arbitrary
 `every arrow` TikZ styles, stream/table quiver handlers, logarithmic 3D
 survey semantics, and every PGFPlots clipping interaction are still partial.
 
+### Groupplots Outer Descriptions
+
+The focused `groupplots` implementation retains only the requested outer
+descriptions and moves their tick labels to the selected edge. In particular,
+`x descriptions at=edge top` uses upper tick labels on the top row and
+`y descriptions at=edge right` uses right tick labels on the right column.
+As in local PGFPlots, the `xlabel` and `ylabel` anchors themselves remain in
+their normal shared-gap positions.
+
+The executable real-case fixture is
+`test/fixtures/examples/pgfplots/groupplots-edge-descriptions-top-right.tex`.
+Check its semantics with:
+
+```sh
+node --test test/pgfplots-groupplots.test.js
+```
+
+Then generate the browser SVG, local MacTeX raster, and `tikztosvg` reference
+using the visual-QA command in [Choose A Workflow](#choose-a-workflow). This
+is a partial library slice: nested group styles, `trim axis group`, and the
+remaining shared-description combinations still need source-driven QA.
+
 ### The Smallest Reliable Loop
 
 For a new diagram, start with the browser. For a renderer change, keep the
