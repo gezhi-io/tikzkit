@@ -16,19 +16,21 @@ export const texPackage = {
     "tkzFct sampled scalar functions",
     "tkzFct finite-sample pole branch splitting",
     "tkzFctPar sampled parametric functions",
-    "tkzFctPolar sampled polar functions"
+    "tkzFctPolar sampled polar functions",
+    "tkzDrawArea/tkzArea latest-function fills down to source y=0"
   ],
   "requires": ["tikz"],
-  "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-base/tkz-obj-axes.tex",
-  "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/tkz-base/TKZdoc-base-axes.tex",
-  "caseCount": 17,
+  "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/tkz-fct/tkz-fct.sty",
+  "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/tkz-fct/TKZdoc-fct-area.tex",
+  "caseCount": 20,
   "caseExamples": [
     "manual linear scalar function plots",
     "sampled tangent branches across poles",
     "manual parametric cycloid",
-    "manual polar four-petal rose"
+    "manual polar four-petal rose",
+    "documented scalar-function area fill"
   ],
   "observedOptions": ["domain", "samples", "id", "fp", "color", "line width", "style", "xstep", "ystep", "sub", "subxstep", "subystep", "ratio", "label", "right space", "left space", "up space", "down space", "noticks", "ticks=false", "tickwd", "tickup", "tickdn", "ticklt", "tickrt", "step", "trig", "frac", "orig", "np off", "node font", "xlabel style", "ylabel style"],
   "localSourceReviewed": true,
-  "notes": "tkzInit follows tkz-base's same-sign-range local-origin rule; tkzGrid maps explicit source-coordinate ranges plus major/subgrid x/y steps into the local Cartesian frame; tkzAxeXY renders combined axes with numeric labels, while its legacy ticks=false form retains only the two arrowed axes and terminal x/y labels. tkzDrawX and tkzDrawY independently lower the native axis line, latex arrow, x/y label, extension space, tick geometry, noticks, trig positions, and Y step spacing. tkzLabelX and tkzLabelY independently redraw their native tick, place values in source units, implement bare orig as the native hidden-origin default, reduce frac labels, print trig labels as pi fractions, and forward ordinary node position/text/font keys. The normal tkz-base xlabel style/ylabel style hooks, including .style replacement and .append style extension, apply after built-in defaults and before each command's local node keys across terminal and graduation labels. tkzAxeX and tkzAxeY preserve native wrapper order: LabelX then DrawX, DrawY then LabelY. The numprint-specific np off toggle remains partial. tkzFct samples scalar source-unit expressions, clips each segment to the initialized frame, and breaks a sampled branch that crosses opposite frame bounds across a pole. tkzFctPar evaluates documented x(t)/y(t) expressions in source units with t, uses the native domain=-5:5 and samples=200 defaults, scales x/y independently, clips to tkzInit, and passes ordinary draw style keys through. tkzFctPolar now mirrors its separate native set polar path: domain=0:2*pi, samples=200, radius divided by xstep only, same-sign local-origin shifts, and no implicit clip. Gnuplot file/cache ids, tangents, areas, asymptotes, adaptive sampling, advanced paint keys, and general parametric discontinuity analysis remain deferred."
+  "notes": "Reviewed locally on 2026-08-07: tkz-fct.sty and TKZdoc-fct-area.tex define tkzArea (with tkzDrawArea as an alias) as a clipped fill from the most recently declared scalar function to source y=0, after independently converting source x/y units through tkzInit. TikZKit supports that operation with domain, samples, color, opacity, and ordinary TikZ style keys; it preserves nonzero/same-sign origins and splits clipped pole branches. tkzInit follows tkz-base's same-sign-range local-origin rule; tkzGrid maps explicit source-coordinate ranges plus major/subgrid x/y steps into the local Cartesian frame; tkzAxeXY renders combined axes with numeric labels, while its legacy ticks=false form retains only the two arrowed axes and terminal x/y labels. tkzDrawX/tkzDrawY and tkzLabelX/tkzLabelY implement source-unit graduations, trig/fraction labels, terminal labels, and normal xlabel/ylabel style hooks. tkzFctPar evaluates x(t)/y(t) in source units with the native domain=-5:5 and samples=200 defaults; tkzFctPolar mirrors its separate native polar mapping. Gnuplot file/cache ids, tkzDrawAreafg between-function fills, asymptotes, adaptive sampling, advanced paint keys, and general parametric discontinuity analysis remain deferred."
 };

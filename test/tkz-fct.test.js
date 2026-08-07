@@ -26,7 +26,9 @@ test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", (
     "tkzFct",
     "tkzFctPar",
     "tkzFctPolar",
-    "tkzDrawTangentLine"
+    "tkzDrawTangentLine",
+    "tkzDrawArea",
+    "tkzArea"
   ]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
@@ -159,6 +161,40 @@ test("renders tkzFct expressions in source units before xstep and ystep scaling"
     path.commands.map((command) => [command.x, command.y]),
     [[0, 1], [2.5, 3], [3.75, 4]]
   );
+});
+
+test("fills a documented tkzDrawArea from the latest function down to source y=0", () => {
+  const source = String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=20,xmax=60,xstep=20,ymin=100,ymax=300,ystep=100]
+  \tkzFct[color=blue,domain=20:60,samples=3]{100+2*x}
+  \tkzDrawArea[color=orange!70,opacity=.45,domain=20:60,samples=3]
+\end{tikzpicture}`;
+  const expanded = expandTkzFct(source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const area = result.ir.items.find((item) => item.type === "path" && item.style?.fill !== "none" && item.style?.fillOpacity === 0.45);
+
+  assert.doesNotMatch(expanded, /\\tkzDrawArea/);
+  assert.match(expanded, /\\fill\[color=orange!70,fill opacity=0\.45\] \(0,-1\) -- \(0,0\.4\) -- \(1,0\.8\) -- \(2,1\.2\) -- \(2,-1\) -- cycle;/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(area, "expected the tkzDrawArea fill to reach the normal SVG scene");
+  assert.equal(area.style.fillOpacity, 0.45);
+  assert.equal(area.commands[0].x, 0);
+  assert.equal(area.commands[0].y, -1, "source y=0 must follow tkzInit's y origin and step");
+});
+
+test("keeps tkzArea as the documented alias of tkzDrawArea", () => {
+  const expanded = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=2,ymin=0,ymax=2]
+  \tkzFct[domain=0:2,samples=3]{x}
+  \tkzArea[color=green,domain=0:2,samples=3]
+\end{tikzpicture}`);
+
+  assert.doesNotMatch(expanded, /\\tkzArea/);
+  assert.match(expanded, /\\fill\[color=green,fill opacity=0\.5\]/);
 });
 
 test("lowers tkzFctPar by evaluating t in source units and scaling each coordinate", () => {

@@ -1,0 +1,13 @@
+% Derived from the installed TKZdoc-fct-area.tex: \tkzDrawArea closes the
+% most recently declared scalar function to the source x axis.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tkz-fct}
+\begin{document}
+\begin{tikzpicture}[scale=1.2]
+  \tkzInit[xmin=-2,xmax=3,ymin=-2,ymax=4]
+  \tkzGrid[color=gray!35]
+  \tkzAxeXY
+  \tkzFct[color=blue,domain=-2:3,samples=161]{x*x/2-x}
+  \tkzDrawArea[color=orange!70,opacity=.45,domain=-1:2,samples=101]
+\end{tikzpicture}
+\end{document}

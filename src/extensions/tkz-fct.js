@@ -14,7 +14,9 @@ const IMPLEMENTED_COMMANDS = [
   "tkzFct",
   "tkzFctPar",
   "tkzFctPolar",
-  "tkzDrawTangentLine"
+  "tkzDrawTangentLine",
+  "tkzDrawArea",
+  "tkzArea"
 ];
 const COMMANDS = new Set(IMPLEMENTED_COMMANDS);
 const TEX_PT_PER_CM = 28.4527559;
@@ -143,6 +145,11 @@ export function expandTkzFct(source) {
       index = abscissa.end;
       continue;
     }
+    if (command.value === "tkzDrawArea" || command.value === "tkzArea") {
+      output += renderFunctionArea(state, optional.content);
+      index = optional.end;
+      continue;
+    }
     if (command.value === "tkzAxeXY") {
       output += renderAxes(state, optional.content, {
         scriptsize: insideScriptsizeScope(text, index)
@@ -154,7 +161,7 @@ export function expandTkzFct(source) {
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw(?:X|Y|TangentLine)|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw(?:X|Y|TangentLine|Area)|Area|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
 }
 
 function createState() {
@@ -405,7 +412,19 @@ function renderFunction(state, rawOptions, rawExpression) {
   const samples = functionSamples(options.samples);
   const style = functionDrawOptions(options);
   const bounds = normalizedBounds(state);
-  const points = [];
+  const points = sampleScalarFunction(state, rawExpression, domain, samples, bounds);
+  if (!points.length) return "";
+
+  const clips = `\\begin{scope}\\clip (${format(bounds.xmin)},${format(bounds.ymin)}) rectangle (${format(bounds.xmax)},${format(bounds.ymax)});`;
+  const paths = points
+    .filter((segment) => segment.length >= 2)
+    .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
+    .join("\n");
+  return paths ? `${clips}\n${paths}\n\\end{scope}` : "";
+}
+
+function sampleScalarFunction(state, rawExpression, domain, samples, bounds = normalizedBounds(state)) {
+  const segments = [];
   let active = [];
   let previous = null;
   for (let index = 0; index < samples; index += 1) {
@@ -413,7 +432,7 @@ function renderFunction(state, rawOptions, rawExpression) {
     const sourceX = domain.start + (domain.end - domain.start) * ratio;
     const sourceY = evaluateAxisExpression(rawExpression, sourceX, { "trig format": "rad" });
     if (!Number.isFinite(sourceY)) {
-      if (active.length) points.push(active);
+      if (active.length) segments.push(active);
       active = [];
       previous = null;
       continue;
@@ -425,34 +444,54 @@ function renderFunction(state, rawOptions, rawExpression) {
     };
     if (previous) {
       if (hasDiscontinuityBetween(rawExpression, previous, current, state, bounds)) {
-        if (active.length) points.push(active);
+        if (active.length) segments.push(active);
         active = [];
       } else {
         const clipped = clipSegmentToBounds(previous, current, bounds);
         if (clipped) {
           const [start, end] = clipped;
           if (!active.length || !samePoint(active[active.length - 1], start)) {
-            if (active.length) points.push(active);
+            if (active.length) segments.push(active);
             active = [start];
           }
           if (!samePoint(active[active.length - 1], end)) active.push(end);
         } else if (active.length) {
-          points.push(active);
+          segments.push(active);
           active = [];
         }
       }
     }
     previous = current;
   }
-  if (active.length) points.push(active);
-  if (!points.length) return "";
+  if (active.length) segments.push(active);
+  return segments;
+}
 
-  const clips = `\\begin{scope}\\clip (${format(bounds.xmin)},${format(bounds.ymin)}) rectangle (${format(bounds.xmax)},${format(bounds.ymax)});`;
-  const paths = points
+function renderFunctionArea(state, rawOptions) {
+  // tkz-fct's \tkzDrawArea fills from the latest scalar function down to the
+  // source y=0 axis. The curve still uses tkzInit's independent source-unit
+  // scaling, while the closing edge must map y=0 through the local origin.
+  const selected = state.functions.at(-1);
+  if (!selected) return "";
+
+  const options = parseOptions(rawOptions);
+  const domain = parseFunctionDomain(options.domain, state);
+  const samples = functionSamples(options.samples);
+  const bounds = normalizedBounds(state);
+  const baseline = sourceToCanvas(0, state.yorigin, state.ystep);
+  const style = functionAreaOptions(options);
+  const segments = sampleScalarFunction(state, selected.expression, domain, samples, bounds);
+  const fills = segments
     .filter((segment) => segment.length >= 2)
-    .map((segment) => `\\draw[${style}] ${segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ")};`)
+    .map((segment) => {
+      const first = segment[0];
+      const last = segment.at(-1);
+      const curve = segment.map((point) => `(${format(point.x)},${format(point.y)})`).join(" -- ");
+      return `\\fill[${style}] (${format(first.x)},${format(baseline)}) -- ${curve} -- (${format(last.x)},${format(baseline)}) -- cycle;`;
+    })
     .join("\n");
-  return paths ? `${clips}\n${paths}\n\\end{scope}` : "";
+  if (!fills) return "";
+  return `\\begin{scope}\\clip (${format(bounds.xmin)},${format(bounds.ymin)}) rectangle (${format(bounds.xmax)},${format(bounds.ymax)});\n${fills}\n\\end{scope}`;
 }
 
 function rememberFunction(state, expression) {
@@ -698,6 +737,25 @@ function functionDrawOptions(options, defaultLineWidth = "1pt") {
   }
   if (!parts.some((part) => /^line width=/.test(part) || /^(?:thin|thick|very thick|ultra thick)$/.test(part))) {
     parts.push(`line width=${defaultLineWidth}`);
+  }
+  return parts.join(",");
+}
+
+function functionAreaOptions(options) {
+  const ignored = new Set(["domain", "samples", "id", "opacity"]);
+  const parts = [
+    `color=${optionText(options.color, "black!50")}`,
+    `fill opacity=${optionNumber(options.opacity, 0.5)}`
+  ];
+  for (const [key, value] of Object.entries(options)) {
+    if (ignored.has(key) || key === "color") continue;
+    if (key === "style") {
+      const style = optionText(value, "");
+      if (style) parts.push(style);
+      continue;
+    }
+    if (value === true) parts.push(key);
+    else parts.push(`${key}=${value}`);
   }
   return parts.join(",");
 }
