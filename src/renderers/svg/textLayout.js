@@ -63,6 +63,8 @@ export function textLineStyles(normalized, count, fallbackStyle = {}) {
   const styles = Array.isArray(normalized.lineStyles) ? normalized.lineStyles : [];
   return Array.from({ length: count }, (_unused, index) => ({
     scale: Number(styles[index]?.scale) || 1,
+    fontSizePt: Number(styles[index]?.fontSizePt) || null,
+    baselineSkipPt: Number(styles[index]?.baselineSkipPt) || null,
     fontFamily: styles[index]?.fontFamily || fallbackStyle.fontFamily || null,
     fontWeight: styles[index]?.fontWeight || normalized.fontWeight || fallbackStyle.fontWeight || null,
     fontStyle: styles[index]?.fontStyle || normalized.fontStyle || fallbackStyle.fontStyle || null,
@@ -116,6 +118,17 @@ export function baselineOffsets(baseFontSize, lineStyles, options = {}) {
 }
 
 export function lineBaselineGap(baseFontSize, first = {}, second = {}, options = {}) {
+  if (options.useLineFontBaselines) {
+    const baseFontSizePt = Number(options.baseFontSizePt);
+    const firstBaselineSkipPt = Number(first.baselineSkipPt);
+    const fallbackBaselineSkipPt = Number(options.baseBaselineSkipPt);
+    const baselineSkipPt = Number.isFinite(firstBaselineSkipPt) && firstBaselineSkipPt > 0
+      ? firstBaselineSkipPt
+      : fallbackBaselineSkipPt;
+    if (Number.isFinite(baseFontSizePt) && baseFontSizePt > 0 && Number.isFinite(baselineSkipPt) && baselineSkipPt > 0) {
+      return baseFontSize * (baselineSkipPt / baseFontSizePt);
+    }
+  }
   const firstScale = Number(first.scale) || 1;
   const secondScale = Number(second.scale) || 1;
   if (Math.abs(firstScale - secondScale) < 0.05) {

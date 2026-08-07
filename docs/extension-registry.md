@@ -25,7 +25,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| tikz | builtin | yes | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | every node and nodes={...} now materialize their fonts into ordinary and inline-node SVG FontSpecs; a picture font remains the scope layer, while explicit node/path-node and content fonts take precedence. An outer node-local minipage also contributes its width to shared text wrapping. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
+| tikz | builtin | yes | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | every node and nodes={...} now materialize their fonts into ordinary and inline-node SVG FontSpecs; a picture font remains the scope layer, while explicit node/path-node and content fonts take precedence. An outer node-local minipage also contributes its width to shared text wrapping. Scoped local font commands now preserve the preceding TeX line's FontSpec baseline across multiline SVG text. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
 
 ## Highest-Priority Unsupported Entries
 

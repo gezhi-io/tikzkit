@@ -426,6 +426,8 @@ export function normalizeTikzText(value, options = {}) {
     displayMathSequence,
     lineStyles: styledLines.map((line) => ({
       scale: line.scale / contentFontScale,
+      fontSizePt: line.fontSizePt,
+      baselineSkipPt: line.baselineSkipPt,
       fontFamily: line.fontFamily ?? fontFamily,
       fontWeight: line.fontWeight ?? fontWeight,
       fontStyle: line.fontStyle ?? fontStyle,
@@ -1101,7 +1103,15 @@ function compactDollarMathWhitespace(raw) {
 const FONT_DECLARATION_PATTERN = /^(?:\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny)\b|\\fontsize\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\\selectfont\b|\\(tikzkithelvetfamily|rmfamily|sffamily|ttfamily|normalfont|rm|sf|tt|mdseries|bfseries|bf|upshape|itshape|slshape|scshape)\b)\s*/;
 
 function createTextFontState(scale = 1) {
-  return { scale, family: null, weight: null, style: null, variant: null };
+  return {
+    scale,
+    fontSizePt: null,
+    baselineSkipPt: null,
+    family: null,
+    weight: null,
+    style: null,
+    variant: null
+  };
 }
 
 function createStyledTextLine(state, startGroupDepth) {
@@ -1118,6 +1128,8 @@ function emptyStyledTextLine(scale) {
   return {
     text: "",
     scale,
+    fontSizePt: null,
+    baselineSkipPt: null,
     fontFamily: null,
     fontWeight: null,
     fontStyle: null,
@@ -1135,18 +1147,26 @@ function appendStyledTextSegment(segments, text, state) {
 }
 
 function sameTextFontState(first, second) {
-  return ["scale", "family", "weight", "style", "variant"].every((key) => first[key] === second[key]);
+  return ["scale", "fontSizePt", "baselineSkipPt", "family", "weight", "style", "variant"].every((key) => first[key] === second[key]);
 }
 
 function applyTextFontDeclaration(state, match) {
   const next = { ...state };
   let explicitFontSize = false;
   if (match[1]) {
-    next.scale = fontSpecFromSizeCommand(`\\${match[1]}`).sizePt / 10;
+    const font = fontSpecFromSizeCommand(`\\${match[1]}`);
+    next.scale = font.sizePt / 10;
+    next.fontSizePt = font.sizePt;
+    next.baselineSkipPt = font.baselineSkipPt;
     explicitFontSize = true;
   } else if (match[2]) {
     const sizePt = Number(match[2]);
-    if (Number.isFinite(sizePt) && sizePt > 0) next.scale = sizePt / 10;
+    const baselineSkipPt = Number(match[3]);
+    if (Number.isFinite(sizePt) && sizePt > 0) {
+      next.scale = sizePt / 10;
+      next.fontSizePt = sizePt;
+    }
+    if (Number.isFinite(baselineSkipPt) && baselineSkipPt > 0) next.baselineSkipPt = baselineSkipPt;
     explicitFontSize = true;
   } else {
     const command = match[4];
@@ -1174,6 +1194,8 @@ function finishStyledTextLine(line) {
   return {
     text,
     scale: baseState.scale,
+    fontSizePt: baseState.fontSizePt,
+    baselineSkipPt: baseState.baselineSkipPt,
     fontFamily: baseState.family,
     fontWeight: baseState.weight,
     fontStyle: baseState.style,
@@ -1200,6 +1222,8 @@ function cleanStyledFontSegments(rawSegments) {
     segments.push({
       text,
       scale: segment.scale,
+      fontSizePt: segment.fontSizePt,
+      baselineSkipPt: segment.baselineSkipPt,
       family: segment.family,
       weight: segment.weight,
       style: segment.style,

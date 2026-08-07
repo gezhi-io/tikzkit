@@ -68,6 +68,8 @@ test("keeps scoped textbf formatting off later matrix-node lines", () => {
   assert.equal(normalized.lineStyles[0].fontWeight, 700);
   assert.equal(normalized.lineStyles[1].fontWeight, null);
   assert.equal(normalized.lineStyles[1].scale, 0.9);
+  assert.equal(normalized.lineStyles[1].fontSizePt, 9);
+  assert.equal(normalized.lineStyles[1].baselineSkipPt, 11);
 });
 
 test("measures text-width nodes using scoped line font sizes before wrapping", () => {

@@ -90,7 +90,10 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   }
   const lineOffsets = baselineOffsets(fontSize, lineStyles, {
     compactMixedSize: hasWrapWidth,
-    baselineSkipRatio: textBaselineSkipRatio(item)
+    baselineSkipRatio: textBaselineSkipRatio(item),
+    baseFontSizePt: item.font?.sizePt,
+    baseBaselineSkipPt: item.font?.baselineSkipPt,
+    useLineFontBaselines: lineStyles.some((style) => Number(style?.baselineSkipPt) > 0)
   });
   const tspans = lines
     .map((line, index) => {
@@ -243,7 +246,10 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
   const hasWrapWidth = Number.isFinite(wrapWidth) && wrapWidth > 0;
   const offsets = baselineOffsets(fontSize, wrapped.lineStyles, {
     compactMixedSize: hasWrapWidth,
-    baselineSkipRatio: textBaselineSkipRatio(item)
+    baselineSkipRatio: textBaselineSkipRatio(item),
+    baseFontSizePt: item.font?.sizePt,
+    baseBaselineSkipPt: item.font?.baselineSkipPt,
+    useLineFontBaselines: wrapped.lineStyles.some((style) => Number(style?.baselineSkipPt) > 0)
   });
   const lineSizes = wrapped.lineStyles.map((style) => fontSize * (Number(style?.scale) || 1));
   const maxLineSize = Math.max(fontSize, ...lineSizes);
