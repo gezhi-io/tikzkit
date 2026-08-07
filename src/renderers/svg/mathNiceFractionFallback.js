@@ -6,7 +6,8 @@ import {
 import { escapeAttribute, escapeText } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { readBalancedGroup, skipInlineWhitespace } from "./mathFallbackSyntax.js";
-import { renderMathTextWithUprightOperators } from "./mathScriptFallback.js";
+import { renderMathTextWithUprightOperators, renderScriptedSegmentsContent, scriptedMathFallback } from "./mathScriptFallback.js";
+import { renderScopedUprightMathContent } from "./mathUprightFallback.js";
 import { svgTextAnchorPoint } from "./textLayout.js";
 
 const CMR7_FONT_FAMILY = "TikZKitCMR7, TikZKitCMUSerif, serif";
@@ -56,8 +57,8 @@ export function renderNiceFractionMathContent(parts, baseFontSize) {
   const binaryOperatorSpace = 4 * (baseFontSize / 18);
   const prefix = renderSurroundingMath(parts.prefix, baseFontSize, binaryOperatorSpace);
   const suffix = renderSurroundingMath(parts.suffix, baseFontSize, binaryOperatorSpace, true);
-  const numerator = renderNiceFractionPart(parts.numerator);
-  const denominator = renderNiceFractionPart(parts.denominator);
+  const numerator = renderNiceFractionPart(parts.numerator, scriptFontSize);
+  const denominator = renderNiceFractionPart(parts.denominator, scriptFontSize);
   return `${prefix}<tspan class="tikz-nicefrac-numerator" dy="${format(-numeratorRaise)}" font-size="${format(
     scriptFontSize
   )}" font-family="${escapeAttribute(niceFractionPartFont(parts.numerator))}" font-style="${niceFractionPartStyle(
@@ -100,8 +101,11 @@ function stripScriptSize(value) {
   return String(value || "").replace(/^\s*\\scriptsize(?![A-Za-z])\s*(?:\{\})?/, "");
 }
 
-function renderNiceFractionPart(value) {
-  return renderMathTextWithUprightOperators(mathFallbackText(value).replace(/\s+/g, " ").trim());
+function renderNiceFractionPart(value, fontSize) {
+  const source = unwrapUprightMathScope(value);
+  const scripted = scriptedMathFallback(source, { allowSimpleScripts: true });
+  if (scripted) return renderScriptedSegmentsContent(scripted, fontSize);
+  return renderMathTextWithUprightOperators(mathFallbackText(source).replace(/\s+/g, " ").trim());
 }
 
 function niceFractionPartFont(value) {
@@ -120,17 +124,30 @@ function renderSurroundingMath(value, baseFontSize, binaryOperatorSpace, isSuffi
   const source = String(value || "");
   const preserveLeadingSpace = /^\s*~/.test(source);
   const preserveTrailingSpace = /~\s*$/.test(source);
-  const plain = mathFallbackText(source).replace(/\s+/g, " ").trim();
-  if (!plain) return "";
+  const preserveTrailingThinSpace = /\\,\s*$/.test(source);
+  const sourceWithoutThinSpace = source.replace(/\\,\s*$/, "");
+  const plain = mathFallbackText(sourceWithoutThinSpace).replace(/\s+/g, " ").trim();
+  if (!plain && !renderScopedUprightMathContent(sourceWithoutThinSpace, baseFontSize)) return "";
+  const scoped = renderScopedUprightMathContent(sourceWithoutThinSpace, baseFontSize);
   const spaced = `${preserveLeadingSpace ? "\u00a0" : ""}${plain}${preserveTrailingSpace ? "\u00a0" : ""}`;
+  const content = scoped || renderMathTextWithUprightOperators(spaced);
+  const trailingThinSpace = preserveTrailingThinSpace
+    ? `<tspan class="tikz-math-thin-space" dx="${format(baseFontSize / 6)}"></tspan>`
+    : "";
   if (isSuffix && spaced.startsWith("⋅")) {
     const remainder = spaced.slice(1).trimStart();
     return `<tspan class="tikz-nicefrac-suffix" dx="${format(binaryOperatorSpace)}"><tspan font-family="${escapeAttribute(
       TIKZ_MATH_MAIN_FONT_FAMILY
-    )}" font-style="normal">⋅</tspan><tspan dx="${format(binaryOperatorSpace)}"></tspan>${renderMathTextWithUprightOperators(
-      remainder
-    )}</tspan>`;
+    )}" font-style="normal">⋅</tspan><tspan dx="${format(binaryOperatorSpace)}"></tspan>${renderMathTextWithUprightOperators(remainder)}</tspan>${trailingThinSpace}`;
   }
   const className = isSuffix ? "tikz-nicefrac-suffix" : "tikz-nicefrac-prefix";
-  return `<tspan class="${className}">${renderMathTextWithUprightOperators(spaced)}</tspan>`;
+  return `<tspan class="${className}">${content}</tspan>${trailingThinSpace}`;
+}
+
+function unwrapUprightMathScope(value) {
+  const source = String(value || "").trim();
+  const match = source.match(/^\\(?:mathrm|textrm|textnormal)\b/);
+  if (!match) return source;
+  const group = readBalancedGroup(source, skipInlineWhitespace(source, match[0].length));
+  return group && group.end === source.length ? group.content : source;
 }

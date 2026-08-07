@@ -44,8 +44,20 @@ test("normalizes units package math commands through upright units and nice frac
 
   assert.deepEqual(result.diagnostics, []);
   assert.doesNotMatch(result.svg, /\\unit(?:frac)?/);
+  assert.match(result.svg, /font-style="italic"[^>]*>[\s\S]*tikz-math-upright[^>]*>m<\/tspan>/);
+  assert.match(result.svg, /tikz-math-upright[^>]*font-style="normal"[^>]*>m<\/tspan>/);
   assert.match(result.svg, /tikz-nicefrac-numerator[^>]*>km<\/tspan>/);
   assert.match(result.svg, /tikz-nicefrac-denominator[^>]*>h<\/tspan>/);
+});
+
+test("keeps variables italic and units upright in multi-line units nodes", () => {
+  const source = readFileSync(new URL("./fixtures/examples/units/math-mode-units.tex", import.meta.url), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /<tspan[^>]*font-style="italic"[^>]*>d = 12<tspan class="tikz-math-thin-space"[^>]*><\/tspan><tspan class="tikz-math-upright"/);
+  assert.match(result.svg, /tikz-nicefrac-prefix">v = 36<\/tspan>/);
+  assert.match(result.svg, /tikz-nicefrac-denominator[^>]*><tspan>s<\/tspan><tspan[^>]*baseline-shift="super"[^>]*>2<\/tspan><\/tspan>/);
 });
 
 test("normalizes the used gensymb degree macro to a real math superscript", () => {

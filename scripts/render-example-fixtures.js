@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { access, chmod, copyFile, mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, readdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
@@ -99,6 +99,7 @@ export async function renderExampleFixtures(options = {}) {
   const previousSummary = options.preserveOutput
     ? await readOptionalJson(path.join(outputRoot, "summary.json"))
     : null;
+  const progressStartedAt = new Date().toISOString();
 
   if (!options.preserveOutput) await clearManagedOutputArtifacts(outputRoot);
   await copyManagedFontAssets(outputRoot);
@@ -124,6 +125,13 @@ export async function renderExampleFixtures(options = {}) {
   }
 
   const cases = [];
+  await writeRenderProgress(outputRoot, {
+    total: selected.length,
+    completed: 0,
+    startedAt: progressStartedAt,
+    preserveOutput: options.preserveOutput === true,
+    cases
+  });
   for (const entry of selected) {
     const sourcePath = path.join(fixtureRoot, entry.source);
     const source = await readExampleSource(sourcePath, fixtureRoot);
@@ -273,7 +281,7 @@ export async function renderExampleFixtures(options = {}) {
       mactexPngStatus = nativeReference.status;
     }
 
-    cases.push({
+    const renderedCase = {
       id: entry.id,
       title: entry.title,
       source: entry.source,
@@ -299,7 +307,18 @@ export async function renderExampleFixtures(options = {}) {
       mactexLog: mactexLog ? path.relative(outputRoot, mactexLog) : null,
       mactexPngStatus,
       diagnostics: tikzkit.diagnostics
+    };
+    cases.push(renderedCase);
+    const progress = await writeRenderProgress(outputRoot, {
+      total: selected.length,
+      completed: cases.length,
+      startedAt: progressStartedAt,
+      preserveOutput: options.preserveOutput === true,
+      cases,
+      current: renderedCase,
+      completedAt: cases.length === selected.length ? new Date().toISOString() : null
     });
+    options.onProgress?.(progress);
   }
 
   const renderedIds = new Set(cases.map((entry) => entry.id));
@@ -636,6 +655,7 @@ async function clearManagedOutputArtifacts(outputRoot) {
     "mactex-log"
   ];
   await rm(path.join(outputRoot, ".mactex-work"), { recursive: true, force: true });
+  await rm(path.join(outputRoot, "progress.json"), { force: true });
   for (const directory of managedDirectories) {
     const directoryPath = path.join(outputRoot, directory);
     let entries = [];
@@ -650,6 +670,36 @@ async function clearManagedOutputArtifacts(outputRoot) {
       await unlink(path.join(directoryPath, entry.name));
     }
   }
+}
+
+async function writeRenderProgress(outputRoot, progress) {
+  const snapshot = {
+    total: progress.total,
+    completed: progress.completed,
+    startedAt: progress.startedAt,
+    updatedAt: new Date().toISOString(),
+    completedAt: progress.completedAt || null,
+    preserveOutput: progress.preserveOutput,
+    current: progress.current
+      ? renderProgressCase(progress.current)
+      : null,
+    cases: progress.cases.map(renderProgressCase)
+  };
+  const progressPath = path.join(outputRoot, "progress.json");
+  const temporaryPath = `${progressPath}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
+  await rename(temporaryPath, progressPath);
+  return snapshot;
+}
+
+function renderProgressCase(entry) {
+  return {
+    id: entry.id,
+    title: entry.title,
+    tikztosvgStatus: entry.tikztosvgStatus,
+    mactexPngStatus: entry.mactexPngStatus,
+    diagnostics: entry.diagnostics?.length || 0
+  };
 }
 
 async function copyManagedFontAssets(outputRoot) {
@@ -1275,6 +1325,7 @@ export function parseExampleRenderArgs(argv = process.argv.slice(2)) {
     nativeReference: argv.includes("--native-reference"),
     nativeLatexEngine: valueAfter(argv, "--native-latex-engine") || "pdflatex",
     preserveOutput: argv.includes("--preserve-output"),
+    progress: !argv.includes("--quiet-progress"),
     tikztosvgEngine: valueAfter(argv, "--tikztosvg-engine") || "xelatex",
     externalCommandTimeoutMs: normalizedTimeoutMs(valueAfter(argv, "--external-timeout-ms")),
     comparisonGrid: !argv.includes("--no-comparison-grid"),
@@ -1292,6 +1343,7 @@ async function main() {
     return;
   }
   const options = parseExampleRenderArgs(argv);
+  if (options.progress) options.onProgress = writeRenderProgressLine;
   const summary = await renderExampleFixtures(options);
   process.stdout.write(formatExampleRenderSummary(summary));
   if (options.strictTikztosvg && summary.failedTikztosvg > 0) process.exitCode = 1;
@@ -1307,6 +1359,7 @@ function exampleRenderUsage() {
     "  --only <fixture-id>             Render one fixture; may be repeated",
     "  --limit <count>                 Render only the first count fixtures",
     "  --preserve-output               Keep existing output-root artifacts",
+    "  --quiet-progress                Suppress per-case terminal progress (progress.json is still written)",
     "  --skip-tikztosvg                Do not invoke the local tikztosvg reference",
     "  --skip-png                      Keep SVG artifacts only",
     "  --strict-tikztosvg              Exit nonzero when tikztosvg cannot render a case",
@@ -1317,6 +1370,16 @@ function exampleRenderUsage() {
     "  --no-comparison-grid            Do not add the 1cm comparison grid",
     "  --math-renderer <renderer>      TikZKit math renderer, such as svg-text"
   ].join("\n") + "\n";
+}
+
+function writeRenderProgressLine(progress) {
+  const current = progress.current;
+  if (!current) return;
+  process.stdout.write(
+    `[${progress.completed}/${progress.total}] ${current.id}: ` +
+      `TikZKit SVG, tikztosvg ${current.tikztosvgStatus}, MacTeX ${current.mactexPngStatus}, ` +
+      `diagnostics ${current.diagnostics}\n`
+  );
 }
 
 export function formatExampleRenderSummary(summary) {

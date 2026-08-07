@@ -373,6 +373,14 @@ test("example fixture renderer can append a selected batch without removing earl
   assert.deepEqual(summary.cases.map((entry) => entry.id), ["first", "second"]);
   await access(path.join(outputRoot, "tikzkit-svg", "first.svg"));
   await access(path.join(outputRoot, "tikzkit-svg", "second.svg"));
+
+  const progress = JSON.parse(await readFile(path.join(outputRoot, "progress.json"), "utf8"));
+  assert.equal(progress.total, 1);
+  assert.equal(progress.completed, 1);
+  assert.equal(progress.current.id, "second");
+  assert.equal(progress.current.tikztosvgStatus, "skipped");
+  assert.equal(progress.current.diagnostics, 0);
+  assert.ok(progress.completedAt);
 });
 
 test("example fixture renderer CLI accepts several case ids after one --only flag", () => {
@@ -382,6 +390,7 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
     "second-case",
     "third-case",
     "--preserve-output",
+    "--quiet-progress",
     "--skip-png",
     "--continue-on-external-failure",
     "--native-reference",
@@ -391,6 +400,7 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
 
   assert.deepEqual(options.only, ["first-case", "second-case", "third-case"]);
   assert.equal(options.preserveOutput, true);
+  assert.equal(options.progress, false);
   assert.equal(options.skipPng, true);
   assert.equal(options.continueOnExternalFailure, true);
   assert.equal(options.nativeReference, true);

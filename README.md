@@ -2264,6 +2264,10 @@ node scripts/diff-example-pngs.js --output outputs/qa-my-feature
 
 The output directory contains TikZKit SVG/PNG, tikztosvg SVG/PNG, optional
 1cm-grid variants, per-case diff PNGs, and an `index.html` comparison page.
+While a multi-case render is still running, it updates `progress.json` after
+every case with the latest case id, TikZKit diagnostic count, and tikztosvg /
+MacTeX status. The command also prints the same compact progress line by
+default; add `--quiet-progress` only when a silent terminal is needed.
 `--native-reference` also writes a local MacTeX PNG under `mactex-png/`, its
 build log under `mactex-log/`, and a four-panel
 `diff/<fixture-id>-native-sheet.png` containing MacTeX, tikztosvg, TikZKit,

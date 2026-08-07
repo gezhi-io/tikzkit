@@ -1,4 +1,4 @@
-import { mathFallbackText } from "../../tikz/text.js";
+import { mathFallbackText, normalizeBrowserMathMacros } from "../../tikz/text.js";
 
 export function readMathScriptAtom(raw, start) {
   const char = raw[start];
@@ -135,11 +135,36 @@ export function mathScriptFallbackText(value) {
 }
 
 export function mathFallbackFontStyle(tex) {
-  const raw = String(tex || "");
-  if (/\\(?:text|mathrm|operatorname|mathsf|mathtt)\b/.test(raw) || hasWholeMathBoldCommand(raw)) return "";
-  const fallback = mathFallbackText(raw);
+  const raw = normalizeBrowserMathMacros(String(tex || ""));
+  if (hasWholeMathBoldCommand(raw)) return "";
+  // Commands such as \mathrm are local math alphabets. Looking for the
+  // command anywhere used to make `$d=\unit[12]{m}$` fully upright, even
+  // though only the unit is upright in TeX. Remove those scopes before
+  // deciding the style inherited by the enclosing SVG text element.
+  const fallback = mathFallbackText(withoutUprightMathScopes(raw));
   if (!/[A-Za-z]/.test(fallback)) return "";
   return "italic";
+}
+
+function withoutUprightMathScopes(value) {
+  const source = String(value || "");
+  let output = "";
+  let cursor = 0;
+  const commandPattern = /\\(?:text|mathrm|operatorname|mathsf|mathtt|textrm|textnormal)\b/g;
+  let match;
+  while ((match = commandPattern.exec(source))) {
+    output += source.slice(cursor, match.index);
+    const argumentStart = skipInlineWhitespace(source, match.index + match[0].length);
+    const group = readBalancedGroup(source, argumentStart);
+    if (!group) {
+      output += match[0];
+      cursor = match.index + match[0].length;
+      continue;
+    }
+    cursor = group.end;
+    commandPattern.lastIndex = cursor;
+  }
+  return output + source.slice(cursor);
 }
 
 export function mathFallbackFontWeight(tex) {
