@@ -316,7 +316,11 @@ test("uses pgfgantt title and element geometry defaults with local overrides", (
 
   assert.deepEqual(diagnostics, []);
   const rects = ir.items.filter((item) => item.type === "path" && item.commands?.length === 5);
-  const title = rects.find((item) => item.style?.fill === "rgb(235 235 235)");
+  const title = rects.find((item) => (
+    item.style?.fill === "white"
+    && item.commands?.[0]?.x === 0.25
+    && item.commands?.[0]?.y === -0.1
+  ));
   const group = rects.find((item) => item.style?.fill === "black");
   const task = rects.find((item) => item.commands?.[0]?.x === 1.1);
   assert.deepEqual(title?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[0.25, -0.1], [3.75, -0.1], [3.75, -0.6], [0.25, -0.6]]);

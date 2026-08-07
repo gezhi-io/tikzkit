@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfgantt",
   "status": "partial",
-  "implementedBy": "src/frontend/latex-shell.js:expandPgfganttCharts",
+  "implementedBy": "src/frontend/latex-shell.js:expandPgfganttCharts/renderGanttChartAsTikz",
   "features": [
     "ganttchart",
     "\\gantttitle",
@@ -16,7 +16,7 @@ export const texPackage = {
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf",
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title font, height, and shifts at lines 484-565; generic element rectangle geometry at lines 851-1000; bar/group defaults and label fonts at lines 1025-1100; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented hgrid/vgrid repeated style-list syntax",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; generic element rectangle geometry at lines 851-1000; bar/group defaults and label fonts at lines 1025-1100; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented hgrid/vgrid repeated style-list syntax",
   "caseCount": 311,
   "caseExamples": [
     "agronomia",
@@ -43,5 +43,5 @@ export const texPackage = {
     "bar/group left/right/top shift",
     "bar/group height"
   ],
-  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups now use the reviewed default geometry and title/bar/group local shift subset, with small/normal label fonts. Gantt links, calendar/date slots, title lists, progress, and custom canvas/element shapes remain unsupported."
+  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups now use the reviewed default geometry and title/bar/group local shift subset, with small/normal label fonts. The default title surface now matches pgfgantt's draw, fill=white style rather than inheriting a synthetic gray canvas tone. Gantt links, calendar/date slots, title lists, progress, and custom canvas/element shapes remain unsupported."
 };

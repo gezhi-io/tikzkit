@@ -4620,7 +4620,9 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       const titleTop = top - topShift * yUnitTitle;
       const titleBottom = titleTop - titleHeight * yUnitTitle;
       const titleFont = ganttFontOption(row, options, "title label font", "\\small");
-      commands.push(`\\draw[fill=black!8,draw=black,line width=0.3pt] (${roundTikzNumber(x0)},${roundTikzNumber(titleTop)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(titleBottom)});`);
+      // pgfgantt defines its default title style as `draw, fill=white`.
+      // Keep the title surface separate from the canvas/grid beneath it.
+      commands.push(`\\draw[fill=white,draw=black,line width=0.3pt] (${roundTikzNumber(x0)},${roundTikzNumber(titleTop)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(titleBottom)});`);
       commands.push(`\\node[font=${titleFont}] at (${roundTikzNumber((x0 + x1) / 2)},${roundTikzNumber((titleTop + titleBottom) / 2)}) {${row.args[0] || ""}};`);
       return;
     }
