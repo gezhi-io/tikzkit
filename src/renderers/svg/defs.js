@@ -372,16 +372,26 @@ export function collectBlurShadowDefs(items, unit) {
     for (const shadow of item.shadows || []) {
       if (!shadow.blur) continue;
       const id = blurShadowFilterId(shadow);
-      const radius = Math.max(0.8, (Number(shadow.blurRadius) || 0.06) * unit);
-      defs.set(id, { id, radius });
+      defs.set(id, { id, stdDeviation: blurShadowStdDeviation(shadow.blurRadius, unit) });
     }
   }
   return [...defs.values()];
 }
 
+export function blurShadowStdDeviation(blurRadius, unit) {
+  const radius = Math.max(0, (Number(blurRadius) || 0.06) * unit);
+  // pgf-blur reserves exactly 2r around the source path. A Gaussian reaches
+  // its practical edge at three standard deviations, hence sigma = 2r / 3.
+  return Math.max(0.5, (radius * 2) / 3);
+}
+
+export function blurShadowBoundsPadding(blurRadius) {
+  return Math.max(0, (Number(blurRadius) || 0.06) * 2);
+}
+
 export function renderBlurShadowFilterDef(def) {
   return `<filter id="${escapeAttribute(def.id)}" x="-35%" y="-35%" width="170%" height="170%"><feGaussianBlur stdDeviation="${format(
-    def.radius
+    def.stdDeviation
   )}" /></filter>`;
 }
 

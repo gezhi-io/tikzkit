@@ -1,4 +1,5 @@
 import { includePathCommandBounds } from "../../scene/index.js";
+import { blurShadowBoundsPadding } from "./defs.js";
 import { isEmptyNormalizedTikzText, mathFallbackText, normalizeTikzText } from "../../tikz/text.js";
 import { parseMathText } from "../../tikz/textMetrics.js";
 import { TIKZ_UNIT } from "../../tikz/metrics.js";
@@ -39,7 +40,7 @@ export function computeSvgBounds(items, options = {}) {
       );
       for (const shadow of item.shadows || []) {
         const scale = Number(shadow.scale) > 0 ? Number(shadow.scale) : 1;
-        const blurPad = shadow.blur ? (Number(shadow.blurRadius) || 0.06) * 3 : 0;
+        const blurPad = shadow.blur ? blurShadowBoundsPadding(shadow.blurRadius) : 0;
         const sx = item.x + (Number(shadow.xshift) || 0);
         const sy = item.y + (Number(shadow.yshift) || 0);
         const sw = item.width * scale;

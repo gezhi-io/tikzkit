@@ -2181,11 +2181,15 @@ Current core examples:
   `double copy shadow` for ordinary path and node preactions. A simple
   `every shadow/.style={...}` runs between those defaults and explicit caller
   overrides. `shadows.blur` additionally provides a browser SVG-filter
-  approximation for ordinary path and node `blur shadow` preactions. Blur
-  steps/inversion, fading/copy shadows, arbitrary hook code, marker-tip
-  shadows, and form-only-pattern combinations remain partial; see
-  [`docs/qa/2026-08-07-shadows-drop-shadow.md`](docs/qa/2026-08-07-shadows-drop-shadow.md)
-  and [`docs/qa/2026-08-07-shadows-blur-path.md`](docs/qa/2026-08-07-shadows-blur-path.md).
+  approximation for ordinary path and node `blur shadow` preactions. Its
+  `shadow blur radius` uses PGF's `2r` drawing extent and a calibrated
+  continuous SVG falloff; `shadow blur steps` is accepted but is not the
+  native discrete stroke/fading sequence. Blur inversion, fading/copy
+  shadows, arbitrary hook code, marker-tip shadows, and form-only-pattern
+  combinations remain partial; see
+  [`docs/qa/2026-08-07-shadows-drop-shadow.md`](docs/qa/2026-08-07-shadows-drop-shadow.md),
+  [`docs/qa/2026-08-07-shadows-blur-path.md`](docs/qa/2026-08-07-shadows-blur-path.md),
+  and [`docs/qa/2026-08-07-shadows-blur-radius.md`](docs/qa/2026-08-07-shadows-blur-radius.md).
 
 The per-library metadata lives in `src/tikz/libraries/`; the generated
 compatibility table is `docs/extension-registry.md`. Regenerate it after a
