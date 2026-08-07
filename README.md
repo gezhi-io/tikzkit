@@ -854,8 +854,10 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `322/322 rendered, 0 diagnostics`.
-These commands use only the resources declared in
+`gallery:audit` reports the current manifest count and diagnostics. Treat its
+rendered count as generated evidence, not as a fixed README promise: fixtures
+are added while the renderer is being calibrated. A clean audit is a semantic
+gate only; it does not certify pixel-level parity. These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
 including MacTeX, `tikztosvg`, PNG conversion, grids, and a diff sheet:
@@ -1147,6 +1149,17 @@ correctly show `-20`, `0`, and `20` rather than five crowded labels. Explicit
 tick-label formatters, and the full standalone colorbar-axis pipeline remain
 partial. The checked real fixture and reproduction steps are in
 [`docs/qa/2026-08-06-pgfplots-colorbar-auto-ticks.md`](docs/qa/2026-08-06-pgfplots-colorbar-auto-ticks.md).
+
+For a default-perspective 3D `axis` without an explicit `width`/`height` or a
+colorbar, TikZKit also reserves the real browser text box of the projected
+`x`/`y` tick labels. This preserves the native lower edge of ordinary
+Computer-Modern labels while keeping `z` labels tight. It is intentionally a
+default-layout calibration, not a general replacement for PGF's oriented
+`near <axis>ticklabel` machinery: explicit dimensions, colorbars, custom
+tick-label styles, and arbitrary projections still need a focused reference
+check. The executable real driver is `latex-examples-3d-manhattan-bar-plot`;
+see
+[`docs/qa/2026-08-07-pgfplots-3d-default-tick-label-box.md`](docs/qa/2026-08-07-pgfplots-3d-default-tick-label-box.md).
 
 ### PGFPlots 3D Plot Box Ratio
 

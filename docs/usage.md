@@ -383,7 +383,7 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 322/322 rendered, 0 diagnostics。
+# 维护案例的语义检查；以本次输出的 rendered 数和 diagnostics 为准。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。
@@ -417,6 +417,21 @@ git status --short
 `axis lines=left`、网格面、刻度短线和 colorbar 的投影与边界框都仍按功能切片校准。
 对 `hypersurface-*` 等曲面使用足够长的本机参考超时，并实际确认网格/刻度落在投影
 凸包的正确边缘；曲面出现本身不是视觉验收。
+
+对于没有显式 `width`/`height` 且不含 colorbar 的默认透视 3D 轴，浏览器会预留 x/y
+刻度文字的实际字形盒，以对齐本机 TeX 的下边界。请不要将这视为任意透视、自定义
+tick label style 或 colorbar 的通用规则；这些组合仍需按第 4 节走三方视觉验收。可使用
+`latex-examples-3d-manhattan-bar-plot` 复现本切片：
+
+```bash
+node --test --test-name-pattern='default 3d geometry matches the native Manhattan plot footprint' \
+  test/pgfplots-seams.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-3d-manhattan-bar-plot \
+  --output outputs/qa-3d-manhattan --native-reference \
+  --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-3d-manhattan
+```
 
 ## 6. 常见问题
 

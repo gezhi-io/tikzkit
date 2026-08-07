@@ -5183,8 +5183,12 @@ test("pgfplots default 3d geometry matches the native Manhattan plot footprint",
   const size = svgDocumentSizePt(result.svg);
 
   assert.equal(errors.length, 0, errors.map((diagnostic) => diagnostic.message).join("; "));
-  assert.ok(size.width >= 206 && size.width <= 209, `expected native content width near 206.3pt, got ${size.width}pt`);
-  assert.ok(size.height >= 163 && size.height <= 165, `expected native content height near 163.8pt, got ${size.height}pt`);
+  // The local MacTeX reference is 306x249px at 96dpi with a 2mm preview
+  // border. `margin: 0` removes that 4mm total border, leaving a native
+  // footprint near 218.1x175.4pt. tikztosvg uses a standalone wrapper that
+  // omits the source PreviewBorder, so it is not the sizing authority here.
+  assert.ok(size.width >= 217 && size.width <= 220, `expected MacTeX content width near 218.1pt, got ${size.width}pt`);
+  assert.ok(size.height >= 174 && size.height <= 177, `expected MacTeX content height near 175.4pt, got ${size.height}pt`);
 });
 
 test("pgfplots 3d compact explicit width keeps native projected plot width", () => {

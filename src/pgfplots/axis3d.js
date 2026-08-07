@@ -73,7 +73,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
   const tickLabelStyle = (axis, anchor) => {
     const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, axis, "tick"));
-    const innerSep = shouldRenderOpposite3DTicks(axisOptions, axis) ? "0pt" : "0.333em";
+    const innerSep = defaultPerspectiveTickLabelInnerSep(axisOptions, axis);
     return `axis tick label, anchor=${anchor}, font=${font}, inner sep=${innerSep}, outer sep=0pt`;
   };
   const { x: resolvedXTicks, y: resolvedYTicks, z: resolvedZTicks } = axis3DTickValues(axisOptions, ranges, geometry);
@@ -142,6 +142,20 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
 function shouldRenderOpposite3DTicks(axisOptions = {}, axis) {
   const raw = axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`] ?? axisOptions["axis lines"] ?? axisOptions.axis ?? "box";
   return String(raw).trim().toLowerCase() === "box";
+}
+
+function defaultPerspectiveTickLabelInnerSep(axisOptions = {}, axis) {
+  if (axis === "z") return "0pt";
+  const hasExplicitSize = ["width", "height"].some((key) => {
+    const value = axisOptions[key];
+    return value !== undefined && value !== null && String(value).trim() !== "";
+  });
+  if (hasExplicitSize || axisOptions.colorbar || axisOptions["colorbar style"]) return "0pt";
+
+  // The browser's CM glyph layout includes more descent than TeX's box. For
+  // default perspective axes, .26em reproduces the native lower tick-label
+  // extent while keeping the projected z edge tight.
+  return "0.26em";
 }
 
 function axis3DTickValues(axisOptions = {}, ranges = {}, geometry = {}) {
