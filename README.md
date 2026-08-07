@@ -1954,6 +1954,14 @@ Current support is pragmatic and growing. Highlights:
 - Positioning: `right=... of A`, `below right=... of A`, legacy `right of=A`, shifts, node distance.
 - Matrices: common `matrix of nodes`, empty cells, row style overrides, matrix cell anchors.
 - Calc-like coordinates: named coordinates, `($(A)+(1,2)$)`, interpolation, projections.
+- Declared coordinate systems: the focused `\tikzdeclarecoordinatesystem{name}{code}`
+  subset accepts its runtime `(<name> cs:<argument>)` payload as `#1`. A body
+  can use `\pgfmathsetmacro` with that argument and finish with
+  `\pgfpointxy` or `\pgfpoint`; its result follows the active TikZ basis.
+  This is verified by
+  `test/fixtures/examples/coordinates/declared-timeline-coordinate-system.tex`.
+  Arbitrary `\pgfkeys` definitions, multi-step PGF point arithmetic, aliases,
+  and unrestricted TeX macro bodies remain partial.
 - Intersections: named paths and common path intersections.
 - Decorations: markings, arrows along paths, verified snake/zigzag state-machine
   slices, and brace replacement.

@@ -344,6 +344,14 @@ function expandStaticPgfmathMacrosBeforePictures(source) {
       continue;
     }
     const expression = replaceStaticPgfmathMacroReferences(declaration.expression, values);
+    // Coordinate-system declarations receive their `cs:` payload as TeX #1 at
+    // resolution time. Treating that macro as a pre-picture constant collapses
+    // every dynamic coordinate onto the same point.
+    if (/#\d/.test(expression)) {
+      output += prefix.slice(start, declaration.end);
+      cursor = declaration.end;
+      continue;
+    }
     const value = /\\[A-Za-z@]+/.test(expression) ? NaN : evaluateMath(expression, values);
     if (Number.isFinite(value)) {
       values[declaration.name] = value;

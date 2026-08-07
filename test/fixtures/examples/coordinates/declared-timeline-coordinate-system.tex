@@ -1,0 +1,17 @@
+% Based on the TikZ manual custom coordinate-system interface.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+
+\tikzdeclarecoordinatesystem{timeline}{%
+  \pgfmathsetmacro\timelinex{(#1-1975)/3}
+  \pgfpointxy{\timelinex}{0}%
+}
+
+\begin{document}
+\begin{tikzpicture}[x=6mm,y=6mm]
+  \draw[->,thick] (timeline cs:1975) -- (timeline cs:2020);
+  \foreach \year in {1975,1980,...,2020} {
+    \draw (timeline cs:\year) -- ++(0,0.3) node[above,font=\tiny]{\year};
+  }
+\end{tikzpicture}
+\end{document}

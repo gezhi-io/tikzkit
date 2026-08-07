@@ -160,6 +160,23 @@
       ]
     },
     {
+      "id": "coordinates-declared-timeline-system",
+      "title": "TikZ declared coordinate system with dynamic timeline argument",
+      "source": "coordinates/declared-timeline-coordinate-system.tex",
+      "sourceCorpus": "TeX Live PGF manual custom coordinate-system interface",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-coordinates.tex",
+      "semanticOwner": "src/frontend/latex-shell.js:expandStaticPgfmathMacrosBeforePictures + src/frontend/parser.js:collectCoordinateSystemDefinitions + src/engine/evaluate.js:resolveDeclaredCoordinateSystem",
+      "features": [
+        "tikzdeclarecoordinatesystem",
+        "dynamic #1 argument",
+        "pgfmathsetmacro inside coordinate-system code",
+        "pgfpointxy basis coordinates",
+        "foreach variable in declared coordinate system",
+        "relative tick path",
+        "tiny node labels"
+      ]
+    },
+    {
       "id": "lindenmayer-koch-snowflake",
       "title": "PGF manual Lindenmayer Koch snowflake",
       "source": "lindenmayer/koch-snowflake.tex",

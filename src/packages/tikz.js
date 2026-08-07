@@ -7,7 +7,8 @@ export const texPackage = {
     "draw/path/fill/node/coordinate subset",
     "compact textstyle/scriptstyle metrics for simple math node labels",
     "resolved scope font metrics for node and rectangle-split layout",
-    "transform canvas scale/rotate/shift kept separate from TikZ coordinate transforms"
+    "transform canvas scale/rotate/shift kept separate from TikZ coordinate transforms",
+    "declared coordinate systems with dynamic #1 pgfmath arguments and pgfpointxy/pgfpoint outputs"
   ],
   "requires": [
     "pgf",
@@ -15,7 +16,7 @@ export const texPackage = {
   ],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
   "localDoc": null,
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex (/tikz/transform canvas); /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-transformations.tex (transform canvas semantics)",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex (/tikz/transform canvas; \\tikzdeclarecoordinatesystem); /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-transformations.tex (transform canvas semantics); /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-coordinates.tex (declared coordinate-system argument semantics)",
   "caseCount": 1077,
   "caseExamples": [
     "1D 2D cross connection / 1d 2d_cross connection",
@@ -32,5 +33,5 @@ export const texPackage = {
     "CRT rendering / crt_rendering"
   ],
   "observedOptions": [],
-  "notes": "TeX Live tikz.sty loads pgf and pgffor, then inputs tikz.code.tex. Simple math scripts use a shared TeX textstyle/scriptstyle box metric so minimum-size nodes are not over-expanded. Text-box measurement preserves the resolved scope font family, so font=\\tt affects rectangle-split geometry as it does in PGF. Reviewed on 2026-08-07: transform canvas now keeps PGF's backend matrix separate from coordinate transforms for uniform scale, rotation, and shifts on paths and nodes, scales canvas stroke/text geometry, and locally disables automatic picture-size tracking. Arbitrary non-uniform node-anchor geometry and downstream anchor reuse after transform canvas remain partial."
+  "notes": "TeX Live tikz.sty loads pgf and pgffor, then inputs tikz.code.tex. Simple math scripts use a shared TeX textstyle/scriptstyle box metric so minimum-size nodes are not over-expanded. Text-box measurement preserves the resolved scope font family, so font=\\tt affects rectangle-split geometry as it does in PGF. Reviewed on 2026-08-07: transform canvas now keeps PGF's backend matrix separate from coordinate transforms for uniform scale, rotation, and shifts on paths and nodes, scales canvas stroke/text geometry, and locally disables automatic picture-size tracking. The parser now preserves `\\pgfmathsetmacro` expressions containing the coordinate-system `#1` argument through preprocessing, so a `\\tikzdeclarecoordinatesystem` can compute distinct `cs:` coordinates at runtime before its `\\pgfpointxy` or `\\pgfpoint` result is mapped to the current basis. Arbitrary coordinate-system TeX/key parsing, multi-command PGF point arithmetic, non-uniform node-anchor geometry, and downstream anchor reuse after transform canvas remain partial."
 };
