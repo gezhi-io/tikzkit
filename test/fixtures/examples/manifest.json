@@ -728,7 +728,7 @@
       "source": "patterns/form-only-primitives.tex",
       "sourceCorpus": "TeX Live PGF patterns library",
       "externalSource": "tex/generic/pgf/libraries/pgflibrarypatterns.code.tex",
-      "semanticOwner": "src/engine/evaluate.js + src/renderers/svg/defs.js",
+      "semanticOwner": "src/frontend/parser.js:parsePgfDeclarePatternFormOnly + src/engine/evaluate.js:pgfFormOnlyPatternDefinition + src/renderers/svg/renderSvg.js + src/renderers/svg/formOnlyPatterns.js",
       "features": [
         "pgfdeclarepatternformonly",
         "pgfpathcircle",

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypatterns.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{tikz}"],
+      "findings": "The package wrapper loads the ordinary TikZ path, fill, node, and picture layer used around the focused declarations."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\fill", "\\node", "\\usetikzlibrary"],
+      "findings": "The focused source uses ordinary TikZ fill and draw paths plus below-positioned labels after the pattern procedure is declared."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypatterns.code.tex": {
+      "symbols": ["\\usetikzlibrary{patterns}"],
+      "findings": "The library connects TikZ pattern options to PGF pattern declarations."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex": {
+      "symbols": ["\\pgfdeclarepatternformonly", "tile size", "bounding box", "\\pgftransformreset"],
+      "findings": "PGF stores a separate paint bounding box and x/y repetition step, then resets the transform before invoking the form-only procedure. The repeat phase is page-relative rather than restarting at a TikZ path origin."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.tex": {
+      "symbols": ["dots", "checkerboard", "\\pgfpathcircle", "\\pgfpathrectangle", "\\pgfusepath{fill}"],
+      "findings": "The built-in definitions use a 3pt dot step and a 4mm checkerboard whose two 2mm squares are painted with fill actions."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document environment", "\\documentclass"],
+      "findings": "The browser converter removes the document shell while preserving the standalone border as the SVG crop margin."
+    }
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": ["test/pattern-declarations.test.js", "docs/qa/2026-08-07-patterns-form-only-page-origin.md"],
+      "notes": "Focused parser, evaluator, renderer, and visual-reference coverage."
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": ["test/pattern-declarations.test.js", "docs/qa/2026-08-07-patterns-form-only-page-origin.md"]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": ["test/pattern-declarations.test.js", "docs/qa/2026-08-07-patterns-form-only-page-origin.md"]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": ["test/pattern-declarations.test.js", "docs/qa/2026-08-07-patterns-form-only-page-origin.md"],
+      "notes": "The fixture exercises standalone border=2pt, 3pt dot spacing, 4mm tile steps, 2mm painted squares, and their path coordinates."
+    }
+  ]
+}

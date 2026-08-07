@@ -63,7 +63,10 @@ export function renderSvg(ir, options = {}) {
   body.push(renderSvgBackground(view, background));
   const itemMarkup = [];
   for (let index = 0; index < items.length; index += 1) {
-    itemMarkup.push(renderItem(items[index], unit, options, index));
+    itemMarkup.push(renderItem(items[index], unit, options, index, {
+      x: view.x,
+      y: view.y + view.height
+    }));
   }
   body.push(graphicxResize ? wrapGraphicxResize(itemMarkup.join(""), naturalBounds, graphicxResize, unit) : itemMarkup.join(""));
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {
@@ -108,7 +111,7 @@ function svgDocumentSize(view, unit) {
   };
 }
 
-function renderItem(item, unit, options = {}, index = 0) {
+function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y: 0 }) {
   if (item.type === "bbox") return "";
   if (item.type === "marker") return renderMarker(item, unit);
   if (item.type === "rasterImage") return renderRasterImage(item, unit);
@@ -182,7 +185,7 @@ function renderItem(item, unit, options = {}, index = 0) {
   }
   if (item.type === "path" && hasPathCommands(item)) {
     const rendered = hasRenderableFormOnlyPattern(item)
-      ? `${renderFormOnlyPatternFill(item, unit, formOnlyPatternClipId(index))}${renderPathElement({
+      ? `${renderFormOnlyPatternFill(item, unit, formOnlyPatternClipId(index), pageOrigin)}${renderPathElement({
         ...item,
         style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
       }, unit)}`

@@ -16,7 +16,7 @@ export function hasRenderableFormOnlyPattern(item) {
   return operations.some((operation) => Array.isArray(operation.commands) && operation.commands.length);
 }
 
-export function renderFormOnlyPatternFill(item, unit, clipId) {
+export function renderFormOnlyPatternFill(item, unit, clipId, pageOrigin = { x: 0, y: 0 }) {
   if (!hasRenderableFormOnlyPattern(item)) return "";
   const definition = item.style.patternDefinition;
   const tileWidth = Number(definition.tileSize?.x);
@@ -41,13 +41,15 @@ export function renderFormOnlyPatternFill(item, unit, clipId) {
   const operations = declaredOperations(definition);
   const color = svgPaint(item.style.patternColor || item.style.stroke || "black");
   const lineWidth = Math.max(0, Number(definition.lineWidth) || 0.7) * unit;
+  const pageX = Number(pageOrigin.x) || 0;
+  const pageY = Number(pageOrigin.y) || 0;
   const body = [];
   for (let tileY = startY; tileY <= endY; tileY += 1) {
     for (let tileX = startX; tileX <= endX; tileX += 1) {
       const offsetX = tileX * tileWidth;
       const offsetY = tileY * tileHeight;
       for (const operation of operations) {
-        body.push(renderPatternOperation(operation, offsetX, offsetY, color, lineWidth, unit));
+        body.push(renderPatternOperation(operation, offsetX, offsetY, color, lineWidth, unit, pageX, pageY));
       }
     }
   }
@@ -76,7 +78,7 @@ function boundsForCommands(commands) {
   return Number.isFinite(bounds.minX) ? bounds : null;
 }
 
-function renderPatternOperation(operation, offsetX, offsetY, color, lineWidth, unit) {
+function renderPatternOperation(operation, offsetX, offsetY, color, lineWidth, unit, pageX, pageY) {
   const commands = Array.isArray(operation.commands) ? operation.commands : [];
   const paths = commands.filter((command) => ["move", "line", "close"].includes(command.kind));
   const circles = commands.filter((command) => command.kind === "circle");
@@ -86,23 +88,23 @@ function renderPatternOperation(operation, offsetX, offsetY, color, lineWidth, u
   if (paths.length) {
     const d = paths.map((command) => {
       if (command.kind === "close") return "Z";
-      const x = ((Number(command.x) || 0) + offsetX) * unit;
-      const y = -((Number(command.y) || 0) + offsetY) * unit;
+      const x = pageX + ((Number(command.x) || 0) + offsetX) * unit;
+      const y = pageY - ((Number(command.y) || 0) + offsetY) * unit;
       return `${command.kind === "move" ? "M" : "L"} ${format(x)} ${format(y)}`;
     }).join(" ");
     output.push(`<path d="${d}"${paint} />`);
   }
   for (const circle of circles) {
-    const x = ((Number(circle.x) || 0) + offsetX) * unit;
-    const y = -((Number(circle.y) || 0) + offsetY) * unit;
+    const x = pageX + ((Number(circle.x) || 0) + offsetX) * unit;
+    const y = pageY - ((Number(circle.y) || 0) + offsetY) * unit;
     const radius = Math.max(0, Number(circle.radius) || 0) * unit;
     output.push(`<circle cx="${format(x)}" cy="${format(y)}" r="${format(radius)}"${paint} />`);
   }
   for (const rectangle of rectangles) {
     const width = Math.max(0, Number(rectangle.width) || 0) * unit;
     const height = Math.max(0, Number(rectangle.height) || 0) * unit;
-    const x = ((Number(rectangle.x) || 0) + offsetX) * unit;
-    const y = -((Number(rectangle.y) || 0) + (Number(rectangle.height) || 0) + offsetY) * unit;
+    const x = pageX + ((Number(rectangle.x) || 0) + offsetX) * unit;
+    const y = pageY - ((Number(rectangle.y) || 0) + (Number(rectangle.height) || 0) + offsetY) * unit;
     output.push(`<rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(height)}"${paint} />`);
   }
   return output.join("");

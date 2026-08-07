@@ -78,6 +78,22 @@ test("renders form-only circle and rectangle primitives with their PGF fill acti
   assert.match(result.svg, /<rect[^>]+fill="blue" stroke="none"/);
 });
 
+test("anchors form-only tiles to the cropped page origin instead of the TikZ origin", async () => {
+  const source = await readFile(
+    new URL("./fixtures/examples/patterns/form-only-primitives.tex", import.meta.url),
+    "utf8"
+  );
+  const result = tikzToSvg(source);
+
+  assert.deepEqual(result.diagnostics, []);
+  // The 2pt standalone border moves the PDF page origin by 8.435 SVG units.
+  // PGF patterns are page-aligned, so their explicit SVG tiles must preserve
+  // that offset rather than restarting at TikZ coordinate (0,0).
+  assert.match(result.svg, /viewBox="-8\.435035 -208\.435035 467\.39012 263\.299316"/);
+  assert.match(result.svg, /<rect x="231\.564965" y="-205\.135719" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
+  assert.doesNotMatch(result.svg, /<rect x="240" y="-220" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
+});
+
 test("uses preamble /.store in variables for a parameterized form-only tile", async () => {
   const source = await readFile(
     new URL("./fixtures/examples/patterns/parameterized-flexible-hatch.tex", import.meta.url),
