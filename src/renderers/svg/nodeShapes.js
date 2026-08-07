@@ -2,7 +2,10 @@ import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
-import { trapeziumNodePoints as geometricTrapeziumNodePoints } from "../../tikz/libraries/shapes.geometric.js";
+import {
+  starNodePoints as geometricStarNodePoints,
+  trapeziumNodePoints as geometricTrapeziumNodePoints
+} from "../../tikz/libraries/shapes.geometric.js";
 
 export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
@@ -75,7 +78,7 @@ export function nodeShapeCommands(item) {
     );
   }
   if (item.shape === "star") {
-    return closedPolygonCommands(starNodePoints(center, halfWidth, halfHeight, item.shapeData?.starPoints || 5, item.shapeData?.starPointRatio || 1.5));
+    return closedPolygonCommands(starNodePoints(center, Math.max(halfWidth, halfHeight), item.shapeData || {}));
   }
   if (item.shape === "trapezium") {
     return closedPolygonCommands(trapeziumNodePoints(center, halfWidth, halfHeight, item.shapeData || {}));
@@ -132,17 +135,8 @@ function regularPolygonStartAngle(sides, rotate = 0) {
   return (count % 2 ? 90 : 90 - 180 / count) + (Number(rotate) || 0);
 }
 
-export function starNodePoints(center, halfWidth, halfHeight, points, ratio) {
-  const count = Math.max(3, Math.round(points));
-  const innerRatio = 1 / Math.max(1.05, Number(ratio) || 1.5);
-  return Array.from({ length: count * 2 }, (_unused, index) => {
-    const angle = ((90 + (360 * index) / (count * 2)) * Math.PI) / 180;
-    const scale = index % 2 === 0 ? 1 : innerRatio;
-    return {
-      x: center.x + Math.cos(angle) * halfWidth * scale,
-      y: center.y + Math.sin(angle) * halfHeight * scale
-    };
-  });
+export function starNodePoints(center, outerRadius, data = {}) {
+  return geometricStarNodePoints(center, outerRadius, data);
 }
 
 export function trapeziumNodePoints(center, halfWidth, halfHeight, data = {}) {

@@ -140,30 +140,37 @@ metric variants remain partial. The permanent fixture is
 recorded in
 [docs/qa/2026-08-07-shapes-arrows-single-double.md](docs/qa/2026-08-07-shapes-arrows-single-double.md).
 
-### A Verified `shapes.geometric` Trapezium Boundary Example
+### A Verified `shapes.geometric` Boundary Example
 
 The default `trapezium` construction now follows PGF's cotangent-derived side
 extensions and normal minimum-size scaling. Curved terminal arrows to convex
 polygon corners use the mitered outer border rather than an arbitrary adjacent
-side. This is deliberately a narrow `shapes.geometric` and arrow-boundary
-slice: `trapezium stretches`, exact star parity, and all concave-shape border
-rules remain partial.
+side. The same shared geometry now gives `star points`, `star point ratio`,
+`star point height`, `minimum size`, and `star rotate` the PGF radius rules
+instead of scaling an arbitrary text rectangle. This is deliberately a narrow
+`shapes.geometric` and arrow-boundary slice: `trapezium stretches`, star
+outer-separation anchors, and all concave-shape border rules remain partial.
 
 ```tex
 \usetikzlibrary{arrows.meta,shapes.geometric}
 \begin{tikzpicture}
   \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,
     minimum width=2.4cm,minimum height=1.3cm] (trap) {trapezium};
+  \node[draw,star,star points=5,star point ratio=1.8,
+    star rotate=18,minimum size=2cm] (star) at (-3,0) {star};
   \draw[-{Latex[length=4mm,width=3mm]},line width=10pt,orange]
     (3.1,1.2) to[out=-160,in=14.5] (trap);
 \end{tikzpicture}
 ```
 
 Run the focused regression with
-`node --test --test-name-pattern='trapezium cotangent|curved terminal arrows beyond' test/interpreter.test.js`.
-The independent driver is `test/fixtures/arrows/shape-curved-terminal-miters.tex`;
-the local MacTeX, `tikztosvg`, and TikZKit visual record is in
+`node --test --test-name-pattern='PGF star radius modes|trapezium cotangent|curved terminal arrows beyond' test/interpreter.test.js`.
+The independent trapezium driver is `test/fixtures/arrows/shape-curved-terminal-miters.tex`,
+with its local MacTeX, `tikztosvg`, and TikZKit visual record in
 [docs/qa/2026-08-07-shapes-geometric-trapezium-miters.md](docs/qa/2026-08-07-shapes-geometric-trapezium-miters.md).
+The star-radius driver is `test/fixtures/examples/arrows/shape-curved-terminal-padding.tex`,
+with the corresponding three-way evidence in
+[docs/qa/2026-08-07-shapes-geometric-star-radii.md](docs/qa/2026-08-07-shapes-geometric-star-radii.md).
 
 ### A Verified Tree-Anchor Example
 

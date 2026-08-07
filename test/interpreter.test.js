@@ -3,7 +3,7 @@ import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
 import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension, stealthArrowLengthFromLineWidth, stealthArrowShortenFromLength } from "../src/tikz-metrics.js";
-import { trapeziumLayoutSize, trapeziumNodePoints } from "../src/tikz/libraries/shapes.geometric.js";
+import { starLayoutSize, starNodePoints, trapeziumLayoutSize, trapeziumNodePoints } from "../src/tikz/libraries/shapes.geometric.js";
 
 function expectClose(actual, expected, epsilon = 1e-9) {
   assert.ok(Math.abs(actual - expected) < epsilon, `expected ${actual} to be close to ${expected}`);
@@ -4390,6 +4390,52 @@ test("matches PGF regular polygon sizing, orientation, rotation, and curved arro
   assert.equal(thinEnd.type, "curveTo");
   assert.equal(thickEnd.type, "curveTo");
   expectClose(thickRadius - thinRadius, expectedExtension, 1e-6);
+});
+
+test("matches PGF star radius modes, minimum sizing, and star rotation", () => {
+  const ratioLayout = starLayoutSize(1, 0.6, {
+    starUsesPointRatio: true,
+    starPointRatio: 1.8
+  });
+  const enlargedRatioLayout = starLayoutSize(1, 0.6, {
+    starUsesPointRatio: true,
+    starPointRatio: 1.8,
+    minimumSize: 3
+  });
+  const heightLayout = starLayoutSize(1, 0.6, {
+    starUsesPointRatio: false,
+    starPointHeight: 0.4,
+    minimumSize: 3
+  });
+  const rotatedPoints = starNodePoints({ x: 0, y: 0 }, 1.5, {
+    starPoints: 5,
+    starPointRatio: 1.5,
+    starUsesPointRatio: true,
+    shapeBorderRotate: 36
+  });
+  const source = String.raw`
+\usetikzlibrary{shapes.geometric}
+\begin{tikzpicture}
+  \node[draw,star,star points=5,star point ratio=1.8,star rotate=36,minimum size=3cm,inner sep=0pt] (ratio) at (0,0) {};
+  \node[draw,star,star points=6,star point height=.4cm,minimum size=3cm,inner sep=0pt] (height) at (5,0) {};
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const [ratioNode, heightNode] = ir.items.filter((item) => item.type === "nodeBox");
+
+  expectClose(ratioLayout.width, 2 * Math.SQRT2 * 0.5 * 1.8);
+  expectClose(enlargedRatioLayout.width, 3);
+  expectClose(heightLayout.width, 3);
+  expectClose(rotatedPoints[0].x, 1.5 * Math.cos((126 * Math.PI) / 180));
+  expectClose(rotatedPoints[0].y, 1.5 * Math.sin((126 * Math.PI) / 180));
+  expectClose(Math.hypot(rotatedPoints[1].x, rotatedPoints[1].y), 1);
+  assert.deepEqual(diagnostics, []);
+  expectClose(ratioNode.width, 3);
+  expectClose(ratioNode.height, 3);
+  assert.equal(ratioNode.shapeData.starUsesPointRatio, true);
+  assert.equal(ratioNode.shapeData.shapeBorderRotate, 36);
+  expectClose(heightNode.width, 3);
+  assert.equal(heightNode.shapeData.starUsesPointRatio, false);
+  expectClose(heightNode.shapeData.starPointHeight, 0.4);
 });
 
 test("extends curved terminal arrows beyond rectangle, diamond, star, and trapezium borders", () => {

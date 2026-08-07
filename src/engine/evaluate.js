@@ -1,7 +1,12 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
-import { trapeziumLayoutSize as geometricTrapeziumLayoutSize, trapeziumNodePoints as geometricTrapeziumNodePoints } from "../tikz/libraries/shapes.geometric.js";
+import {
+  starLayoutSize as geometricStarLayoutSize,
+  starNodePoints as geometricStarNodePoints,
+  trapeziumLayoutSize as geometricTrapeziumLayoutSize,
+  trapeziumNodePoints as geometricTrapeziumNodePoints
+} from "../tikz/libraries/shapes.geometric.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
@@ -10808,6 +10813,16 @@ function trapeziumLayoutSize(contentWidth, contentHeight, options = {}, env = { 
   });
 }
 
+function starLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const star = starShapeData(options, env);
+  return geometricStarLayoutSize(contentWidth, contentHeight, {
+    minimumWidth: options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0,
+    minimumHeight: options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0,
+    minimumSize: options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0,
+    ...star
+  });
+}
+
 function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const sides = regularPolygonSides(options, env);
   const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
@@ -10824,7 +10839,8 @@ function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env
 
 function nodeShapeData(options = {}, env = {}) {
   const regularSides = regularPolygonSides(options, env);
-  const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"], 0);
+  const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
+  const star = starShapeData(options, env, shapeBorderRotate);
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
     mosfetKind: circuitikzMosfetNodeKind(options),
@@ -10841,8 +10857,7 @@ function nodeShapeData(options = {}, env = {}) {
     opAmpNoInvInputUp: Boolean(options["noinv input up"]),
     regularPolygonSides: regularSides,
     regularPolygonStartAngle: regularPolygonStartAngle(regularSides, shapeBorderRotate),
-    starPoints: Math.max(3, Math.round(numberOption(options["star points"], 5))),
-    starPointRatio: Math.max(1.05, numberOption(options["star point ratio"], 1.5)),
+    ...star,
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
     trapeziumRightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
@@ -10855,6 +10870,25 @@ function nodeShapeData(options = {}, env = {}) {
 
 function regularPolygonSides(options = {}) {
   return Math.max(3, Math.round(numberOption(options["regular polygon sides"], 5)));
+}
+
+function starShapeData(options = {}, env = {}, shapeBorderRotate = 0) {
+  const hasPointHeight = optionHasValue(options["star point height"]);
+  const hasPointRatio = optionHasValue(options["star point ratio"]);
+  return {
+    starPoints: Math.max(3, Math.round(numberOption(options["star points"], 5))),
+    starPointRatio: Math.max(1e-9, numberOption(options["star point ratio"], 1.5)),
+    starPointHeight: parseFiniteDimension(options["star point height"], env, 0.5),
+    // PGF switches modes when either key is assigned. The usual option form
+    // carries one of them; when both survive preprocessing, prefer the ratio
+    // just like its default declaration does.
+    starUsesPointRatio: hasPointRatio || !hasPointHeight,
+    shapeBorderRotate
+  };
+}
+
+function optionHasValue(value) {
+  return value !== undefined && value !== null && value !== true && String(value).trim() !== "";
 }
 
 function regularPolygonStartAngle(sides, rotate = 0) {
@@ -12155,6 +12189,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(regularPolygonLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "star") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(starLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   // shapes.misc cross out and strike out inherit rectangle anchors.  Their
   // foreground is drawn from southwest to northeast, so an empty node must
   // use only its configured inner/minimum dimensions rather than the normal
@@ -12209,6 +12248,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   if (shape === "trapezium") {
     return scaleSize(trapeziumLayoutSize(width, height, options, env), shapeScale);
   }
+  if (shape === "star") {
+    return scaleSize(starLayoutSize(width, height, options, env), shapeScale);
+  }
   if (shape === "diamond" && !options["bpmn gateway"]) {
     ({ width, height } = diamondLayoutSize(width, height, options, env));
   } else if (shape === "ellipse") {
@@ -12262,11 +12304,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const polygonContentWidth = textWidth ? textWidth + innerXSep * 2 : Math.max(0, textBox.width + innerXSep * 2);
     const polygonContentHeight = Math.max(0, textBox.height + innerYSep * 2);
     ({ width, height } = regularPolygonLayoutSize(polygonContentWidth, polygonContentHeight, options, env));
-  }
-  if (shape === "star") {
-    const diameter = Math.max(width, height) * 1.35;
-    width = diameter;
-    height = diameter;
   }
   if (shape === "isoscelesTriangle") {
     ({ width, height } = isoscelesTriangleLayoutSize(width, height, options, env));
@@ -16425,7 +16462,7 @@ function nodePolygonPoints(node, center, halfWidth, halfHeight) {
     );
   }
   if (node.shape === "star") {
-    return starPolygonPoints(center, halfWidth, halfHeight, data.starPoints || 5, data.starPointRatio || 1.5);
+    return starPolygonPoints(center, Math.max(halfWidth, halfHeight), data);
   }
   if (node.shape === "trapezium") {
     return trapeziumPoints(center, halfWidth, halfHeight, data);
@@ -16452,18 +16489,8 @@ function regularPolygonPoints(center, halfWidth, halfHeight, sides, startAngle =
   });
 }
 
-function starPolygonPoints(center, halfWidth, halfHeight, points, ratio) {
-  const total = points * 2;
-  const innerRatio = 1 / ratio;
-  return Array.from({ length: total }, (_unused, index) => {
-    const outer = index % 2 === 0;
-    const angle = ((90 + (360 * index) / total) * Math.PI) / 180;
-    const scale = outer ? 1 : innerRatio;
-    return {
-      x: center.x + Math.cos(angle) * halfWidth * scale,
-      y: center.y + Math.sin(angle) * halfHeight * scale
-    };
-  });
+function starPolygonPoints(center, outerRadius, data = {}) {
+  return geometricStarNodePoints(center, outerRadius, data);
 }
 
 function trapeziumPoints(center, halfWidth, halfHeight, data = {}) {
