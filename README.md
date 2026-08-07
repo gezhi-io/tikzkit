@@ -290,23 +290,34 @@ font metrics against MacTeX. The implementation remains experimental until
 the corresponding feature slice has a focused regression and a written QA
 record; see [docs/usage.md](docs/usage.md) for the full Chinese workflow.
 
-### Verified `text width` Inline-Math Wrap
+### Verified Browser Mixed-Math `text width` Wrap
 
-The `svg-text` renderer now measures every inline formula as one TeX-sized
-word group before applying a node's `text width` line break. This prevents a
-compact relation such as `\alpha = \gamma` from incorrectly becoming its own
-line after otherwise fitting prose. The focused visual driver is
+Both the browser rich-text route (with scoped math HTML) and the `svg-text`
+fallback now measure every inline formula as a TeX-sized word group before
+applying a node's `text width` line break. This prevents browser-only line
+breaks such as separating `\alpha = \gamma` from prose. The focused real
+driver is
 `test/fixtures/implementation-examples/real-world/parallel-line-angles.tikz`:
 
 ```bash
-node --test --test-name-pattern='keeps compact inline math on the TeX-sized svg-text paragraph line' test/renderer.test.js
+node --test --test-name-pattern='wraps rich TikZ text width paragraphs|keeps compact inline math|native MacTeX reference wraps a bare TikZ fragment' \
+  test/renderer.test.js test/example-render-script.test.js
+
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/implementation-examples \
+  --output outputs/qa-rich-text-paragraph \
+  --only real-world-parallel-line-angles \
+  --native-reference --strict-tikztosvg
+node scripts/diff-example-pngs.js --output outputs/qa-rich-text-paragraph
 ```
 
-Its TikZKit, local `tikztosvg`, and local MacTeX evidence is recorded in
-[docs/qa/2026-08-07-text-width-inline-math-wrap.md](docs/qa/2026-08-07-text-width-inline-math-wrap.md).
+For body-only `.tikz` drivers, the MacTeX reference utility now adds a minimal
+`standalone` wrapper and retains the source's declared packages/libraries.
+The visual evidence is recorded in
+[docs/qa/2026-08-08-rich-text-fixed-width-wrap.md](docs/qa/2026-08-08-rich-text-fixed-width-wrap.md).
 This is still an experimental paragraph-layout subset: TeX hyphenation,
-justification glue and penalties, and full `minipage` layout are not yet
-equivalent.
+justification glue and penalties, full `minipage` layout, and native browser
+glyph rasterization are not yet equivalent.
 
 ### Verified Node-Local `minipage` Width
 

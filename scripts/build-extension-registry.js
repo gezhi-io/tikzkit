@@ -21,7 +21,7 @@ const CORE_PACKAGE_SUPPORT = {
     status: "builtin",
     implementedBy: "src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform/estimateNodeSize + src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
     localSourceReviewed: "yes",
-    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations. An outer node minipage maps its required width, including TeX's implicit scalar/register syntax such as 0.35\\textwidth, into shared text-width wrapping unless TikZ sets text width explicitly. Reviewed locally on 2026-08-07: PGF circle sizing takes the Euclidean diagonal of its TeX text box. Multi-line math circles therefore bypass the wider SVG measurement box and use calibrated TeX row metrics, while SVG still paints the text. transform canvas now keeps the backend matrix separate from coordinate transforms for scale/rotate/xshift/yshift paths and nodes, scales stroke/text geometry, and preserves PGF's locally disabled automatic picture-size tracking; TeX hyphenation, nested minipage layout, and arbitrary non-uniform node-anchor geometry remain partial."
+    notes: "TikZ semantic interpreter core: draw/path/fill/node/coordinate subset; named nodes and coordinates persist across consecutive tikzpictures without inheriting web-only inline layout translations. An outer node minipage maps its required width, including TeX's implicit scalar/register syntax such as 0.35\\textwidth, into shared text-width wrapping unless TikZ sets text width explicitly. Browser foreignObject rich text delegates mixed prose/formula wrapping to the shared TeX-sized SVG-text token layout, so supported fixed-width nodes use the same word grouping in browser and fallback renderers. Bare corpus .tikz fragments are wrapped with their declared packages/libraries before a native MacTeX visual reference is generated. Reviewed locally on 2026-08-08: TikZ's text-width action creates a ragged-right minipage paragraph with rightskip stretch; it remains only an approximation here. PGF circle sizing takes the Euclidean diagonal of its TeX text box. Multi-line math circles therefore bypass the wider SVG measurement box and use calibrated TeX row metrics, while SVG still paints the text. transform canvas now keeps the backend matrix separate from coordinate transforms for scale/rotate/xshift/yshift paths and nodes, scales stroke/text geometry, and preserves PGF's locally disabled automatic picture-size tracking; TeX hyphenation, nested minipage layout, and arbitrary non-uniform node-anchor geometry remain partial."
   },
   pgf: {
     status: "partial",
@@ -421,16 +421,18 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | every node and nodes={...} now materialize their fonts into ordinary and inline-node SVG FontSpecs; a picture font remains the scope layer, while explicit node/path-node and content fonts take precedence. An outer node-local minipage also contributes its width to shared text wrapping. Scoped local font commands now preserve the preceding TeX line's FontSpec baseline across multiline SVG text. On 2026-08-07, multi-line math circles began using PGF-style packed TeX row metrics rather than the wider SVG measurement box. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
+| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/{textLayout,richText}.js | every node and nodes={...} materialize their fonts into ordinary and inline-node SVG FontSpecs; an outer node-local minipage contributes its width to shared wrapping. The browser rich-text/foreignObject path now uses the same TeX-sized mixed-math token breaker as the SVG-text fallback, and bare .tikz corpus fragments can become native MacTeX references. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
 
 ## Latest Core TikZ Update
 
-On 2026-08-08, the focused outer-\`minipage\` paragraph slice gained TeX-sized
-inline-math word groups, normal-space shrink during sequential wrapping,
-conservative English \`re-\` / \`lation\` hyphenation, and TeX vbox sizing instead
-of painted-glyph sizing. Full TeX pattern dictionaries, paragraph
-glue/penalties, footnotes, and nested minipage layout remain partial. Evidence:
-[2026-08-08 inline-math minipage QA](./qa/2026-08-08-inline-math-minipage-wrap.md).
+On 2026-08-08, the browser rich-text/KaTeX path started reusing the SVG-text
+renderer’s TeX-sized mixed-math token breaker. A real 6cm text-width node
+therefore now keeps the same three lines in browser and fallback rendering;
+the native comparison harness also wraps body-only .tikz fragments with their
+declared packages/libraries before calling MacTeX. Full TeX paragraph
+glue/penalties, full hyphenation dictionaries, footnotes, and nested minipage
+layout remain partial. Evidence:
+[2026-08-08 rich-text fixed-width QA](./qa/2026-08-08-rich-text-fixed-width-wrap.md).
 
 ## Highest-Priority Unsupported Entries
 

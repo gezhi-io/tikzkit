@@ -164,7 +164,6 @@ export { estimatePlainTextRenderBounds, renderPlainTextNode } from "./plainTextN
 export { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
 export {
   cleanRichTextSource,
-  collapseTeXParagraphWhitespace,
   defaultTexCharWidthEm,
   estimateRichMathWidthEm,
   estimateRichTextBox,
@@ -219,6 +218,7 @@ export { applyTextContour, readContourColor } from "./textContour.js";
 export {
   alignedTextX,
   baselineOffsets,
+  collapseTeXParagraphWhitespace,
   fontStyleAttribute,
   fontVariantAttribute,
   fontWeightAttribute,

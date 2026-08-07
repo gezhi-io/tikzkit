@@ -4,6 +4,7 @@ import { escapeHtml } from "./escape.js";
 import { normalizeKatexTex } from "./mathFallbackSyntax.js";
 import { renderScopedMathHtml } from "./mathHtml.js";
 import { formatPlainTexText } from "./text.js";
+import { collapseTeXParagraphWhitespace, hasInlineMathSource, wrapSvgTextLineWithSource } from "./textLayout.js";
 
 export const KATEX_RICH_TEXT_LINE_BOX_SCALE = 1.6;
 export const KATEX_RICH_TEXT_WRAP_WIDTH_SCALE = 0.98;
@@ -126,13 +127,6 @@ export function richTextSourceLines(source, normalized) {
   return fallbackLines.map(collapseTeXParagraphWhitespace).filter((line) => line.length);
 }
 
-export function collapseTeXParagraphWhitespace(value) {
-  return String(value || "")
-    .replace(/\s*\n\s*/g, " ")
-    .replace(/[ \t]+/g, " ")
-    .trim();
-}
-
 export function wrapRichTextLines(sourceLines, wrapWidth, unit, fontSize, sourceLineStyles) {
   const width = Number(wrapWidth) * unit;
   if (!Number.isFinite(width) || width <= 0) {
@@ -142,6 +136,22 @@ export function wrapRichTextLines(sourceLines, wrapWidth, unit, fontSize, source
   const output = [];
   sourceLines.forEach((line, index) => {
     const style = sourceLineStyles[index] || {};
+    // The browser path uses foreignObject while SVG/PDF fall back to text.
+    // Give mixed prose/math paragraphs the same TeX-box token breaker as that
+    // fallback, otherwise the two render paths choose different words for a
+    // fixed-width line.
+    if (hasInlineMathSource(line)) {
+      const lineFontSize = fontSize * (Number(style.scale) || 1);
+      const wrapped = wrapSvgTextLineWithSource(
+        line,
+        mathFallbackText(line),
+        wrapWidth,
+        unit,
+        lineFontSize
+      );
+      for (const entry of wrapped) output.push({ text: entry.contentLine, style });
+      return;
+    }
     for (const wrapped of wrapRichTextLine(line, maxEm)) {
       output.push({ text: wrapped, style });
     }

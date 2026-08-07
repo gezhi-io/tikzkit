@@ -11,7 +11,6 @@ import { TIKZ_TYPEWRITER_WIDTH_SCALE } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { mathFallbackFontStyle } from "./mathFallbackSyntax.js";
-import { collapseTeXParagraphWhitespace } from "./richText.js";
 import { formatPlainTexText } from "./text.js";
 
 export const SVG_TEXT_WRAP_CHAR_WIDTH_EM = 0.54;
@@ -26,6 +25,13 @@ const TEX_PT_PER_CM = 28.4527559;
 // paragraph breaking instead, where normal interword shrink is the better
 // approximation.
 const MIXED_INLINE_MATH_FONT_METRIC_SAFETY_SCALE = 1.03;
+
+export function collapseTeXParagraphWhitespace(value) {
+  return String(value || "")
+    .replace(/\s*\n\s*/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
 
 export function normalizedTextAlign(value) {
   const align = String(value || "").trim().toLowerCase();

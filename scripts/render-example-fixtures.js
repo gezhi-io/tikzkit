@@ -413,6 +413,7 @@ export async function renderNativeMacTeXPng(external, options = {}) {
       rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || [])
     )
   );
+  const nativeSource = normalizeNativeMacTeXInput(source);
   const latexArgs = [
     "-interaction=nonstopmode",
     "-halt-on-error",
@@ -425,7 +426,7 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   await rm(workDir, { recursive: true, force: true });
   await mkdir(workDir, { recursive: true });
   await materializeNativeReferenceResources(options.entry?.resources || [], options.fixtureRoot, workDir);
-  await writeFile(texPath, `${source.trimEnd()}\n`, "utf8");
+  await writeFile(texPath, `${nativeSource.trimEnd()}\n`, "utf8");
   await mkdir(path.dirname(outputPng), { recursive: true });
   await mkdir(path.dirname(outputLog), { recursive: true });
 
@@ -453,6 +454,40 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   return raster.exitCode === 0
     ? { status: "rendered", pngPath: outputPng, logPath: outputLog }
     : { status: "failed", pngPath: null, logPath: outputLog };
+}
+
+// The implementation corpus deliberately includes compact `.tikz` fragments
+// alongside complete LaTeX documents. tikztosvg supplies its own preamble for
+// a fragment, so native MacTeX must do the same or every leading
+// `\usetikzlibrary` fails before the drawing reaches the reference renderer.
+export function normalizeNativeMacTeXInput(source) {
+  const text = String(source || "");
+  if (/^\s*\\documentclass\b/m.test(text)) return text;
+
+  const preamble = [];
+  const body = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*\\(?:usepackage|usetikzlibrary|usepgfplotslibrary)\b/.test(line)) {
+      preamble.push(line.trim());
+    } else {
+      body.push(line);
+    }
+  }
+
+  const joinedPreamble = preamble.join("\n");
+  const needsTikz = !/\\usepackage(?:\s*\[[^\]]*\])?\s*\{[^}]*\btikz\b[^}]*\}/.test(joinedPreamble);
+  const needsPgfplots = /\\begin\{axis\}|\\addplot(?:3)?\b/.test(text) &&
+    !/\\usepackage(?:\s*\[[^\]]*\])?\s*\{[^}]*\bpgfplots\b[^}]*\}/.test(joinedPreamble);
+
+  return [
+    "\\documentclass[border=0pt]{standalone}",
+    ...(needsTikz ? ["\\usepackage{tikz}"] : []),
+    ...(needsPgfplots ? ["\\usepackage{pgfplots}"] : []),
+    ...preamble,
+    "\\begin{document}",
+    body.join("\n").trim(),
+    "\\end{document}"
+  ].filter(Boolean).join("\n");
 }
 
 async function materializeNativeReferenceResources(resources, fixtureRoot, workDir) {

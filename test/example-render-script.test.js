@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   addComparisonGridToSvg,
   formatExampleRenderSummary,
+  normalizeNativeMacTeXInput,
   normalizeTikztosvgInput,
   parseExampleRenderArgs,
   renderExampleFixtures,
@@ -61,6 +62,19 @@ test("example fixture renderer writes TikZKit and tikztosvg artifacts from manif
   assert.match(tikztosvgSvg, /data-renderer="tikztosvg"/);
   assert.equal(summaryJson.cases[0].tikzkitSvg.endsWith("axis-basic-range.svg"), true);
   assert.equal(summaryJson.cases[0].tikztosvgInput.endsWith("axis-basic-range.tex"), true);
+});
+
+test("native MacTeX reference wraps a bare TikZ fragment with its declarations", () => {
+  const normalized = normalizeNativeMacTeXInput(String.raw`\usetikzlibrary{angles,calc}
+\begin{tikzpicture}
+  \draw (0,0) -- (1,0);
+\end{tikzpicture}`);
+
+  assert.match(normalized, /^\\documentclass\[border=0pt\]\{standalone\}/);
+  assert.match(normalized, /\\usepackage\{tikz\}/);
+  assert.match(normalized, /\\usetikzlibrary\{angles,calc\}/);
+  assert.match(normalized, /\\begin\{document\}[\s\S]*\\begin\{tikzpicture\}/);
+  assert.match(normalized, /\\end\{tikzpicture\}[\s\S]*\\end\{document\}$/);
 });
 
 test("example fixture renderer expands local input files before rendering", async () => {
