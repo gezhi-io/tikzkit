@@ -365,7 +365,7 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 316/316 rendered, 0 diagnostics。
+# 维护案例的语义检查；当前预期为 322/322 rendered, 0 diagnostics。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。

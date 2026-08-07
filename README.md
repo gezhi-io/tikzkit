@@ -155,6 +155,36 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### The Smallest Reliable Loop
+
+For a new diagram, start with the browser. For a renderer change, keep the
+same source as a named fixture and use the visual workflow before treating the
+result as compatible. This is the shortest repeatable path:
+
+```bash
+# 1. Fast local editing: JavaScript only.
+npm run web
+
+# 2. Inventory exactly what the real source asks TikZKit to understand.
+npm run case:audit -- path/to/diagram.tex \
+  --output outputs/qa-diagram/audit.md \
+  --init-review outputs/qa-diagram/review.json
+
+# 3. When the source is a maintained fixture, create the three references.
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only <fixture-id> --output outputs/qa-diagram \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-diagram \
+  --register --alignment-radius 3
+```
+
+Open `outputs/qa-diagram/index.html` and compare the **TikZKit** and
+**tikztosvg** panels first, then use the **MacTeX** panel as the acceptance
+oracle. The grid helps identify a shifted origin or scale, but it cannot prove
+that text anchors, clipping, arrow tips, or draw order are correct. If a
+feature is still visibly different, it remains incomplete even when no
+diagnostic is reported.
+
 ### Formula And Matrix Sizing
 
 Formula boxes participate in node dimensions, label anchors, clipping, and
@@ -777,7 +807,7 @@ npm run gallery:js
 npm run gallery:native
 ```
 
-`gallery:audit` should currently report `316/316 rendered, 0 diagnostics`.
+`gallery:audit` should currently report `322/322 rendered, 0 diagnostics`.
 These commands use only the resources declared in
 `test/fixtures/examples/manifest.json`; they do not grant browser-authored
 TikZ arbitrary filesystem access. For a visual three-way review of one case,
