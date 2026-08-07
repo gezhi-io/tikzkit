@@ -244,8 +244,10 @@ function renderAxes(state, rawOptions, context = {}) {
   const yAxisLabel = sharedLabel === null ? "$y$" : sharedLabel;
   const textOption = textColor === color ? "" : `,text=${textColor}`;
   const xLabelOverlay = context.scriptsize ? "overlay," : "";
-  const xLabelOptions = `${xLabelOverlay}below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style${textOption}`;
-  const yLabelOptions = `left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style${textOption}`;
+  // tkzLabelX/Y paint graduations in \tkz@fillcolor (white by default),
+  // while tkzDrawX/Y's terminal x/y labels remain unfilled.
+  const xLabelOptions = `${xLabelOverlay}below=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,xlabel style${textOption}`;
+  const yLabelOptions = `left=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,ylabel style${textOption}`;
 
   const drawX = [
     `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt] {${xAxisLabel}};`
@@ -321,7 +323,7 @@ function renderXAxis(state, rawOptions) {
   const bounds = normalizedBounds(state);
   const textOption = textColor === color ? "" : `,text=${textColor}`;
   const commands = [
-    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style${textOption}] {${label}};`
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt,xlabel style${textOption}] {${label}};`
   ];
 
   if (optionBoolean(options.noticks, false)) return commands.join("\n");
@@ -351,7 +353,7 @@ function renderYAxis(state, rawOptions) {
   const bounds = normalizedBounds(state);
   const textOption = textColor === color ? "" : `,text=${textColor}`;
   const commands = [
-    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style${textOption}] {${label}};`
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt,ylabel style${textOption}] {${label}};`
   ];
 
   if (optionBoolean(options.noticks, false)) return commands.join("\n");
@@ -944,8 +946,8 @@ function axisLabelMarkers(min, max, sourceStep, options) {
 
 function axisLabelOptions(options, axis) {
   const base = axis === "x"
-    ? ["below=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white"]
-    : ["left=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white"];
+    ? ["below=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white", "tikzkit tkz axis tick label"]
+    : ["left=3pt", "inner sep=1pt", "outer sep=0pt", "fill=white", "tikzkit tkz axis tick label"];
   const forwarded = forwardAxisLabelOptions(options);
   // tkz-base first applies its config-level xlabel/ylabel style and then the
   // command options. Keeping the built-in defaults before the style gives a

@@ -47,8 +47,9 @@ test("lowers tkzDrawX and tkzDrawY without adding the separate numeric-label com
 \end{tikzpicture}`);
 
   assert.doesNotMatch(expanded, /\\tkzDraw[XY]/);
-  assert.match(expanded, /\\draw\[color=red,line width=0\.4pt,-latex\] \(-5,0\) -- \(6,0\) node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style\] \{\$u\$\};/);
-  assert.match(expanded, /\\draw\[color=blue,line width=0\.4pt,-latex\] \(0,-5\) -- \(0,6\) node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\] \{\$v\$\};/);
+  assert.doesNotMatch(expanded, /fill=white/);
+  assert.match(expanded, /\\draw\[color=red,line width=0\.4pt,-latex\] \(-5,0\) -- \(6,0\) node\[below=3pt,inner sep=1pt,outer sep=0pt,xlabel style\] \{\$u\$\};/);
+  assert.match(expanded, /\\draw\[color=blue,line width=0\.4pt,-latex\] \(0,-5\) -- \(0,6\) node\[left=3pt,inner sep=1pt,outer sep=0pt,ylabel style\] \{\$v\$\};/);
   assert.doesNotMatch(expanded, /color=red,line width=0\.8pt/);
   assert.match(expanded, /\\draw\[color=blue,line width=0\.8pt\] \(4pt,-5\) -- \(-3pt,-5\);/);
   assert.match(expanded, /\\draw\[color=blue,line width=0\.8pt\] \(4pt,-3\) -- \(-3pt,-3\);/);
@@ -82,9 +83,9 @@ test("lowers tkzLabelX and tkzLabelY in source units with origin, fraction, and 
 \end{tikzpicture}`);
 
   assert.doesNotMatch(expanded, /\\tkzLabel[XY]/);
-  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style,below right=4pt,text=blue\] \{\$40\$\}/);
-  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\] \{\$-\\pi\$\}/);
-  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\] \{\$\\frac\{-\\pi\}\{2\}\$\}/);
+  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,xlabel style,below right=4pt,text=blue\] \{\$40\$\}/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,ylabel style\] \{\$-\\pi\$\}/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,ylabel style\] \{\$\\frac\{-\\pi\}\{2\}\$\}/);
   assert.doesNotMatch(expanded, /node\[left=3pt,[^\n]*\] \{\$0\$\}/);
   assert.match(expanded, /\$\\frac\{-2\}\{3\}\$/);
   assert.match(expanded, /\$\\frac\{1\}\{3\}\$/);
@@ -126,8 +127,8 @@ test("applies global tkz-base xlabel and ylabel styles to terminal and graduatio
   const yTerminal = labels.find((item) => item.text === "$y$");
   const xGraduation = labels.find((item) => item.text === "$1$" && item.style?.textFill === "red");
 
-  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,xlabel style,below right=4pt,text=red\]/);
-  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,ylabel style\]/);
+  assert.match(expanded, /node\[below=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,xlabel style,below right=4pt,text=red\]/);
+  assert.match(expanded, /node\[left=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,ylabel style\]/);
   assert.deepEqual(result.diagnostics, []);
   assert.equal(xTerminal.style.textFill, "blue");
   assert.match(yTerminal.style.textFill, /^(?:green|rgb\(0 255 0\))$/);
@@ -490,6 +491,7 @@ test("renders the discontinuity jump with aligned tkz-fct axes and open and clos
     (item) => item.type === "path" && !item.subtype && item.commands?.length === 2 && !item.style?.markerEnd
   );
   const jumpPoints = result.ir.items.filter((item) => item.type === "path" && item.shape === "circle");
+  const numericTickBoxes = result.ir.items.filter((item) => item.type === "nodeBox" && item.style?.fill === "white");
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(gridLines.length, 13);
@@ -508,5 +510,10 @@ test("renders the discontinuity jump with aligned tkz-fct axes and open and clos
     ]
   );
   assert.ok(jumpPoints.every((item) => Math.abs(item.r - 0.10543794107480464) < 1e-12));
+  assert.ok(numericTickBoxes.length >= 13, `expected native-style white graduation boxes, got ${numericTickBoxes.length}`);
+  assert.ok(
+    numericTickBoxes.every((item) => item.width > 0.2 && item.width < 0.215 && item.height < 0.24),
+    `expected compact CMR7 integer tick boxes, got ${numericTickBoxes.map((item) => `${item.width}x${item.height}`).join(", ")}`
+  );
   assert.match(result.svg, /stroke="rgb\(217 217 217\)"/);
 });

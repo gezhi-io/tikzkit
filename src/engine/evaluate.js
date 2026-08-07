@@ -11868,8 +11868,36 @@ function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
   if (circuitikzTransistorKind(options)) return circuitikzTransistorSize(env);
   if (circuitikzTubeKind(options)) return circuitikzTubeSize(env, options);
   if (circuitikzQuadpoleKind(options)) return circuitikzQuadpoleSize(env, options);
+  if (options["tikzkit tkz axis tick label"]) return estimateTkzAxisTickLabelSize(text, options, env);
   if (nodeUsesBoxSizing(options, env)) return estimateNodeSize(text, options, env);
   return estimateCompactTextSize(text, options, env);
+}
+
+function estimateTkzAxisTickLabelSize(text, options = {}, env = { variables: {} }) {
+  const compact = estimateCompactTextSize(text, options, env);
+  const match = String(text || "").trim().match(/^\$\s*(\d+)\s*\$$/);
+  if (!match) return compact;
+
+  // tkz-base applies \scriptsize to the common Cartesian frame. For simple
+  // integer graduations, use the local CMR optical-size digit advance instead
+  // of the generic filled-node minimum. The two-sided padding is still driven
+  // by TikZ's explicit 1pt inner sep option.
+  const font = resolvedTextFontSpec(text, options, env, env.canvasScale * nodeOptionScale(options, env));
+  const fontSizePt = Number(font.sizePt) || 10;
+  const designSize = computerModernRomanDesignSize(fontSizePt);
+  const digitScale = {
+    5: 1.361132,
+    6: 1.2,
+    7: 1.138895,
+    8: 1.062515,
+    9: 1.027771,
+    10: 1
+  }[designSize] || 1;
+  const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const digitAdvance = (5 * (fontSizePt / 10) * digitScale) / TEX_PT_PER_CM;
+  const width = Math.max(0.08, match[1].length * digitAdvance + innerXSep * 2);
+
+  return { ...compact, width: roundNumber(width) };
 }
 
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
