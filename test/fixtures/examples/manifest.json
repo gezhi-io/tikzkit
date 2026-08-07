@@ -4531,6 +4531,23 @@
       ]
     },
     {
+      "id": "shadows-circular-shadow-path",
+      "title": "PGF circular drop shadow and glow path preactions",
+      "source": "shadows/circular-shadow-path.tex",
+      "sourceCorpus": "TeX Live PGF shadows library",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshadows.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:parseCircularDropShadow + parseCircularGlow",
+      "features": [
+        "circular drop shadow",
+        "circular glow",
+        "path fading circle with fuzzy edge 15 percent",
+        "shadow scale",
+        "shadow offset",
+        "every shadow",
+        "path preaction"
+      ]
+    },
+    {
       "id": "shadows-blur-shadow-path",
       "title": "pgf-blur path preaction filter",
       "source": "shadows/blur-shadow-path.tex",

@@ -1,0 +1,14 @@
+% Derived from the documented circular shadow and glow styles in tikzlibraryshadows.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadows}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines,gray!35] (0,0) grid (5,3);
+  \filldraw[circular drop shadow={opacity=.8},fill=yellow!30,draw=black]
+    (1.25,1.25) circle (.55);
+  \filldraw[circular glow={fill=purple!70},fill=white,draw=black]
+    (3,0.75) rectangle (4.5,2.15);
+\end{tikzpicture}
+\end{document}

@@ -143,6 +143,29 @@ npm run examples:diff -- --output outputs/qa-case \
 一个可提交的兼容性改动应包含共享实现、最小回归测试、维护 fixture、登记表更新和
 一份 QA Markdown；不提交 `outputs/` 中的 PNG、SVG 或 diff。
 
+### 已验证示例：圆形阴影与光晕
+
+`shadows` 目前包含一个可直接复核的圆形 fading 切片：`circular drop shadow`
+和 `circular glow` 会先作为 SVG 预绘制图层绘制，再绘制原路径。下面的命令会
+生成 JavaScript、`tikztosvg`、MacTeX 与网格/差异面板；打开输出目录中的
+`diff/shadows-circular-shadow-path-native-sheet.png` 检查阴影的中心、偏移、缩放与
+前景图层。
+
+```bash
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only shadows-circular-shadow-path \
+  --output outputs/qa-shadows-circular \
+  --tikztosvg --native-reference --grid --strict-tikztosvg
+
+npm run examples:diff -- --output outputs/qa-shadows-circular \
+  --register --alignment-radius 3
+```
+
+它验证的是本地 PGF 定义的两个标准样式，包括 `1.1`/`1.25` 的 shadow scale、
+drop shadow 的 `.3ex/- .3ex` 偏移、调用方 `opacity`/`fill` 覆盖，以及
+`circle with fuzzy edge 15 percent`。任意自定义 path fading 和 TeX 回调仍是
+partial；完整边界见 [shadows QA](docs/qa/2026-08-08-shadows-circular-fading.md)。
+
 ### 5. 日常开发检查
 
 ```bash

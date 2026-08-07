@@ -334,9 +334,11 @@ export function renderRadialGradientDef(def) {
 export function collectPathFadingDefs(items) {
   const defs = new Map();
   for (const item of items || []) {
-    const fading = pathFadingName(item.style?.pathFading);
-    if (!fading) continue;
-    defs.set(fading, { name: fading });
+    const styles = [item.style, ...(item.shadows || []).map((shadow) => shadow?.style)];
+    for (const style of styles) {
+      const fading = pathFadingName(style?.pathFading);
+      if (fading) defs.set(fading, { name: fading });
+    }
   }
   return [...defs.values()];
 }

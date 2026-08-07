@@ -2632,6 +2632,29 @@ test("lowers documented drop-shadow defaults and caller opacity overrides", () =
   assert.equal((result.svg.match(/class="tikz-path-shadow"/g) || []).length, 2);
 });
 
+test("lowers circular drop shadows and glows as faded path preactions", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shadows}
+\begin{tikzpicture}
+  \filldraw[circular drop shadow={opacity=.8},fill=yellow!30,draw=black] (0,0) circle (.5);
+  \filldraw[circular glow={fill=purple!70},fill=white,draw=black] (2,0) rectangle (3,1);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(paths.length, 2);
+  assert.equal(paths[0].shadows.length, 1);
+  assert.equal(paths[1].shadows.length, 1);
+  expectClose(paths[0].shadows[0].scale, 1.1, 1e-12);
+  expectClose(paths[1].shadows[0].scale, 1.25, 1e-12);
+  expectClose(paths[0].shadows[0].style.opacity, 0.8, 1e-12);
+  assert.equal(paths[0].shadows[0].style.pathFading, "circle with fuzzy edge 15 percent");
+  assert.equal(paths[1].shadows[0].style.pathFading, "circle with fuzzy edge 15 percent");
+  assert.match(result.svg, /class="tikz-path-shadow"/);
+  assert.match(result.svg, /mask="url\(#tikz-fading-circle-with-fuzzy-edge-15-percent-mask\)"/);
+  assert.match(result.svg, /<radialGradient[^>]+tikz-fading-gradient-circle-with-fuzzy-edge-15-percent-radial/);
+});
+
 test("runs every shadow between drop-shadow defaults and caller options", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{shadows}

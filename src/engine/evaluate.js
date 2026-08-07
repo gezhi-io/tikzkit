@@ -9378,6 +9378,12 @@ function pathGeneralShadows(semantic = {}, env, mainStyle = {}) {
   if (semantic["drop shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["drop shadow"]).map((value) => parseDropShadow(value, env)).filter(Boolean));
   }
+  if (semantic["circular drop shadow"] !== undefined) {
+    shadows.push(...optionValueList(semantic["circular drop shadow"]).map((value) => parseCircularDropShadow(value, env)).filter(Boolean));
+  }
+  if (semantic["circular glow"] !== undefined) {
+    shadows.push(...optionValueList(semantic["circular glow"]).map((value) => parseCircularGlow(value, env)).filter(Boolean));
+  }
   if (semantic["copy shadow"] !== undefined) {
     shadows.push(...optionValueList(semantic["copy shadow"]).map((value) => parseCopyShadow(value, env, mainStyle)).filter(Boolean));
   }
@@ -9409,6 +9415,42 @@ function parseDropShadow(value, env) {
     "every shadow": true
   }, parseOptions(String(value === true ? "" : value)));
   return parseShadowFromOptions(shadowOptions, env);
+}
+
+function parseCircularDropShadow(value, env) {
+  // `shadows` paints this as a normal preaction, with a radial path fading
+  // applied to the scaled and shifted copy of the original geometry.
+  return parseCircularFadingShadow(orderedShadowOptions({
+    "shadow scale": 1.1,
+    "shadow xshift": ".3ex",
+    "shadow yshift": "-.3ex",
+    fill: "black!50",
+    "path fading": "circle with fuzzy edge 15 percent",
+    "every shadow": true
+  }, parseOptions(String(value === true ? "" : value))), env);
+}
+
+function parseCircularGlow(value, env) {
+  return parseCircularFadingShadow(orderedShadowOptions({
+    "shadow scale": 1.25,
+    "shadow xshift": "0pt",
+    "shadow yshift": "0pt",
+    fill: "black!50",
+    "path fading": "circle with fuzzy edge 15 percent",
+    "every shadow": true
+  }, parseOptions(String(value === true ? "" : value))), env);
+}
+
+function parseCircularFadingShadow(shadowOptions, env) {
+  const shadow = parseShadowFromOptions(shadowOptions, env);
+  if (!shadow) return null;
+  return {
+    ...shadow,
+    style: {
+      ...shadow.style,
+      pathFading: shadow.style.pathFading || "circle with fuzzy edge 15 percent"
+    }
+  };
 }
 
 function parseCopyShadow(value, env, mainStyle = {}) {

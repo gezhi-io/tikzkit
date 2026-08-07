@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshadows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{tikz}"],
+      "findings": "The wrapper activates the normal TikZ path and color machinery used by the fixture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshadows.code.tex": {
+      "symbols": ["/tikz/circular drop shadow", "/tikz/circular glow", "/tikz/general shadow"],
+      "findings": "The source defines circular drop shadow as 1.1 scale with .3ex/-.3ex shifts and circular glow as 1.25 scale with zero shifts. Both set black!50, circle with fuzzy edge 15 percent fading, then run every shadow before caller options."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "document environment"],
+      "findings": "The document shell is stripped for browser conversion while the same standalone fixture is used to produce the local MacTeX reference."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\filldraw", "grid", "circle", "rectangle"],
+      "findings": "The driver uses normal path construction and paint actions; the focused library styles lower before this foreground path is rendered."
+    }
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-08-shadows-circular-fading.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-08-shadows-circular-fading.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-08-shadows-circular-fading.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/interpreter.test.js",
+        "docs/qa/2026-08-08-shadows-circular-fading.md"
+      ]
+    }
+  ]
+}
