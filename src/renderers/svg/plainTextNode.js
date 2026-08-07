@@ -97,7 +97,10 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
     baselineSkipRatio: textBaselineSkipRatio(item),
     baseFontSizePt: item.font?.sizePt,
     baseBaselineSkipPt: item.font?.baselineSkipPt,
-    useLineFontBaselines: lineStyles.some((style) => Number(style?.baselineSkipPt) > 0)
+    useLineFontBaselines: lineStyles.some((style) => Number(style?.baselineSkipPt) > 0),
+    // TikZ packs `text width` nodes in a minipage. A scoped declaration such
+    // as `{\small ...}` changes glyph size but keeps the paragraph baseline grid.
+    forceBaseBaseline: hasWrapWidth
   });
   const tspans = lines
     .map((line, index) => {
@@ -254,7 +257,8 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
     baselineSkipRatio: textBaselineSkipRatio(item),
     baseFontSizePt: item.font?.sizePt,
     baseBaselineSkipPt: item.font?.baselineSkipPt,
-    useLineFontBaselines: wrapped.lineStyles.some((style) => Number(style?.baselineSkipPt) > 0)
+    useLineFontBaselines: wrapped.lineStyles.some((style) => Number(style?.baselineSkipPt) > 0),
+    forceBaseBaseline: hasWrapWidth
   });
   const lineSizes = wrapped.lineStyles.map((style) => fontSize * (Number(style?.scale) || 1));
   const maxLineSize = Math.max(fontSize, ...lineSizes);

@@ -118,13 +118,15 @@ export function baselineOffsets(baseFontSize, lineStyles, options = {}) {
 }
 
 export function lineBaselineGap(baseFontSize, first = {}, second = {}, options = {}) {
-  if (options.useLineFontBaselines) {
+  if (options.useLineFontBaselines || options.forceBaseBaseline) {
     const baseFontSizePt = Number(options.baseFontSizePt);
     const firstBaselineSkipPt = Number(first.baselineSkipPt);
     const fallbackBaselineSkipPt = Number(options.baseBaselineSkipPt);
-    const baselineSkipPt = Number.isFinite(firstBaselineSkipPt) && firstBaselineSkipPt > 0
-      ? firstBaselineSkipPt
-      : fallbackBaselineSkipPt;
+    const baselineSkipPt = options.forceBaseBaseline
+      ? fallbackBaselineSkipPt
+      : Number.isFinite(firstBaselineSkipPt) && firstBaselineSkipPt > 0
+        ? firstBaselineSkipPt
+        : fallbackBaselineSkipPt;
     if (Number.isFinite(baseFontSizePt) && baseFontSizePt > 0 && Number.isFinite(baselineSkipPt) && baselineSkipPt > 0) {
       return baseFontSize * (baselineSkipPt / baseFontSizePt);
     }

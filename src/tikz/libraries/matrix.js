@@ -4,9 +4,9 @@ import { parseOptions } from "../../engine/options.js";
 export const tikzLibrary = {
   name: "matrix",
   status: "builtin",
-  implementedBy: "src/tikz/libraries/matrix.js + src/frontend/parser.js:parseMatrix",
+  implementedBy: "src/tikz/libraries/matrix.js + src/frontend/parser.js:parseMatrix + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/plainTextNode.js",
   localSourceReviewed: "yes",
-  notes: "Matrix cells inherit their actual node boxes. Text-width cells with scoped line-size declarations are wrapped at each line's effective font scale, and their SVG text uses the FontSpec baseline skip from the preceding TeX line (for example normal 12pt followed by small 11pt) rather than an averaged browser line gap.",
+  notes: "Matrix cells inherit their actual node boxes. A text-width cell uses TikZ's minipage paragraph box: first-line TeX height + the owning paragraph baseline grid + final-line TeX depth. Scoped size commands still scale their glyphs and wrapping, but do not compress continuation-line baselines inside that fixed-width paragraph.",
   features: ["matrix of nodes", "matrix of math nodes", "cell anchors", "bracket delimiters"],
   implements: ["matrix of nodes", "matrix of math nodes", "cell anchors", "bracket delimiters"]
 };

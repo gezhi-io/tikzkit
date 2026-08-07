@@ -1,5 +1,12 @@
 # Matrix Scoped-Line Baselines QA
 
+> Superseded on 2026-08-08 by
+> [`2026-08-08-matrix-minipage-baselines.md`](2026-08-08-matrix-minipage-baselines.md).
+> A direct local TeX minipage measurement showed that the prior conclusion
+> about using 11pt continuation-line baselines was incorrect for `text width`
+> paragraphs. The scoped size controls glyphs and wrapping; the minipage keeps
+> its owning 12pt paragraph baseline grid.
+
 ## Scope
 
 This accepted slice covers one shared text-layout behavior only: a multi-line

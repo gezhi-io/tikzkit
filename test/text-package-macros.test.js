@@ -84,7 +84,7 @@ test("keeps scoped textbf formatting off later matrix-node lines", () => {
   assert.equal(normalized.lineStyles[1].baselineSkipPt, 11);
 });
 
-test("measures text-width nodes using scoped line font sizes before wrapping", () => {
+test("measures scoped text-width nodes as TeX minipage paragraphs", () => {
   const scoped = tikzToSvg(String.raw`
     \begin{tikzpicture}
       \node[ellipse,thick,draw,inner sep=0pt,text width=3cm,align=center]
@@ -102,7 +102,9 @@ test("measures text-width nodes using scoped line font sizes before wrapping", (
 
   assert.deepEqual(scoped.diagnostics, []);
   assert.deepEqual(normal.diagnostics, []);
-  assert.ok(scopedBox.height > 2 && scopedBox.height < 2.2, `expected scoped small text to use its native three-line layout, got ${scopedBox.height}`);
+  // Local TeX measures this box at 44.61111pt before the ellipse's sqrt(2)
+  // expansion, which yields a 2.218cm painted ellipse (plus stroke details).
+  assert.ok(scopedBox.height > 2.21 && scopedBox.height < 2.23, `expected TeX minipage height for scoped text, got ${scopedBox.height}`);
   assert.ok(normalBox.height > scopedBox.height + 0.45, `expected normal text to need one extra wrapped line, got ${scopedBox.height} -> ${normalBox.height}`);
 });
 

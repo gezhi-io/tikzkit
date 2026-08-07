@@ -425,18 +425,17 @@ test("public multiline SVG uses resolved FontSpec baseline skip for tspan dy", (
   assert.ok(Math.abs(dyValues[1] - expectedBaselineSkip) < 1e-6);
 });
 
-test("scoped multiline font commands retain TeX baseline skips for wrapped text", () => {
+test("text-width paragraphs retain their TeX base baseline grid across scoped font changes", () => {
   const result = tikzToSvg(
     String.raw`\begin{tikzpicture}\node[text width=3cm] {Enum\\{\small first line}\\{\small second line}};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   );
   const dyValues = [...result.svg.matchAll(/<tspan\b[^>]*\bdy="([^"]+)"/g)].map((match) => Number(match[1]));
   const normalBaseline = (12 / 28.4527559) * 100;
-  const smallBaseline = (11 / 28.4527559) * 100;
 
   assert.equal(dyValues.length, 3);
   assert.ok(Math.abs(dyValues[1] - normalBaseline) < 1e-6);
-  assert.ok(Math.abs(dyValues[2] - smallBaseline) < 1e-6);
+  assert.ok(Math.abs(dyValues[2] - normalBaseline) < 1e-6);
 });
 
 test("node boldmath font options reach SVG math glyphs", () => {

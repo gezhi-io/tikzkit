@@ -303,6 +303,37 @@ It confirms matching outer width, placement, and wrapping instead of the old
 single overwide line. Native discretionary hyphenation, justification glue,
 footnotes, and nested minipage vertical layout remain outside this slice.
 
+### Fixed-Width Nodes With Mixed Font Sizes
+
+For a node using `text width=...`, TikZ creates a minipage-like paragraph box.
+TikZKit now follows that box model for supported wrapped plain text: the first
+line contributes its TeX height, every continuation uses the owning paragraph
+baseline grid, and the last line contributes its TeX depth. A local size scope
+such as `{\small ...}` still changes glyph size and wrapping, but it does not
+compress the vertical distance to the following wrapped line.
+
+This matters for matrix and diagram nodes with mixed title/body text, such as:
+
+```tex
+\node[ellipse, text width=3cm, align=center] {
+  \textbf{Enum}\\
+  {\small (), Bool, Char, Ordering, Int, Integer, Float, Double}
+};
+```
+
+The focused regression and three-way visual record are
+[`test/text-package-macros.test.js`](test/text-package-macros.test.js) and
+[docs/qa/2026-08-08-matrix-minipage-baselines.md](docs/qa/2026-08-08-matrix-minipage-baselines.md):
+
+```bash
+node --test --test-name-pattern='text-width paragraphs|TeX minipage paragraphs' \
+  test/svg-renderer.test.js test/text-package-macros.test.js
+```
+
+This remains a practical subset, not full TeX paragraph layout: discretionary
+hyphenation, glue/penalty adjustment, nested minipages, and arbitrary rich
+paragraph commands are still partial.
+
 ### Verified Decorated Callback Labels
 
 `decorations.pathreplacing` can replay each original path command through

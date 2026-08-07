@@ -12217,6 +12217,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const textWidthForTextEngine =
     usesParagraphTextWidth && !prewrapTextWidth ? textWidth : null;
   const lines = textMetricLines(metricNormalized);
+  const paragraphFont = usesParagraphTextWidth
+    ? resolvedTextFontSpec(text, options, env)
+    : null;
   const textBox = scaleTextMetricBox(estimateTextMetricBox(
     metricNormalized,
     isCircleShape
@@ -12282,12 +12285,21 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const isEmptyCircle = isCircleShape && isEmptyText;
   const fixedCircleSize = isCircleShape ? fixedCircularMinimumSize(options, env) : null;
   if (usesParagraphTextWidth) {
-    if (!prewrapTextWidth) {
-      const wrappedLines = wrapTextMetricLines(lines, textWidth, options, env);
-      if (wrappedLines.length > lines.length) {
-        textBox.height = Math.max(textBox.height, wrappedPlainTextHeightCm(wrappedLines, unscaledTextMetricScale));
-      }
-    }
+    const paragraphNormalized = prewrapTextWidth
+      ? metricNormalized
+      : wrappedTextMetricNormalized(
+          normalized,
+          textWidth,
+          nodeTextWrapMode(normalizedOptions.options, normalizedOptions.semantic),
+          { hyphenate: !conceptCircleTextWidth }
+        );
+    // TikZ uses a minipage for `text width`: the first line's TeX height,
+    // the paragraph baseline grid, and the last line's depth form its box.
+    // Summing visible glyph boxes makes wrapped mixed-size text too short.
+    textBox.height = Math.max(
+      textBox.height,
+      wrappedStyledParagraphHeightCm(paragraphNormalized, paragraphFont, unscaledTextMetricScale)
+    );
     textBox.width = Math.min(textBox.width, textWidth);
   }
   // Claude: 空圆里带 cross（⊗ 乘法器/混频符号，如 case 037）若按 inner sep 撑，会小到几乎看不见。
@@ -12827,23 +12839,23 @@ function textMetricLines(normalized) {
   });
 }
 
-function wrapTextMetricLines(lines, textWidth, options = {}, env = { variables: {} }) {
-  const fontScale = nodeFontScale(options, env);
-  const normalizedOptions = normalizeOptions("node", options, env);
-  const lineBreakMode = nodeTextWrapMode(normalizedOptions.options, normalizedOptions.semantic);
-  return lines.flatMap((line) => wrapTeXTextLineByWidth(line, textWidth, fontScale, { lineBreakMode }));
-}
-
-function wrappedPlainTextHeightCm(lines, scale = 1) {
+function wrappedStyledParagraphHeightCm(normalized, baseFont = null, scale = 1) {
+  const lines = normalized?.lines?.length
+    ? normalized.lines
+    : String(normalized?.text || "").split(/\\\\|\n/);
   if (!Array.isArray(lines) || !lines.length) return 0;
-  const fontSizePt = 10 * scale;
-  const first = measurePlainTextTeXBoxPt(lines[0], { fontSizePt });
-  const last = measurePlainTextTeXBoxPt(lines.at(-1), { fontSizePt });
+  const styles = Array.isArray(normalized?.lineStyles) ? normalized.lineStyles : [];
+  const baseFontSizePt = Number(baseFont?.sizePt) || 10 * scale;
+  const baselineSkipPt = Number(baseFont?.baselineSkipPt) || baseFontSizePt * 1.2;
+  const firstScale = Number(styles[0]?.scale) || 1;
+  const lastScale = Number(styles.at(-1)?.scale) || 1;
+  const first = measurePlainTextTeXBoxPt(lines[0], { fontSizePt: baseFontSizePt * firstScale });
+  const last = measurePlainTextTeXBoxPt(lines.at(-1), { fontSizePt: baseFontSizePt * lastScale });
   if (!first || !last) {
-    return (fontSizePt * 0.7 + Math.max(0, lines.length - 1) * fontSizePt * 1.2) / TEX_PT_PER_CM;
+    return (baseFontSizePt * 0.7 + Math.max(0, lines.length - 1) * baselineSkipPt + baseFontSizePt * 0.2) / TEX_PT_PER_CM;
   }
   return (
-    first.height + Math.max(0, lines.length - 1) * fontSizePt * 1.2 + Math.max(0, last.depth)
+    first.height + Math.max(0, lines.length - 1) * baselineSkipPt + Math.max(0, last.depth)
   ) / TEX_PT_PER_CM;
 }
 
