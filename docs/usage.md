@@ -482,9 +482,9 @@ npm run examples:diff -- --output outputs/qa-3d-manhattan
 ## Basic `graphs` chains
 
 The `graphs` library is supported as a **partial**, visually tested Cartesian
-subset. TikZKit lowers `\graph` to normal `\node` and `\draw` statements before
-the ordinary parser runs, retaining shared border clipping, anchors and arrow
-tips. The verified syntax is:
+subset. TikZKit lowers `\graph` to normal `\node` and `edge` paths before the
+ordinary parser runs, retaining shared border clipping, anchors, curves,
+inline labels and arrow tips. The verified basic syntax is:
 
 ```tex
 \usetikzlibrary{graphs}
@@ -496,31 +496,50 @@ tips. The verified syntax is:
 ] { a -> {b,c} -> d; };
 ```
 
+The focused edge-label syntax requires TikZ's `quotes` library in the source:
+
+```tex
+\usetikzlibrary{graphs,quotes}
+\tikz \graph[
+  grow right=1.5cm,
+  nodes={draw,circle,minimum size=6mm},
+  edges={thick}
+] {
+  a ->[red, "start"] b --["middle"'] c ->[blue,bend left, "return"] a;
+};
+```
+
 Supported in this slice:
 
 - named node chains and comma-separated chain groups;
 - `->`, `--`, `<-`, `<->`;
 - graph-wide `nodes={...}` and `edges={...}` styles;
+- local edge styles after a connector, including colors, widths and `bend left`
+  or `bend right`;
+- quoted edge labels (`"text"`) using the default `auto` side, plus the
+  apostrophe form (`"text"'`) for `swap`;
 - Cartesian `grow right|left|up|down` and `branch right|left|up|down`, using
   `cm`, `mm` or `pt` distances;
 - the inline `\tikz \graph ...;` wrapper and `\graph ...;` inside a
   `tikzpicture`.
 
 Subgraphs, graph-drawing algorithms, node sets, circular/grid placement,
-aliases, graph operators, per-edge node syntax and TeX key callbacks are not
-yet supported. Run the focused fixture and inspect all three renderers before
+aliases, graph operators, source/target edge options (`>` / `<`), arbitrary
+quote styles/callbacks, per-edge node syntax and TeX key callbacks are not yet
+supported. Run the focused fixtures and inspect all three renderers before
 extending this subset:
 
 ```bash
 node --test test/graphs.test.js
 npm run examples:render -- --fixtures test/fixtures/examples \
-  --only graphs-basic-chain-group --output outputs/qa-graphs \
+  --only graphs-basic-chain-group,graphs-edge-labels-and-styles --output outputs/qa-graphs \
   --native-reference --comparison-grid-mode svg --strict-tikztosvg
 npm run examples:diff -- --output outputs/qa-graphs --register --alignment-radius 3
 ```
 
-The source review, parameter audit and visual acceptance record are in
-[`docs/qa/2026-08-07-graphs-basic-chain-group.md`](qa/2026-08-07-graphs-basic-chain-group.md).
+The source review, parameter audit and visual acceptance records are in
+[`docs/qa/2026-08-07-graphs-basic-chain-group.md`](qa/2026-08-07-graphs-basic-chain-group.md)
+and [`docs/qa/2026-08-07-graphs-edge-labels-and-styles.md`](qa/2026-08-07-graphs-edge-labels-and-styles.md).
 
 ## 6. 常见问题
 

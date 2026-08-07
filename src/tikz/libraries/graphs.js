@@ -14,6 +14,8 @@ export const tikzLibrary = {
     "chain groups and all-to-all group edges",
     "->, --, <-, and <-> edge operators",
     "nodes and edges graph styles",
+    "quoted edge labels with auto/swap placement",
+    "local edge styles including bend left/right",
     "grow right/left/up/down Cartesian placement",
     "branch right/left/up/down Cartesian placement",
     "inline \\tikz \\graph wrapper"
@@ -24,11 +26,13 @@ export const tikzLibrary = {
     "chain groups and all-to-all group edges",
     "->, --, <-, and <-> edge operators",
     "nodes and edges graph styles",
+    "quoted edge labels with auto/swap placement",
+    "local edge styles including bend left/right",
     "grow right/left/up/down Cartesian placement",
     "branch right/left/up/down Cartesian placement",
     "inline \\tikz \\graph wrapper"
   ],
-  notes: "Reviewed locally on 2026-08-07: the graphs library separates graph syntax from drawing. Its parser records node chains and chain groups, invokes a new-edge key for every compatible entry/exit pair, and asks placement/place to turn accumulated logical chain width and group depth into node shifts. TikZKit lowers the focused Cartesian subset to ordinary named nodes and edges: basic graph chains, one-or-more chain groups, the four built-in edge kinds, graph-wide node/edge styles, and grow/branch vectors. Subgraphs, graph drawing algorithms, node sets, circular/grid placement, graph operators, aliases, per-edge node syntax, and exact source TeX key callbacks remain partial."
+  notes: "Reviewed locally on 2026-08-07: the graphs library separates graph syntax from drawing. Its parser records node chains and chain groups, invokes a new-edge key for every compatible entry/exit pair, and asks placement/place to turn accumulated logical chain width and group depth into node shifts. Its edge implementation uses a normal TikZ edge path, while the quotes library turns quoted labels into edge nodes with every edge quotes={auto}. TikZKit lowers the focused Cartesian subset to ordinary named nodes and edge paths: basic graph chains, one-or-more chain groups, the four built-in edge kinds, graph-wide node/edge styles, quoted edge labels with basic auto/swap placement, local edge styles such as bend left/right, and grow/branch vectors. Subgraphs, graph drawing algorithms, node sets, circular/grid placement, graph operators, aliases, source/target edge options, arbitrary quote key callbacks, and exact source TeX key callbacks remain partial."
 };
 
 // Lower the useful, declarative core of the graphs library before the normal
@@ -217,10 +221,65 @@ function lowerGraph(graph, rawOptions, diagnostics) {
     return `\\node${nodeOptions ? `[${nodeOptions}]` : ""} (${node.name}) at (${formatCoordinate(node.x)},${formatCoordinate(node.y)}) {${node.label}};`;
   });
   const edges = context.edges.map((edge) => {
-    const options = joinOptions([context.graphEdgeOptions, edge.options, edge.kind === "--" ? "" : edge.kind]);
-    return `\\draw${options ? `[${options}]` : ""} (${edge.from}) -- (${edge.to});`;
+    const local = parseGraphEdgeOptions(edge.options);
+    const pathOptions = joinOptions([context.graphEdgeOptions, edge.kind === "--" ? "" : edge.kind]);
+    const labelNodes = local.labels.map(renderGraphEdgeLabel).join("");
+    return `\\path${pathOptions ? `[${pathOptions}]` : ""} (${edge.from}) edge${local.styleOptions ? `[${local.styleOptions}]` : ""}${labelNodes} (${edge.to});`;
   });
   return `\n${[...nodes, ...edges].join("\n")}\n`;
+}
+
+// The native graphs library executes each connector through its `new ->`
+// handler, which creates an ordinary TikZ `edge[...]` path. Keep edge options
+// on that edge rather than flattening them into `--`: this preserves curves,
+// edge-local styles and the geometry used by path labels. The quotes library
+// translates `"label"` into `edge node={node[every edge quotes]{label}}` with
+// `every edge quotes={auto}`; this focused equivalent accepts the common
+// quoted label and apostrophe/swap form without requiring a separate renderer.
+function parseGraphEdgeOptions(rawOptions) {
+  const styleOptions = [];
+  const labels = [];
+  for (const entry of splitTopLevel(rawOptions, ",")) {
+    const label = parseGraphEdgeQuote(entry);
+    if (label) labels.push(label);
+    else if (entry.trim()) styleOptions.push(entry.trim());
+  }
+  return { styleOptions: styleOptions.join(","), labels };
+}
+
+function parseGraphEdgeQuote(raw) {
+  const text = String(raw || "").trim();
+  if (!text.startsWith('"')) return null;
+  const end = findGraphQuoteEnd(text, 1);
+  if (end < 0) return null;
+  let rest = text.slice(end + 1).trim();
+  let swap = false;
+  if (rest.startsWith("'")) {
+    swap = true;
+    rest = rest.slice(1).trim();
+  }
+  return {
+    text: text.slice(1, end).replaceAll('""', '"'),
+    swap,
+    options: stripOuterBraces(rest)
+  };
+}
+
+function findGraphQuoteEnd(text, start) {
+  for (let index = start; index < text.length; index += 1) {
+    if (text[index] !== '"') continue;
+    if (text[index + 1] === '"') {
+      index += 1;
+      continue;
+    }
+    return index;
+  }
+  return -1;
+}
+
+function renderGraphEdgeLabel(label) {
+  const options = joinOptions(["auto", label.swap ? "swap" : "", label.options]);
+  return ` node${options ? `[${options}]` : ""} {${label.text}}`;
 }
 
 function layoutGraphGroup(group, originX, originY, context, diagnostics) {

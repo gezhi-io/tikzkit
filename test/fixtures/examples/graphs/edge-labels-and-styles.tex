@@ -1,0 +1,15 @@
+% Source: TeX Live PGF manual, pgfmanual-en-tikz-graphs.tex, edge labels/styles.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{graphs,quotes}
+
+\begin{document}
+\tikz
+  \graph[
+    grow right=1.5cm,
+    nodes={draw,circle,minimum size=6mm},
+    edges={thick}
+  ] {
+    a ->[red, "start"] b --["middle"'] c ->[blue,bend left, "return"] a;
+  };
+\end{document}

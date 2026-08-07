@@ -2088,10 +2088,12 @@ debugged visually.
 
 `\usetikzlibrary{graphs}` currently supports a deliberately small, verified
 Cartesian slice: named nodes, chain groups, `->` / `--` / `<-` / `<->`, shared
-`nodes={...}` and `edges={...}` styles, plus `grow right|left|up|down` and
-`branch right|left|up|down`. The graph syntax is lowered to ordinary TikZ
-nodes and paths before interpretation, so it uses the normal node-border and
-arrow rendering rules:
+`nodes={...}` and `edges={...}` styles, local edge styles such as `red` and
+`bend left`, plus quoted edge labels. Quoted labels follow TikZ's common
+`auto` default and apostrophe (`"label"'`) `swap` placement. Load `quotes` in
+the source when using this syntax. The graph syntax is lowered to ordinary
+TikZ nodes and `edge` paths before interpretation, so it uses the normal
+node-border, curve, label and arrow rendering rules:
 
 ```tex
 \usetikzlibrary{graphs}
@@ -2103,10 +2105,19 @@ arrow rendering rules:
 ] { a -> {b,c} -> d; };
 ```
 
+```tex
+\usetikzlibrary{graphs,quotes}
+\tikz \graph[grow right=1.5cm, nodes={draw,circle}, edges={thick}] {
+  a ->[red, "start"] b --["middle"'] c ->[blue,bend left, "return"] a;
+};
+```
+
 This is not the entire PGF graph language. Subgraphs, graph-drawing
-algorithms, node sets, circular/grid placement, aliases, graph operators and
-per-edge node syntax remain partial. The reproducible three-way visual record
-is [`docs/qa/2026-08-07-graphs-basic-chain-group.md`](docs/qa/2026-08-07-graphs-basic-chain-group.md).
+algorithms, node sets, circular/grid placement, aliases, graph operators,
+source/target edge options, arbitrary quote key callbacks and per-edge node
+syntax remain partial. The reproducible three-way visual records are
+[`docs/qa/2026-08-07-graphs-basic-chain-group.md`](docs/qa/2026-08-07-graphs-basic-chain-group.md)
+and [`docs/qa/2026-08-07-graphs-edge-labels-and-styles.md`](docs/qa/2026-08-07-graphs-edge-labels-and-styles.md).
 
 Public API:
 

@@ -4722,6 +4722,22 @@
       ]
     },
     {
+      "id": "graphs-edge-labels-and-styles",
+      "title": "TikZ graphs edge labels and local styles",
+      "source": "graphs/edge-labels-and-styles.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-graphs.tex + tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryquotes.code.tex",
+      "semanticOwner": "src/tikz/libraries/graphs.js:expandTikzGraphs",
+      "features": [
+        "graph command",
+        "quoted edge labels",
+        "edge auto placement",
+        "edge swap placement",
+        "local edge color",
+        "bend left edge"
+      ]
+    },
+    {
       "id": "pgfplots-groupplots-shared-descriptions",
       "title": "PGFPlots groupplots shared edge descriptions",
       "source": "pgfplots/groupplots-shared-descriptions.tex",
