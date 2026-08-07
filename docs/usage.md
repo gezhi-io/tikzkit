@@ -320,7 +320,7 @@ npm run examples:diff -- --output outputs/qa-pgfplots-legend-matrix \
 ## 5. 日常检查与提交
 
 ```bash
-# 维护案例的语义检查；当前预期为 297/297 rendered, 0 diagnostics。
+# 维护案例的语义检查；当前预期为 316/316 rendered, 0 diagnostics。
 npm run gallery:audit
 
 # 只运行正在修改的功能测试，例如 multipart。
@@ -349,6 +349,11 @@ git status --short
 `git status --short` 中的 `outputs/`、`output/`、临时 PNG/SVG 不是源代码，保持
 未暂存即可。一次提交只覆盖一个经过验收的功能切片；不要把尚未检查的案例、无关
 重构或本地图片混入同一次提交。
+
+三维 `pgfplots` 即使没有 diagnostics，也必须单独生成三方参考：默认透视、
+`axis lines=left`、网格面、刻度短线和 colorbar 的投影与边界框都仍按功能切片校准。
+对 `hypersurface-*` 等曲面使用足够长的本机参考超时，并实际确认网格/刻度落在投影
+凸包的正确边缘；曲面出现本身不是视觉验收。
 
 ## 6. 常见问题
 
