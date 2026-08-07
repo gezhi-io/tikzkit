@@ -72,14 +72,18 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   if (lines.length <= 1) {
     const lineStyle = lineStyles[0] || {};
     const lineFontSize = fontSize * (lineStyle.scale || 1) * mathOnlyGlyphFontScale(contentLines[0]);
-    const lineFontFamily = escapeAttribute(renderFontFamily(lineStyle.fontFamily || rawFontFamily));
+    const lineFontFamily = escapeAttribute(renderFontFamilyForWeight(
+      lineStyle.fontFamily || rawFontFamily,
+      lineStyle.fontWeight
+    ));
     const content = renderLineFontSegments(
       contentLines[0],
       lines[0] || "",
       lineStyle,
       lineFontSize,
       unit,
-      renderSvgTextLineContent
+      renderSvgTextLineContent,
+      rawFontFamily
     );
     const lineFontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(contentLines[0]);
     const lineFontVariant = fontVariantAttribute(lineStyle) || textFontVariant;
@@ -109,7 +113,8 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
         lineStyle,
         lineFontSize,
         unit,
-        renderSvgTextLineContent
+        renderSvgTextLineContent,
+        rawFontFamily
       )}</tspan>`;
     })
     .join("");
@@ -283,10 +288,10 @@ function measuredWrappedTextHeightPx(lines, lineSizes, offsets, unit) {
   return Number.isFinite(top) && Number.isFinite(bottom) ? Math.max(0, bottom - top) : NaN;
 }
 
-function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSize, unit, renderSvgTextLineContent) {
+function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSize, unit, renderSvgTextLineContent, parentFamily) {
   const segments = Array.isArray(lineStyle?.fontSegments) ? lineStyle.fontSegments : [];
   if (!segments.length) return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
-  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize, 1)) {
+  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize, 1, parentFamily)) {
     return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
   }
   return segments
@@ -294,16 +299,21 @@ function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSi
       const scale = Number(segment.scale) || 1;
       const size = lineFontSize * scale;
       const content = renderSvgTextLineContent(segment.text, segment.text, size, unit);
-      const attributes = segmentFontAttributes(segment, lineStyle, size, scale);
+      const attributes = segmentFontAttributes(segment, lineStyle, size, scale, parentFamily);
       return attributes ? `<tspan${attributes}>${content}</tspan>` : content;
     })
     .join("");
 }
 
-function segmentFontAttributes(segment, lineStyle, size, scale) {
+function segmentFontAttributes(segment, lineStyle, size, scale, parentFamily) {
   let attributes = Math.abs(scale - 1) < 1e-9 ? "" : ` font-size="${format(size)}"`;
-  if (segment.family && !sameFontProperty(segment.family, lineStyle.fontFamily)) {
-    attributes += ` font-family="${escapeAttribute(renderFontFamily(segment.family))}"`;
+  const segmentFamily = renderFontFamilyForWeight(
+    segment.family || parentFamily,
+    segment.weight ?? lineStyle.fontWeight
+  );
+  const inheritedFamily = renderFontFamilyForWeight(parentFamily, lineStyle.fontWeight);
+  if (!sameFontProperty(segmentFamily, inheritedFamily)) {
+    attributes += ` font-family="${escapeAttribute(segmentFamily)}"`;
   }
   if (segment.weight !== null && segment.weight !== undefined && !sameFontProperty(segment.weight, lineStyle.fontWeight)) {
     attributes += ` font-weight="${escapeAttribute(String(segment.weight))}"`;
@@ -322,9 +332,8 @@ function sameFontProperty(first, second) {
 }
 
 function lineFontFamilyAttribute(lineStyle, parentFamily) {
-  if (!lineStyle.fontFamily) return "";
-  const family = renderFontFamily(lineStyle.fontFamily);
-  return family === renderFontFamily(parentFamily) ? "" : ` font-family="${escapeAttribute(family)}"`;
+  const family = renderFontFamilyForWeight(lineStyle.fontFamily || parentFamily, lineStyle.fontWeight);
+  return family === renderFontFamilyForWeight(parentFamily, null) ? "" : ` font-family="${escapeAttribute(family)}"`;
 }
 
 function resolvedFontStyle(item = {}) {
@@ -349,6 +358,16 @@ function renderFontFamily(family) {
   if (family === "monospace") return TIKZ_MONOSPACE_FONT_FAMILY;
   if (!family || family === "serif") return TIKZ_FONT_FAMILY;
   return family;
+}
+
+function renderFontFamilyForWeight(family, weight) {
+  const rendered = renderFontFamily(family);
+  if (Number(weight) !== 700) return rendered;
+  // CMBX exists through 12pt; LaTeX's 17pt display size uses that face too.
+  return rendered.replace(/TikZKitCMR(5|6|7|8|9|10|12|17)\b/g, (_match, size) => {
+    const boldSize = size === "17" ? "12" : size;
+    return `TikZKitCMBX${boldSize}`;
+  });
 }
 
 function plainTextBoundsWidthScale(item, fontFamily) {

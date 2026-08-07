@@ -537,6 +537,12 @@ test("mid-line font declarations style only following segments", () => {
     assert.doesNotMatch(openingTag, new RegExp(`${entry.attribute}="[^"]*${entry.value}`));
     assert.match(text, new RegExp(`normal <tspan\\b`));
     assert.match(text, segmentPattern);
+    if (entry.command === String.raw`\bfseries`) {
+      assert.match(
+        text,
+        /<tspan\b(?=[^>]*font-family="TikZKitCMBX10, TikZKitCMUSerif, serif")[^>]*font-weight="700"[^>]*>bold<\/tspan>/
+      );
+    }
   }
 
   const grouped = tikzToSvg(
@@ -571,6 +577,12 @@ test("scoped text font wrappers style only their arguments and restore afterward
       text,
       new RegExp(`normal <tspan\\b(?=[^>]*${entry.attribute}="[^"]*${entry.value}[^"]*")[^>]*>${entry.text}<\\/tspan> normal`)
     );
+    if (entry.command === "textbf") {
+      assert.match(
+        text,
+        /<tspan\b(?=[^>]*font-family="TikZKitCMBX10, TikZKitCMUSerif, serif")[^>]*font-weight="700"[^>]*>bold<\/tspan>/
+      );
+    }
   }
 
   const overrideCases = [

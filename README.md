@@ -110,6 +110,13 @@ document.querySelector("#preview").innerHTML = result.svg;
 `renderSvg(ir)` 输出 SVG，`tikzToSvg(source)` 一次完成以上步骤。异步文字测量场景可
 使用 `tikzToSvgAsync(source, options)`。
 
+### 文字与公式
+
+默认文本使用项目随附的 Computer Modern 字体；普通文字选 CMR 对应设计字号，局部
+`\textbf{...}`/`\bfseries` 选同字号的 CMBX 粗体，而不是浏览器的合成加粗。`small`、
+`scriptsize` 等局部字号会保留自己的基线间距。公式和复杂段落仍是逐个功能切片校准，
+所以在宣称某个案例可用前，仍应按下方流程与本机 MacTeX 对照。
+
 ### 4. 验收一个真实案例
 
 兼容性改动先盘点源码中实际使用的 package、library、命令、参数、数值和表达式，再
