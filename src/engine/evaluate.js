@@ -14345,6 +14345,18 @@ function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode,
 }
 
 function appendNativeSnakePolyline(commands, points, amplitude, segmentLength, activeStart, activeLength, normalSign = 1, normalRaise = 0) {
+  // The native snake decoration does not enable `auto corner on length`.
+  // A state that crosses a polyline corner is therefore painted entirely in
+  // the tangent frame at that state's origin. Sampling every control point
+  // against the input polyline rotates a single Bezier segment midway through
+  // a corner, which visibly kinks the snake. Keep the legacy snakes path
+  // below: its extra mirror/raise semantics deliberately use the older
+  // per-sample behavior.
+  if (normalSign === 1 && normalRaise === 0) {
+    appendNativeSnakePolylineInStateFrames(commands, points, amplitude, segmentLength, activeStart, activeLength);
+    return;
+  }
+
   const point = (distance, normalOffset = 0) => {
     const sample = pointOnPolyline(points, activeStart + distance);
     return {
@@ -14395,6 +14407,74 @@ function appendNativeSnakePolyline(commands, points, amplitude, segmentLength, a
   );
   distance += 0.3125 * segmentLength;
   if (activeLength - distance > 1e-9) commands.push({ type: "lineTo", x: finishAt.x, y: finishAt.y });
+}
+
+function appendNativeSnakePolylineInStateFrames(commands, points, amplitude, segmentLength, activeStart, activeLength) {
+  const inputPoint = (distance) => pointOnPolyline(points, activeStart + distance);
+  const finishAt = inputPoint(activeLength);
+  const pushCurve = (control1, control2, end) => {
+    commands.push({ type: "curveTo", x1: control1.x, y1: control1.y, x2: control2.x, y2: control2.y, x: end.x, y: end.y });
+  };
+  const statePoint = (stateOrigin, stateStart, xOffset, yOffset) => {
+    const sample = inputPoint(stateOrigin);
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
+    return {
+      x: roundNumber(stateStart.x + tangent.x * xOffset + sample.normal.x * yOffset),
+      y: roundNumber(stateStart.y + tangent.y * xOffset + sample.normal.y * yOffset)
+    };
+  };
+  const currentPoint = () => {
+    const current = commands.at(-1);
+    return { x: Number(current?.x) || 0, y: Number(current?.y) || 0 };
+  };
+
+  if (activeLength < 0.625 * segmentLength) {
+    commands.push({ type: "lineTo", x: roundNumber(finishAt.x), y: roundNumber(finishAt.y) });
+    return;
+  }
+
+  let stateOrigin = 0;
+  let stateStart = currentPoint();
+  const initialPoint = (xOffset, yOffset) => statePoint(stateOrigin, stateStart, xOffset, yOffset);
+  pushCurve(
+    initialPoint(0.125 * segmentLength, 0),
+    initialPoint(0.1875 * segmentLength, amplitude),
+    initialPoint(0.3125 * segmentLength, amplitude)
+  );
+
+  stateOrigin = 0.3125 * segmentLength;
+  let phase = 1;
+  while (activeLength - stateOrigin >= 0.8125 * segmentLength) {
+    stateStart = currentPoint();
+    const quarter = 0.25 * segmentLength;
+    const point = (xOffset, yOffset) => statePoint(stateOrigin, stateStart, xOffset, yOffset);
+    // `down` and `up` use two relative cosine/sine halves in this state
+    // frame. The y offsets below are relative to the state entry point.
+    pushCurve(
+      point(0.362 * quarter, 0),
+      point(0.674 * quarter, -phase * amplitude * 0.488),
+      point(quarter, -phase * amplitude)
+    );
+    pushCurve(
+      point(quarter + 0.326 * quarter, -phase * amplitude * 1.512),
+      point(quarter + 0.638 * quarter, -phase * amplitude * 2),
+      point(2 * quarter, -phase * amplitude * 2)
+    );
+    stateOrigin += 2 * quarter;
+    phase *= -1;
+  }
+
+  stateStart = currentPoint();
+  const finalPoint = (xOffset, yOffset) => statePoint(stateOrigin, stateStart, xOffset, yOffset);
+  pushCurve(
+    finalPoint(0.125 * segmentLength, 0),
+    finalPoint(0.1875 * segmentLength, -phase * amplitude),
+    finalPoint(0.3125 * segmentLength, -phase * amplitude)
+  );
+  stateOrigin += 0.3125 * segmentLength;
+  if (activeLength - stateOrigin > 1e-9) {
+    commands.push({ type: "lineTo", x: roundNumber(finishAt.x), y: roundNumber(finishAt.y) });
+  }
 }
 
 function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, activeStart, activeLength, normalSign = 1, normalRaise = 0) {
