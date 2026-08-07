@@ -295,10 +295,11 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
     const plotOptions = plot.options || {};
     const usesDefaultCycle =
       !cycleName &&
-      plot.type === "coordinates" &&
-      plot.source === "table" &&
-      !plot.is3d &&
-      (!plotOptions["pgfplots explicit options"] || plotOptions["pgfplots plus"]);
+      (plotOptions["pgfplots plus"] ||
+        (plot.type === "coordinates" &&
+          plot.source === "table" &&
+          !plot.is3d &&
+          !plotOptions["pgfplots explicit options"]));
     const cycleStyle = cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
       || (usesDefaultCycle ? defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10)) : {});
     return {

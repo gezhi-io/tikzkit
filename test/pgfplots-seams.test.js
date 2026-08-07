@@ -654,6 +654,7 @@ test("pgfplots cycle list declarations feed addplot cycle styles", () => {
 
   assert.match(rendered, /\\draw\[axis plot, yellow(?:,|\])/);
   assert.match(rendered, /\\draw\[axis plot, draw=#00dd00, densely dashed(?:,|\])/);
+  assert.doesNotMatch(rendered, /axis mark/);
 });
 
 test("pgfplots lowers two-parameter addplot3 tuples into a surface grid", () => {
@@ -4723,6 +4724,7 @@ test("pgfplots plot style helper preserves cycle colors and explicit style optio
 
 test("pgfplots marks lowering owns mark decisions and TikZ mark primitives", () => {
   assert.equal(shouldRenderPlotMarks({ mark: "none" }), false);
+  assert.equal(shouldRenderPlotMarks({ "pgfplots plus": true, mark: "none" }), false);
   assert.equal(shouldRenderPlotMarks({ "only marks": true }), true);
   assert.equal(
     renderPlotMark({ x: 1, y: 2 }, { mark: "o", blue: true, "mark size": "2pt" }, 0),

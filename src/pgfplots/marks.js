@@ -14,7 +14,10 @@ export function createPlotMarkModel(plotOptions = {}) {
 
 export function shouldRenderPlotMarks(options = {}) {
   if (options["no markers"] || String(options.mark || "").trim().toLowerCase() === "none") return false;
-  return Boolean(options["only marks"] || options.scatter || options.mark || options["pgfplots plus"]);
+  // `\addplot+` only says that the active cycle-list style is appended to
+  // this plot. It does not itself request a marker. A custom cycle list may
+  // contain only color/dash entries, and `mark={}` explicitly disables one.
+  return Boolean(options["only marks"] || options.scatter || options.mark);
 }
 
 export function scatterClassOptionsForPoint(options = {}, point = {}) {

@@ -186,6 +186,30 @@ npm run examples:render -- --fixtures test/fixtures/examples \
 颜色透明度混合与精确文字度量仍在测试中。三方图和 MacTeX 源码记录见
 [PGFPlots 标签颜色 QA](docs/qa/2026-08-08-pgfplots-nodes-near-coord-cycle-color.md)。
 
+### 最近验收：PGFPlots cycle list 与 `mark={}`
+
+`\\addplot+` 现在只追加当前 cycle-list 的真实样式，不会凭自身产生 marker。
+因此，命名 cycle list 中只有颜色、虚线等线条设置时，图例和曲线保持无标记；源码
+显式写出的 `mark={}` 会被正确解释为 `mark=none`。未命名的默认 cycle list 则仍会
+保留它本来声明的 marker，避免把普通 `\\addplot+` 错误地降级成纯线条。
+
+以下命令重现 `latex-examples-2d-chi-squared-pdf` 的三方对照。该案例的六条
+`raw gnuplot` 曲线和六个图例样本都应为无标记线段：
+
+```bash
+node --test --test-name-pattern='pgfplots (addplot3 parametric tuples|cycle list declarations|marks lowering)' \
+  test/pgfplots-seams.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only latex-examples-2d-chi-squared-pdf \
+  --output outputs/qa-pgfplots-cycle-mark-none \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-pgfplots-cycle-mark-none
+```
+
+自定义 TeX cycle 条目、多索引 cycle list、marker phase 与任意 `mark options` 继承
+仍是 partial。MacTeX 源码阅读、三方图片和剩余边界见
+[PGFPlots cycle-list QA](docs/qa/2026-08-08-pgfplots-cycle-mark-none.md)。
+
 ### 最近验收：pgfgantt group 峰形轮廓
 
 `pgfgantt` 仍是 partial，但标准 `\ganttgroup` 与 `\ganttlinkedgroup` 现已使用
