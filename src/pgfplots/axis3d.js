@@ -87,7 +87,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   const layout = axis3DAnnotationLayout(ranges, geometry);
   const labelAnchors = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, axisTickAnnotationAnchor(axisOptions, axis, layout[axis].normal)]));
   const oppositeTickAxes = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, shouldRenderOpposite3DTicks(axisOptions, axis)]));
-  const opposite = Object.values(oppositeTickAxes).some(Boolean) ? axis3DOppositeTickEdges(ranges, geometry) : {};
+  const boxTickEdges = Object.values(oppositeTickAxes).some(Boolean) ? axis3DBoxTickEdges(ranges, geometry) : {};
   const center = Object.values(oppositeTickAxes).some(Boolean) ? projectedBoxCenter(ranges, geometry) : null;
   const minorTickLength = parseDimension(String(axisOptions["minor tick length"] || axisOptions.subtickwidth || "0.1cm"), {});
   for (const [axis, values] of Object.entries(minorTicks)) {
@@ -103,7 +103,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
       const minorStyle = "axis minor tick, gray, line width=0.2pt";
       commands.push(`\\draw[${minorStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
       if (oppositeTickAxes[axis]) {
-        commands.push(oppositeTickCommand(axis, value, opposite[axis], center, geometry, minorStyle, minorTickLength));
+        commands.push(...additionalBoxTickCommands(axis, value, layout[axis], boxTickEdges[axis], center, geometry, minorStyle, minorTickLength));
       }
     }
   }
@@ -111,21 +111,21 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     const base = geometry.mapPoint3d({ x, y: layout.x.y, z: layout.x.z });
     const to = offsetAlongNormal(base, invertVector(layout.x.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
-    if (oppositeTickAxes.x) commands.push(oppositeTickCommand("x", x, opposite.x, center, geometry, tickStyle, tickLength));
+    if (oppositeTickAxes.x) commands.push(...additionalBoxTickCommands("x", x, layout.x, boxTickEdges.x, center, geometry, tickStyle, tickLength));
     commands.push(`\\node[${tickLabelStyle("x", labelAnchors.x)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.x.normal, tickLabelDistance(axisOptions, "x", tickLength)))} {${formatAxis3DTickLabel(axisOptions, "x", x)}};`);
   }
   for (const y of resolvedYTicks) {
     const base = geometry.mapPoint3d({ x: layout.y.x, y, z: layout.y.z });
     const to = offsetAlongNormal(base, invertVector(layout.y.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
-    if (oppositeTickAxes.y) commands.push(oppositeTickCommand("y", y, opposite.y, center, geometry, tickStyle, tickLength));
+    if (oppositeTickAxes.y) commands.push(...additionalBoxTickCommands("y", y, layout.y, boxTickEdges.y, center, geometry, tickStyle, tickLength));
     commands.push(`\\node[${tickLabelStyle("y", labelAnchors.y)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.y.normal, tickLabelDistance(axisOptions, "y", tickLength)))} {${formatAxis3DTickLabel(axisOptions, "y", y)}};`);
   }
   for (const z of resolvedZTicks) {
     const base = geometry.mapPoint3d({ x: layout.z.x, y: layout.z.y, z });
     const to = offsetAlongNormal(base, invertVector(layout.z.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
-    if (oppositeTickAxes.z) commands.push(oppositeTickCommand("z", z, opposite.z, center, geometry, tickStyle, tickLength));
+    if (oppositeTickAxes.z) commands.push(...additionalBoxTickCommands("z", z, layout.z, boxTickEdges.z, center, geometry, tickStyle, tickLength));
     commands.push(`\\node[${tickLabelStyle("z", labelAnchors.z)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.z.normal, tickLabelDistance(axisOptions, "z", tickLength)))} {${formatScaledAxisTickLabel(z, zTickFormat, { precision: zTickPrecision })}};`);
   }
   if (zTickFormat.scaled) {
@@ -309,13 +309,24 @@ function axis3DTickLabelEdges(ranges, geometry) {
   };
 }
 
-function axis3DOppositeTickEdges(ranges, geometry) {
+function axis3DBoxTickEdges(ranges, geometry) {
   const candidates = axis3DParallelEdges(ranges, geometry);
   return {
-    x: chooseProjectedEdge(candidates.x, "y", "max"),
-    y: chooseProjectedEdge(candidates.y, "y", "max"),
-    z: chooseProjectedEdge(candidates.z, "x", "max")
+    x: chooseProjectedBoxTickEdges(candidates.x, "x", "y"),
+    y: chooseProjectedBoxTickEdges(candidates.y, "y", "y"),
+    z: chooseProjectedBoxTickEdges(candidates.z, "z", "x")
   };
+}
+
+function chooseProjectedBoxTickEdges(edges, axis, labelCoordinate) {
+  const label = chooseProjectedEdge(edges, labelCoordinate);
+  const opposite = chooseProjectedEdge(edges, labelCoordinate, "max");
+  const bridge = edges
+    .filter((edge) => !sameAxis3DEdge(axis, edge, label) && !sameAxis3DEdge(axis, edge, opposite))
+    .reduce((best, edge) => !best || edge.midpoint.y < best.midpoint.y ? edge : best, null);
+  return [label, bridge, opposite].filter((edge, index, selected) =>
+    edge && !selected.slice(0, index).some((candidate) => sameAxis3DEdge(axis, candidate, edge))
+  );
 }
 
 function axis3DParallelEdges(ranges, geometry) {
@@ -364,7 +375,21 @@ function chooseProjectedEdge(edges, coordinate, direction = "min") {
   });
 }
 
-function oppositeTickCommand(axis, value, edge, center, geometry, style, length) {
+function additionalBoxTickCommands(axis, value, labelEdge, edges, center, geometry, style, length) {
+  return (edges || [])
+    .filter((edge) => !sameAxis3DEdge(axis, edge, labelEdge))
+    .map((edge) => boxTickCommand(axis, value, edge, center, geometry, style, length))
+    .filter(Boolean);
+}
+
+function sameAxis3DEdge(axis, first, second) {
+  if (!first || !second) return false;
+  if (axis === "x") return first.y === second.y && first.z === second.z;
+  if (axis === "y") return first.x === second.x && first.z === second.z;
+  return first.x === second.x && first.y === second.y;
+}
+
+function boxTickCommand(axis, value, edge, center, geometry, style, length) {
   if (!edge) return "";
   const coordinate = axis === "x"
     ? { x: value, y: edge.y, z: edge.z }

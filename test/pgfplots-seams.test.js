@@ -2132,7 +2132,7 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
     String.raw`\node[axis label, anchor=north] at (0.5,-0.72) {$x$};`,
     String.raw`\node[axis label, anchor=east] at (-0.531,0.391) {$y$};`,
     String.raw`\node[axis label, anchor=east, rotate=90] at (-1,0.5) {$z$};`,
-    String.raw`\node[axis label, anchor=south] at (0.55,1.35) {Surface};`
+    String.raw`\node[axis label, anchor=south] at (0.55,1.45) {Surface};`
   ]);
 });
 
@@ -2284,7 +2284,7 @@ test("pgfplots 3d scaled z tick multiplier extends beyond the upper tick edge", 
   assert.match(multiplier, /\\cdot 10\^\{10\}/);
 });
 
-test("pgfplots boxed 3d axes draw unlabeled ticks on opposite frame edges", () => {
+test("pgfplots boxed 3d axes draw unlabeled ticks along visible box-edge runs", () => {
   const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 1 };
   const geometry = {
     mapPoint3d: ({ x, y, z }) => ({ x: x + y * 0.25, y: z + y * 0.2 })
@@ -2293,8 +2293,9 @@ test("pgfplots boxed 3d axes draw unlabeled ticks on opposite frame edges", () =
   const ticks = commands.filter((command) => command.startsWith(String.raw`\draw[axis tick`));
   const labels = commands.filter((command) => command.includes("axis tick label"));
 
-  assert.equal(ticks.length, 6);
+  assert.equal(ticks.length, 9);
   assert.equal(labels.length, 3);
+  assert.ok(ticks.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (0.75,0.2) -- (0.75,0.35);`));
 });
 
 test("pgfplots compact 3d automatic z ticks do not label beyond the z range", () => {
