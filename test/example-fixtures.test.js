@@ -34,6 +34,21 @@ test("example fixture manifest includes real LaTeX-examples source cases", () =>
   }
 });
 
+test("knot-trefoil declares its local brunnian package resource", () => {
+  const trefoil = manifest.cases.find((entry) => entry.id === "latex-examples-knot-trefoil");
+  const cyclicGraph = manifest.cases.find((entry) => entry.id === "latex-examples-cyclic-graph");
+  const graphBanner = manifest.cases.find((entry) => entry.id === "latex-examples-graph-banner");
+
+  assert.deepEqual(trefoil?.resources, [
+    {
+      name: "brunnian.sty",
+      source: "latex-examples/resources/knot-trefoil/brunnian.sty"
+    }
+  ]);
+  assert.equal(cyclicGraph?.resources, undefined);
+  assert.equal(graphBanner?.resources, undefined);
+});
+
 test("example fixture manifest tracks every copied LaTeX-examples source with corpus metadata", async () => {
   const sources = await discoverExampleSources(FIXTURE_ROOT);
   const copiedRealSources = sources.filter((source) => source.startsWith("latex-examples/"));

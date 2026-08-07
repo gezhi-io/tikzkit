@@ -23,9 +23,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 ## Highest-Priority Unsupported Entries
 
-| kind | name | cases | local source | reviewed | next note |
-| --- | --- | ---: | --- | --- | --- |
-| package | brunnian | 1 | missing | not-found | Needs package compatibility pass |
+None.
 
 
 ## Highest-Priority Partial Entries
@@ -69,7 +67,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | tikzlibrary | trees | 2 | found | yes | Reviewed locally on 2026-08-07 against the trees source and manual. Child placement starts from `growth parent anchor`; `every child node` is merged before each generated child node; parent/child anchors select the endpoints of the generated edge, with `border` retaining automatic node-border clipping. The four documented fork routes use those same anchors. Graph drawing, arbitrary edge-from-parent paths, and collision-avoiding tree layouts remain partial. |
 | package | array | 1 | found | yes | Supports focused document tabular layouts containing nested TikZ pictures: l/c/r columns, internal vertical rules, hline rules, explicit blank strut rows, and ordinary cell text are measured before SVG placement. General array column preambles, p/m/b columns, multicolumn, multirow, arbitrary rich table content, row-height arguments, tabular*, and native cross-picture remember-picture crop semantics remain unsupported. |
 | tikzlibrary | automata | 1 | found | yes | `state with output` now inherits the source-derived circle-split `text`/`lower` TeX-box geometry, including the actual lower-box origin used by `(state.lower)` paths. Every initial/accepting by arrow inherits its documented path-local text, stroke, line, dash, opacity, and arrow styles. Path-local geometry keys beyond the shared renderer subset remain partial. As in PGF, automata itself does not load shapes.geometric; sources using initial by diamond must load it. |
-| package | chemfig | 1 | found | yes | This is a deliberately bounded pure-JS compatibility slice. General chemfig atom grammars, Cram bonds, distant hooks, chemmove, and arbitrary scheme layouts remain unsupported. The captured example uses deprecated setatomsep and lewis commands that need a compatibility shim in current TeX Live. |
+| package | brunnian | 1 | found | yes | The verified trefoil uses only brunnian's knot crossing node shape and scaled compass anchors. Full brunnian macro families (\brunnian, \outbrunnian, link/junction macros, background layers, and knot over/under crossing behavior) remain unsupported. Native QA materializes the fixture-local .sty both under its source path and declared package name. |
 
 
 ## Implementation Workflow

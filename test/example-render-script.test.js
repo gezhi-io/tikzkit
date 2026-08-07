@@ -662,6 +662,10 @@ test("native MacTeX references materialize manifest resources beside their rewri
             await readFile(path.join(path.dirname(args.at(-1)), "resources", "chart", "data.csv"), "utf8"),
             "x,y\n0,1\n1,2\n"
           );
+          assert.equal(
+            await readFile(path.join(path.dirname(args.at(-1)), "data.csv"), "utf8"),
+            "x,y\n0,1\n1,2\n"
+          );
           return { exitCode: 0, stdout: "", stderr: "" };
         }
         assert.equal(command, "pdftocairo");

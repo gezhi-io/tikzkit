@@ -442,13 +442,18 @@ async function materializeNativeReferenceResources(resources, fixtureRoot, workD
     const resourcePath = normalizeResourceName(resource?.source);
     if (!resourcePath) continue;
     const sourcePath = path.resolve(root, resourcePath);
-    const targetPath = path.resolve(workDir, resourcePath);
-    if (!isWithinDirectory(sourcePath, root) || !isWithinDirectory(targetPath, workDir)) continue;
-    try {
-      await mkdir(path.dirname(targetPath), { recursive: true });
-      await copyFile(sourcePath, targetPath);
-    } catch {
-      // Let MacTeX report the original missing-resource diagnostic in its log.
+    const targets = new Set([resourcePath, normalizeResourceName(resource?.name)]);
+    if (!isWithinDirectory(sourcePath, root)) continue;
+    for (const targetName of targets) {
+      if (!targetName) continue;
+      const targetPath = path.resolve(workDir, targetName);
+      if (!isWithinDirectory(targetPath, workDir)) continue;
+      try {
+        await mkdir(path.dirname(targetPath), { recursive: true });
+        await copyFile(sourcePath, targetPath);
+      } catch {
+        // Let MacTeX report the original missing-resource diagnostic in its log.
+      }
     }
   }
 }

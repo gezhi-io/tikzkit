@@ -10,6 +10,7 @@ import { texPackage as pkg_bchart } from "./bchart.js";
 import { texPackage as pkg_8_bm } from "./bm.js";
 import { texPackage as pkg_9_booktabs } from "./booktabs.js";
 import { texPackage as pkg_10_braids } from "./braids.js";
+import { texPackage as pkg_brunnian } from "./brunnian.js";
 import { texPackage as pkg_11_calc } from "./calc.js";
 import { texPackage as pkg_12_cfr_lm } from "./cfr-lm.js";
 import { texPackage as pkg_13_chemformula } from "./chemformula.js";
@@ -109,6 +110,7 @@ const texPackages = [
   pkg_8_bm,
   pkg_9_booktabs,
   pkg_10_braids,
+  pkg_brunnian,
   pkg_11_calc,
   pkg_12_cfr_lm,
   pkg_13_chemformula,

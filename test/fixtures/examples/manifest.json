@@ -2271,12 +2271,6 @@
         "foreach expansion",
         "node layout",
         "path drawing"
-      ],
-      "resources": [
-        {
-          "name": "brunnian.sty",
-          "source": "latex-examples/resources/knot-trefoil/brunnian.sty"
-        }
       ]
     },
     {
@@ -3448,6 +3442,12 @@
         "foreach expansion",
         "node layout",
         "path drawing"
+      ],
+      "resources": [
+        {
+          "name": "brunnian.sty",
+          "source": "latex-examples/resources/knot-trefoil/brunnian.sty"
+        }
       ]
     },
     {
