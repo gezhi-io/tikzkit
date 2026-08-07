@@ -390,6 +390,63 @@ export function stealthArrowShortenFromLength(length) {
   return length * 0.625;
 }
 
+export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
+  const unitsPerPt = lineWidthFromPt(1);
+  const pathLineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;
+  const options = typeof scales === "object" && scales !== null ? scales : { scale: scales };
+  const scaleFactor = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
+  const generalScale = scaleFactor(options.scale);
+  const lengthScale = generalScale * scaleFactor(options.lengthScale);
+  const widthScale = generalScale * scaleFactor(options.widthScale);
+  const explicitLengthPt = Number.isFinite(Number(options.lengthPt)) && Number(options.lengthPt) > 0
+    ? Number(options.lengthPt)
+    : null;
+  const explicitWidthPt = Number.isFinite(Number(options.widthPt)) && Number(options.widthPt) > 0
+    ? Number(options.widthPt)
+    : null;
+
+  // pgflibraryarrows.meta.code.tex: Stealth defaults to
+  // length=+3pt 4.5, width'=+0pt .75, inset'=+0pt .325. PGF applies the
+  // longitudinal and transverse scale lists only after resolving width' and
+  // inset' from the unscaled arrow length.
+  const baseLengthPt = explicitLengthPt ?? (3 + 4.5 * pathLineWidthPt);
+  const lengthPt = baseLengthPt * lengthScale;
+  const widthPt = (explicitWidthPt ?? (0.75 * baseLengthPt)) * widthScale;
+  const insetPt = 0.325 * baseLengthPt * lengthScale;
+  const arrowLineWidthPt = Math.min(pathLineWidthPt, 0.25 * Math.max(0.01, lengthPt - insetPt));
+  const halfWidthBeforeMiterPt = widthPt / 2;
+  const safeWidthPt = Math.max(0.01, widthPt);
+  const safeHalfWidthPt = Math.max(0.01, halfWidthBeforeMiterPt);
+
+  const frontMiterPt = 0.5 * Math.hypot(2 * (lengthPt - insetPt) / safeWidthPt, 1) * arrowLineWidthPt;
+  const outerAngle = Math.atan2(lengthPt, safeHalfWidthPt);
+  const insetAngle = Math.atan2(insetPt, safeHalfWidthPt);
+  const halfAngleDelta = (outerAngle - insetAngle) / 2;
+  const backMiterRadiusPt = 0.5 * (1 / Math.max(1e-9, Math.tan(halfAngleDelta))) * arrowLineWidthPt;
+  const backMiterAngle = insetAngle + halfAngleDelta;
+  const backMiterPt = Math.sin(backMiterAngle) * backMiterRadiusPt;
+  const topMiterPt = Math.cos(backMiterAngle) * backMiterRadiusPt;
+  const insetMiterPt = 0.5 * Math.hypot(2 * insetPt / safeWidthPt, 1) * arrowLineWidthPt;
+  const innerLengthPt = Math.max(0, lengthPt - frontMiterPt - backMiterPt);
+  const halfWidthPt = Math.max(0, halfWidthBeforeMiterPt - topMiterPt);
+  const adjustedInsetPt = insetPt + insetMiterPt;
+  const insetDistancePt = Math.max(0, lengthPt - frontMiterPt - adjustedInsetPt);
+  const lineEndPt = adjustedInsetPt - 0.25 * arrowLineWidthPt;
+  const shortenPt = Math.max(0, lengthPt - lineEndPt);
+
+  return {
+    length: lineWidthFromPt(innerLengthPt),
+    halfWidth: lineWidthFromPt(halfWidthPt),
+    insetDistance: lineWidthFromPt(insetDistancePt),
+    lineWidth: lineWidthFromPt(arrowLineWidthPt),
+    shorten: lineWidthFromPt(shortenPt),
+    terminalPlacement: lineWidthFromPt(shortenPt),
+    // PGF draws the arrow in a local coordinate system shifted by -tipend.
+    // The visible point is therefore one front miter behind the raw terminal.
+    placement: lineWidthFromPt(frontMiterPt)
+  };
+}
+
 export function stealthPrimeArrowDimensions(lineWidth) {
   const unitsPerPt = lineWidthFromPt(1);
   const lineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;

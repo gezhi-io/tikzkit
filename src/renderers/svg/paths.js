@@ -6,6 +6,7 @@ import {
   lineWidthFromPt,
   stealthArrowHalfWidthFromLength,
   stealthArrowLengthFromLineWidth,
+  stealthMetaArrowGeometryFromLineWidth,
   stealthPrimeArrowDimensions,
   stealthArrowShortenFromLength
 } from "../../tikz/metrics.js";
@@ -322,7 +323,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
-  const filledStrokedTip = legacyStealthPrime || raw.kind === "dimline" || raw.kind === "dimline reverse";
+  const metaStealthTip = raw.kind === "stealth" && raw.meta;
+  const filledStrokedTip = metaStealthTip || legacyStealthPrime || raw.kind === "dimline" || raw.kind === "dimline reverse";
   const declaredPaint = raw.declaredArrow?.paint;
   return {
     kind: raw.kind,
@@ -330,8 +332,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: raw.kind === "latex" && !raw.legacy ? "butt" : "round",
-    lineJoin: raw.kind === "latex" && !raw.legacy ? "miter" : "round",
+    lineCap: (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineJoin: (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -350,7 +352,9 @@ export function resolveInlineArrowTip(tip, style = {}) {
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
-        ? legacyStealthPrime
+        ? metaStealthTip
+          ? geometry.lineWidth
+          : legacyStealthPrime
           ? style.lineWidth ?? 1
           : Math.max(0.2, (style.lineWidth ?? 1) * 0.5)
         : raw.kind === "latex" && !raw.legacy
@@ -383,6 +387,32 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   const lengthScale = arrowMetaScale("scale") * arrowMetaScale("lengthScale");
   const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   if (tip.kind === "stealth") {
+    if (tip.meta) {
+      const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
+        lengthScale,
+        widthScale,
+        ...(flags.customLength ? { lengthPt: tip.length / lineWidthFromPt(1) } : {}),
+        ...(flags.customWidth ? { widthPt: tip.width / lineWidthFromPt(1) } : {})
+      });
+      return {
+        path: [
+          "M 0 0",
+          `L ${format(-native.length)} ${format(-native.halfWidth)}`,
+          `L ${format(-native.insetDistance)} 0`,
+          `L ${format(-native.length)} ${format(native.halfWidth)} Z`
+        ].join(" "),
+        shorten: native.shorten,
+        terminalPlacement: native.terminalPlacement,
+        placement: native.placement,
+        lineWidth: native.lineWidth,
+        bounds: {
+          minX: -native.length,
+          maxX: 0,
+          minY: -native.halfWidth,
+          maxY: native.halfWidth
+        }
+      };
+    }
     const baseLength = flags.customLength ? tip.length : stealthArrowLengthFromLineWidth(lineWidth);
     const baseHalfWidth = flags.customWidth ? tip.width / 2 : stealthArrowHalfWidthFromLength(baseLength);
     const length = baseLength * lengthScale;

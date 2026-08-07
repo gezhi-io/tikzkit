@@ -10,6 +10,7 @@ import {
   latexArrowGeometryFromLineWidth,
   lineWidthFromPt,
   stealthArrowLengthFromLineWidth,
+  stealthMetaArrowGeometryFromLineWidth,
   stealthArrowShortenFromLength
 } from "../src/tikz-metrics.js";
 
@@ -863,6 +864,25 @@ test("applies arrows.meta length and width scaling independently", () => {
 
   assert.equal(tips.length, 2);
   assert.notEqual(tips[0], tips[1], "independent scale keys must produce distinct visible tip geometry");
+});
+
+test("uses PGF Stealth miter geometry and outlines for independent scale keys", () => {
+  const lineWidth = lineWidthFromPt(1.2);
+  const normal = stealthMetaArrowGeometryFromLineWidth(lineWidth);
+  const scaled = stealthMetaArrowGeometryFromLineWidth(lineWidth, { scale: 1.5 });
+  const longNarrow = stealthMetaArrowGeometryFromLineWidth(lineWidth, { lengthScale: 1.8, widthScale: 0.65 });
+
+  assert.ok(scaled.length > normal.length * 1.4, `expected scaled Stealth length, got ${scaled.length} from ${normal.length}`);
+  assert.ok(scaled.halfWidth > normal.halfWidth * 1.4, `expected scaled Stealth width, got ${scaled.halfWidth} from ${normal.halfWidth}`);
+  assert.ok(longNarrow.length > normal.length * 1.4, `expected independent Stealth length scale, got ${longNarrow.length}`);
+  assert.ok(longNarrow.halfWidth < normal.halfWidth * 0.75, `expected independent Stealth width scale, got ${longNarrow.halfWidth}`);
+
+  const svg = tikzToSvg(String.raw`\draw[very thick,-{Stealth[scale=1.5]}] (0,0) -- (4,0);`).svg;
+  const tip = svg.match(/<path class="tikz-arrow-tip tikz-arrow-stealth"[^>]+/u)?.[0] || "";
+  assert.match(tip, /stroke="black"/);
+  assert.match(tip, /stroke-width="4\.217/);
+  assert.match(tip, /stroke-linecap="butt" stroke-linejoin="miter"/);
+  assert.match(tip, /L -[\d.]+ -[\d.]+ L -[\d.]+ 0/);
 });
 
 test("keeps classic latex distinct from arrows.meta Latex", () => {

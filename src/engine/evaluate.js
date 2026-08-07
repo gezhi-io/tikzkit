@@ -68,6 +68,7 @@ import {
   lineWidthFromPt,
   lineWidthFromTikzDimension,
   stealthArrowLengthFromLineWidth,
+  stealthMetaArrowGeometryFromLineWidth,
   stealthPrimeArrowDimensions,
   stealthArrowShortenFromLength
 } from "../tikz/metrics.js";
@@ -13549,8 +13550,14 @@ function arrowTipShortenCoordinateLength(tip, style = {}) {
   const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   let shorten;
   if (raw.kind === "stealth") {
-    const length = (customLength ? raw.length : stealthArrowLengthFromLineWidth(lineWidth)) * lengthScale;
-    shorten = stealthArrowShortenFromLength(length);
+    shorten = raw.meta
+      ? stealthMetaArrowGeometryFromLineWidth(lineWidth, {
+        lengthScale,
+        widthScale,
+        ...(customLength ? { lengthPt: raw.length / lineWidthFromPt(1) } : {}),
+        ...(customWidth ? { widthPt: raw.width / lineWidthFromPt(1) } : {})
+      }).shorten
+      : stealthArrowShortenFromLength((customLength ? raw.length : stealthArrowLengthFromLineWidth(lineWidth)) * lengthScale);
   } else if (raw.kind === "stealth-prime") {
     shorten = stealthPrimeArrowDimensions(lineWidth).rightExtent;
   } else if (raw.kind === "latex") {
