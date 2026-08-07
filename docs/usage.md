@@ -113,6 +113,24 @@ npm run examples:diff -- --output outputs/qa-my-change \
 差分数值仅用于发现候选问题。接收修改前仍须实际看 JS、`tikztosvg`、MacTeX 与
 diff 面板，写下可见的修复前后变化和遗留边界。
 
+### PGFPlots 3D quiver
+
+已验收的 `\addplot3` quiver 子集包含 `quiver/u`、`quiver/v`、`quiver/w`、
+`quiver/scale arrows` 与 `quiver/update limits`。解释器会先 survey 箭头起点；
+默认 `update limits=true` 时，还会 survey 缩放后的终点。因此箭头所在平面、3D
+底面、网格、刻度和 SVG 裁剪会来自同一份范围，不会把 `z=-4` 这样的常量矢量场
+画在 range 之外。
+
+```tex
+\addplot3[/pgfplots/quiver,
+  quiver/u={sin(x)}, quiver/v={cos(y)}, quiver/w=0,
+  quiver/scale arrows=4, -stealth] {-4};
+```
+
+若源码明确使用 `quiver/update limits=false`，只将箭头起点计入范围。点元数据
+映射、完整 `every arrow` 风格、table/stream handler、对数 3D survey 与复杂裁剪
+组合仍是 partial，修改这些情形必须重新做三方图片验收。
+
 ### Regular polygon and curved terminal arrows
 
 The verified `shapes.geometric` slice covers a regular polygon's PGF-style

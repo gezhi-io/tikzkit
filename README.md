@@ -181,6 +181,27 @@ runtime dependencies. Generated `outputs/qa-*` pixels are intentionally kept
 out of commits; commit the source fixture, shared implementation, regression,
 and written QA conclusion instead.
 
+### 3D Quiver Vectors
+
+The supported `\addplot3` quiver slice accepts the source position as the plot
+expression, `quiver/u`, `quiver/v`, `quiver/w`, and `scale arrows`. Its range
+survey includes every vector start and, by default, the scaled vector end, so
+the 3D box, grid, ticks, and arrow plane are calculated together. Use
+`update limits=false` only when PGFPlots should exclude endpoints from the
+axis range.
+
+```tex
+\begin{axis}[domain=-90:90, y domain=-90:90, samples=15]
+  \addplot3[/pgfplots/quiver,
+    quiver/u={sin(x)}, quiver/v={cos(y)}, quiver/w=0,
+    quiver/scale arrows=4, -stealth] {-4};
+\end{axis}
+```
+
+This remains a focused implementation: point-meta coloring, arbitrary
+`every arrow` TikZ styles, stream/table quiver handlers, logarithmic 3D
+survey semantics, and every PGFPlots clipping interaction are still partial.
+
 ### The Smallest Reliable Loop
 
 For a new diagram, start with the browser. For a renderer change, keep the

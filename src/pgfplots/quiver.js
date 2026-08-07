@@ -1,18 +1,10 @@
-import { parseOptions } from "../engine/options.js";
 import { evaluateAxisExpression } from "./expressions.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { selectPlotStyle } from "./plotStyle.js";
 import { axisSamples, parseDomain } from "./rangeResolver.js";
+import { isAxisQuiverPlot, parseQuiverOptions, quiverScale } from "./quiverOptions.js";
 
-export function isAxisQuiverPlot(plotOptions = {}) {
-  return Boolean(
-    plotOptions.quiver ||
-      plotOptions["/pgfplots/quiver"] ||
-      plotOptions["quiver/u"] ||
-      plotOptions["quiver/v"] ||
-      plotOptions["quiver/w"]
-  );
-}
+export { isAxisQuiverPlot } from "./quiverOptions.js";
 
 export function renderAxisQuiverPlot(plot, axisOptions, ranges, geometry, options = {}, plotIndex = 0) {
   const sampled = sampleAxisQuiverPlot(plot, axisOptions, ranges, geometry, options);
@@ -59,23 +51,6 @@ export function sampleAxisQuiverPlot(plot, axisOptions, ranges, geometry, option
 
   const metaRange = quiverPointMetaRange(samples);
   return { quiver, samples, metaRange };
-}
-
-function parseQuiverOptions(plotOptions = {}) {
-  const nested = plotOptions.quiver && plotOptions.quiver !== true ? parseOptions(plotOptions.quiver) : {};
-  const normalized = { ...nested };
-  for (const [rawKey, value] of Object.entries(plotOptions)) {
-    const key = rawKey.replace(/^\/pgfplots\//, "");
-    if (!key.startsWith("quiver/")) continue;
-    normalized[key] = value;
-    normalized[key.slice("quiver/".length)] = value;
-  }
-  return normalized;
-}
-
-function quiverScale(raw) {
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : 1;
 }
 
 function quiverSamples(raw, domain, maxSamples) {

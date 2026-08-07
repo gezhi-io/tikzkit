@@ -3,6 +3,7 @@ import { evaluateAxisExpression, evaluateAxisExpressionAtSample } from "./expres
 import { splitTopLevel } from "../engine/options.js";
 import { roundAxis, roundAxisRange } from "./format.js";
 import { pgfplotsPlotRangePoints } from "./histogram.js";
+import { isAxisQuiverPlot, parseQuiverOptions, quiverScale, quiverUpdatesLimits } from "./quiverOptions.js";
 import { isLogAxis } from "./ranges.js";
 
 export const PGFPLOTS_DEFAULT_ENLARGE_LIMITS = 0.1;
@@ -42,6 +43,18 @@ export function computeAxisRanges(axisOptions, addplots) {
     }
     if (plot.type === "function") {
       const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
+      if (plot.is3d && isAxisQuiverPlot(plot.options || {})) {
+        const quiverPoints = sampleQuiverRangePoints(plot, axisOptions);
+        for (const point of quiverPoints) {
+          if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
+          if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
+          if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
+          if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
+          if (!hasExplicitZMin) zMin = Math.min(zMin, point.z);
+          if (!hasExplicitZMax) zMax = Math.max(zMax, point.z);
+        }
+        continue;
+      }
       if (isSurfacePlot(plot, axisOptions)) {
         const yDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
         const xSamples = axisSamples(plot.options.samples || axisOptions.samples || 15, 60);
@@ -219,6 +232,36 @@ export function sampleFunctionDataPoints(plot, axisOptions = {}, options = {}) {
     });
     return Number.isFinite(x) && Number.isFinite(y) ? [{ x, y }] : [];
   });
+}
+
+function sampleQuiverRangePoints(plot, axisOptions = {}) {
+  const quiver = parseQuiverOptions(plot.options || {});
+  const xDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
+  const yDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
+  const xSamples = axisSamples(plot.options.samples || axisOptions.samples || 15, 60);
+  const ySamples = axisSamples(plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || 15, 60);
+  const scale = quiverScale(quiver["scale arrows"]);
+  const includeEndpoints = quiverUpdatesLimits(quiver);
+  const points = [];
+
+  for (let xIndex = 0; xIndex < xSamples; xIndex += 1) {
+    const xT = xSamples === 1 ? 0 : xIndex / (xSamples - 1);
+    const x = xDomain.start + (xDomain.end - xDomain.start) * xT;
+    for (let yIndex = 0; yIndex < ySamples; yIndex += 1) {
+      const yT = ySamples === 1 ? 0 : yIndex / (ySamples - 1);
+      const y = yDomain.start + (yDomain.end - yDomain.start) * yT;
+      const z = evaluateAxisExpression(plot.expression || "0", x, axisOptions, { y });
+      if (![x, y, z].every(Number.isFinite)) continue;
+      points.push({ x, y, z });
+      if (!includeEndpoints) continue;
+      const u = evaluateAxisExpression(quiver.u ?? quiver["quiver/u"] ?? "0", x, axisOptions, { y, z });
+      const v = evaluateAxisExpression(quiver.v ?? quiver["quiver/v"] ?? "0", x, axisOptions, { y, z });
+      const w = evaluateAxisExpression(quiver.w ?? quiver["quiver/w"] ?? "0", x, axisOptions, { y, z });
+      if (![u, v, w].every(Number.isFinite)) continue;
+      points.push({ x: x + u * scale, y: y + v * scale, z: z + w * scale });
+    }
+  }
+  return points;
 }
 
 export function parseSamplesAt(raw) {

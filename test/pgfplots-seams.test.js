@@ -478,6 +478,37 @@ test("pgfplots quiver normalizes namespaced scale arrows", () => {
   assert.equal(sampled.samples[0].end.x - sampled.samples[0].start.x, 4);
 });
 
+test("pgfplots quiver surveys 3d vector starts and ends for axis ranges", () => {
+  const ranges = computeAxisRanges(
+    { domain: "0:1", "y domain": "0:0", samples: 2, enlargelimits: "false" },
+    [
+      {
+        type: "function",
+        is3d: true,
+        expression: "-4",
+        options: { quiver: "u={1}, v={0}, w={1}, scale arrows=2" }
+      },
+      { type: "function", is3d: true, expression: "0", options: { surf: true, samples: 2 } }
+    ]
+  );
+
+  assert.deepEqual(ranges, { xMin: 0, xMax: 3, yMin: -1, yMax: 1, zMin: -4, zMax: 0 });
+});
+
+test("pgfplots quiver update limits=false keeps vector ends out of the survey", () => {
+  const ranges = computeAxisRanges(
+    { domain: "0:1", "y domain": "0:0", samples: 2, enlargelimits: "false" },
+    [{
+      type: "function",
+      is3d: true,
+      expression: "-4",
+      options: { quiver: "u={1}, v={0}, w={1}, scale arrows=2, update limits=false" }
+    }]
+  );
+
+  assert.deepEqual(ranges, { xMin: 0, xMax: 1, yMin: -1, yMax: 1, zMin: -5, zMax: -3 });
+});
+
 test("pgfplots 3d log axes discard zero samples and use decade ticks", () => {
   const axisOptions = {
     domain: "1.5:6",
