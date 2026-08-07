@@ -146,6 +146,30 @@ The real PGF manual driver and the three-way visual record are in
 This is still a partial library slice: arbitrary TeX callback bodies and exact
 native CMR glyph-width/bounding-box parity are not claimed.
 
+### Verified Node Font Inheritance
+
+TikZKit now carries a node style's resolved font into the physical SVG text
+FontSpec, rather than using it only to estimate layout. This covers ordinary
+`\\node` commands, `node` labels on a path, and callback labels created by a
+decoration. The precedence follows the local TikZ node rules:
+
+```tex
+\begin{tikzpicture}[
+  font=\small,
+  every node/.style={font=\tiny},
+  nodes={font=\scriptsize}
+]
+  \node {ordinary};
+  \draw[font=\Large] (0,0) -- node[font=\bfseries] {inline} (1,0);
+\end{tikzpicture}
+```
+
+The picture `font` remains the scope layer; `every node`, `nodes={...}`, and a
+local node/path-node font form the node layer; a leading content command such
+as `\scriptsize` takes final precedence. The focused tests are in
+`test/font-spec.test.js`, and the real PGF visual QA record is
+[docs/qa/2026-08-07-every-node-font-inheritance.md](docs/qa/2026-08-07-every-node-font-inheritance.md).
+
 ### A Verified Multipart Example
 
 The following `shapes.multipart` subset is covered by a shared regression and

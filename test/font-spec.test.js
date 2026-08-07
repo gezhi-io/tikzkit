@@ -367,6 +367,38 @@ test("carries resolved normal and node-option FontSpec values into textNode IR",
   assert.equal(small.style.fontScale, 0.9, "legacy scale remains during the migration");
 });
 
+test("materializes inherited every-node and nodes fonts in ordinary and inline node FontSpecs", () => {
+  for (const [option, expected] of [
+    [String.raw`every node/.style={font=\tiny}`, { sizePt: 5, baselineSkipPt: 6 }],
+    [String.raw`nodes={font=\small}`, { sizePt: 9, baselineSkipPt: 11 }]
+  ]) {
+    const source = String.raw`
+\begin{tikzpicture}[${option}]
+  \node {ordinary};
+  \draw (0,0) -- node {inline} (1,0);
+\end{tikzpicture}`;
+    const ordinary = renderedTextNodeByText(source, "ordinary");
+    const inline = renderedTextNodeByText(source, "inline");
+
+    for (const node of [ordinary, inline]) {
+      assertFontSource(node.font, "node-option", { ...expected, weight: 400 });
+    }
+  }
+});
+
+test("keeps local and content font precedence above inherited every-node fonts", () => {
+  const source = String.raw`
+\begin{tikzpicture}[font=\small,every node/.style={font=\tiny}]
+  \node[font=\Large] {ordinary};
+  \draw (0,0) -- node[font=\bfseries] {\scriptsize inline} (1,0);
+\end{tikzpicture}`;
+  const ordinary = renderedTextNodeByText(source, "ordinary");
+  const inline = renderedTextNodeByText(source, String.raw`\scriptsize inline`);
+
+  assertFontSource(ordinary.font, "node-option", { sizePt: 14.4, baselineSkipPt: 18, weight: 400 });
+  assertFontSource(inline.font, "content-command", { sizePt: 7, baselineSkipPt: 8, weight: 700 });
+});
+
 test("preserves scope node-option and content-command FontSpec sources", () => {
   const scopeOnly = renderedTextNode(
     String.raw`\begin{tikzpicture}[font=\small]\node {x};\end{tikzpicture}`
@@ -441,10 +473,15 @@ test("preserves FontSpec source precedence for inline path nodes", () => {
     String.raw`\begin{tikzpicture}[font=\small]\draw (0,0) -- node[font=\bfseries] {\tiny inline} (1,0);\end{tikzpicture}`,
     String.raw`\tiny inline`
   );
+  const pathOverride = renderedTextNodeByText(
+    String.raw`\begin{tikzpicture}[font=\small]\draw[font=\Large] (0,0) -- node {inline} (1,0);\end{tikzpicture}`,
+    "inline"
+  );
 
   assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
   assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
   assertFontSource(contentOverride.font, "content-command", { sizePt: 5, baselineSkipPt: 6, weight: 700 });
+  assertFontSource(pathOverride.font, "node-option", { sizePt: 14.4, baselineSkipPt: 18, weight: 400 });
 });
 
 test("preserves FontSpec source precedence for labels", () => {

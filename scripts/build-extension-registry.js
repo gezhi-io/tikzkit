@@ -421,7 +421,7 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/engine/math.js, src/engine/evaluate.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | An outer node-local minipage now contributes its width to shared text wrapping, including scalar TeX-register lengths such as 0.35\\textwidth; explicit text width wins. Mixed inline math is measured as a TeX-sized word group before SVG-text wrapping; TeX hyphenation, glue/penalty justification, nested minipage layout, and full minipage shaping remain partial. |
+| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | every node and nodes={...} now materialize their fonts into ordinary and inline-node SVG FontSpecs; a picture font remains the scope layer, while explicit node/path-node and content fonts take precedence. An outer node-local minipage also contributes its width to shared text wrapping. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
 
 ## Highest-Priority Unsupported Entries
 

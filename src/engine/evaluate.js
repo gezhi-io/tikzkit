@@ -75,6 +75,7 @@ import {
 const TIKZ_DEFAULT_INNER_SEP = ".3333em";
 const TEX_PT_PER_CM = 28.4527559;
 const EXPLICIT_NODE_FONT = Symbol("tikzkit.explicitNodeFont");
+const EXPLICIT_PATH_NODE_FONT = Symbol("tikzkit.explicitPathNodeFont");
 const PGF_DEFAULT_Z_VECTOR = { x: -0.385, y: -0.385 };
 const DEFAULT_TEX_VARIABLES = {
   textwidth: parseDimension("345pt", {})
@@ -1291,6 +1292,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     resolveDynamicOptions(statement.options || {}, optionEnv),
     optionEnv
   ).options;
+  if (Object.hasOwn(statementTransformOptions, "font")) {
+    pathOptions[EXPLICIT_PATH_NODE_FONT] = statementTransformOptions.font;
+  }
   const pathTransform = shouldApplyStatementTransformToPath(statement)
     ? composeTransform(env.transform, statementTransformOptions, optionEnv)
     : env.transform;
@@ -5797,7 +5801,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
   let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
-  expandedOptions[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
+  expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   const rawText = resolveNodeTextContent(text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   text = resolveTextContent(rawText, env);
@@ -6000,10 +6004,12 @@ function inlineNodePathPlacementOptions(pathOptions = {}) {
     "above left", "above right", "below left", "below right",
     "anchor", "auto", "swap", "sloped", "allow upside down",
     "xshift", "yshift", "shift",
-    "pos", "midway", "near start", "near end", "very near start", "very near end", "at start", "at end",
-    "font"
+    "pos", "midway", "near start", "near end", "very near start", "very near end", "at start", "at end"
   ]) {
     if (Object.hasOwn(pathOptions, key)) inherited[key] = pathOptions[key];
+  }
+  if (Object.hasOwn(pathOptions, EXPLICIT_PATH_NODE_FONT)) {
+    inherited.font = pathOptions[EXPLICIT_PATH_NODE_FONT];
   }
   return inherited;
 }
@@ -6042,7 +6048,7 @@ function createNode(statement, env, ir, diagnostics) {
     ...inheritedNodeOptions(env),
     ...statementOptions
   }, env).options;
-  expandedOptions[EXPLICIT_NODE_FONT] = Object.hasOwn(localOptions, "font") ? localOptions.font : null;
+  expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
   const rawText = resolveNodeTextContent(statement.text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
@@ -11715,6 +11721,28 @@ function inheritedNodeOptions(env = {}) {
   if (env.styles?.["every path"]) options["every path"] = true;
   if (env.styles?.["every node"]) options["every node"] = true;
   return resolveDynamicOptions({ ...options, ...nodesOptions }, env);
+}
+
+function resolvedNodeLayerFont(localOptions = {}, env = {}) {
+  if (Object.hasOwn(localOptions, "font")) return localOptions.font;
+  return inheritedNodeStyleFont(env);
+}
+
+function inheritedNodeStyleFont(env = {}) {
+  const pictureOptions = env.pictureOptions || {};
+  const hasNodeStyleLayer = Boolean(env.styles?.["every node"]) || Object.hasOwn(pictureOptions, "nodes");
+  if (!hasNodeStyleLayer) return null;
+
+  // `font` on the picture is already the scope layer in resolvedTextFontSpec.
+  // `every node` and `nodes={...}` are installed for each node afterwards, so
+  // their resolved font needs to be carried as a node layer rather than only
+  // contributing the legacy layout scale.
+  const nodeStyleOptions = {
+    ...(env.styles?.["every node"] ? { "every node": true } : {}),
+    ...parseInheritedNodesOption(pictureOptions.nodes)
+  };
+  const inherited = normalizeOptions("node", nodeStyleOptions, env).options;
+  return inherited.font ?? null;
 }
 
 function parseInheritedNodesOption(rawNodes) {
