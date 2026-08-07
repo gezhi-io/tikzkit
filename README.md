@@ -143,6 +143,28 @@ npm run examples:diff -- --output outputs/qa-case \
 一个可提交的兼容性改动应包含共享实现、最小回归测试、维护 fixture、登记表更新和
 一份 QA Markdown；不提交 `outputs/` 中的 PNG、SVG 或 diff。
 
+### 最近验收：pgfgantt group 峰形轮廓
+
+`pgfgantt` 仍是 partial，但标准 `\ganttgroup` 与 `\ganttlinkedgroup` 现已使用
+原生的八点 group 轮廓，而不是普通矩形。支持的几何参数为 `group left/right peak
+tip position`、`group left/right peak width`、`group left/right peak height` 及对应的
+`group peaks ...` 公共别名；linked group 保持相同轮廓并创建普通的前序元素连线。
+
+维护中的真实案例是
+`test/fixtures/examples/pgfgantt/group-peaks-linked.tex`。可用下列命令重新生成三方
+对比：
+
+```bash
+npm run examples:render -- --only pgfgantt-group-peaks-linked \
+  --output outputs/qa-pgfgantt-group-peaks \
+  --native-reference --strict-tikztosvg
+
+npm run examples:diff -- --output outputs/qa-pgfgantt-group-peaks --register
+```
+
+本机 MacTeX 源码范围、视觉对照和未支持边界见
+[pgfgantt group QA](docs/qa/2026-08-08-pgfgantt-group-peaks.md)。
+
 ### 已验证示例：圆形阴影与光晕
 
 `shadows` 目前包含一个可直接复核的圆形 fading 切片：`circular drop shadow`

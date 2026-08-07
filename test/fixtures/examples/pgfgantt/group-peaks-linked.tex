@@ -1,0 +1,26 @@
+% Derived from the local pgfgantt ganttgroup shape implementation.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfgantt}
+
+\begin{document}
+\begin{ganttchart}[
+  x unit=.7cm,
+  y unit title=.55cm,
+  y unit chart=.7cm,
+  hgrid,
+  vgrid,
+  group left peak tip position=.25,
+  group left peak width=.55,
+  group left peak height=.16,
+  group right peak tip position=.7,
+  group right peak width=.45,
+  group right peak height=.12,
+  link/.append style={blue,thick}
+]{1}{8}
+  \gantttitle{Release plan}{8} \\
+  \ganttgroup[name=design]{Design}{1}{4} \\
+  \ganttlinkedgroup[name=delivery,group/.append style={fill=orange!75}]{Delivery}{5}{8} \\
+  \ganttbar{Implementation}{2}{3} \\
+  \ganttbar{Ship}{6}{7}
+\end{ganttchart}
+\end{document}

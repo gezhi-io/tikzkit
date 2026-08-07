@@ -321,10 +321,10 @@ test("uses pgfgantt title and element geometry defaults with local overrides", (
     && item.commands?.[0]?.x === 0.25
     && item.commands?.[0]?.y === -0.1
   ));
-  const group = rects.find((item) => item.style?.fill === "black");
+  const group = ir.items.find((item) => item.type === "path" && item.style?.fill === "black" && item.commands?.length === 9);
   const task = rects.find((item) => item.commands?.[0]?.x === 1.1);
   assert.deepEqual(title?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[0.25, -0.1], [3.75, -0.1], [3.75, -0.6], [0.25, -0.6]]);
-  assert.deepEqual(group?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[-0.1, -1.4], [4.1, -1.4], [4.1, -1.6], [-0.1, -1.6]]);
+  assert.deepEqual(group?.commands?.slice(0, 8).map(({ x, y }) => [x, y]), [[-0.1, -1.4], [4.1, -1.4], [4.1, -1.6], [3.9, -1.7], [3.7, -1.6], [0.3, -1.6], [0.1, -1.7], [-0.1, -1.6]]);
   assert.deepEqual(task?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[1.1, -2.2], [2.8, -2.2], [2.8, -2.5], [1.1, -2.5]]);
 
   const titleLabel = ir.items.find((item) => item.type === "textNode" && item.text === "Title");
@@ -375,6 +375,34 @@ test("expands pgfgantt linked elements into the preceding element dependency", (
   assert.ok(ir.items.some((item) => item.type === "path" && item.style?.fill === "black"), "expected the linked milestone to retain pgfgantt's black diamond default");
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Second"));
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "Done"));
+});
+
+test("renders pgfgantt group peaks and carries them through ganttlinkedgroup", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[
+  x unit=1cm,
+  y unit chart=1cm,
+  group left peak tip position=.25,
+  group left peak width=.6,
+  group left peak height=.2,
+  group right peak tip position=.75,
+  group right peak width=.4,
+  group right peak height=.15,
+  link/.append style={blue,thick}
+]{1}{8}
+  \ganttgroup{Design}{1}{4} \\
+  \ganttlinkedgroup{Delivery}{5}{8}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const groups = ir.items.filter((item) => item.type === "path" && item.style?.fill === "black" && item.commands?.length === 9);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups[0].commands.slice(0, 8).map(({ x, y }) => [x, y]), [[-0.1, -0.4], [4.1, -0.4], [4.1, -0.6], [3.8, -0.75], [3.7, -0.6], [0.5, -0.6], [0.05, -0.8], [-0.1, -0.6]]);
+  assert.ok(ir.items.some((item) => item.type === "path" && item.style?.stroke === "blue" && item.style?.markerEnd?.kind === "latex"));
 });
 
 test("splits numeric pgfgantt bar progress into completed and incomplete styles", () => {

@@ -7,9 +7,10 @@ export const texPackage = {
     "\\gantttitle",
     "\\ganttbar",
     "\\ganttgroup",
+    "ganttgroup native peak geometry",
     "\\ganttmilestone subset",
     "\\ganttlink named-element subset",
-    "\\ganttlinkedbar and \\ganttlinkedmilestone",
+    "\\ganttlinkedbar, \\ganttlinkedgroup, and \\ganttlinkedmilestone",
     "numeric ganttbar progress with incomplete fill",
     "\\gantttitlelist numeric and comma-list subset",
     "hgrid=true",
@@ -22,7 +23,7 @@ export const texPackage = {
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf",
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; \\gantttitlelist maps a TeX foreach over its list to consecutive \\gantttitle calls at lines 570-575; progress value, complete/incomplete clips, and progress-label default at lines 823-975; generic element geometry, previous/current automatic names, and linked-element macro expansion at lines 849-1025; bar/group defaults and label fonts at lines 1025-1100; milestone default fill/label/font/geometry at lines 1129-1151; link default style, auto selection, RDR/RDLDR routes, finish/start anchors, and \\ganttlink dispatch at lines 1425-1619; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented title-list, hgrid/vgrid repeated style-list, basic link syntax, and numeric progress fill rules",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfgantt/pgfgantt.sty: hgrid default/style-list parser at lines 50-97; vgrid parser at lines 99-140; canvas, grid origin, and title/chart row placement at lines 375-404; title default style is rectangle, inner sep=0pt, draw, fill=white at line 483; title font, height, and shifts at lines 484-565; \\gantttitlelist maps a TeX foreach over its list to consecutive \\gantttitle calls at lines 570-575; progress value, complete/incomplete clips, and progress-label default at lines 823-975; generic element geometry, previous/current automatic names, and linked-element macro expansion at lines 849-1025; bar/group defaults, peak defaults and aliases at lines 1025-1130; the native ganttgroup eight-point background contour at lines 1190-1350; milestone default fill/label/font/geometry at lines 1129-1151; link default style, auto selection, RDR/RDLDR routes, finish/start anchors, and \\ganttlink dispatch at lines 1425-1619; /usr/local/texlive/2025/texmf-dist/doc/latex/pgfgantt/pgfgantt-doc.pdf: documented title-list, hgrid/vgrid repeated style-list, basic link syntax, and numeric progress fill rules",
   "caseCount": 311,
   "caseExamples": [
     "agronomia",
@@ -48,6 +49,10 @@ export const texPackage = {
     "title height",
     "bar/group left/right/top shift",
     "bar/group height",
+    "group left/right peak tip position",
+    "group left/right peak width",
+    "group left/right peak height",
+    "group peaks tip position/width/height aliases",
     "name",
     "link type",
     "link label",
@@ -64,5 +69,5 @@ export const texPackage = {
     "bar progress label font",
     "gantttitlelist={<numeric range>|<comma list>}{span}"
   ],
-  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups use reviewed default geometry and local shift subsets, with small/normal label fonts. \\gantttitlelist lowers its documented numeric `a,...,b` / `a,step,...,b` and ordinary comma-list forms to consecutive title calls, preserving local title options and span; TeX-evaluated `title list options` remain unsupported. Named bars, groups, and milestones support basic \\ganttlink lowering: native default -latex plus rounded corners, auto/RDR/RDLDR routing, the documented start/finish link types, simple link labels, and link/.append style. \\ganttlinkedbar and \\ganttlinkedmilestone create their native previous-element dependency; milestones use the reviewed black filled diamond, slot-center geometry, and italic normal-size external label, with local milestone fill styles. Numeric \\ganttbar progress 0..100 uses reviewed chart/row style precedence: the left completed part keeps bar fill, the right incomplete part uses bar incomplete fill, and the default scriptsize `P% complete` label is placed east of the bar. `progress=today`, group/milestone progress, progress-label node styles, calendar/date slots, \\ganttlinkedgroup visual shape parity, custom link declarations, specialized canvas/element shapes, and arbitrary link-anchor styles remain unsupported."
+  "notes": "Reviewed TeX Live 2025 pgfgantt.sty and manual. Basic hgrid/vgrid style lists lower to consecutive cyclic TikZ grid styles. Titles, bars, and groups use reviewed default geometry and local shift subsets, with small/normal label fonts. `ganttgroup` now uses the source-defined eight-point contour with independent left/right peak tip position, width, and height; `\\ganttlinkedgroup` uses the same contour while retaining the previous-element dependency. \\gantttitlelist lowers its documented numeric `a,...,b` / `a,step,...,b` and ordinary comma-list forms to consecutive title calls, preserving local title options and span; TeX-evaluated `title list options` remain unsupported. Named bars, groups, and milestones support basic \\ganttlink lowering: native default -latex plus rounded corners, auto/RDR/RDLDR routing, the documented start/finish link types, simple link labels, and link/.append style. \\ganttlinkedbar and \\ganttlinkedmilestone create their native previous-element dependency; milestones use the reviewed black filled diamond, slot-center geometry, and italic normal-size external label, with local milestone fill styles. Numeric \\ganttbar progress 0..100 uses reviewed chart/row style precedence: the left completed part keeps bar fill, the right incomplete part uses bar incomplete fill, and the default scriptsize `P% complete` label is placed east of the bar. `progress=today`, group/milestone progress, progress-label node styles, calendar/date slots, custom link declarations, specialized canvas/element shapes, and arbitrary link-anchor styles remain unsupported."
 };

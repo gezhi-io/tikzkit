@@ -4655,7 +4655,7 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
       if (row.command === "ganttgroup") {
         const y = top - topShift * yUnitChart;
         const h = elementHeight * yUnitChart;
-        commands.push(`\\draw[fill=${fill},draw=black,line width=0.35pt] (${roundTikzNumber(x0)},${roundTikzNumber(y)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(y - h)});`);
+        commands.push(`\\draw[fill=${fill},draw=black,line width=0.35pt] ${ganttGroupPath(row, options, xUnit, yUnitChart, x0, x1, y, y - h)};`);
         const labelX = rowInline ? (x0 + x1) / 2 : 0;
         const anchor = rowInline ? "south" : "east";
         const labelFont = ganttFontOption(row, options, "group label font", "\\normalsize\\bfseries");
@@ -4835,6 +4835,37 @@ function ganttElementAnchor(element, anchor) {
 
 function ganttNumberOption(row, chartOptions, key, fallback) {
   const value = row?.options?.[key] ?? chartOptions?.[key];
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function ganttGroupPath(row, chartOptions, xUnit, yUnitChart, x0, x1, top, bottom) {
+  const leftTipPosition = ganttGroupPeakOption(row, chartOptions, "left", "tip position", 0.5);
+  const rightTipPosition = ganttGroupPeakOption(row, chartOptions, "right", "tip position", 0.5);
+  const leftWidth = ganttGroupPeakOption(row, chartOptions, "left", "width", 0.4);
+  const rightWidth = ganttGroupPeakOption(row, chartOptions, "right", "width", 0.4);
+  const leftHeight = ganttGroupPeakOption(row, chartOptions, "left", "height", 0.1);
+  const rightHeight = ganttGroupPeakOption(row, chartOptions, "right", "height", 0.1);
+  const points = [
+    [x0, top],
+    [x1, top],
+    [x1, bottom],
+    [x1 - rightTipPosition * rightWidth * xUnit, bottom - rightHeight * yUnitChart],
+    [x1 - rightWidth * xUnit, bottom],
+    [x0 + leftWidth * xUnit, bottom],
+    [x0 + leftTipPosition * leftWidth * xUnit, bottom - leftHeight * yUnitChart],
+    [x0, bottom]
+  ];
+  return `${points.map(([x, y]) => `(${roundTikzNumber(x)},${roundTikzNumber(y)})`).join(" -- ")} -- cycle`;
+}
+
+function ganttGroupPeakOption(row, chartOptions, side, suffix, fallback) {
+  const sideKey = `group ${side} peak ${suffix}`;
+  const sharedKey = `group peaks ${suffix}`;
+  const value = row?.options?.[sideKey]
+    ?? row?.options?.[sharedKey]
+    ?? chartOptions?.[sideKey]
+    ?? chartOptions?.[sharedKey];
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
 }
