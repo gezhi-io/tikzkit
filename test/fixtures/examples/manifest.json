@@ -4991,6 +4991,22 @@
         "mark options rotate",
         "mark size"
       ]
+    },
+    {
+      "id": "tkz-fct-combined-axes-trig",
+      "title": "tkz-base combined trigonometric Cartesian axes",
+      "source": "tkz-fct/combined-axes-trig.tex",
+      "sourceCorpus": "TeX Live tkz-base axes manual",
+      "externalSource": "doc/latex/tkz-base/TKZdoc-base-axes.tex",
+      "semanticOwner": "src/extensions/tkz-fct.js:renderAxes",
+      "features": [
+        "tkzInit",
+        "tkzAxeXY",
+        "label",
+        "text",
+        "trig",
+        "combined axis tick labels"
+      ]
     }
   ]
 }

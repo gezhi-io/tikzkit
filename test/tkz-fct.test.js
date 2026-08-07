@@ -412,6 +412,58 @@ test("matches legacy tkzAxeXY ticks=false with draw-only axes", () => {
   assert.doesNotMatch(expanded, /\{\$-1\$\}|\{\$0\$\}|\{\$1\$\}/);
 });
 
+test("forwards combined tkzAxeXY trig, fraction, step, and origin options to both axes and labels", () => {
+  const trig = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=4,ymin=-1,ymax=2]
+  \tkzAxeXY[label={},text=blue,trig=2,orig]
+\end{tikzpicture}`);
+  const stepped = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=6,ymin=0,ymax=6]
+  \tkzAxeXY[label={},step=2,orig=false]
+\end{tikzpicture}`);
+  const fractional = expandTkzFct(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=3,ymin=0,ymax=3]
+  \tkzAxeXY[label={},frac=3]
+\end{tikzpicture}`);
+
+  assert.match(trig, /\(1\.5707963268,2pt\) -- \(1\.5707963268,-2pt\);/);
+  assert.match(trig, /\(2pt,1\.5707963268\) -- \(-2pt,1\.5707963268\);/);
+  assert.match(trig, /\{\$\\frac\{\\pi\}\{2\}\$\}/);
+  assert.doesNotMatch(trig, /\{\$0\$\}/, "bare orig hides the zero labels in tkz-base");
+  assert.match(stepped, /\{\$2\$\}/);
+  assert.match(stepped, /\{\$4\$\}/);
+  assert.doesNotMatch(stepped, /\{\$1\$\}|\{\$3\$\}|\{\$5\$\}/);
+  assert.match(fractional, /\{\$\\frac\{1\}\{3\}\$\}/);
+  assert.match(fractional, /\{\$\\frac\{2\}\{3\}\$\}/);
+});
+
+test("applies xlabel and ylabel styles to combined tkzAxeXY terminal labels", () => {
+  const result = tikzToSvg(String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tikzset{
+    xlabel style/.style={right=7pt,text=red},
+    ylabel style/.style={above=6pt,text=green}
+  }
+  \tkzInit[xmin=0,xmax=2,ymin=0,ymax=2]
+  \tkzAxeXY[label={$u$}]
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.type === "textNode" && item.text === "$u$");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.equal(labels[0].style.textFill, "red");
+  assert.match(labels[1].style.textFill, /^(?:green|rgb\(0 255 0\))$/);
+  assert.ok(labels[0].x > 2.5, "xlabel style moves the terminal label beyond the X arrow tip");
+  assert.ok(labels[1].y > 2.5, "ylabel style moves the terminal label above the Y arrow tip");
+});
+
 test("matches tkz-base local origins and subgrid ranges for non-normalized frames", () => {
   const source = String.raw`
 \usepackage{tkz-fct}

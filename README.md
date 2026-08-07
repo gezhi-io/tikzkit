@@ -255,6 +255,36 @@ drop shadow 的 `.3ex/- .3ex` 偏移、调用方 `opacity`/`fill` 覆盖，以�
 `circle with fuzzy edge 15 percent`。任意自定义 path fading 和 TeX 回调仍是
 partial；完整边界见 [shadows QA](docs/qa/2026-08-08-shadows-circular-fading.md)。
 
+### 最近验收：`tkz-fct` 组合坐标轴
+
+`\tkzAxeXY[...]` 会把同一组选项交给 X/Y 轴与 X/Y 刻度标签。当前已验证
+`label`、`text`、`trig`、`frac`、`step`、`orig`、`ticks=false`、刻度尺寸以及
+全局 `xlabel style` / `ylabel style`。例如，下面的文档案例会在两个轴上显示
+`0`、`\pi/2`、`\pi`，而不是错误的整数刻度：
+
+```tex
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=-1,xmax=4,ymin=-1,ymax=2]
+  \tkzAxeXY[label={},text=blue,trig=2]
+\end{tikzpicture}
+```
+
+在本机复现 JavaScript、`tikztosvg` 和 MacTeX 对照：
+
+```bash
+node --test test/tkz-fct.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only tkz-fct-combined-axes-trig \
+  --output outputs/qa-tkz-fct-combined-axes-trig \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-tkz-fct-combined-axes-trig
+```
+
+这仍是实验性 `tkz-fct` 子集：外部 gnuplot 临时表、缓存 id、渐近线、自适应采样和
+任意复杂函数表达式不在本次承诺内。实现细节与视觉记录见
+[tkz-fct 组合轴 QA](docs/qa/2026-08-08-tkz-fct-combined-axes.md)。
+
 ### 5. 日常开发检查
 
 ```bash

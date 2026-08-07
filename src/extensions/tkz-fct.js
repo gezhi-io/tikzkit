@@ -238,7 +238,9 @@ function renderAxes(state, rawOptions, context = {}) {
   const downSpace = optionNumber(options["down space"], 0);
   const bounds = normalizedBounds(state);
   const hideTicks = options.noticks === true || String(options.ticks || "").trim().toLowerCase() === "false";
-  const showOrigin = options.orig === undefined || optionBoolean(options.orig, true);
+  // tkzAxeXY forwards this option set to tkzLabelX/Y. A bare `orig` uses the
+  // label key's `.default=false`, which suppresses the zero graduation.
+  const showOrigin = labelShowsOrigin(options);
   const sharedLabel = options.label === undefined ? null : optionText(options.label, "");
   const xAxisLabel = sharedLabel === null ? "$x$" : sharedLabel;
   const yAxisLabel = sharedLabel === null ? "$y$" : sharedLabel;
@@ -250,19 +252,26 @@ function renderAxes(state, rawOptions, context = {}) {
   const yLabelOptions = `left=3pt,inner sep=1pt,outer sep=0pt,fill=white,tikzkit tkz axis tick label,ylabel style${textOption}`;
 
   const drawX = [
-    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt] {${xAxisLabel}};`
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (${format(bounds.xmin - leftSpace)},0) -- (${format(bounds.xmax + rightSpace)},0) node[below=3pt,inner sep=1pt,outer sep=0pt,xlabel style${textOption}] {${xAxisLabel}};`
   ];
   const drawY = [
-    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt] {${yAxisLabel}};`
+    `\\draw[color=${color},line width=${lineWidth},-latex${textOption}] (0,${format(bounds.ymin - downSpace)}) -- (0,${format(bounds.ymax + upSpace)}) node[left=3pt,inner sep=1pt,outer sep=0pt,ylabel style${textOption}] {${yAxisLabel}};`
   ];
 
   if (!hideTicks) {
-    for (const position of integerPositions(bounds.xmin, bounds.xmax)) {
+    const trig = optionNumber(options.trig, 0);
+    const xPositions = trig === 0
+      ? integerPositions(bounds.xmin, bounds.xmax)
+      : trigAxisPositions(bounds.xmin, bounds.xmax, trig);
+    const yPositions = trig === 0
+      ? steppedAxisPositions(bounds.ymin, bounds.ymax, optionNumber(options.step, state.ystep) / state.ystep)
+      : trigAxisPositions(bounds.ymin, bounds.ymax, trig);
+    for (const position of xPositions) {
       drawX.push(
         `\\draw[color=${color},line width=${tickWidth}] (${format(position)},${tickUp}) -- (${format(position)},${negateLength(tickDown)});`
       );
     }
-    for (const position of integerPositions(bounds.ymin, bounds.ymax)) {
+    for (const position of yPositions) {
       drawY.push(
         `\\draw[color=${color},line width=${tickWidth}] (${tickRight},${format(position)}) -- (${negateLength(tickLeft)},${format(position)});`
       );
@@ -271,11 +280,12 @@ function renderAxes(state, rawOptions, context = {}) {
 
   const labelX = [];
   if (!hideTicks) {
-    for (const position of integerPositions(bounds.xmin, bounds.xmax)) {
-      if (!showOrigin && Math.abs(position) < 1e-9) continue;
-      const label = format(position * state.xstep + state.xorigin);
+    const markers = axisLabelMarkers(bounds.xmin, bounds.xmax, state.xstep, options);
+    for (const marker of markers) {
+      if (!shouldRenderAxisLabel(marker.position, bounds.xmin, state.xmin, state.xmax, showOrigin)) continue;
+      const label = formatAxisLabel(marker, options, state.xstep, state.xorigin);
       labelX.push(
-        `\\path (${format(position)},${tickUp}) -- (${format(position)},${negateLength(tickDown)}) node[${xLabelOptions}] {$${label}$};`
+        `\\path (${format(marker.position)},${tickUp}) -- (${format(marker.position)},${negateLength(tickDown)}) node[${xLabelOptions}] {${label}};`
       );
     }
   }
@@ -293,11 +303,12 @@ function renderAxes(state, rawOptions, context = {}) {
 
   const labelY = [];
   if (!hideTicks) {
-    for (const position of integerPositions(bounds.ymin, bounds.ymax)) {
-      if (!showOrigin && Math.abs(position) < 1e-9) continue;
-      const label = format(position * state.ystep + state.yorigin);
+    const markers = axisLabelMarkers(bounds.ymin, bounds.ymax, state.ystep, options);
+    for (const marker of markers) {
+      if (!shouldRenderAxisLabel(marker.position, bounds.ymin, state.ymin, state.ymax, showOrigin)) continue;
+      const label = formatAxisLabel(marker, options, state.ystep, state.yorigin);
       labelY.push(
-        `\\path (${tickRight},${format(position)}) -- (${negateLength(tickLeft)},${format(position)}) node[${yLabelOptions}] {$${label}$};`
+        `\\path (${tickRight},${format(marker.position)}) -- (${negateLength(tickLeft)},${format(marker.position)}) node[${yLabelOptions}] {${label}};`
       );
     }
   }
