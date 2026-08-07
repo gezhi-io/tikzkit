@@ -1,0 +1,13 @@
+% Derived from the installed TKZdoc-fct-area.tex tkzDrawAreafg examples.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tkz-fct}
+\begin{document}
+\begin{tikzpicture}[scale=1.2]
+  \tkzInit[xmin=0,xmax=5,ymin=0,ymax=5]
+  \tkzGrid[color=gray!35]
+  \tkzAxeXY
+  \tkzFct[color=blue,domain=0:5,samples=201]{x}
+  \tkzFct[color=red,domain=0:5,samples=201]{x*x/5}
+  \tkzDrawAreafg[color=orange!70,opacity=.45,domain=0:5,samples=201]
+\end{tikzpicture}
+\end{document}

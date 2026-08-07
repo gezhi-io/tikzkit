@@ -16,7 +16,9 @@ const IMPLEMENTED_COMMANDS = [
   "tkzFctPolar",
   "tkzDrawTangentLine",
   "tkzDrawArea",
-  "tkzArea"
+  "tkzArea",
+  "tkzDrawAreafg",
+  "tkzAreafg"
 ];
 const COMMANDS = new Set(IMPLEMENTED_COMMANDS);
 const TEX_PT_PER_CM = 28.4527559;
@@ -150,6 +152,11 @@ export function expandTkzFct(source) {
       index = optional.end;
       continue;
     }
+    if (command.value === "tkzDrawAreafg" || command.value === "tkzAreafg") {
+      output += renderFunctionBand(state, optional.content);
+      index = optional.end;
+      continue;
+    }
     if (command.value === "tkzAxeXY") {
       output += renderAxes(state, optional.content, {
         scriptsize: insideScriptsizeScope(text, index)
@@ -161,7 +168,7 @@ export function expandTkzFct(source) {
 }
 
 function usesTkzFct(source) {
-  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw(?:X|Y|TangentLine|Area)|Area|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
+  return /\\usepackage(?:\[[^\]]*\])?\{[^{}]*\btkz-fct\b[^{}]*\}|\\tkz(?:Init|Grid|Axe(?:X|Y|XY)|Draw(?:X|Y|TangentLine|Area|Areafg)|Area(?:fg)?|Label[XY]|Fct(?:Par|Polar)?)\b/.test(source);
 }
 
 function createState() {
@@ -439,6 +446,7 @@ function sampleScalarFunction(state, rawExpression, domain, samples, bounds = no
     }
     const current = {
       sourceX,
+      sourceY,
       x: (sourceX - state.xorigin) / state.xstep,
       y: (sourceY - state.yorigin) / state.ystep
     };
@@ -492,6 +500,135 @@ function renderFunctionArea(state, rawOptions) {
     .join("\n");
   if (!fills) return "";
   return `\\begin{scope}\\clip (${format(bounds.xmin)},${format(bounds.ymin)}) rectangle (${format(bounds.xmax)},${format(bounds.ymax)});\n${fills}\n\\end{scope}`;
+}
+
+function renderFunctionBand(state, rawOptions) {
+  // tkz-fct clips a solid rectangle first below the named upper function and
+  // then above the named lower function. Build only the same finite pieces
+  // where the first curve is at or above the second curve.
+  const options = parseOptions(rawOptions);
+  const pair = parseFunctionBand(options.between);
+  const upper = state.functions.find((entry) => entry.name === pair.upper);
+  const lower = state.functions.find((entry) => entry.name === pair.lower);
+  if (!upper || !lower) return "";
+
+  const domain = parseFunctionDomain(options.domain, state);
+  const samples = functionSamples(options.samples);
+  const bounds = normalizedBounds(state);
+  const bands = sampleFunctionBand(state, upper.expression, lower.expression, domain, samples, bounds);
+  const style = functionBandOptions(options);
+  const fills = bands
+    .filter((band) => band.upper.length >= 2 && band.lower.length >= 2)
+    .map((band) => {
+      const top = band.upper.map((point) => `(${format(point.x)},${format(point.y)})`);
+      const bottom = [...band.lower].reverse().map((point) => `(${format(point.x)},${format(point.y)})`);
+      return `\\fill[${style}] ${[...top, ...bottom].join(" -- ")} -- cycle;`;
+    })
+    .join("\n");
+  if (!fills) return "";
+  return `\\begin{scope}\\clip (${format(bounds.xmin)},${format(bounds.ymin)}) rectangle (${format(bounds.xmax)},${format(bounds.ymax)});\n${fills}\n\\end{scope}`;
+}
+
+function sampleFunctionBand(state, rawUpper, rawLower, domain, samples, bounds) {
+  const bands = [];
+  let active = null;
+  let previous = null;
+  for (let index = 0; index < samples; index += 1) {
+    const ratio = samples === 1 ? 0 : index / (samples - 1);
+    const sourceX = domain.start + (domain.end - domain.start) * ratio;
+    const upper = sampleFunctionPoint(state, rawUpper, sourceX);
+    const lower = sampleFunctionPoint(state, rawLower, sourceX);
+    if (!upper || !lower) {
+      flushBand(bands, active);
+      active = null;
+      previous = null;
+      continue;
+    }
+    const current = { upper, lower, difference: upper.sourceY - lower.sourceY };
+    if (!previous) {
+      previous = current;
+      continue;
+    }
+    if (
+      hasDiscontinuityBetween(rawUpper, previous.upper, current.upper, state, bounds) ||
+      hasDiscontinuityBetween(rawLower, previous.lower, current.lower, state, bounds)
+    ) {
+      flushBand(bands, active);
+      active = null;
+      previous = current;
+      continue;
+    }
+
+    const leftInside = previous.difference >= 0;
+    const rightInside = current.difference >= 0;
+    if (leftInside && rightInside) {
+      if (!active) active = createBand(previous.upper, previous.lower);
+      appendBand(active, current.upper, current.lower);
+    } else if (leftInside) {
+      if (!active) active = createBand(previous.upper, previous.lower);
+      const crossing = interpolateBandPoint(previous, current);
+      appendBand(active, crossing.upper, crossing.lower);
+      flushBand(bands, active);
+      active = null;
+    } else if (rightInside) {
+      const crossing = interpolateBandPoint(previous, current);
+      active = createBand(crossing.upper, crossing.lower);
+      appendBand(active, current.upper, current.lower);
+    }
+    previous = current;
+  }
+  flushBand(bands, active);
+  return bands;
+}
+
+function sampleFunctionPoint(state, expression, sourceX) {
+  const sourceY = evaluateAxisExpression(expression, sourceX, { "trig format": "rad" });
+  if (!Number.isFinite(sourceY)) return null;
+  return {
+    sourceX,
+    sourceY,
+    x: sourceToCanvas(sourceX, state.xorigin, state.xstep),
+    y: sourceToCanvas(sourceY, state.yorigin, state.ystep)
+  };
+}
+
+function interpolateBandPoint(first, second) {
+  const difference = first.difference - second.difference;
+  const ratio = Math.abs(difference) < 1e-12 ? 0 : first.difference / difference;
+  return {
+    upper: interpolateFunctionPoint(first.upper, second.upper, ratio),
+    lower: interpolateFunctionPoint(first.lower, second.lower, ratio)
+  };
+}
+
+function interpolateFunctionPoint(first, second, ratio) {
+  return {
+    sourceX: first.sourceX + (second.sourceX - first.sourceX) * ratio,
+    sourceY: first.sourceY + (second.sourceY - first.sourceY) * ratio,
+    x: first.x + (second.x - first.x) * ratio,
+    y: first.y + (second.y - first.y) * ratio
+  };
+}
+
+function createBand(upper, lower) {
+  return { upper: [upper], lower: [lower] };
+}
+
+function appendBand(band, upper, lower) {
+  if (!samePoint(band.upper.at(-1), upper)) band.upper.push(upper);
+  if (!samePoint(band.lower.at(-1), lower)) band.lower.push(lower);
+}
+
+function flushBand(bands, band) {
+  if (band?.upper.length >= 2 && band.lower.length >= 2) bands.push(band);
+}
+
+function parseFunctionBand(rawBetween) {
+  const match = String(rawBetween ?? "a and b").trim().match(/^(.+?)\s+and\s+(.+)$/i);
+  return {
+    upper: String(match?.[1] || "a").trim().toLowerCase(),
+    lower: String(match?.[2] || "b").trim().toLowerCase()
+  };
 }
 
 function rememberFunction(state, expression) {
@@ -745,6 +882,25 @@ function functionAreaOptions(options) {
   const ignored = new Set(["domain", "samples", "id", "opacity"]);
   const parts = [
     `color=${optionText(options.color, "black!50")}`,
+    `fill opacity=${optionNumber(options.opacity, 0.5)}`
+  ];
+  for (const [key, value] of Object.entries(options)) {
+    if (ignored.has(key) || key === "color") continue;
+    if (key === "style") {
+      const style = optionText(value, "");
+      if (style) parts.push(style);
+      continue;
+    }
+    if (value === true) parts.push(key);
+    else parts.push(`${key}=${value}`);
+  }
+  return parts.join(",");
+}
+
+function functionBandOptions(options) {
+  const ignored = new Set(["between", "domain", "samples", "id", "opacity"]);
+  const parts = [
+    `color=${optionText(options.color, "lightgray")}`,
     `fill opacity=${optionNumber(options.opacity, 0.5)}`
   ];
   for (const [key, value] of Object.entries(options)) {

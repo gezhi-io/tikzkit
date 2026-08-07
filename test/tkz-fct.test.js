@@ -28,7 +28,9 @@ test("exposes the tkz-fct Cartesian frame as a built-in preprocess extension", (
     "tkzFctPolar",
     "tkzDrawTangentLine",
     "tkzDrawArea",
-    "tkzArea"
+    "tkzArea",
+    "tkzDrawAreafg",
+    "tkzAreafg"
   ]);
   const pkg = collectTexPackages(String.raw`\usepackage{tkz-fct}`)[0];
   assert.equal(pkg.status, "partial");
@@ -195,6 +197,45 @@ test("keeps tkzArea as the documented alias of tkzDrawArea", () => {
 
   assert.doesNotMatch(expanded, /\\tkzArea/);
   assert.match(expanded, /\\fill\[color=green,fill opacity=0\.5\]/);
+});
+
+test("fills only the documented region between named tkzFct curves", () => {
+  const source = String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=20,xmax=60,xstep=20,ymin=100,ymax=500,ystep=100]
+  \tkzFct[domain=20:60,samples=3]{400}
+  \tkzFct[domain=20:60,samples=3]{200}
+  \tkzDrawAreafg[between=a and b,color=orange!70,opacity=.45,domain=20:60,samples=3]
+\end{tikzpicture}`;
+  const expanded = expandTkzFct(source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const area = result.ir.items.find((item) => item.type === "path" && item.style?.fillOpacity === 0.45);
+
+  assert.doesNotMatch(expanded, /\\tkzDrawAreafg/);
+  assert.match(expanded, /\\fill\[color=orange!70,fill opacity=0\.45\] \(0,3\) -- \(1,3\) -- \(2,3\) -- \(2,1\) -- \(1,1\) -- \(0,1\) -- cycle;/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(area, "expected a named-function area to reach the SVG scene");
+  assert.equal(area.style.fillOpacity, 0.45);
+});
+
+test("clips tkzDrawAreafg at a function intersection and keeps its alias", () => {
+  const source = String.raw`
+\usepackage{tkz-fct}
+\begin{tikzpicture}
+  \tkzInit[xmin=0,xmax=2,ymin=0,ymax=2]
+  \tkzFct[domain=0:2,samples=3]{2-x}
+  \tkzFct[domain=0:2,samples=3]{x}
+  \tkzAreafg[color=green,domain=0:2,samples=3]
+\end{tikzpicture}`;
+  const expanded = expandTkzFct(source);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const fills = result.ir.items.filter((item) => item.type === "path" && item.style?.fill !== "none");
+
+  assert.doesNotMatch(expanded, /\\tkzAreafg/);
+  assert.match(expanded, /\\fill\[color=green,fill opacity=0\.5\] \(0,2\) -- \(1,1\) -- \(1,1\) -- \(0,0\) -- cycle;/);
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(fills.length >= 1, "expected the positive side of the intersecting band to be filled");
 });
 
 test("lowers tkzFctPar by evaluating t in source units and scaling each coordinate", () => {
