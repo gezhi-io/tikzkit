@@ -9,6 +9,167 @@ TikZKit is a pure JavaScript TikZ semantic interpreter. It is not a full TeX eng
 
 ## Current Status: Experimental
 
+## 使用说明
+
+TikZKit 目前有两种明确不同的用途：
+
+1. **浏览器工作台**：在本机快速编辑 TikZ，并用 JavaScript 即时生成 SVG。
+2. **兼容性开发**：把 TikZKit、`tikztosvg` 与本机 MacTeX 放在同一套对照图中，逐个真实案例校正实现。
+
+浏览器里出现图形只表示当前 JavaScript 能解释该源码；它**不**自动表示与
+LaTeX 一致。新增或修改兼容性功能时，请使用下方的三方验收流程。
+
+完整的中文说明见 [docs/usage.md](docs/usage.md)。支持状态和实现位置以
+[扩展登记表](docs/extension-registry.md) 为准；每个已验收切片的可见差异与遗留
+限制记录在 [docs/qa](docs/qa) 中。
+
+### 环境要求
+
+浏览器和 Node.js 渲染只需要：
+
+- Node.js 20 或更新版本；
+- npm。
+
+下列工具只在生成本地参考图、而非浏览器运行时需要：MacTeX、`tikztosvg`、
+`rsvg-convert`。因此可以在没有 TeX 安装的机器上使用工作台或 CLI；只是不能做
+原生视觉对比。
+
+### 1. 启动本地工作台
+
+```bash
+npm install
+npm run web
+```
+
+打开 <http://127.0.0.1:5173/>。选择一个维护案例，或在编辑器中粘贴源码，点击
+Render 后检查 TikZKit SVG 和 diagnostics。
+
+若 `5173` 已经被占用，保留原服务并启动第二个端口：
+
+```bash
+PORT=5174 npm run web
+```
+
+然后打开 <http://127.0.0.1:5174/>。工作台只提供静态资源、维护案例及其已生成的
+参考文件；实际转换发生在浏览器中，不会把源码提交给 MacTeX、`tikztosvg` 或远程
+服务。
+
+### 2. 从命令行导出 SVG
+
+```bash
+node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
+```
+
+常用选项：
+
+```text
+--strict                 将 diagnostics 视为失败
+--math-renderer svg-text 使用纯 SVG 文本公式后端
+--unit <pxPerCm>         设置每厘米的 SVG 像素数
+--margin <px>            设置 SVG 画布留白
+```
+
+省略 `-o` 时，CLI 会在输入文件旁输出同名 `.svg`。`outputs/` 适合存放本地 SVG、PNG
+和对照页，已被 Git 忽略。
+
+### 3. 从 JavaScript 调用
+
+```js
+import { tikzToSvg } from "./src/index.js";
+
+const source = String.raw`
+  \begin{tikzpicture}
+    \draw[->] (0,0) -- (2,1) node[right] {$x$};
+  \end{tikzpicture}`;
+
+const result = tikzToSvg(source);
+
+if (result.diagnostics.length > 0) {
+  console.warn(result.diagnostics);
+}
+
+document.querySelector("#preview").innerHTML = result.svg;
+```
+
+对外接口保持很小：`parseTikz(source)` 解析 AST，`interpretTikz(ast)` 生成绘图 IR，
+`renderSvg(ir)` 输出 SVG，`tikzToSvg(source)` 一次完成以上步骤。异步文字测量场景可
+使用 `tikzToSvgAsync(source, options)`。
+
+### 4. 验收一个真实案例
+
+兼容性改动先盘点源码中实际使用的 package、library、命令、参数、数值和表达式，再
+生成三方工件。下面的命令会将结果写入一个可丢弃的本地目录：
+
+```bash
+npm run case:audit -- path/to/case.tex \
+  --output outputs/qa-case/audit.md \
+  --init-review outputs/qa-case/review.json
+
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only <fixture-id> \
+  --output outputs/qa-case \
+  --native-reference --comparison-grid-mode svg --strict-tikztosvg
+
+npm run examples:diff -- --output outputs/qa-case \
+  --register --alignment-radius 3
+```
+
+在 `outputs/qa-case/index.html` 中实际检查 TikZKit、`tikztosvg` 和 MacTeX 的
+面板及 diff：图元是否缺失，原点/尺度/裁剪是否正确，箭头、线宽、填充、图层、文字、
+公式和标签锚点是否一致。差异数值只用于定位候选问题，最终以 MacTeX 视觉结果为准。
+
+一个可提交的兼容性改动应包含共享实现、最小回归测试、维护 fixture、登记表更新和
+一份 QA Markdown；不提交 `outputs/` 中的 PNG、SVG 或 diff。
+
+### 5. 日常开发检查
+
+```bash
+# 聚焦测试：用正在修改的功能对应的测试文件替换这里的示例。
+node --test test/interpreter.test.js
+
+# 全量实验性测试基线。
+npm test
+
+# 维护案例的语义检查；它不是视觉一致性判定。
+npm run gallery:audit
+
+# package/library 行为改变后重建登记表。
+npm run extension-registry
+
+# 提交前检查空白和冲突标记。
+git diff --check
+```
+
+### 6. 查找实现与边界
+
+| 想了解什么 | 入口 |
+| --- | --- |
+| 已声明的 package/library、状态和本机源码记录 | [docs/extension-registry.md](docs/extension-registry.md) |
+| 逐案例的视觉验收记录和剩余问题 | [docs/qa](docs/qa) |
+| 完整中文工作流、故障排查和已验证切片 | [docs/usage.md](docs/usage.md) |
+| 解释器与 SVG 渲染分层 | [docs/architecture.md](docs/architecture.md) |
+| 维护中的真实案例 | [test/fixtures/examples](test/fixtures/examples) |
+
+核心流水线是：
+
+```text
+TikZ source -> parser -> semantic interpreter -> drawing IR -> SVG renderer
+```
+
+TikZ 语义应放在 `src/frontend/`、`src/engine/` 和 `src/tikz/`，SVG 细节应放在
+`src/renderers/svg/`。新增 library 优先放在 `src/tikz/libraries/`，新增命令优先放在
+`src/tikz/commands/`；不要让 parser 直接拼 SVG。
+
+### 当前边界
+
+TikZKit 仍在测试中，不能作为完整 TeX、TikZ、PGF 或 PGFPlots 的替代品。完整宏展开、
+原生字体度量、复杂段落排版、完整 PGFPlots survey 管线、所有第三方 package 和任意
+TeX 回调都可能是 partial 或 unsupported。对一个案例的绿灯只说明对应功能切片已经
+过测试和视觉复核，不代表相邻语法已被完整实现。
+
+下文保留具体的已验证切片和实现笔记；请把它们当作开发记录，并以本节、使用指南、
+登记表和对应 QA 文档作为日常使用入口。
+
 TikZKit is currently an experimental compatibility prototype. It is useful for
 studying TikZ semantics, comparing JavaScript rendering against local
 `tikztosvg`/MacTeX output, and iterating on focused real-world cases.
