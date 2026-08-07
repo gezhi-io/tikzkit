@@ -12338,10 +12338,19 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     // TikZ uses a minipage for `text width`: the first line's TeX height,
     // the paragraph baseline grid, and the last line's depth form its box.
     // Summing visible glyph boxes makes wrapped mixed-size text too short.
-    textBox.height = Math.max(
-      textBox.height,
-      wrappedStyledParagraphHeightCm(paragraphNormalized, paragraphFont, unscaledTextMetricScale)
+    const paragraphHeight = wrappedStyledParagraphHeightCm(
+      paragraphNormalized,
+      paragraphFont,
+      unscaledTextMetricScale
     );
+    // An outer `minipage` is already a fixed TeX vbox. Its renderer cache
+    // describes painted glyph extents, which can be taller than the vbox and
+    // previously made the surrounding TikZ node about 3pt too high. Preserve
+    // the cache safeguard for ordinary `text width` nodes, but use the vbox
+    // metric exactly for the minipage wrapper.
+    textBox.height = options["tikzkit minipage text width"]
+      ? paragraphHeight
+      : Math.max(textBox.height, paragraphHeight);
     textBox.width = Math.min(textBox.width, textWidth);
   }
   // Claude: 空圆里带 cross（⊗ 乘法器/混频符号，如 case 037）若按 inner sep 撑，会小到几乎看不见。

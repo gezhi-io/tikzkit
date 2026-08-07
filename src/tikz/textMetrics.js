@@ -687,7 +687,11 @@ function lineFitsWidth(words, maxWidthCm, scale, tolerance) {
   return texTextWidthCm(words.join(" "), scale) <= maxWidthCm * tolerance;
 }
 
-function englishHyphenationCandidates(rawWord) {
+// This is deliberately a small fallback rather than a dictionary-backed TeX
+// hyphenation engine. Renderers use it only to recover a safe, visible split
+// when a fixed-width paragraph can retain a useful word prefix on the prior
+// line.
+export function englishHyphenationCandidates(rawWord) {
   const match = String(rawWord || "").match(/^([A-Za-z]+)([),.;:!?]*)$/);
   if (!match) return [];
   const [, original, trailingPunctuation] = match;
@@ -724,7 +728,12 @@ function englishHyphenationCandidates(rawWord) {
       const [index, priority] = point.split(":").map(Number);
       return { index, priority };
     })
-    .sort((left, right) => right.priority - left.priority || right.index - left.index)
+    // For equally safe syllable boundaries, retain the earlier prefix. TeX's
+    // paragraph breaker weighs the later lines as well as the current line;
+    // blindly choosing the longest fitting prefix creates a visibly different
+    // ragged paragraph (for example `rela- / tion` instead of TeX's
+    // `re- / lation`).
+    .sort((left, right) => right.priority - left.priority || left.index - right.index)
     .map(({ index }) => ({
       prefix: `${original.slice(0, index)}-`,
       suffix: `${original.slice(index)}${trailingPunctuation}`

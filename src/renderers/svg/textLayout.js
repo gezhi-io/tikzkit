@@ -1,4 +1,11 @@
-import { estimateFormulaBox, effectiveMathFontScale, parseMathText, texTextWidthCm, wrapTeXTextLineByWidth } from "../../tikz/textMetrics.js";
+import {
+  englishHyphenationCandidates,
+  estimateFormulaBox,
+  effectiveMathFontScale,
+  parseMathText,
+  texTextWidthCm,
+  wrapTeXTextLineByWidth
+} from "../../tikz/textMetrics.js";
 import { mathFallbackText, splitInlineMathSegments } from "../../tikz/text.js";
 import { TIKZ_TYPEWRITER_WIDTH_SCALE } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
@@ -14,9 +21,10 @@ export const SVG_TEXT_WRAP_CHAR_WIDTH_EM = 0.54;
 export const SVG_SERIF_TEXT_WIDTH_SCALE = 1;
 export const SVG_SANS_SERIF_TEXT_WIDTH_SCALE = 1;
 const TEX_PT_PER_CM = 28.4527559;
-// The physical CMU font render is fractionally wider than its TeX metric table.
-// Keep this small allowance after using real math-box widths; the retired 10%
-// correction was compensating for fallback-Unicode math rather than the font.
+// Ordinary TikZ `text width` nodes are centered and use a small safety margin
+// for mixed SVG/HTML math metrics. Outer minipages use TeX's sequential
+// paragraph breaking instead, where normal interword shrink is the better
+// approximation.
 const MIXED_INLINE_MATH_FONT_METRIC_SAFETY_SCALE = 1.03;
 
 export function normalizedTextAlign(value) {
@@ -338,14 +346,17 @@ export function wrapSvgTextTokensBalanced(tokens, maxChars) {
 export function wrapSvgTextTokensByWidth(tokens, maxWidthCm, fontScale = 1, options = {}) {
   if (!tokens.length) return [];
   if (!Number.isFinite(maxWidthCm) || maxWidthCm <= 0) return [tokens];
-  if (options.lineBreakMode === "flush") return wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale);
+  if (options.lineBreakMode === "flush") {
+    const lines = wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale);
+    return applyConservativeSvgTextTokenHyphenation(lines, maxWidthCm, fontScale, options);
+  }
   const count = tokens.length;
   const best = Array.from({ length: count + 1 }, () => ({ cost: Infinity, next: count }));
   best[count] = { cost: 0, next: count };
   for (let start = count - 1; start >= 0; start -= 1) {
     for (let end = start; end < count; end += 1) {
       const line = tokens.slice(start, end + 1);
-      const width = svgTextWrappedLineWidthCm(line, fontScale);
+      const width = svgTextWrappedLineWidthCm(line, fontScale) * MIXED_INLINE_MATH_FONT_METRIC_SAFETY_SCALE;
       if (width > maxWidthCm * 1.08 && end > start) break;
       const isLast = end === count - 1;
       const overfull = Math.max(0, width - maxWidthCm);
@@ -381,7 +392,17 @@ function svgTextWrappedLineWidthCm(tokens, fontScale) {
       ? measured * fontScale
       : texTextWidthCm(token.formatted, fontScale);
   }
-  return width * MIXED_INLINE_MATH_FONT_METRIC_SAFETY_SCALE;
+  return width;
+}
+
+function svgTextTokensFitWithTeXGlue(tokens, maxWidthCm, fontScale) {
+  const width = svgTextWrappedLineWidthCm(tokens, fontScale);
+  // Plain TeX's normal interword space is 3.333pt plus 1.667pt minus
+  // 1.111pt at 10pt. A ragged-right minipage may use the available shrink
+  // while breaking a line, so a strict SVG-width comparison spuriously
+  // rejects an otherwise native TeX line.
+  const shrinkCm = Math.max(0, tokens.length - 1) * (10 / 9 / TEX_PT_PER_CM) * fontScale;
+  return width <= maxWidthCm + shrinkCm;
 }
 
 function wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale) {
@@ -389,8 +410,7 @@ function wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale) {
   let line = [];
   for (const token of tokens) {
     const candidate = [...line, token];
-    const width = svgTextWrappedLineWidthCm(candidate, fontScale);
-    if (line.length && width > maxWidthCm) {
+    if (line.length && !svgTextTokensFitWithTeXGlue(candidate, maxWidthCm, fontScale)) {
       lines.push(line);
       line = [token];
     } else {
@@ -399,6 +419,57 @@ function wrapSvgTextTokensFlush(tokens, maxWidthCm, fontScale) {
   }
   if (line.length) lines.push(line);
   return lines;
+}
+
+// Keep mixed prose/math paragraphs on the same compatibility path as ordinary
+// TeX text. Inline math remains indivisible, while a following plain-English
+// word can contribute a conservative hyphenated prefix to the preceding line.
+// This is important for minipages: TeX can retain `re-` after a compact math
+// relation, whereas the SVG fallback otherwise leaves a visibly sparse line.
+function applyConservativeSvgTextTokenHyphenation(lines, maxWidthCm, fontScale, options = {}) {
+  if (options.hyphenate === false || lines.length < 2) return lines;
+  const wrapped = lines.map((line) => line.map((token) => ({ ...token })));
+  let introducedHyphenation = false;
+
+  for (let lineIndex = 0; lineIndex < wrapped.length - 1; lineIndex += 1) {
+    const current = wrapped[lineIndex];
+    const following = wrapped[lineIndex + 1];
+    const next = following[0];
+    const split = svgTextTokenHyphenationThatFits(current, next, maxWidthCm, fontScale);
+    if (!split) continue;
+    current.push(split.prefix);
+    following[0] = split.suffix;
+    introducedHyphenation = true;
+  }
+  if (!introducedHyphenation) return wrapped;
+
+  // TeX repacks later lines after a discretionary break. Move whole tokens
+  // only, so an inline formula never becomes a split or independently spaced
+  // fallback glyph sequence.
+  for (let lineIndex = 1; lineIndex < wrapped.length - 1; lineIndex += 1) {
+    const current = wrapped[lineIndex];
+    const following = wrapped[lineIndex + 1];
+    while (following.length && svgTextTokensFitWithTeXGlue([...current, following[0]], maxWidthCm, fontScale)) {
+      current.push(following.shift());
+    }
+  }
+  return wrapped.filter((line) => line.length);
+}
+
+function svgTextTokenHyphenationThatFits(previous, token, maxWidthCm, fontScale) {
+  if (!token || token.source !== token.formatted) return null;
+  const word = String(token.formatted || "");
+  if (!word || svgTextTokensFitWithTeXGlue([...previous, token], maxWidthCm, fontScale)) return null;
+  for (const candidate of englishHyphenationCandidates(word)) {
+    const prefix = { ...token, source: candidate.prefix, formatted: candidate.prefix };
+    if (svgTextTokensFitWithTeXGlue([...previous, prefix], maxWidthCm, fontScale)) {
+      return {
+        prefix,
+        suffix: { ...token, source: candidate.suffix, formatted: candidate.suffix }
+      };
+    }
+  }
+  return null;
 }
 
 export function hasInlineMathSource(source) {

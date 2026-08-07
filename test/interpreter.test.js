@@ -294,6 +294,25 @@ test("uses an outer minipage width for node wrapping and preserves explicit text
   assert.equal(textNodes.explicit.wrapWidth, 2);
 });
 
+test("sizes a mixed-inline-math minipage from the TeX paragraph vbox", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[draw, rounded corners, fill=red!10, inner sep=1ex] (note) at (0,0) {
+    \begin{minipage}{0.35\textwidth}
+      When $\alpha = \gamma$, keep the relation with its explanatory sentence
+      so the block wraps naturally.
+    \end{minipage}
+  };
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const box = result.ir.items.find((item) => item.type === "nodeBox" && item.id === "note");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(box, "expected an outer minipage node box");
+  // The fixed-width minipage is a TeX vbox, not the union of its painted
+  // glyph boxes. This is 53.6pt including the two 1ex inner separations.
+  assert.ok(Math.abs(box.height - 1.884214) < 1e-5, `expected TeX minipage height, got ${box.height}`);
+});
+
 test("resolves calc scalar multiplication of vector coordinates", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{calc}

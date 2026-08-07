@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
+import { wrapSvgTextTokensByWidth, svgTextWrapTokens } from "../src/renderers/svg/textLayout.js";
 import { mathFallbackText, normalizeTikzText } from "../src/tikz/text.js";
 import {
   createArrowTip,
@@ -2968,6 +2969,31 @@ test("keeps compact inline math on the TeX-sized svg-text paragraph line", () =>
     "are parallel, i.e., AB ∥ CD, then α = γ",
     "and β = δ."
   ]);
+});
+
+test("reflows a minipage inline-math paragraph with a conservative TeX-style hyphen", () => {
+  const source = String.raw`When $\alpha = \gamma$, keep the relation with its explanatory sentence so the block wraps naturally.`;
+  const lines = wrapSvgTextTokensByWidth(
+    svgTextWrapTokens(source),
+    (345 / 28.45274) * 0.35,
+    1,
+    { lineBreakMode: "flush" }
+  ).map((line) => line.map((token) => token.formatted).join(" "));
+
+  assert.deepEqual(lines, [
+    "When α = γ, keep the re-",
+    "lation with its explanatory",
+    "sentence so the block wraps",
+    "naturally."
+  ]);
+
+  const unhyphenated = wrapSvgTextTokensByWidth(
+    svgTextWrapTokens(source),
+    (345 / 28.45274) * 0.35,
+    1,
+    { lineBreakMode: "flush", hyphenate: false }
+  ).map((line) => line.map((token) => token.formatted).join(" "));
+  assert.equal(unhyphenated[0], "When α = γ, keep the");
 });
 
 test("preserves grouped vector macros in mixed KaTeX rich text", () => {

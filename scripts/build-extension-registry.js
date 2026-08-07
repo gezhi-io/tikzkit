@@ -423,6 +423,15 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 | --- | --- | --- | --- | --- |
 | ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | src/engine/math.js, src/engine/evaluate.js, src/tex/fontSpec.js, src/tikz/text.js, src/tikz/textMetrics.js, src/renderers/svg/textLayout.js | every node and nodes={...} now materialize their fonts into ordinary and inline-node SVG FontSpecs; a picture font remains the scope layer, while explicit node/path-node and content fonts take precedence. An outer node-local minipage also contributes its width to shared text wrapping. Scoped local font commands now preserve the preceding TeX line's FontSpec baseline across multiline SVG text. On 2026-08-07, multi-line math circles began using PGF-style packed TeX row metrics rather than the wider SVG measurement box. TeX hyphenation, glue/penalty justification, nested minipage layout, and exact native glyph/crop parity remain partial. |
 
+## Latest Core TikZ Update
+
+On 2026-08-08, the focused outer-\`minipage\` paragraph slice gained TeX-sized
+inline-math word groups, normal-space shrink during sequential wrapping,
+conservative English \`re-\` / \`lation\` hyphenation, and TeX vbox sizing instead
+of painted-glyph sizing. Full TeX pattern dictionaries, paragraph
+glue/penalties, footnotes, and nested minipage layout remain partial. Evidence:
+[2026-08-08 inline-math minipage QA](./qa/2026-08-08-inline-math-minipage-wrap.md).
+
 ## Highest-Priority Unsupported Entries
 
 ${renderPriorityTable(topUnsupported)}

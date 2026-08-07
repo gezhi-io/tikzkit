@@ -326,6 +326,37 @@ It confirms matching outer width, placement, and wrapping instead of the old
 single overwide line. Native discretionary hyphenation, justification glue,
 footnotes, and nested minipage vertical layout remain outside this slice.
 
+### Verified Mixed-Math `minipage` Reflow
+
+The same outer-`minipage` path now handles a fixed-width paragraph containing
+inline math as a TeX-like sequence of indivisible word groups. For the focused
+driver below, it keeps `\alpha = \gamma` together, applies normal interword
+space shrink while filling a sequential minipage line, and uses a conservative
+English break (`re-` / `lation`) when that is the native visible result. The
+node's vertical size comes from the minipage vbox model: first-line height,
+the owning 12pt baseline grid, last-line depth, and TikZ `inner sep`.
+
+```bash
+node --test --test-name-pattern='mixed-inline-math minipage|reflows a minipage inline-math paragraph' \
+  test/interpreter.test.js test/renderer.test.js
+
+node scripts/render-example-fixtures.js \
+  --fixtures test/fixtures/implementation-examples \
+  --output outputs/qa-inline-math-minipage-wrap \
+  --only real-world-minipage-text-width \
+  --native-reference --strict-tikztosvg
+node scripts/diff-example-pngs.js --output outputs/qa-inline-math-minipage-wrap
+```
+
+This produces the browser SVG, local `tikztosvg` SVG, native MacTeX PNG, grids,
+and comparison sheets in the ignored output directory. The checked current
+render has a matching `206x77px` TikZKit/MacTeX canvas; tikztosvg is one raster
+pixel taller due to its page crop. The full visual record is
+[docs/qa/2026-08-08-inline-math-minipage-wrap.md](docs/qa/2026-08-08-inline-math-minipage-wrap.md).
+It remains an experimental subset: full Liang dictionaries for arbitrary
+languages, TeX paragraph glue/penalty optimization, footnotes, and nested
+minipage layout are still partial.
+
 ### Fixed-Width Nodes With Mixed Font Sizes
 
 For a node using `text width=...`, TikZ creates a minipage-like paragraph box.
