@@ -482,6 +482,23 @@ npm run examples:diff -- --output outputs/qa-snake --register --alignment-radius
 `decorations-zigzag-native-state` 生成三方视觉对照。尖锐折角的法线过渡和任意曲线
 的精确 PGF 展平仍在测试中，不应当作完整 path-morphing 兼容承诺。
 
+旧文档中仍可见 `\usetikzlibrary{snakes}`。它和上面的现代 `decorate` 写法不同：
+`snake` 会让每一条 `--` 独立开始一个旧式状态机。当前支持默认 `snake`（旧式
+`zigzag`）、`snake=snake`、`segment amplitude`、`segment length`、`mirror snake`、
+`raise snake`，以及 `line/gap before|after|around snake`：
+
+```tex
+\usetikzlibrary{snakes}
+\draw[snake,segment length=4mm,segment amplitude=1mm,
+  line before snake=5mm,line after snake=4mm,
+  mirror snake,raise snake=.4mm,-stealth]
+  (0,0) -- (4,0) -- (4,2);
+```
+
+这只是兼容层，不接受任意 `\pgfdeclaresnake` 状态或旧三角对象形状；请优先使用
+`decorations.pathmorphing` 的现代 API。回归命令是
+`node --test test/snakes-legacy-options.test.js`。
+
 `bchart` 的横向柱图可用 `npm test -- test/bchart.test.js` 验证；当前支持
 `\renewcommand{\bcfontstyle}{...}` 的零参数字体钩子，且 `scale` 只缩放几何、
 不缩放文字。完整选项范围和三方对照命令见[使用指南](docs/usage.md#bchart-横向柱图)。
@@ -1922,6 +1939,12 @@ Current support is pragmatic and growing. Highlights:
   wave phase or the requested decoration lengths. See the Case 005 driver at
   `test/fixtures/examples/decorations/snake-arrow-lengths.tex` and its QA
   record in `docs/qa/2026-08-06-snake-arrow-phase.md`.
+- Legacy `snakes`: the direct `snake` option restarts its old state machine for
+  each `--`, unlike modern `decorate` paths. The maintained subset includes
+  default zigzags, `snake=snake`, segment amplitude/length, mirror/raise, and
+  line/gap endpoint controls; see `test/snakes-legacy-options.test.js` and
+  `docs/qa/2026-08-07-legacy-snakes-controls.md`. Custom snake declarations
+  and old triangle object shapes remain unsupported.
 - `zigzag` now mirrors PGF's `up from center`, `big down` / `big up`, and
   `center finish` state sequence. Its apex starts one quarter of a segment
   from the decoration start and continues across a polyline rather than

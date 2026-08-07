@@ -12503,6 +12503,8 @@ function parseArcRadii(options = {}, env = {}) {
 }
 
 function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
+  const legacySnake = legacySnakeSpec(pathOptions, env);
+  if (legacySnake) return applyLegacySnakePath(commands, legacySnake);
   const decoration = parseOptions(String(pathOptions.decoration || ""));
   if (pathOptions.decorate && decoration.brace) return applyBraceDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration.border) return applyBorderDecoration(commands, decoration, env);
@@ -12561,6 +12563,126 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
     if ("x" in command) current = { x: command.x, y: command.y };
   }
   return morphed;
+}
+
+function legacySnakeSpec(pathOptions, env) {
+  if (pathOptions.snake === undefined || pathOptions.snake === false) return null;
+  const requested = String(pathOptions.snake === true ? "" : pathOptions.snake).trim().toLowerCase();
+  if (requested === "none") return null;
+  const mode = requested === "" || requested === "zigzag" ? "zigzag" : requested === "snake" ? "snake" : null;
+  if (!mode) return null;
+
+  const defaultAmplitude = parseDimension("2.5pt", env.variables);
+  const defaultSegmentLength = parseDimension("10pt", env.variables);
+  const minimumSegmentLength = parseDimension("1pt", env.variables);
+  const around = legacySnakeEndpointOptions(pathOptions, "around", env);
+  const before = around || legacySnakeEndpointOptions(pathOptions, "before", env);
+  const after = around || legacySnakeEndpointOptions(pathOptions, "after", env);
+
+  return {
+    mode,
+    amplitude: Math.max(0, parseFinitePgfLength(pathOptions["segment amplitude"] ?? "2.5pt", env, defaultAmplitude)),
+    segmentLength: Math.max(
+      minimumSegmentLength,
+      parseFinitePgfLength(pathOptions["segment length"] ?? "10pt", env, defaultSegmentLength)
+    ),
+    before,
+    after,
+    mirrored: tikzBoolean(pathOptions["mirror snake"]),
+    raise: parseFinitePgfLength(pathOptions["raise snake"] ?? "0", env, 0)
+  };
+}
+
+function legacySnakeEndpointOptions(pathOptions, position, env) {
+  const lineKey = `line ${position} snake`;
+  const gapKey = `gap ${position} snake`;
+  if (pathOptions[lineKey] !== undefined) {
+    return { type: "line", length: Math.max(0, parseFinitePgfLength(pathOptions[lineKey], env, 0)) };
+  }
+  if (pathOptions[gapKey] !== undefined) {
+    return { type: "gap", length: Math.max(0, parseFinitePgfLength(pathOptions[gapKey], env, 0)) };
+  }
+  return null;
+}
+
+function applyLegacySnakePath(commands, spec) {
+  const morphed = [];
+  let current = null;
+  let start = null;
+
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      morphed.push(command);
+      current = { x: command.x, y: command.y };
+      start = current;
+      continue;
+    }
+    if (command.type === "lineTo" && current) {
+      appendLegacySnakeLine(morphed, current, { x: command.x, y: command.y }, spec);
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (command.type === "closePath" && current && start) {
+      appendLegacySnakeLine(morphed, current, start, spec);
+      morphed.push(command);
+      current = start;
+      continue;
+    }
+    morphed.push(command);
+    if ("x" in command) current = { x: command.x, y: command.y };
+  }
+
+  return morphed;
+}
+
+function appendLegacySnakeLine(commands, from, to, spec) {
+  const points = [from, to];
+  const length = polylineLength(points);
+  if (length < 1e-12 || spec.amplitude <= 0) {
+    commands.push({ type: "lineTo", x: to.x, y: to.y });
+    return;
+  }
+
+  const beforeLength = Math.min(length, spec.before?.length ?? 0);
+  const afterLength = Math.min(
+    Math.max(0, length - beforeLength),
+    spec.after?.length ?? 0
+  );
+  const activeLength = length - beforeLength - afterLength;
+  const normalSign = spec.mirrored ? -1 : 1;
+  const shiftedPoint = (distance) => {
+    const sample = pointOnPolyline(points, distance);
+    return {
+      x: roundNumber(sample.x + sample.normal.x * spec.raise),
+      y: roundNumber(sample.y + sample.normal.y * spec.raise)
+    };
+  };
+
+  if (beforeLength > 1e-12) {
+    const beforeEnd = pointOnPolyline(points, beforeLength);
+    if (spec.before?.type === "gap") commands.push({ type: "moveTo", x: beforeEnd.x, y: beforeEnd.y });
+    else commands.push({ type: "lineTo", x: beforeEnd.x, y: beforeEnd.y });
+  }
+  const entry = shiftedPoint(beforeLength);
+  const previous = commands.at(-1);
+  if (!previous || Math.hypot((previous.x ?? entry.x) - entry.x, (previous.y ?? entry.y) - entry.y) > 1e-9) {
+    commands.push({ type: spec.before?.type === "gap" ? "moveTo" : "lineTo", x: entry.x, y: entry.y });
+  }
+
+  if (activeLength > 1e-12) {
+    if (spec.mode === "snake") {
+      appendNativeSnakePolyline(commands, points, spec.amplitude, spec.segmentLength, beforeLength, activeLength, normalSign, spec.raise);
+    } else {
+      appendNativeZigzagPolyline(commands, points, spec.amplitude, spec.segmentLength, beforeLength, activeLength, normalSign, spec.raise);
+    }
+  }
+
+  if (afterLength > 1e-12) {
+    if (spec.after?.type === "gap") commands.push({ type: "moveTo", x: to.x, y: to.y });
+    else commands.push({ type: "lineTo", x: to.x, y: to.y });
+  } else if (activeLength < 1e-12) {
+    commands.push({ type: "lineTo", x: to.x, y: to.y });
+  }
 }
 
 function postactionDecorationPathItem(built, pathOptions, env) {
@@ -13516,12 +13638,12 @@ function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode,
   }
 }
 
-function appendNativeSnakePolyline(commands, points, amplitude, segmentLength, activeStart, activeLength) {
+function appendNativeSnakePolyline(commands, points, amplitude, segmentLength, activeStart, activeLength, normalSign = 1, normalRaise = 0) {
   const point = (distance, normalOffset = 0) => {
     const sample = pointOnPolyline(points, activeStart + distance);
     return {
-      x: roundNumber(sample.x + sample.normal.x * normalOffset),
-      y: roundNumber(sample.y + sample.normal.y * normalOffset)
+      x: roundNumber(sample.x + sample.normal.x * (normalRaise + normalSign * normalOffset)),
+      y: roundNumber(sample.y + sample.normal.y * (normalRaise + normalSign * normalOffset))
     };
   };
   const pushCurve = (control1, control2, end) => {
@@ -13569,12 +13691,12 @@ function appendNativeSnakePolyline(commands, points, amplitude, segmentLength, a
   if (activeLength - distance > 1e-9) commands.push({ type: "lineTo", x: finishAt.x, y: finishAt.y });
 }
 
-function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, activeStart, activeLength) {
+function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, activeStart, activeLength, normalSign = 1, normalRaise = 0) {
   const point = (distance, normalOffset = 0) => {
     const sample = pointOnPolyline(points, activeStart + Math.max(0, Math.min(activeLength, distance)));
     return {
-      x: roundNumber(sample.x + sample.normal.x * normalOffset),
-      y: roundNumber(sample.y + sample.normal.y * normalOffset)
+      x: roundNumber(sample.x + sample.normal.x * (normalRaise + normalSign * normalOffset)),
+      y: roundNumber(sample.y + sample.normal.y * (normalRaise + normalSign * normalOffset))
     };
   };
   const pushLineTo = (next) => {

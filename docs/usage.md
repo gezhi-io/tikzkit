@@ -163,6 +163,29 @@ npm run examples:diff -- --output outputs/qa-pathreplacing-waves \
 查看生成页时，确认原始黑色路径仍存在、装饰短线独立且连续跟随曲线切线，并将
 TikZKit、`tikztosvg`、MacTeX 和 diff 面板一起判断。
 
+### 旧 `snakes` 写法
+
+`\usetikzlibrary{snakes}` 在本机 MacTeX 中已经提示由 decorations 取代，但仍保留
+直接写在路径上的 `snake` 选项。它和 `decorate, decoration={...}` 不同：每一个
+`--` 都会单独启动旧状态机。TikZKit 当前支持默认的旧式 `zigzag`、`snake=snake`、
+`segment amplitude`、`segment length`、`mirror snake`、`raise snake`，以及
+`line/gap before|after|around snake`。
+
+```tex
+\usetikzlibrary{snakes}
+\draw[snake,segment length=4mm,segment amplitude=1mm,
+  line before snake=5mm,line after snake=4mm,
+  mirror snake,raise snake=.4mm,-stealth]
+  (0,0) -- (4,0) -- (4,2);
+```
+
+尚未实现任意 `\pgfdeclaresnake` 状态、`snake triangles 45/60/90` 与旧的 segment
+object 形状。新项目应优先使用 `decorations.pathmorphing`。最小验证：
+
+```sh
+node --test test/snakes-legacy-options.test.js
+```
+
 ### 路径文字重复
 
 `\usetikzlibrary{decorations.text}` 的文本效果装饰支持路径文字的受限重复形式。
