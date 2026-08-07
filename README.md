@@ -91,10 +91,14 @@ This is not a graph-drawing or collision-avoidance implementation.
 
 ### A Verified Gantt Grid Example
 
-The basic `pgfgantt` lowering covers `\gantttitle`, bars, and a focused grid
-style-list subset. `hgrid=true` uses PGF's dotted default; `vgrid` accepts the
-manual's repeated form `*{count}{style}` and cycles it across successive
-internal time boundaries.
+The basic `pgfgantt` lowering covers `\gantttitle`, bars, groups, and a focused
+grid style-list subset. It follows the package defaults for title height
+(`.6 × y unit title`), bar geometry (`top=.3`, `height=.4`), group geometry
+(`left=-.1`, `right=.1`, `top=.4`, `height=.2`), and the native
+`\small`/`\normalsize` label roles. Local `title`, `bar`, and `group`
+`left/right/top shift` plus `height` options are supported. `hgrid=true` uses
+PGF's dotted default; `vgrid` accepts the manual's repeated form
+`*{count}{style}` and cycles it across successive internal time boundaries.
 
 ```tex
 \begin{ganttchart}[hgrid=true,
@@ -106,7 +110,8 @@ internal time boundaries.
 ```
 
 This does not yet implement pgfgantt links, calendar/date slots, progress,
-title lists, or arbitrary canvas and element styles. The fixture is
+title lists, special bar/group shapes, or arbitrary canvas and element styles.
+The fixture is
 `pgfgantt-grid-style-list`; its visual QA record is in
 `docs/qa/2026-08-07-pgfgantt-grid-style-list.md`.
 

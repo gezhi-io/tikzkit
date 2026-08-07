@@ -4449,10 +4449,6 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
   const xUnit = parseDimension(options["x unit"] || "0.55cm", {});
   const yUnitTitle = parseDimension(options["y unit title"] || "0.5cm", {});
   const yUnitChart = parseDimension(options["y unit chart"] || "1cm", {});
-  const titleHeight = Number(options["title height"] ?? 0.6) || 0.6;
-  const barHeight = Number(options["bar height"] ?? 0.4) || 0.4;
-  const groupHeight = Number(options["group height"] ?? 0.4) || 0.4;
-  const groupTopShift = Number(options["group top shift"] ?? 0.3) || 0.3;
   const inlineChart = options.inline === true || String(options.inline || "").trim() === "true";
   const vgridStyles = ganttGridStyles(options.vgrid);
   const hgridStyles = ganttGridStyles(options.hgrid);
@@ -4493,37 +4489,50 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
     if (row.command === "gantttitle") {
       const span = Math.max(1, Number(row.args[1]) || totalSlots);
       const slot = titleSlots.get(rowIndex) || 0;
-      const x0 = Math.min(totalSlots, slot) * xUnit;
-      const x1 = Math.min(totalSlots, slot + span) * xUnit;
+      const leftShift = ganttNumberOption(row, options, "title left shift", 0);
+      const rightShift = ganttNumberOption(row, options, "title right shift", 0);
+      const topShift = ganttNumberOption(row, options, "title top shift", 0);
+      const titleHeight = ganttNumberOption(row, options, "title height", 0.6);
+      const x0 = (slot + leftShift) * xUnit;
+      const x1 = (slot + span + rightShift) * xUnit;
       titleSlots.set(rowIndex, slot + span);
-      const titleBottom = top - titleHeight * yUnitTitle;
-      commands.push(`\\draw[fill=black!8,draw=black,line width=0.3pt] (${roundTikzNumber(x0)},${roundTikzNumber(top)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(bottom)});`);
-      commands.push(`\\node[font=\\scriptsize] at (${roundTikzNumber((x0 + x1) / 2)},${roundTikzNumber((top + titleBottom) / 2)}) {${row.args[0] || ""}};`);
+      const titleTop = top - topShift * yUnitTitle;
+      const titleBottom = titleTop - titleHeight * yUnitTitle;
+      const titleFont = ganttFontOption(row, options, "title label font", "\\small");
+      commands.push(`\\draw[fill=black!8,draw=black,line width=0.3pt] (${roundTikzNumber(x0)},${roundTikzNumber(titleTop)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(titleBottom)});`);
+      commands.push(`\\node[font=${titleFont}] at (${roundTikzNumber((x0 + x1) / 2)},${roundTikzNumber((titleTop + titleBottom) / 2)}) {${row.args[0] || ""}};`);
       return;
     }
     if (row.command === "ganttbar" || row.command === "ganttgroup") {
       const from = Number(row.args[1]);
       const to = Number(row.args[2]);
-      const x0 = Math.max(0, (Number.isFinite(from) ? from - start : 0) * xUnit);
-      const x1 = Math.max(x0 + xUnit * 0.25, ((Number.isFinite(to) ? to - start + 1 : totalSlots) * xUnit));
+      const elementName = row.command === "ganttgroup" ? "group" : "bar";
+      const leftShift = ganttNumberOption(row, options, `${elementName} left shift`, row.command === "ganttgroup" ? -0.1 : 0);
+      const rightShift = ganttNumberOption(row, options, `${elementName} right shift`, row.command === "ganttgroup" ? 0.1 : 0);
+      const topShift = ganttNumberOption(row, options, `${elementName} top shift`, row.command === "ganttgroup" ? 0.4 : 0.3);
+      const elementHeight = ganttNumberOption(row, options, `${elementName} height`, row.command === "ganttgroup" ? 0.2 : 0.4);
+      const x0 = (Number.isFinite(from) ? from - start + leftShift : leftShift) * xUnit;
+      const x1 = Math.max(x0 + xUnit * 0.25, ((Number.isFinite(to) ? to - start + 1 + rightShift : totalSlots + rightShift) * xUnit));
       const rowInline = inlineChart || row.options.inline === true || String(row.options.inline || "").trim() === "true";
       const fill = ganttElementFill(row, row.command === "ganttgroup" ? "black" : "white");
       if (row.command === "ganttgroup") {
-        const y = top - groupTopShift * yUnitChart;
-        const h = groupHeight * yUnitChart;
+        const y = top - topShift * yUnitChart;
+        const h = elementHeight * yUnitChart;
         commands.push(`\\draw[fill=${fill},draw=black,line width=0.35pt] (${roundTikzNumber(x0)},${roundTikzNumber(y)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(y - h)});`);
-        const labelX = rowInline ? (x0 + x1) / 2 : -0.15;
-        const anchor = rowInline ? "center" : "east";
-        commands.push(`\\node[anchor=${anchor},font=\\scriptsize\\bfseries] at (${roundTikzNumber(labelX)},${roundTikzNumber(y - h / 2)}) {${row.args[0] || ""}};`);
+        const labelX = rowInline ? (x0 + x1) / 2 : 0;
+        const anchor = rowInline ? "south" : "east";
+        const labelFont = ganttFontOption(row, options, "group label font", "\\normalsize\\bfseries");
+        commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(y - h / 2)}) {${row.args[0] || ""}};`);
         return;
       }
-      const yUpper = top - 0.3 * yUnitChart;
-      const yLower = yUpper - barHeight * yUnitChart;
+      const yUpper = top - topShift * yUnitChart;
+      const yLower = yUpper - elementHeight * yUnitChart;
       commands.push(`\\draw[fill=${fill},draw=black,line width=0.35pt] (${roundTikzNumber(x0)},${roundTikzNumber(yUpper)}) rectangle (${roundTikzNumber(x1)},${roundTikzNumber(yLower)});`);
-      const labelX = rowInline ? (x0 + x1) / 2 : -0.15;
+      const labelX = rowInline ? (x0 + x1) / 2 : 0;
       const labelY = (yUpper + yLower) / 2;
       const anchor = rowInline ? "center" : "east";
-      commands.push(`\\node[anchor=${anchor},font=\\scriptsize] at (${roundTikzNumber(labelX)},${roundTikzNumber(labelY)}) {${row.args[0] || ""}};`);
+      const labelFont = ganttFontOption(row, options, "bar label font", "\\normalsize");
+      commands.push(`\\node[anchor=${anchor},font=${labelFont}] at (${roundTikzNumber(labelX)},${roundTikzNumber(labelY)}) {${row.args[0] || ""}};`);
       return;
     }
     if (row.command === "ganttmilestone") {
@@ -4538,6 +4547,18 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
     }
   });
   return `\\begin{tikzpicture}\n${commands.join("\n")}\n\\end{tikzpicture}`;
+}
+
+function ganttNumberOption(row, chartOptions, key, fallback) {
+  const value = row?.options?.[key] ?? chartOptions?.[key];
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function ganttFontOption(row, chartOptions, key, fallback) {
+  const value = row?.options?.[key] ?? chartOptions?.[key];
+  const font = String(value || "").trim();
+  return font || fallback;
 }
 
 function ganttGridStyles(value) {

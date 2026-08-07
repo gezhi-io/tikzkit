@@ -298,6 +298,40 @@ test("maps pgfgantt hgrid and repeated vgrid styles onto consecutive grid lines"
   assert.ok(gridPaths.some((item) => item.style?.dashArray && item.style?.stroke === "black"), "hgrid=true should lower to PGF's dotted default");
 });
 
+test("uses pgfgantt title and element geometry defaults with local overrides", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[
+  x unit=1cm,
+  y unit title=1cm,
+  y unit chart=1cm
+]{1}{4}
+  \gantttitle[title left shift=.25,title right shift=-.25,title top shift=.1,title height=.5]{Title}{4} \\
+  \ganttgroup{Group}{1}{4} \\
+  \ganttbar[bar left shift=.1,bar right shift=-.2,bar top shift=.2,bar height=.3]{Task}{2}{3}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+
+  assert.deepEqual(diagnostics, []);
+  const rects = ir.items.filter((item) => item.type === "path" && item.commands?.length === 5);
+  const title = rects.find((item) => item.style?.fill === "rgb(235 235 235)");
+  const group = rects.find((item) => item.style?.fill === "black");
+  const task = rects.find((item) => item.commands?.[0]?.x === 1.1);
+  assert.deepEqual(title?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[0.25, -0.1], [3.75, -0.1], [3.75, -0.6], [0.25, -0.6]]);
+  assert.deepEqual(group?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[-0.1, -1.4], [4.1, -1.4], [4.1, -1.6], [-0.1, -1.6]]);
+  assert.deepEqual(task?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[1.1, -2.2], [2.8, -2.2], [2.8, -2.5], [1.1, -2.5]]);
+
+  const titleLabel = ir.items.find((item) => item.type === "textNode" && item.text === "Title");
+  const groupLabel = ir.items.find((item) => item.type === "textNode" && item.text === "Group");
+  const taskLabel = ir.items.find((item) => item.type === "textNode" && item.text === "Task");
+  assert.equal(titleLabel?.font?.sizePt, 9);
+  assert.equal(groupLabel?.font?.sizePt, 10);
+  assert.equal(groupLabel?.font?.weight, 700);
+  assert.equal(taskLabel?.font?.sizePt, 10);
+});
+
 test("uses TeX control-word boundaries for dynamic coordinate names", () => {
   const { diagnostics, ir } = convert(String.raw`
 \begin{tikzpicture}
