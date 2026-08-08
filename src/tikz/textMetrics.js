@@ -1,4 +1,5 @@
 import {
+  isMathFallbackRelationSymbol,
   mathFallbackText,
   normalizeBrowserMathMacros,
   readDollarMathSpan,
@@ -323,7 +324,19 @@ const CMR10_WIDTH_PT = {
   "{": 5,
   "|": 2.778,
   "}": 5,
-  "~": 5
+  "~": 5,
+  // AMSa/AMSb advances measured from the local TeX Live 2025 engine at
+  // 10pt. These glyphs otherwise fall through to the generic 5pt fallback.
+  "∅": 7.778,
+  "⩽": 7.778,
+  "⩾": 7.778,
+  "≰": 7.778,
+  "≱": 7.778,
+  "⊈": 7.778,
+  "⊉": 7.778,
+  "⇝": 10,
+  "∴": 6.667,
+  "∵": 6.667
 };
 
 // cmr10.afm kerning pairs from the local MacTeX 2025 installation. TeX
@@ -370,7 +383,6 @@ const SIMPLE_GLYPH_FORMULA_METRICS = {
   }
 };
 
-const MATH_RELATION_SYMBOLS = new Set(["=", "≔", "≤", "≥", "≠", "≈", "∼", "<", ">"]);
 const MATH_BINARY_SYMBOLS = new Set(["+", "-", "*"]);
 
 // Computer Modern selects design-size TFM files for the standard LaTeX text
@@ -1226,7 +1238,7 @@ function inlineMatrixDesignAdvanceAdjustmentCm(text, scale) {
       adjustment += targetAdvancePt / TEX_PT_PER_CM - texTextWidthCm(char, scale);
     } else if (/\d/.test(char)) adjustment += texTextWidthCm(char, scale) * (design.digitScale - 1);
     else if (/[A-Za-zα-ωΑ-Ω]/u.test(char)) adjustment += texTextWidthCm(char, scale) * (design.italicScale - 1);
-    else if (MATH_RELATION_SYMBOLS.has(char)) adjustment += texTextWidthCm(char, scale) * (design.relationScale - 1);
+    else if (isMathFallbackRelationSymbol(char)) adjustment += texTextWidthCm(char, scale) * (design.relationScale - 1);
   }
   return adjustment;
 }
@@ -1252,7 +1264,7 @@ function inlineMatrixBoundarySpacingCm(value, side, fontSizeCm) {
 }
 
 function inlineMatrixOperatorMu(char, previous, next) {
-  if (MATH_RELATION_SYMBOLS.has(char)) return 5;
+  if (isMathFallbackRelationSymbol(char)) return 5;
   if (!MATH_BINARY_SYMBOLS.has(char)) return 0;
   // A leading minus is unary rather than a binary operator in TeX math lists.
   if (char === "-" && (!previous || /[(\[{=+\-*/]/.test(previous))) return 0;
@@ -1340,17 +1352,30 @@ function fallbackWidth(tex, scale, metric) {
 function fallbackBodyWidth(tex, scale, metric) {
   const fallback = metric.texTextMetrics ? compactMathMetricText(tex) : mathFallbackText(tex);
   return metric.texTextMetrics
-    ? texTextWidthCm(fallback, scale) + texMathRelationSpacingCm(fallback, scale)
+    ? texTextWidthCm(fallback, scale) + texMathRelationSpacingCm(fallback, scale) + texMathPunctuationSpacingCm(fallback, scale)
     : mathTextMetricUnits(fallback) * metric.widthFactor * scale;
 }
 
 function texMathRelationSpacingCm(text, scale) {
-  const relationCount = [...String(text || "")].filter((char) => "=≔≤≥≠≈∼<>".includes(char)).length;
+  const relationCount = [...String(text || "")].filter((char) => isMathFallbackRelationSymbol(char)).length;
   if (!relationCount) return 0;
   // Plain TeX surrounds relation atoms with \thickmuskip (5mu) on both
   // sides. At the 10pt math size, 1mu is 1/18em.
   const relationSpacingPt = relationCount * 2 * 5 * (10 / 18) * scale;
   return relationSpacingPt / TEX_PT_PER_CM;
+}
+
+function texMathPunctuationSpacingCm(text, scale) {
+  const chars = [...String(text || "")];
+  let punctuationCount = 0;
+  for (let index = 0; index < chars.length; index += 1) {
+    if (chars[index] !== ",") continue;
+    if (chars.slice(index + 1).some((char) => !/\s/.test(char))) punctuationCount += 1;
+  }
+  if (!punctuationCount) return 0;
+  // TeX's comma is \mathpunct: its following spacing is \thinmuskip (3mu).
+  const punctuationSpacingPt = punctuationCount * 3 * (10 / 18) * scale;
+  return punctuationSpacingPt / TEX_PT_PER_CM;
 }
 
 function readBrowserNiceFractionParts(tex) {
@@ -1398,7 +1423,7 @@ function niceFractionWidthAdjustment(fraction, scale, metric) {
 
 function compactMathMetricText(tex) {
   return mathFallbackText(tex)
-    .replace(/\s*([=+≔≤≥≠≈∼<>])\s*/g, "$1")
+    .replace(/\s*([=+≔≤≥≠≈∼<>⩽⩾≰≱⊈⊉⇝∴∵])\s*/g, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

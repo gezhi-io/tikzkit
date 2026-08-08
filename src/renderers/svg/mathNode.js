@@ -1,5 +1,9 @@
 import { estimateFormulaBox, formulaTotalHeight } from "../../tikz/textMetrics.js";
-import { MATH_FALLBACK_NAMED_OPERATORS, mathFallbackText } from "../../tikz/text.js";
+import {
+  isMathFallbackSpacedOperatorSymbol,
+  MATH_FALLBACK_NAMED_OPERATORS,
+  mathFallbackText
+} from "../../tikz/text.js";
 import { createFontSpec } from "../../tex/fontSpec.js";
 import {
   TIKZ_DISPLAY_MATH_FONT_SIZE,
@@ -379,7 +383,7 @@ function alignedMathRenderScale(tex, targetWidth, fontSize) {
 
 function estimateAlignedFallbackWidth(tex, fontSize) {
   const plain = mathFallbackText(tex);
-  const relationCount = [...plain].filter((char) => "=+≤≥≠≈∼".includes(char)).length;
+  const relationCount = [...plain].filter((char) => isMathFallbackSpacedOperatorSymbol(char)).length;
   return [...plain].length * fontSize * 0.42 + relationCount * fontSize * (10 / 18);
 }
 
@@ -474,7 +478,7 @@ function estimateAlignedCellWidth(tex, fontSize, unit) {
   const scripted = scriptedMathFallback(source, { allowSimpleScripts: true });
   if (scripted) return Math.max(fontSize * 0.22, estimateScriptedSegmentsWidth(scripted, fontSize));
   const plain = mathFallbackText(source);
-  const relationCount = [...plain].filter((char) => "=+≤≥≠≈∼".includes(char)).length;
+  const relationCount = [...plain].filter((char) => isMathFallbackSpacedOperatorSymbol(char)).length;
   return Math.max(fontSize * 0.22, [...plain].length * fontSize * 0.42 + relationCount * fontSize * (10 / 18));
 }
 
@@ -721,7 +725,7 @@ function renderSansMathText(text, baseFontSize, sansFamily = TIKZ_SANS_SERIF_FON
       index += 1;
       continue;
     }
-    if (/[=+\-*/<>≤≥≠≈∼]/.test(char)) {
+    if (/[\-*/]/.test(char) || isMathFallbackSpacedOperatorSymbol(char)) {
       output += `<tspan dx="${format(relationSpace)}">${sansSpan(char, mode === "bold" ? "700" : "")}</tspan><tspan dx="${format(relationSpace)}"></tspan>`;
       index += 1;
       continue;

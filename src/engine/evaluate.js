@@ -55,7 +55,13 @@ import {
   styleDefinitionsFromOptions,
   stripOuterBraces
 } from "./options.js";
-import { fontScaleFromTikzFont, mathFallbackText, normalizeTikzText, outerMinipageTextWidth } from "../tikz/text.js";
+import {
+  containsMathFallbackSpacedOperator,
+  fontScaleFromTikzFont,
+  mathFallbackText,
+  normalizeTikzText,
+  outerMinipageTextWidth
+} from "../tikz/text.js";
 import { createFontSpec, mergeFontSpec, parseTikzFontPatch, resolveFontSpec } from "../tex/fontSpec.js";
 import {
   TIKZ_FONT_FAMILY,
@@ -12308,9 +12314,10 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,
-          // Keep the renderer for paint, but use compact TeX metrics for
-          // datavisualization's styled legend labels during node layout.
-          disableMathTextEngine: datavisLegendMathMetrics,
+          // A formula selected for TeX metrics must also bypass browser text
+          // measurement; otherwise its node box and its SVG fallback use
+          // unrelated advances (notably for AMS relation symbols).
+          disableMathTextEngine: datavisLegendMathMetrics || formulaNeedsTexMetrics,
           formulaTexTextMetrics: datavisLegendMathMetrics
             ? false
             : shortVectorExpressionNeedsCompactMetrics(normalized)
@@ -12523,7 +12530,12 @@ function normalizedFormulaNeedsTexMetrics(normalized) {
   const lines = normalized.lines?.length ? normalized.lines : String(normalized.text || "").split(/\\\\|\n/);
   return lines.some((line) => {
     const math = parseMathText(String(line || "").trim());
-    return Boolean(math && /[_^=+<>]|\\(?:frac|sqrt|sum|prod|int|leq|le|geq|ge|neq|approx|sim)(?![A-Za-z])/.test(math.tex));
+    return Boolean(
+      math && (
+        /[_^=+<>]|\\(?:frac|sqrt|sum|prod|int|leq|le|geq|ge|neq|approx|sim)(?![A-Za-z])/.test(math.tex) ||
+        containsMathFallbackSpacedOperator(mathFallbackText(math.tex))
+      )
+    );
   });
 }
 

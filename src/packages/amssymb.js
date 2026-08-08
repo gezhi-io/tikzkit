@@ -1,14 +1,16 @@
 export const texPackage = {
   "name": "amssymb",
   "status": "partial",
-  "implementedBy": "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
+  "implementedBy": "src/tikz/text.js + src/tikz/textMetrics.js + src/renderers/svg/mathScriptFallback.js + src/renderers/svg/mathNode.js",
   "features": [
-    "symbols delegated to KaTeX or SVG text fallback"
+    "SVG-text fallback for common relation symbols (leqslant/geqslant, nleq/ngeq, nsubseteq/nsupseteq, rightsquigarrow/leadsto, therefore/because) and varnothing",
+    "other symbols delegated to browser math or SVG text fallback"
   ],
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/amsfonts/amssymb.sty",
   "localDoc": null,
-  "caseCount": 14,
+  "localSourceReviewed": true,
+  "caseCount": 17,
   "caseExamples": [
     "A3C execution / a3c_execution",
     "A3C neural network / a3c_neural_network",
@@ -24,5 +26,5 @@ export const texPackage = {
     "ml single cnn"
   ],
   "observedOptions": [],
-  "notes": ""
+  "notes": "Reviewed local TeX Live amssymb.sty on 2026-08-08: the implemented relation symbols are declared with \\mathrel and varnothing with \\mathord. Broad AMSa/AMSb symbol coverage remains partial."
 };

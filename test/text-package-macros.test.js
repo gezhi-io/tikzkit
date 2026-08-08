@@ -82,6 +82,25 @@ test("normalizes gensymb default math symbols to their TeX Live fallbacks", () =
   assert.match(result.svg, /class="tikz-math-hspace" dx="[^"]+"/);
 });
 
+test("normalizes common amssymb relation and empty-set symbols for SVG text", () => {
+  const source = String.raw`A\leqslant B,\quad B\nleq C,\quad \varnothing\nsubseteq A,\quad A\rightsquigarrow B,\quad P\therefore Q,\quad Q\because P`;
+
+  assert.equal(mathFallbackText(source), `A ⩽ B,${tikzHspaceText("1em")}B ≰ C,${tikzHspaceText("1em")}∅ ⊈ A,${tikzHspaceText("1em")}A ⇝ B,${tikzHspaceText("1em")}P ∴ Q,${tikzHspaceText("1em")}Q ∵ P`);
+
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}\node {$${source}$};\end{tikzpicture}`, {
+    mathRenderer: "svg-text"
+  });
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.svg, /⩽/);
+  assert.match(result.svg, /≰/);
+  assert.match(result.svg, /∅/);
+  assert.match(result.svg, /⊈/);
+  assert.match(result.svg, /⇝/);
+  assert.match(result.svg, /∴/);
+  assert.match(result.svg, /∵/);
+  assert.doesNotMatch(result.svg, />leqslant|>nleq|>varnothing|>nsubseteq|>rightsquigarrow|>therefore|>because/);
+});
+
 test("keeps scoped textbf formatting off later matrix-node lines", () => {
   const normalized = normalizeTikzText(String.raw`\textbf{Enum}\\{\small (), Bool, Char}`);
 

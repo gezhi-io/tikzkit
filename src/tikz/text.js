@@ -48,6 +48,31 @@ export const MATH_FALLBACK_NAMED_OPERATORS = Object.freeze([
   "tan",
   "tanh"
 ]);
+// TeX gives relation atoms a 5mu space on either side. Keep the fallback
+// renderer, its width estimator, and its SVG text layout on one shared list.
+export const MATH_FALLBACK_RELATION_SYMBOLS = Object.freeze([
+  "=", "≔", "≤", "≥", "≠", "≈", "∼", "<", ">",
+  "⩽", "⩾", "≰", "≱", "⊈", "⊉", "⇝", "∴", "∵"
+]);
+export const MATH_FALLBACK_SPACED_OPERATOR_SYMBOLS = Object.freeze([
+  "+",
+  ...MATH_FALLBACK_RELATION_SYMBOLS
+]);
+const MATH_FALLBACK_RELATION_SET = new Set(MATH_FALLBACK_RELATION_SYMBOLS);
+const MATH_FALLBACK_SPACED_OPERATOR_SET = new Set(MATH_FALLBACK_SPACED_OPERATOR_SYMBOLS);
+
+export function isMathFallbackRelationSymbol(value) {
+  return MATH_FALLBACK_RELATION_SET.has(String(value || ""));
+}
+
+export function isMathFallbackSpacedOperatorSymbol(value) {
+  return MATH_FALLBACK_SPACED_OPERATOR_SET.has(String(value || ""));
+}
+
+export function containsMathFallbackSpacedOperator(value) {
+  return [...String(value || "")].some((char) => isMathFallbackSpacedOperatorSymbol(char));
+}
+
 const MATH_FALLBACK_NAMED_OPERATOR_PATTERN = new RegExp(
   String.raw`\\(?:${MATH_FALLBACK_NAMED_OPERATORS.join("|")})(?![A-Za-z])`,
   "g"
@@ -1454,6 +1479,19 @@ export function mathFallbackText(tex) {
     .replace(/\\setminus(?![A-Za-z])/g, "∖")
     .replace(/\\infty(?![A-Za-z])/g, "∞")
     .replace(/\\partial(?![A-Za-z])/g, "∂")
+    // These are direct AMSa/AMSb math symbols in the local amssymb source.
+    // Handle long names before shorter core relation commands below.
+    .replace(/\\varnothing(?![A-Za-z])/g, "∅")
+    .replace(/\\nsubseteq(?![A-Za-z])/g, "⊈")
+    .replace(/\\nsupseteq(?![A-Za-z])/g, "⊉")
+    .replace(/\\nleq(?![A-Za-z])/g, "≰")
+    .replace(/\\ngeq(?![A-Za-z])/g, "≱")
+    .replace(/\\leqslant(?![A-Za-z])/g, "⩽")
+    .replace(/\\geqslant(?![A-Za-z])/g, "⩾")
+    .replace(/\\rightsquigarrow(?![A-Za-z])/g, "⇝")
+    .replace(/\\leadsto(?![A-Za-z])/g, "⇝")
+    .replace(/\\therefore(?![A-Za-z])/g, "∴")
+    .replace(/\\because(?![A-Za-z])/g, "∵")
     .replace(/\\(?:in)(?![A-Za-z])/g, "∈")
     .replace(/\\(?:leq|le)(?![A-Za-z])/g, "≤")
     .replace(/\\(?:geq|ge)(?![A-Za-z])/g, "≥")
@@ -1546,7 +1584,7 @@ export function mathFallbackText(tex) {
     .replace(/[{}]/g, "")
     .replace(new RegExp(MATH_FALLBACK_LBRACE, "g"), "{")
     .replace(new RegExp(MATH_FALLBACK_RBRACE, "g"), "}")
-    .replace(/\s*([=≔≤≥≠≈∈∼∥])\s*/g, " $1 ")
+    .replace(/\s*([=≔≤≥≠≈∈∼∥⩽⩾≰≱⊈⊉⇝∴∵])\s*/g, " $1 ")
     .replace(/\{\s+/g, "{")
     .replace(/\s+\}/g, "}")
     // In TeX math, an unescaped tilde is an active non-breaking space, not a visible glyph.

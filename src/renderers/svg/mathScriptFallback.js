@@ -1,4 +1,10 @@
-import { MATH_FALLBACK_NAMED_OPERATORS, mathFallbackText, replaceTikzHspaceMarkers } from "../../tikz/text.js";
+import {
+  containsMathFallbackSpacedOperator,
+  isMathFallbackSpacedOperatorSymbol,
+  MATH_FALLBACK_NAMED_OPERATORS,
+  mathFallbackText,
+  replaceTikzHspaceMarkers
+} from "../../tikz/text.js";
 import { measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import {
   TIKZ_MATH_ITALIC_FONT_FAMILY,
@@ -210,19 +216,19 @@ export function renderMathBaseText(text) {
 }
 
 export function texNeedsOperatorSpacing(tex) {
-  return /\\(?:leq|le|geq|ge|neq|approx|sim)(?![A-Za-z])|[=<>∼]/.test(String(tex || ""));
+  return containsMathFallbackSpacedOperator(mathFallbackText(tex));
 }
 
 export function renderMathOperatorSpacedText(text, baseFontSize) {
   const source = String(text || "");
-  if (!/[=+≤≥≠≈∼]/.test(source)) return renderMathTextWithUprightOperators(source, { fontSize: baseFontSize });
+  if (!containsMathFallbackSpacedOperator(source)) return renderMathTextWithUprightOperators(source, { fontSize: baseFontSize });
   // TeX's relation spacing is \thickmuskip=5mu. One mu is 1/18em, so
   // relation atoms receive 5/18em on each side at the current math size.
   const spacing = Math.max(1.5, baseFontSize * (5 / 18));
   let output = "";
   let buffer = "";
   for (const char of source) {
-    if (/[=+≤≥≠≈∼]/.test(char)) {
+    if (isMathFallbackSpacedOperatorSymbol(char)) {
       if (buffer) {
         output += renderMathTextWithUprightOperators(buffer, { fontSize: baseFontSize });
         buffer = "";
@@ -343,7 +349,7 @@ function estimateGroupedScriptBaseWidth(source, baseFontSize) {
 
 function estimateFallbackMathTextWidth(text, fontSize) {
   const source = String(text || "");
-  const relationCount = [...source].filter((char) => "=+≤≥≠≈∼".includes(char)).length;
+  const relationCount = [...source].filter((char) => isMathFallbackSpacedOperatorSymbol(char)).length;
   return [...source].length * fontSize * 0.42 + relationCount * fontSize * (10 / 18);
 }
 

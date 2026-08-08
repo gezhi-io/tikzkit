@@ -60,8 +60,9 @@ const CORE_PACKAGE_SUPPORT = {
   },
   amssymb: {
     status: "partial",
-    implementedBy: "src/tikz/textMetrics.js + src/renderers/svg/renderSvg.js",
-    notes: "Symbols mostly delegated to KaTeX or SVG text fallback"
+    implementedBy: "src/tikz/text.js + src/tikz/textMetrics.js + src/renderers/svg/mathScriptFallback.js + src/renderers/svg/mathNode.js",
+    localSourceReviewed: "yes",
+    notes: "SVG-text fallback covers varnothing plus common AMSa/AMSb relations: leqslant/geqslant, nleq/ngeq, nsubseteq/nsupseteq, rightsquigarrow/leadsto, and therefore/because. Broad AMSa/AMSb coverage remains partial."
   },
   mathtools: {
     status: "partial",
