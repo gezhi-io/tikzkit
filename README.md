@@ -214,6 +214,28 @@ npm run examples:diff -- --output outputs/qa-pgfplots-scale-uniform \
 全量 3D 文本边界仍在测试中。源码阅读、视觉差异与剩余边界见
 [PGFPlots 3D QA](docs/qa/2026-08-08-pgfplots-scale-uniform-units-only.md)。
 
+### 最近验收：PGFPlots 显式轴标签位置与边界
+
+对 `axis x/y line=middle`，TikZKit 现在把 `x/y label style={at={(u,v)}}`
+中的裸数值坐标按 PGFPlots 的 normalized axis-description 坐标处理，和显式的
+`axis description cs:u,v` 使用同一映射。普通文本 y 标签会用实际文字宽度计算节点
+边界，不再加一块固定的中轴留白；因此短标签不会带出空框，长标签也不会在左侧被裁掉。
+
+```tex
+\begin{axis}[
+  axis x line=middle,
+  axis y line=middle,
+  ylabel=Amortization time\\in h,
+  ylabel style={at={(-0.1,1.0)}}
+]
+  \addplot {x};
+\end{axis}
+```
+
+该切片覆盖裸数值 `at`、普通文本 y 标签和中轴裁剪。复杂数学标签、多行 TeX 模板、
+作用域字体覆写和 dvisvgm 的空白页裁剪仍是 partial；完整的三方视觉记录、复现命令和
+残差说明见 [PGFPlots 显式轴标签 QA](docs/qa/2026-08-08-pgfplots-bare-axis-description-bbox.md)。
+
 ### 最近验收：PGFPlots 柱状图数值颜色
 
 `nodes near coords` 的默认数值标签现在会继承当前 `\addplot` 的颜色，即使源码没有

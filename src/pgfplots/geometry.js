@@ -2,7 +2,6 @@ import {
   TIKZ_ENLARGED_MIDDLE_AXIS_CONTAINER_MARGIN,
   TIKZ_EXPLICIT_MIDDLE_AXIS_CONTAINER_MARGIN,
   TIKZ_EXPLICIT_MIDDLE_AXIS_NO_ENLARGE_CONTAINER_MARGIN,
-  TIKZ_EXPLICIT_MIDDLE_AXIS_TOP_DESCRIPTION_LABEL_MARGIN,
   TIKZ_AXIS_CONTAINER_MARGIN,
   TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN,
   TIKZ_MIDDLE_AXIS_CONTAINER_MARGIN,
@@ -455,10 +454,8 @@ function axisContainerMargin(axisOptions = {}, options = {}) {
   if (axisOptions["hide axis"] || axisOptions.hide) return TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN;
   if (isMiddleAxis(axisOptions)) {
     // PGFPlots implements axis-description labels as ordinary TikZ nodes. Their
-    // complete node boxes (including inner sep) participate in the picture
-    // bbox, while the axis itself contributes only its painted paths. Keeping
-    // the generic fixed middle-axis margin here double-counts that space and
-    // shifts explicitly positioned labels relative to the native SVG.
+    // complete node boxes (including inner sep) determine the entire picture
+    // bbox. Label-specific TeX struts are carried by their own layout bbox.
     if (axisHasExplicitDescriptionPlacement(axisOptions)) {
       return { left: 0, right: 0, top: 0, bottom: 0 };
     }
@@ -468,7 +465,6 @@ function axisContainerMargin(axisOptions = {}, options = {}) {
     // makes an otherwise empty SVG materially wider and taller than PGFPlots.
     if (middleAxisUsesTightBounds(axisOptions)) return { left: 0.04, right: 0.08, top: 0.04, bottom: 0.04 };
     if (options.hasExplicitWidth || options.hasExplicitHeight) {
-      if (hasTopDescriptionYLabel(axisOptions)) return TIKZ_EXPLICIT_MIDDLE_AXIS_TOP_DESCRIPTION_LABEL_MARGIN;
       if (
         axisHasExplicitDisabledEnlargeLimits(axisOptions) ||
         (middleYAxisAtLeftBoundary(axisOptions, options.ranges) && axisHasExplicitRanges(axisOptions))
@@ -518,8 +514,19 @@ export function axisHasExplicitDescriptionPlacement(axisOptions = {}) {
   ].some((rawStyle) => {
     if (rawStyle === undefined || rawStyle === null || rawStyle === true || rawStyle === false) return false;
     const at = parseOptions(String(rawStyle)).at;
-    return /axis\s+description\s+cs\s*:/i.test(String(at || ""));
+    return isAxisDescriptionCoordinate(at);
   });
+}
+
+function isAxisDescriptionCoordinate(rawAt) {
+  if (rawAt === undefined || rawAt === null || rawAt === true || rawAt === false) return false;
+  const text = String(rawAt).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  if (/axis\s+description\s+cs\s*:/i.test(text)) return true;
+  const match = text.match(/^\(([\s\S]*)\)$/);
+  if (!match) return false;
+  const parts = splitTopLevel(match[1], ",");
+  if (parts.length !== 2) return false;
+  return parts.every((part) => Number.isFinite(Number(String(part).trim())));
 }
 
 function isStandardBoxAxis(axisOptions = {}) {
@@ -1018,21 +1025,6 @@ function ticksDisabled(raw) {
   if (raw === true) return false;
   const text = String(raw).trim().toLowerCase();
   return text === "none" || text === "false" || text === "off" || text === "\\empty" || text === "empty";
-}
-
-function hasTopDescriptionYLabel(axisOptions = {}) {
-  if (!axisOptions.ylabel && !axisOptions["y label"]) return false;
-  const rawStyle = axisOptions["ylabel style"] ?? axisOptions["y label style"];
-  if (rawStyle === undefined || rawStyle === null || rawStyle === true || rawStyle === false) return false;
-  const styleOptions = parseOptions(String(rawStyle));
-  const at = styleOptions.at;
-  if (at === undefined || at === null || at === true || at === false) return false;
-  const text = String(at).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
-  const match = text.match(/^\(([\s\S]*)\)$/);
-  if (!match) return false;
-  const parts = splitTopLevel(match[1], ",");
-  const y = Number(String(parts[1] || "").trim());
-  return Number.isFinite(y) && y >= 0.95;
 }
 
 function hasAxisBound(value) {

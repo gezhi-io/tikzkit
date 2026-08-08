@@ -5,9 +5,11 @@ import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
 import { isMiddleAxis } from "./geometry.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
+import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
 
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
 const PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING = "1.98pt";
+const PGFPLOTS_PLAIN_AXIS_LABEL_WIDTH_SCALE = 1.06;
 
 export function createAxisLabelModel(axisOptions = {}) {
   return {
@@ -108,7 +110,8 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
       "tikzkit layout bbox",
       `anchor=${placement.anchor}`,
       ...axisLabelVisualOptions(ylabelStyle),
-      ...plainLabelWidthOptions(axisOptions.ylabel, yAxisMiddle)
+      ...plainLabelWidthOptions(axisOptions.ylabel, yAxisMiddle),
+      ...middleAxisPlainYLabelLayoutOptions(axisOptions.ylabel, ylabelStyle, yAxisMiddle, geometry)
     ];
     if (labelFont("y")) labelOptions.push(`font=${labelFont("y")}`);
     if (rotation !== null) labelOptions.push(`rotate=${rotation}`);
@@ -200,9 +203,22 @@ function plainLabelWidthOptions(value, _middleAxis) {
   if (!text || text.includes("$")) return [];
   // Axis descriptions use the TeX font's physical width. The renderer's
   // generic serif fallback compression predates the bundled CMU fonts and
-  // visibly shortens both horizontal labels and rotated y-axis labels. CMU's
-  // browser glyph outlines are about 6% narrower than the native dvips output.
-  return ["tikzkit anchor text width scale=1.06", "tikzkit text width scale=1.06"];
+  // visibly shortens both horizontal labels and rotated y-axis labels. The
+  // calibrated value follows local PGFPlots/tikztosvg y-label node widths.
+  return [`tikzkit text width scale=${PGFPLOTS_PLAIN_AXIS_LABEL_WIDTH_SCALE}`];
+}
+
+function middleAxisPlainYLabelLayoutOptions(value, rawStyle, yAxisMiddle, geometry) {
+  if (!yAxisMiddle || !axisDescriptionPoint(parseOptions(String(rawStyle || "")).at, geometry)) return [];
+  const text = axisLabelText(value, rawStyle);
+  if (!text || text.includes("$")) return [];
+  const measured = measurePlainTextTeXBoxPt(text, { fontSizePt: 10 });
+  const paddingPt = Math.max(0, (Number(measured?.width) || 0) * (PGFPLOTS_PLAIN_AXIS_LABEL_WIDTH_SCALE - 1) / 2);
+  if (!(paddingPt > 0)) return [];
+  // The renderer widens plain glyph runs but keeps the TeX anchor metric so
+  // coordinate placement stays stable. PGF's node bbox includes half of that
+  // extra advance on the label-side of a north-west description node.
+  return [`tikzkit layout bbox left padding=${paddingPt.toFixed(4)}pt`];
 }
 
 function parseAxisLabelOffset(value, fallback) {

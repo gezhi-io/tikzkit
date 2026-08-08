@@ -336,13 +336,6 @@ export const TIKZ_EXPLICIT_MIDDLE_AXIS_NO_ENLARGE_CONTAINER_MARGIN = {
   bottom: 0.24
 };
 
-export const TIKZ_EXPLICIT_MIDDLE_AXIS_TOP_DESCRIPTION_LABEL_MARGIN = {
-  left: 0.48,
-  right: 0.492,
-  top: 0.23,
-  bottom: 0.618
-};
-
 export const TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN = {
   left: 0.06,
   right: 0.06,

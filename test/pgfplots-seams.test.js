@@ -3349,7 +3349,7 @@ test("pgfplots restricted zero-bound middle y axis uses the enlarged transform e
   assert.ok(lines.some((line) => line.includes("(1.186,0) -- (1.186,7.425)")), lines.join("\n"));
 });
 
-test("pgfplots light bulb fixture keeps legend text bounds close to tikztosvg", () => {
+test("pgfplots light bulb fixture keeps its long y-label and legend inside the node-driven crop", () => {
   const source = readFileSync("test/fixtures/examples/latex-examples/2d-light-bulb.tex", "utf8");
   const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
   const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
@@ -3357,7 +3357,10 @@ test("pgfplots light bulb fixture keeps legend text bounds close to tikztosvg", 
 
   assert.equal(errors.length, 0, errors.map((diagnostic) => diagnostic.message).join("; "));
   assert.ok(size.width >= 397.2 && size.width <= 398.5, `expected width close to tikztosvg 397.81pt, got ${size.width}pt`);
-  assert.ok(size.height >= 205.4 && size.height <= 206.6, `expected height close to tikztosvg 205.98pt, got ${size.height}pt`);
+  // dvisvgm retains an additional blank vertical crop allowance here. The JS
+  // renderer is intentionally node-driven; retain the visible text/legend
+  // bounds without recreating that empty page space.
+  assert.ok(size.height >= 203.2 && size.height <= 204.1, `expected node-driven height near 203.65pt, got ${size.height}pt`);
 });
 
 test("pgfplots plain text axis labels use native CMU width for layout and SVG rendering", () => {
@@ -4964,7 +4967,7 @@ test("pgfplots geometry treats split axis x/y middle options as middle axes", ()
   assert.deepEqual(tightGeometry.margin, { left: 0.06, right: 0.12, top: 0.06, bottom: 0.06 });
 });
 
-test("pgfplots explicit middle axes reserve native space for top description y labels", () => {
+test("pgfplots bare axis-description label coordinates use node-driven bounds", () => {
   const geometry = createAxisGeometry(
     {
       width: "14cm",
@@ -4977,7 +4980,7 @@ test("pgfplots explicit middle axes reserve native space for top description y l
     { xMin: 5, xMax: 100, yMin: 0, yMax: 350 }
   );
 
-  assert.deepEqual(geometry.margin, { left: 0.48, right: 0.492, top: 0.23, bottom: 0.618 });
+  assert.deepEqual(geometry.margin, { left: 0, right: 0, top: 0, bottom: 0 });
 });
 
 test("pgfplots geometry preserves log-axis and 3D projection metadata", () => {
