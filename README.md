@@ -143,6 +143,27 @@ npm run examples:diff -- --output outputs/qa-case \
 一个可提交的兼容性改动应包含共享实现、最小回归测试、维护 fixture、登记表更新和
 一份 QA Markdown；不提交 `outputs/` 中的 PNG、SVG 或 diff。
 
+### 最近验收：Circuitikz transformer core cute 线圈
+
+`node[transformer core]` 的默认 cute 绕组现在遵循本机 Circuitikz 的几何规则：引线
+不随描边外扩，线圈的宽半步会加入一个 coil stroke width，且每侧的起点使用旋转后的
+`0.4 *` 传入线宽基线修正。这样能让引线、五个外半椭圆、四个回弧与双磁芯各自保持
+原生的尺寸关系。
+
+```bash
+node --test test/circuitikz-transformer-core.test.js
+npm run examples:render -- --fixtures test/fixtures/examples \
+  --only circuitikz-transformer-core-customization \
+  --output outputs/qa-circuitikz-transformer \
+  --native-reference --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-circuitikz-transformer --register
+```
+
+这个切片只覆盖默认 cute transformer core 与其 `relative thickness`、`color`、`dash`
+设置；自定义 transformer 几何、非-cute 样式与 dot anchors 仍在测试中。源码阅读和
+三方视觉证据见
+[Circuitikz transformer core QA](docs/qa/2026-08-08-circuitikz-transformer-cute-coil-geometry.md)。
+
 ### 最近验收：PGFPlots 3D 等比例单位盒
 
 `scale mode=scale uniformly` 搭配 `scale uniformly strategy=units only` 现在有一个

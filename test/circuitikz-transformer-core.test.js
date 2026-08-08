@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { interpretTikz, parseTikz, tikzToSvg } from "../src/index.js";
 import { lineWidthFromTikzDimension } from "../src/tikz/metrics.js";
+
+const TRANSFORMER_CORE_FIXTURE = readFileSync(
+  new URL("./fixtures/examples/circuitikz/transformer-core-customization.tex", import.meta.url),
+  "utf8"
+);
 
 test("applies transformer-core style-directory color, thickness, and dash settings", () => {
   const source = String.raw`
@@ -37,6 +43,41 @@ test("renders transformer leads and cute coils with Circuitikz's shared geometry
   assert.match(svg, /tikz-node-circuitikzQuadpole-leads/);
   assert.match(svg, /tikz-node-circuitikzQuadpole-coils[^>]+d="[^"]* C [^"]* C /);
   assert.match(svg, /tikz-node-circuitikzQuadpole-coils[^>]+stroke-linejoin="bevel"/);
+});
+
+test("extends transformer cute-coil endpoints and outer steps by the coil stroke width", () => {
+  const svg = tikzToSvg(TRANSFORMER_CORE_FIXTURE, { mathRenderer: "svg-text" }).svg;
+  const coilPath = svg.match(/<path class="tikz-node-circuitikzQuadpole-coils"[^>]+>/)?.[0] || "";
+  const firstMove = coilPath.match(/d="M (-?[\d.]+) (-?[\d.]+)/);
+  const firstCurve = coilPath.match(/M [-\d.]+ [-\d.]+ C [-\d.]+ [-\d.]+ [-\d.]+ (-?[\d.]+) [-\d.]+ (-?[\d.]+)/);
+  const leadLineWidth = lineWidthFromTikzDimension("0.4pt");
+  const coilLineWidth = leadLineWidth * 2;
+  const rlen = 140;
+  const turns = 5;
+  const width = 0.6;
+  const smallStep = (0.5 * 0.5 * width * rlen) / (turns - 1);
+  const wideStep = (width * rlen + coilLineWidth + (turns - 1) * 2 * smallStep) / turns / 2;
+  const pathHalfSpan = (width * rlen + coilLineWidth) / 2;
+  const baselineOffset = coilLineWidth * 0.2;
+
+  assert.ok(firstMove, "expected the first transformer coil path move");
+  assert.ok(firstCurve, "expected the first transformer coil cubic");
+  assert.ok(
+    Math.abs(Number(firstMove[2]) + pathHalfSpan) < 1e-6,
+    "the coil must extend a half coil-stroke beyond the outer lead endpoint"
+  );
+  assert.ok(
+    Math.abs(Number(firstMove[1]) + 42 + baselineOffset) < 1e-6,
+    "the left coil must receive PGF's outward rotated-baseline correction"
+  );
+  assert.ok(
+    Math.abs(Number(firstCurve[1]) + (pathHalfSpan - wideStep * 0.5522847498)) < 1e-6,
+    "the outer coil step must include the full coil stroke width"
+  );
+  assert.ok(
+    Math.abs(Number(firstCurve[2]) + (pathHalfSpan - wideStep)) < 1e-6,
+    "the first half ellipse must end at the source-derived outer-step midpoint"
+  );
 });
 
 test("inherits a path dash by default and lets dash=none make the core solid", () => {

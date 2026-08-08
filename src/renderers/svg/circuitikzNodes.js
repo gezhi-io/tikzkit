@@ -1,6 +1,7 @@
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { styleAttributes } from "./style.js";
+import { TIKZ_UNIT } from "../../tikz/metrics.js";
 
 const CIRCUITIKZ_NODE_SHAPES = new Set([
   "opAmp",
@@ -267,7 +268,7 @@ function renderCircuitikzQuadpoleNodeBox(item, unit) {
 }
 
 function renderCircuitikzTransformerBody(item, unit, cx, cy, style, lineWidth) {
-  const paths = circuitikzTransformerPaths(item);
+  const paths = circuitikzTransformerPaths(item, (lineWidth * 2) / TIKZ_UNIT);
   const leadStyle = { ...style, lineWidth };
   // Circuitikz's cuteinductor shape resets to the path's starting line width;
   // in the default transformer that is twice the outer lead width.
@@ -308,7 +309,7 @@ function renderCircuitikzTransformerCore(item, unit, cx, cy, stroke, lineWidth) 
   )}"${styleAttributes(coreStyle, { lineCap: "butt", lineJoin: "round" })} />`;
 }
 
-function circuitikzTransformerPaths(item) {
+function circuitikzTransformerPaths(item, coilLineWidth = 0) {
   const hw = item.width / 2;
   const hh = item.height / 2;
   const inner = circuitikzQuadpoleInnerRatio(item);
@@ -316,20 +317,20 @@ function circuitikzTransformerPaths(item) {
   const rightCoilX = hw * inner;
   const leftSpec = item.shapeData?.quadpoleSettings?.coils?.L1 || {};
   const rightSpec = item.shapeData?.quadpoleSettings?.coils?.L2 || {};
-  const leftGeometry = circuitikzTransformerCoilGeometry(hh, leftSpec);
-  const rightGeometry = circuitikzTransformerCoilGeometry(hh, rightSpec);
+  const leftGeometry = circuitikzTransformerCoilGeometry(hh, leftSpec, coilLineWidth);
+  const rightGeometry = circuitikzTransformerCoilGeometry(hh, rightSpec, coilLineWidth);
   return {
     leads: [
       ["M", -hw, hh],
       ["L", leftCoilX, hh],
-      ["L", leftCoilX, leftGeometry.halfSpan],
-      ["M", leftCoilX, -leftGeometry.halfSpan],
+      ["L", leftCoilX, leftGeometry.leadHalfSpan],
+      ["M", leftCoilX, -leftGeometry.leadHalfSpan],
       ["L", leftCoilX, -hh],
       ["L", -hw, -hh],
       ["M", hw, hh],
       ["L", rightCoilX, hh],
-      ["L", rightCoilX, rightGeometry.halfSpan],
-      ["M", rightCoilX, -rightGeometry.halfSpan],
+      ["L", rightCoilX, rightGeometry.leadHalfSpan],
+      ["M", rightCoilX, -rightGeometry.leadHalfSpan],
       ["L", rightCoilX, -hh],
       ["L", hw, -hh]
     ],
@@ -351,7 +352,7 @@ function circuitikzTransformerCoilTurns(spec = {}, fallback = 5) {
   return Math.max(1, Math.min(12, Math.round(raw)));
 }
 
-function circuitikzTransformerCoilGeometry(halfHeight, spec = {}) {
+function circuitikzTransformerCoilGeometry(halfHeight, spec = {}, coilLineWidth = 0) {
   // A transformer has a height of 1.5 Rlen, so its half-height is .75 Rlen.
   // This is the same geometry used by pgfcircbipoles.tex:cuteinductor.
   const rlen = halfHeight / 0.75;
@@ -368,14 +369,19 @@ function circuitikzTransformerCoilGeometry(halfHeight, spec = {}) {
     1.5
   );
   const smallStep = turns > 1 ? (0.5 * aspect * width * rlen) / (turns - 1) : 0;
-  const wideStep = (width * rlen + (turns - 1) * 2 * smallStep) / turns / 2;
+  const strokeWidth = Math.max(0, Number(coilLineWidth) || 0);
+  // pgfcircbipoles.tex includes the transformed coil stroke in every outer
+  // half-ellipse step. The wire anchors stay at the unexpanded body extent.
+  const wideStep = (width * rlen + strokeWidth + (turns - 1) * 2 * smallStep) / turns / 2;
   return {
     turns,
     wideStep,
     smallStep,
     wideRadius: (coilHeight * rlen) / 2,
     smallRadius: (lowerCoilHeight * rlen) / 2,
-    halfSpan: turns * wideStep - (turns - 1) * smallStep
+    baselineOffset: strokeWidth * 0.2,
+    leadHalfSpan: (width * rlen) / 2,
+    pathHalfSpan: turns * wideStep - (turns - 1) * smallStep
   };
 }
 
@@ -385,25 +391,28 @@ function circuitikzTransformerCoilOption(spec, fullName, shortName, fallback, mi
 }
 
 function cuteTransformerCoilCommands(x, geometry, insideDirection) {
-  const commands = [["M", x, geometry.halfSpan]];
-  let y = geometry.halfSpan;
+  // The rotated cuteinductor path applies PGF's 0.4 incoming-line-width
+  // baseline correction horizontally, away from the transformer core.
+  const baselineX = x - insideDirection * geometry.baselineOffset;
+  const commands = [["M", baselineX, geometry.pathHalfSpan]];
+  let y = geometry.pathHalfSpan;
   const kappa = 0.5522847498;
   for (let index = 0; index < geometry.turns; index += 1) {
     const wideEnd = y - 2 * geometry.wideStep;
     const wideMid = y - geometry.wideStep;
-    const wideX = x + insideDirection * geometry.wideRadius;
+    const wideX = baselineX + insideDirection * geometry.wideRadius;
     commands.push(
-      ["C", x + insideDirection * geometry.wideRadius * kappa, y, wideX, y - geometry.wideStep * kappa, wideX, wideMid],
-      ["C", wideX, y - geometry.wideStep * (2 - kappa), x + insideDirection * geometry.wideRadius * kappa, wideEnd, x, wideEnd]
+      ["C", baselineX + insideDirection * geometry.wideRadius * kappa, y, wideX, y - geometry.wideStep * kappa, wideX, wideMid],
+      ["C", wideX, y - geometry.wideStep * (2 - kappa), baselineX + insideDirection * geometry.wideRadius * kappa, wideEnd, baselineX, wideEnd]
     );
     y = wideEnd;
     if (index === geometry.turns - 1 || geometry.smallStep === 0) continue;
     const smallEnd = y + 2 * geometry.smallStep;
     const smallMid = y + geometry.smallStep;
-    const smallX = x - insideDirection * geometry.smallRadius;
+    const smallX = baselineX - insideDirection * geometry.smallRadius;
     commands.push(
-      ["C", x - insideDirection * geometry.smallRadius * kappa, y, smallX, y + geometry.smallStep * kappa, smallX, smallMid],
-      ["C", smallX, y + geometry.smallStep * (2 - kappa), x - insideDirection * geometry.smallRadius * kappa, smallEnd, x, smallEnd]
+      ["C", baselineX - insideDirection * geometry.smallRadius * kappa, y, smallX, y + geometry.smallStep * kappa, smallX, smallMid],
+      ["C", smallX, y + geometry.smallStep * (2 - kappa), baselineX - insideDirection * geometry.smallRadius * kappa, smallEnd, baselineX, smallEnd]
     );
     y = smallEnd;
   }
