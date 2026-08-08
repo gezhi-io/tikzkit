@@ -1,20 +1,22 @@
 export const texPackage = {
   name: "gensymb",
   status: "partial",
-  implementedBy: "src/tikz/text.js:normalizeBrowserMathMacros",
+  implementedBy: "src/tikz/text.js:normalizeBrowserMathMacros/mathFallbackText + src/renderers/svg/mathUprightFallback.js + src/renderers/svg/mathScriptFallback.js + src/renderers/svg/mathNode.js",
   features: [
-    "math-mode \\degree rendered as the native superscript circle"
+    "default math-mode \\degree rendered as the native superscript circle",
+    "default math-mode \\celsius rendered as a superscript circle plus upright C",
+    "default math-mode \\ohm rendered as uppercase Omega"
   ],
   requires: [],
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/latex/gensymb/gensymb.sty",
   localDoc: null,
   localSourceReviewed: [
-    "/usr/local/texlive/2025/texmf-dist/tex/latex/gensymb/gensymb.sty (default degree fallback, lines 22-40)"
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/gensymb/gensymb.sty (default degree/celsius fallbacks and ohm selection, lines 22-107)"
   ],
   caseCount: 22,
   caseExamples: [
     "LaTeX-examples Dot Product 4"
   ],
   observedOptions: [],
-  notes: "The current corpus uses only math-mode \\degree. MacTeX gensymb defaults it to ^\\circ when textcomp is not loaded, which is normalized before KaTeX/SVG fallback. celsius, perthousand, ohm, micro, and gensymb option branches remain unsupported until a real case requires them."
+  notes: "Without textcomp, MacTeX gensymb defaults \\degree to ^\\circ, \\celsius to ^\\circ\\mathrm{C}, and \\ohm to \\Omega; TikZKit normalizes those forms before browser/SVG fallback. textcomp glyph selection, perthousand, micro, and Upomega/upmu option branches remain unsupported."
 };

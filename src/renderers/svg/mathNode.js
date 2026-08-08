@@ -34,6 +34,7 @@ import {
   simpleMathGlyphRenderBox
 } from "./mathGlyphFallback.js";
 import { renderScopedMathHtml } from "./mathHtml.js";
+import { renderScopedUprightMathContent } from "./mathUprightFallback.js";
 import { inlineMatrixMathFallback, renderInlineMatrixMathFallback } from "./mathMatrixFallback.js";
 import { niceFractionMathFallback, renderNiceFractionMathFallback } from "./mathNiceFractionFallback.js";
 import {
@@ -221,6 +222,14 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const coloredMathFallback = coloredMathTextFallback(tex);
   if (coloredMathFallback && options.mathRenderer === "svg-text") {
     return renderColoredMathTextFallback(item, coloredMathFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
+  }
+  const scopedUprightFallback = renderScopedUprightMathContent(tex, fallbackFontSize);
+  if (scopedUprightFallback && options.mathRenderer === "svg-text" && mathVersion !== "sans") {
+    return `<text x="${format(fallbackAnchor.x)}" y="${format(fallbackAnchor.y)}" fill="${color}" text-anchor="${fallbackAnchor.anchor}" dominant-baseline="middle" font-size="${format(
+      fallbackFontSize
+    )}"${fontStyle ? ` font-style="${fontStyle}"` : ""}${fontWeight ? ` font-weight="${fontWeight}"` : ""} font-family="${escapeAttribute(
+      fallbackFontFamily
+    )}">${scopedUprightFallback}</text>`;
   }
   const styledScriptFallback = styledScriptedMathFallback(tex);
   if (styledScriptFallback && options.mathRenderer === "svg-text" && mathVersion !== "sans") {

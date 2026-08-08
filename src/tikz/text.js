@@ -94,8 +94,11 @@ const MATHBB_CAPITAL_EXCEPTIONS = Object.freeze({
 export function normalizeBrowserMathMacros(value) {
   return replaceBrowserNiceFractionCommands(replaceBrowserUnitsCommands(String(value ?? "")))
     .replace(/(?<!\\)\\coloneqq(?![A-Za-z])/g, String.raw`\mathrel{≔}`)
-    // gensymb's default fallback defines \degree as a math superscript.
-    .replace(/(?<!\\)[ \t]*\\degree(?![A-Za-z])/g, String.raw`^\circ`);
+    // Without textcomp, gensymb defines these through ordinary Computer Modern
+    // math atoms. Keep their local upright/math-script behavior in SVG output.
+    .replace(/(?<!\\)[ \t]*\\degree(?![A-Za-z])/g, String.raw`^\circ`)
+    .replace(/(?<!\\)[ \t]*\\celsius(?![A-Za-z])/g, String.raw`^\circ\mathrm{C}`)
+    .replace(/(?<!\\)[ \t]*\\ohm(?![A-Za-z])/g, String.raw`\Omega`);
 }
 
 function replaceBrowserUnitsCommands(value) {
@@ -1405,6 +1408,11 @@ export function mathFallbackText(tex) {
   text = text.replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)(?![A-Za-z])\s*/g, "");
   text = replaceMathFractionCommands(text);
   return text
+    // LaTeX's \quad and \qquad expand to 1em and 2em glue respectively.
+    // Preserve them as measured spacing tokens: the SVG renderer turns them
+    // into a current-font-size dx rather than depending on a fallback glyph.
+    .replace(/\\qquad(?![A-Za-z])\s*/g, () => hspaceText("2em"))
+    .replace(/\\quad(?![A-Za-z])\s*/g, () => hspaceText("1em"))
     .replace(/\\strut(?![A-Za-z])\s*/g, "")
     .replace(/\\mkern\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)\s*mu(?![A-Za-z])\s*/g, "")
     .replace(/\\\$\s*/g, "$")
@@ -1543,7 +1551,7 @@ export function mathFallbackText(tex) {
     .replace(/\s+\}/g, "}")
     // In TeX math, an unescaped tilde is an active non-breaking space, not a visible glyph.
     .replace(/~/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[ \t\r\n]+/g, " ")
     .trim();
 }
 

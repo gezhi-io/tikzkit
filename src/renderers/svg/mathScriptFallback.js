@@ -1,4 +1,4 @@
-import { MATH_FALLBACK_NAMED_OPERATORS, mathFallbackText } from "../../tikz/text.js";
+import { MATH_FALLBACK_NAMED_OPERATORS, mathFallbackText, replaceTikzHspaceMarkers } from "../../tikz/text.js";
 import { measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import {
   TIKZ_MATH_ITALIC_FONT_FAMILY,
@@ -215,7 +215,7 @@ export function texNeedsOperatorSpacing(tex) {
 
 export function renderMathOperatorSpacedText(text, baseFontSize) {
   const source = String(text || "");
-  if (!/[=+≤≥≠≈∼]/.test(source)) return renderMathTextWithUprightOperators(source);
+  if (!/[=+≤≥≠≈∼]/.test(source)) return renderMathTextWithUprightOperators(source, { fontSize: baseFontSize });
   // TeX's relation spacing is \thickmuskip=5mu. One mu is 1/18em, so
   // relation atoms receive 5/18em on each side at the current math size.
   const spacing = Math.max(1.5, baseFontSize * (5 / 18));
@@ -224,7 +224,7 @@ export function renderMathOperatorSpacedText(text, baseFontSize) {
   for (const char of source) {
     if (/[=+≤≥≠≈∼]/.test(char)) {
       if (buffer) {
-        output += renderMathTextWithUprightOperators(buffer);
+        output += renderMathTextWithUprightOperators(buffer, { fontSize: baseFontSize });
         buffer = "";
       }
       output += `<tspan dx="${format(spacing)}" font-family="${escapeAttribute(
@@ -234,12 +234,29 @@ export function renderMathOperatorSpacedText(text, baseFontSize) {
       buffer += char;
     }
   }
-  if (buffer) output += renderMathTextWithUprightOperators(buffer);
+  if (buffer) output += renderMathTextWithUprightOperators(buffer, { fontSize: baseFontSize });
   return output;
 }
 
 export function renderMathTextWithUprightOperators(text, options = {}) {
-  const source = String(text || "");
+  const hspaces = [];
+  const source = replaceTikzHspaceMarkers(String(text || ""), (dimension) => {
+    const index = hspaces.push(dimension) - 1;
+    return `\uE104${index}\uE105`;
+  });
+  const hspacePattern = /\uE104(\d+)\uE105/g;
+  let output = "";
+  let hspaceMatch;
+  let hspaceCursor = 0;
+  while ((hspaceMatch = hspacePattern.exec(source))) {
+    output += renderMathTextWithoutHspace(source.slice(hspaceCursor, hspaceMatch.index), options);
+    output += renderMathHspace(hspaces[Number(hspaceMatch[1])], options.fontSize);
+    hspaceCursor = hspacePattern.lastIndex;
+  }
+  return output + renderMathTextWithoutHspace(source.slice(hspaceCursor), options);
+}
+
+function renderMathTextWithoutHspace(source, options = {}) {
   let output = "";
   let cursor = 0;
   const wordPattern = /[A-Za-z]+|⋅/g;
@@ -259,6 +276,25 @@ export function renderMathTextWithUprightOperators(text, options = {}) {
   }
   output += escapeText(source.slice(cursor));
   return output;
+}
+
+function renderMathHspace(dimension, fontSize) {
+  const match = String(dimension || "").trim().match(/^([-+]?[0-9.]+)\s*(cm|mm|em|ex|pt)?$/);
+  if (!match) return "";
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount === 0) return "";
+  const size = Number(fontSize) || 10;
+  const unit = match[2] || "pt";
+  const pixels = unit === "em"
+    ? amount * size
+    : unit === "ex"
+      ? amount * size * 0.430554
+      : unit === "pt"
+        ? amount * (size / 10)
+        : unit === "cm"
+          ? amount * 28.45274 * (size / 10)
+          : amount * 2.845274 * (size / 10);
+  return `<tspan class="tikz-math-hspace" dx="${format(pixels)}"></tspan>`;
 }
 
 export function startsWithNamedMathOperator(text) {

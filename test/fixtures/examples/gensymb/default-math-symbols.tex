@@ -1,0 +1,11 @@
+% TeX Live gensymb defaults: \degree -> ^\circ, \celsius -> ^\circ\mathrm{C},
+% and \ohm -> \Omega when textcomp is not loaded.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usepackage{gensymb}
+
+\begin{document}
+\begin{tikzpicture}
+  \node[draw,rounded corners,inner sep=5pt] {$T=25\celsius,\quad R=10\ohm,\quad \alpha=63\degree$};
+\end{tikzpicture}
+\end{document}

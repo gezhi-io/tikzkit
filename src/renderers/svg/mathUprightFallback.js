@@ -42,7 +42,7 @@ function renderMathFragment(tex, fontSize) {
   const scripted = scriptedMathFallback(content, { allowSimpleScripts: true });
   const rendered = scripted
     ? renderScriptedSegmentsContent(scripted, fontSize)
-    : renderMathTextWithUprightOperators(mathFallbackText(content));
+    : renderMathTextWithUprightOperators(mathFallbackText(content), { fontSize });
   return preserveTrailingThinSpace
     ? `${rendered}<tspan class="tikz-math-thin-space" dx="${format(fontSize / 6)}"></tspan>`
     : rendered;

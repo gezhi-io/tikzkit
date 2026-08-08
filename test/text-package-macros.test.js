@@ -6,6 +6,7 @@ import { tikzToSvg } from "../src/index.js";
 import {
   mathFallbackText,
   normalizeBrowserMathMacros,
+  tikzHspaceText,
   normalizeTikzText
 } from "../src/tikz/text.js";
 import { estimateFormulaBox, parseMathText, wrapTeXTextLineByWidth } from "../src/tikz/textMetrics.js";
@@ -60,17 +61,25 @@ test("keeps variables italic and units upright in multi-line units nodes", () =>
   assert.match(result.svg, /tikz-nicefrac-denominator[^>]*><tspan>s<\/tspan><tspan[^>]*baseline-shift="super"[^>]*>2<\/tspan><\/tspan>/);
 });
 
-test("normalizes the used gensymb degree macro to a real math superscript", () => {
+test("normalizes gensymb default math symbols to their TeX Live fallbacks", () => {
   const degree = normalizeBrowserMathMacros(String.raw`63 \degree`);
   assert.equal(degree, String.raw`63^\circ`);
   assert.equal(mathFallbackText(degree), "63°");
 
-  const result = tikzToSvg(String.raw`\begin{tikzpicture}\node {$\scriptscriptstyle \varphi = 63 \degree$};\end{tikzpicture}`, {
+  const symbols = normalizeBrowserMathMacros(String.raw`T=25\celsius,\quad R=10\ohm`);
+  assert.equal(symbols, String.raw`T=25^\circ\mathrm{C},\quad R=10\Omega`);
+  assert.equal(mathFallbackText(symbols), `T = 25°C,${tikzHspaceText("1em")}R = 10Ω`);
+  assert.equal(mathFallbackText(String.raw`a\qquad b`), `a${tikzHspaceText("2em")}b`);
+
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}\node {$T=25\celsius,\quad R=10\ohm,\quad \scriptscriptstyle \varphi = 63 \degree$};\end{tikzpicture}`, {
     mathRenderer: "svg-text"
   });
   assert.deepEqual(result.diagnostics, []);
   assert.match(result.svg, /baseline-shift="super"[^>]*>°<\/tspan>/);
-  assert.doesNotMatch(result.svg, />degree</);
+  assert.match(result.svg, /tikz-math-upright[^>]*>C<\/tspan>/);
+  assert.match(result.svg, /10Ω,/);
+  assert.doesNotMatch(result.svg, />degree|>celsius|>ohm|>quad</);
+  assert.match(result.svg, /class="tikz-math-hspace" dx="[^"]+"/);
 });
 
 test("keeps scoped textbf formatting off later matrix-node lines", () => {
