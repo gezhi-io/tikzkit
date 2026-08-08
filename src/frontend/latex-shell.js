@@ -4601,16 +4601,18 @@ function renderGanttChartAsTikz(rawOptions, startRaw, endRaw, body) {
   }
   const chartWidth = totalSlots * xUnit;
   commands.push(`\\draw[draw=black!45,fill=white,line width=0.25pt] (0,0) rectangle (${roundTikzNumber(chartWidth)},${roundTikzNumber(-chartHeight)});`);
+  // pgfgantt passes its selected grid style straight to \draw. Keep TikZ's
+  // normal .4pt default unless a caller explicitly supplies a width.
   if (vgridStyles.length) {
     for (let slot = 1; slot < totalSlots; slot += 1) {
       const x = slot * xUnit;
-      commands.push(`\\draw[${ganttGridStyleAt(vgridStyles, slot - 1)},line width=0.2pt] (${roundTikzNumber(x)},0) -- (${roundTikzNumber(x)},${roundTikzNumber(-chartHeight)});`);
+      commands.push(`\\draw[${ganttGridStyleAt(vgridStyles, slot - 1)}] (${roundTikzNumber(x)},0) -- (${roundTikzNumber(x)},${roundTikzNumber(-chartHeight)});`);
     }
   }
   if (hgridStyles.length) {
     for (let rowIndex = 1; rowIndex < rowCount; rowIndex += 1) {
       const y = rowTops[rowIndex];
-      commands.push(`\\draw[${ganttGridStyleAt(hgridStyles, rowIndex - 1)},line width=0.2pt] (0,${roundTikzNumber(y)}) -- (${roundTikzNumber(chartWidth)},${roundTikzNumber(y)});`);
+      commands.push(`\\draw[${ganttGridStyleAt(hgridStyles, rowIndex - 1)}] (0,${roundTikzNumber(y)}) -- (${roundTikzNumber(chartWidth)},${roundTikzNumber(y)});`);
     }
   }
   const titleSlots = new Map();

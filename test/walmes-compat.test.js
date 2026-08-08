@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
+import { lineWidthFromPt } from "../src/tikz/metrics.js";
 
 function convert(body) {
   return tikzToSvg(String.raw`
@@ -291,11 +292,36 @@ test("maps pgfgantt hgrid and repeated vgrid styles onto consecutive grid lines"
 \end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(diagnostics, []);
-  const gridPaths = ir.items.filter((item) => item.type === "path" && item.style?.fill === "none" && item.style?.lineWidth < 0.8);
+  const gridPaths = ir.items.filter((item) => item.type === "path" && item.style?.fill === "none"
+    && ["red", "rgb(0 255 0)", "blue", "black"].includes(item.style?.stroke));
   assert.ok(gridPaths.some((item) => item.style?.stroke === "red"));
   assert.ok(gridPaths.some((item) => item.style?.stroke === "rgb(0 255 0)"));
   assert.ok(gridPaths.some((item) => item.style?.stroke === "blue" && item.style?.dashArray));
-  assert.ok(gridPaths.some((item) => item.style?.dashArray && item.style?.stroke === "black"), "hgrid=true should lower to PGF's dotted default");
+  const hgridPaths = gridPaths.filter((item) => item.style?.dashArray && item.style?.stroke === "black");
+  assert.ok(hgridPaths.length, "hgrid=true should lower to PGF's dotted default");
+  assert.ok(hgridPaths.every((item) => Math.abs(item.style.lineWidth - lineWidthFromPt(0.4)) < 1e-9),
+    "pgfgantt's default dotted hgrid must retain TikZ's normal .4pt line width");
+});
+
+test("keeps pgfgantt default hgrid and vgrid at TikZ's normal dotted width", () => {
+  const { diagnostics, ir } = tikzToSvg(String.raw`
+\documentclass{standalone}
+\usepackage{pgfgantt}
+\begin{document}
+\begin{ganttchart}[x unit=.4cm,y unit title=.5cm,y unit chart=.7cm,hgrid,vgrid]{1}{4}
+  \gantttitle{Plan}{4}\\
+  \ganttbar{Task}{1}{4}
+\end{ganttchart}
+\end{document}`, { mathRenderer: "svg-text" });
+  const dottedGridPaths = ir.items.filter((item) => item.type === "path"
+    && item.style?.fill === "none"
+    && item.style?.stroke === "black"
+    && item.style?.dashArray);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(dottedGridPaths.length >= 4, `expected horizontal plus vertical grids, got ${dottedGridPaths.length}`);
+  assert.ok(dottedGridPaths.every((item) => Math.abs(item.style.lineWidth - lineWidthFromPt(0.4)) < 1e-9),
+    "default hgrid/vgrid must not be thinned below TikZ's .4pt default");
 });
 
 test("uses pgfgantt title and element geometry defaults with local overrides", () => {
