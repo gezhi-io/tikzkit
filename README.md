@@ -24,6 +24,33 @@ JavaScript 生成；它适合快速迭代，但不是 LaTeX 一致性的证明�
 README 的“三方验收”流程生成 TikZKit、`tikztosvg` 和本机 MacTeX 对照，再提交代码。
 完整的逐步说明、常见故障和命令清单在 [docs/usage.md](docs/usage.md)。
 
+### 推荐使用路径
+
+把浏览器预览和兼容性验收当成两件不同的事：前者用于快速创作，后者才决定一段
+TikZ 是否可以被仓库宣称为已支持。
+
+```bash
+# 1. 打开本地编辑器：编辑、Render、查看 diagnostics。
+npm install
+npm run web
+
+# 2. 导出单个源码的 JavaScript SVG。
+node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
+
+# 3. 改动解释器或 renderer 时：盘点源码，再生成三方视觉对照。
+npm run case:audit -- path/to/case.tex --output outputs/qa-case/audit.md \
+  --init-review outputs/qa-case/review.json
+npm run examples:render -- --fixtures test/fixtures/examples --only <fixture-id> \
+  --output outputs/qa-case --native-reference --comparison-grid-mode svg \
+  --strict-tikztosvg
+npm run examples:diff -- --output outputs/qa-case --register --alignment-radius 3
+```
+
+第 3 步的入口页是 `outputs/qa-case/index.html`。只有实际看过 TikZKit、
+`tikztosvg`、MacTeX 和 diff 面板，并且相关的最小回归测试通过后，才提交实现。
+`outputs/` 始终是可再生的本地证据，不加入 Git；完整核对清单见
+[使用指南的“提交前核对”](docs/usage.md#提交前核对)。
+
 ## 使用说明
 
 TikZKit 目前有两种明确不同的用途：
