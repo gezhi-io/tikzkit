@@ -11,17 +11,17 @@ TikZKit is a pure JavaScript TikZ semantic interpreter. It is not a full TeX eng
 
 ### Install from npm
 
-The npm package name is `pure-js-tikz-interpreter`. It includes the Node.js
+The npm package name is `@gezhi-io/tikzkit`. It includes the Node.js
 library API and the `tikz2svg` CLI, but not the local QA artifacts or the web
 workbench. TikZKit is still under active testing; an SVG without diagnostics is
 not a guarantee of byte-for-byte LaTeX compatibility.
 
 ```bash
-npm install pure-js-tikz-interpreter
+npm install @gezhi-io/tikzkit
 ```
 
 ```js
-import { tikzToSvg } from "pure-js-tikz-interpreter";
+import { tikzToSvg } from "@gezhi-io/tikzkit";
 
 const result = tikzToSvg(String.raw`\begin{tikzpicture}\draw (0,0) -- (2,1);\end{tikzpicture}`);
 console.log(result.svg);
@@ -142,7 +142,7 @@ node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
 ### 3. 从 JavaScript 调用
 
 ```js
-import { tikzToSvg } from "pure-js-tikz-interpreter";
+import { tikzToSvg } from "@gezhi-io/tikzkit";
 
 const source = String.raw`
   \begin{tikzpicture}

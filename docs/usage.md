@@ -30,11 +30,11 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 仓库源码运行。当前版本处于测试阶段，成功生成 SVG 不代表完整 TeX 兼容。
 
 ```bash
-npm install pure-js-tikz-interpreter
+npm install @gezhi-io/tikzkit
 ```
 
 ```js
-import { tikzToSvg } from "pure-js-tikz-interpreter";
+import { tikzToSvg } from "@gezhi-io/tikzkit";
 
 const { svg, diagnostics } = tikzToSvg("\\begin{tikzpicture}\\draw (0,0) -- (2,1);\\end{tikzpicture}");
 ```
@@ -107,7 +107,7 @@ node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
 ## 3. 在 JavaScript 中调用
 
 ```js
-import { tikzToSvg } from "pure-js-tikz-interpreter";
+import { tikzToSvg } from "@gezhi-io/tikzkit";
 
 const source = String.raw`
 \begin{tikzpicture}

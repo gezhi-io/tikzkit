@@ -1,5 +1,5 @@
 {
-  "name": "pure-js-tikz-interpreter",
+  "name": "@gezhi-io/tikzkit",
   "version": "0.1.1",
   "description": "A pure JavaScript TikZ semantic interpreter that renders supported TikZ to SVG.",
   "type": "module",
