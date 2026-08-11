@@ -24,6 +24,25 @@ TikZKit 是一个仍在测试中的纯 JavaScript TikZ 解释器。浏览器和 
 `outputs/` 和 `output/` 都是被 Git 忽略的本地生成目录。可放心在其中放 SVG、PNG、
 审计 JSON 和对照页；不要将它们加入提交。
 
+## 从 npm 安装
+
+安装包只提供 Node.js API 和 `tikz2svg` 命令行工具；网页工作台及其 QA 语料仍应通过
+仓库源码运行。当前版本处于测试阶段，成功生成 SVG 不代表完整 TeX 兼容。
+
+```bash
+npm install pure-js-tikz-interpreter
+```
+
+```js
+import { tikzToSvg } from "pure-js-tikz-interpreter";
+
+const { svg, diagnostics } = tikzToSvg("\\begin{tikzpicture}\\draw (0,0) -- (2,1);\\end{tikzpicture}");
+```
+
+```bash
+tikz2svg diagram.tex -o diagram.svg --strict
+```
+
 ## 提交前核对
 
 一次兼容性提交只承诺一个清晰的 library、命令族或共享语义切片。提交前按下面顺序
@@ -88,7 +107,7 @@ node bin/tikz2svg.js path/to/diagram.tex -o outputs/diagram.svg
 ## 3. 在 JavaScript 中调用
 
 ```js
-import { tikzToSvg } from "./src/index.js";
+import { tikzToSvg } from "pure-js-tikz-interpreter";
 
 const source = String.raw`
 \begin{tikzpicture}

@@ -5086,6 +5086,48 @@ test("renders the circuitikz current shunt bipoles used by case 869", () => {
   }
 });
 
+test("matches Circuitikz American resistor zigzag defaults and configuration keys", () => {
+  const source = String.raw`
+\begin{tikzpicture}[american]
+  \draw (0,0) to[R] (3,0);
+  \ctikzset{resistors/zigs=4, resistors/width=1, bipoles/resistor/height=.2}
+  \draw (0,-1) to[R] (3,-1);
+  \ctikzset{resistor=european}
+  \draw (0,-2) to[R] (3,-2);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const resistors = ir.items.filter((item) => item.subtype === "circuitikz-resistor");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(resistors.length, 3);
+
+  const [defaults, configured, european] = resistors;
+  assert.equal(defaults.resistorKind, "american");
+  assert.equal(defaults.commands.length, 8, "three native zigs need six corners plus two endpoints");
+  assert.equal(defaults.style.lineJoin, "bevel");
+  expectClose(defaults.commands[0].x, 0.94);
+  expectClose(defaults.commands.at(-1).x, 2.06);
+  expectClose(defaults.commands[1].x, 1.033333333333);
+  expectClose(defaults.commands[1].y, -0.21);
+  expectClose(defaults.commands[2].x, 1.22);
+  expectClose(defaults.commands[2].y, 0.21);
+
+  assert.equal(configured.commands.length, 10, "resistors/zigs=4 needs eight corners plus two endpoints");
+  expectClose(configured.commands[0].x, 0.8);
+  expectClose(configured.commands.at(-1).x, 2.2);
+  expectClose(configured.commands[1].x, 0.8875);
+  expectClose(configured.commands[1].y, -1.14);
+  expectClose(configured.commands[2].y, -0.86);
+
+  assert.equal(european.resistorKind, "european");
+  assert.equal(european.commands.length, 6, "the European selection draws a closed generic resistor body");
+  expectClose(european.commands[0].x, 0.8);
+  expectClose(european.commands[1].x, 0.8);
+  expectClose(european.commands[1].y, -1.86);
+  expectClose(european.commands[2].x, 2.2);
+});
+
 test("renders circuitikz diamond and dot terminals used by case 1296", () => {
   const source = String.raw`
 \begin{tikzpicture}

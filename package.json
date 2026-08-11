@@ -1,10 +1,43 @@
 {
   "name": "pure-js-tikz-interpreter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A pure JavaScript TikZ semantic interpreter that renders supported TikZ to SVG.",
   "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "tikz2svg": "./bin/tikz2svg.js"
+  },
+  "keywords": [
+    "tikz",
+    "pgf",
+    "svg",
+    "latex",
+    "circuitikz"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gezhi-io/tikzkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gezhi-io/tikzkit/issues"
+  },
+  "homepage": "https://github.com/gezhi-io/tikzkit#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "node --test",

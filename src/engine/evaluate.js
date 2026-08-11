@@ -2328,18 +2328,20 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
   if (spec.kind === "short") {
     commands.push(lineToCommand(to));
   } else if (spec.kind === "resistor") {
+    const settings = circuitikzResistorSettings(options, env);
+    const bodyLength = circuitikzBodyLength("resistor", geometry.length, env, settings);
     const split = appendCircuitikzSplitWire(
       commands,
       from,
       to,
       geometry,
-      circuitikzBodyLength("resistor", geometry.length, env),
+      bodyLength,
       pathStyle,
       styleHints,
       options,
       env
     );
-    shapes.push(circuitikzResistorItem(from, to, geometry, pathStyle, env));
+    shapes.push(circuitikzResistorItem(geometry, bodyLength, settings, pathStyle));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "capacitor") {
     const settings = spec.variable ? circuitikzVariableCapacitorSettings(options, env) : null;
@@ -3034,9 +3036,12 @@ function circuitikzBodyLength(kind, segmentLength, env = {}, settings = null) {
   if (kind === "diode") {
     return Math.min(settings?.bodyLength || 0.56 * scale, Math.max(0, segmentLength * 0.78));
   }
+  if (kind === "resistor") {
+    return Math.min(settings?.bodyLength || 1.12 * scale, Math.max(0, segmentLength * 0.78));
+  }
   const desired = kind === "inductor"
     ? (settings?.bodyLength || 0.84 * scale)
-    : (kind === "resistor" ? 1.12 : kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : (kind === "voltageSource" || kind === "isource") ? 0.84 * sourceScale : 0.84) * scale;
+    : (kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : (kind === "voltageSource" || kind === "isource") ? 0.84 * sourceScale : 0.84) * scale;
   return Math.min(desired, Math.max(0, segmentLength * 0.78));
 }
 
@@ -3397,27 +3402,108 @@ function circuitikzLeadItem(from, to, pathStyle = {}) {
   };
 }
 
-function circuitikzResistorItem(from, to, geometry, pathStyle = {}, env = {}) {
-  const bodyLength = circuitikzBodyLength("resistor", geometry.length, env);
-  const amplitude = 0.21 * circuitikzLengthScale(env);
+function circuitikzResistorKind(options = {}, env = {}) {
+  // `options` contains inherited tikzpicture keys. Only an explicit
+  // resistor selector there may override mutable \ctikzset state; an
+  // inherited `[american]` must not hide a later `resistor=european`.
+  for (const source of [options]) {
+    const selected = String(source.resistor === true ? "" : source.resistor || "").trim().toLowerCase();
+    if (selected === "european") return "european";
+    if (selected === "american") return "american";
+    if (source["european resistor"] !== undefined || source["european resistors"] !== undefined) return "european";
+    if (source["american resistor"] !== undefined || source["american resistors"] !== undefined) return "american";
+  }
+  for (const source of [env.circuitikz || {}, env.pictureOptions || {}]) {
+    const selected = String(source.resistor === true ? "" : source.resistor || "").trim().toLowerCase();
+    if (selected === "european") return "european";
+    if (selected === "american") return "american";
+    if (source["european resistor"] !== undefined || source["european resistors"] !== undefined || source.european !== undefined) return "european";
+    if (source["american resistor"] !== undefined || source["american resistors"] !== undefined || source.american !== undefined) return "american";
+  }
+  // Circuitikz's resistor choice starts in the American (zigzag) state.
+  return "american";
+}
+
+function circuitikzResistorRawOption(key, options = {}, env = {}) {
+  const names = [
+    `circuitikz/bipoles/resistor/${key}`,
+    `bipoles/resistor/${key}`,
+    `circuitikz/resistors/${key}`,
+    `resistors/${key}`
+  ];
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const name of names) {
+      if (source[name] !== undefined) return source[name];
+    }
+  }
+  return undefined;
+}
+
+function circuitikzResistorNumber(key, options = {}, env = {}, fallback = 0) {
+  const raw = circuitikzResistorRawOption(key, options, env);
+  if (raw === undefined || raw === null || raw === true || raw === "") return fallback;
+  const parsed = evaluateMath(String(raw), env.variables || {});
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function circuitikzResistorSettings(options = {}, env = {}) {
+  const kind = circuitikzResistorKind(options, env);
+  const rlen = 1.4 * circuitikzLengthScale(env);
+  const width = Math.max(0.05, circuitikzResistorNumber("width", options, env, 0.8));
+  const height = Math.max(0.05, circuitikzResistorNumber("height", options, env, 0.3));
+  return {
+    kind,
+    width,
+    height,
+    zigs: Math.max(1, Math.round(circuitikzResistorNumber("zigs", options, env, 3))),
+    bodyLength: width * rlen,
+    // pgfcircdeclarebipolescaled turns the declared height into a symmetric
+    // north/south bound, so each zig peak is half the configured full height.
+    amplitude: height * rlen * 0.5
+  };
+}
+
+function circuitikzResistorItem(geometry, bodyLength, settings = {}, pathStyle = {}) {
   const start = pointAlong(geometry.mid, geometry.u, -bodyLength / 2);
   const end = pointAlong(geometry.mid, geometry.u, bodyLength / 2);
-  const commands = [{ type: "moveTo", x: start.x, y: start.y }];
-  for (let index = 1; index <= 7; index += 1) {
-    const along = -bodyLength / 2 + (bodyLength * index) / 8;
-    const side = index % 2 === 1 ? 1 : -1;
-    commands.push({
-      type: "lineTo",
-      ...roundPoint({
-        x: geometry.mid.x + geometry.u.x * along + geometry.n.x * amplitude * side,
-        y: geometry.mid.y + geometry.u.y * along + geometry.n.y * amplitude * side
-      })
-    });
+  const commands = [{ type: "moveTo", ...roundPoint(start) }];
+  if (settings.kind === "european") {
+    // The shared bipole declaration has already converted the configured
+    // `bipoles/resistor/height` into a north/south half extent.
+    const halfHeight = settings.amplitude;
+    const upperStart = pointNormal(start, geometry.n, halfHeight);
+    const upperEnd = pointNormal(end, geometry.n, halfHeight);
+    const lowerEnd = pointNormal(end, geometry.n, -halfHeight);
+    const lowerStart = pointNormal(start, geometry.n, -halfHeight);
+    commands.push(
+      { type: "lineTo", ...roundPoint(upperStart) },
+      { type: "lineTo", ...roundPoint(upperEnd) },
+      { type: "lineTo", ...roundPoint(lowerEnd) },
+      { type: "lineTo", ...roundPoint(lowerStart) },
+      { type: "lineTo", ...roundPoint(upperStart) }
+    );
+  } else {
+    // pgfcircbipoles.tex divides the resistor body into 4 * zigs equal steps:
+    // a one-step ramp, alternating two-step peaks, then one final step to zero.
+    const step = bodyLength / (4 * settings.zigs);
+    for (let index = 0; index < settings.zigs * 2; index += 1) {
+      const along = -bodyLength / 2 + (2 * index + 1) * step;
+      const side = index % 2 === 0 ? -1 : 1;
+      commands.push({
+        type: "lineTo",
+        ...roundPoint({
+          x: geometry.mid.x + geometry.u.x * along + geometry.n.x * settings.amplitude * side,
+          y: geometry.mid.y + geometry.u.y * along + geometry.n.y * settings.amplitude * side
+        })
+      });
+    }
+    commands.push({ type: "lineTo", ...roundPoint(end) });
   }
-  commands.push({ type: "lineTo", x: end.x, y: end.y });
   return {
     type: "path",
     subtype: "circuitikz-resistor",
+    resistorKind: settings.kind,
+    zigs: settings.zigs,
     style: circuitikzComponentStyle(pathStyle),
     commands
   };
@@ -8646,6 +8732,7 @@ function normalizeCtikzSetOptions(rawOptions = {}) {
     if (lowerKey === "cute inductors" || lowerKey === "cute") normalized["inductors/kind"] = "cute";
     if (lowerKey === "american inductors" || lowerKey === "american") normalized["inductors/kind"] = "american";
     if (lowerKey === "european inductors" || lowerKey === "european") normalized["inductors/kind"] = "european";
+    if (lowerKey === "resistors/width") normalized["bipoles/resistor/width"] = normalizedValue;
     if (lowerKey === "diode straight whiskers") normalized["diodes/whiskers"] = "straight";
     if (lowerKey === "diode sloped whiskers") normalized["diodes/whiskers"] = "sloped";
     if (lowerKey === "led arrows from cathode") normalized["diodes/led-arrows"] = "cathode";
