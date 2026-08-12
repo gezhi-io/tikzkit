@@ -15,7 +15,7 @@
     "LICENSE"
   ],
   "bin": {
-    "tikz2svg": "./bin/tikz2svg.js"
+    "tikz2svg": "bin/tikz2svg.js"
   },
   "keywords": [
     "tikz",
