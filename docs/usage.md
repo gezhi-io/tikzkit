@@ -43,6 +43,14 @@ const { svg, diagnostics } = tikzToSvg("\\begin{tikzpicture}\\draw (0,0) -- (2,1
 tikz2svg diagram.tex -o diagram.svg --strict
 ```
 
+维护者发布前需在 npmjs.com 创建或加入 `@gezhi-io` 组织，然后使用官方 registry：
+
+```bash
+npm login --registry=https://registry.npmjs.org/
+npm whoami --registry=https://registry.npmjs.org/
+npm publish --access public
+```
+
 ## 提交前核对
 
 一次兼容性提交只承诺一个清晰的 library、命令族或共享语义切片。提交前按下面顺序

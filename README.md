@@ -20,6 +20,15 @@ not a guarantee of byte-for-byte LaTeX compatibility.
 npm install @gezhi-io/tikzkit
 ```
 
+Maintainers publish only through the official npm registry. The publishing
+account must be a member of the `@gezhi-io` npm organization:
+
+```bash
+npm login --registry=https://registry.npmjs.org/
+npm whoami --registry=https://registry.npmjs.org/
+npm publish --access public
+```
+
 ```js
 import { tikzToSvg } from "@gezhi-io/tikzkit";
 
