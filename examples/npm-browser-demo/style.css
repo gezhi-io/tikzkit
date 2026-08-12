@@ -1,0 +1,43 @@
+:root {
+  color: #18212b;
+  background: #f7f9fc;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  width: min(760px, calc(100% - 48px));
+  margin: 48px auto;
+}
+
+h1 {
+  margin: 0;
+}
+
+.markdown-text,
+.diagnostics {
+  white-space: pre-wrap;
+  font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.tikz-render {
+  min-height: 220px;
+  margin-top: 24px;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  background: white;
+}
+
+.tikz-render svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.diagnostics {
+  color: #b42318;
+}

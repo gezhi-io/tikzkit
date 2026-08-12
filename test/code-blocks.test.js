@@ -5,10 +5,16 @@ import {
   extractTikzCodeBlocks as frontendExtractTikzCodeBlocks,
   splitTikzCodeBlocks as frontendSplitTikzCodeBlocks
 } from "../src/frontend/index.js";
+import {
+  extractTikzCodeBlocks as publicExtractTikzCodeBlocks,
+  splitTikzCodeBlocks as publicSplitTikzCodeBlocks
+} from "../src/index.js";
 
 test("exposes tikz fenced code block extraction at the frontend seam", () => {
   assert.equal(frontendExtractTikzCodeBlocks, extractTikzCodeBlocks);
   assert.equal(frontendSplitTikzCodeBlocks, splitTikzCodeBlocks);
+  assert.equal(publicExtractTikzCodeBlocks, extractTikzCodeBlocks);
+  assert.equal(publicSplitTikzCodeBlocks, splitTikzCodeBlocks);
 });
 
 test("extracts tikz fenced code blocks from backtick and apostrophe fences", () => {

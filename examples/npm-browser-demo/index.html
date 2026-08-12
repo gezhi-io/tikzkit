@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TikZKit npm browser demo</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "@gezhi-io/tikzkit": "/node_modules/@gezhi-io/tikzkit/src/index.js",
+        "chevrotain": "/node_modules/chevrotain/lib/chevrotain.mjs",
+        "katex": "/node_modules/katex/dist/katex.mjs"
+      }
+    }
+  </script>
+  <script type="module" src="/main.js"></script>
+</head>
+<body>
+  <main>
+    <h1>TikZKit from npm</h1>
+    <p>Rendered locally in browser JavaScript from a fenced TikZ block.</p>
+    <div id="output" aria-live="polite"></div>
+  </main>
+</body>
+</html>

@@ -6,6 +6,7 @@ import { createConversionResult, mergeDiagnostics } from "./shared/result.js";
 import { TIKZ_UNIT } from "./tikz/metrics.js";
 
 export { parseTikz } from "./frontend/index.js";
+export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./frontend/code-blocks.js";
 export { evaluateTikzAst, interpretTikz } from "./engine/index.js";
 export { renderSvg } from "./renderers/svg/index.js";
 

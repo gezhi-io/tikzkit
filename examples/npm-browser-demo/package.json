@@ -1,0 +1,11 @@
+{
+  "name": "tikzkit-npm-browser-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@gezhi-io/tikzkit": "^0.1.3"
+  }
+}
