@@ -2439,7 +2439,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
       options,
       env
     );
-    shapes.push(...circuitikzCurrentSourceItems(from, to, geometry, spec, pathStyle, env));
+    shapes.push(...circuitikzCurrentSourceItems(from, to, geometry, spec, pathStyle, options, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "mosfet") {
     commands.push(moveToCommand(to));
@@ -3055,6 +3055,18 @@ function circuitikzControlledSourceScale(env = {}) {
     }
   }
   return 1;
+}
+
+function circuitikzCurrentArrowScale(options = {}, env = {}) {
+  for (const source of [options, env.pictureOptions || {}, env.circuitikz || {}]) {
+    for (const key of ["circuitikz/current arrow scale", "current arrow scale"]) {
+      const value = source[key];
+      if (value === undefined || value === null || value === true || value === "") continue;
+      const parsed = evaluateMath(String(value), env.variables || {});
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+  }
+  return 16;
 }
 
 function circuitikzBatteryScale(env = {}) {
@@ -4334,7 +4346,7 @@ function registerCircuitikzInductorNode(spec, geometry, settings, requestedBodyL
   materializeCircuitikzNodeAnchors(name, env);
 }
 
-function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle = {}, env = {}) {
+function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle = {}, options = {}, env = {}) {
   const scale = circuitikzLengthScale(env);
   if (spec.kind === "controlledCurrentSource") {
     const halfExtent = 0.49 * scale * circuitikzControlledSourceScale(env);
@@ -4362,15 +4374,7 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
         commands: [{ type: "moveTo", x: start.x, y: start.y }, { type: "lineTo", x: end.x, y: end.y }]
       });
     } else {
-      const arrowHalf = halfExtent * 0.7;
-      const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
-      const arrowEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
-      items.push({
-        type: "path",
-        subtype: "circuitikz-controlled-current-source-arrow",
-        style: circuitikzArrowStyle(pathStyle),
-        commands: [{ type: "moveTo", x: arrowStart.x, y: arrowStart.y }, { type: "lineTo", x: arrowEnd.x, y: arrowEnd.y }]
-      });
+      items.push(...circuitikzControlledCurrentArrowItems(geometry, halfExtent, pathStyle, options, env));
     }
     return items;
   }
@@ -5426,6 +5430,43 @@ function circuitikzCurrentTriangleItem(center, geometry, pathStyle = {}, env = {
       { type: "closePath" }
     ]
   };
+}
+
+function circuitikzControlledCurrentArrowItems(geometry, halfExtent, pathStyle = {}, options = {}, env = {}) {
+  const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+  const arrowHalf = halfExtent * 0.7;
+  const shaftStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
+  const shaftEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
+
+  // Circuitikz's `currarrow` shape uses Rlen/current arrow scale and is
+  // translated half a source radius along the element's local x axis.
+  const step = (1.4 * circuitikzLengthScale(env)) / circuitikzCurrentArrowScale(options, env);
+  const arrowOrigin = pointAlong(geometry.mid, geometry.u, halfExtent * 0.5);
+  const base = pointAlong(arrowOrigin, geometry.u, -0.7 * step);
+  const tip = pointAlong(arrowOrigin, geometry.u, step);
+  const lower = pointNormal(base, geometry.n, -0.8 * step);
+  const upper = pointNormal(base, geometry.n, 0.8 * step);
+
+  return [
+    {
+      type: "path",
+      subtype: "circuitikz-controlled-current-source-arrow-shaft",
+      style,
+      commands: [{ type: "moveTo", x: shaftStart.x, y: shaftStart.y }, { type: "lineTo", x: shaftEnd.x, y: shaftEnd.y }]
+    },
+    {
+      type: "path",
+      subtype: "circuitikz-controlled-current-source-arrow",
+      style: { ...style, fill: style.stroke },
+      commands: [
+        { type: "moveTo", x: base.x, y: base.y },
+        { type: "lineTo", x: lower.x, y: lower.y },
+        { type: "lineTo", x: tip.x, y: tip.y },
+        { type: "lineTo", x: upper.x, y: upper.y },
+        { type: "closePath" }
+      ]
+    }
+  ];
 }
 
 function circuitikzFlowArrowItem(center, geometry, flow, pathStyle = {}, env = {}) {

@@ -254,7 +254,7 @@ test("pgfplots owns library declarations and global option collection", () => {
   const pgfplotsSet = collectPgfplotsSetOptions(source);
 
   assert.deepEqual(libraries.map((library) => library.name), ["groupplots", "statistics"]);
-  assert.equal(libraries[0].status, "builtin");
+  assert.equal(libraries[0].status, "partial");
   assert.equal(libraries[1].status, "unsupported");
   assert.equal(pgfplotsSet.options.compat, "newest");
   assert.equal(pgfplotsSet.options["every axis/.style"], "grid=major");
@@ -527,6 +527,7 @@ test("svg renderer keeps rectangle split node serialization in its own module", 
       height: 1,
       parts: 3,
       partFills: ["red", "green", "blue"],
+      rectangleSplitUsesCustomFill: true,
       style: { stroke: "black", lineWidth: 1 }
     },
     100

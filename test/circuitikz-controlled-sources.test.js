@@ -35,3 +35,24 @@ test("renders circuitikz controlled sources as scaled diamond symbols", () => {
   assert.ok(componentLabel?.x < 4.3, `expected l= label outside the source, got ${JSON.stringify(componentLabel)}`);
   assert.ok(currentLabel?.y > 2, `expected cI value on the post-source current arrow, got ${JSON.stringify(currentLabel)}`);
 });
+
+test("matches Circuitikz's compact currarrow shape and current arrow scale", () => {
+  const result = tikzToSvg(String.raw`
+    \begin{circuitikz}[american, thick]
+      \ctikzset{current arrow scale=8}
+      \draw (0,0) to[cI] (0,3);
+    \end{circuitikz}
+  `, { margin: 0, mathRenderer: "svg-text" });
+  const arrow = result.ir.items.find((item) => item.subtype === "circuitikz-controlled-current-source-arrow");
+  const yValues = arrow?.commands?.filter((command) => Number.isFinite(command.y)).map((command) => command.y) || [];
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(arrow, "expected a controlled-source currarrow path");
+  assert.equal(arrow.style.markerEnd, undefined);
+  assert.equal(arrow.style.fill, arrow.style.stroke);
+  assert.equal(arrow.commands.at(-1).type, "closePath");
+  assert.ok(Math.abs(Math.max(...yValues) - Math.min(...yValues) - 0.2975) < 0.0001,
+    `expected Rlen/current-arrow-scale arrow span, got ${JSON.stringify(yValues)}`);
+  assert.ok(Math.abs(Math.max(...yValues) - 1.92) < 0.0001,
+    `expected currarrow translated into the source's upper half, got ${JSON.stringify(yValues)}`);
+});

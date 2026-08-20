@@ -25,7 +25,7 @@ test("renders circuitikz DC voltage and current source symbols", () => {
   assert.equal(currentOutlines.length, 2);
   assert.equal(currentArrows.length, 2);
   assert.equal(currentArrowHeads.length, 2, "expected a circuitikz currarrow head in each DC current source");
-  assert.deepEqual(currentFills.map((item) => item.style.fill), ["yellow", "yellow"]);
+  assert.deepEqual(currentFills.map((item) => item.style.fill), ["rgb(255 242 0)", "rgb(255 242 0)"]);
   assert.ok(currentOutlines.every((item) => item.style.fill === "none"));
   assert.ok(currentArrows.every((item) => item.style.markerEnd === undefined));
   assert.ok(currentArrowHeads.every((item) => item.style.fill === item.style.stroke));
