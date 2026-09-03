@@ -129,6 +129,7 @@ export {
   rectangleNodePoints,
   regularPolygonNodePoints,
   renderCircleCrossSplitNodeBox,
+  renderCylinderNodeBox,
   renderDiamondNodeBox,
   renderLibraryShapeNodeBox,
   rotatePoint,

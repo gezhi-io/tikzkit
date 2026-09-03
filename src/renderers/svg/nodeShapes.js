@@ -3,6 +3,7 @@ import { formatSvgNumber as format } from "./format.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import {
+  cylinderGeometry,
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
@@ -11,6 +12,7 @@ export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
   "star",
   "trapezium",
+  "cylinder",
   "isoscelesTriangle",
   "cloud",
   "superellipse",
@@ -55,16 +57,44 @@ export function diamondNodePolygonPoints(cx, cy, halfWidth, halfHeight) {
 }
 
 export function renderLibraryShapeNodeBox(item, unit) {
+  if (item.shape === "cylinder") return renderCylinderNodeBox(item, unit);
   const commands = nodeShapeCommands(item);
   return `<path class="tikz-node-shape tikz-node-${escapeAttribute(item.shape)}" d="${pathData(commands, unit)}"${styleAttributes(
     item.style
   )} />`;
 }
 
+export function renderCylinderNodeBox(item, unit) {
+  const geometry = cylinderGeometry(item, item.shapeData || {});
+  const translate = (commands) => translateCommands(commands, item.x, item.y);
+  const customFill = item.shapeData?.cylinderUsesCustomFill;
+  const layers = [];
+  if (customFill) {
+    layers.push(`<path class="tikz-node-cylinder-body" d="${pathData(translate(geometry.bodyCommands), unit)}"${styleAttributes({
+      ...item.style,
+      stroke: "none",
+      fill: item.shapeData?.cylinderBodyFill || "white"
+    })} />`);
+    layers.push(`<path class="tikz-node-cylinder-end" d="${pathData(translate(geometry.endCommands), unit)}"${styleAttributes({
+      ...item.style,
+      stroke: "none",
+      fill: item.shapeData?.cylinderEndFill || "white"
+    })} />`);
+  }
+  layers.push(`<path class="tikz-node-cylinder-outline" d="${pathData(translate(geometry.outlineCommands), unit)}"${styleAttributes({
+    ...item.style,
+    fill: customFill ? "none" : item.style?.fill
+  })} />`);
+  return `<g class="tikz-node-shape tikz-node-cylinder">${layers.join("")}</g>`;
+}
+
 export function nodeShapeCommands(item) {
   const center = { x: item.x, y: item.y };
   const halfWidth = item.width / 2;
   const halfHeight = item.height / 2;
+  if (item.shape === "cylinder") {
+    return translateCommands(cylinderGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
   if (item.shape === "regularPolygon") {
     const sides = item.shapeData?.regularPolygonSides || 5;
     return closedPolygonCommands(
@@ -96,6 +126,24 @@ export function nodeShapeCommands(item) {
     return closedPolygonCommands(arrowNodePoints(center, halfWidth, halfHeight, item.shape, item.shapeData || {}));
   }
   return closedPolygonCommands(rectangleNodePoints(center, halfWidth, halfHeight));
+}
+
+function translateCommands(commands, x, y) {
+  return commands.map((command) => {
+    if (command.type === "closePath") return command;
+    if (command.type === "curveTo") {
+      return {
+        ...command,
+        x: command.x + x,
+        y: command.y + y,
+        x1: command.x1 + x,
+        y1: command.y1 + y,
+        x2: command.x2 + x,
+        y2: command.y2 + y
+      };
+    }
+    return { ...command, x: command.x + x, y: command.y + y };
+  });
 }
 
 export function superellipseNodeCommands(center, halfWidth, halfHeight) {

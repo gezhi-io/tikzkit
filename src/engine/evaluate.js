@@ -3,6 +3,9 @@ import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libr
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { basicPlotMarkGeometry, plotMarkGeometryCommands } from "../tikz/libraries/plotmarks.js";
 import {
+  cylinderBorderPoint as geometricCylinderBorderPoint,
+  cylinderGeometry as geometricCylinderGeometry,
+  cylinderLayoutSize as geometricCylinderLayoutSize,
   starLayoutSize as geometricStarLayoutSize,
   starNodePoints as geometricStarNodePoints,
   trapeziumLayoutSize as geometricTrapeziumLayoutSize,
@@ -6010,7 +6013,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
       layoutHeight: scaledAnchorSize.height,
       ...textAnchorOffsets,
       shape: nodeShape(expandedOptions),
-      shapeData: nodeShapeData(expandedOptions, nodeEnv),
+      shapeData: nodeShapeData(expandedOptions, nodeEnv, text),
       rotation: recordRotation
     };
     env.coordinates[nodeName] = nodePoint;
@@ -6298,7 +6301,7 @@ function createNode(statement, env, ir, diagnostics) {
     ...textAnchorOffsets,
     shape: nodeShape(expandedOptions),
     shapeData: {
-      ...nodeShapeData(expandedOptions, nodeEnv),
+      ...nodeShapeData(expandedOptions, nodeEnv, text),
       rectangleSplit,
       circleSplit,
       ...(arrowGeometry ? { arrowGeometry } : {})
@@ -6333,7 +6336,7 @@ function createNode(statement, env, ir, diagnostics) {
     layoutHeight: anchorSize.height,
     ...textAnchorOffsets,
     shape: nodeShape(expandedOptions),
-    shapeData: nodeShapeData(expandedOptions, nodeEnv),
+    shapeData: nodeShapeData(expandedOptions, nodeEnv, text),
     rotation: nodeRotation(expandedOptions, nodeEnv),
     options: expandedOptions
   };
@@ -8942,7 +8945,7 @@ function addNodeItems(node, ir, env) {
   const point = node.displayPoint || resolveNodeAnchorPoint(node.at, node.options, node.text, nodeEnv, node.size);
   const shape = nodeShape(node.options || {});
   const shapeData = {
-    ...nodeShapeData(node.options || {}, nodeEnv),
+    ...nodeShapeData(node.options || {}, nodeEnv, node.text),
     rectangleSplit: node.rectangleSplit || null,
     circleSplit: node.circleSplit || null,
     ...(node.shapeData || {})
@@ -10882,6 +10885,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
     localPoint = { x: localDx * factor, y: localDy * factor };
   } else if (node.shape === "roundedRectangle") {
     localPoint = roundedRectangleBorderPoint(localDx, localDy, halfWidth, halfHeight, terminalPadding);
+  } else if (node.shape === "cylinder") {
+    localPoint = geometricCylinderBorderPoint(
+      geometricCylinderGeometry({ width: halfWidth * 2, height: halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "diamond") {
     const points = [
       { x: 0, y: halfHeight },
@@ -11010,6 +11019,7 @@ function nodeShape(options = {}) {
   if (options.trapezium) return "trapezium";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
   if (options.cloud) return "cloud";
+  if (options.cylinder) return "cylinder";
   return "rectangle";
 }
 
@@ -11034,7 +11044,8 @@ function explicitNodeShape(shape) {
     star: "star",
     trapezium: "trapezium",
     "isosceles triangle": "isoscelesTriangle",
-    cloud: "cloud"
+    cloud: "cloud",
+    cylinder: "cylinder"
   };
   return shapes[shape] || null;
 }
@@ -11081,6 +11092,20 @@ function starLayoutSize(contentWidth, contentHeight, options = {}, env = { varia
   });
 }
 
+function cylinderLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const { style } = normalizeOptions("node", options, env);
+  return geometricCylinderLayoutSize(contentWidth, contentHeight, {
+    aspect: numberOption(options["shape aspect"] ?? options.aspect, 1),
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    innerXSep: parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
+    innerYSep: parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
+    lineWidth: (Number(style.lineWidth) || 0) / TIKZ_UNIT,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
 function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const sides = regularPolygonSides(options, env);
   const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
@@ -11095,10 +11120,12 @@ function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env
   return { width: diameter, height: diameter };
 }
 
-function nodeShapeData(options = {}, env = {}) {
+function nodeShapeData(options = {}, env = {}, text) {
   const regularSides = regularPolygonSides(options, env);
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
   const star = starShapeData(options, env, shapeBorderRotate);
+  const cylinderScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const { style: cylinderStyle } = normalizeOptions("node", options, env);
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
     mosfetKind: circuitikzMosfetNodeKind(options),
@@ -11119,11 +11146,39 @@ function nodeShapeData(options = {}, env = {}) {
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
     trapeziumRightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
+    cylinderAspect: Math.max(1e-9, numberOption(options["shape aspect"] ?? options.aspect, 1)),
+    cylinderEndRadiusX: cylinderNaturalEndRadiusX(text, options, env),
+    cylinderShapeBorderRotate: Math.round((((shapeBorderRotate % 360) + 360) % 360) / 90) * 90 % 360,
+    cylinderInnerXSep: parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env) * cylinderScale,
+    cylinderInnerYSep: parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env) * cylinderScale,
+    cylinderLineWidth: ((Number(cylinderStyle.lineWidth) || 0) / TIKZ_UNIT) * canvasLengthScale(env),
+    cylinderUsesCustomFill: tikzBoolean(options["cylinder uses custom fill"]),
+    cylinderBodyFill: normalizeColor(String(options["cylinder body fill"] === true || options["cylinder body fill"] === undefined ? "white" : options["cylinder body fill"])),
+    cylinderEndFill: normalizeColor(String(options["cylinder end fill"] === true || options["cylinder end fill"] === undefined ? "white" : options["cylinder end fill"])),
     arrowTipAngle: numberOption(options["single arrow tip angle"] ?? options["double arrow tip angle"], 90),
     arrowHeadExtend: parseFiniteDimension(options["single arrow head extend"] ?? options["double arrow head extend"], env, 0.25),
     arrowHeadIndent: parseFiniteDimension(options["single arrow head indent"] ?? options["double arrow head indent"], env, 0),
     shapeBorderRotate
   };
+}
+
+function cylinderNaturalEndRadiusX(text, options = {}, env = {}) {
+  if (text === undefined || nodeShape(options) !== "cylinder") return undefined;
+  const contentOptions = { ...options };
+  delete contentOptions.shape;
+  delete contentOptions.cylinder;
+  delete contentOptions["minimum width"];
+  delete contentOptions["minimum height"];
+  delete contentOptions["minimum size"];
+  const normalized = normalizeTikzText(text, env);
+  const contentSize = isEmptyNormalizedText(normalized)
+    ? scaleSize(estimateEmptyTextNodeSize(contentOptions, env), nodeOptionScale(options, env))
+    : estimateNodeSize(text, contentOptions, env);
+  const rotate = Math.round(((((numberOption(options["shape border rotate"], 0) % 360) + 360) % 360) / 90)) * 90 % 360;
+  const crossSize = rotate === 90 || rotate === 270 ? contentSize.width : contentSize.height;
+  return roundNumber(
+    Math.max(1e-9, numberOption(options["shape aspect"] ?? options.aspect, 1)) * crossSize / 2 * canvasLengthScale(env)
+  );
 }
 
 function regularPolygonSides(options = {}) {
@@ -12529,6 +12584,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(starLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "cylinder") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(cylinderLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   // shapes.misc cross out and strike out inherit rectangle anchors.  Their
   // foreground is drawn from southwest to northeast, so an empty node must
   // use only its configured inner/minimum dimensions rather than the normal
@@ -12585,6 +12645,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "star") {
     return scaleSize(starLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "cylinder") {
+    return scaleSize(cylinderLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "diamond" && !options["bpmn gateway"]) {
     ({ width, height } = diamondLayoutSize(width, height, options, env));
@@ -16434,6 +16497,25 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
       return { x: base.x * scale, y: base.y * scale };
     }
   }
+  if (shape === "cylinder") {
+    const geometry = geometricCylinderGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, size.shapeData || {});
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+    const directions = {
+      north: { x: 0, y: 1 },
+      south: { x: 0, y: -1 },
+      east: { x: 1, y: 0 },
+      west: { x: -1, y: 0 },
+      "north east": { x: 1, y: 1 },
+      "north west": { x: -1, y: 1 },
+      "south east": { x: 1, y: -1 },
+      "south west": { x: -1, y: -1 }
+    };
+    if (directions[anchor]) return geometricCylinderBorderPoint(geometry, directions[anchor]);
+  }
   const shapeAnchor = shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight);
   if (shapeAnchor) return shapeAnchor;
   if (shape === "rectangleSplit") {
@@ -16815,6 +16897,18 @@ function includeItemBounds(item, include) {
   if (item.type === "nodeBox") {
     const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
     const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
+    if (item.shape === "cylinder") {
+      const bounds = geometricCylinderGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
     includeRotatedItemRectangle(
       item.x - item.width / 2 - foregroundOuterX,
       item.y - item.height / 2 - foregroundOuterY,

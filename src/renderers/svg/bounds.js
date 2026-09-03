@@ -11,6 +11,7 @@ import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, resolveInlineArrowTip } from "./paths.js";
+import { cylinderGeometry } from "../../tikz/libraries/shapes.geometric.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -28,11 +29,14 @@ export function computeSvgBounds(items, options = {}) {
       const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
       const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
       const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
+      const cylinderBounds = item.shape === "cylinder"
+        ? cylinderGeometry(item, item.shapeData || {}).bounds
+        : null;
       includeRotatedRectangleBounds(
-        item.x - item.width / 2 - strokePad - foregroundOuterX,
-        item.y - item.height / 2 - strokePad - foregroundOuterY,
-        item.x + item.width / 2 + strokePad + foregroundOuterX,
-        item.y + item.height / 2 + strokePad + foregroundOuterY,
+        cylinderBounds ? item.x + cylinderBounds.minX - strokePad - foregroundOuterX : item.x - item.width / 2 - strokePad - foregroundOuterX,
+        cylinderBounds ? item.y + cylinderBounds.minY - strokePad - foregroundOuterY : item.y - item.height / 2 - strokePad - foregroundOuterY,
+        cylinderBounds ? item.x + cylinderBounds.maxX + strokePad + foregroundOuterX : item.x + item.width / 2 + strokePad + foregroundOuterX,
+        cylinderBounds ? item.y + cylinderBounds.maxY + strokePad + foregroundOuterY : item.y + item.height / 2 + strokePad + foregroundOuterY,
         item.rotation,
         item.x,
         item.y,

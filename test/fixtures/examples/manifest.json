@@ -5039,6 +5039,50 @@
         "mark options rotate",
         "mark size"
       ]
+    },
+    {
+      "id": "shapes-cylinder-manual-catalog",
+      "title": "PGF cylinder sizing and fill catalog",
+      "source": "shapes/cylinder-manual-catalog.tex",
+      "sourceCorpus": "TeX Live PGF shapes.geometric manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry",
+      "features": [
+        "cylinder",
+        "shape aspect",
+        "shape border rotate",
+        "minimum width and height",
+        "cylinder custom fill",
+        "cylinder border anchors"
+      ]
+    },
+    {
+      "id": "shapes-cylinder-data-flow",
+      "title": "Database cylinder data flow",
+      "source": "shapes/cylinder-data-flow.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry",
+      "features": [
+        "flowchart",
+        "cylinder storage nodes",
+        "positioning",
+        "arrow border clipping",
+        "inline edge labels"
+      ]
+    },
+    {
+      "id": "shapes-cylinder-volume-physics",
+      "title": "Cylinder volume and hydrostatic pressure",
+      "source": "shapes/cylinder-volume-physics.tex",
+      "sourceCorpus": "TikZKit mathematics and physics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry",
+      "features": [
+        "mathematics diagram",
+        "physics diagram",
+        "cylinder named anchors",
+        "calc coordinates",
+        "custom cylinder fill"
+      ]
     }
   ]
 }
