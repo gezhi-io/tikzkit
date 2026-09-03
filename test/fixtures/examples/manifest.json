@@ -5083,6 +5083,50 @@
         "calc coordinates",
         "custom cylinder fill"
       ]
+    },
+    {
+      "id": "shapes-signal-manual-catalog",
+      "title": "PGF signal direction and pointer-angle catalog",
+      "source": "shapes/signal-manual-catalog.tex",
+      "sourceCorpus": "TeX Live PGF shapes.symbols manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:signalLayoutSize/signalGeometry",
+      "features": [
+        "signal",
+        "signal to",
+        "signal from",
+        "opposite pointers",
+        "signal pointer angle",
+        "minimum width and height"
+      ]
+    },
+    {
+      "id": "shapes-signal-data-pipeline",
+      "title": "Signal-shaped data pipeline",
+      "source": "shapes/signal-data-pipeline.tex",
+      "sourceCorpus": "TikZKit common data-flow regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:signalLayoutSize/signalGeometry",
+      "features": [
+        "flowchart",
+        "signal input and output",
+        "signal from west and to east",
+        "arrow border clipping",
+        "inline math edge labels"
+      ]
+    },
+    {
+      "id": "shapes-signal-control-system",
+      "title": "Closed-loop control system with signal nodes",
+      "source": "shapes/signal-control-system.tex",
+      "sourceCorpus": "TikZKit physics and control-flow regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:signalLayoutSize/signalGeometry",
+      "features": [
+        "physics control diagram",
+        "signal pointer angle",
+        "signal anchors",
+        "orthogonal feedback path",
+        "math labels"
+      ]
     }
   ]
 }

@@ -58,10 +58,11 @@ function resolvePositioningPlacement(options, env, helpers) {
 
 function positioningGeometry(placement, selfSize) {
   if (!placement.onGrid) return { reference: placement.reference, selfSize };
+  const center = { width: 0, height: 0, minX: 0, minY: 0, maxX: 0, maxY: 0, baseOffset: 0, midOffset: 0 };
   return {
     // PGF's on-grid branch replaces both placement anchors with center.
-    reference: { ...placement.reference, width: 0, height: 0, baseOffset: 0, midOffset: 0 },
-    selfSize: { width: 0, height: 0, baseOffset: 0, midOffset: 0 }
+    reference: { ...placement.reference, ...center },
+    selfSize: center
   };
 }
 
@@ -114,14 +115,28 @@ export function positioningDelta(direction, axis, distance, reference, selfSize)
   const diagonalSingleDistanceScale = hasHorizontal && hasVertical && !distance.isPair ? Math.SQRT1_2 : 1;
   const diagonalBorderCorrection = hasHorizontal && hasVertical && !distance.isPair ? 0.024 : 0;
   const axisDistance = rawDistance * diagonalSingleDistanceScale + diagonalBorderCorrection;
+  const referenceBounds = positioningAxisBounds(reference, axis);
+  const selfBounds = positioningAxisBounds(selfSize, axis);
   if (axis === "x") {
-    if (direction.includes("right")) return reference.width / 2 + selfSize.width / 2 + axisDistance;
-    if (direction.includes("left")) return -(reference.width / 2 + selfSize.width / 2 + axisDistance);
+    if (direction.includes("right")) return referenceBounds.max - selfBounds.min + axisDistance;
+    if (direction.includes("left")) return referenceBounds.min - selfBounds.max - axisDistance;
     return 0;
   }
-  if (direction.includes("above")) return reference.height / 2 + selfSize.height / 2 + axisDistance;
-  if (direction.includes("below")) return -(reference.height / 2 + selfSize.height / 2 + axisDistance);
+  if (direction.includes("above")) return referenceBounds.max - selfBounds.min + axisDistance;
+  if (direction.includes("below")) return referenceBounds.min - selfBounds.max - axisDistance;
   return 0;
+}
+
+function positioningAxisBounds(size = {}, axis) {
+  const minimumKey = axis === "x" ? "minX" : "minY";
+  const maximumKey = axis === "x" ? "maxX" : "maxY";
+  const extent = (Number(axis === "x" ? size.width : size.height) || 0) / 2;
+  const minimum = Number(size[minimumKey]);
+  const maximum = Number(size[maximumKey]);
+  return {
+    min: Number.isFinite(minimum) ? minimum : -extent,
+    max: Number.isFinite(maximum) ? maximum : extent
+  };
 }
 
 export function scalePositioningDistance(distance, env, helpers) {
@@ -187,6 +202,10 @@ function resolvePositioningReference(raw, env, helpers) {
       point: node.point,
       width: node.layoutWidth || node.width || 0,
       height: node.layoutHeight || node.height || 0,
+      minX: node.layoutMinX,
+      minY: node.layoutMinY,
+      maxX: node.layoutMaxX,
+      maxY: node.layoutMaxY,
       baseOffset: Number(node.baseOffset) || 0,
       midOffset: Number(node.midOffset) || 0
     };

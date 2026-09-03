@@ -12,6 +12,7 @@ import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, resolveInlineArrowTip } from "./paths.js";
 import { cylinderGeometry } from "../../tikz/libraries/shapes.geometric.js";
+import { signalGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -32,11 +33,14 @@ export function computeSvgBounds(items, options = {}) {
       const cylinderBounds = item.shape === "cylinder"
         ? cylinderGeometry(item, item.shapeData || {}).bounds
         : null;
+      const symbolBounds = item.shape === "signal"
+        ? signalGeometry(item, item.shapeData || {}).bounds
+        : cylinderBounds;
       includeRotatedRectangleBounds(
-        cylinderBounds ? item.x + cylinderBounds.minX - strokePad - foregroundOuterX : item.x - item.width / 2 - strokePad - foregroundOuterX,
-        cylinderBounds ? item.y + cylinderBounds.minY - strokePad - foregroundOuterY : item.y - item.height / 2 - strokePad - foregroundOuterY,
-        cylinderBounds ? item.x + cylinderBounds.maxX + strokePad + foregroundOuterX : item.x + item.width / 2 + strokePad + foregroundOuterX,
-        cylinderBounds ? item.y + cylinderBounds.maxY + strokePad + foregroundOuterY : item.y + item.height / 2 + strokePad + foregroundOuterY,
+        symbolBounds ? item.x + symbolBounds.minX - strokePad - foregroundOuterX : item.x - item.width / 2 - strokePad - foregroundOuterX,
+        symbolBounds ? item.y + symbolBounds.minY - strokePad - foregroundOuterY : item.y - item.height / 2 - strokePad - foregroundOuterY,
+        symbolBounds ? item.x + symbolBounds.maxX + strokePad + foregroundOuterX : item.x + item.width / 2 + strokePad + foregroundOuterX,
+        symbolBounds ? item.y + symbolBounds.maxY + strokePad + foregroundOuterY : item.y + item.height / 2 + strokePad + foregroundOuterY,
         item.rotation,
         item.x,
         item.y,

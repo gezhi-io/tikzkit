@@ -7,12 +7,14 @@ import {
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
+import { signalGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
   "star",
   "trapezium",
   "cylinder",
+  "signal",
   "isoscelesTriangle",
   "cloud",
   "superellipse",
@@ -94,6 +96,9 @@ export function nodeShapeCommands(item) {
   const halfHeight = item.height / 2;
   if (item.shape === "cylinder") {
     return translateCommands(cylinderGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "signal") {
+    return translateCommands(signalGeometry(item, item.shapeData || {}).commands, item.x, item.y);
   }
   if (item.shape === "regularPolygon") {
     const sides = item.shapeData?.regularPolygonSides || 5;
