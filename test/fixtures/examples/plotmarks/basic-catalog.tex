@@ -1,0 +1,37 @@
+% Focused visual regression for the TeX Live PGF plotmarks catalog.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{plotmarks}
+
+\begin{document}
+\begin{tikzpicture}[font=\scriptsize]
+  \draw[blue,mark size=7pt] plot[mark=asterisk] coordinates {(0,3)};
+  \node[below=9pt] at (0,3) {asterisk};
+  \draw[blue,mark size=7pt] plot[mark=star] coordinates {(2,3)};
+  \node[below=9pt] at (2,3) {star};
+  \draw[blue,mark size=7pt] plot[mark=10-pointed star] coordinates {(4,3)};
+  \node[below=9pt] at (4,3) {10-pointed star};
+  \draw[blue,mark size=7pt] plot[mark=|] coordinates {(6,3)};
+  \node[below=9pt] at (6,3) {vertical};
+  \draw[blue,mark size=7pt] plot[mark=-] coordinates {(8,3)};
+  \node[below=9pt] at (8,3) {horizontal};
+
+  \draw[red,mark size=7pt] plot[mark=oplus] coordinates {(0,1.5)};
+  \node[below=9pt] at (0,1.5) {oplus};
+  \draw[red,mark size=7pt] plot[mark=oplus*] coordinates {(2,1.5)};
+  \node[below=9pt] at (2,1.5) {oplus*};
+  \draw[red,mark size=7pt] plot[mark=otimes] coordinates {(4,1.5)};
+  \node[below=9pt] at (4,1.5) {otimes};
+  \draw[red,mark size=7pt] plot[mark=otimes*,mark options={rotate=20}] coordinates {(6,1.5)};
+  \node[below=9pt] at (6,1.5) {otimes*};
+
+  \draw[purple,mark size=7pt] plot[mark=diamond] coordinates {(0,0)};
+  \node[below=9pt] at (0,0) {diamond};
+  \draw[purple,mark size=7pt] plot[mark=diamond*] coordinates {(2,0)};
+  \node[below=9pt] at (2,0) {diamond*};
+  \draw[teal,mark size=7pt] plot[mark=pentagon] coordinates {(4,0)};
+  \node[below=9pt] at (4,0) {pentagon};
+  \draw[teal,mark size=7pt] plot[mark=pentagon*,mark options={rotate=18}] coordinates {(6,0)};
+  \node[below=9pt] at (6,0) {pentagon*};
+\end{tikzpicture}
+\end{document}

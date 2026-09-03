@@ -2,6 +2,7 @@ import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
+import { basicPlotMarkGeometry, placePlotMarkGeometry } from "../tikz/libraries/plotmarks.js";
 
 export function createPlotMarkModel(plotOptions = {}) {
   const raw = plotOptions.mark ?? (plotOptions["only marks"] ? "*" : "none");
@@ -57,15 +58,10 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
   if (datavisualizationIsMercedesMark(mark)) {
     return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size);
   }
-  if (mark === "square" || mark === "square*") {
-    const style = mark.endsWith("*") ? filledStyle : strokedStyle;
-    return `\\draw[${style}] ${formatAxisPoint(offsetPoint(point, -size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, -size))} -- ${formatAxisPoint(offsetPoint(point, size, size))} -- ${formatAxisPoint(offsetPoint(point, -size, size))} -- cycle;`;
-  }
-  if (mark === "triangle" || mark === "triangle*") {
-    const style = mark.endsWith("*") ? filledStyle : strokedStyle;
-    const halfBase = size * Math.cos(Math.PI / 6);
-    const baseY = -size / 2;
-    return `\\draw[${style}] ${formatAxisPoint(offsetPoint(point, 0, size))} -- ${formatAxisPoint(offsetPoint(point, halfBase, baseY))} -- ${formatAxisPoint(offsetPoint(point, -halfBase, baseY))} -- cycle;`;
+  const basicGeometry = basicPlotMarkGeometry(mark, size);
+  if (basicGeometry) {
+    const style = basicGeometry.filled ? filledStyle : strokedStyle;
+    return `\\draw[${style}] ${formatPlotMarkGeometry(basicGeometry, point, plotMarkRotation(options))};`;
   }
   return `\\draw[${mark === "o" ? strokedStyle : filledStyle}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
 }
@@ -122,6 +118,18 @@ function plotMarkRotation(options = {}) {
   if (!raw || raw === true) return 0;
   const value = Number(parseOptions(stripOptionBraces(raw)).rotate);
   return Number.isFinite(value) ? value : 0;
+}
+
+function formatPlotMarkGeometry(geometry, point, rotation) {
+  const placed = placePlotMarkGeometry(geometry, point, rotation);
+  return placed.primitives.map((primitive) => {
+    if (primitive.type === "circle") {
+      return `${formatAxisPoint(primitive.center)} circle(${formatAxisNumber(primitive.radius)})`;
+    }
+    const [first, ...rest] = primitive.points;
+    const path = [formatAxisPoint(first), ...rest.map((item) => formatAxisPoint(item))].join(" -- ");
+    return primitive.closed ? `${path} -- cycle` : path;
+  }).join(" ");
 }
 
 function stripOptionBraces(value) {

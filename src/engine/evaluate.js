@@ -1,6 +1,7 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
+import { basicPlotMarkGeometry, plotMarkGeometryCommands } from "../tikz/libraries/plotmarks.js";
 import {
   starLayoutSize as geometricStarLayoutSize,
   starNodePoints as geometricStarNodePoints,
@@ -15015,6 +15016,16 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       style: kind === "o" ? lineStyle : filledStyle
     };
   }
+  const basicGeometry = basicPlotMarkGeometry(kind, size);
+  if (basicGeometry) {
+    return finalize({
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: plotMarkGeometryCommands(basicGeometry, point),
+      style: basicGeometry.filled ? filledStyle : lineStyle
+    });
+  }
   if (kind === "+" || kind === "|" || kind === "||" || kind === "|||") {
     const lineWidth = (Number(pathStyle.lineWidth) || lineWidthFromPt(0.4)) / TIKZ_UNIT;
     const offsets = kind === "||"
@@ -15039,50 +15050,6 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       commands,
       style: lineStyle
     });
-  }
-  if (kind === "-") {
-    return finalize({
-      type: "path",
-      shape: "plot-mark",
-      mark: kind,
-      commands: [
-        { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y) },
-        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y) }
-      ],
-      style: lineStyle
-    });
-  }
-  if (kind === "square" || kind === "square*") {
-    return {
-      type: "path",
-      shape: "plot-mark",
-      mark: kind,
-      commands: [
-        { type: "moveTo", x: roundNumber(point.x - size), y: roundNumber(point.y - size) },
-        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y - size) },
-        { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y + size) },
-        { type: "lineTo", x: roundNumber(point.x - size), y: roundNumber(point.y + size) },
-        { type: "closePath" }
-      ],
-      style: kind.endsWith("*") ? filledStyle : lineStyle
-    };
-  }
-  if (kind === "triangle" || kind === "triangle*") {
-    const top = polarOffset(point, 90, size);
-    const right = polarOffset(point, -30, size);
-    const left = polarOffset(point, -150, size);
-    return {
-      type: "path",
-      shape: "plot-mark",
-      mark: kind,
-      commands: [
-        { type: "moveTo", x: top.x, y: top.y },
-        { type: "lineTo", x: right.x, y: right.y },
-        { type: "lineTo", x: left.x, y: left.y },
-        { type: "closePath" }
-      ],
-      style: kind.endsWith("*") ? filledStyle : lineStyle
-    };
   }
   if (kind === "x") {
     const diagonal = size / Math.SQRT2;

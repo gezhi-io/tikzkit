@@ -5021,6 +5021,24 @@
         "to[dcisource]",
         "current arrow scale"
       ]
+    },
+    {
+      "id": "plotmarks-basic-catalog",
+      "title": "PGF plotmarks basic shape catalog",
+      "source": "plotmarks/basic-catalog.tex",
+      "sourceCorpus": "TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:buildPlotMark",
+      "features": [
+        "mark=asterisk/star/10-pointed star",
+        "mark=oplus/oplus*",
+        "mark=otimes/otimes*",
+        "mark=diamond/diamond*",
+        "mark=pentagon/pentagon*",
+        "mark=|/-",
+        "mark options rotate",
+        "mark size"
+      ]
     }
   ]
 }
