@@ -12,6 +12,9 @@ import {
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
 import {
+  magneticTapeBorderPoint as symbolMagneticTapeBorderPoint,
+  magneticTapeGeometry as symbolMagneticTapeGeometry,
+  magneticTapeLayoutSize as symbolMagneticTapeLayoutSize,
   parseSignalDirections,
   signalBorderPoint as symbolSignalBorderPoint,
   signalGeometry as symbolSignalGeometry,
@@ -10925,6 +10928,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       outerPadding + terminalPadding
     );
+  } else if (node.shape === "magneticTape") {
+    localPoint = symbolMagneticTapeBorderPoint(
+      symbolMagneticTapeGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "diamond") {
     const points = [
       { x: 0, y: halfHeight },
@@ -11055,6 +11064,7 @@ function nodeShape(options = {}) {
   if (options.cloud) return "cloud";
   if (options.cylinder) return "cylinder";
   if (options.signal) return "signal";
+  if (options["magnetic tape"]) return "magneticTape";
   return "rectangle";
 }
 
@@ -11081,7 +11091,8 @@ function explicitNodeShape(shape) {
     "isosceles triangle": "isoscelesTriangle",
     cloud: "cloud",
     cylinder: "cylinder",
-    signal: "signal"
+    signal: "signal",
+    "magnetic tape": "magneticTape"
   };
   return shapes[shape] || null;
 }
@@ -11153,6 +11164,15 @@ function signalLayoutSize(contentWidth, contentHeight, options = {}, env = { var
   });
 }
 
+function magneticTapeLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return symbolMagneticTapeLayoutSize(contentWidth, contentHeight, {
+    minimumSize,
+    minimumWidth: options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0,
+    minimumHeight: options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
+  });
+}
+
 function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const sides = regularPolygonSides(options, env);
   const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
@@ -11172,7 +11192,9 @@ function nodeShapeData(options = {}, env = {}, text) {
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
   const star = starShapeData(options, env, shapeBorderRotate);
   const cylinderScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const magneticTapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const { style: cylinderStyle } = normalizeOptions("node", options, env);
+  const magneticTapeOuterSep = nodeOuterSep(options, env);
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
     mosfetKind: circuitikzMosfetNodeKind(options),
@@ -11204,6 +11226,9 @@ function nodeShapeData(options = {}, env = {}, text) {
     cylinderEndFill: normalizeColor(String(options["cylinder end fill"] === true || options["cylinder end fill"] === undefined ? "white" : options["cylinder end fill"])),
     signalDirections: parseSignalDirections(options["signal from"] ?? "nowhere", options["signal to"] ?? "east"),
     signalPointerAngle: numberOption(options["signal pointer angle"], 90),
+    magneticTapeTail: Math.min(1, Math.max(0, numberOption(options["magnetic tape tail"], 0.15))),
+    magneticTapeTailExtend: Math.max(0, parseFiniteDimension(options["magnetic tape tail extend"], env, 0)) * magneticTapeScale,
+    magneticTapeOuterSep: Math.max(magneticTapeOuterSep.x, magneticTapeOuterSep.y) * magneticTapeScale,
     arrowTipAngle: numberOption(options["single arrow tip angle"] ?? options["double arrow tip angle"], 90),
     arrowHeadExtend: parseFiniteDimension(options["single arrow head extend"] ?? options["double arrow head extend"], env, 0.25),
     arrowHeadIndent: parseFiniteDimension(options["single arrow head indent"] ?? options["double arrow head indent"], env, 0),
@@ -12225,6 +12250,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
       maxY
     };
   }
+  if (nodeShape(options) === "magneticTape") {
+    const geometry = symbolMagneticTapeGeometry(size, nodeShapeData(options, env, text));
+    return {
+      width: roundNumber(geometry.bounds.maxX - geometry.bounds.minX + geometry.outerSep * 2),
+      height: roundNumber(geometry.bounds.maxY - geometry.bounds.minY + geometry.outerSep * 2),
+      minX: geometry.anchors.west.x,
+      minY: geometry.anchors.south.y,
+      maxX: geometry.anchors.east.x,
+      maxY: geometry.anchors.north.y
+    };
+  }
   if (nodeShape(options) === "regularPolygon") {
     const sides = regularPolygonSides(options, env);
     // PGF grows a regular polygon's anchor border by the mitre distance of
@@ -12339,6 +12375,7 @@ function nodeUsesBoxSizing(options = {}, env = { variables: {} }) {
       options.ground ||
       options.shape ||
       options.signal ||
+      options["magnetic tape"] ||
       options["minimum width"] ||
       options["minimum height"] ||
       options["minimum size"] ||
@@ -12663,6 +12700,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(signalLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "magneticTape") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(magneticTapeLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   // shapes.misc cross out and strike out inherit rectangle anchors.  Their
   // foreground is drawn from southwest to northeast, so an empty node must
   // use only its configured inner/minimum dimensions rather than the normal
@@ -12725,6 +12767,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "signal") {
     return scaleSize(signalLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "magneticTape") {
+    return scaleSize(magneticTapeLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "diamond" && !options["bpmn gateway"]) {
     ({ width, height } = diamondLayoutSize(width, height, options, env));
@@ -16601,6 +16646,14 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
   }
+  if (shape === "magneticTape") {
+    const geometry = symbolMagneticTapeGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, size.shapeData || {});
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
   const shapeAnchor = shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight);
   if (shapeAnchor) return shapeAnchor;
   if (shape === "rectangleSplit") {
@@ -16996,6 +17049,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "signal") {
       const bounds = symbolSignalGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "magneticTape") {
+      const bounds = symbolMagneticTapeGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

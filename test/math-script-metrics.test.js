@@ -13,3 +13,19 @@ test("measures a one-letter math subscript with the math-italic base advance", (
   assert.ok(Math.abs(q0.height * ptPerCm - 4.3056) < 0.02, `unexpected q_0 height: ${q0.height * ptPerCm}pt`);
   assert.ok(Math.abs(q0.depth * ptPerCm - 2.96108) < 0.02, `unexpected q_0 depth: ${q0.depth * ptPerCm}pt`);
 });
+
+test("uses TeX sequence spacing for subscript lists ending in dots", () => {
+  const sequence = estimateFormulaBox(String.raw`a_1,a_2,\ldots`, {
+    texTextMetrics: true,
+    widthPadding: 0,
+    minWidth: 0
+  });
+  const ptPerCm = 28.45274;
+
+  assert.ok(
+    Math.abs(sequence.width * ptPerCm - 40.09947) < 0.02,
+    `unexpected sequence width: ${sequence.width * ptPerCm}pt`
+  );
+  assert.ok(Math.abs(sequence.height * ptPerCm - 4.3056) < 0.02);
+  assert.ok(Math.abs(sequence.depth * ptPerCm - 1.9444) < 0.02);
+});

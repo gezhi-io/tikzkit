@@ -3,7 +3,7 @@ const NOWHERE = "nowhere";
 export const tikzLibrary = {
   name: "shapes.symbols",
   status: "partial",
-  implementedBy: "src/tikz/libraries/shapes.symbols.js:parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint",
+  implementedBy: "src/tikz/libraries/shapes.symbols.js:parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.symbols.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
   features: [
@@ -11,10 +11,20 @@ export const tikzLibrary = {
     "signal to/from compass directions",
     "signal pointer angle",
     "opposite horizontal or vertical pointers",
-    "signal compass anchors and border clipping"
+    "signal compass anchors and border clipping",
+    "magnetic tape shape and tail controls",
+    "magnetic tape compass/tail anchors and border clipping"
   ],
-  implements: ["signal", "signal to", "signal from", "signal pointer angle"],
-  notes: "Implements the PGF signal node family, including direction precedence, pointer-angle-preserving minimum dimensions, asymmetric bounds, compass anchors, and polygon border clipping. Other shapes.symbols nodes remain unsupported."
+  implements: [
+    "signal",
+    "signal to",
+    "signal from",
+    "signal pointer angle",
+    "magnetic tape",
+    "magnetic tape tail",
+    "magnetic tape tail extend"
+  ],
+  notes: "Implements the PGF signal and magnetic-tape node families. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Other shapes.symbols nodes remain unsupported."
 };
 
 export function parseSignalDirections(signalFrom = "nowhere", signalTo = "east") {
@@ -178,6 +188,110 @@ export function signalBorderPoint(geometry, toward, padding = 0) {
   });
 }
 
+export function magneticTapeLayoutSize(contentWidth, contentHeight, options = {}) {
+  const minimumDiameter = Math.max(
+    positive(options.minimumSize),
+    positive(options.minimumWidth),
+    positive(options.minimumHeight)
+  );
+  const contentDiameter = Math.SQRT2 * Math.max(positive(contentWidth), positive(contentHeight));
+  const diameter = Math.max(contentDiameter, minimumDiameter);
+  return { width: round(diameter), height: round(diameter) };
+}
+
+export function magneticTapeGeometry(size = {}, data = {}) {
+  const radius = Math.max(1e-9, positive(Math.max(Number(size.width) || 0, Number(size.height) || 0)) / 2);
+  const tailProportion = clamp(Number(data.magneticTapeTail ?? data.tailProportion ?? 0.15), 0, 1);
+  const tailExtend = positive(data.magneticTapeTailExtend ?? data.tailExtend);
+  const outerSep = positive(data.magneticTapeOuterSep ?? data.outerSep);
+  const outerRadius = radius + outerSep;
+  const tailHeight = tailProportion * radius;
+  const tailAngle = 360 - radiansToDegrees(Math.asin(clamp((radius - tailHeight) / radius, -1, 1)));
+  const start = circlePoint(radius, tailAngle);
+  const tailBottom = { x: radius + tailExtend, y: -radius };
+  const tailTop = { x: radius + tailExtend, y: -radius + tailHeight };
+  const outlineCommands = [
+    { type: "moveTo", ...start },
+    ...circleArcCommands(radius, tailAngle, 360),
+    ...circleArcCommands(radius, 0, 270),
+    { type: "lineTo", ...tailBottom },
+    { type: "lineTo", ...tailTop },
+    { type: "closePath" }
+  ].map(roundCommand);
+  const boundaryPoints = [
+    ...sampleCircleArc(radius, tailAngle, 360, 12),
+    ...sampleCircleArc(radius, 0, 270, 36).slice(1),
+    tailBottom,
+    tailTop
+  ].map(roundPoint);
+  const bounds = pointBounds(boundaryPoints);
+  const diagonal = outerRadius * Math.SQRT1_2;
+  const anchors = {
+    center: { x: 0, y: 0 },
+    north: { x: 0, y: outerRadius },
+    "north east": { x: diagonal, y: diagonal },
+    east: { x: outerRadius, y: 0 },
+    "south east": { x: outerRadius, y: -outerRadius },
+    south: { x: 0, y: -outerRadius },
+    "south west": { x: -diagonal, y: -diagonal },
+    west: { x: -outerRadius, y: 0 },
+    "north west": { x: -diagonal, y: diagonal },
+    "tail east": {
+      x: radius + tailExtend + outerSep,
+      y: -radius + tailHeight / 2
+    },
+    "tail south east": {
+      x: radius + tailExtend + outerSep,
+      y: -outerRadius
+    },
+    "tail north east": {
+      x: radius + tailExtend + outerSep,
+      y: -radius + tailHeight + outerSep
+    }
+  };
+
+  return {
+    radius: round(radius),
+    outerRadius: round(outerRadius),
+    outerSep: round(outerSep),
+    tailProportion: round(tailProportion),
+    tailExtend: round(tailExtend),
+    tailHeight: round(tailHeight),
+    tailAngle: round(tailAngle),
+    outlineCommands,
+    boundaryPoints,
+    bounds,
+    anchors: Object.fromEntries(Object.entries(anchors).map(([name, point]) => [name, roundPoint(point)]))
+  };
+}
+
+export function magneticTapeBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  const dx = Number(toward.x) || 0;
+  const dy = Number(toward.y) || 0;
+  const length = Math.hypot(dx, dy);
+  if (length <= 1e-12) return { x: 0, y: 0 };
+
+  const radius = positive(geometry.radius);
+  const tailHeight = clamp(Number(geometry.tailHeight) || 0, 0, radius);
+  const tailExtend = positive(geometry.tailExtend);
+  const outerSep = positive(geometry.outerSep) + positive(padding);
+  const outerRadius = radius + outerSep;
+  const angle = normalizedDegrees(radiansToDegrees(Math.atan2(dy, dx)));
+  const tailBottomAngle = 360 - radiansToDegrees(Math.atan2(outerRadius, outerRadius + tailExtend));
+  const tailTopRise = outerRadius - outerSep * 2 - tailHeight;
+  const tailTopAngle = 360 - radiansToDegrees(Math.atan2(tailTopRise, outerRadius + tailExtend));
+
+  if (angle < 270 || angle >= tailTopAngle) {
+    return roundPoint({ x: dx / length * outerRadius, y: dy / length * outerRadius });
+  }
+  if (angle < tailBottomAngle) {
+    const factor = -outerRadius / dy;
+    return roundPoint({ x: dx * factor, y: -outerRadius });
+  }
+  const factor = outerRadius / dx;
+  return roundPoint({ x: outerRadius, y: dy * factor });
+}
+
 function assignSignalDirections(directions, raw, kind) {
   const text = String(raw === true || raw === undefined || raw === null ? "" : raw)
     .trim()
@@ -187,6 +301,87 @@ function assignSignalDirections(directions, raw, kind) {
     ? text.split(/\s+and\s+/).slice(0, 2)
     : [text, text];
   for (const value of values) assignSignalDirection(directions, value.trim(), kind);
+}
+
+function circleArcCommands(radius, startDegrees, endDegrees) {
+  const commands = [];
+  let start = startDegrees;
+  const direction = endDegrees >= startDegrees ? 1 : -1;
+  while ((direction > 0 && start < endDegrees - 1e-9) || (direction < 0 && start > endDegrees + 1e-9)) {
+    const end = direction > 0 ? Math.min(start + 90, endDegrees) : Math.max(start - 90, endDegrees);
+    const startRadians = degreesToRadians(start);
+    const endRadians = degreesToRadians(end);
+    const delta = endRadians - startRadians;
+    const factor = (4 / 3) * Math.tan(delta / 4);
+    const first = circlePoint(radius, start);
+    const last = circlePoint(radius, end);
+    commands.push({
+      type: "curveTo",
+      x1: first.x - factor * first.y,
+      y1: first.y + factor * first.x,
+      x2: last.x + factor * last.y,
+      y2: last.y - factor * last.x,
+      x: last.x,
+      y: last.y
+    });
+    start = end;
+  }
+  return commands;
+}
+
+function sampleCircleArc(radius, startDegrees, endDegrees, count) {
+  const points = [];
+  for (let index = 0; index <= count; index += 1) {
+    const angle = startDegrees + (endDegrees - startDegrees) * index / count;
+    points.push(circlePoint(radius, angle));
+  }
+  return points;
+}
+
+function circlePoint(radius, degrees) {
+  const radians = degreesToRadians(degrees);
+  return { x: radius * Math.cos(radians), y: radius * Math.sin(radians) };
+}
+
+function pointBounds(points) {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return {
+    minX: round(Math.min(...xs)),
+    minY: round(Math.min(...ys)),
+    maxX: round(Math.max(...xs)),
+    maxY: round(Math.max(...ys))
+  };
+}
+
+function roundCommand(command) {
+  if (command.type === "closePath") return command;
+  const rounded = { ...command, x: round(command.x), y: round(command.y) };
+  if (command.type === "curveTo") {
+    rounded.x1 = round(command.x1);
+    rounded.y1 = round(command.y1);
+    rounded.x2 = round(command.x2);
+    rounded.y2 = round(command.y2);
+  }
+  return rounded;
+}
+
+function degreesToRadians(value) {
+  return value * Math.PI / 180;
+}
+
+function radiansToDegrees(value) {
+  return value * 180 / Math.PI;
+}
+
+function normalizedDegrees(value) {
+  return ((value % 360) + 360) % 360;
+}
+
+function clamp(value, minimum, maximum) {
+  const number = Number(value);
+  const finite = Number.isFinite(number) ? number : minimum;
+  return Math.min(maximum, Math.max(minimum, finite));
 }
 
 function assignSignalDirection(directions, raw, kind) {

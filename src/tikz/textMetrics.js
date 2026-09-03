@@ -858,6 +858,9 @@ function estimateFormulaParts(tex, scale, metric) {
   const simpleScriptMetric = simpleScriptFormulaMetric(tex, scale, metric);
   if (simpleScriptMetric) return simpleScriptMetric;
 
+  const scriptSequenceMetric = simpleScriptSequenceFormulaMetric(tex, scale, metric);
+  if (scriptSequenceMetric) return scriptSequenceMetric;
+
   const glyphMetric = simpleGlyphFormulaMetric(tex, scale, metric);
   if (glyphMetric) return glyphMetric;
 
@@ -941,6 +944,40 @@ function estimateFormulaParts(tex, scale, metric) {
   }
 
   return { width, height, depth };
+}
+
+function simpleScriptSequenceFormulaMetric(tex, scale, metric) {
+  if (!metric.texTextMetrics) return null;
+  const parts = String(tex || "").trim().split(/\s*,\s*/);
+  if (parts.length < 2) return null;
+
+  const atoms = parts.map((part) => {
+    const script = part.match(/^([A-Za-z])\s*_\s*(?:\{\s*([A-Za-z0-9]+)\s*\}|([A-Za-z0-9]))$/);
+    if (script) {
+      const baseSpec = (metric.mathVersion === "bold" ? MATH_BOLD_ITALIC_TEX_METRICS : MATH_ITALIC_TEX_METRICS)[script[1]];
+      const scriptBox = measurePlainTextTeXBoxPt(script[2] || script[3], { fontSizePt: 7 * scale });
+      if (!baseSpec || !scriptBox) return null;
+      return {
+        kind: "script",
+        widthPt: baseSpec[0] * 10 * scale + scriptBox.width + 0.98613 * scale,
+        heightPt: baseSpec[1] * 10 * scale,
+        depthPt: Math.max(baseSpec[2] * 10 * scale, scriptBox.depth)
+      };
+    }
+    if (/^(?:\\(?:l?dots)(?![A-Za-z])|[.…])$/.test(part)) {
+      return { kind: "dots", widthPt: 11.66661 * scale, heightPt: 1.23 * scale, depthPt: 0 };
+    }
+    return null;
+  });
+  if (atoms.some((atom) => !atom) || !atoms.some((atom) => atom.kind === "dots")) return null;
+
+  const commaWidthPt = MAIN_REGULAR_TEX_METRICS[","][0] * 10 * scale;
+  const punctuationSpacePt = 3 * (10 / 18) * scale;
+  return {
+    width: (atoms.reduce((sum, atom) => sum + atom.widthPt, 0) + (parts.length - 1) * (commaWidthPt + punctuationSpacePt)) / TEX_PT_PER_CM,
+    height: Math.max(...atoms.map((atom) => atom.heightPt), 0) / TEX_PT_PER_CM,
+    depth: Math.max(...atoms.map((atom) => atom.depthPt), MAIN_REGULAR_TEX_METRICS[","][2] * 10 * scale) / TEX_PT_PER_CM
+  };
 }
 
 function simpleScriptFormulaMetric(tex, scale, metric) {

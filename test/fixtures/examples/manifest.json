@@ -5127,6 +5127,49 @@
         "orthogonal feedback path",
         "math labels"
       ]
+    },
+    {
+      "id": "shapes-magnetic-tape-manual-catalog",
+      "title": "PGF magnetic tape customization and anchors",
+      "source": "shapes/magnetic-tape-manual-catalog.tex",
+      "sourceCorpus": "TeX Live PGF shapes.symbols manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:magneticTapeLayoutSize/magneticTapeGeometry",
+      "features": [
+        "magnetic tape",
+        "magnetic tape tail",
+        "magnetic tape tail extend",
+        "minimum size",
+        "tail named anchors"
+      ]
+    },
+    {
+      "id": "shapes-magnetic-tape-sequential-store",
+      "title": "Sequential event archive with magnetic tape",
+      "source": "shapes/magnetic-tape-sequential-store.tex",
+      "sourceCorpus": "TikZKit common data-flow regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:magneticTapeLayoutSize/magneticTapeGeometry",
+      "features": [
+        "flowchart",
+        "sequential data store",
+        "magnetic tape border clipping",
+        "positioning",
+        "math edge labels"
+      ]
+    },
+    {
+      "id": "shapes-magnetic-tape-sensor-recording",
+      "title": "Sampled sensor history recording",
+      "source": "shapes/magnetic-tape-sensor-recording.tex",
+      "sourceCorpus": "TikZKit physics and signal-processing regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:magneticTapeLayoutSize/magneticTapeGeometry",
+      "features": [
+        "physics signal flow",
+        "magnetic tape tail",
+        "named south anchor",
+        "orthogonal routing",
+        "inline math"
+      ]
     }
   ]
 }
