@@ -6241,10 +6241,15 @@ function createNode(statement, env, ir, diagnostics) {
   const statementOptions = resolveDynamicOptions(statement.options || {}, env);
   const localOptions = normalizeOptions("node", statementOptions, env).options;
   applyChainControlOptions(localOptions, env, diagnostics);
-  let expandedOptions = normalizeOptions("node", {
+  const inheritedAndLocalOptions = {
     ...inheritedNodeOptions(env),
     ...statementOptions
-  }, env).options;
+  };
+  const preChainOptions = normalizeOptions("node", inheritedAndLocalOptions, env).options;
+  if (chainSpecFromOptions(preChainOptions, env) && env.styles?.["every on chain"]) {
+    inheritedAndLocalOptions["every on chain"] = true;
+  }
+  let expandedOptions = normalizeOptions("node", inheritedAndLocalOptions, env).options;
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
   const rawText = resolveNodeTextContent(statement.text, expandedOptions);
@@ -10355,7 +10360,14 @@ function chainInExistingNode(statement, env, ir, diagnostics) {
   // `every chain in/.try` before the command's explicit options.
   const inheritedOptions = resolveDynamicOptions(env.styles?.["every chain in"] || {}, env);
   const explicitOptions = resolveDynamicOptions(statement.options || {}, env);
-  const options = normalizeOptions("path", { ...inheritedOptions, ...explicitOptions }, env).options;
+  const mergedOptions = { ...inheritedOptions, ...explicitOptions };
+  if (inheritedOptions.join !== undefined && explicitOptions.join !== undefined) {
+    mergedOptions.join = [
+      ...(Array.isArray(inheritedOptions.join) ? inheritedOptions.join : [inheritedOptions.join]),
+      ...(Array.isArray(explicitOptions.join) ? explicitOptions.join : [explicitOptions.join])
+    ];
+  }
+  const options = normalizeOptions("path", mergedOptions, env).options;
   const target = resolveDynamicName(statement.target, env);
   const record = env.nodes?.[target];
   const point = record?.point || env.coordinates?.[target];
@@ -10367,15 +10379,23 @@ function chainInExistingNode(statement, env, ir, diagnostics) {
     { ...options, "on chain": true },
     env,
     point,
-    record?.size || { width: 0, height: 0 },
+    record ? { width: record.width, height: record.height } : { width: 0, height: 0 },
     { name: target, nodeRecord: record || null }
   );
   addChainJoinPath(chainUpdate, options, env, ir, diagnostics);
 }
 
 function addChainJoinPath(chainUpdate, options = {}, env, ir, diagnostics) {
-  const join = parseChainJoinSpec(options.join);
-  if (!join || !chainUpdate?.currentName) return;
+  if (!chainUpdate?.currentName) return;
+  const joins = Array.isArray(options.join) ? options.join : [options.join];
+  for (const value of joins) {
+    addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics);
+  }
+}
+
+function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
+  const join = parseChainJoinSpec(value);
+  if (!join) return;
   const fromName = join.from || chainUpdate.previousName;
   if (!fromName) return;
   const rawOptions = {
@@ -10652,7 +10672,11 @@ function resolveDynamicOptions(options = {}, env) {
   const resolved = {};
   for (const [key, value] of Object.entries(options || {})) {
     const resolvedKey = substituteTextVariables(String(key), env.variables).trim();
-    const resolvedValue = typeof value === "string" ? substituteTextVariables(value, env.variables) : value;
+    const resolvedValue = Array.isArray(value)
+      ? value.map((entry) => typeof entry === "string" ? substituteTextVariables(entry, env.variables) : entry)
+      : typeof value === "string"
+        ? substituteTextVariables(value, env.variables)
+        : value;
     resolved[resolvedKey] = resolvedValue;
   }
   return resolved;

@@ -4001,7 +4001,7 @@ test("chainin inherits every chain in before its explicit late options", () => {
   assert.equal(ir.coordinates.c.y, ir.coordinates.existing.y);
 });
 
-test("explicit chainin options override every chain in in native order", () => {
+test("explicit chainin options follow every chain in joins in native order", () => {
   const source = String.raw`
 \begin{tikzpicture}[
   node distance=5mm,
@@ -4015,11 +4015,14 @@ test("explicit chainin options override every chain in in native order", () => {
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
-  const join = ir.items.find((item) => item.type === "path");
+  const joins = ir.items.filter((item) => item.type === "path");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(join?.style?.stroke, "blue");
-  assert.equal(join?.style?.lineWidth, TIKZ_LINE_WIDTHS.thick);
+  assert.deepEqual(joins.map((item) => item.style?.stroke), ["red", "blue"]);
+  assert.deepEqual(
+    joins.map((item) => item.style?.lineWidth),
+    [TIKZ_LINE_WIDTHS.veryThick, TIKZ_LINE_WIDTHS.thick]
+  );
 });
 
 test("supports diamond node shape and compass anchors", () => {

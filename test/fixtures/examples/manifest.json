@@ -4165,6 +4165,60 @@
       ]
     },
     {
+      "id": "chains-multiple-joins-flowchart",
+      "title": "TikZ chains multi-source release flow",
+      "source": "chains/multiple-joins-flowchart.tex",
+      "sourceCorpus": "TeX Live TikZ chains joining semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/options.js:isRepeatableOption;src/engine/evaluate.js:addChainJoinPath",
+      "features": [
+        "start chain",
+        "on chain",
+        "every on chain",
+        "every join",
+        "repeatable join=with",
+        "named chain-end aliases",
+        "Stealth arrows",
+        "per-join color and dash style"
+      ]
+    },
+    {
+      "id": "chains-multiple-joins-proof-chain",
+      "title": "TikZ chains multi-source proof convergence",
+      "source": "chains/multiple-joins-proof-chain.tex",
+      "sourceCorpus": "TeX Live TikZ chains joining semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/options.js:isRepeatableOption;src/engine/evaluate.js:addChainJoinPath",
+      "features": [
+        "start chain",
+        "on chain",
+        "every on chain",
+        "every join",
+        "repeatable join=with",
+        "named chain-end aliases",
+        "Latex arrows",
+        "math node labels"
+      ]
+    },
+    {
+      "id": "chains-multiple-joins-signal-merge",
+      "title": "TikZ chains voltage and current signal merge",
+      "source": "chains/multiple-joins-signal-merge.tex",
+      "sourceCorpus": "TeX Live TikZ chains joining semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/options.js:isRepeatableOption;src/engine/evaluate.js:addChainJoinPath",
+      "features": [
+        "start chain",
+        "on chain",
+        "every on chain",
+        "every join",
+        "repeatable join=with",
+        "named chain-end aliases",
+        "Stealth arrows",
+        "formula labels"
+      ]
+    },
+    {
       "id": "circuitikz-transformer-core-customization",
       "title": "circuitikz transformer-core style directory",
       "source": "circuitikz/transformer-core-customization.tex",

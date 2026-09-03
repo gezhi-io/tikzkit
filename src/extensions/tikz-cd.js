@@ -365,12 +365,14 @@ function applyBareArrowOption(arrow, part) {
     return;
   }
   if (part === "hook" || part === "hook'" || part === "tail") {
-    if (!arrow.style.some((item) => item === "hook-" || item === "{hook}-")) arrow.style.push("{hook}-");
+    arrow.style = arrow.style.filter((item) => item !== "->");
+    if (!arrow.style.some((item) => item === "{hook}-{to}")) arrow.style.push("{hook}-{to}");
     return;
   }
   if (part === "rightarrow" || part === "to head") return;
   if (part === "mapsto" || part === "maps to") {
-    if (!arrow.style.some((item) => item === "hook-" || item === "{hook}-")) arrow.style.push("{hook}-");
+    arrow.style = arrow.style.filter((item) => item !== "->");
+    if (!arrow.style.some((item) => item === "{hook}-{to}")) arrow.style.push("{hook}-{to}");
     return;
   }
   arrow.style.push(part);

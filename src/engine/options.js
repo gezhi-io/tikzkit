@@ -642,11 +642,11 @@ function parseDefaultArrowTip(options = {}) {
 function parseArrowOption(key, value, defaultArrowTip) {
   if (value !== true) return null;
   const text = String(key).trim();
-  if (text === "->") return { markerEnd: { ...defaultArrowTip } };
-  if (text === "<-") return { markerStart: { ...defaultArrowTip } };
+  if (text === "->") return { markerStart: undefined, markerEnd: { ...defaultArrowTip } };
+  if (text === "<-") return { markerStart: { ...defaultArrowTip }, markerEnd: undefined };
   if (text === "<->") return { markerStart: { ...defaultArrowTip }, markerEnd: { ...defaultArrowTip } };
-  if (text === "*-") return { markerStart: parseArrowTipSpec("*") };
-  if (text === "-*") return { markerEnd: parseArrowTipSpec("*") };
+  if (text === "*-") return { markerStart: parseArrowTipSpec("*"), markerEnd: undefined };
+  if (text === "-*") return { markerStart: undefined, markerEnd: parseArrowTipSpec("*") };
   if (text === "*-*") return { markerStart: parseArrowTipSpec("*"), markerEnd: parseArrowTipSpec("*") };
   if (text === "*->") return { markerStart: parseArrowTipSpec("*"), markerEnd: { ...defaultArrowTip } };
 
@@ -655,16 +655,16 @@ function parseArrowOption(key, value, defaultArrowTip) {
     return { markerStart: parseArrowTipSpec(customBoth[1]), markerEnd: parseArrowTipSpec(customBoth[2]) };
   }
   const customEnd = text.match(/^-\{([\s\S]+)\}$/);
-  if (customEnd) return { markerEnd: parseArrowTipSpec(customEnd[1]) };
+  if (customEnd) return { markerStart: undefined, markerEnd: parseArrowTipSpec(customEnd[1]) };
   const customStart = text.match(/^\{([\s\S]+)\}-$/);
-  if (customStart) return { markerStart: parseArrowTipSpec(customStart[1]) };
+  if (customStart) return { markerStart: parseArrowTipSpec(customStart[1]), markerEnd: undefined };
 
   const namedBoth = text.match(/^([A-Za-z'][A-Za-z'\s-]*?)-([A-Za-z'][A-Za-z'\s-]*?)$/);
   if (namedBoth) return { markerStart: parseArrowTipSpec(namedBoth[1]), markerEnd: parseArrowTipSpec(namedBoth[2]) };
   const namedEnd = text.match(/^-([A-Za-z'][A-Za-z'\s-]*?)$/);
-  if (namedEnd) return { markerEnd: parseArrowTipSpec(namedEnd[1]) };
+  if (namedEnd) return { markerStart: undefined, markerEnd: parseArrowTipSpec(namedEnd[1]) };
   const namedStart = text.match(/^([A-Za-z'][A-Za-z'\s-]*?)-$/);
-  if (namedStart) return { markerStart: parseArrowTipSpec(namedStart[1]) };
+  if (namedStart) return { markerStart: parseArrowTipSpec(namedStart[1]), markerEnd: undefined };
 
   return null;
 }
@@ -1178,6 +1178,7 @@ function isRepeatableOption(key) {
     key === "continue chain" ||
     key === "start branch" ||
     key === "continue branch" ||
+    key === "join" ||
     key === "postaction" ||
     key === "if" ||
     key === "name intersections"
