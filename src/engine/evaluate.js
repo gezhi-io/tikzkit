@@ -12,6 +12,9 @@ import {
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
 import {
+  cloudBorderPoint as symbolCloudBorderPoint,
+  cloudGeometry as symbolCloudGeometry,
+  cloudLayoutSize as symbolCloudLayoutSize,
   forbiddenSignGeometry as symbolForbiddenSignGeometry,
   isForbiddenSignShape as isSymbolForbiddenSignShape,
   magneticTapeBorderPoint as symbolMagneticTapeBorderPoint,
@@ -10949,11 +10952,20 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit" || isSymbolForbiddenSignShape(node.shape)) {
     const radius = Math.max(halfWidth, halfHeight) + terminalPadding;
     localPoint = { x: (localDx / localDistance) * radius, y: (localDy / localDistance) * radius };
-  } else if (node.shape === "ellipse" || node.shape === "cloud") {
+  } else if (node.shape === "ellipse") {
     const paddedHalfWidth = halfWidth + terminalPadding;
     const paddedHalfHeight = halfHeight + terminalPadding;
     const factor = 1 / Math.sqrt((localDx * localDx) / (paddedHalfWidth * paddedHalfWidth) + (localDy * localDy) / (paddedHalfHeight * paddedHalfHeight));
     localPoint = { x: localDx * factor, y: localDy * factor };
+  } else if (node.shape === "cloud") {
+    localPoint = symbolCloudBorderPoint(
+      symbolCloudGeometry({
+        width: Number(node.width) || halfWidth * 2,
+        height: Number(node.height) || halfHeight * 2
+      }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "roundedRectangle") {
     localPoint = roundedRectangleBorderPoint(localDx, localDy, halfWidth, halfHeight, terminalPadding);
   } else if (node.shape === "cylinder") {
@@ -11245,6 +11257,19 @@ function tapeLayoutSize(contentWidth, contentHeight, options = {}, env = { varia
   });
 }
 
+function cloudLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return symbolCloudLayoutSize(contentWidth, contentHeight, {
+    puffs: numberOption(options["cloud puffs"], 10),
+    puffArc: numberOption(options["cloud puff arc"], 150),
+    aspect: numberOption(options.aspect ?? options["shape aspect"], 1),
+    ignoresAspect: tikzBoolean(options["cloud ignores aspect"]),
+    minimumSize,
+    minimumWidth: options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0,
+    minimumHeight: options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
+  });
+}
+
 function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const sides = regularPolygonSides(options, env);
   const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
@@ -11266,9 +11291,11 @@ function nodeShapeData(options = {}, env = {}, text) {
   const cylinderScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const magneticTapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const cloudScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const { style: cylinderStyle } = normalizeOptions("node", options, env);
   const magneticTapeOuterSep = nodeOuterSep(options, env);
   const tapeOuterSep = nodeOuterSep(options, env);
+  const cloudOuterSep = nodeOuterSep(options, env);
   const tapeBend = options["tape bend"];
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
@@ -11309,6 +11336,12 @@ function nodeShapeData(options = {}, env = {}, text) {
     magneticTapeTail: Math.min(1, Math.max(0, numberOption(options["magnetic tape tail"], 0.15))),
     magneticTapeTailExtend: Math.max(0, parseFiniteDimension(options["magnetic tape tail extend"], env, 0)) * magneticTapeScale,
     magneticTapeOuterSep: Math.max(magneticTapeOuterSep.x, magneticTapeOuterSep.y) * magneticTapeScale,
+    cloudPuffs: Math.max(2, Math.min(128, Math.trunc(numberOption(options["cloud puffs"], 10)))),
+    cloudPuffArc: Math.max(1, Math.min(179, numberOption(options["cloud puff arc"], 150))),
+    cloudAspect: Math.max(1e-9, numberOption(options.aspect ?? options["shape aspect"], 1)),
+    cloudIgnoresAspect: tikzBoolean(options["cloud ignores aspect"]),
+    cloudAnchorsUseEllipse: tikzBoolean(options["cloud anchors use ellipse"]),
+    cloudOuterSep: Math.max(cloudOuterSep.x, cloudOuterSep.y) * cloudScale,
     arrowTipAngle: numberOption(options["single arrow tip angle"] ?? options["double arrow tip angle"], 90),
     arrowHeadExtend: parseFiniteDimension(options["single arrow head extend"] ?? options["double arrow head extend"], env, 0.25),
     arrowHeadIndent: parseFiniteDimension(options["single arrow head indent"] ?? options["double arrow head indent"], env, 0),
@@ -12335,6 +12368,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
       maxY
     };
   }
+  if (nodeShape(options) === "cloud") {
+    const geometry = symbolCloudGeometry(size, nodeShapeData(options, env, text));
+    return {
+      width: roundNumber(geometry.bounds.maxX - geometry.bounds.minX + geometry.outerSep * 2),
+      height: roundNumber(geometry.bounds.maxY - geometry.bounds.minY + geometry.outerSep * 2),
+      minX: roundNumber(geometry.bounds.minX - geometry.outerSep),
+      minY: roundNumber(geometry.bounds.minY - geometry.outerSep),
+      maxX: roundNumber(geometry.bounds.maxX + geometry.outerSep),
+      maxY: roundNumber(geometry.bounds.maxY + geometry.outerSep)
+    };
+  }
   if (nodeShape(options) === "magneticTape") {
     const geometry = symbolMagneticTapeGeometry(size, nodeShapeData(options, env, text));
     return {
@@ -12875,6 +12919,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   if (shape === "tape") {
     return scaleSize(tapeLayoutSize(width, height, options, env), shapeScale);
   }
+  if (shape === "cloud") {
+    return scaleSize(cloudLayoutSize(width, height, options, env), shapeScale);
+  }
   if (shape === "diamond" && !options["bpmn gateway"]) {
     ({ width, height } = diamondLayoutSize(width, height, options, env));
   } else if (shape === "ellipse") {
@@ -12931,10 +12978,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "isoscelesTriangle") {
     ({ width, height } = isoscelesTriangleLayoutSize(width, height, options, env));
-  }
-  if (shape === "cloud") {
-    width *= 1.28;
-    height *= 1.18;
   }
   if (shape === "tikzquadsQuad") {
     width = Math.max(width, parseFiniteDimension(options["base width"], env, 6.6));
@@ -16656,7 +16699,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle)) {
+  if (Number.isFinite(angle) && node.shape !== "cloud") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -16764,6 +16807,19 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
       width: Number(size.visibleWidth) || Number(size.width) || 0,
       height: Number(size.visibleHeight) || Number(size.height) || 0
     }, size.shapeData || {});
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "cloud") {
+    const geometry = symbolCloudGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, size.shapeData || {});
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return symbolCloudBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
   }

@@ -336,7 +336,6 @@ export const tikzLibrary = {
     "regular polygon with PGF circumcircle sizing, odd/even orientation, rotation, and border crop",
     "star with PGF radius modes, minimum sizing, and border rotation",
     "trapezium with default PGF cotangent side geometry, minimum-size scaling, and mitered curve terminal crop",
-    "cloud",
     "isosceles triangle with apex angle, minimum height, rotation, and named anchors",
     "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, named anchors, curved border clipping, and separate body/end fills"
   ],
@@ -344,7 +343,6 @@ export const tikzLibrary = {
     "regular polygon",
     "star",
     "trapezium",
-    "cloud",
     "isosceles triangle",
     "cylinder"
   ],

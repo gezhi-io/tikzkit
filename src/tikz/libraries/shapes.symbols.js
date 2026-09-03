@@ -3,7 +3,7 @@ const NOWHERE = "nowhere";
 export const tikzLibrary = {
   name: "shapes.symbols",
   status: "partial",
-  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
+  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint/cloudLayoutSize/cloudGeometry/cloudBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.symbols.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
   features: [
@@ -17,7 +17,10 @@ export const tikzLibrary = {
     "tape bend top/bottom styles and bend height",
     "tape compass anchors and border clipping",
     "magnetic tape shape and tail controls",
-    "magnetic tape compass/tail anchors and border clipping"
+    "magnetic tape compass/tail anchors and border clipping",
+    "cloud circular-puff outline and circum-ellipse sizing",
+    "cloud puffs, puff arc, aspect, and aspect-ignore controls",
+    "cloud compass/puff anchors and curved border clipping"
   ],
   implements: [
     "forbidden sign",
@@ -33,10 +36,225 @@ export const tikzLibrary = {
     "tape bend height",
     "magnetic tape",
     "magnetic tape tail",
-    "magnetic tape tail extend"
+    "magnetic tape tail extend",
+    "cloud",
+    "cloud puffs",
+    "cloud puff arc",
+    "cloud ignores aspect",
+    "cloud anchors use ellipse"
   ],
-  notes: "Implements the PGF forbidden-sign, signal, tape, and magnetic-tape node families. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Other shapes.symbols nodes remain unsupported."
+  notes: "Implements the PGF forbidden-sign, signal, tape, magnetic-tape, and cloud node families. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Cloud follows the source's inner-ellipse content fit, aspect/minimum-size circum-ellipse equations, circular puff arcs, puff anchors, and shared curved border clipping. The TeX Live 2025 source default cloud puff arc is 150 degrees even though the manual prose says 135. Other shapes.symbols nodes remain unsupported."
 };
+
+export function cloudLayoutSize(contentWidth, contentHeight, options = {}) {
+  const puffs = normalizedCloudPuffs(options.puffs ?? options.cloudPuffs);
+  const puffArc = normalizedCloudPuffArc(options.puffArc ?? options.cloudPuffArc);
+  const aspect = Math.max(1e-9, positive(options.aspect) || 1);
+  const ignoresAspect = Boolean(options.ignoresAspect ?? options.cloudIgnoresAspect);
+  let innerRadiusX = Math.SQRT2 * positive(contentWidth) / 2;
+  let innerRadiusY = Math.SQRT2 * positive(contentHeight) / 2;
+
+  if (!ignoresAspect) {
+    innerRadiusX = Math.max(innerRadiusX, aspect * innerRadiusY);
+    innerRadiusY = Math.max(innerRadiusY, innerRadiusX / aspect);
+    innerRadiusX = aspect * innerRadiusY;
+  }
+
+  const constants = cloudConstants(puffs, puffArc);
+  let outerRadiusX = constants.cosHalfStep * innerRadiusX + constants.k * innerRadiusY;
+  let outerRadiusY = constants.cosHalfStep * innerRadiusY + constants.k * innerRadiusX;
+  const minimumSize = positive(options.minimumSize);
+  outerRadiusX = Math.max(outerRadiusX, positive(options.minimumWidth) / 2, minimumSize / 2);
+  outerRadiusY = Math.max(outerRadiusY, positive(options.minimumHeight) / 2, minimumSize / 2);
+
+  return {
+    width: round(outerRadiusX * 2),
+    height: round(outerRadiusY * 2)
+  };
+}
+
+export function cloudGeometry(size = {}, data = {}) {
+  const puffs = normalizedCloudPuffs(data.cloudPuffs ?? data.puffs);
+  const puffArc = normalizedCloudPuffArc(data.cloudPuffArc ?? data.puffArc);
+  const outerRadiusX = positive(size.width) / 2;
+  const outerRadiusY = positive(size.height) / 2;
+  const outerSep = positive(data.cloudOuterSep ?? data.outerSep);
+  const anchorsUseEllipse = Boolean(data.cloudAnchorsUseEllipse ?? data.anchorsUseEllipse);
+  const constants = cloudConstants(puffs, puffArc);
+  const denominator = Math.max(1e-9, constants.cosHalfStep ** 2 - constants.k ** 2);
+  const innerRadiusX = Math.max(1e-9,
+    (constants.cosHalfStep * outerRadiusX - constants.k * outerRadiusY) / denominator);
+  const innerRadiusY = Math.max(1e-9,
+    (constants.cosHalfStep * outerRadiusY - constants.k * outerRadiusX) / denominator);
+  const puffGeometry = [];
+  const outlineCommands = [];
+  const boundaryPoints = [];
+  const outerBoundaryPoints = [];
+  const step = 360 / puffs;
+  const firstAngle = 90 - step / 2;
+
+  for (let index = 0; index < puffs; index += 1) {
+    const startAngle = firstAngle + step * index;
+    const endAngle = startAngle + step;
+    const start = ellipsePoint(0, 0, innerRadiusX, innerRadiusY, startAngle);
+    const end = ellipsePoint(0, 0, innerRadiusX, innerRadiusY, endAngle);
+    const puff = cloudPuff(start, end, puffArc, outerSep);
+    if (index === 0) outlineCommands.push({ type: "moveTo", ...roundPoint(start) });
+    outlineCommands.push(...circleArcAtCommands(puff.center, puff.radius, puff.startAngle, puffArc, end));
+    const visibleSamples = sampleCircleArcAt(puff.center, puff.radius, puff.startAngle, puffArc, 16);
+    const outerSamples = sampleCircleArcAt(puff.center, puff.outerRadius, puff.startAngle, puffArc, 16);
+    boundaryPoints.push(...(index ? visibleSamples.slice(1) : visibleSamples));
+    outerBoundaryPoints.push(...(index ? outerSamples.slice(1) : outerSamples));
+    puffGeometry.push({
+      index: index + 1,
+      start: roundPoint(start),
+      end: roundPoint(end),
+      center: roundPoint(puff.center),
+      radius: round(puff.radius),
+      outerRadius: round(puff.outerRadius),
+      startAngle: round(puff.startAngle),
+      anchor: roundPoint(circlePointAt(puff.center, puff.outerRadius, puff.startAngle + puffArc / 2))
+    });
+  }
+  outlineCommands.push({ type: "closePath" });
+
+  const geometry = {
+    puffs: puffGeometry,
+    puffCount: puffs,
+    puffArc,
+    innerRadiusX: round(innerRadiusX),
+    innerRadiusY: round(innerRadiusY),
+    outerRadiusX: round(outerRadiusX),
+    outerRadiusY: round(outerRadiusY),
+    outerSep: round(outerSep),
+    anchorsUseEllipse,
+    outlineCommands: outlineCommands.map(roundCommand),
+    boundaryPoints: boundaryPoints.map(roundPoint),
+    outerBoundaryPoints: outerBoundaryPoints.map(roundPoint),
+    bounds: pointBounds(boundaryPoints)
+  };
+  geometry.anchors = Object.fromEntries([
+    ["center", { x: 0, y: 0 }],
+    ...puffGeometry.map((puff) => [`puff ${puff.index}`, puff.anchor]),
+    ...Object.entries({
+      north: { x: 0, y: 1 },
+      "north east": { x: 1, y: 1 },
+      east: { x: 1, y: 0 },
+      "south east": { x: 1, y: -1 },
+      south: { x: 0, y: -1 },
+      "south west": { x: -1, y: -1 },
+      west: { x: -1, y: 0 },
+      "north west": { x: -1, y: 1 }
+    }).map(([name, direction]) => [name, cloudBorderPoint(geometry, direction)])
+  ]);
+  return geometry;
+}
+
+export function cloudBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  const direction = { x: Number(toward.x) || 0, y: Number(toward.y) || 0 };
+  const length = Math.hypot(direction.x, direction.y);
+  if (length <= 1e-12) return { x: 0, y: 0 };
+  const distance = positive(padding);
+  if (geometry.anchorsUseEllipse) {
+    const radiusX = positive(geometry.outerRadiusX) + distance;
+    const radiusY = positive(geometry.outerRadiusY) + distance;
+    const factor = 1 / Math.sqrt(
+      direction.x ** 2 / Math.max(1e-12, radiusX ** 2) +
+      direction.y ** 2 / Math.max(1e-12, radiusY ** 2)
+    );
+    return roundPoint({ x: direction.x * factor, y: direction.y * factor });
+  }
+  const hit = polygonRayHit(geometry.outerBoundaryPoints || geometry.boundaryPoints || [], direction);
+  if (!hit) return { x: 0, y: 0 };
+  const unit = { x: direction.x / length, y: direction.y / length };
+  return roundPoint({
+    x: hit.point.x + unit.x * distance,
+    y: hit.point.y + unit.y * distance
+  });
+}
+
+function cloudConstants(puffs, puffArc) {
+  const halfStep = 180 / puffs;
+  return {
+    cosHalfStep: Math.cos(degreesToRadians(halfStep)),
+    k: Math.sin(degreesToRadians(halfStep)) * Math.tan(degreesToRadians(puffArc / 4))
+  };
+}
+
+function cloudPuff(start, end, puffArc, outerSep) {
+  const chord = { x: end.x - start.x, y: end.y - start.y };
+  const chordLength = Math.max(1e-12, Math.hypot(chord.x, chord.y));
+  const halfArcRadians = degreesToRadians(puffArc / 2);
+  const radius = chordLength / (2 * Math.sin(halfArcRadians));
+  const outward = { x: chord.y / chordLength, y: -chord.x / chordLength };
+  const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const centerDistance = radius * Math.cos(halfArcRadians);
+  const center = {
+    x: middle.x - outward.x * centerDistance,
+    y: middle.y - outward.y * centerDistance
+  };
+  return {
+    center,
+    radius,
+    outerRadius: radius + outerSep,
+    startAngle: radiansToDegrees(Math.atan2(start.y - center.y, start.x - center.x))
+  };
+}
+
+function circleArcAtCommands(center, radius, startAngle, arc, forcedEnd) {
+  const quarterArc = arc / 4;
+  const arcSlope = startAngle - (90 - arc / 2);
+  const controlScale = radius * Math.tan(degreesToRadians(quarterArc));
+  const x = 0.55228475 * controlScale * Math.sin(degreesToRadians(quarterArc));
+  const y = 0.55228475 * controlScale * Math.cos(degreesToRadians(quarterArc));
+  const start = circlePointAt(center, radius, startAngle);
+  const middle = circlePointAt(center, radius, startAngle + arc / 2);
+  const end = forcedEnd || circlePointAt(center, radius, startAngle + arc);
+  const firstRotation = arcSlope + 90 - quarterArc;
+  const secondRotation = arcSlope + 90 + quarterArc;
+  const firstControl = addPoint(start, rotateLocalPoint({ x, y }, firstRotation));
+  const secondControl = addPoint(middle, rotateLocalPoint({ x, y: -y }, firstRotation));
+  const thirdControl = addPoint(middle, rotateLocalPoint({ x, y }, secondRotation));
+  const fourthControl = addPoint(end, rotateLocalPoint({ x, y: -y }, secondRotation));
+  return [
+    { type: "curveTo", x1: firstControl.x, y1: firstControl.y, x2: secondControl.x, y2: secondControl.y, x: middle.x, y: middle.y },
+    { type: "curveTo", x1: thirdControl.x, y1: thirdControl.y, x2: fourthControl.x, y2: fourthControl.y, x: end.x, y: end.y }
+  ].map(roundCommand);
+}
+
+function sampleCircleArcAt(center, radius, startDegrees, arcDegrees, count) {
+  return Array.from({ length: count + 1 }, (_unused, index) =>
+    circlePointAt(center, radius, startDegrees + arcDegrees * index / count));
+}
+
+function circlePointAt(center, radius, degrees) {
+  const point = circlePoint(radius, degrees);
+  return { x: center.x + point.x, y: center.y + point.y };
+}
+
+function rotateLocalPoint(point, degrees) {
+  const radians = degreesToRadians(degrees);
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  return {
+    x: point.x * cosine - point.y * sine,
+    y: point.x * sine + point.y * cosine
+  };
+}
+
+function addPoint(first, second) {
+  return { x: first.x + second.x, y: first.y + second.y };
+}
+
+function normalizedCloudPuffs(value) {
+  const number = Number(value);
+  return Math.max(2, Math.min(128, Math.trunc(Number.isFinite(number) ? number : 10)));
+}
+
+function normalizedCloudPuffArc(value) {
+  const number = Number(value);
+  return Math.max(1, Math.min(179, Number.isFinite(number) ? number : 150));
+}
 
 export function isForbiddenSignShape(shape) {
   const normalized = String(shape || "").trim().toLowerCase().replace(/[\s_-]+/g, "");

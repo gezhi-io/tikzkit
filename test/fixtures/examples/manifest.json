@@ -5258,6 +5258,51 @@
         "north and south anchors",
         "arrow border clipping"
       ]
+    },
+    {
+      "id": "shapes-cloud-service-flow",
+      "title": "Cloud-shaped remote service flow",
+      "source": "shapes/cloud-service-flow.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:cloudLayoutSize/cloudGeometry/cloudBorderPoint",
+      "features": [
+        "cloud",
+        "cloud puffs",
+        "cloud puff arc",
+        "shape aspect",
+        "positioning",
+        "arrow border clipping"
+      ]
+    },
+    {
+      "id": "shapes-cloud-uncertainty-set",
+      "title": "Mathematical uncertainty set in a cloud node",
+      "source": "shapes/cloud-uncertainty-set.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:cloudLayoutSize/cloudGeometry/cloudBorderPoint",
+      "features": [
+        "cloud",
+        "cloud puffs",
+        "cloud puff arc",
+        "shape aspect",
+        "puff anchors",
+        "compass anchors"
+      ]
+    },
+    {
+      "id": "shapes-cloud-plasma-region",
+      "title": "Physical plasma region with cloud boundary",
+      "source": "shapes/cloud-plasma-region.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:cloudLayoutSize/cloudGeometry/cloudBorderPoint",
+      "features": [
+        "cloud",
+        "cloud ignores aspect",
+        "cloud puffs",
+        "cloud puff arc",
+        "physics vectors",
+        "arrow border clipping"
+      ]
     }
   ]
 }

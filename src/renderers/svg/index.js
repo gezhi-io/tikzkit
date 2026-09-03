@@ -122,7 +122,6 @@ export {
   LIBRARY_NODE_SHAPES,
   arrowNodePoints,
   closedPolygonCommands,
-  cloudNodeCommands,
   diamondNodePolygonPoints,
   isoscelesTriangleNodePoints,
   nodeShapeCommands,

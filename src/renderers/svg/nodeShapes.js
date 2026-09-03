@@ -7,7 +7,7 @@ import {
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
-import { magneticTapeGeometry, signalGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
+import { cloudGeometry, magneticTapeGeometry, signalGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
@@ -108,6 +108,9 @@ export function nodeShapeCommands(item) {
   if (item.shape === "tape") {
     return translateCommands(tapeGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
+  if (item.shape === "cloud") {
+    return translateCommands(cloudGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
   if (item.shape === "regularPolygon") {
     const sides = item.shapeData?.regularPolygonSides || 5;
     return closedPolygonCommands(
@@ -128,9 +131,6 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "isoscelesTriangle") {
     return closedPolygonCommands(isoscelesTriangleNodePoints(center, halfWidth, halfHeight));
-  }
-  if (item.shape === "cloud") {
-    return cloudNodeCommands(center, halfWidth, halfHeight);
   }
   if (item.shape === "superellipse") {
     return superellipseNodeCommands(center, halfWidth, halfHeight);
@@ -280,20 +280,4 @@ export function rotatePoint(point, degrees) {
     x: point.x * cos - point.y * sin,
     y: point.x * sin + point.y * cos
   };
-}
-
-export function cloudNodeCommands(center, halfWidth, halfHeight) {
-  const steps = 24;
-  const commands = [];
-  for (let index = 0; index <= steps; index += 1) {
-    const angle = (index / steps) * Math.PI * 2;
-    const ripple = 1 + 0.11 * Math.sin(angle * 7);
-    const point = {
-      x: center.x + Math.cos(angle) * halfWidth * ripple,
-      y: center.y + Math.sin(angle) * halfHeight * ripple
-    };
-    commands.push(index === 0 ? { type: "moveTo", ...point } : { type: "lineTo", ...point });
-  }
-  commands.push({ type: "closePath" });
-  return commands;
 }
