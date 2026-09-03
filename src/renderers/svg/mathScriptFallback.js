@@ -1,6 +1,7 @@
 import {
   containsMathFallbackSpacedOperator,
   isMathFallbackSpacedOperatorSymbol,
+  mathFallbackOperatorMuAt,
   MATH_FALLBACK_NAMED_OPERATORS,
   mathFallbackText,
   replaceTikzHspaceMarkers
@@ -132,7 +133,7 @@ export function renderScriptedSegmentsContent(segments, baseFontSize) {
   const pairedSubscriptDrop = Math.max(2.5, baseFontSize * 0.25);
   const operatorSpacing =
     segments.some((segment) => segment.operatorSpacing) ||
-    segments.some((segment) => segment.kind === "text" && /[=+≤≥≠≈∼]/.test(segment.text));
+    segments.some((segment) => segment.kind === "text" && containsMathFallbackSpacedOperator(segment.text));
   return segments
     .map((segment, index) => {
       if (segment.kind === "text") {
@@ -222,17 +223,18 @@ export function texNeedsOperatorSpacing(tex) {
 export function renderMathOperatorSpacedText(text, baseFontSize) {
   const source = String(text || "");
   if (!containsMathFallbackSpacedOperator(source)) return renderMathTextWithUprightOperators(source, { fontSize: baseFontSize });
-  // TeX's relation spacing is \thickmuskip=5mu. One mu is 1/18em, so
-  // relation atoms receive 5/18em on each side at the current math size.
-  const spacing = Math.max(1.5, baseFontSize * (5 / 18));
+  const chars = [...source];
   let output = "";
   let buffer = "";
-  for (const char of source) {
-    if (isMathFallbackSpacedOperatorSymbol(char)) {
+  for (let index = 0; index < chars.length; index += 1) {
+    const char = chars[index];
+    const mu = mathFallbackOperatorMuAt(source, index);
+    if (mu > 0 && isMathFallbackSpacedOperatorSymbol(char)) {
       if (buffer) {
         output += renderMathTextWithUprightOperators(buffer, { fontSize: baseFontSize });
         buffer = "";
       }
+      const spacing = Math.max(1.2, baseFontSize * (mu / 18));
       output += `<tspan dx="${format(spacing)}" font-family="${escapeAttribute(
         TIKZ_MATH_MAIN_FONT_FAMILY
       )}" font-style="normal">${escapeText(char)}</tspan><tspan dx="${format(spacing)}"></tspan>`;
@@ -265,12 +267,12 @@ export function renderMathTextWithUprightOperators(text, options = {}) {
 function renderMathTextWithoutHspace(source, options = {}) {
   let output = "";
   let cursor = 0;
-  const wordPattern = /[A-Za-z]+|⋅/g;
+  const wordPattern = /[A-Za-z]+|[⋅{}∥]/g;
   let match;
   while ((match = wordPattern.exec(source))) {
     const word = match[0];
     output += escapeText(source.slice(cursor, match.index));
-    if (word === "⋅" || SVG_MATH_OPERATOR_WORDS.has(word)) {
+    if (word === "⋅" || /^[{}∥]$/.test(word) || SVG_MATH_OPERATOR_WORDS.has(word)) {
       const leadingOperatorDx = options.leadingOperatorDx ? ` dx="${format(options.leadingOperatorDx)}"` : "";
       output += `<tspan${leadingOperatorDx} font-family="${escapeAttribute(
         TIKZ_MATH_MAIN_FONT_FAMILY

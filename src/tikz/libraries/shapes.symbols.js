@@ -3,7 +3,7 @@ const NOWHERE = "nowhere";
 export const tikzLibrary = {
   name: "shapes.symbols",
   status: "partial",
-  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint/cloudLayoutSize/cloudGeometry/cloudBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
+  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint/cloudLayoutSize/cloudGeometry/cloudBorderPoint/starburstLayoutSize/starburstGeometry/starburstBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.symbols.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
   features: [
@@ -20,7 +20,11 @@ export const tikzLibrary = {
     "magnetic tape compass/tail anchors and border clipping",
     "cloud circular-puff outline and circum-ellipse sizing",
     "cloud puffs, puff arc, aspect, and aspect-ignore controls",
-    "cloud compass/puff anchors and curved border clipping"
+    "cloud compass/puff anchors and curved border clipping",
+    "starburst polygon outline and content/minimum sizing",
+    "starburst points, point height, and PGF-seeded random heights",
+    "starburst outer/inner/numeric/compass anchors and border clipping",
+    "starburst shape-border rotation and mitered outer separation"
   ],
   implements: [
     "forbidden sign",
@@ -41,9 +45,15 @@ export const tikzLibrary = {
     "cloud puffs",
     "cloud puff arc",
     "cloud ignores aspect",
-    "cloud anchors use ellipse"
+    "cloud anchors use ellipse",
+    "starburst",
+    "starburst points",
+    "starburst point height",
+    "random starburst",
+    "shape border rotate",
+    "shape border uses incircle"
   ],
-  notes: "Implements the PGF forbidden-sign, signal, tape, magnetic-tape, and cloud node families. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Cloud follows the source's inner-ellipse content fit, aspect/minimum-size circum-ellipse equations, circular puff arcs, puff anchors, and shared curved border clipping. The TeX Live 2025 source default cloud puff arc is 150 degrees even though the manual prose says 135. Other shapes.symbols nodes remain unsupported."
+  notes: "Implements the PGF forbidden-sign, signal, tape, magnetic-tape, cloud, and starburst node families. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Cloud follows the source's inner-ellipse content fit, aspect/minimum-size circum-ellipse equations, circular puff arcs, puff anchors, and shared curved border clipping. Starburst follows the source's sqrt(2) content fit, exact seeded LCG point heights, mitered outer-separation polygon, rotated anchor border, named point anchors, and shared contour clipping; as in the PGF source, shape-border rotation affects anchors while the paint path stays unrotated. The TeX Live 2025 source default cloud puff arc is 150 degrees even though the manual prose says 135. Other shapes.symbols nodes remain unsupported."
 };
 
 export function cloudLayoutSize(contentWidth, contentHeight, options = {}) {
@@ -171,6 +181,162 @@ export function cloudBorderPoint(geometry = {}, toward = {}, padding = 0) {
     x: hit.point.x + unit.x * distance,
     y: hit.point.y + unit.y * distance
   });
+}
+
+export function starburstLayoutSize(contentWidth, contentHeight, options = {}) {
+  const pointHeight = positive(options.pointHeight ?? options.starburstPointHeight ?? 0.5);
+  const usesIncircle = Boolean(options.shapeBorderUsesIncircle);
+  const requestedRotation = Number(options.shapeBorderRotate) || 0;
+  const rotation = usesIncircle ? normalizedDegrees(requestedRotation) : pgfQuarterRotation(requestedRotation);
+  let innerRadiusX = positive(contentWidth) / 2;
+  let innerRadiusY = positive(contentHeight) / 2;
+
+  if (usesIncircle) {
+    innerRadiusX = 1.41421 * Math.max(innerRadiusX, innerRadiusY);
+    innerRadiusY = innerRadiusX;
+  } else {
+    if (rotation === 90 || rotation === 270) {
+      [innerRadiusX, innerRadiusY] = [innerRadiusY, innerRadiusX];
+    }
+    innerRadiusX *= 1.41421;
+    innerRadiusY *= 1.41421;
+  }
+
+  const minimumSize = positive(options.minimumSize);
+  const minimumWidth = Math.max(positive(options.minimumWidth), minimumSize);
+  const minimumHeight = Math.max(positive(options.minimumHeight), minimumSize);
+  innerRadiusX = Math.max(innerRadiusX, minimumWidth / 2 - pointHeight);
+  innerRadiusY = Math.max(innerRadiusY, minimumHeight / 2 - pointHeight);
+
+  return {
+    width: round(2 * (innerRadiusX + pointHeight)),
+    height: round(2 * (innerRadiusY + pointHeight)),
+    innerRadiusX: round(innerRadiusX),
+    innerRadiusY: round(innerRadiusY),
+    rotation: round(rotation)
+  };
+}
+
+export function starburstGeometry(size = {}, data = {}) {
+  const pointCount = normalizedStarburstPoints(data.starburstPoints ?? data.points);
+  const pointHeight = positive(data.starburstPointHeight ?? data.pointHeight ?? 0.5);
+  const randomSeed = normalizedStarburstSeed(data.randomStarburst ?? data.randomSeed);
+  const outerSep = positive(data.starburstOuterSep ?? data.outerSep);
+  const rotation = normalizedDegrees(Number(data.starburstRotation ?? data.shapeBorderRotate) || 0);
+  const innerRadiusX = Math.max(1e-9,
+    Number(data.starburstInnerRadiusX) || positive(size.width) / 2 - pointHeight);
+  const innerRadiusY = Math.max(1e-9,
+    Number(data.starburstInnerRadiusY) || positive(size.height) / 2 - pointHeight);
+  const angleStep = 180 / pointCount;
+  const pointHeightRatios = [];
+  const points = [];
+  let randomState = randomSeed;
+
+  for (let index = 0; index < pointCount * 2; index += 1) {
+    const outer = index % 2 === 0;
+    let height = 0;
+    if (outer) {
+      if (randomSeed === 0) {
+        pointHeightRatios.push(1);
+        height = pointHeight;
+      } else {
+        const next = pgfRandomUnit(randomState);
+        randomState = next.state;
+        const ratio = 0.25 + 0.75 * next.value;
+        pointHeightRatios.push(ratio);
+        height = pointHeight * ratio;
+      }
+    }
+    const angle = 90 + angleStep * index;
+    const radians = degreesToRadians(angle);
+    points.push(roundPoint({
+      x: (innerRadiusX + height) * Math.cos(radians),
+      y: (innerRadiusY + height) * Math.sin(radians)
+    }));
+  }
+
+  const unrotatedBorderVertices = polygonMiterOffsetPoints(points, outerSep);
+  const borderVertices = unrotatedBorderVertices.map((point) => rotateLocalPoint(point, rotation));
+  const outlineCommands = [
+    { type: "moveTo", ...points[0] },
+    ...points.slice(1).map((point) => ({ type: "lineTo", ...point })),
+    { type: "closePath" }
+  ];
+  const geometry = {
+    pointCount,
+    pointHeight: round(pointHeight),
+    pointHeightRatios: pointHeightRatios.map(round),
+    randomSeed,
+    rotation: round(rotation),
+    innerRadiusX: round(innerRadiusX),
+    innerRadiusY: round(innerRadiusY),
+    outerSep: round(outerSep),
+    points,
+    outerPoints: points.filter((_point, index) => index % 2 === 0),
+    innerPoints: points.filter((_point, index) => index % 2 === 1),
+    borderVertices: borderVertices.map(roundPoint),
+    outlineCommands,
+    bounds: pointBounds(points),
+    anchorBounds: pointBounds(borderVertices)
+  };
+  geometry.anchors = { center: { x: 0, y: 0 } };
+  for (let index = 0; index < pointCount; index += 1) {
+    geometry.anchors[`outer point ${index + 1}`] = geometry.borderVertices[index * 2];
+    geometry.anchors[`inner point ${index + 1}`] = geometry.borderVertices[index * 2 + 1];
+  }
+  for (const [name, direction] of Object.entries({
+    north: { x: 0, y: 1 },
+    "north east": { x: 1, y: 1 },
+    east: { x: 1, y: 0 },
+    "south east": { x: 1, y: -1 },
+    south: { x: 0, y: -1 },
+    "south west": { x: -1, y: -1 },
+    west: { x: -1, y: 0 },
+    "north west": { x: -1, y: 1 }
+  })) {
+    geometry.anchors[name] = starburstBorderPoint(geometry, direction);
+  }
+  return geometry;
+}
+
+export function starburstBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  const direction = { x: Number(toward.x) || 0, y: Number(toward.y) || 0 };
+  if (Math.hypot(direction.x, direction.y) <= 1e-12) return { x: 0, y: 0 };
+  const extra = positive(padding);
+  const points = extra > 0
+    ? polygonMiterOffsetPoints(geometry.points || [], positive(geometry.outerSep) + extra)
+        .map((point) => rotateLocalPoint(point, Number(geometry.rotation) || 0))
+    : geometry.borderVertices || geometry.points || [];
+  const hit = polygonRayHit(points, direction);
+  return hit ? roundPoint(hit.point) : { x: 0, y: 0 };
+}
+
+function pgfRandomUnit(seed) {
+  const quotient = Math.trunc(seed / 30845);
+  const remainder = seed - quotient * 30845;
+  let state = 69621 * remainder - 23902 * quotient;
+  if (state < 0) state += 2147483647;
+  return {
+    state,
+    value: (state % 100001) / 100000
+  };
+}
+
+function normalizedStarburstPoints(value) {
+  const number = Number(value);
+  return Math.max(2, Math.min(256, Math.trunc(Number.isFinite(number) ? number : 17)));
+}
+
+function normalizedStarburstSeed(value) {
+  const number = Number(value);
+  return Math.trunc(Number.isFinite(number) ? number : 100);
+}
+
+function pgfQuarterRotation(value) {
+  const remainder = value - Math.trunc(value / 360) * 360;
+  let result = Math.trunc((Math.trunc(remainder) + 45) / 90) * 90;
+  if (result < 0) result += 360;
+  return result % 360;
 }
 
 function cloudConstants(puffs, puffArc) {
@@ -957,6 +1123,50 @@ function polygonRayHit(points, direction) {
   }
   hits.sort((left, right) => left.t - right.t);
   return hits[0] || null;
+}
+
+function polygonMiterOffsetPoints(points, distance) {
+  if (!Array.isArray(points) || points.length < 3 || distance <= 1e-12) {
+    return (points || []).map((point) => ({ ...point }));
+  }
+  const clockwise = polygonSignedArea(points) < 0;
+  return points.map((vertex, index) => {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const next = points[(index + 1) % points.length];
+    const previousEdge = { x: vertex.x - previous.x, y: vertex.y - previous.y };
+    const nextEdge = { x: next.x - vertex.x, y: next.y - vertex.y };
+    const previousNormal = polygonOutwardNormal(previousEdge, clockwise);
+    const nextNormal = polygonOutwardNormal(nextEdge, clockwise);
+    if (!previousNormal || !nextNormal) return { ...vertex };
+    const previousOffset = {
+      x: vertex.x + previousNormal.x * distance,
+      y: vertex.y + previousNormal.y * distance
+    };
+    const nextOffset = {
+      x: vertex.x + nextNormal.x * distance,
+      y: vertex.y + nextNormal.y * distance
+    };
+    return lineIntersection(previousOffset, previousEdge, nextOffset, nextEdge) || { ...vertex };
+  });
+}
+
+function polygonOutwardNormal(edge, clockwise) {
+  const length = Math.hypot(edge.x, edge.y);
+  if (length <= 1e-12) return null;
+  return clockwise
+    ? { x: -edge.y / length, y: edge.x / length }
+    : { x: edge.y / length, y: -edge.x / length };
+}
+
+function lineIntersection(firstPoint, firstDirection, secondPoint, secondDirection) {
+  const denominator = cross(firstDirection, secondDirection);
+  if (Math.abs(denominator) <= 1e-12) return null;
+  const delta = { x: secondPoint.x - firstPoint.x, y: secondPoint.y - firstPoint.y };
+  const t = cross(delta, secondDirection) / denominator;
+  return {
+    x: firstPoint.x + firstDirection.x * t,
+    y: firstPoint.y + firstDirection.y * t
+  };
 }
 
 function polygonSignedArea(points) {

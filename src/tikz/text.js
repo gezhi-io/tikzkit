@@ -14,6 +14,8 @@ const TIKZ_HSPACE_START = "\uE100";
 const TIKZ_HSPACE_END = "\uE101";
 const MATH_FALLBACK_LBRACE = "\uE102";
 const MATH_FALLBACK_RBRACE = "\uE103";
+const MATH_FALLBACK_VERT = "\uE106";
+const MATH_FALLBACK_DOUBLE_VERT = "\uE107";
 export const MATH_FALLBACK_NAMED_OPERATORS = Object.freeze([
   "arccos",
   "arcsin",
@@ -51,11 +53,13 @@ export const MATH_FALLBACK_NAMED_OPERATORS = Object.freeze([
 // TeX gives relation atoms a 5mu space on either side. Keep the fallback
 // renderer, its width estimator, and its SVG text layout on one shared list.
 export const MATH_FALLBACK_RELATION_SYMBOLS = Object.freeze([
-  "=", "≔", "≤", "≥", "≠", "≈", "∼", "<", ">",
+  "=", "≔", "≤", "≥", "≠", "≈", "∼", "<", ">", ":",
   "⩽", "⩾", "≰", "≱", "⊈", "⊉", "⇝", "∴", "∵"
 ]);
 export const MATH_FALLBACK_SPACED_OPERATOR_SYMBOLS = Object.freeze([
   "+",
+  "-",
+  "*",
   ...MATH_FALLBACK_RELATION_SYMBOLS
 ]);
 const MATH_FALLBACK_RELATION_SET = new Set(MATH_FALLBACK_RELATION_SYMBOLS);
@@ -69,8 +73,25 @@ export function isMathFallbackSpacedOperatorSymbol(value) {
   return MATH_FALLBACK_SPACED_OPERATOR_SET.has(String(value || ""));
 }
 
+export function mathFallbackOperatorMu(value, previous, next) {
+  const char = String(value || "");
+  if (isMathFallbackRelationSymbol(char)) return 5;
+  if (!MATH_FALLBACK_SPACED_OPERATOR_SET.has(char)) return 0;
+  if (char === "-" && (!previous || /[(\[{=:+\-*/]/.test(previous))) return 0;
+  return previous || next ? 4 : 0;
+}
+
+export function mathFallbackOperatorMuAt(value, index) {
+  const chars = [...String(value || "")];
+  const cursor = Math.max(0, Math.trunc(Number(index) || 0));
+  const previous = chars.slice(0, cursor).reverse().find((char) => !/\s/.test(char));
+  const next = chars.slice(cursor + 1).find((char) => !/\s/.test(char));
+  return mathFallbackOperatorMu(chars[cursor], previous, next);
+}
+
 export function containsMathFallbackSpacedOperator(value) {
-  return [...String(value || "")].some((char) => isMathFallbackSpacedOperatorSymbol(char));
+  const source = String(value || "");
+  return [...source].some((_char, index) => mathFallbackOperatorMuAt(source, index) > 0);
 }
 
 const MATH_FALLBACK_NAMED_OPERATOR_PATTERN = new RegExp(
@@ -1521,8 +1542,12 @@ export function mathFallbackText(tex) {
     .replace(/\\spadesuit/g, "♠")
     .replace(/\\blacktriangleright/g, "▶")
     .replace(/\\blacktriangleleft/g, "◀")
-    .replace(/\\(?:lbrace|\{)(?![A-Za-z])/g, MATH_FALLBACK_LBRACE)
-    .replace(/\\(?:rbrace|\})(?![A-Za-z])/g, MATH_FALLBACK_RBRACE)
+    .replace(/\\lbrace(?![A-Za-z])/g, MATH_FALLBACK_LBRACE)
+    .replace(/\\\{/g, MATH_FALLBACK_LBRACE)
+    .replace(/\\rbrace(?![A-Za-z])/g, MATH_FALLBACK_RBRACE)
+    .replace(/\\\}/g, MATH_FALLBACK_RBRACE)
+    .replace(/\\(?:lVert|rVert)(?![A-Za-z])\s*/g, MATH_FALLBACK_DOUBLE_VERT)
+    .replace(/\\(?:lvert|rvert)(?![A-Za-z])\s*/g, MATH_FALLBACK_VERT)
     .replace(/\\sum\s*(?:\\limits\s*)?_\s*\{([^{}]*)\}\s*\^\s*\{([^{}]*)\}/g, (_match, subscript, superscript) =>
       compactLimitOperator("∑", subscript, superscript)
     )
@@ -1575,7 +1600,7 @@ export function mathFallbackText(tex) {
     .replace(/\\ddots/g, "⋱")
     .replace(/\^\s*\{?\\circ\}?/g, "°")
     .replace(/\\circ/g, "°")
-    .replace(/\\\|/g, "∥")
+    .replace(/\\\|/g, MATH_FALLBACK_DOUBLE_VERT)
     .replace(/_\{([^{}]*)\}/g, (_match, value) => toSubscript(value))
     .replace(/_([A-Za-z0-9+\-=()])/g, (_match, value) => toSubscript(value))
     .replace(/\^\{([^{}]*)\}/g, (_match, value) => `^${value}`)
@@ -1590,6 +1615,8 @@ export function mathFallbackText(tex) {
     // In TeX math, an unescaped tilde is an active non-breaking space, not a visible glyph.
     .replace(/~/g, " ")
     .replace(/[ \t\r\n]+/g, " ")
+    .replace(new RegExp(MATH_FALLBACK_VERT, "g"), "|")
+    .replace(new RegExp(MATH_FALLBACK_DOUBLE_VERT, "g"), "∥")
     .trim();
 }
 

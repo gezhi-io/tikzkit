@@ -7,7 +7,7 @@ import {
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
-import { cloudGeometry, magneticTapeGeometry, signalGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
+import { cloudGeometry, magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
@@ -19,6 +19,7 @@ export const LIBRARY_NODE_SHAPES = [
   "magneticTape",
   "isoscelesTriangle",
   "cloud",
+  "starburst",
   "superellipse",
   "singleArrow",
   "doubleArrow"
@@ -110,6 +111,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "cloud") {
     return translateCommands(cloudGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "starburst") {
+    return translateCommands(starburstGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "regularPolygon") {
     const sides = item.shapeData?.regularPolygonSides || 5;

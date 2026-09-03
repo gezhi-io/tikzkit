@@ -1,5 +1,6 @@
 import {
   isMathFallbackRelationSymbol,
+  mathFallbackOperatorMuAt,
   mathFallbackText,
   normalizeBrowserMathMacros,
   readDollarMathSpan,
@@ -166,6 +167,20 @@ const MATH_ITALIC_TEX_METRICS = {
   s: [0.46875, 0.43056, 0], t: [0.36111, 0.61508, 0], u: [0.57246, 0.43056, 0],
   v: [0.48472, 0.43056, 0], w: [0.71592, 0.43056, 0], x: [0.57153, 0.43056, 0],
   y: [0.49028, 0.43056, 0.19444], z: [0.46505, 0.43056, 0]
+};
+
+// Reduced Computer Modern math-symbol metrics used by formulas that mix
+// math-italic letters with upright delimiters and relation glyphs.
+const MATH_FALLBACK_SYMBOL_TEX_METRICS = {
+  "Ω": [0.72222, 0.68333, 0],
+  "ϵ": [0.4059, 0.43056, 0],
+  "{": [0.5, 0.75, 0.25],
+  "}": [0.5, 0.75, 0.25],
+  "|": [0.27778, 0.75, 0.25],
+  "∥": [0.5, 0.75, 0.25],
+  "≤": [0.77778, 0.63597, 0.13597],
+  "≥": [0.77778, 0.63597, 0.13597],
+  "≠": [0.77778, 0.71667, 0.21667]
 };
 
 // cmmib10.tfm from the local MacTeX 2025 installation. Math-version bold
@@ -402,7 +417,30 @@ const INLINE_MATRIX_DESIGN_METRICS_PT = new Map([
   }],
   [7, { italicScale: 1.145509, relationScale: 1.127522, digitScale: 1.138895, fiveMu: 2.27624, delimiter: 5.92712 }],
   [8, { italicScale: 1.061127, relationScale: 1.062484, digitScale: 1.062515, fiveMu: 2.36115, delimiter: 6.25704 }],
-  [9, { italicScale: 1.027563, relationScale: 1.027742, digitScale: 1.027771, fiveMu: 2.56943, delimiter: 6.80896 }],
+  [9, {
+    italicScale: 1.027563,
+    relationScale: 1.027742,
+    digitScale: 1.027771,
+    fiveMu: 2.56943,
+    delimiter: 6.80896,
+    // Direct cmmi9/cmsy9/cmr9 advances measured from local MacTeX 2025.
+    mathAdvancePt: {
+      A: 6.93605,
+      b: 3.96387,
+      x: 5.24304,
+      "Ω": 6.68051,
+      "ϵ": 4.29405,
+      "{": 4.62497,
+      "}": 4.62497,
+      "|": 2.56943,
+      "∥": 4.62497,
+      ":": 2.56943,
+      "=": 7.1944,
+      "-": 7.1944,
+      "≤": 7.1944,
+      "≥": 7.1944
+    }
+  }],
   [10, { italicScale: 1, relationScale: 1, digitScale: 1, fiveMu: 2.77778, delimiter: 7.36116 }]
 ]);
 
@@ -1388,9 +1426,49 @@ function fallbackWidth(tex, scale, metric) {
 
 function fallbackBodyWidth(tex, scale, metric) {
   const fallback = metric.texTextMetrics ? compactMathMetricText(tex) : mathFallbackText(tex);
-  return metric.texTextMetrics
-    ? texTextWidthCm(fallback, scale) + texMathRelationSpacingCm(fallback, scale) + texMathPunctuationSpacingCm(fallback, scale)
-    : mathTextMetricUnits(fallback) * metric.widthFactor * scale;
+  if (!metric.texTextMetrics) return mathTextMetricUnits(fallback) * metric.widthFactor * scale;
+  return measuredMathFallbackWidthCm(fallback, scale, metric) ?? (
+    texTextWidthCm(fallback, scale) + texMathRelationSpacingCm(fallback, scale) + texMathPunctuationSpacingCm(fallback, scale)
+  );
+}
+
+function measuredMathFallbackWidthCm(text, scale, metric) {
+  const chars = [...String(text || "")].filter((char) => !/\s/.test(char));
+  const source = chars.join("");
+  const design = inlineMatrixDesignMetrics(10 * scale);
+  let widthPt = 0;
+  for (let index = 0; index < chars.length; index += 1) {
+    const char = chars[index];
+    const directAdvance = design?.mathAdvancePt?.[char];
+    if (Number.isFinite(directAdvance)) {
+      widthPt += directAdvance;
+    } else {
+      const visibleChar = char === "-" ? "−" : char;
+      const spec = /[A-Za-z]/.test(char)
+        ? (metric.mathVersion === "bold" ? MATH_BOLD_ITALIC_TEX_METRICS : MATH_ITALIC_TEX_METRICS)[char]
+        : MATH_FALLBACK_SYMBOL_TEX_METRICS[char]
+          || (metric.mathVersion === "bold" ? MAIN_BOLD_TEX_METRICS : MAIN_REGULAR_TEX_METRICS)[visibleChar];
+      if (!spec) return null;
+      const designScale = /[A-Za-zϵ]/u.test(char)
+        ? design?.italicScale || 1
+        : isMathFallbackRelationSymbol(char)
+          ? design?.relationScale || 1
+          : /\d/.test(char)
+            ? design?.digitScale || 1
+            : 1;
+      widthPt += spec[0] * 10 * scale * designScale;
+    }
+
+    const mu = mathFallbackOperatorMuAt(source, index);
+    if (mu && index > 0) widthPt += mathFallbackMuPt(mu, scale, design);
+    if (mu && index < chars.length - 1) widthPt += mathFallbackMuPt(mu, scale, design);
+    if (char === "," && index < chars.length - 1) widthPt += mathFallbackMuPt(3, scale, design);
+  }
+  return widthPt / TEX_PT_PER_CM;
+}
+
+function mathFallbackMuPt(mu, scale, design) {
+  return Number(mu) * (design?.fiveMu ? design.fiveMu / 5 : (10 * scale) / 18);
 }
 
 function texMathRelationSpacingCm(text, scale) {

@@ -12,7 +12,7 @@ import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, resolveInlineArrowTip } from "./paths.js";
 import { cylinderGeometry } from "../../tikz/libraries/shapes.geometric.js";
-import { magneticTapeGeometry, signalGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
+import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -39,6 +39,8 @@ export function computeSvgBounds(items, options = {}) {
           ? magneticTapeGeometry(item, item.shapeData || {}).bounds
           : item.shape === "tape"
             ? tapeGeometry(item, item.shapeData || {}).bounds
+          : item.shape === "starburst"
+            ? starburstGeometry(item, item.shapeData || {}).bounds
           : cylinderBounds;
       includeRotatedRectangleBounds(
         symbolBounds ? item.x + symbolBounds.minX - strokePad - foregroundOuterX : item.x - item.width / 2 - strokePad - foregroundOuterX,

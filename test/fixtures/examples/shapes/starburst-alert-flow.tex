@@ -1,0 +1,18 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.symbols}
+\begin{document}
+\begin{tikzpicture}[>=Stealth,node distance=17mm,every node/.style={font=\small},
+  stage/.style={draw,rounded corners=2pt,minimum width=23mm,minimum height=10mm},
+  flow/.style={->,thick}]
+  \node[stage,fill=blue!8] (request) {Request};
+  \node[starburst,starburst points=12,starburst point height=4mm,
+    random starburst=0,minimum width=28mm,minimum height=16mm,
+    draw=red!80!black,fill=yellow!35,line width=.8pt,align=center,
+    right=of request] (alert) {Retry\\required};
+  \node[stage,fill=green!10,right=of alert] (recover) {Recovery};
+  \draw[flow] (request.east) -- node[above] {timeout} (alert.west);
+  \draw[flow] (alert.east) -- node[above] {backoff} (recover.west);
+  \draw[flow,dashed] (recover.south) |- (alert.south);
+\end{tikzpicture}
+\end{document}

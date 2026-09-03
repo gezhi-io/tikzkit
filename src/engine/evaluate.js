@@ -24,6 +24,9 @@ import {
   signalBorderPoint as symbolSignalBorderPoint,
   signalGeometry as symbolSignalGeometry,
   signalLayoutSize as symbolSignalLayoutSize,
+  starburstBorderPoint as symbolStarburstBorderPoint,
+  starburstGeometry as symbolStarburstGeometry,
+  starburstLayoutSize as symbolStarburstLayoutSize,
   tapeBorderPoint as symbolTapeBorderPoint,
   tapeGeometry as symbolTapeGeometry,
   tapeLayoutSize as symbolTapeLayoutSize
@@ -9194,7 +9197,7 @@ function addNodeItems(node, ir, env) {
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
-    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]);
+    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst";
     ir.items.push({
       type: "textNode",
       x: textPoint.x,
@@ -10999,6 +11002,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "starburst") {
+    localPoint = symbolStarburstBorderPoint(
+      symbolStarburstGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "diamond") {
     const points = [
       { x: 0, y: halfHeight },
@@ -11126,6 +11135,7 @@ function nodeShape(options = {}) {
   if (options.star) return "star";
   if (options.trapezium) return "trapezium";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
+  if (options.starburst) return "starburst";
   if (options.cloud) return "cloud";
   if (options.cylinder) return "cylinder";
   if (options.signal) return "signal";
@@ -11157,6 +11167,7 @@ function explicitNodeShape(shape) {
     star: "star",
     trapezium: "trapezium",
     "isosceles triangle": "isoscelesTriangle",
+    starburst: "starburst",
     cloud: "cloud",
     cylinder: "cylinder",
     signal: "signal",
@@ -11270,6 +11281,18 @@ function cloudLayoutSize(contentWidth, contentHeight, options = {}, env = { vari
   });
 }
 
+function starburstLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return symbolStarburstLayoutSize(contentWidth, contentHeight, {
+    pointHeight: parseFiniteDimension(options["starburst point height"] ?? ".5cm", env, parseDimension(".5cm")),
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
+    minimumWidth: options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0,
+    minimumHeight: options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
+  });
+}
+
 function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const sides = regularPolygonSides(options, env);
   const apothem = Math.max(0, Number(contentWidth) || 0, Number(contentHeight) || 0) / 2;
@@ -11292,11 +11315,18 @@ function nodeShapeData(options = {}, env = {}, text) {
   const magneticTapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const cloudScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const starburstScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const { style: cylinderStyle } = normalizeOptions("node", options, env);
   const magneticTapeOuterSep = nodeOuterSep(options, env);
   const tapeOuterSep = nodeOuterSep(options, env);
   const cloudOuterSep = nodeOuterSep(options, env);
+  const starburstOuterSep = nodeOuterSep(options, env);
   const tapeBend = options["tape bend"];
+  const starburst = symbolStarburstLayoutSize(0, 0, {
+    pointHeight: 0,
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"])
+  });
   return {
     knotCrossing: Boolean(options["knot crossing"] || normalizeShapeName(options.shape) === "knot crossing"),
     mosfetKind: circuitikzMosfetNodeKind(options),
@@ -11342,6 +11372,12 @@ function nodeShapeData(options = {}, env = {}, text) {
     cloudIgnoresAspect: tikzBoolean(options["cloud ignores aspect"]),
     cloudAnchorsUseEllipse: tikzBoolean(options["cloud anchors use ellipse"]),
     cloudOuterSep: Math.max(cloudOuterSep.x, cloudOuterSep.y) * cloudScale,
+    starburstPoints: Math.max(2, Math.min(256, Math.trunc(numberOption(options["starburst points"], 17)))),
+    starburstPointHeight: Math.max(0, parseFiniteDimension(options["starburst point height"] ?? ".5cm", env, parseDimension(".5cm"))) * starburstScale,
+    randomStarburst: Math.trunc(numberOption(options["random starburst"], 100)),
+    starburstRotation: starburst.rotation,
+    starburstShapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    starburstOuterSep: Math.max(starburstOuterSep.x, starburstOuterSep.y) * starburstScale,
     arrowTipAngle: numberOption(options["single arrow tip angle"] ?? options["double arrow tip angle"], 90),
     arrowHeadExtend: parseFiniteDimension(options["single arrow head extend"] ?? options["double arrow head extend"], env, 0.25),
     arrowHeadIndent: parseFiniteDimension(options["single arrow head indent"] ?? options["double arrow head indent"], env, 0),
@@ -12379,6 +12415,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
       maxY: roundNumber(geometry.bounds.maxY + geometry.outerSep)
     };
   }
+  if (nodeShape(options) === "starburst") {
+    const geometry = symbolStarburstGeometry(size, nodeShapeData(options, env, text));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: geometry.anchorBounds.minX,
+      minY: geometry.anchorBounds.minY,
+      maxX: geometry.anchorBounds.maxX,
+      maxY: geometry.anchorBounds.maxY
+    };
+  }
   if (nodeShape(options) === "magneticTape") {
     const geometry = symbolMagneticTapeGeometry(size, nodeShapeData(options, env, text));
     return {
@@ -12830,6 +12877,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(starLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "starburst") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(starburstLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "cylinder") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -12906,6 +12958,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "star") {
     return scaleSize(starLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "starburst") {
+    return scaleSize(starburstLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "cylinder") {
     return scaleSize(cylinderLayoutSize(width, height, options, env), shapeScale);
@@ -13235,19 +13290,22 @@ function estimateTextMetricBox(normalized, options = {}) {
     if (math) {
       const measured = measureMathWithTextEngine(text, math, lineScale, options);
       if (measured) return measured;
-      const formulaScale = lineScale * (math.scale || 1);
+      const metricNormalization = options.formulaTexTextMetrics
+        ? finitePositiveScale(options.fontMetricNormalization)
+        : 1;
+      const formulaScale = lineScale * (math.scale || 1) * metricNormalization;
       const formula = estimateFormulaBox(math.tex, {
         displayMode: math.displayMode,
         scale: formulaScale,
         minWidth: options.formulaMinWidth,
         widthFactor: options.formulaWidthFactor ?? widthFactor,
-        widthPadding: formulaWidthPaddingFor(math.tex, options, widthPadding),
+        widthPadding: formulaWidthPaddingFor(math.tex, options, widthPadding) * metricNormalization,
         texTextMetrics: Boolean(options.formulaTexTextMetrics)
       });
       const formulaMinHeight = compactMathSymbolUsesNativeHeight(math.tex) ? 0 : (options.formulaMinHeight ?? minHeight);
       return {
-        width: formula.width,
-        height: Math.max(formulaMinHeight * formulaScale, formulaTotalHeight(formula))
+        width: formula.width / metricNormalization,
+        height: Math.max(formulaMinHeight * formulaScale, formulaTotalHeight(formula)) / metricNormalization
       };
     }
     const measured = measurePlainTextWithTextEngine(text, lineScale, options);
@@ -16699,7 +16757,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -16819,6 +16877,19 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     if (Number.isFinite(numericAngle)) {
       const radians = numericAngle * Math.PI / 180;
       return symbolCloudBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "starburst") {
+    const geometry = symbolStarburstGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, size.shapeData || {});
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return symbolStarburstBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
     }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;

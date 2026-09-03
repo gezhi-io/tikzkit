@@ -5,6 +5,7 @@ import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
 import { wrapSvgTextTokensByWidth, svgTextWrapTokens } from "../src/renderers/svg/textLayout.js";
 import { mathFallbackText, normalizeTikzText } from "../src/tikz/text.js";
+import { estimateFormulaBox } from "../src/tikz/textMetrics.js";
 import {
   createArrowTip,
   latexArrowGeometryFromLineWidth,
@@ -1883,6 +1884,7 @@ test("renders text commands inside math fallback without leaking command names",
 test("renders common relation commands in SVG math fallback", () => {
   const text = mathFallbackText(String.raw`x_1 \leq 0,\ x_2 \geq 1,\ a \neq b,\ y \approx z`);
   const setText = mathFallbackText(String.raw`a\in\lbrace m,s\rbrace`);
+  const normSetText = mathFallbackText(String.raw`\Omega_{\varepsilon}=\{x:\lVert Ax-b\rVert\leq\varepsilon\}`);
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$x_1 \leq 0$`, style: { fill: "black" } }],
@@ -1893,6 +1895,15 @@ test("renders common relation commands in SVG math fallback", () => {
 
   assert.equal(text, "x₁ ≤ 0, x₂ ≥ 1, a ≠ b, y ≈ z");
   assert.equal(setText, "a ∈ {m,s}");
+  assert.equal(normSetText, "Ωϵ = {x:∥Ax-b∥ ≤ ϵ}");
+  const normBox = estimateFormulaBox(
+    String.raw`\Omega_{\varepsilon}=\{x:\lVert Ax-b\rVert\leq\varepsilon\}`,
+    { scale: 0.9, texTextMetrics: true, widthPadding: 0, minWidth: 0 }
+  );
+  assert.ok(
+    Math.abs(normBox.width * 28.45274 - 98.56082) < 0.35,
+    `expected local MacTeX formula width near 98.56082pt, got ${normBox.width * 28.45274}pt`
+  );
   assert.match(svg, />≤<\/tspan>/);
   assert.doesNotMatch(svg, /leq|geq|neq|approx|lbrace|rbrace/);
 });

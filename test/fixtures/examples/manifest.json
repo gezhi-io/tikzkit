@@ -5303,6 +5303,53 @@
         "physics vectors",
         "arrow border clipping"
       ]
+    },
+    {
+      "id": "shapes-starburst-alert-flow",
+      "title": "Starburst retry alert flow",
+      "source": "shapes/starburst-alert-flow.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:starburstLayoutSize/starburstGeometry/starburstBorderPoint",
+      "features": [
+        "starburst",
+        "starburst points",
+        "starburst point height",
+        "random starburst zero",
+        "west and east anchors",
+        "arrow border clipping",
+        "positioning"
+      ]
+    },
+    {
+      "id": "shapes-starburst-uncertainty-math",
+      "title": "Mathematical uncertainty starburst",
+      "source": "shapes/starburst-uncertainty-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:starburstLayoutSize/starburstGeometry/starburstBorderPoint",
+      "features": [
+        "starburst",
+        "seeded random starburst",
+        "shape border rotate",
+        "outer point anchor",
+        "inner point anchor",
+        "numeric border anchor",
+        "math text"
+      ]
+    },
+    {
+      "id": "shapes-starburst-shock-physics",
+      "title": "Physical shock-front starburst",
+      "source": "shapes/starburst-shock-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:starburstLayoutSize/starburstGeometry/starburstBorderPoint",
+      "features": [
+        "starburst",
+        "seeded point heights",
+        "outer sep miter",
+        "compass anchors",
+        "automatic border clipping",
+        "physics vectors"
+      ]
     }
   ]
 }
