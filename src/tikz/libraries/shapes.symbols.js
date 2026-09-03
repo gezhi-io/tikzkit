@@ -3,12 +3,15 @@ const NOWHERE = "nowhere";
 export const tikzLibrary = {
   name: "shapes.symbols",
   status: "partial",
-  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint/cloudLayoutSize/cloudGeometry/cloudBorderPoint/starburstLayoutSize/starburstGeometry/starburstBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
+  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/magnifyingGlassGeometry/magnifyingGlassBorderPoint/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint/cloudLayoutSize/cloudGeometry/cloudBorderPoint/starburstLayoutSize/starburstGeometry/starburstBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem/magnifyingGlassForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.symbols.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
   features: [
     "forbidden sign and correct forbidden sign",
     "forbidden-sign circle inheritance and foreground diagonal",
+    "magnifying glass circle inheritance and foreground handle",
+    "magnifying glass handle angle and aspect",
+    "magnifying glass circle anchors and border clipping",
     "signal shape",
     "signal to/from compass directions",
     "signal pointer angle",
@@ -29,6 +32,9 @@ export const tikzLibrary = {
   implements: [
     "forbidden sign",
     "correct forbidden sign",
+    "magnifying glass",
+    "magnifying glass handle angle",
+    "magnifying glass handle aspect",
     "signal",
     "signal to",
     "signal from",
@@ -53,8 +59,77 @@ export const tikzLibrary = {
     "shape border rotate",
     "shape border uses incircle"
   ],
-  notes: "Implements the PGF forbidden-sign, signal, tape, magnetic-tape, cloud, and starburst node families. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Cloud follows the source's inner-ellipse content fit, aspect/minimum-size circum-ellipse equations, circular puff arcs, puff anchors, and shared curved border clipping. Starburst follows the source's sqrt(2) content fit, exact seeded LCG point heights, mitered outer-separation polygon, rotated anchor border, named point anchors, and shared contour clipping; as in the PGF source, shape-border rotation affects anchors while the paint path stays unrotated. The TeX Live 2025 source default cloud puff arc is 150 degrees even though the manual prose says 135. Other shapes.symbols nodes remain unsupported."
+  notes: "Implements every node family declared by the TeX Live 2025 shapes.symbols source: forbidden-sign, magnifying-glass, signal, tape, magnetic-tape, cloud, and starburst. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Magnifying glass also inherits the circle completely, while its source-angle radial handle is a marker-free foreground path that expands paint bounds without changing anchors or edge clipping. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Cloud follows the source's inner-ellipse content fit, aspect/minimum-size circum-ellipse equations, circular puff arcs, puff anchors, and shared curved border clipping. Starburst follows the source's sqrt(2) content fit, exact seeded LCG point heights, mitered outer-separation polygon, rotated anchor border, named point anchors, and shared contour clipping; as in the PGF source, shape-border rotation affects anchors while the paint path stays unrotated. The TeX Live 2025 source default cloud puff arc is 150 degrees even though the manual prose says 135. The library remains partial for the already-documented advanced transform and exact TeX metric limits inside individual families."
 };
+
+export function isMagnifyingGlassShape(shape) {
+  const normalized = String(shape || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return normalized === "magnifyingglass";
+}
+
+export function magnifyingGlassGeometry(size = {}, data = {}) {
+  const paintedRadius = Math.max(0, positive(size.width), positive(size.height)) / 2;
+  const outerSep = positive(data.magnifyingGlassOuterSep ?? data.outerSep);
+  const anchorRadius = paintedRadius + outerSep;
+  const rawAngle = Number(data.magnifyingGlassHandleAngle ?? data.handleAngle);
+  const handleAngle = Number.isFinite(rawAngle) ? rawAngle : -45;
+  const rawAspect = Number(data.magnifyingGlassHandleAspect ?? data.handleAspect);
+  const handleAspect = Number.isFinite(rawAspect) ? rawAspect : 1.5;
+  const direction = circlePoint(1, handleAngle);
+  const handleStart = roundPoint({
+    x: direction.x * paintedRadius,
+    y: direction.y * paintedRadius
+  });
+  const handleEnd = roundPoint({
+    x: direction.x * paintedRadius * (1 + handleAspect),
+    y: direction.y * paintedRadius * (1 + handleAspect)
+  });
+  const bounds = {
+    minX: round(Math.min(-paintedRadius, handleStart.x, handleEnd.x)),
+    minY: round(Math.min(-paintedRadius, handleStart.y, handleEnd.y)),
+    maxX: round(Math.max(paintedRadius, handleStart.x, handleEnd.x)),
+    maxY: round(Math.max(paintedRadius, handleStart.y, handleEnd.y))
+  };
+  const geometry = {
+    paintedRadius: round(paintedRadius),
+    outerSep: round(outerSep),
+    anchorRadius: round(anchorRadius),
+    handleAngle: round(handleAngle),
+    handleAspect: round(handleAspect),
+    handleStart,
+    handleEnd,
+    handleCommands: [
+      { type: "moveTo", ...handleStart },
+      { type: "lineTo", ...handleEnd }
+    ],
+    bounds,
+    anchors: { center: { x: 0, y: 0 } }
+  };
+  for (const [name, directionValue] of Object.entries({
+    north: { x: 0, y: 1 },
+    "north east": { x: 1, y: 1 },
+    east: { x: 1, y: 0 },
+    "south east": { x: 1, y: -1 },
+    south: { x: 0, y: -1 },
+    "south west": { x: -1, y: -1 },
+    west: { x: -1, y: 0 },
+    "north west": { x: -1, y: 1 }
+  })) {
+    geometry.anchors[name] = magnifyingGlassBorderPoint(geometry, directionValue);
+  }
+  return geometry;
+}
+
+export function magnifyingGlassBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  const direction = { x: Number(toward.x) || 0, y: Number(toward.y) || 0 };
+  const length = Math.hypot(direction.x, direction.y);
+  if (length <= 1e-12) return { x: 0, y: 0 };
+  const radius = positive(geometry.anchorRadius) + positive(padding);
+  return roundPoint({
+    x: direction.x * radius / length,
+    y: direction.y * radius / length
+  });
+}
 
 export function cloudLayoutSize(contentWidth, contentHeight, options = {}) {
   const puffs = normalizedCloudPuffs(options.puffs ?? options.cloudPuffs);

@@ -5350,6 +5350,53 @@
         "automatic border clipping",
         "physics vectors"
       ]
+    },
+    {
+      "id": "shapes-magnifying-glass-inspection-flow",
+      "title": "Magnifying-glass inspection flow",
+      "source": "shapes/magnifying-glass-inspection-flow.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:magnifyingGlassGeometry",
+      "features": [
+        "magnifying glass",
+        "handle angle",
+        "handle aspect",
+        "circle anchors",
+        "arrow border clipping",
+        "positioning"
+      ]
+    },
+    {
+      "id": "shapes-magnifying-glass-critical-point",
+      "title": "Magnifying-glass critical-point annotation",
+      "source": "shapes/magnifying-glass-critical-point.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:magnifyingGlassGeometry",
+      "features": [
+        "magnifying glass",
+        "explicit shape",
+        "handle angle",
+        "handle aspect",
+        "outer sep",
+        "numeric border anchor",
+        "math text"
+      ]
+    },
+    {
+      "id": "shapes-magnifying-glass-field-probe",
+      "title": "Magnifying-glass electric-field probe",
+      "source": "shapes/magnifying-glass-field-probe.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:magnifyingGlassGeometry",
+      "features": [
+        "magnifying glass",
+        "handle angle",
+        "handle aspect",
+        "compass anchors",
+        "numeric border anchor",
+        "automatic border clipping",
+        "physics vectors"
+      ]
     }
   ]
 }

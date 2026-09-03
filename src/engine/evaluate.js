@@ -17,6 +17,8 @@ import {
   cloudLayoutSize as symbolCloudLayoutSize,
   forbiddenSignGeometry as symbolForbiddenSignGeometry,
   isForbiddenSignShape as isSymbolForbiddenSignShape,
+  magnifyingGlassBorderPoint as symbolMagnifyingGlassBorderPoint,
+  magnifyingGlassGeometry as symbolMagnifyingGlassGeometry,
   magneticTapeBorderPoint as symbolMagneticTapeBorderPoint,
   magneticTapeGeometry as symbolMagneticTapeGeometry,
   magneticTapeLayoutSize as symbolMagneticTapeLayoutSize,
@@ -8912,7 +8914,7 @@ function resolveFitNodeLayout(options = {}, env = {}, nodeEnv = env) {
   if (shape === "ellipse") {
     width *= Math.SQRT2;
     height *= Math.SQRT2;
-  } else if (shape === "circle" || isSymbolForbiddenSignShape(shape)) {
+  } else if (shape === "circle" || isSymbolForbiddenSignShape(shape) || shape === "magnifyingGlass") {
     const diameter = 2 * Math.hypot(width / 2, height / 2);
     width = diameter;
     height = diameter;
@@ -9136,7 +9138,7 @@ function addNodeItems(node, ir, env) {
       // Rectangle-like node renderers inset the geometry by half the stroke,
       // but SVG ellipses paint their stroke outside the supplied radii. Keep
       // that outer half-stroke in the scene bounds for circles and ellipses.
-      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse" && !isSymbolForbiddenSignShape(shape),
+      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
@@ -9228,6 +9230,16 @@ function addNodeItems(node, ir, env) {
     nodeEnv
   );
   if (forbiddenSignForeground) ir.items.push(forbiddenSignForeground);
+  const magnifyingGlassForeground = magnifyingGlassForegroundItem(
+    shape,
+    point,
+    size,
+    rotation,
+    style,
+    semantic,
+    shapeData
+  );
+  if (magnifyingGlassForeground) ir.items.push(magnifyingGlassForeground);
   for (const label of nodeLabels(node.options || {}, point, size, nodeEnv, textStyle)) {
     ir.items.push(label);
   }
@@ -9267,6 +9279,32 @@ function forbiddenSignForegroundItem(shape, point, size, rotation, style, semant
     shadows: undefined
   }, {
     subtype: "forbidden-sign-foreground",
+    includeStrokeBounds: true
+  });
+}
+
+function magnifyingGlassForegroundItem(shape, point, size, rotation, style, semantic, shapeData) {
+  if (shape !== "magnifyingGlass" || !(semantic.draw || style.stroke !== "none")) return null;
+  const geometry = symbolMagnifyingGlassGeometry(size, shapeData || {});
+  const commands = geometry.handleCommands.map((command) => {
+    const local = rotateVector(command.x, command.y, Number(rotation) || 0);
+    return {
+      ...command,
+      x: roundNumber(point.x + local.x),
+      y: roundNumber(point.y + local.y)
+    };
+  });
+  return createPathShape(commands, {
+    ...style,
+    fill: "none",
+    markerStart: undefined,
+    markerEnd: undefined,
+    pattern: undefined,
+    patternDefinition: undefined,
+    shading: undefined,
+    shadows: undefined
+  }, {
+    subtype: "magnifying-glass-foreground",
     includeStrokeBounds: true
   });
 }
@@ -10955,6 +10993,15 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit" || isSymbolForbiddenSignShape(node.shape)) {
     const radius = Math.max(halfWidth, halfHeight) + terminalPadding;
     localPoint = { x: (localDx / localDistance) * radius, y: (localDy / localDistance) * radius };
+  } else if (node.shape === "magnifyingGlass") {
+    localPoint = symbolMagnifyingGlassBorderPoint(
+      symbolMagnifyingGlassGeometry({
+        width: Number(node.width) || halfWidth * 2,
+        height: Number(node.height) || halfHeight * 2
+      }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "ellipse") {
     const paddedHalfWidth = halfWidth + terminalPadding;
     const paddedHalfHeight = halfHeight + terminalPadding;
@@ -11135,6 +11182,7 @@ function nodeShape(options = {}) {
   if (options.star) return "star";
   if (options.trapezium) return "trapezium";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
+  if (options["magnifying glass"]) return "magnifyingGlass";
   if (options.starburst) return "starburst";
   if (options.cloud) return "cloud";
   if (options.cylinder) return "cylinder";
@@ -11167,6 +11215,7 @@ function explicitNodeShape(shape) {
     star: "star",
     trapezium: "trapezium",
     "isosceles triangle": "isoscelesTriangle",
+    "magnifying glass": "magnifyingGlass",
     starburst: "starburst",
     cloud: "cloud",
     cylinder: "cylinder",
@@ -11313,11 +11362,13 @@ function nodeShapeData(options = {}, env = {}, text) {
   const star = starShapeData(options, env, shapeBorderRotate);
   const cylinderScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const magneticTapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const magnifyingGlassScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const cloudScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const starburstScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const { style: cylinderStyle } = normalizeOptions("node", options, env);
   const magneticTapeOuterSep = nodeOuterSep(options, env);
+  const magnifyingGlassOuterSep = nodeOuterSep(options, env);
   const tapeOuterSep = nodeOuterSep(options, env);
   const cloudOuterSep = nodeOuterSep(options, env);
   const starburstOuterSep = nodeOuterSep(options, env);
@@ -11366,6 +11417,9 @@ function nodeShapeData(options = {}, env = {}, text) {
     magneticTapeTail: Math.min(1, Math.max(0, numberOption(options["magnetic tape tail"], 0.15))),
     magneticTapeTailExtend: Math.max(0, parseFiniteDimension(options["magnetic tape tail extend"], env, 0)) * magneticTapeScale,
     magneticTapeOuterSep: Math.max(magneticTapeOuterSep.x, magneticTapeOuterSep.y) * magneticTapeScale,
+    magnifyingGlassHandleAngle: numberOption(options["magnifying glass handle angle"], -45),
+    magnifyingGlassHandleAspect: numberOption(options["magnifying glass handle aspect"], 1.5),
+    magnifyingGlassOuterSep: Math.max(magnifyingGlassOuterSep.x, magnifyingGlassOuterSep.y) * magnifyingGlassScale,
     cloudPuffs: Math.max(2, Math.min(128, Math.trunc(numberOption(options["cloud puffs"], 10)))),
     cloudPuffArc: Math.max(1, Math.min(179, numberOption(options["cloud puff arc"], 150))),
     cloudAspect: Math.max(1e-9, numberOption(options.aspect ?? options["shape aspect"], 1)),
@@ -12384,7 +12438,7 @@ function estimateTkzAxisTickLabelSize(text, options = {}, env = { variables: {} 
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
   const size = visibleSize || estimateNodeLayoutSize(text, options, env);
   const outerSep = nodeOuterSep(options, env);
-  if (isSymbolForbiddenSignShape(nodeShape(options))) {
+  if (isSymbolForbiddenSignShape(nodeShape(options)) || nodeShape(options) === "magnifyingGlass") {
     const radius = Math.max(Number(size.width) || 0, Number(size.height) || 0) / 2 + Math.max(outerSep.x, outerSep.y);
     const diameter = roundNumber(radius * 2);
     return { width: diameter, height: diameter };
@@ -12724,7 +12778,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     }, shapeScale);
   }
   const shape = nodeShape(options);
-  const isCircleShape = shape === "circle" || shape === "circleCrossSplit" || isSymbolForbiddenSignShape(shape);
+  const isCircleShape = shape === "circle" || shape === "circleCrossSplit" || isSymbolForbiddenSignShape(shape) || shape === "magnifyingGlass";
   const typewriter = nodeUsesTypewriterFont(normalized, options, env);
   const inlineMathLabelMetrics = Boolean(options["tikzkit inline math label metrics"]);
   const datavisLegendMathMetrics = Boolean(options["tikzkit datavis legend math metrics"]);
@@ -13269,7 +13323,7 @@ function explicitHspaceWidth(text, env = { variables: {} }) {
 
 function fixedCircularMinimumSize(options = {}, env = { variables: {} }) {
   const shape = nodeShape(options);
-  if (!(shape === "circle" || isSymbolForbiddenSignShape(shape)) || !options["minimum size"]) return null;
+  if (!(shape === "circle" || isSymbolForbiddenSignShape(shape) || shape === "magnifyingGlass") || !options["minimum size"]) return null;
   const size = parseNodeLengthDimension(options["minimum size"], env);
   return Number.isFinite(size) && size > 0 ? size : null;
 }
@@ -17094,12 +17148,12 @@ function tikzquadsInnerExt(halfSize) {
 }
 
 function shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight) {
-  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleCrossSplit" && shape !== "ellipse" && !isSymbolForbiddenSignShape(shape)) return null;
+  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleCrossSplit" && shape !== "ellipse" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape)) return null;
   if (halfWidth <= 0 || halfHeight <= 0) return null;
   const dx = anchor.includes("east") ? 1 : anchor.includes("west") ? -1 : 0;
   const dy = anchor.includes("north") ? 1 : anchor.includes("south") ? -1 : 0;
   if (!dx && !dy) return null;
-  if (shape === "circle" || shape === "circleSplit" || shape === "circleCrossSplit" || isSymbolForbiddenSignShape(shape)) {
+  if (shape === "circle" || shape === "circleSplit" || shape === "circleCrossSplit" || shape === "magnifyingGlass" || isSymbolForbiddenSignShape(shape)) {
     const radius = Math.max(halfWidth, halfHeight);
     const length = Math.hypot(dx, dy) || 1;
     return { x: (dx / length) * radius, y: (dy / length) * radius };

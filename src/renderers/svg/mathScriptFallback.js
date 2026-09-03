@@ -267,12 +267,12 @@ export function renderMathTextWithUprightOperators(text, options = {}) {
 function renderMathTextWithoutHspace(source, options = {}) {
   let output = "";
   let cursor = 0;
-  const wordPattern = /[A-Za-z]+|[⋅{}∥]/g;
+  const wordPattern = /[A-Za-z]+|[⋅{}∥∇]/g;
   let match;
   while ((match = wordPattern.exec(source))) {
     const word = match[0];
     output += escapeText(source.slice(cursor, match.index));
-    if (word === "⋅" || /^[{}∥]$/.test(word) || SVG_MATH_OPERATOR_WORDS.has(word)) {
+    if (word === "⋅" || /^[{}∥∇]$/.test(word) || SVG_MATH_OPERATOR_WORDS.has(word)) {
       const leadingOperatorDx = options.leadingOperatorDx ? ` dx="${format(options.leadingOperatorDx)}"` : "";
       output += `<tspan${leadingOperatorDx} font-family="${escapeAttribute(
         TIKZ_MATH_MAIN_FONT_FAMILY

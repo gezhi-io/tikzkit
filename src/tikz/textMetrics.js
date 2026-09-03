@@ -173,6 +173,7 @@ const MATH_ITALIC_TEX_METRICS = {
 // math-italic letters with upright delimiters and relation glyphs.
 const MATH_FALLBACK_SYMBOL_TEX_METRICS = {
   "Ω": [0.72222, 0.68333, 0],
+  "∇": [0.83333, 0.68333, 0],
   "ϵ": [0.4059, 0.43056, 0],
   "{": [0.5, 0.75, 0.25],
   "}": [0.5, 0.75, 0.25],

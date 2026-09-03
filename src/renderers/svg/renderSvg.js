@@ -40,7 +40,7 @@ import { fitFontSizeToBox } from "./textFit.js";
 import { applyTextContour } from "./textContour.js";
 import { isTikzquadsNodeShape, renderTikzquadsNodeBox } from "./tikzquadsNodes.js";
 import { wrapNodeRotation } from "./transforms.js";
-import { isForbiddenSignShape } from "../../tikz/libraries/shapes.symbols.js";
+import { isForbiddenSignShape, isMagnifyingGlassShape } from "../../tikz/libraries/shapes.symbols.js";
 import {
   TIKZ_MARGIN,
   TIKZ_UNIT
@@ -122,8 +122,8 @@ function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y:
     if (item.shape === "crossOut" || item.shape === "strikeOut") {
       return renderNodeBoxWithOverlay(item, renderMiscOutNodeBox(item, unit), unit);
     }
-    if (item.shape === "circle" || item.shape === "ellipse" || isForbiddenSignShape(item.shape)) {
-      const shapeClass = isForbiddenSignShape(item.shape)
+    if (item.shape === "circle" || item.shape === "ellipse" || isForbiddenSignShape(item.shape) || isMagnifyingGlassShape(item.shape)) {
+      const shapeClass = isForbiddenSignShape(item.shape) || isMagnifyingGlassShape(item.shape)
         ? ` class="tikz-node-shape tikz-node-${escapeAttribute(item.shape)}"`
         : "";
       return renderNodeBoxWithOverlay(item, `<ellipse${shapeClass} cx="${format(item.x * unit)}" cy="${format(-item.y * unit)}" rx="${format(

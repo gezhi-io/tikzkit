@@ -1500,6 +1500,7 @@ export function mathFallbackText(tex) {
     .replace(/\\setminus(?![A-Za-z])/g, "∖")
     .replace(/\\infty(?![A-Za-z])/g, "∞")
     .replace(/\\partial(?![A-Za-z])/g, "∂")
+    .replace(/\\nabla(?![A-Za-z])/g, "∇")
     // These are direct AMSa/AMSb math symbols in the local amssymb source.
     // Handle long names before shorter core relation commands below.
     .replace(/\\varnothing(?![A-Za-z])/g, "∅")
