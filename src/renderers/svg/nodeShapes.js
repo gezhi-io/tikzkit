@@ -7,7 +7,7 @@ import {
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
-import { magneticTapeGeometry, signalGeometry } from "../../tikz/libraries/shapes.symbols.js";
+import { magneticTapeGeometry, signalGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export const LIBRARY_NODE_SHAPES = [
   "regularPolygon",
@@ -15,6 +15,7 @@ export const LIBRARY_NODE_SHAPES = [
   "trapezium",
   "cylinder",
   "signal",
+  "tape",
   "magneticTape",
   "isoscelesTriangle",
   "cloud",
@@ -103,6 +104,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "magneticTape") {
     return translateCommands(magneticTapeGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "tape") {
+    return translateCommands(tapeGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "regularPolygon") {
     const sides = item.shapeData?.regularPolygonSides || 5;

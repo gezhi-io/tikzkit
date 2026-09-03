@@ -3,7 +3,7 @@ const NOWHERE = "nowhere";
 export const tikzLibrary = {
   name: "shapes.symbols",
   status: "partial",
-  implementedBy: "src/tikz/libraries/shapes.symbols.js:parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
+  implementedBy: "src/tikz/libraries/shapes.symbols.js:parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.symbols.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
   features: [
@@ -12,6 +12,8 @@ export const tikzLibrary = {
     "signal pointer angle",
     "opposite horizontal or vertical pointers",
     "signal compass anchors and border clipping",
+    "tape bend top/bottom styles and bend height",
+    "tape compass anchors and border clipping",
     "magnetic tape shape and tail controls",
     "magnetic tape compass/tail anchors and border clipping"
   ],
@@ -20,11 +22,16 @@ export const tikzLibrary = {
     "signal to",
     "signal from",
     "signal pointer angle",
+    "tape",
+    "tape bend",
+    "tape bend top",
+    "tape bend bottom",
+    "tape bend height",
     "magnetic tape",
     "magnetic tape tail",
     "magnetic tape tail extend"
   ],
-  notes: "Implements the PGF signal and magnetic-tape node families. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Other shapes.symbols nodes remain unsupported."
+  notes: "Implements the PGF signal, tape, and magnetic-tape node families. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Other shapes.symbols nodes remain unsupported."
 };
 
 export function parseSignalDirections(signalFrom = "nowhere", signalTo = "east") {
@@ -199,6 +206,124 @@ export function magneticTapeLayoutSize(contentWidth, contentHeight, options = {}
   return { width: round(diameter), height: round(diameter) };
 }
 
+export function tapeLayoutSize(contentWidth, contentHeight, options = {}) {
+  const bendHeight = positive(options.bendHeight ?? options.tapeBendHeight ?? 0);
+  const halfBendHeight = bendHeight / 2;
+  const bendTop = normalizeTapeBendStyle(options.bendTop ?? options.tapeBendTop, "in and out");
+  const bendBottom = normalizeTapeBendStyle(options.bendBottom ?? options.tapeBendBottom, "in and out");
+  const bendCount = Number(bendTop !== "none") + Number(bendBottom !== "none");
+  const minimumSize = positive(options.minimumSize);
+  const minimumWidth = Math.max(minimumSize, positive(options.minimumWidth));
+  const minimumHeight = Math.max(minimumSize, positive(options.minimumHeight));
+  const halfWidth = Math.max(positive(contentWidth) / 2, minimumWidth / 2);
+  const augmentedHalfHeight = Math.max(
+    positive(contentHeight) / 2 + halfBendHeight * bendCount,
+    minimumHeight / 2
+  );
+  const halfHeight = Math.max(0, augmentedHalfHeight - halfBendHeight * bendCount);
+  return {
+    width: round(halfWidth * 2),
+    height: round(halfHeight * 2)
+  };
+}
+
+export function tapeGeometry(size = {}, data = {}) {
+  const halfWidth = positive(size.width) / 2;
+  const halfHeight = positive(size.height) / 2;
+  const bendHeight = positive(data.tapeBendHeight ?? data.bendHeight);
+  const halfBendHeight = bendHeight / 2;
+  const bendTop = normalizeTapeBendStyle(data.tapeBendTop ?? data.bendTop, "in and out");
+  const bendBottom = normalizeTapeBendStyle(data.tapeBendBottom ?? data.bendBottom, "in and out");
+  const outerXSep = positive(data.tapeOuterXSep ?? data.outerXSep);
+  const outerYSep = positive(data.tapeOuterYSep ?? data.outerYSep);
+  const bendXRadius = Math.SQRT1_2 * halfWidth;
+  const bendYRadius = (2 + Math.SQRT2) * halfBendHeight;
+  const top = tapeBendPath("top", bendTop, halfWidth, halfHeight, halfBendHeight, bendXRadius, bendYRadius);
+  const bottom = tapeBendPath("bottom", bendBottom, halfWidth, halfHeight, halfBendHeight, bendXRadius, bendYRadius);
+  const outlineCommands = [
+    { type: "moveTo", x: -halfWidth, y: 0 },
+    { type: "lineTo", x: -halfWidth, y: halfHeight },
+    ...top.commands,
+    { type: "lineTo", x: halfWidth, y: -halfHeight },
+    ...bottom.commands,
+    { type: "closePath" }
+  ].map(roundCommand);
+  const boundaryPoints = [
+    { x: -halfWidth, y: 0 },
+    { x: -halfWidth, y: halfHeight },
+    ...top.points,
+    { x: halfWidth, y: -halfHeight },
+    ...bottom.points
+  ].map(roundPoint);
+  const bounds = pointBounds(boundaryPoints);
+  const cornerAnchors = tapeCornerAnchors({
+    halfWidth,
+    halfHeight,
+    halfBendHeight,
+    bendXRadius,
+    bendYRadius,
+    bendTop,
+    bendBottom,
+    outerXSep,
+    outerYSep
+  });
+  const anchors = {
+    center: { x: 0, y: 0 },
+    north: { x: 0, y: (cornerAnchors["north west"].y + cornerAnchors["north east"].y) / 2 },
+    "north east": cornerAnchors["north east"],
+    east: { x: halfWidth + outerXSep, y: 0 },
+    "south east": cornerAnchors["south east"],
+    south: { x: 0, y: (cornerAnchors["south west"].y + cornerAnchors["south east"].y) / 2 },
+    "south west": cornerAnchors["south west"],
+    west: { x: -halfWidth - outerXSep, y: 0 },
+    "north west": cornerAnchors["north west"]
+  };
+
+  return {
+    halfWidth: round(halfWidth),
+    halfHeight: round(halfHeight),
+    halfBendHeight: round(halfBendHeight),
+    bendXRadius: round(bendXRadius),
+    bendYRadius: round(bendYRadius),
+    bendTop,
+    bendBottom,
+    outerXSep: round(outerXSep),
+    outerYSep: round(outerYSep),
+    outlineCommands,
+    boundaryPoints,
+    bounds,
+    anchors: Object.fromEntries(Object.entries(anchors).map(([name, point]) => [name, roundPoint(point)]))
+  };
+}
+
+export function tapeBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  const direction = { x: Number(toward.x) || 0, y: Number(toward.y) || 0 };
+  const length = Math.hypot(direction.x, direction.y);
+  if (length <= 1e-12) return { x: 0, y: 0 };
+  const hit = polygonRayHit(geometry.boundaryPoints || [], direction);
+  if (!hit) return { x: 0, y: 0 };
+
+  const edge = { x: hit.b.x - hit.a.x, y: hit.b.y - hit.a.y };
+  const edgeLength = Math.hypot(edge.x, edge.y);
+  if (edgeLength <= 1e-12) return roundPoint(hit.point);
+  const area = polygonSignedArea(geometry.boundaryPoints || []);
+  const outward = area < 0
+    ? { x: -edge.y / edgeLength, y: edge.x / edgeLength }
+    : { x: edge.y / edgeLength, y: -edge.x / edgeLength };
+  const unit = { x: direction.x / length, y: direction.y / length };
+  const projection = unit.x * outward.x + unit.y * outward.y;
+  if (projection <= 1e-12) return roundPoint(hit.point);
+  const outerDistance = Math.hypot(
+    outward.x * positive(geometry.outerXSep),
+    outward.y * positive(geometry.outerYSep)
+  ) + positive(padding);
+  const radialDistance = outerDistance / projection;
+  return roundPoint({
+    x: hit.point.x + unit.x * radialDistance,
+    y: hit.point.y + unit.y * radialDistance
+  });
+}
+
 export function magneticTapeGeometry(size = {}, data = {}) {
   const radius = Math.max(1e-9, positive(Math.max(Number(size.width) || 0, Number(size.height) || 0)) / 2);
   const tailProportion = clamp(Number(data.magneticTapeTail ?? data.tailProportion ?? 0.15), 0, 1);
@@ -290,6 +415,141 @@ export function magneticTapeBorderPoint(geometry = {}, toward = {}, padding = 0)
   }
   const factor = outerRadius / dx;
   return roundPoint({ x: outerRadius, y: dy * factor });
+}
+
+function tapeBendPath(side, style, halfWidth, halfHeight, halfBendHeight, radiusX, radiusY) {
+  const isTop = side === "top";
+  const firstX = isTop ? -halfWidth : halfWidth;
+  const lastX = -firstX;
+  const edgeY = isTop ? halfHeight : -halfHeight;
+  if (style === "none" || halfBendHeight <= 1e-12 || radiusX <= 1e-12 || radiusY <= 1e-12) {
+    const end = { x: lastX, y: edgeY };
+    return { commands: [{ type: "lineTo", ...end }], points: [end] };
+  }
+
+  const sign = isTop ? 1 : -1;
+  const start = { x: firstX, y: edgeY + sign * halfBendHeight };
+  const diagonalY = Math.SQRT1_2 * radiusY;
+  const specs = tapeBendArcSpecs(side, style, halfWidth, edgeY, halfBendHeight, diagonalY);
+  const commands = [{ type: "lineTo", ...start }];
+  const points = [start];
+  for (const spec of specs) {
+    commands.push(...ellipseArcCommands(spec.cx, spec.cy, radiusX, radiusY, spec.start, spec.end));
+    points.push(...sampleEllipseArc(spec.cx, spec.cy, radiusX, radiusY, spec.start, spec.end, 12).slice(1));
+  }
+  return { commands, points };
+}
+
+function tapeBendArcSpecs(side, style, halfWidth, edgeY, halfBendHeight, diagonalY) {
+  if (side === "top" && style === "in and out") {
+    return [
+      { cx: -halfWidth / 2, cy: edgeY + halfBendHeight + diagonalY, start: 225, end: 315 },
+      { cx: halfWidth / 2, cy: edgeY + halfBendHeight - diagonalY, start: 135, end: 45 }
+    ];
+  }
+  if (side === "top") {
+    return [
+      { cx: -halfWidth / 2, cy: edgeY + halfBendHeight - diagonalY, start: 135, end: 45 },
+      { cx: halfWidth / 2, cy: edgeY + halfBendHeight + diagonalY, start: 225, end: 315 }
+    ];
+  }
+  if (style === "in and out") {
+    return [
+      { cx: halfWidth / 2, cy: edgeY - halfBendHeight - diagonalY, start: 45, end: 135 },
+      { cx: -halfWidth / 2, cy: edgeY - halfBendHeight + diagonalY, start: 315, end: 225 }
+    ];
+  }
+  return [
+    { cx: halfWidth / 2, cy: edgeY - halfBendHeight + diagonalY, start: 315, end: 225 },
+    { cx: -halfWidth / 2, cy: edgeY - halfBendHeight - diagonalY, start: 45, end: 135 }
+  ];
+}
+
+function tapeCornerAnchors(data) {
+  const {
+    halfWidth,
+    halfHeight,
+    halfBendHeight,
+    bendXRadius,
+    bendYRadius,
+    bendTop,
+    outerXSep,
+    outerYSep
+  } = data;
+  const ratioAngle = radiansToDegrees(Math.atan2(bendYRadius, Math.max(1e-12, bendXRadius))) / 2;
+  const cotIn = cotangentDegrees(45 - ratioAngle);
+  const cotOut = cotangentDegrees(90 - ratioAngle);
+  const topBase = halfHeight + (bendTop === "none" ? 0 : halfBendHeight);
+  // PGF 3.1.11a intentionally follows `tape bend top` in all four south
+  // anchor branches too. Preserve that source behavior even when the visible
+  // bottom bend uses a different style.
+  const southAnchorStyle = bendTop;
+  const bottomBase = -halfHeight - (southAnchorStyle === "none" ? 0 : halfBendHeight);
+  const topEastOffset = bendTop === "in and out" ? cotOut : bendTop === "out and in" ? cotIn : 1;
+  const topWestOffset = bendTop === "in and out" ? cotIn : bendTop === "out and in" ? cotOut : 1;
+  const bottomEastOffset = southAnchorStyle === "in and out" ? cotIn : southAnchorStyle === "out and in" ? cotOut : 1;
+  const bottomWestOffset = southAnchorStyle === "in and out" ? cotOut : southAnchorStyle === "out and in" ? cotIn : 1;
+  return {
+    "north east": { x: halfWidth + outerXSep, y: topBase + topEastOffset * outerYSep },
+    "north west": { x: -halfWidth - outerXSep, y: topBase + topWestOffset * outerYSep },
+    "south east": { x: halfWidth + outerXSep, y: bottomBase - bottomEastOffset * outerYSep },
+    "south west": { x: -halfWidth - outerXSep, y: bottomBase - bottomWestOffset * outerYSep }
+  };
+}
+
+function ellipseArcCommands(cx, cy, radiusX, radiusY, startDegrees, endDegrees) {
+  const commands = [];
+  let start = startDegrees;
+  const direction = endDegrees >= startDegrees ? 1 : -1;
+  while ((direction > 0 && start < endDegrees - 1e-9) || (direction < 0 && start > endDegrees + 1e-9)) {
+    const end = direction > 0 ? Math.min(start + 90, endDegrees) : Math.max(start - 90, endDegrees);
+    const startRadians = degreesToRadians(start);
+    const endRadians = degreesToRadians(end);
+    const delta = endRadians - startRadians;
+    const factor = (4 / 3) * Math.tan(delta / 4);
+    const first = ellipsePoint(cx, cy, radiusX, radiusY, start);
+    const last = ellipsePoint(cx, cy, radiusX, radiusY, end);
+    commands.push({
+      type: "curveTo",
+      x1: first.x - factor * radiusX * Math.sin(startRadians),
+      y1: first.y + factor * radiusY * Math.cos(startRadians),
+      x2: last.x + factor * radiusX * Math.sin(endRadians),
+      y2: last.y - factor * radiusY * Math.cos(endRadians),
+      x: last.x,
+      y: last.y
+    });
+    start = end;
+  }
+  return commands;
+}
+
+function sampleEllipseArc(cx, cy, radiusX, radiusY, startDegrees, endDegrees, count) {
+  return Array.from({ length: count + 1 }, (_unused, index) => {
+    const angle = startDegrees + (endDegrees - startDegrees) * index / count;
+    return ellipsePoint(cx, cy, radiusX, radiusY, angle);
+  });
+}
+
+function ellipsePoint(cx, cy, radiusX, radiusY, degrees) {
+  const radians = degreesToRadians(degrees);
+  return {
+    x: cx + radiusX * Math.cos(radians),
+    y: cy + radiusY * Math.sin(radians)
+  };
+}
+
+function cotangentDegrees(degrees) {
+  const tangent = Math.tan(degreesToRadians(degrees));
+  return Math.abs(tangent) <= 1e-12 ? 0 : 1 / tangent;
+}
+
+function normalizeTapeBendStyle(value, fallback) {
+  const text = String(value === true || value === undefined || value === null ? fallback : value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  if (text === "in and out" || text === "out and in" || text === "none") return text;
+  return "none";
 }
 
 function assignSignalDirections(directions, raw, kind) {

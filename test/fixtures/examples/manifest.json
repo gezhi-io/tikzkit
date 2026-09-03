@@ -5170,6 +5170,51 @@
         "orthogonal routing",
         "inline math"
       ]
+    },
+    {
+      "id": "shapes-tape-manual-catalog",
+      "title": "PGF tape bend-style and anchor catalog",
+      "source": "shapes/tape-manual-catalog.tex",
+      "sourceCorpus": "TeX Live PGF shapes.symbols manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:tapeLayoutSize/tapeGeometry",
+      "features": [
+        "tape",
+        "tape bend",
+        "tape bend top",
+        "tape bend bottom",
+        "tape bend height",
+        "minimum size",
+        "compass anchors"
+      ]
+    },
+    {
+      "id": "shapes-tape-process-log",
+      "title": "Process log on a tape-shaped flowchart node",
+      "source": "shapes/tape-process-log.tex",
+      "sourceCorpus": "TikZKit common data-flow regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:tapeLayoutSize/tapeGeometry",
+      "features": [
+        "flowchart",
+        "tape border clipping",
+        "positioning",
+        "named corner anchors",
+        "inline math edge labels"
+      ]
+    },
+    {
+      "id": "shapes-tape-sensor-strip",
+      "title": "Physical sensor trace recorded on paper tape",
+      "source": "shapes/tape-sensor-strip.tex",
+      "sourceCorpus": "TikZKit physics and signal-processing regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:tapeLayoutSize/tapeGeometry",
+      "features": [
+        "physics signal flow",
+        "opposite tape bend styles",
+        "named north anchor",
+        "arrow border clipping",
+        "multi-line math text"
+      ]
     }
   ]
 }
