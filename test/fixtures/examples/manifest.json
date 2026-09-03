@@ -5007,6 +5007,20 @@
         "trig",
         "combined axis tick labels"
       ]
+    },
+    {
+      "id": "circuitikz-independent-current-arrows",
+      "title": "circuitikz independent current-source currarrow scaling",
+      "source": "circuitikz/independent-current-arrows.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzCurrentSourceItems/circuitikzCurrentArrowItems",
+      "features": [
+        "to[isource] European current source",
+        "to[american current source]",
+        "to[dcisource]",
+        "current arrow scale"
+      ]
     }
   ]
 }

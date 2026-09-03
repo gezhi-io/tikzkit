@@ -2659,8 +2659,33 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       currentLabel: controlledCurrent?.label || null
     };
   }
-  const sourceLabel = circuitikzFirstLabel(options, ["isource", "I", "current source", "american current source", "european current source"]);
-  if (sourceLabel !== null) return { kind: "isource", label: circuitikzLabelValue(options.l) || sourceLabel };
+  const americanCurrentSource = circuitikzFirstLabel(options, ["american current source", "isourceAM"]);
+  if (americanCurrentSource !== null) {
+    return {
+      kind: "isource",
+      sourceKind: "plain",
+      sourceStyle: "american",
+      label: circuitikzLabelValue(options.l) || americanCurrentSource
+    };
+  }
+  const europeanCurrentSource = circuitikzFirstLabel(options, ["european current source", "isourceEU"]);
+  if (europeanCurrentSource !== null) {
+    return {
+      kind: "isource",
+      sourceKind: "plain",
+      sourceStyle: "european",
+      label: circuitikzLabelValue(options.l) || europeanCurrentSource
+    };
+  }
+  const sourceLabel = circuitikzFirstLabel(options, ["isource", "I", "current source"]);
+  if (sourceLabel !== null) {
+    return {
+      kind: "isource",
+      sourceKind: "plain",
+      sourceStyle: circuitikzUsesAmericanCurrentSource(env) ? "american" : "european",
+      label: circuitikzLabelValue(options.l) || sourceLabel
+    };
+  }
   const pmosLabel = circuitikzFirstLabel(options, ["Tpmos", "pmos", "tpmos"]);
   if (pmosLabel !== null) return { kind: "mosfet", mosfetKind: "pmos", label: pmosLabel, name: circuitikzComponentName(options, pmosLabel) };
   const nmosLabel = circuitikzFirstLabel(options, ["Tnmos", "nmos", "tnmos"]);
@@ -4384,11 +4409,6 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
   const radius = 0.42 * scale * circuitikzSourceScale(env);
   if (spec.sourceKind === "dc") {
     const sourceAngle = circuitikzDcCurrentAngle(env);
-    const arrowStart = pointAlong(geometry.mid, geometry.u, -0.7 * radius);
-    const arrowEnd = pointAlong(geometry.mid, geometry.u, 0.6 * radius);
-    const arrowBase = pointAlong(geometry.mid, geometry.u, 0.35 * radius);
-    const arrowTip = pointAlong(geometry.mid, geometry.u, 0.7 * radius);
-    const arrowHalfHeight = 0.16 * radius;
     const style = circuitikzComponentStyle(pathStyle);
     const items = [];
     if (spec.componentFill) {
@@ -4404,8 +4424,7 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
         commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
       });
     }
-    items.push(
-      {
+    items.push({
         type: "path",
         subtype: "circuitikz-dc-current-source",
         sourceKind: "dc",
@@ -4417,54 +4436,50 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
         r: radius,
         style,
         commands: circuitikzOpenSinusoidalCurrentOutline(geometry, radius, sourceAngle)
-      },
-      {
-        type: "path",
-        subtype: "circuitikz-dc-current-source-arrow",
-        style,
-        commands: [
-          { type: "moveTo", x: arrowStart.x, y: arrowStart.y },
-          { type: "lineTo", x: arrowEnd.x, y: arrowEnd.y }
-        ]
-      },
-      {
-        type: "path",
-        subtype: "circuitikz-dc-current-source-arrow-head",
-        style: { ...style, fill: style.stroke, lineJoin: "miter" },
-        commands: [
-          { type: "moveTo", x: arrowBase.x + geometry.n.x * arrowHalfHeight, y: arrowBase.y + geometry.n.y * arrowHalfHeight },
-          { type: "lineTo", x: arrowTip.x, y: arrowTip.y },
-          { type: "lineTo", x: arrowBase.x - geometry.n.x * arrowHalfHeight, y: arrowBase.y - geometry.n.y * arrowHalfHeight },
-          { type: "close" }
-        ]
-      }
-    );
+      });
+    items.push(...circuitikzCurrentArrowItems(geometry, radius, pathStyle, options, env, {
+      shaftStart: -0.7,
+      shaftEnd: 0.6,
+      arrowOrigin: 0.5,
+      shaftSubtype: "circuitikz-dc-current-source-arrow",
+      headSubtype: "circuitikz-dc-current-source-arrow-head"
+    }));
     return items;
   }
-  const arrowHalf = 0.28 * scale;
-  const arrowStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
-  const arrowEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
-  return [
-    {
+  const style = circuitikzComponentStyle(pathStyle);
+  const items = [{
       type: "path",
       subtype: "circuitikz-isource",
       shape: "circle",
       cx: geometry.mid.x,
       cy: geometry.mid.y,
       r: radius,
-      style: circuitikzComponentStyle(pathStyle),
+      sourceStyle: spec.sourceStyle,
+      style,
       commands: circleToPath(geometry.mid.x, geometry.mid.y, radius)
-    },
-    {
+    }];
+  if (spec.sourceStyle !== "american") {
+    const lineStart = pointNormal(geometry.mid, geometry.n, -radius);
+    const lineEnd = pointNormal(geometry.mid, geometry.n, radius);
+    items.push({
       type: "path",
-      subtype: "circuitikz-isource-arrow",
-      style: circuitikzArrowStyle(pathStyle),
+      subtype: "circuitikz-isource-line",
+      style: { ...style, lineJoin: "miter" },
       commands: [
-        { type: "moveTo", x: arrowStart.x, y: arrowStart.y },
-        { type: "lineTo", x: arrowEnd.x, y: arrowEnd.y }
+        { type: "moveTo", x: lineStart.x, y: lineStart.y },
+        { type: "lineTo", x: lineEnd.x, y: lineEnd.y }
       ]
-    }
-  ];
+    });
+    return items;
+  }
+  items.push(...circuitikzCurrentArrowItems(geometry, radius, pathStyle, options, env, {
+    shaftStart: -0.7,
+    shaftEnd: 0.7,
+    arrowOrigin: 0.5,
+    shaftSubtype: "circuitikz-isource-arrow-shaft",
+    headSubtype: "circuitikz-isource-arrow-head"
+  }));
+  return items;
 }
 
 function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, env = {}) {
@@ -5433,15 +5448,21 @@ function circuitikzCurrentTriangleItem(center, geometry, pathStyle = {}, env = {
 }
 
 function circuitikzControlledCurrentArrowItems(geometry, halfExtent, pathStyle = {}, options = {}, env = {}) {
-  const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
-  const arrowHalf = halfExtent * 0.7;
-  const shaftStart = pointAlong(geometry.mid, geometry.u, -arrowHalf);
-  const shaftEnd = pointAlong(geometry.mid, geometry.u, arrowHalf);
+  return circuitikzCurrentArrowItems(geometry, halfExtent, pathStyle, options, env, {
+    shaftStart: -0.7,
+    shaftEnd: 0.7,
+    arrowOrigin: 0.5,
+    shaftSubtype: "circuitikz-controlled-current-source-arrow-shaft",
+    headSubtype: "circuitikz-controlled-current-source-arrow"
+  });
+}
 
-  // Circuitikz's `currarrow` shape uses Rlen/current arrow scale and is
-  // translated half a source radius along the element's local x axis.
+function circuitikzCurrentArrowItems(geometry, extent, pathStyle = {}, options = {}, env = {}, config = {}) {
+  const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+  const shaftStart = pointAlong(geometry.mid, geometry.u, (config.shaftStart ?? -0.7) * extent);
+  const shaftEnd = pointAlong(geometry.mid, geometry.u, (config.shaftEnd ?? 0.7) * extent);
   const step = (1.4 * circuitikzLengthScale(env)) / circuitikzCurrentArrowScale(options, env);
-  const arrowOrigin = pointAlong(geometry.mid, geometry.u, halfExtent * 0.5);
+  const arrowOrigin = pointAlong(geometry.mid, geometry.u, (config.arrowOrigin ?? 0.5) * extent);
   const base = pointAlong(arrowOrigin, geometry.u, -0.7 * step);
   const tip = pointAlong(arrowOrigin, geometry.u, step);
   const lower = pointNormal(base, geometry.n, -0.8 * step);
@@ -5450,13 +5471,13 @@ function circuitikzControlledCurrentArrowItems(geometry, halfExtent, pathStyle =
   return [
     {
       type: "path",
-      subtype: "circuitikz-controlled-current-source-arrow-shaft",
+      subtype: config.shaftSubtype || "circuitikz-current-source-arrow-shaft",
       style,
       commands: [{ type: "moveTo", x: shaftStart.x, y: shaftStart.y }, { type: "lineTo", x: shaftEnd.x, y: shaftEnd.y }]
     },
     {
       type: "path",
-      subtype: "circuitikz-controlled-current-source-arrow",
+      subtype: config.headSubtype || "circuitikz-current-source-arrow-head",
       style: { ...style, fill: style.stroke },
       commands: [
         { type: "moveTo", x: base.x, y: base.y },

@@ -1,0 +1,14 @@
+% Adapted from the TeX Live circuitikz manual's current-source and currarrow examples.
+\documentclass[varwidth=true,border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}[thick]
+  \draw (0,0) to[isource, l=$I_E$] ++(2,0);
+  \draw (0,-1.5) to[american current source, l=$I_A$] ++(2,0);
+  \ctikzset{current arrow scale=8}
+  \draw (3,0) to[american current source, l=$I_8$] ++(2,0);
+  \ctikzset{current arrow scale=24}
+  \draw (3,-1.5) to[dcisource, l=$I_{24}$] ++(2,0);
+\end{circuitikz}
+\end{document}
