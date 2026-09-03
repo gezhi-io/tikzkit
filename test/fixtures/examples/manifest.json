@@ -5215,6 +5215,49 @@
         "arrow border clipping",
         "multi-line math text"
       ]
+    },
+    {
+      "id": "shapes-forbidden-sign-manual-catalog",
+      "title": "PGF forbidden-sign direction, sizing, and anchors",
+      "source": "shapes/forbidden-sign-manual-catalog.tex",
+      "sourceCorpus": "TeX Live PGF shapes.symbols manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry",
+      "features": [
+        "forbidden sign",
+        "correct forbidden sign",
+        "foreground path ordering",
+        "circle sizing and compass anchors",
+        "outer sep line inset"
+      ]
+    },
+    {
+      "id": "shapes-forbidden-sign-interlock-flow",
+      "title": "Safety interlock flowchart with a forbidden sign",
+      "source": "shapes/forbidden-sign-interlock-flow.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry",
+      "features": [
+        "flowchart",
+        "forbidden sign",
+        "circle border clipping",
+        "orthogonal routing",
+        "foreground diagonal over text"
+      ]
+    },
+    {
+      "id": "shapes-forbidden-sign-field-safety",
+      "title": "Magnetic field exclusion safety diagram",
+      "source": "shapes/forbidden-sign-field-safety.tex",
+      "sourceCorpus": "TikZKit physics and safety regression",
+      "semanticOwner": "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry",
+      "features": [
+        "physics safety diagram",
+        "correct forbidden sign",
+        "math text foreground crossing",
+        "north and south anchors",
+        "arrow border clipping"
+      ]
     }
   ]
 }

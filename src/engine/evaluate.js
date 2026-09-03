@@ -12,6 +12,8 @@ import {
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
 import {
+  forbiddenSignGeometry as symbolForbiddenSignGeometry,
+  isForbiddenSignShape as isSymbolForbiddenSignShape,
   magneticTapeBorderPoint as symbolMagneticTapeBorderPoint,
   magneticTapeGeometry as symbolMagneticTapeGeometry,
   magneticTapeLayoutSize as symbolMagneticTapeLayoutSize,
@@ -8904,7 +8906,7 @@ function resolveFitNodeLayout(options = {}, env = {}, nodeEnv = env) {
   if (shape === "ellipse") {
     width *= Math.SQRT2;
     height *= Math.SQRT2;
-  } else if (shape === "circle") {
+  } else if (shape === "circle" || isSymbolForbiddenSignShape(shape)) {
     const diameter = 2 * Math.hypot(width / 2, height / 2);
     width = diameter;
     height = diameter;
@@ -9128,7 +9130,7 @@ function addNodeItems(node, ir, env) {
       // Rectangle-like node renderers inset the geometry by half the stroke,
       // but SVG ellipses paint their stroke outside the supplied radii. Keep
       // that outer half-stroke in the scene bounds for circles and ellipses.
-      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse",
+      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse" && !isSymbolForbiddenSignShape(shape),
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
@@ -9209,6 +9211,17 @@ function addNodeItems(node, ir, env) {
       nodeLayoutHeight: hasExplicitLayoutBounds || skipsImplicitLayoutBounds ? undefined : size.height
     });
   }
+  const forbiddenSignForeground = forbiddenSignForegroundItem(
+    shape,
+    point,
+    size,
+    rotation,
+    style,
+    semantic,
+    node.options || {},
+    nodeEnv
+  );
+  if (forbiddenSignForeground) ir.items.push(forbiddenSignForeground);
   for (const label of nodeLabels(node.options || {}, point, size, nodeEnv, textStyle)) {
     ir.items.push(label);
   }
@@ -9219,6 +9232,37 @@ function addNodeItems(node, ir, env) {
   addAutomataAcceptingArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
   applyNodeOverlay(ir, firstItemIndex, overlay);
   applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
+}
+
+function forbiddenSignForegroundItem(shape, point, size, rotation, style, semantic, options, env) {
+  if (!isSymbolForbiddenSignShape(shape) || !(semantic.draw || style.stroke !== "none")) return null;
+  const outerSep = scaleNodeOuterSep(nodeOuterSep(options, env), env);
+  const geometry = symbolForbiddenSignGeometry(size, {
+    correct: shape === "correctForbiddenSign",
+    outerXSep: outerSep.x,
+    outerYSep: outerSep.y
+  });
+  const commands = geometry.commands.map((command) => {
+    const local = rotateVector(command.x, command.y, Number(rotation) || 0);
+    return {
+      ...command,
+      x: roundNumber(point.x + local.x),
+      y: roundNumber(point.y + local.y)
+    };
+  });
+  return createPathShape(commands, {
+    ...style,
+    fill: "none",
+    markerStart: undefined,
+    markerEnd: undefined,
+    pattern: undefined,
+    patternDefinition: undefined,
+    shading: undefined,
+    shadows: undefined
+  }, {
+    subtype: "forbidden-sign-foreground",
+    includeStrokeBounds: true
+  });
 }
 
 function addAutomataInitialArrow(node, point, semantic, nodeStyle, textStyle, textFont, env, ir) {
@@ -10902,7 +10946,7 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   if (halfWidth <= 0 || halfHeight <= 0) return roundPoint(center);
   const terminalPadding = Math.max(0, Number(borderPadding) || 0);
   let localPoint;
-  if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit") {
+  if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit" || isSymbolForbiddenSignShape(node.shape)) {
     const radius = Math.max(halfWidth, halfHeight) + terminalPadding;
     localPoint = { x: (localDx / localDistance) * radius, y: (localDy / localDistance) * radius };
   } else if (node.shape === "ellipse" || node.shape === "cloud") {
@@ -11075,6 +11119,8 @@ function nodeShape(options = {}) {
   if (options.signal) return "signal";
   if (options.tape) return "tape";
   if (options["magnetic tape"]) return "magneticTape";
+  if (options["correct forbidden sign"]) return "correctForbiddenSign";
+  if (options["forbidden sign"]) return "forbiddenSign";
   return "rectangle";
 }
 
@@ -11103,7 +11149,9 @@ function explicitNodeShape(shape) {
     cylinder: "cylinder",
     signal: "signal",
     tape: "tape",
-    "magnetic tape": "magneticTape"
+    "magnetic tape": "magneticTape",
+    "forbidden sign": "forbiddenSign",
+    "correct forbidden sign": "correctForbiddenSign"
   };
   return shapes[shape] || null;
 }
@@ -12267,6 +12315,11 @@ function estimateTkzAxisTickLabelSize(text, options = {}, env = { variables: {} 
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
   const size = visibleSize || estimateNodeLayoutSize(text, options, env);
   const outerSep = nodeOuterSep(options, env);
+  if (isSymbolForbiddenSignShape(nodeShape(options))) {
+    const radius = Math.max(Number(size.width) || 0, Number(size.height) || 0) / 2 + Math.max(outerSep.x, outerSep.y);
+    const diameter = roundNumber(radius * 2);
+    return { width: diameter, height: diameter };
+  }
   if (nodeShape(options) === "signal") {
     const geometry = symbolSignalGeometry(size, nodeShapeData(options, env, text));
     const minX = roundNumber(geometry.anchors.west.x - outerSep.x);
@@ -12580,7 +12633,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     }, shapeScale);
   }
   const shape = nodeShape(options);
-  const isCircleShape = shape === "circle" || shape === "circleCrossSplit";
+  const isCircleShape = shape === "circle" || shape === "circleCrossSplit" || isSymbolForbiddenSignShape(shape);
   const typewriter = nodeUsesTypewriterFont(normalized, options, env);
   const inlineMathLabelMetrics = Boolean(options["tikzkit inline math label metrics"]);
   const datavisLegendMathMetrics = Boolean(options["tikzkit datavis legend math metrics"]);
@@ -13117,7 +13170,8 @@ function explicitHspaceWidth(text, env = { variables: {} }) {
 }
 
 function fixedCircularMinimumSize(options = {}, env = { variables: {} }) {
-  if (!(options.circle || options.shape === "circle") || !options["minimum size"]) return null;
+  const shape = nodeShape(options);
+  if (!(shape === "circle" || isSymbolForbiddenSignShape(shape)) || !options["minimum size"]) return null;
   const size = parseNodeLengthDimension(options["minimum size"], env);
   return Number.isFinite(size) && size > 0 ? size : null;
 }
@@ -16913,12 +16967,12 @@ function tikzquadsInnerExt(halfSize) {
 }
 
 function shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight) {
-  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleCrossSplit" && shape !== "ellipse") return null;
+  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleCrossSplit" && shape !== "ellipse" && !isSymbolForbiddenSignShape(shape)) return null;
   if (halfWidth <= 0 || halfHeight <= 0) return null;
   const dx = anchor.includes("east") ? 1 : anchor.includes("west") ? -1 : 0;
   const dy = anchor.includes("north") ? 1 : anchor.includes("south") ? -1 : 0;
   if (!dx && !dy) return null;
-  if (shape === "circle" || shape === "circleSplit" || shape === "circleCrossSplit") {
+  if (shape === "circle" || shape === "circleSplit" || shape === "circleCrossSplit" || isSymbolForbiddenSignShape(shape)) {
     const radius = Math.max(halfWidth, halfHeight);
     const length = Math.hypot(dx, dy) || 1;
     return { x: (dx / length) * radius, y: (dy / length) * radius };

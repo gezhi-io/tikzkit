@@ -3,10 +3,12 @@ const NOWHERE = "nowhere";
 export const tikzLibrary = {
   name: "shapes.symbols",
   status: "partial",
-  implementedBy: "src/tikz/libraries/shapes.symbols.js:parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
+  implementedBy: "src/tikz/libraries/shapes.symbols.js:forbiddenSignGeometry/parseSignalDirections/signalLayoutSize/signalGeometry/signalBorderPoint/tapeLayoutSize/tapeGeometry/tapeBorderPoint/magneticTapeLayoutSize/magneticTapeGeometry/magneticTapeBorderPoint + src/engine/evaluate.js:nodeShape/estimateNodeSize/nodeAnchorOffset/nodeBorderPoint/forbiddenSignForegroundItem + src/tikz/textMetrics.js:estimateFormulaParts + src/renderers/svg/renderSvg.js + src/renderers/svg/nodeShapes.js + src/renderers/svg/bounds.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.symbols.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
   features: [
+    "forbidden sign and correct forbidden sign",
+    "forbidden-sign circle inheritance and foreground diagonal",
     "signal shape",
     "signal to/from compass directions",
     "signal pointer angle",
@@ -18,6 +20,8 @@ export const tikzLibrary = {
     "magnetic tape compass/tail anchors and border clipping"
   ],
   implements: [
+    "forbidden sign",
+    "correct forbidden sign",
     "signal",
     "signal to",
     "signal from",
@@ -31,8 +35,39 @@ export const tikzLibrary = {
     "magnetic tape tail",
     "magnetic tape tail extend"
   ],
-  notes: "Implements the PGF signal, tape, and magnetic-tape node families. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Other shapes.symbols nodes remain unsupported."
+  notes: "Implements the PGF forbidden-sign, signal, tape, and magnetic-tape node families. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Other shapes.symbols nodes remain unsupported."
 };
+
+export function isForbiddenSignShape(shape) {
+  const normalized = String(shape || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  return normalized === "forbiddensign" || normalized === "correctforbiddensign";
+}
+
+export function forbiddenSignGeometry(size = {}, data = {}) {
+  const paintedRadius = Math.max(0, positive(size.width), positive(size.height)) / 2;
+  const outerSep = Math.max(positive(data.outerXSep), positive(data.outerYSep));
+  const savedRadius = paintedRadius + outerSep;
+  const visibleRadius = Math.max(0, savedRadius - outerSep);
+  const diagonalRadius = visibleRadius * 0.707107;
+  const correct = Boolean(data.correct);
+  const commands = correct
+    ? [
+        { type: "moveTo", x: diagonalRadius, y: -diagonalRadius },
+        { type: "lineTo", x: -diagonalRadius, y: diagonalRadius }
+      ]
+    : [
+        { type: "moveTo", x: -diagonalRadius, y: -diagonalRadius },
+        { type: "lineTo", x: diagonalRadius, y: diagonalRadius }
+      ];
+  return {
+    correct,
+    paintedRadius: round(paintedRadius),
+    outerSep: round(outerSep),
+    savedRadius: round(savedRadius),
+    diagonalRadius: round(diagonalRadius),
+    commands: commands.map(roundCommand)
+  };
+}
 
 export function parseSignalDirections(signalFrom = "nowhere", signalTo = "east") {
   const directions = {
