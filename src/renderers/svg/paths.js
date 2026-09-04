@@ -22,6 +22,7 @@ import {
   legacyCircleArrowMetrics,
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
+  legacyHookArrowMetrics,
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.js";
@@ -368,7 +369,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     || isLegacyOpenTriangleTip(raw.kind)
     || isLegacyOpenDiamondTip(raw.kind)
     || isLegacyOpenSquareTip(raw.kind)
-    || isLegacyOpenCircleTip(raw.kind);
+    || isLegacyOpenCircleTip(raw.kind)
+    || isLegacyHookTip(raw.kind);
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
@@ -391,7 +393,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
     lineCap: isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
-    lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
+    lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -468,6 +470,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacySquare) return legacySquareInlineGeometry(legacySquare);
   const legacyCircle = legacyCircleArrowMetrics(tip.kind, lineWidth);
   if (legacyCircle) return legacyCircleInlineGeometry(legacyCircle);
+  const legacyHook = legacyHookArrowMetrics(tip.kind, lineWidth);
+  if (legacyHook) return legacyHookInlineGeometry(legacyHook);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -826,6 +830,10 @@ function isLegacyFilledCircleTip(kind) {
   return String(kind || "") === "legacy-filled-circle";
 }
 
+function isLegacyHookTip(kind) {
+  return /^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(String(kind || ""));
+}
+
 function legacySquareInlineGeometry(metrics) {
   return {
     path: [
@@ -869,6 +877,34 @@ function legacyCircleInlineGeometry(metrics) {
       maxX: right,
       minY: -metrics.radius,
       maxY: metrics.radius
+    }
+  };
+}
+
+function legacyHookInlineGeometry(metrics) {
+  const horizontal = metrics.reversed ? -1 : 1;
+  const hookPath = (vertical, includeStem) => [
+    includeStem
+      ? `M 0 0 L ${format(horizontal * 0.75 * metrics.unit)} 0`
+      : `M ${format(horizontal * 0.75 * metrics.unit)} 0`,
+    `C ${format(horizontal * 2.415 * metrics.unit)} 0 ${format(horizontal * 3.75 * metrics.unit)} ${format(vertical * 1.665 * metrics.unit)} ${format(horizontal * 3.75 * metrics.unit)} ${format(vertical * 3 * metrics.unit)}`,
+    `C ${format(horizontal * 3.75 * metrics.unit)} ${format(vertical * 4.665 * metrics.unit)} ${format(horizontal * 2.415 * metrics.unit)} ${format(vertical * 6 * metrics.unit)} ${format(horizontal * 0.75 * metrics.unit)} ${format(vertical * 6 * metrics.unit)}`
+  ].join(" ");
+  const paths = [];
+  if (metrics.side === "left" || metrics.side === "both") paths.push(hookPath(-1, true));
+  if (metrics.side === "right" || metrics.side === "both") paths.push(hookPath(1, paths.length === 0));
+
+  return {
+    path: paths.join(" "),
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds: {
+      minX: metrics.minX,
+      maxX: metrics.maxX,
+      minY: -metrics.maxY,
+      maxY: -metrics.minY
     }
   };
 }

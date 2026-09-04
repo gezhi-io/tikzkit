@@ -5816,6 +5816,33 @@
       "features": ["arrows", "square", "open square", "*", "o", "double ended", "physics vectors"]
     },
     {
+      "id": "arrows-legacy-hooks-flowchart",
+      "title": "Legacy hook terminals in a validation flow",
+      "source": "arrows/legacy-hooks-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyHookArrowMetrics + src/renderers/svg/paths.js:legacyHookInlineGeometry",
+      "features": ["arrows", "left hook", "right hook", "hooks", "reversed", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-legacy-hooks-math",
+      "title": "Legacy hook terminals on mathematical maps",
+      "source": "arrows/legacy-hooks-math.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyHookArrowMetrics + src/renderers/svg/paths.js:legacyHookInlineGeometry",
+      "features": ["arrows", "left hook", "right hook", "hooks", "reversed", "curved map", "mathematical maps"]
+    },
+    {
+      "id": "arrows-legacy-hooks-physics",
+      "title": "Legacy hook terminals on physical vectors",
+      "source": "arrows/legacy-hooks-physics.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyHookArrowMetrics + src/renderers/svg/paths.js:legacyHookInlineGeometry",
+      "features": ["arrows", "left hook", "right hook", "hooks", "reversed", "diagonal", "curved path", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

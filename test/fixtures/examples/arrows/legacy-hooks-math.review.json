@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "TikZ loads the path engine before the arrows library." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "\\usetikzlibrary"], "findings": "Styles, labels, and curved to paths resolve before arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right", "below", "node distance"], "findings": "Positioning resolves circular node placement." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["\\pgfarrowsdeclare{left hook}", "\\pgfarrowsdeclare{right hook}", "\\pgfarrowsdeclare{hooks}", "\\pgfarrowsdeclarereversed"], "findings": "Single-sided and double-sided hooks share exact cubic control factors and active-line-width dimensions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclarereversed", "\\pgfarrowsleftextend", "\\pgfarrowsrightextend"], "findings": "Reversed arrow assembly mirrors x coordinates and swaps the active path extent." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["left hook", "right hook", "hooks", "reversed"], "findings": "The manual exposes each hook spelling as a distinct legacy arrow tip." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-hooks.test.js", "docs/qa/2026-09-04-arrows-legacy-hooks.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-hooks.test.js", "docs/qa/2026-09-04-arrows-legacy-hooks.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-hooks.test.js", "docs/qa/2026-09-04-arrows-legacy-hooks.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-hooks.test.js", "docs/qa/2026-09-04-arrows-legacy-hooks.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-hooks.test.js", "docs/qa/2026-09-04-arrows-legacy-hooks.md"] }
+  ]
+}

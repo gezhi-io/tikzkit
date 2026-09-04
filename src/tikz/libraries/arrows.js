@@ -5,7 +5,7 @@ import { lineWidthFromPt, TIKZ_UNIT } from "../metrics.js";
 export const tikzLibrary = {
   "name": "arrows",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacyCircleArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/legacyCircleInlineGeometry + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
+  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacyCircleArrowMetrics/legacyHookArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/legacyCircleInlineGeometry/legacyHookInlineGeometry + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   "localSourceReviewed": true,
@@ -25,6 +25,8 @@ export const tikzLibrary = {
     "legacy diamond fillstroke versus open-diamond stroke paint semantics",
     "legacy square, open square, filled dot *, and open dot o tips at path starts and ends",
     "legacy square/dot fillstroke versus open-tip stroke paint semantics",
+    "legacy left hook, left hook reversed, right hook, right hook reversed, hooks, and hooks reversed tips at path starts and ends",
+    "legacy hook active-line-width cubic geometry, asymmetric shortening, stroke-only paint, and round caps",
     "active-line-width legacy tip geometry and backend/tipend shaft shortening",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
@@ -46,12 +48,14 @@ export const tikzLibrary = {
     "legacy diamond fillstroke versus open-diamond stroke paint semantics",
     "legacy square, open square, filled dot *, and open dot o tips at path starts and ends",
     "legacy square/dot fillstroke versus open-tip stroke paint semantics",
+    "legacy left hook, left hook reversed, right hook, right hook reversed, hooks, and hooks reversed tips at path starts and ends",
+    "legacy hook active-line-width cubic geometry, asymmetric shortening, stroke-only paint, and round caps",
     "active-line-width legacy tip geometry and backend/tipend shaft shortening",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
     "curved terminal arrow crops on circular, elliptical, regular-polygon, rectangle, diamond, star, and trapezium nodes, including focused convex polygon-corner miters"
   ],
-  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. The focused 2026-08-07 trapezium slice intersects the fully mitered offset convex polygon contour, avoiding the prior arbitrary adjacent-side choice at a shared corner. `arrows-shape-curved-terminal-miters` is the permanent visual driver. On 2026-09-04, built-in arrows.meta sequences gained source-derived per-tip separation; the arrows.meta registry records that shared capability. Also on 2026-09-04, pgflibraryarrows.code.tex and pgfcorearrows.code.tex were reviewed for the legacy delimiter slice: square/round brackets and angle 90/60/45, including reversed spellings, now use the source formulas for active-line-width aperture, backend, tip end, cap/join, and shaft shortening. The flowchart, number-line, and force-vector fixtures are strict semantic and three-reference visual drivers. A second 2026-09-04 source review covered the filled and open triangle 90/60/45 families. TikZKit now applies d=.5pt+.25*linewidth, source-specific aperture and backend/tipend formulas, fillstroke for filled tips, stroke-only rendering for open tips, and the independently declared reversed open-tip extents. The repair-flow, mathematical-map, and free-body fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A third 2026-09-04 review covered the public legacy diamond and open diamond declarations. TikZKit now preserves lower-case diamond separately from arrows.meta Diamond, applies d=.4pt+.275*linewidth, source-specific backend/tipend shortening, round joins with butt caps, fillstroke for diamond, and stroke-only rendering for open diamond at either path end. The validation-flow, mathematical-map, and vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A fourth 2026-09-04 review covered square, open square, filled dot `*`, and open dot `o`. TikZKit now applies the source formulas d=.4pt+.275*linewidth for squares and d=.4pt+.2*linewidth for dots, keeps lower-case legacy names distinct from arrows.meta Square/Circle, and uses each declaration's backend/tipend, paint, cap, join, and local reference origin. The release-flow, quotient-map, and vector-field fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Legacy hook, cap, implies, and spaced-arrow families, concave/custom shape miters, and full declared-arrow hulls remain partial."
+  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. The focused 2026-08-07 trapezium slice intersects the fully mitered offset convex polygon contour, avoiding the prior arbitrary adjacent-side choice at a shared corner. `arrows-shape-curved-terminal-miters` is the permanent visual driver. On 2026-09-04, built-in arrows.meta sequences gained source-derived per-tip separation; the arrows.meta registry records that shared capability. Also on 2026-09-04, pgflibraryarrows.code.tex and pgfcorearrows.code.tex were reviewed for the legacy delimiter slice: square/round brackets and angle 90/60/45, including reversed spellings, now use the source formulas for active-line-width aperture, backend, tip end, cap/join, and shaft shortening. The flowchart, number-line, and force-vector fixtures are strict semantic and three-reference visual drivers. A second 2026-09-04 source review covered the filled and open triangle 90/60/45 families. TikZKit now applies d=.5pt+.25*linewidth, source-specific aperture and backend/tipend formulas, fillstroke for filled tips, stroke-only rendering for open tips, and the independently declared reversed open-tip extents. The repair-flow, mathematical-map, and free-body fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A third 2026-09-04 review covered the public legacy diamond and open diamond declarations. TikZKit now preserves lower-case diamond separately from arrows.meta Diamond, applies d=.4pt+.275*linewidth, source-specific backend/tipend shortening, round joins with butt caps, fillstroke for diamond, and stroke-only rendering for open diamond at either path end. The validation-flow, mathematical-map, and vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A fourth 2026-09-04 review covered square, open square, filled dot `*`, and open dot `o`. TikZKit now applies the source formulas d=.4pt+.275*linewidth for squares and d=.4pt+.2*linewidth for dots, keeps lower-case legacy names distinct from arrows.meta Square/Circle, and uses each declaration's backend/tipend, paint, cap, join, and local reference origin. The release-flow, quotient-map, and vector-field fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A fifth 2026-09-04 review covered left hook, right hook, hooks, and their reversed declarations. TikZKit now applies d=.4pt+.2*linewidth, the exact 0.75/2.415/3.75 and 1.665/3/4.665/6 cubic factors, asymmetric backend/tipend placement, x-only reversal, stroke-only paint, round caps, and miter joins. The validation-flow, mathematical-map, and vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Legacy cap, implies, and spaced-arrow families, concave/custom shape miters, and full declared-arrow hulls remain partial."
 };
 
 export function legacyDelimiterArrowMetrics(kind, lineWidth) {
@@ -239,6 +243,39 @@ export function legacyCircleArrowMetrics(kind, lineWidth) {
     assemblyLength: pt(tipEndPt - backEndPt),
     centerX: pt(centerPt),
     radius: pt(radiusPt)
+  };
+}
+
+export function legacyHookArrowMetrics(kind, lineWidth) {
+  const source = String(kind || "").trim().toLowerCase();
+  const match = source.match(/^legacy-(?:(left|right)-hook|hooks)(-reversed)?$/u);
+  if (!match) return null;
+
+  const side = match[1] || "both";
+  const reversed = Boolean(match[2]);
+  const unitsPerPt = lineWidthFromPt(1);
+  const lineWidthPt = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4)) / unitsPerPt;
+  const unitPt = 0.4 + 0.2 * lineWidthPt;
+  const backEndPt = -0.5 * lineWidthPt;
+  const tipEndPt = 3.75 * unitPt + 0.5 * lineWidthPt;
+  const pt = (value) => lineWidthFromPt(value);
+  const minYFactor = side === "right" || side === "both" ? -6 : 0;
+  const maxYFactor = side === "left" || side === "both" ? 6 : 0;
+
+  return {
+    shape: "hook",
+    side,
+    reversed,
+    unit: pt(unitPt),
+    lineWidth: pt(lineWidthPt),
+    backEnd: pt(backEndPt),
+    tipEnd: pt(tipEndPt),
+    placement: pt(reversed ? -backEndPt : tipEndPt),
+    assemblyLength: pt(tipEndPt - backEndPt),
+    minX: pt(reversed ? -3.75 * unitPt : 0),
+    maxX: pt(reversed ? 0 : 3.75 * unitPt),
+    minY: pt(minYFactor * unitPt),
+    maxY: pt(maxYFactor * unitPt)
   };
 }
 

@@ -251,6 +251,9 @@ function legacyArrowTipBase(kind) {
   if (kind === "legacy-open-circle") {
     return { ...TIKZ_ARROW_TIPS["open-circle"], fill: "none", stroke: "context-stroke" };
   }
+  if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.hook, fill: "none", stroke: "context-stroke" };
+  }
   return undefined;
 }
 
@@ -519,6 +522,7 @@ function normalizeArrowKind(kind) {
   const source = String(kind || "to").trim().replace(/^>$/, "to");
   if (/^stealth\s*'$/i.test(source)) return "stealth-prime";
   const text = source.replace(/'/g, "").toLowerCase();
+  if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (text === "square bracket" || text === "[") return "square-bracket";
   if (text === "square bracket reversed" || text === "]") return "square-bracket-reversed";
   if (text === "(" || text === "round bracket reversed") return "round-bracket-reversed";
@@ -539,6 +543,12 @@ function normalizeArrowKind(kind) {
   if (source === "Open Circle") return "open-circle";
   if (source === "*") return "legacy-filled-circle";
   if (source === "o") return "legacy-open-circle";
+  if (source === "Hook" || source === "Hooks") return "hook";
+  const legacyHook = text.match(/^(?:(left|right)\s+hook|hooks)(\s+reversed)?$/u);
+  if (legacyHook) {
+    const base = legacyHook[1] ? `${legacyHook[1]}-hook` : "hooks";
+    return `legacy-${base}${legacyHook[2] ? "-reversed" : ""}`;
+  }
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";
