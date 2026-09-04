@@ -154,14 +154,23 @@ export function arrowBoxBorderPoint(geometry = {}, toward = {}, padding = 0) {
   const direction = { x: Number(toward.x) || 0, y: Number(toward.y) || 0 };
   if (Math.hypot(direction.x, direction.y) < ARROW_BOX_EPSILON) return { x: 0, y: 0 };
   const distance = Math.max(0, Number(padding) || 0);
-  const points = distance > ARROW_BOX_EPSILON
-    ? anisotropicMiterOffsetPolygon(
-        geometry.visibleBoundaryPoints || [],
-        finiteNonnegative(geometry.outerXSep, 0) + distance,
-        finiteNonnegative(geometry.outerYSep, 0) + distance
-      )
-    : geometry.outerBoundaryPoints || geometry.visibleBoundaryPoints || [];
-  return rayPolygonPoint({ x: 0, y: 0 }, direction, points) || { x: 0, y: 0 };
+  const resolvedGeometry = distance > ARROW_BOX_EPSILON
+    ? arrowBoxGeometry({}, {
+        arrowBoxBodyHalfWidth: geometry.bodyHalfWidth,
+        arrowBoxBodyHalfHeight: geometry.bodyHalfHeight,
+        arrowBoxNorthExtend: geometry.northExtend,
+        arrowBoxSouthExtend: geometry.southExtend,
+        arrowBoxEastExtend: geometry.eastExtend,
+        arrowBoxWestExtend: geometry.westExtend,
+        arrowBoxShaftWidth: geometry.shaftWidth,
+        arrowBoxHeadExtend: geometry.headExtend,
+        arrowBoxHeadIndent: geometry.headIndent,
+        arrowBoxTipAngle: geometry.tipAngle,
+        arrowBoxOuterXSep: finiteNonnegative(geometry.outerXSep, 0) + distance,
+        arrowBoxOuterYSep: finiteNonnegative(geometry.outerYSep, 0) + distance
+      })
+    : geometry;
+  return arrowBoxPgfBorderPoint(resolvedGeometry.anchors || {}, direction);
 }
 
 function arrowBoxVertices(parameters) {
@@ -283,11 +292,118 @@ function arrowBoxAnchors(vertices, outerPoints, dimensions) {
     ]) anchors[name] = side.south;
   }
   if (!(dimensions.southExtend > 0)) anchors["south arrow tip"] = side.east;
-  anchors["base east"] = rayPolygonPoint(anchors.base, { x: 1, y: 0 }, outerPoints) || side.east;
-  anchors["base west"] = rayPolygonPoint(anchors.base, { x: -1, y: 0 }, outerPoints) || side.west;
-  anchors["mid east"] = rayPolygonPoint(anchors.mid, { x: 1, y: 0 }, outerPoints) || side.east;
-  anchors["mid west"] = rayPolygonPoint(anchors.mid, { x: -1, y: 0 }, outerPoints) || side.west;
+  anchors["base east"] = dimensions.eastExtend > 0
+    ? arrowBoxPgfBorderPoint(anchors, { x: dimensions.eastExtend, y: 0 }, anchors.base)
+    : { x: side.east.x, y: anchors.base.y };
+  anchors["base west"] = dimensions.westExtend > 0
+    ? arrowBoxPgfBorderPoint(anchors, { x: -dimensions.westExtend, y: 0 }, anchors.base)
+    : { x: side.west.x, y: anchors.base.y };
+  anchors["mid east"] = dimensions.eastExtend > 0
+    ? arrowBoxPgfBorderPoint(anchors, { x: dimensions.eastExtend, y: 0 }, anchors.mid)
+    : { x: side.east.x, y: anchors.mid.y };
+  anchors["mid west"] = dimensions.westExtend > 0
+    ? arrowBoxPgfBorderPoint(anchors, { x: -dimensions.westExtend, y: 0 }, anchors.mid)
+    : { x: side.west.x, y: anchors.mid.y };
   return Object.fromEntries(Object.entries(anchors).map(([name, point]) => [name, roundPoint(point)]));
+}
+
+function arrowBoxPgfBorderPoint(anchors, externalVector, reference = { x: 0, y: 0 }) {
+  const direction = {
+    x: Number(externalVector?.x) || 0,
+    y: Number(externalVector?.y) || 0
+  };
+  if (Math.hypot(direction.x, direction.y) < ARROW_BOX_EPSILON) return roundPoint(reference);
+
+  const externalPoint = {
+    x: reference.x + direction.x,
+    y: reference.y + direction.y
+  };
+  const externalAngle = pointAngle(externalPoint);
+  const anchor = (name) => anchors[name]
+    || (name === "before north head" ? anchors["before north arrow head"] : null)
+    || { x: 0, y: 0 };
+  const before = (name) => externalAngle < pointAngle(anchor(name), reference);
+  let edge;
+
+  // This decision tree mirrors pgflibraryshapes.arrows.code.tex. It is not
+  // equivalent to taking the nearest intersection with the painted polygon:
+  // hidden directional anchors deliberately participate in sector selection.
+  if (before("west")) {
+    if (before("north")) {
+      if (before("north east")) {
+        if (before("before east arrow tip")) {
+          edge = ["east arrow tip", "before east arrow tip"];
+        } else if (before("before east arrow")) {
+          edge = ["before east arrow head", "before east arrow"];
+        } else {
+          edge = ["before east arrow", "north east"];
+        }
+      } else if (before("after north arrow tip")) {
+        edge = before("after north arrow")
+          ? ["north east", "after north arrow"]
+          : ["after north arrow", "after north arrow head"];
+      } else {
+        edge = ["after north arrow tip", "north arrow tip"];
+      }
+    } else if (before("north west")) {
+      if (before("before north arrow tip")) {
+        edge = ["north arrow tip", "before north arrow tip"];
+      } else if (before("before north arrow")) {
+        edge = ["before north head", "before north arrow"];
+      } else {
+        edge = ["before north arrow", "north west"];
+      }
+    } else if (before("after west arrow tip")) {
+      edge = before("after west arrow")
+        ? ["north west", "after west arrow"]
+        : ["after west arrow", "after west arrow head"];
+    } else {
+      edge = ["after west arrow tip", "west arrow tip"];
+    }
+  } else if (before("south arrow tip")) {
+    if (before("south west")) {
+      if (before("before west arrow tip")) {
+        edge = ["west arrow tip", "before west arrow tip"];
+      } else if (before("before west arrow")) {
+        edge = ["before west arrow head", "before west arrow"];
+      } else {
+        edge = ["before west arrow", "south west"];
+      }
+    } else if (before("after south arrow tip")) {
+      edge = before("after south arrow")
+        ? ["south west", "after south arrow"]
+        : ["after south arrow", "after south arrow head"];
+    } else {
+      edge = ["after south arrow tip", "south arrow tip"];
+    }
+  } else if (before("south east")) {
+    if (before("before south arrow tip")) {
+      edge = ["south arrow tip", "before south arrow tip"];
+    } else if (before("before south arrow")) {
+      edge = ["before south arrow head", "before south arrow"];
+    } else {
+      edge = ["before south arrow", "south east"];
+    }
+  } else if (before("after east arrow tip")) {
+    edge = before("after east arrow")
+      ? ["south east", "after east arrow"]
+      : ["after east arrow", "after east arrow head"];
+  } else {
+    edge = ["after east arrow tip", "east arrow tip"];
+  }
+
+  const first = anchor(edge[0]);
+  const second = anchor(edge[1]);
+  const hit = infiniteLineIntersection(reference, direction, first, {
+    x: second.x - first.x,
+    y: second.y - first.y
+  });
+  return roundPoint(hit || reference);
+}
+
+function pointAngle(point, origin = { x: 0, y: 0 }) {
+  const angle = Math.atan2(point.y - origin.y, point.x - origin.x) * 180 / Math.PI;
+  return angle < 0 ? angle + 360 : angle;
 }
 
 function reflectPointY(point) {
@@ -419,12 +535,13 @@ export const tikzLibrary = {
     "single/double-arrow named anchors",
     "arrow box four-direction geometry",
     "arrow box border-relative and center-relative lengths",
-    "arrow box named and numeric anchors"
+    "arrow box named and numeric anchors",
+    "arrow box PGF angular-sector border intersections"
   ],
   "implements": [
     "single arrow",
     "double arrow",
     "arrow box"
   ],
-  "notes": "Reviewed locally on 2026-09-04 against pgflibraryshapes.arrows.code.tex and the PGF shapes manual. `single arrow`, `double arrow`, and `arrow box` use source-derived geometry records shared by SVG rendering, border clipping, named/numeric anchors, and bounds. Arrow box supports four independent arrows, the reset-and-reuse `arrow box arrows` shorthand, border-relative and `from center` lengths, shaft width, head extend/indent, tip angle, outer separation, rotation, and the documented before/head/tip/after anchors, including TeX Live 2025's north-derived special south anchors and hidden-tip fallback. Permanent flowchart, mathematics, and physics drivers are under test/fixtures/examples/shapes; evidence is in docs/qa/2026-09-04-shapes-arrows-arrow-box.md. Remaining partial work is exact TeX text metrics and exhaustive degenerate/negative-dimension parity across all arrow shapes."
+  "notes": "Reviewed locally on 2026-09-04 and 2026-09-05 against pgflibraryshapes.arrows.code.tex, pgfmoduleshapes.code.tex, and the PGF shapes manual. `single arrow`, `double arrow`, and `arrow box` use source-derived geometry records shared by SVG rendering, border clipping, named/numeric anchors, and bounds. Arrow box supports four independent arrows, the reset-and-reuse `arrow box arrows` shorthand, border-relative and `from center` lengths, shaft width, head extend/indent, tip angle, outer separation, rotation, and the documented before/head/tip/after anchors, including TeX Live 2025's north-derived special south anchors and hidden-tip fallback. Automatic, numeric, base, and mid border anchors now reproduce PGF's fixed angular-sector decision tree before intersecting the selected named-anchor edge; this intentionally preserves the hidden-south fallback that can route a westward connection to the east side. Permanent flowchart, mathematics, and physics drivers are under test/fixtures/examples/shapes; evidence is in docs/qa/2026-09-04-shapes-arrows-arrow-box.md and docs/qa/2026-09-05-shapes-arrows-arrow-box-border.md. Remaining partial work is exact TeX text metrics and exhaustive degenerate/negative-dimension parity across all arrow shapes."
 };

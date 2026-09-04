@@ -88,13 +88,12 @@ shaft shoulders, head angles, special and numeric anchor dots, rotation, and
 one-centimeter grid with both references. In particular, the unequal north and
 south lengths expose PGF's north-derived south-anchor behavior and now agree.
 Their remaining visible differences are predominantly browser-versus-Computer-
-Modern glyph rasterization and subpixel stroke antialiasing. The flowchart now
-has the same asymmetric west/east silhouettes and placement sequence; its
-browser panel is wider because the existing text and `positioning` metrics
-still differ from TeX. PGF's automatic clipping can also choose a shoulder
-segment that lets the reference connector cross part of an arrow head, while
-TikZKit chooses the first outward ray intersection. That residual is documented
-rather than hidden by case-specific coordinates.
+Modern glyph rasterization and subpixel stroke antialiasing. The flowchart has
+the same asymmetric west/east silhouettes and placement sequence; its browser
+panel is wider because the existing text and `positioning` metrics still differ
+from TeX. The remaining automatic-border intersection discrepancy was resolved
+in the 2026-09-05 follow-up by porting PGF's named-anchor angular-sector
+decision tree; see `docs/qa/2026-09-05-shapes-arrows-arrow-box-border.md`.
 
 All three after cases have zero TikZKit diagnostics and zero external-render
 failures. Pixel metrics remain supporting evidence only; the sheets were

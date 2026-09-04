@@ -10,7 +10,7 @@
   "localSourceNotes": {
     "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "to"], "findings": "Core TikZ resolves inherited node styles, automatic border clipping, and curved retry paths." },
     "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "node distance"], "findings": "Positioning uses the resolved outer anchor contour, including asymmetric arrows." },
-    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex": { "symbols": ["arrow box", "arrow box arrows", "arrow box shaft width", "arrow box head extend"], "findings": "The main rectangle and each optional directional arrow share a single clockwise polygon path." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex": { "symbols": ["arrow box", "arrow box arrows", "arrow box shaft width", "arrow box head extend", "anchorborder"], "findings": "The main rectangle and each optional directional arrow share a single clockwise polygon path. Automatic borders first use a fixed angular decision tree to choose two named anchors, then intersect that edge with the center-to-external line; they do not take the nearest painted-polygon hit." },
     "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["arrow box arrows", "from center"], "findings": "The manual distinguishes border-relative and center-relative arrow lengths." }
   },
   "rules": [

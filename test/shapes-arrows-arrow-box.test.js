@@ -134,6 +134,25 @@ test("arrow box preserves PGF's hidden-south anchor fallbacks", () => {
   assert.deepEqual(geometry.anchors["south arrow tip"], geometry.anchors.east);
 });
 
+test("arrow box border follows PGF's hidden-south angular sectors", () => {
+  const layout = arrowBoxLayoutSize(2.4, 1, {
+    arrows: {
+      east: { length: 0.8, fromCenter: false },
+      west: { length: 0.6, fromCenter: false },
+      north: { length: 0, fromCenter: false },
+      south: { length: 0, fromCenter: false }
+    }
+  });
+  const geometry = arrowBoxGeometry(layout, layout);
+  const westward = arrowBoxBorderPoint(geometry, { x: -10, y: 0 });
+
+  // This is intentionally not the nearest visible polygon intersection.
+  // PGF's 2025 arrow-box border selector routes the 180-degree sector through
+  // the hidden south-tip fallback, whose anchor is the east side.
+  close(westward.x, geometry.anchors.east.x);
+  close(westward.y, geometry.anchors.east.y);
+});
+
 test("TikZ arrow box rendering shares geometry with anchors and clipping", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{arrows.meta,shapes.arrows}
