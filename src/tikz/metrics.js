@@ -192,21 +192,10 @@ export const TIKZ_ARROW_TIPS = {
 
 export function createArrowTip(kind = "to", overrides = {}) {
   const sourceKind = String(kind || "to").trim().replace(/^>$/, "to");
-  const normalizedKind = normalizeArrowKind(sourceKind);
-  const legacyFilledTriangle = /^triangle-(?:90|60|45)(?:-reversed)?$/u.test(normalizedKind);
-  const legacyOpenTriangle = /^open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(normalizedKind);
-  const legacyFilledDiamond = normalizedKind === "legacy-diamond";
-  const legacyOpenDiamond = normalizedKind === "legacy-open-diamond";
-  const base = TIKZ_ARROW_TIPS[normalizedKind]
-    || (legacyFilledTriangle
-      ? { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke", stroke: "context-stroke" }
-      : legacyOpenTriangle
-        ? TIKZ_ARROW_TIPS["open-triangle"]
-        : legacyFilledDiamond
-          ? { ...TIKZ_ARROW_TIPS.kite, fill: "context-stroke", stroke: "context-stroke" }
-          : legacyOpenDiamond
-            ? { ...TIKZ_ARROW_TIPS.kite, fill: "none", stroke: "context-stroke" }
-        : TIKZ_ARROW_TIPS.to);
+  const normalizedKind = overrides.meta === true && sourceKind === "square"
+    ? "square"
+    : normalizeArrowKind(sourceKind);
+  const base = TIKZ_ARROW_TIPS[normalizedKind] || legacyArrowTipBase(normalizedKind) || TIKZ_ARROW_TIPS.to;
   const legacy = normalizedKind === "latex"
     ? Object.hasOwn(overrides, "legacy")
       ? overrides.legacy === true
@@ -221,7 +210,11 @@ export function createArrowTip(kind = "to", overrides = {}) {
       : normalizedKind === "latex"
         ? !legacy
         : sourceKind === "Stealth"
-    : undefined;
+    : normalizedKind === "square"
+      ? Object.hasOwn(overrides, "meta")
+        ? overrides.meta === true
+        : sourceKind === "Square" || sourceKind === "Rectangle"
+      : undefined;
   return {
     ...base,
     ...overrides,
@@ -229,8 +222,36 @@ export function createArrowTip(kind = "to", overrides = {}) {
     // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
     // the source spelling so their geometry can stay distinct downstream.
     ...(normalizedKind === "latex" ? { legacy } : {}),
-    ...(["latex", "stealth"].includes(normalizedKind) ? { meta } : {})
+    ...(["latex", "stealth", "square"].includes(normalizedKind) ? { meta } : {})
   };
+}
+
+function legacyArrowTipBase(kind) {
+  if (/^triangle-(?:90|60|45)(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke", stroke: "context-stroke" };
+  }
+  if (/^open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(kind)) {
+    return TIKZ_ARROW_TIPS["open-triangle"];
+  }
+  if (kind === "legacy-diamond") {
+    return { ...TIKZ_ARROW_TIPS.kite, fill: "context-stroke", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-open-diamond") {
+    return { ...TIKZ_ARROW_TIPS.kite, fill: "none", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-square") {
+    return { ...TIKZ_ARROW_TIPS.square, fill: "context-stroke", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-open-square") {
+    return { ...TIKZ_ARROW_TIPS.square, fill: "none", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-filled-circle") {
+    return { ...TIKZ_ARROW_TIPS.circle, fill: "context-stroke", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-open-circle") {
+    return { ...TIKZ_ARROW_TIPS["open-circle"], fill: "none", stroke: "context-stroke" };
+  }
+  return undefined;
 }
 
 export function legacyLatexArrowGeometryFromLineWidth(lineWidth) {
@@ -511,6 +532,13 @@ function normalizeArrowKind(kind) {
   if (source === "Diamond") return "kite";
   if (text === "diamond") return "legacy-diamond";
   if (text === "open diamond") return "legacy-open-diamond";
+  if (source === "Square" || source === "Rectangle") return "square";
+  if (text === "square") return "legacy-square";
+  if (text === "open square") return "legacy-open-square";
+  if (source === "Circle") return "circle";
+  if (source === "Open Circle") return "open-circle";
+  if (source === "*") return "legacy-filled-circle";
+  if (source === "o") return "legacy-open-circle";
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";
@@ -519,11 +547,11 @@ function normalizeArrowKind(kind) {
   if (text === "arc barb" || text === "arc-barb" || text === "parenthesis") return "arc-barb";
   if (text === "tee barb" || text === "tee-barb" || text === "bracket") return "tee-barb";
   if (text === "kite") return "kite";
-  if (text === "square" || text === "rectangle") return "square";
+  if (text === "rectangle") return "square";
   if (text === "rays" || text === "ray") return "rays";
   if (text.includes("two heads") || text.includes("two-heads") || text.includes("double")) return "two-heads";
-  if (text.includes("open circle") || text === "o") return "open-circle";
-  if (text === "*" || text === "circle") return "circle";
+  if (text.includes("open circle")) return "open-circle";
+  if (text === "circle") return "circle";
   if (text.includes("open triangle")) return "open-triangle";
   if (text.includes("bar")) return "bar";
   if (text.includes("hook")) return "hook";

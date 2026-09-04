@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell and standard math commands are preprocessing-only." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "TikZ loads the core path machinery before libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to"], "findings": "Inline labels and bend-left paths are assembled before terminal tips." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right", "below", "node distance"], "findings": "Positioning determines the map-object centers and borders." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["square", "open square", "*", "o"], "findings": "The four declarations preserve filled/open paint and their own local reference origins on rotated paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowssettipend"], "findings": "The terminal reference and path shortening are independent of node clipping." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["Circle, Diamond and Square Arrow Tips"], "findings": "These names form one documented legacy arrow family." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] }
+  ]
+}

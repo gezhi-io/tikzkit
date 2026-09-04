@@ -686,6 +686,8 @@ const ARROW_TIP_SEQUENCE_NAMES = [
   "triangle 45",
   "open diamond",
   "diamond",
+  "open square",
+  "square",
   "square bracket reversed",
   "round bracket reversed",
   "angle 90 reversed",

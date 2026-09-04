@@ -5789,6 +5789,33 @@
       "features": ["arrows", "diamond", "open diamond", "marker start", "diagonal", "physics vectors"]
     },
     {
+      "id": "arrows-legacy-squares-circles-flowchart",
+      "title": "Legacy square and dot terminals in a release flow",
+      "source": "arrows/legacy-squares-circles-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacySquareArrowMetrics/legacyCircleArrowMetrics + src/renderers/svg/paths.js:legacySquareInlineGeometry/legacyCircleInlineGeometry",
+      "features": ["arrows", "square", "open square", "*", "o", "marker start", "marker end", "flowchart"]
+    },
+    {
+      "id": "arrows-legacy-squares-circles-math",
+      "title": "Legacy square and dot terminals on mathematical maps",
+      "source": "arrows/legacy-squares-circles-math.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacySquareArrowMetrics/legacyCircleArrowMetrics + src/renderers/svg/paths.js:legacySquareInlineGeometry/legacyCircleInlineGeometry",
+      "features": ["arrows", "square", "open square", "*", "o", "curved map", "mathematical maps"]
+    },
+    {
+      "id": "arrows-legacy-squares-circles-physics",
+      "title": "Legacy square and dot terminals on physical vectors",
+      "source": "arrows/legacy-squares-circles-physics.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacySquareArrowMetrics/legacyCircleArrowMetrics + src/renderers/svg/paths.js:legacySquareInlineGeometry/legacyCircleInlineGeometry",
+      "features": ["arrows", "square", "open square", "*", "o", "double ended", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

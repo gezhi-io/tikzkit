@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The standalone shell and standard math commands contribute no vector geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "The core graphics state supplies the active vector line width." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "node", "sloped"], "findings": "Sloped labels follow path tangents independently of terminal marker transforms." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["\\pgfarrowsdeclare{square}", "\\pgfarrowsdeclare{open square}", "\\pgfarrowsdeclare{*}", "\\pgfarrowsdeclare{o}"], "findings": "Square and circular terminals recompute their shape and extents from each active line width." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowssetbackend", "\\pgfarrowssettipend"], "findings": "The core rotates the same declaration at starts and ends and clips the shaft to each extent." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["Circle, Diamond and Square Arrow Tips"], "findings": "The manual presents filled and open square/circle terminals as distinct public tips." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-squares-circles.test.js", "docs/qa/2026-09-04-arrows-legacy-squares-circles.md"] }
+  ]
+}

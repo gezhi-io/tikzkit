@@ -1177,7 +1177,7 @@ test("keeps split-part anchors for an inline tikz node at the current point", ()
   assert.equal(result.ir.items.some((item) => item.type === "textNode" && item.text.includes("nodepart")), false);
 });
 
-test("uses the native five-point filled circle for classic star arrow starts", () => {
+test("uses the source-derived filled circle for classic star arrow starts", () => {
   const result = tikzToSvg(String.raw`
 \tikzset{>=stealth,pointer/.style={*->}}
 \begin{tikzpicture}
@@ -1187,10 +1187,10 @@ test("uses the native five-point filled circle for classic star arrow starts", (
   const markerWidthPt = path.style.markerStart.width / (100 / 28.4527559);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.equal(path.style.markerStart.kind, "circle");
+  assert.equal(path.style.markerStart.kind, "legacy-filled-circle");
   assert.ok(markerWidthPt >= 4.95 && markerWidthPt <= 5.05, `expected PGF star width near 5pt, got ${markerWidthPt}pt`);
-  assert.match(result.svg, /tikz-arrow-circle[^>]+d="M -14\.7\d+ 0 A 8\.8\d+ 8\.8\d+/);
-  assert.match(result.svg, /tikz-arrow-circle[^>]+transform="translate\(4\.3\d+ 0\) rotate\(180\)"/);
+  assert.match(result.svg, /tikz-arrow-legacy-filled-circle[^>]+d="M -14\.7\d+ 0 A 8\.8\d+ 8\.8\d+/);
+  assert.match(result.svg, /tikz-arrow-legacy-filled-circle[^>]+transform="translate\(4\.3\d+ 0\) rotate\(180\)"/);
 });
 
 test("optically centers rectangle split text inside each part", () => {
@@ -4438,12 +4438,12 @@ test("renders TikZ star arrow tips as filled endpoint dots", () => {
   const paths = result.ir.items.filter((item) => item.type === "path");
 
   assert.deepEqual(result.diagnostics, []);
-  assert.equal(paths[0].style.markerStart.kind, "circle");
-  assert.equal(paths[1].style.markerEnd.kind, "circle");
-  assert.equal(paths[2].style.markerStart.kind, "circle");
+  assert.equal(paths[0].style.markerStart.kind, "legacy-filled-circle");
+  assert.equal(paths[1].style.markerEnd.kind, "legacy-filled-circle");
+  assert.equal(paths[2].style.markerStart.kind, "legacy-filled-circle");
   assert.equal(paths[2].style.markerEnd.kind, "stealth");
-  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-circle"/);
-  assert.match(result.svg, /tikz-arrow-circle[^>]+fill="black" stroke="black" stroke-width="/);
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-legacy-filled-circle"/);
+  assert.match(result.svg, /tikz-arrow-legacy-filled-circle[^>]+fill="black" stroke="black" stroke-width="/);
   assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-stealth"/);
 });
 

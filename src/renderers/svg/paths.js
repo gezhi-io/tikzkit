@@ -18,7 +18,13 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
 import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
-import { legacyDelimiterArrowMetrics, legacyDiamondArrowMetrics, legacyTriangleArrowMetrics } from "../../tikz/libraries/arrows.js";
+import {
+  legacyCircleArrowMetrics,
+  legacyDelimiterArrowMetrics,
+  legacyDiamondArrowMetrics,
+  legacySquareArrowMetrics,
+  legacyTriangleArrowMetrics
+} from "../../tikz/libraries/arrows.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -357,14 +363,22 @@ export function resolveInlineArrowTip(tip, style = {}) {
     "arc-barb",
     "tee-barb",
     "rays"
-  ].includes(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyOpenTriangleTip(raw.kind) || isLegacyOpenDiamondTip(raw.kind);
+  ].includes(raw.kind)
+    || isLegacyDelimiterTip(raw.kind)
+    || isLegacyOpenTriangleTip(raw.kind)
+    || isLegacyOpenDiamondTip(raw.kind)
+    || isLegacyOpenSquareTip(raw.kind)
+    || isLegacyOpenCircleTip(raw.kind);
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
   const metaStealthTip = raw.kind === "stealth" && raw.meta;
   const legacyFilledTriangleTip = isLegacyFilledTriangleTip(raw.kind);
   const legacyFilledDiamondTip = isLegacyFilledDiamondTip(raw.kind);
-  const filledStrokedTip = metaStealthTip || legacyStealthPrime || legacyFilledTriangleTip || legacyFilledDiamondTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
+  const legacyFilledSquareTip = isLegacyFilledSquareTip(raw.kind);
+  const legacyFilledCircleTip = isLegacyFilledCircleTip(raw.kind);
+  const legacyFilledShapeTip = legacyFilledTriangleTip || legacyFilledDiamondTip || legacyFilledSquareTip || legacyFilledCircleTip;
+  const filledStrokedTip = metaStealthTip || legacyStealthPrime || legacyFilledShapeTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
   const declaredPaint = raw.declaredArrow?.paint;
   const separation = arrowTipSeparation(raw.separation, style);
   return {
@@ -376,8 +390,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
-    lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
+    lineCap: isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -396,7 +410,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
-        ? legacyFilledTriangleTip || legacyFilledDiamondTip
+        ? legacyFilledShapeTip
           ? style.lineWidth ?? 1
           : metaStealthTip
           ? geometry.lineWidth
@@ -450,6 +464,10 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyTriangle) return legacyTriangleInlineGeometry(legacyTriangle);
   const legacyDiamond = legacyDiamondArrowMetrics(tip.kind, lineWidth);
   if (legacyDiamond) return legacyDiamondInlineGeometry(legacyDiamond);
+  const legacySquare = legacySquareArrowMetrics(tip.kind, lineWidth);
+  if (legacySquare) return legacySquareInlineGeometry(legacySquare);
+  const legacyCircle = legacyCircleArrowMetrics(tip.kind, lineWidth);
+  if (legacyCircle) return legacyCircleInlineGeometry(legacyCircle);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -782,6 +800,77 @@ function isLegacyOpenDiamondTip(kind) {
 
 function isLegacyFilledDiamondTip(kind) {
   return String(kind || "") === "legacy-diamond";
+}
+
+function isLegacySquareTip(kind) {
+  return /^legacy-(?:open-)?square$/u.test(String(kind || ""));
+}
+
+function isLegacyOpenSquareTip(kind) {
+  return String(kind || "") === "legacy-open-square";
+}
+
+function isLegacyFilledSquareTip(kind) {
+  return String(kind || "") === "legacy-square";
+}
+
+function isLegacyCircleTip(kind) {
+  return /^legacy-(?:filled|open)-circle$/u.test(String(kind || ""));
+}
+
+function isLegacyOpenCircleTip(kind) {
+  return String(kind || "") === "legacy-open-circle";
+}
+
+function isLegacyFilledCircleTip(kind) {
+  return String(kind || "") === "legacy-filled-circle";
+}
+
+function legacySquareInlineGeometry(metrics) {
+  return {
+    path: [
+      `M ${format(metrics.frontX)} ${format(-metrics.halfHeight)}`,
+      `L ${format(metrics.backX)} ${format(-metrics.halfHeight)}`,
+      `L ${format(metrics.backX)} ${format(metrics.halfHeight)}`,
+      `L ${format(metrics.frontX)} ${format(metrics.halfHeight)}`,
+      "Z"
+    ].join(" "),
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds: {
+      minX: Math.min(metrics.backX, metrics.frontX),
+      maxX: Math.max(metrics.backX, metrics.frontX),
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    }
+  };
+}
+
+function legacyCircleInlineGeometry(metrics) {
+  const left = metrics.centerX - metrics.radius;
+  const right = metrics.centerX + metrics.radius;
+  return {
+    path: [
+      `M ${format(left)} 0`,
+      `A ${format(metrics.radius)} ${format(metrics.radius)} 0 1 0 ${format(right)} 0`,
+      `A ${format(metrics.radius)} ${format(metrics.radius)} 0 1 0 ${format(left)} 0`,
+      "Z"
+    ].join(" "),
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    centerX: metrics.centerX,
+    radius: metrics.radius,
+    bounds: {
+      minX: left,
+      maxX: right,
+      minY: -metrics.radius,
+      maxY: metrics.radius
+    }
+  };
 }
 
 function legacyDiamondInlineGeometry(metrics) {

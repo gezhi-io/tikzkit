@@ -78,9 +78,9 @@ test("expands edge, factoredge, factor, plate, and gate macros", () => {
   const paths = ir.items.filter((item) => item.type === "path");
   const arrows = paths.filter((item) => item.style.markerEnd);
   assert.ok(arrows.length >= 5, "expected directed edge and factoredge paths");
-  const directedArrows = arrows.filter((item) => item.style.markerEnd.kind === "triangle 45");
+  const directedArrows = arrows.filter((item) => item.style.markerEnd.kind === "triangle-45");
   assert.ok(directedArrows.length >= 5, "expected edge and factoredge arrows to use triangle 45 tips");
-  assert.ok(arrows.some((item) => item.style.markerEnd.kind === "circle"), "expected gate input marker");
+  assert.ok(arrows.some((item) => item.style.markerEnd.kind === "legacy-filled-circle"), "expected gate input marker");
 });
 
 test("expands vertical and horizontal gates as fit boxes with split lines", () => {
