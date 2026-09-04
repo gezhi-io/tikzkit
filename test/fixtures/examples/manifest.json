@@ -5706,6 +5706,33 @@
       "externalSource": "tex/generic/pgf/modules/pgfmodulebending.code.tex",
       "semanticOwner": "src/renderers/svg/arrowBending.js:curvedArrowPaint",
       "features": ["arrows.meta", "bending", "flex", "flex'", "bend", "physics trajectories"]
+    },
+    {
+      "id": "decorations-pathmorphing-coil-flowchart",
+      "title": "Coiled retry transition in a validation flow",
+      "source": "decorations/pathmorphing-coil-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF pathmorphing coil declaration",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeCoilPolyline",
+      "features": ["coil", "curved state frames", "aspect", "pre length", "post length", "flowchart"]
+    },
+    {
+      "id": "decorations-pathmorphing-coil-math",
+      "title": "Side-view coil perturbation along a cubic curve",
+      "source": "decorations/pathmorphing-coil-math.tex",
+      "sourceCorpus": "TeX Live PGF pathmorphing coil declaration",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:createPgfDecorationPathWalker",
+      "features": ["coil", "aspect zero", "Bezier arc-length traversal", "analytic tangent", "mathematics"]
+    },
+    {
+      "id": "decorations-pathmorphing-coil-physics",
+      "title": "Mass spring system with projected coil geometry",
+      "source": "decorations/pathmorphing-coil-physics.tex",
+      "sourceCorpus": "TeX Live PGF pathmorphing coil declaration",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeCoilPolyline",
+      "features": ["coil", "aspect", "segment length", "amplitude", "pre length", "post length", "physics"]
     }
   ]
 }

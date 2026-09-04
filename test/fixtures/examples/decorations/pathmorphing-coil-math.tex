@@ -1,0 +1,14 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathmorphing,arrows.meta}
+\begin{document}
+\begin{tikzpicture}
+  \draw[-{Stealth[length=1.8mm]},gray!70] (-2.8,0) -- (3,0) node[right] {$x$};
+  \draw[-{Stealth[length=1.8mm]},gray!70] (0,-1.7) -- (0,2.1) node[above] {$y$};
+  \draw[gray!45,dashed] (-2.35,-.8) .. controls (-1.25,2.25) and (1.2,-1.7) .. (2.45,1.05);
+  \draw[red!75!black,line width=.75pt,decorate,
+    decoration={coil,aspect=0,segment length=5.5mm,amplitude=1.1mm}]
+    (-2.35,-.8) .. controls (-1.25,2.25) and (1.2,-1.7) .. (2.45,1.05);
+  \node[red!75!black,above right] at (1.15,.18) {$\gamma(s)+\varepsilon n(s)$};
+\end{tikzpicture}
+\end{document}

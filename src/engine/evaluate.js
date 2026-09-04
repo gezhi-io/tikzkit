@@ -13943,7 +13943,7 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   if (pathOptions.decorate && decoration.ticks) return applyTicksDecoration(commands, decoration, env);
   if (pathOptions.decorate && (decoration.waves || decoration["expanding waves"])) return applyWavesDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration["Koch snowflake"]) return applyKochSnowflakeDecoration(commands);
-  const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : null;
+  const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : decoration.coil ? "coil" : null;
   if (!pathOptions.decorate || !mode) return commands;
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
   const defaultSegmentLength = parseDimension("10pt", env.variables);
@@ -13959,11 +13959,13 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   // final painted line when it places the tip.
   const preLength = Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0));
   const postLength = Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0));
+  const aspectValue = evaluateMath(decoration.aspect ?? "0.5", env.variables);
+  const aspect = Number.isFinite(aspectValue) ? aspectValue : 0.5;
   // PGF runs path-morphing decorations over the complete input subpath. In
   // particular, their state machines do not restart at each `--` corner and
   // pre/post lengths only apply at the subpath endpoints.
-  if (mode === "snake" || mode === "zigzag") {
-    return applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength);
+  if (mode === "snake" || mode === "zigzag" || mode === "coil") {
+    return applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength, aspect);
   }
   const morphed = [];
   let current = null;
@@ -14282,10 +14284,11 @@ function supportedPathDecoration(options = {}) {
     || tikzBoolean(decoration["expanding waves"])
     || tikzBoolean(decoration["Koch snowflake"])
     || tikzBoolean(decoration.snake)
-    || tikzBoolean(decoration.zigzag);
+    || tikzBoolean(decoration.zigzag)
+    || tikzBoolean(decoration.coil);
 }
 
-function applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength) {
+function applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, preLength, postLength, aspect = 0.5) {
   const morphed = [];
   let subpath = [];
 
@@ -14308,7 +14311,7 @@ function applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, p
 
     const start = points[0];
     morphed.push({ type: "moveTo", x: start.x, y: start.y });
-    appendMorphedPolyline(morphed, points, amplitude, segmentLength, mode, preLength, postLength);
+    appendMorphedPolyline(morphed, points, amplitude, segmentLength, mode, preLength, postLength, aspect);
     if (subpath.at(-1)?.type === "closePath") morphed.push({ type: "closePath" });
     subpath = [];
   };
@@ -15202,7 +15205,7 @@ function appendMorphedCurve(commands, from, curve, amplitude, segmentLength, mod
   appendMorphedPolyline(commands, flat, amplitude, segmentLength, mode, preLength, postLength);
 }
 
-function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode, preLength = 0, postLength = 0) {
+function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode, preLength = 0, postLength = 0, aspect = 0.5) {
   const length = polylineLength(points);
   const to = points.at(-1);
   if (!to) return;
@@ -15230,6 +15233,66 @@ function appendMorphedPolyline(commands, points, amplitude, segmentLength, mode,
     appendNativeSnakePolyline(commands, points, amplitude, segmentLength, activeStart, activeLength);
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
     return;
+  }
+  if (mode === "coil") {
+    appendNativeCoilPolyline(commands, points, amplitude, segmentLength, aspect, activeStart, activeLength);
+    if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+  }
+}
+
+function appendNativeCoilPolyline(commands, points, amplitude, segmentLength, aspect, activeStart, activeLength) {
+  const pathLength = polylineLength(points);
+  const walker = createPgfDecorationPathWalker(points, pathLength);
+  walker.advance(activeStart);
+  const finishWalker = createPgfDecorationPathWalker(points, pathLength);
+  finishWalker.advance(activeStart + activeLength);
+  const finishAt = finishWalker.frame();
+  const statePoint = (sample, radialX, radialY, twelfths) => {
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
+    const xOffset = radialX * aspect * amplitude + twelfths * segmentLength / 12;
+    const yOffset = radialY * amplitude;
+    return {
+      x: roundNumber(sample.x + tangent.x * xOffset + sample.normal.x * yOffset),
+      y: roundNumber(sample.y + tangent.y * xOffset + sample.normal.y * yOffset)
+    };
+  };
+  const pushCurve = (sample, control1, control2, end) => {
+    const c1 = statePoint(sample, ...control1);
+    const c2 = statePoint(sample, ...control2);
+    const target = statePoint(sample, ...end);
+    commands.push({
+      type: "curveTo",
+      x1: c1.x,
+      y1: c1.y,
+      x2: c2.x,
+      y2: c2.y,
+      x: target.x,
+      y: target.y
+    });
+  };
+  const appendHalfState = (sample) => {
+    pushCurve(sample, [0, 0.555, 1], [0.445, 1, 2], [1, 1, 3]);
+    pushCurve(sample, [1.555, 1, 4], [2, 0.555, 5], [2, 0, 6]);
+  };
+  const appendFullState = (sample) => {
+    appendHalfState(sample);
+    pushCurve(sample, [2, -0.555, 7], [1.555, -1, 8], [1, -1, 9]);
+    pushCurve(sample, [0.445, -1, 10], [0, -0.555, 11], [0, 0, 12]);
+  };
+
+  const projectedDiameter = 2 * aspect * amplitude;
+  const fullStateThreshold = 1.5 * segmentLength + projectedDiameter;
+  let stateOrigin = 0;
+  while (activeLength - stateOrigin >= fullStateThreshold - 1e-9) {
+    appendFullState(walker.frame());
+    walker.advance(segmentLength);
+    stateOrigin += segmentLength;
+  }
+
+  appendHalfState(walker.frame());
+  const previous = commands.at(-1);
+  if (!previous || Math.hypot((previous.x ?? 0) - finishAt.x, (previous.y ?? 0) - finishAt.y) > 1e-9) {
+    commands.push({ type: "lineTo", x: roundNumber(finishAt.x), y: roundNumber(finishAt.y) });
   }
 }
 
@@ -15503,7 +15566,9 @@ function appendDecorationCubicSamples(points, from, control1, control2, to, tole
     if ((depth > 0 && smallChord) || depth >= 18) {
       points.push({
         ...roundPoint(piece.to),
-        decorationCurve: { ...curve, t0, t1 }
+        decorationCurve: curve,
+        decorationT0: t0,
+        decorationT1: t1
       });
       return;
     }
@@ -15545,7 +15610,7 @@ function pointOnPolyline(points, distance) {
       const local = Math.max(0, Math.min(1, (distance - walked) / segmentLength));
       const curve = current.decorationCurve;
       if (curve) {
-        const time = curve.t0 + (curve.t1 - curve.t0) * local;
+        const time = current.decorationT0 + (current.decorationT1 - current.decorationT0) * local;
         const point = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, time);
         const tangent = cubicTangentAt(curve.from, curve.control1, curve.control2, curve.to, time);
         if (tangent) {
@@ -15572,8 +15637,8 @@ function pointOnPolyline(points, distance) {
   const segmentLength = Math.hypot(dx, dy) || 1;
   const curve = last.decorationCurve;
   if (curve) {
-    const point = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, curve.t1);
-    const tangent = cubicTangentAt(curve.from, curve.control1, curve.control2, curve.to, curve.t1);
+    const point = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, last.decorationT1);
+    const tangent = cubicTangentAt(curve.from, curve.control1, curve.control2, curve.to, last.decorationT1);
     if (tangent) {
       return {
         ...point,
@@ -15588,6 +15653,154 @@ function pointOnPolyline(points, distance) {
     walked,
     normal: { x: -dy / segmentLength, y: dx / segmentLength }
   };
+}
+
+function createPgfDecorationPathWalker(points, currentPathLength) {
+  const segments = decorationPathSegments(points);
+  let segmentIndex = 0;
+  let segmentDistance = 0;
+  let curveTime = 0;
+  let currentPoint = points[0] || { x: 0, y: 0 };
+  let currentNormal = decorationSegmentNormal(segments[0], 0, { x: 0, y: 1 });
+
+  const installFrame = (segment, time) => {
+    if (!segment) return;
+    if (segment.type === "curve") {
+      currentPoint = cubicPointAt(
+        segment.curve.from,
+        segment.curve.control1,
+        segment.curve.control2,
+        segment.curve.to,
+        time
+      );
+      currentNormal = decorationSegmentNormal(segment, time, currentNormal);
+      return;
+    }
+    const fraction = segment.length > 1e-12 ? segmentDistance / segment.length : 1;
+    currentPoint = {
+      x: segment.from.x + (segment.to.x - segment.from.x) * fraction,
+      y: segment.from.y + (segment.to.y - segment.from.y) * fraction
+    };
+    currentNormal = decorationSegmentNormal(segment, fraction, currentNormal);
+  };
+
+  const advance = (requestedDistance) => {
+    let distance = Math.max(0, requestedDistance);
+    while (distance > 1e-12 && segmentIndex < segments.length) {
+      const segment = segments[segmentIndex];
+      const remaining = Math.max(0, segment.length - segmentDistance);
+      if (distance < remaining - 1e-12) {
+        segmentDistance += distance;
+        if (segment.type === "curve") {
+          curveTime = pgfDecorationCurveTimeAfterDistance(
+            segment.curve,
+            curveTime,
+            distance,
+            currentPathLength
+          );
+        }
+        installFrame(segment, curveTime);
+        distance = 0;
+        break;
+      }
+
+      distance = Math.max(0, distance - remaining);
+      currentPoint = segment.to;
+      segmentIndex += 1;
+      segmentDistance = 0;
+      curveTime = 0;
+      const next = segments[segmentIndex];
+      if (next) {
+        currentPoint = next.from;
+        currentNormal = decorationSegmentNormal(next, 0, currentNormal);
+      } else {
+        currentNormal = decorationSegmentNormal(segment, 1, currentNormal);
+      }
+    }
+  };
+
+  return {
+    advance,
+    frame: () => ({
+      x: currentPoint.x,
+      y: currentPoint.y,
+      normal: { ...currentNormal }
+    })
+  };
+}
+
+function decorationPathSegments(points) {
+  const segments = [];
+  let index = 1;
+  while (index < points.length) {
+    const current = points[index];
+    if (!current.decorationCurve) {
+      const from = points[index - 1];
+      const length = Math.hypot(current.x - from.x, current.y - from.y);
+      segments.push({ type: "line", from, to: current, length });
+      index += 1;
+      continue;
+    }
+
+    const curve = current.decorationCurve;
+    const from = points[index - 1];
+    let length = 0;
+    let endIndex = index;
+    while (endIndex < points.length && points[endIndex].decorationCurve === curve) {
+      const previous = points[endIndex - 1];
+      const end = points[endIndex];
+      length += Math.hypot(end.x - previous.x, end.y - previous.y);
+      endIndex += 1;
+    }
+    segments.push({ type: "curve", from, to: points[endIndex - 1], curve, length });
+    index = endIndex;
+  }
+  return segments;
+}
+
+function decorationSegmentNormal(segment, time, fallback) {
+  if (!segment) return fallback;
+  let tangent;
+  if (segment.type === "curve") {
+    tangent = cubicTangentAt(segment.curve.from, segment.curve.control1, segment.curve.control2, segment.curve.to, time);
+  } else {
+    const dx = segment.to.x - segment.from.x;
+    const dy = segment.to.y - segment.from.y;
+    const length = Math.hypot(dx, dy);
+    tangent = length > 1e-12 ? { x: dx / length, y: dy / length } : null;
+  }
+  return tangent ? { x: -tangent.y, y: tangent.x } : fallback;
+}
+
+function pgfDecorationCurveTimeAfterDistance(curve, startTime, requestedDistance, currentPathLength) {
+  const oneScaledPoint = 1 / 65536;
+  const pt128 = parseDimension("128pt", {});
+  const pt512 = parseDimension("512pt", {});
+  const pt2048 = parseDimension("2048pt", {});
+  let step = currentPathLength < pt128
+    ? 1 / 32
+    : currentPathLength < pt512
+      ? 1 / 64
+      : currentPathLength < pt2048
+        ? 1 / 256
+        : 1 / 1024;
+  let direction = 1;
+  let time = startTime;
+  let walked = 0;
+  let previous = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, time);
+
+  for (let iteration = 0; iteration < 64 && step >= oneScaledPoint; iteration += 1) {
+    time += direction * step;
+    const point = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, time);
+    const chord = Math.hypot(point.x - previous.x, point.y - previous.y);
+    walked += direction * chord;
+    previous = point;
+    if ((direction > 0 && walked > requestedDistance) || (direction < 0 && walked < requestedDistance)) {
+      direction *= -1;
+      step /= 2;
+    }
+  }
+  return time;
 }
 
 function buildPlot(coordinate, env, pathOptions) {
