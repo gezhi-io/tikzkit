@@ -40,6 +40,11 @@ export function cylinderGeometry(size = {}, data = {}) {
   const innerCrossSep = Math.max(0, Number(swapsAxes ? data.cylinderInnerXSep : data.cylinderInnerYSep) || 0);
   const chord = cylinderContentChord(endRadiusX, endRadiusY, innerCrossSep);
   const halfLineWidth = Math.max(0, Number(data.cylinderLineWidth) || 0) / 2;
+  const outerXSep = Math.max(0, Number(data.cylinderOuterXSep) || 0);
+  const outerYSep = Math.max(0, Number(data.cylinderOuterYSep) || 0);
+  const outerSep = Math.max(outerXSep, outerYSep);
+  const anchorRadiusX = endRadiusX + outerSep;
+  const anchorRadiusY = endRadiusY + outerSep;
   const bodyHalf = Math.max(0, (localWidth - halfLineWidth - 3 * endRadiusX + chord) / 2);
   const afterBottomX = -bodyHalf + chord;
   const beforeTopX = bodyHalf + endRadiusX + halfLineWidth;
@@ -65,29 +70,42 @@ export function cylinderGeometry(size = {}, data = {}) {
     ...ellipseArcCommands(beforeTopX, 0, endRadiusX, endRadiusY, 90, -270),
     { type: "closePath" }
   ];
-  const boundary = [
+  const visibleBoundary = [
     ...sampleEllipseArc(afterBottomX, 0, endRadiusX, endRadiusY, 90, 270, 24),
     ...sampleEllipseArc(beforeTopX, 0, endRadiusX, endRadiusY, 270, 450, 24)
   ];
+  const anchorBoundary = [
+    ...sampleEllipseArc(afterBottomX, 0, anchorRadiusX, anchorRadiusY, 90, 270, 24),
+    ...sampleEllipseArc(beforeTopX, 0, anchorRadiusX, anchorRadiusY, 270, 450, 24)
+  ];
   const transformPoint = (point) => rotatePointQuarter(point, rotate);
   const transformCommand = (command) => rotateCylinderCommand(command, rotate);
-  const transformedBoundary = boundary.map(transformPoint);
-  const bounds = pointBounds(transformedBoundary);
+  const transformedVisibleBoundary = visibleBoundary.map(transformPoint);
+  const transformedAnchorBoundary = anchorBoundary.map(transformPoint);
+  const bounds = pointBounds(transformedVisibleBoundary);
   const anchors = Object.fromEntries(Object.entries({
     "shape center": { x: (endRadiusX + halfLineWidth + chord) / 2, y: 0 },
-    "before top": { x: beforeTopX, y: endRadiusY },
-    top: { x: beforeTopX + endRadiusX, y: 0 },
-    "after top": { x: beforeTopX, y: -endRadiusY },
-    "before bottom": { x: afterBottomX, y: -endRadiusY },
-    bottom: { x: afterBottomX - endRadiusX, y: 0 },
-    "after bottom": { x: afterBottomX, y: endRadiusY }
+    "before top": { x: beforeTopX, y: endRadiusY + outerYSep },
+    top: { x: beforeTopX + anchorRadiusX, y: 0 },
+    "after top": { x: beforeTopX, y: -(endRadiusY + outerYSep) },
+    "before bottom": { x: afterBottomX, y: -(endRadiusY + outerYSep) },
+    bottom: { x: afterBottomX - anchorRadiusX, y: 0 },
+    "after bottom": { x: afterBottomX, y: endRadiusY + outerYSep }
   }).map(([name, point]) => [name, transformPoint(point)]));
+  const borderGeometry = { boundaryPoints: transformedAnchorBoundary };
+  const midOffset = Number(data.cylinderMidOffset) || 0;
+  const baseOffset = Number(data.cylinderBaseOffset) || 0;
+  anchors["mid east"] = cylinderBorderPointFrom(borderGeometry, { x: 0, y: midOffset }, { x: 1, y: 0 });
+  anchors["mid west"] = cylinderBorderPointFrom(borderGeometry, { x: 0, y: midOffset }, { x: -1, y: 0 });
+  anchors["base east"] = cylinderBorderPointFrom(borderGeometry, { x: 0, y: baseOffset }, { x: 1, y: 0 });
+  anchors["base west"] = cylinderBorderPointFrom(borderGeometry, { x: 0, y: baseOffset }, { x: -1, y: 0 });
 
   return {
     outlineCommands: outline.map(transformCommand),
     bodyCommands: body.map(transformCommand),
     endCommands: end.map(transformCommand),
-    boundaryPoints: transformedBoundary,
+    boundaryPoints: transformedAnchorBoundary,
+    visibleBoundaryPoints: transformedVisibleBoundary,
     anchors,
     bounds,
     shapeCenter: anchors["shape center"]
@@ -95,19 +113,29 @@ export function cylinderGeometry(size = {}, data = {}) {
 }
 
 export function cylinderBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  return cylinderBorderPointFrom(geometry, { x: 0, y: 0 }, toward, padding);
+}
+
+export function cylinderBorderPointFrom(geometry = {}, reference = {}, toward = {}, padding = 0) {
+  const originX = Number(reference.x) || 0;
+  const originY = Number(reference.y) || 0;
   const dx = Number(toward.x) || 0;
   const dy = Number(toward.y) || 0;
   const distance = Math.hypot(dx, dy);
-  if (distance < CYLINDER_EPSILON) return { x: 0, y: 0 };
+  if (distance < CYLINDER_EPSILON) return { x: originX, y: originY };
   const points = geometry.boundaryPoints || [];
   let best = null;
   for (let index = 0; index < points.length; index += 1) {
-    const first = points[index];
-    const second = points[(index + 1) % points.length];
+    const sourceFirst = points[index];
+    const sourceSecond = points[(index + 1) % points.length];
+    const first = { x: sourceFirst.x - originX, y: sourceFirst.y - originY };
+    const second = { x: sourceSecond.x - originX, y: sourceSecond.y - originY };
     const hit = raySegmentIntersection(dx, dy, first, second);
     if (hit && (!best || hit.t < best.t)) best = hit;
   }
-  const base = best ? { x: best.x, y: best.y } : { x: 0, y: 0 };
+  const base = best
+    ? { x: originX + best.x, y: originY + best.y }
+    : { x: originX, y: originY };
   const extension = Math.max(0, Number(padding) || 0);
   return {
     x: base.x + (dx / distance) * extension,
@@ -456,8 +484,8 @@ export const tikzLibrary = {
   "status": "partial",
   "implementedBy": [
     "src/engine/evaluate.js:regularPolygonLayoutSize/regularPolygonStartAngle/regularPolygonOuterRadiusExtension/nodeBorderPoint/polygonBorderPointWithPadding/trapeziumLayoutShapeData/customNodeLocalAnchor",
-    "src/tikz/libraries/shapes.geometric.js:starLayoutSize/starNodePoints/trapeziumLayoutSize/trapeziumNodePoints",
-    "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry/cylinderBorderPoint",
+    "src/tikz/libraries/shapes.geometric.js:starLayoutSize/starNodePoints/starGeometry/starBorderPoint/trapeziumLayoutSize/trapeziumNodePoints",
+    "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry/cylinderBorderPoint/cylinderBorderPointFrom",
     "src/renderers/svg/nodeShapes.js:regularPolygonNodePoints/starNodePoints/renderCylinderNodeBox"
   ],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
@@ -465,10 +493,10 @@ export const tikzLibrary = {
   "localSourceReviewed": true,
   "features": [
     "regular polygon with PGF circumcircle sizing, odd/even orientation, rotation, and border crop",
-    "star with PGF radius modes, minimum sizing, and border rotation",
+    "star with PGF radius modes, minimum sizing, border rotation, mitered outer separation, and named inner/outer point anchors",
     "trapezium with PGF cotangent side geometry, proportional/independent/body-only minimum-size stretching, named side/corner anchors, and mitered border crop",
     "isosceles triangle with apex angle, minimum height, rotation, and named anchors",
-    "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, named anchors, curved border clipping, and separate body/end fills"
+    "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, complete end/mid/base named anchors, curved outer-separation border clipping, and separate body/end fills"
   ],
   "implements": [
     "regular polygon",
@@ -477,5 +505,5 @@ export const tikzLibrary = {
     "isosceles triangle",
     "cylinder"
   ],
-  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Arbitrary non-quarter cylinder rotation/incircle mode, the complete radial/mid/base anchor family, star outer-separation anchor radii, named inner/outer star anchors, and degenerate angular ranges remain partial."
+  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Arbitrary non-quarter cylinder rotation/incircle mode and degenerate angular ranges remain partial."
 };

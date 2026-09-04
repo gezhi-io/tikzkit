@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The TeX text box establishes the baseline and midline used by the pressure labels." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ dispatches the shape, coordinate, positioning, and arrow libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill", "anchor"], "findings": "Node placement subtracts the selected anchor vector from the requested coordinate." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["$()", "+(-11mm,0)"], "findings": "Calc places the gauge relative to the vessel's resolved mid-west border." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The pressure connector uses the local Latex terminal declaration." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["shape border rotate", "mid east", "mid west", "base east", "top", "bottom"], "findings": "Quarter-turn rotation is applied to the cylinder boundary and end anchors, while mid/base rays originate on the unrotated TeX baselines in page coordinates." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["cylinder", "shape border rotate", "cylinder body fill", "cylinder end fill"], "findings": "The manual's vertical cylinder form is the pressure-vessel reference." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] }
+  ]
+}

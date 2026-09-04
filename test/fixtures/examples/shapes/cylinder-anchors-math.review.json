@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "LaTeX supplies the math box and baseline used inside the cylinder node." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads the requested calc, arrows.meta, and geometric shape extensions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill"], "findings": "Core path processing places labels and applies named node anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["$()", "!0.5!", "+(0,-5mm)"], "findings": "Calc offsets the dimension line from exact cylinder end anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["before top", "after top", "top", "before bottom", "after bottom", "bottom", "shape center"], "findings": "The six end anchors are derived from the two ellipse centers, expanded radii, and upper/lower tangent points before border rotation." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["cylinder", "shape aspect", "minimum width", "minimum height"], "findings": "The cylinder manual defines the aspect and minimum-size controls used by the volume diagram." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] }
+  ]
+}

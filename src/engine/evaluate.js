@@ -10860,6 +10860,17 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
   const nearTicklabelShift = nearTicklabelAnchorShift(anchor, size, rotation);
   if (nearTicklabelShift) return nearTicklabelShift;
   const textAnchor = textAnchorKind(anchor);
+  if (nodeShape(options) === "cylinder" && textAnchor && /(?:^|\s)(?:east|west)(?:\s|$)/.test(anchor)) {
+    const cylinderAnchor = customNodeLocalAnchor("cylinder", anchor, {
+      ...size,
+      ...textAnchorOffsets,
+      shapeData: nodeShapeData(options, env, undefined, size)
+    });
+    if (cylinderAnchor) {
+      const rotated = rotateVector(cylinderAnchor.x, cylinderAnchor.y, rotation);
+      return { x: -rotated.x, y: -rotated.y };
+    }
+  }
   if (textAnchor) {
     const outerSep = nodeOuterSep(options, env);
     const local = {
@@ -11691,6 +11702,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const cloudScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const starburstScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const { style: cylinderStyle } = normalizeOptions("node", options, env);
+  const cylinderOuterSep = nodeOuterSep(options, env);
   const magneticTapeOuterSep = nodeOuterSep(options, env);
   const magnifyingGlassOuterSep = nodeOuterSep(options, env);
   const tapeOuterSep = nodeOuterSep(options, env);
@@ -11737,6 +11749,8 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     cylinderInnerXSep: parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env) * cylinderScale,
     cylinderInnerYSep: parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env) * cylinderScale,
     cylinderLineWidth: ((Number(cylinderStyle.lineWidth) || 0) / TIKZ_UNIT) * canvasLengthScale(env),
+    cylinderOuterXSep: Math.max(0, cylinderOuterSep.x) * cylinderScale,
+    cylinderOuterYSep: Math.max(0, cylinderOuterSep.y) * cylinderScale,
     cylinderUsesCustomFill: tikzBoolean(options["cylinder uses custom fill"]),
     cylinderBodyFill: normalizeColor(String(options["cylinder body fill"] === true || options["cylinder body fill"] === undefined ? "white" : options["cylinder body fill"])),
     cylinderEndFill: normalizeColor(String(options["cylinder end fill"] === true || options["cylinder end fill"] === undefined ? "white" : options["cylinder end fill"])),
@@ -18161,6 +18175,8 @@ function nodeAnchorCoordinate(node, anchorRaw) {
     height,
     visibleWidth,
     visibleHeight,
+    baseOffset: node.baseOffset,
+    midOffset: node.midOffset,
     shapeData: node.shapeData
   });
   if (customAnchor) {
@@ -18223,7 +18239,11 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     const geometry = geometricCylinderGeometry({
       width: Number(size.visibleWidth) || Number(size.width) || 0,
       height: Number(size.visibleHeight) || Number(size.height) || 0
-    }, size.shapeData || {});
+    }, {
+      ...(size.shapeData || {}),
+      cylinderBaseOffset: Number(size.baseOffset) || 0,
+      cylinderMidOffset: Number(size.midOffset) || 0
+    });
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
     const directions = {

@@ -6498,6 +6498,51 @@
         "automatic arrow border clipping",
         "outer separation"
       ]
+    },
+    {
+      "id": "shapes-cylinder-anchors-flowchart",
+      "title": "Cylinder baseline anchors in a data flow",
+      "source": "shapes/cylinder-anchors-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:cylinderGeometry/cylinderBorderPointFrom",
+      "features": [
+        "flowchart",
+        "cylinder mid and base border anchors",
+        "outer separation",
+        "custom cylinder fill",
+        "positioning"
+      ]
+    },
+    {
+      "id": "shapes-cylinder-anchors-math",
+      "title": "Cylinder end anchors and volume dimensions",
+      "source": "shapes/cylinder-anchors-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:cylinderGeometry",
+      "features": [
+        "mathematics diagram",
+        "cylinder before and after end anchors",
+        "top bottom and shape center anchors",
+        "calc coordinates",
+        "outer separation"
+      ]
+    },
+    {
+      "id": "shapes-cylinder-anchors-physics",
+      "title": "Rotated pressure vessel cylinder anchors",
+      "source": "shapes/cylinder-anchors-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:cylinderGeometry/cylinderBorderPointFrom",
+      "features": [
+        "physics diagram",
+        "quarter-turn cylinder",
+        "explicit mid-east anchor placement",
+        "base border anchors",
+        "custom cylinder fill"
+      ]
     }
   ]
 }

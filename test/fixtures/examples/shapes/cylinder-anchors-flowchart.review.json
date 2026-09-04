@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document supplies the TeX box and baseline context used by node anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads PGF and dispatches arrows.meta, positioning, and shapes.geometric." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill", "\\tikzset"], "findings": "Core TikZ resolves named anchors, relative coordinates, styles, and path actions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The Latex arrow tip is shortened against the resolved cylinder border." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of"], "findings": "Positioning measures the final node borders before applying node distance." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["cylinder", "mid east", "mid west", "base east", "before top", "after top"], "findings": "Cylinder mid/base side anchors cast horizontal rays from the TeX midline or baseline to the rotated outer-separation boundary; before/after end anchors use the source end points." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["shape aspect", "shape border rotate", "cylinder uses custom fill"], "findings": "The manual documents cylinder sizing, orientation, custom body/end fills, and the named anchor family." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-cylinder.test.js"] }
+  ]
+}

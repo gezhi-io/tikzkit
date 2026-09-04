@@ -51,6 +51,28 @@ test("cylinder geometry exposes curved paths, named anchors, and curved border h
   assert.ok(diagonal.x < geometry.bounds.maxX && diagonal.y < geometry.bounds.maxY);
 });
 
+test("cylinder geometry applies PGF outer separation and text baseline border anchors", () => {
+  const geometry = cylinderGeometry({ width: 2.4, height: 1.2 }, {
+    cylinderAspect: 0.5,
+    cylinderInnerYSep: 0.1,
+    cylinderLineWidth: 0.02,
+    cylinderOuterXSep: 0.04,
+    cylinderOuterYSep: 0.08,
+    cylinderMidOffset: 0.15,
+    cylinderBaseOffset: -0.12
+  });
+
+  close(geometry.anchors["before top"].y, 0.68);
+  close(geometry.anchors["after top"].y, -0.68);
+  close(geometry.anchors.top.x - geometry.anchors["before top"].x, 0.38);
+  close(geometry.anchors["mid east"].y, 0.15);
+  close(geometry.anchors["mid west"].y, 0.15);
+  close(geometry.anchors["base east"].y, -0.12);
+  close(geometry.anchors["base west"].y, -0.12);
+  assert.ok(geometry.anchors["mid west"].x < geometry.anchors["mid east"].x);
+  assert.ok(geometry.anchors["base west"].x < geometry.anchors["base east"].x);
+});
+
 test("TikZ cylinder nodes render body/end fills and use curved anchors", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{shapes.geometric,arrows.meta}
@@ -74,5 +96,29 @@ test("TikZ cylinder nodes render body/end fills and use curved anchors", () => {
   assert.ok(paths.length >= 2);
   const expectedGeometry = cylinderGeometry(cylinder, cylinder.shapeData);
   close(paths[0].commands[0].y, expectedGeometry.anchors["shape center"].y);
-  close(paths[0].commands.at(-1).x, cylinder.width / 2);
+  close(paths[0].commands.at(-1).x, cylinderBorderPoint(expectedGeometry, { x: 1, y: 0 }).x);
+});
+
+test("TikZ cylinder mid/base anchors follow TeX baselines and explicit anchor placement", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{shapes.geometric}
+\begin{tikzpicture}
+  \node[cylinder,shape aspect=.35,draw,
+    minimum width=1.8cm,minimum height=2.8cm,outer sep=2pt] (tank) at (0,0) {$H_2O$};
+  \draw[blue] (tank.mid west) -- (tank.mid east);
+  \draw[red] (tank.base west) -- (tank.base east);
+  \node[cylinder,shape border rotate=90,draw,anchor=mid east] (probe) at (3,0) {M};
+  \draw (3,0) -- (probe.mid east);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const paths = result.ir.items.filter((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(paths.length >= 3);
+  close(paths[0].commands[0].y, paths[0].commands.at(-1).y);
+  close(paths[1].commands[0].y, paths[1].commands.at(-1).y);
+  assert.ok(paths[0].commands[0].y > paths[1].commands[0].y);
+  assert.ok(paths[0].commands[0].x + paths[0].commands.at(-1).x > 0.1);
+  assert.ok(paths[1].commands[0].x + paths[1].commands.at(-1).x > 0.1);
+  close(paths[2].commands[0].x, paths[2].commands.at(-1).x);
+  close(paths[2].commands[0].y, paths[2].commands.at(-1).y);
 });
