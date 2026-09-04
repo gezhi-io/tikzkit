@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The document shell is removed while math-bearing node text remains in the picture body." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package wrapper loads the core TikZ parser and path engine." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["child", "/tikz/missing", "edge from parent"], "findings": "A missing child exits before node creation and before the implicit or explicit parent edge is processed." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": { "symbols": ["grow cyclic"], "findings": "Tree layouts share the total/current child counters supplied by core TikZ." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": { "symbols": ["Missing Children", "missing"], "findings": "The contents of a missing child are completely ignored, including nested descendants." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-missing-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/parser.test.js", "test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/parser.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/case-semantic-audit.test.js", "test/interpreter.test.js", "outputs/qa/2026-09-05-trees-missing-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-missing-after"] }
+  ]
+}

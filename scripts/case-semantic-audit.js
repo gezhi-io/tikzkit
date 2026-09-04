@@ -541,6 +541,13 @@ function collectOptionGroups(source, lineStarts) {
     const group = readBalanced(source, cursor, "[", "]");
     if (group) groups.push(optionGroup(name, group, match.index, lineStarts));
   }
+  const childPattern = /\bchild\s*/g;
+  while ((match = childPattern.exec(source))) {
+    const cursor = skipWhitespace(source, childPattern.lastIndex);
+    if (source[cursor] !== "[") continue;
+    const group = readBalanced(source, cursor, "[", "]");
+    if (group) groups.push(optionGroup("child", group, match.index, lineStarts));
+  }
   return groups;
 }
 
@@ -601,6 +608,7 @@ function walkOptionMap(raw, group, parentKeys, features, review) {
 
 function optionOwner(context) {
   if (context.startsWith("package:")) return "src/packages/declarations.js";
+  if (context === "child") return "src/frontend/parser.js:parseNodeTreeChild + src/engine/evaluate.js:createNodeTreeChildren";
   return OPTION_CONTEXT_OWNERS[context] || "src/engine/options.js";
 }
 

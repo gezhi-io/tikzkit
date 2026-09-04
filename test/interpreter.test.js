@@ -1856,6 +1856,69 @@ test("honors tree edge-from-parent options and down-grow child order", () => {
   assert.equal(visibleEdges.length, 2, "expected the draw=none parent edge to be hidden");
 });
 
+test("reserves missing tree slots while suppressing their node, edge, and descendants", () => {
+  const source = String.raw`
+\begin{tikzpicture}[grow=down,level distance=1cm,sibling distance=1cm]
+  \node (root) {root}
+    child {node (one) {one}}
+    child[missing] {node (hidden) {hidden}
+      child {node (descendant) {descendant}}
+    }
+    child {node (three) {three}}
+    child[missing=false] {node (four) {four}};
+\end{tikzpicture}`;
+
+  const result = tikzToSvg(source);
+  const labels = Object.fromEntries(result.ir.items
+    .filter((item) => item.type === "textNode")
+    .map((item) => [item.text, item]));
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(Object.keys(labels).sort(), ["four", "one", "root", "three"]);
+  assert.equal(edges.length, 3);
+  expectClose(labels.one.x, -1.5);
+  expectClose(labels.three.x, 0.5);
+  expectClose(labels.four.x, 1.5);
+  assert.equal(labels.one.y, labels.three.y);
+  assert.equal(labels.three.y, labels.four.y);
+});
+
+test("a bare missing child consumes one slot without swallowing later siblings", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[grow=down,level distance=1cm,sibling distance=1cm]
+  \node (root) {root}
+    child {node (left) {left}}
+    child[missing]
+    child {node (right) {right}};
+\end{tikzpicture}`);
+  const labels = Object.fromEntries(result.ir.items
+    .filter((item) => item.type === "textNode")
+    .map((item) => [item.text, item]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(Object.keys(labels).sort(), ["left", "right", "root"]);
+  expectClose(labels.left.x, -1);
+  expectClose(labels.right.x, 1);
+});
+
+test("missing=false overrides an inherited every-child missing style", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[grow=down,sibling distance=1cm,every child/.style={missing}]
+  \node {root}
+    child {node {hidden}}
+    child[missing=false] {node {shown}};
+\end{tikzpicture}`);
+  const labels = result.ir.items
+    .filter((item) => item.type === "textNode")
+    .map((item) => item.text);
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(labels, ["root", "shown"]);
+  assert.equal(edges.length, 1);
+});
+
 test("matches native TikZ defaults for the evaluation tree fixture", () => {
   const source = String.raw`
 \tikzstyle{vertex}=[draw,fill=black!15,circle,minimum size=20pt,inner sep=0pt]

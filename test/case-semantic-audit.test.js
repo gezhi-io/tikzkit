@@ -244,6 +244,24 @@ test("semantic audit maps graph commands and graph-wide Cartesian options", () =
   assert.ok(!report.gate.blockers.some((entry) => entry.includes("command:\\graph")));
 });
 
+test("semantic audit inventories tree child options and boolean overrides", () => {
+  const report = auditTikzSource(String.raw`
+    \usetikzlibrary{trees}
+    \begin{tikzpicture}
+      \node {root}
+        child[missing]
+        child[missing=false,level distance=12mm] {node {visible}};
+    \end{tikzpicture}
+  `, { localSourceResolver: fakeResolver });
+  const missing = report.options.find((entry) => entry.id === "option:child:missing");
+  const distance = report.options.find((entry) => entry.id === "option:child:level distance");
+
+  assert.deepEqual(missing.rawValues, ["true", "false"]);
+  assert.equal(missing.implementedBy, "src/frontend/parser.js:parseNodeTreeChild + src/engine/evaluate.js:createNodeTreeChildren");
+  assert.deepEqual(distance.rawValues, ["12mm"]);
+  assert.ok(report.numbers.some((entry) => entry.id === "number:option:child:12mm"));
+});
+
 test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", () => {
   const report = auditTikzSource(String.raw`\usetikzlibrary{arrows.meta}`, {
     localSourceResolver: (_lookup, dependency) => dependency.localSource || null

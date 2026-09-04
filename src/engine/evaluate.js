@@ -6865,7 +6865,14 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
   };
   const levelOptions = treeLevelOptions(level, childBaseEnv);
   const layouts = children.map((child) => {
-    const childTreeOptions = normalizeOptions("node", resolveDynamicOptions(child.options || {}, childBaseEnv), childBaseEnv).options;
+    const childTreeOptions = normalizeOptions(
+      "node",
+      resolveDynamicOptions(
+        withImplicitStyleOption("every child", child.options || {}, childBaseEnv.styles),
+        childBaseEnv
+      ),
+      childBaseEnv
+    ).options;
     const layoutOptions = { ...levelOptions, ...resolvedTreeOptions, ...childTreeOptions };
     const grow = treeGrowDirection(childBaseEnv, layoutOptions);
     return { child, childTreeOptions, layoutOptions, grow };
@@ -6896,6 +6903,7 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
         ...childTreeOptions
       }
     };
+    if (tikzBoolean(layoutOptions.missing)) continue;
     const childNode = child.node.type === "coordinate"
       ? { name: null, point, width: 0, height: 0, shape: "coordinate", options: child.node.options || {} }
       : createNode(

@@ -1271,6 +1271,25 @@ function parseNodeTreeChild(text, start, diagnostics = []) {
   const parsedOptions = parseOptionalOptions(text, index);
   index = skipWhitespace(text, parsedOptions.end);
   const body = extractBalanced(text, index, "{", "}");
+  if (!body && Object.hasOwn(parsedOptions.options, "missing")) {
+    return {
+      child: {
+        options: parsedOptions.options,
+        edgeOptions: {},
+        node: {
+          type: "coordinate",
+          name: null,
+          options: {},
+          at: null,
+          treeOptions: {},
+          children: [],
+          raw: text.slice(start, index)
+        },
+        children: []
+      },
+      end: index
+    };
+  }
   if (!body) return null;
   const childNode = parseNodeTreeChildBody(body.content, diagnostics);
   if (!childNode) return null;

@@ -316,6 +316,28 @@ test("parses tree edge-from-parent clauses before nested children", () => {
   assert.equal(hidden.children[0].node.text, "grandchild");
 });
 
+test("parses bare and bodied missing tree children as separate sibling slots", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node {root}
+    child[missing]
+    child[missing] {node {ignored}}
+    child[missing=false] {node {visible}};
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const root = result.ast.pictures[0].statements[0];
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(root.children.length, 3);
+  assert.deepEqual(root.children.map((child) => child.options.missing), [true, true, "false"]);
+  assert.equal(root.children[0].node.type, "coordinate");
+  assert.equal(root.children[0].children.length, 0);
+  assert.equal(root.children[1].node.text, "ignored");
+  assert.equal(root.children[2].node.text, "visible");
+  assert.equal(root.path, null);
+});
+
 test("parses TikZ spy statements with source and target nodes", () => {
   const source = String.raw`
 \begin{tikzpicture}[spy using outlines={circle, magnification=8, size=2cm, connect spies}]

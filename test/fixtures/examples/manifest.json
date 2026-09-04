@@ -7702,6 +7702,48 @@
         "as text override",
         "quoted physical transition labels"
       ]
+    },
+    {
+      "id": "trees-missing-flowchart",
+      "title": "PGF tree missing approval branch",
+      "source": "trees/missing-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF trees manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "missing child",
+        "reserved sibling slot",
+        "ignored missing descendants",
+        "flowchart tree"
+      ]
+    },
+    {
+      "id": "trees-missing-math",
+      "title": "Mathematical tree with a reserved child slot",
+      "source": "trees/missing-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGF tree semantics",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "missing child",
+        "missing=false",
+        "math labels",
+        "sibling indexing"
+      ]
+    },
+    {
+      "id": "trees-missing-physics",
+      "title": "Physical-state tree with an unobserved branch",
+      "source": "trees/missing-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGF tree semantics",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "missing child",
+        "ignored missing subtree",
+        "edge from parent styles",
+        "physical-state labels"
+      ]
     }
   ]
 }
