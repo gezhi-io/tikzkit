@@ -6,6 +6,9 @@ import {
   cylinderBorderPoint as geometricCylinderBorderPoint,
   cylinderGeometry as geometricCylinderGeometry,
   cylinderLayoutSize as geometricCylinderLayoutSize,
+  semicircleBorderPoint as geometricSemicircleBorderPoint,
+  semicircleGeometry as geometricSemicircleGeometry,
+  semicircleLayoutSize as geometricSemicircleLayoutSize,
   starBorderPoint as geometricStarBorderPoint,
   starGeometry as geometricStarGeometry,
   starLayoutSize as geometricStarLayoutSize,
@@ -9428,9 +9431,9 @@ function addNodeItems(node, ir, env) {
       width: size.width,
       height: size.height,
       // Rectangle-like node renderers inset the geometry by half the stroke,
-      // but SVG ellipses paint their stroke outside the supplied radii. Keep
-      // that outer half-stroke in the scene bounds for circles and ellipses.
-      strokeBoundsIncluded: shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
+      // but circular SVG paths paint their stroke outside the supplied radii.
+      // Keep that outer half-stroke in the scene bounds.
+      strokeBoundsIncluded: shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "semicircle" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
@@ -9497,7 +9500,7 @@ function addNodeItems(node, ir, env) {
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
-    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst";
+    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle";
     ir.items.push({
       type: "textNode",
       x: textPoint.x,
@@ -11355,6 +11358,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "semicircle") {
+    localPoint = geometricSemicircleBorderPoint(
+      geometricSemicircleGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "signal") {
     const visibleWidth = Number(node.width) || halfWidth * 2;
     const visibleHeight = Number(node.height) || halfHeight * 2;
@@ -11540,6 +11549,7 @@ function nodeShape(options = {}) {
   if (options["regular polygon"]) return "regularPolygon";
   if (options.star) return "star";
   if (options.trapezium) return "trapezium";
+  if (options.semicircle) return "semicircle";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
   if (options["magnifying glass"]) return "magnifyingGlass";
   if (options.starburst) return "starburst";
@@ -11576,6 +11586,7 @@ function explicitNodeShape(shape) {
     "regular polygon": "regularPolygon",
     star: "star",
     trapezium: "trapezium",
+    semicircle: "semicircle",
     "isosceles triangle": "isoscelesTriangle",
     "magnifying glass": "magnifyingGlass",
     starburst: "starburst",
@@ -11643,6 +11654,17 @@ function cylinderLayoutSize(contentWidth, contentHeight, options = {}, env = { v
     innerXSep: parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
     innerYSep: parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
     lineWidth: (Number(style.lineWidth) || 0) / TIKZ_UNIT,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
+function semicircleLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return geometricSemicircleLayoutSize(contentWidth, contentHeight, {
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
     minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
     minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
   });
@@ -11734,6 +11756,25 @@ function trapeziumLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function semicircleLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "semicircleRadius",
+    "semicircleDefaultRadius",
+    "semicircleCenterOffset",
+    "semicircleCenterX",
+    "semicircleCenterY",
+    "semicircleShapeBorderRotate"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.semicircleShapeBorderUsesIncircle !== undefined) {
+    data.semicircleShapeBorderUsesIncircle = Boolean(layoutSize.semicircleShapeBorderUsesIncircle);
+  }
+  return data;
+}
+
 function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const regularSides = regularPolygonSides(options, env);
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
@@ -11753,8 +11794,10 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const starburstOuterSep = nodeOuterSep(options, env);
   const starOuterSep = nodeOuterSep(options, env);
   const trapeziumOuterSep = nodeOuterSep(options, env);
+  const semicircleOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const semicircleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
     pointHeight: 0,
@@ -11785,6 +11828,8 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     trapeziumStretchesBody: tikzBoolean(options["trapezium stretches body"]),
     trapeziumOuterSep: Math.max(trapeziumOuterSep.x, trapeziumOuterSep.y) * trapeziumScale,
     ...trapeziumLayoutShapeData(layoutSize),
+    semicircleOuterSep: Math.max(semicircleOuterSep.x, semicircleOuterSep.y) * semicircleScale,
+    ...semicircleLayoutShapeData(layoutSize),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
     cylinderAspect: Math.max(1e-9, numberOption(options["shape aspect"] ?? options.aspect, 1)),
     cylinderEndRadiusX: cylinderNaturalEndRadiusX(text, options, env),
@@ -12663,9 +12708,20 @@ function scaleSize(size, scale = 1) {
     "trapeziumBodyHalfWidth",
     "trapeziumHalfHeight",
     "trapeziumLeftExtension",
-    "trapeziumRightExtension"
+    "trapeziumRightExtension",
+    "semicircleRadius",
+    "semicircleDefaultRadius",
+    "semicircleCenterOffset",
+    "semicircleCenterX",
+    "semicircleCenterY"
   ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
+  }
+  if (Number.isFinite(Number(size?.semicircleShapeBorderRotate))) {
+    scaled.semicircleShapeBorderRotate = Number(size.semicircleShapeBorderRotate);
+  }
+  if (size?.semicircleShapeBorderUsesIncircle !== undefined) {
+    scaled.semicircleShapeBorderUsesIncircle = Boolean(size.semicircleShapeBorderUsesIncircle);
   }
   return scaled;
 }
@@ -13034,6 +13090,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
       minY: geometry.anchors.south.y,
       maxX: geometry.anchors.east.x,
       maxY: geometry.anchors.north.y
+    };
+  }
+  if (nodeShape(options) === "semicircle") {
+    const geometry = geometricSemicircleGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
     };
   }
   if (nodeShape(options) === "regularPolygon") {
@@ -13497,6 +13564,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(cylinderLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "semicircle") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(semicircleLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "signal") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -13574,6 +13646,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "cylinder") {
     return scaleSize(cylinderLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "semicircle") {
+    return scaleSize(semicircleLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "signal") {
     return scaleSize(signalLayoutSize(width, height, options, env), shapeScale);
@@ -18450,6 +18525,18 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     };
     if (directions[anchor]) return geometricCylinderBorderPoint(geometry, directions[anchor]);
   }
+  if (shape === "semicircle") {
+    const geometry = geometricSemicircleGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      semicircleBaseOffset: Number(size.baseOffset) || 0,
+      semicircleMidOffset: Number(size.midOffset) || 0
+    });
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
   if (shape === "star") {
     const geometry = geometricStarGeometry({
       width: Number(size.visibleWidth) || Number(size.width) || 0,
@@ -18986,6 +19073,18 @@ function includeItemBounds(item, include) {
     const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
     if (item.shape === "cylinder") {
       const bounds = geometricCylinderGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "semicircle") {
+      const bounds = geometricSemicircleGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

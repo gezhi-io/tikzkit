@@ -11,7 +11,7 @@ import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
-import { cylinderGeometry } from "../../tikz/libraries/shapes.geometric.js";
+import { cylinderGeometry, semicircleGeometry } from "../../tikz/libraries/shapes.geometric.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 import { curvedArrowPaint } from "./arrowBending.js";
 
@@ -31,9 +31,11 @@ export function computeSvgBounds(items, options = {}) {
       const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
       const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
       const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
-      const cylinderBounds = item.shape === "cylinder"
+      const geometricBounds = item.shape === "cylinder"
         ? cylinderGeometry(item, item.shapeData || {}).bounds
-        : null;
+        : item.shape === "semicircle"
+          ? semicircleGeometry(item, item.shapeData || {}).bounds
+          : null;
       const symbolBounds = item.shape === "signal"
         ? signalGeometry(item, item.shapeData || {}).bounds
         : item.shape === "magneticTape"
@@ -42,7 +44,7 @@ export function computeSvgBounds(items, options = {}) {
             ? tapeGeometry(item, item.shapeData || {}).bounds
           : item.shape === "starburst"
             ? starburstGeometry(item, item.shapeData || {}).bounds
-          : cylinderBounds;
+          : geometricBounds;
       includeRotatedRectangleBounds(
         symbolBounds ? item.x + symbolBounds.minX - strokePad - foregroundOuterX : item.x - item.width / 2 - strokePad - foregroundOuterX,
         symbolBounds ? item.y + symbolBounds.minY - strokePad - foregroundOuterY : item.y - item.height / 2 - strokePad - foregroundOuterY,

@@ -1,8 +1,153 @@
 const TRAPEZIUM_EPSILON = 1e-9;
 const CYLINDER_EPSILON = 1e-9;
+const SEMICIRCLE_EPSILON = 1e-9;
 const STAR_DEFAULT_POINT_RATIO = 1.5;
 const STAR_DEFAULT_POINT_HEIGHT = 0.5;
 const CYLINDER_DEFAULT_ASPECT = 1;
+
+export function semicircleLayoutSize(contentWidth, contentHeight, options = {}) {
+  const usesIncircle = options.shapeBorderUsesIncircle === true;
+  const rotate = semicircleRotation(options.shapeBorderRotate, usesIncircle);
+  const swapsAxes = !usesIncircle && (rotate === 90 || rotate === 270);
+  const halfWidth = Math.max(0, Number(swapsAxes ? contentHeight : contentWidth) || 0) / 2;
+  const halfHeight = Math.max(0, Number(swapsAxes ? contentWidth : contentHeight) || 0) / 2;
+  const incircleHalfHeight = Math.SQRT2 * Math.max(halfWidth, halfHeight);
+  const localHalfHeight = usesIncircle ? incircleHalfHeight : halfHeight;
+  const defaultRadius = usesIncircle
+    ? 2 * incircleHalfHeight
+    : Math.hypot(halfWidth, 2 * halfHeight);
+  const minimumWidth = Math.max(0, Number(options.minimumWidth) || 0, Number(options.minimumSize) || 0);
+  const minimumHeight = Math.max(0, Number(options.minimumHeight) || 0, Number(options.minimumSize) || 0);
+  const radius = Math.max(SEMICIRCLE_EPSILON, defaultRadius, minimumWidth / 2, minimumHeight);
+  const centerOffset = -localHalfHeight - 0.4 * (radius - defaultRadius);
+  const center = rotatePoint({ x: 0, y: centerOffset }, rotate);
+  const visibleBoundaryPoints = semicircleBoundaryPoints(radius, centerOffset, rotate, 0);
+  const bounds = pointBounds(visibleBoundaryPoints);
+
+  return {
+    width: bounds.maxX - bounds.minX,
+    height: bounds.maxY - bounds.minY,
+    minX: bounds.minX,
+    minY: bounds.minY,
+    maxX: bounds.maxX,
+    maxY: bounds.maxY,
+    semicircleRadius: radius,
+    semicircleDefaultRadius: defaultRadius,
+    semicircleCenterOffset: centerOffset,
+    semicircleCenterX: center.x,
+    semicircleCenterY: center.y,
+    semicircleShapeBorderRotate: rotate,
+    semicircleShapeBorderUsesIncircle: usesIncircle
+  };
+}
+
+export function semicircleGeometry(size = {}, data = {}) {
+  const usesIncircle = data.semicircleShapeBorderUsesIncircle === true || data.shapeBorderUsesIncircle === true;
+  const rotate = semicircleRotation(
+    data.semicircleShapeBorderRotate ?? data.shapeBorderRotate,
+    usesIncircle
+  );
+  const swapsAxes = !usesIncircle && (rotate === 90 || rotate === 270);
+  const inferredRadius = Math.max(
+    SEMICIRCLE_EPSILON,
+    Math.abs(Number(swapsAxes ? size.height : size.width) || 0) / 2
+  );
+  const radius = finitePositive(data.semicircleRadius, inferredRadius);
+  const defaultRadius = finitePositive(data.semicircleDefaultRadius, radius);
+  const centerOffset = Number.isFinite(Number(data.semicircleCenterOffset))
+    ? Number(data.semicircleCenterOffset)
+    : -radius / 2 - 0.4 * (radius - defaultRadius);
+  const outerSep = Math.max(0, Number(data.semicircleOuterSep) || 0);
+  const anchorRadius = radius + outerSep;
+  const center = rotatePoint({ x: 0, y: centerOffset }, rotate);
+  const visibleBoundaryPoints = semicircleBoundaryPoints(radius, centerOffset, rotate, 0);
+  const boundaryPoints = semicircleBoundaryPoints(anchorRadius, centerOffset, rotate, outerSep);
+  const outlineCommands = rotateCommands([
+    { type: "moveTo", x: radius, y: centerOffset },
+    ...ellipseArcCommands(0, centerOffset, radius, radius, 0, 180),
+    { type: "closePath" }
+  ], rotate);
+  const arcStart = rotatePoint({ x: anchorRadius, y: centerOffset - outerSep }, rotate);
+  const arcEnd = rotatePoint({ x: -anchorRadius, y: centerOffset - outerSep }, rotate);
+  const borderGeometry = { boundaryPoints };
+  const baseOffset = Number(data.semicircleBaseOffset) || 0;
+  const midOffset = Number(data.semicircleMidOffset) || 0;
+  const anchors = {
+    center: { x: 0, y: 0 },
+    base: { x: 0, y: baseOffset },
+    mid: { x: 0, y: midOffset },
+    apex: addPoints(center, rotatePoint({ x: 0, y: anchorRadius }, rotate)),
+    "arc start": arcStart,
+    "arc end": arcEnd,
+    "chord center": {
+      x: (arcStart.x + arcEnd.x) / 2,
+      y: (arcStart.y + arcEnd.y) / 2
+    }
+  };
+  anchors["base east"] = semicircleBorderPointFrom(borderGeometry, anchors.base, { x: 1, y: 0 });
+  anchors["base west"] = semicircleBorderPointFrom(borderGeometry, anchors.base, { x: -1, y: 0 });
+  anchors["mid east"] = semicircleBorderPointFrom(borderGeometry, anchors.mid, { x: 1, y: 0 });
+  anchors["mid west"] = semicircleBorderPointFrom(borderGeometry, anchors.mid, { x: -1, y: 0 });
+  for (const [name, direction] of Object.entries({
+    north: { x: 0, y: 1 },
+    south: { x: 0, y: -1 },
+    east: { x: 1, y: 0 },
+    west: { x: -1, y: 0 },
+    "north east": { x: 1, y: 1 },
+    "north west": { x: -1, y: 1 },
+    "south east": { x: 1, y: -1 },
+    "south west": { x: -1, y: -1 }
+  })) {
+    anchors[name] = semicircleBorderPoint(borderGeometry, direction);
+  }
+
+  return {
+    outlineCommands,
+    boundaryPoints,
+    visibleBoundaryPoints,
+    anchors,
+    bounds: pointBounds(visibleBoundaryPoints),
+    anchorBounds: pointBounds(boundaryPoints),
+    center,
+    radius,
+    anchorRadius,
+    outerSep,
+    rotate
+  };
+}
+
+export function semicircleBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  return semicircleBorderPointFrom(geometry, { x: 0, y: 0 }, toward, padding);
+}
+
+export function semicircleBorderPointFrom(geometry = {}, reference = {}, toward = {}, padding = 0) {
+  const originX = Number(reference.x) || 0;
+  const originY = Number(reference.y) || 0;
+  const dx = Number(toward.x) || 0;
+  const dy = Number(toward.y) || 0;
+  const distance = Math.hypot(dx, dy);
+  if (distance < SEMICIRCLE_EPSILON) return { x: originX, y: originY };
+  let best = null;
+  const points = geometry.boundaryPoints || [];
+  for (let index = 0; index < points.length; index += 1) {
+    const first = {
+      x: points[index].x - originX,
+      y: points[index].y - originY
+    };
+    const next = points[(index + 1) % points.length];
+    const second = { x: next.x - originX, y: next.y - originY };
+    const hit = raySegmentIntersection(dx, dy, first, second);
+    if (hit && (!best || hit.t < best.t)) best = hit;
+  }
+  const base = best
+    ? { x: originX + best.x, y: originY + best.y }
+    : { x: originX, y: originY };
+  const extension = Math.max(0, Number(padding) || 0);
+  return {
+    x: base.x + (dx / distance) * extension,
+    y: base.y + (dy / distance) * extension
+  };
+}
 
 export function cylinderLayoutSize(contentWidth, contentHeight, options = {}) {
   const rotate = cylinderQuarterRotation(options.shapeBorderRotate);
@@ -406,6 +551,56 @@ function cylinderQuarterRotation(rawRotation) {
   return (Math.round(normalized / 90) * 90) % 360;
 }
 
+function semicircleRotation(rawRotation, usesIncircle = false) {
+  const value = Number(rawRotation);
+  const normalized = Number.isFinite(value) ? ((value % 360) + 360) % 360 : 0;
+  return usesIncircle ? normalized : (Math.round(normalized / 90) * 90) % 360;
+}
+
+function semicircleBoundaryPoints(radius, centerOffset, rotate, chordOuterSep) {
+  const arc = sampleEllipseArc(0, centerOffset, radius, radius, 0, 180, 48);
+  const chordY = centerOffset - Math.max(0, Number(chordOuterSep) || 0);
+  return [
+    ...arc,
+    { x: -radius, y: chordY },
+    { x: radius, y: chordY }
+  ].map((point) => rotatePoint(point, rotate));
+}
+
+function rotatePoint(point, degrees) {
+  const angle = ((Number(degrees) || 0) * Math.PI) / 180;
+  if (Math.abs(angle) < SEMICIRCLE_EPSILON) return { x: point.x, y: point.y };
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  return {
+    x: point.x * cosine - point.y * sine,
+    y: point.x * sine + point.y * cosine
+  };
+}
+
+function rotateCommands(commands, degrees) {
+  return commands.map((command) => {
+    if (command.type === "closePath") return command;
+    const point = rotatePoint(command, degrees);
+    if (command.type !== "curveTo") return { ...command, ...point };
+    const first = rotatePoint({ x: command.x1, y: command.y1 }, degrees);
+    const second = rotatePoint({ x: command.x2, y: command.y2 }, degrees);
+    return { ...command, ...point, x1: first.x, y1: first.y, x2: second.x, y2: second.y };
+  });
+}
+
+function addPoints(first, second) {
+  return {
+    x: (Number(first?.x) || 0) + (Number(second?.x) || 0),
+    y: (Number(first?.y) || 0) + (Number(second?.y) || 0)
+  };
+}
+
+function finitePositive(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
 function cylinderContentChord(radiusX, radiusY, innerCrossSep) {
   if (radiusY <= CYLINDER_EPSILON) return 0;
   const sine = Math.max(-1, Math.min(1, (radiusY - innerCrossSep) / radiusY));
@@ -486,7 +681,9 @@ export const tikzLibrary = {
     "src/engine/evaluate.js:regularPolygonLayoutSize/regularPolygonStartAngle/regularPolygonOuterRadiusExtension/nodeBorderPoint/polygonBorderPointWithPadding/trapeziumLayoutShapeData/customNodeLocalAnchor",
     "src/tikz/libraries/shapes.geometric.js:starLayoutSize/starNodePoints/starGeometry/starBorderPoint/trapeziumLayoutSize/trapeziumNodePoints",
     "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry/cylinderBorderPoint/cylinderBorderPointFrom",
-    "src/renderers/svg/nodeShapes.js:regularPolygonNodePoints/starNodePoints/renderCylinderNodeBox"
+    "src/tikz/libraries/shapes.geometric.js:semicircleLayoutSize/semicircleGeometry/semicircleBorderPoint/semicircleBorderPointFrom",
+    "src/renderers/svg/nodeShapes.js:regularPolygonNodePoints/starNodePoints/renderCylinderNodeBox/renderLibraryNodeBox",
+    "src/renderers/svg/bounds.js:nodeBounds"
   ],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
@@ -496,14 +693,16 @@ export const tikzLibrary = {
     "star with PGF radius modes, minimum sizing, border rotation, mitered outer separation, and named inner/outer point anchors",
     "trapezium with PGF cotangent side geometry, proportional/independent/body-only minimum-size stretching, named side/corner anchors, and mitered border crop",
     "isosceles triangle with apex angle, minimum height, rotation, and named anchors",
-    "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, complete end/mid/base named anchors, curved outer-separation border clipping, and separate body/end fills"
+    "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, complete end/mid/base named anchors, curved outer-separation border clipping, and separate body/end fills",
+    "semicircle with PGF content/minimum sizing, shifted circle center, quarter-turn border rotation, named arc/chord/base/mid anchors, curved outer-separation clipping, and cubic arc paint"
   ],
   "implements": [
     "regular polygon",
     "star",
     "trapezium",
     "isosceles triangle",
-    "cylinder"
+    "cylinder",
+    "semicircle"
   ],
-  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Arbitrary non-quarter cylinder rotation/incircle mode and degenerate angular ranges remain partial."
+  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Reviewed again on 2026-09-04 for the semicircle declaration at lines 1523-1980 and its manual section: natural radius is hypot(half content width, twice the half content height), minimum width constrains the diameter, minimum height constrains the radius, and the circular center shifts away from the text center as the minimum radius grows. Quarter-turn rotation swaps content axes; paint uses the visible arc and chord while named anchors and automatic clipping use the outer-separation contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-semicircle.md`. Kite, dart, circular sector, exact arbitrary-angle incircle metrics, and degenerate angular ranges remain partial."
 };

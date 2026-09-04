@@ -6750,6 +6750,51 @@
         "named part anchors",
         "math text and arrow tips"
       ]
+    },
+    {
+      "id": "shapes-semicircle-flowchart",
+      "title": "Semicircle validation gate flowchart",
+      "source": "shapes/semicircle-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:semicircleGeometry/semicircleBorderPoint",
+      "features": [
+        "flowchart",
+        "semicircle quarter-turn border rotation",
+        "named apex and chord-center anchors",
+        "outer separation",
+        "automatic arrow border clipping"
+      ]
+    },
+    {
+      "id": "shapes-semicircle-math",
+      "title": "Semicircular mathematical domain",
+      "source": "shapes/semicircle-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:semicircleLayoutSize/semicircleGeometry",
+      "features": [
+        "mathematics diagram",
+        "semicircle minimum width and height",
+        "arc-start arc-end apex and chord-center anchors",
+        "outer separation",
+        "math text"
+      ]
+    },
+    {
+      "id": "shapes-semicircle-physics",
+      "title": "Semicircular pressure gauge",
+      "source": "shapes/semicircle-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:semicircleGeometry",
+      "features": [
+        "physics diagram",
+        "semicircle gauge",
+        "named apex chord-center and arc endpoint anchors",
+        "calc distance and angle modifier",
+        "arrow tip and math text"
+      ]
     }
   ]
 }

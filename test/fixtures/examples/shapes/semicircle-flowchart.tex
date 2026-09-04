@@ -1,0 +1,22 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+\begin{document}
+\begin{tikzpicture}[
+  >=Latex,
+  node distance=17mm,
+  process/.style={draw,rounded corners,minimum width=24mm,minimum height=9mm,fill=blue!8},
+  gate/.style={semicircle,shape border rotate=90,draw,fill=orange!22,
+    minimum width=22mm,minimum height=11mm,outer sep=2pt},
+  flow/.style={->,thick}
+]
+  \node[process] (read) {Read data};
+  \node[gate,right=of read] (check) {Valid?};
+  \node[process,right=of check] (save) {Store};
+
+  \draw[flow] (read) -- (check);
+  \draw[flow] (check.chord center) -- (save);
+  \draw[flow] (check.apex) |- node[above,pos=.75]{retry} (read.north);
+\end{tikzpicture}
+\end{document}

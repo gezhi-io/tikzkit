@@ -4,6 +4,7 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import {
   cylinderGeometry,
+  semicircleGeometry,
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
@@ -14,6 +15,7 @@ export const LIBRARY_NODE_SHAPES = [
   "star",
   "trapezium",
   "cylinder",
+  "semicircle",
   "signal",
   "tape",
   "magneticTape",
@@ -99,6 +101,9 @@ export function nodeShapeCommands(item) {
   const halfHeight = item.height / 2;
   if (item.shape === "cylinder") {
     return translateCommands(cylinderGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "semicircle") {
+    return translateCommands(semicircleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "signal") {
     return translateCommands(signalGeometry(item, item.shapeData || {}).commands, item.x, item.y);

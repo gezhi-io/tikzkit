@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document wrapper does not change node geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads the requested geometric, positioning, and arrow libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw"], "findings": "Core TikZ resolves node styles, path nodes, anchors, and orthogonal paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The terminal is placed after node-border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of"], "findings": "Positioning measures the resolved source and target anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["semicircle", "semicircleradius", "arc start", "arc end", "chord center", "apex"], "findings": "The source derives one circular radius from the text box, applies asymmetric minimum-width and minimum-height rules, shifts the circle center, and keeps paint and outer-separation anchor contours distinct." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["semicircle", "shape border rotate"], "findings": "The manual lists the named anchors and quarter-turn border behavior exercised here." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] }
+  ]
+}

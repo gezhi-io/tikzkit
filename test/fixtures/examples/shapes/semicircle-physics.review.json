@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document wrapper does not change node geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads the requested geometric, calc, and arrow libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\coordinate"], "findings": "Core TikZ resolves the gauge paths, labels, and named anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["distance modifiers", "angle modifiers"], "findings": "The needle endpoint is derived from the gauge pivot without a hard-coded Cartesian endpoint." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "The pressure needle uses the local Stealth arrow-tip declaration." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["semicircle", "semicirclecenterpoint", "apex", "chord center"], "findings": "The shape source shifts the half-disc around the TeX text center and exposes stable gauge reference anchors." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["semicircle", "outer sep"], "findings": "The manual confirms that named anchor geometry includes outer separation while the painted arc does not." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-semicircle.test.js"] }
+  ]
+}
