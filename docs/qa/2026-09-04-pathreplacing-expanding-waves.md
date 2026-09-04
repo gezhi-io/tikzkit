@@ -36,13 +36,17 @@ executor for user-defined `\pgfdeclaredecoration` state machines.
 - Transform probe: `/private/tmp/tikzkit-expanding-waves-transform.svg`
 - Curved-path probe: `/private/tmp/tikzkit-expanding-waves-curve.svg`
 - Landmark probe: `/private/tmp/tikzkit-expanding-waves-landmarks.svg`
+- Non-coincidental boundary probe:
+  `/private/tmp/tikzkit-expanding-waves-boundary-noncoincidental.svg`
 
 The reference SVG uses independent `M ... C` subpaths with butt caps and miter
 joins. A 4cm path with 1cm states has arcs at 1cm, 2cm, and 3cm, not at the
-4cm endpoint. In the transform probe, the raw path begins with a 3mm line,
-four arcs use 8mm state spacing and a reflected 2mm raise, and the post line
-runs from the child-final 3.5cm coordinate to 4.3cm. Normalized cubic control
-points in TikZKit now match those reference values.
+4cm endpoint. In the transform probe, the raw path begins with a 3mm line and
+four arcs use 8mm state spacing with a reflected 2mm raise. A second 4.4cm
+probe deliberately uses a 2mm pre section and a 37mm main section so that the
+nominal main end cannot be confused with state progress: the post line starts
+at 34mm, namely 2mm pre plus four completed 8mm states, and ends at 44mm.
+Normalized cubic control points in TikZKit now match those reference values.
 
 ## Visual cases
 

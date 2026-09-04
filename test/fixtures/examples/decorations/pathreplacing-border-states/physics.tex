@@ -1,0 +1,27 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,decorations.pathreplacing}
+
+\definecolor{fieldgreen}{HTML}{047857}
+\definecolor{fieldgold}{HTML}{D97706}
+\definecolor{fieldink}{HTML}{334155}
+
+\begin{document}
+\begin{tikzpicture}[>=Stealth,line cap=round]
+  \fill[fieldgold] (-2.45,0) circle (2.5pt);
+  \node[fieldgold,anchor=east,font=\small] at (-2.58,0) {$q$};
+
+  \draw[fieldgreen!45,line width=.6pt]
+    (-2.35,0) .. controls (-1.2,1.45) and (.9,-1.25) .. (2.35,.35);
+  \draw[fieldgreen,line width=.7pt,decorate,
+    decoration={border,segment length=5mm,amplitude=1.8mm,angle=72,
+      pre length=2.5mm,post length=4mm,raise=.7mm}]
+    (-2.35,0) .. controls (-1.2,1.45) and (.9,-1.25) .. (2.35,.35);
+
+  \draw[-Stealth,fieldink] (2.35,.35) -- (2.95,.55)
+    node[right,font=\small] {$\mathbf E$};
+  \node[fieldgreen,anchor=north,font=\scriptsize] at (.25,-1)
+    {oriented field samples};
+\end{tikzpicture}
+\end{document}

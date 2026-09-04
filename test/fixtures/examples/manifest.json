@@ -5922,6 +5922,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves/createPgfDecorationPathWalker",
       "features": ["waves", "cubic tangent frame", "radius", "raise", "pre length", "post length", "wavefront", "physics"]
+    },
+    {
+      "id": "decorations-pathreplacing-border-states-flowchart",
+      "title": "Oriented dispatch boundary between flowchart stages",
+      "source": "decorations/pathreplacing-border-states/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF border declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendBorderOnPolyline",
+      "features": ["border decoration", "segment length", "amplitude", "angle", "pre length", "post length", "flowchart"]
+    },
+    {
+      "id": "decorations-pathreplacing-border-states-math",
+      "title": "Sampled normals along a mathematical cubic curve",
+      "source": "decorations/pathreplacing-border-states/math.tex",
+      "sourceCorpus": "TeX Live PGF border declaration and TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendBorderOnPolyline/createPgfDecorationPathWalker",
+      "features": ["border decoration", "last state", "cubic tangent frame", "mirror", "raise", "mathematics"]
+    },
+    {
+      "id": "decorations-pathreplacing-border-states-physics",
+      "title": "Oriented samples along a curved electric field line",
+      "source": "decorations/pathreplacing-border-states/physics.tex",
+      "sourceCorpus": "TeX Live PGF border declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendBorderOnPolyline/createPgfDecorationPathWalker",
+      "features": ["border decoration", "last state", "cubic tangent frame", "amplitude", "raise", "electric field", "physics"]
     }
   ]
 }

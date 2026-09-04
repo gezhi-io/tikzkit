@@ -1,7 +1,7 @@
 export const tikzLibrary = {
   "name": "decorations.pathreplacing",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration/appendPathReplacingWaves + addShowPathConstructionItems + addPostactionShowPathConstructionItems + resolvedNodeLayerFont + postactionDecorationPathItems",
+  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration/appendBorderOnPolyline + applyWavesDecoration/appendPathReplacingWaves + resolvePathReplacingBoundary/appendPathReplacingPreLine/appendPathReplacingFinalAndPost + addShowPathConstructionItems + addPostactionShowPathConstructionItems + resolvedNodeLayerFont + postactionDecorationPathItems",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
@@ -18,7 +18,15 @@ export const tikzLibrary = {
     "ticks local line and curve tangents",
     "ticks final complete state origin",
     "border path replacement",
+    "border segment length",
+    "border amplitude",
     "border angle",
+    "border tick, last, and final states",
+    "border last-state amplitude boundary",
+    "border pre length and post length",
+    "border mirror and raise transforms",
+    "border local line and curve tangents",
+    "path-replacing consumed-state post boundary",
     "fixed-radius waves path replacement",
     "fixed waves pre length and post length",
     "fixed waves mirror and raise transforms",
@@ -51,7 +59,15 @@ export const tikzLibrary = {
     "ticks local line and curve tangents",
     "ticks final complete state origin",
     "border path replacement",
+    "border segment length",
+    "border amplitude",
     "border angle",
+    "border tick, last, and final states",
+    "border last-state amplitude boundary",
+    "border pre length and post length",
+    "border mirror and raise transforms",
+    "border local line and curve tangents",
+    "path-replacing consumed-state post boundary",
     "fixed-radius waves path replacement",
     "fixed waves pre length and post length",
     "fixed waves mirror and raise transforms",
@@ -71,5 +87,5 @@ export const tikzLibrary = {
     "source paint-state inheritance for callbacks",
     "callback every node/nodes font inheritance"
   ],
-  "notes": "Brace replacement mirrors PGF's remaining-distance state: it measures the complete decorated subpath, then draws the replacement in the initial tangent frame. mirror, raise, amplitude, and aspect are supported. `ticks` replaces a complete decorated line/curve subpath with independent normal strokes at each full segment-length state origin; amplitude is the half-length and the final partial path remainder does not receive an endpoint tick. `border` emits single-sided tangent-frame strokes at each full state origin, controlled by segment length, amplitude, and angle. Fixed-radius `waves` uses the state's `width=segment length` boundary: exact complete states render, while a terminal remainder shorter than one segment switches directly to final. It honors TikZ's internal pre/main/post line sections, child-final coordinate behavior, and local tangent-frame mirror/raise transforms on straight or curved paths. Evidence: docs/qa/2026-09-04-pathreplacing-fixed-waves.md. `expanding waves` consumes its initial empty state, then uses completed decoration distance as both arc radius and native local x offset; growing states run strictly before the main-section endpoint, so an exact multiple does not gain a false terminal arc. `expanding waves` honors the same boundary meta-decoration and local transforms. Evidence: docs/qa/2026-09-04-pathreplacing-expanding-waves.md. `show path construction` invokes moveto/lineto/curveto/closepath callback code against original input-segment first, last, and cubic support points, reusing the normal TikZ command interpreter with the decoration transform disabled. It resolves the documented named `postaction=style` form, preserves the foreground source path, and lets callback draw/fill commands inherit the source paint state while stripping nested decoration/registration behavior. Callback labels materialize inherited `every node` and `nodes` fonts into their SVG FontSpec, so the documented `font=\\tiny` callback style controls physical text size rather than only layout scale. Arbitrary TeX-only callback bodies, low-level PGF point macros, arbitrary postaction keys, custom decoration transforms, and exact behavior for arbitrary non-linear brace input remain partial."
+  "notes": "Brace replacement mirrors PGF's remaining-distance state: it measures the complete decorated subpath, then draws the replacement in the initial tangent frame. mirror, raise, amplitude, and aspect are supported. `ticks` replaces a complete decorated line/curve subpath with independent normal strokes at each full segment-length state origin; amplitude is the half-length and the final partial path remainder does not receive an endpoint tick. `border` follows PGF's tick/last/final automaton: full segment-length states emit single-sided strokes, a positive terminal remainder runs `last` only when it is at least one amplitude wide, and `final` moves to the child endpoint. Segment length, amplitude, angle, pre/post line sections, mirror, raise, and local straight/cubic tangent frames are supported. When a positive post section is active, the post line begins at the actual consumed child-state distance rather than the nominal end of the main section; with no post section, final remains at the source endpoint. Evidence: docs/qa/2026-09-04-pathreplacing-border-states.md. Fixed-radius `waves` uses the state's `width=segment length` boundary: exact complete states render, while a terminal remainder shorter than one segment switches directly to final. It honors TikZ's internal pre/main/post line sections, consumed-state post boundary, and local tangent-frame mirror/raise transforms on straight or curved paths. Evidence: docs/qa/2026-09-04-pathreplacing-fixed-waves.md. `expanding waves` consumes its initial empty state, then uses completed decoration distance as both arc radius and native local x offset; growing states run strictly before the main-section endpoint, so an exact multiple does not gain a false terminal arc. `expanding waves` honors the same boundary meta-decoration and local transforms. Evidence: docs/qa/2026-09-04-pathreplacing-expanding-waves.md. `show path construction` invokes moveto/lineto/curveto/closepath callback code against original input-segment first, last, and cubic support points, reusing the normal TikZ command interpreter with the decoration transform disabled. It resolves the documented named `postaction=style` form, preserves the foreground source path, and lets callback draw/fill commands inherit the source paint state while stripping nested decoration/registration behavior. Callback labels materialize inherited `every node` and `nodes` fonts into their SVG FontSpec, so the documented `font=\\tiny` callback style controls physical text size rather than only layout scale. Arbitrary TeX-only callback bodies, low-level PGF point macros, arbitrary postaction keys, custom decoration transforms, and exact behavior for arbitrary non-linear brace input remain partial."
 };

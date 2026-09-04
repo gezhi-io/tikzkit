@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex": {
+      "symbols": ["\\pgfdeclaredecoration{border}", "\\state{tick}", "\\state{last}", "\\state{final}"],
+      "findings": "Full tick states consume segment length. A short remainder switches to last, whose width is amplitude; both painted states draw from local origin to polar(angle, amplitude), and final moves to the child endpoint."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex": {
+      "symbols": ["/pgf/decoration automaton/width", "switch if less than", "\\pgfsetdecorationsegmenttransformation"],
+      "findings": "State width installs a strict remaining-distance switch to final. Exact-width states execute, while last is suppressed if its positive remainder is shorter than amplitude. State geometry uses the current input tangent transform."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex": {
+      "symbols": ["tikz@internal", "pre length", "post length", "mirror", "raise"],
+      "findings": "TikZ wraps the selected decoration in pre=lineto, main child, and post=lineto states, applies mirror before local-y raise, and exposes actual child-state progress to the post child."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": "Loads the TikZ frontend and PGF dependencies used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Provides draw, node, path, style, and picture frontend behavior used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": "Defines the Stealth tips used by the coordinate axes.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty": "Defines HTML and mixed colors used by the fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides document and environment primitives handled by the frontend shell.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": "Defines the small and scriptsize font steps used by fixture labels."
+  },
+  "rules": [
+    {"match": "command:*", "status": "verified", "evidence": ["test/pathreplacing-border-states.test.js", "docs/qa/2026-09-04-pathreplacing-border-states.md"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pathreplacing-border-states.test.js", "docs/qa/2026-09-04-pathreplacing-border-states.md"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa-pathreplacing-border-states-2026-09-04"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/pathreplacing-border-states.test.js", "outputs/qa-pathreplacing-border-states-2026-09-04"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa-pathreplacing-border-states-2026-09-04"]}
+  ]
+}

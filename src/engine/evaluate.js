@@ -14751,17 +14751,38 @@ function appendBorderOnPolyline(commands, points, length, decoration, env) {
   );
   const rawAngle = evaluateMath(String(decoration.angle ?? "45"), env.variables || {});
   const angle = Number.isFinite(rawAngle) ? (rawAngle * Math.PI) / 180 : Math.PI / 4;
-  for (let distance = 0; distance < length - 1e-9; distance += segmentLength) {
-    const point = pointOnPolyline(points, distance);
+  const boundary = resolvePathReplacingBoundary(length, decoration, env);
+  appendPathReplacingPreLine(commands, points, boundary.preLength);
+
+  const completeSegments = Math.floor((boundary.activeLength + 1e-9) / segmentLength);
+  const completeDistance = Math.min(boundary.activeLength, completeSegments * segmentLength);
+  const remainder = Math.max(0, boundary.activeLength - completeDistance);
+  const stateDistances = Array.from({ length: completeSegments }, (_, index) => index * segmentLength);
+  const runsLastState = remainder > 1e-9 && remainder + 1e-9 >= amplitude;
+  if (runsLastState) stateDistances.push(completeDistance);
+
+  for (const distance of stateDistances) {
+    const point = pointOnPolyline(points, boundary.preLength + distance);
     const tangent = { x: point.normal.y, y: -point.normal.x };
+    const normal = {
+      x: point.normal.x * boundary.normalSign,
+      y: point.normal.y * boundary.normalSign
+    };
+    const origin = {
+      x: point.x + normal.x * boundary.normalRaise,
+      y: point.y + normal.y * boundary.normalRaise
+    };
     commands.push(
-      moveToCommand({ x: roundNumber(point.x), y: roundNumber(point.y) }),
+      moveToCommand(roundPoint(origin)),
       lineToCommand({
-        x: roundNumber(point.x + amplitude * (tangent.x * Math.cos(angle) + point.normal.x * Math.sin(angle))),
-        y: roundNumber(point.y + amplitude * (tangent.y * Math.cos(angle) + point.normal.y * Math.sin(angle)))
+        x: roundNumber(origin.x + amplitude * (tangent.x * Math.cos(angle) + normal.x * Math.sin(angle))),
+        y: roundNumber(origin.y + amplitude * (tangent.y * Math.cos(angle) + normal.y * Math.sin(angle)))
       })
     );
   }
+
+  const completedDistance = completeDistance + (runsLastState ? amplitude : 0);
+  appendPathReplacingFinalAndPost(commands, points, length, boundary, completedDistance);
 }
 
 function appendTicksOnPolyline(commands, points, length, decoration, env) {
@@ -14809,24 +14830,8 @@ function appendPathReplacingWaves(commands, points, length, decoration, env) {
     0,
     parseFinitePgfLength(decoration.radius ?? decoration["start radius"] ?? "2.5pt", env, defaultRadius)
   );
-  const preLength = Math.min(
-    length,
-    Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0))
-  );
-  const postLength = Math.min(
-    Math.max(0, length - preLength),
-    Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0))
-  );
-  const activeLength = Math.max(0, length - preLength - postLength);
-  const normalSign = tikzBoolean(decoration.mirror) ? -1 : 1;
-  const normalRaise = parseFinitePgfLength(decoration.raise ?? "0", env, 0);
-
-  if (preLength > 1e-12) {
-    commands.push(
-      moveToCommand(roundPoint(points[0])),
-      lineToCommand(roundPoint(pointOnPolyline(points, preLength)))
-    );
-  }
+  const boundary = resolvePathReplacingBoundary(length, decoration, env);
+  appendPathReplacingPreLine(commands, points, boundary.preLength);
 
   // `waves` starts immediately: every full state has a fixed circle radius.
   // `expanding waves` consumes its initial empty state first, then uses the
@@ -14840,33 +14845,62 @@ function appendPathReplacingWaves(commands, points, length, decoration, env) {
   // but their width key switches to final unless a complete segment remains.
   for (let distance = firstDistance; ; distance += segmentLength) {
     const stateFits = expanding
-      ? distance < activeLength - 1e-9
-      : distance + segmentLength <= activeLength + 1e-9;
+      ? distance < boundary.activeLength - 1e-9
+      : distance + segmentLength <= boundary.activeLength + 1e-9;
     if (!stateFits) break;
-    const state = pointOnPolyline(points, preLength + distance);
+    const state = pointOnPolyline(points, boundary.preLength + distance);
     const tangent = { x: state.normal.y, y: -state.normal.x };
     const waveRadius = expanding ? distance : radius;
     if (!(waveRadius > 1e-12)) continue;
     const centerOffset = expanding ? -distance : segmentLength - waveRadius;
     const center = {
-      x: state.x + tangent.x * centerOffset + state.normal.x * normalSign * normalRaise,
-      y: state.y + tangent.y * centerOffset + state.normal.y * normalSign * normalRaise
+      x: state.x + tangent.x * centerOffset + state.normal.x * boundary.normalSign * boundary.normalRaise,
+      y: state.y + tangent.y * centerOffset + state.normal.y * boundary.normalSign * boundary.normalRaise
     };
     const transformedNormal = {
-      x: state.normal.x * normalSign,
-      y: state.normal.y * normalSign
+      x: state.normal.x * boundary.normalSign,
+      y: state.normal.y * boundary.normalSign
     };
     appendOrientedCircularArc(commands, center, tangent, transformedNormal, waveRadius, angle, -angle);
   }
 
-  // With pre/post enabled TikZ wraps the child decoration in its internal
-  // meta-decoration. The child's final point is expressed at the main
-  // section length (not preLength + main length); this observable PGF quirk
-  // is important because the following post=lineto begins there.
-  const usesBoundaryMetaDecoration = preLength > 1e-12 || postLength > 1e-12;
-  const finalDistance = usesBoundaryMetaDecoration ? activeLength : length;
+  const completeSegments = Math.floor((boundary.activeLength + 1e-9) / segmentLength);
+  const completedDistance = Math.min(boundary.activeLength, completeSegments * segmentLength);
+  appendPathReplacingFinalAndPost(commands, points, length, boundary, completedDistance);
+}
+
+function resolvePathReplacingBoundary(length, decoration, env) {
+  const preLength = Math.min(
+    length,
+    Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0))
+  );
+  const postLength = Math.min(
+    Math.max(0, length - preLength),
+    Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0))
+  );
+  return {
+    preLength,
+    postLength,
+    activeLength: Math.max(0, length - preLength - postLength),
+    normalSign: tikzBoolean(decoration.mirror) ? -1 : 1,
+    normalRaise: parseFinitePgfLength(decoration.raise ?? "0", env, 0)
+  };
+}
+
+function appendPathReplacingPreLine(commands, points, preLength) {
+  if (preLength <= 1e-12) return;
+  commands.push(
+    moveToCommand(roundPoint(points[0])),
+    lineToCommand(roundPoint(pointOnPolyline(points, preLength)))
+  );
+}
+
+function appendPathReplacingFinalAndPost(commands, points, length, boundary, completedDistance) {
+  const finalDistance = boundary.postLength > 1e-12
+    ? Math.min(length, boundary.preLength + completedDistance)
+    : length;
   commands.push(moveToCommand(roundPoint(pointOnPolyline(points, finalDistance))));
-  if (postLength > 1e-12) {
+  if (boundary.postLength > 1e-12) {
     commands.push(lineToCommand(roundPoint(points.at(-1))));
   }
 }

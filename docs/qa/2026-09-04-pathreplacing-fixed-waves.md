@@ -31,13 +31,17 @@ does not claim a generic executor for user-defined PGF decoration automata.
 - Exact-state SVG/PNG: `/private/tmp/tikzkit-fixed-waves-exact.svg` and `.png`
 - Boundary-transform SVG/PNG: `/private/tmp/tikzkit-fixed-waves-transform.svg` and `.png`
 - Short-remainder SVG/PNG: `/private/tmp/tikzkit-fixed-waves-short.svg` and `.png`
+- Non-coincidental boundary probe:
+  `/private/tmp/tikzkit-fixed-waves-boundary-noncoincidental.svg`
 
 The reference SVG serializes each wave as an independent cubic `M ... C`
 subpath with butt caps and miter joins. A 4cm path with 1cm states emits four
-arcs. A 5mm path with an 8mm state emits no painted path. With 3mm pre, 5mm
-post, an 8mm segment, mirror, and 2mm raise, the SVG contains the raw pre line,
-four reflected and raised arcs, and a post line from the observable 3.5cm
-child-final coordinate to the 4.3cm source endpoint.
+arcs. A 5mm path with an 8mm state emits no painted path. With 2mm pre, 5mm
+post, an 8mm segment, mirror, and 2mm raise on a 44mm path, the SVG contains
+the raw pre line, four reflected and raised arcs, and a post line from 34mm to
+the 44mm source endpoint. The 34mm boundary is the 2mm pre section plus four
+completed 8mm child states; it is not the nominal 39mm end of the main
+section.
 
 ## Visual cases
 

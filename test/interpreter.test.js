@@ -2326,26 +2326,26 @@ test("applies the TikZ meta-decoration boundary and transform rules to expanding
 \usetikzlibrary{decorations.pathreplacing}
 \begin{tikzpicture}
   \draw[decorate,decoration={expanding waves,segment length=.8cm,angle=20,
-    pre length=.3cm,post length=.5cm,mirror,raise=.2cm}]
-    (0,0) -- (4.3,0);
+    pre length=.2cm,post length=.5cm,mirror,raise=.2cm}]
+    (0,0) -- (4.4,0);
 \end{tikzpicture}`;
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
   const arcs = path.commands.filter((command) => command.type === "curveTo");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(arcs.length, 4, `expected four growing states inside the 3.5cm main section, got ${JSON.stringify(path.commands)}`);
+  assert.equal(arcs.length, 4, `expected four growing states inside the 3.7cm main section, got ${JSON.stringify(path.commands)}`);
   assert.deepEqual(path.commands.slice(0, 2), [
     { type: "moveTo", x: 0, y: 0 },
-    { type: "lineTo", x: 0.3, y: 0 }
+    { type: "lineTo", x: 0.2, y: 0 }
   ]);
-  expectClose(path.commands[2].x, 0.3 + 0.8 * Math.cos((20 * Math.PI) / 180));
+  expectClose(path.commands[2].x, 0.2 + 0.8 * Math.cos((20 * Math.PI) / 180));
   expectClose(path.commands[2].y, -(0.2 + 0.8 * Math.sin((20 * Math.PI) / 180)));
-  expectClose(arcs[0].x, 0.3 + 0.8 * Math.cos((20 * Math.PI) / 180));
+  expectClose(arcs[0].x, 0.2 + 0.8 * Math.cos((20 * Math.PI) / 180));
   expectClose(arcs[0].y, -(0.2 - 0.8 * Math.sin((20 * Math.PI) / 180)));
   assert.deepEqual(path.commands.slice(-2), [
-    { type: "moveTo", x: 3.5, y: 0 },
-    { type: "lineTo", x: 4.3, y: 0 }
+    { type: "moveTo", x: 3.4, y: 0 },
+    { type: "lineTo", x: 4.4, y: 0 }
   ]);
 });
 
@@ -2354,27 +2354,91 @@ test("applies fixed-wave state width and TikZ boundary transforms", () => {
 \usetikzlibrary{decorations.pathreplacing}
 \begin{tikzpicture}
   \draw[decorate,decoration={waves,segment length=.8cm,radius=.2cm,angle=30,
-    pre length=.3cm,post length=.5cm,mirror,raise=.2cm}]
-    (0,0) -- (4.3,0);
+    pre length=.2cm,post length=.5cm,mirror,raise=.2cm}]
+    (0,0) -- (4.4,0);
 \end{tikzpicture}`;
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const path = ir.items.find((item) => item.type === "path");
   const arcs = path.commands.filter((command) => command.type === "curveTo");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(arcs.length, 4, `expected only four complete .8cm states inside the 3.5cm main section, got ${JSON.stringify(path.commands)}`);
+  assert.equal(arcs.length, 4, `expected only four complete .8cm states inside the 3.7cm main section, got ${JSON.stringify(path.commands)}`);
   assert.deepEqual(path.commands.slice(0, 2), [
     { type: "moveTo", x: 0, y: 0 },
-    { type: "lineTo", x: 0.3, y: 0 }
+    { type: "lineTo", x: 0.2, y: 0 }
   ]);
-  expectClose(path.commands[2].x, 0.3 + 0.8 - 0.2 + 0.2 * Math.cos(Math.PI / 6));
+  expectClose(path.commands[2].x, 0.2 + 0.8 - 0.2 + 0.2 * Math.cos(Math.PI / 6));
   expectClose(path.commands[2].y, -(0.2 + 0.2 * Math.sin(Math.PI / 6)));
-  expectClose(arcs[0].x, 0.3 + 0.8 - 0.2 + 0.2 * Math.cos(Math.PI / 6));
+  expectClose(arcs[0].x, 0.2 + 0.8 - 0.2 + 0.2 * Math.cos(Math.PI / 6));
   expectClose(arcs[0].y, -(0.2 - 0.2 * Math.sin(Math.PI / 6)));
   assert.deepEqual(path.commands.slice(-2), [
-    { type: "moveTo", x: 3.5, y: 0 },
-    { type: "lineTo", x: 4.3, y: 0 }
+    { type: "moveTo", x: 3.4, y: 0 },
+    { type: "lineTo", x: 4.4, y: 0 }
   ]);
+});
+
+test("applies border last-state width and local boundary transforms", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={border,segment length=.8cm,amplitude=.2cm,angle=35,
+    pre length=.2cm,post length=.5cm,mirror,raise=.15cm}]
+    (0,0) -- (4.4,0);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const ticks = path.commands.filter((command) => command.type === "lineTo");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(ticks.length, 7, `expected pre/post lines, four full ticks, and one last-state tick, got ${JSON.stringify(path.commands)}`);
+  assert.deepEqual(path.commands.slice(0, 3), [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 0.2, y: 0 },
+    { type: "moveTo", x: 0.2, y: -0.15 }
+  ]);
+  expectClose(path.commands[3].x, 0.2 + 0.2 * Math.cos((35 * Math.PI) / 180));
+  expectClose(path.commands[3].y, -(0.15 + 0.2 * Math.sin((35 * Math.PI) / 180)));
+  assert.deepEqual(path.commands.slice(-2), [
+    { type: "moveTo", x: 3.6, y: 0 },
+    { type: "lineTo", x: 4.4, y: 0 }
+  ]);
+});
+
+test("skips the border last state when its amplitude exceeds the remainder", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={border,segment length=.8cm,amplitude=.4cm,angle=35,
+    pre length=.2cm,post length=.5cm}]
+    (0,0) -- (4.2,0);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const ticks = path.commands.filter((command) => command.type === "lineTo");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(ticks.length, 6, `expected pre/post lines and four complete tick states, got ${JSON.stringify(path.commands)}`);
+  assert.deepEqual(path.commands.slice(-2), [
+    { type: "moveTo", x: 3.4, y: 0 },
+    { type: "lineTo", x: 4.2, y: 0 }
+  ]);
+});
+
+test("keeps path-replacing final at the source endpoint when no post section is requested", () => {
+  for (const name of ["border", "waves", "expanding waves"]) {
+    const extra = name === "border" ? ",amplitude=.2cm" : ",radius=.2cm";
+    const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={${name},segment length=.8cm${extra},pre length=.2cm}]
+    (0,0) -- (4.3,0);
+\end{tikzpicture}`;
+    const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+    const path = ir.items.find((item) => item.type === "path");
+
+    assert.deepEqual(diagnostics, []);
+    assert.deepEqual(path.commands.at(-1), { type: "moveTo", x: 4.3, y: 0 }, name);
+  }
 });
 
 test("renders border decoration as a red postaction over the preserved source path", () => {
@@ -2392,14 +2456,17 @@ test("renders border decoration as a red postaction over the preserved source pa
   assert.equal(sourcePath.style.stroke, "black");
   assert.equal(borderPath.style.stroke, "red");
   assert.equal(borderPath.subtype, "postaction-decoration");
-  assert.equal(borderPath.commands.length, 8);
+  assert.equal(borderPath.commands.length, 9);
   assert.deepEqual(borderPath.commands.slice(0, 4), [
     { type: "moveTo", x: 0, y: 0 },
     { type: "lineTo", x: 0, y: 0.2 },
     { type: "moveTo", x: 0.5, y: 0 },
     { type: "lineTo", x: 0.5, y: 0.2 }
   ]);
-  assert.deepEqual(borderPath.commands.at(-1), { type: "lineTo", x: 0.8, y: 0.5 });
+  assert.deepEqual(borderPath.commands.slice(-2), [
+    { type: "lineTo", x: 0.8, y: 0.5 },
+    { type: "moveTo", x: 1, y: 1 }
+  ]);
 });
 
 test("runs show path construction callbacks against original input segments", () => {
