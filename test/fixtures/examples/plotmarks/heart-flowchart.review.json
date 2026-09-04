@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is stripped before the browser interpreter evaluates the picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The LaTeX package loads the generic TikZ front end." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["mark options", "every mark", "\\tikz@scan@one@point"], "findings": "TikZ installs mark options before invoking the PGF plot mark, so rotation transforms the whole declared path around each coordinate." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ library is a thin loader for the generic PGF declarations." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["\\pgfdeclareplotmark{heart}", "\\pgfpathcurveto", "\\pgfusepathqfillstroke"], "findings": "The heart starts at y=-1.75 times mark size, uses eight exact cubic segments with side extent one mark size and upper lobes at 0.5825 mark size, closes, then fillstrokes once." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["heart", "mark options={rotate=90}"], "findings": "The manual catalogs heart and confirms that mark options rotate the complete mark." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js"] }
+  ]
+}

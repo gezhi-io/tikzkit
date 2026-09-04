@@ -149,6 +149,12 @@ function formatPlotMarkGeometry(geometry, point, rotation) {
     if (primitive.type === "circle") {
       return `${formatAxisPoint(primitive.center)} circle(${formatAxisNumber(primitive.radius)})`;
     }
+    if (primitive.type === "cubicPath") {
+      const curves = primitive.curves.map((curve) =>
+        ` .. controls ${formatAxisPoint(curve.c1)} and ${formatAxisPoint(curve.c2)} .. ${formatAxisPoint(curve.to)}`
+      ).join("");
+      return `${formatAxisPoint(primitive.start)}${curves}${primitive.closed ? " -- cycle" : ""}`;
+    }
     const [first, ...rest] = primitive.points;
     const path = [formatAxisPoint(first), ...rest.map((item) => formatAxisPoint(item))].join(" -- ");
     return primitive.closed ? `${path} -- cycle` : path;

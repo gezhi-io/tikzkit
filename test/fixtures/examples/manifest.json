@@ -5153,6 +5153,52 @@
       ]
     },
     {
+      "id": "plotmarks-heart-flowchart",
+      "title": "PGF heart plot marks in a flowchart",
+      "source": "plotmarks/heart-flowchart.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:basicPlotMarkGeometry",
+      "features": [
+        "plotmarks library",
+        "mark=heart",
+        "mark size",
+        "fillstroke",
+        "mark options rotate",
+        "workflow checkpoints"
+      ]
+    },
+    {
+      "id": "plotmarks-heart-math",
+      "title": "PGF heart plot marks in a mathematical scatter plot",
+      "source": "plotmarks/heart-math.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:basicPlotMarkGeometry",
+      "features": [
+        "PGFPlots scatter",
+        "mark=heart",
+        "mark size",
+        "fillstroke",
+        "mark options rotate"
+      ]
+    },
+    {
+      "id": "plotmarks-heart-physics",
+      "title": "PGF heart plot marks on force vectors",
+      "source": "plotmarks/heart-physics.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:basicPlotMarkGeometry",
+      "features": [
+        "force vectors",
+        "mark=heart",
+        "mark size",
+        "fillstroke",
+        "mark options rotate"
+      ]
+    },
+    {
       "id": "tkz-fct-combined-axes-trig",
       "title": "tkz-base combined trigonometric Cartesian axes",
       "source": "tkz-fct/combined-axes-trig.tex",

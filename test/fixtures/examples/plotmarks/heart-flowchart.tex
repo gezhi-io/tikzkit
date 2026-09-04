@@ -1,0 +1,26 @@
+% PGF heart plot marks used as workflow approval checkpoints.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,plotmarks,positioning}
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=2.8cm,
+  stage/.style={draw,rounded corners=2pt,minimum width=2.1cm,minimum height=8mm},
+  flow/.style={-Stealth,thick}
+]
+  \node[stage] (draft) {Draft};
+  \node[stage,right=of draft] (review) {Review};
+  \node[stage,right=of review] (approve) {Approve};
+  \node[stage,right=of approve] (release) {Release};
+  \draw[flow] (draft) -- (review);
+  \draw[flow] (review) -- (approve);
+  \draw[flow] (approve) -- (release);
+  \draw[red!80!black,fill=red!30,mark size=7pt]
+    plot[mark=heart] coordinates {(1.4,0)};
+  \draw[blue!70!black,fill=blue!25,mark size=7pt]
+    plot[mark=heart,mark options={rotate=12}] coordinates {(4.2,0)};
+  \draw[green!45!black,fill=green!25,mark size=7pt]
+    plot[mark=heart] coordinates {(7,0)};
+\end{tikzpicture}
+\end{document}

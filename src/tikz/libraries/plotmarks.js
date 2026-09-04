@@ -14,6 +14,7 @@ export const tikzLibrary = {
     "mark size",
     "mark=halfcircle / halfcircle*",
     "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
+    "mark=heart",
     "mark color / mark options={rotate=...}"
   ],
   "implements": [
@@ -28,9 +29,10 @@ export const tikzLibrary = {
     "mark size",
     "mark=halfcircle / halfcircle*",
     "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
+    "mark=heart",
     "mark color / mark options={rotate=...}"
   ],
-  "notes": "Reviewed locally on 2026-09-05 against pgflibraryplotmarks.code.tex and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, and halfsquare left* paths. Direct TikZ plots and PGFPlots share the geometry, current-fill/mark-color split, mark color=none suppression, outline, size, and whole-mark rotation semantics. `mark=halfcircle` and `mark=halfcircle*` retain their source-defined semicircle behavior. Text marks, heart marks, custom declarations, and general mark-option transforms remain partial."
+  "notes": "Reviewed locally on 2026-09-05 against pgflibraryplotmarks.code.tex and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, halfsquare left*, and heart paths. The heart preserves all eight source cubic segments, its 1.75-mark-size tip, independent fill/stroke paint, size, and whole-mark rotation in direct TikZ and PGFPlots. The split marks share current-fill/mark-color, mark color=none suppression, outline, size, and rotation semantics. `mark=halfcircle` and `mark=halfcircle*` retain their source-defined semicircle behavior. Text marks, custom declarations, and general mark-option transforms remain partial."
 };
 
 const CIRCLE_KAPPA = 0.5522847498307936;
@@ -50,6 +52,10 @@ function polygon(points) {
 
 function circle(radius) {
   return { type: "circle", radius };
+}
+
+function cubicPath(start, curves, closed = false) {
+  return { type: "cubicPath", start, curves, closed };
 }
 
 export function basicPlotMarkGeometry(mark, size) {
@@ -110,6 +116,24 @@ export function basicPlotMarkGeometry(mark, size) {
   if (kind === "pentagon" || kind === "pentagon*") {
     return geometry([polygon(radialPoints([90, 18, -54, 234, 162]))], kind.endsWith("*"));
   }
+  if (kind === "heart") {
+    const point = (x, y) => ({ x: x * size, y: y * size });
+    const curve = (x1, y1, x2, y2, x, y) => ({
+      c1: point(x1, y1),
+      c2: point(x2, y2),
+      to: point(x, y)
+    });
+    return geometry([cubicPath(point(0, -1.75), [
+      curve(0, -1.75, 0, -1.66, -0.5, -1.165),
+      curve(-0.5, -1.165, -1, -0.75, -1, 0),
+      curve(-1, 0, -1, 0.5825, -0.5825, 0.5825),
+      curve(-0.5825, 0.5825, 0, 0.5825, 0, 0),
+      curve(0, 0, 0, 0.5825, 0.5825, 0.5825),
+      curve(0.5825, 0.5825, 1, 0.5825, 1, 0),
+      curve(1, 0, 1, -0.75, 0.5, -1.165),
+      curve(0.5, -1.165, 0, -1.66, 0, -1.75)
+    ], true)], true);
+  }
   return null;
 }
 
@@ -157,15 +181,42 @@ export function placePlotMarkGeometry(geometry, center = { x: 0, y: 0 }, rotatio
   });
   return {
     ...geometry,
-    primitives: geometry.primitives.map((primitive) => primitive.type === "circle"
-      ? { ...primitive, center: { ...center } }
-      : { ...primitive, points: primitive.points.map(place) })
+    primitives: geometry.primitives.map((primitive) => {
+      if (primitive.type === "circle") return { ...primitive, center: { ...center } };
+      if (primitive.type === "cubicPath") {
+        return {
+          ...primitive,
+          start: place(primitive.start),
+          curves: primitive.curves.map((curve) => ({
+            c1: place(curve.c1),
+            c2: place(curve.c2),
+            to: place(curve.to)
+          }))
+        };
+      }
+      return { ...primitive, points: primitive.points.map(place) };
+    })
   };
 }
 
 export function plotMarkGeometryCommands(geometry, center = { x: 0, y: 0 }, rotation = 0) {
   const placed = placePlotMarkGeometry(geometry, center, rotation);
   return placed.primitives.flatMap((primitive) => {
+    if (primitive.type === "cubicPath") {
+      return [
+        { type: "moveTo", x: primitive.start.x, y: primitive.start.y },
+        ...primitive.curves.map((curve) => ({
+          type: "curveTo",
+          x1: curve.c1.x,
+          y1: curve.c1.y,
+          x2: curve.c2.x,
+          y2: curve.c2.y,
+          x: curve.to.x,
+          y: curve.to.y
+        })),
+        ...(primitive.closed ? [{ type: "closePath" }] : [])
+      ];
+    }
     if (primitive.type !== "circle") {
       const [first, ...rest] = primitive.points;
       return [

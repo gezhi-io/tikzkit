@@ -17613,7 +17613,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
   };
   const filledStyle = {
     ...lineStyle,
-    fill: markColor
+    fill: pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : markColor
   };
   const finalize = (item) => rotatePlotMark(item, point, markOptions, env);
   const finalizeItems = (items) => items.map(finalize);

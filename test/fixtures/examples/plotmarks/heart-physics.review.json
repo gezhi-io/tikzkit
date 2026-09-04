@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone shell is removed before browser evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package wrapper loads the generic TikZ implementation used by vectors and plots." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["mark options", "every mark", "\\tikz@scan@one@point"], "findings": "The plot coordinate is the local origin for mark-option rotation; surrounding force-vector geometry remains independent." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ loader does not redefine the generic heart mark." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["\\pgfdeclareplotmark{heart}", "\\pgfpathcurveto", "\\pgfusepathqfillstroke"], "findings": "Eight cubic segments form the two lobes and lower tip; qfillstroke uses the current fill and draw colors and leaves a single mitered outline." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["heart", "mark options={rotate=90}"], "findings": "The catalog and rotation example define the public semantics exercised at vector endpoints." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js"] }
+  ]
+}

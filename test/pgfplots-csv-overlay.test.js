@@ -79,6 +79,24 @@ test("split diamond and square marks keep PGF's two fill colors and outline geom
   assert.match(right, /\(1,1\.93\) -- \(1\.07,2\) -- \(1,2\.07\) -- cycle/);
 });
 
+test("heart plot marks use PGF's eight-cubic fillstroke geometry", () => {
+  const heart = renderPlotMark(
+    { x: 1, y: 2 },
+    { blue: true, fill: "red!30", mark: "heart", "mark size": "2pt" }
+  );
+  const rotated = renderPlotMark(
+    { x: 1, y: 2 },
+    { blue: true, fill: "red!30", mark: "heart", "mark size": "2pt", "mark options": "{rotate=90}" }
+  );
+
+  assert.match(heart, /draw=blue/);
+  assert.match(heart, /fill=red!30/);
+  assert.equal((heart.match(/\.\. controls/g) || []).length, 8);
+  assert.match(heart, /\(1,1\.877\)/);
+  assert.doesNotMatch(heart, /circle/);
+  assert.match(rotated, /\(1\.123,2\)/);
+});
+
 test("triangle plot marks use PGF's polar triangle geometry", () => {
   const filled = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle*", "mark size": "2pt" });
   const outline = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle", "mark size": "2pt" });

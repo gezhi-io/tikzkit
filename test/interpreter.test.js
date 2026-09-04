@@ -4606,6 +4606,27 @@ test("uses PGF split-fill geometry for direct diamond and square plot marks", ()
   assert.ok(Math.abs(fills[2].commands[0].x - 1) < 1e-6, "expected mark rotation to rotate the lower vertex");
 });
 
+test("uses PGF's cubic fillstroke geometry for direct heart plot marks", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[blue,fill=red!30,mark size=4pt]
+    plot[mark=heart] coordinates{(0,0)}
+    plot[mark=heart,mark options={rotate=90}] coordinates{(1,0)};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const marks = ir.items.filter((item) => item.shape === "plot-mark");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(marks.length, 2);
+  assert.equal(marks[0].commands.filter((command) => command.type === "curveTo").length, 8);
+  assert.equal(marks[0].style.stroke, "blue");
+  assert.equal(marks[0].style.fill, "rgb(255 179 179)");
+  assert.ok(marks[0].commands[0].y < -0.24, "expected the tip at -1.75 times mark size");
+  assert.ok(marks[1].commands[0].x > 1.24, "expected rotation to transform the complete heart path");
+  assert.ok(Math.abs(marks[1].commands[0].y) < 1e-6);
+});
+
 test("substitutes foreach variables used as node option keys", () => {
   const source = String.raw`
 \begin{tikzpicture}
