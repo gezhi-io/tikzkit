@@ -1,0 +1,17 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{trees}
+
+\tikzset{
+  stage/.style={draw,rounded corners=2pt,minimum width=18mm,minimum height=7mm,inner sep=2pt},
+  every edge from parent/.style={draw,thick}
+}
+
+\begin{document}
+\begin{tikzpicture}[grow=down,level distance=14mm,sibling distance=26mm]
+  \node[stage,fill=blue!10] {Build}
+    child[draw=\tone] foreach \stage/\tone in
+      {Lint/green!50!black,Test/blue,Package/orange!80!black}
+      {node[stage,draw=\tone] {\stage}};
+\end{tikzpicture}
+\end{document}

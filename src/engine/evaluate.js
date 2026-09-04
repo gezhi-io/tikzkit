@@ -6855,6 +6855,8 @@ function isConceptNodeOptions(options = {}) {
 
 function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics, level = 1, treeOptions = {}) {
   if (!parentNode || !children.length) return;
+  const expandedChildren = expandTreeChildForeach(children, env);
+  if (!expandedChildren.length) return;
   const resolvedTreeOptions = normalizeOptions("node", resolveDynamicOptions(treeOptions || {}, env), env).options;
   // Options written between a node and its `child` clauses configure this
   // one generation. Consume them before descendants are created so a nested
@@ -6864,41 +6866,44 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     pictureOptions: treeDescendantPictureOptions(env.pictureOptions, resolvedTreeOptions)
   };
   const levelOptions = treeLevelOptions(level, childBaseEnv);
-  const layouts = children.map((child) => {
+  const layouts = expandedChildren.map((child) => {
+    const iterationEnv = child.foreachVariables
+      ? { ...childBaseEnv, variables: child.foreachVariables }
+      : childBaseEnv;
     const childTreeOptions = normalizeOptions(
       "node",
       resolveDynamicOptions(
-        withImplicitStyleOption("every child", child.options || {}, childBaseEnv.styles),
-        childBaseEnv
+        withImplicitStyleOption("every child", child.options || {}, iterationEnv.styles),
+        iterationEnv
       ),
-      childBaseEnv
+      iterationEnv
     ).options;
     const layoutOptions = { ...levelOptions, ...resolvedTreeOptions, ...childTreeOptions };
-    const grow = treeGrowDirection(childBaseEnv, layoutOptions);
-    return { child, childTreeOptions, layoutOptions, grow };
+    const grow = treeGrowDirection(iterationEnv, layoutOptions);
+    return { child, childTreeOptions, layoutOptions, grow, iterationEnv };
   });
   for (const [index, layout] of layouts.entries()) {
-    const { child, childTreeOptions, layoutOptions, grow } = layout;
-    const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, childBaseEnv);
+    const { child, childTreeOptions, layoutOptions, grow, iterationEnv } = layout;
+    const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, iterationEnv);
     const siblings = treeUsesFixedLateralShift(layoutOptions)
       ? [layout]
       : layouts.filter((candidate) => treeGrowKey(candidate.grow) === treeGrowKey(grow));
     const siblingIndex = siblings.indexOf(layout);
-    const siblingDistance = treeSiblingDistance(level, childBaseEnv, layoutOptions);
-    const levelDistance = treeLevelDistance(level, childBaseEnv, layoutOptions);
-    const offset = treeChildOffset(siblingIndex, siblings.length, siblingDistance, levelDistance, grow, layoutOptions, childBaseEnv);
-    offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", childBaseEnv);
-    offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", childBaseEnv);
-    const projected = projectLocalOffset(offset.x, offset.y, childBaseEnv);
-    const growthParentPoint = treeGrowthParentPoint(parentNode, layoutOptions, childBaseEnv);
+    const siblingDistance = treeSiblingDistance(level, iterationEnv, layoutOptions);
+    const levelDistance = treeLevelDistance(level, iterationEnv, layoutOptions);
+    const offset = treeChildOffset(siblingIndex, siblings.length, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
+    offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", iterationEnv);
+    offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", iterationEnv);
+    const projected = projectLocalOffset(offset.x, offset.y, iterationEnv);
+    const growthParentPoint = treeGrowthParentPoint(parentNode, layoutOptions, iterationEnv);
     const point = roundPoint({
       x: growthParentPoint.x + projected.x,
       y: growthParentPoint.y + projected.y
     });
     const childEnv = {
-      ...childBaseEnv,
+      ...iterationEnv,
       pictureOptions: {
-        ...(childBaseEnv.pictureOptions || {}),
+        ...(iterationEnv.pictureOptions || {}),
         ...levelOptions,
         ...childTreeOptions
       }
@@ -6929,6 +6934,28 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     };
     createNodeTreeChildren(childNode, child.children || child.node.children || [], descendantEnv, ir, diagnostics, level + 1, child.node.treeOptions || {});
   }
+}
+
+function expandTreeChildForeach(children = [], env = {}) {
+  const expanded = [];
+  for (const child of children) {
+    if (child?.kind !== "foreach") {
+      expanded.push(child);
+      continue;
+    }
+    const statement = {
+      variables: child.variables || [],
+      options: child.options || {},
+      values: child.values || []
+    };
+    for (const iteration of foreachIterationVariables(statement, env)) {
+      expanded.push({
+        ...child.child,
+        foreachVariables: iteration.variables
+      });
+    }
+  }
+  return expanded;
 }
 
 function treeUsesFixedLateralShift(options = {}) {

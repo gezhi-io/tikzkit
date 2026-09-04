@@ -257,9 +257,40 @@ test("semantic audit inventories tree child options and boolean overrides", () =
   const distance = report.options.find((entry) => entry.id === "option:child:level distance");
 
   assert.deepEqual(missing.rawValues, ["true", "false"]);
-  assert.equal(missing.implementedBy, "src/frontend/parser.js:parseNodeTreeChild + src/engine/evaluate.js:createNodeTreeChildren");
+  assert.equal(missing.implementedBy, "src/frontend/parser.js:parseNodeTreeChild/parseNodeTreeForeach + src/engine/evaluate.js:createNodeTreeChildren/expandTreeChildForeach");
   assert.deepEqual(distance.rawValues, ["12mm"]);
   assert.ok(report.numbers.some((entry) => entry.id === "number:option:child:12mm"));
+});
+
+test("semantic audit inventories multi-variable child foreach declarations", () => {
+  const report = auditTikzSource(String.raw`
+    \begin{tikzpicture}[grow=down,sibling distance=20mm]
+      \node {root}
+        child[draw=\tone] foreach \name/\tone in {A/red,B/blue}
+          {node[draw=\tone] {\name}};
+    \end{tikzpicture}
+  `);
+  const variables = report.declarations
+    .filter((entry) => entry.kind === "foreach-variable")
+    .map((entry) => [entry.name, entry.value]);
+
+  assert.deepEqual(variables, [["name", "A/red,B/blue"], ["tone", "A/red,B/blue"]]);
+  assert.ok(report.options.some((entry) => entry.id === "option:child:draw" && entry.rawValues.includes("\\tone")));
+  assert.ok(report.numbers.some((entry) => entry.literal === "20mm"));
+});
+
+test("semantic audit maps named math operators stored in foreach values", () => {
+  const report = auditTikzSource(String.raw`
+    \begin{tikzpicture}
+      \node {$f$} child foreach \op in {\sin,\cos} {node {$\op x$}};
+    \end{tikzpicture}
+  `);
+
+  for (const name of ["\\sin", "\\cos"]) {
+    const command = report.commands.find((entry) => entry.name === name);
+    assert.equal(command?.implementedBy, "src/renderers/svg/mathNode.js");
+    assert.equal(command?.implementationStatus, "partial");
+  }
 });
 
 test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", () => {

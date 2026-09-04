@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The source uses ordinary LaTeX math content inside TikZ nodes." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package wrapper loads the core TikZ parser and path engine." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\tikz@collect@children@foreach", "\\tikznumberofcurrentchild"], "findings": "Expanded physical states and channels each advance the native current-child counter exactly once." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex": { "symbols": ["\\pgffor@vars", "\\pgffor@invokebody"], "findings": "Outer state and color variables remain in scope while the nested channel loop binds its own variable." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": { "symbols": ["child foreach", "nested"], "findings": "Nested repeated children are part of the documented child path operation." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-child-foreach-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/parser.test.js", "test/interpreter.test.js"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/case-semantic-audit.test.js", "test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/parser.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/case-semantic-audit.test.js", "test/interpreter.test.js", "outputs/qa/2026-09-05-trees-child-foreach-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-child-foreach-after"] }
+  ]
+}

@@ -7744,6 +7744,48 @@
         "edge from parent styles",
         "physical-state labels"
       ]
+    },
+    {
+      "id": "trees-child-foreach-flowchart",
+      "title": "Repeated build-stage flowchart tree",
+      "source": "trees/child-foreach-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF trees manual child-foreach regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/frontend/parser.js:parseNodeTreeForeach + src/engine/evaluate.js:expandTreeChildForeach",
+      "features": [
+        "child foreach",
+        "slash-separated variables",
+        "expanded sibling count",
+        "flowchart tree"
+      ]
+    },
+    {
+      "id": "trees-child-foreach-math",
+      "title": "Nested repeated derivative tree",
+      "source": "trees/child-foreach-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGF tree foreach semantics",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/frontend/parser.js:parseNodeTreeForeach + src/engine/evaluate.js:expandTreeChildForeach",
+      "features": [
+        "nested child foreach",
+        "outer variable inheritance",
+        "math labels",
+        "operator color variables"
+      ]
+    },
+    {
+      "id": "trees-child-foreach-physics",
+      "title": "Nested repeated quantum-channel tree",
+      "source": "trees/child-foreach-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGF tree foreach semantics",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/frontend/parser.js:parseNodeTreeForeach + src/engine/evaluate.js:expandTreeChildForeach",
+      "features": [
+        "nested child foreach",
+        "multi-variable states",
+        "quantum-state labels",
+        "transition-channel labels"
+      ]
     }
   ]
 }

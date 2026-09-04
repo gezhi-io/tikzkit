@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The document shell is removed while the TikZ picture remains available to the browser interpreter." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package wrapper loads the core TikZ parser and path engine." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\tikz@collect@children@foreach", "\\tikz@childrennodes", "\\tikznumberofchildren"], "findings": "The collector counts one child for every foreach value before child positions are calculated, then reuses the same child options and body for each iteration." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex": { "symbols": ["\\pgffor@vars", "\\pgffor@invokebody"], "findings": "Slash-separated loop variables are bound from slash-separated list values in a local iteration scope." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": { "symbols": ["grow cyclic", "clockwise from"], "findings": "Tree growth functions consume the expanded total and current child counters." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": { "symbols": ["child foreach", "variables", "values"], "findings": "The manual defines child foreach as shorthand for repeated child operations with ordinary foreach variable syntax." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-child-foreach-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/parser.test.js", "test/interpreter.test.js"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/case-semantic-audit.test.js", "test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/parser.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/case-semantic-audit.test.js", "test/interpreter.test.js", "outputs/qa/2026-09-05-trees-child-foreach-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-child-foreach-after"] }
+  ]
+}

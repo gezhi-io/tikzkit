@@ -338,6 +338,35 @@ test("parses bare and bodied missing tree children as separate sibling slots", (
   assert.equal(root.path, null);
 });
 
+test("parses multi-variable and nested child foreach tree clauses", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \node {root}
+    child[draw=\tone] foreach \name/\tone in {A/red,B/blue} {
+      node[draw=\tone] (\name) {\name}
+      child foreach \leaf in {1,2} {node {\name_\leaf}}
+    };
+\end{tikzpicture}`;
+
+  const result = parseTikz(source);
+  const root = result.ast.pictures[0].statements[0];
+  const generated = root.children[0];
+  const nested = generated.child.children[0];
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(root.children.length, 1);
+  assert.equal(generated.kind, "foreach");
+  assert.deepEqual(generated.variables, ["name", "tone"]);
+  assert.deepEqual(generated.values, ["A/red", "B/blue"]);
+  assert.equal(generated.child.options.draw, "\\tone");
+  assert.equal(generated.child.node.text, "\\name");
+  assert.equal(nested.kind, "foreach");
+  assert.deepEqual(nested.variables, ["leaf"]);
+  assert.deepEqual(nested.values, ["1", "2"]);
+  assert.equal(nested.child.node.text, "\\name_\\leaf");
+  assert.equal(root.path, null);
+});
+
 test("parses TikZ spy statements with source and target nodes", () => {
   const source = String.raw`
 \begin{tikzpicture}[spy using outlines={circle, magnification=8, size=2cm, connect spies}]

@@ -1200,7 +1200,9 @@ function parseNodeTreeChildren(text, diagnostics = []) {
       index = beforeOptions;
     }
     if (!text.startsWith("child", index)) break;
-    const child = parseNodeTreeChild(text, index, diagnostics) || parseNodeTreeCoordinateChild(text, index, diagnostics);
+    const child = parseNodeTreeForeach(text, index, diagnostics)
+      || parseNodeTreeChild(text, index, diagnostics)
+      || parseNodeTreeCoordinateChild(text, index, diagnostics);
     if (!child) break;
     children.push(child.child);
     if (!Number.isFinite(child.end) || child.end <= index) break;
@@ -1263,6 +1265,67 @@ function parseTreeEdgeFromParent(text, start) {
   return {
     options,
     end: index
+  };
+}
+
+function parseNodeTreeForeach(text, start, diagnostics = []) {
+  let index = start + "child".length;
+  const parsedOptions = parseOptionalOptions(text, index);
+  index = skipWhitespace(text, parsedOptions.end);
+  if (!startsKeyword(text, index, "foreach")) return null;
+
+  index = skipWhitespace(text, index + "foreach".length);
+  const inIndex = findForeachInKeyword(text, index);
+  if (inIndex < 0) return null;
+  const header = parseForeachVariablesAndOptions(text.slice(index, inIndex).trim());
+  if (!header.variables.length) return null;
+
+  index = skipWhitespace(text, inIndex + "in".length);
+  const values = extractBalanced(text, index, "{", "}");
+  if (!values) return null;
+  index = skipWhitespace(text, values.end);
+  const body = extractBalanced(text, index, "{", "}");
+  const template = parseNodeTreeForeachTemplate(body?.content || "", parsedOptions.options, diagnostics);
+  if (!template) return null;
+
+  return {
+    child: {
+      kind: "foreach",
+      variables: header.variables,
+      options: header.options,
+      values: splitTopLevel(values.content, ","),
+      child: template
+    },
+    end: body?.end || index
+  };
+}
+
+function parseNodeTreeForeachTemplate(body, options, diagnostics = []) {
+  const childNode = parseNodeTreeChildBody(body, diagnostics);
+  if (childNode) {
+    return {
+      options,
+      edgeOptions: childNode.edgeFromParentOptions || {},
+      node: childNode,
+      children: childNode.children || []
+    };
+  }
+
+  const nested = parseNodeTreeChildren(String(body || "").trim(), diagnostics);
+  if (nested.rest) return null;
+  return {
+    options,
+    edgeOptions: nested.edgeOptions || {},
+    node: {
+      type: "coordinate",
+      name: null,
+      options: {},
+      at: null,
+      treeOptions: nested.options || {},
+      children: nested.children || [],
+      raw: body
+    },
+    children: nested.children || []
   };
 }
 

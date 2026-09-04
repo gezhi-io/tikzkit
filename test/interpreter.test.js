@@ -1919,6 +1919,66 @@ test("missing=false overrides an inherited every-child missing style", () => {
   assert.equal(edges.length, 1);
 });
 
+test("expands child foreach values before computing sibling tree positions", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[grow=down,level distance=1cm,sibling distance=2cm]
+  \node {root}
+    child[draw=\tone] foreach \name/\tone in {A/red,B/blue,C/green}
+      {node[draw=\tone] (\name) {\name}};
+\end{tikzpicture}`);
+  const labels = Object.fromEntries(result.ir.items
+    .filter((item) => item.type === "textNode")
+    .map((item) => [item.text, item]));
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge");
+  const boxes = Object.fromEntries(result.ir.items
+    .filter((item) => item.type === "nodeBox" && item.id)
+    .map((item) => [item.id, item]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(Object.keys(labels).sort(), ["A", "B", "C", "root"]);
+  expectClose(labels.A.x, -2);
+  expectClose(labels.B.x, 0);
+  expectClose(labels.C.x, 2);
+  assert.equal(edges.length, 3);
+  assert.equal(boxes.A.style.stroke, "red");
+  assert.equal(boxes.B.style.stroke, "blue");
+  assert.equal(boxes.C.style.stroke, "rgb(0 255 0)");
+});
+
+test("inherits outer variables through nested child foreach trees", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[grow=down,level distance=8mm,sibling distance=12mm]
+  \coordinate
+    child foreach \x in {0,1} {
+      child foreach \y in {0,1} {node[draw] (n-\x-\y) {$q_{\x\y}$}}
+    };
+\end{tikzpicture}`);
+  const labels = result.ir.items
+    .filter((item) => item.type === "textNode")
+    .map((item) => item.text)
+    .sort();
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(labels, ["$q_{00}$", "$q_{01}$", "$q_{10}$", "$q_{11}$"]);
+  assert.equal(edges.length, 6);
+});
+
+test("expands the manual's nested bodyless child foreach coordinates", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}[level distance=4mm,level/.style={sibling distance=8mm/#1}]
+  \coordinate
+    child foreach \x in {0,1}
+      {child foreach \y in {0,1}
+        {child foreach \z in {0,1}}};
+\end{tikzpicture}`);
+  const edges = result.ir.items.filter((item) => item.type === "path" && item.subtype === "tree-edge");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(edges.length, 14);
+  assert.equal(result.ir.items.some((item) => item.type === "textNode"), false);
+});
+
 test("matches native TikZ defaults for the evaluation tree fixture", () => {
   const source = String.raw`
 \tikzstyle{vertex}=[draw,fill=black!15,circle,minimum size=20pt,inner sep=0pt]

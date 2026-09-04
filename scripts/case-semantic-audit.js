@@ -9,9 +9,11 @@ import { findTopLevel, splitTopLevel } from "../src/engine/options.js";
 import { collectTexPackages } from "../src/packages/declarations.js";
 import { collectPgfplotsLibraries } from "../src/pgfplots/axisOptions.js";
 import { collectTikzLibraries } from "../src/tikz/libraries/declarations.js";
+import { MATH_FALLBACK_NAMED_OPERATORS } from "../src/tikz/text.js";
 
 const THIS_FILE = fileURLToPath(import.meta.url);
 const AUDIT_SCHEMA_VERSION = 1;
+const MATH_NAMED_OPERATOR_COMMANDS = new Set(MATH_FALLBACK_NAMED_OPERATORS);
 
 const COMMAND_OWNERS = {
   addlegendentry: owner("src/pgfplots/legend.js", "partial", "pgfplots.code.tex"),
@@ -290,7 +292,10 @@ function collectCommands(source, lineStarts, declarations, review, localSourceRe
   }
   return [...found.values()]
     .map((entry) => {
-      if (entry.implementationStatus === "unmapped" && entry.mathOnly) {
+      if (
+        entry.implementationStatus === "unmapped"
+        && (entry.mathOnly || MATH_NAMED_OPERATOR_COMMANDS.has(entry.name.slice(1)))
+      ) {
         entry.implementedBy = "src/renderers/svg/mathNode.js";
         entry.implementationStatus = "partial";
       }
@@ -336,18 +341,14 @@ function collectDeclarations(source, lineStarts) {
   collectTwoGroupDeclarations(source, lineStarts, "\\pgfplotscreateplotcyclelist", "cycle-list", declarations, seen);
   collectTwoGroupDeclarations(source, lineStarts, "\\colorlet", "color-alias", declarations, seen);
 
-  const foreachPattern = /\\foreach\s+\\([A-Za-z@]+)(?:\s*\[[^\]]*\])?\s+in\s*/g;
-  let foreachMatch;
-  while ((foreachMatch = foreachPattern.exec(source))) {
-    const start = skipWhitespace(source, foreachPattern.lastIndex);
-    const values = readBalanced(source, start, "{", "}");
-    addDeclaration({
-      kind: "foreach-variable",
-      name: foreachMatch[1],
-      value: values?.content ?? null,
-      line: lineAt(lineStarts, foreachMatch.index)
-    }, declarations, seen);
-  }
+  collectForeachDeclarations(source, lineStarts, /\\foreach\s+([^{}\r\n;]+?)\s+in\s*/g, declarations, seen);
+  collectForeachDeclarations(
+    source,
+    lineStarts,
+    /\bchild(?:\s*\[[^\]\r\n]*\])?\s+foreach\s+([^{}\r\n;]+?)\s+in\s*/g,
+    declarations,
+    seen
+  );
 
   const colorPattern = /\\definecolor\s*\{([^{}]+)\}\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g;
   let colorMatch;
@@ -385,6 +386,27 @@ function collectDeclarations(source, lineStarts) {
   }
 
   return attachDeclarationReferences(source, lineStarts, declarations);
+}
+
+function collectForeachDeclarations(source, lineStarts, pattern, declarations, seen) {
+  let match;
+  while ((match = pattern.exec(source))) {
+    const start = skipWhitespace(source, pattern.lastIndex);
+    const values = readBalanced(source, start, "{", "}");
+    const header = String(match[1] || "").replace(/\s*\[[\s\S]*\]\s*$/, "").trim();
+    const variables = header
+      .split("/")
+      .map((part) => part.trim().replace(/^\\/, ""))
+      .filter((name) => /^[A-Za-z@]+$/.test(name));
+    for (const name of variables) {
+      addDeclaration({
+        kind: "foreach-variable",
+        name,
+        value: values?.content ?? null,
+        line: lineAt(lineStarts, match.index)
+      }, declarations, seen);
+    }
+  }
 }
 
 function collectNamedBalancedDeclarations(source, lineStarts, pattern, kind, declarations, seen) {
@@ -608,7 +630,7 @@ function walkOptionMap(raw, group, parentKeys, features, review) {
 
 function optionOwner(context) {
   if (context.startsWith("package:")) return "src/packages/declarations.js";
-  if (context === "child") return "src/frontend/parser.js:parseNodeTreeChild + src/engine/evaluate.js:createNodeTreeChildren";
+  if (context === "child") return "src/frontend/parser.js:parseNodeTreeChild/parseNodeTreeForeach + src/engine/evaluate.js:createNodeTreeChildren/expandTreeChildForeach";
   return OPTION_CONTEXT_OWNERS[context] || "src/engine/options.js";
 }
 
