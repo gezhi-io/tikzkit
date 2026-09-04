@@ -7404,6 +7404,51 @@
       ]
     },
     {
+      "id": "pgfplots-zlog-algorithm",
+      "title": "Logarithmic pipeline throughput",
+      "source": "pgfplots/zlog-axes/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots three-dimensional logarithmic axes",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.tickoptions.tex",
+      "semanticOwner": "src/pgfplots/logAxis.js",
+      "features": [
+        "three-dimensional zmode=log",
+        "log basis z=2",
+        "base-two z power labels",
+        "non-positive z coordinate filtering",
+        "addplot3 coordinates"
+      ]
+    },
+    {
+      "id": "pgfplots-zlog-math",
+      "title": "Logarithmic exponential surface",
+      "source": "pgfplots/zlog-axes/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGFPlots three-dimensional logarithmic axes",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.3dplots.tex",
+      "semanticOwner": "src/pgfplots/geometry.js",
+      "features": [
+        "three-dimensional z logarithmic transform",
+        "base-ten z power ticks",
+        "logarithmic z grid",
+        "function surface",
+        "exponential plane in log space"
+      ]
+    },
+    {
+      "id": "pgfplots-zlog-physics",
+      "title": "Logarithmic radial intensity surface",
+      "source": "pgfplots/zlog-axes/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots three-dimensional logarithmic axes",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.3dplots.tex",
+      "semanticOwner": "src/pgfplots/surface.js",
+      "features": [
+        "three-dimensional zmode=log",
+        "positive exponential decay surface",
+        "explicit logarithmic z range",
+        "major and minor z grid",
+        "surf mesh projection"
+      ]
+    },
+    {
       "id": "pgfplots-log-axis-math",
       "title": "Log-log quadratic power law",
       "source": "pgfplots/log-axes/math.tex",

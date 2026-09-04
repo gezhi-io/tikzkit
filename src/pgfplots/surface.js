@@ -5,6 +5,8 @@ import { plotColorValue, selectPlotColor, isPlotColorToken } from "./plotStyle.j
 import { axisSamples, parseDomain, parseZRestriction, restrictSurfaceZ, sampleParametricSurfaceGrid } from "./rangeResolver.js";
 import { parsePgfplotsColormaps } from "./axisOptions.js";
 import { isPgfplotsTopView, pgfplotsViewDirection } from "./geometry.js";
+import { isLogAxis, scaleAxisValue } from "./ranges.js";
+import { axisLogBase, axisPointIsValidForScale } from "./logAxis.js";
 import { colorToRgb, normalizeColor } from "../engine/options.js";
 import { encodeRgbaPngDataUri } from "./rasterPng.js";
 
@@ -91,8 +93,8 @@ function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry
 }
 
 export function renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
-  const points = plot.points.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z));
-  const coordinateRows = finiteSurfaceCoordinateRows(plot.coordinateRows);
+  const points = plot.points.filter((point) => axisPointIsValidForScale(point, axisOptions));
+  const coordinateRows = finiteSurfaceCoordinateRows(plot.coordinateRows, axisOptions);
   const steppedCells = steppedSurfaceCellsFromCoordinateRows(coordinateRows);
   let rowsForColor = null;
   let patches = null;
@@ -298,7 +300,7 @@ function steppedSurfaceCellsFromCoordinateRows(rows) {
 }
 
 function surfacePatchFromCorners(corners, ranges, axisOptions) {
-  if (corners.some((corner) => !corner || !isFiniteSurfacePoint(corner))) return null;
+  if (corners.some((corner) => !corner || !axisPointIsValidForScale(corner, axisOptions))) return null;
   const zMean = corners.reduce((sum, corner) => sum + corner.z, 0) / corners.length;
   const metaMean = surfacePatchMetaMean(corners, zMean);
   const xMean = corners.reduce((sum, corner) => sum + corner.x, 0) / corners.length;
@@ -346,7 +348,7 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
     for (let xIndex = 0; xIndex < xSamples; xIndex += 1) {
       const x = xValues[xIndex];
       const z = restrictSurfaceZ(evaluateAxisExpression(plot.expression, x, axisOptions, { y }), zRestriction);
-      if (!Number.isFinite(z)) {
+      if (!axisPointIsValidForScale({ x, y, z }, axisOptions)) {
         row.push(null);
         continue;
       }
@@ -718,7 +720,7 @@ function inferSurfaceCoordinateGrid(points, plotOptions = {}, axisOptions = {}, 
   if (rows && !cols && points.length % rows === 0) cols = points.length / rows;
   if (cols && !rows && points.length % cols === 0) rows = points.length / cols;
   if (!rows && !cols) {
-    const rowGrid = surfaceGridFromCoordinateRows(coordinateRows);
+    const rowGrid = surfaceGridFromCoordinateRows(coordinateRows, axisOptions);
     if (rowGrid) return rowGrid;
   }
   if (!rows || !cols) {
@@ -735,8 +737,8 @@ function inferSurfaceCoordinateGrid(points, plotOptions = {}, axisOptions = {}, 
   return { rows, cols, points: grid };
 }
 
-function surfaceGridFromCoordinateRows(coordinateRows) {
-  const rows = finiteSurfaceCoordinateRows(coordinateRows);
+function surfaceGridFromCoordinateRows(coordinateRows, axisOptions = {}) {
+  const rows = finiteSurfaceCoordinateRows(coordinateRows, axisOptions);
   if (rows.length < 2) return null;
   const cols = rows[0].length;
   if (cols < 2 || rows.some((row) => row.length !== cols)) return null;
@@ -747,15 +749,11 @@ function surfaceGridFromCoordinateRows(coordinateRows) {
   };
 }
 
-function finiteSurfaceCoordinateRows(coordinateRows) {
+function finiteSurfaceCoordinateRows(coordinateRows, axisOptions = {}) {
   if (!Array.isArray(coordinateRows)) return [];
   return coordinateRows
-    .map((row) => (Array.isArray(row) ? row.filter(isFiniteSurfacePoint) : []))
+    .map((row) => (Array.isArray(row) ? row.filter((point) => axisPointIsValidForScale(point, axisOptions)) : []))
     .filter((row) => row.length > 0);
-}
-
-function isFiniteSurfacePoint(point) {
-  return point && Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
 }
 
 function surfaceMeshDimension(value) {
@@ -840,14 +838,16 @@ function surfacePatchColorValue(patch) {
 }
 
 function surfaceDepth(x, y, z, ranges, axisOptions = {}) {
-  const xSpan = ranges.xMax - ranges.xMin || 1;
-  const ySpan = ranges.yMax - ranges.yMin || 1;
-  const zSpan = ranges.zMax - ranges.zMin || 1;
-  const nx = (x - ranges.xMin) / xSpan;
-  const ny = (y - ranges.yMin) / ySpan;
-  const nz = (z - ranges.zMin) / zSpan;
+  const normalized = {};
+  for (const [axis, value] of Object.entries({ x, y, z })) {
+    const logMode = isLogAxis(axisOptions, axis);
+    const base = axisLogBase(axisOptions, axis);
+    const min = scaleAxisValue(ranges[`${axis}Min`], logMode, base);
+    const max = scaleAxisValue(ranges[`${axis}Max`], logMode, base);
+    normalized[axis] = (scaleAxisValue(value, logMode, base) - min) / (max - min || 1);
+  }
   const view = pgfplotsViewDirection(axisOptions);
-  return nx * view.x + ny * view.y + nz * view.z;
+  return normalized.x * view.x + normalized.y * view.y + normalized.z * view.z;
 }
 
 function pgfplotsSurfacePatchColor(options = {}, z, ranges, plotIndex = 0, axisOptions = {}) {
@@ -863,6 +863,7 @@ function surfaceColorContext(options = {}, axisOptions = {}) {
   const colormapName = firstNonempty(options["colormap name"], plotColormapName, axisOptions["colormap name"]);
   return {
     ...axisOptions,
+    "tikzkit explicit surface point meta": options["point meta"] !== undefined,
     "colormap name": colormapName,
     "pgfplots colormaps": {
       ...pgfplotsBuiltinColormaps(colormapName),
@@ -958,8 +959,7 @@ function pgfplotsFacetedStrokeColor(fill) {
 export function pgfplotsSurfaceColor(z, ranges, plotIndex = 0, axisOptions = {}) {
   const custom = pgfplotsCustomSurfaceColor(axisOptions, z, ranges);
   if (custom) return custom;
-  const zSpan = ranges.zMax - ranges.zMin || 1;
-  const t = Math.max(0, Math.min(1, (z - ranges.zMin) / zSpan));
+  const t = surfaceColorPosition(z, ranges, axisOptions);
   // PGFPlots initializes `colormap name=hot`: the historical default is the
   // same four-stop map as the named `hot` colormap, not a bespoke surface
   // palette. Keep the implicit and explicit forms visually identical.
@@ -985,8 +985,7 @@ function pgfplotsCustomSurfaceColor(axisOptions = {}, z, ranges) {
   const colormapName = String(axisOptions["colormap name"] || "").trim();
   const colormap = axisOptions["pgfplots colormaps"]?.[colormapName];
   if (!Array.isArray(colormap) || colormap.length < 2) return "";
-  const zSpan = ranges.zMax - ranges.zMin || 1;
-  const t = Math.max(0, Math.min(1, (z - ranges.zMin) / zSpan));
+  const t = surfaceColorPosition(z, ranges, axisOptions);
   const stops = normalizeColormapStops(colormap);
   for (let index = 1; index < stops.length; index += 1) {
     const left = stops[index - 1];
@@ -997,6 +996,15 @@ function pgfplotsCustomSurfaceColor(axisOptions = {}, z, ranges) {
     }
   }
   return stops.at(-1)?.color || "";
+}
+
+function surfaceColorPosition(value, ranges, axisOptions = {}) {
+  const logMode = isLogAxis(axisOptions, "z") && !axisOptions["tikzkit explicit surface point meta"];
+  const base = axisLogBase(axisOptions, "z");
+  const min = scaleAxisValue(ranges.zMin, logMode, base);
+  const max = scaleAxisValue(ranges.zMax, logMode, base);
+  const mapped = scaleAxisValue(value, logMode, base);
+  return Math.max(0, Math.min(1, (mapped - min) / (max - min || 1)));
 }
 
 function normalizeColormapStops(stops) {

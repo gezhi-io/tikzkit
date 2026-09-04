@@ -5,13 +5,13 @@ import {
   axisAutoMajorTickCount,
   axisMinorTickValues,
   axisTickValues,
-  majorTickValues as axisMajorTickValues,
   tickDistanceValues as axisTickDistanceValues
 } from "./ticks.js";
 import { parseDimension } from "../engine/math.js";
 import { parseOptions } from "../engine/options.js";
 import { shouldRenderAnyAxisGrid } from "./grid.js";
 import { isLogAxis } from "./ranges.js";
+import { axisLogBase, axisLogTickLabel } from "./logAxis.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import {
@@ -89,8 +89,9 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     y: resolvedYTicks,
     z: resolvedZTicks
   });
-  const zTickFormat = createScaledTickFormat(resolvedZTicks, scaledTickOptions(axisOptions, "z"));
-  const zTickPrecision = scaledTickLabelPrecision(resolvedZTicks, zTickFormat);
+  const zLog = isLogAxis(axisOptions, "z");
+  const zTickFormat = zLog ? null : createScaledTickFormat(resolvedZTicks, scaledTickOptions(axisOptions, "z"));
+  const zTickPrecision = zTickFormat ? scaledTickLabelPrecision(resolvedZTicks, zTickFormat) : undefined;
   const layout = axis3DAnnotationLayout(ranges, geometry);
   const labelAnchors = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, axisTickAnnotationAnchor(axisOptions, axis, layout[axis].normal)]));
   const oppositeTickAxes = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, shouldRenderOpposite3DTicks(axisOptions, axis)]));
@@ -133,9 +134,12 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     const to = offsetAlongNormal(base, invertVector(layout.z.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.z) commands.push(...additionalBoxTickCommands("z", z, layout.z, boxTickEdges.z, center, geometry, tickStyle, tickLength));
-    commands.push(`\\node[${tickLabelStyle("z", labelAnchors.z)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.z.normal, tickLabelDistance(axisOptions, "z", tickLength)))} {${formatScaledAxisTickLabel(z, zTickFormat, { precision: zTickPrecision })}};`);
+    const label = zLog
+      ? formatAxis3DTickLabel(axisOptions, "z", z)
+      : formatScaledAxisTickLabel(z, zTickFormat, { precision: zTickPrecision });
+    commands.push(`\\node[${tickLabelStyle("z", labelAnchors.z)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.z.normal, tickLabelDistance(axisOptions, "z", tickLength)))} {${label}};`);
   }
-  if (zTickFormat.scaled) {
+  if (zTickFormat?.scaled) {
     // PGFPlots places this at `zticklabel* cs:1.2,-0.3em`: continue the
     // selected z tick-label edge beyond its upper endpoint instead of
     // crowding the highest numeric tick.
@@ -175,7 +179,7 @@ function axis3DTickValues(axisOptions = {}, ranges = {}, geometry = {}) {
   return {
     x: axis3DTicksExplicitlyEmpty(axisOptions.xtick) ? [] : xTicks.length ? xTicks : xDistanceTicks.length ? xDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "x", ranges.xMin, ranges.xMax, axis3DAutoMajorTickCount(axisOptions, "x", ranges, geometry)),
     y: axis3DTicksExplicitlyEmpty(axisOptions.ytick) ? [] : yTicks.length ? yTicks : yDistanceTicks.length ? yDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "y", ranges.yMin, ranges.yMax, axis3DAutoMajorTickCount(axisOptions, "y", ranges, geometry)),
-    z: axis3DTicksExplicitlyEmpty(axisOptions.ztick) ? [] : zTicks.length ? zTicks : zDistanceTicks.length ? zDistanceTicks : automaticAxis3DTickValues(ranges.zMin, ranges.zMax, axis3DAutoMajorTickCount(axisOptions, "z", ranges, geometry))
+    z: axis3DTicksExplicitlyEmpty(axisOptions.ztick) ? [] : zTicks.length ? zTicks : zDistanceTicks.length ? zDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "z", ranges.zMin, ranges.zMax, axis3DAutoMajorTickCount(axisOptions, "z", ranges, geometry))
   };
 }
 
@@ -195,24 +199,29 @@ function axis3DTicksExplicitlyEmpty(raw) {
 
 function automaticAxis3DTickValuesForAxis(axisOptions, axis, min, max, count) {
   return isLogAxis(axisOptions, axis)
-    ? automaticLogAxis3DTickValues(min, max)
+    ? automaticLogAxis3DTickValues(axisOptions, axis, min, max, count)
     : automaticAxis3DTickValues(min, max, count);
 }
 
-function automaticLogAxis3DTickValues(min, max) {
+function automaticLogAxis3DTickValues(axisOptions, axis, min, max, count) {
+  const base = axisLogBase(axisOptions, axis);
   if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0 || min > max) return [];
+  const minExponent = Math.ceil(Math.log(min) / Math.log(base) - 1e-10);
+  const maxExponent = Math.floor(Math.log(max) / Math.log(base) + 1e-10);
+  const exponentSpan = Math.max(0, maxExponent - minExponent);
+  const exponentStep = Math.max(1, Math.ceil(exponentSpan / Math.max(1, Number(count) || 3)));
+  const firstExponent = Math.ceil(minExponent / exponentStep) * exponentStep;
   const values = [];
-  for (let exponent = Math.ceil(Math.log10(min) - 1e-12); exponent <= Math.floor(Math.log10(max) + 1e-12); exponent += 1) {
-    values.push(10 ** exponent);
+  for (let exponent = firstExponent; exponent <= maxExponent; exponent += exponentStep) {
+    values.push(Number((base ** exponent).toPrecision(12)));
   }
   return values;
 }
 
 function formatAxis3DTickLabel(axisOptions, axis, value) {
-  if (!isLogAxis(axisOptions, axis) || value <= 0) return formatAxisNumber(value);
-  const exponent = Math.round(Math.log10(value));
-  if (Math.abs(value - 10 ** exponent) <= Math.abs(value) * 1e-10) return `$10^{${exponent}}$`;
-  return formatAxisNumber(value);
+  return isLogAxis(axisOptions, axis) && value > 0
+    ? axisLogTickLabel(axisOptions, axis, value)
+    : formatAxisNumber(value);
 }
 
 function automaticAxis3DTickValues(min, max, count) {
@@ -781,8 +790,9 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
   const layout = axis3DAnnotationLayout(ranges, geometry);
   const ticks = axis3DTickValues(axisOptions, ranges, geometry);
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
-  const zTickFormat = createScaledTickFormat(ticks.z, scaledTickOptions(axisOptions, "z"));
-  const zTickPrecision = scaledTickLabelPrecision(ticks.z, zTickFormat);
+  const zLog = isLogAxis(axisOptions, "z");
+  const zTickFormat = zLog ? null : createScaledTickFormat(ticks.z, scaledTickOptions(axisOptions, "z"));
+  const zTickPrecision = zTickFormat ? scaledTickLabelPrecision(ticks.z, zTickFormat) : undefined;
 
   for (const axis of ["x", "y", "z"]) {
     const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, axis, "tick"));
@@ -795,7 +805,9 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
           ? { x: layout.y.x, y: value, z: layout.y.z }
           : { x: layout.z.x, y: layout.z.y, z: value };
       const text = axis === "z"
-        ? formatScaledAxisTickLabel(value, zTickFormat, { precision: zTickPrecision })
+        ? zLog
+          ? formatAxis3DTickLabel(axisOptions, axis, value)
+          : formatScaledAxisTickLabel(value, zTickFormat, { precision: zTickPrecision })
         : formatAxis3DTickLabel(axisOptions, axis, value);
       const at = offsetAlongNormal(
         geometry.mapPoint3d(coordinate),
@@ -806,7 +818,7 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
     }
   }
 
-  if (zTickFormat.scaled) {
+  if (zTickFormat?.scaled) {
     const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
     includeBounds(bounds, axis3DTextNodeBounds(
       pointAlongProjectedEdge(layout.z, 1.2),
@@ -1051,10 +1063,13 @@ function pointAlongProjectedEdge(edge, position) {
 
 function zAxisLabelDistance(axisOptions, ranges, geometry) {
   const zTicks = axis3DTickValues(axisOptions, ranges, geometry).z;
-  const tickFormat = createScaledTickFormat(zTicks, scaledTickOptions(axisOptions, "z"));
-  const precision = scaledTickLabelPrecision(zTicks, tickFormat);
+  const zLog = isLogAxis(axisOptions, "z");
+  const tickFormat = zLog ? null : createScaledTickFormat(zTicks, scaledTickOptions(axisOptions, "z"));
+  const precision = tickFormat ? scaledTickLabelPrecision(zTicks, tickFormat) : undefined;
   const widest = zTicks.reduce((width, value) => {
-    const label = formatScaledAxisTickLabel(value, tickFormat, { precision });
+    const label = zLog
+      ? formatAxis3DTickLabel(axisOptions, "z", value)
+      : formatScaledAxisTickLabel(value, tickFormat, { precision });
     return Math.max(width, approximateTickLabelWidth(label));
   }, 0);
   // `every axis z label` is anchored at `ticklabel cs:0.5` with

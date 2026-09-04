@@ -51,7 +51,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }
-    const dataPoints = plot.points.filter((point) => plot.is3d || axisPointIsValidForScale(point, axisOptions));
+    const dataPoints = plot.points.filter((point) => axisPointIsValidForScale(point, axisOptions));
     const visiblePlot = { ...plot, points: dataPoints };
     const mappedPoints = dataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
     const mark = String(plot.options.mark || "").trim().toLowerCase();
@@ -144,7 +144,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     const clipRanges = axisPlotClipRanges(ranges, geometry);
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
     const visibleDataPoints = plot.is3d
-      ? dataPoints.filter((point) => axisPoint3dInRange(point, ranges))
+      ? dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions) && axisPoint3dInRange(point, ranges))
       : clipAxisDataPointsToRanges(
         dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions)),
         clipRanges
@@ -185,7 +185,7 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
   if (plot.type === "coordinates" && !isSurfacePlot(plot, axisOptions)) {
     return plot.points
       .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && (!plot.is3d || Number.isFinite(point.z)))
-      .filter((point) => plot.is3d || axisPointIsValidForScale(point, axisOptions))
+      .filter((point) => axisPointIsValidForScale(point, axisOptions))
       .map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
   }
   if (plot.type === "function" && !isSurfacePlot(plot, axisOptions)) {
@@ -195,7 +195,7 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
     const clipRanges = axisPlotClipRanges(ranges, geometry);
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
     const visible = plot.is3d
-      ? dataPoints.filter((point) => axisPoint3dInRange(point, ranges))
+      ? dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions) && axisPoint3dInRange(point, ranges))
       : clipAxisDataPointsToRanges(
         dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions)),
         clipRanges

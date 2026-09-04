@@ -136,11 +136,13 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
   const mappedXMax = scaleAxisValue(transformRanges.xMax, transform.xLog, transform.xLogBase);
   const mappedYMin = scaleAxisValue(transformRanges.yMin, transform.yLog, transform.yLogBase);
   const mappedYMax = scaleAxisValue(transformRanges.yMax, transform.yLog, transform.yLogBase);
+  const zLog = isLogAxis(axisOptions, "z");
+  const zLogBase = axisLogBase(axisOptions, "z");
+  const mappedZMin = scaleAxisValue(transformRanges.zMin, zLog, zLogBase);
+  const mappedZMax = scaleAxisValue(transformRanges.zMax, zLog, zLogBase);
   const xSpan = mappedXMax - mappedXMin || 1;
   const ySpan = mappedYMax - mappedYMin || 1;
-  const zMin = Number.isFinite(ranges.zMin) ? ranges.zMin : 0;
-  const zMax = Number.isFinite(ranges.zMax) && ranges.zMax !== zMin ? ranges.zMax : zMin + 1;
-  const zSpan = zMax - zMin || 1;
+  const zSpan = mappedZMax - mappedZMin || 1;
   const axisDirections = {
     x: transform.xDirection,
     y: transform.yDirection,
@@ -175,7 +177,7 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
   const mapPoint3d = (point) => {
     const rawX = (scaleAxisValue(point.x, transform.xLog, transform.xLogBase) - mappedXMin) / xSpan;
     const rawY = (scaleAxisValue(point.y, transform.yLog, transform.yLogBase) - mappedYMin) / ySpan;
-    const rawZ = ((point.z ?? 0) - zMin) / zSpan;
+    const rawZ = (scaleAxisValue(point.z ?? transformRanges.zMin, zLog, zLogBase) - mappedZMin) / zSpan;
     const nx = axisDirections.x < 0 ? 1 - rawX : rawX;
     const ny = axisDirections.y < 0 ? 1 - rawY : rawY;
     const nz = axisDirections.z < 0 ? 1 - rawZ : rawZ;
@@ -214,8 +216,10 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     is3d: is3dSurface,
     xLog: transform.xLog,
     yLog: transform.yLog,
+    zLog,
     xLogBase: transform.xLogBase,
-    yLogBase: transform.yLogBase
+    yLogBase: transform.yLogBase,
+    zLogBase
   };
 }
 
@@ -1008,8 +1012,8 @@ function roundTransformRanges(ranges, axisOptions = {}) {
     xMax: roundTransformAxisValue(ranges.xMax, isLogAxis(axisOptions, "x")),
     yMin: roundTransformAxisValue(ranges.yMin, isLogAxis(axisOptions, "y")),
     yMax: roundTransformAxisValue(ranges.yMax, isLogAxis(axisOptions, "y")),
-    zMin: roundAxisRange(ranges.zMin, "z"),
-    zMax: roundAxisRange(ranges.zMax, "z")
+    zMin: roundTransformAxisValue(ranges.zMin, isLogAxis(axisOptions, "z")),
+    zMax: roundTransformAxisValue(ranges.zMax, isLogAxis(axisOptions, "z"))
   };
 }
 

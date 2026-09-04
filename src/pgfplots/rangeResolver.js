@@ -15,6 +15,7 @@ export function computeAxisRanges(axisOptions, addplots) {
   const hasSurfacePlot = addplots.some((plot) => isSurfacePlot(plot, axisOptions));
   const xLog = isLogAxis(axisOptions, "x");
   const yLog = isLogAxis(axisOptions, "y");
+  const zLog = isLogAxis(axisOptions, "z");
   const hasExplicitXMin = hasAxisBound(axisOptions.xmin);
   const hasExplicitXMax = hasAxisBound(axisOptions.xmax);
   const hasExplicitYMin = hasAxisBound(axisOptions.ymin);
@@ -38,7 +39,7 @@ export function computeAxisRanges(axisOptions, addplots) {
         if (!axisValueIsValidForScale(point.y, axisOptions, "y")) continue;
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
         if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
-        if (Number.isFinite(point.z)) {
+        if (axisValueIsValidForScale(point.z, axisOptions, "z")) {
           if (!hasExplicitZMin) zMin = Math.min(zMin, point.z);
           if (!hasExplicitZMax) zMax = Math.max(zMax, point.z);
         }
@@ -49,6 +50,7 @@ export function computeAxisRanges(axisOptions, addplots) {
       if (plot.is3d && isAxisQuiverPlot(plot.options || {})) {
         const quiverPoints = sampleQuiverRangePoints(plot, axisOptions);
         for (const point of quiverPoints) {
+          if (!axisPointIsValidForScale(point, axisOptions)) continue;
           if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
           if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
           if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
@@ -70,8 +72,8 @@ export function computeAxisRanges(axisOptions, addplots) {
         if (!hasExplicitYMax) yMax = Math.max(yMax, yDomain.end);
         const zRestriction = parseZRestriction(plot.options, axisOptions);
         if (zRestriction) {
-          if (!hasExplicitZMin) zMin = Math.min(zMin, zRestriction.start);
-          if (!hasExplicitZMax) zMax = Math.max(zMax, zRestriction.end);
+          if (!hasExplicitZMin && axisValueIsValidForScale(zRestriction.start, axisOptions, "z")) zMin = Math.min(zMin, zRestriction.start);
+          if (!hasExplicitZMax && axisValueIsValidForScale(zRestriction.end, axisOptions, "z")) zMax = Math.max(zMax, zRestriction.end);
         }
         for (let xIndex = 0; xIndex < xSamples; xIndex += 1) {
           const xT = xSamples === 1 ? 0 : xIndex / (xSamples - 1);
@@ -80,7 +82,7 @@ export function computeAxisRanges(axisOptions, addplots) {
             const yT = ySamples === 1 ? 0 : yIndex / (ySamples - 1);
             const y = yDomain.start + (yDomain.end - yDomain.start) * yT;
             const z = restrictSurfaceZ(evaluateAxisExpression(plot.expression, x, axisOptions, { y }), zRestriction);
-            if (Number.isFinite(z)) {
+            if (axisValueIsValidForScale(z, axisOptions, "z")) {
               if (!hasExplicitZMin) zMin = Math.min(zMin, z);
               if (!hasExplicitZMax) zMax = Math.max(zMax, z);
             }
@@ -110,7 +112,7 @@ export function computeAxisRanges(axisOptions, addplots) {
         if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
         if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
-        if (Number.isFinite(point.z)) {
+        if (axisValueIsValidForScale(point.z, axisOptions, "z")) {
           if (!hasExplicitZMin) zMin = Math.min(zMin, point.z);
           if (!hasExplicitZMax) zMax = Math.max(zMax, point.z);
         }
@@ -190,20 +192,30 @@ export function computeAxisRanges(axisOptions, addplots) {
     yMax = Math.max(yMin * axisLogBase(axisOptions, "y"), yMax);
   }
   if (!Number.isFinite(zMin) || !Number.isFinite(zMax)) {
-    zMin = 0;
-    zMax = 1;
+    zMin = zLog ? 1 : 0;
+    zMax = zLog ? axisLogBase(axisOptions, "z") : 1;
   }
   if (zMin === zMax) {
-    zMin -= 1;
-    zMax += 1;
+    if (zLog) {
+      const base = axisLogBase(axisOptions, "z");
+      zMin /= base;
+      zMax *= base;
+    } else {
+      zMin -= 1;
+      zMax += 1;
+    }
+  }
+  if (zLog) {
+    if (!(zMin > 0)) zMin = 1;
+    if (!(zMax > zMin)) zMax = zMin * axisLogBase(axisOptions, "z");
   }
   return {
     xMin: roundResolvedAxisValue(xMin, xLog),
     xMax: roundResolvedAxisValue(xMax, xLog),
     yMin: roundResolvedAxisValue(yMin, yLog),
     yMax: roundResolvedAxisValue(yMax, yLog),
-    zMin: roundAxisRange(zMin, "z"),
-    zMax: roundAxisRange(zMax, "z")
+    zMin: roundResolvedAxisValue(zMin, zLog),
+    zMax: roundResolvedAxisValue(zMax, zLog)
   };
 }
 
@@ -333,7 +345,8 @@ export function sampleParametricSurfaceGrid(plot, axisOptions = {}, options = {}
     const x = evaluateAxisExpression(plot.xExpression, u, axisOptions, variables);
     const y = evaluateAxisExpression(plot.yExpression, u, axisOptions, variables);
     const z = restrictSurfaceZ(evaluateAxisExpression(plot.zExpression, u, axisOptions, variables), zRestriction);
-    return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) ? { x, y, z } : null;
+    const point = { x, y, z };
+    return axisPointIsValidForScale(point, axisOptions) ? point : null;
   }));
   return { grid, uValues, vValues, uDomain, vDomain, uSamples, vSamples };
 }

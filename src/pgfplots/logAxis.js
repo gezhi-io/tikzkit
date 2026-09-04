@@ -80,7 +80,8 @@ export function axisValueIsValidForScale(value, axisOptions = {}, axis) {
 
 export function axisPointIsValidForScale(point = {}, axisOptions = {}) {
   return axisValueIsValidForScale(point.x, axisOptions, "x") &&
-    axisValueIsValidForScale(point.y, axisOptions, "y");
+    axisValueIsValidForScale(point.y, axisOptions, "y") &&
+    (point.z === undefined || point.z === null || axisValueIsValidForScale(point.z, axisOptions, "z"));
 }
 
 function isLogAxisOption(axisOptions, axis) {

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is removed before browser evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots frontend and compatibility layer." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["zmode=log", "zmin", "zmax", "\\addplot3", "surf"], "findings": "The configured positive z range is represented uniformly in logarithmic space." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["try min ticks log", "\\pgfplots@prepare@tick@coordlists@for"], "findings": "Automatic logarithmic ticks and grids are derived from the transformed exponent range." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex": { "symbols": ["\\pgfplotscoordmath", "log", "point meta"], "findings": "Default surface point meta follows transformed z for logarithmic axes, while explicit point meta remains an independent data channel." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-zlog-axes.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-zlog-axes.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-zlog-axes.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-zlog-axes.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-zlog-axes.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-zlog-axes.test.js"] }
+  ]
+}
