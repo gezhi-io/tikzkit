@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves the requested libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to"], "findings": "TikZ applies the current path tangent to each terminal after coordinate transforms." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced left hook reversed", "spaced hooks"], "findings": "All six public aliases pair source hook geometry with a zero-separation invisible space." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["left hook", "right hook", "hooks"], "findings": "The source hook curves use active-line-width units, round caps, and stroke-only paint." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space", "\\pgfarrowsrightextend"], "findings": "The invisible space contributes endpoint length but no SVG path." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced hooks"], "findings": "The manual records the public names and spacing purpose." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-hooks.test.js", "docs/qa/2026-09-04-arrows-spaced-hooks.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-hooks.test.js", "docs/qa/2026-09-04-arrows-spaced-hooks.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-hooks.test.js", "docs/qa/2026-09-04-arrows-spaced-hooks.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-hooks.test.js", "docs/qa/2026-09-04-arrows-spaced-hooks.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-hooks.test.js", "docs/qa/2026-09-04-arrows-spaced-hooks.md"] }
+  ],
+  "notes": "Physical-vector fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

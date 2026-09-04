@@ -30,6 +30,7 @@ import {
 import {
   spacedAngleArrowMetrics,
   spacedCapArrowMetrics,
+  spacedHookArrowMetrics,
   spacedImpliesArrowMetrics,
   spacedLegacyArrowMetrics,
   spacedTriangleArrowMetrics
@@ -490,6 +491,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyCircle) return legacyCircleInlineGeometry(legacyCircle);
   const legacyHook = legacyHookArrowMetrics(tip.kind, lineWidth);
   if (legacyHook) return legacyHookInlineGeometry(legacyHook);
+  const spacedHook = spacedHookArrowMetrics(tip.kind, lineWidth);
+  if (spacedHook) return legacyHookInlineGeometry(spacedHook);
   const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth) || spacedCapArrowMetrics(tip.kind, lineWidth);
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
   const spacedLegacy = spacedLegacyArrowMetrics(tip.kind, lineWidth);
@@ -860,7 +863,7 @@ function isLegacyFilledCircleTip(kind) {
 }
 
 function isLegacyHookTip(kind) {
-  return /^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(String(kind || ""));
+  return /^legacy-(?:spaced-)?(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(String(kind || ""));
 }
 
 function isLegacyCapTip(kind) {

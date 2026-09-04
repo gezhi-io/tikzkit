@@ -1,0 +1,28 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,arrows.spaced,positioning}
+\begin{document}
+\begin{tikzpicture}[
+  node distance=12mm and 18mm,
+  stage/.style={draw,rounded corners=2pt,minimum width=24mm,minimum height=8mm,align=center},
+  route/.style={line width=1.1pt}
+]
+  \node[stage,fill=blue!8] (draft) {Draft};
+  \node[stage,fill=yellow!16,right=of draft] (review) {Review};
+  \node[stage,fill=green!10,right=of review] (release) {Release};
+  \node[stage,fill=red!8,below=of review] (revise) {Revise};
+
+  \draw[route,blue,-{spaced left hook}]
+    (draft) -- node[above]{submit} (review);
+  \draw[route,green!50!black,-{spaced right hook}]
+    (review) -- node[above]{approve} (release);
+  \draw[route,red,-{spaced hooks}]
+    (review) -- node[right]{changes} (revise);
+  \draw[route,dashed,orange!85!black,-{spaced left hook reversed}]
+    (revise.west) -| node[pos=.25,below]{edit} (draft.south);
+  \draw[route,purple,-{spaced right hook reversed}]
+    (revise) to[bend right=18] node[below,sloped]{escalate} (release);
+  \draw[route,teal!70!black,{spaced hooks reversed}-{spaced hooks}]
+    (draft.north) to[bend left=16] node[above,sloped]{trace} (release.north);
+\end{tikzpicture}
+\end{document}
