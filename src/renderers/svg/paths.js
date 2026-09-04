@@ -27,6 +27,7 @@ import {
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.js";
+import { spacedCapArrowMetrics } from "../../tikz/libraries/arrows.spaced.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -394,7 +395,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: raw.kind === "legacy-round-cap" ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineCap: /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
     lineJoin: isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
@@ -474,7 +475,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyCircle) return legacyCircleInlineGeometry(legacyCircle);
   const legacyHook = legacyHookArrowMetrics(tip.kind, lineWidth);
   if (legacyHook) return legacyHookInlineGeometry(legacyHook);
-  const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth);
+  const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth) || spacedCapArrowMetrics(tip.kind, lineWidth);
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
   if (tip.kind === "stealth") {
     if (tip.meta) {
@@ -839,11 +840,11 @@ function isLegacyHookTip(kind) {
 }
 
 function isLegacyCapTip(kind) {
-  return /^legacy-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(String(kind || ""));
+  return /^legacy-(?:spaced-)?(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(String(kind || ""));
 }
 
 function isLegacyOpenCapTip(kind) {
-  return /^legacy-(?:round|butt)-cap$/u.test(String(kind || ""));
+  return /^legacy-(?:spaced-)?(?:round|butt)-cap$/u.test(String(kind || ""));
 }
 
 function legacySquareInlineGeometry(metrics) {

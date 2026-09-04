@@ -31,6 +31,7 @@ const OBSERVED_TIKZ_LIBRARIES = [
   "angles",
   "arrows",
   "arrows.meta",
+  "arrows.spaced",
   "automata",
   "babel",
   "backgrounds",

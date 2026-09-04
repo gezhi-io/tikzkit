@@ -260,6 +260,12 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-(?:triangle-90|fast)-cap(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke" };
   }
+  if (/^legacy-spaced-(?:round|butt)-cap$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
+  }
+  if (/^legacy-spaced-(?:triangle-90|fast)-cap(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke" };
+  }
   return undefined;
 }
 
@@ -530,6 +536,7 @@ function normalizeArrowKind(kind) {
   const text = source.replace(/'/g, "").toLowerCase();
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
+  if (/^legacy-spaced-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
   if (source === "Round Cap") return "round-cap";
   if (source === "Butt Cap") return "butt-cap";
   if (source === "Triangle Cap") return "triangle-cap";
@@ -563,6 +570,8 @@ function normalizeArrowKind(kind) {
   }
   const legacyCap = source.match(/^(round cap|butt cap|triangle 90 cap(?: reversed)?|fast cap(?: reversed)?)$/u);
   if (legacyCap) return `legacy-${legacyCap[1].replaceAll(" ", "-")}`;
+  const spacedCap = source.match(/^spaced (round cap|butt cap|triangle 90 cap(?: reversed)?|fast cap(?: reversed)?)$/u);
+  if (spacedCap) return `legacy-spaced-${spacedCap[1].replaceAll(" ", "-")}`;
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";

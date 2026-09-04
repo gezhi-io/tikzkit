@@ -2,6 +2,7 @@ import { tikzLibrary as _3dLibrary } from "./3d.js";
 import { tikzLibrary as anglesLibrary } from "./angles.js";
 import { tikzLibrary as arrowsLibrary } from "./arrows.js";
 import { tikzLibrary as arrowsMetaLibrary } from "./arrows.meta.js";
+import { tikzLibrary as arrowsSpacedLibrary } from "./arrows.spaced.js";
 import { tikzLibrary as automataLibrary } from "./automata.js";
 import { tikzLibrary as babelLibrary } from "./babel.js";
 import { tikzLibrary as backgroundsLibrary } from "./backgrounds.js";
@@ -73,6 +74,7 @@ const tikzLibraries = Object.freeze([
   anglesLibrary,
   arrowsLibrary,
   arrowsMetaLibrary,
+  arrowsSpacedLibrary,
   automataLibrary,
   babelLibrary,
   backgroundsLibrary,
@@ -154,6 +156,7 @@ export { tikzLibrary as calcLibrary } from "./calc.js";
 export { tikzLibrary as positioningLibrary } from "./positioning.js";
 export { tikzLibrary as matrixLibrary } from "./matrix.js";
 export { tikzLibrary as arrowsLibrary } from "./arrows.js";
+export { tikzLibrary as arrowsSpacedLibrary } from "./arrows.spaced.js";
 export { tikzLibrary as patternsLibrary } from "./patterns.js";
 
 function normalizeTikzLibrary(library) {

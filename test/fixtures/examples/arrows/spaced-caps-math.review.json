@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The standalone document shell contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "TikZ loads the core path engine before requested libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to", "bend left", "bend right"], "findings": "The map path and final curve tangent are established before arrow-tip composition." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["node distance", "right=of", "below=of"], "findings": "Positioning computes the object grid independently of cap geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["round cap", "butt cap", "triangle 90 cap", "fast cap"], "findings": "The ordinary cap paths define the visible stroke-only and fill-only geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced round cap", "spaced fast cap reversed"], "findings": "Each accepted mathematical-map terminal is the ordinary cap followed by an invisible space component." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine", "\\pgfarrowsdeclare{space}"], "findings": "At 3pt line width the source formula contributes a 1.78pt gap and matching shaft shortening." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["spaced round cap", "spaced butt cap", "spaced triangle 90 cap", "spaced fast cap"], "findings": "The lowercase spaced caps are documented independently from arrows.meta." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-caps.test.js", "docs/qa/2026-09-04-arrows-spaced-caps.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-caps.test.js", "docs/qa/2026-09-04-arrows-spaced-caps.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-caps.test.js", "docs/qa/2026-09-04-arrows-spaced-caps.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-caps.test.js", "docs/qa/2026-09-04-arrows-spaced-caps.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-caps.test.js", "docs/qa/2026-09-04-arrows-spaced-caps.md"] }
+  ]
+}

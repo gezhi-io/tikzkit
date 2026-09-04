@@ -1,0 +1,17 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,arrows.spaced}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (-3.3,0) -- (3.3,0);
+  \draw[gray!35] (0,-2.65) -- (0,2.65);
+  \fill (0,0) circle (2pt) node[below right] {$O$};
+
+  \draw[blue,line width=3pt,-{spaced round cap}] (0,0) -- (2.75,1.5) node[above right] {$\vec F$};
+  \draw[red,line width=3pt,-{spaced butt cap}] (0,0) -- (-2.7,1.4) node[above left] {$\vec R$};
+  \draw[green!50!black,line width=3pt,-{spaced triangle 90 cap}] (0,0) -- (-2.2,-1.8) node[below left] {$\vec p$};
+  \draw[orange!85!black,line width=3pt,-{spaced triangle 90 cap reversed}] (0,0) -- (2.45,-1.75) node[below right] {$\vec E$};
+  \draw[purple,line width=3pt,-{spaced fast cap}] (-2.6,-2.3) -- (2.6,-2.3) node[right] {$\Delta x$};
+  \draw[teal!70!black,line width=3pt,-{spaced fast cap reversed}] (-2.9,2.25) to[bend left=19] (2.9,2.25) node[right] {$\Gamma$};
+\end{tikzpicture}
+\end{document}

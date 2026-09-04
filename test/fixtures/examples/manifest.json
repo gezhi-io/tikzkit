@@ -5870,6 +5870,33 @@
       "features": ["arrows", "round cap", "butt cap", "triangle 90 cap", "fast cap", "reversed", "diagonal", "curved path", "physics vectors"]
     },
     {
+      "id": "arrows-spaced-caps-flowchart",
+      "title": "Spaced cap terminals in a validation flow",
+      "source": "arrows/spaced-caps-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedCapArrowMetrics + src/renderers/svg/paths.js:legacyCapInlineGeometry",
+      "features": ["arrows.spaced", "spaced round cap", "spaced butt cap", "spaced triangle 90 cap", "spaced fast cap", "reversed", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-caps-math",
+      "title": "Spaced cap terminals on mathematical maps",
+      "source": "arrows/spaced-caps-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedCapArrowMetrics + src/renderers/svg/paths.js:legacyCapInlineGeometry",
+      "features": ["arrows.spaced", "spaced cap gap", "node borders", "curved map", "mathematical maps"]
+    },
+    {
+      "id": "arrows-spaced-caps-physics",
+      "title": "Spaced cap terminals on physical vectors",
+      "source": "arrows/spaced-caps-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics + src/renderers/svg/paths.js:legacyCapInlineGeometry",
+      "features": ["arrows.spaced", "spaced cap gap", "diagonal", "curved path", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",
