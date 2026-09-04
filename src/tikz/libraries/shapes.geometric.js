@@ -164,40 +164,67 @@ export function trapeziumLayoutSize(contentWidth, contentHeight, options = {}) {
   let halfHeight = Math.max(TRAPEZIUM_EPSILON, Math.max(0, Number(contentHeight) || 0) / 2);
   const minimumWidth = Math.max(0, Number(options.minimumWidth) || 0);
   const minimumHeight = Math.max(0, Number(options.minimumHeight) || 0);
+  const stretchesBody = options.stretchesBody === true;
+  const stretches = options.stretches === true || stretchesBody;
   let leftExtension = trapeziumSideExtension(halfHeight, options.leftAngle);
   let rightExtension = trapeziumSideExtension(halfHeight, options.rightAngle);
   const minimumHalfHeight = minimumHeight / 2;
 
-  // `\installtrapeziumparameters` preserves the side-angle construction when
-  // a default trapezium is raised to its minimum height.
+  // PGF computes both side extensions before applying minimum dimensions.
+  // The default scales the complete shape; either stretch key changes only
+  // the body height and deliberately leaves those extensions untouched.
   if (halfHeight < minimumHalfHeight) {
-    const scale = minimumHalfHeight / halfHeight;
-    bodyHalfWidth *= scale;
-    halfHeight *= scale;
-    leftExtension *= scale;
-    rightExtension *= scale;
+    if (stretches) {
+      halfHeight = minimumHalfHeight;
+    } else {
+      const scale = minimumHalfHeight / halfHeight;
+      bodyHalfWidth *= scale;
+      halfHeight *= scale;
+      leftExtension *= scale;
+      rightExtension *= scale;
+    }
   }
 
   const span = () => bodyHalfWidth * 2 + Math.abs(leftExtension) + Math.abs(rightExtension);
   if (span() < minimumWidth) {
-    const scale = minimumWidth / Math.max(TRAPEZIUM_EPSILON, span());
-    bodyHalfWidth *= scale;
-    leftExtension *= scale;
-    rightExtension *= scale;
-    halfHeight *= scale;
+    if (stretchesBody) {
+      bodyHalfWidth += (minimumWidth - span()) / 2;
+    } else {
+      const scale = minimumWidth / Math.max(TRAPEZIUM_EPSILON, span());
+      bodyHalfWidth *= scale;
+      leftExtension *= scale;
+      rightExtension *= scale;
+      if (!stretches) halfHeight *= scale;
+    }
   }
 
   return {
     width: bodyHalfWidth * 2 + Math.abs(leftExtension) + Math.abs(rightExtension),
-    height: halfHeight * 2
+    height: halfHeight * 2,
+    trapeziumBodyHalfWidth: bodyHalfWidth,
+    trapeziumHalfHeight: halfHeight,
+    trapeziumLeftExtension: leftExtension,
+    trapeziumRightExtension: rightExtension
   };
 }
 
 export function trapeziumNodePoints(center, halfWidth, halfHeight, data = {}) {
-  const height = Math.max(TRAPEZIUM_EPSILON, Math.abs(Number(halfHeight) || 0));
-  const leftExtension = trapeziumSideExtension(height, data.trapeziumLeftAngle);
-  const rightExtension = trapeziumSideExtension(height, data.trapeziumRightAngle);
-  const bodyHalfWidth = Math.max(0, Math.abs(Number(halfWidth) || 0) - (Math.abs(leftExtension) + Math.abs(rightExtension)) / 2);
+  const storedHeight = Number(data.trapeziumHalfHeight);
+  const height = Number.isFinite(storedHeight)
+    ? Math.max(TRAPEZIUM_EPSILON, Math.abs(storedHeight))
+    : Math.max(TRAPEZIUM_EPSILON, Math.abs(Number(halfHeight) || 0));
+  const storedLeftExtension = Number(data.trapeziumLeftExtension);
+  const storedRightExtension = Number(data.trapeziumRightExtension);
+  const leftExtension = Number.isFinite(storedLeftExtension)
+    ? storedLeftExtension
+    : trapeziumSideExtension(height, data.trapeziumLeftAngle);
+  const rightExtension = Number.isFinite(storedRightExtension)
+    ? storedRightExtension
+    : trapeziumSideExtension(height, data.trapeziumRightAngle);
+  const storedBodyHalfWidth = Number(data.trapeziumBodyHalfWidth);
+  const bodyHalfWidth = Number.isFinite(storedBodyHalfWidth)
+    ? Math.max(0, storedBodyHalfWidth)
+    : Math.max(0, Math.abs(Number(halfWidth) || 0) - (Math.abs(leftExtension) + Math.abs(rightExtension)) / 2);
   const x = Number(center?.x) || 0;
   const y = Number(center?.y) || 0;
 
@@ -324,7 +351,7 @@ export const tikzLibrary = {
   "name": "shapes.geometric",
   "status": "partial",
   "implementedBy": [
-    "src/engine/evaluate.js:regularPolygonLayoutSize/regularPolygonStartAngle/regularPolygonOuterRadiusExtension/nodeBorderPoint/polygonBorderPointWithPadding",
+    "src/engine/evaluate.js:regularPolygonLayoutSize/regularPolygonStartAngle/regularPolygonOuterRadiusExtension/nodeBorderPoint/polygonBorderPointWithPadding/trapeziumLayoutShapeData/customNodeLocalAnchor",
     "src/tikz/libraries/shapes.geometric.js:starLayoutSize/starNodePoints/trapeziumLayoutSize/trapeziumNodePoints",
     "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry/cylinderBorderPoint",
     "src/renderers/svg/nodeShapes.js:regularPolygonNodePoints/starNodePoints/renderCylinderNodeBox"
@@ -335,7 +362,7 @@ export const tikzLibrary = {
   "features": [
     "regular polygon with PGF circumcircle sizing, odd/even orientation, rotation, and border crop",
     "star with PGF radius modes, minimum sizing, and border rotation",
-    "trapezium with default PGF cotangent side geometry, minimum-size scaling, and mitered curve terminal crop",
+    "trapezium with PGF cotangent side geometry, proportional/independent/body-only minimum-size stretching, named side/corner anchors, and mitered border crop",
     "isosceles triangle with apex angle, minimum height, rotation, and named anchors",
     "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, named anchors, curved border clipping, and separate body/end fills"
   ],
@@ -346,5 +373,5 @@ export const tikzLibrary = {
     "isosceles triangle",
     "cylinder"
   ],
-  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Arbitrary non-quarter cylinder rotation/incircle mode, the complete radial/mid/base anchor family, `trapezium stretches`, `trapezium stretches body`, star outer-separation anchor radii, named inner/outer star anchors, and degenerate angular ranges remain partial."
+  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Arbitrary non-quarter cylinder rotation/incircle mode, the complete radial/mid/base anchor family, star outer-separation anchor radii, named inner/outer star anchors, and degenerate angular ranges remain partial."
 };

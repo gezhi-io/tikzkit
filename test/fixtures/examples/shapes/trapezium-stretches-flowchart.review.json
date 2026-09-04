@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes the document and environment boundaries without changing node geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and the requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node"], "findings": "Core TikZ creates node paths, resolves named anchors, and clips connecting paths to the shape border." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The arrows.meta declaration supplies the terminal Latex tips used by the flow connections." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["trapezium stretches", "trapezium stretches body", "installtrapeziumparameters"], "findings": "PGF computes side extensions before minimum dimensions; body stretching preserves the extensions while ordinary stretching keeps the orthogonal dimension fixed." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["trapezium", "top side", "bottom left corner"], "findings": "The manual distinguishes proportional, independent, and body-only stretching and documents side and corner anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of"], "findings": "Positioning uses shape border anchors after each trapezium has reached its final dimensions." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] }
+  ]
+}

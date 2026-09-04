@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes environments and contributes no trapezium geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves the requested libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node"], "findings": "Core TikZ owns path construction, nodes, inline labels, and anchor lookup." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The arrows.meta terminal is independent of the trapezium border computation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["below=of", "left=of"], "findings": "Positioning applies the requested node distance between resolved node borders." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["trapezium stretches", "trapezium stretches body", "minimum width"], "findings": "Minimum width scales all geometric dimensions by default, keeps height fixed for stretches, and adds only to the body half-width for stretches body." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["trapezium left angle", "trapezium right angle", "side anchors"], "findings": "Asymmetric side angles and named side or corner anchors remain attached to the final quadrilateral." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] }
+  ]
+}

@@ -5195,6 +5195,51 @@
       ]
     },
     {
+      "id": "shapes-trapezium-stretches-flowchart",
+      "title": "Trapezium stretch flowchart",
+      "source": "shapes/trapezium-stretches-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:trapeziumLayoutSize/trapeziumNodePoints",
+      "features": [
+        "flowchart",
+        "trapezium stretches",
+        "trapezium stretches body",
+        "side anchors",
+        "arrow border clipping"
+      ]
+    },
+    {
+      "id": "shapes-trapezium-stretches-math",
+      "title": "Trapezium minimum-size mathematics comparison",
+      "source": "shapes/trapezium-stretches-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:trapeziumLayoutSize/trapeziumNodePoints",
+      "features": [
+        "mathematics diagram",
+        "asymmetric trapezium angles",
+        "minimum width",
+        "proportional and independent stretching",
+        "corner anchors"
+      ]
+    },
+    {
+      "id": "shapes-trapezium-stretches-physics",
+      "title": "Trapezium measurement chain",
+      "source": "shapes/trapezium-stretches-physics.tex",
+      "sourceCorpus": "TikZKit physics and control-flow regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:trapeziumLayoutSize/trapeziumNodePoints",
+      "features": [
+        "physics diagram",
+        "minimum height independent stretch",
+        "minimum width body stretch",
+        "side and corner anchors",
+        "arrow border clipping"
+      ]
+    },
+    {
       "id": "shapes-signal-manual-catalog",
       "title": "PGF signal direction and pointer-angle catalog",
       "source": "shapes/signal-manual-catalog.tex",

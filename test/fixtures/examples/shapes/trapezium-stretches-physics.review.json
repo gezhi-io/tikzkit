@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document shell contributes no measurement-chain geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and the geometric, positioning, and arrow libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node"], "findings": "Core node and path code resolves labels, anchors, strokes, and fills around the geometric shape." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The physical signal arrows use the library's Latex terminal geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["trapezium stretches", "trapezium stretches body", "anchorborder"], "findings": "The installed corner geometry is reused by compass border intersections and by named side anchors." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["minimum height", "minimum width", "trapezium angle"], "findings": "Independent height stretching is intended to avoid a wide proportional expansion for tall measurement blocks." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of"], "findings": "The node distance is applied between the resolved east and west borders of adjacent nodes." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] }
+  ]
+}

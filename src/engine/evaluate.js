@@ -6238,7 +6238,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   const slopedRotation = slopedInlineNodeRotation(expandedOptions, pathSegment, nodeEnv);
   const recordRotation = slopedRotation ?? nodeRotation(expandedOptions, nodeEnv);
   const resolvedShape = nodeShape(expandedOptions);
-  const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text);
+  const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text, scaledSize);
   const positioningPoint = resolvePositioning(expandedOptions, nodeEnv, {
     ...scaledPositioningSize,
     ...textAnchorOffsets,
@@ -6290,6 +6290,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
     anchorSize: scaledAnchorSize,
     canvasScale: nodeEnv.canvasScale,
     rotation: slopedRotation ?? undefined,
+    shapeData: resolvedShapeData,
     fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   });
 }
@@ -6554,7 +6555,7 @@ function createNode(statement, env, ir, diagnostics) {
   const positioningSize = scaleSize(rawPositioningSize, nodeEnv.canvasScale);
   const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, size);
   const resolvedShape = nodeShape(expandedOptions);
-  const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text);
+  const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text, size);
   const resolvedRotation = nodeRotation(expandedOptions, nodeEnv);
   const arrowGeometry = scaleArrowNodeGeometry(
     arrowNodeShapeGeometry(text, expandedOptions, nodeEnv),
@@ -6584,7 +6585,10 @@ function createNode(statement, env, ir, diagnostics) {
     displayPoint,
     rectangleSplit,
     circleSplit,
-    shapeData: arrowGeometry ? { arrowGeometry } : null,
+    shapeData: {
+      ...resolvedShapeData,
+      ...(arrowGeometry ? { arrowGeometry } : {})
+    },
     fitTextToBox: shouldFitTextToNodeBox(expandedOptions)
   };
   const nodeRecord = {
@@ -9243,13 +9247,13 @@ function addNodeItems(node, ir, env) {
   const rotation = node.rotation ?? nodeRotation(node.options || {}, nodeEnv);
   const point = node.displayPoint || resolveNodeAnchorPoint(node.at, node.options, node.text, nodeEnv, node.size);
   const shape = nodeShape(node.options || {});
+  const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, nodeEnv), nodeEnv.canvasScale);
   const shapeData = {
-    ...nodeShapeData(node.options || {}, nodeEnv, node.text),
+    ...nodeShapeData(node.options || {}, nodeEnv, node.text, size),
     rectangleSplit: node.rectangleSplit || null,
     circleSplit: node.circleSplit || null,
     ...(node.shapeData || {})
   };
-  const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, nodeEnv), nodeEnv.canvasScale);
   // shapes.misc foreground paths use inherited rectangle anchors, which include outer sep.
   const foregroundOuterSep = shape === "crossOut" || shape === "strikeOut"
     ? scaleNodeOuterSep(nodeOuterSep(node.options || {}, nodeEnv), nodeEnv)
@@ -10824,7 +10828,10 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorO
       direction.includes("left") ? "east" : direction.includes("right") ? "west" : ""
     ].filter(Boolean).join(" ");
     const customAnchor = oppositeAnchor
-      ? customNodeLocalAnchor(nodeShape(options), oppositeAnchor, { ...size, shapeData: nodeShapeData(options, env) })
+      ? customNodeLocalAnchor(nodeShape(options), oppositeAnchor, {
+          ...size,
+          shapeData: nodeShapeData(options, env, undefined, size)
+        })
       : null;
     const centerOffset = customAnchor
       ? { x: -customAnchor.x, y: -customAnchor.y }
@@ -10860,7 +10867,10 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
     const rotated = rotateVector(local.x, local.y, rotation);
     return { x: -rotated.x, y: -rotated.y };
   }
-  const customAnchor = customNodeLocalAnchor(nodeShape(options), anchor, { ...size, shapeData: nodeShapeData(options, env) });
+  const customAnchor = customNodeLocalAnchor(nodeShape(options), anchor, {
+    ...size,
+    shapeData: nodeShapeData(options, env, undefined, size)
+  });
   if (customAnchor) {
     const rotated = rotateVector(customAnchor.x, customAnchor.y, rotation);
     return { x: -rotated.x, y: -rotated.y };
@@ -11350,6 +11360,22 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
         regularPolygonStartAngle(sides, node.shapeData?.shapeBorderRotate)
       )
     );
+  } else if (node.shape === "trapezium") {
+    const visibleWidth = Number(node.width) || halfWidth * 2;
+    const visibleHeight = Number(node.height) || halfHeight * 2;
+    const points = trapeziumPoints(
+      { x: 0, y: 0 },
+      visibleWidth / 2,
+      visibleHeight / 2,
+      node.shapeData || {}
+    );
+    const outerPadding = Math.max(0, Number(node.shapeData?.trapeziumOuterSep) || 0);
+    localPoint = polygonBorderPointWithPadding(
+      { x: 0, y: 0 },
+      { x: localDx, y: localDy },
+      points,
+      outerPadding + terminalPadding
+    );
   } else if (polygonNodeShape(node.shape)) {
     const points = nodePolygonPoints(node, { x: 0, y: 0 }, halfWidth, halfHeight);
     localPoint = terminalPadding > 0
@@ -11527,7 +11553,9 @@ function trapeziumLayoutSize(contentWidth, contentHeight, options = {}, env = { 
     minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
     minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
     leftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
-    rightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60)
+    rightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60),
+    stretches: tikzBoolean(options["trapezium stretches"]),
+    stretchesBody: tikzBoolean(options["trapezium stretches body"])
   });
 }
 
@@ -11627,7 +11655,21 @@ function regularPolygonLayoutSize(contentWidth, contentHeight, options = {}, env
   return { width: diameter, height: diameter };
 }
 
-function nodeShapeData(options = {}, env = {}, text) {
+function trapeziumLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "trapeziumBodyHalfWidth",
+    "trapeziumHalfHeight",
+    "trapeziumLeftExtension",
+    "trapeziumRightExtension"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  return data;
+}
+
+function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const regularSides = regularPolygonSides(options, env);
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
   const star = starShapeData(options, env, shapeBorderRotate);
@@ -11643,6 +11685,8 @@ function nodeShapeData(options = {}, env = {}, text) {
   const tapeOuterSep = nodeOuterSep(options, env);
   const cloudOuterSep = nodeOuterSep(options, env);
   const starburstOuterSep = nodeOuterSep(options, env);
+  const trapeziumOuterSep = nodeOuterSep(options, env);
+  const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
     pointHeight: 0,
@@ -11668,6 +11712,10 @@ function nodeShapeData(options = {}, env = {}, text) {
     ...star,
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
     trapeziumRightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60),
+    trapeziumStretches: tikzBoolean(options["trapezium stretches"]),
+    trapeziumStretchesBody: tikzBoolean(options["trapezium stretches body"]),
+    trapeziumOuterSep: Math.max(trapeziumOuterSep.x, trapeziumOuterSep.y) * trapeziumScale,
+    ...trapeziumLayoutShapeData(layoutSize),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
     cylinderAspect: Math.max(1e-9, numberOption(options["shape aspect"] ?? options.aspect, 1)),
     cylinderEndRadiusX: cylinderNaturalEndRadiusX(text, options, env),
@@ -12402,6 +12450,14 @@ function scaleSize(size, scale = 1) {
     height: roundNumber((Number(size?.height) || 0) * factor)
   };
   for (const key of ["minX", "minY", "maxX", "maxY"]) {
+    if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
+  }
+  for (const key of [
+    "trapeziumBodyHalfWidth",
+    "trapeziumHalfHeight",
+    "trapeziumLeftExtension",
+    "trapeziumRightExtension"
+  ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
   }
   return scaled;
@@ -18206,6 +18262,44 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
+  }
+  if (shape === "trapezium") {
+    const visibleWidth = Number(size.visibleWidth) || Number(size.width) || 0;
+    const visibleHeight = Number(size.visibleHeight) || Number(size.height) || 0;
+    const points = trapeziumPoints(
+      { x: 0, y: 0 },
+      visibleWidth / 2,
+      visibleHeight / 2,
+      size.shapeData || {}
+    );
+    const outerSep = Math.max(0, Number(size.shapeData?.trapeziumOuterSep) || 0);
+    const border = outerSep > 0 ? polygonMiterOffsetPoints(points, outerSep) : points;
+    const midpoint = (first, second) => ({
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2
+    });
+    const named = {
+      "bottom left corner": border[0],
+      "top left corner": border[1],
+      "top right corner": border[2],
+      "bottom right corner": border[3],
+      "left side": midpoint(border[0], border[1]),
+      "top side": midpoint(border[1], border[2]),
+      "right side": midpoint(border[2], border[3]),
+      "bottom side": midpoint(border[3], border[0])
+    }[anchor] || null;
+    if (named) return named;
+    const direction = {
+      north: { x: 0, y: 1 },
+      south: { x: 0, y: -1 },
+      east: { x: 1, y: 0 },
+      west: { x: -1, y: 0 },
+      "north east": { x: 1, y: 1 },
+      "north west": { x: -1, y: 1 },
+      "south east": { x: 1, y: -1 },
+      "south west": { x: -1, y: -1 }
+    }[anchor];
+    if (direction) return polygonBorderPoint({ x: 0, y: 0 }, direction, border);
   }
   const shapeAnchor = shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight);
   if (shapeAnchor) return shapeAnchor;
