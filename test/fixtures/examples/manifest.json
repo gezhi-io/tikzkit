@@ -7993,6 +7993,33 @@
       "externalSource": "tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
       "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
       "features": ["xbar stacked=minus", "stack negative=on previous", "leftward cumulative bars", "x midpoint labels", "per-coordinate x zero levels"]
+    },
+    {
+      "id": "pgfplots-ybar-interval-stacked-algorithm",
+      "title": "Pipeline load by phase interval",
+      "source": "pgfplots/interval-stacked/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots interval-stacked semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": ["ybar interval stacked", "adjacent x boundaries", "cumulative y zero levels", "terminal boundary", "bar cycle list"]
+    },
+    {
+      "id": "pgfplots-xbar-interval-stacked-math",
+      "title": "Interval decomposition of a sum",
+      "source": "pgfplots/interval-stacked/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGFPlots interval-stacked manual",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": ["xbar interval stacked", "adjacent y boundaries", "cumulative x zero levels", "irregular interval widths", "terminal boundary"]
+    },
+    {
+      "id": "pgfplots-ybar-interval-stacked-physics",
+      "title": "Energy loss over time intervals",
+      "source": "pgfplots/interval-stacked/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots subtractive interval stacking",
+      "externalSource": "tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": ["ybar interval stacked=minus", "stack negative=on previous", "downward cumulative intervals", "time boundary grid", "per-coordinate y zero levels"]
     }
   ]
 }

@@ -118,10 +118,10 @@ export function pgfplotsIntervalDataPoints(plot = {}, axisOptions = {}, orientat
 
 export function pgfplotsPlotRangePoints(plot = {}, axisOptions = {}, axis = "x") {
   if (isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") && axis === "y") {
-    return (plot.points || []).slice(0, -1);
+    return plot.pgfplotsStacked ? (plot.points || []) : (plot.points || []).slice(0, -1);
   }
   if (isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "x") && axis === "x") {
-    return (plot.points || []).slice(0, -1);
+    return plot.pgfplotsStacked ? (plot.points || []) : (plot.points || []).slice(0, -1);
   }
   return plot.points || [];
 }

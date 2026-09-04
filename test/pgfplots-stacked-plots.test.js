@@ -3,8 +3,10 @@ import test from "node:test";
 
 import { parseAddplots } from "../src/pgfplots/addplotParser.js";
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
+import { renderLegendEntries } from "../src/pgfplots/legend.js";
 import { renderAxisBars } from "../src/pgfplots/bars.js";
 import { renderNodesNearCoords } from "../src/pgfplots/plotNodes.js";
+import { computeAxisRanges } from "../src/pgfplots/rangeResolver.js";
 import {
   pgfplotsStackedRenderEntries,
   preparePgfplotsStackedPlots
@@ -304,4 +306,170 @@ test("table plots enter the same equal-grid horizontal stack", () => {
     prepared.addplots[1].points.map(({ x, y, stackBaseX }) => ({ x, y, stackBaseX })),
     [{ x: 4, y: 0, stackBaseX: 1 }, { x: 6, y: 1, stackBaseX: 2 }]
   );
+});
+
+test("ybar interval stacked expands to interval bars and cumulative y levels", () => {
+  const first = {
+    ...coordinatePlot([2, 3, 4, 0]),
+    points: [{ x: 0, y: 2 }, { x: 1, y: 3 }, { x: 3, y: 4 }, { x: 5, y: 0 }]
+  };
+  const second = {
+    ...coordinatePlot([1, 2, 3, 0]),
+    points: [{ x: 0, y: 1 }, { x: 1, y: 2 }, { x: 3, y: 3 }, { x: 5, y: 0 }]
+  };
+  const prepared = preparePgfplotsStackedPlots(
+    { "ybar interval stacked": true },
+    [first, second],
+    { compat: "1.18" }
+  );
+
+  assert.equal(prepared.supported, true);
+  assert.equal(prepared.axisOptions["ybar interval"], true);
+  assert.equal(prepared.axisOptions.ybar, undefined);
+  assert.equal(prepared.axisOptions["stack plots"], "y");
+  assert.equal(prepared.axisOptions["stacked ignores zero"], false);
+  assert.deepEqual(
+    prepared.addplots[1].points.map(({ x, y, stackBaseY }) => ({ x, y, stackBaseY })),
+    [
+      { x: 0, y: 3, stackBaseY: 2 },
+      { x: 1, y: 5, stackBaseY: 3 },
+      { x: 3, y: 7, stackBaseY: 4 },
+      { x: 5, y: 0, stackBaseY: 0 }
+    ]
+  );
+});
+
+test("xbar interval stacked=minus keeps interval endpoints and subtracts x levels", () => {
+  const first = {
+    ...horizontalCoordinatePlot([2, 3, 0]),
+    points: [{ x: 2, y: 0 }, { x: 3, y: 1 }, { x: 0, y: 3 }]
+  };
+  const second = {
+    ...horizontalCoordinatePlot([1, 4, 0]),
+    points: [{ x: 1, y: 0 }, { x: 4, y: 1 }, { x: 0, y: 3 }]
+  };
+  const prepared = preparePgfplotsStackedPlots(
+    { "xbar interval stacked": "minus", "stack negative": "on previous" },
+    [first, second]
+  );
+
+  assert.equal(prepared.supported, true);
+  assert.equal(prepared.axisOptions["xbar interval"], true);
+  assert.equal(prepared.axisOptions.xbar, undefined);
+  assert.deepEqual(
+    prepared.addplots[1].points.map(({ x, y, stackBaseX }) => ({ x, y, stackBaseX })),
+    [
+      { x: -3, y: 0, stackBaseX: -2 },
+      { x: -7, y: 1, stackBaseX: -3 },
+      { x: 0, y: 3, stackBaseX: 0 }
+    ]
+  );
+});
+
+test("interval stacking rejects unequal boundary grids", () => {
+  const first = {
+    ...coordinatePlot([2, 3, 0]),
+    points: [{ x: 0, y: 2 }, { x: 1, y: 3 }, { x: 2, y: 0 }]
+  };
+  const second = {
+    ...coordinatePlot([1, 4, 0]),
+    points: [{ x: 0, y: 1 }, { x: 1.5, y: 4 }, { x: 2, y: 0 }]
+  };
+  const prepared = preparePgfplotsStackedPlots(
+    { "ybar interval stacked": true },
+    [first, second]
+  );
+
+  assert.equal(prepared.supported, false);
+  assert.deepEqual(prepared.addplots, [first, second]);
+});
+
+test("stacked interval bars use the next boundary zero level exposed by the native handler", () => {
+  const geometry = {
+    mapPoint: (point) => point
+  };
+  const vertical = renderAxisBars(
+    [
+      { x: 0, y: 7, stackBaseY: 4, stackDeltaY: 3, stackIgnored: false },
+      { x: 2, y: 9, stackBaseY: 6, stackDeltaY: 3, stackIgnored: false }
+    ],
+    { "ybar interval": true, ymin: -10 },
+    geometry,
+    {},
+    1,
+    "y",
+    { xMin: 0, xMax: 2, yMin: -10, yMax: 8 }
+  );
+  const horizontal = renderAxisBars(
+    [
+      { x: -6, y: 0, stackBaseX: -2, stackDeltaX: 4, stackIgnored: false },
+      { x: -8, y: 3, stackBaseX: -4, stackDeltaX: 4, stackIgnored: false }
+    ],
+    { "xbar interval": true, xmin: -10 },
+    geometry,
+    {},
+    1,
+    "x",
+    { xMin: -10, xMax: 0, yMin: 0, yMax: 3 }
+  );
+
+  assert.match(vertical[0], /\(0,6\).*\(2,7\)/);
+  assert.match(horizontal[0], /\(-4,0\).*\(-6,3\)/);
+});
+
+test("stacked interval terminal coordinates affect survey and nodes but not bars", () => {
+  const first = {
+    ...coordinatePlot([1, 2, 100]),
+    points: [{ x: 0, y: 1 }, { x: 1, y: 2 }, { x: 2, y: 100 }]
+  };
+  const second = {
+    ...coordinatePlot([10, 20, 3]),
+    points: [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 3 }]
+  };
+  const prepared = preparePgfplotsStackedPlots(
+    { "ybar interval stacked": true, "nodes near coords": true, enlargelimits: false },
+    [first, second],
+    { compat: "1.18" }
+  );
+  const ranges = computeAxisRanges(prepared.axisOptions, prepared.addplots);
+  const bars = renderAxisBars(
+    prepared.addplots[1].points,
+    prepared.axisOptions,
+    { mapPoint: (point) => point },
+    prepared.addplots[1].options,
+    1,
+    "y",
+    ranges
+  );
+  const nodes = renderNodesNearCoords(
+    prepared.addplots[1],
+    prepared.axisOptions,
+    { mapPoint: (point) => point },
+    1
+  );
+
+  assert.equal(ranges.yMax, 103);
+  assert.equal(bars.length, 2);
+  assert.equal(nodes.length, 3);
+  assert.ok(nodes.some((command) => command.includes("(2,103.08) {103}")));
+});
+
+test("interval stacked legends use the native single-bar image instead of a line sample", () => {
+  const geometry = {
+    origin: { x: 0, y: 0 },
+    width: 10,
+    height: 6,
+    mapAxisDescriptionPoint: ({ x, y }) => ({ x: x * 10, y: y * 6 })
+  };
+  const commands = renderLegendEntries(
+    { "xbar interval stacked": true },
+    {},
+    geometry,
+    ["layer"],
+    [{ options: { blue: true, fill: "blue!30" } }]
+  );
+  const sample = commands.find((command) => command.includes("axis legend image"));
+
+  assert.match(sample, /fill=blue!30/);
+  assert.match(sample, /\([^)]*\) -- \([^)]*\) -- \([^)]*\) -- \([^)]*\) -- cycle;/);
 });

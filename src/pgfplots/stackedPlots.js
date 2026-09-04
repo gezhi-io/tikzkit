@@ -69,13 +69,11 @@ export function pgfplotsStackedRenderEntries(addplots = [], axisOptions = {}) {
 }
 
 function normalizeStackedAxisOptions(axisOptions, options) {
-  const xbarStacked = optionEnabled(axisOptions["xbar stacked"], false);
-  const ybarStacked = optionEnabled(axisOptions["ybar stacked"], false);
-  if (!xbarStacked && !ybarStacked) return { ...axisOptions };
+  const variant = stackedBarVariant(axisOptions);
+  if (!variant) return { ...axisOptions };
 
   const compat = options.compat ?? options.pgfplotsStyleOptions?.compat;
-  const stackAxis = xbarStacked ? "x" : "y";
-  const stackedKey = `${stackAxis}bar stacked`;
+  const { stackAxis, stackedKey, plotHandler, interval } = variant;
   const barDirection = normalizedChoice(axisOptions[stackedKey], "plus");
   const stackDirection = normalizedChoice(axisOptions["stack dir"], barDirection);
   const negativeMode = normalizedNegativeMode(
@@ -83,12 +81,12 @@ function normalizeStackedAxisOptions(axisOptions, options) {
     compatAtLeast(compat, 1.13) ? "separate" : "on previous"
   );
   const ignoresZero = axisOptions["stacked ignores zero"] === undefined
-    ? compatAtLeast(compat, 1.9)
+    ? (interval ? false : compatAtLeast(compat, 1.9))
     : axisOptions["stacked ignores zero"];
 
   return {
     ...axisOptions,
-    [`${stackAxis}bar`]: true,
+    [plotHandler]: true,
     "stack plots": stackAxis,
     "stack dir": stackDirection,
     "stack negative": negativeMode,
@@ -96,16 +94,30 @@ function normalizeStackedAxisOptions(axisOptions, options) {
   };
 }
 
+function stackedBarVariant(axisOptions) {
+  const variants = [
+    { stackAxis: "x", stackedKey: "xbar interval stacked", plotHandler: "xbar interval", interval: true },
+    { stackAxis: "y", stackedKey: "ybar interval stacked", plotHandler: "ybar interval", interval: true },
+    { stackAxis: "x", stackedKey: "xbar stacked", plotHandler: "xbar", interval: false },
+    { stackAxis: "y", stackedKey: "ybar stacked", plotHandler: "ybar", interval: false }
+  ];
+  return variants.find(({ stackedKey }) => optionEnabled(axisOptions[stackedKey], false)) || null;
+}
+
 function supportsCoordinateStack(addplots, axisOptions, stackAxis) {
   const gridAxis = stackAxis === "x" ? "y" : "x";
   if (!addplots.length || String(axisOptions[`${stackAxis}mode`] || "").trim().toLowerCase() === "log") return false;
+  const intervalModes = addplots.map((plot) => (
+    isPgfplotsIntervalPlot(axisOptions, plot.options || {}, stackAxis)
+  ));
+  const interval = intervalModes[0];
+  if (intervalModes.some((value) => value !== interval)) return false;
   if (addplots.some((plot) => (
     plot.type !== "coordinates" ||
     plot.is3d ||
     plot.closedCycle ||
     !Array.isArray(plot.points) ||
-    !plot.points.length ||
-    isPgfplotsIntervalPlot(axisOptions, plot.options || {}, stackAxis)
+    plot.points.length < (interval ? 2 : 1)
   ))) return false;
 
   const grid = addplots[0].points.map((point) => Number(point[gridAxis]));

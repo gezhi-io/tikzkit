@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell loads the package and scopes the picture."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {"symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper activates the generic implementation."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {"symbols": ["ybar interval stacked=minus", "stacked since 1.13"], "findings": "The style forwards minus to stack dir and selects the compatibility-controlled negative policy."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex": {"symbols": ["pgfplots@stacked@sign", "pgfplots@stacked@negative@mode"], "findings": "Direction and negative-stream policy are independent; on-previous updates one subtractive stream."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex": {"symbols": ["ybar interval"], "findings": "The handler paints each time interval from its stored cumulative base to its cumulative top."},
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf": {"symbols": ["stack dir", "stack negative"], "findings": "The manual documents the direction and previous-level controls used by the fixture."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]}
+  ]
+}

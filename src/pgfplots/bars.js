@@ -26,7 +26,9 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
     if (point.stackIgnored) continue;
     if (orientation === "y") {
       const baseline = interval
-        ? axisNumber(axisOptions.ymin, axisNumber(ranges.yMin, 0))
+        ? Number.isFinite(Number(points[index + 1]?.stackBaseY))
+          ? Number(points[index + 1].stackBaseY)
+          : axisNumber(axisOptions.ymin, axisNumber(ranges.yMin, 0))
         : Number.isFinite(Number(point.stackBaseY))
           ? Number(point.stackBaseY)
           : visibleAxisBaseline(ranges.yMin, ranges.yMax);
@@ -41,7 +43,9 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
       commands.push(`\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`);
     } else {
       const baseline = interval
-        ? axisNumber(axisOptions.xmin, axisNumber(ranges.xMin, 0))
+        ? Number.isFinite(Number(points[index + 1]?.stackBaseX))
+          ? Number(points[index + 1].stackBaseX)
+          : axisNumber(axisOptions.xmin, axisNumber(ranges.xMin, 0))
         : Number.isFinite(Number(point.stackBaseX))
           ? Number(point.stackBaseX)
           : visibleAxisBaseline(ranges.xMin, ranges.xMax);

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The LaTeX shell loads PGFPlots and delimits the picture consumed by the renderer."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {"symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper loads the generic PGFPlots implementation."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {"symbols": ["ybar interval stacked", "ybar interval", "stack plots=y"], "findings": "The style expands to interval bars before survey, selects y stacking, forwards plus or minus to stack dir, and installs the bar cycle."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex": {"symbols": ["pgfplots@stacked@getnextzerolevelpoint", "pgfplots@stacked@finalize@stored@plots"], "findings": "Equal-grid streams store a prior zero level per coordinate and reverse only the final paint order."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex": {"symbols": ["ybar interval", "zerolevelstream"], "findings": "Each interval rectangle spans its coordinate and the next boundary while its vertical base comes from the zero-level stream."},
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf": {"symbols": ["ybar interval stacked", "Stacked Plots"], "findings": "The manual defines interval stacking as the interval handler combined with the shared stacked survey."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]}
+  ]
+}

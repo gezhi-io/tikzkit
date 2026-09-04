@@ -9,7 +9,8 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
   if (!axisOptions["nodes near coords"] && !plot.options?.["nodes near coords"]) return [];
   const orientation = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") ? "y" : "x";
   const points = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
-    ? pgfplotsIntervalDataPoints(plot, axisOptions, orientation)
+    ? (plot.pgfplotsStacked ? (plot.points || []) : pgfplotsIntervalDataPoints(plot, axisOptions, orientation))
+        .filter((point) => !point.stackIgnored)
     : (plot.points || []).filter((point) => !point.stackIgnored);
   const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
   const style = joinOptions([
