@@ -193,7 +193,14 @@ export const TIKZ_ARROW_TIPS = {
 export function createArrowTip(kind = "to", overrides = {}) {
   const sourceKind = String(kind || "to").trim().replace(/^>$/, "to");
   const normalizedKind = normalizeArrowKind(sourceKind);
-  const base = TIKZ_ARROW_TIPS[normalizedKind] || TIKZ_ARROW_TIPS.to;
+  const legacyFilledTriangle = /^triangle-(?:90|60|45)(?:-reversed)?$/u.test(normalizedKind);
+  const legacyOpenTriangle = /^open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(normalizedKind);
+  const base = TIKZ_ARROW_TIPS[normalizedKind]
+    || (legacyFilledTriangle
+      ? { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke", stroke: "context-stroke" }
+      : legacyOpenTriangle
+        ? TIKZ_ARROW_TIPS["open-triangle"]
+        : TIKZ_ARROW_TIPS.to);
   const legacy = normalizedKind === "latex"
     ? Object.hasOwn(overrides, "legacy")
       ? overrides.legacy === true
@@ -491,6 +498,10 @@ function normalizeArrowKind(kind) {
   if (text === ")" || text === "round bracket") return "round-bracket";
   const legacyAngle = text.match(/^angle\s+(90|60|45)(\s+reversed)?$/);
   if (legacyAngle) return `angle-${legacyAngle[1]}${legacyAngle[2] ? "-reversed" : ""}`;
+  const legacyTriangle = text.match(/^(open\s+)?triangle\s+(90|60|45)(\s+reversed)?$/);
+  if (legacyTriangle) {
+    return `${legacyTriangle[1] ? "open-" : ""}triangle-${legacyTriangle[2]}${legacyTriangle[3] ? "-reversed" : ""}`;
+  }
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";

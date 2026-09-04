@@ -5735,6 +5735,33 @@
       "features": ["arrows", "angle 90", "angle 60", "angle 45", "reversed", "physics vectors"]
     },
     {
+      "id": "arrows-legacy-triangles-flowchart",
+      "title": "Legacy filled and open triangle tips in a repair flow",
+      "source": "arrows/legacy-triangles-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyTriangleArrowMetrics + src/renderers/svg/paths.js:legacyTriangleInlineGeometry",
+      "features": ["arrows", "triangle 90", "triangle 60", "triangle 45", "open triangle", "flowchart"]
+    },
+    {
+      "id": "arrows-legacy-triangles-math",
+      "title": "Legacy triangle tips on bidirectional mathematical maps",
+      "source": "arrows/legacy-triangles-math.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyTriangleArrowMetrics + src/renderers/svg/paths.js:legacyTriangleInlineGeometry",
+      "features": ["arrows", "triangle 90", "triangle 60", "triangle 45", "open triangle", "reversed", "mathematical maps"]
+    },
+    {
+      "id": "arrows-legacy-triangles-physics",
+      "title": "Legacy open triangle tips on a free-body vector diagram",
+      "source": "arrows/legacy-triangles-physics.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyTriangleArrowMetrics + src/renderers/svg/paths.js:legacyTriangleInlineGeometry",
+      "features": ["arrows", "open triangle 90", "open triangle 60", "open triangle 45", "reversed", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

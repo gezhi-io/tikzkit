@@ -18,7 +18,7 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
 import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
-import { legacyDelimiterArrowMetrics } from "../../tikz/libraries/arrows.js";
+import { legacyDelimiterArrowMetrics, legacyTriangleArrowMetrics } from "../../tikz/libraries/arrows.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -357,12 +357,13 @@ export function resolveInlineArrowTip(tip, style = {}) {
     "arc-barb",
     "tee-barb",
     "rays"
-  ].includes(raw.kind) || isLegacyDelimiterTip(raw.kind);
+  ].includes(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyOpenTriangleTip(raw.kind);
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
   const metaStealthTip = raw.kind === "stealth" && raw.meta;
-  const filledStrokedTip = metaStealthTip || legacyStealthPrime || raw.kind === "dimline" || raw.kind === "dimline reverse";
+  const legacyFilledTriangleTip = isLegacyFilledTriangleTip(raw.kind);
+  const filledStrokedTip = metaStealthTip || legacyStealthPrime || legacyFilledTriangleTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
   const declaredPaint = raw.declaredArrow?.paint;
   const separation = arrowTipSeparation(raw.separation, style);
   return {
@@ -374,8 +375,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
-    lineJoin: isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
+    lineCap: isLegacyTriangleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -394,7 +395,9 @@ export function resolveInlineArrowTip(tip, style = {}) {
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
-        ? metaStealthTip
+        ? legacyFilledTriangleTip
+          ? style.lineWidth ?? 1
+          : metaStealthTip
           ? geometry.lineWidth
           : legacyStealthPrime
           ? style.lineWidth ?? 1
@@ -442,6 +445,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   const delimiter = legacyDelimiterArrowMetrics(tip.kind, lineWidth);
   if (delimiter) return legacyDelimiterInlineGeometry(delimiter);
+  const legacyTriangle = legacyTriangleArrowMetrics(tip.kind, lineWidth);
+  if (legacyTriangle) return legacyTriangleInlineGeometry(legacyTriangle);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -750,6 +755,39 @@ function isLegacyDelimiterTip(kind) {
 
 function isSquareBracketTip(kind) {
   return /^square-bracket(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isLegacyTriangleTip(kind) {
+  return /^(?:open-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isLegacyOpenTriangleTip(kind) {
+  return /^open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isLegacyFilledTriangleTip(kind) {
+  return /^triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function legacyTriangleInlineGeometry(metrics) {
+  return {
+    path: [
+      `M ${format(metrics.backX)} ${format(-metrics.halfHeight)}`,
+      `L ${format(metrics.tipX)} 0`,
+      `L ${format(metrics.backX)} ${format(metrics.halfHeight)}`,
+      "Z"
+    ].join(" "),
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds: {
+      minX: Math.min(metrics.backX, metrics.tipX),
+      maxX: Math.max(metrics.backX, metrics.tipX),
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    }
+  };
 }
 
 function legacyDelimiterInlineGeometry(metrics) {

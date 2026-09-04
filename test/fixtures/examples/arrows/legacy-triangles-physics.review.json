@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"],
+      "findings": "The LaTeX shell is preprocessing-only for this standalone vector diagram."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "The package loads TikZ and the arrow registration mechanism."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\fill", "\\node", "\\usetikzlibrary"],
+      "findings": "The free-body block, origin point, sloped paths, labels, and colors are evaluated before arrow decoration."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare{open triangle 90}", "\\pgfarrowsdeclare{open triangle 60}", "\\pgfarrowsdeclare{open triangle 45}", "\\pgfarrowsdeclare{open triangle 90 reversed}", "\\pgfarrowsdeclare{open triangle 60 reversed}", "\\pgfarrowsdeclare{open triangle 45 reversed}"],
+      "findings": "The aperture narrows from 90 to 60 to 45 degrees, and reversed open tips use distinct line-width backend factors .707, 1, and 1.28."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsdeclarereversed"],
+      "findings": "Arrow transforms rotate the local tip path onto each vector while preserving the source shaft-shortening extents."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {
+      "symbols": ["open triangle 90", "open triangle 60", "open triangle 45", "open triangle 90 reversed", "open triangle 60 reversed", "open triangle 45 reversed"],
+      "findings": "The manual confirms the six public compatibility names used by the force-vector fixture."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] }
+  ]
+}

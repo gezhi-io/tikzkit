@@ -5,7 +5,7 @@ import { lineWidthFromPt, TIKZ_UNIT } from "../metrics.js";
 export const tikzLibrary = {
   "name": "arrows",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
+  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   "localSourceReviewed": true,
@@ -19,6 +19,8 @@ export const tikzLibrary = {
     "-latex'",
     "legacy delimiter tips: square bracket, round bracket, [, ], (, and )",
     "legacy angle 90, angle 60, and angle 45 tips with reversed forms",
+    "legacy triangle 90, triangle 60, triangle 45, and open triangle tips with reversed forms",
+    "legacy triangle fillstroke versus open-triangle stroke paint semantics",
     "active-line-width legacy tip geometry and backend/tipend shaft shortening",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
@@ -34,12 +36,14 @@ export const tikzLibrary = {
     "-latex'",
     "legacy delimiter tips: square bracket, round bracket, [, ], (, and )",
     "legacy angle 90, angle 60, and angle 45 tips with reversed forms",
+    "legacy triangle 90, triangle 60, triangle 45, and open triangle tips with reversed forms",
+    "legacy triangle fillstroke versus open-triangle stroke paint semantics",
     "active-line-width legacy tip geometry and backend/tipend shaft shortening",
     "user-declared arrow tips with pgfpoint move/line/cubic/arc paths",
     "focused \\pgfarrowsdeclare{leaf}{leaf} TCS logo expansion",
     "curved terminal arrow crops on circular, elliptical, regular-polygon, rectangle, diamond, star, and trapezium nodes, including focused convex polygon-corner miters"
   ],
-  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. The focused 2026-08-07 trapezium slice intersects the fully mitered offset convex polygon contour, avoiding the prior arbitrary adjacent-side choice at a shared corner. `arrows-shape-curved-terminal-miters` is the permanent visual driver. On 2026-09-04, built-in arrows.meta sequences gained source-derived per-tip separation; the arrows.meta registry records that shared capability. Also on 2026-09-04, pgflibraryarrows.code.tex and pgfcorearrows.code.tex were reviewed for the legacy delimiter slice: square/round brackets and angle 90/60/45, including reversed spellings, now use the source formulas for active-line-width aperture, backend, tip end, cap/join, and shaft shortening. The flowchart, number-line, and force-vector fixtures are strict semantic and three-reference visual drivers. Legacy triangle, diamond, open-shape, hook, cap, and implies families, concave/custom shape miters, and full declared-arrow hulls remain partial."
+  "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. The focused 2026-08-07 trapezium slice intersects the fully mitered offset convex polygon contour, avoiding the prior arbitrary adjacent-side choice at a shared corner. `arrows-shape-curved-terminal-miters` is the permanent visual driver. On 2026-09-04, built-in arrows.meta sequences gained source-derived per-tip separation; the arrows.meta registry records that shared capability. Also on 2026-09-04, pgflibraryarrows.code.tex and pgfcorearrows.code.tex were reviewed for the legacy delimiter slice: square/round brackets and angle 90/60/45, including reversed spellings, now use the source formulas for active-line-width aperture, backend, tip end, cap/join, and shaft shortening. The flowchart, number-line, and force-vector fixtures are strict semantic and three-reference visual drivers. A second 2026-09-04 source review covered the filled and open triangle 90/60/45 families. TikZKit now applies d=.5pt+.25*linewidth, source-specific aperture and backend/tipend formulas, fillstroke for filled tips, stroke-only rendering for open tips, and the independently declared reversed open-tip extents. The repair-flow, mathematical-map, and free-body fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Legacy diamond, hook, cap, implies, and spaced-arrow families, concave/custom shape miters, and full declared-arrow hulls remain partial."
 };
 
 export function legacyDelimiterArrowMetrics(kind, lineWidth) {
@@ -91,6 +95,88 @@ export function legacyDelimiterArrowMetrics(kind, lineWidth) {
     tipXPt: 0.5 * unitPt,
     halfHeightPt: geometry.halfHeightFactor * unitPt
   });
+}
+
+export function legacyTriangleArrowMetrics(kind, lineWidth) {
+  const match = String(kind || "").trim().toLowerCase()
+    .match(/^(open-)?triangle-(90|60|45)(-reversed)?$/u);
+  if (!match) return null;
+
+  const open = Boolean(match[1]);
+  const angle = Number(match[2]);
+  const reversed = Boolean(match[3]);
+  const unitsPerPt = lineWidthFromPt(1);
+  const lineWidthPt = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4)) / unitsPerPt;
+  const unitPt = 0.5 + 0.25 * lineWidthPt;
+  const source = legacyTriangleAngleSource(angle);
+
+  let backEndPt;
+  let tipEndPt;
+  let backXPt;
+  let tipXPt;
+
+  if (open) {
+    backEndPt = -(reversed ? source.tipLineFactor : 0.5) * lineWidthPt;
+    tipEndPt = source.openLengthFactor * unitPt
+      + (reversed ? 0.5 : source.tipLineFactor) * lineWidthPt;
+    backXPt = reversed ? source.openLengthFactor * unitPt : 0;
+    tipXPt = reversed ? 0 : source.openLengthFactor * unitPt;
+  } else {
+    backEndPt = -source.backExtentFactor * unitPt - 0.5 * lineWidthPt;
+    tipEndPt = 0.5 * unitPt + source.tipLineFactor * lineWidthPt;
+    backXPt = (reversed ? 1 : -1) * source.pathBackFactor * unitPt;
+    tipXPt = (reversed ? -1 : 1) * 0.5 * unitPt;
+  }
+
+  const placementPt = open
+    ? tipEndPt
+    : reversed
+      ? -backEndPt
+      : tipEndPt;
+  const pt = (value) => lineWidthFromPt(value);
+  return {
+    shape: "triangle",
+    open,
+    reversed,
+    angle,
+    unit: pt(unitPt),
+    lineWidth: pt(lineWidthPt),
+    backEnd: pt(backEndPt),
+    tipEnd: pt(tipEndPt),
+    placement: pt(placementPt),
+    assemblyLength: pt(tipEndPt - backEndPt),
+    backX: pt(backXPt),
+    tipX: pt(tipXPt),
+    halfHeight: pt(source.halfHeightFactor * unitPt)
+  };
+}
+
+function legacyTriangleAngleSource(angle) {
+  if (angle === 90) {
+    return {
+      backExtentFactor: 5.5,
+      pathBackFactor: 5.5,
+      openLengthFactor: 6,
+      halfHeightFactor: 6,
+      tipLineFactor: 0.707
+    };
+  }
+  if (angle === 60) {
+    return {
+      backExtentFactor: 7.29,
+      pathBackFactor: 9 * Math.cos(Math.PI / 6) - 0.5,
+      openLengthFactor: 7.794,
+      halfHeightFactor: 4.5,
+      tipLineFactor: 1
+    };
+  }
+  return {
+    backExtentFactor: 8.705,
+    pathBackFactor: 10 * Math.cos((23 * Math.PI) / 180) - 0.5,
+    openLengthFactor: 9.205,
+    halfHeightFactor: 10 * Math.sin((23 * Math.PI) / 180),
+    tipLineFactor: 1.28
+  };
 }
 
 function delimiterMetrics(shape, reversed, pt, values) {

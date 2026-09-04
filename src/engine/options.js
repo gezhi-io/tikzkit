@@ -659,11 +659,11 @@ function parseArrowOption(key, value, defaultArrowTip) {
   const customStart = text.match(/^\{([\s\S]+)\}-$/);
   if (customStart) return { markerStart: parseArrowTipSpec(customStart[1]), markerEnd: undefined };
 
-  const namedBoth = text.match(/^([A-Za-z'][A-Za-z'\s-]*?)-([A-Za-z'][A-Za-z'\s-]*?)$/);
+  const namedBoth = text.match(/^([A-Za-z'][A-Za-z0-9'\s-]*?)-([A-Za-z'][A-Za-z0-9'\s-]*?)$/);
   if (namedBoth) return { markerStart: parseArrowTipSpec(namedBoth[1]), markerEnd: parseArrowTipSpec(namedBoth[2]) };
-  const namedEnd = text.match(/^-([A-Za-z'][A-Za-z'\s-]*?)$/);
+  const namedEnd = text.match(/^-([A-Za-z'][A-Za-z0-9'\s-]*?)$/);
   if (namedEnd) return { markerStart: undefined, markerEnd: parseArrowTipSpec(namedEnd[1]) };
-  const namedStart = text.match(/^([A-Za-z'][A-Za-z'\s-]*?)-$/);
+  const namedStart = text.match(/^([A-Za-z'][A-Za-z0-9'\s-]*?)-$/);
   if (namedStart) return { markerStart: parseArrowTipSpec(namedStart[1]), markerEnd: undefined };
 
   return null;
@@ -672,6 +672,18 @@ function parseArrowOption(key, value, defaultArrowTip) {
 const ARROW_TIP_SEQUENCE_NAMES = [
   "Computer Modern Rightarrow",
   "Classical TikZ Rightarrow",
+  "open triangle 90 reversed",
+  "open triangle 60 reversed",
+  "open triangle 45 reversed",
+  "triangle 90 reversed",
+  "triangle 60 reversed",
+  "triangle 45 reversed",
+  "open triangle 90",
+  "open triangle 60",
+  "open triangle 45",
+  "triangle 90",
+  "triangle 60",
+  "triangle 45",
   "square bracket reversed",
   "round bracket reversed",
   "angle 90 reversed",

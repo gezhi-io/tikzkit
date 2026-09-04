@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"],
+      "findings": "The document and package shell is removed before picture evaluation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty": {
+      "symbols": ["\\ProvidesPackage{amsmath}"],
+      "findings": "Amsmath supplies formula syntax only; arrow geometry remains owned by PGF."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "TikZ loads the generic path and option implementation used by the four-node map."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\node", "\\usetikzlibrary"],
+      "findings": "Double-ended arrow specifications are parsed as start and end tips before path rendering."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare{triangle 90}", "\\pgfarrowsdeclarereversed{triangle 60 reversed}", "\\pgfarrowsdeclare{open triangle 90 reversed}", "\\pgfarrowsdeclare{open triangle 45 reversed}"],
+      "findings": "Filled reversed tips reuse the forward declaration through pgfarrowsdeclarereversed, whereas every reversed open triangle has its own backend, tip-end, and local path."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsdeclarereversed"],
+      "findings": "The start and end shafts are shortened by each tip's source extents before rotation and placement."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {
+      "symbols": ["triangle 90 reversed", "triangle 60 reversed", "triangle 45 reversed", "open triangle 90 reversed", "open triangle 45 reversed"],
+      "findings": "The manual lists all forward and reversed public spellings exercised by the map fixture."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-triangles.test.js", "docs/qa/2026-09-04-arrows-legacy-triangles.md"] }
+  ]
+}
