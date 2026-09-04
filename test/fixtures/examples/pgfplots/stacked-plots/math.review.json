@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"],
+      "findings": "The standalone document shell loads PGFPlots and delimits the picture evaluated by TikZKit."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {
+      "symbols": ["\\usepackage{pgfplots}"],
+      "findings": "The package wrapper loads the generic axis implementation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {
+      "symbols": ["stack plots", "reverse stacked plots"],
+      "findings": "The axis key chooses the stacked coordinate direction while retaining source-order styles and legends."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex": {
+      "symbols": ["pgfplots@stacked@preparepoint@coord@", "pgfplots@stacked@finalize@stored@plots"],
+      "findings": "Successive values are accumulated during survey, then stored plots are painted in reverse without changing their cycle indexes."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf": {
+      "symbols": ["Stacked Plots"],
+      "findings": "The documented two-dimensional stack requires equal point counts and matching coordinate grids."
+    }
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]}
+  ]
+}

@@ -51,7 +51,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }
-    const dataPoints = plot.points.filter((point) => axisPointIsValidForScale(point, axisOptions));
+    const dataPoints = plot.points.filter((point) => !point.stackIgnored && axisPointIsValidForScale(point, axisOptions));
     const visiblePlot = { ...plot, points: dataPoints };
     const mappedPoints = dataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
     const mark = String(plot.options.mark || "").trim().toLowerCase();

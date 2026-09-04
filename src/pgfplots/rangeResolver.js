@@ -39,6 +39,11 @@ export function computeAxisRanges(axisOptions, addplots) {
         if (!axisValueIsValidForScale(point.y, axisOptions, "y")) continue;
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
         if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
+        const stackedBaseY = Number(point.stackBaseY);
+        if (axisValueIsValidForScale(stackedBaseY, axisOptions, "y")) {
+          if (!hasExplicitYMin) yMin = Math.min(yMin, stackedBaseY);
+          if (!hasExplicitYMax) yMax = Math.max(yMax, stackedBaseY);
+        }
         if (axisValueIsValidForScale(point.z, axisOptions, "z")) {
           if (!hasExplicitZMin) zMin = Math.min(zMin, point.z);
           if (!hasExplicitZMax) zMax = Math.max(zMax, point.z);

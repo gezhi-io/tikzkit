@@ -18,6 +18,7 @@ export {
   shouldRenderAxisLines
 } from "./axisLines.js";
 export { isAxisBarPlot, renderAxisBars } from "./bars.js";
+export { pgfplotsStackedRenderEntries, preparePgfplotsStackedPlots } from "./stackedPlots.js";
 export { isAxisCombPlot, renderAxisComb } from "./comb.js";
 export {
   collectPgfplotsLibraries,

@@ -10,20 +10,24 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
   const orientation = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") ? "y" : "x";
   const points = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
     ? pgfplotsIntervalDataPoints(plot, axisOptions, orientation)
-    : plot.points || [];
+    : (plot.points || []).filter((point) => !point.stackIgnored);
+  const stackedYBar = isStackedYBar(plot, axisOptions);
   const style = joinOptions([
     "axis near coord",
-    "anchor=south",
+    stackedYBar ? "anchor=center" : "anchor=south",
     "font=\\scriptsize",
     nodeNearCoordTextColor(plot.options || {}, plotIndex),
     ...nodeNearCoordStyles(axisOptions),
     ...nodeNearCoordStyles(plot.options || {})
   ]);
-  const offset = nodeNearCoordOffset(axisOptions, plot.options || {});
+  const offset = stackedYBar ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
   return points.map((point, pointIndex) => {
+    const positionedPoint = stackedYBar
+      ? stackedYBarNodePoint(point, axisOptions)
+      : point;
     const mapped = plot.is3d && typeof geometry.mapPoint3d === "function"
-      ? geometry.mapPoint3d(point)
-      : geometry.mapPoint(point);
+      ? geometry.mapPoint3d(positionedPoint)
+      : geometry.mapPoint(positionedPoint);
     const template = nodeNearCoordTemplate(point, plot, axisOptions, pointIndex);
     return `\\node[${joinOptions([style, ...template.styles])}] at ${formatAxisPoint(offsetPoint(mapped, 0, offset))} {${template.label}};`;
   });
@@ -31,7 +35,7 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
 
 function nodeNearCoordTemplate(point, plot = {}, axisOptions = {}, pointIndex = 0) {
   const rawTemplate = plot.options?.["nodes near coords"] ?? axisOptions["nodes near coords"];
-  const fallback = point.meta ?? (plot.is3d ? point.z : point.y);
+  const fallback = point.meta ?? (isStackedYBar(plot, axisOptions) ? point.stackDeltaY : (plot.is3d ? point.z : point.y));
   if (rawTemplate === true || rawTemplate === undefined || rawTemplate === null || String(rawTemplate).trim() === "") {
     return { label: formatAxisNumber(fallback), styles: [] };
   }
@@ -117,6 +121,22 @@ function nodeNearCoordOffset(axisOptions = {}, plotOptions = {}) {
   // histogram labels twice.
   const hasExplicitShift = ["shift", "xshift", "yshift"].some((key) => merged[key] !== undefined);
   return anchor === "center" || hasExplicitShift ? 0 : 0.08;
+}
+
+function isStackedYBar(plot = {}, axisOptions = {}) {
+  return (plot.points || []).some((point) => Number.isFinite(Number(point.stackBaseY))) && Boolean(
+    axisOptions["ybar stacked"] || axisOptions.ybar || plot.options?.ybar
+  );
+}
+
+function stackedYBarNodePoint(point, axisOptions = {}) {
+  const rawOffset = axisNumber(axisOptions["nodes near coords bar offset"], 0.5);
+  const offset = Number.isFinite(rawOffset) ? rawOffset : 0.5;
+  const base = Number(point.stackBaseY);
+  return {
+    ...point,
+    y: base + (Number(point.y) - base) * offset
+  };
 }
 
 function visualizationDependencyBindings(axisOptions, plotOptions, point) {

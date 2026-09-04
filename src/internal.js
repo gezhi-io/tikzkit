@@ -28,6 +28,8 @@ export {
   findNextPgfplotsEnvironment,
   isAxisBarPlot,
   isAxisCombPlot,
+  pgfplotsStackedRenderEntries,
+  preparePgfplotsStackedPlots,
   isSurfacePlot,
   parseAddplots,
   parseCoordinateAddplot,

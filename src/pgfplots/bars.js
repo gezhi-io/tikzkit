@@ -23,10 +23,13 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
   const style = axisBarStyle(plotOptions, plotIndex, interval);
   const shift = axisBarCanvasShift(plotOptions.shift, orientation, geometry, ranges);
   for (const [index, point] of renderedPoints.entries()) {
+    if (point.stackIgnored) continue;
     if (orientation === "y") {
       const baseline = interval
         ? axisNumber(axisOptions.ymin, axisNumber(ranges.yMin, 0))
-        : visibleAxisBaseline(ranges.yMin, ranges.yMax);
+        : Number.isFinite(Number(point.stackBaseY))
+          ? Number(point.stackBaseY)
+          : visibleAxisBaseline(ranges.yMin, ranges.yMax);
       const corners = interval
         ? [
             geometry.mapPoint({ x: point.x, y: baseline }),

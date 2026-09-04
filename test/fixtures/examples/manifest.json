@@ -7921,6 +7921,51 @@
         "five signed fill regions",
         "alternating displacement colors"
       ]
+    },
+    {
+      "id": "pgfplots-stacked-plots-algorithm",
+      "title": "Pipeline work with recovered capacity",
+      "source": "pgfplots/stacked-plots/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots stacked-plot semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": [
+        "ybar stacked",
+        "modern separate positive and negative stacks",
+        "native bar cycle list",
+        "zero-level bar geometry",
+        "centered nodes near coords"
+      ]
+    },
+    {
+      "id": "pgfplots-stacked-plots-math",
+      "title": "Successive partial sums",
+      "source": "pgfplots/stacked-plots/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGFPlots stacked-plots manual",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": [
+        "stack plots=y",
+        "equal coordinate grids",
+        "successive cumulative tops",
+        "reverse stacked plot painting",
+        "source-order cycle styles and legend"
+      ]
+    },
+    {
+      "id": "pgfplots-stacked-plots-physics",
+      "title": "Accumulated energy losses",
+      "source": "pgfplots/stacked-plots/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots subtractive stacking semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": [
+        "ybar stacked=minus",
+        "stack negative=on previous",
+        "per-coordinate zero levels",
+        "downward cumulative bars",
+        "raw increment labels"
+      ]
     }
   ]
 }

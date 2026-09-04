@@ -14,12 +14,25 @@ export const PGFPLOTS_DEFAULT_MARK_FILLS = [
   "",
   "red!80!black"
 ];
+export const PGFPLOTS_DEFAULT_BAR_STYLES = [
+  { draw: "blue", fill: "blue!30!white", mark: "none" },
+  { draw: "red", fill: "red!30!white", mark: "none" },
+  { draw: "brown!60!black", fill: "brown!30!white", mark: "none" },
+  { draw: "black", fill: "gray", mark: "none" },
+  { draw: "violet!80!black", fill: "violet", mark: "none" },
+  { draw: "green", fill: "green!80!black", mark: "none" }
+];
 
 export function defaultPgfplotsCycleMarkStyle(plotIndex = 0) {
   const index = ((Number(plotIndex) || 0) % PGFPLOTS_DEFAULT_MARKS.length + PGFPLOTS_DEFAULT_MARKS.length) % PGFPLOTS_DEFAULT_MARKS.length;
   const style = { mark: PGFPLOTS_DEFAULT_MARKS[index] };
   if (PGFPLOTS_DEFAULT_MARK_FILLS[index]) style["mark fill"] = PGFPLOTS_DEFAULT_MARK_FILLS[index];
   return style;
+}
+
+export function defaultPgfplotsBarCycleStyle(plotIndex = 0) {
+  const index = ((Number(plotIndex) || 0) % PGFPLOTS_DEFAULT_BAR_STYLES.length + PGFPLOTS_DEFAULT_BAR_STYLES.length) % PGFPLOTS_DEFAULT_BAR_STYLES.length;
+  return { ...PGFPLOTS_DEFAULT_BAR_STYLES[index] };
 }
 
 export function selectPlotColor(options, plotIndex = 0) {

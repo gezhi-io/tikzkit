@@ -15,10 +15,11 @@ import { renderAxisLabels } from "./labels.js";
 import { renderLegendEntries } from "./legend.js";
 import { preparePgfplotsHistogram } from "./histogram.js";
 import { renderAxisTicks } from "./ticks.js";
-import { defaultPgfplotsCycleMarkStyle } from "./plotStyle.js";
+import { defaultPgfplotsBarCycleStyle, defaultPgfplotsCycleMarkStyle } from "./plotStyle.js";
 import { createPgfplotsDateContext, normalizePgfplotsDateAxisOptions } from "./dateCoordinates.js";
 import { renderAxisFillBetween } from "./fillBetween.js";
 import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
+import { pgfplotsStackedRenderEntries, preparePgfplotsStackedPlots } from "./stackedPlots.js";
 
 // PGF's axis-description node box is about 1.7pt narrower on its rotated
 // cross-axis than the browser's CMU text layout box. Apply the correction only
@@ -36,7 +37,8 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     parsedAddplots
   );
   const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
-  let addplots = applyPgfplotsCycleStyles(symbolic.addplots, symbolic.axisOptions, options);
+  const stacked = preparePgfplotsStackedPlots(symbolic.axisOptions, symbolic.addplots, options);
+  let addplots = applyPgfplotsCycleStyles(stacked.addplots, stacked.axisOptions, options);
   const legendEntries = dependencies.parseLegendEntries(body);
   const has3dSurface = addplots.some((plot) => dependencies.isSurfacePlot(plot, dateAxisOptions));
   const has3dPlot = addplots.some((plot) => plot.is3d);
@@ -48,8 +50,8 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   const axisColormaps = dependencies.parsePgfplotsColormaps?.(preparedAxisOptions.colormap) || {};
   const axisColormapName = Object.keys(axisColormaps)[0] || "";
   let resolvedAxisOptions = {
-    ...symbolic.axisOptions,
-    "colormap name": symbolic.axisOptions["colormap name"] ?? axisColormapName ?? symbolic.axisOptions["colormap name"],
+    ...stacked.axisOptions,
+    "colormap name": stacked.axisOptions["colormap name"] ?? axisColormapName ?? stacked.axisOptions["colormap name"],
     "pgfplots declared functions": declaredFunctions,
     "pgfplots colormaps": {
       ...declaredColormaps,
@@ -104,7 +106,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     const axis3DBoxForeground = dependencies.renderAxis3DBoxForeground?.(axisModel.options, axisModel.ranges, axisModel.geometry) || [];
     commands.push(...dependencies.renderAxis3DGrid(axisModel.options, axisModel.ranges, axisModel.geometry));
     if (axis3DBoxForeground.length) commands.push(...axis3DBox);
-    addplots.forEach((plot, plotIndex) => {
+    pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
       commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
       commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
     });
@@ -131,7 +133,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     commands.push(...renderAxisLineCommands(axisModel));
     commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   }
-  addplots.forEach((plot, plotIndex) => {
+  pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
     commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
     commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
   });
@@ -291,6 +293,7 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
   const cycleName = String(axisOptions["cycle list name"] || "").trim();
   const cycleList = cycleName ? options.pgfplotsCycleLists?.[cycleName] : null;
   const everyAxisPlotStyle = axisStyleOptions(axisOptions["every axis plot/.append style"]);
+  const usesStackedBarCycle = !cycleName && optionEnabled(axisOptions["ybar stacked"]);
   return addplots.map((plot, index) => {
     const plotOptions = plot.options || {};
     const usesDefaultCycle =
@@ -301,7 +304,11 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
           !plot.is3d &&
           !plotOptions["pgfplots explicit options"]));
     const cycleStyle = cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
-      || (usesDefaultCycle ? defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10)) : {});
+      || (usesStackedBarCycle
+        ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6))
+        : usesDefaultCycle
+          ? defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10))
+          : {});
     return {
       ...plot,
       options: mergePgfplotsOptionMaps(mergePgfplotsOptionMaps(everyAxisPlotStyle, cycleStyle), plotOptions)
