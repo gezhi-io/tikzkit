@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryfit.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-fit.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is stripped before TikZ interpretation while preserving the picture body." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The LaTeX package loads the generic TikZ front end and its command parser." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "node anchors"], "findings": "Node shape anchors and option order are resolved before ordinary path endpoints use them." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryfit.code.tex": { "symbols": ["fit", "rotate fit", "tikz@lib@fit@scan"], "findings": "A bare node scans west, east, north, and south; rotate fit scans in an inverse-rotated frame and also sets the node rotate key." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-fit.tex": { "symbols": ["rotate fit", "every fit"], "findings": "The documented key order places rotate fit before fit so the fitted bounds use the requested frame." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] }
+  ]
+}

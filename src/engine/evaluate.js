@@ -1,6 +1,7 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
+import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import { basicPlotMarkGeometry, plotMarkGeometryCommands } from "../tikz/libraries/plotmarks.js";
 import {
   circularSectorBorderPoint as geometricCircularSectorBorderPoint,
@@ -6547,6 +6548,7 @@ function createNode(statement, env, ir, diagnostics) {
   let expandedOptions = normalizeOptions("node", inheritedAndLocalOptions, env).options;
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
+  expandedOptions = applyRotateFitOption(expandedOptions);
   const rawText = resolveNodeTextContent(statement.text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   const textMarks = extractTikzmarkNodes(resolveTextContent(rawText, env));
@@ -9175,8 +9177,6 @@ function picDefinitionsFromOptions(rawOptions = {}) {
   return pics;
 }
 
-// Claude: 读取节点自身的 rotate 选项（如 \node[rotate=90]{...}），转成角度。
-// 用于把文字竖排/斜排，见 case 047 的 self-awareness / immunisation 标签。
 function nodeRotation(options = {}, env) {
   const raw = options.rotate;
   const angle = raw === undefined || raw === true || raw === ""
@@ -9189,24 +9189,26 @@ function nodeRotation(options = {}, env) {
   return roundNumber(localRotation + externalRotation);
 }
 
+function applyRotateFitOption(options = {}) {
+  if (!Object.hasOwn(options, "rotate fit")) return options;
+  return { ...options, rotate: options["rotate fit"] };
+}
+
 function resolveFitNodeLayout(options = {}, env = {}, nodeEnv = env) {
   if (!options.fit) return null;
   const references = fitNodeReferences(options.fit);
   if (!references.length) return null;
-  let bounds = null;
+  const points = [];
   for (const ref of references) {
-    const itemBounds = fitReferenceBounds(ref, env);
-    if (!itemBounds) continue;
-    bounds = bounds
-      ? {
-          minX: Math.min(bounds.minX, itemBounds.minX),
-          maxX: Math.max(bounds.maxX, itemBounds.maxX),
-          minY: Math.min(bounds.minY, itemBounds.minY),
-          maxY: Math.max(bounds.maxY, itemBounds.maxY)
-        }
-      : itemBounds;
+    points.push(...fitReferencePoints(ref, env));
   }
-  if (!bounds) return null;
+  if (!points.length) return null;
+  const requestedRotation = fitScanRotation(options, nodeEnv);
+  const orientedBounds = fitOrientedBounds(
+    points,
+    requestedRotation
+  );
+  if (!orientedBounds) return null;
   const xSep = Math.max(
     0,
     parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, nodeEnv)
@@ -9216,8 +9218,8 @@ function resolveFitNodeLayout(options = {}, env = {}, nodeEnv = env) {
     parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, nodeEnv)
   );
   const scale = canvasLengthScale(nodeEnv);
-  let width = Math.max(0, bounds.maxX - bounds.minX + xSep * 2);
-  let height = Math.max(0, bounds.maxY - bounds.minY + ySep * 2);
+  let width = Math.max(0, orientedBounds.width + xSep * 2);
+  let height = Math.max(0, orientedBounds.height + ySep * 2);
   // TikZ's fit library sets a node's text box from the collected bounds, but
   // the normal node sizing pass still honours explicit minimum dimensions.
   // This matters for empty fit overlays that deliberately preserve a matrix
@@ -9241,15 +9243,21 @@ function resolveFitNodeLayout(options = {}, env = {}, nodeEnv = env) {
     height = diameter;
   }
   return {
-    point: roundPoint({
-      x: (bounds.minX + bounds.maxX) / 2,
-      y: (bounds.minY + bounds.maxY) / 2
-    }),
+    point: roundPoint(orientedBounds.point),
     rawSize: {
       width: roundNumber(width / scale),
       height: roundNumber(height / scale)
     }
   };
+}
+
+function fitScanRotation(options = {}, env = {}) {
+  const keys = Object.keys(options);
+  const fitIndex = keys.indexOf("fit");
+  const rotateFitIndex = keys.indexOf("rotate fit");
+  if (rotateFitIndex < 0 || fitIndex < 0 || rotateFitIndex > fitIndex) return 0;
+  const angle = evaluateMath(options["rotate fit"], env.variables);
+  return Number.isFinite(angle) ? angle : 0;
 }
 
 function fitNodeReferences(value) {
@@ -9261,25 +9269,26 @@ function fitNodeReferences(value) {
   return refs;
 }
 
-function fitReferenceBounds(ref, env = {}) {
+function fitReferencePoints(ref, env = {}) {
   const clean = stripOuterBraces(String(ref || "").trim());
-  const name = clean.replace(/\.[^.]+$/, "");
-  const node = env.nodes?.[name];
+  const dot = clean.lastIndexOf(".");
+  if (dot > 0 && dot < clean.length - 1) {
+    const name = clean.slice(0, dot).trim();
+    const anchor = clean.slice(dot + 1).trim();
+    const node = env.nodes?.[name];
+    if (node?.point) return [nodeAnchorCoordinate(node, anchor)];
+  }
+
+  const node = env.nodes?.[clean];
   if (node?.point) {
-    const width = Number(node.layoutWidth ?? node.width) || 0;
-    const height = Number(node.layoutHeight ?? node.height) || 0;
-    return {
-      minX: node.point.x - width / 2,
-      maxX: node.point.x + width / 2,
-      minY: node.point.y - height / 2,
-      maxY: node.point.y + height / 2
-    };
+    return ["west", "east", "north", "south"].map((anchor) => nodeAnchorCoordinate(node, anchor));
   }
-  const point = env.coordinates?.[name];
-  if (point) {
-    return { minX: point.x, maxX: point.x, minY: point.y, maxY: point.y };
+  const point = env.coordinates?.[clean];
+  if (point) return [roundPoint(point)];
+  if (looksLikeExplicitCoordinate(clean) || clean.startsWith("$") || clean.includes("|-") || clean.includes("-|")) {
+    return [resolveCoordinate(clean, env, [])];
   }
-  return null;
+  return [];
 }
 
 function addNodeItems(node, ir, env) {

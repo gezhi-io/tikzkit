@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryfit.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-fit.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is stripped before TikZ interpretation while preserving the picture body." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package loads the generic TikZ front end used by coordinate and node commands." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\coordinate", "\\node", "compass anchors"], "findings": "Named coordinates remain point references while named shape nodes expose border anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryfit.code.tex": { "symbols": ["tikz@lib@fit@adjust", "rotate fit"], "findings": "Each coordinate is inverse-rotated before min/max accumulation; the local center is then rotated back into the canvas frame." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-fit.tex": { "symbols": ["fit=(a) (b) (c) (d) (e)", "rotate fit=30"], "findings": "The permanent point set and 30-degree case follow the manual's own rotate-fit example." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/fit-rotate.test.js"] }
+  ]
+}

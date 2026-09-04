@@ -7155,6 +7155,51 @@
         "automatic clipping and relative vectors",
         "one-centimeter construction grid"
       ]
+    },
+    {
+      "id": "fit-rotate-flowchart",
+      "title": "Rotated validation phase fit",
+      "source": "fit/rotate-fit-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryfit.code.tex",
+      "semanticOwner": "src/tikz/libraries/fit.js:fitOrientedBounds",
+      "features": [
+        "flowchart",
+        "rotate fit around a diagonal process chain",
+        "full-node compass-anchor scanning",
+        "rotated fit anchors",
+        "automatic arrow clipping"
+      ]
+    },
+    {
+      "id": "fit-rotate-math",
+      "title": "Oriented mathematical point-set fit",
+      "source": "fit/rotate-fit-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-fit.tex",
+      "semanticOwner": "src/tikz/libraries/fit.js:fitOrientedBounds",
+      "features": [
+        "mathematics diagram",
+        "coordinate-only fit scanning",
+        "axis-aligned and 30-degree oriented bounds",
+        "rotated compass anchors",
+        "math text"
+      ]
+    },
+    {
+      "id": "fit-rotate-physics",
+      "title": "Rotated inclined-plane control volume",
+      "source": "fit/rotate-fit-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryfit.code.tex",
+      "semanticOwner": "src/tikz/libraries/fit.js:fitOrientedBounds",
+      "features": [
+        "physics diagram",
+        "rotate fit around rotated bodies",
+        "independent inner x and y separation",
+        "named fit anchors",
+        "force-vector arrows"
+      ]
     }
   ]
 }
