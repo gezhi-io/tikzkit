@@ -13943,12 +13943,20 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   if (pathOptions.decorate && decoration.ticks) return applyTicksDecoration(commands, decoration, env);
   if (pathOptions.decorate && (decoration.waves || decoration["expanding waves"])) return applyWavesDecoration(commands, decoration, env);
   if (pathOptions.decorate && decoration["Koch snowflake"]) return applyKochSnowflakeDecoration(commands);
-  const mode = decoration.snake ? "snake" : decoration.zigzag ? "zigzag" : decoration.coil ? "coil" : null;
+  const mode = decoration.snake
+    ? "snake"
+    : decoration.zigzag
+      ? "zigzag"
+      : decoration.coil
+        ? "coil"
+        : decoration.saw
+          ? "saw"
+          : null;
   if (!pathOptions.decorate || !mode) return commands;
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
   const defaultSegmentLength = parseDimension("10pt", env.variables);
   const minimumSegmentLength = parseDimension("1pt", env.variables);
-  const amplitude = Math.max(0, parseFinitePgfLength(decoration.amplitude ?? "2.5pt", env, defaultAmplitude));
+  const amplitude = parseFinitePgfLength(decoration.amplitude ?? "2.5pt", env, defaultAmplitude);
   const segmentLength = Math.max(
     minimumSegmentLength,
     parseFinitePgfLength(decoration["segment length"] ?? "10pt", env, defaultSegmentLength)
@@ -13963,10 +13971,11 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   const aspect = Number.isFinite(aspectValue) ? aspectValue : 0.5;
   const normalSign = tikzBoolean(decoration.mirror) ? -1 : 1;
   const normalRaise = parseFinitePgfLength(decoration.raise ?? "0", env, 0);
+  const pathHasCorners = tikzBoolean(decoration["path has corners"]);
   // PGF runs path-morphing decorations over the complete input subpath. In
   // particular, their state machines do not restart at each `--` corner and
   // pre/post lengths only apply at the subpath endpoints.
-  if (mode === "snake" || mode === "zigzag" || mode === "coil") {
+  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw") {
     return applyPathMorphingToSubpaths(
       commands,
       amplitude,
@@ -13976,7 +13985,8 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
       postLength,
       aspect,
       normalSign,
-      normalRaise
+      normalRaise,
+      pathHasCorners
     );
   }
   const morphed = [];
@@ -14295,7 +14305,8 @@ function supportedPathDecoration(options = {}) {
     || tikzBoolean(decoration["Koch snowflake"])
     || tikzBoolean(decoration.snake)
     || tikzBoolean(decoration.zigzag)
-    || tikzBoolean(decoration.coil);
+    || tikzBoolean(decoration.coil)
+    || tikzBoolean(decoration.saw);
 }
 
 function applyPathMorphingToSubpaths(
@@ -14307,7 +14318,8 @@ function applyPathMorphingToSubpaths(
   postLength,
   aspect = 0.5,
   normalSign = 1,
-  normalRaise = 0
+  normalRaise = 0,
+  pathHasCorners = false
 ) {
   const morphed = [];
   let subpath = [];
@@ -14341,7 +14353,8 @@ function applyPathMorphingToSubpaths(
       postLength,
       aspect,
       normalSign,
-      normalRaise
+      normalRaise,
+      pathHasCorners
     );
     if (subpath.at(-1)?.type === "closePath") morphed.push({ type: "closePath" });
     subpath = [];
@@ -15246,12 +15259,13 @@ function appendMorphedPolyline(
   postLength = 0,
   aspect = 0.5,
   normalSign = 1,
-  normalRaise = 0
+  normalRaise = 0,
+  pathHasCorners = false
 ) {
   const length = polylineLength(points);
   const to = points.at(-1);
   if (!to) return;
-  if (length < 1e-12 || amplitude <= 0) {
+  if (length < 1e-12) {
     commands.push({ type: "lineTo", x: to.x, y: to.y });
     return;
   }
@@ -15307,6 +15321,76 @@ function appendMorphedPolyline(
       normalRaise
     );
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+    return;
+  }
+  if (mode === "saw") {
+    appendNativeSawPolyline(
+      commands,
+      points,
+      amplitude,
+      segmentLength,
+      activeStart,
+      activeLength,
+      normalSign,
+      normalRaise,
+      pathHasCorners
+    );
+    if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+  }
+}
+
+function appendNativeSawPolyline(
+  commands,
+  points,
+  amplitude,
+  segmentLength,
+  activeStart,
+  activeLength,
+  normalSign = 1,
+  normalRaise = 0,
+  pathHasCorners = false
+) {
+  const pathLength = polylineLength(points);
+  const walker = createPgfDecorationPathWalker(points, pathLength);
+  walker.advance(activeStart);
+  let remaining = activeLength;
+
+  const statePoint = (sample, xOffset, yOffset) => {
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
+    const transformedY = normalSign * (normalRaise + yOffset);
+    return {
+      x: roundNumber(sample.x + tangent.x * xOffset + sample.normal.x * transformedY),
+      y: roundNumber(sample.y + tangent.y * xOffset + sample.normal.y * transformedY)
+    };
+  };
+  const pushLine = (point) => commands.push({ type: "lineTo", x: point.x, y: point.y });
+
+  while (remaining > 1e-12) {
+    const stateOrigin = walker.frame();
+    // `auto end on length` executes before the state's code. It paints the
+    // short remainder along the current tangent, with the additional TikZ
+    // transform still installed, then enters saw's empty final state.
+    if (remaining <= segmentLength + 1e-12) {
+      pushLine(statePoint(stateOrigin, remaining, 0));
+      walker.advance(remaining);
+      break;
+    }
+
+    // PGF only activates `auto corner on length` when the caller explicitly
+    // sets `path has corners`. The automaton reaches the corner without a
+    // tooth and restarts the same state in the next input segment's frame.
+    const segmentRemaining = walker.inputSegmentRemainingDistance();
+    if (pathHasCorners && segmentRemaining > 1e-12 && segmentRemaining <= segmentLength + 1e-12) {
+      pushLine(statePoint(stateOrigin, segmentRemaining, 0));
+      walker.advance(segmentRemaining);
+      remaining -= segmentRemaining;
+      continue;
+    }
+
+    pushLine(statePoint(stateOrigin, segmentLength, amplitude));
+    pushLine(statePoint(stateOrigin, segmentLength, 0));
+    walker.advance(segmentLength);
+    remaining -= segmentLength;
   }
 }
 
@@ -15838,6 +15922,10 @@ function createPgfDecorationPathWalker(points, currentPathLength) {
 
   return {
     advance,
+    inputSegmentRemainingDistance: () => {
+      const segment = segments[segmentIndex];
+      return segment ? Math.max(0, segment.length - segmentDistance) : 0;
+    },
     frame: () => ({
       x: currentPoint.x,
       y: currentPoint.y,

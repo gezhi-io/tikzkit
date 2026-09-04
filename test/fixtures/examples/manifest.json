@@ -5733,6 +5733,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendNativeCoilPolyline",
       "features": ["coil", "aspect", "segment length", "amplitude", "pre length", "post length", "physics"]
+    },
+    {
+      "id": "decorations-pathmorphing-saw-flowchart",
+      "title": "Saw-tooth transitions in an alarm flow",
+      "source": "decorations/pathmorphing-saw/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF saw declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeSawPolyline",
+      "features": ["saw", "segment length", "amplitude", "pre length", "post length", "mirror", "raise", "flowchart"]
+    },
+    {
+      "id": "decorations-pathmorphing-saw-math",
+      "title": "Signed saw perturbations on straight and curved paths",
+      "source": "decorations/pathmorphing-saw/math.tex",
+      "sourceCorpus": "TeX Live PGF saw declaration and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeSawPolyline/createPgfDecorationPathWalker",
+      "features": ["saw", "signed amplitude", "cubic tangent frame", "mirror", "raise", "mathematics"]
+    },
+    {
+      "id": "decorations-pathmorphing-saw-physics",
+      "title": "Saw-tooth rough contact on an inclined plane",
+      "source": "decorations/pathmorphing-saw/physics.tex",
+      "sourceCorpus": "TeX Live PGF saw declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeSawPolyline",
+      "features": ["saw", "path has corners", "mirrored teeth", "inclined tangent frame", "physics"]
     }
   ]
 }
