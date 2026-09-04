@@ -13951,7 +13951,9 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
         ? "coil"
         : decoration.saw
           ? "saw"
-          : null;
+          : decoration.bumps
+            ? "bumps"
+            : null;
   if (!pathOptions.decorate || !mode) return commands;
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
   const defaultSegmentLength = parseDimension("10pt", env.variables);
@@ -13975,7 +13977,7 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   // PGF runs path-morphing decorations over the complete input subpath. In
   // particular, their state machines do not restart at each `--` corner and
   // pre/post lengths only apply at the subpath endpoints.
-  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw") {
+  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw" || mode === "bumps") {
     return applyPathMorphingToSubpaths(
       commands,
       amplitude,
@@ -14306,7 +14308,8 @@ function supportedPathDecoration(options = {}) {
     || tikzBoolean(decoration.snake)
     || tikzBoolean(decoration.zigzag)
     || tikzBoolean(decoration.coil)
-    || tikzBoolean(decoration.saw);
+    || tikzBoolean(decoration.saw)
+    || tikzBoolean(decoration.bumps);
 }
 
 function applyPathMorphingToSubpaths(
@@ -15336,6 +15339,21 @@ function appendMorphedPolyline(
       pathHasCorners
     );
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+    return;
+  }
+  if (mode === "bumps") {
+    appendNativeBumpsPolyline(
+      commands,
+      points,
+      amplitude,
+      segmentLength,
+      activeStart,
+      activeLength,
+      normalSign,
+      normalRaise,
+      pathHasCorners
+    );
+    if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
   }
 }
 
@@ -15392,6 +15410,89 @@ function appendNativeSawPolyline(
     walker.advance(segmentLength);
     remaining -= segmentLength;
   }
+}
+
+function appendNativeBumpsPolyline(
+  commands,
+  points,
+  amplitude,
+  segmentLength,
+  activeStart,
+  activeLength,
+  normalSign = 1,
+  normalRaise = 0,
+  pathHasCorners = false
+) {
+  const pathLength = polylineLength(points);
+  const walker = createPgfDecorationPathWalker(points, pathLength);
+  walker.advance(activeStart);
+  let remaining = activeLength;
+  const stateWidth = 0.5 * segmentLength;
+  const automaticThreshold = 0.51 * segmentLength;
+
+  const statePoint = (sample, xOffset, yOffset) => {
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
+    const transformedY = normalSign * (normalRaise + yOffset);
+    return {
+      x: roundNumber(sample.x + tangent.x * xOffset + sample.normal.x * transformedY),
+      y: roundNumber(sample.y + tangent.y * xOffset + sample.normal.y * transformedY)
+    };
+  };
+  const pushLine = (point) => commands.push({ type: "lineTo", x: point.x, y: point.y });
+  const pushCurve = (sample, control1, control2, end) => {
+    const c1 = statePoint(sample, ...control1);
+    const c2 = statePoint(sample, ...control2);
+    const target = statePoint(sample, ...end);
+    commands.push({
+      type: "curveTo",
+      x1: c1.x,
+      y1: c1.y,
+      x2: c2.x,
+      y2: c2.y,
+      x: target.x,
+      y: target.y
+    });
+  };
+
+  while (remaining > 1e-12) {
+    const stateOrigin = walker.frame();
+    if (remaining <= automaticThreshold + 1e-12) {
+      pushLine(statePoint(stateOrigin, remaining, 0));
+      walker.advance(remaining);
+      remaining = 0;
+      break;
+    }
+
+    const segmentRemaining = walker.inputSegmentRemainingDistance();
+    if (pathHasCorners && segmentRemaining > 1e-12 && segmentRemaining <= automaticThreshold + 1e-12) {
+      pushLine(statePoint(stateOrigin, segmentRemaining, 0));
+      walker.advance(segmentRemaining);
+      remaining -= segmentRemaining;
+      continue;
+    }
+
+    pushCurve(
+      stateOrigin,
+      [0, 0.555 * amplitude],
+      [0.11125 * segmentLength, amplitude],
+      [0.25 * segmentLength, amplitude]
+    );
+    pushCurve(
+      stateOrigin,
+      [0.38875 * segmentLength, amplitude],
+      [stateWidth, 0.5 * amplitude],
+      [stateWidth, 0]
+    );
+    walker.advance(stateWidth);
+    remaining -= stateWidth;
+  }
+
+  // Unlike saw's empty final state, bumps explicitly reconnects to the
+  // undecorated endpoint after the additional mirror/raise transform.
+  const finishWalker = createPgfDecorationPathWalker(points, pathLength);
+  finishWalker.advance(activeStart + activeLength);
+  const finish = finishWalker.frame();
+  pushLine({ x: roundNumber(finish.x), y: roundNumber(finish.y) });
 }
 
 function appendNativeCoilPolyline(

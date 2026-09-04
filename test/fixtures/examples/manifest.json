@@ -5760,6 +5760,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendNativeSawPolyline",
       "features": ["saw", "path has corners", "mirrored teeth", "inclined tangent frame", "physics"]
+    },
+    {
+      "id": "decorations-pathmorphing-bumps-flowchart",
+      "title": "Bumped transitions in a conditioning flow",
+      "source": "decorations/pathmorphing-bumps/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF bumps declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeBumpsPolyline",
+      "features": ["bumps", "segment length", "amplitude", "pre length", "post length", "mirror", "raise", "flowchart"]
+    },
+    {
+      "id": "decorations-pathmorphing-bumps-math",
+      "title": "Signed bumps on straight and curved functions",
+      "source": "decorations/pathmorphing-bumps/math.tex",
+      "sourceCorpus": "TeX Live PGF bumps declaration and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeBumpsPolyline/createPgfDecorationPathWalker",
+      "features": ["bumps", "signed amplitude", "cubic tangent frame", "pre length", "post length", "mathematics"]
+    },
+    {
+      "id": "decorations-pathmorphing-bumps-physics",
+      "title": "Bumped compliant contact on an inclined plane",
+      "source": "decorations/pathmorphing-bumps/physics.tex",
+      "sourceCorpus": "TeX Live PGF bumps declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeBumpsPolyline",
+      "features": ["bumps", "path has corners", "inclined tangent frame", "segment length", "amplitude", "physics"]
     }
   ]
 }
