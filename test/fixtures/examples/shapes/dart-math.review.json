@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads calc and shapes.geometric before parsing node anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill"], "findings": "Core TikZ resolves node styles, anchor references, paths, and paint order." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["$()", "+"], "findings": "Calc offsets the formula label from the dart center anchor." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["dart", "minimum width", "minimum height", "left tail", "right tail", "tail center"], "findings": "Minimum height controls total dart length, minimum width controls tail separation, and all named anchors use the mitered border rather than the visible paint vertices." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["dart tip angle", "dart tail angle", "left side", "right side"], "findings": "The manual's anchor catalog defines the labels and geometry exercised by this mathematics fixture." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-dart.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-dart.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-dart.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-dart.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-dart.test.js"] }
+  ]
+}

@@ -6840,6 +6840,51 @@
         "named kite anchors",
         "relative polar force vectors and local arrow dimensions"
       ]
+    },
+    {
+      "id": "shapes-dart-flowchart",
+      "title": "Dart message dispatch flowchart",
+      "source": "shapes/dart-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:dartLayoutSize/dartGeometry/dartBorderPoint",
+      "features": [
+        "flowchart",
+        "dart tip and tail angles",
+        "named tip and right-tail anchors",
+        "outer separation",
+        "automatic edge clipping and orthogonal return path"
+      ]
+    },
+    {
+      "id": "shapes-dart-math",
+      "title": "Dart anchor geometry",
+      "source": "shapes/dart-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:dartLayoutSize/dartGeometry/dartBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "minimum width and height scaling",
+        "tip left-tail tail-center and right-tail anchors",
+        "concave tail geometry",
+        "calc offset and math text"
+      ]
+    },
+    {
+      "id": "shapes-dart-physics",
+      "title": "Rotated dart force vectors",
+      "source": "shapes/dart-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:dartLayoutSize/dartGeometry/dartBorderPoint",
+      "features": [
+        "physics diagram",
+        "incircle border sizing",
+        "arbitrary border rotation",
+        "named dart anchors",
+        "relative polar force vectors and local arrow dimensions"
+      ]
     }
   ]
 }

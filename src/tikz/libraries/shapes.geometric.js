@@ -2,6 +2,7 @@ const TRAPEZIUM_EPSILON = 1e-9;
 const CYLINDER_EPSILON = 1e-9;
 const SEMICIRCLE_EPSILON = 1e-9;
 const KITE_EPSILON = 1e-9;
+const DART_EPSILON = 1e-9;
 const STAR_DEFAULT_POINT_RATIO = 1.5;
 const STAR_DEFAULT_POINT_HEIGHT = 0.5;
 const CYLINDER_DEFAULT_ASPECT = 1;
@@ -15,6 +16,148 @@ const COMPASS_DIRECTIONS = {
   "south east": { x: 1, y: -1 },
   "south west": { x: -1, y: -1 }
 };
+
+export function dartLayoutSize(contentWidth, contentHeight, options = {}) {
+  const usesIncircle = options.shapeBorderUsesIncircle === true;
+  const rotate = dartRotation(options.shapeBorderRotate, usesIncircle);
+  const swapsAxes = !usesIncircle && (rotate === 90 || rotate === 270);
+  const halfContentWidth = Math.max(0, Number(swapsAxes ? contentHeight : contentWidth) || 0) / 2;
+  const halfContentHeight = Math.max(0, Number(swapsAxes ? contentWidth : contentHeight) || 0) / 2;
+  const tipAngle = normalizedDartAngle(options.tipAngle, 45);
+  const tailAngle = normalizedDartAngle(options.tailAngle, 135);
+  const tipHalfAngle = degreesToRadians(tipAngle / 2);
+  const tailHalfAngle = degreesToRadians(tailAngle / 2);
+  let deltaX = halfContentWidth;
+  let dartLength;
+
+  if (usesIncircle) {
+    deltaX = Math.SQRT2 * Math.max(halfContentWidth, halfContentHeight);
+    dartLength = deltaX / safeTangent(tipHalfAngle) + deltaX;
+  } else {
+    dartLength = halfContentHeight / safeTangent(tipHalfAngle) + 2 * halfContentWidth;
+  }
+
+  let halfTailSeparation = dartLength * Math.sin(tipHalfAngle) * Math.cos(tipHalfAngle) /
+    safeSine(tailHalfAngle - tipHalfAngle);
+  let totalLength = halfTailSeparation / safeTangent(tipHalfAngle);
+  let tailLength = totalLength - dartLength;
+
+  const minimumSize = Math.max(0, Number(options.minimumSize) || 0);
+  const minimumHeight = Math.max(minimumSize, Number(options.minimumHeight) || 0);
+  const minimumWidth = Math.max(minimumSize, Number(options.minimumWidth) || 0);
+  if (totalLength < minimumHeight) {
+    const scale = minimumHeight / Math.max(DART_EPSILON, totalLength);
+    dartLength *= scale;
+    tailLength *= scale;
+    halfTailSeparation *= scale;
+    deltaX *= scale;
+    totalLength = minimumHeight;
+  }
+  if (halfTailSeparation < minimumWidth / 2) {
+    const scale = (minimumWidth / 2) / Math.max(DART_EPSILON, halfTailSeparation);
+    dartLength *= scale;
+    tailLength *= scale;
+    deltaX *= scale;
+    halfTailSeparation = minimumWidth / 2;
+    totalLength *= scale;
+  }
+
+  const visibleBoundaryPoints = dartBoundaryPoints(dartLength, tailLength, halfTailSeparation, deltaX, rotate);
+  const bounds = pointBounds(visibleBoundaryPoints);
+  return {
+    width: bounds.maxX - bounds.minX,
+    height: bounds.maxY - bounds.minY,
+    minX: bounds.minX,
+    minY: bounds.minY,
+    maxX: bounds.maxX,
+    maxY: bounds.maxY,
+    dartLength,
+    dartTailLength: tailLength,
+    dartHalfTailSeparation: halfTailSeparation,
+    dartDeltaX: deltaX,
+    dartTipAngle: tipAngle,
+    dartTailAngle: tailAngle,
+    dartShapeBorderRotate: rotate,
+    dartShapeBorderUsesIncircle: usesIncircle
+  };
+}
+
+export function dartGeometry(size = {}, data = {}) {
+  const usesIncircle = data.dartShapeBorderUsesIncircle === true || data.shapeBorderUsesIncircle === true;
+  const rotate = dartRotation(data.dartShapeBorderRotate ?? data.shapeBorderRotate, usesIncircle);
+  const tipAngle = normalizedDartAngle(data.dartTipAngle, 45);
+  const tailAngle = normalizedDartAngle(data.dartTailAngle, 135);
+  const tipHalfAngle = degreesToRadians(tipAngle / 2);
+  const tailHalfAngle = degreesToRadians(tailAngle / 2);
+  const swapsAxes = !usesIncircle && (rotate === 90 || rotate === 270);
+  const inferredTotalLength = Math.max(DART_EPSILON, Number(swapsAxes ? size.height : size.width) || 0);
+  const inferredHalfTailSeparation = Math.max(DART_EPSILON, (Number(swapsAxes ? size.width : size.height) || 0) / 2);
+  const inferredDartLength = Math.max(DART_EPSILON, inferredTotalLength * 0.8);
+  const dartLength = finitePositive(data.dartLength, inferredDartLength);
+  const tailLength = finitePositive(data.dartTailLength, Math.max(DART_EPSILON, inferredTotalLength - dartLength));
+  const halfTailSeparation = finitePositive(data.dartHalfTailSeparation, inferredHalfTailSeparation);
+  const deltaX = finitePositive(data.dartDeltaX, dartLength / 3);
+  const outerSep = Math.max(0, Number(data.dartOuterSep) || 0);
+  const visibleBoundaryPoints = dartBoundaryPoints(dartLength, tailLength, halfTailSeparation, deltaX, rotate);
+  const visibleAnchors = dartVertexAnchors(visibleBoundaryPoints);
+
+  const miterHalfAngle = (tailHalfAngle - tipHalfAngle) / 2;
+  const miterLength = outerSep / safeSine(miterHalfAngle);
+  const miterAngle = miterHalfAngle + Math.PI / 2 - tailHalfAngle;
+  const unrotatedBoundaryPoints = [
+    { x: dartLength - deltaX + outerSep / safeSine(tipHalfAngle), y: 0 },
+    {
+      x: -deltaX - tailLength - Math.sin(miterAngle) * miterLength,
+      y: halfTailSeparation + Math.cos(miterAngle) * miterLength
+    },
+    { x: -deltaX - outerSep / safeSine(tailHalfAngle), y: 0 },
+    {
+      x: -deltaX - tailLength - Math.sin(miterAngle) * miterLength,
+      y: -halfTailSeparation - Math.cos(miterAngle) * miterLength
+    }
+  ];
+  const boundaryPoints = unrotatedBoundaryPoints.map((point) => rotatePoint(point, rotate));
+  const anchors = dartVertexAnchors(boundaryPoints);
+  anchors["left side"] = midpoint(anchors.tip, anchors["left tail"]);
+  anchors["right side"] = midpoint(anchors.tip, anchors["right tail"]);
+  anchors.center = { x: 0, y: 0 };
+  anchors.base = { x: 0, y: Number(data.dartBaseOffset) || 0 };
+  anchors.mid = { x: 0, y: Number(data.dartMidOffset) || 0 };
+  const borderGeometry = { boundaryPoints };
+  anchors["base east"] = dartBorderPointFrom(borderGeometry, anchors.base, { x: 1, y: 0 });
+  anchors["base west"] = dartBorderPointFrom(borderGeometry, anchors.base, { x: -1, y: 0 });
+  anchors["mid east"] = dartBorderPointFrom(borderGeometry, anchors.mid, { x: 1, y: 0 });
+  anchors["mid west"] = dartBorderPointFrom(borderGeometry, anchors.mid, { x: -1, y: 0 });
+  for (const [name, direction] of Object.entries(COMPASS_DIRECTIONS)) {
+    anchors[name] = dartBorderPoint(borderGeometry, direction);
+  }
+
+  return {
+    outlineCommands: polygonCommands(visibleBoundaryPoints),
+    boundaryPoints,
+    visibleBoundaryPoints,
+    anchors,
+    visibleAnchors,
+    bounds: pointBounds(visibleBoundaryPoints),
+    anchorBounds: pointBounds(boundaryPoints),
+    dartLength,
+    tailLength,
+    halfTailSeparation,
+    deltaX,
+    outerSep,
+    rotate,
+    tipAngle,
+    tailAngle
+  };
+}
+
+export function dartBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  return dartBorderPointFrom(geometry, { x: 0, y: 0 }, toward, padding);
+}
+
+export function dartBorderPointFrom(geometry = {}, reference = {}, toward = {}, padding = 0) {
+  return polygonBorderPointFrom(geometry.boundaryPoints || [], reference, toward, padding);
+}
 
 export function kiteLayoutSize(contentWidth, contentHeight, options = {}) {
   const usesIncircle = options.shapeBorderUsesIncircle === true;
@@ -724,6 +867,19 @@ function kiteRotation(rawRotation, usesIncircle = false) {
   return usesIncircle ? normalized : (Math.round(normalized / 90) * 90) % 360;
 }
 
+function dartRotation(rawRotation, usesIncircle = false) {
+  const value = Number(rawRotation);
+  const normalized = Number.isFinite(value) ? ((value % 360) + 360) % 360 : 0;
+  return usesIncircle ? normalized : (Math.round(normalized / 90) * 90) % 360;
+}
+
+function normalizedDartAngle(rawAngle, fallback) {
+  const value = Number(rawAngle);
+  return Number.isFinite(value)
+    ? Math.max(0.01, Math.min(179.99, value))
+    : fallback;
+}
+
 function normalizedKiteAngle(rawAngle, fallback) {
   const value = Number(rawAngle);
   return Number.isFinite(value)
@@ -762,6 +918,24 @@ function kiteVertexAnchors(points) {
     "left vertex": points[1],
     "lower vertex": points[2],
     "right vertex": points[3]
+  };
+}
+
+function dartBoundaryPoints(dartLength, tailLength, halfTailSeparation, deltaX, rotate) {
+  return [
+    { x: dartLength - deltaX, y: 0 },
+    { x: -deltaX - tailLength, y: halfTailSeparation },
+    { x: -deltaX, y: 0 },
+    { x: -deltaX - tailLength, y: -halfTailSeparation }
+  ].map((point) => rotatePoint(point, rotate));
+}
+
+function dartVertexAnchors(points) {
+  return {
+    tip: points[0],
+    "left tail": points[1],
+    "tail center": points[2],
+    "right tail": points[3]
   };
 }
 
@@ -941,6 +1115,7 @@ export const tikzLibrary = {
     "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry/cylinderBorderPoint/cylinderBorderPointFrom",
     "src/tikz/libraries/shapes.geometric.js:semicircleLayoutSize/semicircleGeometry/semicircleBorderPoint/semicircleBorderPointFrom",
     "src/tikz/libraries/shapes.geometric.js:kiteLayoutSize/kiteGeometry/kiteBorderPoint/kiteBorderPointFrom",
+    "src/tikz/libraries/shapes.geometric.js:dartLayoutSize/dartGeometry/dartBorderPoint/dartBorderPointFrom",
     "src/renderers/svg/nodeShapes.js:regularPolygonNodePoints/starNodePoints/renderCylinderNodeBox/renderLibraryNodeBox",
     "src/renderers/svg/bounds.js:nodeBounds"
   ],
@@ -954,7 +1129,8 @@ export const tikzLibrary = {
     "isosceles triangle with apex angle, minimum height, rotation, and named anchors",
     "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, complete end/mid/base named anchors, curved outer-separation border clipping, and separate body/end fills",
     "semicircle with PGF content/minimum sizing, shifted circle center, quarter-turn border rotation, named arc/chord/base/mid anchors, curved outer-separation clipping, and cubic arc paint",
-    "kite with independent upper/lower vertex angles, PGF content/minimum sizing, quarter-turn and incircle rotation, mitered outer-separation anchors, and exact polygon clipping"
+    "kite with independent upper/lower vertex angles, PGF content/minimum sizing, quarter-turn and incircle rotation, mitered outer-separation anchors, and exact polygon clipping",
+    "dart with independent tip/tail angles, PGF content/minimum sizing, concave paint geometry, quarter-turn and incircle rotation, complete mitered anchors, and exact border clipping"
   ],
   "implements": [
     "regular polygon",
@@ -963,7 +1139,8 @@ export const tikzLibrary = {
     "isosceles triangle",
     "cylinder",
     "semicircle",
-    "kite"
+    "kite",
+    "dart"
   ],
-  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Reviewed again on 2026-09-04 for the semicircle declaration at lines 1523-1980 and its manual section: natural radius is hypot(half content width, twice the half content height), minimum width constrains the diameter, minimum height constrains the radius, and the circular center shifts away from the text center as the minimum radius grows. Quarter-turn rotation swaps content axes; paint uses the visible arc and chord while named anchors and automatic clipping use the outer-separation contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-semicircle.md`. Reviewed again on 2026-09-04 for the kite declaration at lines 2343-2995 and the corresponding manual section: upper and lower vertex angles independently split the text height, minimum dimensions uniformly scale the four radii, ordinary border rotation is quarter-rounded, and incircle mode permits exact arbitrary rotation. Painted vertices remain separate from the cosecant-expanded miter anchors used by named anchors, positioning, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-kite.md`. Dart, circular sector, degenerate kite angular ranges, and arbitrary-angle incircle metrics for other geometric shapes remain partial."
+  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Reviewed again on 2026-09-04 for the semicircle declaration at lines 1523-1980 and its manual section: natural radius is hypot(half content width, twice the half content height), minimum width constrains the diameter, minimum height constrains the radius, and the circular center shifts away from the text center as the minimum radius grows. Quarter-turn rotation swaps content axes; paint uses the visible arc and chord while named anchors and automatic clipping use the outer-separation contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-semicircle.md`. Reviewed again on 2026-09-04 for the kite declaration at lines 2343-2995 and the corresponding manual section: upper and lower vertex angles independently split the text height, minimum dimensions uniformly scale the four radii, ordinary border rotation is quarter-rounded, and incircle mode permits exact arbitrary rotation. Painted vertices remain separate from the cosecant-expanded miter anchors used by named anchors, positioning, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-kite.md`. Reviewed again on 2026-09-04 for the dart declaration at lines 2995-3540 and its manual section: the tip and tail half angles derive the axial tip length, tail separation, total length, and concave tail depth; minimum height and width scale every derived dimension uniformly. Ordinary rotation is quarter-rounded, while incircle mode preserves an exact arbitrary angle. Paint uses the visible four-point concave polygon, while named, compass, base/mid, numeric, positioning, and automatic clipping anchors use the independently cosecant-expanded miter contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-dart.md`. Circular sector, degenerate dart/kite angular ranges, and arbitrary-angle incircle metrics for other geometric shapes remain partial."
 };

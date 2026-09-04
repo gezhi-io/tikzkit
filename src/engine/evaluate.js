@@ -6,6 +6,9 @@ import {
   cylinderBorderPoint as geometricCylinderBorderPoint,
   cylinderGeometry as geometricCylinderGeometry,
   cylinderLayoutSize as geometricCylinderLayoutSize,
+  dartBorderPoint as geometricDartBorderPoint,
+  dartGeometry as geometricDartGeometry,
+  dartLayoutSize as geometricDartLayoutSize,
   kiteBorderPoint as geometricKiteBorderPoint,
   kiteGeometry as geometricKiteGeometry,
   kiteLayoutSize as geometricKiteLayoutSize,
@@ -9503,7 +9506,7 @@ function addNodeItems(node, ir, env) {
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
-    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "kite";
+    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "kite" || shape === "dart";
     ir.items.push({
       type: "textNode",
       x: textPoint.x,
@@ -10903,14 +10906,14 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
       return { x: -rotated.x, y: -rotated.y };
     }
   }
-  if (shape === "cylinder" && textAnchor && /(?:^|\s)(?:east|west)(?:\s|$)/.test(anchor)) {
-    const cylinderAnchor = customNodeLocalAnchor("cylinder", anchor, {
+  if (["cylinder", "semicircle", "kite", "dart"].includes(shape) && textAnchor && /(?:^|\s)(?:east|west)(?:\s|$)/.test(anchor)) {
+    const shapeAnchor = customNodeLocalAnchor(shape, anchor, {
       ...size,
       ...textAnchorOffsets,
       shapeData
     });
-    if (cylinderAnchor) {
-      const rotated = rotateVector(cylinderAnchor.x, cylinderAnchor.y, rotation);
+    if (shapeAnchor) {
+      const rotated = rotateVector(shapeAnchor.x, shapeAnchor.y, rotation);
       return { x: -rotated.x, y: -rotated.y };
     }
   }
@@ -11373,6 +11376,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "dart") {
+    localPoint = geometricDartBorderPoint(
+      geometricDartGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "signal") {
     const visibleWidth = Number(node.width) || halfWidth * 2;
     const visibleHeight = Number(node.height) || halfHeight * 2;
@@ -11560,6 +11569,7 @@ function nodeShape(options = {}) {
   if (options.trapezium) return "trapezium";
   if (options.semicircle) return "semicircle";
   if (options.kite) return "kite";
+  if (options.dart) return "dart";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
   if (options["magnifying glass"]) return "magnifyingGlass";
   if (options.starburst) return "starburst";
@@ -11598,6 +11608,7 @@ function explicitNodeShape(shape) {
     trapezium: "trapezium",
     semicircle: "semicircle",
     kite: "kite",
+    dart: "dart",
     "isosceles triangle": "isoscelesTriangle",
     "magnifying glass": "magnifyingGlass",
     starburst: "starburst",
@@ -11691,6 +11702,19 @@ function kiteLayoutSize(contentWidth, contentHeight, options = {}, env = { varia
   const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
   return geometricKiteLayoutSize(contentWidth, contentHeight, {
     ...kiteVertexAngles(options),
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
+function dartLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return geometricDartLayoutSize(contentWidth, contentHeight, {
+    tipAngle: numberOption(options["dart tip angle"], 45),
+    tailAngle: numberOption(options["dart tail angle"], 135),
     shapeBorderRotate: numberOption(options["shape border rotate"], 0),
     shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
     minimumSize,
@@ -11835,6 +11859,26 @@ function semicircleLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function dartLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "dartLength",
+    "dartTailLength",
+    "dartHalfTailSeparation",
+    "dartDeltaX",
+    "dartTipAngle",
+    "dartTailAngle",
+    "dartShapeBorderRotate"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.dartShapeBorderUsesIncircle !== undefined) {
+    data.dartShapeBorderUsesIncircle = Boolean(layoutSize.dartShapeBorderUsesIncircle);
+  }
+  return data;
+}
+
 function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const regularSides = regularPolygonSides(options, env);
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
@@ -11856,10 +11900,12 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const trapeziumOuterSep = nodeOuterSep(options, env);
   const kiteOuterSep = nodeOuterSep(options, env);
   const semicircleOuterSep = nodeOuterSep(options, env);
+  const dartOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const semicircleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const dartScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteAngles = kiteVertexAngles(options);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
@@ -11897,6 +11943,10 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     ...kiteLayoutShapeData(layoutSize),
     semicircleOuterSep: Math.max(semicircleOuterSep.x, semicircleOuterSep.y) * semicircleScale,
     ...semicircleLayoutShapeData(layoutSize),
+    dartTipAngle: numberOption(options["dart tip angle"], 45),
+    dartTailAngle: numberOption(options["dart tail angle"], 135),
+    dartOuterSep: Math.max(dartOuterSep.x, dartOuterSep.y) * dartScale,
+    ...dartLayoutShapeData(layoutSize),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
     cylinderAspect: Math.max(1e-9, numberOption(options["shape aspect"] ?? options.aspect, 1)),
     cylinderEndRadiusX: cylinderNaturalEndRadiusX(text, options, env),
@@ -12780,6 +12830,10 @@ function scaleSize(size, scale = 1) {
     "kiteHeight",
     "kiteDepth",
     "kiteDeltaY",
+    "dartLength",
+    "dartTailLength",
+    "dartHalfTailSeparation",
+    "dartDeltaX",
     "semicircleRadius",
     "semicircleDefaultRadius",
     "semicircleCenterOffset",
@@ -12790,6 +12844,12 @@ function scaleSize(size, scale = 1) {
   }
   for (const key of ["kiteUpperVertexAngle", "kiteLowerVertexAngle", "kiteShapeBorderRotate"]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = Number(size[key]);
+  }
+  for (const key of ["dartTipAngle", "dartTailAngle", "dartShapeBorderRotate"]) {
+    if (Number.isFinite(Number(size?.[key]))) scaled[key] = Number(size[key]);
+  }
+  if (size?.dartShapeBorderUsesIncircle !== undefined) {
+    scaled.dartShapeBorderUsesIncircle = Boolean(size.dartShapeBorderUsesIncircle);
   }
   if (size?.kiteShapeBorderUsesIncircle !== undefined) {
     scaled.kiteShapeBorderUsesIncircle = Boolean(size.kiteShapeBorderUsesIncircle);
@@ -13182,6 +13242,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "kite") {
     const geometry = geometricKiteGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "dart") {
+    const geometry = geometricDartGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -13662,6 +13733,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(kiteLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "dart") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(dartLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "signal") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -13745,6 +13821,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "kite") {
     return scaleSize(kiteLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "dart") {
+    return scaleSize(dartLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "signal") {
     return scaleSize(signalLayoutSize(width, height, options, env), shapeScale);
@@ -18528,7 +18607,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "kite") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "kite" && node.shape !== "dart") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -18646,6 +18725,23 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     if (Number.isFinite(numericAngle)) {
       const radians = numericAngle * Math.PI / 180;
       return geometricKiteBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "dart") {
+    const geometry = geometricDartGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      dartBaseOffset: Number(size.baseOffset) || 0,
+      dartMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return geometricDartBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
     }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
@@ -19210,6 +19306,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "kite") {
       const bounds = geometricKiteGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "dart") {
+      const bounds = geometricDartGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

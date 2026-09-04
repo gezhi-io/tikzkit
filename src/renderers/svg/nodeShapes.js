@@ -4,6 +4,7 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import {
   cylinderGeometry,
+  dartGeometry,
   kiteGeometry,
   semicircleGeometry,
   starNodePoints as geometricStarNodePoints,
@@ -16,6 +17,7 @@ export const LIBRARY_NODE_SHAPES = [
   "star",
   "trapezium",
   "cylinder",
+  "dart",
   "kite",
   "semicircle",
   "signal",
@@ -109,6 +111,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "kite") {
     return translateCommands(kiteGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "dart") {
+    return translateCommands(dartGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "signal") {
     return translateCommands(signalGeometry(item, item.shapeData || {}).commands, item.x, item.y);
