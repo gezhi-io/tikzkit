@@ -5787,6 +5787,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendNativeBumpsPolyline",
       "features": ["bumps", "path has corners", "inclined tangent frame", "segment length", "amplitude", "physics"]
+    },
+    {
+      "id": "decorations-pathmorphing-bent-flowchart",
+      "title": "Bent transitions in a review flow",
+      "source": "decorations/pathmorphing-bent/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF bent declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeBentPolyline",
+      "features": ["bent", "aspect", "amplitude", "mirror", "raise", "arrows", "flowchart"]
+    },
+    {
+      "id": "decorations-pathmorphing-bent-math",
+      "title": "Piecewise bent mathematical mappings",
+      "source": "decorations/pathmorphing-bent/math.tex",
+      "sourceCorpus": "TeX Live PGF bent declaration and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeBentPolyline/createPgfDecorationPathWalker",
+      "features": ["bent", "polyline state restart", "signed amplitude", "aspect", "mathematics"]
+    },
+    {
+      "id": "decorations-pathmorphing-bent-physics",
+      "title": "Bent deflection of a simply supported beam",
+      "source": "decorations/pathmorphing-bent/physics.tex",
+      "sourceCorpus": "TeX Live PGF bent declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeBentPolyline",
+      "features": ["bent", "negative amplitude", "aspect", "beam deflection", "physics"]
     }
   ]
 }

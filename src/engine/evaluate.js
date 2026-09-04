@@ -13953,7 +13953,9 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
           ? "saw"
           : decoration.bumps
             ? "bumps"
-            : null;
+            : decoration.bent
+              ? "bent"
+              : null;
   if (!pathOptions.decorate || !mode) return commands;
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
   const defaultSegmentLength = parseDimension("10pt", env.variables);
@@ -13974,10 +13976,10 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   const normalSign = tikzBoolean(decoration.mirror) ? -1 : 1;
   const normalRaise = parseFinitePgfLength(decoration.raise ?? "0", env, 0);
   const pathHasCorners = tikzBoolean(decoration["path has corners"]);
-  // PGF runs path-morphing decorations over the complete input subpath. In
-  // particular, their state machines do not restart at each `--` corner and
-  // pre/post lengths only apply at the subpath endpoints.
-  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw" || mode === "bumps") {
+  // PGF runs path-morphing decorations over the complete input subpath and
+  // applies pre/post lengths only at its endpoints. Individual declarations
+  // decide whether states span or restart at input-segment boundaries.
+  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw" || mode === "bumps" || mode === "bent") {
     return applyPathMorphingToSubpaths(
       commands,
       amplitude,
@@ -14309,7 +14311,8 @@ function supportedPathDecoration(options = {}) {
     || tikzBoolean(decoration.zigzag)
     || tikzBoolean(decoration.coil)
     || tikzBoolean(decoration.saw)
-    || tikzBoolean(decoration.bumps);
+    || tikzBoolean(decoration.bumps)
+    || tikzBoolean(decoration.bent);
 }
 
 function applyPathMorphingToSubpaths(
@@ -15354,6 +15357,20 @@ function appendMorphedPolyline(
       pathHasCorners
     );
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+    return;
+  }
+  if (mode === "bent") {
+    appendNativeBentPolyline(
+      commands,
+      points,
+      amplitude,
+      aspect,
+      activeStart,
+      activeLength,
+      normalSign,
+      normalRaise
+    );
+    if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
   }
 }
 
@@ -15493,6 +15510,57 @@ function appendNativeBumpsPolyline(
   finishWalker.advance(activeStart + activeLength);
   const finish = finishWalker.frame();
   pushLine({ x: roundNumber(finish.x), y: roundNumber(finish.y) });
+}
+
+function appendNativeBentPolyline(
+  commands,
+  points,
+  amplitude,
+  aspect,
+  activeStart,
+  activeLength,
+  normalSign = 1,
+  normalRaise = 0
+) {
+  const pathLength = polylineLength(points);
+  const walker = createPgfDecorationPathWalker(points, pathLength);
+  walker.advance(activeStart);
+  let remaining = activeLength;
+
+  const statePoint = (sample, xOffset, yOffset) => {
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
+    const transformedY = normalSign * (normalRaise + yOffset);
+    return {
+      x: roundNumber(sample.x + tangent.x * xOffset + sample.normal.x * transformedY),
+      y: roundNumber(sample.y + tangent.y * xOffset + sample.normal.y * transformedY)
+    };
+  };
+
+  while (remaining > 1e-12) {
+    const stateWidth = walker.inputSegmentRemainingDistance();
+    if (stateWidth <= 1e-12) break;
+
+    // Bent has no automatic-end state. When a requested post length makes
+    // this state wider than the active decoration range, PGF skips its code
+    // and the line-like post state paints the remaining source segment.
+    if (stateWidth > remaining + 1e-10) break;
+
+    const stateOrigin = walker.frame();
+    const control1 = statePoint(stateOrigin, aspect * stateWidth, amplitude);
+    const control2 = statePoint(stateOrigin, (1 - aspect) * stateWidth, amplitude);
+    const target = statePoint(stateOrigin, stateWidth, 0);
+    commands.push({
+      type: "curveTo",
+      x1: control1.x,
+      y1: control1.y,
+      x2: control2.x,
+      y2: control2.y,
+      x: target.x,
+      y: target.y
+    });
+    walker.advance(stateWidth);
+    remaining -= stateWidth;
+  }
 }
 
 function appendNativeCoilPolyline(
