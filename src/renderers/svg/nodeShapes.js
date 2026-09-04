@@ -6,6 +6,7 @@ import {
   circularSectorGeometry,
   cylinderGeometry,
   dartGeometry,
+  isoscelesTriangleGeometry,
   kiteGeometry,
   semicircleGeometry,
   starNodePoints as geometricStarNodePoints,
@@ -134,6 +135,9 @@ export function nodeShapeCommands(item) {
   if (item.shape === "dart") {
     return translateCommands(dartGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
+  if (item.shape === "isoscelesTriangle") {
+    return translateCommands(isoscelesTriangleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
   if (item.shape === "signal") {
     return translateCommands(signalGeometry(item, item.shapeData || {}).commands, item.x, item.y);
   }
@@ -166,9 +170,6 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "trapezium") {
     return closedPolygonCommands(trapeziumNodePoints(center, halfWidth, halfHeight, item.shapeData || {}));
-  }
-  if (item.shape === "isoscelesTriangle") {
-    return closedPolygonCommands(isoscelesTriangleNodePoints(center, halfWidth, halfHeight));
   }
   if (item.shape === "superellipse") {
     return superellipseNodeCommands(center, halfWidth, halfHeight);
@@ -242,12 +243,14 @@ export function trapeziumNodePoints(center, halfWidth, halfHeight, data = {}) {
   return geometricTrapeziumNodePoints(center, halfWidth, halfHeight, data);
 }
 
-export function isoscelesTriangleNodePoints(center, halfWidth, halfHeight) {
-  return [
-    { x: center.x + halfWidth, y: center.y },
-    { x: center.x - halfWidth, y: center.y + halfHeight },
-    { x: center.x - halfWidth, y: center.y - halfHeight }
-  ];
+export function isoscelesTriangleNodePoints(center, halfWidth, halfHeight, data = {}) {
+  return isoscelesTriangleGeometry(
+    { width: halfWidth * 2, height: halfHeight * 2 },
+    data
+  ).visibleBoundaryPoints.map((point) => ({
+    x: center.x + point.x,
+    y: center.y + point.y
+  }));
 }
 
 export function rectangleNodePoints(center, halfWidth, halfHeight) {

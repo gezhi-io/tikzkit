@@ -3,7 +3,14 @@ import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
 import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension, stealthArrowLengthFromLineWidth, stealthArrowShortenFromLength } from "../src/tikz-metrics.js";
-import { starLayoutSize, starNodePoints, trapeziumLayoutSize, trapeziumNodePoints } from "../src/tikz/libraries/shapes.geometric.js";
+import {
+  isoscelesTriangleGeometry,
+  isoscelesTriangleLayoutSize,
+  starLayoutSize,
+  starNodePoints,
+  trapeziumLayoutSize,
+  trapeziumNodePoints
+} from "../src/tikz/libraries/shapes.geometric.js";
 
 function expectClose(actual, expected, epsilon = 1e-9) {
   assert.ok(Math.abs(actual - expected) < epsilon, `expected ${actual} to be close to ${expected}`);
@@ -4304,7 +4311,73 @@ test("uses minimum height as the apex-to-base axis for rotated isosceles triangl
   assert.ok(Math.abs(axis.commands[0].x - 1.6) < 0.01);
   assert.ok(Math.abs(axis.commands[0].y + 0.05) < 0.01, `expected lower-side anchor at the placement point, got ${axis.commands[0].y}`);
   assert.ok(Math.abs(axis.commands.at(-1).x - 1.6) < 0.01);
-  assert.ok(Math.abs(axis.commands.at(-1).y - 3.95) < 0.01, `expected apex above the lower side, got ${axis.commands.at(-1).y}`);
+  assert.ok(Math.abs(axis.commands.at(-1).y - 3.9758) < 0.01, `expected outer-separation apex above the lower side, got ${axis.commands.at(-1).y}`);
+});
+
+test("derives isosceles triangle content geometry from the PGF apex-angle construction", () => {
+  const layout = isoscelesTriangleLayoutSize(2, 1, { apexAngle: 60 });
+  const geometry = isoscelesTriangleGeometry(layout, layout);
+
+  expectClose(layout.isoscelesTriangleAxisLength, 2 + Math.sqrt(3) / 2);
+  expectClose(layout.isoscelesTriangleHalfBase, 2 / Math.sqrt(3) + 0.5);
+  expectClose(layout.isoscelesTriangleBaseOffset, 1);
+  expectClose(geometry.visibleAnchors.apex.x, 1 + Math.sqrt(3) / 2);
+  expectClose(geometry.visibleAnchors["left corner"].x, -1);
+  expectClose(geometry.visibleAnchors["left corner"].y, 2 / Math.sqrt(3) + 0.5);
+});
+
+test("applies isosceles triangle minimum dimensions independently only when stretches is enabled", () => {
+  const fixedAngle = isoscelesTriangleLayoutSize(0.2, 0.2, {
+    apexAngle: 60,
+    minimumWidth: 4,
+    minimumHeight: 2
+  });
+  const stretched = isoscelesTriangleLayoutSize(0.2, 0.2, {
+    apexAngle: 60,
+    minimumWidth: 4,
+    minimumHeight: 2,
+    stretches: true
+  });
+
+  expectClose(fixedAngle.isoscelesTriangleHalfBase, 2);
+  expectClose(fixedAngle.isoscelesTriangleAxisLength, 2 * Math.sqrt(3));
+  expectClose(stretched.isoscelesTriangleHalfBase, 2);
+  expectClose(stretched.isoscelesTriangleAxisLength, 2);
+  expectClose(stretched.isoscelesTriangleEffectiveHalfApexAngle, 45);
+
+  const emptyStretched = isoscelesTriangleLayoutSize(0, 0, {
+    apexAngle: 60,
+    minimumWidth: 2,
+    minimumHeight: 3,
+    stretches: true
+  });
+  expectClose(emptyStretched.isoscelesTriangleHalfBase, 1);
+  expectClose(emptyStretched.isoscelesTriangleAxisLength, 3);
+  expectClose(emptyStretched.isoscelesTriangleEffectiveHalfApexAngle, Math.atan2(1, 3) * 180 / Math.PI);
+});
+
+test("uses the PGF mitered outer contour for isosceles triangle anchors and clipping", () => {
+  const layout = isoscelesTriangleLayoutSize(2, 1, {
+    apexAngle: 60,
+    shapeBorderRotate: 90
+  });
+  const geometry = isoscelesTriangleGeometry(layout, {
+    ...layout,
+    isoscelesTriangleOuterSep: 0.1,
+    isoscelesTriangleBaseOffset: 0,
+    isoscelesTriangleMidOffset: 0.2
+  });
+
+  const visibleApex = geometry.visibleAnchors.apex;
+  expectClose(geometry.anchors.apex.x, visibleApex.x);
+  expectClose(geometry.anchors.apex.y - visibleApex.y, 0.2);
+  expectClose(
+    geometry.anchors["lower side"].x,
+    (geometry.anchors["left corner"].x + geometry.anchors["right corner"].x) / 2
+  );
+  assert.ok(geometry.anchorBounds.minX < geometry.bounds.minX);
+  assert.ok(geometry.anchorBounds.maxY > geometry.bounds.maxY);
+  assert.ok(geometry.anchors["mid east"].x > geometry.anchors.mid.x);
 });
 
 test("treats usetikzlibrary declarations as built-in library imports", () => {

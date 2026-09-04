@@ -12,6 +12,9 @@ import {
   dartBorderPoint as geometricDartBorderPoint,
   dartGeometry as geometricDartGeometry,
   dartLayoutSize as geometricDartLayoutSize,
+  isoscelesTriangleBorderPoint as geometricIsoscelesTriangleBorderPoint,
+  isoscelesTriangleGeometry as geometricIsoscelesTriangleGeometry,
+  isoscelesTriangleLayoutSize as geometricIsoscelesTriangleLayoutSize,
   kiteBorderPoint as geometricKiteBorderPoint,
   kiteGeometry as geometricKiteGeometry,
   kiteLayoutSize as geometricKiteLayoutSize,
@@ -11430,6 +11433,15 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "isoscelesTriangle") {
+    localPoint = geometricIsoscelesTriangleBorderPoint(
+      geometricIsoscelesTriangleGeometry(
+        { width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 },
+        node.shapeData || {}
+      ),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "signal") {
     const visibleWidth = Number(node.width) || halfWidth * 2;
     const visibleHeight = Number(node.height) || halfHeight * 2;
@@ -11727,6 +11739,21 @@ function dartLayoutSize(contentWidth, contentHeight, options = {}, env = { varia
     minimumSize,
     minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
     minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
+function isoscelesTriangleLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const minimumWidth = options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : parseNodeLengthDimension("1pt", env);
+  const minimumHeight = options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : parseNodeLengthDimension("1pt", env);
+  return geometricIsoscelesTriangleLayoutSize(contentWidth, contentHeight, {
+    apexAngle: numberOption(options["isosceles triangle apex angle"], 45),
+    stretches: tikzBoolean(options["isosceles triangle stretches"]),
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
+    minimumWidth: Math.max(minimumSize, minimumWidth),
+    minimumHeight: Math.max(minimumSize, minimumHeight)
   });
 }
 
@@ -12053,6 +12080,28 @@ function dartLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function isoscelesTriangleLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "isoscelesTriangleAxisLength",
+    "isoscelesTriangleHalfBase",
+    "isoscelesTriangleBaseOffset",
+    "isoscelesTriangleApexAngle",
+    "isoscelesTriangleEffectiveHalfApexAngle",
+    "isoscelesTriangleShapeBorderRotate"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.isoscelesTriangleShapeBorderUsesIncircle !== undefined) {
+    data.isoscelesTriangleShapeBorderUsesIncircle = Boolean(layoutSize.isoscelesTriangleShapeBorderUsesIncircle);
+  }
+  if (layoutSize?.isoscelesTriangleStretches !== undefined) {
+    data.isoscelesTriangleStretches = Boolean(layoutSize.isoscelesTriangleStretches);
+  }
+  return data;
+}
+
 function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const regularSides = regularPolygonSides(options, env);
   const shapeBorderRotate = numberOption(options["shape border rotate"] ?? options["regular polygon rotate"] ?? options["star rotate"], 0);
@@ -12078,6 +12127,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const roundedRectangleOuterSep = nodeOuterSep(options, env);
   const chamferedRectangleOuterSep = nodeOuterSep(options, env);
   const dartOuterSep = nodeOuterSep(options, env);
+  const isoscelesTriangleOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
@@ -12086,6 +12136,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const roundedRectangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const chamferedRectangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const dartScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const isoscelesTriangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteAngles = kiteVertexAngles(options);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
@@ -12142,6 +12193,9 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     dartOuterSep: Math.max(dartOuterSep.x, dartOuterSep.y) * dartScale,
     ...dartLayoutShapeData(layoutSize),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
+    isoscelesTriangleStretches: tikzBoolean(options["isosceles triangle stretches"]),
+    isoscelesTriangleOuterSep: Math.max(isoscelesTriangleOuterSep.x, isoscelesTriangleOuterSep.y) * isoscelesTriangleScale,
+    ...isoscelesTriangleLayoutShapeData(layoutSize),
     cylinderAspect: Math.max(1e-9, numberOption(options["shape aspect"] ?? options.aspect, 1)),
     cylinderEndRadiusX: cylinderNaturalEndRadiusX(text, options, env),
     cylinderShapeBorderRotate: Math.round((((shapeBorderRotate % 360) + 360) % 360) / 90) * 90 % 360,
@@ -13046,7 +13100,10 @@ function scaleSize(size, scale = 1) {
     "arrowBoxHeadExtend",
     "arrowBoxHeadIndent",
     "arrowBoxOuterXSep",
-    "arrowBoxOuterYSep"
+    "arrowBoxOuterYSep",
+    "isoscelesTriangleAxisLength",
+    "isoscelesTriangleHalfBase",
+    "isoscelesTriangleBaseOffset"
   ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
   }
@@ -13055,6 +13112,19 @@ function scaleSize(size, scale = 1) {
   }
   for (const key of ["dartTipAngle", "dartTailAngle", "dartShapeBorderRotate"]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = Number(size[key]);
+  }
+  for (const key of [
+    "isoscelesTriangleApexAngle",
+    "isoscelesTriangleEffectiveHalfApexAngle",
+    "isoscelesTriangleShapeBorderRotate"
+  ]) {
+    if (Number.isFinite(Number(size?.[key]))) scaled[key] = Number(size[key]);
+  }
+  if (size?.isoscelesTriangleShapeBorderUsesIncircle !== undefined) {
+    scaled.isoscelesTriangleShapeBorderUsesIncircle = Boolean(size.isoscelesTriangleShapeBorderUsesIncircle);
+  }
+  if (size?.isoscelesTriangleStretches !== undefined) {
+    scaled.isoscelesTriangleStretches = Boolean(size.isoscelesTriangleStretches);
   }
   if (size?.dartShapeBorderUsesIncircle !== undefined) {
     scaled.dartShapeBorderUsesIncircle = Boolean(size.dartShapeBorderUsesIncircle);
@@ -13529,6 +13599,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "dart") {
     const geometry = geometricDartGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "isoscelesTriangle") {
+    const geometry = geometricIsoscelesTriangleGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -14028,6 +14109,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(dartLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "isoscelesTriangle") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(isoscelesTriangleLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "signal") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -14126,6 +14212,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   if (shape === "dart") {
     return scaleSize(dartLayoutSize(width, height, options, env), shapeScale);
   }
+  if (shape === "isoscelesTriangle") {
+    return scaleSize(isoscelesTriangleLayoutSize(width, height, options, env), shapeScale);
+  }
   if (shape === "signal") {
     return scaleSize(signalLayoutSize(width, height, options, env), shapeScale);
   }
@@ -14185,9 +14274,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const polygonContentHeight = Math.max(0, textBox.height + innerYSep * 2);
     ({ width, height } = regularPolygonLayoutSize(polygonContentWidth, polygonContentHeight, options, env));
   }
-  if (shape === "isoscelesTriangle") {
-    ({ width, height } = isoscelesTriangleLayoutSize(width, height, options, env));
-  }
   if (shape === "tikzquadsQuad") {
     width = Math.max(width, parseFiniteDimension(options["base width"], env, 6.6));
     height = Math.max(height, parseFiniteDimension(options["base height"], env, 2.8));
@@ -14201,19 +14287,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.8));
   }
   return scaleSize({ width: roundNumber(width), height: roundNumber(height) }, shapeScale);
-}
-
-function isoscelesTriangleLayoutSize(baseWidth, apexToBase, options = {}, env = {}) {
-  const apexAngle = Math.max(1, Math.min(170, nodeShapeData(options, env).isoscelesTriangleApexAngle || 45));
-  const halfApex = (apexAngle * Math.PI) / 360;
-  // PGF defines the minimum height along the apex-to-base axis. The
-  // perpendicular base width follows from the apex angle, not vice versa.
-  const axis = Math.max(0.02, Number(apexToBase) || 0);
-  const halfBase = Math.max((Number(baseWidth) || 0) / 2, axis * Math.tan(halfApex));
-  return {
-    width: roundNumber(axis),
-    height: roundNumber(Math.max(0.02, halfBase * 2))
-  };
 }
 
 function normalizedFormulaNeedsTexMetrics(normalized) {
@@ -19006,6 +19079,26 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
   }
+  if (shape === "isoscelesTriangle") {
+    const geometry = geometricIsoscelesTriangleGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      isoscelesTriangleBaseTextOffset: Number(size.baseOffset) || 0,
+      isoscelesTriangleMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return geometricIsoscelesTriangleBorderPoint(geometry, {
+        x: Math.cos(radians),
+        y: Math.sin(radians)
+      });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
   if (shape === "circularSector") {
     const geometry = geometricCircularSectorGeometry({
       width: Number(size.visibleWidth) || Number(size.width) || 0,
@@ -19234,17 +19327,6 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
   if (shape === "diamondSplit") {
     const splitAnchor = diamondSplitLocalAnchor(anchor, size);
     if (splitAnchor) return splitAnchor;
-  }
-  if (shape === "isoscelesTriangle") {
-    const anchors = {
-      apex: { x: halfWidth, y: 0 },
-      "left corner": { x: -halfWidth, y: halfHeight },
-      "right corner": { x: -halfWidth, y: -halfHeight },
-      "lower side": { x: -halfWidth, y: 0 },
-      "left side": { x: 0, y: halfHeight / 2 },
-      "right side": { x: 0, y: -halfHeight / 2 }
-    };
-    return anchors[anchor] || anchors[rawAnchor] || null;
   }
   if (arrowNodeShape(shape)) {
     return arrowNodeLocalAnchor(shape, anchor, { ...size, width: halfWidth * 2, height: halfHeight * 2 });
@@ -19747,6 +19829,18 @@ function includeItemBounds(item, include) {
       );
       return;
     }
+    if (item.shape === "isoscelesTriangle") {
+      const bounds = geometricIsoscelesTriangleGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
     if (item.shape === "signal") {
       const bounds = symbolSignalGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
@@ -19921,7 +20015,7 @@ function includePathItemBounds(item, include) {
 }
 
 function polygonNodeShape(shape) {
-  return shape === "regularPolygon" || shape === "star" || shape === "trapezium" || shape === "isoscelesTriangle" || arrowNodeShape(shape);
+  return shape === "regularPolygon" || shape === "star" || shape === "trapezium" || arrowNodeShape(shape);
 }
 
 function nodePolygonPoints(node, center, halfWidth, halfHeight) {
@@ -19941,9 +20035,6 @@ function nodePolygonPoints(node, center, halfWidth, halfHeight) {
   }
   if (node.shape === "trapezium") {
     return trapeziumPoints(center, halfWidth, halfHeight, data);
-  }
-  if (node.shape === "isoscelesTriangle") {
-    return isoscelesTrianglePoints(center, halfWidth, halfHeight);
   }
   if (arrowNodeShape(node.shape)) {
     return arrowNodeLocalPoints(node.shape, { width: halfWidth * 2, height: halfHeight * 2, shapeData: data }).map((point) => ({
@@ -19970,14 +20061,6 @@ function starPolygonPoints(center, outerRadius, data = {}) {
 
 function trapeziumPoints(center, halfWidth, halfHeight, data = {}) {
   return geometricTrapeziumNodePoints(center, halfWidth, halfHeight, data);
-}
-
-function isoscelesTrianglePoints(center, halfWidth, halfHeight) {
-  return [
-    { x: center.x + halfWidth, y: center.y },
-    { x: center.x - halfWidth, y: center.y + halfHeight },
-    { x: center.x - halfWidth, y: center.y - halfHeight }
-  ];
 }
 
 function rectanglePoints(center, halfWidth, halfHeight) {

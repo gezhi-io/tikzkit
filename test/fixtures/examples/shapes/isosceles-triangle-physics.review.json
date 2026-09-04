@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document", "documentclass", "usepackage"],
+      "findings": "The standalone document shell is removed before semantic evaluation while its border controls crop padding."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["RequirePackage{pgf}", "tikz.code.tex"],
+      "findings": "The package wrapper loads PGF and the TikZ front end."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["node", "draw", "fill", "tikzpicture", "rotate"],
+      "findings": "Core path painting and node rotation place the force vectors around the shape-specific anchors."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": {
+      "symbols": ["outer xsep", "outer ysep", "anchorborder", "left side", "right side", "lower side"],
+      "findings": "PGF uses the larger outer separation, extends the apex by the original-angle cosecant, and miter-extends the base corners before resolving force-arrow anchors."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": {
+      "symbols": ["apex", "left corner", "right corner", "lower side"],
+      "findings": "The documented named anchors drive the support points and three force vectors in this physics fixture."
+    }
+  },
+  "rules": [
+    {"match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js", "docs/qa/2026-09-04-shapes-isosceles-triangle.md"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js", "docs/qa/2026-09-04-shapes-isosceles-triangle.md"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "docs/qa/2026-09-04-shapes-isosceles-triangle.md"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "docs/qa/2026-09-04-shapes-isosceles-triangle.md"]}
+  ]
+}

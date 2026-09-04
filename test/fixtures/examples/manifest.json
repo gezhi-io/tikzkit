@@ -6932,6 +6932,51 @@
       ]
     },
     {
+      "id": "shapes-isosceles-triangle-flowchart",
+      "title": "Isosceles triangle routing flowchart",
+      "source": "shapes/isosceles-triangle-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:isoscelesTriangleLayoutSize/isoscelesTriangleGeometry/isoscelesTriangleBorderPoint",
+      "features": [
+        "flowchart",
+        "independently stretched isosceles triangle",
+        "named apex corner and side anchors",
+        "outer separation",
+        "positioning and automatic edge clipping"
+      ]
+    },
+    {
+      "id": "shapes-isosceles-triangle-math",
+      "title": "Isosceles triangle dimension geometry",
+      "source": "shapes/isosceles-triangle-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:isoscelesTriangleLayoutSize/isoscelesTriangleGeometry/isoscelesTriangleBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "fixed-angle and independently stretched dimensions",
+        "shifted text center",
+        "named corner side base and mid anchors",
+        "calc offsets and math text"
+      ]
+    },
+    {
+      "id": "shapes-isosceles-triangle-physics",
+      "title": "Rotated isosceles triangle force body",
+      "source": "shapes/isosceles-triangle-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:isoscelesTriangleLayoutSize/isoscelesTriangleGeometry/isoscelesTriangleBorderPoint",
+      "features": [
+        "physics diagram",
+        "incircle border sizing",
+        "quarter-turn shape border rotation",
+        "named support anchors",
+        "force-vector arrows and math text"
+      ]
+    },
+    {
       "id": "shapes-chamfered-rectangle-flowchart",
       "title": "Chamfered rectangle validation flowchart",
       "source": "shapes/chamfered-rectangle-flowchart.tex",

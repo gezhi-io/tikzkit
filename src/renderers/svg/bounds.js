@@ -11,7 +11,14 @@ import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
-import { circularSectorGeometry, cylinderGeometry, dartGeometry, kiteGeometry, semicircleGeometry } from "../../tikz/libraries/shapes.geometric.js";
+import {
+  circularSectorGeometry,
+  cylinderGeometry,
+  dartGeometry,
+  isoscelesTriangleGeometry,
+  kiteGeometry,
+  semicircleGeometry
+} from "../../tikz/libraries/shapes.geometric.js";
 import { chamferedRectangleGeometry, roundedRectangleGeometry } from "../../tikz/libraries/shapes.misc.js";
 import { arrowBoxGeometry } from "../../tikz/libraries/shapes.arrows.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
@@ -49,6 +56,8 @@ export function computeSvgBounds(items, options = {}) {
             ? kiteGeometry(item, item.shapeData || {}).bounds
           : item.shape === "dart"
             ? dartGeometry(item, item.shapeData || {}).bounds
+          : item.shape === "isoscelesTriangle"
+            ? isoscelesTriangleGeometry(item, item.shapeData || {}).bounds
             : null;
       const symbolBounds = item.shape === "signal"
         ? signalGeometry(item, item.shapeData || {}).bounds
