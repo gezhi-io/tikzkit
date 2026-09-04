@@ -6059,6 +6059,33 @@
       "features": ["arrows.spaced", "spaced square bracket", "spaced round bracket", "spaced bar", "reversed", "measurement", "orthogonal path", "curved path", "physics diagram"]
     },
     {
+      "id": "arrows-spaced-shapes-flowchart",
+      "title": "Spaced geometric terminals in a parser flow",
+      "source": "arrows/spaced-shapes-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedShapeArrowMetrics + src/renderers/svg/paths.js:inlineArrowGeometry",
+      "features": ["arrows.spaced", "spaced circle", "spaced diamond", "spaced square", "filled and open tips", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-shapes-math",
+      "title": "Spaced geometric terminals in a commutative diagram",
+      "source": "arrows/spaced-shapes-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedShapeArrowMetrics + src/renderers/svg/paths.js:inlineArrowGeometry",
+      "features": ["arrows.spaced", "spaced circle", "spaced diamond", "spaced square", "filled and open tips", "start and end arrows", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-spaced-shapes-physics",
+      "title": "Spaced geometric terminals on physical vectors",
+      "source": "arrows/spaced-shapes-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedShapeArrowMetrics + src/renderers/svg/paths.js:inlineArrowGeometry",
+      "features": ["arrows.spaced", "spaced circle", "spaced diamond", "spaced square", "filled and open tips", "vertical", "horizontal", "diagonal", "curved path", "force vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

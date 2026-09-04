@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves arrows, arrows.spaced, and positioning." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to", "bend left", "line width"], "findings": "TikZ applies styles and resolves node-border and curved terminal tangents before arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Positioning resolves the four object nodes before paths attach to their borders." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced o", "spaced *", "spaced diamond", "spaced open diamond", "spaced square", "spaced open square"], "findings": "Each public name combines an existing geometric tip with the invisible space arrow at zero separation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["*", "o", "diamond", "open diamond", "square", "open square"], "findings": "Visible base geometry remains line-width dependent; open and filled variants differ only in paint operation and fill." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space"], "findings": "The invisible space arrow contributes 0.88pt plus 0.3 line widths without changing visible shape geometry." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced geometric tips"], "findings": "The manual lists all six compatibility names and their endpoint-spacing purpose." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-shapes.test.js", "docs/qa/2026-09-04-arrows-spaced-shapes.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-shapes.test.js", "docs/qa/2026-09-04-arrows-spaced-shapes.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-shapes.test.js", "docs/qa/2026-09-04-arrows-spaced-shapes.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-shapes.test.js", "docs/qa/2026-09-04-arrows-spaced-shapes.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-shapes.test.js", "docs/qa/2026-09-04-arrows-spaced-shapes.md"] }
+  ],
+  "notes": "Mathematical map fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

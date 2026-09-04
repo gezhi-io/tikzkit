@@ -34,6 +34,7 @@ import {
   spacedHookArrowMetrics,
   spacedImpliesArrowMetrics,
   spacedLegacyArrowMetrics,
+  spacedShapeArrowMetrics,
   spacedTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.spaced.js";
 
@@ -114,8 +115,8 @@ export function renderArrowedPath(item, unit) {
   const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
   const pieces = [
     pathStyle.doubleColor !== undefined
-      ? renderDoublePath(commands, pathStyle, unit, { lineCap: "butt", lineJoin: "miter", omitWrapper: true })
-      : `<path d="${pathData(commands, unit)}"${styleAttributes(pathStyle, { omitMarkers: true, lineCap: "butt", lineJoin: "miter" })} />`
+      ? renderDoublePath(commands, pathStyle, unit, { omitWrapper: true })
+      : `<path d="${pathData(commands, unit)}"${styleAttributes(pathStyle, { omitMarkers: true })} />`
   ];
 
   if (startTips.length && placedTerminal.first) {
@@ -491,10 +492,14 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (spacedTriangle) return legacyTriangleInlineGeometry(spacedTriangle);
   const legacyDiamond = legacyDiamondArrowMetrics(tip.kind, lineWidth);
   if (legacyDiamond) return legacyDiamondInlineGeometry(legacyDiamond);
+  const spacedShape = spacedShapeArrowMetrics(tip.kind, lineWidth);
+  if (spacedShape?.shape === "diamond") return legacyDiamondInlineGeometry(spacedShape);
   const legacySquare = legacySquareArrowMetrics(tip.kind, lineWidth);
   if (legacySquare) return legacySquareInlineGeometry(legacySquare);
+  if (spacedShape?.shape === "square") return legacySquareInlineGeometry(spacedShape);
   const legacyCircle = legacyCircleArrowMetrics(tip.kind, lineWidth);
   if (legacyCircle) return legacyCircleInlineGeometry(legacyCircle);
+  if (spacedShape?.shape === "circle") return legacyCircleInlineGeometry(spacedShape);
   const legacyHook = legacyHookArrowMetrics(tip.kind, lineWidth);
   if (legacyHook) return legacyHookInlineGeometry(legacyHook);
   const spacedHook = spacedHookArrowMetrics(tip.kind, lineWidth);
@@ -837,39 +842,39 @@ function isLegacyFilledTriangleTip(kind) {
 }
 
 function isLegacyDiamondTip(kind) {
-  return /^legacy-(?:open-)?diamond$/u.test(String(kind || ""));
+  return /^legacy-(?:spaced-)?(?:open-)?diamond$/u.test(String(kind || ""));
 }
 
 function isLegacyOpenDiamondTip(kind) {
-  return String(kind || "") === "legacy-open-diamond";
+  return /^legacy-(?:spaced-)?open-diamond$/u.test(String(kind || ""));
 }
 
 function isLegacyFilledDiamondTip(kind) {
-  return String(kind || "") === "legacy-diamond";
+  return /^legacy-(?:spaced-)?diamond$/u.test(String(kind || ""));
 }
 
 function isLegacySquareTip(kind) {
-  return /^legacy-(?:open-)?square$/u.test(String(kind || ""));
+  return /^legacy-(?:spaced-)?(?:open-)?square$/u.test(String(kind || ""));
 }
 
 function isLegacyOpenSquareTip(kind) {
-  return String(kind || "") === "legacy-open-square";
+  return /^legacy-(?:spaced-)?open-square$/u.test(String(kind || ""));
 }
 
 function isLegacyFilledSquareTip(kind) {
-  return String(kind || "") === "legacy-square";
+  return /^legacy-(?:spaced-)?square$/u.test(String(kind || ""));
 }
 
 function isLegacyCircleTip(kind) {
-  return /^legacy-(?:filled|open)-circle$/u.test(String(kind || ""));
+  return /^legacy-(?:spaced-)?(?:filled|open)-circle$/u.test(String(kind || ""));
 }
 
 function isLegacyOpenCircleTip(kind) {
-  return String(kind || "") === "legacy-open-circle";
+  return /^legacy-(?:spaced-)?open-circle$/u.test(String(kind || ""));
 }
 
 function isLegacyFilledCircleTip(kind) {
-  return String(kind || "") === "legacy-filled-circle";
+  return /^legacy-(?:spaced-)?filled-circle$/u.test(String(kind || ""));
 }
 
 function isLegacyHookTip(kind) {

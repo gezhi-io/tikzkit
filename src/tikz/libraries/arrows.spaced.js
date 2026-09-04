@@ -1,15 +1,18 @@
 import { lineWidthFromPt } from "../metrics.js";
 import {
   legacyCapArrowMetrics,
+  legacyCircleArrowMetrics,
   legacyDelimiterArrowMetrics,
+  legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
+  legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
 } from "./arrows.js";
 
 export const tikzLibrary = {
   name: "arrows.spaced",
   status: "partial",
-  implementedBy: "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics/spacedLegacyArrowMetrics/spacedImpliesArrowMetrics/spacedTriangleArrowMetrics/spacedAngleArrowMetrics/spacedHookArrowMetrics/spacedDelimiterArrowMetrics + src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyHookInlineGeometry/legacyCapInlineGeometry/spacedLegacyArrowInlineGeometry/spacedImpliesArrowInlineGeometry",
+  implementedBy: "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics/spacedLegacyArrowMetrics/spacedImpliesArrowMetrics/spacedTriangleArrowMetrics/spacedAngleArrowMetrics/spacedHookArrowMetrics/spacedDelimiterArrowMetrics/spacedShapeArrowMetrics + src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics/legacyCircleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyHookInlineGeometry/legacyCapInlineGeometry/legacyCircleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/spacedLegacyArrowInlineGeometry/spacedImpliesArrowInlineGeometry",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   localSourceReviewed: true,
@@ -27,6 +30,7 @@ export const tikzLibrary = {
     "spaced angle 90, 60, and 45 with reversed forms",
     "spaced left hook, right hook, and hooks with reversed forms",
     "spaced square brackets, round brackets, and vertical bars",
+    "spaced filled/open circles, diamonds, and squares",
     "source backend and tip-end metrics for common legacy arrows",
     "legacy space arrow width 0.88pt plus 0.3 line widths",
     "shared cap geometry with additional endpoint shortening"
@@ -45,11 +49,12 @@ export const tikzLibrary = {
     "spaced angle 90, 60, and 45 with reversed forms",
     "spaced left hook, right hook, and hooks with reversed forms",
     "spaced square brackets, round brackets, and vertical bars",
+    "spaced filled/open circles, diamonds, and squares",
     "source backend and tip-end metrics for common legacy arrows",
     "legacy space arrow width 0.88pt plus 0.3 line widths",
     "shared cap geometry with additional endpoint shortening"
   ],
-  notes: "Reviewed locally on 2026-09-04. pgflibraryarrows.spaced.code.tex declares each spaced arrow with the starred combine form `original[sep=0pt].space`. The dot fixes the line end after the visible tip; the invisible `space` arrow from pgfcorearrows.code.tex has backend 0 and tip end 0.88pt+0.3*linewidth. TikZKit first implemented the six cap aliases by reusing their source paths and adding this width to terminal placement, shaft shortening, and assembly length. A second source review added spaced to, latex, latex prime, stealth, and stealth prime plus all reversed forms. A third source review added spaced implies from pgflibraryarrows.code.tex. A fourth added all twelve spaced triangle and spaced open triangle 90/60/45 aliases. A fifth added the six spaced angle aliases. A sixth added spaced left hook, spaced right hook, spaced hooks, and reversed forms. A seventh review added `spaced [`, `spaced ]`, `spaced (`, `spaced )`, and `spaced |`, including all five paired shorthand specifications. Square and round bracket geometry reuses the source active-line-width formulas. The bar now follows `@bar`: backend -0.25 line widths, tip end 0.75 line widths, vertical path at 0.25 line widths, half-height 2pt+1.5 line widths, and a square cap. Every spaced delimiter appends the invisible space component to placement and assembly length. Flowchart, mathematical-map, and physical-vector fixtures cover straight, orthogonal, diagonal, bidirectional, and curved terminal tangents with MacTeX and tikztosvg references. Spaced shapes and serif-cm aliases remain unsupported."
+  notes: "Reviewed locally on 2026-09-04. pgflibraryarrows.spaced.code.tex declares each spaced arrow with the starred combine form `original[sep=0pt].space`. The dot fixes the line end after the visible tip; the invisible `space` arrow from pgfcorearrows.code.tex has backend 0 and tip end 0.88pt+0.3*linewidth. TikZKit first implemented the six cap aliases by reusing their source paths and adding this width to terminal placement, shaft shortening, and assembly length. A second source review added spaced to, latex, latex prime, stealth, and stealth prime plus all reversed forms. A third source review added spaced implies from pgflibraryarrows.code.tex. A fourth added all twelve spaced triangle and spaced open triangle 90/60/45 aliases. A fifth added the six spaced angle aliases. A sixth added spaced left hook, spaced right hook, spaced hooks, and reversed forms. A seventh review added `spaced [`, `spaced ]`, `spaced (`, `spaced )`, and `spaced |`, including all five paired shorthand specifications. Square and round bracket geometry reuses the source active-line-width formulas. The bar now follows `@bar`: backend -0.25 line widths, tip end 0.75 line widths, vertical path at 0.25 line widths, half-height 2pt+1.5 line widths, and a square cap. An eighth review added `spaced o`, `spaced *`, `spaced diamond`, `spaced open diamond`, `spaced square`, and `spaced open square`: each reuses the exact base geometry, fill/stroke semantics, cap/join, and line-width-dependent extents, while only the invisible space increases placement and assembly length. Flowchart, mathematical-map, and physical-vector fixtures cover straight, orthogonal, diagonal, bidirectional, and curved terminal tangents with MacTeX and tikztosvg references. Spaced left/right-to and serif-cm aliases remain unsupported."
 };
 
 export function legacySpacedArrowSpace(lineWidth) {
@@ -145,6 +150,30 @@ export function spacedDelimiterArrowMetrics(kind, lineWidth) {
   if (!baseKind) return null;
 
   const base = legacyDelimiterArrowMetrics(baseKind, lineWidth);
+  if (!base) return null;
+
+  const space = legacySpacedArrowSpace(lineWidth);
+  return {
+    ...base,
+    spaced: true,
+    space,
+    placement: base.placement + space,
+    terminalPlacement: base.placement + space,
+    assemblyLength: base.assemblyLength + space
+  };
+}
+
+export function spacedShapeArrowMetrics(kind, lineWidth) {
+  const source = String(kind || "").trim().toLowerCase();
+  const match = source.match(/^legacy-spaced-(open-circle|filled-circle|diamond|open-diamond|square|open-square)$/u);
+  if (!match) return null;
+
+  const baseKind = `legacy-${match[1]}`;
+  const base = match[1].endsWith("circle")
+    ? legacyCircleArrowMetrics(baseKind, lineWidth)
+    : match[1].endsWith("diamond")
+      ? legacyDiamondArrowMetrics(baseKind, lineWidth)
+      : legacySquareArrowMetrics(baseKind, lineWidth);
   if (!base) return null;
 
   const space = legacySpacedArrowSpace(lineWidth);

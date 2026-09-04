@@ -248,6 +248,14 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.bar, fill: "none", stroke: "context-stroke" };
   }
+  if (/^legacy-spaced-(?:diamond|square|filled-circle)$/u.test(kind)) {
+    const base = kind.endsWith("diamond") ? TIKZ_ARROW_TIPS.kite : kind.endsWith("square") ? TIKZ_ARROW_TIPS.square : TIKZ_ARROW_TIPS.circle;
+    return { ...base, fill: "context-stroke", stroke: "context-stroke" };
+  }
+  if (/^legacy-spaced-(?:open-diamond|open-square|open-circle)$/u.test(kind)) {
+    const base = kind.endsWith("diamond") ? TIKZ_ARROW_TIPS.kite : kind.endsWith("square") ? TIKZ_ARROW_TIPS.square : TIKZ_ARROW_TIPS["open-circle"];
+    return { ...base, fill: "none", stroke: "context-stroke" };
+  }
   if (kind === "legacy-bar") {
     return { ...TIKZ_ARROW_TIPS.bar, fill: "none", stroke: "context-stroke" };
   }
@@ -579,6 +587,7 @@ function normalizeArrowKind(kind) {
   if (/^legacy-spaced-angle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(text)) return text;
+  if (/^legacy-spaced-(?:open-circle|filled-circle|diamond|open-diamond|square|open-square)$/u.test(text)) return text;
   if (text === "legacy-spaced-implies") return text;
   if (source === "Round Cap") return "round-cap";
   if (source === "Butt Cap") return "butt-cap";
@@ -595,6 +604,12 @@ function normalizeArrowKind(kind) {
   if (text === "spaced (") return "legacy-spaced-round-bracket-reversed";
   if (text === "spaced )") return "legacy-spaced-round-bracket";
   if (text === "spaced |") return "legacy-spaced-bar";
+  if (text === "spaced o") return "legacy-spaced-open-circle";
+  if (text === "spaced *") return "legacy-spaced-filled-circle";
+  if (text === "spaced diamond") return "legacy-spaced-diamond";
+  if (text === "spaced open diamond") return "legacy-spaced-open-diamond";
+  if (text === "spaced square") return "legacy-spaced-square";
+  if (text === "spaced open square") return "legacy-spaced-open-square";
   const legacyAngle = text.match(/^angle\s+(90|60|45)(\s+reversed)?$/);
   if (legacyAngle) return `angle-${legacyAngle[1]}${legacyAngle[2] ? "-reversed" : ""}`;
   const legacyTriangle = text.match(/^(open\s+)?triangle\s+(90|60|45)(\s+reversed)?$/);
