@@ -5,10 +5,10 @@
 This slice completes the built-in `expanding waves` state geometry in
 `decorations.pathreplacing`. It covers exact endpoint state boundaries,
 `segment length`, `angle`, `pre length`, `post length`, `mirror`, `raise`, and
-local tangent frames on straight and cubic paths. Fixed-radius `waves`
-continues to cover its existing untransformed state geometry but is outside
-this boundary/transform slice. It does not claim a generic executor for
-user-defined `\pgfdeclaredecoration` state machines.
+local tangent frames on straight and cubic paths. Fixed-radius `waves` was
+outside this slice and is covered separately by
+`2026-09-04-pathreplacing-fixed-waves.md`. This work does not claim a generic
+executor for user-defined `\pgfdeclaredecoration` state machines.
 
 ## Local PGF sources reviewed
 
@@ -75,8 +75,8 @@ bbox reserve in the physics fixture.
 
 Not implemented in this slice: arbitrary user-declared decorations, custom
 `pre`/`post` decoration names, arbitrary `decoration transform`, reverse-path
-state execution, fixed-radius `waves` with pre/post or mirror/raise, and
-analytic arc transport over unsampled pathological cubic curvature.
+state execution, and analytic arc transport over unsampled pathological cubic
+curvature.
 
 ## Verification
 

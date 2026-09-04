@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex": {
+      "symbols": ["\\pgfdeclaredecoration{waves}", "width=\\pgfdecorationsegmentlength", "\\pgfpatharc"],
+      "findings": "Each fixed wave state advances by one segment length, shifts by segment length, and draws an angle-to-minus-angle arc using start radius. Final only moves to the decorated child endpoint."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex": {
+      "symbols": ["/pgf/decoration automaton/width", "\\pgf@decorate@switch@if", "\\pgfsetdecorationsegmenttransformation"],
+      "findings": "The width key installs a strict remaining-distance check to final: an exact segment executes, while an incomplete terminal segment does not. State geometry uses the current input tangent transform."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex": {
+      "symbols": ["tikz@internal", "pre length", "post length", "mirror", "raise"],
+      "findings": "TikZ wraps the selected decoration in pre=lineto, main child, and post=lineto states and applies mirror before the local y shift."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": "Loads the TikZ frontend and its PGF dependencies for the document package declaration.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Provides the draw, node, path, style, and picture frontend used by the fixtures.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": "Defines the Stealth arrow used by the flowchart and coordinate axes.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty": "Defines HTML colors and mixed colors used by the fixtures.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides document and environment primitives handled by the frontend shell.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": "Defines the small and scriptsize font steps used by fixture labels."
+  },
+  "rules": [
+    {"match": "command:*", "status": "verified", "evidence": ["test/pathreplacing-fixed-waves.test.js", "docs/qa/2026-09-04-pathreplacing-fixed-waves.md"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pathreplacing-fixed-waves.test.js", "docs/qa/2026-09-04-pathreplacing-fixed-waves.md"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa-pathreplacing-fixed-waves-2026-09-04"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/pathreplacing-fixed-waves.test.js", "outputs/qa-pathreplacing-fixed-waves-2026-09-04"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa-pathreplacing-fixed-waves-2026-09-04"]}
+  ]
+}

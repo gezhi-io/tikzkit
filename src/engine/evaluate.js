@@ -14809,18 +14809,17 @@ function appendPathReplacingWaves(commands, points, length, decoration, env) {
     0,
     parseFinitePgfLength(decoration.radius ?? decoration["start radius"] ?? "2.5pt", env, defaultRadius)
   );
-  const preLength = expanding
-    ? Math.min(length, Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0)))
-    : 0;
-  const postLength = expanding
-    ? Math.min(
-        Math.max(0, length - preLength),
-        Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0))
-      )
-    : 0;
+  const preLength = Math.min(
+    length,
+    Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0))
+  );
+  const postLength = Math.min(
+    Math.max(0, length - preLength),
+    Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0))
+  );
   const activeLength = Math.max(0, length - preLength - postLength);
-  const normalSign = expanding && tikzBoolean(decoration.mirror) ? -1 : 1;
-  const normalRaise = expanding ? parseFinitePgfLength(decoration.raise ?? "0", env, 0) : 0;
+  const normalSign = tikzBoolean(decoration.mirror) ? -1 : 1;
+  const normalRaise = parseFinitePgfLength(decoration.raise ?? "0", env, 0);
 
   if (preLength > 1e-12) {
     commands.push(
@@ -14837,8 +14836,13 @@ function appendPathReplacingWaves(commands, points, length, decoration, env) {
   // A state at the exact endpoint never runs: the automaton switches to its
   // final state as soon as the remaining distance reaches zero. Expanding
   // waves therefore draw at segmentLength, 2*segmentLength, ... strictly
-  // before the main-section endpoint.
-  for (let distance = firstDistance; distance < activeLength - 1e-9; distance += segmentLength) {
+  // before the main-section endpoint. Fixed waves start at distance zero,
+  // but their width key switches to final unless a complete segment remains.
+  for (let distance = firstDistance; ; distance += segmentLength) {
+    const stateFits = expanding
+      ? distance < activeLength - 1e-9
+      : distance + segmentLength <= activeLength + 1e-9;
+    if (!stateFits) break;
     const state = pointOnPolyline(points, preLength + distance);
     const tangent = { x: state.normal.y, y: -state.normal.x };
     const waveRadius = expanding ? distance : radius;

@@ -5895,6 +5895,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves/createPgfDecorationPathWalker",
       "features": ["expanding waves", "cubic tangent frame", "pre length", "post length", "wavefront", "physics"]
+    },
+    {
+      "id": "decorations-pathreplacing-fixed-waves-flowchart",
+      "title": "Fixed carrier waves between flowchart stages",
+      "source": "decorations/pathreplacing-fixed-waves/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF waves declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves",
+      "features": ["waves", "segment length", "radius", "angle", "pre length", "post length", "flowchart"]
+    },
+    {
+      "id": "decorations-pathreplacing-fixed-waves-math",
+      "title": "Fixed local-scale waves along a mathematical curve",
+      "source": "decorations/pathreplacing-fixed-waves/math.tex",
+      "sourceCorpus": "TeX Live PGF waves declaration and TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves/createPgfDecorationPathWalker",
+      "features": ["waves", "cubic tangent frame", "mirror", "raise", "pre length", "post length", "mathematics"]
+    },
+    {
+      "id": "decorations-pathreplacing-fixed-waves-physics",
+      "title": "Constant-radius wavefronts along a curved ray path",
+      "source": "decorations/pathreplacing-fixed-waves/physics.tex",
+      "sourceCorpus": "TeX Live PGF waves declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves/createPgfDecorationPathWalker",
+      "features": ["waves", "cubic tangent frame", "radius", "raise", "pre length", "post length", "wavefront", "physics"]
     }
   ]
 }

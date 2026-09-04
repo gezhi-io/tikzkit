@@ -2349,6 +2349,34 @@ test("applies the TikZ meta-decoration boundary and transform rules to expanding
   ]);
 });
 
+test("applies fixed-wave state width and TikZ boundary transforms", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={waves,segment length=.8cm,radius=.2cm,angle=30,
+    pre length=.3cm,post length=.5cm,mirror,raise=.2cm}]
+    (0,0) -- (4.3,0);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const arcs = path.commands.filter((command) => command.type === "curveTo");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(arcs.length, 4, `expected only four complete .8cm states inside the 3.5cm main section, got ${JSON.stringify(path.commands)}`);
+  assert.deepEqual(path.commands.slice(0, 2), [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 0.3, y: 0 }
+  ]);
+  expectClose(path.commands[2].x, 0.3 + 0.8 - 0.2 + 0.2 * Math.cos(Math.PI / 6));
+  expectClose(path.commands[2].y, -(0.2 + 0.2 * Math.sin(Math.PI / 6)));
+  expectClose(arcs[0].x, 0.3 + 0.8 - 0.2 + 0.2 * Math.cos(Math.PI / 6));
+  expectClose(arcs[0].y, -(0.2 - 0.2 * Math.sin(Math.PI / 6)));
+  assert.deepEqual(path.commands.slice(-2), [
+    { type: "moveTo", x: 3.5, y: 0 },
+    { type: "lineTo", x: 4.3, y: 0 }
+  ]);
+});
+
 test("renders border decoration as a red postaction over the preserved source path", () => {
   const source = String.raw`
 \usetikzlibrary{decorations.pathreplacing}
