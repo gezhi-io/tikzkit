@@ -30,7 +30,8 @@ import {
 import {
   spacedCapArrowMetrics,
   spacedImpliesArrowMetrics,
-  spacedLegacyArrowMetrics
+  spacedLegacyArrowMetrics,
+  spacedTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.spaced.js";
 
 export function renderPathWithShadows(item, unit) {
@@ -476,6 +477,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (delimiter) return legacyDelimiterInlineGeometry(delimiter);
   const legacyTriangle = legacyTriangleArrowMetrics(tip.kind, lineWidth);
   if (legacyTriangle) return legacyTriangleInlineGeometry(legacyTriangle);
+  const spacedTriangle = spacedTriangleArrowMetrics(tip.kind, lineWidth);
+  if (spacedTriangle) return legacyTriangleInlineGeometry(spacedTriangle);
   const legacyDiamond = legacyDiamondArrowMetrics(tip.kind, lineWidth);
   if (legacyDiamond) return legacyDiamondInlineGeometry(legacyDiamond);
   const legacySquare = legacySquareArrowMetrics(tip.kind, lineWidth);
@@ -806,15 +809,15 @@ function isSquareBracketTip(kind) {
 }
 
 function isLegacyTriangleTip(kind) {
-  return /^(?:open-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+  return /^(?:legacy-spaced-)?(?:open-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
 }
 
 function isLegacyOpenTriangleTip(kind) {
-  return /^open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+  return /^(?:legacy-spaced-)?open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
 }
 
 function isLegacyFilledTriangleTip(kind) {
-  return /^triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+  return /^(?:legacy-spaced-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
 }
 
 function isLegacyDiamondTip(kind) {
