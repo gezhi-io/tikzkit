@@ -2,7 +2,7 @@ import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, path
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
-import { basicPlotMarkGeometry, plotMarkGeometryCommands } from "../tikz/libraries/plotmarks.js";
+import { basicPlotMarkGeometry, plotMarkGeometryCommands, splitFillPlotMarkGeometry } from "../tikz/libraries/plotmarks.js";
 import {
   circularSectorBorderPoint as geometricCircularSectorBorderPoint,
   circularSectorGeometry as geometricCircularSectorGeometry,
@@ -17620,7 +17620,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
 
   if (kind === "halfcircle" || kind === "halfcircle*") {
     const stroke = pathStyle.stroke || "black";
-    const lowerFill = plotHalfCircleMarkColor(markOptions);
+    const lowerFill = plotSplitMarkColor(markOptions);
     const outline = {
       type: "path",
       shape: "plot-mark",
@@ -17654,6 +17654,30 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       });
     }
     return finalizeItems([...items, outline]);
+  }
+
+  const splitGeometry = splitFillPlotMarkGeometry(kind, size);
+  if (splitGeometry) {
+    const stroke = pathStyle.stroke || "black";
+    const primaryFill = pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : stroke;
+    const secondaryFill = plotSplitMarkColor(markOptions);
+    const fillItem = (geometry, fill) => ({
+      type: "path",
+      shape: "plot-mark-fill",
+      mark: kind,
+      commands: plotMarkGeometryCommands(geometry, point),
+      style: { stroke: "none", fill, lineWidth: 0 }
+    });
+    const items = [fillItem(splitGeometry.primary, primaryFill)];
+    if (secondaryFill) items.push(fillItem(splitGeometry.secondary, secondaryFill));
+    items.push({
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: plotMarkGeometryCommands(splitGeometry.outline, point),
+      style: { stroke, fill: "none", lineWidth: pathStyle.lineWidth || 1 }
+    });
+    return finalizeItems(items);
   }
 
   if (kind === "*" || kind === "." || kind === "o") {
@@ -17799,7 +17823,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
   };
 }
 
-function plotHalfCircleMarkColor(markOptions = {}) {
+function plotSplitMarkColor(markOptions = {}) {
   const raw = markOptions["mark color"];
   if (raw !== undefined && raw !== null && raw !== true) {
     const color = normalizeColor(String(raw));

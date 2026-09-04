@@ -5103,6 +5103,56 @@
       ]
     },
     {
+      "id": "plotmarks-split-fill-flowchart",
+      "title": "PGF split-fill plot marks in a flowchart",
+      "source": "plotmarks/split-fill-flowchart.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:splitFillPlotMarkGeometry",
+      "features": [
+        "plotmarks library",
+        "mark=halfdiamond*",
+        "mark=halfsquare*",
+        "mark=halfsquare right*",
+        "mark=halfsquare left*",
+        "mark color",
+        "mark color=none"
+      ]
+    },
+    {
+      "id": "plotmarks-split-fill-math",
+      "title": "PGF split-fill plot marks in a mathematical scatter plot",
+      "source": "plotmarks/split-fill-math.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:splitFillPlotMarkGeometry",
+      "features": [
+        "PGFPlots scatter",
+        "mark=halfdiamond*",
+        "mark=halfsquare*",
+        "mark=halfsquare right*",
+        "mark=halfsquare left*",
+        "mark options rotate"
+      ]
+    },
+    {
+      "id": "plotmarks-split-fill-physics",
+      "title": "PGF split-fill plot marks on force vectors",
+      "source": "plotmarks/split-fill-physics.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:splitFillPlotMarkGeometry",
+      "features": [
+        "force vectors",
+        "mark=halfdiamond*",
+        "mark=halfsquare*",
+        "mark=halfsquare right*",
+        "mark=halfsquare left*",
+        "mark options rotate",
+        "mark color=none"
+      ]
+    },
+    {
       "id": "tkz-fct-combined-axes-trig",
       "title": "tkz-base combined trigonometric Cartesian axes",
       "source": "tkz-fct/combined-axes-trig.tex",

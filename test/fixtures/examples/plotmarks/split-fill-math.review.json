@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is removed before the axis is lowered." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The LaTeX wrapper loads the generic TikZ front end used by PGFPlots." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\ProvidesPackage{pgfplots}", "pgfplots.code.tex"], "findings": "The package delegates axis and addplot semantics to the generic PGFPlots implementation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["\\addplot", "\\pgfplotsset", "mark options"], "findings": "PGFPlots parses addplot and axis keys, then delegates marker painting to the active PGF plot-mark declaration." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["mark options", "every mark"], "findings": "Mark rotation is active while all declared mark paths are painted." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ library entry point delegates directly to the generic PGF plotmarks declarations." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["halfdiamond*", "halfsquare*", "halfsquare right*", "halfsquare left*", "/pgf/mark color"], "findings": "The source fixes the triangle ordering, the halfdiamond horizontal radius at 0.75 mark size, the halfsquare radius at one mark size, and the final outline path." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["mark options={rotate=90}", "/pgf/mark color"], "findings": "The documented option semantics match the direct PGF declarations and apply unchanged inside PGFPlots." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] }
+  ]
+}

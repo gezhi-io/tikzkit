@@ -1,7 +1,7 @@
 export const tikzLibrary = {
   "name": "plotmarks",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/plotmarks.js:basicPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:buildPlotMark",
+  "implementedBy": "src/tikz/libraries/plotmarks.js:basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:buildPlotMark",
   "features": [
     "mark=x",
     "mark=+",
@@ -13,6 +13,7 @@ export const tikzLibrary = {
     "vertical and horizontal bar marks",
     "mark size",
     "mark=halfcircle / halfcircle*",
+    "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
     "mark color / mark options={rotate=...}"
   ],
   "implements": [
@@ -26,9 +27,10 @@ export const tikzLibrary = {
     "vertical and horizontal bar marks",
     "mark size",
     "mark=halfcircle / halfcircle*",
+    "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
     "mark color / mark options={rotate=...}"
   ],
-  "notes": "Reviewed locally on 2026-09-04 against pgflibraryplotmarks.code.tex. The shared geometry now covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, and pentagon paths, including filled variants and mark rotation in both direct TikZ plots and PGFPlots lowering. `mark=halfcircle` paints its lower semicircle white by default or with `mark color`, skips it for `mark color=none`, then strokes a diameter and circle. `mark=halfcircle*` fills its upper half with the plot fill and its lower half with `mark color`, and strokes only the outer circle. Text, halfdiamond, halfsquare, heart, custom declarations, and general mark-option transforms remain partial."
+  "notes": "Reviewed locally on 2026-09-05 against pgflibraryplotmarks.code.tex and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, and halfsquare left* paths. Direct TikZ plots and PGFPlots share the geometry, current-fill/mark-color split, mark color=none suppression, outline, size, and whole-mark rotation semantics. `mark=halfcircle` and `mark=halfcircle*` retain their source-defined semicircle behavior. Text marks, heart marks, custom declarations, and general mark-option transforms remain partial."
 };
 
 const CIRCLE_KAPPA = 0.5522847498307936;
@@ -109,6 +111,40 @@ export function basicPlotMarkGeometry(mark, size) {
     return geometry([polygon(radialPoints([90, 18, -54, 234, 162]))], kind.endsWith("*"));
   }
   return null;
+}
+
+export function splitFillPlotMarkGeometry(mark, size) {
+  const kind = String(mark || "").trim().toLowerCase();
+  if (!["halfdiamond*", "halfsquare*", "halfsquare right*", "halfsquare left*"].includes(kind)) {
+    return null;
+  }
+
+  const xRadius = kind === "halfdiamond*" ? 0.75 * size : size;
+  const top = { x: 0, y: size };
+  const right = { x: xRadius, y: 0 };
+  const bottom = { x: 0, y: -size };
+  const left = { x: -xRadius, y: 0 };
+  let primary;
+  let secondary;
+
+  if (kind === "halfsquare right*") {
+    primary = [bottom, right, top];
+    secondary = [bottom, left, top];
+  } else if (kind === "halfsquare left*") {
+    primary = [bottom, left, top];
+    secondary = [bottom, right, top];
+  } else {
+    primary = [left, bottom, right];
+    secondary = [right, top, left];
+  }
+
+  const geometry = (points, filled) => ({ kind, primitives: [polygon(points)], filled });
+  return {
+    kind,
+    primary: geometry(primary, true),
+    secondary: geometry(secondary, true),
+    outline: geometry([right, top, left, bottom], false)
+  };
 }
 
 export function placePlotMarkGeometry(geometry, center = { x: 0, y: 0 }, rotation = 0) {

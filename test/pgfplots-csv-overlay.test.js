@@ -60,6 +60,25 @@ test("starred halfcircle marks fill both halves without a divider and honor mark
   assert.doesNotMatch(command, /\(1,1\.93\) -- \(1,2\.07\).*circle/);
 });
 
+test("split diamond and square marks keep PGF's two fill colors and outline geometry", () => {
+  const diamond = renderPlotMark(
+    { x: 1, y: 2 },
+    { blue: true, fill: "blue!35", mark: "halfdiamond*", "mark color": "orange", "mark size": "2pt" }
+  );
+  const right = renderPlotMark(
+    { x: 1, y: 2 },
+    { red: true, fill: "red!35", mark: "halfsquare right*", "mark color": "none", "mark size": "2pt" }
+  );
+
+  assert.match(diamond, /fill=blue!35/);
+  assert.match(diamond, /fill=orange/);
+  assert.match(diamond, /\(0\.947,2\) -- \(1,1\.93\) -- \(1\.053,2\) -- cycle/);
+  assert.match(diamond, /\(1\.053,2\) -- \(1,2\.07\) -- \(0\.947,2\) -- \(1,1\.93\) -- cycle/);
+  assert.match(right, /fill=red!35/);
+  assert.doesNotMatch(right, /fill=white|fill=none/);
+  assert.match(right, /\(1,1\.93\) -- \(1\.07,2\) -- \(1,2\.07\) -- cycle/);
+});
+
 test("triangle plot marks use PGF's polar triangle geometry", () => {
   const filled = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle*", "mark size": "2pt" });
   const outline = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle", "mark size": "2pt" });

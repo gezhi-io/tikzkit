@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is removed before the browser interpreter evaluates the picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The LaTeX wrapper loads the generic TikZ front end used by the plot command." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["mark options", "every mark", "\\tikz@scan@one@point"], "findings": "Plot mark options are installed before the mark is painted, so rotation applies to both fills and the final outline." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ library is a thin entry point that loads the generic PGF plotmarks implementation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["halfdiamond*", "halfsquare*", "halfsquare right*", "halfsquare left*", "/pgf/mark color"], "findings": "Each mark paints one current-fill triangle, optionally paints the opposite triangle with mark color, and then strokes a closed tilted-square or 0.75-width diamond outline. The special mark color none suppresses only the supplemental fill." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["mark options={rotate=90}", "/pgf/mark color"], "findings": "The manual confirms whole-mark rotation, white as the default supplemental color, and none as the no-fill value." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js"] }
+  ]
+}

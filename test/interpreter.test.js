@@ -4579,6 +4579,33 @@ test("uses PGF halfcircle fill and rotation semantics for direct plot marks", ()
   assert.ok(Math.abs(fills[1].commands[0].x - 1) < 1e-6, "expected rotated starred halfcircle to start at top center");
 });
 
+test("uses PGF split-fill geometry for direct diamond and square plot marks", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[blue,fill=green!40,mark color=orange,mark size=4pt]
+    plot[mark=halfdiamond*] coordinates{(0,0)}
+    plot[mark=halfsquare*,mark options={rotate=90}] coordinates{(1,0)};
+  \draw[red,fill=red!30,mark color=none,mark size=4pt]
+    plot[mark=halfsquare right*] coordinates{(2,0)};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const outlines = ir.items.filter((item) => item.shape === "plot-mark");
+  const fills = ir.items.filter((item) => item.shape === "plot-mark-fill");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(outlines.length, 3);
+  assert.equal(fills.length, 5, "expected two fills per colored split mark and one fill when mark color is none");
+  assert.deepEqual(fills.slice(0, 4).map((item) => item.style.fill), [
+    "rgb(153 255 153)",
+    "rgb(255 128 0)",
+    "rgb(153 255 153)",
+    "rgb(255 128 0)"
+  ]);
+  assert.equal(fills[4].style.fill, "rgb(255 179 179)");
+  assert.ok(Math.abs(fills[2].commands[0].x - 1) < 1e-6, "expected mark rotation to rotate the lower vertex");
+});
+
 test("substitutes foreach variables used as node option keys", () => {
   const source = String.raw`
 \begin{tikzpicture}

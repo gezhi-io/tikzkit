@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone shell and document environment do not alter the picture geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The TikZ front end owns the path and plot syntax used for vector endpoints." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["mark options", "every mark"], "findings": "Rotation is a mark-local transform and therefore rotates both triangular fills and the outline around the plotted coordinate." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ library entry point loads the generic PGF declarations used by direct plot paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["halfdiamond*", "halfsquare*", "halfsquare right*", "halfsquare left*", "/pgf/mark color"], "findings": "Split-fill geometry is independent of the surrounding force-vector path and uses the same current-fill, supplemental-fill, then outline paint order." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["mark options={rotate=90}", "/pgf/mark color"], "findings": "The documented default supplemental color is white, while none leaves that half transparent so underlying guide lines remain visible." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js"] }
+  ]
+}

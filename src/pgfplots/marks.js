@@ -2,7 +2,7 @@ import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
-import { basicPlotMarkGeometry, placePlotMarkGeometry } from "../tikz/libraries/plotmarks.js";
+import { basicPlotMarkGeometry, placePlotMarkGeometry, splitFillPlotMarkGeometry } from "../tikz/libraries/plotmarks.js";
 
 export function createPlotMarkModel(plotOptions = {}) {
   const raw = plotOptions.mark ?? (plotOptions["only marks"] ? "*" : "none");
@@ -55,6 +55,10 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
   if (mark === "halfcircle*") {
     return renderHalfCircleMark(point, options, size, strokedStyle, fill, true);
   }
+  const splitGeometry = splitFillPlotMarkGeometry(mark, size);
+  if (splitGeometry) {
+    return renderSplitFillMark(point, options, splitGeometry, strokedStyle, fill);
+  }
   if (datavisualizationIsMercedesMark(mark)) {
     return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size);
   }
@@ -81,7 +85,7 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
   const rotation = plotMarkRotation(options);
   const left = rotatePointAround(point, -size, 0, rotation);
   const right = rotatePointAround(point, size, 0, rotation);
-  const lowerFill = halfCircleMarkColor(options);
+  const lowerFill = splitPlotMarkColor(options);
   const fillStyle = (color) => joinOptions([
     "axis mark",
     "draw=none",
@@ -103,7 +107,26 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
   return items.join("");
 }
 
-function halfCircleMarkColor(options = {}) {
+function renderSplitFillMark(point, options, geometry, strokedStyle, fill) {
+  const rotation = plotMarkRotation(options);
+  const secondaryFill = splitPlotMarkColor(options);
+  const fillStyle = (color) => joinOptions([
+    "axis mark",
+    "draw=none",
+    `fill=${color}`,
+    "fill opacity=1"
+  ]);
+  const items = [
+    `\\fill[${fillStyle(fill)}] ${formatPlotMarkGeometry(geometry.primary, point, rotation)};`
+  ];
+  if (secondaryFill) {
+    items.push(`\\fill[${fillStyle(secondaryFill)}] ${formatPlotMarkGeometry(geometry.secondary, point, rotation)};`);
+  }
+  items.push(`\\draw[${strokedStyle}] ${formatPlotMarkGeometry(geometry.outline, point, rotation)};`);
+  return items.join("");
+}
+
+function splitPlotMarkColor(options = {}) {
   const raw = options["mark color"] ?? options.markColor;
   if (raw !== undefined && raw !== null && raw !== true) {
     const color = plotColorValue(raw);
