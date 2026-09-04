@@ -450,6 +450,7 @@ export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
     // PGF draws the arrow in a local coordinate system shifted by -tipend.
     // The visible point is therefore one front miter behind the raw terminal.
     placement: lineWidthFromPt(reversed ? lengthPt - frontMiterPt : frontMiterPt),
+    visualSpan: lineWidthFromPt(lengthPt - insetPt),
     harpoon,
     reversed,
     swap

@@ -17,6 +17,7 @@ import { renderUnitScale, scaleStyleForRenderUnit } from "./layout.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
+import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -107,7 +108,11 @@ export function renderArrowedPath(item, unit) {
       placedTerminal.first.startUy,
       unit
     )) {
-      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.first.angle + 180, unit));
+      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.first.angle + 180, unit, {
+        placed,
+        terminal: placedTerminal.first,
+        side: "start"
+      }));
     }
   }
   if (endTips.length && placedTerminal.last) {
@@ -118,7 +123,11 @@ export function renderArrowedPath(item, unit) {
       -(placedTerminal.last.endUy ?? placedTerminal.last.uy),
       unit
     )) {
-      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.last.angle, unit));
+      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.last.angle, unit, {
+        placed,
+        terminal: placedTerminal.last,
+        side: "end"
+      }));
     }
   }
   return `<g class="tikz-arrowed-path${pathStyle.doubleColor !== undefined ? " tikz-double-path" : ""}">${pieces.join("")}</g>`;
@@ -127,7 +136,9 @@ export function renderArrowedPath(item, unit) {
 export function resolveInlineArrowTipSequence(rawTip, style = {}, side = "end") {
   const rawTips = rawTip?.kind === "sequence" && Array.isArray(rawTip.tips) ? rawTip.tips : [rawTip];
   const ordered = side === "start" ? [...rawTips].reverse() : rawTips;
-  return ordered.filter(Boolean).map((tip) => resolveInlineArrowTip(tip, style));
+  const resolved = ordered.filter(Boolean).map((tip) => resolveInlineArrowTip(tip, style));
+  if (!resolved.some((tip) => tip.bending)) return resolved;
+  return resolved.map((tip) => tip.bending ? tip : { ...tip, bending: { mode: "flex", factor: 1 } });
 }
 
 export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy, unit = 1) {
@@ -138,6 +149,7 @@ export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy,
     const offset = outerAdvance + tip.separation + (Number(tip.geometry.placement) || 0);
     placements[index] = {
       tip,
+      curveDistance: outerAdvance + tip.separation,
       point: {
         x: endpoint.x + (Number(inwardUx) || 0) * offset / unit,
         y: endpoint.y + (Number(inwardUy) || 0) * offset / unit
@@ -272,6 +284,8 @@ function terminalSegment(start, end, startIndex, commandIndex, shortenable, star
     startIndex,
     commandIndex,
     shortenable,
+    startControl,
+    endControl,
     ux: dx / length,
     uy: dy / length,
     startUx: tangentStart.x / startLength,
@@ -353,6 +367,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
   return {
     kind: raw.kind,
     geometry,
+    bending: raw.bending,
     separation,
     assemblyLength: Number(geometry.assemblyLength) || Number(raw.length) || Math.max(0, (geometry.bounds?.maxX || 0) - (geometry.bounds?.minX || 0)),
     // PGF's default Latex tip is filled and stroked with its normal mitered
@@ -726,10 +741,16 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   };
 }
 
-export function renderInlineArrowTip(tip, point, angle, unit) {
+export function renderInlineArrowTip(tip, point, angle, unit, curveContext = {}) {
   const strokePart = tip.strokeWidth > 0 ? ` stroke="${escapeAttribute(tip.stroke)}" stroke-width="${format(tip.strokeWidth)}"` : ` stroke="none"`;
   const lineStyle = tip.strokeWidth > 0 ? ` stroke-linecap="${escapeAttribute(tip.lineCap || "round")}" stroke-linejoin="${escapeAttribute(tip.lineJoin || "round")}"` : "";
-  return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}" d="${tip.geometry.path}" fill="${escapeAttribute(
+  const curved = curvedArrowPaint(tip, curveContext.placed, curveContext.terminal, curveContext.side, unit);
+  const modeClass = curved ? ` tikz-arrow-${escapeAttribute(curved.mode)}` : "";
+  const path = curved?.path || tip.geometry.path;
+  const transform = curved
+    ? curvedArrowTransformAttribute(curved)
+    : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})"`;
+  return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}" d="${path}" fill="${escapeAttribute(
     tip.fill
-  )}"${strokePart}${lineStyle} transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})" />`;
+  )}"${strokePart}${lineStyle}${transform} />`;
 }

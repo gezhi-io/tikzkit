@@ -219,7 +219,7 @@ test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", ()
   assert.equal(dependency.localSourceReviewed, true);
   assert.equal(
     dependency.implementedBy,
-    "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/latexArrowGeometryFromLineWidth/stealthMetaArrowGeometryFromLineWidth + src/renderers/svg/paths.js:renderArrowedPath/inlineArrowGeometry"
+    "src/engine/options.js:parseArrowOption/parseArrowTipSpec/parseArrowTipBending + src/tikz/metrics.js:createArrowTip/latexArrowGeometryFromLineWidth/stealthMetaArrowGeometryFromLineWidth + src/renderers/svg/paths.js:renderArrowedPath/resolveInlineArrowTipSequence/placeResolvedInlineArrowTips + src/renderers/svg/arrowBending.js:curvedArrowPaint + src/renderers/svg/bounds.js:arrowEndpointBounds"
   );
 });
 

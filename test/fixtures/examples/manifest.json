@@ -5679,6 +5679,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
       "semanticOwner": "src/engine/options.js:parseArrowTipSeparation + src/renderers/svg/paths.js:placeResolvedInlineArrowTips",
       "features": ["arrows.meta", "global sequence options", "positive sep", "negative sep", "Stealth tips", "physics vectors"]
+    },
+    {
+      "id": "arrows-meta-bending-flowchart",
+      "title": "Rigid flex and bent terminal tips in a feedback flow",
+      "source": "arrows/meta-bending-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF bending manual and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/modules/pgfmodulebending.code.tex",
+      "semanticOwner": "src/renderers/svg/arrowBending.js:curvedArrowPaint",
+      "features": ["arrows.meta", "bending", "flex", "flex'", "bend", "flowchart"]
+    },
+    {
+      "id": "arrows-meta-bending-math",
+      "title": "Curvature-aware arrows on mathematical morphisms",
+      "source": "arrows/meta-bending-math.tex",
+      "sourceCorpus": "TeX Live PGF bending manual and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/modules/pgfmodulebending.code.tex",
+      "semanticOwner": "src/renderers/svg/arrowBending.js:curvedArrowPaint",
+      "features": ["arrows.meta", "bending", "flex", "flex'", "bend", "math labels"]
+    },
+    {
+      "id": "arrows-meta-bending-physics",
+      "title": "Curved velocity momentum and magnetic-force arrows",
+      "source": "arrows/meta-bending-physics.tex",
+      "sourceCorpus": "TeX Live PGF bending manual and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/modules/pgfmodulebending.code.tex",
+      "semanticOwner": "src/renderers/svg/arrowBending.js:curvedArrowPaint",
+      "features": ["arrows.meta", "bending", "flex", "flex'", "bend", "physics trajectories"]
     }
   ]
 }

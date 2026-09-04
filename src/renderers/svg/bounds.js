@@ -13,6 +13,7 @@ import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
 import { cylinderGeometry } from "../../tikz/libraries/shapes.geometric.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
+import { curvedArrowPaint } from "./arrowBending.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -260,7 +261,9 @@ function includeInlineArrowBounds(item, include, unit) {
     const uy = -(terminal.first.startUy ?? terminal.first.uy);
     const tips = resolveInlineArrowTipSequence(style.markerStart, style, "start");
     for (const placed of placeResolvedInlineArrowTips(tips, terminal.first.start, -ux, -uy, unit)) {
-      includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
+      if (!includeCurvedArrowTipBounds(placed, style, terminal.first, "start", include, unit)) {
+        includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
+      }
     }
   }
   if (style.markerEnd && terminal.last) {
@@ -268,9 +271,20 @@ function includeInlineArrowBounds(item, include, unit) {
     const uy = terminal.last.endUy ?? terminal.last.uy;
     const tips = resolveInlineArrowTipSequence(style.markerEnd, style, "end");
     for (const placed of placeResolvedInlineArrowTips(tips, terminal.last.end, -ux, -uy, unit)) {
-      includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
+      if (!includeCurvedArrowTipBounds(placed, style, terminal.last, "end", include, unit)) {
+        includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
+      }
     }
   }
+}
+
+function includeCurvedArrowTipBounds(placed, style, terminal, side, include, unit) {
+  const paint = curvedArrowPaint(placed.tip, placed, terminal, side, unit);
+  if (!paint?.bounds) return false;
+  const pad = (Number(placed.tip.strokeWidth) || Number(style.lineWidth) || 0) / 2;
+  include((paint.bounds.minX - pad) / unit, -(paint.bounds.maxY + pad) / unit);
+  include((paint.bounds.maxX + pad) / unit, -(paint.bounds.minY - pad) / unit);
+  return true;
 }
 
 function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit, includeNormalBounds = true) {

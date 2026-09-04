@@ -750,6 +750,8 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
   if (options.fill) overrides.fill = normalizeColor(String(options.fill));
   const separation = parseArrowTipSeparation(options.sep);
   if (separation) overrides.separation = separation;
+  const bending = parseArrowTipBending(options);
+  if (bending) overrides.bending = bending;
   const declaredArrow = parseDeclaredArrowPayload(options["tikzkit declared arrow"]);
   if (declaredArrow) {
     overrides.declaredArrow = declaredArrow;
@@ -859,6 +861,22 @@ function parseArrowTipSeparation(value) {
     lineWidthFactor: Number.isFinite(Number(match[2])) ? Number(match[2]) : 0,
     outerFactor: Number.isFinite(Number(match[3])) ? Number(match[3]) : 0
   };
+}
+
+function parseArrowTipBending(options = {}) {
+  let bending;
+  for (const key of Object.keys(options)) {
+    if (key === "bend" && options[key] !== false) {
+      bending = { mode: "bend" };
+    } else if ((key === "flex" || key === "flex'") && options[key] !== false) {
+      const raw = options[key] === true ? 1 : Number(options[key]);
+      bending = {
+        mode: key === "flex'" ? "flexPrime" : "flex",
+        factor: Number.isFinite(raw) ? raw : 1
+      };
+    }
+  }
+  return bending;
 }
 
 function arrowTipScaleFactor(value) {
