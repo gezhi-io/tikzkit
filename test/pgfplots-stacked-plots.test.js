@@ -19,6 +19,15 @@ function coordinatePlot(values, options = {}) {
   };
 }
 
+function horizontalCoordinatePlot(values, options = {}) {
+  return {
+    type: "coordinates",
+    is3d: false,
+    options,
+    points: values.map((x, y) => ({ x, y }))
+  };
+}
+
 test("stack plots=y records each previous zero level and cumulative top", () => {
   const prepared = preparePgfplotsStackedPlots(
     { "stack plots": "y" },
@@ -177,5 +186,122 @@ test("table plots enter the same equal-grid vertical stack", () => {
   assert.deepEqual(
     prepared.addplots[1].points.map(({ x, y, stackBaseY }) => ({ x, y, stackBaseY })),
     [{ x: 0, y: 4, stackBaseY: 1 }, { x: 1, y: 6, stackBaseY: 2 }]
+  );
+});
+
+test("stack plots=x records each previous zero level and cumulative top", () => {
+  const prepared = preparePgfplotsStackedPlots(
+    { "stack plots": "x" },
+    [horizontalCoordinatePlot([1, 2]), horizontalCoordinatePlot([3, 4]), horizontalCoordinatePlot([5, 6])]
+  );
+
+  assert.equal(prepared.supported, true);
+  assert.deepEqual(
+    prepared.addplots.map((plot) => plot.points.map(({ x, stackBaseX, stackDeltaX }) => ({ x, stackBaseX, stackDeltaX }))),
+    [
+      [{ x: 1, stackBaseX: 0, stackDeltaX: 1 }, { x: 2, stackBaseX: 0, stackDeltaX: 2 }],
+      [{ x: 4, stackBaseX: 1, stackDeltaX: 3 }, { x: 6, stackBaseX: 2, stackDeltaX: 4 }],
+      [{ x: 9, stackBaseX: 4, stackDeltaX: 5 }, { x: 12, stackBaseX: 6, stackDeltaX: 6 }]
+    ]
+  );
+});
+
+test("modern xbar stacked keeps positive and negative zero levels separate", () => {
+  const prepared = preparePgfplotsStackedPlots(
+    { "xbar stacked": true },
+    [horizontalCoordinatePlot([3, -2]), horizontalCoordinatePlot([-1, 4]), horizontalCoordinatePlot([2, -3])],
+    { compat: "1.18" }
+  );
+
+  assert.equal(prepared.axisOptions.xbar, true);
+  assert.equal(prepared.axisOptions["stack plots"], "x");
+  assert.equal(prepared.axisOptions["stack negative"], "separate");
+  assert.deepEqual(
+    prepared.addplots.map((plot) => plot.points.map(({ x, stackBaseX }) => ({ x, stackBaseX }))),
+    [
+      [{ x: 3, stackBaseX: 0 }, { x: -2, stackBaseX: 0 }],
+      [{ x: -1, stackBaseX: 0 }, { x: 4, stackBaseX: 0 }],
+      [{ x: 5, stackBaseX: 3 }, { x: -5, stackBaseX: -2 }]
+    ]
+  );
+});
+
+test("xbar stacked bars use their per-coordinate x zero level", () => {
+  const geometry = createAxisGeometry(
+    { "scale only axis": true, width: "6cm", height: "4cm" },
+    { xMin: 0, xMax: 6, yMin: -1, yMax: 3 }
+  );
+  const commands = renderAxisBars(
+    [{ x: 5, y: 1, stackBaseX: 2, stackDeltaX: 3, stackIgnored: false }],
+    { xbar: true },
+    geometry,
+    { fill: "orange" },
+    1,
+    "x",
+    { xMin: 0, xMax: 6, yMin: -1, yMax: 3 }
+  );
+
+  assert.equal(commands.length, 1);
+  assert.match(commands[0], /\(2,1\.9\).*\(5,2\.1\)/);
+});
+
+test("xbar stacked near-coordinate nodes show the x delta at the bar midpoint", () => {
+  const commands = renderNodesNearCoords(
+    {
+      options: {},
+      points: [{ x: 5, y: 1, stackBaseX: 3, stackDeltaX: 2, stackIgnored: false }]
+    },
+    { "xbar stacked": true, "nodes near coords": true },
+    { mapPoint: (point) => point }
+  );
+
+  assert.deepEqual(commands, [
+    String.raw`\node[axis near coord, anchor=center, font=\scriptsize, text=blue] at (4,1) {2};`
+  ]);
+});
+
+test("x stacking rejects a mismatched y grid without mutating input", () => {
+  const addplots = [horizontalCoordinatePlot([1, 2]), {
+    ...horizontalCoordinatePlot([3, 4]),
+    points: [{ x: 3, y: 0 }, { x: 4, y: 2 }]
+  }];
+  const prepared = preparePgfplotsStackedPlots({ "stack plots": "x" }, addplots);
+
+  assert.equal(prepared.supported, false);
+  assert.strictEqual(prepared.addplots, addplots);
+});
+
+test("xbar stacked=minus subtracts horizontal layers on the previous stream", () => {
+  const prepared = preparePgfplotsStackedPlots(
+    { "xbar stacked": "minus", "stack negative": "on previous" },
+    [horizontalCoordinatePlot([2]), horizontalCoordinatePlot([3])]
+  );
+
+  assert.deepEqual(
+    prepared.addplots.map((plot) => plot.points[0]),
+    [
+      { x: -2, y: 0, stackBaseX: 0, stackDeltaX: 2, stackIgnored: false },
+      { x: -5, y: 0, stackBaseX: -2, stackDeltaX: 3, stackIgnored: false }
+    ]
+  );
+});
+
+test("table plots enter the same equal-grid horizontal stack", () => {
+  const plots = parseAddplots(String.raw`
+    \addplot table {x y
+      1 0
+      2 1
+    };
+    \addplot table {x y
+      3 0
+      4 1
+    };
+  `);
+  const prepared = preparePgfplotsStackedPlots({ "stack plots": "x" }, plots);
+
+  assert.equal(plots.every((plot) => plot.source === "table"), true);
+  assert.deepEqual(
+    prepared.addplots[1].points.map(({ x, y, stackBaseX }) => ({ x, y, stackBaseX })),
+    [{ x: 4, y: 0, stackBaseX: 1 }, { x: 6, y: 1, stackBaseX: 2 }]
   );
 });

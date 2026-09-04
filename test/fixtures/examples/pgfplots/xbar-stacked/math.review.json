@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The LaTeX document shell loads PGFPlots and delimits the picture."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {"symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper loads the generic PGFPlots implementation."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {"symbols": ["stack plots=x"], "findings": "Raw x stacking adds successive x coordinates while preserving the shared y grid and source-order cycle styles."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex": {"symbols": ["pgfplots@stacked@preparepoint@coord@"], "findings": "Accumulation occurs during coordinate preparation before ranges and visualization are finalized."},
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf": {"symbols": ["stack plots=x"], "findings": "The documented contract requires equally sampled non-stacked coordinates."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]}
+  ]
+}

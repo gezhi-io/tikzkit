@@ -7966,6 +7966,33 @@
         "downward cumulative bars",
         "raw increment labels"
       ]
+    },
+    {
+      "id": "pgfplots-xbar-stacked-algorithm",
+      "title": "Horizontal pipeline work with recovered capacity",
+      "source": "pgfplots/xbar-stacked/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots xbar-stacked semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": ["xbar stacked", "separate signed streams", "horizontal zero levels", "centered raw-x labels", "bar cycle list"]
+    },
+    {
+      "id": "pgfplots-xbar-stacked-math",
+      "title": "Horizontal accumulation of series terms",
+      "source": "pgfplots/xbar-stacked/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGFPlots stacked-plots manual",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": ["stack plots=x", "equal y grids", "x cumulative tops", "reverse paint order", "source-order cycle styles"]
+    },
+    {
+      "id": "pgfplots-xbar-stacked-physics",
+      "title": "Subtractive thermal budget",
+      "source": "pgfplots/xbar-stacked/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots subtractive x stacking",
+      "externalSource": "tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+      "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
+      "features": ["xbar stacked=minus", "stack negative=on previous", "leftward cumulative bars", "x midpoint labels", "per-coordinate x zero levels"]
     }
   ]
 }

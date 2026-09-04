@@ -11,19 +11,19 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
   const points = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
     ? pgfplotsIntervalDataPoints(plot, axisOptions, orientation)
     : (plot.points || []).filter((point) => !point.stackIgnored);
-  const stackedYBar = isStackedYBar(plot, axisOptions);
+  const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
   const style = joinOptions([
     "axis near coord",
-    stackedYBar ? "anchor=center" : "anchor=south",
+    stackedBarAxis ? "anchor=center" : "anchor=south",
     "font=\\scriptsize",
     nodeNearCoordTextColor(plot.options || {}, plotIndex),
     ...nodeNearCoordStyles(axisOptions),
     ...nodeNearCoordStyles(plot.options || {})
   ]);
-  const offset = stackedYBar ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
+  const offset = stackedBarAxis ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
   return points.map((point, pointIndex) => {
-    const positionedPoint = stackedYBar
-      ? stackedYBarNodePoint(point, axisOptions)
+    const positionedPoint = stackedBarAxis
+      ? stackedBarNodePoint(point, axisOptions, stackedBarAxis)
       : point;
     const mapped = plot.is3d && typeof geometry.mapPoint3d === "function"
       ? geometry.mapPoint3d(positionedPoint)
@@ -35,7 +35,10 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
 
 function nodeNearCoordTemplate(point, plot = {}, axisOptions = {}, pointIndex = 0) {
   const rawTemplate = plot.options?.["nodes near coords"] ?? axisOptions["nodes near coords"];
-  const fallback = point.meta ?? (isStackedYBar(plot, axisOptions) ? point.stackDeltaY : (plot.is3d ? point.z : point.y));
+  const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
+  const fallback = point.meta ?? (stackedBarAxis
+    ? point[stackedBarAxis === "x" ? "stackDeltaX" : "stackDeltaY"]
+    : (plot.is3d ? point.z : point.y));
   if (rawTemplate === true || rawTemplate === undefined || rawTemplate === null || String(rawTemplate).trim() === "") {
     return { label: formatAxisNumber(fallback), styles: [] };
   }
@@ -123,19 +126,25 @@ function nodeNearCoordOffset(axisOptions = {}, plotOptions = {}) {
   return anchor === "center" || hasExplicitShift ? 0 : 0.08;
 }
 
-function isStackedYBar(plot = {}, axisOptions = {}) {
-  return (plot.points || []).some((point) => Number.isFinite(Number(point.stackBaseY))) && Boolean(
+function stackedBarOrientation(plot = {}, axisOptions = {}) {
+  if ((plot.points || []).some((point) => Number.isFinite(Number(point.stackBaseX))) && Boolean(
+    axisOptions["xbar stacked"] || axisOptions.xbar || plot.options?.xbar
+  )) return "x";
+  if ((plot.points || []).some((point) => Number.isFinite(Number(point.stackBaseY))) && Boolean(
     axisOptions["ybar stacked"] || axisOptions.ybar || plot.options?.ybar
-  );
+  )) return "y";
+  return null;
 }
 
-function stackedYBarNodePoint(point, axisOptions = {}) {
+function stackedBarNodePoint(point, axisOptions = {}, orientation = "y") {
   const rawOffset = axisNumber(axisOptions["nodes near coords bar offset"], 0.5);
   const offset = Number.isFinite(rawOffset) ? rawOffset : 0.5;
-  const base = Number(point.stackBaseY);
+  const valueKey = orientation;
+  const baseKey = orientation === "x" ? "stackBaseX" : "stackBaseY";
+  const base = Number(point[baseKey]);
   return {
     ...point,
-    y: base + (Number(point.y) - base) * offset
+    [valueKey]: base + (Number(point[valueKey]) - base) * offset
   };
 }
 

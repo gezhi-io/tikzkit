@@ -42,7 +42,9 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
     } else {
       const baseline = interval
         ? axisNumber(axisOptions.xmin, axisNumber(ranges.xMin, 0))
-        : visibleAxisBaseline(ranges.xMin, ranges.xMax);
+        : Number.isFinite(Number(point.stackBaseX))
+          ? Number(point.stackBaseX)
+          : visibleAxisBaseline(ranges.xMin, ranges.xMax);
       const corners = interval
         ? [
             geometry.mapPoint({ x: baseline, y: point.y }),

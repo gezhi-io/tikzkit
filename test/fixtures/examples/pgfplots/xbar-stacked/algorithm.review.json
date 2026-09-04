@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The LaTeX document shell loads the package and delimits the picture evaluated by TikZKit."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {"symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper loads the generic PGFPlots implementation."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {"symbols": ["xbar stacked", "stack plots=x", "nodes near coords xbar stacked configuration"], "findings": "xbar stacked selects horizontal bars, x stacking, the bar cycle, modern compatibility switches, raw-x labels, and x-midpoint placement."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex": {"symbols": ["pgfplots@stacked@getnextzerolevelpoint", "pgfplots@stacked@finalize@stored@plots"], "findings": "The shared stream keeps per-coordinate positive/negative zero levels and reverses only paint order."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex": {"symbols": ["xbar", "zerolevelstream"], "findings": "Horizontal bars consume the x component of each zero-level coordinate."},
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.pdf": {"symbols": ["Stacked Plots", "xbar stacked"], "findings": "The manual defines xbar stacked as xbar plus stack plots=x and centers raw increments inside each segment."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"]}
+  ]
+}

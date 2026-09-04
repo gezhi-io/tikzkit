@@ -293,7 +293,9 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
   const cycleName = String(axisOptions["cycle list name"] || "").trim();
   const cycleList = cycleName ? options.pgfplotsCycleLists?.[cycleName] : null;
   const everyAxisPlotStyle = axisStyleOptions(axisOptions["every axis plot/.append style"]);
-  const usesStackedBarCycle = !cycleName && optionEnabled(axisOptions["ybar stacked"]);
+  const usesStackedBarCycle = !cycleName && (
+    optionEnabled(axisOptions["xbar stacked"]) || optionEnabled(axisOptions["ybar stacked"])
+  );
   return addplots.map((plot, index) => {
     const plotOptions = plot.options || {};
     const usesDefaultCycle =

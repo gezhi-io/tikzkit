@@ -34,6 +34,11 @@ export function computeAxisRanges(axisOptions, addplots) {
         if (!axisValueIsValidForScale(point.x, axisOptions, "x")) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
         if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
+        const stackedBaseX = Number(point.stackBaseX);
+        if (axisValueIsValidForScale(stackedBaseX, axisOptions, "x")) {
+          if (!hasExplicitXMin) xMin = Math.min(xMin, stackedBaseX);
+          if (!hasExplicitXMax) xMax = Math.max(xMax, stackedBaseX);
+        }
       }
       for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "y")) {
         if (!axisValueIsValidForScale(point.y, axisOptions, "y")) continue;
