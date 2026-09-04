@@ -196,6 +196,18 @@ test("audit assigns document-shell and font commands to explicit owners", () => 
   assert.ok(!report.gate.blockers.some((entry) => /PreviewBorder|setlength|tiny|scriptsize|footnotesize|small|normalsize|large|huge|\\tt/i.test(entry)));
 });
 
+test("semantic audit maps PGFPlots tick-label template commands", () => {
+  const report = auditTikzSource(String.raw`
+    \begin{axis}[zticklabel={\pgfmathprintnumber{\tick}\%}]
+    \end{axis}
+  `, { localSourceResolver: fakeResolver });
+
+  const ownerFor = (name) => report.commands.find((entry) => entry.name === name)?.implementedBy;
+  assert.equal(ownerFor("\\pgfmathprintnumber"), "src/pgfplots/ticks.js:renderTickLabelTemplate");
+  assert.equal(ownerFor("\\tick"), "src/pgfplots/ticks.js:renderTickLabelTemplate");
+  assert.ok(!report.gate.blockers.some((entry) => /pgfmathprintnumber|tick/.test(entry)));
+});
+
 test("semantic audit maps calendar commands, options, and reviewed library metadata", () => {
   const report = auditTikzSource(String.raw`
     \usetikzlibrary{calendar}

@@ -460,7 +460,7 @@ function pgfplotsTickLabelTextWidthScale(fontCommand = "") {
   return `tikzkit text width scale=${scale}`;
 }
 
-function axisTickLabelStyleOptions(axisOptions = {}, axis = "x") {
+export function axisTickLabelStyleOptions(axisOptions = {}, axis = "x") {
   const styles = [
     axisOptions["tick label style"],
     axisOptions["ticklabel style"],
@@ -471,12 +471,12 @@ function axisTickLabelStyleOptions(axisOptions = {}, axis = "x") {
   const merged = {};
   for (const style of styles) {
     if (style === undefined || style === null || style === true || style === false) continue;
-    Object.assign(merged, parseOptions(String(style)));
+    Object.assign(merged, parseOptions(stripBalancedOuterBracesForList(String(style).trim())));
   }
   return merged;
 }
 
-function axisTickLabelAnchor(style = {}, fallback = "center", axis = "") {
+export function axisTickLabelAnchor(style = {}, fallback = "center", axis = "") {
   if (style.anchor !== undefined && style.anchor !== null) {
     const explicit = String(style.anchor).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
     if (explicit) return explicit;
@@ -492,13 +492,13 @@ function axisTickLabelAnchor(style = {}, fallback = "center", axis = "") {
   return fallback;
 }
 
-function axisTickLabelRotation(style = {}) {
+export function axisTickLabelRotation(style = {}) {
   const value = style.rotate;
   if (value === undefined || value === null || value === true || String(value).trim() === "") return "";
   return `rotate=${String(value).trim()}`;
 }
 
-function axisTickLabelAlignment(style = {}) {
+export function axisTickLabelAlignment(style = {}) {
   const explicit = String(style.align || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().toLowerCase();
   if (!["left", "flush left", "right", "flush right", "center", "flush center", "justify", "none"].includes(explicit)) {
     return "";
@@ -508,7 +508,7 @@ function axisTickLabelAlignment(style = {}) {
 
 function fontFromStyle(rawStyle) {
   if (rawStyle === undefined || rawStyle === null || rawStyle === true || rawStyle === false) return "";
-  return parseOptions(String(rawStyle)).font || "";
+  return parseOptions(stripBalancedOuterBracesForList(String(rawStyle).trim())).font || "";
 }
 
 export function majorTickValues(min, max, maxTicks = 5) {
@@ -852,7 +852,7 @@ function explicitNonnegativeDimension(raw) {
   return /^[+\-]?(?:0+(?:\.0*)?|\.0+)\s*(?:cm|mm|pt|em|ex|in)?$/i.test(text) ? 0 : NaN;
 }
 
-function axisTickLabelInnerSep(axisOptions = {}, axis = "x") {
+export function axisTickLabelInnerSep(axisOptions = {}, axis = "x") {
   if (axisOptions["axis tick label inner sep"] !== undefined) return axisOptions["axis tick label inner sep"];
   const styles = [
     axisOptions["tick label style"],
@@ -864,7 +864,7 @@ function axisTickLabelInnerSep(axisOptions = {}, axis = "x") {
   let innerSep;
   for (const style of styles) {
     if (style === undefined || style === null || style === true || style === false) continue;
-    const value = parseOptions(String(style))["inner sep"];
+    const value = parseOptions(stripBalancedOuterBracesForList(String(style).trim()))["inner sep"];
     if (value !== undefined) innerSep = value;
   }
   return innerSep;
@@ -1085,7 +1085,7 @@ function axisTickLabels(raw, ticks, formatOptions = {}, template = "") {
   return ticks.map((tick) => formatAxisTickLabel(tick, formatOptions));
 }
 
-function axisRenderedTickLabels(axisOptions, axis, raw, ticks, formatOptions = {}, template = "") {
+export function axisRenderedTickLabels(axisOptions, axis, raw, ticks, formatOptions = {}, template = "") {
   if (
     isLogAxis(axisOptions, axis) &&
     !isEmptyTickLabelList(raw) &&
@@ -1118,7 +1118,7 @@ function intervalAxisTickLabels(ticks, formatOptions = {}) {
   });
 }
 
-function axisTickNumberFormat(axisOptions = {}, axis) {
+export function axisTickNumberFormat(axisOptions = {}, axis) {
   const parsed = axisTickLabelStyleOptions(axisOptions, axis);
   const precision =
     parsed["/pgf/number format/precision"] ??

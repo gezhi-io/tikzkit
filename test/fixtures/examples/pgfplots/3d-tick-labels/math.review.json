@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is consumed before the TikZ/PGFPlots frontend is evaluated." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots axis frontend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["xticklabels", "yticklabels", "zticklabels"], "findings": "The x, y, and z tick-label keys share the same positional-list mechanism." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\pgfplots@user@ticklabel@list@x", "\\pgfplots@user@ticklabel@list@y", "\\pgfplots@user@ticklabel@list@z"], "findings": "Empty list entries suppress only their matching tick label and do not shift later mathematical labels." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] }
+  ]
+}

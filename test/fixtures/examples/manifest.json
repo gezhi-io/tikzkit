@@ -7522,6 +7522,51 @@
         "right ticks and labels",
         "temperature title"
       ]
+    },
+    {
+      "id": "pgfplots-3d-tick-labels-algorithm",
+      "title": "Pipeline surface with categorical 3D ticks",
+      "source": "pgfplots/3d-tick-labels/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots three-dimensional tick-label semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsticks.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks",
+      "features": [
+        "xticklabels",
+        "yticklabels",
+        "zticklabel template",
+        "rotated x tick labels",
+        "categorical algorithm stages"
+      ]
+    },
+    {
+      "id": "pgfplots-3d-tick-labels-math",
+      "title": "Trigonometric surface with symbolic 3D ticks",
+      "source": "pgfplots/3d-tick-labels/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGFPlots three-dimensional tick-label semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsticks.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks",
+      "features": [
+        "symbolic x tick labels",
+        "symbolic y tick labels",
+        "positional blank z tick label",
+        "formula tick labels",
+        "surface plot"
+      ]
+    },
+    {
+      "id": "pgfplots-3d-tick-labels-physics",
+      "title": "Velocity trajectory with unit-bearing 3D ticks",
+      "source": "pgfplots/3d-tick-labels/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots three-dimensional tick-label semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsticks.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks",
+      "features": [
+        "xticklabel numeric template",
+        "zticklabel unit template",
+        "pgfmathprintnumber tick substitution",
+        "numeric tick templates",
+        "physical units"
+      ]
     }
   ]
 }

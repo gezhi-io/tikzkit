@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is consumed before the TikZ/PGFPlots frontend is evaluated." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex": { "symbols": ["\\pgfmathprintnumber"], "findings": "The PGF number printer accepts the current tick value; this slice implements its no-option form inside tick-label templates." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots axis frontend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["xticklabel", "zticklabel"], "findings": "Axis-specific templates are stored independently and evaluated for every selected major tick." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\tick", "\\pgfmathprintnumber"], "findings": "The template receives the data-space tick string, enabling a shared numeric formatter followed by user unit markup." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-3d-tick-labels.test.js"] }
+  ]
+}
