@@ -26,6 +26,11 @@ import {
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
 import {
+  chamferedRectangleBorderPoint as miscChamferedRectangleBorderPoint,
+  chamferedRectangleGeometry as miscChamferedRectangleGeometry,
+  chamferedRectangleLayoutSize as miscChamferedRectangleLayoutSize
+} from "../tikz/libraries/shapes.misc.js";
+import {
   circleSolidusGeometry as multipartCircleSolidusGeometry,
   diamondSplitGeometry as multipartDiamondSplitGeometry,
   ellipseSplitGeometry as multipartEllipseSplitGeometry
@@ -11361,6 +11366,15 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
     );
   } else if (node.shape === "roundedRectangle") {
     localPoint = roundedRectangleBorderPoint(localDx, localDy, halfWidth, halfHeight, terminalPadding);
+  } else if (node.shape === "chamferedRectangle") {
+    localPoint = miscChamferedRectangleBorderPoint(
+      miscChamferedRectangleGeometry({
+        width: Number(node.width) || halfWidth * 2,
+        height: Number(node.height) || halfHeight * 2
+      }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "cylinder") {
     localPoint = geometricCylinderBorderPoint(
       geometricCylinderGeometry({ width: halfWidth * 2, height: halfHeight * 2 }, node.shapeData || {}),
@@ -11572,6 +11586,7 @@ function nodeShape(options = {}) {
   if (options.ellipse) return "ellipse";
   if (options.diamond) return "diamond";
   if (options["rounded rectangle"]) return "roundedRectangle";
+  if (options["chamfered rectangle"]) return "chamferedRectangle";
   if (options.superellipse) return "superellipse";
   if (options["regular polygon"]) return "regularPolygon";
   if (options.star) return "star";
@@ -11612,6 +11627,7 @@ function explicitNodeShape(shape) {
     diamond: "diamond",
     "rounded rectangle": "roundedRectangle",
     "rectangle with rounded corners": "roundedRectangle",
+    "chamfered rectangle": "chamferedRectangle",
     superellipse: "superellipse",
     "regular polygon": "regularPolygon",
     star: "star",
@@ -11751,6 +11767,20 @@ function circularSectorLayoutSize(contentWidth, contentHeight, options = {}, env
     sectorAngle: numberOption(options["circular sector angle"], 60),
     shapeBorderRotate: numberOption(options["shape border rotate"], 0),
     shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
+function chamferedRectangleLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const sharedSep = options["chamfered rectangle sep"];
+  return miscChamferedRectangleLayoutSize(contentWidth, contentHeight, {
+    angle: numberOption(options["chamfered rectangle angle"], 45),
+    xsep: parseNodeLengthDimension(options["chamfered rectangle xsep"] ?? sharedSep ?? ".666ex", env),
+    ysep: parseNodeLengthDimension(options["chamfered rectangle ysep"] ?? sharedSep ?? ".666ex", env),
+    corners: options["chamfered rectangle corners"] ?? "chamfer all",
     minimumSize,
     minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
     minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
@@ -11901,6 +11931,26 @@ function circularSectorLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function chamferedRectangleLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "chamferedRectangleHalfContentWidth",
+    "chamferedRectangleHalfContentHeight",
+    "chamferedRectangleXSep",
+    "chamferedRectangleYSep",
+    "chamferedRectangleXCut",
+    "chamferedRectangleYCut",
+    "chamferedRectangleAngle"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (Array.isArray(layoutSize?.chamferedRectangleCorners)) {
+    data.chamferedRectangleCorners = [...layoutSize.chamferedRectangleCorners];
+  }
+  return data;
+}
+
 function dartLayoutShapeData(layoutSize = {}) {
   const data = {};
   for (const key of [
@@ -11943,12 +11993,14 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const kiteOuterSep = nodeOuterSep(options, env);
   const semicircleOuterSep = nodeOuterSep(options, env);
   const circularSectorOuterSep = nodeOuterSep(options, env);
+  const chamferedRectangleOuterSep = nodeOuterSep(options, env);
   const dartOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const semicircleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const circularSectorScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const chamferedRectangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const dartScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteAngles = kiteVertexAngles(options);
   const tapeBend = options["tape bend"];
@@ -11990,6 +12042,10 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     circularSectorAngle: numberOption(options["circular sector angle"], 60),
     circularSectorOuterSep: Math.max(circularSectorOuterSep.x, circularSectorOuterSep.y) * circularSectorScale,
     ...circularSectorLayoutShapeData(layoutSize),
+    chamferedRectangleAngle: numberOption(options["chamfered rectangle angle"], 45),
+    chamferedRectangleOuterXSep: Math.max(0, chamferedRectangleOuterSep.x) * chamferedRectangleScale,
+    chamferedRectangleOuterYSep: Math.max(0, chamferedRectangleOuterSep.y) * chamferedRectangleScale,
+    ...chamferedRectangleLayoutShapeData(layoutSize),
     dartTipAngle: numberOption(options["dart tip angle"], 45),
     dartTailAngle: numberOption(options["dart tail angle"], 135),
     dartOuterSep: Math.max(dartOuterSep.x, dartOuterSep.y) * dartScale,
@@ -12889,7 +12945,13 @@ function scaleSize(size, scale = 1) {
     "circularSectorRadius",
     "circularSectorCenterOffset",
     "circularSectorCenterX",
-    "circularSectorCenterY"
+    "circularSectorCenterY",
+    "chamferedRectangleHalfContentWidth",
+    "chamferedRectangleHalfContentHeight",
+    "chamferedRectangleXSep",
+    "chamferedRectangleYSep",
+    "chamferedRectangleXCut",
+    "chamferedRectangleYCut"
   ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
   }
@@ -12916,6 +12978,12 @@ function scaleSize(size, scale = 1) {
   }
   if (size?.circularSectorShapeBorderUsesIncircle !== undefined) {
     scaled.circularSectorShapeBorderUsesIncircle = Boolean(size.circularSectorShapeBorderUsesIncircle);
+  }
+  if (Number.isFinite(Number(size?.chamferedRectangleAngle))) {
+    scaled.chamferedRectangleAngle = Number(size.chamferedRectangleAngle);
+  }
+  if (Array.isArray(size?.chamferedRectangleCorners)) {
+    scaled.chamferedRectangleCorners = [...size.chamferedRectangleCorners];
   }
   return scaled;
 }
@@ -13299,6 +13367,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "circularSector") {
     const geometry = geometricCircularSectorGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "chamferedRectangle") {
+    const geometry = miscChamferedRectangleGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -13855,6 +13934,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     let emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     if (arrowNodeShape(emptyNodeShape)) return scaleSize(arrowNodeLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
     if (emptyNodeShape === "trapezium") return scaleSize(trapeziumLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+    if (emptyNodeShape === "chamferedRectangle") {
+      return scaleSize(chamferedRectangleLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+    }
     if (options["minimum width"]) emptyWidth = Math.max(emptyWidth, parseNodeLengthDimension(options["minimum width"], env));
     if (options["minimum height"]) emptyHeight = Math.max(emptyHeight, parseNodeLengthDimension(options["minimum height"], env));
     if (options["minimum size"]) {
@@ -13894,6 +13976,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "circularSector") {
     return scaleSize(circularSectorLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "chamferedRectangle") {
+    return scaleSize(chamferedRectangleLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "kite") {
     return scaleSize(kiteLayoutSize(width, height, options, env), shapeScale);
@@ -18683,7 +18768,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "kite" && node.shape !== "dart") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "chamferedRectangle" && node.shape !== "kite" && node.shape !== "dart") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -18801,6 +18886,26 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     if (Number.isFinite(numericAngle)) {
       const radians = numericAngle * Math.PI / 180;
       return geometricCircularSectorBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "chamferedRectangle") {
+    const geometry = miscChamferedRectangleGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      chamferedRectangleBaseOffset: Number(size.baseOffset) || 0,
+      chamferedRectangleMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return miscChamferedRectangleBorderPoint(geometry, {
+        x: Math.cos(radians),
+        y: Math.sin(radians)
+      });
     }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
@@ -19399,6 +19504,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "circularSector") {
       const bounds = geometricCircularSectorGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "chamferedRectangle") {
+      const bounds = miscChamferedRectangleGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

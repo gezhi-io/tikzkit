@@ -11,6 +11,7 @@ import {
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
+import { chamferedRectangleGeometry } from "../../tikz/libraries/shapes.misc.js";
 import { cloudGeometry, magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export const LIBRARY_NODE_SHAPES = [
@@ -19,6 +20,7 @@ export const LIBRARY_NODE_SHAPES = [
   "trapezium",
   "cylinder",
   "circularSector",
+  "chamferedRectangle",
   "dart",
   "kite",
   "semicircle",
@@ -113,6 +115,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "circularSector") {
     return translateCommands(circularSectorGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "chamferedRectangle") {
+    return translateCommands(chamferedRectangleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "kite") {
     return translateCommands(kiteGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);

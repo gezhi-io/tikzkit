@@ -6930,6 +6930,51 @@
         "named circular-sector anchors",
         "relative polar vectors and local arrow dimensions"
       ]
+    },
+    {
+      "id": "shapes-chamfered-rectangle-flowchart",
+      "title": "Chamfered rectangle validation flowchart",
+      "source": "shapes/chamfered-rectangle-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.misc.js:chamferedRectangleLayoutSize/chamferedRectangleGeometry/chamferedRectangleBorderPoint",
+      "features": [
+        "flowchart",
+        "chamfer angle and shared separation",
+        "selective and disabled chamfer corners",
+        "positioning with outer separation",
+        "named anchors and automatic edge clipping"
+      ]
+    },
+    {
+      "id": "shapes-chamfered-rectangle-math",
+      "title": "Chamfered rectangle anchor geometry",
+      "source": "shapes/chamfered-rectangle-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.misc.js:chamferedRectangleLayoutSize/chamferedRectangleGeometry/chamferedRectangleBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "independent x and y chamfer separation",
+        "before at and after corner anchors",
+        "minimum dimensions and outer separation",
+        "calc offsets and math text"
+      ]
+    },
+    {
+      "id": "shapes-chamfered-rectangle-physics",
+      "title": "Rotated chamfered rigid body",
+      "source": "shapes/chamfered-rectangle-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.misc.js:chamferedRectangleLayoutSize/chamferedRectangleGeometry/chamferedRectangleBorderPoint",
+      "features": [
+        "physics diagram",
+        "rotated selective chamfer shape",
+        "named anchors under node rotation",
+        "force-vector arrows",
+        "one-centimeter construction grid"
+      ]
     }
   ]
 }

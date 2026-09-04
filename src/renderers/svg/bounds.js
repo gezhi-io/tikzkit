@@ -12,6 +12,7 @@ import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
 import { circularSectorGeometry, cylinderGeometry, dartGeometry, kiteGeometry, semicircleGeometry } from "../../tikz/libraries/shapes.geometric.js";
+import { chamferedRectangleGeometry } from "../../tikz/libraries/shapes.misc.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 import { curvedArrowPaint } from "./arrowBending.js";
 
@@ -37,6 +38,8 @@ export function computeSvgBounds(items, options = {}) {
           ? semicircleGeometry(item, item.shapeData || {}).bounds
           : item.shape === "circularSector"
             ? circularSectorGeometry(item, item.shapeData || {}).bounds
+          : item.shape === "chamferedRectangle"
+            ? chamferedRectangleGeometry(item, item.shapeData || {}).bounds
           : item.shape === "kite"
             ? kiteGeometry(item, item.shapeData || {}).bounds
           : item.shape === "dart"

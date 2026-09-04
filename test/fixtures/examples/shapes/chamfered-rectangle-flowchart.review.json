@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta, positioning, and shapes.misc before resolving picture styles." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "--", "|-"], "findings": "Core TikZ resolves styles, named anchors, orthogonal paths, and automatic node-border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "Arrow tips are placed after routes have been clipped to the chamfered anchor border." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of", "node distance"], "findings": "Positioning uses the resolved outer-separation anchor bounds." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex": { "symbols": ["chamfered rectangle", "chamfered rectangle angle", "chamfered rectangle sep", "chamfered rectangle corners"], "findings": "PGF builds a twelve-point paint path, clamps x/y chamfers against the text box, and uses a separate mitered anchor contour." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["chamfer all", "chamfer none", "before north east", "after south west"], "findings": "The manual defines selective corners, angle-from-vertical semantics, and the complete named-anchor catalog." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-misc-chamfered-rectangle.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-misc-chamfered-rectangle.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-misc-chamfered-rectangle.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-misc-chamfered-rectangle.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-misc-chamfered-rectangle.test.js"] }
+  ]
+}
