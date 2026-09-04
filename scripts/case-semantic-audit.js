@@ -19,6 +19,7 @@ const COMMAND_OWNERS = {
   addplot: owner("src/pgfplots/addplotParser.js", "partial", "pgfplots.code.tex"),
   addplot3: owner("src/pgfplots/addplotParser.js", "partial", "pgfplots.code.tex"),
   begin: owner("src/frontend/parser.js", "stable", "latex.ltx"),
+  bfseries: owner("src/tex/fontSpec.js", "partial", "latex.ltx"),
   bcbar: owner("src/packages/bchart.js", "partial"),
   calendar: owner("src/engine/evaluate.js:createCalendar/calendarLayout", "partial", "tikzlibrarycalendar.code.tex"),
   chainin: owner("src/tikz/commands/chainin.js", "partial", "tikzlibrarychains.code.tex"),

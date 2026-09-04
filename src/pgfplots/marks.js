@@ -2,7 +2,13 @@ import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
-import { basicPlotMarkGeometry, placePlotMarkGeometry, splitFillPlotMarkGeometry } from "../tikz/libraries/plotmarks.js";
+import {
+  basicPlotMarkGeometry,
+  placePlotMarkGeometry,
+  splitFillPlotMarkGeometry,
+  textPlotMarkModel,
+  textPlotMarkNodeOptions
+} from "../tikz/libraries/plotmarks.js";
 
 export function createPlotMarkModel(plotOptions = {}) {
   const raw = plotOptions.mark ?? (plotOptions["only marks"] ? "*" : "none");
@@ -42,6 +48,9 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
   const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", plotLineWidthOption(options)]);
   const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)]);
   const size = axisMarkRadius(options);
+  if (mark === "text") {
+    return renderTextPlotMark(point, options, stroke);
+  }
   if (mark === "x") {
     const diagonal = size / Math.SQRT2;
     return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -diagonal, -diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, diagonal))} ${formatAxisPoint(offsetPoint(point, -diagonal, diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, -diagonal))};`;
@@ -68,6 +77,22 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
     return `\\draw[${style}] ${formatPlotMarkGeometry(basicGeometry, point, plotMarkRotation(options))};`;
   }
   return `\\draw[${mark === "o" ? strokedStyle : filledStyle}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+}
+
+function renderTextPlotMark(point, options, color) {
+  const model = textPlotMarkModel(options);
+  const nodeOptions = textPlotMarkNodeOptions(model);
+  if (!Object.hasOwn(nodeOptions, "text") && !Object.hasOwn(nodeOptions, "color")) {
+    nodeOptions.text = color;
+  }
+  const style = joinOptions(Object.entries(nodeOptions).map(formatTikzOption));
+  return `\\node[${style}] at ${formatAxisPoint(point)} {${model.text}};`;
+}
+
+function formatTikzOption([key, value]) {
+  if (value === false || value === undefined || value === null) return "";
+  if (value === true || value === "") return key;
+  return `${key}=${value}`;
 }
 
 export function datavisualizationIsMercedesMark(mark) {

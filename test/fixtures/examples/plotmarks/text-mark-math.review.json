@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-scopes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The browser shell removes document wrappers before the PGFPlots axis is lowered." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": { "symbols": ["\\large"], "findings": "The 10pt document profile defines large as a 12pt font with a 14pt baseline skip." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The LaTeX package loads the generic PGFPlots implementation and its TikZ dependencies." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\usetikzlibrary", "tikzpicture"], "findings": "The fixture uses the standard TikZ picture and library loader around the PGFPlots axis." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ library delegates plot-mark declarations to the generic PGF library." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["\\addplot", "mark"], "findings": "PGFPlots maps data coordinates into axis canvas coordinates before invoking the selected PGF plot mark." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["\\pgfdeclareplotmark{text}", "\\pgftext", "\\node"], "findings": "Both text-mark modes are selected at mark execution time and share the plot's current color." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["mark=text", "text mark style", "text mark as node"], "findings": "Text marks accept arbitrary TeX; the fast mode exposes pgftext placement while node mode exposes full node styling." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-scopes.tex": { "symbols": ["top", "base", "rotate"], "findings": "The default text-box anchor and rotation are relative to the already-mapped plot coordinate." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["src/pgfplots/marks.js", "test/pgfplots-csv-overlay.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-csv-overlay.test.js"] }
+  ]
+}

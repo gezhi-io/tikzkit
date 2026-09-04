@@ -4627,6 +4627,35 @@ test("uses PGF's cubic fillstroke geometry for direct heart plot marks", () => {
   assert.ok(Math.abs(marks[1].commands[0].y) < 1e-6);
 });
 
+test("renders direct PGF text plot marks through text and node modes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \draw[blue]
+    plot[mark=text,text mark={{\large$\alpha$}},text mark style={top}]
+      coordinates{(1,2)};
+  \draw[orange]
+    plot[mark=text,text mark={A},text mark as node=true,
+      text mark style={draw,fill=orange!20,rounded corners=1pt,inner sep=2pt,font=\small,rotate=10}]
+      coordinates{(3,4)};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const textMarks = ir.items.filter((item) => item.type === "textNode");
+  const nodeMarks = ir.items.filter((item) => item.type === "nodeBox");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(ir.items.filter((item) => item.shape === "plot-mark").length, 0);
+  assert.equal(textMarks.length, 2);
+  assert.equal(textMarks[0].text, String.raw`{\large$\alpha$}`);
+  assert.equal(textMarks[0].style.fill, "blue");
+  assert.ok(textMarks[0].y < 2, "top pgftext places its top border on the mark coordinate");
+  assert.equal(textMarks[1].text, "A");
+  assert.equal(textMarks[1].rotation, 10);
+  assert.equal(nodeMarks.length, 1);
+  assert.equal(nodeMarks[0].style.stroke, "rgb(255 128 0)");
+  assert.equal(nodeMarks[0].style.fill, "rgb(255 230 204)");
+});
+
 test("substitutes foreach variables used as node option keys", () => {
   const source = String.raw`
 \begin{tikzpicture}

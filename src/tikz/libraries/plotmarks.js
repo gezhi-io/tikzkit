@@ -1,7 +1,9 @@
+import { parseOptions, stripOuterBraces } from "../../engine/options.js";
+
 export const tikzLibrary = {
   "name": "plotmarks",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/plotmarks.js:basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:buildPlotMark",
+  "implementedBy": "src/tikz/libraries/plotmarks.js:textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark",
   "features": [
     "mark=x",
     "mark=+",
@@ -15,6 +17,7 @@ export const tikzLibrary = {
     "mark=halfcircle / halfcircle*",
     "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
     "mark=heart",
+    "mark=text / text mark / text mark style / text mark as node",
     "mark color / mark options={rotate=...}"
   ],
   "implements": [
@@ -30,12 +33,57 @@ export const tikzLibrary = {
     "mark=halfcircle / halfcircle*",
     "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
     "mark=heart",
+    "mark=text / text mark / text mark style / text mark as node",
     "mark color / mark options={rotate=...}"
   ],
-  "notes": "Reviewed locally on 2026-09-05 against pgflibraryplotmarks.code.tex and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, halfsquare left*, and heart paths. The heart preserves all eight source cubic segments, its 1.75-mark-size tip, independent fill/stroke paint, size, and whole-mark rotation in direct TikZ and PGFPlots. The split marks share current-fill/mark-color, mark color=none suppression, outline, size, and rotation semantics. `mark=halfcircle` and `mark=halfcircle*` retain their source-defined semicircle behavior. Text marks, custom declarations, and general mark-option transforms remain partial."
+  "notes": "Reviewed locally on 2026-09-05 against pgflibraryplotmarks.code.tex, pgfmanual-en-library-plot-marks.tex, and pgfmanual-en-base-scopes.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, halfsquare left*, and heart paths. Text marks now preserve arbitrary TeX content and current color in direct TikZ and PGFPlots. The default pgftext mode implements left/right/top/bottom/base anchors and rotate; text mark as node=true delegates draw, fill, shape, rounded corners, inner sep, font, scale, rotate, and anchor to the normal node pipeline. The heart preserves all eight source cubic segments, its 1.75-mark-size tip, independent fill/stroke paint, size, and whole-mark rotation. The split marks share current-fill/mark-color, mark color=none suppression, outline, size, and rotation semantics. Custom plot-mark declarations and general non-text affine mark-option transforms remain partial."
 };
 
 const CIRCLE_KAPPA = 0.5522847498307936;
+
+export function textPlotMarkModel(options = {}) {
+  const rawText = options["text mark"] ?? "p";
+  const rawStyle = options["text mark style"] ?? options["text mark/style"];
+  const style = rawStyle === undefined || rawStyle === null || rawStyle === true
+    ? {}
+    : parseOptions(stripOuterBraces(String(rawStyle)));
+  const asNode = tikzBoolean(options["text mark as node"] ?? options["text mark/as node"]);
+  return {
+    text: rawText === true ? "p" : String(rawText),
+    asNode,
+    style,
+    anchor: asNode ? String(style.anchor || "center") : pgfTextAnchor(style)
+  };
+}
+
+export function textPlotMarkNodeOptions(model) {
+  if (model.asNode) return { ...model.style };
+  const options = {
+    "inner sep": "0pt",
+    "outer sep": "0pt"
+  };
+  if (model.anchor && model.anchor !== "center") options.anchor = model.anchor;
+  if (model.style.rotate !== undefined && model.style.rotate !== true) options.rotate = model.style.rotate;
+  return options;
+}
+
+function pgfTextAnchor(style = {}) {
+  const horizontal = lastPresentKey(style, ["left", "right"]);
+  const vertical = lastPresentKey(style, ["top", "bottom", "base"]);
+  const horizontalAnchor = horizontal === "left" ? "west" : horizontal === "right" ? "east" : "";
+  const verticalAnchor = vertical === "top" ? "north" : vertical === "bottom" ? "south" : vertical === "base" ? "base" : "";
+  return [verticalAnchor, horizontalAnchor].filter(Boolean).join(" ") || "center";
+}
+
+function lastPresentKey(options, candidates) {
+  return Object.keys(options).filter((key) => candidates.includes(key)).at(-1) || "";
+}
+
+function tikzBoolean(value) {
+  if (value === undefined || value === null || value === false) return false;
+  if (value === true || value === "") return true;
+  return !/^(?:false|0|no|off)$/i.test(String(value).trim());
+}
 
 function polarPoint(angle, radius) {
   const radians = angle * Math.PI / 180;

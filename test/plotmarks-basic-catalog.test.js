@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { interpretTikz, parseTikz } from "../src/index.js";
 import { renderPlotMark } from "../src/pgfplots/marks.js";
+import { textPlotMarkModel } from "../src/tikz/libraries/plotmarks.js";
 
 const FIXTURE = new URL("./fixtures/examples/plotmarks/basic-catalog.tex", import.meta.url);
 
@@ -41,4 +42,26 @@ test("lowers the same basic plotmark geometry inside PGFPlots axes", () => {
   assert.match(diamond, /cycle/);
   assert.equal((pentagon.match(/ -- /g) || []).length, 5);
   assert.match(pentagon, /fill=teal/);
+});
+
+test("normalizes PGF text mark content, mode, and pgftext anchors", () => {
+  assert.deepEqual(textPlotMarkModel({
+    "text mark": String.raw`{\bfseries R}`,
+    "text mark style": "{base,left,rotate=-20}"
+  }), {
+    text: String.raw`{\bfseries R}`,
+    asNode: false,
+    style: { base: true, left: true, rotate: "-20" },
+    anchor: "base west"
+  });
+  assert.deepEqual(textPlotMarkModel({
+    "text mark": "A",
+    "text mark as node": "true",
+    "text mark style": "{draw,anchor=west}"
+  }), {
+    text: "A",
+    asNode: true,
+    style: { draw: true, anchor: "west" },
+    anchor: "west"
+  });
 });

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-scopes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The standalone document shell is removed before scene evaluation and contributes no mark geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": { "symbols": ["\\small"], "findings": "The 10pt profile defines small as a 9pt font with an 11pt baseline skip." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The LaTeX package loads the generic TikZ frontend used by the browser parser." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "\\usetikzlibrary"], "findings": "The force vectors use ordinary TikZ paths and inline node lowering before each text mark is placed." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ wrapper loads the generic text plot-mark declaration without changing its options." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex", "Stealth"], "findings": "Arrow-tip geometry is resolved separately from the text mark placed at each force endpoint." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex": { "symbols": ["/pgf/text mark", "/pgf/text mark style", "/pgf/text mark as node"], "findings": "The mark content can be a formula, and node mode passes shape and paint options to an ordinary node." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-marks.tex": { "symbols": ["text mark as node"], "findings": "Node mode is the documented path for draw, fill, rounded corners, fonts, and arbitrary anchors." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-scopes.tex": { "symbols": ["right", "bottom", "rotate"], "findings": "Combining right and bottom aligns the south-east text-box corner to the force endpoint before rotation." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["src/tikz/libraries/plotmarks.js", "test/interpreter.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js"] }
+  ]
+}

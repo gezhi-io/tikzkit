@@ -1,0 +1,30 @@
+% PGF text plot marks used as workflow review badges.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,plotmarks,positioning}
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=2.8cm,
+  stage/.style={draw,rounded corners=2pt,minimum width=2.1cm,minimum height=8mm},
+  flow/.style={-Stealth,thick}
+]
+  \node[stage] (draft) {Draft};
+  \node[stage,right=of draft] (review) {Review};
+  \node[stage,right=of review] (approve) {Approve};
+  \node[stage,right=of approve] (release) {Release};
+  \draw[flow] (draft) -- (review);
+  \draw[flow] (review) -- (approve);
+  \draw[flow] (approve) -- (release);
+  \draw[blue!70!black]
+    plot[mark=text,text mark={{\bfseries\small R}}]
+    coordinates {(1.4,0)};
+  \draw[orange!85!black]
+    plot[mark=text,text mark={A},text mark as node=true,
+      text mark style={draw,fill=orange!20,rounded corners=1pt,inner sep=2pt,font=\bfseries\small,rotate=10}]
+    coordinates {(4.2,0)};
+  \draw[green!45!black]
+    plot[mark=text,text mark={{\bfseries\small D}},text mark style={base,left}]
+    coordinates {(7,0)};
+\end{tikzpicture}
+\end{document}

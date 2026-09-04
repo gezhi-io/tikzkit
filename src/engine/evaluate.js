@@ -2,7 +2,13 @@ import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, path
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
-import { basicPlotMarkGeometry, plotMarkGeometryCommands, splitFillPlotMarkGeometry } from "../tikz/libraries/plotmarks.js";
+import {
+  basicPlotMarkGeometry,
+  plotMarkGeometryCommands,
+  splitFillPlotMarkGeometry,
+  textPlotMarkModel,
+  textPlotMarkNodeOptions
+} from "../tikz/libraries/plotmarks.js";
 import {
   circularSectorBorderPoint as geometricCircularSectorBorderPoint,
   circularSectorGeometry as geometricCircularSectorGeometry,
@@ -1642,7 +1648,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         ? resolveRelativeCoordinate(segment.raw, relativeOrigin, env, diagnostics)
         : resolveCoordinate(segment.raw, env, diagnostics));
       if (pendingPlotMark) {
-        shapes.push(...plotMarkItems(point, pendingPlotMark, pathStyle, effectivePathOptions, env));
+        addPlotMarkItems(point, pendingPlotMark, pathStyle, effectivePathOptions, env, shapes, nodes);
         pendingPlotMark = null;
       }
       const localPoint = segment.relative || !shouldResolveAsLocalRectangleCorner(segment.raw)
@@ -2168,7 +2174,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const mark = segment.options?.mark ?? pathOptions.mark;
       if (mark && String(mark).trim().toLowerCase() !== "none") {
         const markOptions = { ...pathOptions, ...(segment.options || {}) };
-        shapes.push(...plot.points.flatMap((point) => plotMarkItems(point, mark, pathStyle, markOptions, env)));
+        for (const point of plot.points) {
+          addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, nodes);
+        }
       }
       if (!pathOptions["only marks"] && !segment.options?.["only marks"]) {
         for (const command of plot.commands) commands.push(command);
@@ -17593,6 +17601,23 @@ function sineCosineCurveCommand(from, to, op) {
     x: roundNumber(to.x),
     y: roundNumber(to.y)
   };
+}
+
+function addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, nodes) {
+  const kind = stripOuterBraces(String(mark || "*")).trim().toLowerCase();
+  if (kind === "text") {
+    const model = textPlotMarkModel(markOptions);
+    addInlinePathNode(
+      { options: textPlotMarkNodeOptions(model) },
+      model.text,
+      point,
+      nodes,
+      env,
+      pathStyle
+    );
+    return;
+  }
+  shapes.push(...plotMarkItems(point, mark, pathStyle, markOptions, env));
 }
 
 function plotMarkItems(point, mark, pathStyle = {}, markOptions = {}, env = {}) {

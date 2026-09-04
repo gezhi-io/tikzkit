@@ -5199,6 +5199,52 @@
       ]
     },
     {
+      "id": "plotmarks-text-mark-flowchart",
+      "title": "PGF text plot marks in a flowchart",
+      "source": "plotmarks/text-mark-flowchart.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:textPlotMarkModel",
+      "features": [
+        "plotmarks library",
+        "mark=text",
+        "text mark",
+        "text mark style",
+        "text mark as node",
+        "workflow review badges"
+      ]
+    },
+    {
+      "id": "plotmarks-text-mark-math",
+      "title": "PGF text plot marks in a mathematical axis",
+      "source": "plotmarks/text-mark-math.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:textPlotMarkModel",
+      "features": [
+        "PGFPlots only marks",
+        "mark=text",
+        "math text mark",
+        "pgftext anchors and rotation",
+        "text mark as node"
+      ]
+    },
+    {
+      "id": "plotmarks-text-mark-physics",
+      "title": "PGF text plot marks on force vectors",
+      "source": "plotmarks/text-mark-physics.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:textPlotMarkModel",
+      "features": [
+        "force vector annotations",
+        "mark=text",
+        "math text mark",
+        "pgftext anchors and rotation",
+        "text mark as node"
+      ]
+    },
+    {
       "id": "tkz-fct-combined-axes-trig",
       "title": "tkz-base combined trigonometric Cartesian axes",
       "source": "tkz-fct/combined-axes-trig.tex",

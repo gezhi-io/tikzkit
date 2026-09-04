@@ -97,6 +97,35 @@ test("heart plot marks use PGF's eight-cubic fillstroke geometry", () => {
   assert.match(rotated, /\(1\.123,2\)/);
 });
 
+test("text plot marks lower to pgftext-compatible and full node forms", () => {
+  const pgftext = renderPlotMark(
+    { x: 1, y: 2 },
+    { blue: true, mark: "text", "text mark": String.raw`{\large$\alpha$}`, "text mark style": "{base,left,rotate=25}" }
+  );
+  const node = renderPlotMark(
+    { x: 3, y: 4 },
+    {
+      orange: true,
+      mark: "text",
+      "text mark": "A",
+      "text mark as node": "true",
+      "text mark style": "{draw,fill=orange!20,rounded corners=1pt,inner sep=2pt,font=\\small}"
+    }
+  );
+
+  assert.match(pgftext, /^\\node\[/);
+  assert.match(pgftext, /inner sep=0pt/);
+  assert.match(pgftext, /anchor=base west/);
+  assert.match(pgftext, /rotate=25/);
+  assert.match(pgftext, /text=blue/);
+  assert.match(pgftext, /at \(1,2\) \{\{\\large\$\\alpha\$\}\};$/);
+  assert.match(node, /draw, fill=orange!20/);
+  assert.match(node, /rounded corners=1pt/);
+  assert.match(node, /font=\\small/);
+  assert.match(node, /text=orange/);
+  assert.doesNotMatch(node, /inner sep=0pt/);
+});
+
 test("triangle plot marks use PGF's polar triangle geometry", () => {
   const filled = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle*", "mark size": "2pt" });
   const outline = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle", "mark size": "2pt" });
