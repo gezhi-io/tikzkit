@@ -51,7 +51,7 @@ const COMMAND_OWNERS = {
   nodepart: owner("src/tikz/libraries/shapes.multipart.js", "partial", "tikzlibraryshapes.multipart.code.tex"),
   path: owner("src/tikz/commands/path.js", "partial", "tikz.code.tex"),
   pgfmathparse: owner("src/engine/math.js", "partial"),
-  pgfmathprintnumber: owner("src/pgfplots/ticks.js:renderTickLabelTemplate", "partial", "pgfmathfloat.code.tex"),
+  pgfmathprintnumber: owner("src/pgf/numberFormat.js:formatPgfScientificNumber + src/pgfplots/ticks.js:renderTickLabelTemplate", "partial", "pgfmathfloat.code.tex"),
   pgfmathsetmacro: owner("src/frontend/latex-shell.js", "partial"),
   pgfmathtruncatemacro: owner("src/frontend/latex-shell.js", "partial"),
   pgfdeclarepatternformonly: owner("src/frontend/parser.js:parsePgfDeclarePatternFormOnly + src/engine/evaluate.js:pgfFormOnlyPatternDefinition", "partial", "pgfcorepatterns.code.tex"),

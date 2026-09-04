@@ -7612,6 +7612,51 @@
         "unit-bearing tick labels",
         "sensor trace"
       ]
+    },
+    {
+      "id": "pgfplots-scientific-number-algorithm",
+      "title": "Search profile with scientific tick templates",
+      "source": "pgfplots/scientific-number-templates/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGF scientific-number semantics",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/pgf/numberFormat.js:formatPgfScientificNumber",
+      "features": [
+        "scientific tick templates",
+        "sci e presentation",
+        "sci 10^e presentation",
+        "scientific zero fill",
+        "algorithm search profile"
+      ]
+    },
+    {
+      "id": "pgfplots-scientific-number-math",
+      "title": "Product surface with scientific 3D ticks",
+      "source": "pgfplots/scientific-number-templates/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGF scientific-number semantics",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/pgf/numberFormat.js:formatPgfScientificNumber",
+      "features": [
+        "3D scientific tick templates",
+        "sci precision",
+        "scientific zero fill",
+        "decimal comma mantissa",
+        "product surface"
+      ]
+    },
+    {
+      "id": "pgfplots-scientific-number-physics",
+      "title": "Detector response with engineering tick notation",
+      "source": "pgfplots/scientific-number-templates/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGF scientific-number semantics",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/pgf/numberFormat.js:formatPgfScientificNumber",
+      "features": [
+        "sci e presentation",
+        "sci E presentation",
+        "sci precision override",
+        "unit-bearing scientific ticks",
+        "detector response"
+      ]
     }
   ]
 }

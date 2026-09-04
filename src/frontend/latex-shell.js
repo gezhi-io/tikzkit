@@ -39,6 +39,7 @@ import {
 } from "../pgfplots/geometry.js";
 import { estimateLegendEntryWidth, parseLegendEntries, splitLegendEntries, stripTexForLength } from "../pgfplots/legend.js";
 import { datavisualizationIsMercedesMark } from "../pgfplots/marks.js";
+import { formatPgfScientificNumber, pgfNumberFormatOptions, pgfScientificParts } from "../pgf/numberFormat.js";
 import { expandPgfplotsNamedOptions } from "../pgfplots/namedOptions.js";
 import { selectPlotColor } from "../pgfplots/plotStyle.js";
 import {
@@ -4068,8 +4069,7 @@ function pgfplotstableFormatScientific(value, options) {
     const operator = presentation === "subscript" ? "_" : "^";
     return `$${mantissa}${operator}{${exponent ?? 0}}$`;
   }
-  if (exponent === null || exponent === 0) return mantissa;
-  return `$${mantissa}\\cdot 10^{${exponent}}$`;
+  return `$${formatPgfScientificNumber(value, pgfNumberFormatOptions(options))}$`;
 }
 
 function pgfplotstableScientificPresentation(options) {
@@ -4114,34 +4114,7 @@ function pgfplotstableScientificAlignedCell(value, options) {
 }
 
 function pgfplotstableScientificParts(value, options) {
-  if (value === 0) {
-    return {
-      mantissa: pgfplotstableFormatFixed(0, {
-        ...options,
-        precision: options["sci precision"] ?? options.precision,
-        "fixed zerofill": options["sci zerofill"]
-      }),
-      exponent: null,
-      mantissaValue: 0
-    };
-  }
-  const precision = pgfplotstableNumberPrecision(options["sci precision"] ?? options.precision, 2);
-  let exponent = Math.floor(Math.log10(Math.abs(value)));
-  let mantissa = value / (10 ** exponent);
-  mantissa = Number(mantissa.toFixed(precision));
-  if (Math.abs(mantissa) >= 10) {
-    mantissa /= 10;
-    exponent += 1;
-  }
-  const zeroFill = pgfplotstableOptionEnabled(options["sci zerofill"]);
-  const mantissaText = zeroFill
-    ? mantissa.toFixed(precision)
-    : String(mantissa);
-  return {
-    mantissa: pgfplotstableFormatGroupedNumber(mantissaText, options),
-    exponent,
-    mantissaValue: mantissa
-  };
+  return pgfScientificParts(value, pgfNumberFormatOptions(options));
 }
 
 function pgfplotstableFormatGroupedNumber(raw, options) {

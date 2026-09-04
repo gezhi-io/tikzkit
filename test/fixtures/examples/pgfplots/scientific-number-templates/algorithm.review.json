@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is removed before TikZ evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex": { "symbols": ["\\pgfmathprintnumber", "sci", "sci e", "sci 10^e", "sci zerofill", "precision"], "findings": "Scientific values round the mantissa, renormalize carry into the exponent, retain exponent zero, and render e notation with an explicit exponent sign." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes PGFPlots." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["axis", "\\addplot", "xticklabel", "yticklabel", "grid", "xlabel", "ylabel"], "findings": "Axis options own plot geometry, tick templates, labels, and grid style." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\tick"], "findings": "Tick templates receive inverse-transformed data coordinates." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] }
+  ]
+}

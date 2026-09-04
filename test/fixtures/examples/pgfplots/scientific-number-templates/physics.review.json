@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is removed before TikZ evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex": { "symbols": ["\\pgfmathprintnumber", "sci", "sci e", "sci E", "sci zerofill", "sci precision"], "findings": "Lowercase and uppercase engineering presentations retain the rounded mantissa and print an explicit signed base-ten exponent." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes PGFPlots." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["axis", "\\addplot", "coordinates", "mark", "xticklabel", "yticklabel", "grid", "xlabel", "ylabel"], "findings": "The axis retains scientific templates and physical unit suffixes until tick-label evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\tick"], "findings": "Physical tick values are formatted in data space before text placement." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] }
+  ]
+}

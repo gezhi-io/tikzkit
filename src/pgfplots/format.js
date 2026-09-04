@@ -1,3 +1,5 @@
+import { formatPgfScientificNumber } from "../pgf/numberFormat.js";
+
 export function roundAxis(value) {
   return Math.round((Number(value) + Number.EPSILON) * 1000) / 1000;
 }
@@ -19,6 +21,7 @@ export function formatAxisPoint(point) {
 }
 
 export function formatAxisTickLabel(value, options = {}) {
+  if (options.scientific) return formatPgfScientificNumber(value, options);
   const label = formatAxisNumberForTick(value, options);
   const negative = label.startsWith("-");
   const unsigned = negative ? label.slice(1) : label;

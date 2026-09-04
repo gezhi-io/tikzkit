@@ -8,6 +8,7 @@ import { axisHasExplicitDescriptionPlacement, isMiddleAxis } from "./geometry.js
 import { pgfplotsAxisHidden } from "./axisOptions.js";
 import { isLogAxis } from "./ranges.js";
 import { axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
+import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
 
 const PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE = 1.0001;
 // Computer Modern's optical 7pt design has wider digits than a linearly
@@ -1127,56 +1128,6 @@ function intervalAxisTickLabels(ticks, formatOptions = {}) {
 
 export function axisTickNumberFormat(axisOptions = {}, axis) {
   return pgfNumberFormatOptions(axisTickLabelStyleOptions(axisOptions, axis));
-}
-
-function pgfNumberFormatOptions(parsed = {}, inherited = {}) {
-  const result = { ...inherited };
-  assignNumberFormatBoolean(result, "fixed", parsed, "fixed");
-  assignNumberFormatBoolean(result, "fixedZeroFill", parsed, "fixed zerofill");
-
-  const precision = pgfNumberFormatValue(parsed, "precision");
-  if (precision !== undefined) result.precision = Number(precision);
-
-  const useComma = pgfNumberFormatValue(parsed, "use comma");
-  if (useComma !== undefined && pgfNumberFormatBoolean(useComma)) {
-    result.decimalSeparator = ",";
-    result.thousandSeparator = ".";
-  }
-
-  const thousandSeparator = pgfNumberFormatValue(parsed, "1000 sep")
-    ?? pgfNumberFormatValue(parsed, "set thousands separator");
-  if (thousandSeparator !== undefined) {
-    result.thousandSeparator = pgfNumberFormatText(thousandSeparator);
-  }
-
-  const decimalSeparator = pgfNumberFormatValue(parsed, "set decimal separator")
-    ?? pgfNumberFormatValue(parsed, "dec sep");
-  if (decimalSeparator !== undefined) {
-    result.decimalSeparator = pgfNumberFormatText(decimalSeparator);
-  }
-  return result;
-}
-
-function assignNumberFormatBoolean(target, property, parsed, key) {
-  const value = pgfNumberFormatValue(parsed, key);
-  if (value !== undefined) target[property] = pgfNumberFormatBoolean(value);
-}
-
-function pgfNumberFormatValue(parsed, key) {
-  for (const candidate of [key, `number format/${key}`, `/pgf/number format/${key}`]) {
-    if (Object.prototype.hasOwnProperty.call(parsed, candidate)) return parsed[candidate];
-  }
-  return undefined;
-}
-
-function pgfNumberFormatBoolean(value) {
-  if (value === false || value === 0) return false;
-  return !/^(?:false|0|off|no)$/i.test(String(value).trim());
-}
-
-function pgfNumberFormatText(value) {
-  if (value === true || value === false || value === null || value === undefined) return "";
-  return stripBalancedOuterBracesForList(String(value).trim());
 }
 
 function isEmptyTickLabelList(raw) {

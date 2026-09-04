@@ -203,7 +203,7 @@ test("semantic audit maps PGFPlots tick-label template commands", () => {
   `, { localSourceResolver: fakeResolver });
 
   const ownerFor = (name) => report.commands.find((entry) => entry.name === name)?.implementedBy;
-  assert.equal(ownerFor("\\pgfmathprintnumber"), "src/pgfplots/ticks.js:renderTickLabelTemplate");
+  assert.equal(ownerFor("\\pgfmathprintnumber"), "src/pgf/numberFormat.js:formatPgfScientificNumber + src/pgfplots/ticks.js:renderTickLabelTemplate");
   assert.equal(ownerFor("\\tick"), "src/pgfplots/ticks.js:renderTickLabelTemplate");
   assert.ok(!report.gate.blockers.some((entry) => /pgfmathprintnumber|tick/.test(entry)));
 });

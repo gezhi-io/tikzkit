@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is removed before TikZ evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": { "symbols": ["\\scriptsize"], "findings": "The 10pt class defines scriptsize as a 7pt font on an 8pt baseline; the shared tick-label font option applies that role before text measurement." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex": { "symbols": ["\\pgfmathprintnumber", "sci", "sci zerofill", "sci precision", "use comma"], "findings": "Scientific precision can override general precision, zero fill preserves mantissa places, and use comma changes the mantissa decimal token." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes PGFPlots." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["axis", "\\addplot3", "surf", "domain", "y domain", "samples", "view", "xtick", "ytick", "ztick", "xlabel", "ylabel", "zlabel"], "findings": "Three-dimensional axes evaluate independent x/y/z templates before projected text layout." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\tick"], "findings": "All three projected axes expose their original data-space tick value." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] }
+  ]
+}

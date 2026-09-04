@@ -1,7 +1,7 @@
 export const texPackage = {
   "name": "pgfplotstable",
   "status": "partial",
-  "implementedBy": "src/frontend/latex-shell.js:collectPgfplotstableReads/lowerPgfplotstableTypeset/pgfplotstableFormatScientific/pgfplotstableScientificAlignedCell; src/frontend/parser.js:extractTabularPictureLayouts; src/engine/evaluate.js:appendTabularPictureLayouts/tabularCellTextLayout",
+  "implementedBy": "src/frontend/latex-shell.js:collectPgfplotstableReads/lowerPgfplotstableTypeset/pgfplotstableFormatScientific/pgfplotstableScientificAlignedCell; src/pgf/numberFormat.js:pgfScientificParts/formatPgfScientificNumber; src/frontend/parser.js:extractTabularPictureLayouts; src/engine/evaluate.js:appendTabularPictureLayouts/tabularCellTextLayout",
   "features": [
     "\\pgfplotstableread macro data for addplot table",
     "\\pgfplotstabletypeset inline or read-table output with basic headers, rows, columns, and col sep",
