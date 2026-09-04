@@ -12,6 +12,7 @@ import {
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
 import { chamferedRectangleGeometry, roundedRectangleGeometry } from "../../tikz/libraries/shapes.misc.js";
+import { arrowBoxGeometry } from "../../tikz/libraries/shapes.arrows.js";
 import { cloudGeometry, magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
 export const LIBRARY_NODE_SHAPES = [
@@ -33,7 +34,8 @@ export const LIBRARY_NODE_SHAPES = [
   "starburst",
   "superellipse",
   "singleArrow",
-  "doubleArrow"
+  "doubleArrow",
+  "arrowBox"
 ];
 
 export function renderCircleCrossSplitNodeBox(item, unit) {
@@ -119,6 +121,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "roundedRectangle") {
     return translateCommands(roundedRectangleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "arrowBox") {
+    return translateCommands(arrowBoxGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "chamferedRectangle") {
     return translateCommands(chamferedRectangleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\fill"], "findings": "Core node and path commands expose named anchors as coordinates." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["calc"], "findings": "Calc-compatible anchor coordinates can participate in later path expressions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex": { "symbols": ["before arrow", "before arrow head", "arrow tip", "anchorborder"], "findings": "PGF derives the complete named-anchor family and numeric border anchors from arrow-box geometry." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["north arrow tip", "before east arrow head", "75"], "findings": "The manual documents directional vertex anchors and arbitrary numeric border anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty": { "symbols": ["\\dfrac"], "findings": "The reference formula uses display-style fractions supplied by amsmath." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] }
+  ]
+}

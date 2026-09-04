@@ -7020,6 +7020,51 @@
         "force-vector arrows",
         "one-centimeter construction grid"
       ]
+    },
+    {
+      "id": "arrow-box-flowchart",
+      "title": "Arrow box processing flowchart",
+      "source": "shapes/arrow-box-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.arrows.js:arrowBoxLayoutSize/arrowBoxGeometry/arrowBoxBorderPoint",
+      "features": [
+        "flowchart",
+        "east and west directional arrows",
+        "positioning with asymmetric anchor bounds",
+        "automatic edge clipping",
+        "shaft width and head extension"
+      ]
+    },
+    {
+      "id": "arrow-box-math",
+      "title": "Arrow box mapping anchors",
+      "source": "shapes/arrow-box-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.arrows.js:arrowBoxLayoutSize/arrowBoxGeometry/arrowBoxBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "four directional arrows",
+        "border-relative and center-relative lengths",
+        "directional vertex anchors and numeric border anchor",
+        "tip angle head extend and head indent"
+      ]
+    },
+    {
+      "id": "arrow-box-physics",
+      "title": "Rotated arrow box force body",
+      "source": "shapes/arrow-box-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.arrows.js:arrowBoxLayoutSize/arrowBoxGeometry/arrowBoxBorderPoint",
+      "features": [
+        "physics diagram",
+        "rotated asymmetric arrow box",
+        "named anchors under node rotation",
+        "automatic clipping and relative vectors",
+        "one-centimeter construction grid"
+      ]
     }
   ]
 }

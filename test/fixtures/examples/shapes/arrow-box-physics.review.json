@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["rotate", "++", "\\draw"], "findings": "Node rotation transforms both the shape and its named anchors before relative vectors are applied." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "External force vectors use the standard meta arrow-tip geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.arrows.code.tex": { "symbols": ["arrow box tip angle", "arrow box head extend", "arrow box shaft width"], "findings": "Tip angle determines the axial head inset through cotangent geometry, while shaft width and head extension determine transverse size." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["arrow box", "rotate"], "findings": "The documented anchor catalog remains local to the rotated shape." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-arrows-arrow-box.test.js"] }
+  ]
+}

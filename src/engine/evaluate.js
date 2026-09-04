@@ -34,6 +34,12 @@ import {
   roundedRectangleLayoutSize as miscRoundedRectangleLayoutSize
 } from "../tikz/libraries/shapes.misc.js";
 import {
+  arrowBoxArrowSpecsFromOptions,
+  arrowBoxBorderPoint as arrowBoxLibraryBorderPoint,
+  arrowBoxGeometry as arrowBoxLibraryGeometry,
+  arrowBoxLayoutSize as arrowBoxLibraryLayoutSize
+} from "../tikz/libraries/shapes.arrows.js";
+import {
   circleSolidusGeometry as multipartCircleSolidusGeometry,
   diamondSplitGeometry as multipartDiamondSplitGeometry,
   ellipseSplitGeometry as multipartEllipseSplitGeometry
@@ -11376,6 +11382,15 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "arrowBox") {
+    localPoint = arrowBoxLibraryBorderPoint(
+      arrowBoxLibraryGeometry({
+        width: Number(node.width) || halfWidth * 2,
+        height: Number(node.height) || halfHeight * 2
+      }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "chamferedRectangle") {
     localPoint = miscChamferedRectangleBorderPoint(
       miscChamferedRectangleGeometry({
@@ -11542,6 +11557,7 @@ function nodeShape(options = {}) {
   if (options["diamond split"]) return "diamondSplit";
   if (options["single arrow"]) return "singleArrow";
   if (options["double arrow"]) return "doubleArrow";
+  if (options["arrow box"]) return "arrowBox";
   if (options["cross out"]) return "crossOut";
   if (options["strike out"]) return "strikeOut";
   if (options.circle || options["knot crossing"]) return "circle";
@@ -11581,6 +11597,7 @@ function explicitNodeShape(shape) {
     "diamond split": "diamondSplit",
     "single arrow": "singleArrow",
     "double arrow": "doubleArrow",
+    "arrow box": "arrowBox",
     "cross out": "crossOut",
     "strike out": "strikeOut",
     circle: "circle",
@@ -11749,6 +11766,38 @@ function roundedRectangleLayoutSize(contentWidth, contentHeight, options = {}, e
     westArc: arcs.west,
     eastArc: arcs.east
   });
+}
+
+function arrowBoxLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const outerSep = nodeOuterSep(options, env);
+  const arrows = Object.fromEntries(
+    Object.entries(arrowBoxArrowSpecsFromOptions(options)).map(([direction, value]) => [
+      direction,
+      parseArrowBoxLength(value, env)
+    ])
+  );
+  return arrowBoxLibraryLayoutSize(contentWidth, contentHeight, {
+    minimumSize,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
+    outerXSep: outerSep.x,
+    outerYSep: outerSep.y,
+    shaftWidth: parseFiniteDimension(options["arrow box shaft width"] ?? ".125cm", env, parseDimension(".125cm")),
+    headExtend: parseFiniteDimension(options["arrow box head extend"] ?? ".125cm", env, parseDimension(".125cm")),
+    headIndent: parseFiniteDimension(options["arrow box head indent"] ?? "0cm", env, 0),
+    tipAngle: numberOption(options["arrow box tip angle"], 90),
+    arrows
+  });
+}
+
+function parseArrowBoxLength(value, env) {
+  const source = String(value ?? "").trim();
+  if (!source || /^none$/i.test(source)) return { length: 0, fromCenter: false };
+  const fromCenter = /\bfrom\s+center\b/i.test(source);
+  const dimension = source.replace(/\bfrom\s+(?:center|border)\b/gi, "").trim();
+  const length = parseFiniteDimension(dimension || "0pt", env, 0);
+  return { length: length > 0 ? length : 0, fromCenter };
 }
 
 function roundedRectangleArcModes(options = {}) {
@@ -11942,6 +11991,28 @@ function roundedRectangleLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function arrowBoxLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "arrowBoxBodyHalfWidth",
+    "arrowBoxBodyHalfHeight",
+    "arrowBoxNorthExtend",
+    "arrowBoxSouthExtend",
+    "arrowBoxEastExtend",
+    "arrowBoxWestExtend",
+    "arrowBoxShaftWidth",
+    "arrowBoxHeadExtend",
+    "arrowBoxHeadIndent",
+    "arrowBoxTipAngle",
+    "arrowBoxOuterXSep",
+    "arrowBoxOuterYSep"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  return data;
+}
+
 function chamferedRectangleLayoutShapeData(layoutSize = {}) {
   const data = {};
   for (const key of [
@@ -12061,6 +12132,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     roundedRectangleOuterXSep: Math.max(0, roundedRectangleOuterSep.x) * roundedRectangleScale,
     roundedRectangleOuterYSep: Math.max(0, roundedRectangleOuterSep.y) * roundedRectangleScale,
     ...roundedRectangleLayoutShapeData(layoutSize),
+    ...arrowBoxLayoutShapeData(layoutSize),
     chamferedRectangleAngle: numberOption(options["chamfered rectangle angle"], 45),
     chamferedRectangleOuterXSep: Math.max(0, chamferedRectangleOuterSep.x) * chamferedRectangleScale,
     chamferedRectangleOuterYSep: Math.max(0, chamferedRectangleOuterSep.y) * chamferedRectangleScale,
@@ -12963,7 +13035,18 @@ function scaleSize(size, scale = 1) {
     "chamferedRectangleXSep",
     "chamferedRectangleYSep",
     "chamferedRectangleXCut",
-    "chamferedRectangleYCut"
+    "chamferedRectangleYCut",
+    "arrowBoxBodyHalfWidth",
+    "arrowBoxBodyHalfHeight",
+    "arrowBoxNorthExtend",
+    "arrowBoxSouthExtend",
+    "arrowBoxEastExtend",
+    "arrowBoxWestExtend",
+    "arrowBoxShaftWidth",
+    "arrowBoxHeadExtend",
+    "arrowBoxHeadIndent",
+    "arrowBoxOuterXSep",
+    "arrowBoxOuterYSep"
   ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
   }
@@ -13002,6 +13085,9 @@ function scaleSize(size, scale = 1) {
   }
   if (Number.isFinite(Number(size?.chamferedRectangleAngle))) {
     scaled.chamferedRectangleAngle = Number(size.chamferedRectangleAngle);
+  }
+  if (Number.isFinite(Number(size?.arrowBoxTipAngle))) {
+    scaled.arrowBoxTipAngle = Number(size.arrowBoxTipAngle);
   }
   if (Array.isArray(size?.chamferedRectangleCorners)) {
     scaled.chamferedRectangleCorners = [...size.chamferedRectangleCorners];
@@ -13399,6 +13485,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "roundedRectangle") {
     const geometry = miscRoundedRectangleGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "arrowBox") {
+    const geometry = arrowBoxLibraryGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -13974,6 +14071,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     let emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     let emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     if (arrowNodeShape(emptyNodeShape)) return scaleSize(arrowNodeLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+    if (emptyNodeShape === "arrowBox") return scaleSize(arrowBoxLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
     if (emptyNodeShape === "trapezium") return scaleSize(trapeziumLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
     if (emptyNodeShape === "chamferedRectangle") {
       return scaleSize(chamferedRectangleLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
@@ -14000,6 +14098,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       : Math.max(0.22, textBox.width + innerXSep * 2));
   let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(0.35, textBox.height + innerYSep * 2));
   if (arrowNodeShape(shape)) return scaleSize(arrowNodeLayoutSize(width, height, options, env), shapeScale);
+  if (shape === "arrowBox") return scaleSize(arrowBoxLayoutSize(width, height, options, env), shapeScale);
   if (shape === "trapezium") {
     return scaleSize(trapeziumLayoutSize(width, height, options, env), shapeScale);
   }
@@ -18802,7 +18901,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "roundedRectangle" && node.shape !== "chamferedRectangle" && node.shape !== "kite" && node.shape !== "dart") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "roundedRectangle" && node.shape !== "arrowBox" && node.shape !== "chamferedRectangle" && node.shape !== "kite" && node.shape !== "dart") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -18937,6 +19036,26 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     if (Number.isFinite(numericAngle)) {
       const radians = numericAngle * Math.PI / 180;
       return miscRoundedRectangleBorderPoint(geometry, {
+        x: Math.cos(radians),
+        y: Math.sin(radians)
+      });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "arrowBox") {
+    const geometry = arrowBoxLibraryGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      arrowBoxBaseOffset: Number(size.baseOffset) || 0,
+      arrowBoxMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return arrowBoxLibraryBorderPoint(geometry, {
         x: Math.cos(radians),
         y: Math.sin(radians)
       });
@@ -19570,6 +19689,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "roundedRectangle") {
       const bounds = miscRoundedRectangleGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "arrowBox") {
+      const bounds = arrowBoxLibraryGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,
