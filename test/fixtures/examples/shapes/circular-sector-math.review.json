@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads calc and shapes.geometric before resolving named points." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill"], "findings": "Core TikZ resolves node text, named anchors, paths, and paint order." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["$()", "+"], "findings": "Calc offsets the area formula from the text-center anchor." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["circular sector", "minimum width", "minimum height", "arc start", "arc end"], "findings": "Content size and minima scale the shifted center and radius together; arc-corner anchors include the outer-separation miter." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["circular sector angle", "sector center", "arc center"], "findings": "The anchor catalog defines the four reference points exercised by this mathematics fixture." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] }
+  ]
+}

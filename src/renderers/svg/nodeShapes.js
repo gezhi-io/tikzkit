@@ -3,6 +3,7 @@ import { formatSvgNumber as format } from "./format.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import {
+  circularSectorGeometry,
   cylinderGeometry,
   dartGeometry,
   kiteGeometry,
@@ -17,6 +18,7 @@ export const LIBRARY_NODE_SHAPES = [
   "star",
   "trapezium",
   "cylinder",
+  "circularSector",
   "dart",
   "kite",
   "semicircle",
@@ -108,6 +110,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "semicircle") {
     return translateCommands(semicircleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "circularSector") {
+    return translateCommands(circularSectorGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "kite") {
     return translateCommands(kiteGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);

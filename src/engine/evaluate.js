@@ -3,6 +3,9 @@ import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libr
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { basicPlotMarkGeometry, plotMarkGeometryCommands } from "../tikz/libraries/plotmarks.js";
 import {
+  circularSectorBorderPoint as geometricCircularSectorBorderPoint,
+  circularSectorGeometry as geometricCircularSectorGeometry,
+  circularSectorLayoutSize as geometricCircularSectorLayoutSize,
   cylinderBorderPoint as geometricCylinderBorderPoint,
   cylinderGeometry as geometricCylinderGeometry,
   cylinderLayoutSize as geometricCylinderLayoutSize,
@@ -9506,7 +9509,7 @@ function addNodeItems(node, ir, env) {
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
-    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "kite" || shape === "dart";
+    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "circularSector" || shape === "kite" || shape === "dart";
     ir.items.push({
       type: "textNode",
       x: textPoint.x,
@@ -11370,6 +11373,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "circularSector") {
+    localPoint = geometricCircularSectorBorderPoint(
+      geometricCircularSectorGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "kite") {
     localPoint = geometricKiteBorderPoint(
       geometricKiteGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
@@ -11568,6 +11577,7 @@ function nodeShape(options = {}) {
   if (options.star) return "star";
   if (options.trapezium) return "trapezium";
   if (options.semicircle) return "semicircle";
+  if (options["circular sector"]) return "circularSector";
   if (options.kite) return "kite";
   if (options.dart) return "dart";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
@@ -11607,6 +11617,7 @@ function explicitNodeShape(shape) {
     star: "star",
     trapezium: "trapezium",
     semicircle: "semicircle",
+    "circular sector": "circularSector",
     kite: "kite",
     dart: "dart",
     "isosceles triangle": "isoscelesTriangle",
@@ -11726,6 +11737,18 @@ function dartLayoutSize(contentWidth, contentHeight, options = {}, env = { varia
 function semicircleLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
   return geometricSemicircleLayoutSize(contentWidth, contentHeight, {
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
+function circularSectorLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return geometricCircularSectorLayoutSize(contentWidth, contentHeight, {
+    sectorAngle: numberOption(options["circular sector angle"], 60),
     shapeBorderRotate: numberOption(options["shape border rotate"], 0),
     shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
     minimumSize,
@@ -11859,6 +11882,25 @@ function semicircleLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function circularSectorLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "circularSectorRadius",
+    "circularSectorCenterOffset",
+    "circularSectorCenterX",
+    "circularSectorCenterY",
+    "circularSectorAngle",
+    "circularSectorShapeBorderRotate"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.circularSectorShapeBorderUsesIncircle !== undefined) {
+    data.circularSectorShapeBorderUsesIncircle = Boolean(layoutSize.circularSectorShapeBorderUsesIncircle);
+  }
+  return data;
+}
+
 function dartLayoutShapeData(layoutSize = {}) {
   const data = {};
   for (const key of [
@@ -11900,11 +11942,13 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const trapeziumOuterSep = nodeOuterSep(options, env);
   const kiteOuterSep = nodeOuterSep(options, env);
   const semicircleOuterSep = nodeOuterSep(options, env);
+  const circularSectorOuterSep = nodeOuterSep(options, env);
   const dartOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const semicircleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const circularSectorScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const dartScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteAngles = kiteVertexAngles(options);
   const tapeBend = options["tape bend"];
@@ -11943,6 +11987,9 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     ...kiteLayoutShapeData(layoutSize),
     semicircleOuterSep: Math.max(semicircleOuterSep.x, semicircleOuterSep.y) * semicircleScale,
     ...semicircleLayoutShapeData(layoutSize),
+    circularSectorAngle: numberOption(options["circular sector angle"], 60),
+    circularSectorOuterSep: Math.max(circularSectorOuterSep.x, circularSectorOuterSep.y) * circularSectorScale,
+    ...circularSectorLayoutShapeData(layoutSize),
     dartTipAngle: numberOption(options["dart tip angle"], 45),
     dartTailAngle: numberOption(options["dart tail angle"], 135),
     dartOuterSep: Math.max(dartOuterSep.x, dartOuterSep.y) * dartScale,
@@ -12838,7 +12885,11 @@ function scaleSize(size, scale = 1) {
     "semicircleDefaultRadius",
     "semicircleCenterOffset",
     "semicircleCenterX",
-    "semicircleCenterY"
+    "semicircleCenterY",
+    "circularSectorRadius",
+    "circularSectorCenterOffset",
+    "circularSectorCenterX",
+    "circularSectorCenterY"
   ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
   }
@@ -12859,6 +12910,12 @@ function scaleSize(size, scale = 1) {
   }
   if (size?.semicircleShapeBorderUsesIncircle !== undefined) {
     scaled.semicircleShapeBorderUsesIncircle = Boolean(size.semicircleShapeBorderUsesIncircle);
+  }
+  for (const key of ["circularSectorAngle", "circularSectorShapeBorderRotate"]) {
+    if (Number.isFinite(Number(size?.[key]))) scaled[key] = Number(size[key]);
+  }
+  if (size?.circularSectorShapeBorderUsesIncircle !== undefined) {
+    scaled.circularSectorShapeBorderUsesIncircle = Boolean(size.circularSectorShapeBorderUsesIncircle);
   }
   return scaled;
 }
@@ -13231,6 +13288,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "semicircle") {
     const geometry = geometricSemicircleGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "circularSector") {
+    const geometry = geometricCircularSectorGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -13728,6 +13796,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(semicircleLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "circularSector") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(circularSectorLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "kite") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -13818,6 +13891,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "semicircle") {
     return scaleSize(semicircleLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "circularSector") {
+    return scaleSize(circularSectorLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "kite") {
     return scaleSize(kiteLayoutSize(width, height, options, env), shapeScale);
@@ -18607,7 +18683,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "kite" && node.shape !== "dart") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "kite" && node.shape !== "dart") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -18709,6 +18785,23 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
       semicircleBaseOffset: Number(size.baseOffset) || 0,
       semicircleMidOffset: Number(size.midOffset) || 0
     });
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "circularSector") {
+    const geometry = geometricCircularSectorGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      circularSectorBaseOffset: Number(size.baseOffset) || 0,
+      circularSectorMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return geometricCircularSectorBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
   }
@@ -19294,6 +19387,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "semicircle") {
       const bounds = geometricSemicircleGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "circularSector") {
+      const bounds = geometricCircularSectorGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

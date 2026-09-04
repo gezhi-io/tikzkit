@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta, positioning, and shapes.geometric before style resolution." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "--", "|-"], "findings": "Core TikZ resolves styles, named anchors, orthogonal paths, and automatic border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "Arrow tips are applied after the route has been clipped to the sector boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of", "node distance"], "findings": "Positioning uses the resolved asymmetric sector anchor bounds." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["circular sector", "circular sector angle", "sector center", "arc end"], "findings": "The wedge uses a shifted circle center, separate visible and outer-separation contours, and exact line-or-arc border intersection." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["circular sector", "arc start", "arc end", "arc center"], "findings": "The manual documents sector rotation, its central-angle key, and the complete named-anchor catalog." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] }
+  ]
+}

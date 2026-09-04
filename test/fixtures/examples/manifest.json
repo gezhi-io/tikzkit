@@ -6885,6 +6885,51 @@
         "named dart anchors",
         "relative polar force vectors and local arrow dimensions"
       ]
+    },
+    {
+      "id": "shapes-circular-sector-flowchart",
+      "title": "Circular sector routing flowchart",
+      "source": "shapes/circular-sector-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:circularSectorLayoutSize/circularSectorGeometry/circularSectorBorderPoint",
+      "features": [
+        "flowchart",
+        "circular sector angle",
+        "asymmetric positioning bounds",
+        "named sector-center and arc-end anchors",
+        "automatic edge clipping and orthogonal paths"
+      ]
+    },
+    {
+      "id": "shapes-circular-sector-math",
+      "title": "Circular sector anchor geometry",
+      "source": "shapes/circular-sector-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:circularSectorLayoutSize/circularSectorGeometry/circularSectorBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "minimum width and height scaling",
+        "sector-center arc-start arc-center and arc-end anchors",
+        "mitered outer separation",
+        "calc offset and math text"
+      ]
+    },
+    {
+      "id": "shapes-circular-sector-physics",
+      "title": "Rotated circular sector sensor field",
+      "source": "shapes/circular-sector-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:circularSectorLayoutSize/circularSectorGeometry/circularSectorBorderPoint",
+      "features": [
+        "physics diagram",
+        "incircle border sizing",
+        "arbitrary shape border rotation",
+        "named circular-sector anchors",
+        "relative polar vectors and local arrow dimensions"
+      ]
     }
   ]
 }

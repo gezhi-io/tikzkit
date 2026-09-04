@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta, calc, and shapes.geometric before evaluating the field diagram." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "++"], "findings": "Core TikZ resolves relative polar vectors, node anchors, transforms, and paint order." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth", "length"], "findings": "The physics vectors use dimensioned Stealth tips with independent stroke styles." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["circular sector", "shape border uses incircle", "shape border rotate"], "findings": "Incircle mode uses sqrt(2) times the larger content half-extent and keeps the exact requested rotation." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["circular sector", "shape border rotate"], "findings": "The manual identifies border rotation as the wedge pointing direction and demonstrates arbitrary rotation in incircle mode." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-circular-sector.test.js"] }
+  ]
+}
