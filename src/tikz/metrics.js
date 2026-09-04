@@ -248,6 +248,9 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-spaced-(?:left|right)-to(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
   }
+  if (kind === "legacy-spaced-serif-cm") {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke" };
+  }
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.bar, fill: "none", stroke: "context-stroke" };
   }
@@ -285,6 +288,9 @@ function legacyArrowTipBase(kind) {
   }
   if (/^legacy-(?:left|right)-to(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-serif-cm") {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke" };
   }
   if (/^legacy-(?:round|butt)-cap$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
@@ -587,6 +593,7 @@ function normalizeArrowKind(kind) {
   const text = source.replace(/'/g, "").toLowerCase();
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
+  if (text === "legacy-serif-cm") return text;
   if (/^legacy-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:to|latex(?:-prime)?|stealth(?:-prime)?)(?:-reversed)?$/u.test(text)) return text;
@@ -594,6 +601,7 @@ function normalizeArrowKind(kind) {
   if (/^legacy-spaced-angle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
+  if (text === "legacy-spaced-serif-cm") return text;
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:open-circle|filled-circle|diamond|open-diamond|square|open-square)$/u.test(text)) return text;
   if (text === "legacy-spaced-implies") return text;
@@ -618,6 +626,7 @@ function normalizeArrowKind(kind) {
   if (text === "spaced open diamond") return "legacy-spaced-open-diamond";
   if (text === "spaced square") return "legacy-spaced-square";
   if (text === "spaced open square") return "legacy-spaced-open-square";
+  if (text === "spaced serif cm") return "legacy-spaced-serif-cm";
   const legacyAngle = text.match(/^angle\s+(90|60|45)(\s+reversed)?$/);
   if (legacyAngle) return `angle-${legacyAngle[1]}${legacyAngle[2] ? "-reversed" : ""}`;
   const legacyTriangle = text.match(/^(open\s+)?triangle\s+(90|60|45)(\s+reversed)?$/);
@@ -661,6 +670,7 @@ function normalizeArrowKind(kind) {
   if (legacySideTo) {
     return `legacy-${legacySideTo[1]}-to${legacySideTo[2] ? "-reversed" : ""}`;
   }
+  if (text === "serif cm") return "legacy-serif-cm";
   const legacyCap = source.match(/^(round cap|butt cap|triangle 90 cap(?: reversed)?|fast cap(?: reversed)?)$/u);
   if (legacyCap) return `legacy-${legacyCap[1].replaceAll(" ", "-")}`;
   const spacedCap = source.match(/^spaced (round cap|butt cap|triangle 90 cap(?: reversed)?|fast cap(?: reversed)?)$/u);

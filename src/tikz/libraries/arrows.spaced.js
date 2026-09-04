@@ -5,6 +5,7 @@ import {
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
+  legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
@@ -12,8 +13,8 @@ import {
 
 export const tikzLibrary = {
   name: "arrows.spaced",
-  status: "partial",
-  implementedBy: "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics/spacedLegacyArrowMetrics/spacedImpliesArrowMetrics/spacedTriangleArrowMetrics/spacedAngleArrowMetrics/spacedHookArrowMetrics/spacedSideToArrowMetrics/spacedDelimiterArrowMetrics/spacedShapeArrowMetrics + src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics/legacyCircleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacySideToArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacyCapInlineGeometry/legacyCircleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/spacedLegacyArrowInlineGeometry/spacedImpliesArrowInlineGeometry/renderInlineArrowTip",
+  status: "builtin",
+  implementedBy: "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics/spacedLegacyArrowMetrics/spacedImpliesArrowMetrics/spacedTriangleArrowMetrics/spacedAngleArrowMetrics/spacedHookArrowMetrics/spacedSideToArrowMetrics/spacedSerifCmArrowMetrics/spacedDelimiterArrowMetrics/spacedShapeArrowMetrics + src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics/legacyCircleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacySideToArrowMetrics/legacySerifCmArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacySerifCmInlineGeometry/legacyCapInlineGeometry/legacyCircleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/spacedLegacyArrowInlineGeometry/spacedImpliesArrowInlineGeometry/renderInlineArrowTip",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   localSourceReviewed: true,
@@ -31,6 +32,7 @@ export const tikzLibrary = {
     "spaced angle 90, 60, and 45 with reversed forms",
     "spaced left hook, right hook, and hooks with reversed forms",
     "spaced left to and right to with reversed forms",
+    "spaced serif cm with source fill-only silhouette",
     "spaced square brackets, round brackets, and vertical bars",
     "spaced filled/open circles, diamonds, and squares",
     "source backend and tip-end metrics for common legacy arrows",
@@ -51,6 +53,7 @@ export const tikzLibrary = {
     "spaced angle 90, 60, and 45 with reversed forms",
     "spaced left hook, right hook, and hooks with reversed forms",
     "spaced left to and right to with reversed forms",
+    "spaced serif cm with source fill-only silhouette",
     "spaced square brackets, round brackets, and vertical bars",
     "spaced filled/open circles, diamonds, and squares",
     "source backend and tip-end metrics for common legacy arrows",
@@ -59,6 +62,11 @@ export const tikzLibrary = {
   ],
   notes: "Reviewed locally on 2026-09-04. pgflibraryarrows.spaced.code.tex declares each spaced arrow with the starred combine form `original[sep=0pt].space`. The dot fixes the line end after the visible tip; the invisible `space` arrow from pgfcorearrows.code.tex has backend 0 and tip end 0.88pt+0.3*linewidth. TikZKit first implemented the six cap aliases by reusing their source paths and adding this width to terminal placement, shaft shortening, and assembly length. A second source review added spaced to, latex, latex prime, stealth, and stealth prime plus all reversed forms. A third source review added spaced implies from pgflibraryarrows.code.tex. A fourth added all twelve spaced triangle and spaced open triangle 90/60/45 aliases. A fifth added the six spaced angle aliases. A sixth added spaced left hook, spaced right hook, spaced hooks, and reversed forms. A seventh review added `spaced [`, `spaced ]`, `spaced (`, `spaced )`, and `spaced |`, including all five paired shorthand specifications. Square and round bracket geometry reuses the source active-line-width formulas. The bar now follows `@bar`: backend -0.25 line widths, tip end 0.75 line widths, vertical path at 0.25 line widths, half-height 2pt+1.5 line widths, and a square cap. An eighth review added `spaced o`, `spaced *`, `spaced diamond`, `spaced open diamond`, `spaced square`, and `spaced open square`: each reuses the exact base geometry, fill/stroke semantics, cap/join, and line-width-dependent extents, while only the invisible space increases placement and assembly length. A ninth review added `spaced left to`, `spaced right to`, and reversed variants. They reuse the exact reflected half-arrow and multi-part reversed paint from arrows, then add only the invisible space to placement and assembly length. Flowchart, mathematical-map, and physical-vector fixtures cover straight, orthogonal, diagonal, bidirectional, and curved terminal tangents with MacTeX and tikztosvg references. Spaced serif-cm remains unsupported."
 };
+
+tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Spaced serif-cm remains unsupported.",
+  "A tenth review added `spaced serif cm`, reusing the base d=.4pt+.45*linewidth closed cubic silhouette and adding only the invisible space to placement and assembly length. The 55 declarations in the installed arrows.spaced source are now represented. Flowchart, mathematical-map, and physical-vector fixtures provide strict semantic and MacTeX/tikztosvg visual evidence."
+);
 
 export function legacySpacedArrowSpace(lineWidth) {
   const unitsPerPt = lineWidthFromPt(1);
@@ -154,6 +162,21 @@ export function spacedSideToArrowMetrics(kind, lineWidth) {
   const base = legacySideToArrowMetrics(`legacy-${match[1]}-to${match[2] || ""}`, lineWidth);
   if (!base) return null;
 
+  const space = legacySpacedArrowSpace(lineWidth);
+  return {
+    ...base,
+    spaced: true,
+    space,
+    placement: base.placement + space,
+    terminalPlacement: base.terminalPlacement + space,
+    assemblyLength: base.assemblyLength + space
+  };
+}
+
+export function spacedSerifCmArrowMetrics(kind, lineWidth) {
+  if (String(kind || "").trim().toLowerCase() !== "legacy-spaced-serif-cm") return null;
+
+  const base = legacySerifCmArrowMetrics("legacy-serif-cm", lineWidth);
   const space = legacySpacedArrowSpace(lineWidth);
   return {
     ...base,

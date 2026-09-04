@@ -5,7 +5,7 @@ import { lineWidthFromPt, TIKZ_UNIT } from "../metrics.js";
 export const tikzLibrary = {
   "name": "arrows",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacyCircleArrowMetrics/legacyHookArrowMetrics/legacySideToArrowMetrics/legacyCapArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/legacyCircleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/renderInlineArrowTip + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
+  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacyCircleArrowMetrics/legacyHookArrowMetrics/legacySideToArrowMetrics/legacySerifCmArrowMetrics/legacyCapArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/legacyCircleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacySerifCmInlineGeometry/renderInlineArrowTip + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   "localSourceReviewed": true,
@@ -28,6 +28,7 @@ export const tikzLibrary = {
     "legacy left hook, left hook reversed, right hook, right hook reversed, hooks, and hooks reversed tips at path starts and ends",
     "legacy hook active-line-width cubic geometry, asymmetric shortening, stroke-only paint, and round caps",
     "legacy left to, right to, and reversed half-arrow tips with source multi-part paint",
+    "legacy serif cm fill-only silhouette with source active-line-width dimensions",
     "legacy round cap, butt cap, triangle 90 cap, triangle 90 cap reversed, fast cap, and fast cap reversed tips at path starts and ends",
     "legacy cap active-line-width geometry, source paint semantics, and backend/tip-end shortening",
     "active-line-width legacy tip geometry and backend/tipend shaft shortening",
@@ -54,6 +55,7 @@ export const tikzLibrary = {
     "legacy left hook, left hook reversed, right hook, right hook reversed, hooks, and hooks reversed tips at path starts and ends",
     "legacy hook active-line-width cubic geometry, asymmetric shortening, stroke-only paint, and round caps",
     "legacy left to, right to, and reversed half-arrow tips with source multi-part paint",
+    "legacy serif cm fill-only silhouette with source active-line-width dimensions",
     "legacy round cap, butt cap, triangle 90 cap, triangle 90 cap reversed, fast cap, and fast cap reversed tips at path starts and ends",
     "legacy cap active-line-width geometry, source paint semantics, and backend/tip-end shortening",
     "active-line-width legacy tip geometry and backend/tipend shaft shortening",
@@ -63,6 +65,11 @@ export const tikzLibrary = {
   ],
   "notes": "Reviewed locally on 2026-08-06: pgfcorearrows declares lower-case latex as a filled core tip with d=.28pt+.3*linewidth, a 9d tip extent, and no arrows.meta scale key. TikZKit preserves this separately from arrows.meta Latex. It also supports a renderer-neutral subset of \\pgfarrowsdeclare: constant pgfpoint move/line/cubic/arc commands plus qfill, qstroke, or qfillstroke. Literal legacy \\pgfarrowsleftextend/\\pgfarrowsrightextend and \\pgfarrowssetlineend values control stem shortening without inflating the PGF picture box. Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred. On 2026-08-07, curved to/edge arrows with terminal tips gained a half-active-line-width extension outside circular and elliptical endpoint crops. The same border-padding path now supports regular polygons using the local PGF outer-separation mitre rule and the target side normal. The focused 2026-08-07 trapezium slice intersects the fully mitered offset convex polygon contour, avoiding the prior arbitrary adjacent-side choice at a shared corner. `arrows-shape-curved-terminal-miters` is the permanent visual driver. On 2026-09-04, built-in arrows.meta sequences gained source-derived per-tip separation; the arrows.meta registry records that shared capability. Also on 2026-09-04, pgflibraryarrows.code.tex and pgfcorearrows.code.tex were reviewed for the legacy delimiter slice: square/round brackets and angle 90/60/45, including reversed spellings, now use the source formulas for active-line-width aperture, backend, tip end, cap/join, and shaft shortening. The flowchart, number-line, and force-vector fixtures are strict semantic and three-reference visual drivers. A second 2026-09-04 source review covered the filled and open triangle 90/60/45 families. TikZKit now applies d=.5pt+.25*linewidth, source-specific aperture and backend/tipend formulas, fillstroke for filled tips, stroke-only rendering for open tips, and the independently declared reversed open-tip extents. The repair-flow, mathematical-map, and free-body fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A third 2026-09-04 review covered the public legacy diamond and open diamond declarations. TikZKit now preserves lower-case diamond separately from arrows.meta Diamond, applies d=.4pt+.275*linewidth, source-specific backend/tipend shortening, round joins with butt caps, fillstroke for diamond, and stroke-only rendering for open diamond at either path end. The validation-flow, mathematical-map, and vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A fourth 2026-09-04 review covered square, open square, filled dot `*`, and open dot `o`. TikZKit now applies the source formulas d=.4pt+.275*linewidth for squares and d=.4pt+.2*linewidth for dots, keeps lower-case legacy names distinct from arrows.meta Square/Circle, and uses each declaration's backend/tipend, paint, cap, join, and local reference origin. The release-flow, quotient-map, and vector-field fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A fifth 2026-09-04 review covered left hook, right hook, hooks, and their reversed declarations. TikZKit now applies d=.4pt+.2*linewidth, the exact 0.75/2.415/3.75 and 1.665/3/4.665/6 cubic factors, asymmetric backend/tipend placement, x-only reversal, stroke-only paint, round caps, and miter joins. The validation-flow, mathematical-map, and vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A sixth 2026-09-04 review covered round cap, butt cap, triangle 90 cap and reversed, and fast cap and reversed. TikZKit now applies the declaration's active-line-width-only dimensions, distinct stroke-only versus fill-only paint, round versus butt caps, exact reversed polygons, and backend/tip-end shaft shortening. The flowchart, mathematical-map, and force-vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. A seventh source review on 2026-09-04 added left to, right to, and both reversed forms. Their d=.28pt+.3*linewidth geometry, 0.8-line-width round cubic paint, reflected half planes, declaration extents, and reversed full-width butt-cap stem now match local PGF. The SVG renderer supports declaration-specific multi-part arrow paint. Legacy implies, serif cm, concave/custom shape miters, and full declared-arrow hulls remain partial."
 };
+
+tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Legacy implies, serif cm, concave/custom shape miters, and full declared-arrow hulls remain partial.",
+  "An eighth review implemented `serif cm`: d=.4pt+.45*linewidth, backend=-.75d, tip end and x shift=.04*linewidth, and the exact closed fill-only cubic silhouette. Ordinary and spaced serif-cm tips share that geometry; the spaced form adds only the core space arrow. Flowchart, quotient-map, and force-vector fixtures provide strict semantic and MacTeX/tikztosvg visual evidence. Legacy implies, concave/custom shape miters, and full declared-arrow hulls remain partial."
+);
 
 export function legacyDelimiterArrowMetrics(kind, lineWidth) {
   const source = String(kind || "").trim().toLowerCase();
@@ -330,6 +337,33 @@ export function legacySideToArrowMetrics(kind, lineWidth) {
     maxX: pt(maxXPt),
     minY: side === "left" ? pt(-halfHeightPt) : 0,
     maxY: side === "right" ? pt(halfHeightPt) : 0
+  };
+}
+
+export function legacySerifCmArrowMetrics(kind, lineWidth) {
+  if (String(kind || "").trim().toLowerCase() !== "legacy-serif-cm") return null;
+
+  const unitsPerPt = lineWidthFromPt(1);
+  const lineWidthPt = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4)) / unitsPerPt;
+  const unitPt = 0.4 + 0.45 * lineWidthPt;
+  const backEndPt = -0.75 * unitPt;
+  const tipEndPt = 0.04 * lineWidthPt;
+  const halfHeightPt = 1.95 * unitPt;
+  const pt = (value) => lineWidthFromPt(value);
+
+  return {
+    shape: "serif-cm",
+    unit: pt(unitPt),
+    lineWidth: pt(lineWidthPt),
+    xShift: pt(tipEndPt),
+    backEnd: pt(backEndPt),
+    tipEnd: pt(tipEndPt),
+    placement: pt(tipEndPt),
+    terminalPlacement: pt(tipEndPt),
+    assemblyLength: pt(tipEndPt - backEndPt),
+    minX: pt(backEndPt),
+    maxX: pt(tipEndPt),
+    halfHeight: pt(halfHeightPt)
   };
 }
 

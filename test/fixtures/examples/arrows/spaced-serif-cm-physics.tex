@@ -1,0 +1,17 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,arrows.spaced}
+\begin{document}
+\begin{tikzpicture}[vector/.style={line width=1.5pt}]
+  \draw[fill=gray!12] (-1.15,-.52) rectangle (1.15,.52);
+  \node at (0,0) {$m$};
+  \draw[vector,blue,-{serif cm}] (0,.52) -- node[left] {$\vec N$} (0,2.15);
+  \draw[vector,red,-{spaced serif cm}] (0,-.52) -- node[left] {$m\vec g$} (0,-2.15);
+  \draw[vector,green!50!black,-{serif cm}]
+    (1.15,.1) -- node[above] {$\vec F$} (2.85,1.2);
+  \draw[vector,orange!85!black,-{spaced serif cm}]
+    (-1.15,.1) -- node[above] {$\vec T$} (-2.85,1.2);
+  \draw[vector,purple,{serif cm}-{spaced serif cm}]
+    (-1.05,-.72) to[bend left=24] node[below,sloped] {$\Delta\vec p$} (1.05,-.72);
+\end{tikzpicture}
+\end{document}

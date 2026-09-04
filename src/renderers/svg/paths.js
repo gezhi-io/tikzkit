@@ -24,6 +24,7 @@ import {
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
+  legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
@@ -35,6 +36,7 @@ import {
   spacedHookArrowMetrics,
   spacedImpliesArrowMetrics,
   spacedLegacyArrowMetrics,
+  spacedSerifCmArrowMetrics,
   spacedSideToArrowMetrics,
   spacedShapeArrowMetrics,
   spacedTriangleArrowMetrics
@@ -512,6 +514,9 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacySideTo) return legacySideToInlineGeometry(legacySideTo);
   const spacedSideTo = spacedSideToArrowMetrics(tip.kind, lineWidth);
   if (spacedSideTo) return legacySideToInlineGeometry(spacedSideTo);
+  const serifCm = legacySerifCmArrowMetrics(tip.kind, lineWidth)
+    || spacedSerifCmArrowMetrics(tip.kind, lineWidth);
+  if (serifCm) return legacySerifCmInlineGeometry(serifCm);
   const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth) || spacedCapArrowMetrics(tip.kind, lineWidth);
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
   const spacedLegacy = spacedLegacyArrowMetrics(tip.kind, lineWidth);
@@ -1136,6 +1141,34 @@ function legacySideToInlineGeometry(metrics) {
       maxX: metrics.maxX,
       minY: metrics.minY,
       maxY: metrics.maxY
+    }
+  };
+}
+
+function legacySerifCmInlineGeometry(metrics) {
+  const d = metrics.unit;
+  const w = metrics.lineWidth;
+  const shift = metrics.xShift;
+  const point = (x, y) => `${format(x + shift)} ${format(-y)}`;
+  return {
+    path: [
+      `M ${point(-0.75 * d, 0.5 * w)}`,
+      `C ${point(-0.375 * d, 0.5 * w)} ${point(-0.375 * d, 0.7 * w)} ${point(-0.375 * d, 1.95 * d)}`,
+      `L ${point(0, 1.95 * d)}`,
+      `C ${point(-0.04 * w, 0.5 * d)} ${point(-0.04 * w, -0.5 * d)} ${point(0, -1.95 * d)}`,
+      `L ${point(-0.375 * d, -1.95 * d)}`,
+      `C ${point(-0.375 * d, -0.7 * w)} ${point(-0.375 * d, -0.5 * w)} ${point(-0.75 * d, -0.5 * w)}`,
+      "Z"
+    ].join(" "),
+    shorten: metrics.terminalPlacement,
+    terminalPlacement: metrics.terminalPlacement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds: {
+      minX: metrics.minX,
+      maxX: metrics.maxX,
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
     }
   };
 }

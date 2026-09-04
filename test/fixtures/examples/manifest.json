@@ -6113,6 +6113,33 @@
       "features": ["arrows.spaced", "spaced left to", "spaced right to", "reversed", "vertical", "horizontal", "diagonal", "curved path", "force vectors"]
     },
     {
+      "id": "arrows-spaced-serif-cm-flowchart",
+      "title": "Ordinary and spaced serif-cm terminals in a review flow",
+      "source": "arrows/spaced-serif-cm-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows and arrows.spaced libraries plus TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacySerifCmArrowMetrics + src/tikz/libraries/arrows.spaced.js:spacedSerifCmArrowMetrics + src/renderers/svg/paths.js:legacySerifCmInlineGeometry",
+      "features": ["arrows", "arrows.spaced", "serif cm", "spaced serif cm", "start and end arrows", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-serif-cm-math",
+      "title": "Ordinary and spaced serif-cm terminals in a quotient map",
+      "source": "arrows/spaced-serif-cm-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows and arrows.spaced libraries plus TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacySerifCmArrowMetrics + src/tikz/libraries/arrows.spaced.js:spacedSerifCmArrowMetrics + src/renderers/svg/paths.js:legacySerifCmInlineGeometry",
+      "features": ["arrows", "arrows.spaced", "serif cm", "spaced serif cm", "start and end arrows", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-spaced-serif-cm-physics",
+      "title": "Ordinary and spaced serif-cm terminals on force vectors",
+      "source": "arrows/spaced-serif-cm-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows and arrows.spaced libraries plus TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacySerifCmArrowMetrics + src/tikz/libraries/arrows.spaced.js:spacedSerifCmArrowMetrics + src/renderers/svg/paths.js:legacySerifCmInlineGeometry",
+      "features": ["arrows", "arrows.spaced", "serif cm", "spaced serif cm", "vertical", "horizontal", "diagonal", "curved path", "force vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

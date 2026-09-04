@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The LaTeX shell establishes the document and package-loading environments without contributing arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry resolves arrows and arrows.spaced." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to"], "findings": "TikZ resolves vertical, diagonal, and curved terminal tangents before arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["serif cm", "\\pgfarrowsdeclare"], "findings": "The base tip is a closed fill-only Computer Modern serif silhouette with active-line-width dimensions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced serif cm"], "findings": "The spaced alias combines serif cm with the invisible space arrow at zero separation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space"], "findings": "The invisible space contributes 0.88pt plus 0.3 line widths." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["Serif-Like Arrow Tips", "serif cm", "spaced serif cm"], "findings": "The manual documents both legacy serif-cm tips." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-serif-cm.test.js", "docs/qa/2026-09-04-arrows-spaced-serif-cm.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-serif-cm.test.js", "docs/qa/2026-09-04-arrows-spaced-serif-cm.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-serif-cm.test.js", "docs/qa/2026-09-04-arrows-spaced-serif-cm.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-serif-cm.test.js", "docs/qa/2026-09-04-arrows-spaced-serif-cm.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-serif-cm.test.js", "docs/qa/2026-09-04-arrows-spaced-serif-cm.md"] }
+  ],
+  "notes": "Physics-vector fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}
