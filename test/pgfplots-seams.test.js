@@ -54,6 +54,7 @@ import {
   collectPgfplotsPlotReferences,
   lowerPgfplotsPlotReferences,
   renderAddplot,
+  axis3DParentBounds,
   renderAxis3DBox,
   renderAxis3DBoxForeground,
   renderAxis3DColorbar,
@@ -2644,6 +2645,52 @@ test("pgfplots left colorbars place ticks and labels on the outer left edge", ()
     return points.length === 2 && points[1].x < points[0].x && points[0].y === points[1].y;
   }));
   assert.ok(tickLabels.every((command) => command.includes("anchor=east")));
+});
+
+test("pgfplots 3d colorbar defaults anchor outside the parent description bounds", () => {
+  const ranges = { xMin: -1, xMax: 1, yMin: -1, yMax: 1, zMin: -1, zMax: 1 };
+  const rectangle = (command) => [...command.matchAll(/\(([-+\d.]+),([-+\d.]+)\)/g)]
+    .map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+  const render = (axisOptions) => {
+    const options = { ...axisOptions, width: "8cm", height: "6cm", "pgfplots 3d surface": true };
+    const geometry = createAxisGeometry(options, ranges);
+    const parent = axis3DParentBounds(options, ranges, geometry);
+    const fill = renderAxis3DColorbar(options, ranges, geometry)
+      .find((command) => command.includes("axis colorbar") && command.includes("draw=none"));
+    return { geometry, parent, points: rectangle(fill) };
+  };
+
+  const left = render({
+    view: "{335}{35}",
+    xlabel: "$x$",
+    ylabel: "$y$",
+    zlabel: "$xy$",
+    title: "Bilinear surface",
+    "colorbar left": true
+  });
+  const right = render({
+    view: "{55}{35}",
+    xlabel: "$x$",
+    ylabel: "$y$",
+    zlabel: "$T$",
+    title: "Temperature field",
+    "colorbar right": true
+  });
+  const horizontal = render({
+    view: "{45}{30}",
+    xlabel: "Stage",
+    ylabel: "Queue",
+    zlabel: "Load",
+    title: "Workflow load",
+    "colorbar horizontal": true
+  });
+
+  assert.ok(left.parent.minX < -1.2, `expected the rotated z label in the left parent bound, got ${left.parent.minX}`);
+  assert.ok(Math.abs(Math.max(...left.points.map((point) => point.x)) - (left.parent.minX - 0.3)) < 0.001);
+  assert.ok(right.parent.maxX > right.geometry.width + 0.3 - 0.001);
+  assert.ok(Math.abs(Math.min(...right.points.map((point) => point.x)) - (right.parent.maxX + 0.3)) < 0.001);
+  assert.ok(horizontal.parent.minY < -0.7, `expected lower labels in the parent bound, got ${horizontal.parent.minY}`);
+  assert.ok(Math.abs(Math.max(...horizontal.points.map((point) => point.y)) - (horizontal.parent.minY - 0.3)) < 0.001);
 });
 
 test("pgfplots 3d colorbar automatic ticks use native-like dense scaled labels", () => {

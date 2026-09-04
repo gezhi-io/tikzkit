@@ -13,6 +13,13 @@ import { parseOptions } from "../engine/options.js";
 import { shouldRenderAnyAxisGrid } from "./grid.js";
 import { isLogAxis } from "./ranges.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
+import { parseTikzFontPatch } from "../tex/fontSpec.js";
+import {
+  estimateFormulaBox,
+  formulaTotalHeight,
+  measurePlainTextTeXBoxPt,
+  parseMathText
+} from "../tikz/textMetrics.js";
 
 // PGFPlots positions boxed 3D y labels near the selected tick edge. Keeping
 // this below a centimetre prevents a second, synthetic right-side gutter.
@@ -579,6 +586,7 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     fontFromStyle(styleOptions["tick label style"]) || styleOptions["tick label font"]
   );
   const bounds = axis3DProjectedBounds(ranges, geometry);
+  const parentBounds = axis3DParentBounds(axisOptions, ranges, geometry);
   const parentWidth = bounds.width || geometry.width || 1;
   const parentHeight = bounds.height || geometry.height || 1;
   const width = colorbarDimension(
@@ -591,7 +599,7 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     orientation === "horizontal" ? 0.5 : parentHeight,
     parentHeight
   );
-  const box = colorbarBox(styleOptions, bounds, width, height, orientation);
+  const box = colorbarBox(styleOptions, bounds, parentBounds, width, height, orientation);
   const { xMin, xMax, yMin, yMax } = box;
   const commands = [];
   const gradientStops = colorbarGradientStops(ranges, axisOptions);
@@ -738,12 +746,12 @@ function colorbarDimension(raw, fallback, parentAxisDimension = fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function colorbarBox(styleOptions, bounds, width, height, orientation) {
+function colorbarBox(styleOptions, bounds, parentBounds, width, height, orientation) {
   const defaults = orientation === "horizontal"
-    ? { at: { x: bounds.minX, y: bounds.minY - 0.3 }, anchor: "north west" }
+    ? { at: { x: bounds.minX, y: parentBounds.minY - 0.3 }, anchor: "north west" }
     : orientation === "left"
-      ? { at: { x: bounds.minX - 0.3, y: bounds.maxY }, anchor: "north east" }
-      : { at: { x: bounds.maxX + 0.3, y: bounds.maxY }, anchor: "north west" };
+      ? { at: { x: parentBounds.minX - 0.3, y: bounds.maxY }, anchor: "north east" }
+      : { at: { x: parentBounds.maxX + 0.3, y: bounds.maxY }, anchor: "north west" };
   const rawAt = colorbarAt(styleOptions.at, bounds) || defaults.at;
   const at = {
     x: rawAt.x + colorbarShift(styleOptions.xshift),
@@ -759,6 +767,150 @@ function colorbarBox(styleOptions, bounds, width, height, orientation) {
     yMin = at.y - height / 2;
   }
   return { xMin, xMax: xMin + width, yMin, yMax: yMin + height };
+}
+
+export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {}) {
+  const projected = axis3DProjectedBounds(ranges, geometry);
+  const margin = geometry.margin || {};
+  const bounds = {
+    minX: projected.minX - finiteNonNegative(margin.left),
+    maxX: projected.maxX + finiteNonNegative(margin.right),
+    minY: projected.minY - finiteNonNegative(margin.bottom),
+    maxY: projected.maxY + finiteNonNegative(margin.top)
+  };
+  const layout = axis3DAnnotationLayout(ranges, geometry);
+  const ticks = axis3DTickValues(axisOptions, ranges, geometry);
+  const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
+  const zTickFormat = createScaledTickFormat(ticks.z, scaledTickOptions(axisOptions, "z"));
+  const zTickPrecision = scaledTickLabelPrecision(ticks.z, zTickFormat);
+
+  for (const axis of ["x", "y", "z"]) {
+    const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, axis, "tick"));
+    const anchor = axisTickAnnotationAnchor(axisOptions, axis, layout[axis].normal);
+    const innerSep = defaultPerspectiveTickLabelInnerSep(axisOptions, axis);
+    for (const value of ticks[axis] || []) {
+      const coordinate = axis === "x"
+        ? { x: value, y: layout.x.y, z: layout.x.z }
+        : axis === "y"
+          ? { x: layout.y.x, y: value, z: layout.y.z }
+          : { x: layout.z.x, y: layout.z.y, z: value };
+      const text = axis === "z"
+        ? formatScaledAxisTickLabel(value, zTickFormat, { precision: zTickPrecision })
+        : formatAxis3DTickLabel(axisOptions, axis, value);
+      const at = offsetAlongNormal(
+        geometry.mapPoint3d(coordinate),
+        layout[axis].normal,
+        tickLabelDistance(axisOptions, axis, tickLength)
+      );
+      includeBounds(bounds, axis3DTextNodeBounds(at, text, font, anchor, 0, innerSep));
+    }
+  }
+
+  if (zTickFormat.scaled) {
+    const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
+    includeBounds(bounds, axis3DTextNodeBounds(
+      pointAlongProjectedEdge(layout.z, 1.2),
+      `$${zTickFormat.scaleLabel}$`,
+      font,
+      axisTickAnnotationAnchor(axisOptions, "z", layout.z.normal),
+      0,
+      "0pt"
+    ));
+  }
+
+  const labelFont = (axis) => roleFontOption("axisLabel", axisOptions, axis3DFontOption(axisOptions, axis, "label"));
+  if (axisOptions.xlabel) {
+    const boxed = shouldRenderOpposite3DTicks(axisOptions, "x");
+    const at = offsetAlongNormal(pointAlongProjectedEdge(layout.x, boxed ? 0.5 : 0.428), layout.x.normal, boxed ? 0.72 : 0.615);
+    includeBounds(bounds, axis3DTextNodeBounds(at, axisOptions.xlabel, labelFont("x"), axisAnnotationAnchor(axisOptions, "x", layout.x.normal)));
+  }
+  if (axisOptions.ylabel) {
+    const boxed = shouldRenderOpposite3DTicks(axisOptions, "y");
+    const at = offsetAlongNormal(pointAlongProjectedEdge(layout.y, boxed ? 0.5 : 0.541), layout.y.normal, boxed ? PGFPLOTS_BOXED_3D_Y_LABEL_DISTANCE : 0.764);
+    includeBounds(bounds, axis3DTextNodeBounds(at, axisOptions.ylabel, labelFont("y"), axisAnnotationAnchor(axisOptions, "y", layout.y.normal)));
+  }
+  if (axisOptions.zlabel) {
+    const at = offsetAlongNormal(layout.z.midpoint, layout.z.normal, zAxisLabelDistance(axisOptions, ranges, geometry));
+    includeBounds(bounds, axis3DTextNodeBounds(at, axisOptions.zlabel, labelFont("z"), axisAnnotationAnchor(axisOptions, "z", layout.z.normal), 90));
+  }
+  if (axisOptions.title) {
+    const titleFont = roleFontOption("title", axisOptions, fontFromStyle(axisOptions["title style"]) || axisOptions["axis title font"]);
+    const at = offsetPoint({ x: (projected.minX + projected.maxX) / 2, y: projected.maxY }, 0, 0.25);
+    includeBounds(bounds, axis3DTextNodeBounds(at, axisOptions.title, titleFont, "south"));
+  }
+  return {
+    ...bounds,
+    width: bounds.maxX - bounds.minX,
+    height: bounds.maxY - bounds.minY
+  };
+}
+
+function axis3DTextNodeBounds(at, text, fontCommand, anchor = "center", rotation = 0, innerSep = ".3333em") {
+  const size = axis3DTextNodeSize(text, fontCommand, innerSep);
+  const radians = (Number(rotation) || 0) * Math.PI / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const normalizedAnchor = String(anchor || "center").trim().toLowerCase().replace(/-/g, " ");
+  const anchorVector = {
+    x: normalizedAnchor.includes("east") ? size.width / 2 : normalizedAnchor.includes("west") ? -size.width / 2 : 0,
+    y: normalizedAnchor.includes("north") ? size.height / 2 : normalizedAnchor.includes("south") ? -size.height / 2 : 0
+  };
+  const rotatedAnchor = {
+    x: anchorVector.x * cos - anchorVector.y * sin,
+    y: anchorVector.x * sin + anchorVector.y * cos
+  };
+  const center = { x: at.x - rotatedAnchor.x, y: at.y - rotatedAnchor.y };
+  const halfWidth = Math.abs(size.width * cos) / 2 + Math.abs(size.height * sin) / 2;
+  const halfHeight = Math.abs(size.width * sin) / 2 + Math.abs(size.height * cos) / 2;
+  return {
+    minX: center.x - halfWidth,
+    maxX: center.x + halfWidth,
+    minY: center.y - halfHeight,
+    maxY: center.y + halfHeight
+  };
+}
+
+function axis3DTextNodeSize(text, fontCommand, innerSep) {
+  const patch = parseTikzFontPatch(fontCommand || "");
+  const fontSizePt = Number(patch.sizePt) || 10;
+  const scale = fontSizePt / 10;
+  const math = parseMathText(String(text || "").trim());
+  const measured = math
+    ? estimateFormulaBox(math.tex, {
+        scale,
+        minWidth: 0.08 * scale,
+        widthPadding: 0.08 * scale,
+        texTextMetrics: true,
+        mathVersion: patch.mathVersion
+      })
+    : measurePlainTextTeXBoxPt(String(text || ""), { fontSizePt, fontFamily: patch.family });
+  const contentWidth = math
+    ? measured.width
+    : Number.isFinite(measured?.width)
+      ? measured.width / 28.45274
+      : Math.max(0.08 * scale, [...String(text || "")].length * 0.13 * scale);
+  const contentHeight = math
+    ? formulaTotalHeight(measured)
+    : measured
+      ? (measured.height + measured.depth) / 28.45274
+      : 0.18 * scale;
+  const sep = parseDimension(String(innerSep || "0pt"), {}) * scale;
+  return {
+    width: Math.max(0.08 * scale, contentWidth) + 2 * sep,
+    height: Math.max(0.18 * scale, contentHeight) + 2 * sep
+  };
+}
+
+function includeBounds(target, addition) {
+  target.minX = Math.min(target.minX, addition.minX);
+  target.maxX = Math.max(target.maxX, addition.maxX);
+  target.minY = Math.min(target.minY, addition.minY);
+  target.maxY = Math.max(target.maxY, addition.maxY);
+}
+
+function finiteNonNegative(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
 }
 
 function colorbarShift(raw) {

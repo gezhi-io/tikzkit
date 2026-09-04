@@ -52,6 +52,7 @@ export {
   restrictSurfaceZ,
   renderAddplot,
   renderCurrentPlotCoordinates,
+  axis3DParentBounds,
   renderAxis3DBox,
   renderAxis3DBoxForeground,
   renderAxis3DColorbar,
