@@ -27,8 +27,8 @@ export const tikzCommand = {
       name: "to / edge",
       category: "path operation",
       status: "partial",
-      implementedBy: "src/frontend/parser.js:parsePathTargetOperation + src/engine/evaluate.js:buildPath",
-      notes: "Common bend/in/out/loop cases are covered; graphdrawing is not complete."
+      implementedBy: "src/frontend/parser.js:parsePathTargetOperation + src/engine/evaluate.js:buildPath/edgeCurveSpec/constrainedCurveControlDistance",
+      notes: "Covers bend left/right, out/in, relative, looseness, in/out looseness, exact distance, and shared or independent min/max distance constraints in source order. Explicit control points, arbitrary custom to path callbacks, and graphdrawing remain partial."
     },
     {
       name: "circle / ellipse / rectangle / arc",

@@ -5504,6 +5504,54 @@
         "automatic border clipping",
         "physics vectors"
       ]
+    },
+    {
+      "id": "to-path-distance-flowchart",
+      "title": "Curve distance constrained review flow",
+      "source": "paths/curve-distance-flowchart.tex",
+      "sourceCorpus": "TeX Live TikZ edge curve controls",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-edges.tex",
+      "semanticOwner": "src/engine/evaluate.js:edgeCurveSpec/constrainedCurveControlDistance",
+      "features": [
+        "curve to",
+        "out and in",
+        "min distance",
+        "max distance",
+        "edge labels",
+        "flowchart"
+      ]
+    },
+    {
+      "id": "to-path-distance-math",
+      "title": "Curve distance constrained mathematical morphisms",
+      "source": "paths/curve-distance-math.tex",
+      "sourceCorpus": "TeX Live TikZ edge curve controls",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-edges.tex",
+      "semanticOwner": "src/engine/evaluate.js:edgeCurveSpec/constrainedCurveControlDistance",
+      "features": [
+        "curve to",
+        "min distance",
+        "out min distance",
+        "in max distance",
+        "math labels",
+        "Latex arrows"
+      ]
+    },
+    {
+      "id": "to-path-distance-physics",
+      "title": "Curve distance constrained control feedback",
+      "source": "paths/curve-distance-physics.tex",
+      "sourceCorpus": "TeX Live TikZ edge curve controls",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-edges.tex",
+      "semanticOwner": "src/engine/evaluate.js:edgeCurveSpec/constrainedCurveControlDistance",
+      "features": [
+        "curve to",
+        "out and in looseness",
+        "out min distance",
+        "in max distance",
+        "control feedback",
+        "Stealth arrows"
+      ]
     }
   ]
 }

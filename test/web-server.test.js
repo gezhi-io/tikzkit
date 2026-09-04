@@ -17,6 +17,10 @@ test("workbench server exposes browser assets and fixture source without renderi
   const source = await fetch(`http://127.0.0.1:${port}${catalog[0].sourceUrl}`).then((response) => response.text());
   const auditResponse = await fetch(`http://127.0.0.1:${port}/api/fixtures/${encodeURIComponent(catalog[0].id)}/audit`);
   const audit = await auditResponse.json();
+  const reviewedAuditResponse = await fetch(
+    `http://127.0.0.1:${port}/api/fixtures/to-path-distance-flowchart/audit`
+  );
+  const reviewedAudit = await reviewedAuditResponse.json();
   const classTree = catalog.find((entry) => entry.id === "latex-examples-class-tree");
   const roadResource = classTree?.resources.find((resource) => resource.name === "road.jpg");
   const road = await fetch(`http://127.0.0.1:${port}${roadResource?.url}`);
@@ -121,6 +125,10 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.ok(audit.commands.every((entry) => !Object.hasOwn(entry, "localSource")));
   assert.ok(audit.dependencies.every((entry) => !Object.hasOwn(entry, "localSource")));
   assert.ok(audit.dependencies.some((entry) => entry.lookup));
+  assert.equal(reviewedAuditResponse.status, 200);
+  assert.equal(reviewedAudit.gate.status, "accepted");
+  assert.equal(reviewedAudit.summary.reviewTodos, 0);
+  assert.equal(reviewedAudit.summary.blockers, 0);
 
   const draftSource = String.raw`\usetikzlibrary{calc}
 \begin{tikzpicture}

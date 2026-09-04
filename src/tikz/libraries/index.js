@@ -63,6 +63,7 @@ import { tikzLibrary as splineLibrary } from "./spline.js";
 import { tikzLibrary as spyLibrary } from "./spy.js";
 import { tikzLibrary as throughLibrary } from "./through.js";
 import { tikzLibrary as tikzmarkLibrary } from "./tikzmark.js";
+import { tikzLibrary as topathsLibrary } from "./topaths.js";
 import { tikzLibrary as tqftLibrary } from "./tqft.js";
 import { tikzLibrary as treesLibrary } from "./trees.js";
 import { tikzLibrary as unitcircleLibrary } from "./unitcircle.js";
@@ -133,6 +134,7 @@ const tikzLibraries = Object.freeze([
   spyLibrary,
   throughLibrary,
   tikzmarkLibrary,
+  topathsLibrary,
   tqftLibrary,
   treesLibrary,
   unitcircleLibrary

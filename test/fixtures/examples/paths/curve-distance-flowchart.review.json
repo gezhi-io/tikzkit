@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf}", "\\input{tikz.code.tex}"],
+      "findings": "The package wrapper loads the PGF and TikZ front-end layers used by all three focused examples."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\path", "\\node", "\\usetikzlibrary{topaths}"],
+      "findings": "TikZ registers the path and node commands and automatically loads topaths as a core library."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex": {
+      "symbols": ["\\tikz@to@compute@distance@main", "\\tikz@to@set@distances", "out", "in", "looseness"],
+      "findings": "The curve state defaults to 45/135 degrees, derives a 0.3915 base distance, applies side-specific looseness, and clamps outgoing and incoming arms independently."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Stealth", "Latex"],
+      "findings": "The focused examples use the installed meta-tip geometry with explicit 2mm length."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": {
+      "symbols": ["diamond", "aspect"],
+      "findings": "The flowchart decision node uses the library diamond sizing and aspect key before edge border clipping."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex": {
+      "symbols": ["distance", "min distance", "max distance", "out distance", "in distance"],
+      "findings": "The manual documents the shared and side-specific exact/minimum/maximum distance keys exercised by this suite."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document environment", "\\documentclass", "\\usepackage"],
+      "findings": "The standalone document shell is removed before semantic TikZ evaluation and contributes only the requested 2pt crop border."
+    }
+  },
+  "rules": [
+    {
+      "match": "dependency:*",
+      "status": "verified",
+      "evidence": ["test/to-path-distance.test.js", "docs/qa/2026-09-04-topaths-curve-distance-controls.md"]
+    },
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": ["test/to-path-distance.test.js", "docs/qa/2026-09-04-topaths-curve-distance-controls.md"]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": ["test/to-path-distance.test.js", "docs/qa/2026-09-04-topaths-curve-distance-controls.md"]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": ["test/to-path-distance.test.js", "docs/qa/2026-09-04-topaths-curve-distance-controls.md"]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": ["test/to-path-distance.test.js", "docs/qa/2026-09-04-topaths-curve-distance-controls.md"]
+    }
+  ]
+}

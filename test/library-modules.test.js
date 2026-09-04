@@ -92,6 +92,7 @@ const OBSERVED_TIKZ_LIBRARIES = [
   "spy",
   "through",
   "tikzmark",
+  "topaths",
   "tqft",
   "trees",
   "unitcircle"

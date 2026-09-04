@@ -41,7 +41,7 @@ export async function createWorkbenchServer(options = {}) {
         const fixture = currentCatalog.find((entry) => entry.id === decodeURIComponent(auditMatch[1]));
         if (!fixture) return sendStatus(response, 404);
         const source = await readFile(fixture.sourcePath, "utf8");
-        const audit = fixtureAudit(fixture, source, auditCache, localSourceCache);
+        const audit = await fixtureAudit(fixture, source, auditCache, localSourceCache);
         return sendJson(response, audit);
       }
 
@@ -99,16 +99,24 @@ async function readJsonBody(request, maxBytes = 1_000_000) {
   }
 }
 
-function fixtureAudit(fixture, source, auditCache, localSourceCache) {
+async function fixtureAudit(fixture, source, auditCache, localSourceCache) {
+  const reviewPath = fixture.sourcePath.replace(/\.[^.]+$/, ".review.json");
+  let reviewSource = "";
+  try {
+    reviewSource = await readFile(reviewPath, "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
   const cached = auditCache.get(fixture.id);
-  if (cached?.source === source) return cached.value;
+  if (cached?.source === source && cached.reviewSource === reviewSource) return cached.value;
 
   const report = auditTikzSource(source, {
     sourcePath: fixture.sourcePath,
+    review: reviewSource ? JSON.parse(reviewSource) : {},
     localSourceResolver: (lookup) => resolveLocalSource(lookup, localSourceCache)
   });
   const value = publicAudit(report);
-  auditCache.set(fixture.id, { source, value });
+  auditCache.set(fixture.id, { source, reviewSource, value });
   return value;
 }
 
