@@ -4219,6 +4219,59 @@
       ]
     },
     {
+      "id": "chains-curved-joins-flowchart",
+      "title": "TikZ chains curved review flow",
+      "source": "chains/curved-joins-flowchart.tex",
+      "sourceCorpus": "TeX Live TikZ chains joining semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/evaluate.js:addChainJoinPath/buildPath",
+      "features": [
+        "start chain",
+        "on chain",
+        "repeatable join=with",
+        "every edge and every join",
+        "bend left/right",
+        "node-border clipping",
+        "Stealth arrows"
+      ]
+    },
+    {
+      "id": "chains-curved-joins-math-dependencies",
+      "title": "TikZ chains curved mathematical dependencies",
+      "source": "chains/curved-joins-math-dependencies.tex",
+      "sourceCorpus": "TeX Live TikZ chains joining semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/evaluate.js:addChainJoinPath/buildPath",
+      "features": [
+        "start chain",
+        "on chain",
+        "repeatable join=with",
+        "every edge and every join",
+        "out/in",
+        "looseness",
+        "Latex arrows",
+        "math node labels"
+      ]
+    },
+    {
+      "id": "chains-curved-joins-physics-feedback",
+      "title": "TikZ chains curved physical feedback",
+      "source": "chains/curved-joins-physics-feedback.tex",
+      "sourceCorpus": "TeX Live TikZ chains joining semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-chains.tex",
+      "semanticOwner": "src/engine/evaluate.js:addChainJoinPath/buildPath",
+      "features": [
+        "start chain",
+        "on chain",
+        "repeatable join=with",
+        "every edge and every join",
+        "bend left/right",
+        "out/in",
+        "looseness",
+        "Stealth arrows"
+      ]
+    },
+    {
       "id": "circuitikz-transformer-core-customization",
       "title": "circuitikz transformer-core style directory",
       "source": "circuitikz/transformer-core-customization.tex",

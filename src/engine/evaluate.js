@@ -10399,6 +10399,7 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
   const fromName = join.from || chainUpdate.previousName;
   if (!fromName) return;
   const rawOptions = {
+    "every edge": true,
     "every join": true,
     ...parseOptions(join.style || "")
   };
@@ -10409,8 +10410,12 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
   const built = buildPath(
     [
       { kind: "coordinate", raw: fromName },
-      { kind: "operator", value: "--", options: {} },
-      { kind: "coordinate", raw: chainUpdate.currentName }
+      {
+        kind: "edge",
+        options: {},
+        to: chainUpdate.currentName,
+        nodes: []
+      }
     ],
     env,
     diagnostics,
