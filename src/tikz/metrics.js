@@ -485,6 +485,12 @@ function normalizeArrowKind(kind) {
   const source = String(kind || "to").trim().replace(/^>$/, "to");
   if (/^stealth\s*'$/i.test(source)) return "stealth-prime";
   const text = source.replace(/'/g, "").toLowerCase();
+  if (text === "square bracket" || text === "[") return "square-bracket";
+  if (text === "square bracket reversed" || text === "]") return "square-bracket-reversed";
+  if (text === "(" || text === "round bracket reversed") return "round-bracket-reversed";
+  if (text === ")" || text === "round bracket") return "round-bracket";
+  const legacyAngle = text.match(/^angle\s+(90|60|45)(\s+reversed)?$/);
+  if (legacyAngle) return `angle-${legacyAngle[1]}${legacyAngle[2] ? "-reversed" : ""}`;
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";

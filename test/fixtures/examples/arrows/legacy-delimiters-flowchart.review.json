@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"],
+      "findings": "The LaTeX document shell is preprocessing-only and does not create scene geometry."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "The package loads the generic TikZ command implementation and the foreach utility."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\node", "\\usetikzlibrary"],
+      "findings": "Drawing and node commands share the TikZ option and path pipeline before arrow decoration is applied."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare{square bracket}", "\\pgfarrowsdeclare{angle 90}", "\\pgfarrowsdeclare{angle 60}", "\\pgfarrowsdeclare{angle 45}"],
+      "findings": "The legacy library defines each open tip from the active line width, including its backend, tip end, aperture, cap, and join geometry."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsdeclarereversed"],
+      "findings": "Legacy declarations are lowered through the modern arrow machinery; reversed tips reuse the same shape with reversed placement and shortening extents."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {
+      "symbols": ["angle 45", "angle 60", "angle 90", "square bracket"],
+      "findings": "The manual classifies these as deprecated compatibility tips but documents them as valid names of the arrows library."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] }
+  ]
+}

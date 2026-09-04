@@ -672,6 +672,16 @@ function parseArrowOption(key, value, defaultArrowTip) {
 const ARROW_TIP_SEQUENCE_NAMES = [
   "Computer Modern Rightarrow",
   "Classical TikZ Rightarrow",
+  "square bracket reversed",
+  "round bracket reversed",
+  "angle 90 reversed",
+  "angle 60 reversed",
+  "angle 45 reversed",
+  "square bracket",
+  "round bracket",
+  "angle 90",
+  "angle 60",
+  "angle 45",
   "Straight Barb",
   "Open Triangle",
   "Open Circle",
@@ -719,7 +729,7 @@ function parseArrowTipSpec(input) {
 
 function parseArrowTipAtom(input, inheritedOptions = {}) {
   const text = String(input || "").trim();
-  const match = text.match(/^([A-Za-z>'\s-]+)(?:\[([\s\S]*)\])?$/);
+  const match = text.match(/^([A-Za-z0-9>'()[\]\s-]+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
   const options = { ...inheritedOptions, ...(match[2] ? parseOptions(match[2]) : {}) };
   const overrides = {};

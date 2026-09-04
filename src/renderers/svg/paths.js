@@ -18,6 +18,7 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
 import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
+import { legacyDelimiterArrowMetrics } from "../../tikz/libraries/arrows.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -356,7 +357,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     "arc-barb",
     "tee-barb",
     "rays"
-  ].includes(raw.kind);
+  ].includes(raw.kind) || isLegacyDelimiterTip(raw.kind);
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
@@ -373,8 +374,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
-    lineJoin: (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
+    lineCap: isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineJoin: isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -439,6 +440,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   };
   const lengthScale = arrowMetaScale("scale") * arrowMetaScale("lengthScale");
   const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
+  const delimiter = legacyDelimiterArrowMetrics(tip.kind, lineWidth);
+  if (delimiter) return legacyDelimiterInlineGeometry(delimiter);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -738,6 +741,68 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     placement: lineWidth / 2,
     assemblyLength,
     bounds: { minX: -back, maxX: 0, minY: -halfWidth, maxY: halfWidth }
+  };
+}
+
+function isLegacyDelimiterTip(kind) {
+  return /^(?:square-bracket|round-bracket|angle-(?:90|60|45))(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isSquareBracketTip(kind) {
+  return /^square-bracket(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function legacyDelimiterInlineGeometry(metrics) {
+  const direction = metrics.reversed ? -1 : 1;
+  let path;
+  let bounds;
+
+  if (metrics.shape === "square-bracket") {
+    const innerX = direction * -metrics.arm;
+    path = [
+      `M ${format(innerX)} ${format(-metrics.halfHeight)}`,
+      `L 0 ${format(-metrics.halfHeight)}`,
+      `L 0 ${format(metrics.halfHeight)}`,
+      `L ${format(innerX)} ${format(metrics.halfHeight)}`
+    ].join(" ");
+    bounds = {
+      minX: Math.min(0, innerX),
+      maxX: Math.max(0, innerX),
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    };
+  } else if (metrics.shape === "round-bracket") {
+    const endX = direction * -0.5 * metrics.halfHeight;
+    const controlX = direction * 0.25 * metrics.halfHeight;
+    path = [
+      `M ${format(endX)} ${format(-metrics.halfHeight)}`,
+      `C ${format(controlX)} ${format(-0.5 * metrics.halfHeight)} ${format(controlX)} ${format(0.5 * metrics.halfHeight)} ${format(endX)} ${format(metrics.halfHeight)}`
+    ].join(" ");
+    bounds = {
+      minX: Math.min(endX, controlX),
+      maxX: Math.max(endX, controlX),
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    };
+  } else {
+    const backX = direction * metrics.backX;
+    const tipX = direction * metrics.tipX;
+    path = `M ${format(backX)} ${format(-metrics.halfHeight)} L ${format(tipX)} 0 L ${format(backX)} ${format(metrics.halfHeight)}`;
+    bounds = {
+      minX: Math.min(backX, tipX),
+      maxX: Math.max(backX, tipX),
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    };
+  }
+
+  return {
+    path,
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds
   };
 }
 

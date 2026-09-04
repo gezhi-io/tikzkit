@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"],
+      "findings": "The document shell and package declarations are consumed before picture evaluation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty": {
+      "symbols": ["\\ProvidesPackage{amsmath}"],
+      "findings": "This fixture uses amsmath only for formula syntax; delimiter arrow geometry remains owned by PGF."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "The front-end package loads the generic path engine and loop utility used by the number-line ticks."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\node", "\\usetikzlibrary"],
+      "findings": "Path and node options are resolved before arrow tip assembly and shortening."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex": {
+      "symbols": ["\\let\\foreach=\\pgffor@foreach", "\\pgffor@macro@list", "\\pgffor@values"],
+      "findings": "The loop expands its explicit value list and binds the loop variable for each tick position."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare{square bracket}", "\\pgfarrowsdeclare{round bracket}", "\\pgfarrowsdeclare{angle 45}"],
+      "findings": "Square brackets use butt caps and miter joins, round brackets use a cubic curve and round caps, and angle 45 derives its aperture from sin(23 degrees)."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsdeclarereversed"],
+      "findings": "The left and right delimiter spellings select normal or reversed instances of the same legacy declaration."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {
+      "symbols": ["[", "]", "(", ")", "angle 45 reversed"],
+      "findings": "The bracket-like tips and reversed angle tip are public compatibility names accepted by the arrows library."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] }
+  ]
+}

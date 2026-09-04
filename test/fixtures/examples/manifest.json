@@ -5708,6 +5708,33 @@
       "features": ["arrows.meta", "bending", "flex", "flex'", "bend", "physics trajectories"]
     },
     {
+      "id": "arrows-legacy-delimiters-flowchart",
+      "title": "Legacy angle and bracket tips in a validation flow",
+      "source": "arrows/legacy-delimiters-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics + src/renderers/svg/paths.js:legacyDelimiterInlineGeometry",
+      "features": ["arrows", "angle 90", "angle 60", "angle 45", "square bracket", "flowchart"]
+    },
+    {
+      "id": "arrows-legacy-delimiters-math",
+      "title": "Legacy bracket and parenthesis tips on mathematical intervals",
+      "source": "arrows/legacy-delimiters-math.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/engine/options.js:parseArrowTipSpec + src/renderers/svg/paths.js:legacyDelimiterInlineGeometry",
+      "features": ["arrows", "square bracket", "round bracket", "reversed", "angle 45", "interval notation"]
+    },
+    {
+      "id": "arrows-legacy-delimiters-physics",
+      "title": "Legacy angle tips on momentum and force vectors",
+      "source": "arrows/legacy-delimiters-physics.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics + src/renderers/svg/paths.js:legacyDelimiterInlineGeometry",
+      "features": ["arrows", "angle 90", "angle 60", "angle 45", "reversed", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

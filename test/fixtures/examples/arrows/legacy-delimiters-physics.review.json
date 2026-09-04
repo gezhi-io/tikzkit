@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"],
+      "findings": "The surrounding LaTeX document commands are non-rendering shell syntax."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "The package delegates drawing semantics to the generic TikZ source."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\fill", "\\usetikzlibrary"],
+      "findings": "Draw and fill operations produce the vector scene before the arrows library supplies terminal tip geometry."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare{square bracket}", "\\pgfarrowsdeclare{angle 90}", "\\pgfarrowsdeclare{angle 60}", "\\pgfarrowsdeclare{angle 45}"],
+      "findings": "The three angle families intentionally use different backend and half-height factors; their visible apertures must therefore not be approximated by one shared chevron."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsdeclarereversed"],
+      "findings": "Tip-end and backend values determine how the vector shaft is shortened, including the reversed angle 60 used for the gravity vector."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {
+      "symbols": ["angle 45", "angle 60", "angle 60 reversed", "angle 90"],
+      "findings": "The manual confirms the exact legacy names exercised by the vector comparison fixture."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-delimiters.test.js", "docs/qa/2026-09-04-arrows-legacy-delimiters.md"] }
+  ]
+}
