@@ -56,6 +56,7 @@ import {
   TO_PATH_TARGET_ALIAS
 } from "../tikz/libraries/topaths.js";
 import { evaluateMath, parseDimension, roundNumber, roundPoint, substituteTextVariables, substituteVariables } from "./math.js";
+import { createPgfRandom } from "./pgfRandom.js";
 import {
   effectiveMathFontScale,
   estimateFormulaBox,
@@ -207,6 +208,7 @@ export function interpretTikz(ast, options = {}) {
   // presentation-only translation.
   const documentCoordinates = {};
   const documentNodes = {};
+  const documentRandom = createPgfRandom(options.pgfRandomSeed ?? 1);
   const tabularPictureIrs = new Map();
   let inlineCursorX = 0;
   let lastPictureBounds = null;
@@ -222,6 +224,9 @@ export function interpretTikz(ast, options = {}) {
       ...evaluatePicturePgfMathMacros(picture.pgfMathMacros || [], DEFAULT_TEX_VARIABLES),
       ...(picture.storedVariables || {})
     };
+    for (const expression of picture.pgfMathSeedsBefore || []) {
+      documentRandom.setSeed(evaluateMath(expression, baseVariables));
+    }
     const pictureOptions = stripStyleDefinitionOptions(
       normalizeOptions("path", withImplicitStyleOption("every picture", picture.options || {}, styles), {
         variables: baseVariables,
@@ -254,6 +259,7 @@ export function interpretTikz(ast, options = {}) {
       circuitikz: circuitikzPackageSettings(picture.packages || ast.packages || []),
       randomLists: { ...(picture.randomLists || {}) },
       randomListCounters: {},
+      pgfRandom: documentRandom,
       patterns: { ...(picture.patterns || ast.patterns || {}) },
       shadings: { ...(picture.shadings || ast.shadings || {}) },
       textEngine: options.textEngine || null,
@@ -786,6 +792,11 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   }
   if (statement.type === "pgfmathsetmacro") {
     env.variables[statement.name] = evaluateMath(statement.expression, env.variables);
+    return;
+  }
+  if (statement.type === "pgfmathsetseed") {
+    env.pgfRandom ||= createPgfRandom();
+    env.pgfRandom.setSeed(evaluateMath(statement.expression, env.variables));
     return;
   }
   if (statement.type === "pgfmathsetlengthmacro") {
@@ -13955,7 +13966,9 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
             ? "bumps"
             : decoration.bent
               ? "bent"
-              : null;
+              : decoration["random steps"]
+                ? "random steps"
+                : null;
   if (!pathOptions.decorate || !mode) return commands;
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
   const defaultSegmentLength = parseDimension("10pt", env.variables);
@@ -13979,7 +13992,7 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   // PGF runs path-morphing decorations over the complete input subpath and
   // applies pre/post lengths only at its endpoints. Individual declarations
   // decide whether states span or restart at input-segment boundaries.
-  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw" || mode === "bumps" || mode === "bent") {
+  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw" || mode === "bumps" || mode === "bent" || mode === "random steps") {
     return applyPathMorphingToSubpaths(
       commands,
       amplitude,
@@ -13990,7 +14003,8 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
       aspect,
       normalSign,
       normalRaise,
-      pathHasCorners
+      pathHasCorners,
+      env.pgfRandom
     );
   }
   const morphed = [];
@@ -14312,7 +14326,8 @@ function supportedPathDecoration(options = {}) {
     || tikzBoolean(decoration.coil)
     || tikzBoolean(decoration.saw)
     || tikzBoolean(decoration.bumps)
-    || tikzBoolean(decoration.bent);
+    || tikzBoolean(decoration.bent)
+    || tikzBoolean(decoration["random steps"]);
 }
 
 function applyPathMorphingToSubpaths(
@@ -14325,7 +14340,8 @@ function applyPathMorphingToSubpaths(
   aspect = 0.5,
   normalSign = 1,
   normalRaise = 0,
-  pathHasCorners = false
+  pathHasCorners = false,
+  pgfRandom = createPgfRandom()
 ) {
   const morphed = [];
   let subpath = [];
@@ -14360,7 +14376,8 @@ function applyPathMorphingToSubpaths(
       aspect,
       normalSign,
       normalRaise,
-      pathHasCorners
+      pathHasCorners,
+      pgfRandom
     );
     if (subpath.at(-1)?.type === "closePath") morphed.push({ type: "closePath" });
     subpath = [];
@@ -15266,7 +15283,8 @@ function appendMorphedPolyline(
   aspect = 0.5,
   normalSign = 1,
   normalRaise = 0,
-  pathHasCorners = false
+  pathHasCorners = false,
+  pgfRandom = createPgfRandom()
 ) {
   const length = polylineLength(points);
   const to = points.at(-1);
@@ -15371,6 +15389,76 @@ function appendMorphedPolyline(
       normalRaise
     );
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+    return;
+  }
+  if (mode === "random steps") {
+    appendNativeRandomStepsPolyline(
+      commands,
+      points,
+      amplitude,
+      segmentLength,
+      activeStart,
+      activeLength,
+      normalSign,
+      normalRaise,
+      pgfRandom
+    );
+    if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+  }
+}
+
+function appendNativeRandomStepsPolyline(
+  commands,
+  points,
+  amplitude,
+  segmentLength,
+  activeStart,
+  activeLength,
+  normalSign = 1,
+  normalRaise = 0,
+  pgfRandom = createPgfRandom()
+) {
+  const pathLength = polylineLength(points);
+  const walker = createPgfDecorationPathWalker(points, pathLength);
+  walker.advance(activeStart);
+  let remaining = activeLength;
+  const automaticThreshold = 1.5 * segmentLength;
+
+  const statePoint = (sample, xOffset, yOffset) => {
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
+    const transformedY = normalSign * (normalRaise + yOffset);
+    return {
+      x: roundNumber(sample.x + tangent.x * xOffset + sample.normal.x * transformedY),
+      y: roundNumber(sample.y + tangent.y * xOffset + sample.normal.y * transformedY)
+    };
+  };
+  const pushLine = (point) => commands.push({ type: "lineTo", x: point.x, y: point.y });
+
+  while (remaining > 1e-12) {
+    const stateOrigin = walker.frame();
+    if (remaining <= automaticThreshold + 1e-12) {
+      pushLine(statePoint(stateOrigin, remaining, 0));
+      walker.advance(remaining);
+      break;
+    }
+
+    // The declaration persistently enables path-has-corners, so every input
+    // segment boundary uses the same 1.5-segment automatic-corner threshold.
+    const segmentRemaining = walker.inputSegmentRemainingDistance();
+    if (segmentRemaining > 1e-12 && segmentRemaining <= automaticThreshold + 1e-12) {
+      pushLine(statePoint(stateOrigin, segmentRemaining, 0));
+      walker.advance(segmentRemaining);
+      remaining -= segmentRemaining;
+      continue;
+    }
+
+    pushLine(statePoint(
+      stateOrigin,
+      segmentLength + pgfRandom.rand() * amplitude,
+      pgfRandom.rand() * amplitude
+    ));
+    walker.advance(segmentLength);
+    remaining -= segmentLength;
   }
 }
 

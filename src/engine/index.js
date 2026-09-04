@@ -1,5 +1,6 @@
 export { evaluateTikzAst, interpretTikz } from "./evaluate.js";
 export { createEngineContext } from "./context.js";
+export { createPgfRandom, nextPgfRandomState, pgfRandomRandStep, pgfRandomRndStep } from "./pgfRandom.js";
 export {
   evaluateMath,
   parseDimension,

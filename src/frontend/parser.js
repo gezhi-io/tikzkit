@@ -74,6 +74,12 @@ export function parseTikz(source, options = {}) {
   }
   const pictures = picturesToParse.map((picture) => {
     const prePictureSource = preprocessed.source.slice(0, picture.beginIndex);
+    const previousPictureEnd = picture.index > 0
+      ? scannedPictures[picture.index - 1]?.endIndex || 0
+      : 0;
+    const pgfMathSeedsBefore = collectPgfMathSetSeeds(
+      preprocessed.source.slice(previousPictureEnd, picture.beginIndex)
+    );
     const globalStyles = collectStyleDefinitions(prePictureSource);
     const globalOptions = collectTikzsetDirectOptions(prePictureSource);
     const globalCodeHandlers = collectCodeDefinitions(prePictureSource);
@@ -100,6 +106,7 @@ export function parseTikz(source, options = {}) {
       patternDeclarations: globalPatternDeclarations,
       coordinateSystems: globalCoordinateSystems,
       pgfMathMacros: globalPgfMath,
+      pgfMathSeedsBefore,
       randomLists,
       libraries,
       packages,
@@ -186,6 +193,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\chainin")) return parseChaininStatement(text, diagnostics);
   if (text.startsWith("\\coordinate")) return parseCoordinateStatement(text, diagnostics);
   if (text.startsWith("\\pgfmathsetlengthmacro")) return parsePgfMathSetLength(text, diagnostics);
+  if (text.startsWith("\\pgfmathsetseed")) return parsePgfMathSetSeed(text, diagnostics);
   if (text.startsWith("\\pgfmathsetmacro")) return parsePgfMath(text, diagnostics);
   if (text.startsWith("\\pgfmathtruncatemacro")) return parsePgfMathTruncate(text, diagnostics);
   if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
@@ -604,6 +612,19 @@ function parsePgfMath(text) {
   };
 }
 
+function parsePgfMathSetSeed(text) {
+  const index = skipWhitespace(text, "\\pgfmathsetseed".length);
+  const expression = extractBalanced(text, index, "{", "}");
+  if (!expression || text.slice(expression.end).trim()) {
+    return unsupported("pgfmathsetseed", text, "Malformed \\pgfmathsetseed statement");
+  }
+  return {
+    type: "pgfmathsetseed",
+    expression: expression.content.trim(),
+    raw: text
+  };
+}
+
 function parsePgfMathTruncate(text) {
   const parsed = parsePgfMathTargetCommand(text, "\\pgfmathtruncatemacro");
   if (!parsed) return unsupported("pgfmathtruncatemacro", text, "Malformed \\pgfmathtruncatemacro statement");
@@ -711,6 +732,25 @@ function collectPgfMathMacros(source) {
     }
   }
   return macros;
+}
+
+function collectPgfMathSetSeeds(source) {
+  const seeds = [];
+  let index = 0;
+  const command = "\\pgfmathsetseed";
+  while (index < source.length) {
+    const found = source.indexOf(command, index);
+    if (found < 0) break;
+    const start = skipWhitespace(source, found + command.length);
+    const expression = extractBalanced(source, start, "{", "}");
+    if (expression) {
+      seeds.push(expression.content.trim());
+      index = expression.end;
+    } else {
+      index = found + command.length;
+    }
+  }
+  return seeds;
 }
 
 function parsePgfMathDeclareRandomList(text) {
@@ -2151,6 +2191,7 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\definecolor") ||
     text.startsWith("\\linespread") ||
     text.startsWith("\\pgfmathsetlengthmacro") ||
+    text.startsWith("\\pgfmathsetseed") ||
     text.startsWith("\\pgfmathsetmacro") ||
     text.startsWith("\\pgfmathtruncatemacro") ||
     text.startsWith("\\pgfmathdeclarerandomlist") ||

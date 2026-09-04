@@ -5814,6 +5814,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendNativeBentPolyline",
       "features": ["bent", "negative amplitude", "aspect", "beam deflection", "physics"]
+    },
+    {
+      "id": "decorations-pathmorphing-random-steps-flowchart",
+      "title": "Seeded noisy transitions in a signal flow",
+      "source": "decorations/pathmorphing-random-steps/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF random steps declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeRandomStepsPolyline",
+      "features": ["random steps", "pgfmathsetseed", "segment length", "amplitude", "pre length", "post length", "arrows", "flowchart"]
+    },
+    {
+      "id": "decorations-pathmorphing-random-steps-math",
+      "title": "Seeded residuals around a mathematical trend",
+      "source": "decorations/pathmorphing-random-steps/math.tex",
+      "sourceCorpus": "TeX Live PGF random steps declaration and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeRandomStepsPolyline/createPgfDecorationPathWalker",
+      "features": ["random steps", "pgfmathsetseed", "signed tangent-frame perturbation", "mathematics"]
+    },
+    {
+      "id": "decorations-pathmorphing-random-steps-physics",
+      "title": "Seeded scattered particle trajectory",
+      "source": "decorations/pathmorphing-random-steps/physics.tex",
+      "sourceCorpus": "TeX Live PGF random steps declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeRandomStepsPolyline/createPgfDecorationPathWalker",
+      "features": ["random steps", "automatic corners", "pre length", "post length", "particle trajectory", "physics"]
     }
   ]
 }

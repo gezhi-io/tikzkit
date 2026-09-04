@@ -8,6 +8,7 @@ import { TIKZ_UNIT } from "./tikz/metrics.js";
 export { parseTikz } from "./frontend/index.js";
 export { extractTikzCodeBlocks, splitTikzCodeBlocks } from "./frontend/code-blocks.js";
 export { evaluateTikzAst, interpretTikz } from "./engine/index.js";
+export { createPgfRandom, nextPgfRandomState, pgfRandomRandStep, pgfRandomRndStep } from "./engine/pgfRandom.js";
 export { renderSvg } from "./renderers/svg/index.js";
 
 export function tikzToSvg(source, options = {}) {

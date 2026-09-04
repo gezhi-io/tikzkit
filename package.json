@@ -43,7 +43,7 @@
   "scripts": {
     "test": "node --test",
     "web": "node web/server.js",
-    "web:output": "node web/render-output.js",
+    "web:output": "node scripts/render-example-fixtures.js --output test/fixtures/examples/output --preserve-output --continue-on-external-failure --tikztosvg-engine pdflatex --math-renderer svg-text",
     "examples:render": "node scripts/render-example-fixtures.js",
     "examples:diff": "node scripts/diff-example-pngs.js",
     "examples:import-next": "node scripts/import-latex-examples-batch.js",

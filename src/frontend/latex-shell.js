@@ -1,4 +1,5 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
+import { createPgfRandom } from "../engine/pgfRandom.js";
 import { applyPreprocessExtensions } from "../extensions/index.js";
 import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
 import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../engine/options.js";
@@ -9365,27 +9366,7 @@ function evaluateDatavisualizationExpression(expression, variables, random) {
 }
 
 function createDatavisualizationRandom(seed) {
-  const modulus = 2147483647;
-  const multiplier = 69621;
-  const quotient = 30845;
-  const remainder = 23902;
-  let state = Math.max(1, Math.abs(Math.trunc(seed)) % modulus);
-  const nextInt = () => {
-    const low = state % quotient;
-    const high = Math.floor(state / quotient);
-    let next = multiplier * low - remainder * high;
-    if (next < 0) next += modulus;
-    state = next;
-    return state;
-  };
-  const api = () => api.rand();
-  api.rnd = () => (nextInt() % 100001) / 100000;
-  api.rand = () => ((nextInt() % 200001) - 100000) / 100000;
-  api.integer = (max) => {
-    const upper = Math.max(1, Math.floor(max));
-    return 1 + (nextInt() % upper);
-  };
-  return api;
+  return createPgfRandom(seed);
 }
 
 function datavisualizationCoordinate(point) {

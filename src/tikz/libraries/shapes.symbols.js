@@ -1,3 +1,5 @@
+import { pgfRandomRndStep } from "../../engine/pgfRandom.js";
+
 const NOWHERE = "nowhere";
 
 export const tikzLibrary = {
@@ -315,7 +317,7 @@ export function starburstGeometry(size = {}, data = {}) {
         pointHeightRatios.push(1);
         height = pointHeight;
       } else {
-        const next = pgfRandomUnit(randomState);
+        const next = pgfRandomRndStep(randomState);
         randomState = next.state;
         const ratio = 0.25 + 0.75 * next.value;
         pointHeightRatios.push(ratio);
@@ -384,17 +386,6 @@ export function starburstBorderPoint(geometry = {}, toward = {}, padding = 0) {
     : geometry.borderVertices || geometry.points || [];
   const hit = polygonRayHit(points, direction);
   return hit ? roundPoint(hit.point) : { x: 0, y: 0 };
-}
-
-function pgfRandomUnit(seed) {
-  const quotient = Math.trunc(seed / 30845);
-  const remainder = seed - quotient * 30845;
-  let state = 69621 * remainder - 23902 * quotient;
-  if (state < 0) state += 2147483647;
-  return {
-    state,
-    value: (state % 100001) / 100000
-  };
 }
 
 function normalizedStarburstPoints(value) {

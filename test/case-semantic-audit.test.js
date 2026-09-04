@@ -156,7 +156,7 @@ test("audit assigns document-shell and font commands to explicit owners", () => 
   const report = auditTikzSource(String.raw`
     \usepackage[active]{preview}
     \setlength\PreviewBorder{2mm}
-    \begin{tikzpicture}\node{\tiny\tt x};\end{tikzpicture}
+    \begin{tikzpicture}\node{\tiny\scriptsize\footnotesize\small\normalsize\large\Large\LARGE\huge\Huge\tt x};\end{tikzpicture}
   `, {
     localSourceResolver: fakeResolver
   });
@@ -164,9 +164,11 @@ test("audit assigns document-shell and font commands to explicit owners", () => 
   const ownerFor = (name) => report.commands.find((entry) => entry.name === name)?.implementedBy;
   assert.equal(ownerFor("\\PreviewBorder"), "src/frontend/latex-shell.js");
   assert.equal(ownerFor("\\setlength"), "src/frontend/latex-shell.js");
-  assert.equal(ownerFor("\\tiny"), "src/tex/fontSpec.js");
+  for (const name of ["tiny", "scriptsize", "footnotesize", "small", "normalsize", "large", "Large", "LARGE", "huge", "Huge"]) {
+    assert.equal(ownerFor(`\\${name}`), "src/tex/fontSpec.js");
+  }
   assert.equal(ownerFor("\\tt"), "src/tex/fontSpec.js");
-  assert.ok(!report.gate.blockers.some((entry) => /PreviewBorder|setlength|tiny|\\tt/.test(entry)));
+  assert.ok(!report.gate.blockers.some((entry) => /PreviewBorder|setlength|tiny|scriptsize|footnotesize|small|normalsize|large|huge|\\tt/i.test(entry)));
 });
 
 test("semantic audit maps calendar commands, options, and reviewed library metadata", () => {
