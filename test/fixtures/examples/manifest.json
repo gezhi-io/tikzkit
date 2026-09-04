@@ -6977,6 +6977,51 @@
       ]
     },
     {
+      "id": "shapes-diamond-geometry-flowchart",
+      "title": "Diamond outer-separation flowchart",
+      "source": "shapes/diamond-geometry-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:diamondLayoutSize/diamondGeometry/diamondBorderPoint",
+      "features": [
+        "flowchart",
+        "diamond aspect sizing",
+        "independent outer x and y separation",
+        "named corner anchors",
+        "positioning and automatic edge clipping"
+      ]
+    },
+    {
+      "id": "shapes-diamond-geometry-math",
+      "title": "Diamond numeric-anchor geometry",
+      "source": "shapes/diamond-geometry-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:diamondLayoutSize/diamondGeometry/diamondBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "independent minimum dimensions",
+        "numeric and compass anchors",
+        "base and mid anchors",
+        "separate paint and anchor contours"
+      ]
+    },
+    {
+      "id": "shapes-diamond-geometry-physics",
+      "title": "Rotated diamond force body",
+      "source": "shapes/diamond-geometry-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:diamondLayoutSize/diamondGeometry/diamondBorderPoint",
+      "features": [
+        "physics diagram",
+        "ordinary node rotation",
+        "anisotropic outer separation",
+        "named and numeric anchors",
+        "force-vector arrows and math text"
+      ]
+    },
+    {
       "id": "shapes-chamfered-rectangle-flowchart",
       "title": "Chamfered rectangle validation flowchart",
       "source": "shapes/chamfered-rectangle-flowchart.tex",

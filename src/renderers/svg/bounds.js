@@ -15,6 +15,7 @@ import {
   circularSectorGeometry,
   cylinderGeometry,
   dartGeometry,
+  diamondGeometry,
   isoscelesTriangleGeometry,
   kiteGeometry,
   semicircleGeometry
@@ -58,6 +59,8 @@ export function computeSvgBounds(items, options = {}) {
             ? dartGeometry(item, item.shapeData || {}).bounds
           : item.shape === "isoscelesTriangle"
             ? isoscelesTriangleGeometry(item, item.shapeData || {}).bounds
+          : item.shape === "diamond"
+            ? diamondGeometry(item, item.shapeData || {}).bounds
             : null;
       const symbolBounds = item.shape === "signal"
         ? signalGeometry(item, item.shapeData || {}).bounds

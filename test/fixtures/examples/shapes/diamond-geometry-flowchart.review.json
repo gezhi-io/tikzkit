@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads the requested arrow, positioning, and geometric-shape libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill", "--", "|-"], "findings": "Core TikZ resolves styles, node anchors, orthogonal paths, and automatic border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "Arrow tips are attached after node-border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of", "node distance"], "findings": "Positioning uses the resolved outer node anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["diamond", "aspect", "outernortheast", "anchorborder", "backgroundpath"], "findings": "Diamond sizing combines the content half-width and aspect-scaled half-height; its anchor contour and contracted paint contour are distinct when outer separations are nonzero." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["diamond", "aspect", "north east", "south west"], "findings": "The manual documents the aspect recommendation and named/numeric anchor family." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-diamond.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-diamond.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-diamond.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-diamond.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-diamond.test.js"] }
+  ]
+}

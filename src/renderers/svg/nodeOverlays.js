@@ -6,6 +6,7 @@ import { LIBRARY_NODE_SHAPES, diamondNodePolygonPoints, nodeShapeCommands } from
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { wrapNodeRotation } from "./transforms.js";
+import { diamondGeometry } from "../../tikz/libraries/shapes.geometric.js";
 
 export function renderNodeBoxWithOverlay(item, baseSvg, unit) {
   const shadows = renderNodeBoxShadows(item, unit);
@@ -39,7 +40,20 @@ export function renderNodeBoxShadow(item, shadow, unit) {
       (shadowItem.width / 2) * unit
     )}" ry="${format((shadowItem.height / 2) * unit)}"${styleAttributes(shadowItem.style)} />`;
   }
-  if (shadowItem.shape === "diamond" || shadowItem.shape === "diamondSplit") {
+  if (shadowItem.shape === "diamond") {
+    const geometry = diamondGeometry(shadowItem, {
+      ...(shadowItem.shapeData || {}),
+      diamondHalfWidth: undefined,
+      diamondHalfHeight: undefined,
+      diamondOuterXSep: (Number(shadowItem.shapeData?.diamondOuterXSep) || 0) * scale,
+      diamondOuterYSep: (Number(shadowItem.shapeData?.diamondOuterYSep) || 0) * scale
+    });
+    const points = geometry.paintPoints
+      .map((point) => `${format((shadowItem.x + point.x) * unit)},${format(-(shadowItem.y + point.y) * unit)}`)
+      .join(" ");
+    return `<polygon class="tikz-node-shadow" points="${points}"${styleAttributes(shadowItem.style)} />`;
+  }
+  if (shadowItem.shape === "diamondSplit") {
     const cx = shadowItem.x * unit;
     const cy = -shadowItem.y * unit;
     const hw = (shadowItem.width / 2) * unit;

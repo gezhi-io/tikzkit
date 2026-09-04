@@ -6,6 +6,7 @@ import {
   circularSectorGeometry,
   cylinderGeometry,
   dartGeometry,
+  diamondGeometry,
   isoscelesTriangleGeometry,
   kiteGeometry,
   semicircleGeometry,
@@ -56,14 +57,8 @@ export function renderCircleCrossSplitNodeBox(item, unit) {
 }
 
 export function renderDiamondNodeBox(item, unit) {
-  const cx = item.x * unit;
-  const cy = -item.y * unit;
-  const hw = (item.width / 2) * unit;
-  const hh = (item.height / 2) * unit;
-  const points = diamondNodePolygonPoints(cx, cy, hw, hh)
-    .map(([x, y]) => `${format(x)},${format(y)}`)
-    .join(" ");
-  return `<polygon points="${points}"${styleAttributes(item.style)} />`;
+  const commands = translateCommands(diamondGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  return `<path class="tikz-node-shape tikz-node-diamond" d="${pathData(commands, unit)}"${styleAttributes(item.style)} />`;
 }
 
 export function diamondNodePolygonPoints(cx, cy, halfWidth, halfHeight) {

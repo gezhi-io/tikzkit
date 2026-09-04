@@ -12,6 +12,9 @@ import {
   dartBorderPoint as geometricDartBorderPoint,
   dartGeometry as geometricDartGeometry,
   dartLayoutSize as geometricDartLayoutSize,
+  diamondBorderPoint as geometricDiamondBorderPoint,
+  diamondGeometry as geometricDiamondGeometry,
+  diamondLayoutSize as geometricDiamondLayoutSize,
   isoscelesTriangleBorderPoint as geometricIsoscelesTriangleBorderPoint,
   isoscelesTriangleGeometry as geometricIsoscelesTriangleGeometry,
   isoscelesTriangleLayoutSize as geometricIsoscelesTriangleLayoutSize,
@@ -11473,7 +11476,16 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
-  } else if (node.shape === "diamond" || node.shape === "diamondSplit") {
+  } else if (node.shape === "diamond") {
+    localPoint = geometricDiamondBorderPoint(
+      geometricDiamondGeometry(
+        { width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 },
+        node.shapeData || {}
+      ),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
+  } else if (node.shape === "diamondSplit") {
     const points = [
       { x: 0, y: halfHeight },
       { x: halfWidth, y: 0 },
@@ -11654,14 +11666,12 @@ function diamondLayoutSize(contentWidth, contentHeight, options = {}, env = { va
     minimumSize,
     options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0
   );
-  const halfContentWidth = Math.max(0, contentWidth) / 2;
-  const halfContentHeight = Math.max(0, contentHeight) / 2;
-  const halfWidth = Math.max(halfContentWidth + aspect * halfContentHeight, minimumWidth / 2);
-  const halfHeight = Math.max(halfContentWidth / aspect + halfContentHeight, minimumHeight / 2);
-  return {
-    width: roundNumber(halfWidth * 2),
-    height: roundNumber(halfHeight * 2)
-  };
+  return geometricDiamondLayoutSize(contentWidth, contentHeight, {
+    aspect,
+    minimumSize,
+    minimumWidth,
+    minimumHeight
+  });
 }
 
 function trapeziumLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
@@ -12128,6 +12138,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const chamferedRectangleOuterSep = nodeOuterSep(options, env);
   const dartOuterSep = nodeOuterSep(options, env);
   const isoscelesTriangleOuterSep = nodeOuterSep(options, env);
+  const diamondOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
@@ -12137,6 +12148,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const chamferedRectangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const dartScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const isoscelesTriangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const diamondScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteAngles = kiteVertexAngles(options);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
@@ -12160,6 +12172,11 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     opAmpNoInvInputUp: Boolean(options["noinv input up"]),
     regularPolygonSides: regularSides,
     regularPolygonStartAngle: regularPolygonStartAngle(regularSides, shapeBorderRotate),
+    diamondAspect: Math.max(1e-9, numberOption(options.aspect ?? options["shape aspect"], 1)),
+    diamondHalfWidth: Number.isFinite(Number(layoutSize?.width)) ? Number(layoutSize.width) / 2 : undefined,
+    diamondHalfHeight: Number.isFinite(Number(layoutSize?.height)) ? Number(layoutSize.height) / 2 : undefined,
+    diamondOuterXSep: Math.max(0, diamondOuterSep.x) * diamondScale,
+    diamondOuterYSep: Math.max(0, diamondOuterSep.y) * diamondScale,
     ...star,
     starOuterSep: Math.max(starOuterSep.x, starOuterSep.y) * starScale,
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
@@ -13467,6 +13484,21 @@ function estimateTkzAxisTickLabelSize(text, options = {}, env = { variables: {} 
 function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, visibleSize = null) {
   const size = visibleSize || estimateNodeLayoutSize(text, options, env);
   const outerSep = nodeOuterSep(options, env);
+  if (nodeShape(options) === "diamond") {
+    const scale = nodeOptionScale(options, env);
+    const geometry = geometricDiamondGeometry(size, {
+      diamondOuterXSep: outerSep.x * scale,
+      diamondOuterYSep: outerSep.y * scale
+    });
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
   if (isSymbolForbiddenSignShape(nodeShape(options)) || nodeShape(options) === "magnifyingGlass") {
     const radius = Math.max(Number(size.width) || 0, Number(size.height) || 0) / 2 + Math.max(outerSep.x, outerSep.y);
     const diameter = roundNumber(radius * 2);
@@ -19676,16 +19708,10 @@ function angleAnchor(node, angle, halfWidth, halfHeight) {
 }
 
 function diamondAnchorCoordinate(node, anchor, halfWidth, halfHeight) {
-  const local = {
-    north: { x: 0, y: halfHeight },
-    south: { x: 0, y: -halfHeight },
-    east: { x: halfWidth, y: 0 },
-    west: { x: -halfWidth, y: 0 },
-    "north east": { x: halfWidth / 2, y: halfHeight / 2 },
-    "north west": { x: -halfWidth / 2, y: halfHeight / 2 },
-    "south east": { x: halfWidth / 2, y: -halfHeight / 2 },
-    "south west": { x: -halfWidth / 2, y: -halfHeight / 2 }
-  }[anchor];
+  const local = geometricDiamondGeometry(
+    { width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 },
+    node.shapeData || {}
+  ).anchors[anchor];
   if (!local) return roundPoint(node.point);
   const rotated = rotateVector(local.x, local.y, Number(node.rotation) || 0);
   return roundPoint({ x: node.point.x + rotated.x, y: node.point.y + rotated.y });
@@ -19831,6 +19857,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "isoscelesTriangle") {
       const bounds = geometricIsoscelesTriangleGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "diamond") {
+      const bounds = geometricDiamondGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,
