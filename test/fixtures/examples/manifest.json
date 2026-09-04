@@ -6374,6 +6374,33 @@
       "features": ["straight zigzag", "meta-segment length", "segment length", "amplitude", "signal propagation", "physics"]
     },
     {
+      "id": "decorations-pathreplacing-brace-curves-flowchart",
+      "title": "Complete branch length from a curved flow path",
+      "source": "decorations/pathreplacing-brace-curves/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF brace declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyBraceDecoration/flattenDecorationPath",
+      "features": ["brace", "cubic path", "initial tangent frame", "recursive curve length", "flowchart"]
+    },
+    {
+      "id": "decorations-pathreplacing-brace-curves-math",
+      "title": "Brace showing the measured length of a cubic curve",
+      "source": "decorations/pathreplacing-brace-curves/math.tex",
+      "sourceCorpus": "TeX Live PGF brace declaration and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/modules/pgfmoduledecorations.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyBraceDecoration/flattenDecorationPath",
+      "features": ["brace", "cubic path", "aspect", "mirror", "curve length", "mathematics"]
+    },
+    {
+      "id": "decorations-pathreplacing-brace-curves-physics",
+      "title": "Brace measuring a curved particle trajectory",
+      "source": "decorations/pathreplacing-brace-curves/physics.tex",
+      "sourceCorpus": "TeX Live PGF brace declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:applyBraceDecoration/flattenDecorationPath",
+      "features": ["brace", "cubic path", "initial tangent", "raise", "trajectory", "physics"]
+    },
+    {
       "id": "decorations-pathreplacing-expanding-waves-flowchart",
       "title": "Expanding broadcast states between flowchart stages",
       "source": "decorations/pathreplacing-expanding-waves/flowchart.tex",

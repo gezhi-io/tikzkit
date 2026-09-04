@@ -14858,19 +14858,21 @@ function applyBraceDecoration(commands, decoration, env) {
     // coordinate frame stays aligned to the initial tangent, even for a
     // polyline, so the replacement endpoint is the total traversal length
     // along that initial direction rather than the source subpath endpoint.
-    const points = flattenPath(subpath, 0.04);
+    const points = flattenDecorationPath(subpath);
     const start = points[0];
-    const tangentPoint = points.find((point, index) => index > 0 && Math.hypot(point.x - start.x, point.y - start.y) > 1e-12);
     const length = pathLength(points);
-    if (!start || !tangentPoint || length <= 1e-12) {
+    const initial = pointOnPolyline(points, 0);
+    const tangent = initial?.normal
+      ? { x: initial.normal.y, y: -initial.normal.x }
+      : null;
+    if (!start || !tangent || Math.hypot(tangent.x, tangent.y) <= 1e-12 || length <= 1e-12) {
       replaced.push(...subpath);
       subpath = [];
       return;
     }
-    const tangentLength = Math.hypot(tangentPoint.x - start.x, tangentPoint.y - start.y);
     appendBraceLine(replaced, start, {
-      x: start.x + ((tangentPoint.x - start.x) / tangentLength) * length,
-      y: start.y + ((tangentPoint.y - start.y) / tangentLength) * length
+      x: start.x + tangent.x * length,
+      y: start.y + tangent.y * length
     }, decoration, env);
     subpath = [];
   };

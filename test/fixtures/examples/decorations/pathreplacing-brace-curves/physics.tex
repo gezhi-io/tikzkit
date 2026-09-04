@@ -1,0 +1,22 @@
+\documentclass[tikz,border=3pt]{standalone}
+\usepackage{xcolor}
+\usetikzlibrary{arrows.meta,decorations.pathreplacing}
+\definecolor{motionorange}{HTML}{EA580C}
+\definecolor{motiongray}{HTML}{475569}
+\begin{document}
+\begin{tikzpicture}[>=Stealth,every node/.style={font=\small}]
+  \draw[motiongray,-Stealth] (-.3,0) -- (6.3,0) node[right] {$x$};
+  \draw[motiongray,-Stealth] (0,-1.2) -- (0,3.7) node[above] {$z$};
+  \draw[motionorange,line width=1pt,-Stealth]
+    (0,0) .. controls (.01,0) and (6,5.1) .. (6,0);
+  \fill[motionorange] (0,0) circle (1.5pt);
+  \fill[motionorange] (6,0) circle (1.5pt);
+  \draw[motiongray!45,dashed]
+    (0,-.35) .. controls (.01,-.35) and (6,4.75) .. (6,-.35);
+  \draw[motionorange,line width=.8pt,decorate,
+    decoration={brace,amplitude=7pt,aspect=.62,mirror,raise=2pt}]
+    (0,-.35) .. controls (.01,-.35) and (6,4.75) .. (6,-.35);
+  \node[motionorange,below] at (4.4,-.92) {$s=\int_0^T |\mathbf v(t)|\,dt$};
+  \node[motiongray,above] at (3.2,2.7) {trajectory};
+\end{tikzpicture}
+\end{document}

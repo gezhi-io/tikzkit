@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex": {
+      "symbols": ["\\pgfdeclaredecoration{brace}", "\\pgfdecoratedremainingdistance", "\\pgfdecorationsegmentaspect"],
+      "findings": "The brace state consumes the complete remaining path once, draws four cubic curls around the aspect point, and uses the .15, .3, .5, and .7 coefficients with the configured amplitude."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex": {
+      "symbols": ["\\pgf@decorate@curvelength", "\\pgf@decorate@curvecordlength", "\\pgf@decorate@processnextinputsegmentobject"],
+      "findings": "PGF always subdivides a cubic once, recursively bisects until both chord-axis deltas are below 1pt, sums those terminal chords, and derives a curve segment's start angle from its first support point rather than a sampled chord."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex": "Installs decorate, mirror, raise, and the decoration key forwarding used by the fixtures.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": "Defines right/above placement and node-distance semantics used by the flowchart fixture.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": "Defines the Stealth tips used by axes and flow connectors.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Provides draw, node, path, styles, cubic controls, and picture environments used by all fixtures.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty": "Defines HTML colors and percentage color mixing used by the fixture strokes and fills.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": "Defines the small font size selected for labels.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides document, package, color-definition, command, and environment primitives consumed by the frontend.",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex": "Documents brace amplitude, aspect, raise, mirror, and replacement-path behavior."
+  },
+  "rules": [
+    {"match": "command:*", "status": "verified", "evidence": ["test/pathreplacing-brace-curves.test.js", "docs/qa/2026-09-04-pathreplacing-brace-curves.md"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pathreplacing-brace-curves.test.js", "docs/qa/2026-09-04-pathreplacing-brace-curves.md"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pathreplacing-brace-curves.test.js", "outputs/qa/2026-09-04-pathreplacing-brace-curves"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/pathreplacing-brace-curves.test.js", "outputs/qa/2026-09-04-pathreplacing-brace-curves"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pathreplacing-brace-curves.test.js", "outputs/qa/2026-09-04-pathreplacing-brace-curves"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/pathreplacing-brace-curves.test.js", "outputs/qa/2026-09-04-pathreplacing-brace-curves"]}
+  ]
+}

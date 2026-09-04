@@ -1,0 +1,19 @@
+\documentclass[tikz,border=3pt]{standalone}
+\usepackage{xcolor}
+\usetikzlibrary{arrows.meta,decorations.pathreplacing}
+\definecolor{curveblue}{HTML}{2563EB}
+\definecolor{axisgray}{HTML}{475569}
+\begin{document}
+\begin{tikzpicture}[>=Stealth]
+  \draw[axisgray,-Stealth] (-.25,0) -- (5.6,0) node[right] {$x$};
+  \draw[axisgray,-Stealth] (0,-1.25) -- (0,3.6) node[above] {$y$};
+  \draw[curveblue,line width=1pt]
+    (0,0) .. controls (.01,0) and (5,4.8) .. (5,0);
+  \draw[curveblue!35,densely dashed] (0,-.35) -- (7.3,-.35);
+  \draw[curveblue,line width=.8pt,decorate,
+    decoration={brace,amplitude=6pt,aspect=.5,mirror,raise=1pt}]
+    (0,-.35) .. controls (.01,-.35) and (5,4.45) .. (5,-.35);
+  \node[curveblue,below] at (3.65,-.85) {$L(C)=\int_C ds$};
+  \node[curveblue,above right] at (2.5,2.2) {$C$};
+\end{tikzpicture}
+\end{document}
