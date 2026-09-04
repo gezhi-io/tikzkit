@@ -25,16 +25,15 @@ test("renders legacy snakes as independently restarted zigzags with local contro
   assert.ok(path);
   assert.deepEqual(path.commands[0], { type: "moveTo", x: 0, y: 0 });
   // Legacy snakes draw every `--` separately. The first straight lead is 5mm,
-  // then its raised and mirrored first apex sits a quarter segment later.
+  // then it connects directly to the mirrored first apex. Since the installed
+  // PGF transform is mirror followed by raise, both offsets are reflected.
   expectClose(path.commands[1].x, 0.5);
   expectClose(path.commands[1].y, 0);
-  expectClose(path.commands[2].x, 0.5);
-  expectClose(path.commands[2].y, 0.04);
-  expectClose(path.commands[3].x, 0.6);
-  expectClose(path.commands[3].y, -0.06);
+  expectClose(path.commands[2].x, 0.6);
+  expectClose(path.commands[2].y, -0.14);
   // The second `--` starts a new old-style snake rather than carrying the
   // first segment's phase through the corner.
-  assert.ok(path.commands.some((command) => Math.abs(command.x - 4.06) < 1e-9 && Math.abs(command.y - 0.6) < 1e-9));
+  assert.ok(path.commands.some((command) => Math.abs(command.x - 4.14) < 1e-9 && Math.abs(command.y - 0.6) < 1e-9));
 });
 
 test("keeps snake=none as an explicit legacy opt-out", () => {
