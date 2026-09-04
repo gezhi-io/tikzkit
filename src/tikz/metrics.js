@@ -245,6 +245,12 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-spaced-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.hook, fill: "none", stroke: "context-stroke" };
   }
+  if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.bar, fill: "none", stroke: "context-stroke" };
+  }
+  if (kind === "legacy-bar") {
+    return { ...TIKZ_ARROW_TIPS.bar, fill: "none", stroke: "context-stroke" };
+  }
   if (kind === "legacy-diamond") {
     return { ...TIKZ_ARROW_TIPS.kite, fill: "context-stroke", stroke: "context-stroke" };
   }
@@ -572,6 +578,7 @@ function normalizeArrowKind(kind) {
   if (/^legacy-spaced-(?:open-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-angle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
+  if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(text)) return text;
   if (text === "legacy-spaced-implies") return text;
   if (source === "Round Cap") return "round-cap";
   if (source === "Butt Cap") return "butt-cap";
@@ -582,6 +589,12 @@ function normalizeArrowKind(kind) {
   if (text === "square bracket reversed" || text === "]") return "square-bracket-reversed";
   if (text === "(" || text === "round bracket reversed") return "round-bracket-reversed";
   if (text === ")" || text === "round bracket") return "round-bracket";
+  if (text === "|") return "legacy-bar";
+  if (text === "spaced [") return "legacy-spaced-square-bracket";
+  if (text === "spaced ]") return "legacy-spaced-square-bracket-reversed";
+  if (text === "spaced (") return "legacy-spaced-round-bracket-reversed";
+  if (text === "spaced )") return "legacy-spaced-round-bracket";
+  if (text === "spaced |") return "legacy-spaced-bar";
   const legacyAngle = text.match(/^angle\s+(90|60|45)(\s+reversed)?$/);
   if (legacyAngle) return `angle-${legacyAngle[1]}${legacyAngle[2] ? "-reversed" : ""}`;
   const legacyTriangle = text.match(/^(open\s+)?triangle\s+(90|60|45)(\s+reversed)?$/);

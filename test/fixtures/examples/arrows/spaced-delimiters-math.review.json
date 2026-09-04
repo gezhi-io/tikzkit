@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves the requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\foreach", "node"], "findings": "TikZ builds the number line, tick nodes, and curved map before terminal shortening." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex": { "symbols": ["\\let\\foreach=\\pgffor@foreach", "\\pgffor@macro@list", "\\pgffor@values"], "findings": "The loop expands the explicit value list and binds the loop variable once for every number-line tick." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["spaced [-spaced ]", "spaced ]-spaced [", "spaced |-spaced |"], "findings": "The source exposes paired normal and reversed delimiters composed with the invisible space arrow." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["square bracket", "(", ")"], "findings": "The visible bracket paths and extents are active-line-width formulas, not fixed glyphs." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["@bar", "space"], "findings": "The bar is a stroked vertical segment at 0.25 line widths; space adds endpoint distance but no paint." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced delimiters"], "findings": "The manual illustrates closed, open, and absolute-value interval terminals." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] }
+  ],
+  "notes": "Mathematics fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

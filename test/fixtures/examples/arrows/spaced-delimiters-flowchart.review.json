@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves the requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to", "|-"], "findings": "TikZ resolves straight, orthogonal, and curved terminal tangents before arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Positioning resolves node centers and borders before path shortening." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced [-spaced ]", "spaced (-spaced )", "spaced |-spaced |"], "findings": "The paired aliases combine square brackets, round brackets, or bars with the invisible space arrow at zero separation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["square bracket", "(", ")"], "findings": "Square and round delimiters derive their aperture, backend, tip end, cap, and join from the active line width." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["@bar", "space"], "findings": "The bar uses a rectangular cap and active-line-width extents; space contributes 0.88pt plus 0.3 line widths without painting." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced delimiters"], "findings": "The manual records the compatibility names and their paired use." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] }
+  ],
+  "notes": "Flowchart fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

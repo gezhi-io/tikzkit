@@ -94,6 +94,16 @@ export function legacyDelimiterArrowMetrics(kind, lineWidth) {
     });
   }
 
+  if (baseKind === "legacy-bar" && !reversed) {
+    const halfHeightPt = 2 + 1.5 * lineWidthPt;
+    return delimiterMetrics("bar", false, pt, {
+      halfHeightPt,
+      barXPt: 0.25 * lineWidthPt,
+      backEndPt: -0.25 * lineWidthPt,
+      tipEndPt: 0.75 * lineWidthPt
+    });
+  }
+
   const angle = Number(baseKind.match(/^angle-(90|60|45)$/)?.[1]);
   if (!angle) return null;
   const unitPt = 0.3 + 0.25 * lineWidthPt;

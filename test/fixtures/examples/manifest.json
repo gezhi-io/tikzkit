@@ -6032,6 +6032,33 @@
       "features": ["arrows.spaced", "spaced hooks", "reversed", "vertical", "horizontal", "diagonal", "curved path", "force vectors"]
     },
     {
+      "id": "arrows-spaced-delimiters-flowchart",
+      "title": "Spaced delimiter terminals in an audit flow",
+      "source": "arrows/spaced-delimiters-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedDelimiterArrowMetrics + src/renderers/svg/paths.js:legacyDelimiterInlineGeometry",
+      "features": ["arrows.spaced", "spaced square bracket", "spaced round bracket", "spaced bar", "reversed", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-delimiters-math",
+      "title": "Spaced delimiter terminals on intervals",
+      "source": "arrows/spaced-delimiters-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedDelimiterArrowMetrics + src/renderers/svg/paths.js:legacyDelimiterInlineGeometry",
+      "features": ["arrows.spaced", "spaced square bracket", "spaced round bracket", "spaced bar", "reversed", "number line", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-spaced-delimiters-physics",
+      "title": "Spaced delimiter terminals on measurement windows",
+      "source": "arrows/spaced-delimiters-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedDelimiterArrowMetrics + src/renderers/svg/paths.js:legacyDelimiterInlineGeometry",
+      "features": ["arrows.spaced", "spaced square bracket", "spaced round bracket", "spaced bar", "reversed", "measurement", "orthogonal path", "curved path", "physics diagram"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

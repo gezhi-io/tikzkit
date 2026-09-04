@@ -650,6 +650,14 @@ function parseArrowOption(key, value, defaultArrowTip) {
   if (text === "*-*") return { markerStart: parseArrowTipSpec("*"), markerEnd: parseArrowTipSpec("*") };
   if (text === "*->") return { markerStart: parseArrowTipSpec("*"), markerEnd: { ...defaultArrowTip } };
 
+  const spacedDelimiterBoth = text.match(/^(spaced\s+[\[\]()|])\s*-\s*(spaced\s+[\[\]()|])$/u);
+  if (spacedDelimiterBoth) {
+    return {
+      markerStart: parseArrowTipSpec(spacedDelimiterBoth[1]),
+      markerEnd: parseArrowTipSpec(spacedDelimiterBoth[2])
+    };
+  }
+
   const customBoth = text.match(/^\{([\s\S]+)\}-\{([\s\S]+)\}$/);
   if (customBoth) {
     return { markerStart: parseArrowTipSpec(customBoth[1]), markerEnd: parseArrowTipSpec(customBoth[2]) };
@@ -699,6 +707,11 @@ const ARROW_TIP_SEQUENCE_NAMES = [
   "spaced left hook",
   "spaced right hook",
   "spaced hooks",
+  "spaced [",
+  "spaced ]",
+  "spaced (",
+  "spaced )",
+  "spaced |",
   "triangle 90 reversed",
   "triangle 60 reversed",
   "triangle 45 reversed",

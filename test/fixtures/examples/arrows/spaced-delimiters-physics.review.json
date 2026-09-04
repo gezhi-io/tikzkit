@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves the requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "rectangle", "to", "|-"], "findings": "TikZ supplies the straight, orthogonal, and curved tangent frames used by physical measurement terminals." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["spaced [-spaced ]", "spaced (-spaced )", "spaced |-spaced |"], "findings": "Each measured endpoint receives the visible delimiter followed by the source space component." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["square bracket", "(", ")"], "findings": "Bracket aperture and orientation follow the active path line width and terminal direction." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["@bar", "space", "\\pgfsetrectcap"], "findings": "The physical dimension bar uses a rectangular cap and a height of 2pt plus 1.5 line widths." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced delimiters"], "findings": "The manual documents delimiter tips as compatibility arrows with additional endpoint clearance." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-delimiters.test.js", "docs/qa/2026-09-04-arrows-spaced-delimiters.md"] }
+  ],
+  "notes": "Physics fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}
