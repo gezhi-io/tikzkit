@@ -1,0 +1,20 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,shapes.geometric,shapes.multipart}
+\begin{document}
+\begin{tikzpicture}[>=Latex]
+  \node[shape=diamond split,draw=blue!70!black,thick,fill=blue!5,
+    aspect=1.7,inner xsep=7pt,inner ysep=4pt,outer sep=2pt,
+    minimum width=48mm,minimum height=27mm] (complex)
+    {$z=x+iy$\nodepart{lower}$|z|^2=x^2+y^2$};
+
+  \draw[red!75!black] (complex.base) -- (complex.mid)
+    node[above right] {base to mid};
+  \draw[gray,densely dashed] (complex.north west) --
+    (complex.south east);
+  \fill[orange!85!black] (complex.text) circle (1.2pt)
+    (complex.lower) circle (1.2pt);
+  \draw[<->,gray] ($(complex.west)+(0,-7mm)$) --
+    node[below] {$2a$} ($(complex.east)+(0,-7mm)$);
+\end{tikzpicture}
+\end{document}

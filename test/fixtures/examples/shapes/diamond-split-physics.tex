@@ -1,0 +1,19 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,shapes.geometric,shapes.multipart}
+\begin{document}
+\begin{tikzpicture}[>=Latex]
+  \node[diamond split,draw=purple!70!black,thick,fill=purple!6,
+    aspect=1.25,inner xsep=6pt,inner ysep=4pt,
+    minimum width=43mm,minimum height=28mm] (energy)
+    {$E_k=\frac12mv^2$\nodepart{lower}$E_p=mgh$};
+
+  \draw[-Latex,thick,blue!75!black] (-42mm,0) --
+    node[above] {$W$} (energy.west);
+  \draw[-Latex,thick,orange!85!black] (energy.east) --
+    node[above] {$\Delta E$} ++(42mm,0);
+  \draw[-Latex,red!75!black] (energy.lower) -- ++(0,-14mm)
+    node[below] {potential state};
+  \draw[gray,densely dashed] (energy.south west) -- (energy.north east);
+\end{tikzpicture}
+\end{document}

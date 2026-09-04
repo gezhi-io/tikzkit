@@ -13,7 +13,10 @@ import {
   trapeziumLayoutSize as geometricTrapeziumLayoutSize,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
-import { ellipseSplitGeometry as multipartEllipseSplitGeometry } from "../tikz/libraries/shapes.multipart.js";
+import {
+  diamondSplitGeometry as multipartDiamondSplitGeometry,
+  ellipseSplitGeometry as multipartEllipseSplitGeometry
+} from "../tikz/libraries/shapes.multipart.js";
 import {
   cloudBorderPoint as symbolCloudBorderPoint,
   cloudGeometry as symbolCloudGeometry,
@@ -6551,8 +6554,9 @@ function createNode(statement, env, ir, diagnostics) {
   const rectangleSplit = rectangleSplitLayout(text, expandedOptions, nodeEnv);
   const circleSplit = circleSplitLayout(text, expandedOptions, nodeEnv);
   const ellipseSplit = ellipseSplitLayout(text, expandedOptions, nodeEnv);
-  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || ellipseSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
-  const rawAnchorSize = fitLayout?.rawSize || estimateNodeAnchorSize(text, expandedOptions, nodeEnv, rawSize);
+  const diamondSplit = diamondSplitLayout(text, expandedOptions, nodeEnv);
+  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || ellipseSplit?.size || diamondSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
+  const rawAnchorSize = fitLayout?.rawSize || diamondSplit?.anchorSize || estimateNodeAnchorSize(text, expandedOptions, nodeEnv, rawSize);
   const rawPositioningSize = fitLayout?.rawSize || estimatePositioningSelfSize(text, expandedOptions, nodeEnv, rawAnchorSize);
   const size = scaleSize(rawSize, nodeEnv.canvasScale);
   const anchorSize = scaleSize(rawAnchorSize, nodeEnv.canvasScale);
@@ -6569,7 +6573,7 @@ function createNode(statement, env, ir, diagnostics) {
     ...positioningSize,
     ...textAnchorOffsets,
     shape: resolvedShape,
-    shapeData: resolvedShapeData,
+    shapeData: { ...resolvedShapeData, ellipseSplit, diamondSplit },
     rotation: resolvedRotation
   });
   const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, nodeEnv, size);
@@ -6590,6 +6594,7 @@ function createNode(statement, env, ir, diagnostics) {
     rectangleSplit,
     circleSplit,
     ellipseSplit,
+    diamondSplit,
     shapeData: {
       ...resolvedShapeData,
       ...(arrowGeometry ? { arrowGeometry } : {})
@@ -6613,6 +6618,7 @@ function createNode(statement, env, ir, diagnostics) {
       rectangleSplit,
       circleSplit,
       ellipseSplit,
+      diamondSplit,
       ...(arrowGeometry ? { arrowGeometry } : {})
     },
     rotation: resolvedRotation
@@ -9259,6 +9265,7 @@ function addNodeItems(node, ir, env) {
     rectangleSplit: node.rectangleSplit || null,
     circleSplit: node.circleSplit || null,
     ellipseSplit: node.ellipseSplit || null,
+    diamondSplit: node.diamondSplit || null,
     ...(node.shapeData || {})
   };
   // shapes.misc foreground paths use inherited rectangle anchors, which include outer sep.
@@ -9475,9 +9482,11 @@ function addNodeItems(node, ir, env) {
   if (shape === "rectangleSplit" && node.rectangleSplit) {
     addRectangleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "circleSplit" && node.circleSplit) {
-    addCircleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
+    addMultipartTextItems(node, node.circleSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "ellipseSplit" && node.ellipseSplit) {
-    addEllipseSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
+    addMultipartTextItems(node, node.ellipseSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
+  } else if (shape === "diamondSplit" && node.diamondSplit) {
+    addMultipartTextItems(node, node.diamondSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
@@ -9825,28 +9834,7 @@ function addRectangleSplitTextItems(node, point, size, rotation, textStyle, env,
   }
 }
 
-function addCircleSplitTextItems(node, point, size, rotation, textStyle, env, ir) {
-  const layout = node.circleSplit;
-  const scale = size.width / Math.max(layout.size.width, 1e-9);
-  for (const part of layout.parts || []) {
-    if (!part.text) continue;
-    const local = rotateVector(0, part.centerY * scale, rotation || 0);
-    ir.items.push({
-      type: "textNode",
-      x: roundNumber(point.x + local.x),
-      y: roundNumber(point.y + local.y),
-      text: part.text,
-      font: resolvedTextFontSpec(part.text, node.options || {}, env, env.canvasScale * nodeOptionScale(node.options || {}, env)),
-      style: textStyle,
-      rotation: rotation || undefined,
-      textAlign: "center",
-      texBoxVerticalAlign: true
-    });
-  }
-}
-
-function addEllipseSplitTextItems(node, point, size, rotation, textStyle, env, ir) {
-  const layout = node.ellipseSplit;
+function addMultipartTextItems(node, layout, point, size, rotation, textStyle, env, ir) {
   const xScale = size.width / Math.max(layout.size.width, 1e-9);
   const yScale = size.height / Math.max(layout.size.height, 1e-9);
   for (const part of layout.parts || []) {
@@ -10795,7 +10783,8 @@ function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variable
   const splitTextAnchor = rectangleSplitTextAnchorShift(text, options, env, size, rotation);
   const shapeData = {
     ...nodeShapeData(options, env, text, size),
-    ellipseSplit: ellipseSplitLayout(text, options, env)
+    ellipseSplit: ellipseSplitLayout(text, options, env),
+    diamondSplit: diamondSplitLayout(text, options, env)
   };
   const shift = splitTextAnchor || nodeAnchorShift(options, anchorSize, sep, env, rotation, textAnchorOffsets, shapeData);
   const explicitShift = nodeExplicitShift(options, env);
@@ -10893,10 +10882,10 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
   if (nearTicklabelShift) return nearTicklabelShift;
   const textAnchor = textAnchorKind(anchor);
   const shape = nodeShape(options);
-  if (shape === "ellipseSplit") {
-    const ellipseSplitAnchor = customNodeLocalAnchor(shape, anchor, { ...size, shapeData });
-    if (ellipseSplitAnchor) {
-      const rotated = rotateVector(ellipseSplitAnchor.x, ellipseSplitAnchor.y, rotation);
+  if (shape === "ellipseSplit" || shape === "diamondSplit") {
+    const multipartAnchor = customNodeLocalAnchor(shape, anchor, { ...size, shapeData });
+    if (multipartAnchor) {
+      const rotated = rotateVector(multipartAnchor.x, multipartAnchor.y, rotation);
       return { x: -rotated.x, y: -rotated.y };
     }
   }
@@ -11389,7 +11378,7 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
-  } else if (node.shape === "diamond") {
+  } else if (node.shape === "diamond" || node.shape === "diamondSplit") {
     const points = [
       { x: 0, y: halfHeight },
       { x: halfWidth, y: 0 },
@@ -11528,6 +11517,7 @@ function nodeShape(options = {}) {
   if (options["rectangle split"]) return "rectangleSplit";
   if (options["circle split"]) return "circleSplit";
   if (options["ellipse split"]) return "ellipseSplit";
+  if (options["diamond split"]) return "diamondSplit";
   if (options["single arrow"]) return "singleArrow";
   if (options["double arrow"]) return "doubleArrow";
   if (options["cross out"]) return "crossOut";
@@ -11560,6 +11550,7 @@ function explicitNodeShape(shape) {
     "rectangle split": "rectangleSplit",
     "circle split": "circleSplit",
     "ellipse split": "ellipseSplit",
+    "diamond split": "diamondSplit",
     "single arrow": "singleArrow",
     "double arrow": "doubleArrow",
     "cross out": "crossOut",
@@ -12318,6 +12309,54 @@ function ellipseSplitLayout(text, options = {}, env = { variables: {} }) {
     size: {
       width: roundNumber(geometry.size.width),
       height: roundNumber(geometry.size.height)
+    },
+    parts: geometry.parts.map((part, index) => ({
+      ...part,
+      text: index === 0 ? upper : lower,
+      centerX: roundNumber(part.centerX),
+      centerY: roundNumber(part.centerY)
+    }))
+  };
+}
+
+function diamondSplitLayout(text, options = {}, env = { variables: {} }) {
+  if (!options["diamond split"] && normalizeShapeName(options.shape) !== "diamond split") return null;
+  const { upper, lower } = circleSplitTextParts(text);
+  const metricOptions = {
+    ...options,
+    "inner sep": "0pt",
+    "inner xsep": "0pt",
+    "inner ysep": "0pt",
+    "minimum width": undefined,
+    "minimum height": undefined,
+    "minimum size": undefined
+  };
+  const upperBox = circleSplitPartMetric(upper, metricOptions, env);
+  const lowerBox = circleSplitPartMetric(lower, metricOptions, env);
+  const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const outerSep = nodeOuterSep(options, env);
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const rawAspect = evaluateMath(options.aspect ?? options["shape aspect"] ?? "1", env.variables);
+  const geometry = multipartDiamondSplitGeometry({ upper: upperBox, lower: lowerBox }, {
+    innerXSep,
+    innerYSep,
+    outerXSep: outerSep.x,
+    outerYSep: outerSep.y,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
+    aspect: Number.isFinite(rawAspect) && rawAspect > 0 ? rawAspect : 1,
+    midlineOffset: parseNodeLengthDimension(".5ex", env)
+  });
+  return {
+    ...geometry,
+    size: {
+      width: roundNumber(geometry.size.width),
+      height: roundNumber(geometry.size.height)
+    },
+    anchorSize: {
+      width: roundNumber(geometry.anchorSize.width),
+      height: roundNumber(geometry.anchorSize.height)
     },
     parts: geometry.parts.map((part, index) => ({
       ...part,
@@ -18455,6 +18494,10 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     const splitAnchor = ellipseSplitLocalAnchor(anchor, size);
     if (splitAnchor) return splitAnchor;
   }
+  if (shape === "diamondSplit") {
+    const splitAnchor = diamondSplitLocalAnchor(anchor, size);
+    if (splitAnchor) return splitAnchor;
+  }
   if (shape === "isoscelesTriangle") {
     const anchors = {
       apex: { x: halfWidth, y: 0 },
@@ -18635,6 +18678,21 @@ function circleSplitLocalAnchor(anchor, size = {}) {
 function ellipseSplitLocalAnchor(anchorRaw, size = {}) {
   const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
   const layout = size.shapeData?.ellipseSplit;
+  const point = layout?.anchors?.[anchor];
+  if (!point || !layout?.size) return null;
+  const visibleWidth = Number(size.visibleWidth) || Number(size.width) || Number(layout.size.width) || 0;
+  const visibleHeight = Number(size.visibleHeight) || Number(size.height) || Number(layout.size.height) || 0;
+  const xScale = visibleWidth / Math.max(Number(layout.size.width) || 0, 1e-9);
+  const yScale = visibleHeight / Math.max(Number(layout.size.height) || 0, 1e-9);
+  return {
+    x: (Number(point.x) || 0) * xScale,
+    y: (Number(point.y) || 0) * yScale
+  };
+}
+
+function diamondSplitLocalAnchor(anchorRaw, size = {}) {
+  const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+  const layout = size.shapeData?.diamondSplit;
   const point = layout?.anchors?.[anchor];
   if (!point || !layout?.size) return null;
   const visibleWidth = Number(size.visibleWidth) || Number(size.width) || Number(layout.size.width) || 0;

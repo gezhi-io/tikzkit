@@ -19,6 +19,7 @@ export {
 } from "./defs.js";
 export { renderBpmnIcon, renderBpmnMarker } from "./bpmnNodes.js";
 export { isCircuitikzNodeShape, renderCircuitikzNodeBox } from "./circuitikzNodes.js";
+export { renderDiamondSplitNodeBox } from "./diamondSplitNodes.js";
 export { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 export { escapeAttribute, escapeHtml, escapeText } from "./escape.js";
 export { formatSvgNumber } from "./format.js";

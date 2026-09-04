@@ -94,6 +94,7 @@ import { renderPathElement } from "../src/renderers/svg/paths.js";
 import { estimatePlainTextRenderBounds, renderPlainTextNode } from "../src/renderers/svg/plainTextNode.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "../src/renderers/svg/rectangleSplitNodes.js";
 import { renderEllipseSplitNodeBox } from "../src/renderers/svg/ellipseSplitNodes.js";
+import { renderDiamondSplitNodeBox } from "../src/renderers/svg/diamondSplitNodes.js";
 import {
   cleanRichTextSource,
   estimateRichTextBox,
@@ -559,6 +560,27 @@ test("svg renderer keeps ellipse split node serialization in its own module", ()
   assert.match(nodeBox, /<ellipse/);
   assert.match(source, /from "\.\/ellipseSplitNodes\.js"/);
   assert.doesNotMatch(source, /function renderEllipseSplit/);
+});
+
+test("svg renderer keeps diamond split node serialization in its own module", () => {
+  const source = readFileSync(new URL("../src/renderers/svg/renderSvg.js", import.meta.url), "utf8");
+  const nodeBox = renderDiamondSplitNodeBox(
+    {
+      shape: "diamondSplit",
+      x: 0,
+      y: 0,
+      width: 2,
+      height: 1,
+      shapeData: { diamondSplit: { separatorRadiusX: 0.75 } },
+      style: { fill: "white", stroke: "black", lineWidth: 1 }
+    },
+    100
+  );
+
+  assert.match(nodeBox, /tikz-node-diamond-split/);
+  assert.match(nodeBox, /<polygon/);
+  assert.match(source, /from "\.\/diamondSplitNodes\.js"/);
+  assert.doesNotMatch(source, /function renderDiamondSplit/);
 });
 
 test("svg renderer keeps image placeholder serialization in its own module", () => {

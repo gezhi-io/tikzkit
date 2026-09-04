@@ -1,0 +1,23 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.multipart}
+\begin{document}
+\begin{tikzpicture}[
+  >=Latex,
+  node distance=18mm and 24mm,
+  decision/.style={diamond split,draw,thick,aspect=1.35,
+    minimum width=30mm,minimum height=20mm,inner xsep=4pt,
+    inner ysep=3pt,align=center,fill=yellow!12},
+  action/.style={draw,rounded corners=2pt,minimum width=20mm,
+    minimum height=9mm,fill=blue!7}
+]
+  \node[decision] (gate) {request\nodepart{lower}valid?};
+  \node[action,right=of gate] (accept) {accept};
+  \node[action,below=of gate] (reject) {reject};
+
+  \draw[-Latex,thick] (gate) -- node[above] {yes} (accept);
+  \draw[-Latex,thick] (gate) -- node[right] {no} (reject);
+  \draw[blue!70!black] (gate.lower) -- ++(-12mm,0)
+    node[left] {lower anchor};
+\end{tikzpicture}
+\end{document}

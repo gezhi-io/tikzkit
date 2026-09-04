@@ -39,7 +39,7 @@ export function renderNodeBoxShadow(item, shadow, unit) {
       (shadowItem.width / 2) * unit
     )}" ry="${format((shadowItem.height / 2) * unit)}"${styleAttributes(shadowItem.style)} />`;
   }
-  if (shadowItem.shape === "diamond") {
+  if (shadowItem.shape === "diamond" || shadowItem.shape === "diamondSplit") {
     const cx = shadowItem.x * unit;
     const cy = -shadowItem.y * unit;
     const hw = (shadowItem.width / 2) * unit;

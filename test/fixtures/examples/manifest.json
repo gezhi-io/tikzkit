@@ -6588,6 +6588,51 @@
         "automatic ellipse border clipping",
         "math text"
       ]
+    },
+    {
+      "id": "shapes-diamond-split-flowchart",
+      "title": "Diamond split validation flow",
+      "source": "shapes/diamond-split-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:diamondSplitGeometry",
+      "features": [
+        "flowchart",
+        "diamond split text and lower parts",
+        "positioning",
+        "named lower anchor",
+        "automatic diamond border clipping"
+      ]
+    },
+    {
+      "id": "shapes-diamond-split-math",
+      "title": "Diamond split complex-number map",
+      "source": "shapes/diamond-split-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:diamondSplitGeometry",
+      "features": [
+        "mathematics diagram",
+        "diamond split base and mid anchors",
+        "compass anchors",
+        "shape aspect and outer separation",
+        "calc coordinates"
+      ]
+    },
+    {
+      "id": "shapes-diamond-split-physics",
+      "title": "Diamond split energy state",
+      "source": "shapes/diamond-split-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:diamondSplitGeometry",
+      "features": [
+        "physics diagram",
+        "diamond split energy formulas",
+        "named lower and compass anchors",
+        "automatic diamond border clipping",
+        "math text"
+      ]
     }
   ]
 }
