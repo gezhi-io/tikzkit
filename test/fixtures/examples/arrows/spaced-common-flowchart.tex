@@ -1,0 +1,22 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,arrows.spaced,positioning}
+\begin{document}
+\begin{tikzpicture}[
+  node distance=1.25cm and 1.8cm,
+  stage/.style={draw,rounded corners=2pt,minimum width=2cm,minimum height=8mm,align=center}
+]
+  \node[stage,fill=blue!8] (draft) {Draft};
+  \node[stage,fill=green!10,right=of draft] (review) {Review};
+  \node[stage,fill=orange!12,right=of review] (approve) {Approve};
+  \node[stage,fill=blue!6,right=of approve] (publish) {Publish};
+  \node[stage,fill=red!8,below=of approve] (revise) {Revise};
+
+  \draw[blue,line width=2pt,-{spaced to}] (draft) -- node[above]{submit} (review);
+  \draw[green!50!black,line width=2pt,-{spaced latex}] (review) -- node[above]{pass} (approve);
+  \draw[orange!85!black,line width=2pt,-{spaced stealth}] (approve) -- node[above]{release} (publish);
+  \draw[red,line width=2pt,-{spaced to reversed}] (approve) -- node[right]{changes} (revise);
+  \draw[purple,line width=2pt,-{spaced latex' reversed}] (revise) -| node[below]{resubmit} (draft);
+  \draw[teal!70!black,line width=2pt,-{spaced stealth' reversed}] (revise) to[bend right=15] node[below,sloped]{override} (publish);
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX document shell establishes environments but contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}", "\\usetikzlibrary"], "findings": "The package entry loads PGF, pgffor, and TikZ's parser; arrows.spaced is then loaded only when requested." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to", "|-"], "findings": "Path routing and terminal tangents are resolved before arrow-tip assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Node centers and borders are independent from tip spacing." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced to", "spaced latex", "spaced stealth"], "findings": "Each accepted alias is the visible legacy tip followed by the invisible space component." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["to", "to reversed", "latex", "stealth", "space"], "findings": "This file supplies the exact paths, backend/tip-end formulas, and 0.88pt plus 0.3 line-width gap." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["latex'", "stealth'"], "findings": "Prime variants preserve their distinct cubic geometry and paint behavior." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced"], "findings": "The manual documents spaced arrows as legacy-compatible aliases." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX document shell establishes environments but contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "The package entry loads PGF, pgffor, and TikZ's parser before library registration." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "to", "bend left", "bend right"], "findings": "Straight and curved mathematical maps share the same terminal assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["node distance", "right=of", "below=of"], "findings": "The object grid remains stable while start/end arrow geometry changes." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["spaced latex'", "spaced stealth'", "reversed"], "findings": "Prime and reversed names are independent public aliases composed with space." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclarereversed", "space"], "findings": "Generic reversal swaps backend/tip-end extents and reflects the visible tip in x." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["latex'", "stealth'"], "findings": "latex prime is fill-only; stealth prime is fill-stroke with a round join." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX document shell establishes environments but contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "The package entry loads PGF, pgffor, and TikZ's parser before library registration." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "to", "bend left"], "findings": "Diagonal vectors and the curved trajectory rotate arrow geometry by the final path tangent." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["spaced to", "spaced latex", "spaced stealth", "reversed"], "findings": "The physics fixture exercises the common aliases with the shared invisible-space suffix." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["to reversed", "latex", "stealth", "space"], "findings": "Line-width-dependent paths and extents rotate without changing their one-dimensional spacing rule." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["latex'", "stealth'"], "findings": "Prime variants remain visually distinct on diagonal vectors." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-common.test.js", "docs/qa/2026-09-04-arrows-spaced-common.md"] }
+  ]
+}

@@ -27,7 +27,7 @@ import {
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.js";
-import { spacedCapArrowMetrics } from "../../tikz/libraries/arrows.spaced.js";
+import { spacedCapArrowMetrics, spacedLegacyArrowMetrics } from "../../tikz/libraries/arrows.spaced.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -356,6 +356,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     minY: -(Number(raw.width) || 0) / 2,
     maxY: (Number(raw.width) || 0) / 2
   };
+  const spacedLegacyTo = isLegacySpacedToTip(raw.kind);
+  const spacedLegacyStealthPrime = isLegacySpacedStealthPrimeTip(raw.kind);
   const openTip = [
     "to",
     "hook",
@@ -367,6 +369,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     "tee-barb",
     "rays"
   ].includes(raw.kind)
+    || spacedLegacyTo
     || isLegacyDelimiterTip(raw.kind)
     || isLegacyOpenTriangleTip(raw.kind)
     || isLegacyOpenDiamondTip(raw.kind)
@@ -383,7 +386,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const legacyFilledSquareTip = isLegacyFilledSquareTip(raw.kind);
   const legacyFilledCircleTip = isLegacyFilledCircleTip(raw.kind);
   const legacyFilledShapeTip = legacyFilledTriangleTip || legacyFilledDiamondTip || legacyFilledSquareTip || legacyFilledCircleTip;
-  const filledStrokedTip = metaStealthTip || legacyStealthPrime || legacyFilledShapeTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
+  const filledStrokedTip = metaStealthTip || legacyStealthPrime || spacedLegacyStealthPrime || legacyFilledShapeTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
   const declaredPaint = raw.declaredArrow?.paint;
   const separation = arrowTipSeparation(raw.separation, style);
   return {
@@ -395,7 +398,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineCap: /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
     lineJoin: isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
@@ -411,7 +414,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
       : barTip
       ? raw.lineWidth || style.lineWidth || 1
       : openTip
-      ? style.lineWidth ?? 1
+      ? spacedLegacyTo ? geometry.lineWidth : style.lineWidth ?? 1
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
@@ -419,7 +422,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
           ? style.lineWidth ?? 1
           : metaStealthTip
           ? geometry.lineWidth
-          : legacyStealthPrime
+          : legacyStealthPrime || spacedLegacyStealthPrime
           ? style.lineWidth ?? 1
           : Math.max(0.2, (style.lineWidth ?? 1) * 0.5)
         : raw.kind === "latex" && !raw.legacy
@@ -477,6 +480,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyHook) return legacyHookInlineGeometry(legacyHook);
   const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth) || spacedCapArrowMetrics(tip.kind, lineWidth);
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
+  const spacedLegacy = spacedLegacyArrowMetrics(tip.kind, lineWidth);
+  if (spacedLegacy) return spacedLegacyArrowInlineGeometry(spacedLegacy);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -847,6 +852,14 @@ function isLegacyOpenCapTip(kind) {
   return /^legacy-(?:spaced-)?(?:round|butt)-cap$/u.test(String(kind || ""));
 }
 
+function isLegacySpacedToTip(kind) {
+  return /^legacy-spaced-to(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isLegacySpacedStealthPrimeTip(kind) {
+  return /^legacy-spaced-stealth-prime(?:-reversed)?$/u.test(String(kind || ""));
+}
+
 function legacySquareInlineGeometry(metrics) {
   return {
     path: [
@@ -956,6 +969,71 @@ function legacyCapInlineGeometry(metrics) {
     bounds: {
       minX: metrics.minX,
       maxX: metrics.maxX,
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    }
+  };
+}
+
+function spacedLegacyArrowInlineGeometry(metrics) {
+  const u = metrics.unit;
+  const reflect = metrics.reversed ? -1 : 1;
+  const point = (x, y) => `${format(reflect * x * u)} ${format(-y * u)}`;
+  const sourcePoint = (x, y) => `${format(x * u)} ${format(-y * u)}`;
+  let path;
+
+  if (metrics.family === "to") {
+    path = metrics.reversed
+      ? [
+          `M ${sourcePoint(3.5, 4)}`,
+          `C ${sourcePoint(3.25, 2.5)} ${sourcePoint(0.5, 0.25)} ${sourcePoint(-0.25, 0)}`,
+          `C ${sourcePoint(0.5, -0.25)} ${sourcePoint(3.25, -2.5)} ${sourcePoint(3.5, -4)}`
+        ].join(" ")
+      : [
+          `M ${sourcePoint(-3, 4)}`,
+          `C ${sourcePoint(-2.75, 2.5)} ${sourcePoint(0, 0.25)} ${sourcePoint(0.75, 0)}`,
+          `C ${sourcePoint(0, -0.25)} ${sourcePoint(-2.75, -2.5)} ${sourcePoint(-3, -4)}`
+        ].join(" ");
+  } else if (metrics.family === "latex") {
+    path = [
+      `M ${point(9, 0)}`,
+      `C ${point(6.3333, 0.5)} ${point(2, 2)} ${point(-1, 3.75)}`,
+      `L ${point(-1, -3.75)}`,
+      `C ${point(2, -2)} ${point(6.3333, -0.5)} ${point(9, 0)} Z`
+    ].join(" ");
+  } else if (metrics.family === "latex-prime") {
+    path = [
+      `M ${point(6, 0)}`,
+      `C ${point(3.5, 0.5)} ${point(-1, 1.5)} ${point(-4, 3.75)}`,
+      `C ${point(-1.5, 1)} ${point(-1.5, -1)} ${point(-4, -3.75)}`,
+      `C ${point(-1, -1.5)} ${point(3.5, -0.5)} ${point(6, 0)} Z`
+    ].join(" ");
+  } else if (metrics.family === "stealth") {
+    path = [
+      `M ${point(5, 0)}`,
+      `L ${point(-3, 4)}`,
+      `L ${point(0, 0)}`,
+      `L ${point(-3, -4)} Z`
+    ].join(" ");
+  } else {
+    path = [
+      `M ${point(2, 0)}`,
+      `C ${point(-0.5, 0.5)} ${point(-3, 1.5)} ${point(-6, 3.25)}`,
+      `C ${point(-3, 1)} ${point(-3, -1)} ${point(-6, -3.25)}`,
+      `C ${point(-3, -1.5)} ${point(-0.5, -0.5)} ${point(2, 0)} Z`
+    ].join(" ");
+  }
+
+  return {
+    path,
+    shorten: metrics.terminalPlacement,
+    terminalPlacement: metrics.terminalPlacement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    lineWidth: metrics.arrowLineWidth,
+    bounds: {
+      minX: metrics.backEnd,
+      maxX: metrics.tipEnd,
       minY: -metrics.halfHeight,
       maxY: metrics.halfHeight
     }

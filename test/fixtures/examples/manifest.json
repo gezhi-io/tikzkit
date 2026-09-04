@@ -5897,6 +5897,33 @@
       "features": ["arrows.spaced", "spaced cap gap", "diagonal", "curved path", "physics vectors"]
     },
     {
+      "id": "arrows-spaced-common-flowchart",
+      "title": "Spaced legacy arrows in an approval flow",
+      "source": "arrows/spaced-common-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedLegacyArrowMetrics + src/renderers/svg/paths.js:spacedLegacyArrowInlineGeometry",
+      "features": ["arrows.spaced", "spaced to", "spaced latex", "spaced stealth", "prime", "reversed", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-common-math",
+      "title": "Spaced legacy arrows in a commutative diagram",
+      "source": "arrows/spaced-common-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedLegacyArrowMetrics + src/renderers/svg/paths.js:spacedLegacyArrowInlineGeometry",
+      "features": ["arrows.spaced", "spaced to", "spaced latex prime", "spaced stealth prime", "reversed", "start and end arrows", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-spaced-common-physics",
+      "title": "Spaced legacy arrows in a vector diagram",
+      "source": "arrows/spaced-common-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedLegacyArrowMetrics + src/renderers/svg/paths.js:spacedLegacyArrowInlineGeometry",
+      "features": ["arrows.spaced", "spaced to", "spaced latex", "spaced stealth", "prime", "reversed", "diagonal", "curved path", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",
