@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["document", "documentclass", "usepackage"], "findings": "The document shell is removed before semantic evaluation while standalone border controls crop padding."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The package wrapper loads PGF and TikZ."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["path", "node", "draw", "fill"], "findings": "The case uses core path, node, style, draw, and fill actions."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex": {"symbols": ["nodepart", "circle solidus"], "findings": "The wrapper exposes multipart syntax and the lower part."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex": {"symbols": ["circle solidus", "text", "lower", "base", "mid", "130"], "findings": "The source defines diagonal text origins plus text, lower, baseline, compass, and numeric border anchors."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex": {"symbols": ["circle", "base east", "mid west"], "findings": "Inherited circle formulas supply baseline and midline edge anchors."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {"symbols": ["Latex"], "findings": "The diameter annotation uses bidirectional Latex tips."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": {"symbols": ["coordinate calculation", "+"], "findings": "The diameter endpoints apply explicit calc offsets to named anchors."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js", "docs/qa/2026-09-04-shapes-circle-solidus.md"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js", "outputs/qa/2026-09-04-shapes-circle-solidus/diff/shapes-circle-solidus-math-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js", "outputs/qa/2026-09-04-shapes-circle-solidus/diff/shapes-circle-solidus-math-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js", "outputs/qa/2026-09-04-shapes-circle-solidus/diff/shapes-circle-solidus-math-native-sheet.png"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/shapes-multipart-circle-solidus.test.js"]}
+  ]
+}

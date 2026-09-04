@@ -6633,6 +6633,51 @@
         "automatic diamond border clipping",
         "math text"
       ]
+    },
+    {
+      "id": "shapes-circle-solidus-flowchart",
+      "title": "Circle solidus parser flow",
+      "source": "shapes/circle-solidus-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:circleSolidusGeometry",
+      "features": [
+        "flowchart",
+        "circle solidus text and lower parts",
+        "positioning",
+        "named lower anchor",
+        "automatic circular border clipping"
+      ]
+    },
+    {
+      "id": "shapes-circle-solidus-math",
+      "title": "Circle solidus mathematical state",
+      "source": "shapes/circle-solidus-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:circleSolidusGeometry",
+      "features": [
+        "mathematics diagram",
+        "circle solidus text lower base and mid anchors",
+        "compass and numeric anchors",
+        "outer separation",
+        "calc coordinates"
+      ]
+    },
+    {
+      "id": "shapes-circle-solidus-physics",
+      "title": "Circle solidus two-level energy state",
+      "source": "shapes/circle-solidus-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:circleSolidusGeometry",
+      "features": [
+        "physics diagram",
+        "circle solidus energy levels",
+        "named lower and compass anchors",
+        "automatic circular border clipping",
+        "math text"
+      ]
     }
   ]
 }

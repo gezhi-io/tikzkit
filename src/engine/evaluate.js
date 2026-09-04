@@ -14,6 +14,7 @@ import {
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
 import {
+  circleSolidusGeometry as multipartCircleSolidusGeometry,
   diamondSplitGeometry as multipartDiamondSplitGeometry,
   ellipseSplitGeometry as multipartEllipseSplitGeometry
 } from "../tikz/libraries/shapes.multipart.js";
@@ -6553,10 +6554,11 @@ function createNode(statement, env, ir, diagnostics) {
   const fitLayout = resolveFitNodeLayout(expandedOptions, env, nodeEnv);
   const rectangleSplit = rectangleSplitLayout(text, expandedOptions, nodeEnv);
   const circleSplit = circleSplitLayout(text, expandedOptions, nodeEnv);
+  const circleSolidus = circleSolidusLayout(text, expandedOptions, nodeEnv);
   const ellipseSplit = ellipseSplitLayout(text, expandedOptions, nodeEnv);
   const diamondSplit = diamondSplitLayout(text, expandedOptions, nodeEnv);
-  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || ellipseSplit?.size || diamondSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
-  const rawAnchorSize = fitLayout?.rawSize || diamondSplit?.anchorSize || estimateNodeAnchorSize(text, expandedOptions, nodeEnv, rawSize);
+  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || circleSolidus?.size || ellipseSplit?.size || diamondSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
+  const rawAnchorSize = fitLayout?.rawSize || circleSolidus?.anchorSize || diamondSplit?.anchorSize || estimateNodeAnchorSize(text, expandedOptions, nodeEnv, rawSize);
   const rawPositioningSize = fitLayout?.rawSize || estimatePositioningSelfSize(text, expandedOptions, nodeEnv, rawAnchorSize);
   const size = scaleSize(rawSize, nodeEnv.canvasScale);
   const anchorSize = scaleSize(rawAnchorSize, nodeEnv.canvasScale);
@@ -6573,7 +6575,7 @@ function createNode(statement, env, ir, diagnostics) {
     ...positioningSize,
     ...textAnchorOffsets,
     shape: resolvedShape,
-    shapeData: { ...resolvedShapeData, ellipseSplit, diamondSplit },
+    shapeData: { ...resolvedShapeData, circleSolidus, ellipseSplit, diamondSplit },
     rotation: resolvedRotation
   });
   const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, nodeEnv, size);
@@ -6593,6 +6595,7 @@ function createNode(statement, env, ir, diagnostics) {
     displayPoint,
     rectangleSplit,
     circleSplit,
+    circleSolidus,
     ellipseSplit,
     diamondSplit,
     shapeData: {
@@ -6617,6 +6620,7 @@ function createNode(statement, env, ir, diagnostics) {
       ...resolvedShapeData,
       rectangleSplit,
       circleSplit,
+      circleSolidus,
       ellipseSplit,
       diamondSplit,
       ...(arrowGeometry ? { arrowGeometry } : {})
@@ -9264,6 +9268,7 @@ function addNodeItems(node, ir, env) {
     ...nodeShapeData(node.options || {}, nodeEnv, node.text, size),
     rectangleSplit: node.rectangleSplit || null,
     circleSplit: node.circleSplit || null,
+    circleSolidus: node.circleSolidus || null,
     ellipseSplit: node.ellipseSplit || null,
     diamondSplit: node.diamondSplit || null,
     ...(node.shapeData || {})
@@ -9425,7 +9430,7 @@ function addNodeItems(node, ir, env) {
       // Rectangle-like node renderers inset the geometry by half the stroke,
       // but SVG ellipses paint their stroke outside the supplied radii. Keep
       // that outer half-stroke in the scene bounds for circles and ellipses.
-      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
+      strokeBoundsIncluded: shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
@@ -9483,6 +9488,8 @@ function addNodeItems(node, ir, env) {
     addRectangleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "circleSplit" && node.circleSplit) {
     addMultipartTextItems(node, node.circleSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
+  } else if (shape === "circleSolidus" && node.circleSolidus) {
+    addMultipartTextItems(node, node.circleSolidus, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "ellipseSplit" && node.ellipseSplit) {
     addMultipartTextItems(node, node.ellipseSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "diamondSplit" && node.diamondSplit) {
@@ -10783,6 +10790,7 @@ function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variable
   const splitTextAnchor = rectangleSplitTextAnchorShift(text, options, env, size, rotation);
   const shapeData = {
     ...nodeShapeData(options, env, text, size),
+    circleSolidus: circleSolidusLayout(text, options, env),
     ellipseSplit: ellipseSplitLayout(text, options, env),
     diamondSplit: diamondSplitLayout(text, options, env)
   };
@@ -10882,7 +10890,7 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
   if (nearTicklabelShift) return nearTicklabelShift;
   const textAnchor = textAnchorKind(anchor);
   const shape = nodeShape(options);
-  if (shape === "ellipseSplit" || shape === "diamondSplit") {
+  if (shape === "circleSolidus" || shape === "ellipseSplit" || shape === "diamondSplit") {
     const multipartAnchor = customNodeLocalAnchor(shape, anchor, { ...size, shapeData });
     if (multipartAnchor) {
       const rotated = rotateVector(multipartAnchor.x, multipartAnchor.y, rotation);
@@ -11313,7 +11321,7 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   if (halfWidth <= 0 || halfHeight <= 0) return roundPoint(center);
   const terminalPadding = Math.max(0, Number(borderPadding) || 0);
   let localPoint;
-  if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleCrossSplit" || isSymbolForbiddenSignShape(node.shape)) {
+  if (node.shape === "circle" || node.shape === "circleSplit" || node.shape === "circleSolidus" || node.shape === "circleCrossSplit" || isSymbolForbiddenSignShape(node.shape)) {
     const radius = Math.max(halfWidth, halfHeight) + terminalPadding;
     localPoint = { x: (localDx / localDistance) * radius, y: (localDy / localDistance) * radius };
   } else if (node.shape === "magnifyingGlass") {
@@ -11516,6 +11524,7 @@ function nodeShape(options = {}) {
   if (explicitShape) return explicitShape;
   if (options["rectangle split"]) return "rectangleSplit";
   if (options["circle split"]) return "circleSplit";
+  if (options["circle solidus"]) return "circleSolidus";
   if (options["ellipse split"]) return "ellipseSplit";
   if (options["diamond split"]) return "diamondSplit";
   if (options["single arrow"]) return "singleArrow";
@@ -11549,6 +11558,7 @@ function explicitNodeShape(shape) {
     rectangle: "rectangle",
     "rectangle split": "rectangleSplit",
     "circle split": "circleSplit",
+    "circle solidus": "circleSolidus",
     "ellipse split": "ellipseSplit",
     "diamond split": "diamondSplit",
     "single arrow": "singleArrow",
@@ -12271,6 +12281,55 @@ function circleSplitLayout(text, options = {}, env = { variables: {} }) {
       x: roundNumber(-lowerBox.width / 2),
       y: roundNumber(-(innerYSep + lowerBox.height + lineWidth / 2))
     }
+  };
+}
+
+function circleSolidusLayout(text, options = {}, env = { variables: {} }) {
+  if (!options["circle solidus"] && normalizeShapeName(options.shape) !== "circle solidus") return null;
+  const { upper, lower } = circleSplitTextParts(text);
+  const metricOptions = {
+    ...options,
+    "inner sep": "0pt",
+    "inner xsep": "0pt",
+    "inner ysep": "0pt",
+    "minimum width": undefined,
+    "minimum height": undefined,
+    "minimum size": undefined
+  };
+  const upperBox = circleSplitPartMetric(upper, metricOptions, env);
+  const lowerBox = circleSplitPartMetric(lower, metricOptions, env);
+  const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const outerSep = nodeOuterSep(options, env);
+  const { style } = normalizeOptions("node", options, env);
+  const lineWidth = Math.max(0, Number(style.lineWidth) || 0) / TIKZ_UNIT;
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const geometry = multipartCircleSolidusGeometry({ upper: upperBox, lower: lowerBox }, {
+    innerXSep,
+    innerYSep,
+    lineWidth,
+    outerXSep: outerSep.x,
+    outerYSep: outerSep.y,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
+    midlineOffset: parseNodeLengthDimension(".5ex", env)
+  });
+  return {
+    ...geometry,
+    size: {
+      width: roundNumber(geometry.size.width),
+      height: roundNumber(geometry.size.height)
+    },
+    anchorSize: {
+      width: roundNumber(geometry.anchorSize.width),
+      height: roundNumber(geometry.anchorSize.height)
+    },
+    parts: geometry.parts.map((part, index) => ({
+      ...part,
+      text: index === 0 ? upper : lower,
+      centerX: roundNumber(part.centerX),
+      centerY: roundNumber(part.centerY)
+    }))
   };
 }
 
@@ -18480,6 +18539,10 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     }[anchor];
     if (direction) return polygonBorderPoint({ x: 0, y: 0 }, direction, border);
   }
+  if (shape === "circleSolidus") {
+    const splitAnchor = circleSolidusLocalAnchor(rawAnchor, size);
+    if (splitAnchor) return splitAnchor;
+  }
   const shapeAnchor = shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight);
   if (shapeAnchor) return shapeAnchor;
   if (shape === "rectangleSplit") {
@@ -18675,6 +18738,21 @@ function circleSplitLocalAnchor(anchor, size = {}) {
   };
 }
 
+function circleSolidusLocalAnchor(anchorRaw, size = {}) {
+  const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+  const layout = size.shapeData?.circleSolidus;
+  const point = layout?.anchors?.[anchor];
+  if (!point || !layout?.size) return null;
+  const visibleWidth = Number(size.visibleWidth) || Number(size.width) || Number(layout.size.width) || 0;
+  const visibleHeight = Number(size.visibleHeight) || Number(size.height) || Number(layout.size.height) || 0;
+  const xScale = visibleWidth / Math.max(Number(layout.size.width) || 0, 1e-9);
+  const yScale = visibleHeight / Math.max(Number(layout.size.height) || 0, 1e-9);
+  return {
+    x: (Number(point.x) || 0) * xScale,
+    y: (Number(point.y) || 0) * yScale
+  };
+}
+
 function ellipseSplitLocalAnchor(anchorRaw, size = {}) {
   const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
   const layout = size.shapeData?.ellipseSplit;
@@ -18718,12 +18796,12 @@ function tikzquadsInnerExt(halfSize) {
 }
 
 function shapeCompassLocalAnchor(shape, anchor, halfWidth, halfHeight) {
-  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleCrossSplit" && shape !== "ellipse" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape)) return null;
+  if (shape !== "circle" && shape !== "circleSplit" && shape !== "circleSolidus" && shape !== "circleCrossSplit" && shape !== "ellipse" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape)) return null;
   if (halfWidth <= 0 || halfHeight <= 0) return null;
   const dx = anchor.includes("east") ? 1 : anchor.includes("west") ? -1 : 0;
   const dy = anchor.includes("north") ? 1 : anchor.includes("south") ? -1 : 0;
   if (!dx && !dy) return null;
-  if (shape === "circle" || shape === "circleSplit" || shape === "circleCrossSplit" || shape === "magnifyingGlass" || isSymbolForbiddenSignShape(shape)) {
+  if (shape === "circle" || shape === "circleSplit" || shape === "circleSolidus" || shape === "circleCrossSplit" || shape === "magnifyingGlass" || isSymbolForbiddenSignShape(shape)) {
     const radius = Math.max(halfWidth, halfHeight);
     const length = Math.hypot(dx, dy) || 1;
     return { x: (dx / length) * radius, y: (dy / length) * radius };

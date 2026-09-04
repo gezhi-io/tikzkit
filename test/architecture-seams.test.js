@@ -95,6 +95,7 @@ import { estimatePlainTextRenderBounds, renderPlainTextNode } from "../src/rende
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "../src/renderers/svg/rectangleSplitNodes.js";
 import { renderEllipseSplitNodeBox } from "../src/renderers/svg/ellipseSplitNodes.js";
 import { renderDiamondSplitNodeBox } from "../src/renderers/svg/diamondSplitNodes.js";
+import { renderCircleSolidusNodeBox } from "../src/renderers/svg/circleSolidusNodes.js";
 import {
   cleanRichTextSource,
   estimateRichTextBox,
@@ -581,6 +582,27 @@ test("svg renderer keeps diamond split node serialization in its own module", ()
   assert.match(nodeBox, /<polygon/);
   assert.match(source, /from "\.\/diamondSplitNodes\.js"/);
   assert.doesNotMatch(source, /function renderDiamondSplit/);
+});
+
+test("svg renderer keeps circle solidus node serialization in its own module", () => {
+  const source = readFileSync(new URL("../src/renderers/svg/renderSvg.js", import.meta.url), "utf8");
+  const nodeBox = renderCircleSolidusNodeBox(
+    {
+      shape: "circleSolidus",
+      x: 0,
+      y: 0,
+      width: 2,
+      height: 2,
+      shapeData: { circleSolidus: { size: { width: 2 }, separatorComponent: 0.6 } },
+      style: { fill: "white", stroke: "black", lineWidth: 1 }
+    },
+    100
+  );
+
+  assert.match(nodeBox, /tikz-node-circle-solidus/);
+  assert.match(nodeBox, /<circle/);
+  assert.match(source, /from "\.\/circleSolidusNodes\.js"/);
+  assert.doesNotMatch(source, /function renderCircleSolidus/);
 });
 
 test("svg renderer keeps image placeholder serialization in its own module", () => {

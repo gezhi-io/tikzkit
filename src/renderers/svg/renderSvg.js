@@ -7,6 +7,7 @@ import { clipCircleId, clipRectId, collectSvgDefs, formOnlyPatternClipId } from 
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
 import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
+import { renderCircleSolidusNodeBox } from "./circleSolidusNodes.js";
 import { renderDiamondSplitNodeBox } from "./diamondSplitNodes.js";
 import { renderEllipseSplitNodeBox } from "./ellipseSplitNodes.js";
 import { formatSvgNumber as format } from "./format.js";
@@ -133,6 +134,7 @@ function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y:
       )}" ry="${format((item.height / 2) * unit)}"${styleAttributes(item.style)} />`, unit);
     }
     if (item.shape === "circleSplit") return renderNodeBoxWithOverlay(item, renderCircleSplitNodeBox(item, unit), unit);
+    if (item.shape === "circleSolidus") return renderNodeBoxWithOverlay(item, renderCircleSolidusNodeBox(item, unit), unit);
     if (item.shape === "ellipseSplit") return renderNodeBoxWithOverlay(item, renderEllipseSplitNodeBox(item, unit), unit);
     if (item.shape === "diamondSplit") return renderNodeBoxWithOverlay(item, renderDiamondSplitNodeBox(item, unit), unit);
     if (item.shape === "circleCrossSplit") return renderNodeBoxWithOverlay(item, renderCircleCrossSplitNodeBox(item, unit), unit);
