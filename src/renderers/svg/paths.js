@@ -20,6 +20,7 @@ import { includePathCommandBounds } from "../../scene/index.js";
 import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
 import {
   legacyCircleArrowMetrics,
+  legacyCapArrowMetrics,
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
@@ -370,7 +371,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     || isLegacyOpenDiamondTip(raw.kind)
     || isLegacyOpenSquareTip(raw.kind)
     || isLegacyOpenCircleTip(raw.kind)
-    || isLegacyHookTip(raw.kind);
+    || isLegacyHookTip(raw.kind)
+    || isLegacyOpenCapTip(raw.kind);
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
@@ -392,8 +394,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
-    lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
+    lineCap: raw.kind === "legacy-round-cap" ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineJoin: isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -472,6 +474,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyCircle) return legacyCircleInlineGeometry(legacyCircle);
   const legacyHook = legacyHookArrowMetrics(tip.kind, lineWidth);
   if (legacyHook) return legacyHookInlineGeometry(legacyHook);
+  const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth);
+  if (legacyCap) return legacyCapInlineGeometry(legacyCap);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -834,6 +838,14 @@ function isLegacyHookTip(kind) {
   return /^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(String(kind || ""));
 }
 
+function isLegacyCapTip(kind) {
+  return /^legacy-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(String(kind || ""));
+}
+
+function isLegacyOpenCapTip(kind) {
+  return /^legacy-(?:round|butt)-cap$/u.test(String(kind || ""));
+}
+
 function legacySquareInlineGeometry(metrics) {
   return {
     path: [
@@ -905,6 +917,46 @@ function legacyHookInlineGeometry(metrics) {
       maxX: metrics.maxX,
       minY: -metrics.maxY,
       maxY: -metrics.minY
+    }
+  };
+}
+
+function legacyCapInlineGeometry(metrics) {
+  const w = metrics.lineWidth;
+  const point = (x, y) => `${format(x * w)} ${format(-y * w)}`;
+  let paths;
+
+  if (metrics.variant === "round") {
+    paths = [`M ${point(0, 0)} L ${point(0.5, 0)}`];
+  } else if (metrics.variant === "butt") {
+    paths = [`M ${point(-0.1, 0)} L ${point(0.5, 0)}`];
+  } else if (metrics.variant === "triangle-90" && !metrics.reversed) {
+    paths = [`M ${point(-0.1, 0.5)} L ${point(0.5, 0.5)} L ${point(1, 0)} L ${point(0.5, -0.5)} L ${point(-0.1, -0.5)} Z`];
+  } else if (metrics.variant === "triangle-90") {
+    paths = [`M ${point(1, 0.5)} L ${point(-0.1, 0.5)} L ${point(-0.1, -0.5)} L ${point(1, -0.5)} L ${point(0.5, 0)} Z`];
+  } else if (!metrics.reversed) {
+    paths = [
+      `M ${point(-0.1, 0.5)} L ${point(0.5, 0.5)} L ${point(1, 0)} L ${point(0.5, -0.5)} L ${point(-0.1, -0.5)} Z`,
+      `M ${point(1, 0.5)} L ${point(1.5, 0.5)} L ${point(2, 0)} L ${point(1.5, -0.5)} L ${point(1, -0.5)} L ${point(1.5, 0)} Z`
+    ];
+  } else {
+    paths = [
+      `M ${point(-0.1, 0.5)} L ${point(1, 0.5)} L ${point(0.5, 0)} L ${point(1, -0.5)} L ${point(-0.1, -0.5)} Z`,
+      `M ${point(1.5, 0.5)} L ${point(2, 0.5)} L ${point(1.5, 0)} L ${point(2, -0.5)} L ${point(1.5, -0.5)} L ${point(1, 0)} Z`
+    ];
+  }
+
+  return {
+    path: paths.join(" "),
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds: {
+      minX: metrics.minX,
+      maxX: metrics.maxX,
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
     }
   };
 }

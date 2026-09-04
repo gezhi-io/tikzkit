@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "TikZ loads the path engine before the arrows library." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "\\usetikzlibrary"], "findings": "Node border cropping and straight or bent map paths are resolved before terminal arrow placement." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right", "below", "node distance"], "findings": "Positioning determines the four mathematical object centers." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["\\pgfarrowsdeclare{round cap}", "\\pgfarrowsdeclare{butt cap}", "\\pgfarrowsdeclare{triangle 90 cap}", "\\pgfarrowsdeclare{fast cap}", "\\pgfarrowsdeclarereversed"], "findings": "Normal and reversed filled caps have independently declared polygon paths; reversal is not a generic SVG marker rotation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsleftextend", "\\pgfarrowsrightextend", "\\pgfarrowssetlineend"], "findings": "The marker assembly uses source backend and tip-end values along each map's terminal tangent." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["round cap", "butt cap", "triangle 90 cap", "fast cap"], "findings": "The manual exposes these as lowercase legacy arrows, distinct from capitalized arrows.meta tips." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-caps.test.js", "docs/qa/2026-09-04-arrows-legacy-caps.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-caps.test.js", "docs/qa/2026-09-04-arrows-legacy-caps.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-caps.test.js", "docs/qa/2026-09-04-arrows-legacy-caps.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-caps.test.js", "docs/qa/2026-09-04-arrows-legacy-caps.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-caps.test.js", "docs/qa/2026-09-04-arrows-legacy-caps.md"] }
+  ]
+}

@@ -5843,6 +5843,33 @@
       "features": ["arrows", "left hook", "right hook", "hooks", "reversed", "diagonal", "curved path", "physics vectors"]
     },
     {
+      "id": "arrows-legacy-caps-flowchart",
+      "title": "Legacy cap terminals in a job flow",
+      "source": "arrows/legacy-caps-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyCapArrowMetrics + src/renderers/svg/paths.js:legacyCapInlineGeometry",
+      "features": ["arrows", "round cap", "butt cap", "triangle 90 cap", "fast cap", "reversed", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-legacy-caps-math",
+      "title": "Legacy cap terminals on mathematical maps",
+      "source": "arrows/legacy-caps-math.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyCapArrowMetrics + src/renderers/svg/paths.js:legacyCapInlineGeometry",
+      "features": ["arrows", "round cap", "butt cap", "triangle 90 cap", "fast cap", "reversed", "curved map", "mathematical maps"]
+    },
+    {
+      "id": "arrows-legacy-caps-physics",
+      "title": "Legacy cap terminals on physical vectors",
+      "source": "arrows/legacy-caps-physics.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyCapArrowMetrics + src/renderers/svg/paths.js:legacyCapInlineGeometry",
+      "features": ["arrows", "round cap", "butt cap", "triangle 90 cap", "fast cap", "reversed", "diagonal", "curved path", "physics vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

@@ -254,6 +254,12 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.hook, fill: "none", stroke: "context-stroke" };
   }
+  if (/^legacy-(?:round|butt)-cap$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
+  }
+  if (/^legacy-(?:triangle-90|fast)-cap(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke" };
+  }
   return undefined;
 }
 
@@ -523,6 +529,12 @@ function normalizeArrowKind(kind) {
   if (/^stealth\s*'$/i.test(source)) return "stealth-prime";
   const text = source.replace(/'/g, "").toLowerCase();
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
+  if (/^legacy-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
+  if (source === "Round Cap") return "round-cap";
+  if (source === "Butt Cap") return "butt-cap";
+  if (source === "Triangle Cap") return "triangle-cap";
+  if (source === "Fast Triangle") return "fast-triangle";
+  if (source === "Fast Round") return "fast-round";
   if (text === "square bracket" || text === "[") return "square-bracket";
   if (text === "square bracket reversed" || text === "]") return "square-bracket-reversed";
   if (text === "(" || text === "round bracket reversed") return "round-bracket-reversed";
@@ -549,6 +561,8 @@ function normalizeArrowKind(kind) {
     const base = legacyHook[1] ? `${legacyHook[1]}-hook` : "hooks";
     return `legacy-${base}${legacyHook[2] ? "-reversed" : ""}`;
   }
+  const legacyCap = source.match(/^(round cap|butt cap|triangle 90 cap(?: reversed)?|fast cap(?: reversed)?)$/u);
+  if (legacyCap) return `legacy-${legacyCap[1].replaceAll(" ", "-")}`;
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";
