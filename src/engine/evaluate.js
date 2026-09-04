@@ -14022,6 +14022,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           widthFactor: 0.09,
           formulaWidthFactor: datavisLegendMathMetrics ? 0.08 : 0.09,
           formulaMinWidth: datavisLegendMathMetrics ? 0.18 : 0.32,
+          formulaMinHeight: multilineFormulaCircle ? undefined : 0,
           lineHeight: typewriter ? 0.236 : 0.32,
           minHeight: typewriter ? 0.236 : 0.28,
           widthPadding: 0,

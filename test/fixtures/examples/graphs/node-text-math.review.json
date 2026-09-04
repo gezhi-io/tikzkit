@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-graphs.tex",
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm",
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmmi7.tfm",
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr7.tfm",
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmsy10.tfm"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The standalone document shell is stripped without changing the graph picture body." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package loads the generic TikZ front end used by lowered graph nodes and paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\usetikzlibrary", "\\node", "circle", "minimum size"], "findings": "Graph lowering delegates the resulting math node geometry to the ordinary TikZ node implementation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex": { "symbols": ["/tikz/graphs/math nodes", "\\tikzgraphnodetext", "/tikz/graphs/as"], "findings": "Math nodes wraps the graph-node text in math mode; node-local as text retains final precedence." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex": { "symbols": ["\\pgfdeclareshape{circle}", "minimum width", "minimum height"], "findings": "Circle radius is based on the Euclidean norm of half the TeX text box plus inner separation, then constrained by minimum size." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-graphs.tex": { "symbols": ["math nodes", "as"], "findings": "The fixture covers documented math-node wrapping, scripts, and graph text semantics." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmmi10.tfm": { "symbols": ["textstyle math italic metrics"], "findings": "Base math letters use the 10pt Computer Modern math-italic advances, heights, and depths." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmmi7.tfm": { "symbols": ["scriptstyle math italic metrics"], "findings": "Letter scripts use the true 7pt design widths rather than a uniform scale of cmmi10." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmr7.tfm": { "symbols": ["scriptstyle digit metrics"], "findings": "Digit scripts use Computer Modern Roman 7pt metrics." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmsy10.tfm": { "symbols": ["SUP2", "SUB1", "SUB2"], "findings": "TeX script vertical placement uses SUP2, SUB1/SUB2, rule-thickness clearance, and x-height correction." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/graphs.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/graphs.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] }
+  ]
+}

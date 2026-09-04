@@ -1,0 +1,16 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{graphs,quotes}
+\begin{document}
+\begin{tikzpicture}
+  \graph[
+    math nodes,
+    grow right=2.4cm,
+    nodes={draw,rounded corners,minimum width=11mm,minimum height=8mm},
+    edges={-latex,very thick}
+  ] {
+    x0/x_0 ->["$F\Delta t$"] x1/x_1 ->["$m^{-1}$"] v1/v_1
+    -> detector[as={Detector},fill=orange!15];
+  };
+\end{tikzpicture}
+\end{document}

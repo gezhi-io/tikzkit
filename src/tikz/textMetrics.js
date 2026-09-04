@@ -169,6 +169,21 @@ const MATH_ITALIC_TEX_METRICS = {
   y: [0.49028, 0.43056, 0.19444], z: [0.46505, 0.43056, 0]
 };
 
+// cmmi7.tfm widths from local TeX Live 2025. Scriptstyle selects the 7pt
+// design font, whose advances are not a uniform 0.7 scale of cmmi10.
+const MATH_SCRIPT_ITALIC_WIDTHS = {
+  A: 0.859133, B: 0.863176, C: 0.819388, D: 0.934072, E: 0.838695, F: 0.724509,
+  G: 0.889426, H: 0.935621, I: 0.506304, J: 0.632045, K: 0.9599285, L: 0.783735,
+  M: 1.089391, N: 0.904866, O: 0.868929, P: 0.727334, Q: 0.899684, R: 0.860609,
+  S: 0.701492, T: 0.674754, U: 0.778218, V: 0.674608, W: 1.07441, X: 0.936861,
+  Y: 0.671535, Z: 0.778377,
+  a: 0.619664, b: 0.502382, c: 0.510535, d: 0.594696, e: 0.542018, f: 0.557051,
+  g: 0.557329, h: 0.668821, i: 0.404185, j: 0.472724, k: 0.607313, l: 0.361278,
+  m: 1.013731, n: 0.70619, o: 0.56389, p: 0.588908, q: 0.523599, r: 0.530428,
+  s: 0.539189, t: 0.431551, u: 0.675437, v: 0.571433, w: 0.826436, x: 0.64782,
+  y: 0.579371, z: 0.545807
+};
+
 // Reduced Computer Modern math-symbol metrics used by formulas that mix
 // math-italic letters with upright delimiters and relation glyphs.
 const MATH_FALLBACK_SYMBOL_TEX_METRICS = {
@@ -1020,34 +1035,73 @@ function simpleScriptSequenceFormulaMetric(tex, scale, metric) {
 }
 
 function simpleScriptFormulaMetric(tex, scale, metric) {
-  if (!metric.texTextMetrics) return null;
-  const match = String(tex || "").trim().match(/^([A-Za-z])\s*_\s*(?:\{\s*([A-Za-z0-9]+)\s*\}|([A-Za-z0-9]))$/);
-  if (!match) return null;
+  if (!metric.texTextMetrics || metric.mathVersion === "bold") return null;
+  const parsed = parseSimpleScriptFormula(tex);
+  if (!parsed) return null;
 
-  // Math letters use the math-italic family, while a digit subscript stays in
-  // the text family at script size. Measuring the base as CMR text widened
-  // compact formulas such as $q_0$, which in turn made geometric node shapes
-  // (notably automata's `initial by diamond`) visibly too large.
-  const baseSpec = (metric.mathVersion === "bold" ? MATH_BOLD_ITALIC_TEX_METRICS : MATH_ITALIC_TEX_METRICS)[match[1]];
-  const base = baseSpec
-    ? {
-        width: baseSpec[0] * 10 * scale,
-        height: baseSpec[1] * 10 * scale,
-        depth: baseSpec[2] * 10 * scale
-      }
-    : null;
-  const script = measurePlainTextTeXBoxPt(match[2] || match[3], { fontSizePt: 7 * scale });
-  if (!base || !script) return null;
+  const baseSpec = MATH_ITALIC_TEX_METRICS[parsed.base];
+  const subscript = parsed.subscript ? scriptStyleTokenMetric(parsed.subscript, scale) : null;
+  const superscript = parsed.superscript ? scriptStyleTokenMetric(parsed.superscript, scale) : null;
+  if (!baseSpec || (parsed.subscript && !subscript) || (parsed.superscript && !superscript)) return null;
 
-  // TeX keeps a one-letter math atom and its scriptstyle subscript tight.
-  // The math-italic advance already includes the needed placement; adding a
-  // generic italic-width multiplier would grow the surrounding TikZ node.
-  const scriptDropPt = 1.55 * scale;
-  return {
-    width: (base.width + script.width) / TEX_PT_PER_CM,
-    height: base.height / TEX_PT_PER_CM,
-    depth: Math.max(base.depth, Math.max(0, script.height - scriptDropPt) + script.depth) / TEX_PT_PER_CM
+  const base = {
+    width: baseSpec[0] * 10 * scale,
+    height: baseSpec[1] * 10 * scale,
+    depth: baseSpec[2] * 10 * scale
   };
+  let superscriptShift = 3.62892 * scale;
+  let subscriptShift = superscript ? 2.47217 * scale : 1.5 * scale;
+
+  if (subscript && superscript) {
+    const ruleThickness = 0.4 * scale;
+    const xHeight = 4.30555 * scale;
+    const gap = (superscriptShift - superscript.depth) - (subscript.height - subscriptShift);
+    if (gap < 4 * ruleThickness) subscriptShift += 4 * ruleThickness - gap;
+    const superscriptBottomClearance = 0.8 * xHeight - (superscriptShift - superscript.depth);
+    if (superscriptBottomClearance > 0) {
+      superscriptShift += superscriptBottomClearance;
+      subscriptShift -= superscriptBottomClearance;
+    }
+  }
+
+  const scriptWidth = Math.max(subscript?.width || 0, superscript?.width || 0);
+  return {
+    width: (base.width + scriptWidth + 0.5 * scale) / TEX_PT_PER_CM,
+    height: Math.max(base.height, superscript ? superscript.height + superscriptShift : 0) / TEX_PT_PER_CM,
+    depth: Math.max(base.depth, subscript ? subscript.depth + subscriptShift : 0) / TEX_PT_PER_CM
+  };
+}
+
+function parseSimpleScriptFormula(tex) {
+  const source = String(tex || "").trim();
+  const base = source.match(/^([A-Za-z])/);
+  if (!base) return null;
+  let cursor = base[0].length;
+  const result = { base: base[1], subscript: null, superscript: null };
+  while (cursor < source.length) {
+    const script = source.slice(cursor).match(/^\s*([_^])\s*(?:\{\s*([A-Za-z0-9]+)\s*\}|([A-Za-z0-9]))/);
+    if (!script) return null;
+    const key = script[1] === "_" ? "subscript" : "superscript";
+    if (result[key]) return null;
+    result[key] = script[2] || script[3];
+    cursor += script[0].length;
+  }
+  return result.subscript || result.superscript ? result : null;
+}
+
+function scriptStyleTokenMetric(token, scale) {
+  let width = 0;
+  let height = 0;
+  let depth = 0;
+  for (const char of String(token || "")) {
+    const spec = /[A-Za-z]/.test(char) ? MATH_ITALIC_TEX_METRICS[char] : MAIN_REGULAR_TEX_METRICS[char];
+    if (!spec) return null;
+    const widthEm = /[A-Za-z]/.test(char) ? MATH_SCRIPT_ITALIC_WIDTHS[char] : spec[0] * 1.138895;
+    width += widthEm * 7 * scale;
+    height = Math.max(height, spec[1] * 7 * scale);
+    depth = Math.max(depth, spec[2] * 7 * scale);
+  }
+  return { width, height, depth };
 }
 
 function estimateExtensibleArrowFormulaParts(tex, scale, metric) {

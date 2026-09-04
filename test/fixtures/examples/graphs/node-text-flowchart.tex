@@ -1,0 +1,18 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{graphs}
+\begin{document}
+\begin{tikzpicture}
+  \graph[
+    grow right=2cm,
+    branch down=1.2cm,
+    empty nodes,
+    nodes={circle,draw,minimum size=7mm},
+    edges={-latex,thick}
+  ] {
+    source[as=Start,fill=green!15] ->
+    {review[as=Review,fill=yellow!20], wait[fill=gray!15]} ->
+    done[as=Done,fill=blue!12];
+  };
+\end{tikzpicture}
+\end{document}

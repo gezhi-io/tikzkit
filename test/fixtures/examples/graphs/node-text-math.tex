@@ -1,0 +1,16 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{graphs}
+\begin{document}
+\begin{tikzpicture}
+  \graph[
+    math nodes,
+    grow right=1.8cm,
+    branch down=1.1cm,
+    nodes={circle,draw,minimum size=8mm},
+    edges={-latex,thick}
+  ] {
+    a_1 -> {b^2, c_3^n} -> z;
+  };
+\end{tikzpicture}
+\end{document}

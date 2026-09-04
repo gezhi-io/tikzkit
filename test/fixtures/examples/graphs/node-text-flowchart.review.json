@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-graphs.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The standalone shell is removed while the document and picture bodies are preserved for interpretation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package loads the generic TikZ front end and the shared node/path machinery used after graph lowering." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\usetikzlibrary", "\\node", "\\path"], "findings": "Lowered graph nodes and edges use ordinary named TikZ nodes and paths, including minimum size, fill, stroke, and arrows." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex": { "symbols": ["/tikz/graphs/empty nodes", "/tikz/graphs/as", "\\tikz@lib@graph@node"], "findings": "Empty nodes replaces the graph-node typesetter, but a node-local as value bypasses it and remains visible." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-graphs.tex": { "symbols": ["empty nodes", "as"], "findings": "The flowchart fixture exercises the documented empty-node mode and explicit displayed-text override." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/graphs.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/graphs.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["outputs/qa/2026-09-05-graphs-node-text-after"] }
+  ]
+}

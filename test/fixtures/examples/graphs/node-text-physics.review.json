@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryquotes.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-graphs.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"], "findings": "The standalone shell is removed while preserving the TikZ source body." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The package loads the ordinary node/path implementation used by graph lowering." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\usetikzlibrary", "\\node", "rounded corners"], "findings": "The resulting state boxes and transitions use shared TikZ node and path semantics." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex": { "symbols": ["/tikz/graphs/math nodes", "/tikz/graphs/as", "\\tikzgraphnodetext"], "findings": "Slash text is the default typeset text under math nodes, while explicit as={Detector} is not math-wrapped." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryquotes.code.tex": { "symbols": ["every edge quotes", "edge node"], "findings": "Quoted graph labels become ordinary edge nodes with automatic placement." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-graphs.tex": { "symbols": ["math nodes", "as", "quoted edges"], "findings": "The physical-state fixture combines the documented node text modes with edge labels." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/graphs.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/graphs.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/graphs.test.js", "outputs/qa/2026-09-05-graphs-node-text-after"] }
+  ]
+}

@@ -18,6 +18,9 @@ export const tikzLibrary = {
     "local edge styles including bend left/right",
     "grow right/left/up/down Cartesian placement",
     "branch right/left/up/down Cartesian placement",
+    "math nodes graph typesetting",
+    "empty nodes graph typesetting",
+    "node-local as text override precedence",
     "inline \\tikz \\graph wrapper"
   ],
   implements: [
@@ -30,9 +33,12 @@ export const tikzLibrary = {
     "local edge styles including bend left/right",
     "grow right/left/up/down Cartesian placement",
     "branch right/left/up/down Cartesian placement",
+    "math nodes graph typesetting",
+    "empty nodes graph typesetting",
+    "node-local as text override precedence",
     "inline \\tikz \\graph wrapper"
   ],
-  notes: "Reviewed locally on 2026-08-07: the graphs library separates graph syntax from drawing. Its parser records node chains and chain groups, invokes a new-edge key for every compatible entry/exit pair, and asks placement/place to turn accumulated logical chain width and group depth into node shifts. Its edge implementation uses a normal TikZ edge path, while the quotes library turns quoted labels into edge nodes with every edge quotes={auto}. TikZKit lowers the focused Cartesian subset to ordinary named nodes and edge paths: basic graph chains, one-or-more chain groups, the four built-in edge kinds, graph-wide node/edge styles, quoted edge labels with basic auto/swap placement, local edge styles such as bend left/right, and grow/branch vectors. Subgraphs, graph drawing algorithms, node sets, circular/grid placement, graph operators, aliases, source/target edge options, arbitrary quote key callbacks, and exact source TeX key callbacks remain partial."
+  notes: "Reviewed locally on 2026-08-07: the graphs library separates graph syntax from drawing. Its parser records node chains and chain groups, invokes a new-edge key for every compatible entry/exit pair, and asks placement/place to turn accumulated logical chain width and group depth into node shifts. Its edge implementation uses a normal TikZ edge path, while the quotes library turns quoted labels into edge nodes with every edge quotes={auto}. TikZKit lowers the focused Cartesian subset to ordinary named nodes and edge paths: basic graph chains, one-or-more chain groups, the four built-in edge kinds, graph-wide node/edge styles, quoted edge labels with basic auto/swap placement, local edge styles such as bend left/right, and grow/branch vectors. Reviewed again on 2026-09-05 against tikzlibrarygraphs.code.tex lines 980-1165 and pgfmanual-en-tikz-graphs.tex: graph node names and displayed text are separate; math nodes wraps the graph-node text in math mode, empty nodes discards it, later graph options win, and a node-local as value has final precedence. TikZKit now preserves those semantics, including explicit empty as values, and shares TeX scriptstyle metrics with normal nodes so a_1, b^2, and c_3^n retain the native 8mm circle minimum. Subgraphs, graph drawing algorithms, node sets, circular/grid placement, graph operators, aliases, source/target edge options, arbitrary typeset callbacks, arbitrary quote key callbacks, and exact source TeX key callbacks remain partial."
 };
 
 // Lower the useful, declarative core of the graphs library before the normal
@@ -195,13 +201,28 @@ function parseGraphNode(raw) {
   name = unquoteGraphText(name);
   label = unquoteGraphText(label) || name;
   const nodeOptions = [];
+  let hasExplicitAs = false;
   for (const option of splitTopLevel(optionText, ",")) {
     const part = option.trim();
     if (!part) continue;
-    if (part.startsWith("as=")) label = stripOuterBraces(part.slice(3).trim()) || label;
-    else nodeOptions.push(part);
+    const separator = topLevelIndexOf(part, "=");
+    const rawKey = (separator < 0 ? part : part.slice(0, separator)).trim();
+    const key = rawKey.replace(/^\/tikz\/graphs\//, "");
+    if (key === "as" && separator >= 0) {
+      label = stripOuterBraces(part.slice(separator + 1).trim());
+      hasExplicitAs = true;
+    } else {
+      nodeOptions.push(part);
+    }
   }
-  return { type: "node", name, label, options: nodeOptions.join(",") };
+  return { type: "node", name, label, hasExplicitAs, options: nodeOptions.join(",") };
+}
+
+function graphNodeText(node, mode) {
+  if (node.hasExplicitAs) return node.label;
+  if (mode === "empty") return "";
+  if (mode === "math") return `$${node.label}$`;
+  return node.label;
 }
 
 function readGraphOperator(source, start) {
@@ -214,11 +235,19 @@ function readGraphOperator(source, start) {
 function lowerGraph(graph, rawOptions, diagnostics) {
   const options = graphOptions(rawOptions);
   const layout = graphLayout(options);
-  const context = { nodes: new Map(), edges: [], layout, graphNodeOptions: options.nodes || "", graphEdgeOptions: options.edges || "" };
+  const context = {
+    nodes: new Map(),
+    edges: [],
+    layout,
+    nodeTextMode: options.nodeTextMode || "default",
+    graphNodeOptions: options.nodes || "",
+    graphEdgeOptions: options.edges || ""
+  };
   layoutGraphGroup(graph, 0, 0, context, diagnostics);
   const nodes = [...context.nodes.values()].map((node) => {
     const nodeOptions = joinOptions([context.graphNodeOptions, node.options]);
-    return `\\node${nodeOptions ? `[${nodeOptions}]` : ""} (${node.name}) at (${formatCoordinate(node.x)},${formatCoordinate(node.y)}) {${node.label}};`;
+    const nodeText = graphNodeText(node, context.nodeTextMode);
+    return `\\node${nodeOptions ? `[${nodeOptions}]` : ""} (${node.name}) at (${formatCoordinate(node.x)},${formatCoordinate(node.y)}) {${nodeText}};`;
   });
   const edges = context.edges.map((edge) => {
     const local = parseGraphEdgeOptions(edge.options);
@@ -350,7 +379,9 @@ function graphOptions(raw) {
     const separator = topLevelIndexOf(entry, "=");
     const key = (separator < 0 ? entry : entry.slice(0, separator)).trim().toLowerCase();
     if (!key) continue;
-    options[key] = stripOuterBraces(separator < 0 ? "" : entry.slice(separator + 1).trim());
+    if (key === "empty nodes") options.nodeTextMode = "empty";
+    else if (key === "math nodes") options.nodeTextMode = "math";
+    else options[key] = stripOuterBraces(separator < 0 ? "" : entry.slice(separator + 1).trim());
   }
   return options;
 }

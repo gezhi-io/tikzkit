@@ -7657,6 +7657,51 @@
         "unit-bearing scientific ticks",
         "detector response"
       ]
+    },
+    {
+      "id": "graphs-node-text-flowchart",
+      "title": "Graphs empty-node flowchart",
+      "source": "graphs/node-text-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF graphs manual empty-nodes regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-graphs.tex",
+      "semanticOwner": "src/tikz/libraries/graphs.js:expandTikzGraphs",
+      "features": [
+        "graphs library",
+        "empty nodes",
+        "as text override",
+        "chain groups",
+        "flowchart nodes"
+      ]
+    },
+    {
+      "id": "graphs-node-text-math",
+      "title": "Graphs mathematical node typesetting",
+      "source": "graphs/node-text-math.tex",
+      "sourceCorpus": "TeX Live PGF graphs manual math-nodes regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-graphs.tex",
+      "semanticOwner": "src/tikz/libraries/graphs.js:expandTikzGraphs",
+      "features": [
+        "graphs library",
+        "math nodes",
+        "subscripts and superscripts",
+        "chain groups",
+        "mathematical graph"
+      ]
+    },
+    {
+      "id": "graphs-node-text-physics",
+      "title": "Graphs physical-state node typesetting",
+      "source": "graphs/node-text-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from TeX Live PGF graphs semantics",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/graphs/tikzlibrarygraphs.code.tex",
+      "semanticOwner": "src/tikz/libraries/graphs.js:expandTikzGraphs",
+      "features": [
+        "graphs library",
+        "math nodes",
+        "slash node text",
+        "as text override",
+        "quoted physical transition labels"
+      ]
     }
   ]
 }

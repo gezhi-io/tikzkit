@@ -6,6 +6,7 @@ import { tikzToSvg } from "../src/index.js";
 import { expandTikzGraphs, tikzLibrary } from "../src/tikz/libraries/graphs.js";
 
 const FIXTURE = new URL("./fixtures/examples/graphs/basic-chain-group.tex", import.meta.url);
+const MATH_NODES_FIXTURE = new URL("./fixtures/examples/graphs/node-text-math.tex", import.meta.url);
 
 test("lowers a graph chain group into ordinary named nodes and edges", () => {
   const diagnostics = [];
@@ -84,4 +85,51 @@ test("renders graph edge labels and bend styles from the TeX Live manual fixture
   const labelNodes = result.ir.items.filter((item) => item.type === "textNode");
   assert.ok(labelNodes.find((item) => item.text === "start")?.y > 0, "default quotes label is above a left-to-right edge");
   assert.ok(labelNodes.find((item) => item.text === "middle")?.y < 0, "apostrophe quote swaps the label below its edge");
+});
+
+test("graphs math nodes wrap default and slash text in math mode", () => {
+  const diagnostics = [];
+  const lowered = expandTikzGraphs(String.raw`\tikz \graph[math nodes,nodes={draw,circle}] {
+    a_1 -> b/b^2 -> c/c_3^n;
+  };`, diagnostics);
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(lowered, /\(a_1\).+\{\$a_1\$\};/);
+  assert.match(lowered, /\(b\).+\{\$b\^2\$\};/);
+  assert.match(lowered, /\(c\).+\{\$c_3\^n\$\};/);
+});
+
+test("graphs empty nodes suppress default text while as always wins", () => {
+  const diagnostics = [];
+  const lowered = expandTikzGraphs(String.raw`\tikz \graph[empty nodes,nodes={draw,circle}] {
+    source -> blank -> result[as={$x_1$}];
+  };`, diagnostics);
+
+  assert.deepEqual(diagnostics, []);
+  assert.match(lowered, /\(source\).+\{\};/);
+  assert.match(lowered, /\(blank\).+\{\};/);
+  assert.match(lowered, /\(result\).+\{\$x_1\$\};/);
+});
+
+test("graphs node text mode follows source order and does not wrap explicit as text", () => {
+  const mathLast = expandTikzGraphs(String.raw`\tikz \graph[empty nodes,math nodes] { a[as={State}] -> b_2 };`);
+  const emptyLast = expandTikzGraphs(String.raw`\tikz \graph[math nodes,empty nodes] { a -> b };`);
+
+  assert.match(mathLast, /\(a\).+\{State\};/);
+  assert.match(mathLast, /\(b_2\).+\{\$b_2\$\};/);
+  assert.doesNotMatch(mathLast, /\{\$State\$\}/);
+  assert.match(emptyLast, /\(a\).+\{\};/);
+  assert.match(emptyLast, /\(b\).+\{\};/);
+});
+
+test("graph math nodes use native TeX script metrics inside minimum-size circles", () => {
+  const result = tikzToSvg(readFileSync(MATH_NODES_FIXTURE, "utf8"), { mathRenderer: "svg-text" });
+  const circles = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "circle");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(circles.map((item) => item.id), ["a_1", "b^2", "c_3^n", "z"]);
+  for (const circle of circles) {
+    assert.ok(circle.width >= 0.8 && circle.width < 0.82, `${circle.id} should remain at the native 8mm minimum, got ${circle.width}cm`);
+    assert.equal(circle.width, circle.height);
+  }
 });
