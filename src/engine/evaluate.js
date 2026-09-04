@@ -6,6 +6,8 @@ import {
   cylinderBorderPoint as geometricCylinderBorderPoint,
   cylinderGeometry as geometricCylinderGeometry,
   cylinderLayoutSize as geometricCylinderLayoutSize,
+  starBorderPoint as geometricStarBorderPoint,
+  starGeometry as geometricStarGeometry,
   starLayoutSize as geometricStarLayoutSize,
   starNodePoints as geometricStarNodePoints,
   trapeziumLayoutSize as geometricTrapeziumLayoutSize,
@@ -11360,6 +11362,15 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
         regularPolygonStartAngle(sides, node.shapeData?.shapeBorderRotate)
       )
     );
+  } else if (node.shape === "star") {
+    localPoint = geometricStarBorderPoint(
+      geometricStarGeometry({
+        width: Number(node.width) || halfWidth * 2,
+        height: Number(node.height) || halfHeight * 2
+      }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "trapezium") {
     const visibleWidth = Number(node.width) || halfWidth * 2;
     const visibleHeight = Number(node.height) || halfHeight * 2;
@@ -11685,7 +11696,9 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const tapeOuterSep = nodeOuterSep(options, env);
   const cloudOuterSep = nodeOuterSep(options, env);
   const starburstOuterSep = nodeOuterSep(options, env);
+  const starOuterSep = nodeOuterSep(options, env);
   const trapeziumOuterSep = nodeOuterSep(options, env);
+  const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
@@ -11710,6 +11723,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     regularPolygonSides: regularSides,
     regularPolygonStartAngle: regularPolygonStartAngle(regularSides, shapeBorderRotate),
     ...star,
+    starOuterSep: Math.max(starOuterSep.x, starOuterSep.y) * starScale,
     trapeziumLeftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
     trapeziumRightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60),
     trapeziumStretches: tikzBoolean(options["trapezium stretches"]),
@@ -12838,6 +12852,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
       regularPolygonOuterRadiusExtension(Math.max(outerSep.x, outerSep.y), sides);
     const diameter = roundNumber(Math.max(0, outerRadius * 2));
     return { width: diameter, height: diameter };
+  }
+  if (nodeShape(options) === "star") {
+    const geometry = geometricStarGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
   }
   return {
     width: roundNumber((Number(size.width) || 0) + outerSep.x * 2),
@@ -18212,6 +18237,14 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
       "south west": { x: -1, y: -1 }
     };
     if (directions[anchor]) return geometricCylinderBorderPoint(geometry, directions[anchor]);
+  }
+  if (shape === "star") {
+    const geometry = geometricStarGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, size.shapeData || {});
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
   }
   if (shape === "signal") {
     const geometry = symbolSignalGeometry({

@@ -6453,6 +6453,51 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendBorderOnPolyline/createPgfDecorationPathWalker",
       "features": ["border decoration", "last state", "cubic tangent frame", "amplitude", "raise", "electric field", "physics"]
+    },
+    {
+      "id": "shapes-star-anchors-flowchart",
+      "title": "Star event anchors in a flowchart",
+      "source": "shapes/star-anchors-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:starGeometry/starBorderPoint",
+      "features": [
+        "flowchart",
+        "star named inner and outer anchors",
+        "outer separation",
+        "automatic arrow border clipping",
+        "positioning"
+      ]
+    },
+    {
+      "id": "shapes-star-anchors-math",
+      "title": "Nonconvex star boundary anchors",
+      "source": "shapes/star-anchors-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:starGeometry/starBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "star rotate",
+        "named inner and outer point anchors",
+        "calc and positioning",
+        "mitered outer separation"
+      ]
+    },
+    {
+      "id": "shapes-star-anchors-physics",
+      "title": "Radiation source star anchors",
+      "source": "shapes/star-anchors-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:starGeometry/starBorderPoint",
+      "features": [
+        "physics diagram",
+        "eight-point star",
+        "named inner and outer point anchors",
+        "automatic arrow border clipping",
+        "outer separation"
+      ]
     }
   ]
 }

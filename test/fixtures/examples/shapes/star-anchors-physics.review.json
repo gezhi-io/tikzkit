@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document framing does not alter the physical diagram coordinates." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads core TikZ and the requested geometric, positioning, and arrow libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "\\node"], "findings": "Core TikZ resolves source order, named anchors, relative ray coordinates, and automatic source-to-detector clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "The Stealth definition controls the two radiation arrow terminals and their line shortening." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "above=of"], "findings": "The detector and shield are placed relative to the star's final expanded anchor bounds." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["star", "anchorborder", "outer point", "inner point"], "findings": "The source uses an alternating expanded polygon for both explicit radiation rays and automatic border clipping while painting the smaller unexpanded star." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["star points", "star rotate", "outer sep"], "findings": "The manual parameters cover the eight-point rotated source and its visible separation from attached rays." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] }
+  ]
+}

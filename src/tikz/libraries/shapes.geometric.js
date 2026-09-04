@@ -141,22 +141,126 @@ export function starLayoutSize(contentWidth, contentHeight, options = {}) {
 export function starNodePoints(center, outerRadius, data = {}) {
   const count = Math.max(3, Math.round(Number(data.starPoints) || 5));
   const radius = Math.max(0, Math.abs(Number(outerRadius) || 0));
+  const innerRadius = starInnerRadius(radius, data);
+  return starPointsFromRadii(center, radius, innerRadius, data, count);
+}
+
+export function starGeometry(size = {}, data = {}) {
+  const count = Math.max(3, Math.round(Number(data.starPoints) || 5));
+  const outerRadius = Math.max(0, Math.abs(Number(size.width) || 0), Math.abs(Number(size.height) || 0)) / 2;
+  const innerRadius = starInnerRadius(outerRadius, data);
+  const outerSep = Math.max(0, Number(data.starOuterSep) || 0);
+  const points = starPointsFromRadii({ x: 0, y: 0 }, outerRadius, innerRadius, data, count);
+  const anchorRadii = starAnchorRadii(outerRadius, innerRadius, count, outerSep);
+  const anchorPoints = starPointsFromRadii(
+    { x: 0, y: 0 },
+    anchorRadii.outerRadius,
+    anchorRadii.innerRadius,
+    data,
+    count
+  );
+  const anchors = { center: { x: 0, y: 0 } };
+  for (let index = 0; index < count; index += 1) {
+    anchors[`outer point ${index + 1}`] = anchorPoints[index * 2];
+    anchors[`inner point ${index + 1}`] = anchorPoints[index * 2 + 1];
+  }
+  const directions = {
+    north: { x: 0, y: 1 },
+    south: { x: 0, y: -1 },
+    east: { x: 1, y: 0 },
+    west: { x: -1, y: 0 },
+    "north east": { x: 1, y: 1 },
+    "north west": { x: -1, y: 1 },
+    "south east": { x: 1, y: -1 },
+    "south west": { x: -1, y: -1 }
+  };
+  for (const [name, direction] of Object.entries(directions)) {
+    anchors[name] = starPolygonBorderPoint(anchorPoints, direction);
+  }
+  return {
+    data,
+    count,
+    outerRadius,
+    innerRadius,
+    anchorOuterRadius: anchorRadii.outerRadius,
+    anchorInnerRadius: anchorRadii.innerRadius,
+    outerSep,
+    points,
+    anchorPoints,
+    anchors,
+    bounds: pointBounds(points),
+    anchorBounds: pointBounds(anchorPoints)
+  };
+}
+
+export function starBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  const direction = { x: Number(toward.x) || 0, y: Number(toward.y) || 0 };
+  if (Math.hypot(direction.x, direction.y) <= 1e-12) return { x: 0, y: 0 };
+  const extra = Math.max(0, Number(padding) || 0);
+  if (extra <= 1e-12) return starPolygonBorderPoint(geometry.anchorPoints || geometry.points || [], direction);
+  const data = geometry.data || {};
+  const radii = starAnchorRadii(
+    Math.max(0, Number(geometry.outerRadius) || 0),
+    Math.max(0, Number(geometry.innerRadius) || 0),
+    Math.max(3, Math.round(Number(geometry.count) || 5)),
+    Math.max(0, Number(geometry.outerSep) || 0) + extra
+  );
+  return starPolygonBorderPoint(
+    starPointsFromRadii(
+      { x: 0, y: 0 },
+      radii.outerRadius,
+      radii.innerRadius,
+      data,
+      Math.max(3, Math.round(Number(geometry.count) || 5))
+    ),
+    direction
+  );
+}
+
+function starInnerRadius(outerRadius, data = {}) {
   const usesPointRatio = data.starUsesPointRatio !== false;
-  const innerRadius = usesPointRatio
-    ? radius / normalizedStarPointRatio(data.starPointRatio)
-    : Math.max(0, radius - normalizedStarPointHeight(data.starPointHeight));
+  return usesPointRatio
+    ? outerRadius / normalizedStarPointRatio(data.starPointRatio)
+    : Math.max(0, outerRadius - normalizedStarPointHeight(data.starPointHeight));
+}
+
+function starPointsFromRadii(center, outerRadius, innerRadius, data = {}, count = 5) {
   const startAngle = 90 + (Number(data.shapeBorderRotate) || 0);
   const x = Number(center?.x) || 0;
   const y = Number(center?.y) || 0;
 
   return Array.from({ length: count * 2 }, (_unused, index) => {
     const angle = ((startAngle + (180 * index) / count) * Math.PI) / 180;
-    const pointRadius = index % 2 === 0 ? radius : innerRadius;
+    const pointRadius = index % 2 === 0 ? outerRadius : innerRadius;
     return {
       x: x + Math.cos(angle) * pointRadius,
       y: y + Math.sin(angle) * pointRadius
     };
   });
+}
+
+function starAnchorRadii(outerRadius, innerRadius, count, outerSep) {
+  if (outerSep <= 1e-12) return { outerRadius, innerRadius };
+  const angle = Math.PI / count;
+  const sine = Math.sin(angle);
+  const cosine = Math.cos(angle);
+  const outerSide = Math.hypot(outerRadius - innerRadius * cosine, innerRadius * sine);
+  const innerSide = Math.hypot(outerRadius * cosine - innerRadius, outerRadius * sine);
+  const outerHalfAngleSine = Math.abs(innerRadius * sine) / Math.max(1e-12, outerSide);
+  const innerHalfAngleSine = Math.abs(outerRadius * sine) / Math.max(1e-12, innerSide);
+  return {
+    outerRadius: outerRadius + outerSep / Math.max(1e-12, outerHalfAngleSine),
+    innerRadius: innerRadius + outerSep / Math.max(1e-12, innerHalfAngleSine)
+  };
+}
+
+function starPolygonBorderPoint(points, direction) {
+  let best = null;
+  for (let index = 0; index < points.length; index += 1) {
+    const hit = raySegmentIntersection(direction.x, direction.y, points[index], points[(index + 1) % points.length]);
+    if (hit && (!best || hit.t < best.t)) best = hit;
+  }
+  return best ? { x: best.x, y: best.y } : { x: 0, y: 0 };
 }
 
 export function trapeziumLayoutSize(contentWidth, contentHeight, options = {}) {

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document shell contributes only framing and the standalone crop." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads the geometric, calc, and positioning libraries requested by this fixture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "\\node"], "findings": "Core path actions paint the guides, point markers, and mathematical labels in source order." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["named node coordinates"], "findings": "Calc-compatible node coordinate resolution preserves named star anchors as concrete points." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["below=of"], "findings": "The explanatory formula is positioned below the expanded shape boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["star", "startangle", "outer point", "inner point"], "findings": "Numbered outer anchors use startangle plus two angle steps; numbered inner anchors use the intervening angle and the independently mitered inner radius." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["star rotate", "star point ratio"], "findings": "The documented rotation and point ratio determine the visible nonconvex boundary before outer separation is applied to anchors." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] }
+  ]
+}

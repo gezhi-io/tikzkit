@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone shell establishes document and environment boundaries without altering the TikZ node geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and dispatches the requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "\\node"], "findings": "Core TikZ resolves styles, nodes, relative coordinates, named anchors, and automatic border intersections." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The arrows.meta declaration supplies the Latex terminal geometry used by the flowchart connections." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of"], "findings": "Positioning measures the final star anchor border before applying node distance." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["star", "anchorouterradius", "anchorinnerradius", "outer point", "inner point"], "findings": "The star declaration paints with its content radii but expands both anchor radii by outer separation times the cosecant of the corresponding half angle; automatic anchors intersect that alternating contour." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["star points", "star point ratio", "star rotate"], "findings": "The manual documents numbered outer and inner anchors in rotational order and the minimum-size star controls." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-star-anchors.test.js"] }
+  ]
+}
