@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is consumed before TikZ and PGFPlots evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex": { "symbols": ["\\pgfmathprintnumber", "use comma", "fixed", "fixed zerofill", "precision"], "findings": "Use comma selects a comma decimal separator and period thousands separator; fixed and fixed zerofill retain their distinct trailing-zero behavior." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots frontend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["xticklabel", "yticklabel", "zticklabel"], "findings": "The three axes retain separate user templates and styles." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\tick"], "findings": "Every 3D tick template receives the inverse-transformed data value rather than its projected coordinate." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] }
+  ]
+}

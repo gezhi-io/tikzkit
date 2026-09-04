@@ -20,12 +20,17 @@ export function formatAxisPoint(point) {
 
 export function formatAxisTickLabel(value, options = {}) {
   const label = formatAxisNumberForTick(value, options);
-  const unsigned = label.startsWith("-") ? label.slice(1) : label;
+  const negative = label.startsWith("-");
+  const unsigned = negative ? label.slice(1) : label;
   const separator = options.thousandSeparator === undefined ? "," : String(options.thousandSeparator);
-  const grouped = separator && /^\d{4,}$/.test(unsigned)
-    ? unsigned.replace(/\B(?=(\d{3})+(?!\d))/g, separator)
-    : unsigned;
-  return label.startsWith("-") ? `−${grouped}` : grouped;
+  const decimalSeparator = options.decimalSeparator === undefined ? "." : String(options.decimalSeparator);
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(unsigned);
+  if (!match) return negative ? `−${unsigned}` : unsigned;
+  const integer = separator && match[1].length >= 4
+    ? match[1].replace(/\B(?=(\d{3})+(?!\d))/g, separator)
+    : match[1];
+  const grouped = match[2] === undefined ? integer : `${integer}${decimalSeparator}${match[2]}`;
+  return negative ? `−${grouped}` : grouped;
 }
 
 export function createScaledTickFormat(values, options = {}) {
@@ -63,10 +68,15 @@ export function formatScaledAxisTickLabel(value, tickFormat, options = {}) {
 }
 
 function formatAxisNumberForTick(value, options = {}) {
-  const precision = Number(options.precision);
+  const requestedPrecision = Number(options.precision);
+  const precision = Number.isInteger(requestedPrecision) && requestedPrecision >= 0 && requestedPrecision <= 12
+    ? requestedPrecision
+    : options.fixed || options.fixedZeroFill
+      ? 2
+      : NaN;
   if (Number.isInteger(precision) && precision >= 0 && precision <= 12) {
     const rounded = Number(value).toFixed(precision);
-    if (options.fixedZeroFill || options.fixed) return rounded.replace(/^-0(?:\.0+)?$/, precision ? `${(0).toFixed(precision)}` : "0");
+    if (options.fixedZeroFill) return rounded.replace(/^-0(?:\.0+)?$/, precision ? `${(0).toFixed(precision)}` : "0");
     return String(Number(rounded)).replace(/^-0$/, "0");
   }
   return formatAxisNumber(value);

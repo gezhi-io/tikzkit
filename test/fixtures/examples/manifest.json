@@ -7567,6 +7567,51 @@
         "numeric tick templates",
         "physical units"
       ]
+    },
+    {
+      "id": "pgfplots-number-print-algorithm",
+      "title": "Pipeline timing with fixed tick templates",
+      "source": "pgfplots/number-print-templates/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGF number-printing semantics",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/pgfplots/ticks.js:renderTickLabelTemplate",
+      "features": [
+        "pgfmathprintnumber optional arguments",
+        "fixed precision",
+        "fixed zero fill",
+        "tick-label suffixes",
+        "algorithm timing profile"
+      ]
+    },
+    {
+      "id": "pgfplots-number-print-math",
+      "title": "Bilinear surface with decimal-comma ticks",
+      "source": "pgfplots/number-print-templates/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGF number-printing semantics",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/pgfplots/ticks.js:renderTickLabelTemplate",
+      "features": [
+        "3D tick-label templates",
+        "use comma",
+        "fixed zero fill",
+        "trailing-zero removal",
+        "bilinear surface"
+      ]
+    },
+    {
+      "id": "pgfplots-number-print-physics",
+      "title": "Sensor trace with grouped unit ticks",
+      "source": "pgfplots/number-print-templates/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGF number-printing semantics",
+      "externalSource": "tex/generic/pgf/math/pgfmathfloat.code.tex",
+      "semanticOwner": "src/pgfplots/ticks.js:renderTickLabelTemplate",
+      "features": [
+        "thin-space thousands separator",
+        "custom decimal separator",
+        "fixed precision",
+        "unit-bearing tick labels",
+        "sensor trace"
+      ]
     }
   ]
 }

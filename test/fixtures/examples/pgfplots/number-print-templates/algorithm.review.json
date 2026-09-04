@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is consumed before TikZ and PGFPlots evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex": { "symbols": ["\\pgfmathprintnumber", "fixed", "fixed zerofill", "precision"], "findings": "The optional number-printer keys are local; fixed rounds and removes trailing zeros, while fixed zerofill retains the requested decimal places." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots frontend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["xticklabel", "yticklabel"], "findings": "Axis tick-label templates and styles are stored independently for x and y axes." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\tick"], "findings": "The current transformed tick is converted back to its data coordinate before the user template is evaluated." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-number-print-templates.test.js"] }
+  ]
+}

@@ -1080,7 +1080,7 @@ function axisTickLabels(raw, ticks, formatOptions = {}, template = "") {
   const labels = splitBracedList(raw);
   if (labels.length) return ticks.map((_, index) => labels[index] ?? "");
   if (hasTickLabelTemplate(template)) {
-    return ticks.map((tick) => applyTickLabelTemplate(template, formatAxisTickLabel(tick, formatOptions)));
+    return ticks.map((tick) => renderTickLabelTemplate(template, tick, formatOptions));
   }
   return ticks.map((tick) => formatAxisTickLabel(tick, formatOptions));
 }
@@ -1102,12 +1102,19 @@ function hasTickLabelTemplate(template) {
   return Boolean(text) && text !== "true" && text !== "false";
 }
 
-function applyTickLabelTemplate(template, label) {
-  return String(template)
-    .replace(/^\{([\s\S]*)\}$/, "$1")
-    .replace(/\\pgfmathprintnumber\s*\{\s*\\tick\s*\}/g, label)
-    .replace(/\\pgfmathprintnumber\s*\\tick\b/g, label)
-    .replace(/\\tick\b/g, label);
+export function renderTickLabelTemplate(template, tick, formatOptions = {}) {
+  const text = stripBalancedOuterBracesForList(String(template).trim());
+  return text
+    .replace(
+      /\\pgfmathprintnumber\s*(?:\[([^\]]*)\])?\s*(?:\{\s*\\tick\s*\}|\\tick\b)/g,
+      (_, localOptions) => formatAxisTickLabel(
+        tick,
+        localOptions === undefined
+          ? formatOptions
+          : pgfNumberFormatOptions(parseOptions(localOptions), formatOptions)
+      )
+    )
+    .replace(/\\tick\b/g, formatAxisTickLabel(tick, formatOptions));
 }
 
 function intervalAxisTickLabels(ticks, formatOptions = {}) {
@@ -1119,26 +1126,57 @@ function intervalAxisTickLabels(ticks, formatOptions = {}) {
 }
 
 export function axisTickNumberFormat(axisOptions = {}, axis) {
-  const parsed = axisTickLabelStyleOptions(axisOptions, axis);
-  const precision =
-    parsed["/pgf/number format/precision"] ??
-    parsed["number format/precision"] ??
-    parsed.precision;
-  return {
-    precision: precision === undefined ? undefined : Number(precision),
-    fixed:
-      parsed["/pgf/number format/fixed"] === true ||
-      parsed["number format/fixed"] === true ||
-      parsed.fixed === true,
-    fixedZeroFill:
-      parsed["/pgf/number format/fixed zerofill"] === true ||
-      parsed["number format/fixed zerofill"] === true ||
-      parsed["fixed zerofill"] === true,
-    thousandSeparator:
-      parsed["/pgf/number format/1000 sep"] ??
-      parsed["number format/1000 sep"] ??
-      parsed["1000 sep"]
-  };
+  return pgfNumberFormatOptions(axisTickLabelStyleOptions(axisOptions, axis));
+}
+
+function pgfNumberFormatOptions(parsed = {}, inherited = {}) {
+  const result = { ...inherited };
+  assignNumberFormatBoolean(result, "fixed", parsed, "fixed");
+  assignNumberFormatBoolean(result, "fixedZeroFill", parsed, "fixed zerofill");
+
+  const precision = pgfNumberFormatValue(parsed, "precision");
+  if (precision !== undefined) result.precision = Number(precision);
+
+  const useComma = pgfNumberFormatValue(parsed, "use comma");
+  if (useComma !== undefined && pgfNumberFormatBoolean(useComma)) {
+    result.decimalSeparator = ",";
+    result.thousandSeparator = ".";
+  }
+
+  const thousandSeparator = pgfNumberFormatValue(parsed, "1000 sep")
+    ?? pgfNumberFormatValue(parsed, "set thousands separator");
+  if (thousandSeparator !== undefined) {
+    result.thousandSeparator = pgfNumberFormatText(thousandSeparator);
+  }
+
+  const decimalSeparator = pgfNumberFormatValue(parsed, "set decimal separator")
+    ?? pgfNumberFormatValue(parsed, "dec sep");
+  if (decimalSeparator !== undefined) {
+    result.decimalSeparator = pgfNumberFormatText(decimalSeparator);
+  }
+  return result;
+}
+
+function assignNumberFormatBoolean(target, property, parsed, key) {
+  const value = pgfNumberFormatValue(parsed, key);
+  if (value !== undefined) target[property] = pgfNumberFormatBoolean(value);
+}
+
+function pgfNumberFormatValue(parsed, key) {
+  for (const candidate of [key, `number format/${key}`, `/pgf/number format/${key}`]) {
+    if (Object.prototype.hasOwnProperty.call(parsed, candidate)) return parsed[candidate];
+  }
+  return undefined;
+}
+
+function pgfNumberFormatBoolean(value) {
+  if (value === false || value === 0) return false;
+  return !/^(?:false|0|off|no)$/i.test(String(value).trim());
+}
+
+function pgfNumberFormatText(value) {
+  if (value === true || value === false || value === null || value === undefined) return "";
+  return stripBalancedOuterBracesForList(String(value).trim());
 }
 
 function isEmptyTickLabelList(raw) {
