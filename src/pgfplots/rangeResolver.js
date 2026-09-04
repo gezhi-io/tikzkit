@@ -5,6 +5,7 @@ import { roundAxis, roundAxisRange } from "./format.js";
 import { pgfplotsPlotRangePoints } from "./histogram.js";
 import { isAxisQuiverPlot, parseQuiverOptions, quiverScale, quiverUpdatesLimits } from "./quiverOptions.js";
 import { isLogAxis } from "./ranges.js";
+import { axisLogBase, axisPointIsValidForScale, axisValueIsValidForScale } from "./logAxis.js";
 
 export const PGFPLOTS_DEFAULT_ENLARGE_LIMITS = 0.1;
 export const PGFPLOTS_DEFAULT_FUNCTION_DOMAIN = "-5:5";
@@ -29,10 +30,12 @@ export function computeAxisRanges(axisOptions, addplots) {
   for (const plot of addplots) {
     if (plot.type === "coordinates") {
       for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
+        if (!axisValueIsValidForScale(point.x, axisOptions, "x")) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
         if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
       }
       for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "y")) {
+        if (!axisValueIsValidForScale(point.y, axisOptions, "y")) continue;
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
         if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
         if (Number.isFinite(point.z)) {
@@ -85,7 +88,8 @@ export function computeAxisRanges(axisOptions, addplots) {
         }
         continue;
       }
-      const points = sampleFunctionDataPoints(plot, axisOptions, { pgfplotsSamples: 80 });
+      const points = sampleFunctionDataPoints(plot, axisOptions, { pgfplotsSamples: 80 })
+        .filter((point) => axisPointIsValidForScale(point, axisOptions));
       if (!hasExplicitXMin) xMin = Math.min(xMin, ...points.map((point) => point.x));
       if (!hasExplicitXMax) xMax = Math.max(xMax, ...points.map((point) => point.x));
       if (!hasExplicitYMin) yMin = Math.min(yMin, ...points.map((point) => point.y));
@@ -101,6 +105,7 @@ export function computeAxisRanges(axisOptions, addplots) {
         ? sampleParametricSurfaceGrid(plot, axisOptions, { pgfplotsSurfaceSamples: 40 }).grid.flat().filter(Boolean)
         : sampleParametricDataPoints(plot, axisOptions, { pgfplotsSamples: 80 });
       for (const point of parametricPoints) {
+        if (!axisPointIsValidForScale(point, axisOptions)) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
         if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
@@ -111,10 +116,12 @@ export function computeAxisRanges(axisOptions, addplots) {
         }
       }
       if (plot.fillAnchor) {
-        if (!hasExplicitXMin) xMin = Math.min(xMin, plot.fillAnchor.x);
-        if (!hasExplicitXMax) xMax = Math.max(xMax, plot.fillAnchor.x);
-        if (!hasExplicitYMin) yMin = Math.min(yMin, plot.fillAnchor.y);
-        if (!hasExplicitYMax) yMax = Math.max(yMax, plot.fillAnchor.y);
+        if (axisPointIsValidForScale(plot.fillAnchor, axisOptions)) {
+          if (!hasExplicitXMin) xMin = Math.min(xMin, plot.fillAnchor.x);
+          if (!hasExplicitXMax) xMax = Math.max(xMax, plot.fillAnchor.x);
+          if (!hasExplicitYMin) yMin = Math.min(yMin, plot.fillAnchor.y);
+          if (!hasExplicitYMax) yMax = Math.max(yMax, plot.fillAnchor.y);
+        }
       }
     }
   }
@@ -128,8 +135,9 @@ export function computeAxisRanges(axisOptions, addplots) {
   }
   if (xMin === xMax) {
     if (xLog) {
-      xMin = Math.max(1e-9, xMin / 10);
-      xMax *= 10;
+      const base = axisLogBase(axisOptions, "x");
+      xMin = Math.max(1e-9, xMin / base);
+      xMax *= base;
     } else {
       xMin -= 1;
       xMax += 1;
@@ -137,8 +145,9 @@ export function computeAxisRanges(axisOptions, addplots) {
   }
   if (yMin === yMax) {
     if (yLog) {
-      yMin = Math.max(1e-9, yMin / 10);
-      yMax *= 10;
+      const base = axisLogBase(axisOptions, "y");
+      yMin = Math.max(1e-9, yMin / base);
+      yMax *= base;
     } else {
       yMin -= 1;
       yMax += 1;
@@ -174,11 +183,11 @@ export function computeAxisRanges(axisOptions, addplots) {
   }
   if (xLog) {
     xMin = Math.max(1e-9, xMin);
-    xMax = Math.max(xMin * 10, xMax);
+    xMax = Math.max(xMin * axisLogBase(axisOptions, "x"), xMax);
   }
   if (yLog) {
     yMin = Math.max(1e-9, yMin);
-    yMax = Math.max(yMin * 10, yMax);
+    yMax = Math.max(yMin * axisLogBase(axisOptions, "y"), yMax);
   }
   if (!Number.isFinite(zMin) || !Number.isFinite(zMax)) {
     zMin = 0;
@@ -189,13 +198,17 @@ export function computeAxisRanges(axisOptions, addplots) {
     zMax += 1;
   }
   return {
-    xMin: roundAxis(xMin),
-    xMax: roundAxis(xMax),
-    yMin: roundAxis(yMin),
-    yMax: roundAxis(yMax),
+    xMin: roundResolvedAxisValue(xMin, xLog),
+    xMax: roundResolvedAxisValue(xMax, xLog),
+    yMin: roundResolvedAxisValue(yMin, yLog),
+    yMax: roundResolvedAxisValue(yMax, yLog),
     zMin: roundAxisRange(zMin, "z"),
     zMax: roundAxisRange(zMax, "z")
   };
+}
+
+function roundResolvedAxisValue(value, logMode) {
+  return logMode ? Number(Number(value).toPrecision(12)) : roundAxis(value);
 }
 
 export function parseDomain(raw) {

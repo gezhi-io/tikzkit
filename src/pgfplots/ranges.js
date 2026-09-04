@@ -22,8 +22,12 @@ export function isLogAxis(axisOptions = {}, axis) {
     .toLowerCase() === "log";
 }
 
-export function scaleAxisValue(value, logMode = false) {
-  return logMode ? Math.log10(Math.max(1e-12, Number(value))) : Number(value);
+export function scaleAxisValue(value, logMode = false, logBase = 10) {
+  const numeric = Number(value);
+  if (!logMode) return numeric;
+  const base = Number(logBase);
+  if (!(numeric > 0) || !(base > 0) || Math.abs(base - 1) < 1e-12) return NaN;
+  return Math.log(numeric) / Math.log(base);
 }
 
 function finiteOrDefault(value, fallback) {

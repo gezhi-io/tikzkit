@@ -1,0 +1,22 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{loglogaxis}[
+    width=9cm,
+    height=7cm,
+    xmin=0.01,
+    xmax=100,
+    ymin=0.0001,
+    ymax=10000,
+    grid=both,
+    xlabel={$x$},
+    ylabel={$x^2$}
+  ]
+    \addplot[red,very thick,mark=square*] coordinates {
+      (0.01,0.0001) (0.1,0.01) (1,1) (10,100) (100,10000)
+    };
+  \end{loglogaxis}
+\end{tikzpicture}
+\end{document}

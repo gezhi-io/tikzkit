@@ -2,7 +2,7 @@ import { parseDimension } from "../engine/math.js";
 import { axisNumber } from "./coordinates.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isMiddleAxis } from "./geometry.js";
-import { autoTickOutsideRange, axisAutoMajorTickCountForOptions, axisMinorTickValues, axisTickValues, majorTickValues } from "./ticks.js";
+import { autoTickOutsideRange, axisAutoMajorTickCountForOptions, axisMajorTickValues, axisMinorTickValues, axisTickValues } from "./ticks.js";
 
 export function createAxisGridModel(axisOptions = {}) {
   return {
@@ -26,12 +26,12 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
     ? axisTickValues(axisOptions["x grid values"], "x", addplots)
     : hasExplicitAxisTickOption(axisOptions.xtick)
       ? axisTickValues(axisOptions.xtick, "x", addplots)
-      : gridTickValues(ranges.xMin, ranges.xMax, axisAutoMajorTickCountForOptions(axisOptions, "x", ranges.xMin, ranges.xMax, geometry, 7));
+      : gridTickValues(axisOptions, "x", ranges.xMin, ranges.xMax, axisAutoMajorTickCountForOptions(axisOptions, "x", ranges.xMin, ranges.xMax, geometry, 7));
   const yTicks = hasExplicitAxisTickOption(axisOptions["y grid values"])
     ? axisTickValues(axisOptions["y grid values"], "y", addplots)
     : hasExplicitAxisTickOption(axisOptions.ytick)
       ? axisTickValues(axisOptions.ytick, "y", addplots)
-      : gridTickValues(ranges.yMin, ranges.yMax, axisAutoMajorTickCountForOptions(axisOptions, "y", ranges.yMin, ranges.yMax, geometry, 6));
+      : gridTickValues(axisOptions, "y", ranges.yMin, ranges.yMax, axisAutoMajorTickCountForOptions(axisOptions, "y", ranges.yMin, ranges.yMax, geometry, 6));
   const xMajorGridTicks = omitAutoOriginGridTick(axisOptions, "x", xTicks, ranges, hasExplicitXMajorTicks);
   const yMajorGridTicks = omitAutoOriginGridTick(axisOptions, "y", yTicks, ranges, hasExplicitYMajorTicks);
   const xMinorTicks = hasExplicitAxisTickOption(axisOptions["x minor grid values"])
@@ -156,8 +156,8 @@ function parseAxisSchoolBookPadding(axisOptions = {}) {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
-function gridTickValues(min, max, maxTicks) {
-  return majorTickValues(min, max, maxTicks).filter((tick) => !autoTickOutsideRange(tick, min, max));
+function gridTickValues(axisOptions, axis, min, max, maxTicks) {
+  return axisMajorTickValues(axisOptions, axis, min, max, maxTicks).filter((tick) => !autoTickOutsideRange(tick, min, max));
 }
 
 function omitAutoOriginGridTick(axisOptions, axis, ticks, ranges, hasExplicitTicks) {

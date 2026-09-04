@@ -35,6 +35,7 @@ import {
   renderAxisSurfacePlot,
   renderAxisTrianglePatchCoordinatePlot
 } from "./surface.js";
+import { axisPointIsValidForScale } from "./logAxis.js";
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
   if (plot.type === "coordinates") {
@@ -50,17 +51,19 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }
-    const mappedPoints = plot.points.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
+    const dataPoints = plot.points.filter((point) => plot.is3d || axisPointIsValidForScale(point, axisOptions));
+    const visiblePlot = { ...plot, points: dataPoints };
+    const mappedPoints = dataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
     const mark = String(plot.options.mark || "").trim().toLowerCase();
     const commands = [];
     if (isAxisBarPlot(axisOptions, plot.options, "y")) {
-      commands.push(...renderAxisBars(plot.points, axisOptions, geometry, plot.options, plotIndex, "y", ranges));
-      commands.push(...renderNodesNearCoords(plot, axisOptions, geometry, plotIndex));
+      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, "y", ranges));
+      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
     if (isAxisBarPlot(axisOptions, plot.options, "x")) {
-      commands.push(...renderAxisBars(plot.points, axisOptions, geometry, plot.options, plotIndex, "x", ranges));
-      commands.push(...renderNodesNearCoords(plot, axisOptions, geometry, plotIndex));
+      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, "x", ranges));
+      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
     if (plot.closedCycle && mappedPoints.length) {
@@ -68,9 +71,9 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
       commands.push(`\\draw[${style}] ${mappedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
     }
     if (isAxisCombPlot(axisOptions, plot.options, "y")) {
-      commands.push(...renderAxisComb(plot.points, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
+      commands.push(...renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
       if (shouldRenderPlotMarks(plot.options)) commands.push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
-      commands.push(...renderNodesNearCoords(plot, axisOptions, geometry, plotIndex));
+      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
     if (shouldRenderAxisPlotPath(plot.options) && mappedPoints.length) {
@@ -85,12 +88,12 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     if (plot.options["only marks"] || plot.options.scatter || (mark && mark !== "none")) {
       commands.push(...mappedPoints.map((point, index) => renderPlotMark(
         point,
-        plot.options.scatter ? scatterClassOptionsForPoint(plot.options, plot.points[index]) : plot.options,
+        plot.options.scatter ? scatterClassOptionsForPoint(plot.options, dataPoints[index]) : plot.options,
         plotIndex
       )));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, mappedPoints, selectPlotColor(plot.options, plotIndex)));
-    commands.push(...renderNodesNearCoords(plot, axisOptions, geometry, plotIndex));
+    commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
     return commands;
   }
   if (plot.type === "function") {
@@ -142,7 +145,10 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
     const visibleDataPoints = plot.is3d
       ? dataPoints.filter((point) => axisPoint3dInRange(point, ranges))
-      : clipAxisDataPointsToRanges(dataPoints, clipRanges);
+      : clipAxisDataPointsToRanges(
+        dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions)),
+        clipRanges
+      );
     const points = visibleDataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
     const commands = [];
     if (!plot.is3d && (plot.fillAnchor || plot.closedCycle || plot.options.fill) && points.length) {
@@ -179,6 +185,7 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
   if (plot.type === "coordinates" && !isSurfacePlot(plot, axisOptions)) {
     return plot.points
       .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && (!plot.is3d || Number.isFinite(point.z)))
+      .filter((point) => plot.is3d || axisPointIsValidForScale(point, axisOptions))
       .map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
   }
   if (plot.type === "function" && !isSurfacePlot(plot, axisOptions)) {
@@ -189,7 +196,10 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
     const visible = plot.is3d
       ? dataPoints.filter((point) => axisPoint3dInRange(point, ranges))
-      : clipAxisDataPointsToRanges(dataPoints, clipRanges);
+      : clipAxisDataPointsToRanges(
+        dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions)),
+        clipRanges
+      );
     return visible.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
   }
   return [];
@@ -206,10 +216,11 @@ function functionPlotPoints(plot, axisOptions, ranges, geometry, options) {
     pgfplotsSamples: options.pgfplotsSamples || 25,
     pgfplotsMaxSamples: 1200
   });
-  const visibleDataPoints = clipAxisDataPointsToRanges(dataPoints, clipRanges);
+  const validDataPoints = dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions));
+  const visibleDataPoints = clipAxisDataPointsToRanges(validDataPoints, clipRanges);
   return {
     clipRanges,
-    dataPoints,
+    dataPoints: validDataPoints,
     visibleDataPoints,
     points: visibleDataPoints.map((point) => geometry.mapPoint(point))
   };

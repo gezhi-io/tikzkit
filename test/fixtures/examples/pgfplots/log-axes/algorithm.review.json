@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is removed before browser evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots frontend and compatibility layer." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["semilogxaxis", "xmode=log", "log basis x", "\\addlegendentry"], "findings": "semilogxaxis installs logarithmic x and linear y. Empty log basis keeps base-ten power labels." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["try min ticks log", "\\pgfplots@prepare@tick@coordlists@for", "\\pgfplots@assign@default@tick@foraxis"], "findings": "Automatic log majors are powers selected in exponent space; base-ten minor ticks occupy factors 2 through 9 within each visible decade." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex": { "symbols": ["\\pgfplotscoordmath", "log", "log basis x"], "findings": "Positive coordinates are transformed before normalization; non-positive logarithmic coordinates are discarded from survey and paint." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-log-axes.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-log-axes.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-log-axes.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-log-axes.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-log-axes.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-log-axes.test.js"] }
+  ]
+}

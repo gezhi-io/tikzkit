@@ -1,0 +1,23 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{semilogyaxis}[
+    width=9cm,
+    height=6cm,
+    log basis y=2,
+    xmin=0,
+    xmax=6,
+    ymin=1,
+    ymax=64,
+    grid=major,
+    xlabel={Time $t$ (s)},
+    ylabel={Energy $E$ (J)}
+  ]
+    \addplot[orange,very thick,mark=triangle*] coordinates {
+      (0,1) (1,2) (2,4) (3,8) (4,16) (5,32) (6,64)
+    };
+  \end{semilogyaxis}
+\end{tikzpicture}
+\end{document}

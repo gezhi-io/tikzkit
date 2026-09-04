@@ -17,6 +17,7 @@ import { createDataToCanvasTransform } from "./transformDataToCanvas.js";
 import { axisNumberList } from "./coordinates.js";
 import { formatAxisTickLabel, roundAxis, roundAxisRange } from "./format.js";
 import { isLogAxis, scaleAxisValue } from "./ranges.js";
+import { axisLogBase } from "./logAxis.js";
 
 export const PGFPLOTS_DEFAULT_AXIS_WIDTH = parseDimension("240pt", {});
 export const PGFPLOTS_DEFAULT_AXIS_HEIGHT = parseDimension("207pt", {});
@@ -69,10 +70,10 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     // it enforces `unit vector ratio*`. Keep `axis equal image` on its
     // existing range rule: its 3D projection semantics are different.
     const ratioRanges = explicitUnitRatio ? axisTransformRanges(axisOptions, ranges) : ranges;
-    const mappedXMinForRatio = scaleAxisValue(ratioRanges.xMin, isLogAxis(axisOptions, "x"));
-    const mappedXMaxForRatio = scaleAxisValue(ratioRanges.xMax, isLogAxis(axisOptions, "x"));
-    const mappedYMinForRatio = scaleAxisValue(ratioRanges.yMin, isLogAxis(axisOptions, "y"));
-    const mappedYMaxForRatio = scaleAxisValue(ratioRanges.yMax, isLogAxis(axisOptions, "y"));
+    const mappedXMinForRatio = scaleAxisValue(ratioRanges.xMin, isLogAxis(axisOptions, "x"), axisLogBase(axisOptions, "x"));
+    const mappedXMaxForRatio = scaleAxisValue(ratioRanges.xMax, isLogAxis(axisOptions, "x"), axisLogBase(axisOptions, "x"));
+    const mappedYMinForRatio = scaleAxisValue(ratioRanges.yMin, isLogAxis(axisOptions, "y"), axisLogBase(axisOptions, "y"));
+    const mappedYMaxForRatio = scaleAxisValue(ratioRanges.yMax, isLogAxis(axisOptions, "y"), axisLogBase(axisOptions, "y"));
     const xSpanForRatio = Math.abs(mappedXMaxForRatio - mappedXMinForRatio) || 1;
     const ySpanForRatio = Math.abs(mappedYMaxForRatio - mappedYMinForRatio) || 1;
     const targetAspect = (xSpanForRatio * unitRatio.x) / (ySpanForRatio * unitRatio.y);
@@ -131,10 +132,10 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     x: descriptionBounds.left + descriptionBounds.width * Number(point.x || 0),
     y: descriptionBounds.bottom + descriptionBounds.height * Number(point.y || 0)
   });
-  const mappedXMin = scaleAxisValue(transformRanges.xMin, transform.xLog);
-  const mappedXMax = scaleAxisValue(transformRanges.xMax, transform.xLog);
-  const mappedYMin = scaleAxisValue(transformRanges.yMin, transform.yLog);
-  const mappedYMax = scaleAxisValue(transformRanges.yMax, transform.yLog);
+  const mappedXMin = scaleAxisValue(transformRanges.xMin, transform.xLog, transform.xLogBase);
+  const mappedXMax = scaleAxisValue(transformRanges.xMax, transform.xLog, transform.xLogBase);
+  const mappedYMin = scaleAxisValue(transformRanges.yMin, transform.yLog, transform.yLogBase);
+  const mappedYMax = scaleAxisValue(transformRanges.yMax, transform.yLog, transform.yLogBase);
   const xSpan = mappedXMax - mappedXMin || 1;
   const ySpan = mappedYMax - mappedYMin || 1;
   const zMin = Number.isFinite(ranges.zMin) ? ranges.zMin : 0;
@@ -172,8 +173,8 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     };
   };
   const mapPoint3d = (point) => {
-    const rawX = (scaleAxisValue(point.x, transform.xLog) - mappedXMin) / xSpan;
-    const rawY = (scaleAxisValue(point.y, transform.yLog) - mappedYMin) / ySpan;
+    const rawX = (scaleAxisValue(point.x, transform.xLog, transform.xLogBase) - mappedXMin) / xSpan;
+    const rawY = (scaleAxisValue(point.y, transform.yLog, transform.yLogBase) - mappedYMin) / ySpan;
     const rawZ = ((point.z ?? 0) - zMin) / zSpan;
     const nx = axisDirections.x < 0 ? 1 - rawX : rawX;
     const ny = axisDirections.y < 0 ? 1 - rawY : rawY;
@@ -212,7 +213,9 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     allowRelativeAxisReversal,
     is3d: is3dSurface,
     xLog: transform.xLog,
-    yLog: transform.yLog
+    yLog: transform.yLog,
+    xLogBase: transform.xLogBase,
+    yLogBase: transform.yLogBase
   };
 }
 
@@ -876,10 +879,10 @@ function projectedMiddleAxisRanges(axisOptions = {}, ranges = {}, options = {}) 
       result[`${axis}Min`] = adjusted.min;
       result[`${axis}Max`] = adjusted.max;
     }
-    return roundTransformRanges(result);
+    return roundTransformRanges(result, axisOptions);
   }
   if (!axisHasEnabledEnlargeLimits(axisOptions)) {
-    return roundTransformRanges(result);
+    return roundTransformRanges(result, axisOptions);
   }
   if (!isLogAxis(axisOptions, "x") && axisEnlargeEnabledFor(axisOptions, "x") && (options.axisLines || !hasAxisSpecificEnlargeOption(axisOptions, "x"))) {
     const adjusted = middleAxisTransformAxisRange(axisOptions, "x", result.xMin, result.xMax);
@@ -891,7 +894,7 @@ function projectedMiddleAxisRanges(axisOptions = {}, ranges = {}, options = {}) 
     result.yMin = adjusted.min;
     result.yMax = adjusted.max;
   }
-  return roundTransformRanges(result);
+  return roundTransformRanges(result, axisOptions);
 }
 
 function hasAxisSpecificEnlargeOption(axisOptions = {}, axis = "x") {
@@ -999,15 +1002,19 @@ function relativeAxisEnlargeRange(axisOptions = {}, axis, min, max) {
   };
 }
 
-function roundTransformRanges(ranges) {
+function roundTransformRanges(ranges, axisOptions = {}) {
   return {
-    xMin: roundAxis(ranges.xMin),
-    xMax: roundAxis(ranges.xMax),
-    yMin: roundAxis(ranges.yMin),
-    yMax: roundAxis(ranges.yMax),
+    xMin: roundTransformAxisValue(ranges.xMin, isLogAxis(axisOptions, "x")),
+    xMax: roundTransformAxisValue(ranges.xMax, isLogAxis(axisOptions, "x")),
+    yMin: roundTransformAxisValue(ranges.yMin, isLogAxis(axisOptions, "y")),
+    yMax: roundTransformAxisValue(ranges.yMax, isLogAxis(axisOptions, "y")),
     zMin: roundAxisRange(ranges.zMin, "z"),
     zMax: roundAxisRange(ranges.zMax, "z")
   };
+}
+
+function roundTransformAxisValue(value, logMode) {
+  return logMode ? Number(Number(value).toPrecision(12)) : roundAxis(value);
 }
 
 function axisHasExplicitDisabledEnlargeLimits(axisOptions = {}) {

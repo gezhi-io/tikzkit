@@ -7389,6 +7389,51 @@
       ]
     },
     {
+      "id": "pgfplots-log-axis-algorithm",
+      "title": "Semilogarithmic algorithm runtime",
+      "source": "pgfplots/log-axes/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots logarithmic axes",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.tickoptions.tex",
+      "semanticOwner": "src/pgfplots/logAxis.js",
+      "features": [
+        "semilogxaxis",
+        "base-ten major power ticks",
+        "base-ten minor decade ticks",
+        "non-positive coordinate filtering",
+        "major and minor grid"
+      ]
+    },
+    {
+      "id": "pgfplots-log-axis-math",
+      "title": "Log-log quadratic power law",
+      "source": "pgfplots/log-axes/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGFPlots logarithmic axes",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.tickoptions.tex",
+      "semanticOwner": "src/pgfplots/logAxis.js",
+      "features": [
+        "loglogaxis",
+        "negative exponents",
+        "power-law coordinates",
+        "logarithmic x and y grids",
+        "power tick labels"
+      ]
+    },
+    {
+      "id": "pgfplots-log-axis-physics",
+      "title": "Base-two semilogarithmic energy growth",
+      "source": "pgfplots/log-axes/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots logarithmic axes",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.tickoptions.tex",
+      "semanticOwner": "src/pgfplots/logAxis.js",
+      "features": [
+        "semilogyaxis",
+        "log basis y=2",
+        "base-two power labels",
+        "custom-basis major grid",
+        "exponential data"
+      ]
+    },
+    {
       "id": "pgfplots-colorbar-flowchart",
       "title": "Workflow load with horizontal colorbar",
       "source": "pgfplots/colorbar-orientations/flowchart.tex",

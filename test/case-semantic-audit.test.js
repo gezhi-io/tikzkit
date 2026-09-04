@@ -65,6 +65,31 @@ test("semantic audit inventories local dependencies, nested options, variables, 
   assert.ok(report.gate.todos.some((entry) => entry.includes("option:axis:width")));
 });
 
+test("semantic audit maps logarithmic pgfplots environments and their axis options", () => {
+  const report = auditTikzSource(String.raw`
+\begin{semilogxaxis}[xmin=1,xmax=1000,grid=both]
+\end{semilogxaxis}
+\begin{semilogyaxis}[log basis y=2]
+\end{semilogyaxis}
+\begin{loglogaxis}[xmode=log,ymode=log]
+\end{loglogaxis}
+  `);
+
+  for (const name of ["semilogxaxis", "semilogyaxis", "loglogaxis"]) {
+    const environment = report.environments.find((entry) => entry.name === name);
+    assert.equal(environment.implementedBy, "src/pgfplots/axisEnvironment.js");
+    assert.equal(environment.implementationStatus, "partial");
+  }
+  assert.equal(
+    report.options.find((entry) => entry.id === "option:semilogyaxis:log basis y").implementedBy,
+    "src/pgfplots/axisOptions.js"
+  );
+  assert.equal(
+    report.options.find((entry) => entry.id === "option:loglogaxis:xmode").implementedBy,
+    "src/pgfplots/axisOptions.js"
+  );
+});
+
 test("review prefix rules preserve individual numeric inventory while sharing evidence", () => {
   const report = auditTikzSource(String.raw`\addplot {max(0, x/2) + 0.5};`, {
     localSourceResolver: fakeResolver,

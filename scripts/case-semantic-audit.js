@@ -114,6 +114,9 @@ const OPTION_ENVIRONMENTS = new Set([
   "bchart",
   "circuitikz",
   "groupplot",
+  "loglogaxis",
+  "semilogxaxis",
+  "semilogyaxis",
   "scope",
   "tikzpicture"
 ]);
@@ -129,7 +132,10 @@ const OPTION_CONTEXT_OWNERS = {
   datavisualization: "src/tikz/libraries/datavisualization.js",
   graph: "src/tikz/libraries/graphs.js:expandTikzGraphs",
   groupplot: "src/pgfplots/axisOptions.js",
+  loglogaxis: "src/pgfplots/axisOptions.js",
   pgfplotsset: "src/pgfplots/axisOptions.js",
+  semilogxaxis: "src/pgfplots/axisOptions.js",
+  semilogyaxis: "src/pgfplots/axisOptions.js",
   tkzInterLC: "src/extensions/tkz-euclide.js:expandInterLC/orderLineCircleIntersections",
   tikzset: "src/engine/options.js"
 };
@@ -140,7 +146,10 @@ const ENVIRONMENT_OWNERS = {
   circuitikz: owner("src/packages/circuitikz.js", "partial"),
   document: owner("src/frontend/latex-shell.js", "stable"),
   groupplot: owner("src/pgfplots/axisEnvironment.js", "partial"),
+  loglogaxis: owner("src/pgfplots/axisEnvironment.js", "partial"),
   preview: owner("src/packages/preview.js", "stable"),
+  semilogxaxis: owner("src/pgfplots/axisEnvironment.js", "partial"),
+  semilogyaxis: owner("src/pgfplots/axisEnvironment.js", "partial"),
   scope: owner("src/engine/evaluate.js", "partial"),
   tikzpicture: owner("src/frontend/parser.js", "stable")
 };

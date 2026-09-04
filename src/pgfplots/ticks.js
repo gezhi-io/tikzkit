@@ -6,6 +6,8 @@ import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./format.js";
 import { axisHasExplicitDescriptionPlacement, isMiddleAxis } from "./geometry.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
+import { isLogAxis } from "./ranges.js";
+import { axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
 
 const PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE = 1.0001;
 // Computer Modern's optical 7pt design has wider digits than a linearly
@@ -51,7 +53,7 @@ export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplot
       ? axisTickValues(raw, axis, addplots)
       : distanceTicks.length
         ? distanceTicks
-        : majorTickValues(min, max, axis === "x" ? 7 : 6);
+        : axisMajorTickValues(axisOptions, axis, min, max, axis === "x" ? 7 : 6);
   return { disabled, explicit, values };
 }
 
@@ -81,6 +83,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
     ? xDistanceTicks
     : autoMajorTickValues(
       axisOptions,
+      "x",
       xTickPlanningRange.min,
       xTickPlanningRange.max,
       axisAutoMajorTickCountForOptions(axisOptions, "x", xTickPlanningRange.min, xTickPlanningRange.max, geometry, 7)
@@ -93,6 +96,7 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
     ? yDistanceTicks
     : autoMajorTickValues(
       axisOptions,
+      "y",
       yTickPlanningRange.min,
       yTickPlanningRange.max,
       axisAutoMajorTickCountForOptions(axisOptions, "y", yTickPlanningRange.min, yTickPlanningRange.max, geometry, 6)
@@ -109,9 +113,11 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
     ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic x labels"], xTicks)
     : axisOptions["pgfplots x interval tick labels"]
       ? intervalAxisTickLabels(xTicks, axisTickNumberFormat(axisOptions, "x"))
-      : axisTickLabels(
+      : axisRenderedTickLabels(
+        axisOptions,
+        "x",
         axisOptions.xticklabels,
-        scaledAxisTicks(axisOptions, "x", xTicks),
+        xTicks,
         axisTickNumberFormat(axisOptions, "x"),
         axisOptions.xticklabel
       ).map((label, index) =>
@@ -119,9 +125,11 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
     );
   const yLabels = axisOptions["pgfplots symbolic y labels"]
     ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic y labels"], yTicks)
-    : axisTickLabels(
+    : axisRenderedTickLabels(
+      axisOptions,
+      "y",
       axisOptions.yticklabels,
-      scaledAxisTicks(axisOptions, "y", yTicks),
+      yTicks,
       axisTickNumberFormat(axisOptions, "y"),
       axisOptions.yticklabel
     ).map((label, index) =>
@@ -523,6 +531,12 @@ export function majorTickValues(min, max, maxTicks = 5) {
   return values;
 }
 
+export function axisMajorTickValues(axisOptions = {}, axis, min, max, maxTicks = 5) {
+  return isLogAxis(axisOptions, axis)
+    ? axisLogMajorTickValues(axisOptions, axis, min, max, maxTicks)
+    : majorTickValues(min, max, maxTicks);
+}
+
 export function axisAutoMajorTickCount(axis, geometry = {}, fallback = 6, maxSpacing = PGFPLOTS_DEFAULT_MAX_SPACE_BETWEEN_TICKS) {
   const length = Number(axis === "x" ? geometry.width : geometry.height);
   if (!Number.isFinite(length) || length <= 0) return fallback;
@@ -615,8 +629,11 @@ function explicitMinorTickValues(axisOptions = {}, axis, addplots = []) {
 }
 
 export function axisMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max, addplots = []) {
-  return explicitMinorTickValues(axisOptions, axis, addplots) ??
-    automaticMinorTickValues(axisOptions, axis, majorTicks, min, max);
+  const explicit = explicitMinorTickValues(axisOptions, axis, addplots);
+  if (explicit) return explicit;
+  return isLogAxis(axisOptions, axis)
+    ? axisLogMinorTickValues(axisOptions, axis, majorTicks, min, max)
+    : automaticMinorTickValues(axisOptions, axis, majorTicks, min, max);
 }
 
 function automaticMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max) {
@@ -940,6 +957,7 @@ function renderTickScaleLabel(axisOptions, axis, ticks, geometry, lineMode) {
 }
 
 function axisTickScale(axisOptions = {}, axis, ticks = []) {
+  if (isLogAxis(axisOptions, axis)) return null;
   const labelStyle = axisTickLabelStyleOptions(axisOptions, axis);
   const raw = axisOptions[`scaled ${axis} ticks`] ?? axisOptions["scaled ticks"] ?? labelStyle[`scaled ${axis} ticks`] ?? labelStyle["scaled ticks"];
   if (raw === false) return null;
@@ -1017,8 +1035,8 @@ function effectiveAxisLineMode(axisOptions, axis) {
   return common;
 }
 
-function autoMajorTickValues(axisOptions, min, max, maxTicks) {
-  const values = majorTickValues(min, max, maxTicks);
+function autoMajorTickValues(axisOptions, axis, min, max, maxTicks) {
+  const values = axisMajorTickValues(axisOptions, axis, min, max, maxTicks);
   return shouldTrimAutoTerminalTicks(axisOptions) ? trimAutoTerminalTicks(values, min, max) : values;
 }
 
@@ -1065,6 +1083,18 @@ function axisTickLabels(raw, ticks, formatOptions = {}, template = "") {
     return ticks.map((tick) => applyTickLabelTemplate(template, formatAxisTickLabel(tick, formatOptions)));
   }
   return ticks.map((tick) => formatAxisTickLabel(tick, formatOptions));
+}
+
+function axisRenderedTickLabels(axisOptions, axis, raw, ticks, formatOptions = {}, template = "") {
+  if (
+    isLogAxis(axisOptions, axis) &&
+    !isEmptyTickLabelList(raw) &&
+    splitBracedList(raw).length === 0 &&
+    !hasTickLabelTemplate(template)
+  ) {
+    return ticks.map((tick) => axisLogTickLabel(axisOptions, axis, tick));
+  }
+  return axisTickLabels(raw, scaledAxisTicks(axisOptions, axis, ticks), formatOptions, template);
 }
 
 function hasTickLabelTemplate(template) {

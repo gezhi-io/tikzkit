@@ -1,4 +1,5 @@
 import { createAxisRanges, isLogAxis, scaleAxisValue } from "./ranges.js";
+import { axisLogBase } from "./logAxis.js";
 
 export function createDataToCanvasTransform({ ranges: rawRanges, geometry = {}, axisOptions = {} } = {}) {
   const ranges = createAxisRanges(rawRanges);
@@ -7,10 +8,12 @@ export function createDataToCanvasTransform({ ranges: rawRanges, geometry = {}, 
   const height = Number.isFinite(geometry.height) ? geometry.height : 1;
   const xLog = geometry.xLog ?? isLogAxis(axisOptions, "x");
   const yLog = geometry.yLog ?? isLogAxis(axisOptions, "y");
-  const mappedXMin = scaleAxisValue(ranges.xMin, xLog);
-  const mappedXMax = scaleAxisValue(ranges.xMax, xLog);
-  const mappedYMin = scaleAxisValue(ranges.yMin, yLog);
-  const mappedYMax = scaleAxisValue(ranges.yMax, yLog);
+  const xLogBase = geometry.xLogBase ?? axisLogBase(axisOptions, "x");
+  const yLogBase = geometry.yLogBase ?? axisLogBase(axisOptions, "y");
+  const mappedXMin = scaleAxisValue(ranges.xMin, xLog, xLogBase);
+  const mappedXMax = scaleAxisValue(ranges.xMax, xLog, xLogBase);
+  const mappedYMin = scaleAxisValue(ranges.yMin, yLog, yLogBase);
+  const mappedYMax = scaleAxisValue(ranges.yMax, yLog, yLogBase);
   const xSpan = mappedXMax - mappedXMin || 1;
   const ySpan = mappedYMax - mappedYMin || 1;
   const xDirection = axisDirectionSign(axisOptions["x dir"]);
@@ -31,13 +34,15 @@ export function createDataToCanvasTransform({ ranges: rawRanges, geometry = {}, 
     height,
     xLog,
     yLog,
+    xLogBase,
+    yLogBase,
     xDirection,
     yDirection,
     mapNormalizedPoint,
     mapPoint(point = {}) {
       return mapNormalizedPoint({
-        x: (scaleAxisValue(point.x, xLog) - mappedXMin) / xSpan,
-        y: (scaleAxisValue(point.y, yLog) - mappedYMin) / ySpan
+        x: (scaleAxisValue(point.x, xLog, xLogBase) - mappedXMin) / xSpan,
+        y: (scaleAxisValue(point.y, yLog, yLogBase) - mappedYMin) / ySpan
       });
     }
   };
