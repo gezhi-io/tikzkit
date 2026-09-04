@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper establishes the document and cropped page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta, positioning, and shapes.misc before applying picture styles." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "--", "to"], "findings": "Core TikZ resolves inherited styles, named anchors, curved paths, and automatic border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "Arrow tips are attached after node-border clipping." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "node distance"], "findings": "Relative placement uses the resolved asymmetric outer anchor extents." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex": { "symbols": ["rounded rectangle", "rounded rectangle west arc", "rounded rectangle east arc", "rounded rectangle arc length"], "findings": "PGF derives radius, arc width, chord width, paint contours, and separate outer-separation anchor contours from the selected end modes." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["convex", "concave", "none", "rounded rectangle left arc", "rounded rectangle right arc"], "findings": "The manual confirms the three modes, aliases, arc-length semantics, and the named anchor catalog." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] }
+  ]
+}

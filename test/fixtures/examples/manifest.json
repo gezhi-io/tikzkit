@@ -6975,6 +6975,51 @@
         "force-vector arrows",
         "one-centimeter construction grid"
       ]
+    },
+    {
+      "id": "rounded-rectangle-arcs-flowchart",
+      "title": "Rounded rectangle validation flow",
+      "source": "shapes/rounded-rectangle-arcs-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.misc.js:roundedRectangleLayoutSize/roundedRectangleGeometry/roundedRectangleBorderPoint",
+      "features": [
+        "flowchart",
+        "convex concave and straight end caps",
+        "custom arc length",
+        "positioning with asymmetric node bounds",
+        "automatic edge clipping and curved retry route"
+      ]
+    },
+    {
+      "id": "rounded-rectangle-arcs-math",
+      "title": "Rounded rectangle arc geometry",
+      "source": "shapes/rounded-rectangle-arcs-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.misc.js:roundedRectangleLayoutSize/roundedRectangleGeometry/roundedRectangleBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "left and right arc aliases",
+        "named compass anchors",
+        "minimum dimensions and outer separation",
+        "calc offsets and math text"
+      ]
+    },
+    {
+      "id": "rounded-rectangle-arcs-physics",
+      "title": "Rounded rectangle force body",
+      "source": "shapes/rounded-rectangle-arcs-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.misc.js:roundedRectangleLayoutSize/roundedRectangleGeometry/roundedRectangleBorderPoint",
+      "features": [
+        "physics diagram",
+        "rotated asymmetric rounded rectangle",
+        "named anchors under node rotation",
+        "force-vector arrows",
+        "one-centimeter construction grid"
+      ]
     }
   ]
 }

@@ -28,7 +28,10 @@ import {
 import {
   chamferedRectangleBorderPoint as miscChamferedRectangleBorderPoint,
   chamferedRectangleGeometry as miscChamferedRectangleGeometry,
-  chamferedRectangleLayoutSize as miscChamferedRectangleLayoutSize
+  chamferedRectangleLayoutSize as miscChamferedRectangleLayoutSize,
+  roundedRectangleBorderPoint as miscRoundedRectangleBorderPoint,
+  roundedRectangleGeometry as miscRoundedRectangleGeometry,
+  roundedRectangleLayoutSize as miscRoundedRectangleLayoutSize
 } from "../tikz/libraries/shapes.misc.js";
 import {
   circleSolidusGeometry as multipartCircleSolidusGeometry,
@@ -11365,7 +11368,14 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       terminalPadding
     );
   } else if (node.shape === "roundedRectangle") {
-    localPoint = roundedRectangleBorderPoint(localDx, localDy, halfWidth, halfHeight, terminalPadding);
+    localPoint = miscRoundedRectangleBorderPoint(
+      miscRoundedRectangleGeometry({
+        width: Number(node.width) || halfWidth * 2,
+        height: Number(node.height) || halfHeight * 2
+      }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "chamferedRectangle") {
     localPoint = miscChamferedRectangleBorderPoint(
       miscChamferedRectangleGeometry({
@@ -11508,53 +11518,6 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   }
   const rotated = rotateVector(localPoint.x, localPoint.y, rotation);
   return roundPoint({ x: center.x + rotated.x, y: center.y + rotated.y });
-}
-
-function roundedRectangleBorderPoint(dx, dy, halfWidth, halfHeight, padding = 0) {
-  // The default PGF rounded rectangle has convex 180-degree end caps. Its
-  // anchorborder first intersects the radial ray with the straight top/bottom
-  // chord or vertical side, then with the matching circular corner/end cap.
-  // This mirrors that shape rather than clipping paths to its outer rectangle.
-  const horizontal = Math.max(0, halfWidth + padding);
-  const vertical = Math.max(0, halfHeight + padding);
-  const radius = Math.min(horizontal, vertical);
-  if (radius <= 1e-12) return { x: 0, y: 0 };
-
-  const chordX = Math.max(0, horizontal - radius);
-  const chordY = Math.max(0, vertical - radius);
-  const candidates = [];
-  const epsilon = 1e-9;
-
-  if (Math.abs(dx) > epsilon) {
-    const t = horizontal / Math.abs(dx);
-    const y = dy * t;
-    if (Math.abs(y) <= chordY + epsilon) candidates.push({ t, x: dx * t, y });
-  }
-  if (Math.abs(dy) > epsilon) {
-    const t = vertical / Math.abs(dy);
-    const x = dx * t;
-    if (Math.abs(x) <= chordX + epsilon) candidates.push({ t, x, y: dy * t });
-  }
-
-  const signX = dx >= 0 ? 1 : -1;
-  const signY = dy >= 0 ? 1 : -1;
-  const centerX = signX * chordX;
-  const centerY = signY * chordY;
-  const directionSquared = dx * dx + dy * dy;
-  const directionCenterDot = dx * centerX + dy * centerY;
-  const centerSquaredMinusRadiusSquared = centerX * centerX + centerY * centerY - radius * radius;
-  const discriminant = directionCenterDot * directionCenterDot - directionSquared * centerSquaredMinusRadiusSquared;
-  if (discriminant >= -epsilon) {
-    const t = (directionCenterDot + Math.sqrt(Math.max(0, discriminant))) / directionSquared;
-    if (t > epsilon) {
-      const x = dx * t;
-      const y = dy * t;
-      if (signX * x >= chordX - epsilon && signY * y >= chordY - epsilon) candidates.push({ t, x, y });
-    }
-  }
-
-  const point = candidates.filter((candidate) => Number.isFinite(candidate.t) && candidate.t > epsilon).sort((left, right) => left.t - right.t)[0];
-  return point ? { x: point.x, y: point.y } : { x: (dx / Math.hypot(dx, dy)) * radius, y: (dy / Math.hypot(dx, dy)) * radius };
 }
 
 function nodeShape(options = {}) {
@@ -11773,6 +11736,30 @@ function circularSectorLayoutSize(contentWidth, contentHeight, options = {}, env
   });
 }
 
+function roundedRectangleLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const arcs = roundedRectangleArcModes(options);
+  return miscRoundedRectangleLayoutSize(contentWidth, contentHeight, {
+    innerXSep: parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
+    innerYSep: parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
+    minimumSize,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
+    arcLength: numberOption(options["rounded rectangle arc length"], 180),
+    westArc: arcs.west,
+    eastArc: arcs.east
+  });
+}
+
+function roundedRectangleArcModes(options = {}) {
+  const arcs = { west: "convex", east: "convex" };
+  for (const [key, value] of Object.entries(options)) {
+    if (key === "rounded rectangle west arc" || key === "rounded rectangle left arc") arcs.west = value;
+    if (key === "rounded rectangle east arc" || key === "rounded rectangle right arc") arcs.east = value;
+  }
+  return arcs;
+}
+
 function chamferedRectangleLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
   const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
   const sharedSep = options["chamfered rectangle sep"];
@@ -11931,6 +11918,30 @@ function circularSectorLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function roundedRectangleLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "roundedRectangleHalfTextWidth",
+    "roundedRectangleHalfTextHeight",
+    "roundedRectangleHalfWidth",
+    "roundedRectangleHalfHeight",
+    "roundedRectangleRadius",
+    "roundedRectangleArcWidth",
+    "roundedRectangleChordWidth",
+    "roundedRectangleArcLength"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.roundedRectangleWestArc !== undefined) {
+    data.roundedRectangleWestArc = layoutSize.roundedRectangleWestArc;
+  }
+  if (layoutSize?.roundedRectangleEastArc !== undefined) {
+    data.roundedRectangleEastArc = layoutSize.roundedRectangleEastArc;
+  }
+  return data;
+}
+
 function chamferedRectangleLayoutShapeData(layoutSize = {}) {
   const data = {};
   for (const key of [
@@ -11993,6 +12004,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const kiteOuterSep = nodeOuterSep(options, env);
   const semicircleOuterSep = nodeOuterSep(options, env);
   const circularSectorOuterSep = nodeOuterSep(options, env);
+  const roundedRectangleOuterSep = nodeOuterSep(options, env);
   const chamferedRectangleOuterSep = nodeOuterSep(options, env);
   const dartOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
@@ -12000,6 +12012,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const semicircleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const circularSectorScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const roundedRectangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const chamferedRectangleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const dartScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const kiteAngles = kiteVertexAngles(options);
@@ -12042,6 +12055,12 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     circularSectorAngle: numberOption(options["circular sector angle"], 60),
     circularSectorOuterSep: Math.max(circularSectorOuterSep.x, circularSectorOuterSep.y) * circularSectorScale,
     ...circularSectorLayoutShapeData(layoutSize),
+    roundedRectangleArcLength: numberOption(options["rounded rectangle arc length"], 180),
+    roundedRectangleWestArc: roundedRectangleArcModes(options).west,
+    roundedRectangleEastArc: roundedRectangleArcModes(options).east,
+    roundedRectangleOuterXSep: Math.max(0, roundedRectangleOuterSep.x) * roundedRectangleScale,
+    roundedRectangleOuterYSep: Math.max(0, roundedRectangleOuterSep.y) * roundedRectangleScale,
+    ...roundedRectangleLayoutShapeData(layoutSize),
     chamferedRectangleAngle: numberOption(options["chamfered rectangle angle"], 45),
     chamferedRectangleOuterXSep: Math.max(0, chamferedRectangleOuterSep.x) * chamferedRectangleScale,
     chamferedRectangleOuterYSep: Math.max(0, chamferedRectangleOuterSep.y) * chamferedRectangleScale,
@@ -12798,20 +12817,6 @@ function rectangleSplitHorizontalMinPartWidth(env = { variables: {} }) {
   return parseDimension("1.14em", env.variables);
 }
 
-function roundedRectangleTextExtraXSep(textBox, outerHeight) {
-  const contentHeight = Math.max(0, Number(textBox?.height) || 0);
-  const halfTextHeight = contentHeight / 2;
-  const halfHeight = Math.max(0, Number(outerHeight) || 0) / 2;
-  if (!halfTextHeight || !halfHeight) return 0;
-
-  // `rounded rectangle` defaults to two convex 180-degree arcs. PGF derives
-  // their horizontal allowance from the chord that encloses the text box;
-  // fixed em padding makes short text nodes noticeably too wide.
-  const radius = halfHeight;
-  const ratio = Math.min(1, halfTextHeight / radius);
-  return radius * (1 - Math.sqrt(Math.max(0, 1 - ratio * ratio)));
-}
-
 function splitMatrixRows(body) {
   const rows = [];
   let current = "";
@@ -12946,6 +12951,13 @@ function scaleSize(size, scale = 1) {
     "circularSectorCenterOffset",
     "circularSectorCenterX",
     "circularSectorCenterY",
+    "roundedRectangleHalfTextWidth",
+    "roundedRectangleHalfTextHeight",
+    "roundedRectangleHalfWidth",
+    "roundedRectangleHalfHeight",
+    "roundedRectangleRadius",
+    "roundedRectangleArcWidth",
+    "roundedRectangleChordWidth",
     "chamferedRectangleHalfContentWidth",
     "chamferedRectangleHalfContentHeight",
     "chamferedRectangleXSep",
@@ -12978,6 +12990,15 @@ function scaleSize(size, scale = 1) {
   }
   if (size?.circularSectorShapeBorderUsesIncircle !== undefined) {
     scaled.circularSectorShapeBorderUsesIncircle = Boolean(size.circularSectorShapeBorderUsesIncircle);
+  }
+  if (Number.isFinite(Number(size?.roundedRectangleArcLength))) {
+    scaled.roundedRectangleArcLength = Number(size.roundedRectangleArcLength);
+  }
+  if (size?.roundedRectangleWestArc !== undefined) {
+    scaled.roundedRectangleWestArc = size.roundedRectangleWestArc;
+  }
+  if (size?.roundedRectangleEastArc !== undefined) {
+    scaled.roundedRectangleEastArc = size.roundedRectangleEastArc;
   }
   if (Number.isFinite(Number(size?.chamferedRectangleAngle))) {
     scaled.chamferedRectangleAngle = Number(size.chamferedRectangleAngle);
@@ -13367,6 +13388,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "circularSector") {
     const geometry = geometricCircularSectorGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "roundedRectangle") {
+    const geometry = miscRoundedRectangleGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -13850,6 +13882,15 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const textHeight = options["text height"] ? parseDimension(options["text height"], env.variables) : NaN;
   const textDepth = options["text depth"] ? parseDimension(options["text depth"], env.variables) : 0;
   const emptyNodeShape = nodeShape(options);
+  if (emptyNodeShape === "roundedRectangle") {
+    const contentWidth = isEmptyText
+      ? Number.isFinite(textWidth) && textWidth > 0 ? textWidth : 0
+      : usesParagraphTextWidth && Number.isFinite(textWidth) ? textWidth : textBox.width;
+    const contentHeight = isEmptyText
+      ? Number.isFinite(textHeight) ? textHeight + textDepth : 0
+      : textBox.height;
+    return scaleSize(roundedRectangleLayoutSize(contentWidth, contentHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "regularPolygon") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -14039,13 +14080,6 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const diameter = Math.max(width, height);
     width = diameter;
     height = diameter;
-  }
-  if (shape === "roundedRectangle") {
-    if (isEmptyText && options["minimum width"]) {
-      width = Math.max(parseDimension("1pt", env.variables), parseNodeLengthDimension(options["minimum width"], env) - innerXSep * 2);
-    } else if (!isEmptyText) {
-      width += roundedRectangleTextExtraXSep(textBox, height) * 2;
-    }
   }
   if (shape === "regularPolygon") {
     const polygonContentWidth = textWidth ? textWidth + innerXSep * 2 : Math.max(0, textBox.width + innerXSep * 2);
@@ -18768,7 +18802,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "chamferedRectangle" && node.shape !== "kite" && node.shape !== "dart") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "circularSector" && node.shape !== "roundedRectangle" && node.shape !== "chamferedRectangle" && node.shape !== "kite" && node.shape !== "dart") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -18886,6 +18920,26 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     if (Number.isFinite(numericAngle)) {
       const radians = numericAngle * Math.PI / 180;
       return geometricCircularSectorBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "roundedRectangle") {
+    const geometry = miscRoundedRectangleGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      roundedRectangleBaseOffset: Number(size.baseOffset) || 0,
+      roundedRectangleMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return miscRoundedRectangleBorderPoint(geometry, {
+        x: Math.cos(radians),
+        y: Math.sin(radians)
+      });
     }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
@@ -19504,6 +19558,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "circularSector") {
       const bounds = geometricCircularSectorGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "roundedRectangle") {
+      const bounds = miscRoundedRectangleGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

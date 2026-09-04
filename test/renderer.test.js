@@ -64,6 +64,10 @@ test("keeps standard TeX phi variants and named operators in math fallback", () 
   assert.equal(mathFallbackText(String.raw`\tanh(x)`), "tanh (x)");
 });
 
+test("renders the standard math colon without leaking its command name", () => {
+  assert.equal(mathFallbackText(String.raw`f\colon X\to Y`), "f: X→ Y");
+});
+
 test("renders logical operators inside overline accents in math fallback", () => {
   assert.equal(mathFallbackText(String.raw`a \overline{\lor} b`), "a ∨̄ b");
   assert.equal(mathFallbackText(String.raw`p \land q \vee r`), "p ∧ q ∨ r");

@@ -1493,6 +1493,7 @@ export function mathFallbackText(tex) {
     .replace(/\\(?:bf|bfseries|tt|ttfamily|rm|rmfamily|sf|sffamily|normalfont|large|Large|LARGE|Huge|huge|scriptsize|footnotesize|tiny)\b/g, "")
     .replace(MATH_FALLBACK_NAMED_OPERATOR_PATTERN, (match) => ` ${match.slice(1)} `)
     .replace(/\\(?:cdots|ldots|dots)/g, "…")
+    .replace(/\\colon(?![A-Za-z])/g, ":")
     .replace(/\\times/g, "×")
     .replace(/\\cdot\s*/g, "⋅")
     .replace(/\\otimes/g, "(x)")

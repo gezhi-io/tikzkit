@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper establishes the document and cropped page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta and shapes.misc before interpreting the rotated body." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill", "--", "++", "grid"], "findings": "Core TikZ applies rotation to paint and anchors, resolves relative vectors, and clips arrow paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "Force-vector tips are positioned after the rotated shape anchors are transformed." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.misc.code.tex": { "symbols": ["rounded rectangle", "rounded rectangle west arc", "rounded rectangle east arc", "rounded rectangle arc length"], "findings": "The asymmetric concave/convex body uses the same source-derived paint and anchor geometry before node rotation." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["convex", "concave", "rounded rectangle arc length"], "findings": "The documented end-mode and arc-length semantics define the rotated body's contour." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-misc-rounded-rectangle-arcs.test.js"] }
+  ]
+}
