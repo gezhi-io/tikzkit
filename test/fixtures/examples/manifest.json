@@ -5924,6 +5924,33 @@
       "features": ["arrows.spaced", "spaced to", "spaced latex", "spaced stealth", "prime", "reversed", "diagonal", "curved path", "physics vectors"]
     },
     {
+      "id": "arrows-spaced-implies-flowchart",
+      "title": "Spaced implies arrows in a validation flow",
+      "source": "arrows/spaced-implies-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:spacedImpliesArrowInlineGeometry",
+      "features": ["arrows.spaced", "spaced implies", "double line", "double distance", "colored inner line", "start arrow", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-implies-math",
+      "title": "Spaced implies arrows between propositions",
+      "source": "arrows/spaced-implies-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:spacedImpliesArrowInlineGeometry",
+      "features": ["arrows.spaced", "spaced implies", "double line", "bidirectional implication", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-spaced-implies-physics",
+      "title": "Spaced implies arrows in a feedback system",
+      "source": "arrows/spaced-implies-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:spacedImpliesArrowInlineGeometry",
+      "features": ["arrows.spaced", "spaced implies", "double line", "colored inner line", "start arrow", "orthogonal path", "curved path", "physics feedback"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes environments but contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to", "|-"], "findings": "TikZ resolves path routing and terminal tangents before arrow-tip assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Positioning resolves node centers and borders independently from arrow spacing." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced implies", "space"], "findings": "spaced implies combines the visible implies tip and the invisible space component with zero inter-tip separation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["implies", "\\pgfarrowsdeclare"], "findings": "The implies setup uses both pgflinewidth and pgfinnerlinewidth; its paint path is a symmetric open cubic with round cap and join." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space", "\\pgfarrowsrightextend"], "findings": "The invisible space arrow has backend zero and tip end 0.88pt plus 0.3 times the active outer line width." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced implies"], "findings": "The manual lists spaced implies as the legacy spaced implication terminal." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-implies.test.js", "docs/qa/2026-09-04-arrows-spaced-implies.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-implies.test.js", "docs/qa/2026-09-04-arrows-spaced-implies.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-implies.test.js", "docs/qa/2026-09-04-arrows-spaced-implies.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-implies.test.js", "docs/qa/2026-09-04-arrows-spaced-implies.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-implies.test.js", "docs/qa/2026-09-04-arrows-spaced-implies.md"] }
+  ]
+}
