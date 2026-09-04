@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone document shell is removed while the TikZ picture remains available to the browser interpreter."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": {
+      "symbols": ["\\small"],
+      "findings": "The stage style uses the standard 9pt small role from a 10pt document."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads the core TikZ parser and path engine."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["grow'", "\\tikz@swap@growth", "level distance", "sibling distance"],
+      "findings": "The grow' option installs the ordinary directional growth function and swaps the left/right growth angles at the current tree level. The expected flowchart therefore grows downward while placing Verify and Deploy, and each pair of grandchildren, in the reverse sibling order of grow=down."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["trees library", "edge from parent"],
+      "findings": "The trees library participates in the standard child placement and parent-edge styling used by the fixture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": {
+      "symbols": ["Default Growth Function", "grow'", "level distance", "sibling distance"],
+      "findings": "The manual specifies that children lie on a line orthogonal to the growth direction, with level distance controlling depth and sibling distance controlling separation; grow' reverses their order."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js", "test/fixtures/examples/trees-grow-prime/flowchart.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] }
+  ]
+}

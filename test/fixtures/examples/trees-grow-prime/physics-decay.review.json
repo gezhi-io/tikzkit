@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone document shell is removed while the TikZ picture remains available to the browser interpreter."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads the core TikZ parser and path engine."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["grow'", "\\tikz@special@level", "\\tikz@swap@growth", "level distance"],
+      "findings": "A grow' option records the tree level where its mirrored growth angles become active. The fixture expects the B0 cascade to grow downward globally, while the K+ child applies a local rightward override with zero current-level sibling displacement and does not change the pi- sibling or the J/psi branch."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["trees library", "edge from parent"],
+      "findings": "The fixture uses standard tree edges to make parent-to-decay-product routing and the child-local direction change visually explicit."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": {
+      "symbols": ["grow'", "direction of growth", "parts of the tree"],
+      "findings": "The manual allows the growth direction to change for parts of a tree. The expected visual preserves the globally mirrored B0 and J/psi branches, places K+ to the right of K*0, and leaves pi- on the inherited downward layout to prove that the child-local override does not leak."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js", "test/fixtures/examples/trees-grow-prime/physics-decay.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] }
+  ]
+}

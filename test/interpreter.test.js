@@ -1831,6 +1831,130 @@ test("lays out TikZ node child trees with grow and sibling distances", () => {
   assert.ok(labels.every((label) => typeof label === "string"));
 });
 
+test("mirrors named tree sibling order with grow prime", () => {
+  const source = String.raw`
+\begin{tikzpicture}[level distance=1cm,sibling distance=1cm]
+  \node (up-root) at (0,0) {up} [grow'=up]
+    child {node (up-first) {up 1}}
+    child {node (up-last) {up 2}};
+  \node (right-root) at (4,0) {right} [grow'=right]
+    child {node (right-first) {right 1}}
+    child {node (right-last) {right 2}};
+  \node (plain-right-root) at (8,0) {plain right} [grow=right]
+    child {node (plain-right-first) {plain right 1}}
+    child {node (plain-right-last) {plain right 2}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const nodes = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "textNode")
+      .map((item) => [item.text, item])
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(nodes["up 1"].x < nodes["up 2"].x, "grow'=up should place the first child on the left");
+  assert.ok(nodes["up 1"].y > nodes.up.y && nodes["up 2"].y > nodes.up.y);
+  assert.ok(nodes["right 1"].y > nodes["right 2"].y, "grow'=right should place the first child above");
+  assert.ok(nodes["right 1"].x > nodes.right.x && nodes["right 2"].x > nodes.right.x);
+  assert.ok(nodes["plain right 1"].y < nodes["plain right 2"].y, "grow=right should place the first child below");
+  assert.ok(nodes["plain right 1"].x > nodes["plain right"].x && nodes["plain right 2"].x > nodes["plain right"].x);
+});
+
+test("keeps sibling spacing for numeric grow and reverses it for grow prime", () => {
+  const source = String.raw`
+\begin{tikzpicture}[level distance=2cm,sibling distance=1cm]
+  \node (plain-root) at (0,0) {plain} [grow=30]
+    child {node (plain-first) {plain 1}}
+    child {node (plain-last) {plain 2}};
+  \node (prime-root) at (0,-4) {prime} [grow'=30]
+    child {node (prime-first) {prime 1}}
+    child {node (prime-last) {prime 2}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const nodes = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "textNode")
+      .map((item) => [item.text, item])
+  );
+  const siblingSeparation = (first, last) => Math.hypot(first.x - last.x, first.y - last.y);
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(siblingSeparation(nodes["plain 1"], nodes["plain 2"]) - 1) < 1e-6);
+  assert.ok(Math.abs(siblingSeparation(nodes["prime 1"], nodes["prime 2"]) - 1) < 1e-6);
+  assert.ok(nodes["plain 1"].x > nodes["plain 2"].x);
+  assert.ok(nodes["plain 1"].y < nodes["plain 2"].y);
+  assert.ok(nodes["prime 1"].x < nodes["prime 2"].x);
+  assert.ok(nodes["prime 1"].y > nodes["prime 2"].y);
+});
+
+test("inherits a child-local grow prime direction for its descendants", () => {
+  const source = String.raw`
+\begin{tikzpicture}[level distance=1cm,sibling distance=1cm]
+  \node (root) {R}
+    child[grow'=right] {node (branch) {C}
+      child {node (first) {first}}
+      child {node (last) {last}}
+    };
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const nodes = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "textNode")
+      .map((item) => [item.text, item])
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(nodes.C.x - 1) < 1e-6 && Math.abs(nodes.C.y) < 1e-6);
+  assert.ok(Math.abs(nodes.first.x - 2) < 1e-6 && Math.abs(nodes.first.y - 0.5) < 1e-6);
+  assert.ok(Math.abs(nodes.last.x - 2) < 1e-6 && Math.abs(nodes.last.y + 0.5) < 1e-6);
+});
+
+test("suppresses sibling displacement at a child-local grow special level", () => {
+  const source = String.raw`
+\begin{tikzpicture}[level distance=1cm,sibling distance=1cm]
+  \node {R}
+    child[grow'=right] {node {first}}
+    child[grow'=right] {node {last}};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const nodes = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "textNode")
+      .map((item) => [item.text, item])
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(nodes.first.x - 1) < 1e-6 && Math.abs(nodes.first.y) < 1e-6);
+  assert.ok(Math.abs(nodes.last.x - 1) < 1e-6 && Math.abs(nodes.last.y) < 1e-6);
+});
+
+test("inherits a node-level grow prime direction across tree levels", () => {
+  const source = String.raw`
+\begin{tikzpicture}[level distance=1cm,sibling distance=1cm]
+  \node {R} [grow'=right]
+    child {node {branch}
+      child {node {first}}
+      child {node {last}}
+    };
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const nodes = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "textNode")
+      .map((item) => [item.text, item])
+  );
+
+  assert.deepEqual(diagnostics, []);
+  assert.ok(Math.abs(nodes.branch.x - 1) < 1e-6 && Math.abs(nodes.branch.y) < 1e-6);
+  assert.ok(Math.abs(nodes.first.x - 2) < 1e-6 && Math.abs(nodes.first.y - 0.5) < 1e-6);
+  assert.ok(Math.abs(nodes.last.x - 2) < 1e-6 && Math.abs(nodes.last.y + 0.5) < 1e-6);
+});
+
 test("honors tree edge-from-parent options and down-grow child order", () => {
   const source = String.raw`
 \begin{tikzpicture}[sibling distance=4cm, level distance=12mm]

@@ -7828,6 +7828,54 @@
         "circular node bounds",
         "state transition"
       ]
+    },
+    {
+      "id": "trees-grow-prime-flowchart",
+      "title": "Mirrored release workflow tree",
+      "source": "trees-grow-prime/flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from TeX Live PGF grow-prime semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "trees library",
+        "grow'=down",
+        "mirrored sibling order",
+        "level distance",
+        "per-level sibling distance",
+        "flowchart tree"
+      ]
+    },
+    {
+      "id": "trees-grow-prime-math-expression",
+      "title": "Mirrored mathematical expression tree",
+      "source": "trees-grow-prime/math-expression.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from TeX Live PGF grow-prime semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "trees library",
+        "grow'=down",
+        "nested expression tree",
+        "mirrored operand order",
+        "per-level sibling distance",
+        "math labels"
+      ]
+    },
+    {
+      "id": "trees-grow-prime-physics-decay",
+      "title": "Mirrored particle decay cascade",
+      "source": "trees-grow-prime/physics-decay.tex",
+      "sourceCorpus": "TikZKit physics regression derived from TeX Live PGF grow-prime semantics",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/engine/evaluate.js:createNodeTreeChildren",
+      "features": [
+        "trees library",
+        "grow'=down",
+        "child-local grow'=right override",
+        "particle decay cascade",
+        "level and sibling distance",
+        "parent edges"
+      ]
     }
   ]
 }

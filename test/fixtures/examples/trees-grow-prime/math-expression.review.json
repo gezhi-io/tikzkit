@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage", "\\sin"],
+      "findings": "The document shell and standard math operator declaration are recognized before TikZ evaluation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads the core TikZ parser and path engine."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["grow'", "\\tikz@set@growth", "\\tikz@swap@growth", "\\tikznumberofcurrentchild"],
+      "findings": "TikZ computes every child position from the growth direction, current child index, total child count, level distance, and sibling distance, then grow' swaps the two lateral growth angles. The expression operands must consequently appear in mirrored source order at every level."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["trees library", "growth function"],
+      "findings": "The fixture loads the documented trees library while exercising core directional tree placement with math-bearing nodes."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": {
+      "symbols": ["grow'", "opposite order", "level distance", "sibling distance"],
+      "findings": "The expected visual is a downward expression tree for y = sin(x) + 2 x^2 whose sibling order is the mirror image of the same source rendered with grow=down; the configured per-level spacing must remain stable."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/interpreter.test.js", "test/fixtures/examples/trees-grow-prime/math-expression.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/interpreter.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa/2026-09-05-trees-grow-prime-after"] }
+  ]
+}

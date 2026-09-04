@@ -6878,20 +6878,22 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
       ),
       iterationEnv
     ).options;
-    const layoutOptions = { ...levelOptions, ...resolvedTreeOptions, ...childTreeOptions };
-    const grow = treeGrowDirection(iterationEnv, layoutOptions);
+    const layoutOptions = mergeTreeGrowthOptions(levelOptions, resolvedTreeOptions, childTreeOptions);
+    const grow = treeGrowthSpec(iterationEnv, layoutOptions);
     return { child, childTreeOptions, layoutOptions, grow, iterationEnv };
   });
   for (const [index, layout] of layouts.entries()) {
     const { child, childTreeOptions, layoutOptions, grow, iterationEnv } = layout;
     const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, iterationEnv);
-    const siblings = treeUsesFixedLateralShift(layoutOptions)
-      ? [layout]
-      : layouts.filter((candidate) => treeGrowKey(candidate.grow) === treeGrowKey(grow));
-    const siblingIndex = siblings.indexOf(layout);
-    const siblingDistance = treeSiblingDistance(level, iterationEnv, layoutOptions);
+    const fixedLateralShift = treeUsesFixedLateralShift(layoutOptions);
+    const childLocalGrowth = treeGrowthOption(childTreeOptions);
+    const siblingIndex = fixedLateralShift ? 0 : index;
+    const siblingCount = fixedLateralShift ? 1 : layouts.length;
+    const siblingDistance = childLocalGrowth
+      ? 0
+      : treeSiblingDistance(level, iterationEnv, layoutOptions);
     const levelDistance = treeLevelDistance(level, iterationEnv, layoutOptions);
-    const offset = treeChildOffset(siblingIndex, siblings.length, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
+    const offset = treeChildOffset(siblingIndex, siblingCount, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
     offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", iterationEnv);
     offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", iterationEnv);
     const projected = projectLocalOffset(offset.x, offset.y, iterationEnv);
@@ -6902,11 +6904,12 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     });
     const childEnv = {
       ...iterationEnv,
-      pictureOptions: {
-        ...(iterationEnv.pictureOptions || {}),
-        ...levelOptions,
-        ...childTreeOptions
-      }
+      pictureOptions: mergeTreeGrowthOptions(
+        iterationEnv.pictureOptions,
+        treeGrowthOptions(resolvedTreeOptions),
+        levelOptions,
+        childTreeOptions
+      )
     };
     if (tikzBoolean(layoutOptions.missing)) continue;
     const childNode = child.node.type === "coordinate"
@@ -6963,8 +6966,36 @@ function treeUsesFixedLateralShift(options = {}) {
   return /tikzparentnode\.south/.test(edgePath) && /\|-/.test(edgePath) && /tikzchildnode\.west/.test(edgePath);
 }
 
-function treeGrowKey(grow) {
-  return typeof grow === "number" ? `angle:${roundNumber(grow)}` : String(grow);
+function mergeTreeGrowthOptions(...layers) {
+  const merged = {};
+  for (const layer of layers) {
+    if (!layer || typeof layer !== "object") continue;
+    const next = { ...layer };
+    const growth = treeGrowthOption(next);
+    if (growth) {
+      delete merged.grow;
+      delete merged["grow'"];
+      if (growth.key === "grow") delete next["grow'"];
+      else delete next.grow;
+    }
+    Object.assign(merged, next);
+  }
+  return merged;
+}
+
+function treeGrowthOptions(options = {}) {
+  const growth = treeGrowthOption(options);
+  return growth ? { [growth.key]: growth.value } : {};
+}
+
+function treeGrowthOption(options = {}) {
+  let active = null;
+  for (const key of Object.keys(options || {})) {
+    if (key === "grow" || key === "grow'") {
+      active = { key, value: options[key], reversed: key === "grow'" };
+    }
+  }
+  return active;
 }
 
 function treeDescendantPictureOptions(pictureOptions = {}, childOptions = {}) {
@@ -6974,7 +7005,6 @@ function treeDescendantPictureOptions(pictureOptions = {}, childOptions = {}) {
     "sibling angle",
     "clockwise from",
     "counterclockwise from",
-    "grow",
     "grow cyclic",
     "xshift",
     "yshift",
@@ -6988,6 +7018,9 @@ function treeDescendantPictureOptions(pictureOptions = {}, childOptions = {}) {
   for (const key of placementKeys) {
     if (Object.hasOwn(childOptions, key)) delete inherited[key];
   }
+  // A grow option installed in a child scope remains active while that
+  // child's own descendants are parsed. Other one-generation placement
+  // options, such as shifts, are still consumed above.
   return inherited;
 }
 
@@ -7000,15 +7033,32 @@ function treeGrowthParentPoint(parentNode, options = {}, env = {}) {
   return nodeAnchorCoordinate(parentNode, anchor);
 }
 
-function treeGrowDirection(env, options = {}) {
+function treeGrowthSpec(env, options = {}) {
   if (isMindmapOptions(options) || isMindmapOptions(env.pictureOptions || {})) {
-    return "cyclic";
+    return { kind: "cyclic", angle: 0, reversed: false };
   }
-  const grow = String(options.grow ?? env.pictureOptions?.grow ?? "down").trim().toLowerCase();
-  if (["up", "down", "left", "right"].includes(grow)) return grow;
-  const angle = evaluateMath(grow, env.variables);
-  if (Number.isFinite(angle)) return angle;
-  return "down";
+  const growth = treeGrowthOption(options) || treeGrowthOption(env.pictureOptions || {});
+  const grow = String(growth?.value ?? "down").trim().toLowerCase();
+  const namedAngle = {
+    right: 0,
+    east: 0,
+    "north east": 45,
+    up: 90,
+    north: 90,
+    "north west": 135,
+    left: 180,
+    west: 180,
+    "south west": -135,
+    down: -90,
+    south: -90,
+    "south east": -45
+  }[grow];
+  const angle = Number.isFinite(namedAngle) ? namedAngle : evaluateMath(grow, env.variables);
+  return {
+    kind: "directional",
+    angle: Number.isFinite(angle) ? angle : -90,
+    reversed: Boolean(growth?.reversed)
+  };
 }
 
 function treeLevelOptions(level, env) {
@@ -7049,7 +7099,7 @@ function parseTreeDimension(value, fallback, env) {
 }
 
 function treeChildOffset(index, count, siblingDistance, levelDistance, grow, options = {}, env = { variables: {} }) {
-  if (grow === "cyclic") {
+  if (grow?.kind === "cyclic") {
     const angle = cyclicTreeChildAngle(index, count, options, env);
     const radians = (angle * Math.PI) / 180;
     return {
@@ -7057,18 +7107,14 @@ function treeChildOffset(index, count, siblingDistance, levelDistance, grow, opt
       y: Math.sin(radians) * levelDistance
     };
   }
-  if (typeof grow === "number") {
-    const radians = (grow * Math.PI) / 180;
-    return {
-      x: Math.cos(radians) * levelDistance,
-      y: Math.sin(radians) * levelDistance
-    };
-  }
+  const angle = Number(grow?.angle) || 0;
+  const radians = (angle * Math.PI) / 180;
   const siblingOffset = ((count - 1) / 2 - index) * siblingDistance;
-  if (grow === "up") return { x: siblingOffset, y: levelDistance };
-  if (grow === "left") return { x: -levelDistance, y: siblingOffset };
-  if (grow === "right") return { x: levelDistance, y: siblingOffset };
-  return { x: -siblingOffset, y: -levelDistance };
+  const siblingRadians = ((angle + (grow?.reversed ? 90 : -90)) * Math.PI) / 180;
+  return {
+    x: Math.cos(radians) * levelDistance + Math.cos(siblingRadians) * siblingOffset,
+    y: Math.sin(radians) * levelDistance + Math.sin(siblingRadians) * siblingOffset
+  };
 }
 
 function cyclicTreeChildAngle(index, count, options = {}, env = { variables: {} }) {
