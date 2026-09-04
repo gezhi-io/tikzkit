@@ -2077,6 +2077,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       lastSegment = {
         from: current,
         to: arc.endPoint,
+        arc: arc.timer,
         tangent: incomingTangentFromCommands(arc.commands, current, arc.endPoint)
       };
       current = arc.endPoint;
@@ -2331,6 +2332,9 @@ function inlineNodePathPoint(options = {}, lastSegment) {
   if (!lastSegment) return null;
   const pos = inlineNodePosition(options);
   if (!Number.isFinite(pos)) return null;
+  if (lastSegment.arc) {
+    return arcTimerPointAt(lastSegment.arc, pos);
+  }
   if (lastSegment.c1 && lastSegment.c2) {
     return roundPoint(cubicPointAt(lastSegment.from, lastSegment.c1, lastSegment.c2, lastSegment.to, pos));
   }
@@ -2343,6 +2347,9 @@ function inlineNodePathPoint(options = {}, lastSegment) {
 function inlineNodePathTangent(options = {}, lastSegment) {
   if (!lastSegment?.from || !lastSegment?.to) return null;
   const pos = inlineNodePosition(options, 1);
+  if (lastSegment.arc) {
+    return arcTimerTangentAt(lastSegment.arc, pos);
+  }
   if (lastSegment.c1 && lastSegment.c2) {
     return cubicTangentAt(lastSegment.from, lastSegment.c1, lastSegment.c2, lastSegment.to, pos);
   }
@@ -2350,6 +2357,31 @@ function inlineNodePathTangent(options = {}, lastSegment) {
   const dy = lastSegment.to.y - lastSegment.from.y;
   const length = Math.hypot(dx, dy);
   return length < 1e-9 ? null : { x: dx / length, y: dy / length };
+}
+
+function arcTimerPointAt(arc, pos) {
+  const angle = arcTimerAngleAt(arc, pos);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return roundPoint({
+    x: arc.center.x + arc.zeroAxis.x * cos + arc.ninetyAxis.x * sin,
+    y: arc.center.y + arc.zeroAxis.y * cos + arc.ninetyAxis.y * sin
+  });
+}
+
+function arcTimerTangentAt(arc, pos) {
+  const angle = arcTimerAngleAt(arc, pos);
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const direction = arc.startAngle > arc.endAngle ? -1 : 1;
+  const x = direction * (-arc.zeroAxis.x * sin + arc.ninetyAxis.x * cos);
+  const y = direction * (-arc.zeroAxis.y * sin + arc.ninetyAxis.y * cos);
+  const length = Math.hypot(x, y);
+  return length < 1e-9 ? null : { x: x / length, y: y / length };
+}
+
+function arcTimerAngleAt(arc, pos) {
+  return ((arc.startAngle + (arc.endAngle - arc.startAngle) * pos) * Math.PI) / 180;
 }
 
 function inlineNodePosition(options = {}, fallback = null) {
@@ -13880,7 +13912,14 @@ function buildArc(current, options, env) {
     type: "path",
     shape: "arc",
     commands,
-    endPoint: { x: commands.at(-1).x, y: commands.at(-1).y }
+    endPoint: { x: commands.at(-1).x, y: commands.at(-1).y },
+    timer: {
+      center: roundPoint(center),
+      zeroAxis: roundPoint(radialPoint(0)),
+      ninetyAxis: roundPoint(radialPoint(Math.PI / 2)),
+      startAngle: start,
+      endAngle: end
+    }
   };
 }
 
