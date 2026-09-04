@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document", "documentclass", "usepackage"],
+      "findings": "The standalone shell is removed before TikZ evaluation; its border remains the requested crop padding."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["RequirePackage{pgf}", "tikz.code.tex"],
+      "findings": "The package wrapper loads PGF and the TikZ front end used by the case."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["path", "node", "draw"],
+      "findings": "The front end installs path construction, node placement, styles, and drawing actions."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex": {
+      "symbols": ["nodepart", "ellipse split"],
+      "findings": "The TikZ wrapper exposes multipart node parts and loads the PGF shape declarations."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex": {
+      "symbols": ["ellipse split", "text", "lower", "anchorborder"],
+      "findings": "Ellipse split measures two boxes, expands radii by sqrt(2), separates them at the center, and declares text/lower/base/mid/compass anchors plus exact ellipse border clipping."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Latex"],
+      "findings": "The example uses the installed Latex meta tip for its directed flow edges."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": {
+      "symbols": ["right", "node distance"],
+      "findings": "Right-of placement uses the target border and requested node distance."
+    }
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "docs/qa/2026-09-04-shapes-ellipse-split.md"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-flowchart-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-flowchart-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-flowchart-native-sheet.png"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]}
+  ]
+}

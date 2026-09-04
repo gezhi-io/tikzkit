@@ -6543,6 +6543,51 @@
         "base border anchors",
         "custom cylinder fill"
       ]
+    },
+    {
+      "id": "shapes-ellipse-split-flowchart",
+      "title": "Ellipse split workflow states",
+      "source": "shapes/ellipse-split-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:ellipseSplitGeometry",
+      "features": [
+        "flowchart",
+        "ellipse split text and lower parts",
+        "positioning",
+        "named lower anchor",
+        "automatic ellipse border clipping"
+      ]
+    },
+    {
+      "id": "shapes-ellipse-split-math",
+      "title": "Ellipse split mathematical map",
+      "source": "shapes/ellipse-split-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:ellipseSplitGeometry",
+      "features": [
+        "mathematics diagram",
+        "ellipse split base and mid anchors",
+        "compass anchors",
+        "outer separation",
+        "calc coordinates"
+      ]
+    },
+    {
+      "id": "shapes-ellipse-split-physics",
+      "title": "Ellipse split phase-space state",
+      "source": "shapes/ellipse-split-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.multipart.js:ellipseSplitGeometry",
+      "features": [
+        "physics diagram",
+        "ellipse split state variables",
+        "named lower and compass anchors",
+        "automatic ellipse border clipping",
+        "math text"
+      ]
     }
   ]
 }

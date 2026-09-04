@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["document", "documentclass", "usepackage"], "findings": "The document shell is removed before semantic evaluation while the standalone border controls crop padding."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The package wrapper loads PGF and TikZ."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["path", "node", "draw", "fill"], "findings": "The case uses core path, node, style, draw, and fill actions."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex": {"symbols": ["nodepart", "ellipse split"], "findings": "The wrapper exposes the lower node part and PGF multipart shape."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex": {"symbols": ["ellipse split", "base east", "base west", "mid east", "mid west", "north west", "south east"], "findings": "The source defines sqrt(2)-expanded ellipse radii and the full baseline, midline, and compass anchor family exercised by this case."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {"symbols": ["Latex"], "findings": "The vertical dimension uses the installed bidirectional Latex tips."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": {"symbols": ["coordinate calculation", "+"], "findings": "The dimension endpoints apply explicit calc offsets to named anchors."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "docs/qa/2026-09-04-shapes-ellipse-split.md"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-math-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-math-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-math-native-sheet.png"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]}
+  ]
+}

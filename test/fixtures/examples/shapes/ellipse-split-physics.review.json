@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["document", "documentclass", "usepackage"], "findings": "The standalone document shell is removed before TikZ evaluation and contributes only crop padding."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The package wrapper loads PGF and TikZ."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["path", "node", "draw"], "findings": "The physics case uses core nodes, paths, styles, relative coordinates, and drawing actions."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex": {"symbols": ["nodepart", "ellipse split"], "findings": "The wrapper exposes multipart node syntax and the lower part."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex": {"symbols": ["ellipse split", "lower", "west", "east", "north west", "south east", "anchorborder"], "findings": "The case exercises independent physics formula boxes, the lower text origin, compass anchors, and exact ellipse edge intersections."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {"symbols": ["Latex"], "findings": "Force, energy, and phase-sample arrows use the installed Latex tip geometry."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "docs/qa/2026-09-04-shapes-ellipse-split.md"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-physics-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-physics-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js", "outputs/qa/2026-09-04-shapes-ellipse-split/diff/shapes-ellipse-split-physics-native-sheet.png"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/shapes-multipart-ellipse-split.test.js"]}
+  ]
+}

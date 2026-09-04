@@ -13,6 +13,7 @@ import {
   trapeziumLayoutSize as geometricTrapeziumLayoutSize,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
+import { ellipseSplitGeometry as multipartEllipseSplitGeometry } from "../tikz/libraries/shapes.multipart.js";
 import {
   cloudBorderPoint as symbolCloudBorderPoint,
   cloudGeometry as symbolCloudGeometry,
@@ -6549,7 +6550,8 @@ function createNode(statement, env, ir, diagnostics) {
   const fitLayout = resolveFitNodeLayout(expandedOptions, env, nodeEnv);
   const rectangleSplit = rectangleSplitLayout(text, expandedOptions, nodeEnv);
   const circleSplit = circleSplitLayout(text, expandedOptions, nodeEnv);
-  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
+  const ellipseSplit = ellipseSplitLayout(text, expandedOptions, nodeEnv);
+  const rawSize = fitLayout?.rawSize || rectangleSplit?.size || circleSplit?.size || ellipseSplit?.size || estimateNodeLayoutSize(text, expandedOptions, nodeEnv);
   const rawAnchorSize = fitLayout?.rawSize || estimateNodeAnchorSize(text, expandedOptions, nodeEnv, rawSize);
   const rawPositioningSize = fitLayout?.rawSize || estimatePositioningSelfSize(text, expandedOptions, nodeEnv, rawAnchorSize);
   const size = scaleSize(rawSize, nodeEnv.canvasScale);
@@ -6587,6 +6589,7 @@ function createNode(statement, env, ir, diagnostics) {
     displayPoint,
     rectangleSplit,
     circleSplit,
+    ellipseSplit,
     shapeData: {
       ...resolvedShapeData,
       ...(arrowGeometry ? { arrowGeometry } : {})
@@ -6609,6 +6612,7 @@ function createNode(statement, env, ir, diagnostics) {
       ...resolvedShapeData,
       rectangleSplit,
       circleSplit,
+      ellipseSplit,
       ...(arrowGeometry ? { arrowGeometry } : {})
     },
     rotation: resolvedRotation
@@ -9254,6 +9258,7 @@ function addNodeItems(node, ir, env) {
     ...nodeShapeData(node.options || {}, nodeEnv, node.text, size),
     rectangleSplit: node.rectangleSplit || null,
     circleSplit: node.circleSplit || null,
+    ellipseSplit: node.ellipseSplit || null,
     ...(node.shapeData || {})
   };
   // shapes.misc foreground paths use inherited rectangle anchors, which include outer sep.
@@ -9413,7 +9418,7 @@ function addNodeItems(node, ir, env) {
       // Rectangle-like node renderers inset the geometry by half the stroke,
       // but SVG ellipses paint their stroke outside the supplied radii. Keep
       // that outer half-stroke in the scene bounds for circles and ellipses.
-      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
+      strokeBoundsIncluded: shape !== "circle" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
@@ -9471,6 +9476,8 @@ function addNodeItems(node, ir, env) {
     addRectangleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else if (shape === "circleSplit" && node.circleSplit) {
     addCircleSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
+  } else if (shape === "ellipseSplit" && node.ellipseSplit) {
+    addEllipseSplitTextItems(node, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
@@ -9824,6 +9831,27 @@ function addCircleSplitTextItems(node, point, size, rotation, textStyle, env, ir
   for (const part of layout.parts || []) {
     if (!part.text) continue;
     const local = rotateVector(0, part.centerY * scale, rotation || 0);
+    ir.items.push({
+      type: "textNode",
+      x: roundNumber(point.x + local.x),
+      y: roundNumber(point.y + local.y),
+      text: part.text,
+      font: resolvedTextFontSpec(part.text, node.options || {}, env, env.canvasScale * nodeOptionScale(node.options || {}, env)),
+      style: textStyle,
+      rotation: rotation || undefined,
+      textAlign: "center",
+      texBoxVerticalAlign: true
+    });
+  }
+}
+
+function addEllipseSplitTextItems(node, point, size, rotation, textStyle, env, ir) {
+  const layout = node.ellipseSplit;
+  const xScale = size.width / Math.max(layout.size.width, 1e-9);
+  const yScale = size.height / Math.max(layout.size.height, 1e-9);
+  for (const part of layout.parts || []) {
+    if (!part.text) continue;
+    const local = rotateVector((part.centerX || 0) * xScale, (part.centerY || 0) * yScale, rotation || 0);
     ir.items.push({
       type: "textNode",
       x: roundNumber(point.x + local.x),
@@ -10765,7 +10793,11 @@ function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variable
   const textAnchorOffsets = nodeTextAnchorOffsets(text, options, env, size);
   const rotation = nodeRotation(options, env);
   const splitTextAnchor = rectangleSplitTextAnchorShift(text, options, env, size, rotation);
-  const shift = splitTextAnchor || nodeAnchorShift(options, anchorSize, sep, env, rotation, textAnchorOffsets);
+  const shapeData = {
+    ...nodeShapeData(options, env, text, size),
+    ellipseSplit: ellipseSplitLayout(text, options, env)
+  };
+  const shift = splitTextAnchor || nodeAnchorShift(options, anchorSize, sep, env, rotation, textAnchorOffsets, shapeData);
   const explicitShift = nodeExplicitShift(options, env);
   return roundPoint({
     x: point.x + shift.x + explicitShift.x,
@@ -10809,7 +10841,7 @@ function rotateVector(x, y, degrees) {
   return { x: x * cos - y * sin, y: x * sin + y * cos };
 }
 
-function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorOffsets = {}) {
+function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorOffsets = {}, shapeData = {}) {
   const direction = nodeDirection(options);
   const scaledSep = sep * canvasLengthScale(env);
   if (direction) {
@@ -10822,7 +10854,7 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorO
     const gapX = direction.includes("right") ? distance : direction.includes("left") ? -distance : 0;
     const gapY = direction.includes("above") ? distance : direction.includes("below") ? -distance : 0;
     if (explicitAnchorOverridesDirection(options, direction)) {
-      const explicit = explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets);
+      const explicit = explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets, shapeData);
       return { x: gapX + explicit.x, y: gapY + explicit.y };
     }
     const oppositeAnchor = [
@@ -10832,7 +10864,7 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorO
     const customAnchor = oppositeAnchor
       ? customNodeLocalAnchor(nodeShape(options), oppositeAnchor, {
           ...size,
-          shapeData: nodeShapeData(options, env, undefined, size)
+          shapeData
         })
       : null;
     const centerOffset = customAnchor
@@ -10845,7 +10877,7 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorO
     return { x: gapX + rotated.x, y: gapY + rotated.y };
   }
 
-  return explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets);
+  return explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets, shapeData);
 }
 
 function explicitAnchorOverridesDirection(options = {}, direction) {
@@ -10854,17 +10886,25 @@ function explicitAnchorOverridesDirection(options = {}, direction) {
   return keys.indexOf("anchor") > keys.indexOf(direction);
 }
 
-function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnchorOffsets = {}) {
+function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnchorOffsets = {}, shapeData = {}) {
   const anchor = String(options.anchor || "").trim();
   if (!anchor) return { x: 0, y: 0 };
   const nearTicklabelShift = nearTicklabelAnchorShift(anchor, size, rotation);
   if (nearTicklabelShift) return nearTicklabelShift;
   const textAnchor = textAnchorKind(anchor);
-  if (nodeShape(options) === "cylinder" && textAnchor && /(?:^|\s)(?:east|west)(?:\s|$)/.test(anchor)) {
+  const shape = nodeShape(options);
+  if (shape === "ellipseSplit") {
+    const ellipseSplitAnchor = customNodeLocalAnchor(shape, anchor, { ...size, shapeData });
+    if (ellipseSplitAnchor) {
+      const rotated = rotateVector(ellipseSplitAnchor.x, ellipseSplitAnchor.y, rotation);
+      return { x: -rotated.x, y: -rotated.y };
+    }
+  }
+  if (shape === "cylinder" && textAnchor && /(?:^|\s)(?:east|west)(?:\s|$)/.test(anchor)) {
     const cylinderAnchor = customNodeLocalAnchor("cylinder", anchor, {
       ...size,
       ...textAnchorOffsets,
-      shapeData: nodeShapeData(options, env, undefined, size)
+      shapeData
     });
     if (cylinderAnchor) {
       const rotated = rotateVector(cylinderAnchor.x, cylinderAnchor.y, rotation);
@@ -10880,9 +10920,9 @@ function explicitNodeAnchorShift(options = {}, size, env, rotation = 0, textAnch
     const rotated = rotateVector(local.x, local.y, rotation);
     return { x: -rotated.x, y: -rotated.y };
   }
-  const customAnchor = customNodeLocalAnchor(nodeShape(options), anchor, {
+  const customAnchor = customNodeLocalAnchor(shape, anchor, {
     ...size,
-    shapeData: nodeShapeData(options, env, undefined, size)
+    shapeData
   });
   if (customAnchor) {
     const rotated = rotateVector(customAnchor.x, customAnchor.y, rotation);
@@ -11296,7 +11336,7 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
-  } else if (node.shape === "ellipse") {
+  } else if (node.shape === "ellipse" || node.shape === "ellipseSplit") {
     const paddedHalfWidth = halfWidth + terminalPadding;
     const paddedHalfHeight = halfHeight + terminalPadding;
     const factor = 1 / Math.sqrt((localDx * localDx) / (paddedHalfWidth * paddedHalfWidth) + (localDy * localDy) / (paddedHalfHeight * paddedHalfHeight));
@@ -11487,6 +11527,7 @@ function nodeShape(options = {}) {
   if (explicitShape) return explicitShape;
   if (options["rectangle split"]) return "rectangleSplit";
   if (options["circle split"]) return "circleSplit";
+  if (options["ellipse split"]) return "ellipseSplit";
   if (options["single arrow"]) return "singleArrow";
   if (options["double arrow"]) return "doubleArrow";
   if (options["cross out"]) return "crossOut";
@@ -11518,6 +11559,7 @@ function explicitNodeShape(shape) {
     rectangle: "rectangle",
     "rectangle split": "rectangleSplit",
     "circle split": "circleSplit",
+    "ellipse split": "ellipseSplit",
     "single arrow": "singleArrow",
     "double arrow": "doubleArrow",
     "cross out": "crossOut",
@@ -12238,6 +12280,51 @@ function circleSplitLayout(text, options = {}, env = { variables: {} }) {
       x: roundNumber(-lowerBox.width / 2),
       y: roundNumber(-(innerYSep + lowerBox.height + lineWidth / 2))
     }
+  };
+}
+
+function ellipseSplitLayout(text, options = {}, env = { variables: {} }) {
+  if (!options["ellipse split"] && normalizeShapeName(options.shape) !== "ellipse split") return null;
+  const { upper, lower } = circleSplitTextParts(text);
+  const metricOptions = {
+    ...options,
+    "inner sep": "0pt",
+    "inner xsep": "0pt",
+    "inner ysep": "0pt",
+    "minimum width": undefined,
+    "minimum height": undefined,
+    "minimum size": undefined
+  };
+  const upperBox = circleSplitPartMetric(upper, metricOptions, env);
+  const lowerBox = circleSplitPartMetric(lower, metricOptions, env);
+  const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
+  const outerSep = nodeOuterSep(options, env);
+  const { style } = normalizeOptions("node", options, env);
+  const lineWidth = Math.max(0, Number(style.lineWidth) || 0) / TIKZ_UNIT;
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  const geometry = multipartEllipseSplitGeometry({ upper: upperBox, lower: lowerBox }, {
+    innerXSep,
+    innerYSep,
+    lineWidth,
+    outerXSep: outerSep.x,
+    outerYSep: outerSep.y,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0),
+    midlineOffset: parseNodeLengthDimension(".5ex", env)
+  });
+  return {
+    ...geometry,
+    size: {
+      width: roundNumber(geometry.size.width),
+      height: roundNumber(geometry.size.height)
+    },
+    parts: geometry.parts.map((part, index) => ({
+      ...part,
+      text: index === 0 ? upper : lower,
+      centerX: roundNumber(part.centerX),
+      centerY: roundNumber(part.centerY)
+    }))
   };
 }
 
@@ -18364,6 +18451,10 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     const splitAnchor = circleSplitLocalAnchor(anchor, size);
     if (splitAnchor) return splitAnchor;
   }
+  if (shape === "ellipseSplit") {
+    const splitAnchor = ellipseSplitLocalAnchor(anchor, size);
+    if (splitAnchor) return splitAnchor;
+  }
   if (shape === "isoscelesTriangle") {
     const anchors = {
       apex: { x: halfWidth, y: 0 },
@@ -18538,6 +18629,21 @@ function circleSplitLocalAnchor(anchor, size = {}) {
   return {
     x: (Number(layout.lowerAnchor.x) || 0) * scale,
     y: (Number(layout.lowerAnchor.y) || 0) * scale
+  };
+}
+
+function ellipseSplitLocalAnchor(anchorRaw, size = {}) {
+  const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
+  const layout = size.shapeData?.ellipseSplit;
+  const point = layout?.anchors?.[anchor];
+  if (!point || !layout?.size) return null;
+  const visibleWidth = Number(size.visibleWidth) || Number(size.width) || Number(layout.size.width) || 0;
+  const visibleHeight = Number(size.visibleHeight) || Number(size.height) || Number(layout.size.height) || 0;
+  const xScale = visibleWidth / Math.max(Number(layout.size.width) || 0, 1e-9);
+  const yScale = visibleHeight / Math.max(Number(layout.size.height) || 0, 1e-9);
+  return {
+    x: (Number(point.x) || 0) * xScale,
+    y: (Number(point.y) || 0) * yScale
   };
 }
 

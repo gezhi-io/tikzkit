@@ -93,6 +93,7 @@ import { renderNodeBoxWithOverlay, renderPathPictureOverlay } from "../src/rende
 import { renderPathElement } from "../src/renderers/svg/paths.js";
 import { estimatePlainTextRenderBounds, renderPlainTextNode } from "../src/renderers/svg/plainTextNode.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "../src/renderers/svg/rectangleSplitNodes.js";
+import { renderEllipseSplitNodeBox } from "../src/renderers/svg/ellipseSplitNodes.js";
 import {
   cleanRichTextSource,
   estimateRichTextBox,
@@ -538,6 +539,26 @@ test("svg renderer keeps rectangle split node serialization in its own module", 
   assert.match(nodeBox, /tikz-split-part/);
   assert.match(source, /from "\.\/rectangleSplitNodes\.js"/);
   assert.doesNotMatch(source, /function renderRectangleSplit/);
+});
+
+test("svg renderer keeps ellipse split node serialization in its own module", () => {
+  const source = readFileSync(new URL("../src/renderers/svg/renderSvg.js", import.meta.url), "utf8");
+  const nodeBox = renderEllipseSplitNodeBox(
+    {
+      shape: "ellipseSplit",
+      x: 0,
+      y: 0,
+      width: 2,
+      height: 1,
+      style: { fill: "white", stroke: "black", lineWidth: 1 }
+    },
+    100
+  );
+
+  assert.match(nodeBox, /tikz-node-ellipse-split/);
+  assert.match(nodeBox, /<ellipse/);
+  assert.match(source, /from "\.\/ellipseSplitNodes\.js"/);
+  assert.doesNotMatch(source, /function renderEllipseSplit/);
 });
 
 test("svg renderer keeps image placeholder serialization in its own module", () => {

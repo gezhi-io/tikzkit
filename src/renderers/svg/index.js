@@ -162,6 +162,7 @@ export {
 export { svgPathData } from "./pathData.js";
 export { estimatePlainTextRenderBounds, renderPlainTextNode } from "./plainTextNode.js";
 export { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
+export { renderEllipseSplitNodeBox } from "./ellipseSplitNodes.js";
 export {
   cleanRichTextSource,
   defaultTexCharWidthEm,
