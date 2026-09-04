@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document shell is removed before the browser interpreter evaluates the TikZ picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": { "symbols": ["\\small"], "findings": "For the default 10pt class, LaTeX defines small text as 9pt with an 11pt baseline skip." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}"], "findings": "The LaTeX package loads the generic TikZ front end." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex": { "symbols": ["\\pgftransformcm", "\\pgftransformxscale", "\\pgftransformyscale", "\\pgftransformrotate"], "findings": "PGF concatenates each local affine transform into the current matrix, including transformed shifts." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\tikz@addtransform", "every mark"], "findings": "TikZ records transformations in option order and executes them once for each mark." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryplotmarks.code.tex": { "symbols": ["\\usepgflibrary{plotmarks}"], "findings": "The TikZ library delegates to the generic PGF plot-mark declarations." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex": { "symbols": ["\\pgftransformshift", "\\pgfuseplotmark"], "findings": "The local matrix deforms the open circle into the same rotated uncertainty ellipse at every measurement coordinate." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/plotmarks-mark-options.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/plotmarks-mark-options.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/plotmarks-mark-options.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/plotmarks-mark-options.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/plotmarks-mark-options.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/plotmarks-mark-options.test.js"] }
+  ]
+}

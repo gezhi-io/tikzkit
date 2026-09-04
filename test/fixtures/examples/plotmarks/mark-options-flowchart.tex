@@ -1,0 +1,19 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,plotmarks,positioning}
+\begin{document}
+\begin{tikzpicture}[
+  stage/.style={draw,rounded corners=2pt,minimum width=2.2cm,minimum height=8mm,align=center},
+  flow/.style={-{Stealth[length=2.4mm]},semithick}
+]
+  \node[stage,fill=blue!8] (sample) {sample};
+  \node[stage,fill=green!10,right=2.1cm of sample] (review) {review};
+  \node[stage,fill=orange!12,right=2.1cm of review] (publish) {publish};
+  \draw[flow] (sample) -- (review);
+  \draw[flow] (review) -- (publish);
+  \draw[mark size=4pt]
+    plot[only marks,mark=square*,mark options={xscale=1.65,yscale=.65,rotate=45,xshift=2pt,yshift=1pt,draw=blue!70!black,fill=cyan!30,line width=.9pt}]
+      coordinates {(1.55,0) (5.85,0)};
+  \node[below=7mm of review,font=\small] {transformed review gates};
+\end{tikzpicture}
+\end{document}

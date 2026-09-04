@@ -1,9 +1,10 @@
 import { parseOptions, stripOuterBraces } from "../../engine/options.js";
+import { evaluateMath, parseDimension, roundNumber } from "../../engine/math.js";
 
 export const tikzLibrary = {
   "name": "plotmarks",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/plotmarks.js:textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark",
+  "implementedBy": "src/tikz/libraries/plotmarks.js:plotMarkLocalOptions/transformPlotMarkCommands/textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark",
   "features": [
     "mark=x",
     "mark=+",
@@ -18,7 +19,8 @@ export const tikzLibrary = {
     "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
     "mark=heart",
     "mark=text / text mark / text mark style / text mark as node",
-    "mark color / mark options={rotate=...}"
+    "mark color / mark options and every mark local paint",
+    "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant"
   ],
   "implements": [
     "mark=x",
@@ -34,12 +36,119 @@ export const tikzLibrary = {
     "mark=halfdiamond* / halfsquare* / halfsquare right* / halfsquare left*",
     "mark=heart",
     "mark=text / text mark / text mark style / text mark as node",
-    "mark color / mark options={rotate=...}"
+    "mark color / mark options and every mark local paint",
+    "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant"
   ],
-  "notes": "Reviewed locally on 2026-09-05 against pgflibraryplotmarks.code.tex, pgfmanual-en-library-plot-marks.tex, and pgfmanual-en-base-scopes.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, halfsquare left*, and heart paths. Text marks now preserve arbitrary TeX content and current color in direct TikZ and PGFPlots. The default pgftext mode implements left/right/top/bottom/base anchors and rotate; text mark as node=true delegates draw, fill, shape, rounded corners, inner sep, font, scale, rotate, and anchor to the normal node pipeline. The heart preserves all eight source cubic segments, its 1.75-mark-size tip, independent fill/stroke paint, size, and whole-mark rotation. The split marks share current-fill/mark-color, mark color=none suppression, outline, size, and rotation semantics. Custom plot-mark declarations and general non-text affine mark-option transforms remain partial."
+  "notes": "Reviewed locally on 2026-09-05 against tikz.code.tex, pgflibraryplothandlers.code.tex, pgfcoretransformations.code.tex, pgfplots.markers.code.tex, pgflibraryplotmarks.code.tex, pgfmanual-en-tikz-plots.tex, and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, halfsquare left*, and heart paths. Text marks preserve arbitrary TeX content and current color in direct TikZ and PGFPlots. General non-text marks now resolve mark options and every mark replacement/append semantics, local draw/fill/line styling, and ordered scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant matrices in direct TikZ and PGFPlots, including transformed shifts and legend samples. The heart preserves all eight source cubic segments and its asymmetric tip. The split marks share current-fill/mark-color and outline semantics. Arbitrary custom plot-mark declarations and non-uniform affine halfcircle arc conversion remain partial."
 };
 
 const CIRCLE_KAPPA = 0.5522847498307936;
+export function plotMarkLocalOptions(options = {}, baseOptions = {}) {
+  let local = { ...(baseOptions || {}) };
+  for (const [key, value] of Object.entries(options || {})) {
+    if (key === "mark options" || key === "every mark/.style") {
+      local = parsePlotMarkStyle(value);
+      continue;
+    }
+    if (key === "every mark/.append style") {
+      for (const entry of optionValues(value)) {
+        local = { ...local, ...parsePlotMarkStyle(entry) };
+      }
+    }
+  }
+  return local;
+}
+
+export function transformPlotMarkCommands(commands = [], center = { x: 0, y: 0 }, options = {}, variables = {}) {
+  const transform = plotMarkTransform(options, variables);
+  if (isIdentityPlotMarkTransform(transform)) return commands;
+  const place = (x, y) => ({
+    x: roundNumber(center.x + transform.a * (x - center.x) + transform.c * (y - center.y) + transform.x),
+    y: roundNumber(center.y + transform.b * (x - center.x) + transform.d * (y - center.y) + transform.y)
+  });
+  return commands.map((command) => {
+    const transformed = { ...command };
+    for (const [xKey, yKey] of [["x", "y"], ["x1", "y1"], ["x2", "y2"]]) {
+      if (!Number.isFinite(command[xKey]) || !Number.isFinite(command[yKey])) continue;
+      const point = place(command[xKey], command[yKey]);
+      transformed[xKey] = point.x;
+      transformed[yKey] = point.y;
+    }
+    return transformed;
+  });
+}
+
+function parsePlotMarkStyle(value) {
+  if (value === undefined || value === null || value === true) return {};
+  return parseOptions(stripOuterBraces(String(value)));
+}
+
+function optionValues(value) {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function plotMarkTransform(options = {}, variables = {}) {
+  let current = identityPlotMarkTransform();
+  for (const [key, value] of Object.entries(options || {})) {
+    const operation = plotMarkTransformOperation(key, value, variables);
+    if (operation) current = multiplyPlotMarkTransforms(current, operation);
+  }
+  return current;
+}
+
+function plotMarkTransformOperation(key, value, variables) {
+  if (key === "scale" || key === "xscale" || key === "yscale") {
+    const parsed = evaluateMath(value ?? 1, variables);
+    const scale = Number.isFinite(parsed) ? parsed : 1;
+    if (key === "xscale") return { a: scale, b: 0, c: 0, d: 1, x: 0, y: 0 };
+    if (key === "yscale") return { a: 1, b: 0, c: 0, d: scale, x: 0, y: 0 };
+    return { a: scale, b: 0, c: 0, d: scale, x: 0, y: 0 };
+  }
+  if (key === "rotate") {
+    const parsed = evaluateMath(value ?? 0, variables);
+    const radians = ((Number.isFinite(parsed) ? parsed : 0) * Math.PI) / 180;
+    const cosine = Math.cos(radians);
+    const sine = Math.sin(radians);
+    return { a: cosine, b: sine, c: -sine, d: cosine, x: 0, y: 0 };
+  }
+  if (key === "xshift" || key === "yshift") {
+    const shift = parseDimension(value ?? "0pt", variables);
+    const amount = Number.isFinite(shift) ? shift : 0;
+    return key === "xshift"
+      ? { a: 1, b: 0, c: 0, d: 1, x: amount, y: 0 }
+      : { a: 1, b: 0, c: 0, d: 1, x: 0, y: amount };
+  }
+  if (key === "xslant" || key === "yslant") {
+    const parsed = evaluateMath(value ?? 0, variables);
+    const slant = Number.isFinite(parsed) ? parsed : 0;
+    return key === "xslant"
+      ? { a: 1, b: 0, c: slant, d: 1, x: 0, y: 0 }
+      : { a: 1, b: slant, c: 0, d: 1, x: 0, y: 0 };
+  }
+  return null;
+}
+
+function multiplyPlotMarkTransforms(first, second) {
+  return {
+    a: first.a * second.a + first.c * second.b,
+    b: first.b * second.a + first.d * second.b,
+    c: first.a * second.c + first.c * second.d,
+    d: first.b * second.c + first.d * second.d,
+    x: first.a * second.x + first.c * second.y + first.x,
+    y: first.b * second.x + first.d * second.y + first.y
+  };
+}
+
+function identityPlotMarkTransform() {
+  return { a: 1, b: 0, c: 0, d: 1, x: 0, y: 0 };
+}
+
+function isIdentityPlotMarkTransform(transform) {
+  return Math.abs(transform.a - 1) < 1e-12 && Math.abs(transform.b) < 1e-12 &&
+    Math.abs(transform.c) < 1e-12 && Math.abs(transform.d - 1) < 1e-12 &&
+    Math.abs(transform.x) < 1e-12 && Math.abs(transform.y) < 1e-12;
+}
 
 export function textPlotMarkModel(options = {}) {
   const rawText = options["text mark"] ?? "p";

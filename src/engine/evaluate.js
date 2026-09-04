@@ -4,10 +4,12 @@ import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import {
   basicPlotMarkGeometry,
+  plotMarkLocalOptions,
   plotMarkGeometryCommands,
   splitFillPlotMarkGeometry,
   textPlotMarkModel,
-  textPlotMarkNodeOptions
+  textPlotMarkNodeOptions,
+  transformPlotMarkCommands
 } from "../tikz/libraries/plotmarks.js";
 import {
   circularSectorBorderPoint as geometricCircularSectorBorderPoint,
@@ -17627,9 +17629,12 @@ function plotMarkItems(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
 
 function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) {
   const kind = stripOuterBraces(String(mark || "*")).trim();
-  const size = plotMarkSize(markOptions, env);
-  const markColor = markOptions["mark color"] && markOptions["mark color"] !== true
-    ? normalizeColor(String(markOptions["mark color"]))
+  const localOptions = plotMarkLocalOptions(markOptions, env.styles?.["every mark"] || {});
+  const effectiveMarkOptions = { ...markOptions, ...localOptions };
+  const localStyleHints = edgeStyleHintsFromOptions(localOptions, env);
+  const size = plotMarkSize(effectiveMarkOptions, env);
+  const markColor = effectiveMarkOptions["mark color"] && effectiveMarkOptions["mark color"] !== true
+    ? normalizeColor(String(effectiveMarkOptions["mark color"]))
     : pathStyle.stroke || "black";
   const lineStyle = {
     stroke: markColor,
@@ -17640,12 +17645,16 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
     ...lineStyle,
     fill: pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : markColor
   };
-  const finalize = (item) => rotatePlotMark(item, point, markOptions, env);
+  const finalize = (item) => ({
+    ...item,
+    commands: transformPlotMarkCommands(item.commands, point, localOptions, env.variables || {}),
+    style: applyPlotMarkLocalStyle(item.style, localStyleHints)
+  });
   const finalizeItems = (items) => items.map(finalize);
 
   if (kind === "halfcircle" || kind === "halfcircle*") {
     const stroke = pathStyle.stroke || "black";
-    const lowerFill = plotSplitMarkColor(markOptions);
+    const lowerFill = plotSplitMarkColor(effectiveMarkOptions);
     const outline = {
       type: "path",
       shape: "plot-mark",
@@ -17685,7 +17694,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
   if (splitGeometry) {
     const stroke = pathStyle.stroke || "black";
     const primaryFill = pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : stroke;
-    const secondaryFill = plotSplitMarkColor(markOptions);
+    const secondaryFill = plotSplitMarkColor(effectiveMarkOptions);
     const fillItem = (geometry, fill) => ({
       type: "path",
       shape: "plot-mark-fill",
@@ -17706,13 +17715,13 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
   }
 
   if (kind === "*" || kind === "." || kind === "o") {
-    return {
+    return finalize({
       type: "path",
       shape: "plot-mark",
       mark: kind,
       commands: circleToPath(point.x, point.y, size),
       style: kind === "o" ? lineStyle : filledStyle
-    };
+    });
   }
   const basicGeometry = basicPlotMarkGeometry(kind, size);
   if (basicGeometry) {
@@ -17751,7 +17760,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
   }
   if (kind === "x") {
     const diagonal = size / Math.SQRT2;
-    return {
+    return finalize({
       type: "path",
       shape: "plot-mark",
       mark: kind,
@@ -17762,7 +17771,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
         { type: "lineTo", x: roundNumber(point.x + diagonal), y: roundNumber(point.y - diagonal) }
       ],
       style: lineStyle
-    };
+    });
   }
   if (kind === "s|" || kind === "s||" || kind === "s|||") {
     const offsets = kind === "s|"
@@ -17834,7 +17843,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       style: lineStyle
     });
   }
-  return {
+  return finalize({
     type: "path",
     shape: "plot-mark",
     mark: kind,
@@ -17845,7 +17854,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       { type: "lineTo", x: roundNumber(point.x + size), y: roundNumber(point.y - size) }
     ],
     style: lineStyle
-  };
+  });
 }
 
 function plotSplitMarkColor(markOptions = {}) {
@@ -17885,31 +17894,15 @@ function plotHalfCirclePath(point, size, half) {
   ];
 }
 
-function rotatePlotMark(item, point, markOptions = {}, env = {}) {
-  const options = markOptions["mark options"] && markOptions["mark options"] !== true
-    ? parseOptions(stripOuterBraces(String(markOptions["mark options"])))
-    : {};
-  const degrees = evaluateMath(options.rotate, env.variables || {});
-  if (!Number.isFinite(degrees) || Math.abs(degrees) < 1e-12) return item;
-
-  const radians = (degrees * Math.PI) / 180;
-  const cosine = Math.cos(radians);
-  const sine = Math.sin(radians);
-  const rotate = (x, y) => ({
-    x: roundNumber(point.x + (x - point.x) * cosine - (y - point.y) * sine),
-    y: roundNumber(point.y + (x - point.x) * sine + (y - point.y) * cosine)
-  });
-  const commands = item.commands.map((command) => {
-    const rotated = { ...command };
-    for (const [xKey, yKey] of [["x", "y"], ["x1", "y1"], ["x2", "y2"]]) {
-      if (!Number.isFinite(command[xKey]) || !Number.isFinite(command[yKey])) continue;
-      const control = rotate(command[xKey], command[yKey]);
-      rotated[xKey] = control.x;
-      rotated[yKey] = control.y;
-    }
-    return rotated;
-  });
-  return { ...item, commands };
+function applyPlotMarkLocalStyle(style = {}, hints = {}) {
+  const result = { ...style };
+  if (hints.stroke !== undefined && result.stroke !== "none") result.stroke = hints.stroke;
+  if (hints.fill !== undefined && result.fill !== undefined && result.fill !== "none") result.fill = hints.fill;
+  if (hints.lineWidth !== undefined && result.stroke !== "none") result.lineWidth = hints.lineWidth;
+  for (const key of ["dashArray", "opacity", "fillOpacity", "strokeOpacity", "lineCap", "lineJoin"]) {
+    if (hints[key] !== undefined) result[key] = hints[key];
+  }
+  return result;
 }
 
 function plotMarkSize(markOptions = {}, env = {}) {

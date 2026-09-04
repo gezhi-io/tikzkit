@@ -5245,6 +5245,51 @@
       ]
     },
     {
+      "id": "plotmarks-mark-options-flowchart",
+      "title": "Affine plot marks in a review flowchart",
+      "source": "plotmarks/mark-options-flowchart.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF plotmarks source",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:plotMarkLocalOptions/transformPlotMarkCommands",
+      "features": [
+        "plotmarks library",
+        "mark options replacement",
+        "xscale and yscale",
+        "rotate and shift",
+        "mark-local fill stroke and line width"
+      ]
+    },
+    {
+      "id": "plotmarks-mark-options-math",
+      "title": "Affine PGFPlots samples on two functions",
+      "source": "plotmarks/mark-options-math.tex",
+      "sourceCorpus": "TikZKit regression derived from TeX Live PGF and PGFPlots sources",
+      "externalSource": "tex/generic/pgfplots/pgfplots.markers.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:plotMarkLocalOptions/transformPlotMarkCommands",
+      "features": [
+        "PGFPlots only marks",
+        "plot-local every mark append style",
+        "mark options replacement",
+        "anisotropic mark transform",
+        "legend marker transform"
+      ]
+    },
+    {
+      "id": "plotmarks-mark-options-physics",
+      "title": "Affine uncertainty marks on sampled motion",
+      "source": "plotmarks/mark-options-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from TeX Live PGF plot handlers",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:plotMarkLocalOptions/transformPlotMarkCommands",
+      "features": [
+        "measurement samples",
+        "every mark append style",
+        "xscale and yscale",
+        "rotated open-circle marks",
+        "mark-local line width"
+      ]
+    },
+    {
       "id": "tkz-fct-combined-axes-trig",
       "title": "tkz-base combined trigonometric Cartesian axes",
       "source": "tkz-fct/combined-axes-trig.tex",

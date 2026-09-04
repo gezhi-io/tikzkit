@@ -5,9 +5,12 @@ import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFil
 import {
   basicPlotMarkGeometry,
   placePlotMarkGeometry,
+  plotMarkGeometryCommands,
+  plotMarkLocalOptions,
   splitFillPlotMarkGeometry,
   textPlotMarkModel,
-  textPlotMarkNodeOptions
+  textPlotMarkNodeOptions,
+  transformPlotMarkCommands
 } from "../tikz/libraries/plotmarks.js";
 
 export function createPlotMarkModel(plotOptions = {}) {
@@ -42,41 +45,54 @@ export function scatterClassOptionsForPoint(options = {}, point = {}) {
 
 export function renderPlotMark(point, options = {}, plotIndex = 0) {
   const mark = String(options.mark || (options.scatter ? "*" : "*")).trim().toLowerCase();
+  const localOptions = plotMarkLocalOptions(options);
+  const effectiveOptions = { ...options, ...localOptions };
   const mappedColor = String(options["pgfplots scatter mapped color"] || "").trim();
-  const stroke = mappedColor ? `${mappedColor}!80!black` : plotColorValue(selectPlotColor(options, plotIndex));
-  const fill = mappedColor || plotColorValue(selectPlotMarkFillColor(options, plotIndex));
-  const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", plotLineWidthOption(options)]);
-  const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, plotLineWidthOption(options)]);
-  const size = axisMarkRadius(options);
+  const defaultStroke = mappedColor ? `${mappedColor}!80!black` : plotColorValue(selectPlotColor(options, plotIndex));
+  const defaultFill = mappedColor || plotColorValue(selectPlotMarkFillColor(options, plotIndex));
+  const stroke = localMarkColor(localOptions, "draw", defaultStroke);
+  const fill = localMarkColor(localOptions, "fill", defaultFill);
+  const localPaint = plotMarkPaintOptions(localOptions);
+  const lineWidth = plotLineWidthOption(localOptions) || plotLineWidthOption(options);
+  const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", lineWidth, ...localPaint]);
+  const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, lineWidth, ...localPaint.filter((option) => !option.startsWith("fill="))]);
+  const size = axisMarkRadius(effectiveOptions);
   if (mark === "text") {
     return renderTextPlotMark(point, options, stroke);
   }
   if (mark === "x") {
     const diagonal = size / Math.SQRT2;
-    return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -diagonal, -diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, diagonal))} ${formatAxisPoint(offsetPoint(point, -diagonal, diagonal))} -- ${formatAxisPoint(offsetPoint(point, diagonal, -diagonal))};`;
+    return `\\draw[${strokedStyle}] ${formatPlotMarkCommands(transformPlotMarkCommands([
+      markMove(point, -diagonal, -diagonal), markLine(point, diagonal, diagonal),
+      markMove(point, -diagonal, diagonal), markLine(point, diagonal, -diagonal)
+    ], point, localOptions))};`;
   }
   if (mark === "+") {
-    return `\\draw[${strokedStyle}] ${formatAxisPoint(offsetPoint(point, -size, 0))} -- ${formatAxisPoint(offsetPoint(point, size, 0))} ${formatAxisPoint(offsetPoint(point, 0, -size))} -- ${formatAxisPoint(offsetPoint(point, 0, size))};`;
+    return `\\draw[${strokedStyle}] ${formatPlotMarkCommands(transformPlotMarkCommands([
+      markMove(point, -size, 0), markLine(point, size, 0),
+      markMove(point, 0, -size), markLine(point, 0, size)
+    ], point, localOptions))};`;
   }
   if (mark === "halfcircle") {
-    return renderHalfCircleMark(point, options, size, strokedStyle, fill, false);
+    return renderHalfCircleMark(point, effectiveOptions, size, strokedStyle, fill, false);
   }
   if (mark === "halfcircle*") {
-    return renderHalfCircleMark(point, options, size, strokedStyle, fill, true);
+    return renderHalfCircleMark(point, effectiveOptions, size, strokedStyle, fill, true);
   }
   const splitGeometry = splitFillPlotMarkGeometry(mark, size);
   if (splitGeometry) {
-    return renderSplitFillMark(point, options, splitGeometry, strokedStyle, fill);
+    return renderSplitFillMark(point, effectiveOptions, splitGeometry, strokedStyle, fill, localOptions);
   }
   if (datavisualizationIsMercedesMark(mark)) {
-    return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size);
+    return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size, localOptions);
   }
   const basicGeometry = basicPlotMarkGeometry(mark, size);
   if (basicGeometry) {
     const style = basicGeometry.filled ? filledStyle : strokedStyle;
-    return `\\draw[${style}] ${formatPlotMarkGeometry(basicGeometry, point, plotMarkRotation(options))};`;
+    return `\\draw[${style}] ${formatPlotMarkGeometry(basicGeometry, point, localOptions)};`;
   }
-  return `\\draw[${mark === "o" ? strokedStyle : filledStyle}] ${formatAxisPoint(point)} circle(${formatAxisNumber(size)});`;
+  const circleGeometry = { primitives: [{ type: "circle", radius: size }], filled: mark !== "o" };
+  return `\\draw[${mark === "o" ? strokedStyle : filledStyle}] ${formatPlotMarkGeometry(circleGeometry, point, localOptions)};`;
 }
 
 function renderTextPlotMark(point, options, color) {
@@ -132,8 +148,7 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
   return items.join("");
 }
 
-function renderSplitFillMark(point, options, geometry, strokedStyle, fill) {
-  const rotation = plotMarkRotation(options);
+function renderSplitFillMark(point, options, geometry, strokedStyle, fill, localOptions) {
   const secondaryFill = splitPlotMarkColor(options);
   const fillStyle = (color) => joinOptions([
     "axis mark",
@@ -142,12 +157,12 @@ function renderSplitFillMark(point, options, geometry, strokedStyle, fill) {
     "fill opacity=1"
   ]);
   const items = [
-    `\\fill[${fillStyle(fill)}] ${formatPlotMarkGeometry(geometry.primary, point, rotation)};`
+    `\\fill[${fillStyle(fill)}] ${formatPlotMarkGeometry(geometry.primary, point, localOptions)};`
   ];
   if (secondaryFill) {
-    items.push(`\\fill[${fillStyle(secondaryFill)}] ${formatPlotMarkGeometry(geometry.secondary, point, rotation)};`);
+    items.push(`\\fill[${fillStyle(secondaryFill)}] ${formatPlotMarkGeometry(geometry.secondary, point, localOptions)};`);
   }
-  items.push(`\\draw[${strokedStyle}] ${formatPlotMarkGeometry(geometry.outline, point, rotation)};`);
+  items.push(`\\draw[${strokedStyle}] ${formatPlotMarkGeometry(geometry.outline, point, localOptions)};`);
   return items.join("");
 }
 
@@ -162,14 +177,23 @@ function splitPlotMarkColor(options = {}) {
 }
 
 function plotMarkRotation(options = {}) {
+  const direct = Number(options.rotate);
+  if (Number.isFinite(direct)) return direct;
   const raw = options["mark options"];
   if (!raw || raw === true) return 0;
   const value = Number(parseOptions(stripOptionBraces(raw)).rotate);
   return Number.isFinite(value) ? value : 0;
 }
 
-function formatPlotMarkGeometry(geometry, point, rotation) {
-  const placed = placePlotMarkGeometry(geometry, point, rotation);
+function formatPlotMarkGeometry(geometry, point, localOptions = {}) {
+  if (!plotMarkHasAffineTransform(localOptions)) {
+    return formatPlacedPlotMarkGeometry(placePlotMarkGeometry(geometry, point, plotMarkRotation(localOptions)));
+  }
+  const commands = plotMarkGeometryCommands(geometry, point);
+  return formatPlotMarkCommands(transformPlotMarkCommands(commands, point, localOptions));
+}
+
+function formatPlacedPlotMarkGeometry(placed) {
   return placed.primitives.map((primitive) => {
     if (primitive.type === "circle") {
       return `${formatAxisPoint(primitive.center)} circle(${formatAxisNumber(primitive.radius)})`;
@@ -184,6 +208,23 @@ function formatPlotMarkGeometry(geometry, point, rotation) {
     const path = [formatAxisPoint(first), ...rest.map((item) => formatAxisPoint(item))].join(" -- ");
     return primitive.closed ? `${path} -- cycle` : path;
   }).join(" ");
+}
+
+function plotMarkHasAffineTransform(options = {}) {
+  return ["scale", "xscale", "yscale", "xslant", "yslant", "xshift", "yshift"]
+    .some((key) => options[key] !== undefined);
+}
+
+function formatPlotMarkCommands(commands) {
+  return commands.map((command) => {
+    if (command.type === "moveTo") return formatAxisPoint(command);
+    if (command.type === "lineTo") return `-- ${formatAxisPoint(command)}`;
+    if (command.type === "curveTo") {
+      return `.. controls ${formatAxisPoint({ x: command.x1, y: command.y1 })} and ${formatAxisPoint({ x: command.x2, y: command.y2 })} .. ${formatAxisPoint(command)}`;
+    }
+    if (command.type === "closePath") return "-- cycle";
+    return "";
+  }).filter(Boolean).join(" ");
 }
 
 function stripOptionBraces(value) {
@@ -201,17 +242,41 @@ function rotatePointAround(point, x, y, degrees) {
   };
 }
 
-function datavisualizationAxisMercedesMark(point, style, mark, size) {
+function datavisualizationAxisMercedesMark(point, style, mark, size, localOptions = {}) {
   const flipped = String(mark || "").toLowerCase().includes("flipped");
   const angles = flipped ? [-90, 30, 150] : [90, 210, 330];
-  const center = formatAxisPoint(point);
-  const spokes = angles
-    .map((angle) => {
-      const end = offsetPoint(point, Math.cos((angle * Math.PI) / 180) * size, Math.sin((angle * Math.PI) / 180) * size);
-      return `${center} -- ${formatAxisPoint(end)}`;
-    })
-    .join(" ");
+  const commands = angles.flatMap((angle) => [
+    { type: "moveTo", x: point.x, y: point.y },
+    markLine(point, Math.cos((angle * Math.PI) / 180) * size, Math.sin((angle * Math.PI) / 180) * size)
+  ]);
+  const spokes = formatPlotMarkCommands(transformPlotMarkCommands(commands, point, localOptions));
   return `\\draw[${style}] ${spokes};`;
+}
+
+function markMove(point, x, y) {
+  return { type: "moveTo", ...offsetPoint(point, x, y) };
+}
+
+function markLine(point, x, y) {
+  return { type: "lineTo", ...offsetPoint(point, x, y) };
+}
+
+function localMarkColor(options, key, fallback) {
+  const raw = options[key] ?? options.color;
+  return raw === undefined || raw === null || raw === true ? fallback : plotColorValue(raw);
+}
+
+function plotMarkPaintOptions(options = {}) {
+  const supported = [
+    "opacity", "draw opacity", "fill opacity", "line cap", "line join",
+    "dash pattern", "dashed", "densely dashed", "loosely dashed",
+    "dotted", "densely dotted", "loosely dotted"
+  ];
+  return supported.flatMap((key) => {
+    const value = options[key];
+    if (value === undefined || value === null || value === false) return [];
+    return [value === true ? key : `${key}=${value}`];
+  });
 }
 
 function offsetPoint(point, x, y) {
