@@ -4,6 +4,7 @@ import {
   createScratchFixture,
   createScratchSource,
   filterFixtures,
+  fixtureAuditForSource,
   isFixtureDraft,
   renderWorkbenchSource,
   svgDownloadName
@@ -22,6 +23,7 @@ const state = {
   previewIsStale: false,
   audit: null,
   auditSource: "",
+  fixtureAudit: null,
   resources: new Map(),
   editor: null
 };
@@ -50,6 +52,7 @@ async function loadFixture(id) {
   state.previewIsStale = false;
   state.audit = audit;
   state.auditSource = source;
+  state.fixtureAudit = audit;
   state.resources = new Map(resourceRows);
   document.querySelector("#fixture-select").value = fixture.id;
   state.editor.setValue(state.lastRenderedSource, { silent: true });
@@ -90,6 +93,12 @@ async function renderCurrentSource(token = requestGate.current()) {
   button.disabled = true;
   const source = state.editor.getValue();
   const activeFigureId = state.active?.activeFigureId || undefined;
+  const fixtureAudit = fixtureAuditForSource({
+    source,
+    originalSource: state.originalSource,
+    fixtureAudit: state.fixtureAudit,
+    isScratch: state.active?.isScratch
+  });
   try {
     const [result, audit] = await Promise.all([
       renderWorkbenchSource(source, {
@@ -103,7 +112,9 @@ async function renderCurrentSource(token = requestGate.current()) {
           return resource && typeof resource === "object" ? resource : undefined;
         }
       }),
-      auditWorkbenchSource(source).catch((error) => ({ error: error.message }))
+      fixtureAudit
+        ? Promise.resolve(fixtureAudit)
+        : auditWorkbenchSource(source).catch((error) => ({ error: error.message }))
     ]);
     if (!requestGate.isCurrent(token)) return;
 

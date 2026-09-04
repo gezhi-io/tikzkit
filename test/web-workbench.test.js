@@ -8,6 +8,7 @@ import {
   createRequestGate,
   diagnosticRows,
   filterFixtures,
+  fixtureAuditForSource,
   isFixtureDraft,
   renderWorkbenchSource,
   selectTikzRenderer,
@@ -91,4 +92,25 @@ test("workbench fixture helpers provide a searchable scratch case and preserve s
   assert.equal(isFixtureDraft("changed", "original"), true);
   assert.equal(isFixtureDraft("same", "same"), false);
   assert.equal(svgDownloadName("A complicated / case"), "A-complicated-case.svg");
+});
+
+test("workbench preserves an accepted fixture audit until its source changes", () => {
+  const acceptedAudit = { gate: { accepted: true, status: "accepted" } };
+
+  assert.equal(fixtureAuditForSource({
+    source: "original",
+    originalSource: "original",
+    fixtureAudit: acceptedAudit
+  }), acceptedAudit);
+  assert.equal(fixtureAuditForSource({
+    source: "changed",
+    originalSource: "original",
+    fixtureAudit: acceptedAudit
+  }), null);
+  assert.equal(fixtureAuditForSource({
+    source: "original",
+    originalSource: "original",
+    fixtureAudit: acceptedAudit,
+    isScratch: true
+  }), null);
 });

@@ -49,6 +49,12 @@ export function isFixtureDraft(source, originalSource) {
   return String(source || "") !== String(originalSource || "");
 }
 
+export function fixtureAuditForSource({ source, originalSource, fixtureAudit, isScratch = false } = {}) {
+  if (isScratch || isFixtureDraft(source, originalSource)) return null;
+  if (!fixtureAudit || fixtureAudit.error) return null;
+  return fixtureAudit;
+}
+
 export function svgDownloadName(fixtureId) {
   const basename = String(fixtureId || "tikzkit-render")
     .trim()

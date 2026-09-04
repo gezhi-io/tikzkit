@@ -48,6 +48,7 @@ import {
   resolvePositioningPoint,
   scalePositioningDistance as scalePositioningLibraryDistance
 } from "../tikz/libraries/positioning.js";
+import { constrainedCurveControlDistance, curveToSpecFromOptions } from "../tikz/libraries/topaths.js";
 import { evaluateMath, parseDimension, roundNumber, roundPoint, substituteTextVariables, substituteVariables } from "./math.js";
 import {
   effectiveMathFontScale,
@@ -1825,10 +1826,21 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         continue;
       }
       const edgeFrom = currentBase || current;
-      // Claude: 先按"直线弦"裁一次得到端点角度基准，再判断有没有弯（bend/out-in）。
-      // 有弯时端点要沿曲线"切线方向"重新裁到节点边框，否则箭头会挂在角上（见 case 020 的两条 bend 弧）。
+      // Establish the chord first, then recrop curved endpoints along their
+      // terminal tangents so arrow tips meet the correct node border.
       const straightClipped = clipNodeLineEndpoints(edgeFrom, currentNodeRef, to, toNodeRef, env);
-      const curve = edgeCurveSpec(combinedEdgeOptions, straightClipped.from, straightClipped.to, env);
+      const rawCurve = edgeCurveSpec(combinedEdgeOptions, straightClipped.from, straightClipped.to, env);
+      const curve = rawCurve
+        ? {
+            ...rawCurve,
+            outControl: rawCurve.outControl
+              ? resolveControlPoint(rawCurve.outControl, edgeFrom, env, diagnostics)
+              : null,
+            inControl: rawCurve.inControl
+              ? resolveControlPoint(rawCurve.inControl, to, env, diagnostics)
+              : null
+          }
+        : null;
       const edgeStyle = segment.kind === "edge" ? edgeDrawableStyle(combinedEdgeOptions, pathStyle, env) : null;
       const curveStyle = edgeStyle || pathStyle;
       const clipped = curve
@@ -1856,8 +1868,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
           curve.inMinDistance,
           curve.inMaxDistance
         );
-        const c1 = polarOffset(clipped.from, curve.out, outDistance);
-        const c2 = polarOffset(clipped.to, curve.in, inDistance);
+        const c1 = curve.outControl || polarOffset(clipped.from, curve.out, outDistance);
+        const c2 = curve.inControl || polarOffset(clipped.to, curve.in, inDistance);
         targetCommands.push(curveToCommand(c1, c2, clipped.to));
         const labelGeometry = cubicLabelGeometry(clipped.from, c1, c2, clipped.to);
         flushInlinePathNodesAt(pendingInlineNodes, labelGeometry.point, nodes, env, pathStyle, labelGeometry.segment, effectivePathOptions);
@@ -10738,17 +10750,23 @@ function clipNodeLineEndpoints(from, fromRef, to, toRef, env) {
   };
 }
 
-function clipNodeReferencePoint(ref, point, toward, env) {
+function clipNodeReferencePoint(ref, point, toward, env, borderPadding = 0) {
   if (ref.mode === "anchor") return roundPoint(point);
-  return nodeBorderPoint(ref.node, point, toward, env);
+  return nodeBorderPoint(ref.node, point, toward, env, borderPadding);
 }
 
-// Claude: 曲线边的端点应落在"离开/进入"切线方向上的边框点，而不是两节点中心连线上的点。
-// out = 从起点离开的角度；in = 进入终点的切线角度（指向控制点 c2 的方向），与控制点计算保持一致。
 function clipNodeCurveEndpoints(from, fromRef, to, toRef, curve, env, terminalPadding = {}) {
   return {
-    from: fromRef ? clipNodeReferenceAlongAngle(fromRef, from, curve.out, env, terminalPadding.start) : roundPoint(from),
-    to: toRef ? clipNodeReferenceAlongAngle(toRef, to, curve.in, env, terminalPadding.end) : roundPoint(to)
+    from: fromRef
+      ? curve.outControl
+        ? clipNodeReferencePoint(fromRef, from, curve.outControl, env, terminalPadding.start)
+        : clipNodeReferenceAlongAngle(fromRef, from, curve.out, env, terminalPadding.start)
+      : roundPoint(from),
+    to: toRef
+      ? curve.inControl
+        ? clipNodeReferencePoint(toRef, to, curve.inControl, env, terminalPadding.end)
+        : clipNodeReferenceAlongAngle(toRef, to, curve.in, env, terminalPadding.end)
+      : roundPoint(to)
   };
 }
 
@@ -10907,116 +10925,15 @@ function parseLoopMinDistance(value, env) {
 }
 
 function edgeCurveSpec(options = {}, from, to, env) {
-  const state = {
-    active: false,
-    relative: false,
-    bendAngle: 30,
-    out: 45,
-    in: 135,
-    outLooseness: 1,
-    inLooseness: 1,
-    outMinDistance: 0,
-    outMaxDistance: Number.POSITIVE_INFINITY,
-    inMinDistance: 0,
-    inMaxDistance: Number.POSITIVE_INFINITY
-  };
-
-  for (const [key, value] of Object.entries(options || {})) {
-    if (key === "bend angle") {
-      state.bendAngle = parseAngleOption(value, state.bendAngle, env);
-    } else if (key === "bend left" || key === "bend right") {
-      state.bendAngle = parseAngleOption(value, state.bendAngle, env);
-      state.out = key === "bend left" ? state.bendAngle : -state.bendAngle;
-      state.in = 180 - state.out;
-      state.relative = true;
-      state.active = true;
-    } else if (key === "relative") {
-      state.relative = curveRelativeOption(value);
-    } else if (key === "out" || key === "in") {
-      state[key] = parseAngleOption(value, state[key], env);
-      state.active = true;
-    } else if (key === "looseness") {
-      const looseness = parseLoosenessOption(value, state.outLooseness, env);
-      state.outLooseness = looseness;
-      state.inLooseness = looseness;
-      state.active = true;
-    } else if (key === "out looseness") {
-      state.outLooseness = parseLoosenessOption(value, state.outLooseness, env);
-      state.active = true;
-    } else if (key === "in looseness") {
-      state.inLooseness = parseLoosenessOption(value, state.inLooseness, env);
-      state.active = true;
-    } else if (applyCurveDistanceOption(state, key, value, env)) {
-      state.active = true;
+  return curveToSpecFromOptions(options, from, to, {
+    parseAngle: (value, fallback) => parseAngleOption(value, fallback, env),
+    parseLooseness: (value, fallback) => parseLoosenessOption(value, fallback, env),
+    parseDistance: (value) => {
+      if (value === true || value === undefined || value === null || value === "") return null;
+      const distance = parseDimension(value, env.variables || {}) * canvasLengthScale(env);
+      return Number.isFinite(distance) && distance >= 0 ? distance : null;
     }
-  }
-
-  if (!state.active) return null;
-  const base = state.relative ? (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI : 0;
-  return {
-    out: base + state.out,
-    in: base + state.in,
-    outLooseness: state.outLooseness,
-    inLooseness: state.inLooseness,
-    outMinDistance: state.outMinDistance,
-    outMaxDistance: state.outMaxDistance,
-    inMinDistance: state.inMinDistance,
-    inMaxDistance: state.inMaxDistance
-  };
-}
-
-function curveControlDistanceOption(value, env) {
-  if (value === true || value === undefined || value === null || value === "") return null;
-  const distance = parseDimension(value, env.variables || {}) * canvasLengthScale(env);
-  return Number.isFinite(distance) && distance >= 0 ? distance : null;
-}
-
-function curveRelativeOption(value) {
-  if (value === false) return false;
-  if (value === true || value === undefined || value === null || value === "") return true;
-  return !/^(?:false|0|no|off)$/i.test(String(value).trim());
-}
-
-function applyCurveDistanceOption(state, key, value, env) {
-  const distance = curveControlDistanceOption(value, env);
-  if (distance === null) return false;
-  if (key === "distance") {
-    setCurveDistanceRange(state, "out", distance, distance);
-    setCurveDistanceRange(state, "in", distance, distance);
-  } else if (key === "min distance") {
-    setCurveDistanceRange(state, "out", distance, null);
-    setCurveDistanceRange(state, "in", distance, null);
-  } else if (key === "max distance") {
-    setCurveDistanceRange(state, "out", null, distance);
-    setCurveDistanceRange(state, "in", null, distance);
-  } else if (key === "out distance") {
-    setCurveDistanceRange(state, "out", distance, distance);
-  } else if (key === "in distance") {
-    setCurveDistanceRange(state, "in", distance, distance);
-  } else if (key === "out min distance") {
-    setCurveDistanceRange(state, "out", distance, null);
-  } else if (key === "out max distance") {
-    setCurveDistanceRange(state, "out", null, distance);
-  } else if (key === "in min distance") {
-    setCurveDistanceRange(state, "in", distance, null);
-  } else if (key === "in max distance") {
-    setCurveDistanceRange(state, "in", null, distance);
-  } else {
-    return false;
-  }
-  return true;
-}
-
-function setCurveDistanceRange(state, side, minimum, maximum) {
-  if (minimum !== null) state[`${side}MinDistance`] = minimum;
-  if (maximum !== null) state[`${side}MaxDistance`] = maximum;
-}
-
-function constrainedCurveControlDistance(distance, minimum = 0, maximum = Number.POSITIVE_INFINITY) {
-  let constrained = distance;
-  if (Number.isFinite(minimum) && constrained < minimum) constrained = minimum;
-  if (Number.isFinite(maximum) && constrained > maximum) constrained = maximum;
-  return constrained;
+  });
 }
 
 function cubicLabelGeometry(from, c1, c2, to) {

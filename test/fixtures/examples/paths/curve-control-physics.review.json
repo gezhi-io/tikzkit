@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf}", "\\input{tikz.code.tex}"],
+      "findings": "The package wrapper loads PGF and the TikZ front end used by this standalone fixture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\path", "\\node", "\\usetikzlibrary{topaths}"],
+      "findings": "The core path layer combines the two cubic edge paths, the dashed optical axis, and the separate annotation node."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex": {
+      "symbols": ["\\tikz@to@parse@controls", "\\tikz@to@set@in@control", "\\tikz@to@set@out@control"],
+      "findings": "Incoming and outgoing controls are independent, allowing the lower propagation path to use asymmetric terminal tangents."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Stealth", "length"],
+      "findings": "The propagation paths use 2mm Stealth tips aligned to their incoming cubic tangents."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex": {
+      "symbols": ["out control", "in control", "controls"],
+      "findings": "The manual distinguishes the start-relative outgoing coordinate from the end-relative incoming coordinate used here."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document environment", "\\documentclass", "\\usepackage"],
+      "findings": "The document shell supplies standalone setup and a 2pt crop border around the TikZ picture."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] }
+  ]
+}

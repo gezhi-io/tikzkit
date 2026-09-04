@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf}", "\\input{tikz.code.tex}"],
+      "findings": "The package wrapper loads PGF and the TikZ front end used by this standalone fixture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\path", "\\node", "\\usetikzlibrary{topaths}"],
+      "findings": "TikZ owns path/node parsing and loads topaths as part of its core path behavior."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex": {
+      "symbols": ["\\tikz@to@parse@controls", "\\tikz@to@set@in@control", "\\tikz@to@set@out@control", "\\tikz@to@compute"],
+      "findings": "Paired controls install independent incoming and outgoing compute callbacks; relative coordinates are measured from their respective endpoints."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Stealth", "length"],
+      "findings": "The route style uses a filled 2mm Stealth tip whose orientation follows the terminal cubic tangent."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": {
+      "symbols": ["diamond", "aspect"],
+      "findings": "The decision node is a diamond with aspect 2, so each cubic terminal must be clipped against its sloped border."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex": {
+      "symbols": ["out control", "in control", "controls"],
+      "findings": "The manual specifies start-relative outgoing controls, end-relative incoming controls, and the paired controls shorthand."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["document environment", "\\documentclass", "\\usepackage"],
+      "findings": "The document shell supplies standalone setup and a 2pt crop border around the TikZ picture."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/to-path-controls.test.js", "docs/qa/2026-09-04-topaths-explicit-controls.md"] }
+  ]
+}

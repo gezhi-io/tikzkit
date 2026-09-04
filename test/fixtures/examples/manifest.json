@@ -5552,6 +5552,49 @@
         "control feedback",
         "Stealth arrows"
       ]
+    },
+    {
+      "id": "to-path-control-flowchart",
+      "title": "Explicit cubic controls in a review flow",
+      "source": "paths/curve-control-flowchart.tex",
+      "sourceCorpus": "TeX Live TikZ edge curve controls",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-edges.tex",
+      "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:edgeCurveSpec",
+      "features": [
+        "controls",
+        "out control",
+        "in control",
+        "edge labels",
+        "flowchart"
+      ]
+    },
+    {
+      "id": "to-path-control-math",
+      "title": "Explicit cubic controls for parallel morphisms",
+      "source": "paths/curve-control-math.tex",
+      "sourceCorpus": "TeX Live TikZ edge curve controls",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-edges.tex",
+      "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:edgeCurveSpec",
+      "features": [
+        "absolute controls",
+        "relative controls",
+        "math labels",
+        "Latex arrows"
+      ]
+    },
+    {
+      "id": "to-path-control-physics",
+      "title": "Explicit cubic controls for propagation paths",
+      "source": "paths/curve-control-physics.tex",
+      "sourceCorpus": "TeX Live TikZ edge curve controls",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-edges.tex",
+      "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:edgeCurveSpec",
+      "features": [
+        "controls",
+        "asymmetric control points",
+        "physics paths",
+        "Stealth arrows"
+      ]
     }
   ]
 }
