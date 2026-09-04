@@ -14299,7 +14299,7 @@ function applyPathMorphingToSubpaths(commands, amplitude, segmentLength, mode, p
       return;
     }
 
-    const points = flattenPath(subpath, 0.04);
+    const points = flattenDecorationPath(subpath);
     if (points.length < 2) {
       morphed.push(...subpath);
       subpath = [];
@@ -15367,11 +15367,16 @@ function appendNativeSnakePolylineInStateFrames(commands, points, amplitude, seg
 }
 
 function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, activeStart, activeLength, normalSign = 1, normalRaise = 0) {
-  const point = (distance, normalOffset = 0) => {
+  const inputPoint = (distance) => {
     const sample = pointOnPolyline(points, activeStart + Math.max(0, Math.min(activeLength, distance)));
+    return sample;
+  };
+  const statePoint = (stateOrigin, xOffset = 0, yOffset = 0) => {
+    const sample = inputPoint(stateOrigin);
+    const tangent = { x: sample.normal.y, y: -sample.normal.x };
     return {
-      x: roundNumber(sample.x + sample.normal.x * (normalRaise + normalSign * normalOffset)),
-      y: roundNumber(sample.y + sample.normal.y * (normalRaise + normalSign * normalOffset))
+      x: roundNumber(sample.x + tangent.x * xOffset + sample.normal.x * (normalRaise + normalSign * yOffset)),
+      y: roundNumber(sample.y + tangent.y * xOffset + sample.normal.y * (normalRaise + normalSign * yOffset))
     };
   };
   const pushLineTo = (next) => {
@@ -15379,7 +15384,7 @@ function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, 
     if (previous && Math.hypot((previous.x ?? 0) - next.x, (previous.y ?? 0) - next.y) < 1e-9) return;
     commands.push({ type: "lineTo", x: next.x, y: next.y });
   };
-  const finishAt = point(activeLength);
+  const finishAt = statePoint(activeLength);
   const halfSegment = segmentLength / 2;
   if (activeLength < halfSegment - 1e-9) {
     pushLineTo(finishAt);
@@ -15391,15 +15396,15 @@ function appendNativeZigzagPolyline(commands, points, amplitude, segmentLength, 
   // states. Each state has width segmentLength / 2 and places its apex at
   // its local quarter point. If less than a half state remains, PGF emits
   // `center finish` at the state origin, then joins the actual endpoint.
-  pushLineTo(point(segmentLength / 4, amplitude));
+  pushLineTo(statePoint(0, segmentLength / 4, amplitude));
   let stateOrigin = halfSegment;
   let phase = -1;
   while (activeLength - stateOrigin >= halfSegment - 1e-9) {
-    pushLineTo(point(stateOrigin + segmentLength / 4, phase * amplitude));
+    pushLineTo(statePoint(stateOrigin, segmentLength / 4, phase * amplitude));
     stateOrigin += halfSegment;
     phase *= -1;
   }
-  pushLineTo(point(stateOrigin));
+  pushLineTo(statePoint(stateOrigin));
   pushLineTo(finishAt);
 }
 
@@ -15430,6 +15435,103 @@ function polylineLength(points) {
   return total;
 }
 
+function flattenDecorationPath(commands) {
+  const points = [];
+  const tolerance = parseDimension("1pt", {});
+  let current = null;
+  let start = null;
+
+  const pushLineEnd = (point) => {
+    points.push(roundPoint(point));
+    current = point;
+  };
+  const pushCurve = (from, control1, control2, to) => {
+    appendDecorationCubicSamples(points, from, control1, control2, to, tolerance);
+    current = to;
+  };
+
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      start = current;
+      points.push(roundPoint(current));
+      continue;
+    }
+    if (command.type === "lineTo" && current) {
+      pushLineEnd({ x: command.x, y: command.y });
+      continue;
+    }
+    if (command.type === "quadTo" && current) {
+      const control = { x: command.x1, y: command.y1 };
+      const to = { x: command.x, y: command.y };
+      pushCurve(
+        current,
+        {
+          x: current.x + (2 / 3) * (control.x - current.x),
+          y: current.y + (2 / 3) * (control.y - current.y)
+        },
+        {
+          x: to.x + (2 / 3) * (control.x - to.x),
+          y: to.y + (2 / 3) * (control.y - to.y)
+        },
+        to
+      );
+      continue;
+    }
+    if (command.type === "curveTo" && current) {
+      pushCurve(
+        current,
+        { x: command.x1, y: command.y1 },
+        { x: command.x2, y: command.y2 },
+        { x: command.x, y: command.y }
+      );
+      continue;
+    }
+    if (command.type === "closePath" && current && start) {
+      pushLineEnd(start);
+    }
+  }
+
+  return points;
+}
+
+function appendDecorationCubicSamples(points, from, control1, control2, to, tolerance) {
+  const curve = { from, control1, control2, to };
+  const appendPiece = (piece, t0, t1, depth) => {
+    const smallChord = Math.abs(piece.to.x - piece.from.x) < tolerance
+      && Math.abs(piece.to.y - piece.from.y) < tolerance;
+    if ((depth > 0 && smallChord) || depth >= 18) {
+      points.push({
+        ...roundPoint(piece.to),
+        decorationCurve: { ...curve, t0, t1 }
+      });
+      return;
+    }
+    const [left, right] = splitDecorationCubic(piece);
+    const middle = (t0 + t1) / 2;
+    appendPiece(left, t0, middle, depth + 1);
+    appendPiece(right, middle, t1, depth + 1);
+  };
+
+  // PGF always begins its curve-length calculation with one subdivision,
+  // even when the cubic starts and ends at the same point.
+  appendPiece(curve, 0, 1, 0);
+}
+
+function splitDecorationCubic({ from, control1, control2, to }) {
+  const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const p01 = midpoint(from, control1);
+  const p12 = midpoint(control1, control2);
+  const p23 = midpoint(control2, to);
+  const p012 = midpoint(p01, p12);
+  const p123 = midpoint(p12, p23);
+  const middle = midpoint(p012, p123);
+  return [
+    { from, control1: p01, control2: p012, to: middle },
+    { from: middle, control1: p123, control2: p23, to }
+  ];
+}
+
 function pointOnPolyline(points, distance) {
   let walked = 0;
   for (let index = 1; index < points.length; index += 1) {
@@ -15441,6 +15543,19 @@ function pointOnPolyline(points, distance) {
     if (segmentLength < 1e-12) continue;
     if (walked + segmentLength >= distance - 1e-12) {
       const local = Math.max(0, Math.min(1, (distance - walked) / segmentLength));
+      const curve = current.decorationCurve;
+      if (curve) {
+        const time = curve.t0 + (curve.t1 - curve.t0) * local;
+        const point = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, time);
+        const tangent = cubicTangentAt(curve.from, curve.control1, curve.control2, curve.to, time);
+        if (tangent) {
+          return {
+            ...point,
+            walked: walked + segmentLength * local,
+            normal: { x: -tangent.y, y: tangent.x }
+          };
+        }
+      }
       return {
         x: previous.x + dx * local,
         y: previous.y + dy * local,
@@ -15455,6 +15570,18 @@ function pointOnPolyline(points, distance) {
   const dx = last.x - previous.x;
   const dy = last.y - previous.y;
   const segmentLength = Math.hypot(dx, dy) || 1;
+  const curve = last.decorationCurve;
+  if (curve) {
+    const point = cubicPointAt(curve.from, curve.control1, curve.control2, curve.to, curve.t1);
+    const tangent = cubicTangentAt(curve.from, curve.control1, curve.control2, curve.to, curve.t1);
+    if (tangent) {
+      return {
+        ...point,
+        walked,
+        normal: { x: -tangent.y, y: tangent.x }
+      };
+    }
+  }
   return {
     x: last.x,
     y: last.y,

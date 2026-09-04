@@ -36,17 +36,20 @@ test("matches PGF zigzag's quarter-segment apex and center-finish state", () => 
   assert.equal(lineTo.at(-2).y, 0, "PGF center finish returns to the state origin before the endpoint");
 });
 
-test("does not restart zigzag phase at a polyline corner", () => {
-  const segment = parseDimension("8mm");
+test("keeps each zigzag state in the tangent frame selected after a polyline corner", () => {
   const path = decoratedPath(String.raw`
 \begin{tikzpicture}
   \draw[decorate, decoration={zigzag,segment length=8mm,amplitude=1.5mm}] (0,0) -- (2.15,0) -- (2.15,1.25) -- (5.5,1.25);
 \end{tikzpicture}`);
   const lineTo = path.commands.filter((command) => command.type === "lineTo");
-  const firstPointAfterCorner = lineTo.find((command) => command.x > 2.2 && command.y > 0 && command.y < segment / 4);
+  const cornerIndex = lineTo.findIndex((command) => Math.abs(command.x - 2.2) < 1e-6);
 
-  assert.ok(firstPointAfterCorner, "expected an apex on the vertical leg");
-  // A restarted decoration would put its first vertical apex at segment / 4
-  // after the corner. The PGF state continues from the complete subpath.
-  expectClose(firstPointAfterCorner.y, 0.05);
+  assert.ok(cornerIndex >= 0, "expected the horizontal state that crosses the corner");
+  // Local MacTeX and tikztosvg continue the global phase, then install the
+  // vertical tangent frame at the next state origin 0.25cm up the second leg.
+  expectClose(lineTo[cornerIndex].y, -0.15);
+  expectClose(lineTo[cornerIndex + 1].x, 2.0);
+  expectClose(lineTo[cornerIndex + 1].y, 0.45);
+  expectClose(lineTo[cornerIndex + 2].x, 2.3);
+  expectClose(lineTo[cornerIndex + 2].y, 0.85);
 });
