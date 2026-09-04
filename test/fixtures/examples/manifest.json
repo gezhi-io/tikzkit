@@ -5841,6 +5841,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendNativeRandomStepsPolyline/createPgfDecorationPathWalker",
       "features": ["random steps", "automatic corners", "pre length", "post length", "particle trajectory", "physics"]
+    },
+    {
+      "id": "decorations-pathmorphing-straight-zigzag-flowchart",
+      "title": "Alternating straight and zigzag transitions in a data flow",
+      "source": "decorations/pathmorphing-straight-zigzag/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF straight zigzag declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathmorphing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeStraightZigzagPolyline",
+      "features": ["straight zigzag", "meta-segment length", "segment length", "amplitude", "arrows", "flowchart"]
+    },
+    {
+      "id": "decorations-pathmorphing-straight-zigzag-math",
+      "title": "Alternating model along a cubic mathematical curve",
+      "source": "decorations/pathmorphing-straight-zigzag/math.tex",
+      "sourceCorpus": "TeX Live PGF straight zigzag declaration and TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeStraightZigzagPolyline/createPgfDecorationPathWalker",
+      "features": ["straight zigzag", "curveto child", "cubic tangent frame", "meta-segment length", "mathematics"]
+    },
+    {
+      "id": "decorations-pathmorphing-straight-zigzag-physics",
+      "title": "Alternating pulsed propagation between two devices",
+      "source": "decorations/pathmorphing-straight-zigzag/physics.tex",
+      "sourceCorpus": "TeX Live PGF straight zigzag declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendNativeStraightZigzagPolyline",
+      "features": ["straight zigzag", "meta-segment length", "segment length", "amplitude", "signal propagation", "physics"]
     }
   ]
 }

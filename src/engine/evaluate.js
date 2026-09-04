@@ -13958,25 +13958,32 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
     ? "snake"
     : decoration.zigzag
       ? "zigzag"
-      : decoration.coil
-        ? "coil"
-        : decoration.saw
-          ? "saw"
-          : decoration.bumps
-            ? "bumps"
-            : decoration.bent
-              ? "bent"
-              : decoration["random steps"]
-                ? "random steps"
-                : null;
+      : decoration["straight zigzag"]
+        ? "straight zigzag"
+        : decoration.coil
+          ? "coil"
+          : decoration.saw
+            ? "saw"
+            : decoration.bumps
+              ? "bumps"
+              : decoration.bent
+                ? "bent"
+                : decoration["random steps"]
+                  ? "random steps"
+                  : null;
   if (!pathOptions.decorate || !mode) return commands;
   const defaultAmplitude = parseDimension("2.5pt", env.variables);
   const defaultSegmentLength = parseDimension("10pt", env.variables);
+  const defaultMetaSegmentLength = parseDimension("1cm", env.variables);
   const minimumSegmentLength = parseDimension("1pt", env.variables);
   const amplitude = parseFinitePgfLength(decoration.amplitude ?? "2.5pt", env, defaultAmplitude);
   const segmentLength = Math.max(
     minimumSegmentLength,
     parseFinitePgfLength(decoration["segment length"] ?? "10pt", env, defaultSegmentLength)
+  );
+  const metaSegmentLength = Math.max(
+    minimumSegmentLength,
+    parseFinitePgfLength(decoration["meta-segment length"] ?? "1cm", env, defaultMetaSegmentLength)
   );
   // TikZ decorates the path before the arrow-tip shortening pass.  In
   // particular, adding an arrow must not alter the snake's phase or the
@@ -13992,7 +13999,7 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
   // PGF runs path-morphing decorations over the complete input subpath and
   // applies pre/post lengths only at its endpoints. Individual declarations
   // decide whether states span or restart at input-segment boundaries.
-  if (mode === "snake" || mode === "zigzag" || mode === "coil" || mode === "saw" || mode === "bumps" || mode === "bent" || mode === "random steps") {
+  if (mode === "snake" || mode === "zigzag" || mode === "straight zigzag" || mode === "coil" || mode === "saw" || mode === "bumps" || mode === "bent" || mode === "random steps") {
     return applyPathMorphingToSubpaths(
       commands,
       amplitude,
@@ -14004,7 +14011,8 @@ function applyPathMorphing(commands, pathOptions, env, pathStyle = {}) {
       normalSign,
       normalRaise,
       pathHasCorners,
-      env.pgfRandom
+      env.pgfRandom,
+      metaSegmentLength
     );
   }
   const morphed = [];
@@ -14323,6 +14331,7 @@ function supportedPathDecoration(options = {}) {
     || tikzBoolean(decoration["Koch snowflake"])
     || tikzBoolean(decoration.snake)
     || tikzBoolean(decoration.zigzag)
+    || tikzBoolean(decoration["straight zigzag"])
     || tikzBoolean(decoration.coil)
     || tikzBoolean(decoration.saw)
     || tikzBoolean(decoration.bumps)
@@ -14341,7 +14350,8 @@ function applyPathMorphingToSubpaths(
   normalSign = 1,
   normalRaise = 0,
   pathHasCorners = false,
-  pgfRandom = createPgfRandom()
+  pgfRandom = createPgfRandom(),
+  metaSegmentLength = parseDimension("1cm", {})
 ) {
   const morphed = [];
   let subpath = [];
@@ -14377,7 +14387,8 @@ function applyPathMorphingToSubpaths(
       normalSign,
       normalRaise,
       pathHasCorners,
-      pgfRandom
+      pgfRandom,
+      metaSegmentLength
     );
     if (subpath.at(-1)?.type === "closePath") morphed.push({ type: "closePath" });
     subpath = [];
@@ -15284,7 +15295,8 @@ function appendMorphedPolyline(
   normalSign = 1,
   normalRaise = 0,
   pathHasCorners = false,
-  pgfRandom = createPgfRandom()
+  pgfRandom = createPgfRandom(),
+  metaSegmentLength = parseDimension("1cm", {})
 ) {
   const length = polylineLength(points);
   const to = points.at(-1);
@@ -15293,8 +15305,13 @@ function appendMorphedPolyline(
     commands.push({ type: "lineTo", x: to.x, y: to.y });
     return;
   }
-  const activeStart = Math.min(Math.max(0, preLength), length);
-  const activeEnd = Math.max(activeStart, length - Math.min(Math.max(0, postLength), Math.max(0, length - activeStart)));
+  // TikZ starts a meta-decoration directly, bypassing its internal pre/main/
+  // post wrapper. Consequently straight zigzag ignores pre/post lengths.
+  const directMetaDecoration = mode === "straight zigzag";
+  const activeStart = directMetaDecoration ? 0 : Math.min(Math.max(0, preLength), length);
+  const activeEnd = directMetaDecoration
+    ? length
+    : Math.max(activeStart, length - Math.min(Math.max(0, postLength), Math.max(0, length - activeStart)));
   const activeLength = activeEnd - activeStart;
   if (activeStart > 1e-12) {
     const startPoint = pointOnPolyline(points, activeStart);
@@ -15316,6 +15333,20 @@ function appendMorphedPolyline(
       normalRaise
     );
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
+    return;
+  }
+  if (mode === "straight zigzag") {
+    appendNativeStraightZigzagPolyline(
+      commands,
+      points,
+      amplitude,
+      segmentLength,
+      metaSegmentLength,
+      activeStart,
+      activeLength,
+      normalSign,
+      normalRaise
+    );
     return;
   }
   if (mode === "snake") {
@@ -15405,6 +15436,100 @@ function appendMorphedPolyline(
     );
     if (postLength > 1e-12) commands.push({ type: "lineTo", x: to.x, y: to.y });
   }
+}
+
+function appendNativeStraightZigzagPolyline(
+  commands,
+  points,
+  amplitude,
+  segmentLength,
+  metaSegmentLength,
+  activeStart,
+  activeLength,
+  normalSign = 1,
+  normalRaise = 0
+) {
+  const pathLength = polylineLength(points);
+  const finishDistance = activeStart + activeLength;
+  const pointAt = (distance, transformed = false) => {
+    const sample = pointOnPolyline(points, Math.max(0, Math.min(pathLength, distance)));
+    if (!transformed || Math.abs(normalRaise) < 1e-12) return roundPoint(sample);
+    const offset = normalSign * normalRaise;
+    return {
+      x: roundNumber(sample.x + sample.normal.x * offset),
+      y: roundNumber(sample.y + sample.normal.y * offset)
+    };
+  };
+  const pushLine = (next) => {
+    const previous = commands.at(-1);
+    if (previous && Math.hypot((previous.x ?? 0) - next.x, (previous.y ?? 0) - next.y) < 1e-9) return;
+    const before = commands.at(-2);
+    if (before && previous?.type === "lineTo" && Number.isFinite(before.x) && Number.isFinite(before.y)) {
+      const ax = previous.x - before.x;
+      const ay = previous.y - before.y;
+      const bx = next.x - previous.x;
+      const by = next.y - previous.y;
+      const cross = ax * by - ay * bx;
+      const scale = Math.max(1, Math.hypot(ax, ay) * Math.hypot(bx, by));
+      if (Math.abs(cross) <= 1e-9 * scale && ax * bx + ay * by >= 0) {
+        commands[commands.length - 1] = { type: "lineTo", x: next.x, y: next.y };
+        return;
+      }
+    }
+    commands.push({ type: "lineTo", x: next.x, y: next.y });
+  };
+
+  // `curveto` advances by one hundredth of the original input segment.
+  // A nested invocation exposes only complete states to the next meta state;
+  // its unconsumed fraction is recovered by the meta-decoration's final state.
+  const curveStep = Math.max(pathLength / 100, 1e-12);
+  let cursor = activeStart;
+  const appendCurvetoChild = (requestedWidth, transformed) => {
+    const available = Math.max(0, finishDistance - cursor);
+    const width = Math.min(Math.max(0, requestedWidth), available);
+    const stateCount = Math.floor((width + 1e-10) / curveStep);
+    const consumed = Math.min(available, stateCount * curveStep);
+    for (let index = 0; index < stateCount; index += 1) {
+      pushLine(pointAt(cursor + index * curveStep, transformed));
+    }
+    cursor += consumed;
+    pushLine(pointAt(cursor));
+  };
+
+  const appendZigzagChild = (requestedWidth) => {
+    const available = Math.max(0, finishDistance - cursor);
+    const halfSegment = segmentLength / 2;
+    const width = Math.min(Math.max(0, requestedWidth), available);
+    const stateCount = Math.floor((width + 1e-10) / halfSegment);
+    for (let index = 0; index < stateCount; index += 1) {
+      const stateOrigin = cursor + index * halfSegment;
+      const sample = pointOnPolyline(points, stateOrigin);
+      const tangent = { x: sample.normal.y, y: -sample.normal.x };
+      const phase = index % 2 === 0 ? 1 : -1;
+      pushLine({
+        x: roundNumber(sample.x + tangent.x * segmentLength / 4 + sample.normal.x * phase * amplitude),
+        y: roundNumber(sample.y + tangent.y * segmentLength / 4 + sample.normal.y * phase * amplitude)
+      });
+    }
+    cursor += Math.min(available, stateCount * halfSegment);
+    pushLine(pointAt(cursor));
+  };
+
+  let nominalRemaining = activeLength;
+  let useCurveto = true;
+  let firstChild = true;
+  while (nominalRemaining + 1e-10 >= metaSegmentLength) {
+    if (useCurveto) appendCurvetoChild(metaSegmentLength, firstChild);
+    else appendZigzagChild(metaSegmentLength);
+    nominalRemaining = Math.max(0, nominalRemaining - metaSegmentLength);
+    useCurveto = !useCurveto;
+    firstChild = false;
+  }
+
+  // The meta-decoration always finishes with curveto. Its final endpoint is
+  // the raw decorated-path endpoint, which also cancels a first-child raise.
+  appendCurvetoChild(nominalRemaining, firstChild);
+  pushLine(pointAt(finishDistance));
 }
 
 function appendNativeRandomStepsPolyline(
