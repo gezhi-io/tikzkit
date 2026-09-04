@@ -155,11 +155,12 @@ export function lineBaselineGap(baseFontSize, first = {}, second = {}, options =
   return baseFontSize * (firstScale + secondScale) * (options.compactMixedSize ? 0.43 : 0.5);
 }
 
-export function lineFontAttributes(lineStyle, baseFontSize, sourceLine = "") {
+export function lineFontAttributes(lineStyle, baseFontSize, sourceLine = "", options = {}) {
   const fontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(sourceLine);
+  const fontVariant = options.omitFontVariant ? "" : fontVariantAttribute(lineStyle);
   return `${lineStyle.scale && lineStyle.scale !== 1 ? ` font-size="${format(baseFontSize * lineStyle.scale)}"` : ""}${fontWeightAttribute(
     lineStyle
-  )}${fontStyle}${fontVariantAttribute(lineStyle)}`;
+  )}${fontStyle}${fontVariant}`;
 }
 
 export function fontWeightAttribute(lineStyle) {

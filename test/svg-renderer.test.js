@@ -518,7 +518,7 @@ test("mid-line font declarations style only following segments", () => {
   const cases = [
     { command: String.raw`\bfseries`, text: "bold", attribute: "font-weight", value: "700" },
     { command: String.raw`\itshape`, text: "italic", attribute: "font-style", value: "italic" },
-    { command: String.raw`\scshape`, text: "caps", attribute: "font-variant", value: "small-caps" },
+    { command: String.raw`\scshape`, text: "caps", attribute: "font-family", value: "TikZKitCMSC10" },
     { command: String.raw`\sffamily`, text: "sans", attribute: "font-family", value: "TikZKitCMUSans" }
   ];
 
@@ -559,7 +559,7 @@ test("scoped text font wrappers style only their arguments and restore afterward
     { command: "textsf", text: "sans", attribute: "font-family", value: "TikZKitCMUSans" },
     { command: "texttt", text: "mono", attribute: "font-family", value: "KaTeX_Typewriter" },
     { command: "textsl", text: "slanted", attribute: "font-style", value: "italic" },
-    { command: "textsc", text: "caps", attribute: "font-variant", value: "small-caps" }
+    { command: "textsc", text: "caps", attribute: "font-family", value: "TikZKitCMSC10" }
   ];
 
   for (const entry of cases) {
@@ -603,6 +603,28 @@ test("scoped text font wrappers style only their arguments and restore afterward
       new RegExp(`before <tspan\\b(?=[^>]*${entry.attribute}="[^"]*${entry.value}[^"]*")[^>]*>${entry.text}<\\/tspan> after`)
     );
   }
+});
+
+test("serif small caps use the MacTeX cmcsc10 face without changing source case", () => {
+  const whole = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node[font=\scshape] {Flow State};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  ).svg;
+  const scoped = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node {Normal \textsc{Math Label}};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  ).svg;
+  const segmented = tikzToSvg(
+    String.raw`\begin{tikzpicture}\node[font=\small\scshape,align=center] {\textcolor{red}{F}low\\\textcolor{blue}{P}hysics};\end{tikzpicture}`,
+    { mathRenderer: "svg-text" }
+  ).svg;
+
+  assert.match(whole, /font-family="TikZKitCMSC10, TikZKitCMUSerif, serif"[^>]*>Flow State<\/text>/);
+  assert.match(scoped, /<tspan\b[^>]*font-family="TikZKitCMSC10, TikZKitCMUSerif, serif"[^>]*>Math Label<\/tspan>/);
+  assert.match(segmented, /font-family="TikZKitCMSC10, TikZKitCMUSerif, serif"/);
+  assert.match(segmented, />F<\/tspan>low/);
+  assert.match(segmented, />P<\/tspan>hysics/);
+  assert.doesNotMatch(`${whole}${scoped}${segmented}`, /FLOW STATE|MATH LABEL|>F<\/tspan>LOW|>P<\/tspan>HYSICS/);
 });
 
 test("resolved FontSpec properties reach plain SVG without legacy style fields", () => {
@@ -918,8 +940,8 @@ test("svg text engine isolates font variant, math style, and math version cache 
   });
 
   assert.notEqual(normal.cacheKey, smallCaps.cacheKey);
-  assert.doesNotMatch(engine.renderFromCache(normal.cacheKey).body, /font-variant="small-caps"/);
-  assert.match(engine.renderFromCache(smallCaps.cacheKey).body, /font-variant="small-caps"/);
+  assert.doesNotMatch(engine.renderFromCache(normal.cacheKey).body, /TikZKitCMSC10/);
+  assert.match(engine.renderFromCache(smallCaps.cacheKey).body, /font-family="TikZKitCMSC10, TikZKitCMUSerif, serif"/);
 
   const textMath = engine.measure({
     text: "$x$",

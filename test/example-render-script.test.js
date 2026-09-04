@@ -1178,6 +1178,7 @@ test("example fixture renderer converts SVG artifacts to PNG when rsvg-convert i
   const tikzkitSvg = await readFile(path.join(outputRoot, "tikzkit-svg", "axis-basic-range.svg"), "utf8");
 
   await access(path.join(outputRoot, "fonts", "TikZKitCMUSerif-Roman.otf"));
+  await access(path.join(outputRoot, "fonts", "TikZKitCMSC10-Regular.otf"));
   await access(path.join(outputRoot, "fonts", "TikZKitMath_Caligraphic-Regular.ttf"));
   assert.match(tikzkitPng, /png:axis-basic-range\.svg/);
   assert.match(tikzkitGridPng, /png:axis-basic-range\.svg/);

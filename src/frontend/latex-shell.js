@@ -849,8 +849,8 @@ function renderTcsLogoAt(call, yOffset) {
   // uses a calibrated anchor so its rendered baselines match the local tikztosvg
   // reference for the four-logo stack.
   lines.push(
-    `\\node[align=center,anchor=north,font=\\scriptsize\\scshape,scale=2.25,tikzkit text width scale=0.85] at (0,${y(-1.2)}) ` +
-      `{\\textcolor{${border}}{T}HEORETICAL \\\\ \\textcolor{${border}}{C}OMPUTER \\\\ \\textcolor{${border}}{S}CIENCE};`
+    `\\node[align=center,anchor=north,font=\\scriptsize\\scshape,scale=2.25] at (0,${y(-1.05)}) ` +
+      `{\\textcolor{${border}}{T}heoretical \\\\ \\textcolor{${border}}{C}omputer \\\\ \\textcolor{${border}}{S}cience};`
   );
   return lines;
 }

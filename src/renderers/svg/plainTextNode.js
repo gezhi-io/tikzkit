@@ -1,14 +1,15 @@
 import { measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
-import {
-  TIKZ_FONT_FAMILY,
-  TIKZ_HELVETICA_FONT_FAMILY,
-  TIKZ_MONOSPACE_FONT_FAMILY,
-  TIKZ_SANS_SERIF_FONT_FAMILY
-} from "../../tikz/metrics.js";
+import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { textFontSizeForUnit } from "./layout.js";
 import { hasTextColorSegments, renderSegmentedTextNode } from "./segmentedText.js";
+import {
+  renderFontFamilyForStyle,
+  resolvedFontFamily,
+  resolvedFontStyle,
+  usesDedicatedSmallCapsFace
+} from "./fontFamilies.js";
 import {
   alignedTextX,
   baselineOffsets,
@@ -40,9 +41,10 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   }
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const rawFontFamily = resolvedFontFamily(item, normalized);
-  const fontFamily = escapeAttribute(rawFontFamily);
   const fontFallback = resolvedFontStyle(item);
   const rawFontVariant = normalized.fontVariant || item.style?.fontVariant || fontFallback.fontVariant;
+  const rootFontStyle = { ...fontFallback, fontVariant: rawFontVariant };
+  const fontFamily = escapeAttribute(renderFontFamilyForStyle(rawFontFamily, rootFontStyle));
   const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const sourceLines = normalized.lines.length ? normalized.lines : [normalized.text];
   const formattedLines = sourceLines.map(formatTextLine);
@@ -68,14 +70,15 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   const textAnchor = explicitTextAnchor || textAnchorForAlign(align);
   const y = format(-item.y * unit + plainTextVisualCenterOffset(item, unit));
   const widthScale = textWidthScale(item, rawFontFamily);
-  const textFontVariant = fontVariantAttribute({ fontVariant: rawFontVariant });
+  const textFontVariant = usesDedicatedSmallCapsFace(rawFontFamily, rootFontStyle)
+    ? ""
+    : fontVariantAttribute({ fontVariant: rawFontVariant });
   if (lines.length <= 1) {
     const lineStyle = lineStyles[0] || {};
     const lineFontSize = fontSize * (lineStyle.scale || 1) * mathOnlyGlyphFontScale(contentLines[0]);
-    const lineFontFamily = escapeAttribute(renderFontFamilyForWeight(
-      lineStyle.fontFamily || rawFontFamily,
-      lineStyle.fontWeight
-    ));
+    const lineVariant = lineStyle.fontVariant || rawFontVariant;
+    const lineRenderStyle = { ...lineStyle, fontVariant: lineVariant };
+    const lineFontFamily = escapeAttribute(renderFontFamilyForStyle(lineStyle.fontFamily || rawFontFamily, lineRenderStyle));
     const content = renderLineFontSegments(
       contentLines[0],
       lines[0] || "",
@@ -83,10 +86,13 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
       lineFontSize,
       unit,
       renderSvgTextLineContent,
-      rawFontFamily
+      rawFontFamily,
+      rawFontVariant
     );
     const lineFontStyle = fontStyleAttribute(lineStyle) || mathLineFontStyleAttribute(contentLines[0]);
-    const lineFontVariant = fontVariantAttribute(lineStyle) || textFontVariant;
+    const lineFontVariant = usesDedicatedSmallCapsFace(lineStyle.fontFamily || rawFontFamily, lineRenderStyle)
+      ? ""
+      : fontVariantAttribute(lineStyle) || textFontVariant;
     const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="${textAnchor}" dominant-baseline="middle" xml:space="preserve" font-size="${format(
       lineFontSize
     )}"${fontWeightAttribute(lineStyle)}${lineFontStyle}${lineFontVariant} font-family="${lineFontFamily}">${content}</text>`;
@@ -107,9 +113,14 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
       const dy = index === 0 ? lineOffsets[0] : lineOffsets[index] - lineOffsets[index - 1];
       const lineStyle = lineStyles[index] || {};
       const lineFontSize = fontSize * (lineStyle.scale || 1);
-      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize, contentLines[index])}${lineFontFamilyAttribute(
+      const lineVariant = lineStyle.fontVariant || rawFontVariant;
+      const lineRenderStyle = { ...lineStyle, fontVariant: lineVariant };
+      return `<tspan x="${x}" dy="${format(dy)}"${lineFontAttributes(lineStyle, fontSize, contentLines[index], {
+        omitFontVariant: usesDedicatedSmallCapsFace(lineStyle.fontFamily || rawFontFamily, lineRenderStyle)
+      })}${lineFontFamilyAttribute(
         lineStyle,
-        rawFontFamily
+        rawFontFamily,
+        rawFontVariant
       )}>${renderLineFontSegments(
         contentLines[index],
         line,
@@ -117,7 +128,8 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
         lineFontSize,
         unit,
         renderSvgTextLineContent,
-        rawFontFamily
+        rawFontFamily,
+        rawFontVariant
       )}</tspan>`;
     })
     .join("");
@@ -243,10 +255,14 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
           const segments = wrapped.lineStyles[index]?.fontSegments || [];
           const measured = segments.length > 1
             ? segments.reduce(
-                (sum, segment) => sum + texTextWidthCm(segment.text, lineScale * (Number(segment.scale) || 1)),
+                (sum, segment) => sum + styledTextWidthCm(
+                  segment.text,
+                  lineScale * (Number(segment.scale) || 1),
+                  segment.variant || wrapped.lineStyles[index]?.fontVariant
+                ),
                 0
               )
-            : texTextWidthCm(line, lineScale);
+            : styledTextWidthCm(line, lineScale, wrapped.lineStyles[index]?.fontVariant);
           return measured * widthScale;
         }),
         0
@@ -292,10 +308,25 @@ function measuredWrappedTextHeightPx(lines, lineSizes, offsets, unit) {
   return Number.isFinite(top) && Number.isFinite(bottom) ? Math.max(0, bottom - top) : NaN;
 }
 
-function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSize, unit, renderSvgTextLineContent, parentFamily) {
+function styledTextWidthCm(text, scale, fontVariant) {
+  if (fontVariant !== "small-caps") return texTextWidthCm(text, scale);
+  const box = measurePlainTextTeXBoxPt(text, { fontSizePt: 10 * scale, fontVariant });
+  return box ? box.width / TEX_PT_PER_CM : texTextWidthCm(text, scale);
+}
+
+function renderLineFontSegments(
+  sourceLine,
+  formattedLine,
+  lineStyle,
+  lineFontSize,
+  unit,
+  renderSvgTextLineContent,
+  parentFamily,
+  parentVariant = null
+) {
   const segments = Array.isArray(lineStyle?.fontSegments) ? lineStyle.fontSegments : [];
   if (!segments.length) return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
-  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize, 1, parentFamily)) {
+  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize, 1, parentFamily, parentVariant)) {
     return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
   }
   return segments
@@ -303,19 +334,24 @@ function renderLineFontSegments(sourceLine, formattedLine, lineStyle, lineFontSi
       const scale = Number(segment.scale) || 1;
       const size = lineFontSize * scale;
       const content = renderSvgTextLineContent(segment.text, segment.text, size, unit);
-      const attributes = segmentFontAttributes(segment, lineStyle, size, scale, parentFamily);
+      const attributes = segmentFontAttributes(segment, lineStyle, size, scale, parentFamily, parentVariant);
       return attributes ? `<tspan${attributes}>${content}</tspan>` : content;
     })
     .join("");
 }
 
-function segmentFontAttributes(segment, lineStyle, size, scale, parentFamily) {
+function segmentFontAttributes(segment, lineStyle, size, scale, parentFamily, parentVariant = null) {
   let attributes = Math.abs(scale - 1) < 1e-9 ? "" : ` font-size="${format(size)}"`;
-  const segmentFamily = renderFontFamilyForWeight(
-    segment.family || parentFamily,
-    segment.weight ?? lineStyle.fontWeight
-  );
-  const inheritedFamily = renderFontFamilyForWeight(parentFamily, lineStyle.fontWeight);
+  const inheritedVariant = lineStyle.fontVariant || parentVariant;
+  const segmentVariant = segment.variant || inheritedVariant;
+  const segmentStyle = {
+    fontWeight: segment.weight ?? lineStyle.fontWeight,
+    fontStyle: segment.style || lineStyle.fontStyle,
+    fontVariant: segmentVariant
+  };
+  const inheritedStyle = { ...lineStyle, fontVariant: inheritedVariant };
+  const segmentFamily = renderFontFamilyForStyle(segment.family || parentFamily, segmentStyle);
+  const inheritedFamily = renderFontFamilyForStyle(parentFamily, inheritedStyle);
   if (!sameFontProperty(segmentFamily, inheritedFamily)) {
     attributes += ` font-family="${escapeAttribute(segmentFamily)}"`;
   }
@@ -325,7 +361,11 @@ function segmentFontAttributes(segment, lineStyle, size, scale, parentFamily) {
   if (segment.style && !sameFontProperty(segment.style, lineStyle.fontStyle)) {
     attributes += ` font-style="${escapeAttribute(segment.style)}"`;
   }
-  if (segment.variant && !sameFontProperty(segment.variant, lineStyle.fontVariant)) {
+  if (
+    segment.variant &&
+    !sameFontProperty(segment.variant, inheritedVariant) &&
+    !usesDedicatedSmallCapsFace(segment.family || parentFamily, segmentStyle)
+  ) {
     attributes += ` font-variant="${escapeAttribute(segment.variant)}"`;
   }
   return attributes;
@@ -335,43 +375,11 @@ function sameFontProperty(first, second) {
   return String(first ?? "") === String(second ?? "");
 }
 
-function lineFontFamilyAttribute(lineStyle, parentFamily) {
-  const family = renderFontFamilyForWeight(lineStyle.fontFamily || parentFamily, lineStyle.fontWeight);
-  return family === renderFontFamilyForWeight(parentFamily, null) ? "" : ` font-family="${escapeAttribute(family)}"`;
-}
-
-function resolvedFontStyle(item = {}) {
-  const font = item.font || {};
-  return {
-    ...(item.style || {}),
-    fontFamily: item.style?.fontFamily || font.family || null,
-    fontWeight: item.style?.fontWeight || (font.weight && Number(font.weight) !== 400 ? font.weight : null),
-    fontStyle: item.style?.fontStyle || (font.style && font.style !== "normal" ? font.style : null),
-    fontVariant: item.style?.fontVariant || (font.variant && font.variant !== "normal" ? font.variant : null)
-  };
-}
-
-function resolvedFontFamily(item = {}, normalized = {}) {
-  const family = item.font?.family || item.style?.fontFamily || normalized.fontFamily;
-  return renderFontFamily(family);
-}
-
-function renderFontFamily(family) {
-  if (family === "helvetica") return TIKZ_HELVETICA_FONT_FAMILY;
-  if (family === "sans-serif") return TIKZ_SANS_SERIF_FONT_FAMILY;
-  if (family === "monospace") return TIKZ_MONOSPACE_FONT_FAMILY;
-  if (!family || family === "serif") return TIKZ_FONT_FAMILY;
-  return family;
-}
-
-function renderFontFamilyForWeight(family, weight) {
-  const rendered = renderFontFamily(family);
-  if (Number(weight) !== 700) return rendered;
-  // CMBX exists through 12pt; LaTeX's 17pt display size uses that face too.
-  return rendered.replace(/TikZKitCMR(5|6|7|8|9|10|12|17)\b/g, (_match, size) => {
-    const boldSize = size === "17" ? "12" : size;
-    return `TikZKitCMBX${boldSize}`;
-  });
+function lineFontFamilyAttribute(lineStyle, parentFamily, parentVariant = null) {
+  const variant = lineStyle.fontVariant || parentVariant;
+  const family = renderFontFamilyForStyle(lineStyle.fontFamily || parentFamily, { ...lineStyle, fontVariant: variant });
+  const parent = renderFontFamilyForStyle(parentFamily, { fontVariant: parentVariant });
+  return family === parent ? "" : ` font-family="${escapeAttribute(family)}"`;
 }
 
 function plainTextBoundsWidthScale(item, fontFamily) {

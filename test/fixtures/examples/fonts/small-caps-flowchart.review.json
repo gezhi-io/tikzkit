@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/ot1cmr.fd",
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmcsc10.tfm",
+    "/usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pfb"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\scshape", "\\textsc"], "findings": "LaTeX implements both forms by selecting the small-caps font shape while preserving source characters." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/ot1cmr.fd": { "symbols": ["OT1/cmr/m/sc", "cmcsc10"], "findings": "Every standard Computer Modern Roman small-caps size selects and scales the cmcsc10 design face." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmcsc10.tfm": { "symbols": ["glyph widths", "kerning", "height", "depth"], "findings": "The TFM distinguishes full capitals from lowercase small-cap slots and supplies the layout metrics used by node measurement." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pfb": { "symbols": ["cmcsc10 outlines"], "findings": "The browser font is generated from the same local Type 1 outlines used by MacTeX." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/svg-renderer.test.js", "outputs/qa/2026-09-05-serif-small-caps-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/svg-renderer.test.js"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/svg-renderer.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/svg-renderer.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/svg-renderer.test.js", "outputs/qa/2026-09-05-serif-small-caps-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["outputs/qa/2026-09-05-serif-small-caps-after"] }
+  ]
+}

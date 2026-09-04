@@ -7786,6 +7786,48 @@
         "quantum-state labels",
         "transition-channel labels"
       ]
+    },
+    {
+      "id": "small-caps-flowchart",
+      "title": "Small-caps compiler flowchart",
+      "source": "fonts/small-caps-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from LaTeX NFSS small-caps semantics",
+      "externalSource": "tex/latex/base/ot1cmr.fd",
+      "semanticOwner": "src/renderers/svg/fontFamilies.js + src/tikz/textMetrics.js",
+      "features": [
+        "font=\\scshape",
+        "colored initial",
+        "scoped \\textsc",
+        "node sizing"
+      ]
+    },
+    {
+      "id": "small-caps-math",
+      "title": "Small-caps mathematical construction",
+      "source": "fonts/small-caps-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from LaTeX NFSS small-caps semantics",
+      "externalSource": "tex/latex/base/ot1cmr.fd",
+      "semanticOwner": "src/renderers/svg/fontFamilies.js + src/tikz/textMetrics.js",
+      "features": [
+        "large small-caps title",
+        "scoped \\textsc",
+        "math and text coexistence",
+        "text anchors"
+      ]
+    },
+    {
+      "id": "small-caps-physics",
+      "title": "Small-caps physical state transition",
+      "source": "fonts/small-caps-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from LaTeX NFSS small-caps semantics",
+      "externalSource": "tex/latex/base/ot1cmr.fd",
+      "semanticOwner": "src/renderers/svg/fontFamilies.js + src/tikz/textMetrics.js",
+      "features": [
+        "small small-caps text",
+        "multiline colored segments",
+        "circular node bounds",
+        "state transition"
+      ]
     }
   ]
 }

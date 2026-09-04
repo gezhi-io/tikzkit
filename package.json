@@ -11,6 +11,7 @@
   "files": [
     "bin",
     "src",
+    "web/fonts",
     "README.md",
     "LICENSE"
   ],

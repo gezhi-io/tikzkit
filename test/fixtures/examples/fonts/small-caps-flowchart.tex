@@ -1,0 +1,23 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\begin{document}
+\begin{tikzpicture}[
+  >=Stealth,
+  stage/.style={
+    draw,
+    rounded corners=2pt,
+    minimum width=2.6cm,
+    minimum height=0.8cm,
+    font=\scshape
+  }
+]
+  \node[stage] (source) {\textcolor{blue}{S}ource};
+  \node[stage,right=1.2cm of source] (parse) {Parse Tree};
+  \node[stage,right=1.2cm of parse] (scene) {Scene Graph};
+  \draw[->,thick] (source) -- (parse);
+  \draw[->,thick] (parse) -- (scene);
+  \node[below=4mm of parse] {browser \textsc{render path}};
+\end{tikzpicture}
+\end{document}

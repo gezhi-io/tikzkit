@@ -33,6 +33,7 @@ const MANAGED_TIKZKIT_FONT_FILES = [
   "TikZKitCMR10-Regular.otf",
   "TikZKitCMR12-Regular.otf",
   "TikZKitCMR17-Regular.otf",
+  "TikZKitCMSC10-Regular.otf",
   "TikZKitCMBX5-Bold.otf",
   "TikZKitCMBX6-Bold.otf",
   "TikZKitCMBX7-Bold.otf",

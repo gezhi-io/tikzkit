@@ -122,6 +122,31 @@ const MAIN_REGULAR_TEX_METRICS = {
   "~": [0.5, 0.31786, 0.35]
 };
 
+// cmcsc10.tfm from local TeX Live 2025. OT1 Computer Modern Roman selects
+// this single design face for every \scshape size. Lowercase slots contain
+// the small-cap glyphs and uppercase slots contain the full-height capitals.
+const SMALL_CAPS_TEX_METRICS = {
+  " ": [0.377774, 0, 0],
+  A: [0.813881, 0.683332, 0], B: [0.770826, 0.683332, 0], C: [0.786104, 0.683332, 0],
+  D: [0.82916, 0.683332, 0], E: [0.741659, 0.683332, 0], F: [0.712494, 0.683332, 0],
+  G: [0.851381, 0.683332, 0], H: [0.813881, 0.683332, 0], I: [0.405551, 0.683332, 0],
+  J: [0.566661, 0.683332, 0], K: [0.843048, 0.683332, 0], L: [0.683327, 0.683332, 0],
+  M: [0.988879, 0.683332, 0], N: [0.813881, 0.683332, 0], O: [0.844437, 0.683332, 0],
+  P: [0.741659, 0.683332, 0], Q: [0.844437, 0.683332, 0.194445], R: [0.799993, 0.683332, 0],
+  S: [0.611105, 0.683332, 0], T: [0.786104, 0.683332, 0], U: [0.813881, 0.683332, 0],
+  V: [0.813881, 0.683332, 0], W: [1.105545, 0.683332, 0], X: [0.813881, 0.683332, 0],
+  Y: [0.813881, 0.683332, 0], Z: [0.669438, 0.683332, 0],
+  a: [0.613332, 0.513888, 0], b: [0.579999, 0.513888, 0], c: [0.591108, 0.513888, 0],
+  d: [0.624443, 0.513888, 0], e: [0.5577755, 0.513888, 0], f: [0.535555, 0.513888, 0],
+  g: [0.6411085, 0.513888, 0], h: [0.613332, 0.513888, 0], i: [0.302221, 0.513888, 0],
+  j: [0.424443, 0.513888, 0], k: [0.635554, 0.513888, 0], l: [0.513331, 0.513888, 0],
+  m: [0.746664, 0.513888, 0], n: [0.613332, 0.513888, 0], o: [0.635553, 0.513888, 0],
+  p: [0.5577755, 0.513888, 0], q: [0.635553, 0.513888, 0.144444], r: [0.602221, 0.513888, 0],
+  s: [0.457776, 0.513888, 0], t: [0.591108, 0.513888, 0], u: [0.613332, 0.513888, 0],
+  v: [0.613332, 0.513888, 0], w: [0.835553, 0.513888, 0], x: [0.613332, 0.513888, 0],
+  y: [0.613332, 0.513888, 0], z: [0.50222, 0.513888, 0]
+};
+
 // phvr7t.tfm (Helvetica Roman, T1 encoding), reduced to numeric tick-label
 // glyphs. PGFPlots' sansmath examples use this font for plain axis ticks.
 // Each entry is [width, height, depth] in em units.
@@ -860,7 +885,8 @@ export function measurePlainTextTeXBoxPt(text, options = {}) {
   const chars = [...replaceTikzHspaceMarkers(source, () => "")];
   if (!Number.isFinite(fontSizePt) || fontSizePt <= 0 || chars.length === 0) return null;
   const sans = /sans/i.test(String(options.fontFamily || ""));
-  const metrics = sans ? SANS_REGULAR_TEX_METRICS : MAIN_REGULAR_TEX_METRICS;
+  const smallCaps = options.fontVariant === "small-caps" && !sans;
+  const metrics = sans ? SANS_REGULAR_TEX_METRICS : smallCaps ? SMALL_CAPS_TEX_METRICS : MAIN_REGULAR_TEX_METRICS;
 
   let width = relativeTikzHspaceWidthPt(source, fontSizePt) / fontSizePt;
   let height = 0;
@@ -869,8 +895,9 @@ export function measurePlainTextTeXBoxPt(text, options = {}) {
     const char = chars[index];
     const metric = metrics[char];
     if (!metric) return null;
-    if (sans) {
+    if (sans || smallCaps) {
       width += metric[0];
+      if (smallCaps && index > 0) width += smallCapsKerningEm(chars[index - 1], char);
     } else {
       const widthPt = CMR10_WIDTH_PT[char] ?? metric[0] * 10;
       width += widthPt / 10;
@@ -884,6 +911,29 @@ export function measurePlainTextTeXBoxPt(text, options = {}) {
     height: height * fontSizePt,
     depth: depth * fontSizePt
   };
+}
+
+function smallCapsKerningEm(previous, current) {
+  const pair = `${previous}${current}`;
+  if (pair === "II") return 0.029167;
+  if (pair === "ii") return 0.0222225;
+
+  if (/[PTY]/.test(previous) && /[aA]/.test(current)) return -0.0875;
+  if (/[FVW]/.test(previous) && /[aA]/.test(current)) return -0.116666;
+  if (/[FVWKX]/.test(previous) && /[oOcCgGqQ]/.test(current)) return -0.029167;
+  if (/[DO]/.test(previous) && /[xXwWaAvVyY]/.test(current)) return -0.029167;
+  if (/[AR]/.test(previous) && /[cCoOgGuUqQ]/.test(current)) return -0.029167;
+  if (/[ARL]/.test(previous) && /[TtYy]/.test(current)) return -0.0875;
+  if (/[ARL]/.test(previous) && /[VvWw]/.test(current)) return -0.116666;
+
+  if (/[pty]/.test(previous) && current === "a") return -0.066668;
+  if (/[fvw]/.test(previous) && current === "a") return -0.088888;
+  if (/[fvwkx]/.test(previous) && /[ocgq]/.test(current)) return -0.0222225;
+  if (/[do]/.test(previous) && /[xwavy]/.test(current)) return -0.0222225;
+  if (/[ar]/.test(previous) && /[coguq]/.test(current)) return -0.0222225;
+  if (/[arl]/.test(previous) && /[ty]/.test(current)) return -0.066668;
+  if (/[arl]/.test(previous) && /[vw]/.test(current)) return -0.088888;
+  return 0;
 }
 
 function consumeFallbackScriptWidth(chars, start) {

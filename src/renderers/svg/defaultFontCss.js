@@ -15,6 +15,7 @@ export function renderDefaultFontStyleDef(options = {}) {
 @font-face{font-family:TikZKitCMR10;font-style:normal;font-weight:400;src:url('${prefix}TikZKitCMR10-Regular.otf') format('opentype')}
 @font-face{font-family:TikZKitCMR12;font-style:normal;font-weight:400;src:url('${prefix}TikZKitCMR12-Regular.otf') format('opentype')}
 @font-face{font-family:TikZKitCMR17;font-style:normal;font-weight:400;src:url('${prefix}TikZKitCMR17-Regular.otf') format('opentype')}
+@font-face{font-family:TikZKitCMSC10;font-style:normal;font-weight:400;src:url('${prefix}TikZKitCMSC10-Regular.otf') format('opentype')}
 @font-face{font-family:TikZKitCMBX5;font-style:normal;font-weight:700;src:url('${prefix}TikZKitCMBX5-Bold.otf') format('opentype')}
 @font-face{font-family:TikZKitCMBX6;font-style:normal;font-weight:700;src:url('${prefix}TikZKitCMBX6-Bold.otf') format('opentype')}
 @font-face{font-family:TikZKitCMBX7;font-style:normal;font-weight:700;src:url('${prefix}TikZKitCMBX7-Bold.otf') format('opentype')}

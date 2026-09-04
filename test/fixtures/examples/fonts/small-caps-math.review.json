@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/ot1cmr.fd",
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmcsc10.tfm",
+    "/usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pfb"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\scshape", "\\textsc"], "findings": "The declaration and scoped command both select shape sc through NFSS." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/ot1cmr.fd": { "symbols": ["OT1/cmr/m/sc", "cmcsc10"], "findings": "Computer Modern Roman maps small caps to the cmcsc10 face at all standard text sizes." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/tfm/public/cm/cmcsc10.tfm": { "symbols": ["glyph widths", "kerning"], "findings": "Exact small-cap widths keep the title and scoped label anchors consistent with TeX." },
+    "/usr/local/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmcsc10.pfb": { "symbols": ["cmcsc10 outlines"], "findings": "The dedicated browser face uses MacTeX's actual glyph outlines rather than synthetic CSS capitals." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/svg-renderer.test.js", "outputs/qa/2026-09-05-serif-small-caps-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/svg-renderer.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/svg-renderer.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/svg-renderer.test.js", "outputs/qa/2026-09-05-serif-small-caps-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["outputs/qa/2026-09-05-serif-small-caps-after"] }
+  ]
+}

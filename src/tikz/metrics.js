@@ -4,6 +4,7 @@ export const TIKZ_UNIT = 100;
 export const TIKZ_MARGIN = 10;
 
 export const TIKZ_FONT_FAMILY = "TikZKitCMUSerif, 'CMU Serif', serif";
+export const TIKZ_SMALL_CAPS_FONT_FAMILY = "TikZKitCMSC10, TikZKitCMUSerif, serif";
 export const TIKZ_MATH_MAIN_FONT_FAMILY = "TikZKitMath_Main, TikZKitCMUSerif, serif";
 export const TIKZ_MATH_ITALIC_FONT_FAMILY = "TikZKitMath_Math, TikZKitMath_Main, TikZKitCMUSerif, serif";
 export const TIKZ_MATH_CALLIGRAPHIC_FONT_FAMILY =

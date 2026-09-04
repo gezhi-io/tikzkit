@@ -1,10 +1,17 @@
 import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
+import { measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import { escapeAttribute, escapeText } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { textFontSizeForUnit } from "./layout.js";
 import { estimateRichTextWidthEm } from "./richText.js";
 import { svgPaint } from "./style.js";
 import { fontVariantAttribute, textFontScale, textWidthScale, wrapTypewriterWidth } from "./textLayout.js";
+import {
+  renderFontFamilyForStyle,
+  resolvedFontFamily,
+  resolvedFontStyle,
+  usesDedicatedSmallCapsFace
+} from "./fontFamilies.js";
 
 export function renderSegmentedTextNode(item, normalized, unit, deps = {}) {
   const formatTextLine = deps.formatTextLine || ((line) => String(line ?? ""));
@@ -13,10 +20,14 @@ export function renderSegmentedTextNode(item, normalized, unit, deps = {}) {
   const normalizedLines = Array.isArray(normalized.lines) ? normalized.lines : [];
   const fallbackLines = (normalizedLines.length ? normalizedLines : lines).map(formatTextLine);
   const color = escapeAttribute(item.style?.fill || "black");
-  const rawFontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
-  const fontFamily = escapeAttribute(rawFontFamily);
-  const rawFontVariant = normalized.fontVariant || item.style?.fontVariant;
-  const textFontVariant = fontVariantAttribute({ fontVariant: rawFontVariant });
+  const fallbackStyle = resolvedFontStyle(item);
+  const rawFontFamily = resolvedFontFamily(item, normalized) || TIKZ_FONT_FAMILY;
+  const rawFontVariant = normalized.fontVariant || fallbackStyle.fontVariant;
+  const fontStyle = { ...fallbackStyle, fontVariant: rawFontVariant };
+  const fontFamily = escapeAttribute(renderFontFamilyForStyle(rawFontFamily, fontStyle));
+  const textFontVariant = usesDedicatedSmallCapsFace(rawFontFamily, fontStyle)
+    ? ""
+    : fontVariantAttribute({ fontVariant: rawFontVariant });
   const baseFontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const fontSize = fitFontSizeToBox(baseFontSize, item.fitBox, unit, fallbackLines);
   const centerX = item.x * unit;
@@ -33,7 +44,10 @@ export function renderSegmentedTextNode(item, normalized, unit, deps = {}) {
       baseline += dy;
       const parsedSegments = parseTextColorSegments(line);
       rects.push(...inlineBoxRects(parsedSegments, item.x * unit, -item.y * unit + baseline, fontSize));
-      return renderFlatSegmentedTextLine(parsedSegments, centerX, dy, fontSize, formatTextLine);
+      return renderFlatSegmentedTextLine(parsedSegments, centerX, dy, fontSize, formatTextLine, {
+        fontFamily: rawFontFamily,
+        fontVariant: rawFontVariant
+      });
     })
     .join("");
   const text = `<text x="${x}" y="${y}" fill="${color}" text-anchor="start" dominant-baseline="middle" xml:space="preserve" font-size="${format(
@@ -42,11 +56,16 @@ export function renderSegmentedTextNode(item, normalized, unit, deps = {}) {
   return wrapTypewriterWidth(rects.length ? `<g>${rects.join("")}${text}</g>` : text, item, unit, widthScale);
 }
 
-export function renderFlatSegmentedTextLine(parsedSegments, centerX, dy, fontSize, formatTextLine = String) {
+export function renderFlatSegmentedTextLine(parsedSegments, centerX, dy, fontSize, formatTextLine = String, font = {}) {
   let output = "";
   let wrotePositionedSegment = false;
   const formattedLine = parsedSegments.map((segment) => formatTextLine(segment.text)).join("");
-  const lineWidth = estimateRichTextWidthEm(formattedLine) * fontSize;
+  const measured = measurePlainTextTeXBoxPt(formattedLine, {
+    fontSizePt: fontSize,
+    fontFamily: font.fontFamily,
+    fontVariant: font.fontVariant
+  });
+  const lineWidth = measured?.width || estimateRichTextWidthEm(formattedLine) * fontSize;
   const x = format(centerX - lineWidth / 2);
   for (const segment of parsedSegments) {
     const text = escapeText(formatTextLine(segment.text));

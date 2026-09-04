@@ -182,7 +182,7 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
   });
   const renderWidth = estimated.width * unit;
   const renderHeight = estimated.height * unit;
-  const logical = logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWeight);
+  const logical = logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWeight, font.variant);
   const width = logical ? (logical.width / TEX_PT_PER_CM) * unit : renderWidth;
   const height = logical ? ((logical.height + logical.depth) / TEX_PT_PER_CM) * unit : renderHeight;
   const baselineY = logical ? (logical.height / TEX_PT_PER_CM) * unit : height * 0.62;
@@ -261,23 +261,28 @@ function finiteStyleScale(value) {
   return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
-function logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWeight) {
+function logicalPlainTextBox(request, normalized, fontFamily, fontStyle, fontWeight, fontVariant) {
   const raw = String(request.text ?? "");
   const textWidthPt = Number(request.textWidthPt);
   if (Number.isFinite(textWidthPt) && textWidthPt > 0) return null;
   if (/[\r\n\\$]/.test(raw)) return null;
-  if (fontStyle || fontWeight || normalized.fontStyle || normalized.fontWeight || normalized.fontVariant) return null;
+  const variant = normalized.fontVariant || fontVariant || null;
+  if (fontStyle || fontWeight || normalized.fontStyle || normalized.fontWeight) return null;
+  if (variant && variant !== "normal" && variant !== "small-caps") return null;
   if (normalized.explicitFontSize || Number(normalized.scale) !== 1) return null;
   const sans = isSansSerifFontFamily(fontFamily);
   if (!sans && (!isMainRegularFontFamily(fontFamily) || !isMainRegularFontFamily(normalized.fontFamily))) return null;
   if (sans && normalized.fontFamily && !isSansSerifFontFamily(normalized.fontFamily)) return null;
   if (!Array.isArray(normalized.lines) || normalized.lines.length !== 1) return null;
   const lineStyle = normalized.lineStyles?.[0];
-  if (lineStyle && (lineStyle.fontStyle || lineStyle.fontWeight || lineStyle.fontVariant || Number(lineStyle.scale) !== 1)) return null;
+  const lineVariant = lineStyle?.fontVariant || variant;
+  if (lineStyle && (lineStyle.fontStyle || lineStyle.fontWeight || Number(lineStyle.scale) !== 1)) return null;
+  if (lineVariant && lineVariant !== "normal" && lineVariant !== "small-caps") return null;
   const fontSizePt = textFontSizePt() * textEngineFontScale(request);
   const box = measurePlainTextTeXBoxPt(normalized.text, {
     fontSizePt,
-    fontFamily: sans ? "sans-serif" : "serif"
+    fontFamily: sans ? "sans-serif" : "serif",
+    fontVariant: lineVariant
   });
   return box;
 }

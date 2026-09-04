@@ -76,13 +76,13 @@ test("renders arrows and trees TCS logo macro with visible cyclic branches", () 
   assert.ok(fillColors.size > 2, `expected visible leaf fills, got ${[...fillColors].join(", ")}`);
   const terminalLeafCircles = paths.filter((item) => item.shape === "circle" && item.style?.stroke === "none" && item.style?.fill !== "none");
   assert.equal(terminalLeafCircles.length, 0, "expected declared leaf arrow tips to render as leaf paths, not circle placeholders");
-  assert.match(result.svg, /font-variant="small-caps"/);
+  assert.match(result.svg, /font-family="TikZKitCMSC10, TikZKitCMUSerif, serif"/);
   assert.doesNotMatch(result.svg, /fill="(?:green|red|black)![^"]+"/);
-  assert.match(result.svg, /<tspan[^>]*fill="rgb\([^"]+\)"[^>]*>T<\/tspan>HEORETICAL/);
-  assert.match(result.svg, /<tspan[^>]*fill="[^"]+"[^>]*>T<\/tspan>HEORETICAL/);
-  assert.match(result.svg, /<tspan[^>]*fill="[^"]+"[^>]*>C<\/tspan>OMPUTER/);
-  assert.match(result.svg, /<tspan[^>]*fill="[^"]+"[^>]*>S<\/tspan>CIENCE/);
-  const firstInitial = result.svg.match(/<tspan x="([^"]+)" dy="[^"]+" fill="[^"]+">T<\/tspan>HEORETICAL/);
+  assert.match(result.svg, /<tspan[^>]*fill="rgb\([^"]+\)"[^>]*>T<\/tspan>heoretical/);
+  assert.match(result.svg, /<tspan[^>]*fill="[^"]+"[^>]*>T<\/tspan>heoretical/);
+  assert.match(result.svg, /<tspan[^>]*fill="[^"]+"[^>]*>C<\/tspan>omputer/);
+  assert.match(result.svg, /<tspan[^>]*fill="[^"]+"[^>]*>S<\/tspan>cience/);
+  const firstInitial = result.svg.match(/<tspan x="([^"]+)" dy="[^"]+" fill="[^"]+">T<\/tspan>heoretical/);
   assert.ok(firstInitial, "expected first colored initial to carry an explicit line-start x coordinate");
   const firstInitialX = Number(firstInitial[1]);
   const widthScale = Number(result.svg.match(/class="tikz-typewriter-text" transform="[^"]*scale\(([\d.]+) 1\)/)?.[1] || 1);
@@ -98,12 +98,12 @@ test("renders arrows and trees TCS logo macro with visible cyclic branches", () 
   );
   assert.equal(
     labels[0]?.text,
-    "\\textcolor{green!80!black}{T}HEORETICAL \\\\ \\textcolor{green!80!black}{C}OMPUTER \\\\ \\textcolor{green!80!black}{S}CIENCE"
+    "\\textcolor{green!80!black}{T}heoretical \\\\ \\textcolor{green!80!black}{C}omputer \\\\ \\textcolor{green!80!black}{S}cience"
   );
   assert.equal(labels[0]?.style?.fill, "black");
   assert.equal(labels[0]?.style?.fontScale, 1.575);
   assert.equal(labels[0]?.style?.fontSizeBaseScale, 2.25);
-  assert.equal(labels[0]?.style?.textWidthScale, 0.85);
+  assert.equal(labels[0]?.style?.textWidthScale, 1);
   assert.ok(
     labels[0]?.y > -1.98 && labels[0]?.y < -1.82,
     `expected TCS logo label block baseline to match tikztosvg reference, got y=${labels[0]?.y}`

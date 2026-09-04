@@ -149,6 +149,14 @@ def main() -> None:
             args.output_dir / f"TikZKitCMR{size}-Regular.otf",
             f"TikZKit CMR{size}",
         )
+    # OT1 Computer Modern Roman maps every requested small-caps size to the
+    # cmcsc10 design face. Lowercase slots hold true small-cap outlines while
+    # uppercase slots remain full height.
+    convert_type1_to_otf(
+        args.tex_font_dir / "cmcsc10.pfb",
+        args.output_dir / "TikZKitCMSC10-Regular.otf",
+        "TikZKit CMSC10",
+    )
     # LaTeX's bold Computer Modern Roman uses the CMBX optical family.  There
     # is no cmbx17 outline; larger bold text scales cmbx12, as NFSS does.
     for size in (5, 6, 7, 8, 9, 10, 12):
