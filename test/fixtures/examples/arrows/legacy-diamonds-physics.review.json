@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The document shell is preprocessing-only and contributes no scene geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "The package loads the core path engine before optional libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "\\node", "\\usetikzlibrary"], "findings": "Coordinates, vector paths, inline labels, colors, and path tangents are resolved before arrows." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["\\pgfarrowsdeclare{diamond}", "\\pgfarrowsdeclare{open diamond}"], "findings": "The path coordinates, current line width, round join, and fillstroke/stroke action define the two vector terminals." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsleftextend", "\\pgfarrowsrightextend"], "findings": "Terminal placement follows the local path tangent and source extents on diagonal vectors." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["diamond", "open diamond"], "findings": "The manual confirms both tips and their use at either path end." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-diamonds.test.js", "docs/qa/2026-09-04-arrows-legacy-diamonds.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-diamonds.test.js", "docs/qa/2026-09-04-arrows-legacy-diamonds.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-diamonds.test.js", "docs/qa/2026-09-04-arrows-legacy-diamonds.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-diamonds.test.js", "docs/qa/2026-09-04-arrows-legacy-diamonds.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-diamonds.test.js", "docs/qa/2026-09-04-arrows-legacy-diamonds.md"] }
+  ]
+}

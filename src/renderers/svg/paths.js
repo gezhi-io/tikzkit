@@ -18,7 +18,7 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
 import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
-import { legacyDelimiterArrowMetrics, legacyTriangleArrowMetrics } from "../../tikz/libraries/arrows.js";
+import { legacyDelimiterArrowMetrics, legacyDiamondArrowMetrics, legacyTriangleArrowMetrics } from "../../tikz/libraries/arrows.js";
 
 export function renderPathWithShadows(item, unit) {
   const shadows = Array.isArray(item.shadows) ? item.shadows : [];
@@ -357,13 +357,14 @@ export function resolveInlineArrowTip(tip, style = {}) {
     "arc-barb",
     "tee-barb",
     "rays"
-  ].includes(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyOpenTriangleTip(raw.kind);
+  ].includes(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyOpenTriangleTip(raw.kind) || isLegacyOpenDiamondTip(raw.kind);
   const barTip = raw.kind === "bar";
   const filledCircleTip = raw.kind === "circle";
   const legacyStealthPrime = raw.kind === "stealth-prime";
   const metaStealthTip = raw.kind === "stealth" && raw.meta;
   const legacyFilledTriangleTip = isLegacyFilledTriangleTip(raw.kind);
-  const filledStrokedTip = metaStealthTip || legacyStealthPrime || legacyFilledTriangleTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
+  const legacyFilledDiamondTip = isLegacyFilledDiamondTip(raw.kind);
+  const filledStrokedTip = metaStealthTip || legacyStealthPrime || legacyFilledTriangleTip || legacyFilledDiamondTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
   const declaredPaint = raw.declaredArrow?.paint;
   const separation = arrowTipSeparation(raw.separation, style);
   return {
@@ -375,7 +376,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: isLegacyTriangleTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineCap: isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isSquareBracketTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
     lineJoin: isLegacyTriangleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
@@ -395,7 +396,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
-        ? legacyFilledTriangleTip
+        ? legacyFilledTriangleTip || legacyFilledDiamondTip
           ? style.lineWidth ?? 1
           : metaStealthTip
           ? geometry.lineWidth
@@ -447,6 +448,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (delimiter) return legacyDelimiterInlineGeometry(delimiter);
   const legacyTriangle = legacyTriangleArrowMetrics(tip.kind, lineWidth);
   if (legacyTriangle) return legacyTriangleInlineGeometry(legacyTriangle);
+  const legacyDiamond = legacyDiamondArrowMetrics(tip.kind, lineWidth);
+  if (legacyDiamond) return legacyDiamondInlineGeometry(legacyDiamond);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -767,6 +770,40 @@ function isLegacyOpenTriangleTip(kind) {
 
 function isLegacyFilledTriangleTip(kind) {
   return /^triangle-(?:90|60|45)(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isLegacyDiamondTip(kind) {
+  return /^legacy-(?:open-)?diamond$/u.test(String(kind || ""));
+}
+
+function isLegacyOpenDiamondTip(kind) {
+  return String(kind || "") === "legacy-open-diamond";
+}
+
+function isLegacyFilledDiamondTip(kind) {
+  return String(kind || "") === "legacy-diamond";
+}
+
+function legacyDiamondInlineGeometry(metrics) {
+  return {
+    path: [
+      `M ${format(metrics.frontX)} 0`,
+      `L ${format(metrics.middleX)} ${format(-metrics.halfHeight)}`,
+      `L ${format(metrics.backX)} 0`,
+      `L ${format(metrics.middleX)} ${format(metrics.halfHeight)}`,
+      "Z"
+    ].join(" "),
+    shorten: metrics.placement,
+    terminalPlacement: metrics.placement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    bounds: {
+      minX: Math.min(metrics.backX, metrics.frontX),
+      maxX: Math.max(metrics.backX, metrics.frontX),
+      minY: -metrics.halfHeight,
+      maxY: metrics.halfHeight
+    }
+  };
 }
 
 function legacyTriangleInlineGeometry(metrics) {

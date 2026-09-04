@@ -195,11 +195,17 @@ export function createArrowTip(kind = "to", overrides = {}) {
   const normalizedKind = normalizeArrowKind(sourceKind);
   const legacyFilledTriangle = /^triangle-(?:90|60|45)(?:-reversed)?$/u.test(normalizedKind);
   const legacyOpenTriangle = /^open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(normalizedKind);
+  const legacyFilledDiamond = normalizedKind === "legacy-diamond";
+  const legacyOpenDiamond = normalizedKind === "legacy-open-diamond";
   const base = TIKZ_ARROW_TIPS[normalizedKind]
     || (legacyFilledTriangle
       ? { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke", stroke: "context-stroke" }
       : legacyOpenTriangle
         ? TIKZ_ARROW_TIPS["open-triangle"]
+        : legacyFilledDiamond
+          ? { ...TIKZ_ARROW_TIPS.kite, fill: "context-stroke", stroke: "context-stroke" }
+          : legacyOpenDiamond
+            ? { ...TIKZ_ARROW_TIPS.kite, fill: "none", stroke: "context-stroke" }
         : TIKZ_ARROW_TIPS.to);
   const legacy = normalizedKind === "latex"
     ? Object.hasOwn(overrides, "legacy")
@@ -502,6 +508,9 @@ function normalizeArrowKind(kind) {
   if (legacyTriangle) {
     return `${legacyTriangle[1] ? "open-" : ""}triangle-${legacyTriangle[2]}${legacyTriangle[3] ? "-reversed" : ""}`;
   }
+  if (source === "Diamond") return "kite";
+  if (text === "diamond") return "legacy-diamond";
+  if (text === "open diamond") return "legacy-open-diamond";
   if (text === "dimline reverse" || text === "dimline-reverse") return "dimline reverse";
   if (text === "dimline") return "dimline";
   if (text === "stealth-prime") return "stealth-prime";
@@ -509,7 +518,7 @@ function normalizeArrowKind(kind) {
   if (text === "straight barb" || text === "straight-barb") return "straight-barb";
   if (text === "arc barb" || text === "arc-barb" || text === "parenthesis") return "arc-barb";
   if (text === "tee barb" || text === "tee-barb" || text === "bracket") return "tee-barb";
-  if (text === "kite" || text === "diamond") return "kite";
+  if (text === "kite") return "kite";
   if (text === "square" || text === "rectangle") return "square";
   if (text === "rays" || text === "ray") return "rays";
   if (text.includes("two heads") || text.includes("two-heads") || text.includes("double")) return "two-heads";
