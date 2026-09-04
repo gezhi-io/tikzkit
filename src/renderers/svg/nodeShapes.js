@@ -4,6 +4,7 @@ import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import {
   cylinderGeometry,
+  kiteGeometry,
   semicircleGeometry,
   starNodePoints as geometricStarNodePoints,
   trapeziumNodePoints as geometricTrapeziumNodePoints
@@ -15,6 +16,7 @@ export const LIBRARY_NODE_SHAPES = [
   "star",
   "trapezium",
   "cylinder",
+  "kite",
   "semicircle",
   "signal",
   "tape",
@@ -104,6 +106,9 @@ export function nodeShapeCommands(item) {
   }
   if (item.shape === "semicircle") {
     return translateCommands(semicircleGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
+  }
+  if (item.shape === "kite") {
+    return translateCommands(kiteGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "signal") {
     return translateCommands(signalGeometry(item, item.shapeData || {}).commands, item.x, item.y);

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta, positioning, and shapes.geometric before style resolution." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "--", "|-"], "findings": "Core TikZ resolves path styles, node anchors, automatic border clipping, and orthogonal paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "Arrow tips are attached after the path has been clipped to the kite border." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "node distance"], "findings": "Positioning uses the resolved source and target border anchors instead of node centers." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["kite", "kite vertex angles", "shape border rotate", "upper vertex", "lower vertex"], "findings": "The kite divides the text height according to the upper and lower half-angle sines, scales all four radii for minimum dimensions, quarter-rounds ordinary border rotation, and exposes a separate mitered outer-separation anchor polygon." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["kite", "kite upper vertex angle", "kite lower vertex angle", "kite vertex angles"], "findings": "The manual documents the paired-angle shorthand, quarter-turn rotation, named vertices, side anchors, and numeric border anchors exercised here." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] }
+  ]
+}

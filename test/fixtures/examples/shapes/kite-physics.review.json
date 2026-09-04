@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads arrows.meta, calc, and shapes.geometric before style evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "++"], "findings": "Core TikZ evaluates relative polar force vectors and named kite anchors in the current transform." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["polar coordinates", "relative coordinates"], "findings": "Relative force endpoints are evaluated from the kite center and lower vertex." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth", "length"], "findings": "The force vectors use local Stealth length overrides after endpoint resolution." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["kite", "shape border uses incircle", "shape border rotate", "kite vertex angles"], "findings": "Incircle mode derives a rotation-invariant content radius, permits exact arbitrary border rotation, applies the upper/lower angle geometry, and keeps outer-separation miter anchors outside the painted polygon." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["kite", "shape border uses incircle", "shape border rotate"], "findings": "The manual states that arbitrary border rotations require incircle mode and lists the named anchors used by the force construction." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] }
+  ]
+}

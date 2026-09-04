@@ -6,6 +6,9 @@ import {
   cylinderBorderPoint as geometricCylinderBorderPoint,
   cylinderGeometry as geometricCylinderGeometry,
   cylinderLayoutSize as geometricCylinderLayoutSize,
+  kiteBorderPoint as geometricKiteBorderPoint,
+  kiteGeometry as geometricKiteGeometry,
+  kiteLayoutSize as geometricKiteLayoutSize,
   semicircleBorderPoint as geometricSemicircleBorderPoint,
   semicircleGeometry as geometricSemicircleGeometry,
   semicircleLayoutSize as geometricSemicircleLayoutSize,
@@ -9500,7 +9503,7 @@ function addNodeItems(node, ir, env) {
   } else {
     const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
-    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle";
+    const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "kite";
     ir.items.push({
       type: "textNode",
       x: textPoint.x,
@@ -11364,6 +11367,12 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       { x: localDx, y: localDy },
       terminalPadding
     );
+  } else if (node.shape === "kite") {
+    localPoint = geometricKiteBorderPoint(
+      geometricKiteGeometry({ width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 }, node.shapeData || {}),
+      { x: localDx, y: localDy },
+      terminalPadding
+    );
   } else if (node.shape === "signal") {
     const visibleWidth = Number(node.width) || halfWidth * 2;
     const visibleHeight = Number(node.height) || halfHeight * 2;
@@ -11550,6 +11559,7 @@ function nodeShape(options = {}) {
   if (options.star) return "star";
   if (options.trapezium) return "trapezium";
   if (options.semicircle) return "semicircle";
+  if (options.kite) return "kite";
   if (options["isosceles triangle"]) return "isoscelesTriangle";
   if (options["magnifying glass"]) return "magnifyingGlass";
   if (options.starburst) return "starburst";
@@ -11587,6 +11597,7 @@ function explicitNodeShape(shape) {
     star: "star",
     trapezium: "trapezium",
     semicircle: "semicircle",
+    kite: "kite",
     "isosceles triangle": "isoscelesTriangle",
     "magnifying glass": "magnifyingGlass",
     starburst: "starburst",
@@ -11654,6 +11665,35 @@ function cylinderLayoutSize(contentWidth, contentHeight, options = {}, env = { v
     innerXSep: parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
     innerYSep: parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env),
     lineWidth: (Number(style.lineWidth) || 0) / TIKZ_UNIT,
+    minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
+    minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
+  });
+}
+
+function kiteVertexAngles(options = {}) {
+  let upperVertexAngle = numberOption(options["kite upper vertex angle"], 120);
+  let lowerVertexAngle = numberOption(options["kite lower vertex angle"], 60);
+  const combined = String(options["kite vertex angles"] ?? "").trim().replace(/^\{([\s\S]*)\}$/, "$1");
+  if (combined) {
+    const pair = combined.match(/^([\s\S]*?)\s+and\s+([\s\S]*)$/i);
+    if (pair) {
+      upperVertexAngle = numberOption(pair[1], upperVertexAngle);
+      lowerVertexAngle = numberOption(pair[2], lowerVertexAngle);
+    } else {
+      upperVertexAngle = numberOption(combined, upperVertexAngle);
+      lowerVertexAngle = upperVertexAngle;
+    }
+  }
+  return { upperVertexAngle, lowerVertexAngle };
+}
+
+function kiteLayoutSize(contentWidth, contentHeight, options = {}, env = { variables: {} }) {
+  const minimumSize = options["minimum size"] ? parseNodeLengthDimension(options["minimum size"], env) : 0;
+  return geometricKiteLayoutSize(contentWidth, contentHeight, {
+    ...kiteVertexAngles(options),
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"]),
+    minimumSize,
     minimumWidth: Math.max(minimumSize, options["minimum width"] ? parseNodeLengthDimension(options["minimum width"], env) : 0),
     minimumHeight: Math.max(minimumSize, options["minimum height"] ? parseNodeLengthDimension(options["minimum height"], env) : 0)
   });
@@ -11756,6 +11796,26 @@ function trapeziumLayoutShapeData(layoutSize = {}) {
   return data;
 }
 
+function kiteLayoutShapeData(layoutSize = {}) {
+  const data = {};
+  for (const key of [
+    "kiteHalfWidth",
+    "kiteHeight",
+    "kiteDepth",
+    "kiteDeltaY",
+    "kiteUpperVertexAngle",
+    "kiteLowerVertexAngle",
+    "kiteShapeBorderRotate"
+  ]) {
+    const value = Number(layoutSize?.[key]);
+    if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.kiteShapeBorderUsesIncircle !== undefined) {
+    data.kiteShapeBorderUsesIncircle = Boolean(layoutSize.kiteShapeBorderUsesIncircle);
+  }
+  return data;
+}
+
 function semicircleLayoutShapeData(layoutSize = {}) {
   const data = {};
   for (const key of [
@@ -11794,10 +11854,13 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const starburstOuterSep = nodeOuterSep(options, env);
   const starOuterSep = nodeOuterSep(options, env);
   const trapeziumOuterSep = nodeOuterSep(options, env);
+  const kiteOuterSep = nodeOuterSep(options, env);
   const semicircleOuterSep = nodeOuterSep(options, env);
   const starScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const trapeziumScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const kiteScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const semicircleScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const kiteAngles = kiteVertexAngles(options);
   const tapeBend = options["tape bend"];
   const starburst = symbolStarburstLayoutSize(0, 0, {
     pointHeight: 0,
@@ -11828,6 +11891,10 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     trapeziumStretchesBody: tikzBoolean(options["trapezium stretches body"]),
     trapeziumOuterSep: Math.max(trapeziumOuterSep.x, trapeziumOuterSep.y) * trapeziumScale,
     ...trapeziumLayoutShapeData(layoutSize),
+    kiteUpperVertexAngle: kiteAngles.upperVertexAngle,
+    kiteLowerVertexAngle: kiteAngles.lowerVertexAngle,
+    kiteOuterSep: Math.max(kiteOuterSep.x, kiteOuterSep.y) * kiteScale,
+    ...kiteLayoutShapeData(layoutSize),
     semicircleOuterSep: Math.max(semicircleOuterSep.x, semicircleOuterSep.y) * semicircleScale,
     ...semicircleLayoutShapeData(layoutSize),
     isoscelesTriangleApexAngle: numberOption(options["isosceles triangle apex angle"], 45),
@@ -12709,6 +12776,10 @@ function scaleSize(size, scale = 1) {
     "trapeziumHalfHeight",
     "trapeziumLeftExtension",
     "trapeziumRightExtension",
+    "kiteHalfWidth",
+    "kiteHeight",
+    "kiteDepth",
+    "kiteDeltaY",
     "semicircleRadius",
     "semicircleDefaultRadius",
     "semicircleCenterOffset",
@@ -12716,6 +12787,12 @@ function scaleSize(size, scale = 1) {
     "semicircleCenterY"
   ]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
+  }
+  for (const key of ["kiteUpperVertexAngle", "kiteLowerVertexAngle", "kiteShapeBorderRotate"]) {
+    if (Number.isFinite(Number(size?.[key]))) scaled[key] = Number(size[key]);
+  }
+  if (size?.kiteShapeBorderUsesIncircle !== undefined) {
+    scaled.kiteShapeBorderUsesIncircle = Boolean(size.kiteShapeBorderUsesIncircle);
   }
   if (Number.isFinite(Number(size?.semicircleShapeBorderRotate))) {
     scaled.semicircleShapeBorderRotate = Number(size.semicircleShapeBorderRotate);
@@ -13094,6 +13171,17 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "semicircle") {
     const geometry = geometricSemicircleGeometry(size, nodeShapeData(options, env, text, size));
+    return {
+      width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
+      height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
+      minX: roundNumber(geometry.anchorBounds.minX),
+      minY: roundNumber(geometry.anchorBounds.minY),
+      maxX: roundNumber(geometry.anchorBounds.maxX),
+      maxY: roundNumber(geometry.anchorBounds.maxY)
+    };
+  }
+  if (nodeShape(options) === "kite") {
+    const geometry = geometricKiteGeometry(size, nodeShapeData(options, env, text, size));
     return {
       width: roundNumber(geometry.anchorBounds.maxX - geometry.anchorBounds.minX),
       height: roundNumber(geometry.anchorBounds.maxY - geometry.anchorBounds.minY),
@@ -13569,6 +13657,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
     return scaleSize(semicircleLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
   }
+  if (isEmptyText && emptyNodeShape === "kite") {
+    const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
+    const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
+    return scaleSize(kiteLayoutSize(emptyWidth, emptyHeight, options, env), shapeScale);
+  }
   if (isEmptyText && emptyNodeShape === "signal") {
     const emptyWidth = Number.isFinite(textWidth) && textWidth > 0 ? textWidth + innerXSep * 2 : innerXSep * 2;
     const emptyHeight = Number.isFinite(textHeight) ? textHeight + textDepth + innerYSep * 2 : innerYSep * 2;
@@ -13649,6 +13742,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   if (shape === "semicircle") {
     return scaleSize(semicircleLayoutSize(width, height, options, env), shapeScale);
+  }
+  if (shape === "kite") {
+    return scaleSize(kiteLayoutSize(width, height, options, env), shapeScale);
   }
   if (shape === "signal") {
     return scaleSize(signalLayoutSize(width, height, options, env), shapeScale);
@@ -18432,7 +18528,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const angle = Number(rawAnchor);
-  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst") {
+  if (Number.isFinite(angle) && node.shape !== "cloud" && node.shape !== "starburst" && node.shape !== "kite") {
     return angleAnchor(node, angle, halfWidth, halfHeight);
   }
   const anchor = rawAnchor.replace(/-/g, " ");
@@ -18534,6 +18630,23 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
       semicircleBaseOffset: Number(size.baseOffset) || 0,
       semicircleMidOffset: Number(size.midOffset) || 0
     });
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
+    if (named) return named;
+  }
+  if (shape === "kite") {
+    const geometry = geometricKiteGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      kiteBaseOffset: Number(size.baseOffset) || 0,
+      kiteMidOffset: Number(size.midOffset) || 0
+    });
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return geometricKiteBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
     const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
   }
@@ -19085,6 +19198,18 @@ function includeItemBounds(item, include) {
     }
     if (item.shape === "semicircle") {
       const bounds = geometricSemicircleGeometry(item, item.shapeData || {}).bounds;
+      includeRotatedItemRectangle(
+        item.x + bounds.minX - foregroundOuterX,
+        item.y + bounds.minY - foregroundOuterY,
+        item.x + bounds.maxX + foregroundOuterX,
+        item.y + bounds.maxY + foregroundOuterY,
+        item,
+        include
+      );
+      return;
+    }
+    if (item.shape === "kite") {
+      const bounds = geometricKiteGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(
         item.x + bounds.minX - foregroundOuterX,
         item.y + bounds.minY - foregroundOuterY,

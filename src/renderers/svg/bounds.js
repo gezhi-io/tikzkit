@@ -11,7 +11,7 @@ import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
 import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
-import { cylinderGeometry, semicircleGeometry } from "../../tikz/libraries/shapes.geometric.js";
+import { cylinderGeometry, kiteGeometry, semicircleGeometry } from "../../tikz/libraries/shapes.geometric.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 import { curvedArrowPaint } from "./arrowBending.js";
 
@@ -35,7 +35,9 @@ export function computeSvgBounds(items, options = {}) {
         ? cylinderGeometry(item, item.shapeData || {}).bounds
         : item.shape === "semicircle"
           ? semicircleGeometry(item, item.shapeData || {}).bounds
-          : null;
+          : item.shape === "kite"
+            ? kiteGeometry(item, item.shapeData || {}).bounds
+            : null;
       const symbolBounds = item.shape === "signal"
         ? signalGeometry(item, item.shapeData || {}).bounds
         : item.shape === "magneticTape"

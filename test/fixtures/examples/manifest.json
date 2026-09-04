@@ -6795,6 +6795,51 @@
         "calc distance and angle modifier",
         "arrow tip and math text"
       ]
+    },
+    {
+      "id": "shapes-kite-flowchart",
+      "title": "Rotated kite validation gate",
+      "source": "shapes/kite-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:kiteLayoutSize/kiteGeometry/kiteBorderPoint",
+      "features": [
+        "flowchart",
+        "kite paired vertex angles",
+        "quarter-turn shape border rotation",
+        "named vertex anchors",
+        "outer separation and automatic edge clipping"
+      ]
+    },
+    {
+      "id": "shapes-kite-math",
+      "title": "Kite diagonals and area",
+      "source": "shapes/kite-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:kiteLayoutSize/kiteGeometry/kiteBorderPoint",
+      "features": [
+        "mathematics diagram",
+        "separate upper and lower vertex angles",
+        "minimum width and height expansion",
+        "four named vertex anchors",
+        "calc offset and math text"
+      ]
+    },
+    {
+      "id": "shapes-kite-physics",
+      "title": "Kite force vectors",
+      "source": "shapes/kite-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:kiteLayoutSize/kiteGeometry/kiteBorderPoint",
+      "features": [
+        "physics diagram",
+        "incircle border sizing",
+        "arbitrary shape border rotation",
+        "named kite anchors",
+        "relative polar force vectors and local arrow dimensions"
+      ]
     }
   ]
 }

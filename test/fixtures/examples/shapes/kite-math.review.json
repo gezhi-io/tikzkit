@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone wrapper contributes only the page boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "TikZ loads calc and shapes.geometric before evaluating the picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw", "\\fill"], "findings": "Core TikZ resolves named shape anchors, labels, path styles, and fill/stroke ordering." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": { "symbols": ["$()$", "+"], "findings": "Calc adds the formula-label offset to the resolved kite center." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["kite", "kite upper vertex angle", "kite lower vertex angle", "minimum width", "minimum height"], "findings": "The source computes asymmetric upper and lower radii from the requested angles, then applies uniform minimum-height and minimum-width expansion before constructing the four painted vertices." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["kite", "upper vertex", "lower vertex", "left vertex", "right vertex"], "findings": "The documented named vertices define the two mathematical diagonals and remain stable when minimum dimensions enlarge the shape." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-kite.test.js"] }
+  ]
+}
