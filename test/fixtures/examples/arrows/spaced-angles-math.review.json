@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves the requested TikZ libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to"], "findings": "TikZ resolves straight and curved map tangents before arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Positioning establishes the quotient-map object layout and border endpoints." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced angle 60 reversed"], "findings": "Spaced angle aliases append the invisible space component without altering the visible chevron." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["angle 90", "angle 60", "angle 45"], "findings": "The source keeps each aperture and reversed orientation distinct." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space", "\\pgfarrowsrightextend"], "findings": "Space contributes only 0.88pt plus 0.3 active line widths to placement." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced angle 60"], "findings": "The manual documents these as legacy compatibility arrow names." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] }
+  ],
+  "notes": "Mathematics fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

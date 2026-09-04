@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves arrows and arrows.spaced." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to"], "findings": "TikZ resolves vector paths and curved terminal tangents before arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced angle 90 reversed", "spaced angle 45 reversed"], "findings": "The physical-vector terminals combine visible source angles and the invisible space tip." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["angle 90", "angle 60", "angle 45"], "findings": "Angle aperture and active-line-width stroke metrics stay unchanged for vertical, diagonal, and curved vectors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space", "\\pgfarrowsrightextend"], "findings": "The source space arrow adds no painted SVG path." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows.spaced", "spaced angle 45"], "findings": "The manual exposes the six tested names." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-angles.test.js", "docs/qa/2026-09-04-arrows-spaced-angles.md"] }
+  ],
+  "notes": "Physics fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

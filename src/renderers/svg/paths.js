@@ -28,6 +28,7 @@ import {
   legacyTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.js";
 import {
+  spacedAngleArrowMetrics,
   spacedCapArrowMetrics,
   spacedImpliesArrowMetrics,
   spacedLegacyArrowMetrics,
@@ -475,6 +476,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   const delimiter = legacyDelimiterArrowMetrics(tip.kind, lineWidth);
   if (delimiter) return legacyDelimiterInlineGeometry(delimiter);
+  const spacedAngle = spacedAngleArrowMetrics(tip.kind, lineWidth);
+  if (spacedAngle) return legacyDelimiterInlineGeometry(spacedAngle);
   const legacyTriangle = legacyTriangleArrowMetrics(tip.kind, lineWidth);
   if (legacyTriangle) return legacyTriangleInlineGeometry(legacyTriangle);
   const spacedTriangle = spacedTriangleArrowMetrics(tip.kind, lineWidth);
@@ -801,7 +804,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
 }
 
 function isLegacyDelimiterTip(kind) {
-  return /^(?:square-bracket|round-bracket|angle-(?:90|60|45))(?:-reversed)?$/u.test(String(kind || ""));
+  return /^(?:(?:square-bracket|round-bracket|angle-(?:90|60|45))|legacy-spaced-angle-(?:90|60|45))(?:-reversed)?$/u.test(String(kind || ""));
 }
 
 function isSquareBracketTip(kind) {

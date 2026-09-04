@@ -239,6 +239,9 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-spaced-open-triangle-(?:90|60|45)(?:-reversed)?$/u.test(kind)) {
     return TIKZ_ARROW_TIPS["open-triangle"];
   }
+  if (/^legacy-spaced-angle-(?:90|60|45)(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
+  }
   if (kind === "legacy-diamond") {
     return { ...TIKZ_ARROW_TIPS.kite, fill: "context-stroke", stroke: "context-stroke" };
   }
@@ -564,6 +567,7 @@ function normalizeArrowKind(kind) {
   if (/^legacy-spaced-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:to|latex(?:-prime)?|stealth(?:-prime)?)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:open-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
+  if (/^legacy-spaced-angle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (text === "legacy-spaced-implies") return text;
   if (source === "Round Cap") return "round-cap";
   if (source === "Butt Cap") return "butt-cap";
@@ -583,6 +587,10 @@ function normalizeArrowKind(kind) {
   const spacedTriangle = text.match(/^spaced\s+(open\s+)?triangle\s+(90|60|45)(\s+reversed)?$/u);
   if (spacedTriangle) {
     return `legacy-spaced-${spacedTriangle[1] ? "open-" : ""}triangle-${spacedTriangle[2]}${spacedTriangle[3] ? "-reversed" : ""}`;
+  }
+  const spacedAngle = text.match(/^spaced\s+angle\s+(90|60|45)(\s+reversed)?$/u);
+  if (spacedAngle) {
+    return `legacy-spaced-angle-${spacedAngle[1]}${spacedAngle[2] ? "-reversed" : ""}`;
   }
   if (source === "Diamond") return "kite";
   if (text === "diamond") return "legacy-diamond";
