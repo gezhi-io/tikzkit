@@ -3520,6 +3520,48 @@ test("uses TikZ positioning node distance pairs as vertical and horizontal edge 
   assert.equal(ir.coordinates.latent.x, ir.coordinates.encode.x * 2);
 });
 
+test("uses shape compass anchors for diagonal positioning", () => {
+  const source = String.raw`
+\usetikzlibrary{positioning,shapes.geometric}
+\begin{tikzpicture}[node distance=1cm and 2cm]
+  \node[draw,outer sep=0pt,minimum width=2cm,minimum height=1cm] (source) {};
+  \node[diamond,draw,outer sep=0pt,aspect=2,minimum width=2cm,minimum height=1cm,below right=of source] (decision) {};
+  \node[circle,draw,outer sep=0pt,minimum size=1cm,above right=of decision] (result) {};
+  \node[coordinate] (gridSource) at (0,-5) {};
+  \node[coordinate,on grid,above right=1cm of gridSource] (gridResult) {};
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+
+  assert.deepEqual(diagnostics, []);
+  const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
+  const sourcePoint = ir.coordinates.source;
+  const decision = ir.coordinates.decision;
+  const result = ir.coordinates.result;
+  const gridSource = ir.coordinates.gridSource;
+  const gridResult = ir.coordinates.gridResult;
+  const circleDiagonal = boxes.result.width / (2 * Math.SQRT2);
+
+  assert.ok(
+    Math.abs(decision.x - sourcePoint.x - (boxes.source.width / 2 + 2 + boxes.decision.width / 4)) < 1e-6,
+    `expected below right to use the diamond north-west anchor, got ${decision.x - sourcePoint.x}`
+  );
+  assert.ok(
+    Math.abs(sourcePoint.y - decision.y - (boxes.source.height / 2 + 1 + boxes.decision.height / 4)) < 1e-6,
+    `expected below right to use the diamond north-west anchor vertically, got ${sourcePoint.y - decision.y}`
+  );
+  assert.ok(
+    Math.abs(result.x - decision.x - (boxes.decision.width / 4 + 2 + circleDiagonal)) < 1e-6,
+    `expected above right to use diamond and circle compass anchors, got ${result.x - decision.x}`
+  );
+  assert.ok(
+    Math.abs(result.y - decision.y - (boxes.decision.height / 4 + 1 + circleDiagonal)) < 1e-6,
+    `expected above right to use diamond and circle compass anchors vertically, got ${result.y - decision.y}`
+  );
+  assert.ok(Math.abs(gridResult.x - gridSource.x - Math.SQRT1_2) < 1e-6);
+  assert.ok(Math.abs(gridResult.y - gridSource.y - Math.SQRT1_2) < 1e-6);
+});
+
 test("uses positioning on grid to keep node centres one requested distance apart", () => {
   const source = String.raw`
 \begin{tikzpicture}[every node/.style={draw,rectangle}]

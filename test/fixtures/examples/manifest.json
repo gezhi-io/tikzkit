@@ -38,6 +38,9 @@
       "id": "tkz-fct-tangent-line",
       "title": "tkz-fct tangent line",
       "source": "tkz-fct/tangent-line.tex",
+      "sourceCorpus": "TeX Live tkz-fct manual",
+      "externalSource": "doc/latex/tkz-fct/TKZdoc-fct-tangent.tex",
+      "semanticOwner": "src/extensions/tkz-fct.js:renderTangentLine",
       "features": [
         "tkzInit",
         "tkzGrid",
@@ -3902,7 +3905,7 @@
       "id": "pgf-rectangle-split-ignore-empty",
       "title": "PGF rectangle split ignores empty parts",
       "source": "latex-examples/rectangle-split-ignore-empty.tex",
-      "sourceCorpus": "TeX Live PGF manual",
+      "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
       "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
       "features": [
@@ -5622,6 +5625,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-tutorial-chains.tex",
       "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:buildPath",
       "features": ["to path", "tikztotarget", "tikztonodes", "relative preleg", "orthogonal route", "physics labels"]
+    },
+    {
+      "id": "positioning-diagonal-decision-flow",
+      "title": "Diagonal diamond anchors in an approval flow",
+      "source": "positioning/diagonal-decision-flow.tex",
+      "sourceCorpus": "TeX Live TikZ positioning and geometric shapes",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+      "semanticOwner": "src/tikz/libraries/positioning.js + src/engine/evaluate.js:nodeAnchorCoordinate",
+      "features": ["node distance pair", "below right", "above right", "diamond compass anchors", "flowchart"]
+    },
+    {
+      "id": "positioning-diagonal-state-network",
+      "title": "Diagonal circle anchors in a mathematical state network",
+      "source": "positioning/diagonal-state-network.tex",
+      "sourceCorpus": "TeX Live TikZ positioning and circle shape anchors",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+      "semanticOwner": "src/tikz/libraries/positioning.js + src/engine/evaluate.js:shapeCompassLocalAnchor",
+      "features": ["node distance pair", "above right", "below right", "circle compass anchors", "math labels"]
+    },
+    {
+      "id": "positioning-diagonal-signal-chain",
+      "title": "Mixed shape anchors in a diagonal signal chain",
+      "source": "positioning/diagonal-signal-chain.tex",
+      "sourceCorpus": "TeX Live TikZ positioning and geometric shapes",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+      "semanticOwner": "src/tikz/libraries/positioning.js + src/engine/evaluate.js:nodeAnchorCoordinate",
+      "features": ["node distance pair", "circle compass anchors", "diamond compass anchors", "physics signal labels"]
     }
   ]
 }

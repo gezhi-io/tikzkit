@@ -6194,7 +6194,15 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, scaledSize);
   const slopedRotation = slopedInlineNodeRotation(expandedOptions, pathSegment, nodeEnv);
   const recordRotation = slopedRotation ?? nodeRotation(expandedOptions, nodeEnv);
-  const positioningPoint = resolvePositioning(expandedOptions, nodeEnv, { ...scaledPositioningSize, ...textAnchorOffsets });
+  const resolvedShape = nodeShape(expandedOptions);
+  const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text);
+  const positioningPoint = resolvePositioning(expandedOptions, nodeEnv, {
+    ...scaledPositioningSize,
+    ...textAnchorOffsets,
+    shape: resolvedShape,
+    shapeData: resolvedShapeData,
+    rotation: recordRotation
+  });
   const basePoint = positioningPoint || point;
   const anchoredPoint = expandedOptions.anchor
     ? resolveNodeAnchorPoint(basePoint, expandedOptions, text, nodeEnv, scaledSize)
@@ -6221,8 +6229,8 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
       layoutMaxX: scaledAnchorSize.maxX,
       layoutMaxY: scaledAnchorSize.maxY,
       ...textAnchorOffsets,
-      shape: nodeShape(expandedOptions),
-      shapeData: nodeShapeData(expandedOptions, nodeEnv, text),
+      shape: resolvedShape,
+      shapeData: resolvedShapeData,
       rotation: recordRotation
     };
     env.coordinates[nodeName] = nodePoint;
@@ -6481,11 +6489,20 @@ function createNode(statement, env, ir, diagnostics) {
   const anchorSize = scaleSize(rawAnchorSize, nodeEnv.canvasScale);
   const positioningSize = scaleSize(rawPositioningSize, nodeEnv.canvasScale);
   const textAnchorOffsets = nodeTextAnchorOffsets(text, expandedOptions, nodeEnv, size);
+  const resolvedShape = nodeShape(expandedOptions);
+  const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text);
+  const resolvedRotation = nodeRotation(expandedOptions, nodeEnv);
   const arrowGeometry = scaleArrowNodeGeometry(
     arrowNodeShapeGeometry(text, expandedOptions, nodeEnv),
     nodeEnv.canvasScale
   );
-  const point = fitLayout?.point || resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, { ...positioningSize, ...textAnchorOffsets });
+  const point = fitLayout?.point || resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, {
+    ...positioningSize,
+    ...textAnchorOffsets,
+    shape: resolvedShape,
+    shapeData: resolvedShapeData,
+    rotation: resolvedRotation
+  });
   const displayPoint = resolveNodeAnchorPoint(point, expandedOptions, text, nodeEnv, size);
   const name = statement.name
     ? resolvePicScopedName(resolveDynamicName(statement.name, env), env)
@@ -6517,14 +6534,14 @@ function createNode(statement, env, ir, diagnostics) {
     layoutMaxX: anchorSize.maxX,
     layoutMaxY: anchorSize.maxY,
     ...textAnchorOffsets,
-    shape: nodeShape(expandedOptions),
+    shape: resolvedShape,
     shapeData: {
-      ...nodeShapeData(expandedOptions, nodeEnv, text),
+      ...resolvedShapeData,
       rectangleSplit,
       circleSplit,
       ...(arrowGeometry ? { arrowGeometry } : {})
     },
-    rotation: nodeRotation(expandedOptions, nodeEnv)
+    rotation: resolvedRotation
   };
   if (name) {
     registerNodeRecord(name, nodeRecord, env);
@@ -6553,9 +6570,9 @@ function createNode(statement, env, ir, diagnostics) {
     layoutWidth: anchorSize.width,
     layoutHeight: anchorSize.height,
     ...textAnchorOffsets,
-    shape: nodeShape(expandedOptions),
-    shapeData: nodeShapeData(expandedOptions, nodeEnv, text),
-    rotation: nodeRotation(expandedOptions, nodeEnv),
+    shape: resolvedShape,
+    shapeData: resolvedShapeData,
+    rotation: resolvedRotation,
     options: expandedOptions
   };
 }
@@ -10656,7 +10673,18 @@ function positioningLibraryHelpers() {
     canvasLengthScale,
     resolveDynamicName,
     resolveAnchoredNodeCoordinate,
-    resolveCoordinate
+    resolveCoordinate,
+    resolveNodeAnchorOffset(node, anchor) {
+      if (!node?.shape || node.shape === "rectangle" || node.shape === "roundedRectangle" || node.shape === "coordinate") {
+        return null;
+      }
+      return nodeAnchorCoordinate({
+        ...node,
+        point: { x: 0, y: 0 },
+        layoutWidth: node.layoutWidth ?? node.width,
+        layoutHeight: node.layoutHeight ?? node.height
+      }, anchor);
+    }
   };
 }
 

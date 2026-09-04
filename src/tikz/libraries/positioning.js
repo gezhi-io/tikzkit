@@ -4,12 +4,12 @@ import { stripOuterBraces } from "../../engine/options.js";
 export const tikzLibrary = {
   name: "positioning",
   status: "builtin",
-  implementedBy: "src/tikz/libraries/positioning.js; src/engine/evaluate.js:nodeTextAnchorOffsets",
+  implementedBy: "src/tikz/libraries/positioning.js; src/engine/evaluate.js:nodeTextAnchorOffsets/nodeAnchorCoordinate/shapeCompassLocalAnchor",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-shapes.tex",
-  features: ["right/left/above/below=... of", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
-  implements: ["right/left/above/below=... of", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
-  notes: "Normal positioning preserves PGF border-to-border spacing. base/mid placement connects the corresponding text anchors. on grid makes modern placements ignore both node sizes, matching the native center-to-center rule at picture or node scope. The legacy right of family remains separate semantics."
+  features: ["right/left/above/below=... of", "shape compass anchors", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
+  implements: ["right/left/above/below=... of", "shape compass anchors", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
+  notes: "Reviewed again on 2026-09-04 against tikzlibrarypositioning.code.tex and pgflibraryshapes.geometric.code.tex. Modern placement now follows PGF's exact reference-anchor + distance-vector - self-anchor equation. Paired diagonal distances remain unscaled; a single diagonal distance uses the source's sqrt(1/2) factor. Diamond north/south-east/west anchors use half of the corresponding outer half-extent, while circle and ellipse diagonal anchors follow their radial border. Normal rectangular positioning, base/mid text anchors, and on-grid center placement retain their existing semantics. The permanent drivers are positioning/diagonal-decision-flow.tex, positioning/diagonal-state-network.tex, positioning/diagonal-signal-chain.tex, and paths/custom-to-path-flowchart.tex. Arbitrary rotated asymmetric custom-shape placement and positioning against an explicitly named non-center coordinate remain partial."
 };
 
 export function resolvePositioningPoint(options, env, selfSize = { width: 0, height: 0 }, helpers) {
@@ -18,9 +18,15 @@ export function resolvePositioningPoint(options, env, selfSize = { width: 0, hei
   const placement = resolvePositioningPlacement(options, env, helpers);
   if (!placement) return null;
   const geometry = positioningGeometry(placement, selfSize);
-  const dx = positioningDelta(placement.direction, "x", placement.distance, geometry.reference, geometry.selfSize);
-  const dy = positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ??
-    positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize);
+  const delta = positioningPlacementDelta(
+    placement.direction,
+    placement.distance,
+    geometry.reference,
+    geometry.selfSize,
+    helpers
+  );
+  const dx = delta.x;
+  const dy = positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ?? delta.y;
   return roundPoint({ x: placement.reference.point.x + dx, y: placement.reference.point.y + dy });
 }
 
@@ -31,10 +37,16 @@ export function resolveExplicitAtPositioningOffsetPoint(options, env, selfSize =
   if (!placement) return null;
   const origin = { point: { x: 0, y: 0 }, width: 0, height: 0 };
   const geometry = positioningGeometry({ ...placement, reference: origin }, selfSize);
+  const delta = positioningPlacementDelta(
+    placement.direction,
+    placement.distance,
+    geometry.reference,
+    geometry.selfSize,
+    helpers
+  );
   return {
-    x: positioningDelta(placement.direction, "x", placement.distance, geometry.reference, geometry.selfSize),
-    y: positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ??
-      positioningDelta(placement.direction, "y", placement.distance, geometry.reference, geometry.selfSize)
+    x: delta.x,
+    y: positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ?? delta.y
   };
 }
 
@@ -58,11 +70,62 @@ function resolvePositioningPlacement(options, env, helpers) {
 
 function positioningGeometry(placement, selfSize) {
   if (!placement.onGrid) return { reference: placement.reference, selfSize };
-  const center = { width: 0, height: 0, minX: 0, minY: 0, maxX: 0, maxY: 0, baseOffset: 0, midOffset: 0 };
+  const center = {
+    width: 0,
+    height: 0,
+    minX: 0,
+    minY: 0,
+    maxX: 0,
+    maxY: 0,
+    baseOffset: 0,
+    midOffset: 0,
+    shape: "coordinate",
+    shapeData: null,
+    rotation: 0
+  };
   return {
     // PGF's on-grid branch replaces both placement anchors with center.
     reference: { ...placement.reference, ...center },
     selfSize: center
+  };
+}
+
+const POSITIONING_ANCHORS = {
+  above: { self: "south", reference: "north", x: 0, y: 1, factor: 1 },
+  "above left": { self: "south east", reference: "north west", x: -1, y: 1, factor: Math.SQRT1_2 },
+  "above right": { self: "south west", reference: "north east", x: 1, y: 1, factor: Math.SQRT1_2 },
+  below: { self: "north", reference: "south", x: 0, y: -1, factor: 1 },
+  "below left": { self: "north east", reference: "south west", x: -1, y: -1, factor: Math.SQRT1_2 },
+  "below right": { self: "north west", reference: "south east", x: 1, y: -1, factor: Math.SQRT1_2 },
+  left: { self: "east", reference: "west", x: -1, y: 0, factor: 1 },
+  right: { self: "west", reference: "east", x: 1, y: 0, factor: 1 }
+};
+
+function positioningPlacementDelta(direction, distance, reference, selfSize, helpers = {}) {
+  const anchors = POSITIONING_ANCHORS[direction];
+  if (!anchors) {
+    return {
+      x: positioningDelta(direction, "x", distance, reference, selfSize),
+      y: positioningDelta(direction, "y", distance, reference, selfSize)
+    };
+  }
+  const referenceAnchor = positioningNamedAnchorOffset(reference, anchors.reference, helpers);
+  const selfAnchor = positioningNamedAnchorOffset(selfSize, anchors.self, helpers);
+  const factor = distance.isPair ? 1 : anchors.factor;
+  return {
+    x: referenceAnchor.x - selfAnchor.x + anchors.x * distance.x * factor,
+    y: referenceAnchor.y - selfAnchor.y + anchors.y * distance.y * factor
+  };
+}
+
+function positioningNamedAnchorOffset(size, anchor, helpers = {}) {
+  const shapeAnchor = helpers.resolveNodeAnchorOffset?.(size, anchor);
+  if (shapeAnchor && Number.isFinite(shapeAnchor.x) && Number.isFinite(shapeAnchor.y)) return shapeAnchor;
+  const xBounds = positioningAxisBounds(size, "x");
+  const yBounds = positioningAxisBounds(size, "y");
+  return {
+    x: anchor.includes("east") ? xBounds.max : anchor.includes("west") ? xBounds.min : 0,
+    y: anchor.includes("north") ? yBounds.max : anchor.includes("south") ? yBounds.min : 0
   };
 }
 
@@ -113,8 +176,7 @@ export function positioningDelta(direction, axis, distance, reference, selfSize)
   const hasVertical = direction.includes("above") || direction.includes("below");
   const rawDistance = axis === "x" ? distance.x : distance.y;
   const diagonalSingleDistanceScale = hasHorizontal && hasVertical && !distance.isPair ? Math.SQRT1_2 : 1;
-  const diagonalBorderCorrection = hasHorizontal && hasVertical && !distance.isPair ? 0.024 : 0;
-  const axisDistance = rawDistance * diagonalSingleDistanceScale + diagonalBorderCorrection;
+  const axisDistance = rawDistance * diagonalSingleDistanceScale;
   const referenceBounds = positioningAxisBounds(reference, axis);
   const selfBounds = positioningAxisBounds(selfSize, axis);
   if (axis === "x") {
@@ -207,7 +269,10 @@ function resolvePositioningReference(raw, env, helpers) {
       maxX: node.layoutMaxX,
       maxY: node.layoutMaxY,
       baseOffset: Number(node.baseOffset) || 0,
-      midOffset: Number(node.midOffset) || 0
+      midOffset: Number(node.midOffset) || 0,
+      shape: node.shape,
+      shapeData: node.shapeData,
+      rotation: Number(node.rotation) || 0
     };
   }
   if (Object.hasOwn(env.coordinates, text)) return { point: env.coordinates[text], width: 0, height: 0 };

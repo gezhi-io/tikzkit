@@ -1633,10 +1633,22 @@ test("uses diagonal TikZ positioning distance for GAT layer neighbors", () => {
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const boxes = Object.fromEntries(
+    ir.items
+      .filter((item) => item.type === "nodeBox" && ["h1", "h4"].includes(item.id))
+      .map((item) => [item.id, item])
+  );
   const diagonalOffset = Math.abs(ir.coordinates.h4.x - ir.coordinates.h1.x);
+  const thickOuterSep = parseDimension("0.4pt");
+  const expectedDiagonalOffset = Math.SQRT1_2 * (
+    1 + boxes.h1.width / 2 + thickOuterSep + boxes.h4.width / 2 + thickOuterSep
+  );
 
   assert.equal(diagnostics.length, 0);
-  assert.ok(diagonalOffset > 1.61 && diagonalOffset < 1.65, `expected native TikZ diagonal offset near 1.63cm, got ${diagonalOffset}`);
+  assert.ok(
+    Math.abs(diagonalOffset - expectedDiagonalOffset) < 1e-6,
+    `expected circle compass anchors plus the native single-distance diagonal shift, got ${diagonalOffset}`
+  );
   assert.ok(ir.coordinates.hp.x > 4.35 && ir.coordinates.hp.x < 4.5, `expected horizontal positioning to remain unchanged, got ${ir.coordinates.hp.x}`);
 });
 
