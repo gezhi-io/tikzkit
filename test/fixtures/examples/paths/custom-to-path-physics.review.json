@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tutorial-chains.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "The LaTeX package delegates path semantics to the generic TikZ source."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\document", "\\enddocument"],
+      "findings": "These commands form the non-drawing document shell around the picture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\tikz@to@use@last@coordinate", "\\tikztostart", "\\tikztotarget", "\\tikztonodes"],
+      "findings": "The replacement begins from TikZ's stored current coordinate and updates the ordinary to current point after execution."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tutorial-chains.tex": {
+      "symbols": ["skip loop/.style", "-- ++(0,#1) -| (\\tikztotarget)"],
+      "findings": "The documented skip-loop route first adds a relative vertical leg, then reaches the target with an orthogonal -| segment."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex": {
+      "symbols": ["move to/.style", "line to/.style"],
+      "findings": "The library's basic replacements establish the same start, target, and collected-node contract used by the raised routes."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": {
+      "symbols": ["right/.code", "node distance"],
+      "findings": "Right-of placement computes the device positions that the custom routes then connect."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Stealth"],
+      "findings": "The signal routes use tangent-aligned Stealth tips at the clipped target borders."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] }
+  ]
+}

@@ -133,6 +133,6 @@ test("records the reviewed topaths slice in both extension registries", () => {
   const markdown = readFileSync("docs/extension-registry.md", "utf8");
   const csv = readFileSync("docs/extension-registry.csv", "utf8");
 
-  assert.match(markdown, /^\| tikzlibrary \| topaths \| 6 \| found \| yes \|/m);
-  assert.match(csv, /^tikzlibrary,topaths,6,partial,/m);
+  assert.match(markdown, /^\| tikzlibrary \| topaths \| 9 \| found \| yes \|/m);
+  assert.match(csv, /^tikzlibrary,topaths,9,partial,/m);
 });

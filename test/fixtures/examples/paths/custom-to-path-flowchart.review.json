@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tutorial-chains.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"],
+      "findings": "The LaTeX package is the thin frontend that loads the generic TikZ implementation used for path replacement."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\usepackage", "\\document", "\\enddocument"],
+      "findings": "The document shell commands delimit and load the standalone TikZ source; TikZKit treats this shell as non-drawing structure."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["to path", "\\tikztostart", "\\tikztotarget", "\\tikztonodes", "\\tikz@do@to", "\\tikz@do@edge"],
+      "findings": "TikZ collects the original path nodes, binds start and target, and executes the configured replacement for both to and edge."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex": {
+      "symbols": ["move to/.style", "line to/.style"],
+      "findings": "The built-in straight replacement is exactly -- (target) followed by the collected nodes; custom orthogonal replacements use the same contract."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tutorial-chains.tex": {
+      "symbols": ["hv path/.style", "vh path/.style"],
+      "findings": "The tutorial defines reusable -| and |- to-path templates, which are the geometry exercised by this flowchart."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": {
+      "symbols": ["above right/.code", "below right/.code", "node distance"],
+      "findings": "Diagonal placements select the opposite border anchor and parse vertical and horizontal node distances separately."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": {
+      "symbols": ["\\pgfdeclareshape{diamond}", "/pgf/aspect"],
+      "findings": "The decision node uses the declared diamond border and its aspect ratio when clipping incoming custom routes."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Stealth", "length", "width"],
+      "findings": "Stealth geometry derives length and width from the current line width and is aligned to the final route tangent."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/to-path-template.test.js", "docs/qa/2026-09-04-topaths-custom-templates.md"] }
+  ]
+}

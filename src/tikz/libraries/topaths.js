@@ -10,6 +10,73 @@ const CURVE_DISTANCE_KEYS = new Set([
   "in max distance"
 ]);
 
+export const TO_PATH_START_ALIAS = "tikzkit@to@start";
+export const TO_PATH_TARGET_ALIAS = "tikzkit@to@target";
+const TO_PATH_NODES_SENTINEL = "tikzkit@to@nodes";
+const SUPPORTED_TEMPLATE_OPERATORS = new Set(["--", "|-", "-|"]);
+
+export function parseCustomToPathTemplate(value, parsePathSegments) {
+  if (value === undefined || value === null || value === true || value === "") return null;
+  if (typeof parsePathSegments !== "function") return null;
+
+  let source = stripTexComments(stripBalancedOuterBraces(String(value).trim()));
+  if (!/\\tikztotarget\b/.test(source)) return null;
+  source = replaceCoordinatePlaceholder(source, "tikztostart", TO_PATH_START_ALIAS);
+  source = replaceCoordinatePlaceholder(source, "tikztotarget", TO_PATH_TARGET_ALIAS);
+  source = source.replace(/\\tikztonodes\b/g, ` node {${TO_PATH_NODES_SENTINEL}} `);
+
+  const parsed = parsePathSegments(source);
+  const segments = [];
+  const nodeSlots = [];
+  let pendingOperator = null;
+  let targetOperation = null;
+
+  for (const segment of parsed) {
+    if (segment.kind === "node") {
+      if (segment.at) return null;
+      if (String(segment.text || "").trim() === TO_PATH_NODES_SENTINEL) {
+        nodeSlots.push({ kind: "to-nodes" });
+      } else {
+        nodeSlots.push({ kind: "template-node", node: segment });
+      }
+      continue;
+    }
+    if (segment.kind === "operator") {
+      if (!SUPPORTED_TEMPLATE_OPERATORS.has(segment.value)) return null;
+      pendingOperator = segment.value;
+      segments.push(segment);
+      continue;
+    }
+    if (segment.kind === "coordinate") {
+      if (isTemplateAliasCoordinate(segment.raw, TO_PATH_TARGET_ALIAS)) {
+        targetOperation = pendingOperator || "move";
+      }
+      pendingOperator = null;
+      segments.push(segment);
+      continue;
+    }
+    if (segment.kind === "curveTo") {
+      if (isTemplateAliasCoordinate(segment.to, TO_PATH_TARGET_ALIAS)) targetOperation = "curve";
+      pendingOperator = null;
+      segments.push(segment);
+      continue;
+    }
+    if (segment.kind === "options") {
+      segments.push(segment);
+      continue;
+    }
+    return null;
+  }
+
+  if (!targetOperation) return null;
+  return {
+    segments,
+    nodeSlots,
+    targetOperation,
+    startsAtSource: firstCoordinateIsAlias(segments, TO_PATH_START_ALIAS)
+  };
+}
+
 export function curveToSpecFromOptions(options = {}, from, to, helpers = {}) {
   const state = createCurveToState();
   const parseAngle = helpers.parseAngle || ((value, fallback) => numericOption(value, fallback));
@@ -175,6 +242,39 @@ function stripBalancedOuterBraces(value) {
   return text;
 }
 
+function stripTexComments(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map((line) => {
+      for (let index = 0; index < line.length; index += 1) {
+        if (line[index] !== "%") continue;
+        let escapes = 0;
+        for (let cursor = index - 1; cursor >= 0 && line[cursor] === "\\"; cursor -= 1) escapes += 1;
+        if (escapes % 2 === 0) return line.slice(0, index);
+      }
+      return line;
+    })
+    .join("\n");
+}
+
+function replaceCoordinatePlaceholder(source, macro, alias) {
+  const parenthesized = new RegExp(`\\(\\s*\\\\${macro}\\s*\\)`, "g");
+  const bare = new RegExp(`\\\\${macro}\\b`, "g");
+  return source.replace(parenthesized, `(${alias})`).replace(bare, `(${alias})`);
+}
+
+function firstCoordinateIsAlias(segments, alias) {
+  const first = segments.find((segment) => segment.kind !== "options");
+  return first?.kind === "coordinate" && isTemplateAliasCoordinate(first.raw, alias);
+}
+
+function isTemplateAliasCoordinate(raw, alias) {
+  let text = String(raw || "").trim().replace(/^\+\+?/, "").trim();
+  while (text.startsWith("(") && text.endsWith(")")) text = text.slice(1, -1).trim();
+  while (text.startsWith("{") && text.endsWith("}")) text = text.slice(1, -1).trim();
+  return text === alias;
+}
+
 function enclosesWholeValue(text) {
   let depth = 0;
   for (let index = 0; index < text.length; index += 1) {
@@ -188,7 +288,7 @@ function enclosesWholeValue(text) {
 export const tikzLibrary = {
   name: "topaths",
   status: "partial",
-  implementedBy: "src/tikz/libraries/topaths.js:curveToSpecFromOptions; src/engine/evaluate.js:edge curve coordinate resolution and node-border clipping",
+  implementedBy: "src/tikz/libraries/topaths.js:curveToSpecFromOptions/parseCustomToPathTemplate; src/engine/evaluate.js:customToPathEnvironment/flushCustomToPathNodes and edge curve coordinate resolution/node-border clipping",
   features: [
     "default curve-to angles out=45 and in=135",
     "bend left/right with relative chord directions",
@@ -198,7 +298,11 @@ export const tikzLibrary = {
     "min/max distance and independent in/out bounds",
     "source-ordered updates for distinct curve option keys",
     "explicit out control, in control, and paired controls",
-    "mixed explicit and automatic control arms"
+    "mixed explicit and automatic control arms",
+    "custom path-only to path templates for to and edge",
+    "tikztostart and tikztotarget coordinate substitution",
+    "tikztonodes reinsertion with template-owned nodes",
+    "straight, orthogonal, relative preleg, and explicit cubic template geometry"
   ],
   implements: [
     "to",
@@ -222,10 +326,14 @@ export const tikzLibrary = {
     "in max distance",
     "out control",
     "in control",
-    "controls"
+    "controls",
+    "to path",
+    "tikztostart",
+    "tikztotarget",
+    "tikztonodes"
   ],
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex",
-  localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex (core loads topaths); /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex",
-  notes: "Reviewed locally on 2026-09-04. PGF initializes curve-to with out=45, in=135 and a 30-degree bend angle. Its base control distance is approximately 0.3915 times the endpoint distance, then each side applies its looseness and independent minimum/maximum clamp. Exact distance sets both bounds. Explicit controls replace distance computation independently per side; a later same-side looseness or distance key restores automatic computation. The relative branch computes controls from angles and looseness, matching the local PGF implementation even when explicit controls are also present. TikZKit shares these semantics across ordinary to/edge paths and chain joins. Arbitrary custom to path callbacks and repeated identical-key timeline preservation remain partial."
+  localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytopaths.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex (to/edge collection, placeholders, and template execution); /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-edges.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tutorial-chains.tex",
+  notes: "Reviewed locally on 2026-09-04. PGF initializes curve-to with out=45, in=135 and a 30-degree bend angle. Its base control distance is approximately 0.3915 times the endpoint distance, then each side applies its looseness and independent minimum/maximum clamp. Exact distance sets both bounds. Explicit controls replace distance computation independently per side; a later same-side looseness or distance key restores automatic computation. The relative branch computes controls from angles and looseness, matching the local PGF implementation even when explicit controls are also present. TikZ core collects to/edge nodes first, binds tikztostart and tikztotarget, executes the configured to path replacement, and expands tikztonodes at the replacement's chosen position. TikZKit now compiles path-only custom templates into ordinary path segments and reuses the shared path engine for node-border clipping, arrows, straight/orthogonal routing, relative prelegs, explicit cubic controls, and template/original node placement across both to and edge. Arbitrary pgfextra callbacks, execute-at-begin/end hooks, nested to/edge operations inside a template, arc/plot template bodies, and repeated identical-key timeline preservation remain partial."
 };

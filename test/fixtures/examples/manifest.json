@@ -5595,6 +5595,33 @@
         "physics paths",
         "Stealth arrows"
       ]
+    },
+    {
+      "id": "custom-to-path-flowchart",
+      "title": "Custom orthogonal to paths in a review flow",
+      "source": "paths/custom-to-path-flowchart.tex",
+      "sourceCorpus": "TeX Live TikZ topaths and chains tutorials",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-paths.tex",
+      "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:buildPath",
+      "features": ["to path", "tikztotarget", "tikztonodes", "-|", "|-", "flowchart labels"]
+    },
+    {
+      "id": "custom-to-path-math",
+      "title": "Custom cubic to paths for parallel morphisms",
+      "source": "paths/custom-to-path-math.tex",
+      "sourceCorpus": "TeX Live TikZ path manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-paths.tex",
+      "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:buildPath",
+      "features": ["to path", "tikztostart", "tikztotarget", "tikztonodes", "cubic controls", "math labels"]
+    },
+    {
+      "id": "custom-to-path-physics",
+      "title": "Custom raised routes in a feedback signal diagram",
+      "source": "paths/custom-to-path-physics.tex",
+      "sourceCorpus": "TeX Live TikZ chains tutorial",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tutorial-chains.tex",
+      "semanticOwner": "src/tikz/libraries/topaths.js + src/engine/evaluate.js:buildPath",
+      "features": ["to path", "tikztotarget", "tikztonodes", "relative preleg", "orthogonal route", "physics labels"]
     }
   ]
 }

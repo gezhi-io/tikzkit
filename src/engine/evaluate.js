@@ -48,7 +48,13 @@ import {
   resolvePositioningPoint,
   scalePositioningDistance as scalePositioningLibraryDistance
 } from "../tikz/libraries/positioning.js";
-import { constrainedCurveControlDistance, curveToSpecFromOptions } from "../tikz/libraries/topaths.js";
+import {
+  constrainedCurveControlDistance,
+  curveToSpecFromOptions,
+  parseCustomToPathTemplate,
+  TO_PATH_START_ALIAS,
+  TO_PATH_TARGET_ALIAS
+} from "../tikz/libraries/topaths.js";
 import { evaluateMath, parseDimension, roundNumber, roundPoint, substituteTextVariables, substituteVariables } from "./math.js";
 import {
   effectiveMathFontScale,
@@ -1748,7 +1754,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         }
       }
       const combinedEdgeOptions = { ...effectivePathOptions, ...(segment.options || {}) };
-      if (segment.kind === "to") {
+      const customToPath = parseCustomToPathTemplate(combinedEdgeOptions["to path"], parsePathSegments);
+      if (!customToPath) {
         pendingInlineNodes.push(...toPathInlineNodes(combinedEdgeOptions["to path"]));
       }
       const circuitikz = appendCircuitikzToSegment({
@@ -1784,6 +1791,58 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         styleHints.stroke = pathStyle.stroke === "none" ? "black" : pathStyle.stroke || "black";
       }
       Object.assign(effectivePathOptions, edgePathOptions(combinedEdgeOptions));
+      if (customToPath) {
+        const customEnv = customToPathEnvironment(
+          env,
+          currentBase || current,
+          currentNodeRef,
+          to,
+          toNodeRef
+        );
+        const routeSegments = customToPath.startsAtSource
+          ? customToPath.segments
+          : [{ kind: "coordinate", raw: TO_PATH_START_ALIAS }, ...customToPath.segments];
+        const customBuilt = buildPath(routeSegments, customEnv, diagnostics, {}, pathStyle);
+        const customLabels = customToPathLabelNodes(customToPath.nodeSlots, pendingInlineNodes, env);
+        const routePrimitives = pathPrimitivesFromCommands(customBuilt.commands);
+        const routeEndpoints = pathCommandEndpoints(customBuilt.commands);
+        const edgeStyle = segment.kind === "edge" ? edgeDrawableStyle(combinedEdgeOptions, pathStyle, env) : null;
+
+        nodes.push(...customBuilt.nodes);
+        shapes.push(...customBuilt.shapes);
+        flushCustomToPathNodes(
+          customLabels,
+          routePrimitives,
+          customToPath.targetOperation,
+          nodes,
+          env,
+          pathStyle,
+          effectivePathOptions
+        );
+
+        if (segment.kind === "edge") {
+          const edgeCommands = applyPathMorphing(customBuilt.commands, combinedEdgeOptions, env, edgeStyle);
+          shapes.push({
+            type: "path",
+            subtype: "edge",
+            commands: applyArrowEndpointShortening(edgeCommands, edgeStyle, customBuilt.endpointRefs),
+            style: edgeStyle,
+            includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(combinedEdgeOptions)
+          });
+          ({ current, currentLocal, currentBase, currentNodeRef, endNodeRef } = edgeOrigin);
+        } else {
+          appendCustomToPathCommands(commands, customBuilt.commands, currentNodeRef);
+          current = routeEndpoints.end || to;
+          currentLocal = null;
+          currentBase = to;
+          currentNodeRef = toNodeRef;
+          endNodeRef = toNodeRef;
+          lastSegment = routePrimitives.at(-1) || { from: currentBase || current, to: current };
+        }
+        pendingInlineNodes = [];
+        pending = null;
+        continue;
+      }
       const loopDirection = loopDirectionFromOptions(combinedEdgeOptions);
       const arcThrough = parseTikzExtArcThrough(combinedEdgeOptions);
       if (arcThrough) {
@@ -2309,6 +2368,108 @@ function inlineNodePosition(options = {}, fallback = null) {
 function toPathInlineNodes(value) {
   if (value === undefined || value === null || value === true || value === "") return [];
   return parsePathSegments(String(value)).filter((segment) => segment.kind === "node");
+}
+
+function customToPathEnvironment(env, from, fromRef, to, toRef) {
+  const childEnv = {
+    ...env,
+    coordinates: { ...env.coordinates },
+    nodes: { ...env.nodes }
+  };
+  installToPathAlias(childEnv, TO_PATH_START_ALIAS, from, fromRef);
+  installToPathAlias(childEnv, TO_PATH_TARGET_ALIAS, to, toRef);
+  return childEnv;
+}
+
+function installToPathAlias(env, alias, point, ref) {
+  delete env.coordinates[alias];
+  delete env.nodes[alias];
+  if (ref?.mode === "center" && ref.node) env.nodes[alias] = ref.node;
+  else env.coordinates[alias] = roundPoint(point);
+}
+
+function customToPathLabelNodes(slots, toNodes, env) {
+  const result = [];
+  for (const slot of slots || []) {
+    if (slot.kind === "to-nodes") {
+      result.push(...toNodes);
+    } else if (slot.kind === "template-node" && slot.node) {
+      result.push({
+        ...slot.node,
+        text: substituteTextVariables(slot.node.text, env.variables)
+      });
+    }
+  }
+  return result;
+}
+
+function appendCustomToPathCommands(commands, routeCommands, sourceNodeRef) {
+  if (!routeCommands.length) return;
+  const [first, ...rest] = routeCommands;
+  if (first.type !== "moveTo") {
+    commands.push(...routeCommands);
+    return;
+  }
+  if (shouldBreakAtNodeExit(sourceNodeRef)) moveToNodeExit(commands, first);
+  commands.push(...rest);
+}
+
+function pathPrimitivesFromCommands(commands = []) {
+  const primitives = [];
+  let current = null;
+  for (const command of commands) {
+    if (command.type === "moveTo") {
+      current = { x: command.x, y: command.y };
+      continue;
+    }
+    if (command.type === "lineTo" && current) {
+      const to = { x: command.x, y: command.y };
+      primitives.push({ from: current, to });
+      current = to;
+      continue;
+    }
+    if (command.type === "curveTo" && current) {
+      const to = { x: command.x, y: command.y };
+      primitives.push({
+        from: current,
+        c1: { x: command.x1, y: command.y1 },
+        c2: { x: command.x2, y: command.y2 },
+        to
+      });
+      current = to;
+      continue;
+    }
+    if (command.type === "closePath") current = primitives[0]?.from || current;
+  }
+  return primitives;
+}
+
+function flushCustomToPathNodes(pendingNodes, primitives, operation, nodes, env, pathStyle, pathOptions) {
+  if (!pendingNodes.length) return;
+  if ((operation === "|-" || operation === "-|") && primitives.length >= 2) {
+    flushOrthogonalInlinePathNodes(
+      pendingNodes,
+      primitives.at(-2),
+      primitives.at(-1),
+      nodes,
+      env,
+      pathStyle,
+      pathOptions
+    );
+    return;
+  }
+  const active = primitives.at(-1);
+  if (!active) return;
+  if (!active.c1 || !active.c2) {
+    flushInlinePathNodes(pendingNodes, active.from, active.to, nodes, env, pathStyle, pathOptions);
+    return;
+  }
+  for (const segment of pendingNodes) {
+    const placementOptions = inlineNodeResolvedOptions(segment.options, env, pathStyle, pathOptions);
+    const pos = inlineNodePosition(placementOptions, 0.5);
+    const point = roundPoint(cubicPointAt(active.from, active.c1, active.c2, active.to, pos));
+    addInlinePathNode(segment, segment.text, point, nodes, env, pathStyle, active, pathOptions);
+  }
 }
 
 function isTikzExtOrthoOperator(value) {
