@@ -743,6 +743,7 @@ const ARROW_TIP_SEQUENCE_NAMES = [
   "hooks",
   "left to",
   "right to",
+  "implies",
   "spaced implies",
   "spaced stealth' reversed",
   "spaced stealth reversed",

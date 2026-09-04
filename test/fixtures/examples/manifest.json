@@ -5924,12 +5924,39 @@
       "features": ["arrows.spaced", "spaced to", "spaced latex", "spaced stealth", "prime", "reversed", "diagonal", "curved path", "physics vectors"]
     },
     {
+      "id": "arrows-implies-flowchart",
+      "title": "Legacy implies arrows in a validation flow",
+      "source": "arrows/implies-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyImpliesArrowMetrics + src/renderers/svg/paths.js:legacyImpliesArrowInlineGeometry",
+      "features": ["arrows", "implies", "double line", "double distance", "colored inner line", "start arrow", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-implies-math",
+      "title": "Legacy implies arrows between propositions",
+      "source": "arrows/implies-math.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyImpliesArrowMetrics + src/renderers/svg/paths.js:legacyImpliesArrowInlineGeometry",
+      "features": ["arrows", "implies", "double line", "bidirectional implication", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-implies-physics",
+      "title": "Legacy implies arrows in a feedback system",
+      "source": "arrows/implies-physics.tex",
+      "sourceCorpus": "TeX Live PGF legacy arrows library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:legacyImpliesArrowMetrics + src/renderers/svg/paths.js:legacyImpliesArrowInlineGeometry",
+      "features": ["arrows", "implies", "double line", "colored inner line", "start arrow", "orthogonal path", "curved path", "physics feedback"]
+    },
+    {
       "id": "arrows-spaced-implies-flowchart",
       "title": "Spaced implies arrows in a validation flow",
       "source": "arrows/spaced-implies-flowchart.tex",
       "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
       "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
-      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:spacedImpliesArrowInlineGeometry",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:legacyImpliesArrowInlineGeometry",
       "features": ["arrows.spaced", "spaced implies", "double line", "double distance", "colored inner line", "start arrow", "orthogonal path", "curved path", "flowchart"]
     },
     {
@@ -5938,7 +5965,7 @@
       "source": "arrows/spaced-implies-math.tex",
       "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
       "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
-      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:spacedImpliesArrowInlineGeometry",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:legacyImpliesArrowInlineGeometry",
       "features": ["arrows.spaced", "spaced implies", "double line", "bidirectional implication", "curved map", "mathematical diagram"]
     },
     {
@@ -5947,7 +5974,7 @@
       "source": "arrows/spaced-implies-physics.tex",
       "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
       "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
-      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:spacedImpliesArrowInlineGeometry",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedImpliesArrowMetrics + src/renderers/svg/paths.js:legacyImpliesArrowInlineGeometry",
       "features": ["arrows.spaced", "spaced implies", "double line", "colored inner line", "start arrow", "orthogonal path", "curved path", "physics feedback"]
     },
     {

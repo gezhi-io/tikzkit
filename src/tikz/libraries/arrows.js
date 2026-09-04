@@ -5,7 +5,7 @@ import { lineWidthFromPt, TIKZ_UNIT } from "../metrics.js";
 export const tikzLibrary = {
   "name": "arrows",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacyCircleArrowMetrics/legacyHookArrowMetrics/legacySideToArrowMetrics/legacySerifCmArrowMetrics/legacyCapArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/legacyCircleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacySerifCmInlineGeometry/renderInlineArrowTip + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
+  "implementedBy": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/parseLegacyArrowExtents/legacyDelimiterArrowMetrics/legacyTriangleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacyCircleArrowMetrics/legacyHookArrowMetrics/legacySideToArrowMetrics/legacyImpliesArrowMetrics/legacySerifCmArrowMetrics/legacyCapArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/legacyLatexArrowGeometryFromLineWidth/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/legacyCircleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacyImpliesArrowInlineGeometry/legacySerifCmInlineGeometry/renderInlineArrowTip + src/frontend/latex-shell.js:expandTheoreticalComputerScienceLogoMacros + src/engine/evaluate.js:curveArrowTerminalBorderPadding/nodeBorderPoint/polygonBorderPointWithPadding/regularPolygonOuterRadiusExtension",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   "localSourceReviewed": true,
@@ -28,6 +28,7 @@ export const tikzLibrary = {
     "legacy left hook, left hook reversed, right hook, right hook reversed, hooks, and hooks reversed tips at path starts and ends",
     "legacy hook active-line-width cubic geometry, asymmetric shortening, stroke-only paint, and round caps",
     "legacy left to, right to, and reversed half-arrow tips with source multi-part paint",
+    "legacy implies open cubic with outer/inner line-width geometry",
     "legacy serif cm fill-only silhouette with source active-line-width dimensions",
     "legacy round cap, butt cap, triangle 90 cap, triangle 90 cap reversed, fast cap, and fast cap reversed tips at path starts and ends",
     "legacy cap active-line-width geometry, source paint semantics, and backend/tip-end shortening",
@@ -55,6 +56,7 @@ export const tikzLibrary = {
     "legacy left hook, left hook reversed, right hook, right hook reversed, hooks, and hooks reversed tips at path starts and ends",
     "legacy hook active-line-width cubic geometry, asymmetric shortening, stroke-only paint, and round caps",
     "legacy left to, right to, and reversed half-arrow tips with source multi-part paint",
+    "legacy implies open cubic with outer/inner line-width geometry",
     "legacy serif cm fill-only silhouette with source active-line-width dimensions",
     "legacy round cap, butt cap, triangle 90 cap, triangle 90 cap reversed, fast cap, and fast cap reversed tips at path starts and ends",
     "legacy cap active-line-width geometry, source paint semantics, and backend/tip-end shortening",
@@ -69,6 +71,11 @@ export const tikzLibrary = {
 tikzLibrary.notes = tikzLibrary.notes.replace(
   "Legacy implies, serif cm, concave/custom shape miters, and full declared-arrow hulls remain partial.",
   "An eighth review implemented `serif cm`: d=.4pt+.45*linewidth, backend=-.75d, tip end and x shift=.04*linewidth, and the exact closed fill-only cubic silhouette. Ordinary and spaced serif-cm tips share that geometry; the spaced form adds only the core space arrow. Flowchart, quotient-map, and force-vector fixtures provide strict semantic and MacTeX/tikztosvg visual evidence. Legacy implies, concave/custom shape miters, and full declared-arrow hulls remain partial."
+);
+
+tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Legacy implies, concave/custom shape miters, and full declared-arrow hulls remain partial.",
+  "A ninth source review implemented ordinary `implies`. Its dima=.25*(outer linewidth+inner linewidth), dimb=.5*(outer linewidth-inner linewidth), backend=-1.36*dima-.5*dimb, tip end=2.06*dima+.5*dimb, and symmetric two-cubic open stroke now share one source-derived metrics path with `spaced implies`; only the latter adds the core invisible space. Flowchart, proposition, and physical-feedback fixtures cover straight, orthogonal, curved, start, end, and bidirectional terminals against MacTeX and tikztosvg. Concave/custom shape miters and full declared-arrow hulls remain partial."
 );
 
 export function legacyDelimiterArrowMetrics(kind, lineWidth) {
@@ -337,6 +344,41 @@ export function legacySideToArrowMetrics(kind, lineWidth) {
     maxX: pt(maxXPt),
     minY: side === "left" ? pt(-halfHeightPt) : 0,
     maxY: side === "right" ? pt(halfHeightPt) : 0
+  };
+}
+
+export function legacyImpliesArrowMetrics(kind, lineWidth, innerLineWidth = 0, doubled = false) {
+  if (String(kind || "").trim().toLowerCase() !== "legacy-implies") return null;
+
+  const unitsPerPt = lineWidthFromPt(1);
+  const requestedLineWidth = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4));
+  const inner = doubled
+    ? Math.max(0, Number.isFinite(Number(innerLineWidth)) ? Number(innerLineWidth) : lineWidthFromPt(0.6))
+    : 0;
+  const outer = doubled ? 2 * requestedLineWidth + inner : requestedLineWidth;
+  const outerPt = outer / unitsPerPt;
+  const innerPt = inner / unitsPerPt;
+  const dimaPt = 0.25 * (outerPt + innerPt);
+  const dimbPt = 0.5 * (outerPt - innerPt);
+  const backEndPt = -1.36 * dimaPt - 0.5 * dimbPt;
+  const tipEndPt = 2.06 * dimaPt + 0.5 * dimbPt;
+  const halfHeightPt = 2.65 * dimaPt + 0.5 * dimbPt;
+  const pt = (value) => lineWidthFromPt(value);
+
+  return {
+    family: "implies",
+    dima: pt(dimaPt),
+    dimb: pt(dimbPt),
+    outerLineWidth: outer,
+    innerLineWidth: inner,
+    arrowLineWidth: pt(dimbPt),
+    backEnd: pt(backEndPt),
+    tipEnd: pt(tipEndPt),
+    halfHeight: pt(halfHeightPt),
+    space: 0,
+    placement: pt(tipEndPt),
+    terminalPlacement: pt(tipEndPt),
+    assemblyLength: pt(tipEndPt - backEndPt)
   };
 }
 

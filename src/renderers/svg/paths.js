@@ -24,6 +24,7 @@ import {
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
+  legacyImpliesArrowMetrics,
   legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
@@ -370,7 +371,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     maxY: (Number(raw.width) || 0) / 2
   };
   const spacedLegacyTo = isLegacySpacedToTip(raw.kind);
-  const spacedLegacyImplies = isLegacySpacedImpliesTip(raw.kind);
+  const legacyImplies = isLegacyImpliesTip(raw.kind);
   const spacedLegacyStealthPrime = isLegacySpacedStealthPrimeTip(raw.kind);
   const legacySideTo = isLegacySideToTip(raw.kind);
   const openTip = [
@@ -385,7 +386,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     "rays"
   ].includes(raw.kind)
     || spacedLegacyTo
-    || spacedLegacyImplies
+    || legacyImplies
     || isLegacyDelimiterTip(raw.kind)
     || isLegacyOpenTriangleTip(raw.kind)
     || isLegacyOpenDiamondTip(raw.kind)
@@ -434,7 +435,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
         ? style.lineWidth ?? raw.lineWidth ?? 1
         : raw.lineWidth || style.lineWidth || 1
       : openTip
-      ? spacedLegacyTo || spacedLegacyImplies || legacySideTo ? geometry.lineWidth : style.lineWidth ?? 1
+      ? spacedLegacyTo || legacyImplies || legacySideTo ? geometry.lineWidth : style.lineWidth ?? 1
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
@@ -521,13 +522,18 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
   const spacedLegacy = spacedLegacyArrowMetrics(tip.kind, lineWidth);
   if (spacedLegacy) return spacedLegacyArrowInlineGeometry(spacedLegacy);
-  const spacedImplies = spacedImpliesArrowMetrics(
+  const legacyImplies = legacyImpliesArrowMetrics(
+    tip.kind,
+    lineWidth,
+    style.doubleDistance,
+    style.doubleColor !== undefined
+  ) || spacedImpliesArrowMetrics(
     tip.kind,
     lineWidth,
     style.doubleDistance,
     style.doubleColor !== undefined
   );
-  if (spacedImplies) return spacedImpliesArrowInlineGeometry(spacedImplies);
+  if (legacyImplies) return legacyImpliesArrowInlineGeometry(legacyImplies);
   if (tip.kind === "stealth") {
     if (tip.meta) {
       const native = stealthMetaArrowGeometryFromLineWidth(lineWidth, {
@@ -910,8 +916,8 @@ function isLegacySpacedToTip(kind) {
   return /^legacy-spaced-to(?:-reversed)?$/u.test(String(kind || ""));
 }
 
-function isLegacySpacedImpliesTip(kind) {
-  return String(kind || "") === "legacy-spaced-implies";
+function isLegacyImpliesTip(kind) {
+  return /^legacy-(?:spaced-)?implies$/u.test(String(kind || ""));
 }
 
 function isLegacySpacedStealthPrimeTip(kind) {
@@ -1173,7 +1179,7 @@ function legacySerifCmInlineGeometry(metrics) {
   };
 }
 
-function spacedImpliesArrowInlineGeometry(metrics) {
+function legacyImpliesArrowInlineGeometry(metrics) {
   const dima = metrics.dima;
   const xshift = 0.06 * dima;
   const point = (x, y) => `${format(x + xshift)} ${format(-y)}`;

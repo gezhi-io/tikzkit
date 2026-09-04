@@ -227,6 +227,9 @@ export function createArrowTip(kind = "to", overrides = {}) {
 }
 
 function legacyArrowTipBase(kind) {
+  if (kind === "legacy-implies") {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
+  }
   if (/^triangle-(?:90|60|45)(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.to, fill: "context-stroke", stroke: "context-stroke" };
   }
@@ -582,6 +585,7 @@ export function lineWidthFromTikzDimension(value, fallback = TIKZ_LINE_WIDTHS.de
 
 function normalizeArrowKind(kind) {
   const source = String(kind || "to").trim().replace(/^>$/, "to");
+  if (/^implies$/iu.test(source)) return "legacy-implies";
   if (/^spaced\s+implies$/iu.test(source)) return "legacy-spaced-implies";
   const spacedLegacy = source.match(/^spaced (to|latex'?|stealth'?)( reversed)?$/u);
   if (spacedLegacy) {
@@ -591,6 +595,7 @@ function normalizeArrowKind(kind) {
   }
   if (/^stealth\s*'$/i.test(source)) return "stealth-prime";
   const text = source.replace(/'/g, "").toLowerCase();
+  if (text === "legacy-implies") return text;
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
   if (text === "legacy-serif-cm") return text;

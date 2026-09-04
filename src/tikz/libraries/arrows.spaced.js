@@ -5,6 +5,7 @@ import {
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
+  legacyImpliesArrowMetrics,
   legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
@@ -14,7 +15,7 @@ import {
 export const tikzLibrary = {
   name: "arrows.spaced",
   status: "builtin",
-  implementedBy: "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics/spacedLegacyArrowMetrics/spacedImpliesArrowMetrics/spacedTriangleArrowMetrics/spacedAngleArrowMetrics/spacedHookArrowMetrics/spacedSideToArrowMetrics/spacedSerifCmArrowMetrics/spacedDelimiterArrowMetrics/spacedShapeArrowMetrics + src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics/legacyCircleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacySideToArrowMetrics/legacySerifCmArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacySerifCmInlineGeometry/legacyCapInlineGeometry/legacyCircleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/spacedLegacyArrowInlineGeometry/spacedImpliesArrowInlineGeometry/renderInlineArrowTip",
+  implementedBy: "src/tikz/libraries/arrows.spaced.js:legacySpacedArrowSpace/spacedCapArrowMetrics/spacedLegacyArrowMetrics/spacedImpliesArrowMetrics/spacedTriangleArrowMetrics/spacedAngleArrowMetrics/spacedHookArrowMetrics/spacedSideToArrowMetrics/spacedSerifCmArrowMetrics/spacedDelimiterArrowMetrics/spacedShapeArrowMetrics + src/tikz/libraries/arrows.js:legacyDelimiterArrowMetrics/legacyCircleArrowMetrics/legacyDiamondArrowMetrics/legacySquareArrowMetrics/legacySideToArrowMetrics/legacyImpliesArrowMetrics/legacySerifCmArrowMetrics + src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/legacyArrowTipBase/normalizeArrowKind + src/renderers/svg/paths.js:inlineArrowGeometry/legacyDelimiterInlineGeometry/legacyTriangleInlineGeometry/legacyHookInlineGeometry/legacySideToInlineGeometry/legacyImpliesArrowInlineGeometry/legacySerifCmInlineGeometry/legacyCapInlineGeometry/legacyCircleInlineGeometry/legacyDiamondInlineGeometry/legacySquareInlineGeometry/spacedLegacyArrowInlineGeometry/renderInlineArrowTip",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex",
   localSourceReviewed: true,
@@ -265,41 +266,16 @@ export function spacedLegacyArrowMetrics(kind, lineWidth) {
 
 export function spacedImpliesArrowMetrics(kind, lineWidth, innerLineWidth = 0, doubled = false) {
   if (String(kind || "").trim().toLowerCase() !== "legacy-spaced-implies") return null;
-
+  const base = legacyImpliesArrowMetrics("legacy-implies", lineWidth, innerLineWidth, doubled);
   const unitsPerPt = lineWidthFromPt(1);
-  const requestedLineWidth = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4));
-  const inner = doubled
-    ? Math.max(0, Number.isFinite(Number(innerLineWidth)) ? Number(innerLineWidth) : lineWidthFromPt(0.6))
-    : 0;
-  const outer = doubled ? 2 * requestedLineWidth + inner : requestedLineWidth;
-  const outerPt = outer / unitsPerPt;
-  const innerPt = inner / unitsPerPt;
-
-  // pgflibraryarrows.code.tex defines the implies unit and paint width from
-  // both the outer and inner strokes. This is why a double shaft produces a
-  // larger outline while its arrow stroke stays at the requested line width.
-  const dimaPt = 0.25 * (outerPt + innerPt);
-  const dimbPt = 0.5 * (outerPt - innerPt);
-  const spacePt = 0.88 + 0.3 * outerPt;
-  const backEndPt = -1.36 * dimaPt - 0.5 * dimbPt;
-  const tipEndPt = 2.06 * dimaPt + 0.5 * dimbPt;
-  const halfHeightPt = 2.65 * dimaPt + 0.5 * dimbPt;
-  const pt = (value) => lineWidthFromPt(value);
+  const space = lineWidthFromPt(0.88 + 0.3 * (base.outerLineWidth / unitsPerPt));
 
   return {
-    family: "implies",
-    dima: pt(dimaPt),
-    dimb: pt(dimbPt),
-    outerLineWidth: outer,
-    innerLineWidth: inner,
-    arrowLineWidth: pt(dimbPt),
-    backEnd: pt(backEndPt),
-    tipEnd: pt(tipEndPt),
-    halfHeight: pt(halfHeightPt),
-    space: pt(spacePt),
-    placement: pt(tipEndPt + spacePt),
-    terminalPlacement: pt(tipEndPt + spacePt),
-    assemblyLength: pt(tipEndPt - backEndPt + spacePt)
+    ...base,
+    space,
+    placement: base.tipEnd + space,
+    terminalPlacement: base.tipEnd + space,
+    assemblyLength: base.tipEnd - base.backEnd + space
   };
 }
 
