@@ -1,0 +1,26 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,arrows.spaced,positioning}
+\begin{document}
+\begin{tikzpicture}[
+  node distance=12mm and 18mm,
+  stage/.style={draw,rounded corners=2pt,minimum width=24mm,minimum height=8mm,align=center},
+  route/.style={line width=1.2pt}
+]
+  \node[stage,fill=blue!8] (draft) {Draft};
+  \node[stage,fill=yellow!16,right=of draft] (check) {Check};
+  \node[stage,fill=green!10,right=of check] (ship) {Ship};
+  \node[stage,fill=red!8,below=of check] (repair) {Repair};
+
+  \draw[route,blue,-{spaced left to}]
+    (draft) -- node[above]{submit} (check);
+  \draw[route,green!50!black,-{spaced right to}]
+    (check) -- node[above]{accept} (ship);
+  \draw[route,red,-{spaced left to reversed}]
+    (check) -- node[right]{reject} (repair);
+  \draw[route,dashed,orange!85!black,-{spaced right to reversed}]
+    (repair.west) -| node[pos=.25,below]{retry} (draft.south);
+  \draw[route,purple,{spaced right to reversed}-{spaced left to}]
+    (repair) to[bend right=18] node[below,sloped]{override} (ship);
+\end{tikzpicture}
+\end{document}

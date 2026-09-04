@@ -24,6 +24,7 @@ import {
   legacyDelimiterArrowMetrics,
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
+  legacySideToArrowMetrics,
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.js";
@@ -34,6 +35,7 @@ import {
   spacedHookArrowMetrics,
   spacedImpliesArrowMetrics,
   spacedLegacyArrowMetrics,
+  spacedSideToArrowMetrics,
   spacedShapeArrowMetrics,
   spacedTriangleArrowMetrics
 } from "../../tikz/libraries/arrows.spaced.js";
@@ -368,6 +370,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const spacedLegacyTo = isLegacySpacedToTip(raw.kind);
   const spacedLegacyImplies = isLegacySpacedImpliesTip(raw.kind);
   const spacedLegacyStealthPrime = isLegacySpacedStealthPrimeTip(raw.kind);
+  const legacySideTo = isLegacySideToTip(raw.kind);
   const openTip = [
     "to",
     "hook",
@@ -387,6 +390,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     || isLegacyOpenSquareTip(raw.kind)
     || isLegacyOpenCircleTip(raw.kind)
     || isLegacyHookTip(raw.kind)
+    || legacySideTo
     || isLegacyOpenCapTip(raw.kind);
   const legacyBarTip = isLegacyBarTip(raw.kind);
   const barTip = raw.kind === "bar" || legacyBarTip;
@@ -428,7 +432,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
         ? style.lineWidth ?? raw.lineWidth ?? 1
         : raw.lineWidth || style.lineWidth || 1
       : openTip
-      ? spacedLegacyTo || spacedLegacyImplies ? geometry.lineWidth : style.lineWidth ?? 1
+      ? spacedLegacyTo || spacedLegacyImplies || legacySideTo ? geometry.lineWidth : style.lineWidth ?? 1
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
@@ -504,6 +508,10 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (legacyHook) return legacyHookInlineGeometry(legacyHook);
   const spacedHook = spacedHookArrowMetrics(tip.kind, lineWidth);
   if (spacedHook) return legacyHookInlineGeometry(spacedHook);
+  const legacySideTo = legacySideToArrowMetrics(tip.kind, lineWidth);
+  if (legacySideTo) return legacySideToInlineGeometry(legacySideTo);
+  const spacedSideTo = spacedSideToArrowMetrics(tip.kind, lineWidth);
+  if (spacedSideTo) return legacySideToInlineGeometry(spacedSideTo);
   const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth) || spacedCapArrowMetrics(tip.kind, lineWidth);
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
   const spacedLegacy = spacedLegacyArrowMetrics(tip.kind, lineWidth);
@@ -881,6 +889,10 @@ function isLegacyHookTip(kind) {
   return /^legacy-(?:spaced-)?(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(String(kind || ""));
 }
 
+function isLegacySideToTip(kind) {
+  return /^legacy-(?:spaced-)?(?:left|right)-to(?:-reversed)?$/u.test(String(kind || ""));
+}
+
 function isLegacyCapTip(kind) {
   return /^legacy-(?:spaced-)?(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(String(kind || ""));
 }
@@ -1081,6 +1093,53 @@ function spacedLegacyArrowInlineGeometry(metrics) {
   };
 }
 
+function legacySideToInlineGeometry(metrics) {
+  const u = metrics.unit;
+  const lineWidth = metrics.lineWidth;
+  const sign = metrics.side === "left" ? 1 : -1;
+  const point = (x, y) => `${format(x)} ${format(-sign * y)}`;
+  let path;
+  let parts;
+
+  if (metrics.reversed) {
+    const stem = `M ${format(0.5 * lineWidth)} 0 L ${format(-0.1 * lineWidth)} 0`;
+    const curve = [
+      `M ${point(3.75 * u + metrics.xShift, 4 * u)}`,
+      `C ${point(3.5 * u + metrics.xShift, 2.5 * u)} ${point(0.75 * u + metrics.xShift, 0.25 * u)} ${point(metrics.xShift, 0.125 * lineWidth)}`,
+      `M ${point(3.75 * u + metrics.xShift, 4 * u)}`,
+      `C ${point(3.5 * u + metrics.xShift, 2.5 * u)} ${point(0.75 * u + metrics.xShift, 0.25 * u)} ${point(metrics.xShift, -0.125 * lineWidth)}`
+    ].join(" ");
+    parts = [
+      { name: "stem", path: stem, strokeWidth: lineWidth, lineCap: "butt", lineJoin: "round" },
+      { name: "curve", path: curve, strokeWidth: metrics.arrowLineWidth, lineCap: "round", lineJoin: "round" }
+    ];
+    path = `${stem} ${curve}`;
+  } else {
+    path = [
+      `M ${point(-3 * u, 4 * u)}`,
+      `C ${point(-2.75 * u, 2.5 * u)} ${point(0, 0.25 * u)} ${point(0.75 * u, 0)}`,
+      `C ${point(0.55 * u, -0.125 * lineWidth)} ${point(0.5 * u, -0.125 * lineWidth)} ${point(0.5 * u, -0.125 * lineWidth)}`,
+      `L ${point(0, -0.125 * lineWidth)}`
+    ].join(" ");
+  }
+
+  return {
+    path,
+    ...(parts ? { parts } : {}),
+    shorten: metrics.terminalPlacement,
+    terminalPlacement: metrics.terminalPlacement,
+    placement: metrics.placement,
+    assemblyLength: metrics.assemblyLength,
+    lineWidth: metrics.arrowLineWidth,
+    bounds: {
+      minX: metrics.minX,
+      maxX: metrics.maxX,
+      minY: metrics.minY,
+      maxY: metrics.maxY
+    }
+  };
+}
+
 function spacedImpliesArrowInlineGeometry(metrics) {
   const dima = metrics.dima;
   const xshift = 0.06 * dima;
@@ -1211,15 +1270,29 @@ function legacyDelimiterInlineGeometry(metrics) {
 }
 
 export function renderInlineArrowTip(tip, point, angle, unit, curveContext = {}) {
-  const strokePart = tip.strokeWidth > 0 ? ` stroke="${escapeAttribute(tip.stroke)}" stroke-width="${format(tip.strokeWidth)}"` : ` stroke="none"`;
-  const lineStyle = tip.strokeWidth > 0 ? ` stroke-linecap="${escapeAttribute(tip.lineCap || "round")}" stroke-linejoin="${escapeAttribute(tip.lineJoin || "round")}"` : "";
-  const curved = curvedArrowPaint(tip, curveContext.placed, curveContext.terminal, curveContext.side, unit);
-  const modeClass = curved ? ` tikz-arrow-${escapeAttribute(curved.mode)}` : "";
-  const path = curved?.path || tip.geometry.path;
-  const transform = curved
-    ? curvedArrowTransformAttribute(curved)
-    : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})"`;
-  return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}" d="${path}" fill="${escapeAttribute(
-    tip.fill
-  )}"${strokePart}${lineStyle}${transform} />`;
+  const parts = Array.isArray(tip.geometry.parts) && tip.geometry.parts.length
+    ? tip.geometry.parts
+    : [{ path: tip.geometry.path }];
+  return parts.map((part) => {
+    const partTip = part.path === tip.geometry.path
+      ? tip
+      : { ...tip, geometry: { ...tip.geometry, path: part.path } };
+    const curved = curvedArrowPaint(partTip, curveContext.placed, curveContext.terminal, curveContext.side, unit);
+    const strokeWidth = Number.isFinite(Number(part.strokeWidth)) ? Number(part.strokeWidth) : tip.strokeWidth;
+    const stroke = part.stroke || tip.stroke;
+    const fill = part.fill || tip.fill;
+    const strokePart = strokeWidth > 0
+      ? ` stroke="${escapeAttribute(stroke)}" stroke-width="${format(strokeWidth)}"`
+      : ` stroke="none"`;
+    const lineStyle = strokeWidth > 0
+      ? ` stroke-linecap="${escapeAttribute(part.lineCap || tip.lineCap || "round")}" stroke-linejoin="${escapeAttribute(part.lineJoin || tip.lineJoin || "round")}"`
+      : "";
+    const modeClass = curved ? ` tikz-arrow-${escapeAttribute(curved.mode)}` : "";
+    const partClass = part.name ? ` tikz-arrow-part-${escapeAttribute(part.name)}` : "";
+    const path = curved?.path || part.path;
+    const transform = curved
+      ? curvedArrowTransformAttribute(curved)
+      : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})"`;
+    return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}${partClass}" d="${path}" fill="${escapeAttribute(fill)}"${strokePart}${lineStyle}${transform} />`;
+  }).join("");
 }

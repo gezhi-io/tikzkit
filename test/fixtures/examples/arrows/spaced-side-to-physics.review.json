@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell establishes document environments and contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF and resolves arrows and arrows.spaced." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "to", "bend left", "line width"], "findings": "TikZ resolves each force path terminal tangent and applies its line-width style." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex": { "symbols": ["\\pgfarrowsdeclarecombine*", "spaced left to", "spaced right to"], "findings": "Each force terminal combines a visible side-to tip and the invisible space arrow." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["left to", "right to", "left to reversed", "right to reversed"], "findings": "The source controls half-plane reflection, reversed geometry, extents, stroke width, cap, and join." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["space"], "findings": "The invisible space arrow contributes 0.88pt plus 0.3 active line widths." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["Partial Arrow Tips"], "findings": "The manual lists normal and reversed left/right variants." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-spaced-side-to.test.js", "docs/qa/2026-09-04-arrows-spaced-side-to.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-spaced-side-to.test.js", "docs/qa/2026-09-04-arrows-spaced-side-to.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-spaced-side-to.test.js", "docs/qa/2026-09-04-arrows-spaced-side-to.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-spaced-side-to.test.js", "docs/qa/2026-09-04-arrows-spaced-side-to.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-spaced-side-to.test.js", "docs/qa/2026-09-04-arrows-spaced-side-to.md"] }
+  ],
+  "notes": "Physics fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

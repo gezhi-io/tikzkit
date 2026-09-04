@@ -6086,6 +6086,33 @@
       "features": ["arrows.spaced", "spaced circle", "spaced diamond", "spaced square", "filled and open tips", "vertical", "horizontal", "diagonal", "curved path", "force vectors"]
     },
     {
+      "id": "arrows-spaced-side-to-flowchart",
+      "title": "Spaced side-to terminals in a review flow",
+      "source": "arrows/spaced-side-to-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedSideToArrowMetrics + src/renderers/svg/paths.js:legacySideToInlineGeometry",
+      "features": ["arrows.spaced", "spaced left to", "spaced right to", "reversed", "orthogonal path", "curved path", "flowchart"]
+    },
+    {
+      "id": "arrows-spaced-side-to-math",
+      "title": "Spaced side-to terminals in a quotient map",
+      "source": "arrows/spaced-side-to-math.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedSideToArrowMetrics + src/renderers/svg/paths.js:legacySideToInlineGeometry",
+      "features": ["arrows.spaced", "spaced left to", "spaced right to", "reversed", "start and end arrows", "curved map", "mathematical diagram"]
+    },
+    {
+      "id": "arrows-spaced-side-to-physics",
+      "title": "Spaced side-to terminals on force vectors",
+      "source": "arrows/spaced-side-to-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrows.spaced library and TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.spaced.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.spaced.js:spacedSideToArrowMetrics + src/renderers/svg/paths.js:legacySideToInlineGeometry",
+      "features": ["arrows.spaced", "spaced left to", "spaced right to", "reversed", "vertical", "horizontal", "diagonal", "curved path", "force vectors"]
+    },
+    {
       "id": "decorations-pathmorphing-coil-flowchart",
       "title": "Coiled retry transition in a validation flow",
       "source": "decorations/pathmorphing-coil-flowchart.tex",

@@ -245,6 +245,9 @@ function legacyArrowTipBase(kind) {
   if (/^legacy-spaced-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.hook, fill: "none", stroke: "context-stroke" };
   }
+  if (/^legacy-spaced-(?:left|right)-to(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
+  }
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.bar, fill: "none", stroke: "context-stroke" };
   }
@@ -279,6 +282,9 @@ function legacyArrowTipBase(kind) {
   }
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.hook, fill: "none", stroke: "context-stroke" };
+  }
+  if (/^legacy-(?:left|right)-to(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
   }
   if (/^legacy-(?:round|butt)-cap$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
@@ -580,12 +586,14 @@ function normalizeArrowKind(kind) {
   if (/^stealth\s*'$/i.test(source)) return "stealth-prime";
   const text = source.replace(/'/g, "").toLowerCase();
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
+  if (/^legacy-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:round|butt)-cap|(?:triangle-90|fast)-cap(?:-reversed)?)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:to|latex(?:-prime)?|stealth(?:-prime)?)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:open-)?triangle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-angle-(?:90|60|45)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
+  if (/^legacy-spaced-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(text)) return text;
   if (/^legacy-spaced-(?:open-circle|filled-circle|diamond|open-diamond|square|open-square)$/u.test(text)) return text;
   if (text === "legacy-spaced-implies") return text;
@@ -629,6 +637,10 @@ function normalizeArrowKind(kind) {
     const base = spacedHook[1] ? `${spacedHook[1]}-hook` : "hooks";
     return `legacy-spaced-${base}${spacedHook[2] ? "-reversed" : ""}`;
   }
+  const spacedSideTo = text.match(/^spaced\s+(left|right)\s+to(\s+reversed)?$/u);
+  if (spacedSideTo) {
+    return `legacy-spaced-${spacedSideTo[1]}-to${spacedSideTo[2] ? "-reversed" : ""}`;
+  }
   if (source === "Diamond") return "kite";
   if (text === "diamond") return "legacy-diamond";
   if (text === "open diamond") return "legacy-open-diamond";
@@ -644,6 +656,10 @@ function normalizeArrowKind(kind) {
   if (legacyHook) {
     const base = legacyHook[1] ? `${legacyHook[1]}-hook` : "hooks";
     return `legacy-${base}${legacyHook[2] ? "-reversed" : ""}`;
+  }
+  const legacySideTo = text.match(/^(left|right)\s+to(\s+reversed)?$/u);
+  if (legacySideTo) {
+    return `legacy-${legacySideTo[1]}-to${legacySideTo[2] ? "-reversed" : ""}`;
   }
   const legacyCap = source.match(/^(round cap|butt cap|triangle 90 cap(?: reversed)?|fast cap(?: reversed)?)$/u);
   if (legacyCap) return `legacy-${legacyCap[1].replaceAll(" ", "-")}`;
