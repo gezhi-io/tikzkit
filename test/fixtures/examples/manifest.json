@@ -5868,6 +5868,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:appendNativeStraightZigzagPolyline",
       "features": ["straight zigzag", "meta-segment length", "segment length", "amplitude", "signal propagation", "physics"]
+    },
+    {
+      "id": "decorations-pathreplacing-expanding-waves-flowchart",
+      "title": "Expanding broadcast states between flowchart stages",
+      "source": "decorations/pathreplacing-expanding-waves/flowchart.tex",
+      "sourceCorpus": "TeX Live PGF expanding waves declaration and TikZKit flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves",
+      "features": ["expanding waves", "segment length", "angle", "pre length", "post length", "flowchart"]
+    },
+    {
+      "id": "decorations-pathreplacing-expanding-waves-math",
+      "title": "Growing mathematical level arcs with reflected state transform",
+      "source": "decorations/pathreplacing-expanding-waves/math.tex",
+      "sourceCorpus": "TeX Live PGF expanding waves declaration and TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves",
+      "features": ["expanding waves", "mirror", "raise", "pre length", "post length", "mathematics"]
+    },
+    {
+      "id": "decorations-pathreplacing-expanding-waves-physics",
+      "title": "Expanding wavefronts along a curved propagation path",
+      "source": "decorations/pathreplacing-expanding-waves/physics.tex",
+      "sourceCorpus": "TeX Live PGF expanding waves declaration and TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:appendPathReplacingWaves/createPgfDecorationPathWalker",
+      "features": ["expanding waves", "cubic tangent frame", "pre length", "post length", "wavefront", "physics"]
     }
   ]
 }

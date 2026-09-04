@@ -1,10 +1,10 @@
 export const tikzLibrary = {
   "name": "decorations.pathreplacing",
   "status": "partial",
-  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration + addShowPathConstructionItems + addPostactionShowPathConstructionItems + resolvedNodeLayerFont + postactionDecorationPathItems",
+  "implementedBy": "src/engine/evaluate.js:applyBraceDecoration + applyTicksDecoration + applyBorderDecoration + applyWavesDecoration/appendPathReplacingWaves + addShowPathConstructionItems + addPostactionShowPathConstructionItems + resolvedNodeLayerFont + postactionDecorationPathItems",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.pathreplacing.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-decorations.tex",
   "features": [
     "brace path replacement",
     "mirror",
@@ -24,6 +24,9 @@ export const tikzLibrary = {
     "waves segment length",
     "waves radius",
     "waves angle",
+    "expanding waves pre length and post length",
+    "expanding waves mirror and raise transforms",
+    "expanding waves exact-endpoint state boundary",
     "show path construction callbacks",
     "moveto/lineto/curveto/closepath code",
     "input segment first/last/support coordinates",
@@ -51,6 +54,9 @@ export const tikzLibrary = {
     "waves segment length",
     "waves radius",
     "waves angle",
+    "expanding waves pre length and post length",
+    "expanding waves mirror and raise transforms",
+    "expanding waves exact-endpoint state boundary",
     "show path construction callbacks",
     "moveto/lineto/curveto/closepath code",
     "input segment first/last/support coordinates",
@@ -59,5 +65,5 @@ export const tikzLibrary = {
     "source paint-state inheritance for callbacks",
     "callback every node/nodes font inheritance"
   ],
-  "notes": "Brace replacement mirrors PGF's remaining-distance state: it measures the complete decorated subpath, then draws the replacement in the initial tangent frame. mirror, raise, amplitude, and aspect are supported. `ticks` replaces a complete decorated line/curve subpath with independent normal strokes at each full segment-length state origin; amplitude is the half-length and the final partial path remainder does not receive an endpoint tick. `border` emits single-sided tangent-frame strokes at each full state origin, controlled by segment length, amplitude, and angle. `waves` emits a constant-radius local-tangent circular arc per complete state; `expanding waves` consumes its initial empty state then uses the completed decoration distance as the arc radius and native local x offset. `show path construction` invokes moveto/lineto/curveto/closepath callback code against original input-segment first, last, and cubic support points, reusing the normal TikZ command interpreter with the decoration transform disabled. It resolves the documented named `postaction=style` form, preserves the foreground source path, and lets callback draw/fill commands inherit the source paint state while stripping nested decoration/registration behavior. Callback labels now materialize inherited `every node` and `nodes` fonts into their SVG FontSpec, so the documented `font=\\tiny` callback style controls physical text size rather than only layout scale. Arbitrary TeX-only callback bodies, low-level PGF point macros, arbitrary postaction keys, and exact behavior for arbitrary non-linear brace input remain partial."
+  "notes": "Brace replacement mirrors PGF's remaining-distance state: it measures the complete decorated subpath, then draws the replacement in the initial tangent frame. mirror, raise, amplitude, and aspect are supported. `ticks` replaces a complete decorated line/curve subpath with independent normal strokes at each full segment-length state origin; amplitude is the half-length and the final partial path remainder does not receive an endpoint tick. `border` emits single-sided tangent-frame strokes at each full state origin, controlled by segment length, amplitude, and angle. `waves` emits a constant-radius local-tangent circular arc per complete state. `expanding waves` consumes its initial empty state, then uses completed decoration distance as both arc radius and native local x offset; growing states run strictly before the main-section endpoint, so an exact multiple does not gain a false terminal arc. `expanding waves` now honors the TikZ internal pre/main/post meta-decoration, including raw pre/post lines, its observable child-final coordinate behavior, and local tangent-frame mirror/raise transforms on straight or curved paths. Evidence: docs/qa/2026-09-04-pathreplacing-expanding-waves.md. `show path construction` invokes moveto/lineto/curveto/closepath callback code against original input-segment first, last, and cubic support points, reusing the normal TikZ command interpreter with the decoration transform disabled. It resolves the documented named `postaction=style` form, preserves the foreground source path, and lets callback draw/fill commands inherit the source paint state while stripping nested decoration/registration behavior. Callback labels now materialize inherited `every node` and `nodes` fonts into their SVG FontSpec, so the documented `font=\\tiny` callback style controls physical text size rather than only layout scale. Arbitrary TeX-only callback bodies, low-level PGF point macros, arbitrary postaction keys, fixed-radius waves boundary transforms, and exact behavior for arbitrary non-linear brace input remain partial."
 };

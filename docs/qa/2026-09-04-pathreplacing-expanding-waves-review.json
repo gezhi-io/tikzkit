@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/decorations/pgflibrarydecorations.pathreplacing.code.tex": {
+      "symbols": ["\\pgfdeclaredecoration{expanding waves}", "\\pgfdecoratedcompleteddistance", "\\pgfpatharc"],
+      "findings": "The initial state consumes one segment without drawing. Wave and last states use completed distance as radius and negative local x offset, then final moves to the decorated child endpoint."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex": {
+      "symbols": ["\\pgf@decorate@switch@if", "\\pgfsetdecorationsegmenttransformation", "/pgf/decoration/segment length"],
+      "findings": "A zero remaining distance switches directly to final; a positive remainder below one segment enters last. Additional mirror/raise transformations are applied in each local tangent frame."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarydecorations.code.tex": {
+      "symbols": ["tikz@internal", "pre length", "post length", "mirror", "raise"],
+      "findings": "TikZ wraps ordinary decorations in pre=lineto, main child, and post=lineto states and installs mirror before the y-shift transformation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": "Provides the draw, node, path, style, and picture frontend used by the fixtures.",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": "Defines the Stealth arrow used on the comparison axes and flow connector.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/xcolor/xcolor.sty": "Defines the HTML color model and named color application used by all three fixtures.",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": "Provides document, command, and environment primitives stripped by the TikZ frontend."
+  },
+  "rules": [
+    {"match": "command:*", "status": "verified", "evidence": ["test/pathreplacing-expanding-waves.test.js", "docs/qa/2026-09-04-pathreplacing-expanding-waves.md"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pathreplacing-expanding-waves.test.js", "docs/qa/2026-09-04-pathreplacing-expanding-waves.md"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa-pathreplacing-expanding-waves-2026-09-04"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/pathreplacing-expanding-waves.test.js", "outputs/qa-pathreplacing-expanding-waves-2026-09-04"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/interpreter.test.js", "outputs/qa-pathreplacing-expanding-waves-2026-09-04"]}
+  ]
+}

@@ -86,5 +86,7 @@ zero diagnostics, and valid SVG coordinates.
 Generic `\pgfdeclaremetadecoration` parsing and execution is not implemented;
 this is the built-in `straight zigzag` declaration. Exact state accounting
 across arbitrary original multi-cubic soft paths remains an extension target.
-`expanding waves` is still partial, and the positioned-node bbox margin found
-by the physics fixture belongs to the separate node/bbox capability slice.
+`expanding waves` belongs to `decorations.pathreplacing`; its corrected state
+boundary and transforms are covered separately in
+`docs/qa/2026-09-04-pathreplacing-expanding-waves.md`. The positioned-node bbox
+margin found by the physics fixture belongs to the separate node/bbox slice.

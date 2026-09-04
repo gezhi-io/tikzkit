@@ -14809,35 +14809,62 @@ function appendPathReplacingWaves(commands, points, length, decoration, env) {
     0,
     parseFinitePgfLength(decoration.radius ?? decoration["start radius"] ?? "2.5pt", env, defaultRadius)
   );
+  const preLength = expanding
+    ? Math.min(length, Math.max(0, parseFinitePgfLength(decoration["pre length"] ?? "0", env, 0)))
+    : 0;
+  const postLength = expanding
+    ? Math.min(
+        Math.max(0, length - preLength),
+        Math.max(0, parseFinitePgfLength(decoration["post length"] ?? "0", env, 0))
+      )
+    : 0;
+  const activeLength = Math.max(0, length - preLength - postLength);
+  const normalSign = expanding && tikzBoolean(decoration.mirror) ? -1 : 1;
+  const normalRaise = expanding ? parseFinitePgfLength(decoration.raise ?? "0", env, 0) : 0;
+
+  if (preLength > 1e-12) {
+    commands.push(
+      moveToCommand(roundPoint(points[0])),
+      lineToCommand(roundPoint(pointOnPolyline(points, preLength)))
+    );
+  }
 
   // `waves` starts immediately: every full state has a fixed circle radius.
   // `expanding waves` consumes its initial empty state first, then uses the
   // completed decoration distance as both its radius and local x offset. The
   // latter is the native `-\pgfdecoratedcompleteddistance` transform.
   const firstDistance = expanding ? segmentLength : 0;
-  // The fixed wave state has positive width, so it only runs while a full
-  // segment remains. `expanding waves` instead switches its final partial
-  // state to `last` with width zero; this includes the exact endpoint when
-  // the input length is a whole number of segments.
-  const terminalLimit = expanding ? length + 1e-9 : length - 1e-9;
-  for (let distance = firstDistance; distance <= terminalLimit; distance += segmentLength) {
-    const state = pointOnPolyline(points, distance);
+  // A state at the exact endpoint never runs: the automaton switches to its
+  // final state as soon as the remaining distance reaches zero. Expanding
+  // waves therefore draw at segmentLength, 2*segmentLength, ... strictly
+  // before the main-section endpoint.
+  for (let distance = firstDistance; distance < activeLength - 1e-9; distance += segmentLength) {
+    const state = pointOnPolyline(points, preLength + distance);
     const tangent = { x: state.normal.y, y: -state.normal.x };
     const waveRadius = expanding ? distance : radius;
     if (!(waveRadius > 1e-12)) continue;
     const centerOffset = expanding ? -distance : segmentLength - waveRadius;
     const center = {
-      x: state.x + tangent.x * centerOffset,
-      y: state.y + tangent.y * centerOffset
+      x: state.x + tangent.x * centerOffset + state.normal.x * normalSign * normalRaise,
+      y: state.y + tangent.y * centerOffset + state.normal.y * normalSign * normalRaise
     };
-    appendOrientedCircularArc(commands, center, tangent, state.normal, waveRadius, angle, -angle);
+    const transformedNormal = {
+      x: state.normal.x * normalSign,
+      y: state.normal.y * normalSign
+    };
+    appendOrientedCircularArc(commands, center, tangent, transformedNormal, waveRadius, angle, -angle);
   }
 
-  // The PGF `final` state is a move-to at the original decorated endpoint.
-  // Retaining it keeps terminal arrow placement tied to the source path
-  // without painting an accidental closing line.
-  const end = points.at(-1);
-  if (end) commands.push(moveToCommand(roundPoint(end)));
+  // With pre/post enabled TikZ wraps the child decoration in its internal
+  // meta-decoration. The child's final point is expressed at the main
+  // section length (not preLength + main length); this observable PGF quirk
+  // is important because the following post=lineto begins there.
+  const usesBoundaryMetaDecoration = preLength > 1e-12 || postLength > 1e-12;
+  const finalDistance = usesBoundaryMetaDecoration ? activeLength : length;
+  commands.push(moveToCommand(roundPoint(pointOnPolyline(points, finalDistance))));
+  if (postLength > 1e-12) {
+    commands.push(lineToCommand(roundPoint(points.at(-1))));
+  }
 }
 
 function appendOrientedCircularArc(commands, center, tangent, normal, radius, startAngle, endAngle) {

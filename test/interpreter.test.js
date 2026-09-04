@@ -2309,16 +2309,44 @@ test("replaces paths with fixed-radius and expanding wave arcs", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(fixedArcs.length, 4, `expected one fixed-radius arc per 1cm state, got ${JSON.stringify(fixed.commands)}`);
-  assert.equal(expandingArcs.length, 4, `expected initial empty state followed by the terminal growing arc, got ${JSON.stringify(expanding.commands)}`);
+  assert.equal(expandingArcs.length, 3, `expected the exact endpoint to skip the zero-width last state, got ${JSON.stringify(expanding.commands)}`);
   assert.equal(fixed.commands[0].type, "moveTo");
   expectClose(fixed.commands[0].x, 0.926776695297);
   expectClose(fixed.commands[0].y, 0.176776695297);
   assert.equal(expanding.commands[0].type, "moveTo");
   expectClose(expanding.commands[0].x, 0.866025403784);
   expectClose(expanding.commands[0].y, -0.5);
-  assert.ok(expandingArcs.at(-1).y < -2.4, `expected the last expanding arc to grow below the source path, got ${JSON.stringify(expandingArcs.at(-1))}`);
+  assert.ok(expandingArcs.at(-1).y < -2.2, `expected the last expanding arc to grow below the source path, got ${JSON.stringify(expandingArcs.at(-1))}`);
   assert.deepEqual(fixed.commands.at(-1), { type: "moveTo", x: 4, y: 0 });
   assert.deepEqual(expanding.commands.at(-1), { type: "moveTo", x: 4, y: -1 });
+});
+
+test("applies the TikZ meta-decoration boundary and transform rules to expanding waves", () => {
+  const source = String.raw`
+\usetikzlibrary{decorations.pathreplacing}
+\begin{tikzpicture}
+  \draw[decorate,decoration={expanding waves,segment length=.8cm,angle=20,
+    pre length=.3cm,post length=.5cm,mirror,raise=.2cm}]
+    (0,0) -- (4.3,0);
+\end{tikzpicture}`;
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const path = ir.items.find((item) => item.type === "path");
+  const arcs = path.commands.filter((command) => command.type === "curveTo");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(arcs.length, 4, `expected four growing states inside the 3.5cm main section, got ${JSON.stringify(path.commands)}`);
+  assert.deepEqual(path.commands.slice(0, 2), [
+    { type: "moveTo", x: 0, y: 0 },
+    { type: "lineTo", x: 0.3, y: 0 }
+  ]);
+  expectClose(path.commands[2].x, 0.3 + 0.8 * Math.cos((20 * Math.PI) / 180));
+  expectClose(path.commands[2].y, -(0.2 + 0.8 * Math.sin((20 * Math.PI) / 180)));
+  expectClose(arcs[0].x, 0.3 + 0.8 * Math.cos((20 * Math.PI) / 180));
+  expectClose(arcs[0].y, -(0.2 - 0.8 * Math.sin((20 * Math.PI) / 180)));
+  assert.deepEqual(path.commands.slice(-2), [
+    { type: "moveTo", x: 3.5, y: 0 },
+    { type: "lineTo", x: 4.3, y: 0 }
+  ]);
 });
 
 test("renders border decoration as a red postaction over the preserved source path", () => {

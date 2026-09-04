@@ -1,0 +1,18 @@
+\documentclass[tikz,border=3pt]{standalone}
+\usepackage{xcolor}
+\usetikzlibrary{arrows.meta,decorations.pathreplacing}
+\definecolor{curveblue}{HTML}{2563EB}
+\definecolor{axisgray}{HTML}{475569}
+\begin{document}
+\begin{tikzpicture}[>=Stealth]
+  \draw[axisgray,-Stealth] (-.3,0) -- (5.1,0) node[right] {$r$};
+  \draw[axisgray,-Stealth] (0,-1.45) -- (0,1.4) node[above] {$u$};
+  \draw[axisgray,dashed] (0,0) -- (4.8,0);
+  \draw[curveblue,very thick,decorate,
+    decoration={expanding waves,segment length=8mm,angle=16,
+      pre length=2mm,post length=4mm,mirror,raise=1mm}]
+    (0,0) -- (4.8,0);
+  \node[curveblue,above] at (2.6,1.05) {$r_n=n\,\Delta r$};
+  \node[axisgray,below] at (2.6,-1.05) {expanding level arcs};
+\end{tikzpicture}
+\end{document}

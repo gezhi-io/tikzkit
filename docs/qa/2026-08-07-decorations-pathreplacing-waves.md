@@ -44,9 +44,9 @@ then calls `\pgfpatharc(angle,-angle,start radius)`: each fixed wave is an
 independent circular subpath in the current tangent frame. `expanding waves`
 first consumes a silent segment. Each later arc uses
 `\pgfdecoratedcompleteddistance` for both its radius and the negative local
-x offset before `\pgfpatharc`; the `last` state has width zero, so it still
-draws the largest arc when the source length ends on an exact segment
-boundary.
+x offset before `\pgfpatharc`. A later native-state audit corrected the
+endpoint rule: zero remaining distance switches directly to `final`; `last`
+runs only for a positive partial remainder smaller than one segment.
 
 TikZKit mirrors that state sequence on each flattened complete subpath,
 converts the local circles to cubic SVG path segments with transformed
@@ -70,9 +70,11 @@ created the PNG panels. Artifacts are in:
 I inspected the TikZKit, tikztosvg, MacTeX, and sheet panels. Before this
 change both names fell through to an ordinary continuous source line. After
 it, blue fixed arcs and red growing arcs replace those source lines in all
-three renderers. The decisive correction came from the tikztosvg SVG: it
-contains five red `M ... C` subpaths, including the terminal 4cm-radius arc.
-The first implementation emitted only four; TikZKit now emits the same five.
+three renderers. The later 2026-09-04 audit found that this document's
+original five-arc interpretation was wrong: the reference contains four red
+arcs on a 4cm path with 8mm spacing. See
+`docs/qa/2026-09-04-pathreplacing-expanding-waves.md` for the corrected state
+boundary, transforms, and current artifacts.
 
 The registered TikZKit/tikztosvg residual is `0.00183` mean absolute RGBA;
 TikZKit/MacTeX is `0.01886`. The remaining difference is a small browser crop

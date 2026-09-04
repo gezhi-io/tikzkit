@@ -17,7 +17,7 @@
         "\\pgfpatharc",
         "\\pgfdecoratedcompleteddistance"
       ],
-      "findings": "Fixed waves has one positive-width state per complete segment. Expanding waves consumes an initial empty state, then draws arcs whose radius and negative local x offset equal completed decoration distance; its zero-width last state still runs at an exact terminal state."
+      "findings": "Fixed waves has one positive-width state per complete segment. Expanding waves consumes an initial empty state, then draws arcs whose radius and negative local x offset equal completed decoration distance. A zero remainder switches directly to final; the zero-width last state runs only for a positive partial remainder smaller than one segment."
     },
     "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledecorations.code.tex": {
       "symbols": [
