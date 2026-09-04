@@ -1,0 +1,25 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=8cm,
+    height=5.5cm,
+    view={45}{30},
+    domain=0:2,
+    y domain=0:2,
+    samples=9,
+    xlabel={Stage},
+    ylabel={Queue},
+    zlabel={Load},
+    title={Workflow load},
+    grid=major,
+    colorbar horizontal,
+    colorbar style={xtick={0,2,4,6},title={Low to high}}
+  ]
+    \addplot3[surf] {x + 2*y};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

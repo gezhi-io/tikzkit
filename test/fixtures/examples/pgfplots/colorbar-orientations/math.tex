@@ -1,0 +1,25 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=8cm,
+    height=6cm,
+    view={335}{35},
+    domain=-1:1,
+    y domain=-1:1,
+    samples=11,
+    xlabel={$x$},
+    ylabel={$y$},
+    zlabel={$xy$},
+    title={Bilinear surface},
+    grid=major,
+    colorbar left,
+    colorbar style={ytick={-1,-0.5,0,0.5,1},title={$z$}}
+  ]
+    \addplot3[surf] {x*y};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

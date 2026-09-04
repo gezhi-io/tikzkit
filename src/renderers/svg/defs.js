@@ -273,6 +273,7 @@ export function collectAxisGradientDefs(items) {
       topColor: item.style.topColor || "white",
       middleColor: item.style.middleColor || "gray",
       bottomColor: item.style.bottomColor || item.style.fill || "black",
+      stops: Array.isArray(item.style.linearStops) ? item.style.linearStops : [],
       shadingAngle: item.style.shadingAngle ?? 0
     });
   }
@@ -297,9 +298,10 @@ export function renderAxisGradientDef(def) {
   const y1 = 50 - directionY * halfSpan * 100;
   const x2 = 50 + directionX * halfSpan * 100;
   const y2 = 50 + directionY * halfSpan * 100;
-  return `<linearGradient id="${escapeAttribute(def.id)}" x1="${format(x1)}%" y1="${format(y1)}%" x2="${format(x2)}%" y2="${format(y2)}%"><stop offset="0%" stop-color="${escapeAttribute(
-    bottom
-  )}" /><stop offset="50%" stop-color="${escapeAttribute(middle)}" /><stop offset="100%" stop-color="${escapeAttribute(top)}" /></linearGradient>`;
+  const stops = Array.isArray(def.stops) && def.stops.length >= 2
+    ? def.stops.map((stop) => `<stop offset="${format(Math.max(0, Math.min(1, Number(stop.offset) || 0)) * 100)}%" stop-color="${escapeAttribute(svgPaint(stop.color || "black"))}" />`).join("")
+    : `<stop offset="0%" stop-color="${escapeAttribute(bottom)}" /><stop offset="50%" stop-color="${escapeAttribute(middle)}" /><stop offset="100%" stop-color="${escapeAttribute(top)}" />`;
+  return `<linearGradient id="${escapeAttribute(def.id)}" x1="${format(x1)}%" y1="${format(y1)}%" x2="${format(x2)}%" y2="${format(y2)}%">${stops}</linearGradient>`;
 }
 
 export function collectRadialGradientDefs(items) {

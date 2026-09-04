@@ -2536,8 +2536,10 @@ test("pgfplots 3d colorbar lowers colormap state to right-side primitives", () =
     geometry
   );
 
-  assert.ok(commands.some((command) => command.includes("axis colorbar") && /fill=rgb\(255\s+250\.[0-9]+\s+247\.03125/.test(command)));
-  assert.ok(commands.some((command) => command.includes("axis colorbar") && /fill=rgb\(255\s+100\.[0-9]+\s+7\.96875/.test(command)));
+  const colorBands = commands.filter((command) => command.includes("axis colorbar") && command.includes("draw=none"));
+  assert.equal(colorBands.length, 1);
+  assert.match(colorBands[0], /shading=axis/);
+  assert.match(colorBands[0], /tikzkit axis stops=\{0\/white.+1\/rgb\(255 96 0\)\}/);
   assert.ok(commands.some((command) => command.includes("axis colorbar frame")));
   assert.ok(commands.some((command) => command.includes("(-0.11,0) -- (0.39,0)")));
   assert.ok(commands.some((command) => command.includes(String.raw`\node[axis colorbar title`) && command.endsWith("{$f(x,y)$};")));
@@ -2587,6 +2589,61 @@ test("pgfplots 3d colorbar uses scaled tick labels for small positive ranges", (
   assert.ok(commands.some((command) => command.endsWith("{1.7};")));
   assert.ok(commands.some((command) => command.includes(String.raw`10^{-2}`)));
   assert.equal(commands.some((command) => command.endsWith("{0.016};")), false);
+});
+
+test("pgfplots horizontal colorbars use the parent width and bottom tick labels", () => {
+  const ranges = { xMin: -2, xMax: 2, yMin: -2, yMax: 2, zMin: -1, zMax: 1 };
+  const geometry = createAxisGeometry(
+    { width: "10cm", height: "7cm", view: "{335}{50}", "pgfplots 3d surface": true },
+    ranges
+  );
+  const commands = renderAxis3DColorbar(
+    {
+      "colorbar horizontal": true,
+      "colorbar style": "{xtick={-1,0,1},title={$f(x,y)$}}"
+    },
+    ranges,
+    geometry
+  );
+  const fills = commands.filter((command) => command.includes("axis colorbar") && command.includes("draw=none"));
+  const tickLines = commands.filter((command) => command.includes("axis colorbar tick,"));
+  const tickLabels = commands.filter((command) => command.includes("axis colorbar tick label"));
+
+  assert.equal(fills.length, 1);
+  assert.match(fills[0], /shading angle=270/);
+  assert.equal(tickLines.length, 3);
+  assert.ok(tickLines.every((command) => {
+    const points = [...command.matchAll(/\(([-+\d.]+),([-+\d.]+)\)/g)].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+    return points.length === 2 && points[0].x === points[1].x && points[1].y < points[0].y;
+  }));
+  assert.ok(tickLabels.every((command) => command.includes("anchor=north")));
+
+  const rendered = tikzToSvg(readFileSync("test/fixtures/examples/pgfplots/colorbar-orientations/flowchart.tex", "utf8"));
+  const gradient = rendered.svg.match(/<linearGradient[^>]+x1="0%"[^>]+x2="100%"[^>]*>([\s\S]*?)<\/linearGradient>/);
+  assert.ok(gradient, "horizontal colorbar should lower to one left-to-right SVG gradient");
+  assert.equal((gradient[1].match(/<stop\b/g) || []).length, 17);
+});
+
+test("pgfplots left colorbars place ticks and labels on the outer left edge", () => {
+  const ranges = { xMin: -2, xMax: 2, yMin: -2, yMax: 2, zMin: -1, zMax: 1 };
+  const geometry = createAxisGeometry(
+    { width: "10cm", height: "7cm", view: "{335}{50}", "pgfplots 3d surface": true },
+    ranges
+  );
+  const commands = renderAxis3DColorbar(
+    { "colorbar left": true, "colorbar style": "{ytick={-1,0,1}}" },
+    ranges,
+    geometry
+  );
+  const tickLines = commands.filter((command) => command.includes("axis colorbar tick,"));
+  const tickLabels = commands.filter((command) => command.includes("axis colorbar tick label"));
+
+  assert.equal(tickLines.length, 3);
+  assert.ok(tickLines.every((command) => {
+    const points = [...command.matchAll(/\(([-+\d.]+),([-+\d.]+)\)/g)].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+    return points.length === 2 && points[1].x < points[0].x && points[0].y === points[1].y;
+  }));
+  assert.ok(tickLabels.every((command) => command.includes("anchor=east")));
 });
 
 test("pgfplots 3d colorbar automatic ticks use native-like dense scaled labels", () => {

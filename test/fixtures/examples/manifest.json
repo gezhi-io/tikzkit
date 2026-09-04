@@ -7200,6 +7200,51 @@
         "named fit anchors",
         "force-vector arrows"
       ]
+    },
+    {
+      "id": "pgfplots-colorbar-flowchart",
+      "title": "Workflow load with horizontal colorbar",
+      "source": "pgfplots/colorbar-orientations/flowchart.tex",
+      "sourceCorpus": "TikZKit common workflow regression",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarOrientation/colorbarBox",
+      "features": [
+        "workflow load surface",
+        "horizontal colorbar child axis",
+        "parent-width sizing",
+        "bottom ticks and labels",
+        "colorbar title"
+      ]
+    },
+    {
+      "id": "pgfplots-colorbar-math",
+      "title": "Bilinear surface with left colorbar",
+      "source": "pgfplots/colorbar-orientations/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarOrientation/colorbarBox",
+      "features": [
+        "mathematics surface",
+        "left colorbar child axis",
+        "parent-height sizing",
+        "left ticks and labels",
+        "explicit colorbar ticks"
+      ]
+    },
+    {
+      "id": "pgfplots-colorbar-physics",
+      "title": "Temperature field with right colorbar",
+      "source": "pgfplots/colorbar-orientations/physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarOrientation/colorbarBox",
+      "features": [
+        "physics surface",
+        "right colorbar child axis",
+        "parent-height sizing",
+        "right ticks and labels",
+        "temperature title"
+      ]
     }
   ]
 }

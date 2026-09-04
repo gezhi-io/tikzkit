@@ -571,6 +571,7 @@ export function renderAxisLabels3D(axisOptions, ranges, geometry) {
 
 export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   if (!axisColorbarEnabled(axisOptions)) return [];
+  const orientation = colorbarOrientation(axisOptions);
   const styleOptions = parseColorbarStyle(axisOptions["colorbar style"]);
   const tickFont = pgfplotsRoleFontCommand(
     "colorbarTick",
@@ -578,43 +579,55 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     fontFromStyle(styleOptions["tick label style"]) || styleOptions["tick label font"]
   );
   const bounds = axis3DProjectedBounds(ranges, geometry);
-  const width = colorbarDimension(styleOptions.width ?? axisOptions["colorbar/width"], 0.5);
-  const height = colorbarDimension(styleOptions.height, bounds.height || geometry.height || 1, bounds.height || geometry.height || 1);
-  const box = colorbarBox(styleOptions, bounds, width, height);
+  const parentWidth = bounds.width || geometry.width || 1;
+  const parentHeight = bounds.height || geometry.height || 1;
+  const width = colorbarDimension(
+    styleOptions.width ?? (orientation === "horizontal" ? undefined : axisOptions["colorbar/width"]),
+    orientation === "horizontal" ? parentWidth : 0.5,
+    parentWidth
+  );
+  const height = colorbarDimension(
+    styleOptions.height ?? (orientation === "horizontal" ? axisOptions["colorbar/width"] : undefined),
+    orientation === "horizontal" ? 0.5 : parentHeight,
+    parentHeight
+  );
+  const box = colorbarBox(styleOptions, bounds, width, height, orientation);
   const { xMin, xMax, yMin, yMax } = box;
   const commands = [];
-  const segments = 16;
-  for (let index = 0; index < segments; index += 1) {
-    const t0 = index / segments;
-    const t1 = (index + 1) / segments;
-    const zMid = ranges.zMin + (ranges.zMax - ranges.zMin) * ((t0 + t1) / 2);
-    const fill = pgfplotsSurfaceColor(zMid, ranges, 0, axisOptions);
-    const segmentMinY = yMin + height * t0;
-    const segmentMaxY = yMin + height * t1;
-    commands.push(
-      `\\draw[axis colorbar, draw=none, fill=${fill}, line width=0pt] ${formatAxisPoint({ x: xMin, y: segmentMinY })} -- ${formatAxisPoint({ x: xMax, y: segmentMinY })} -- ${formatAxisPoint({ x: xMax, y: segmentMaxY })} -- ${formatAxisPoint({ x: xMin, y: segmentMaxY })} -- cycle;`
-    );
-  }
+  const gradientStops = colorbarGradientStops(ranges, axisOptions);
+  const gradientAngle = orientation === "horizontal" ? 270 : 0;
+  commands.push(
+    `\\draw[axis colorbar, draw=none, shading=axis, shading angle=${gradientAngle}, tikzkit axis stops={${gradientStops}}, line width=0pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
+  );
   commands.push(
     `\\draw[axis colorbar frame, black, line width=0.25pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
   );
   const ticks = colorbarTickValues(
-    styleOptions.ytick,
+    orientation === "horizontal" ? styleOptions.xtick : styleOptions.ytick,
     ranges,
-    height,
+    orientation === "horizontal" ? width : height,
     styleOptions
   );
-  const tickFormat = createScaledTickFormat(ticks, scaledTickOptions({ ...axisOptions, ...styleOptions }, "z"));
+  const tickAxis = orientation === "horizontal" ? "x" : "y";
+  const tickFormat = createScaledTickFormat(ticks, scaledTickOptions({ ...axisOptions, ...styleOptions }, tickAxis));
   const tickPrecision = scaledTickLabelPrecision(ticks, tickFormat);
   for (const tick of ticks) {
-    const y = yMin + height * ((tick - ranges.zMin) / (ranges.zMax - ranges.zMin || 1));
-    const from = { x: xMax, y };
-    const to = { x: xMax + 0.08, y };
+    const position = (tick - ranges.zMin) / (ranges.zMax - ranges.zMin || 1);
+    const from = colorbarTickPoint(box, position, orientation, 0);
+    const to = colorbarTickPoint(box, position, orientation, 0.08);
+    const labelAnchor = orientation === "horizontal" ? "north" : orientation === "left" ? "east" : "west";
+    const labelOffset = orientation === "horizontal"
+      ? offsetPoint(to, 0, -0.05)
+      : offsetPoint(to, orientation === "left" ? -0.05 : 0.05, 0);
     commands.push(`\\draw[axis colorbar tick, black, line width=0.22pt] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
-    commands.push(`\\node[axis colorbar tick label, anchor=west, font=${tickFont}] at ${formatAxisPoint(offsetPoint(to, 0.05, 0))} {${formatScaledAxisTickLabel(tick, tickFormat, { precision: tickPrecision })}};`);
+    commands.push(`\\node[axis colorbar tick label, anchor=${labelAnchor}, font=${tickFont}] at ${formatAxisPoint(labelOffset)} {${formatScaledAxisTickLabel(tick, tickFormat, { precision: tickPrecision })}};`);
   }
   if (tickFormat.scaled) {
-    commands.push(`\\node[axis colorbar tick scale label, anchor=west, font=${tickFont}] at ${formatAxisPoint({ x: xMax + 0.13, y: yMax })} {$${tickFormat.scaleLabel}$};`);
+    const scalePoint = orientation === "horizontal"
+      ? { x: xMax, y: yMin - 0.13 }
+      : { x: orientation === "left" ? xMin - 0.13 : xMax + 0.13, y: yMax };
+    const scaleAnchor = orientation === "left" ? "east" : orientation === "horizontal" ? "north east" : "west";
+    commands.push(`\\node[axis colorbar tick scale label, anchor=${scaleAnchor}, font=${tickFont}] at ${formatAxisPoint(scalePoint)} {$${tickFormat.scaleLabel}$};`);
   }
   if (styleOptions.title) {
     const titleFont = pgfplotsRoleFontCommand(
@@ -625,6 +638,19 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
     commands.push(`\\node[axis colorbar title, anchor=south, font=${titleFont}] at ${formatAxisPoint({ x: (xMin + xMax) / 2, y: yMax + 0.12 })} {${styleOptions.title}};`);
   }
   return commands;
+}
+
+function colorbarGradientStops(ranges, axisOptions) {
+  const stopCount = 16;
+  return Array.from({ length: stopCount + 1 }, (_unused, index) => {
+    const offset = index / stopCount;
+    const z = ranges.zMin + (ranges.zMax - ranges.zMin) * offset;
+    return `${roundColorbarNumber(offset)}/${pgfplotsSurfaceColor(z, ranges, 0, axisOptions)}`;
+  }).join("|");
+}
+
+function roundColorbarNumber(value) {
+  return Number(Number(value).toFixed(6));
 }
 
 function scaledTickOptions(axisOptions = {}, axis = "") {
@@ -651,10 +677,17 @@ function axis3DBoxCorners(ranges, geometry) {
 }
 
 function axisColorbarEnabled(axisOptions = {}) {
+  if (axisOptions["colorbar right"] || axisOptions["colorbar left"] || axisOptions["colorbar horizontal"]) return true;
   if (axisOptions.colorbar === true) return true;
   if (axisOptions.colorbar === undefined || axisOptions.colorbar === null || axisOptions.colorbar === false) return false;
   const value = String(axisOptions.colorbar ?? "").trim().toLowerCase();
-  return value === "" || value === "true" || value === "right";
+  return ["", "true", "right", "left", "horizontal"].includes(value);
+}
+
+function colorbarOrientation(axisOptions = {}) {
+  if (axisOptions["colorbar horizontal"] || String(axisOptions.colorbar || "").trim().toLowerCase() === "horizontal") return "horizontal";
+  if (axisOptions["colorbar left"] || String(axisOptions.colorbar || "").trim().toLowerCase() === "left") return "left";
+  return "right";
 }
 
 function parseColorbarStyle(raw) {
@@ -705,9 +738,18 @@ function colorbarDimension(raw, fallback, parentAxisDimension = fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function colorbarBox(styleOptions, bounds, width, height) {
-  const at = colorbarAt(styleOptions.at, bounds) || { x: bounds.maxX + 0.3, y: bounds.maxY };
-  const anchor = String(styleOptions.anchor || "north west").trim().toLowerCase();
+function colorbarBox(styleOptions, bounds, width, height, orientation) {
+  const defaults = orientation === "horizontal"
+    ? { at: { x: bounds.minX, y: bounds.minY - 0.3 }, anchor: "north west" }
+    : orientation === "left"
+      ? { at: { x: bounds.minX - 0.3, y: bounds.maxY }, anchor: "north east" }
+      : { at: { x: bounds.maxX + 0.3, y: bounds.maxY }, anchor: "north west" };
+  const rawAt = colorbarAt(styleOptions.at, bounds) || defaults.at;
+  const at = {
+    x: rawAt.x + colorbarShift(styleOptions.xshift),
+    y: rawAt.y + colorbarShift(styleOptions.yshift)
+  };
+  const anchor = String(styleOptions.anchor || defaults.anchor).trim().toLowerCase();
   let xMin = at.x;
   let yMin = at.y - height;
   if (anchor.includes("east")) xMin = at.x - width;
@@ -717,6 +759,22 @@ function colorbarBox(styleOptions, bounds, width, height) {
     yMin = at.y - height / 2;
   }
   return { xMin, xMax: xMin + width, yMin, yMax: yMin + height };
+}
+
+function colorbarShift(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false) return 0;
+  const value = parseDimension(String(raw), {});
+  return Number.isFinite(value) ? value : 0;
+}
+
+function colorbarTickPoint(box, position, orientation, extension) {
+  if (orientation === "horizontal") {
+    return { x: box.xMin + (box.xMax - box.xMin) * position, y: box.yMin - extension };
+  }
+  return {
+    x: orientation === "left" ? box.xMin - extension : box.xMax + extension,
+    y: box.yMin + (box.yMax - box.yMin) * position
+  };
 }
 
 function colorbarAt(raw, bounds) {

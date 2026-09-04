@@ -423,6 +423,10 @@ export function normalizeOptions(command, rawOptions, env) {
       semantic[key] = String(value);
       continue;
     }
+    if (key === "tikzkit axis stops") {
+      semantic[key] = String(value);
+      continue;
+    }
     if (key === "color") {
       const color = normalizeColor(String(value));
       applyCurrentColor(style, color, command);

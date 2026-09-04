@@ -20452,6 +20452,7 @@ function pathShadingStyle(style = {}, semantic = {}, env = {}) {
       topColor: top,
       middleColor: middle,
       bottomColor: bottom,
+      linearStops: parseAxisShadingStops(semantic["tikzkit axis stops"]),
       shadingAngle,
       fill: bottom
     };
@@ -20480,6 +20481,20 @@ function pathShadingStyle(style = {}, semantic = {}, env = {}) {
     ballColor: color,
     fill: color
   };
+}
+
+function parseAxisShadingStops(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false) return undefined;
+  const text = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1");
+  const stops = text.split("|").map((entry) => {
+    const separator = entry.indexOf("/");
+    if (separator < 0) return null;
+    const offset = Number(entry.slice(0, separator).trim());
+    const color = normalizeColor(entry.slice(separator + 1).trim());
+    if (!Number.isFinite(offset) || !color) return null;
+    return { offset: Math.max(0, Math.min(1, offset)), color };
+  }).filter(Boolean).sort((left, right) => left.offset - right.offset);
+  return stops.length >= 2 ? stops : undefined;
 }
 
 function doublePathStyle(semantic = {}, env = { variables: {} }) {

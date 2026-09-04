@@ -1,0 +1,25 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=8cm,
+    height=6cm,
+    view={55}{35},
+    domain=-1:1,
+    y domain=-1:1,
+    samples=11,
+    xlabel={$x$},
+    ylabel={$y$},
+    zlabel={$T$},
+    title={Temperature field},
+    grid=major,
+    colorbar right,
+    colorbar style={ytick={0,0.5,1,1.5,2},title={$T$}}
+  ]
+    \addplot3[surf] {x*x + y*y};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

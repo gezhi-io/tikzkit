@@ -108,11 +108,24 @@ export function axisGradientId(style = {}) {
   const middle = String(style.middleColor || "gray").trim();
   const bottom = String(style.bottomColor || style.fill || "black").trim();
   const angle = String(style.shadingAngle ?? 0).trim();
-  const key = `${top}-${middle}-${bottom}-${angle}`
+  const stops = Array.isArray(style.linearStops)
+    ? style.linearStops.map((stop) => `${stop.offset}:${stop.color}`).join("-")
+    : "";
+  if (stops) return `tikz-axis-stops-${stablePaintHash(`${angle}-${stops}`)}`;
+  const key = `${top}-${middle}-${bottom}-${angle}-${stops}`
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "axis";
   return `tikz-axis-${key}`;
+}
+
+function stablePaintHash(value) {
+  let hash = 2166136261;
+  for (const character of String(value)) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 export function ballGradientId(style = {}) {
