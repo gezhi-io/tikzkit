@@ -6290,20 +6290,30 @@ function inlinePathLabelNeedsTexMetrics(text, rawOptions = {}, expandedOptions =
 
 function resolveAutoInlineNodePoint(point, options = {}, size, env, pathSegment = null) {
   if (!pathSegment?.from || !pathSegment?.to || !isTruthyTikzOption(options.auto) || nodeDirection(options) || options.anchor) return null;
-  const dx = pathSegment.to.x - pathSegment.from.x;
-  const dy = pathSegment.to.y - pathSegment.from.y;
-  const length = Math.hypot(dx, dy);
-  if (length < 1e-9) return null;
+  const tangent = inlineNodePathTangent(options, pathSegment);
+  if (!tangent) return null;
   const side = String(options.auto === true ? "left" : options.auto || "left").trim().toLowerCase();
-  const normalSign = side === "right" || options.swap ? -1 : 1;
-  const nx = (-dy / length) * normalSign;
-  const ny = (dx / length) * normalSign;
-  const halfProjectedExtent = Math.abs(nx) * (size.width / 2) + Math.abs(ny) * (size.height / 2);
-  const explicitShift = nodeExplicitShift(options, env);
-  return roundPoint({
-    x: point.x + nx * halfProjectedExtent + explicitShift.x,
-    y: point.y + ny * halfProjectedExtent + explicitShift.y
-  });
+  const opposite = side === "right" !== Boolean(options.swap);
+  const anchor = autoInlineNodeAnchor(tangent, opposite);
+  return resolveNodeAnchorPoint(point, { ...options, anchor }, "", env, size);
+}
+
+function autoInlineNodeAnchor(tangent, opposite = false) {
+  const x = Number(tangent?.x) || 0;
+  const y = Number(tangent?.y) || 0;
+  const threshold = 0.05;
+  if (x > threshold) {
+    if (y > threshold) return opposite ? "north west" : "south east";
+    if (y < -threshold) return opposite ? "north east" : "south west";
+    return opposite ? "north" : "south";
+  }
+  if (x < -threshold) {
+    if (y > threshold) return opposite ? "south west" : "north east";
+    if (y < -threshold) return opposite ? "south east" : "north west";
+    return opposite ? "south" : "north";
+  }
+  if (y > 0) return opposite ? "west" : "east";
+  return opposite ? "east" : "west";
 }
 
 function slopedInlineNodeRotation(options = {}, pathSegment = null, env) {

@@ -387,6 +387,7 @@ function renderCsv(entries) {
 function renderMarkdown(entries, gallery) {
   const grouped = groupByKind(entries);
   const coreTikz = entries.find((entry) => entry.kind === "package" && entry.name === "tikz");
+  const coreTikzLatestNote = texPackageCatalog.tikz?.registryNoteSuffixLatest || coreTikz?.notes || "No focused update recorded.";
   const unsupported = entries.filter((entry) => entry.implementationStatus === "unsupported");
   const partial = entries.filter((entry) => entry.implementationStatus === "partial");
   const topUnsupported = [...unsupported].sort((a, b) => b.count - a.count).slice(0, 20);
@@ -422,18 +423,11 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | ${coreTikz?.implementedBy || "not-found"} | The core renderer and its local reference harness are tracked together: explicit document crops only affect executable top-level pictures, while full-document preamble declarations are isolated before third-party reference rendering. Exact TeX paragraph layout, arbitrary non-uniform node anchors, and some third-party wrappers remain partial. |
+| ${coreTikz?.name || "tikz"} | ${coreTikz?.implementationStatus || "not-found"} | ${coreTikz?.localSourceReviewed || "not-found"} | ${coreTikz?.implementedBy || "not-found"} | ${coreTikzLatestNote} |
 
 ## Latest Core TikZ Update
 
-On 2026-08-08, the browser rich-text/KaTeX path started reusing the SVG-text
-renderer’s TeX-sized mixed-math token breaker. A real 6cm text-width node
-therefore now keeps the same three lines in browser and fallback rendering;
-the native comparison harness also wraps body-only .tikz fragments with their
-declared packages/libraries before calling MacTeX. Full TeX paragraph
-glue/penalties, full hyphenation dictionaries, footnotes, and nested minipage
-layout remain partial. Evidence:
-[2026-08-08 rich-text fixed-width QA](./qa/2026-08-08-rich-text-fixed-width-wrap.md).
+${coreTikzLatestNote}
 
 ## Highest-Priority Unsupported Entries
 

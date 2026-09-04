@@ -2958,8 +2958,8 @@ test("uses TikZ auto placement for inline path nodes without explicit side", () 
   const pathPoint = { x: 4, y: -3 };
 
   assert.deepEqual(diagnostics, []);
-  assert.ok(ir.coordinates.v.x < pathPoint.x - 0.25, `expected auto node to move left of the path point, got ${ir.coordinates.v.x}`);
-  assert.ok(ir.coordinates.v.y < pathPoint.y - 0.25, `expected auto node to move below the path point, got ${ir.coordinates.v.y}`);
+  assert.ok(ir.coordinates.v.x < pathPoint.x - 0.1, `expected north-east auto anchor to move the node left of the path point, got ${ir.coordinates.v.x}`);
+  assert.ok(ir.coordinates.v.y < pathPoint.y - 0.1, `expected north-east auto anchor to move the node below the path point, got ${ir.coordinates.v.y}`);
 });
 
 test("uses path text color for inline edge labels instead of stroke color", () => {

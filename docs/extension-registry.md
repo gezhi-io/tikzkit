@@ -25,18 +25,11 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 | package | implementationStatus | local source reviewed | implemented by | current focused note |
 | --- | --- | --- | --- | --- |
-| tikz | builtin | yes | src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform/resolvedTextFontSpec + src/tex/fontSpec.js + src/tikz/textMetrics.js + src/renderers/svg/textLayout.js + src/renderers/svg/richText.js + src/renderers/svg/renderSvg.js;scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder/createTikztosvgPreambleInputEnv | The core renderer and its local reference harness are tracked together: explicit document crops only affect executable top-level pictures, while full-document preamble declarations are isolated before third-party reference rendering. Exact TeX paragraph layout, arbitrary non-uniform node anchors, and some third-party wrappers remain partial. |
+| tikz | builtin | yes | src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform/resolvedTextFontSpec/resolveAutoInlineNodePoint/autoInlineNodeAnchor/inlineNodePathTangent + src/tex/fontSpec.js + src/tikz/textMetrics.js + src/renderers/svg/textLayout.js + src/renderers/svg/richText.js + src/renderers/svg/renderSvg.js;scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder/createTikztosvgPreambleInputEnv | On 2026-08-08, the local reference harness began injecting document crop paths only into top-level executable tikzpictures and loads non-package source preamble declarations through a disposable style wrapper before tikztosvg opens its document. This avoids macro-definition corruption; legacy picture plus overlay TikZ sources can still require a clearly labelled MacTeX fallback. Reviewed locally on 2026-09-04: cubic path nodes evaluate `pos` at Bézier parameter time, derive `auto` from that position's normalized local tangent, select PGF's discrete eight-way compass anchor, and invert it for `swap` or `auto=right`; `sloped` retains the local tangent rotation with upright correction. The flowchart, mathematics, and physics fixtures have zero diagnostics and three-way visual evidence in docs/qa/2026-09-04-path-node-curves.md. Automatic anchors combined with arbitrary transformed/non-uniform node shapes remain partial. |
 
 ## Latest Core TikZ Update
 
-On 2026-08-08, the browser rich-text/KaTeX path started reusing the SVG-text
-renderer’s TeX-sized mixed-math token breaker. A real 6cm text-width node
-therefore now keeps the same three lines in browser and fallback rendering;
-the native comparison harness also wraps body-only .tikz fragments with their
-declared packages/libraries before calling MacTeX. Full TeX paragraph
-glue/penalties, full hyphenation dictionaries, footnotes, and nested minipage
-layout remain partial. Evidence:
-[2026-08-08 rich-text fixed-width QA](./qa/2026-08-08-rich-text-fixed-width-wrap.md).
+On 2026-08-08, the local reference harness began injecting document crop paths only into top-level executable tikzpictures and loads non-package source preamble declarations through a disposable style wrapper before tikztosvg opens its document. This avoids macro-definition corruption; legacy picture plus overlay TikZ sources can still require a clearly labelled MacTeX fallback. Reviewed locally on 2026-09-04: cubic path nodes evaluate `pos` at Bézier parameter time, derive `auto` from that position's normalized local tangent, select PGF's discrete eight-way compass anchor, and invert it for `swap` or `auto=right`; `sloped` retains the local tangent rotation with upright correction. The flowchart, mathematics, and physics fixtures have zero diagnostics and three-way visual evidence in docs/qa/2026-09-04-path-node-curves.md. Automatic anchors combined with arbitrary transformed/non-uniform node shapes remain partial.
 
 ## Highest-Priority Unsupported Entries
 
