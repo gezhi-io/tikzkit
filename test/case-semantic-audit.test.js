@@ -65,6 +65,23 @@ test("semantic audit inventories local dependencies, nested options, variables, 
   assert.ok(report.gate.todos.some((entry) => entry.includes("option:axis:width")));
 });
 
+test("semantic audit inventories fill-between options and nested segment styles", () => {
+  const report = auditTikzSource(String.raw`
+    \addplot[fill=blue!20] fill between[
+      of=A and B,
+      split,
+      every segment no 1/.style={fill=orange},
+      every odd segment/.style={fill=yellow}
+    ];
+  `, { localSourceResolver: fakeResolver });
+
+  assert.equal(report.options.find((entry) => entry.id === "option:fill between:of")?.implementedBy, "src/pgfplots/fillBetween.js");
+  assert.ok(report.options.some((entry) => entry.id === "option:fill between:split"));
+  assert.ok(report.options.some((entry) => entry.id === "option:fill between:every segment no 1/.style/fill"));
+  assert.ok(report.options.some((entry) => entry.id === "option:fill between:every odd segment/.style/fill"));
+  assert.ok(report.numbers.some((entry) => entry.id === "number:option:fill between:1"));
+});
+
 test("semantic audit maps logarithmic pgfplots environments and their axis options", () => {
   const report = auditTikzSource(String.raw`
 \begin{semilogxaxis}[xmin=1,xmax=1000,grid=both]

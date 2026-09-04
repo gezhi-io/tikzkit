@@ -25,12 +25,16 @@ export function renderAxisFillBetween(body, addplots, axisOptions, ranges, geome
     if (!firstPath || !secondPath) continue;
     const clipped = softlyClipFillBetweenPaths(firstPath, secondPath, fillBetween.options, ranges, geometry);
     if (!clipped) continue;
-    const style = joinOptions([
-      "axis fill between",
-      fillBetweenStyle(fillBetween.plotOptions),
-      "draw=none"
-    ]);
-    commands.push(`\\draw[${style}] ${[...clipped.first, ...clipped.second.slice().reverse()].map(formatAxisPoint).join(" -- ")} -- cycle;`);
+    const fallbackRegion = { first: clipped.first, second: clipped.second };
+    const splitRegions = fillBetweenSplitEnabled(fillBetween.options)
+      ? splitXMonotoneFillBetweenPaths(clipped.first, clipped.second)
+      : [];
+    const regions = splitRegions.length ? splitRegions : [fallbackRegion];
+    for (const [index, region] of regions.entries()) {
+      const style = fillBetweenSegmentStyle(fillBetween, index, regions.length);
+      const points = [...region.first, ...region.second.slice().reverse()];
+      commands.push(`\\fill[${style}] ${points.map(formatAxisPoint).join(" -- ")} -- cycle;`);
+    }
   }
   return commands;
 }
@@ -51,10 +55,69 @@ export function parsePgfplotsFillBetween(body) {
       first: names[1],
       second: names[2],
       plotOptions,
+      plotOptionsSource: String(match[1] || "").trim(),
       options
     });
   }
   return fills;
+}
+
+export function splitXMonotoneFillBetweenPaths(firstPath, secondPath) {
+  // For single-valued curves, PGF's path-intersection times reduce to ordered
+  // x crossings. Split both polylines at the same crossings before pairing them.
+  const first = orientPathByIncreasingX(firstPath);
+  const second = orientPathByIncreasingX(secondPath);
+  if (!isXMonotonePath(first) || !isXMonotonePath(second)) return [];
+
+  const minX = Math.max(first[0]?.x ?? Infinity, second[0]?.x ?? Infinity);
+  const maxX = Math.min(first.at(-1)?.x ?? -Infinity, second.at(-1)?.x ?? -Infinity);
+  if (!(maxX > minX)) return [];
+
+  const clippedFirst = clipPolylineToXRange(first, minX, maxX);
+  const clippedSecond = clipPolylineToXRange(second, minX, maxX);
+  if (clippedFirst.length < 2 || clippedSecond.length < 2) return [];
+
+  const sampleXs = uniqueSortedNumbers([
+    minX,
+    maxX,
+    ...clippedFirst.map((point) => point.x),
+    ...clippedSecond.map((point) => point.x)
+  ]);
+  const intersections = [];
+  for (let index = 1; index < sampleXs.length; index += 1) {
+    const fromX = sampleXs[index - 1];
+    const toX = sampleXs[index];
+    if (!(toX > fromX)) continue;
+    const firstFrom = pointOnXMonotonePath(clippedFirst, fromX);
+    const firstTo = pointOnXMonotonePath(clippedFirst, toX);
+    const secondFrom = pointOnXMonotonePath(clippedSecond, fromX);
+    const secondTo = pointOnXMonotonePath(clippedSecond, toX);
+    if (!firstFrom || !firstTo || !secondFrom || !secondTo) continue;
+    const fromDifference = firstFrom.y - secondFrom.y;
+    const toDifference = firstTo.y - secondTo.y;
+    if (Math.abs(fromDifference) <= 1e-9) intersections.push(fromX);
+    if (Math.abs(toDifference) <= 1e-9) intersections.push(toX);
+    if (fromDifference * toDifference < 0) {
+      const ratio = fromDifference / (fromDifference - toDifference);
+      intersections.push(fromX + (toX - fromX) * ratio);
+    }
+  }
+
+  const boundaries = uniqueSortedNumbers([
+    minX,
+    ...intersections.filter((x) => x > minX + 1e-8 && x < maxX - 1e-8),
+    maxX
+  ]);
+  const regions = [];
+  for (let index = 1; index < boundaries.length; index += 1) {
+    const regionFirst = sliceXMonotonePath(clippedFirst, boundaries[index - 1], boundaries[index]);
+    const regionSecond = sliceXMonotonePath(clippedSecond, boundaries[index - 1], boundaries[index]);
+    if (regionFirst.length < 2 || regionSecond.length < 2) continue;
+    const polygon = [...regionFirst, ...regionSecond.slice().reverse()];
+    if (Math.abs(polygonSignedArea(polygon)) <= 1e-8) continue;
+    regions.push({ first: regionFirst, second: regionSecond });
+  }
+  return regions;
 }
 
 function namedPlotPathName(plotOptions = {}) {
@@ -149,12 +212,87 @@ function appendPoint(points, point) {
   points.push(point);
 }
 
-function fillBetweenStyle(options = {}) {
-  const parts = [];
-  if (options.fill && options.fill !== true) parts.push(`fill=${options.fill}`);
-  else parts.push("fill=black");
-  const rawOpacity = options["fill opacity"] ?? options.opacity;
-  const opacity = Number(rawOpacity);
-  if (Number.isFinite(opacity)) parts.push(`fill opacity=${Math.max(0, Math.min(1, opacity > 1 ? opacity / 100 : opacity))}`);
-  return parts.join(",");
+function orientPathByIncreasingX(points) {
+  const path = (points || []).filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y));
+  if (path.length < 2) return path;
+  return path[0].x <= path.at(-1).x ? path.slice() : path.slice().reverse();
+}
+
+function isXMonotonePath(points) {
+  for (let index = 1; index < points.length; index += 1) {
+    const dx = points[index].x - points[index - 1].x;
+    const dy = points[index].y - points[index - 1].y;
+    if (dx < -1e-9 || (Math.abs(dx) <= 1e-9 && Math.abs(dy) > 1e-9)) return false;
+  }
+  return points.length >= 2;
+}
+
+function pointOnXMonotonePath(points, x) {
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const minX = Math.min(start.x, end.x) - 1e-9;
+    const maxX = Math.max(start.x, end.x) + 1e-9;
+    if (x < minX || x > maxX) continue;
+    const dx = end.x - start.x;
+    if (Math.abs(dx) <= 1e-12) return Math.abs(x - start.x) <= 1e-9 ? { ...start } : null;
+    return interpolatePoint(start, end, Math.max(0, Math.min(1, (x - start.x) / dx)));
+  }
+  return null;
+}
+
+function sliceXMonotonePath(points, fromX, toX) {
+  const start = pointOnXMonotonePath(points, fromX);
+  const end = pointOnXMonotonePath(points, toX);
+  if (!start || !end) return [];
+  const result = [start];
+  for (const point of points) {
+    if (point.x > fromX + 1e-9 && point.x < toX - 1e-9) appendPoint(result, point);
+  }
+  appendPoint(result, end);
+  return result;
+}
+
+function uniqueSortedNumbers(values) {
+  const sorted = values.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  const unique = [];
+  for (const value of sorted) {
+    if (!unique.length || Math.abs(value - unique.at(-1)) > 1e-8) unique.push(value);
+  }
+  return unique;
+}
+
+function polygonSignedArea(points) {
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    area += current.x * next.y - next.x * current.y;
+  }
+  return area / 2;
+}
+
+function fillBetweenSplitEnabled(options = {}) {
+  const value = options.split;
+  if (value === undefined || value === null || value === false) return false;
+  if (value === true) return true;
+  return !["false", "0", "off", "no"].includes(String(value).trim().toLowerCase());
+}
+
+function fillBetweenSegmentStyle(fillBetween, index, segmentCount) {
+  const options = fillBetween.options || {};
+  return joinOptions([
+    "axis fill between",
+    "fill",
+    fillBetweenStyleLayer(options, "every segment"),
+    fillBetween.plotOptionsSource,
+    fillBetweenStyleLayer(options, `every segment no ${index}`),
+    fillBetweenStyleLayer(options, index % 2 === 0 ? "every even segment" : "every odd segment"),
+    index === segmentCount - 1 ? fillBetweenStyleLayer(options, "every last segment") : ""
+  ]);
+}
+
+function fillBetweenStyleLayer(options, name) {
+  const value = options[`${name}/.style`] ?? options[`/tikz/fill between/${name}/.style`];
+  return value === undefined || value === null || value === true ? "" : String(value).trim();
 }

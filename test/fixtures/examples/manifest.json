@@ -7876,6 +7876,51 @@
         "level and sibling distance",
         "parent edges"
       ]
+    },
+    {
+      "id": "pgfplots-fillbetween-split-algorithm",
+      "title": "Alternating pipeline load regions",
+      "source": "pgfplots/fillbetween-split/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots fill-between splitting semantics",
+      "externalSource": "tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex",
+      "semanticOwner": "src/pgfplots/fillBetween.js:splitXMonotoneFillBetweenPaths",
+      "features": [
+        "coordinate named paths",
+        "split=true",
+        "four polyline intersections",
+        "five closed fill regions",
+        "even and odd segment styles"
+      ]
+    },
+    {
+      "id": "pgfplots-fillbetween-split-math",
+      "title": "Alternating sine-cosine regions",
+      "source": "pgfplots/fillbetween-split/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGFPlots fill-between manual",
+      "externalSource": "doc/latex/pgfplots/pgfplots.libs.fillbetween.tex",
+      "semanticOwner": "src/pgfplots/fillBetween.js:splitXMonotoneFillBetweenPaths",
+      "features": [
+        "sampled function named paths",
+        "sine and cosine intersections",
+        "three closed fill regions",
+        "native segment color precedence",
+        "axis-space labels and grid"
+      ]
+    },
+    {
+      "id": "pgfplots-fillbetween-split-physics",
+      "title": "Damped oscillator signed displacement",
+      "source": "pgfplots/fillbetween-split/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots fill-between splitting semantics",
+      "externalSource": "tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex",
+      "semanticOwner": "src/pgfplots/fillBetween.js:splitXMonotoneFillBetweenPaths",
+      "features": [
+        "damped trigonometric function",
+        "constant zero named path",
+        "four zero crossings",
+        "five signed fill regions",
+        "alternating displacement colors"
+      ]
     }
   ]
 }

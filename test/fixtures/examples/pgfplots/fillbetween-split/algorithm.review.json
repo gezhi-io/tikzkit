@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryintersections.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone shell supplies the document boundary while TikZKit evaluates the contained picture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {
+      "symbols": ["\\usepackage{pgfplots}"],
+      "findings": "The LaTeX package wrapper loads the generic PGFPlots frontend used by the fixture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {
+      "symbols": ["axis", "\\addplot", "coordinates", "name path"],
+      "findings": "The axis survey maps both coordinate plots before the fill-between command consumes their named paths."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex": {
+      "symbols": ["\\pgfplotslibraryfillbetween@addplot", "\\tikzfillbetween", "on layer"],
+      "findings": "The PGFPlots adapter resolves axis coordinates, prepares clipping and layers, and delegates the named paths to the TikZ fill-between frontend."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex": {
+      "symbols": ["every segment", "every odd segment", "every even segment", "every last segment"],
+      "findings": "Each streamed intersection region is filled separately. Common plot options are applied before numbered and odd/even segment styles, so the segment color wins."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex": {
+      "symbols": ["split", "reverse=auto", "\\pgfpathfillbetween@compute@splitted", "\\pgfcomputeintersectionsegments"],
+      "findings": "With split enabled, the low-level layer normalizes path direction, finds intersections, cuts both x-monotone non-self-intersecting paths, pairs corresponding pieces, and closes one region per interval."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryintersections.code.tex": {
+      "symbols": ["\\pgfintersectionofpaths", "\\pgfcomputeintersectionsegments"],
+      "findings": "Intersection traversal positions provide the split points used to partition the coordinate polyline and target line."
+    }
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/algorithm.tex"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/algorithm.tex"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/algorithm.tex"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js"]}
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryintersections.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The document shell is stripped while the standalone border remains the native crop reference."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {
+      "symbols": ["\\usepackage{pgfplots}"],
+      "findings": "The package wrapper loads the axis and plot machinery required by both the oscillator and zero paths."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {
+      "symbols": ["axis", "\\addplot", "domain", "samples", "name path"],
+      "findings": "The damped sinusoid and zero function are sampled over the same increasing domain before fill-between lowering."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex": {
+      "symbols": ["\\pgfplotslibraryfillbetween@addplot", "\\tikzfillbetween", "soft clip", "on layer"],
+      "findings": "The high-level adapter transforms the named plots into canvas paths and paints the resulting regions on the fill-between layer."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex": {
+      "symbols": ["every segment", "every odd segment", "every even segment", "\\tikzsegmentindex"],
+      "findings": "Alternating segment styles map successive oscillator half-cycles to distinct positive and negative displacement fills."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex": {
+      "symbols": ["split", "reverse=auto", "\\pgfpathfillbetween@compute@splitted", "omit empty segments"],
+      "findings": "The low-level implementation splits at each zero crossing, pairs both path fragments, reverses the second fragment, closes each half-cycle, and omits degenerate regions."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryintersections.code.tex": {
+      "symbols": ["\\pgfintersectionofpaths", "\\pgfcomputeintersectionsegments"],
+      "findings": "Ordered intersection times supply the four internal zero crossings that partition the oscillator into five fill regions."
+    }
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/physics.tex"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/physics.tex"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/physics.tex"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/physics.tex"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js"]}
+  ]
+}

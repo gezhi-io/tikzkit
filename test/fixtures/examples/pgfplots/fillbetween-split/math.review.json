@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryintersections.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone shell is removed before browser evaluation while preserving the executable TikZ picture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": {
+      "symbols": ["\\usepackage{pgfplots}"],
+      "findings": "The package wrapper initializes PGFPlots and its TikZ frontend."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": {
+      "symbols": ["axis", "\\addplot", "domain", "samples", "name path"],
+      "findings": "The sine and cosine expressions are sampled as ordinary function plots and retained as named paths in increasing x order."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/libs/tikzlibrarypgfplots.fillbetween.code.tex": {
+      "symbols": ["\\pgfplotslibraryfillbetween@addplot", "\\tikzfillbetween", "every fill between plot"],
+      "findings": "The high-level PGFPlots library bridges axis-space named function plots to the generic fill-between path generator."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/tikzlibraryfillbetween.code.tex": {
+      "symbols": ["every segment", "every odd segment", "every even segment", "\\tikzsegmentindex"],
+      "findings": "The frontend numbers split regions from zero and applies even styling to indices 0 and 2 and odd styling to index 1."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfcontrib/pgflibraryfillbetween.code.tex": {
+      "symbols": ["split=true", "reverse=auto", "\\pgfpathfillbetween@compute@splitted", "\\pgfcomputeintersectionsegments"],
+      "findings": "The documented common case is two function paths without self-intersections. The two sine/cosine crossings induce three independently closed fill regions."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryintersections.code.tex": {
+      "symbols": ["\\pgfintersectionofpaths", "\\pgfcomputeintersectionsegments"],
+      "findings": "The intersection library records path traversal positions so both sampled polylines can be cut at matching points."
+    }
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/math.tex"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/math.tex"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/math.tex"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js", "test/fixtures/examples/pgfplots/fillbetween-split/math.tex"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/pgfplots-fillbetween.test.js"]}
+  ]
+}

@@ -134,6 +134,7 @@ const OPTION_CONTEXT_OWNERS = {
   circuitikz: "src/packages/circuitikz.js",
   ctikzset: "src/packages/circuitikz.js",
   datavisualization: "src/tikz/libraries/datavisualization.js",
+  "fill between": "src/pgfplots/fillBetween.js",
   graph: "src/tikz/libraries/graphs.js:expandTikzGraphs",
   groupplot: "src/pgfplots/axisOptions.js",
   loglogaxis: "src/pgfplots/axisOptions.js",
@@ -561,7 +562,12 @@ function collectOptionGroups(source, lineStarts) {
     if (name === "addplot" && source[cursor] === "+") cursor = skipWhitespace(source, cursor + 1);
     if (source[cursor] !== "[") continue;
     const group = readBalanced(source, cursor, "[", "]");
-    if (group) groups.push(optionGroup(name, group, match.index, lineStarts));
+    if (!group) continue;
+    groups.push(optionGroup(name, group, match.index, lineStarts));
+    if (name === "addplot" || name === "addplot3") {
+      const fillBetweenGroup = readFillBetweenOptions(source, group.end);
+      if (fillBetweenGroup) groups.push(optionGroup("fill between", fillBetweenGroup, match.index, lineStarts));
+    }
   }
   const childPattern = /\bchild\s*/g;
   while ((match = childPattern.exec(source))) {
@@ -571,6 +577,15 @@ function collectOptionGroups(source, lineStarts) {
     if (group) groups.push(optionGroup("child", group, match.index, lineStarts));
   }
   return groups;
+}
+
+function readFillBetweenOptions(source, start) {
+  let cursor = skipWhitespace(source, start);
+  if (!source.startsWith("fill", cursor) || /[A-Za-z@]/.test(source[cursor + 4] || "")) return null;
+  cursor = skipWhitespace(source, cursor + 4);
+  if (!source.startsWith("between", cursor) || /[A-Za-z@]/.test(source[cursor + 7] || "")) return null;
+  cursor = skipWhitespace(source, cursor + 7);
+  return source[cursor] === "[" ? readBalanced(source, cursor, "[", "]") : null;
 }
 
 function optionGroup(context, balancedGroup, index, lineStarts) {
