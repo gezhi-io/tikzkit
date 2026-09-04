@@ -6292,10 +6292,13 @@ function resolveAutoInlineNodePoint(point, options = {}, size, env, pathSegment 
   if (!pathSegment?.from || !pathSegment?.to || !isTruthyTikzOption(options.auto) || nodeDirection(options) || options.anchor) return null;
   const tangent = inlineNodePathTangent(options, pathSegment);
   if (!tangent) return null;
-  const side = String(options.auto === true ? "left" : options.auto || "left").trim().toLowerCase();
-  const opposite = side === "right" !== Boolean(options.swap);
-  const anchor = autoInlineNodeAnchor(tangent, opposite);
+  const anchor = autoInlineNodeAnchor(tangent, autoInlineNodeUsesOppositeAnchor(options));
   return resolveNodeAnchorPoint(point, { ...options, anchor }, "", env, size);
+}
+
+function autoInlineNodeUsesOppositeAnchor(options = {}) {
+  const side = String(options.auto === true ? "left" : options.auto || "left").trim().toLowerCase();
+  return side === "right" !== Boolean(options.swap);
 }
 
 function autoInlineNodeAnchor(tangent, opposite = false) {
@@ -6340,9 +6343,17 @@ function resolveSlopedInlineNodePoint(point, options = {}, size, env, rotation) 
   // label that frame follows the path, so a yshift moves normal to the line.
   const rotatedExplicitShift = rotateVector(explicitShift.x, explicitShift.y, rotation);
   if (!directionEntries.length) {
+    const autoAnchorShift = isTruthyTikzOption(options.auto)
+      ? explicitNodeAnchorShift(
+          { ...options, anchor: autoInlineNodeUsesOppositeAnchor(options) ? "north" : "south" },
+          size,
+          env,
+          rotation
+        )
+      : { x: 0, y: 0 };
     return roundPoint({
-      x: point.x + rotatedExplicitShift.x,
-      y: point.y + rotatedExplicitShift.y
+      x: point.x + autoAnchorShift.x + rotatedExplicitShift.x,
+      y: point.y + autoAnchorShift.y + rotatedExplicitShift.y
     });
   }
   let localX = 0;

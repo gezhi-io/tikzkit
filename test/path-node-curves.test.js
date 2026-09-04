@@ -87,5 +87,7 @@ test("records the reviewed curved path-node slice in both extension registries",
 
   assert.match(markdown, /derive `auto` from that position's normalized local tangent/);
   assert.match(csv, /derive `auto` from that position's normalized local tangent/);
-  assert.match(csv, /resolveAutoInlineNodePoint\/autoInlineNodeAnchor\/inlineNodePathTangent/);
+  assert.match(csv, /resolveAutoInlineNodePoint/);
+  assert.match(csv, /autoInlineNodeAnchor/);
+  assert.match(csv, /inlineNodePathTangent/);
 });
