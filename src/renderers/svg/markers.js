@@ -15,6 +15,7 @@ export function collectArrowMarkerDefs(items) {
   for (const item of items) {
     for (const key of ["markerStart", "markerEnd"]) {
       if (!item.style?.[key]) continue;
+      if (item.style[key]?.kind === "sequence") continue;
       const marker = resolvedArrowMarker(item.style[key], item.style);
       defs.set(marker.id, marker);
     }

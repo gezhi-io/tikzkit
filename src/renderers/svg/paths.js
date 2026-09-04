@@ -74,8 +74,10 @@ function pathCommandBounds(commands = [], tightBezierBounds = false) {
 export function renderArrowedPath(item, unit) {
   const style = item.style || {};
   const terminal = pathTerminalSegments(item.commands || []);
-  const startTip = style.markerStart ? resolveInlineArrowTip(style.markerStart, style) : null;
-  const endTip = style.markerEnd ? resolveInlineArrowTip(style.markerEnd, style) : null;
+  const startTips = style.markerStart ? resolveInlineArrowTipSequence(style.markerStart, style, "start") : [];
+  const endTips = style.markerEnd ? resolveInlineArrowTipSequence(style.markerEnd, style, "end") : [];
+  const startTip = startTips.at(-1);
+  const endTip = endTips.at(-1);
   const explicitCommands = shortenPathTerminals(
     item.commands || [],
     terminal,
@@ -84,10 +86,10 @@ export function renderArrowedPath(item, unit) {
   );
   const placedTerminal = pathTerminalSegments(explicitCommands);
   const startShorten = startTip && placedTerminal.first?.shortenable
-    ? (startTip.geometry.terminalPlacement ?? startTip.geometry.shorten) / unit
+    ? ((startTip.geometry.terminalPlacement ?? startTip.geometry.shorten) + startTip.separation) / unit
     : 0;
   const endShorten = endTip && placedTerminal.last?.shortenable
-    ? (endTip.geometry.terminalPlacement ?? endTip.geometry.shorten) / unit
+    ? ((endTip.geometry.terminalPlacement ?? endTip.geometry.shorten) + endTip.separation) / unit
     : 0;
   const commands = shortenPathTerminals(explicitCommands, placedTerminal, startShorten, endShorten);
   const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
@@ -97,32 +99,53 @@ export function renderArrowedPath(item, unit) {
       : `<path d="${pathData(commands, unit)}"${styleAttributes(pathStyle, { omitMarkers: true, lineCap: "butt", lineJoin: "miter" })} />`
   ];
 
-  if (startTip && placedTerminal.first) {
-    pieces.push(renderInlineArrowTip(
-      startTip,
-      placedArrowTipPoint(placedTerminal.first.start, placedTerminal.first.startUx, placedTerminal.first.startUy, startTip.geometry.placement, unit),
-      placedTerminal.first.angle + 180,
+  if (startTips.length && placedTerminal.first) {
+    for (const placed of placeResolvedInlineArrowTips(
+      startTips,
+      placedTerminal.first.start,
+      placedTerminal.first.startUx,
+      placedTerminal.first.startUy,
       unit
-    ));
+    )) {
+      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.first.angle + 180, unit));
+    }
   }
-  if (endTip && placedTerminal.last) {
-    pieces.push(renderInlineArrowTip(
-      endTip,
-      placedArrowTipPoint(placedTerminal.last.end, -(placedTerminal.last.endUx ?? placedTerminal.last.ux), -(placedTerminal.last.endUy ?? placedTerminal.last.uy), endTip.geometry.placement, unit),
-      placedTerminal.last.angle,
+  if (endTips.length && placedTerminal.last) {
+    for (const placed of placeResolvedInlineArrowTips(
+      endTips,
+      placedTerminal.last.end,
+      -(placedTerminal.last.endUx ?? placedTerminal.last.ux),
+      -(placedTerminal.last.endUy ?? placedTerminal.last.uy),
       unit
-    ));
+    )) {
+      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.last.angle, unit));
+    }
   }
   return `<g class="tikz-arrowed-path${pathStyle.doubleColor !== undefined ? " tikz-double-path" : ""}">${pieces.join("")}</g>`;
 }
 
-function placedArrowTipPoint(point, ux, uy, placement = 0, unit = 1) {
-  const amount = Number(placement) || 0;
-  if (!amount) return point;
-  return {
-    x: point.x + (Number(ux) || 0) * amount / unit,
-    y: point.y + (Number(uy) || 0) * amount / unit
-  };
+export function resolveInlineArrowTipSequence(rawTip, style = {}, side = "end") {
+  const rawTips = rawTip?.kind === "sequence" && Array.isArray(rawTip.tips) ? rawTip.tips : [rawTip];
+  const ordered = side === "start" ? [...rawTips].reverse() : rawTips;
+  return ordered.filter(Boolean).map((tip) => resolveInlineArrowTip(tip, style));
+}
+
+export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy, unit = 1) {
+  const placements = new Array(tips.length);
+  let outerAdvance = 0;
+  for (let index = tips.length - 1; index >= 0; index -= 1) {
+    const tip = tips[index];
+    const offset = outerAdvance + tip.separation + (Number(tip.geometry.placement) || 0);
+    placements[index] = {
+      tip,
+      point: {
+        x: endpoint.x + (Number(inwardUx) || 0) * offset / unit,
+        y: endpoint.y + (Number(inwardUy) || 0) * offset / unit
+      }
+    };
+    outerAdvance += tip.separation + tip.assemblyLength;
+  }
+  return placements;
 }
 
 export function renderDoublePath(commands, style = {}, unit, options = {}) {
@@ -326,9 +349,12 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const metaStealthTip = raw.kind === "stealth" && raw.meta;
   const filledStrokedTip = metaStealthTip || legacyStealthPrime || raw.kind === "dimline" || raw.kind === "dimline reverse";
   const declaredPaint = raw.declaredArrow?.paint;
+  const separation = arrowTipSeparation(raw.separation, style);
   return {
     kind: raw.kind,
     geometry,
+    separation,
+    assemblyLength: Number(geometry.assemblyLength) || Number(raw.length) || Math.max(0, (geometry.bounds?.maxX || 0) - (geometry.bounds?.minX || 0)),
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
@@ -363,6 +389,18 @@ export function resolveInlineArrowTip(tip, style = {}) {
           ? Math.max(0.8, (style.lineWidth ?? 1) * 0.45)
           : 0
   };
+}
+
+function arrowTipSeparation(separation, style = {}) {
+  if (!separation || !Number.isFinite(Number(separation.dimension))) return 0;
+  const lineWidth = Math.max(0, Number(style.lineWidth) || 0);
+  const innerLineWidth = Number.isFinite(style.doubleDistance) ? Math.max(0, Number(style.doubleDistance)) : lineWidthFromPt(0.6);
+  const fullLineWidth = style.doubleColor !== undefined ? 2 * lineWidth + innerLineWidth : lineWidth;
+  const outerFactor = Number.isFinite(Number(separation.outerFactor)) ? Number(separation.outerFactor) : 0;
+  const effectiveLineWidth = style.doubleColor !== undefined
+    ? fullLineWidth - outerFactor * (fullLineWidth + innerLineWidth) / 2
+    : lineWidth;
+  return Number(separation.dimension) + (Number(separation.lineWidthFactor) || 0) * effectiveLineWidth;
 }
 
 export function usesCustomArrowDimension(source = {}, raw = {}, key) {
@@ -408,6 +446,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
           "Z"
         ].join(" "),
         shorten: native.shorten,
+        assemblyLength: native.assemblyLength,
         terminalPlacement: native.terminalPlacement,
         placement: native.placement,
         lineWidth: native.lineWidth,
@@ -427,6 +466,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     return {
       path: `M 0 0 L ${format(-length)} ${format(-halfWidth)} L ${format(-inset)} 0 L ${format(-length)} ${format(halfWidth)} Z`,
       shorten: inset,
+      assemblyLength: length,
       bounds: {
         minX: -length,
         maxX: 0,
@@ -513,6 +553,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         `C ${format(-length * 0.664)} ${format(halfWidth * 0.519)} ${format(-length * 0.124)} ${format(halfWidth * 0.077)} 0 0 Z`
       ].join(" "),
       shorten: native.shorten,
+      assemblyLength: native.assemblyLength,
       placement: native.tipPlacement,
       terminalPlacement: native.terminalPlacement,
       lineWidth: native.lineWidth
@@ -668,6 +709,7 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   }
   const back = flags.customLength ? tip.length : lineWidthFromPt(0.280535 + 2.289088 * lineWidthPt);
   const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(0.474889 + 2.796962 * lineWidthPt);
+  const assemblyLength = flags.customLength ? tip.length : lineWidthFromPt(1.6 + 2.2 * lineWidthPt);
   return {
     path: [
       `M ${format(-back)} ${format(halfWidth)}`,
@@ -677,6 +719,9 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
       )}`
     ].join(" "),
     shorten: lineWidth,
+    terminalPlacement: lineWidth,
+    placement: lineWidth / 2,
+    assemblyLength,
     bounds: { minX: -back, maxX: 0, minY: -halfWidth, maxY: halfWidth }
   };
 }

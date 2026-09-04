@@ -10,7 +10,7 @@ import { estimateRichTextRenderBounds } from "./richTextNode.js";
 import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
-import { pathTerminalSegments, resolveInlineArrowTip } from "./paths.js";
+import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
 import { cylinderGeometry } from "../../tikz/libraries/shapes.geometric.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 
@@ -258,25 +258,25 @@ function includeInlineArrowBounds(item, include, unit) {
   if (style.markerStart && terminal.first) {
     const ux = -(terminal.first.startUx ?? terminal.first.ux);
     const uy = -(terminal.first.startUy ?? terminal.first.uy);
-    includeArrowTipBounds(style.markerStart, style, terminal.first.start, ux, uy, include, unit, item.includeArrowNormalBounds);
+    const tips = resolveInlineArrowTipSequence(style.markerStart, style, "start");
+    for (const placed of placeResolvedInlineArrowTips(tips, terminal.first.start, -ux, -uy, unit)) {
+      includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
+    }
   }
   if (style.markerEnd && terminal.last) {
     const ux = terminal.last.endUx ?? terminal.last.ux;
     const uy = terminal.last.endUy ?? terminal.last.uy;
-    includeArrowTipBounds(style.markerEnd, style, terminal.last.end, ux, uy, include, unit, item.includeArrowNormalBounds);
+    const tips = resolveInlineArrowTipSequence(style.markerEnd, style, "end");
+    for (const placed of placeResolvedInlineArrowTips(tips, terminal.last.end, -ux, -uy, unit)) {
+      includeResolvedArrowTipBounds(placed.tip, style, placed.point, ux, uy, include, unit, item.includeArrowNormalBounds);
+    }
   }
 }
 
-function includeArrowTipBounds(rawTip, style, endpoint, ux, uy, include, unit, includeNormalBounds = true) {
-  const tip = resolveInlineArrowTip(rawTip, style);
+function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit, includeNormalBounds = true) {
   if (tip.geometry?.includeBounds === false) return;
   const bounds = tip.geometry?.bounds;
   if (!bounds) return;
-  const placement = (Number(tip.geometry.placement) || 0) / unit;
-  const origin = {
-    x: endpoint.x - ux * placement,
-    y: endpoint.y - uy * placement
-  };
   // Legacy PGF arrow declarations include half the current line width in
   // `\pgfarrowsrightextend`. The emitted tip geometry carries that extension
   // already, so only its remaining stroke half-width belongs outside it.

@@ -5652,6 +5652,33 @@
       "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
       "semanticOwner": "src/tikz/libraries/positioning.js + src/engine/evaluate.js:nodeAnchorCoordinate",
       "features": ["node distance pair", "circle compass anchors", "diamond compass anchors", "physics signal labels"]
+    },
+    {
+      "id": "arrows-meta-separation-flowchart",
+      "title": "Separated terminal and composite tips in an approval flow",
+      "source": "arrows/meta-separation-flowchart.tex",
+      "sourceCorpus": "TeX Live PGF arrow padding manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+      "semanticOwner": "src/engine/options.js:parseArrowTipSpec + src/renderers/svg/paths.js:placeResolvedInlineArrowTips",
+      "features": ["arrows.meta", "sep", "default sep", "composite Stealth tips", "flowchart"]
+    },
+    {
+      "id": "arrows-meta-separation-math",
+      "title": "Separated composite tips on mathematical morphisms",
+      "source": "arrows/meta-separation-math.tex",
+      "sourceCorpus": "TeX Live PGF arrow padding manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+      "semanticOwner": "src/engine/options.js:parseArrowTipSpec + src/renderers/svg/paths.js:resolveInlineArrowTipSequence",
+      "features": ["arrows.meta", "start and end tip sequences", "positive sep", "negative sep", "Latex tips", "math labels"]
+    },
+    {
+      "id": "arrows-meta-separation-physics",
+      "title": "Positive and negative arrow-tip separation on physical vectors",
+      "source": "arrows/meta-separation-physics.tex",
+      "sourceCorpus": "TeX Live PGF arrow padding manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+      "semanticOwner": "src/engine/options.js:parseArrowTipSeparation + src/renderers/svg/paths.js:placeResolvedInlineArrowTips",
+      "features": ["arrows.meta", "global sequence options", "positive sep", "negative sep", "Stealth tips", "physics vectors"]
     }
   ]
 }

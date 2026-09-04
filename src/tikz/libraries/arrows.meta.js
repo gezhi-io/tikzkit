@@ -1,7 +1,7 @@
 export const tikzLibrary = {
   "name": "arrows.meta",
   "status": "builtin",
-  "implementedBy": "src/engine/options.js:parseArrowOption + src/tikz/metrics.js:createArrowTip/latexArrowGeometryFromLineWidth/stealthMetaArrowGeometryFromLineWidth + src/renderers/svg/paths.js:renderArrowedPath/inlineArrowGeometry",
+  "implementedBy": "src/engine/options.js:parseArrowOption/parseArrowTipSpec + src/tikz/metrics.js:createArrowTip/latexArrowGeometryFromLineWidth/stealthMetaArrowGeometryFromLineWidth + src/renderers/svg/paths.js:renderArrowedPath/resolveInlineArrowTipSequence/placeResolvedInlineArrowTips + src/renderers/svg/bounds.js:arrowEndpointBounds",
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
   "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
   "localSourceReviewed": true,
@@ -16,7 +16,12 @@ export const tikzLibrary = {
     "Stealth open",
     "Stealth harpoon",
     "Stealth swap",
-    "Stealth reversed"
+    "Stealth reversed",
+    "built-in composite arrow tip sequences",
+    "per-tip sep dimension and line-width factors",
+    "default, positive, and negative tip separation",
+    "start-sequence order inversion",
+    "double-line separation outer-factor arithmetic"
   ],
   "implements": [
     "Stealth",
@@ -29,7 +34,12 @@ export const tikzLibrary = {
     "Stealth open",
     "Stealth harpoon",
     "Stealth swap",
-    "Stealth reversed"
+    "Stealth reversed",
+    "built-in composite arrow tip sequences",
+    "per-tip sep dimension and line-width factors",
+    "default, positive, and negative tip separation",
+    "start-sequence order inversion",
+    "double-line separation outer-factor arithmetic"
   ],
-  "notes": "Reviewed locally on 2026-08-06 through 2026-08-08 against TeX Live 2025. Capitalized Latex uses line-width-dependent length=+3pt 4.5 .8, width'=+0pt .75, and a capped miter outline. Capitalized Stealth now independently resolves length, width', and inset' before applying scale/scale length/scale width, then follows PGF's front/back/inset miter, tip-end, line-end, and qfillstroke construction. `Stealth[open]` changes that construction to qstroke; `harpoon` omits one outer corner and derives its tip-end/line-end from the harpoon miter; `swap` reflects it across the shaft; and `reversed` turns the mitered tip around while retaining its original attachment endpoint. Lower-case core latex and stealth remain distinct classic tips. Latex retains its distinct arrow assembly base, covered line end, and visible point; feed-forward-perceptron confirms `Latex[scale=0.5]-` at circular nodes. The 2026-08-08 `arrows-meta-tip-scaling` and `arrows-meta-stealth-variants` QA fixtures validate scaling, open, harpoon, swap, reversed, and native/tikztosvg artifacts. Composite tips, arbitrary setup-code keys, padding/separation, bend/flex, repeated `reversed` cancellation, double-line outer-factor arithmetic, and declaration-time TeX arithmetic remain partial."
+  "notes": "Reviewed locally on 2026-08-06 through 2026-08-08 against TeX Live 2025. Capitalized Latex uses line-width-dependent length=+3pt 4.5 .8, width'=+0pt .75, and a capped miter outline. Capitalized Stealth now independently resolves length, width', and inset' before applying scale/scale length/scale width, then follows PGF's front/back/inset miter, tip-end, line-end, and qfillstroke construction. `Stealth[open]` changes that construction to qstroke; `harpoon` omits one outer corner and derives its tip-end/line-end from the harpoon miter; `swap` reflects it across the shaft; and `reversed` turns the mitered tip around while retaining its original attachment endpoint. Lower-case core latex and stealth remain distinct classic tips. Latex retains its distinct arrow assembly base, covered line end, and visible point; feed-forward-perceptron confirms `Latex[scale=0.5]-` at circular nodes. The 2026-08-08 `arrows-meta-tip-scaling` and `arrows-meta-stealth-variants` QA fixtures validate scaling, open, harpoon, swap, reversed, and native/tikztosvg artifacts. On 2026-09-04, pgfcorearrows sequence assembly and `sep` were reviewed again. TikZKit now parses built-in symbolic/named tip sequences, reverses source sequences at the start endpoint, advances each rigid tip by its logical assembly length plus the following tip's separation, and includes terminal separation in line shortening. Bare `sep` uses PGF's 0.88pt + 0.3 effective-line-width default; explicit dimension/factor forms, negative overlap, and double-line outer-factor arithmetic are supported. Evidence is in docs/qa/2026-09-04-arrows-meta-tip-separation.md. Arbitrary user-declared names inside composite sequences, arbitrary setup-code keys, bend/flex, repeated `reversed` cancellation, and declaration-time TeX arithmetic remain partial."
 };

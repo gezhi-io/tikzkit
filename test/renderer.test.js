@@ -844,6 +844,44 @@ test("places scaled arrows.meta Latex tips at their PGF-specific line ends", () 
   assert.match(svg, /transform="translate\(395\.217[0-9]+ 80\) rotate\(0\)"/);
 });
 
+test("places an arrows.meta sequence using each tip separation", () => {
+  const svg = tikzToSvg(String.raw`
+\usetikzlibrary{arrows.meta}
+\draw[line width=1pt,-{>[sep=1pt]>[sep=2pt]>}] (0,0) -- (3,0);`).svg;
+  const tipXs = [...svg.matchAll(/class="tikz-arrow-tip tikz-arrow-to"[^>]+transform="translate\(([\d.]+) 0\)/gu)]
+    .map((match) => Number(match[1]));
+
+  assert.equal(tipXs.length, 3);
+  assert.ok(Math.abs((tipXs[1] - tipXs[0]) - lineWidthFromPt(4.8)) < 0.01, `expected 3.8pt + 1pt, got ${tipXs}`);
+  assert.ok(Math.abs((tipXs[2] - tipXs[1]) - lineWidthFromPt(5.8)) < 0.01, `expected 3.8pt + 2pt, got ${tipXs}`);
+});
+
+test("inverts an arrows.meta start sequence before applying separation", () => {
+  const svg = tikzToSvg(String.raw`
+\usetikzlibrary{arrows.meta}
+\draw[line width=1pt,{>[sep=1pt]>[sep=2pt]}-] (0,0) -- (3,0);`).svg;
+  const tipXs = [...svg.matchAll(/class="tikz-arrow-tip tikz-arrow-to"[^>]+transform="translate\(([\d.]+) 0\) rotate\(180\)"/gu)]
+    .map((match) => Number(match[1]));
+
+  assert.equal(tipXs.length, 2);
+  assert.ok(Math.abs(tipXs[1] - lineWidthFromPt(1.5)) < 0.01, `expected the source-first tip at the start terminal, got ${tipXs}`);
+  assert.ok(Math.abs((tipXs[0] - tipXs[1]) - lineWidthFromPt(5.8)) < 0.01, `expected reversed 3.8pt + 2pt spacing, got ${tipXs}`);
+});
+
+test("applies a final arrows.meta sep to the tip group and path shortening", () => {
+  const svg = tikzToSvg(String.raw`
+\usetikzlibrary{arrows.meta}
+\draw[line width=1pt,-{>>[sep=2pt]}] (0,0) -- (3,0);`).svg;
+  const pathEnd = Number(svg.match(/<path d="M 0 0 L ([\d.]+) 0"/u)?.[1]);
+  const tipXs = [...svg.matchAll(/class="tikz-arrow-tip tikz-arrow-to"[^>]+transform="translate\(([\d.]+) 0\)/gu)]
+    .map((match) => Number(match[1]));
+
+  assert.equal(tipXs.length, 2);
+  assert.ok(Math.abs(tipXs[1] - (300 - lineWidthFromPt(2.5))) < 0.01, `expected the visible front tip 2.5pt inside the terminal, got ${tipXs}`);
+  assert.ok(Math.abs((tipXs[1] - tipXs[0]) - lineWidthFromPt(3.8)) < 0.01, `expected touching tips, got ${tipXs}`);
+  assert.ok(Math.abs(pathEnd - (300 - lineWidthFromPt(3))) < 0.01, `expected sep plus PGF line-end shortening, got ${pathEnd}`);
+});
+
 test("applies arrows.meta length and width scaling independently", () => {
   const lineWidth = lineWidthFromPt(0.8);
   const normal = latexArrowGeometryFromLineWidth(lineWidth);

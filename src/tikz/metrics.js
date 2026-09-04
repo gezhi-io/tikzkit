@@ -286,6 +286,7 @@ export function latexArrowGeometryFromLineWidth(lineWidth, scales = 1) {
   const length = lineWidthFromPt(visibleLengthPt);
   return {
     length,
+    assemblyLength: lineWidthFromPt(arrowLengthPt),
     halfWidth: lineWidthFromPt(halfWidthPt),
     lineWidth: lineWidthFromPt(arrowLineWidthPt),
     shorten: length,
@@ -440,6 +441,7 @@ export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
 
   return {
     length: lineWidthFromPt(innerLengthPt),
+    assemblyLength: lineWidthFromPt(lengthPt),
     halfWidth: lineWidthFromPt(halfWidthPt),
     insetDistance: lineWidthFromPt(insetDistancePt),
     lineWidth: lineWidthFromPt(arrowLineWidthPt),

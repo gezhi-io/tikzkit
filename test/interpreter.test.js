@@ -993,6 +993,23 @@ test("parses arrows.meta value syntax and scales the selected tip", () => {
   assert.match(result.svg, /tikz-arrow-latex/);
 });
 
+test("parses arrows.meta tip sequences and preserves per-tip separation parameters", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}
+  \draw[line width=1pt,-{>[sep=1pt]>[sep=2pt]>}] (0,0) -- (3,0);
+\end{tikzpicture}`);
+  const path = result.ir.items.find((item) => item.type === "path");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(path?.style?.markerEnd?.kind, "sequence");
+  assert.equal(path.style.markerEnd.tips.length, 3);
+  assert.equal(path.style.markerEnd.tips[0].kind, "to");
+  assert.ok(path.style.markerEnd.tips[0].separation.dimension > 0);
+  assert.ok(path.style.markerEnd.tips[1].separation.dimension > path.style.markerEnd.tips[0].separation.dimension);
+  assert.equal(path.style.markerEnd.tips[2].separation, undefined);
+});
+
 test("keeps stroked circular node outlines inside the SVG bounds for scaled Latex edge tips", () => {
   const source = String.raw`
     \tikzset{vertex/.style={draw,circle,minimum size=10pt,inner sep=0pt}}

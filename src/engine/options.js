@@ -669,11 +669,59 @@ function parseArrowOption(key, value, defaultArrowTip) {
   return null;
 }
 
+const ARROW_TIP_SEQUENCE_NAMES = [
+  "Computer Modern Rightarrow",
+  "Classical TikZ Rightarrow",
+  "Straight Barb",
+  "Open Triangle",
+  "Open Circle",
+  "Arc Barb",
+  "Tee Barb",
+  "Turned Square",
+  "Triangle Cap",
+  "Round Cap",
+  "Butt Cap",
+  "Fast Triangle",
+  "Fast Round",
+  "two heads",
+  "dimline reverse",
+  "Stealth'",
+  "stealth'",
+  "Latex",
+  "LaTeX",
+  "latex",
+  "Stealth",
+  "stealth",
+  "Triangle",
+  "Rectangle",
+  "Parenthesis",
+  "Bracket",
+  "Diamond",
+  "Ellipse",
+  "Circle",
+  "Square",
+  "Kite",
+  "Hooks",
+  "Hook",
+  "Implies",
+  "Rays",
+  "Bar",
+  "To",
+  "to"
+].sort((left, right) => right.length - left.length);
+
 function parseArrowTipSpec(input) {
   const text = stripOuterBraces(String(input || "").trim());
+  const sequence = parseArrowTipSequence(text);
+  if (sequence) return sequence;
+  return parseArrowTipAtom(text);
+}
+
+function parseArrowTipAtom(input, inheritedOptions = {}) {
+  const text = String(input || "").trim();
   const match = text.match(/^([A-Za-z>'\s-]+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
-  const options = match[2] ? parseOptions(match[2]) : {};
+  const options = { ...inheritedOptions, ...(match[2] ? parseOptions(match[2]) : {}) };
   const overrides = {};
   if (options.width) {
     overrides.width = lineWidthFromTikzDimension(options.width);
@@ -700,6 +748,8 @@ function parseArrowTipSpec(input) {
   }
   if (options.color || options.draw) overrides.stroke = normalizeColor(String(options.color || options.draw));
   if (options.fill) overrides.fill = normalizeColor(String(options.fill));
+  const separation = parseArrowTipSeparation(options.sep);
+  if (separation) overrides.separation = separation;
   const declaredArrow = parseDeclaredArrowPayload(options["tikzkit declared arrow"]);
   if (declaredArrow) {
     overrides.declaredArrow = declaredArrow;
@@ -741,6 +791,73 @@ function parseArrowTipSpec(input) {
     length: tip.length * scale,
     width: tip.width * scale,
     ...(tip.lineWidth ? { lineWidth: tip.lineWidth * scale } : {})
+  };
+}
+
+function parseArrowTipSequence(text) {
+  let cursor = 0;
+  let inheritedOptions = {};
+  const leadingOptions = readArrowTipOptionGroup(text, cursor);
+  if (leadingOptions) {
+    inheritedOptions = parseOptions(leadingOptions.content);
+    cursor = leadingOptions.end;
+  }
+
+  const tips = [];
+  while (cursor < text.length) {
+    while (/\s/.test(text[cursor] || "")) cursor += 1;
+    if (cursor >= text.length) break;
+
+    let name = "";
+    if (/[><*_|]/.test(text[cursor])) {
+      name = text[cursor];
+      cursor += 1;
+    } else {
+      const known = ARROW_TIP_SEQUENCE_NAMES.find((candidate) => {
+        if (!text.startsWith(candidate, cursor)) return false;
+        const next = text[cursor + candidate.length] || "";
+        return !next || /[\s[><*_|]/.test(next);
+      });
+      if (!known) return null;
+      name = known;
+      cursor += known.length;
+    }
+
+    while (/\s/.test(text[cursor] || "")) cursor += 1;
+    const localOptions = readArrowTipOptionGroup(text, cursor);
+    const options = localOptions ? parseOptions(localOptions.content) : {};
+    if (localOptions) cursor = localOptions.end;
+    tips.push(parseArrowTipAtom(`${name === "<" ? ">" : name}`, { ...inheritedOptions, ...options }));
+  }
+
+  return tips.length > 1 ? { kind: "sequence", tips } : null;
+}
+
+function readArrowTipOptionGroup(text, start) {
+  if (text[start] !== "[") return null;
+  let depth = 0;
+  for (let index = start; index < text.length; index += 1) {
+    if (text[index] === "[") depth += 1;
+    if (text[index] === "]") depth -= 1;
+    if (depth === 0) {
+      return { content: text.slice(start + 1, index), end: index + 1 };
+    }
+  }
+  return null;
+}
+
+function parseArrowTipSeparation(value) {
+  if (value === undefined || value === false) return undefined;
+  const text = value === true ? "0.88pt .3 1" : String(value).trim();
+  if (!text) return undefined;
+  const match = text.match(/^(\S+)(?:\s+([-+]?(?:\d+\.?\d*|\.\d+)))?(?:\s+([-+]?(?:\d+\.?\d*|\.\d+)))?$/);
+  if (!match) return undefined;
+  const dimension = lineWidthFromTikzDimension(match[1], NaN);
+  if (!Number.isFinite(dimension)) return undefined;
+  return {
+    dimension,
+    lineWidthFactor: Number.isFinite(Number(match[2])) ? Number(match[2]) : 0,
+    outerFactor: Number.isFinite(Number(match[3])) ? Number(match[3]) : 0
   };
 }
 
