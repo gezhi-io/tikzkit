@@ -35,6 +35,21 @@ test("keeps repeated name intersections options in order", () => {
   assert.deepEqual(options["name intersections"], ["of=a and b, name=i", "of=c and d, name=j"]);
 });
 
+test("keeps repeated rectangle split empty-part metric keys in order", () => {
+  const options = parseOptions([
+    "rectangle split empty part width=2pt",
+    "rectangle split empty part width=3pt",
+    "rectangle split empty part height=.5ex",
+    "rectangle split empty part height=2ex",
+    "rectangle split empty part depth=.5ex",
+    "rectangle split empty part depth=1.5ex"
+  ].join(","));
+
+  assert.deepEqual(options["rectangle split empty part width"], ["2pt", "3pt"]);
+  assert.deepEqual(options["rectangle split empty part height"], [".5ex", "2ex"]);
+  assert.deepEqual(options["rectangle split empty part depth"], [".5ex", "1.5ex"]);
+});
+
 test("keeps repeated pgfplots axis line styles and resolves pgflinewidth shortening", () => {
   const options = parseOptions(String.raw`axis line style={very thick,shorten <=-0.5\pgflinewidth},axis lines=middle,axis line style=very thick`);
   assert.deepEqual(options["axis line style"], [

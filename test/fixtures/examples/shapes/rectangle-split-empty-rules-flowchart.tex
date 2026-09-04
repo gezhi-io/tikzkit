@@ -1,0 +1,29 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.multipart}
+\begin{document}
+\tikzset{
+  pipeline/.style={
+    rectangle split,
+    rectangle split horizontal,
+    rectangle split parts=5,
+    rectangle split empty part width=2pt,
+    rectangle split empty part width=4pt,
+    rectangle split empty part height=.6ex,
+    rectangle split empty part height=1.6ex,
+    rectangle split empty part depth=.4ex,
+    rectangle split part fill={blue!12,white,green!14,white,orange!16},
+    draw,
+    thick,
+    inner sep=3pt
+  },
+  action/.style={draw,rounded corners=2pt,minimum width=18mm,minimum height=8mm}
+}
+\begin{tikzpicture}[>=Latex]
+  \node[pipeline] (pipe) {Read\nodepart{two}\nodepart{three}Check\nodepart{four}\nodepart{five}Write};
+  \node[action] (retry) at (-2.1,-1.6) {Retry};
+  \node[action] (commit) at (2.1,-1.6) {Commit};
+  \draw[->,thick,blue] (pipe.two) -- (retry);
+  \draw[->,thick,orange] (pipe.four) -- (commit);
+\end{tikzpicture}
+\end{document}

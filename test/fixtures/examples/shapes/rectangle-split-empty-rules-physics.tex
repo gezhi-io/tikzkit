@@ -1,0 +1,31 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,shapes.multipart}
+\begin{document}
+\tikzset{
+  detector/.style={
+    rectangle split,
+    rectangle split horizontal,
+    rectangle split parts=5,
+    rectangle split empty part width=1.5pt,
+    rectangle split empty part width=2.5pt,
+    rectangle split empty part height=.5ex,
+    rectangle split empty part height=1.8ex,
+    rectangle split empty part depth=.6ex,
+    rectangle split part fill={cyan!14,white,yellow!20,white,red!12},
+    draw,
+    very thick,
+    inner sep=3pt
+  }
+}
+\begin{tikzpicture}[>=Latex]
+  \node[detector,rectangle split empty part width=3pt] (levels)
+    {$E_0$\nodepart{two}\nodepart{three}$E_1$\nodepart{four}\nodepart{five}$E_2$};
+  \draw[->,thick,blue] ($(levels.two)+(0,1.25)$) -- (levels.two)
+    node[above=2pt] {$h\nu_1$};
+  \draw[->,thick,red] ($(levels.four)+(0,1.25)$) -- (levels.four)
+    node[above=2pt] {$h\nu_2$};
+  \draw[<->,gray,thick] ($(levels.west)+(0,-.65)$) -- ($(levels.east)+(0,-.65)$)
+    node[midway,below] {detector bandwidth};
+\end{tikzpicture}
+\end{document}

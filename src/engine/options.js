@@ -1367,7 +1367,11 @@ function substituteStyleArguments(styleOptions, args = []) {
   for (const [key, value] of Object.entries(styleOptions || {})) {
     if (key.startsWith("__tikzStyle")) continue;
     const nextKey = substituteStyleArgumentText(key, args);
-    const nextValue = typeof value === "string" ? substituteStyleArgumentText(value, args) : value;
+    const nextValue = Array.isArray(value)
+      ? value.map((entry) => (typeof entry === "string" ? substituteStyleArgumentText(entry, args) : entry))
+      : typeof value === "string"
+        ? substituteStyleArgumentText(value, args)
+        : value;
     substituted[nextKey] = nextValue;
   }
   return substituted;
@@ -1425,7 +1429,10 @@ function isRepeatableOption(key) {
     key === "join" ||
     key === "postaction" ||
     key === "if" ||
-    key === "name intersections"
+    key === "name intersections" ||
+    key === "rectangle split empty part width" ||
+    key === "rectangle split empty part height" ||
+    key === "rectangle split empty part depth"
   );
 }
 

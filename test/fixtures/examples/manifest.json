@@ -6678,6 +6678,51 @@
         "automatic circular border clipping",
         "math text"
       ]
+    },
+    {
+      "id": "shapes-rectangle-split-empty-rules-flowchart",
+      "title": "Rectangle split pipeline gaps",
+      "source": "shapes/rectangle-split-empty-rules-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
+      "features": [
+        "flowchart",
+        "repeated empty-part width height and depth keys",
+        "named style option accumulation",
+        "named part anchors",
+        "multipart custom fills"
+      ]
+    },
+    {
+      "id": "shapes-rectangle-split-empty-rules-math",
+      "title": "Rectangle split vector gaps",
+      "source": "shapes/rectangle-split-empty-rules-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
+      "features": [
+        "mathematics diagram",
+        "three repeated empty-part widths",
+        "repeated height and depth maxima",
+        "base-aligned math parts",
+        "calc offsets from named part anchors"
+      ]
+    },
+    {
+      "id": "shapes-rectangle-split-empty-rules-physics",
+      "title": "Rectangle split detector channels",
+      "source": "shapes/rectangle-split-empty-rules-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:rectangleSplitLayout",
+      "features": [
+        "physics diagram",
+        "style and local empty-part width accumulation",
+        "repeated vertical-rule maxima",
+        "named part anchors",
+        "math text and arrow tips"
+      ]
     }
   ]
 }

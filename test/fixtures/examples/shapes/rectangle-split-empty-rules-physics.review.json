@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["document", "documentclass", "usepackage"], "findings": "The standalone document shell is stripped before TikZ evaluation while its border remains crop metadata."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The package wrapper loads PGF and TikZ."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["tikzset", "node", "draw"], "findings": "Named styles are expanded in source order before node geometry is measured."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.multipart.code.tex": {"symbols": ["nodepart", "rectangle split"], "findings": "The wrapper exposes multipart node syntax."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.multipart.code.tex": {"symbols": ["rectangle split empty part width", "rectangle split empty part height", "rectangle split empty part depth"], "findings": "Default rules, style rules, and local rules all remain in the empty-part hbox; widths sum and vertical extents take maxima."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarycalc.code.tex": {"symbols": ["calc"], "findings": "Named-part offsets are evaluated as calc coordinates."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {"symbols": ["Latex"], "findings": "The photon and bandwidth arrows use the installed Latex tip."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/shapes-multipart-empty-metrics.test.js", "docs/qa/2026-09-04-shapes-multipart-empty-rules.md"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/shapes-multipart-empty-metrics.test.js", "outputs/qa/2026-09-04-shapes-multipart-empty-rules/diff/shapes-rectangle-split-empty-rules-physics-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/shapes-multipart-empty-metrics.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/shapes-multipart-empty-metrics.test.js", "outputs/qa/2026-09-04-shapes-multipart-empty-rules/diff/shapes-rectangle-split-empty-rules-physics-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/shapes-multipart-empty-metrics.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/options.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/shapes-multipart-empty-metrics.test.js"]}
+  ]
+}

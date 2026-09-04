@@ -12048,23 +12048,17 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
   const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const emptyWidth =
     parseNodeLengthDimension("1ex", env) +
-    (options["rectangle split empty part width"] === undefined
-      ? 0
-      : parseNodeLengthDimension(options["rectangle split empty part width"], env));
+    sumNodeLengthDimensions(options["rectangle split empty part width"], env);
   // PGF appends a zero-width rule for each height/depth key. TeX combines
   // those rules in an hbox by taking the maximum height and depth, whereas
   // successive width rules remain adjacent and therefore accumulate above.
   const emptyHeight = Math.max(
     parseNodeLengthDimension("1ex", env),
-    options["rectangle split empty part height"] === undefined
-      ? 0
-      : parseNodeLengthDimension(options["rectangle split empty part height"], env)
+    ...nodeLengthDimensions(options["rectangle split empty part height"], env)
   );
   const emptyDepth = Math.max(
     0,
-    options["rectangle split empty part depth"] === undefined
-      ? 0
-      : parseNodeLengthDimension(options["rectangle split empty part depth"], env)
+    ...nodeLengthDimensions(options["rectangle split empty part depth"], env)
   );
   const { style: splitStyle } = normalizeOptions("node", options, env);
   const separatorWidth = Math.max(0, (Number(splitStyle.lineWidth) || 0) / TIKZ_UNIT);
@@ -13151,6 +13145,17 @@ function parseNodeLengthDimension(value, env = { variables: {} }) {
     return parseDimension(`${substituted.replace(/[{}]/g, "").trim()}pt`, env.variables);
   }
   return parseDimension(value, env.variables);
+}
+
+function nodeLengthDimensions(value, env = { variables: {} }) {
+  if (value === undefined) return [];
+  return (Array.isArray(value) ? value : [value])
+    .map((entry) => parseNodeLengthDimension(entry, env))
+    .filter(Number.isFinite);
+}
+
+function sumNodeLengthDimensions(value, env = { variables: {} }) {
+  return nodeLengthDimensions(value, env).reduce((sum, dimension) => sum + dimension, 0);
 }
 
 function nodeUsesBoxSizing(options = {}, env = { variables: {} }) {
