@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone shell is stripped while the border, picture, and inline particle formulas remain represented in the render result."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads TikZ and its child-tree parser before named tree growth functions are installed."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["level 1/.style", "level 2/.style", "\\tikz@children", "edge from parent"],
+      "findings": "Per-level styles are merged for the generation being laid out and remain independent across nested child lists. Parent edges use the resulting child centers and then clip to each circular or rectangular node border."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["grow via three points", "\\tikz@parse@three", "\\tikz@grow@three"],
+      "findings": "For each two-child decay the source returns the declared left and right points exactly. Different level-1 and level-2 declarations must therefore be parsed and selected independently rather than flattened into a single picture default."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex": {
+      "symbols": ["Growth Functions", "two children", "linear arrangement"],
+      "findings": "The manual's one/two/many contract makes the two-child particle branches a direct acceptance test for exact reference-point placement and nested level inheritance."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "outputs/qa/2026-09-05-trees-three-point-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "test/fixtures/examples/trees-three-point/physics.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "outputs/qa/2026-09-05-trees-three-point-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "outputs/qa/2026-09-05-trees-three-point-after"] }
+  ]
+}

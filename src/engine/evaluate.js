@@ -84,6 +84,7 @@ import {
   tapeLayoutSize as symbolTapeLayoutSize
 } from "../tikz/libraries/shapes.symbols.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
+import { parseGrowViaThreePoints, threePointChildOffset } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
@@ -6935,7 +6936,7 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
   for (const [index, layout] of layouts.entries()) {
     const { child, childTreeOptions, layoutOptions, grow, iterationEnv } = layout;
     const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, iterationEnv);
-    const fixedLateralShift = treeUsesFixedLateralShift(layoutOptions);
+    const fixedLateralShift = grow?.kind !== "three-point" && treeUsesFixedLateralShift(layoutOptions);
     const childLocalGrowth = treeGrowthOption(childTreeOptions);
     const siblingIndex = fixedLateralShift ? 0 : index;
     const siblingCount = fixedLateralShift ? 1 : layouts.length;
@@ -6946,7 +6947,9 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
     const offset = treeChildOffset(siblingIndex, siblingCount, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
     offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", iterationEnv);
     offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", iterationEnv);
-    const projected = projectLocalOffset(offset.x, offset.y, iterationEnv);
+    const projected = grow?.kind === "three-point"
+      ? applyCoordinateTransformVector(offset, iterationEnv)
+      : projectLocalOffset(offset.x, offset.y, iterationEnv);
     const growthParentPoint = treeGrowthParentPoint(parentNode, layoutOptions, iterationEnv);
     const point = roundPoint({
       x: growthParentPoint.x + projected.x,
@@ -7021,12 +7024,14 @@ function mergeTreeGrowthOptions(...layers) {
   for (const layer of layers) {
     if (!layer || typeof layer !== "object") continue;
     const next = { ...layer };
-    const growth = treeGrowthOption(next);
+    const growth = treeGrowthDirective(next);
     if (growth) {
       delete merged.grow;
       delete merged["grow'"];
-      if (growth.key === "grow") delete next["grow'"];
-      else delete next.grow;
+      delete merged["grow via three points"];
+      for (const key of ["grow", "grow'", "grow via three points"]) {
+        if (key !== growth.key) delete next[key];
+      }
     }
     Object.assign(merged, next);
   }
@@ -7034,14 +7039,19 @@ function mergeTreeGrowthOptions(...layers) {
 }
 
 function treeGrowthOptions(options = {}) {
-  const growth = treeGrowthOption(options);
+  const growth = treeGrowthDirective(options);
   return growth ? { [growth.key]: growth.value } : {};
 }
 
 function treeGrowthOption(options = {}) {
+  const growth = treeGrowthDirective(options);
+  return growth?.key === "grow" || growth?.key === "grow'" ? growth : null;
+}
+
+function treeGrowthDirective(options = {}) {
   let active = null;
   for (const key of Object.keys(options || {})) {
-    if (key === "grow" || key === "grow'") {
+    if (key === "grow" || key === "grow'" || key === "grow via three points") {
       active = { key, value: options[key], reversed: key === "grow'" };
     }
   }
@@ -7087,7 +7097,17 @@ function treeGrowthSpec(env, options = {}) {
   if (isMindmapOptions(options) || isMindmapOptions(env.pictureOptions || {})) {
     return { kind: "cyclic", angle: 0, reversed: false };
   }
-  const growth = treeGrowthOption(options) || treeGrowthOption(env.pictureOptions || {});
+  const growth = treeGrowthDirective(options) || treeGrowthDirective(env.pictureOptions || {});
+  if (growth?.key === "grow via three points") {
+    const parsed = parseGrowViaThreePoints(growth.value);
+    const coordinateEnv = localCoordinateEnvironment(env);
+    const one = parsed && resolveCoordinate(parsed.one, coordinateEnv, []);
+    const left = parsed && resolveCoordinate(parsed.left, coordinateEnv, []);
+    const right = parsed && resolveCoordinate(parsed.right, coordinateEnv, []);
+    if ([one, left, right].every(isFinitePoint)) {
+      return { kind: "three-point", one, left, right };
+    }
+  }
   const grow = String(growth?.value ?? "down").trim().toLowerCase();
   const namedAngle = {
     right: 0,
@@ -7149,6 +7169,9 @@ function parseTreeDimension(value, fallback, env) {
 }
 
 function treeChildOffset(index, count, siblingDistance, levelDistance, grow, options = {}, env = { variables: {} }) {
+  if (grow?.kind === "three-point") {
+    return threePointChildOffset(grow.one, grow.left, grow.right, index, count);
+  }
   if (grow?.kind === "cyclic") {
     const angle = cyclicTreeChildAngle(index, count, options, env);
     const radians = (angle * Math.PI) / 180;

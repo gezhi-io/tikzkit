@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone wrapper and border are document concerns; the embedded TikZ picture and math labels are retained for browser interpretation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper initializes core TikZ before the trees library is loaded."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\tikz@children", "\\tikz@numberofchildren", "\\tikz@numberofcurrentchild", "node", "child"],
+      "findings": "Child nodes are created after the growth transform is selected, so math label measurement changes node bounds but must not change the three reference coordinates."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["grow via three points", "\\tikz@parse@three", "\\tikz@grow@three"],
+      "findings": "The parser stores three full TikZ coordinates. The installed growth macro uses sibling totals and one-based current-child counters to linearly extrapolate; TikZKit converts the counter to a zero-based childIndex in the equivalent formula."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex": {
+      "symbols": ["Growth Functions", "one child", "two children", "linearly extrapolated"],
+      "findings": "The documented contract requires the first point for one child, the left/right pair for two children, and a collinear arrangement for any larger count. The polynomial fixture exercises the three-child branch with math labels of different widths."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "outputs/qa/2026-09-05-trees-three-point-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "test/fixtures/examples/trees-three-point/math.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "outputs/qa/2026-09-05-trees-three-point-after"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/trees-three-point-growth.test.js", "outputs/qa/2026-09-05-trees-three-point-after"] }
+  ]
+}

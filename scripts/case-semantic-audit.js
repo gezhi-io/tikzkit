@@ -625,7 +625,7 @@ function walkOptionMap(raw, group, parentKeys, features, review) {
         keyPath: keys,
         rawValues: [],
         lines: [],
-        implementedBy: optionOwner(group.context),
+        implementedBy: optionOwner(group.context, keys),
         implementationStatus: "requires-case-verification"
       }, review));
     }
@@ -643,7 +643,10 @@ function walkOptionMap(raw, group, parentKeys, features, review) {
   }
 }
 
-function optionOwner(context) {
+function optionOwner(context, keyPath = []) {
+  if (keyPath.at(-1) === "grow via three points") {
+    return "src/tikz/libraries/trees.js:parseGrowViaThreePoints/threePointChildOffset + src/engine/evaluate.js:treeGrowthSpec/treeChildOffset";
+  }
   if (context.startsWith("package:")) return "src/packages/declarations.js";
   if (context === "child") return "src/frontend/parser.js:parseNodeTreeChild/parseNodeTreeForeach + src/engine/evaluate.js:createNodeTreeChildren/expandTreeChildForeach";
   return OPTION_CONTEXT_OWNERS[context] || "src/engine/options.js";

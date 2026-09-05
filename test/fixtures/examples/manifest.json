@@ -7857,6 +7857,50 @@
       ]
     },
     {
+      "id": "trees-three-point-flowchart",
+      "title": "Three-point release workflow tree",
+      "source": "trees-three-point/flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the TeX Live PGF trees library",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-trees.tex",
+      "semanticOwner": "src/tikz/libraries/trees.js:parseGrowViaThreePoints/threePointChildOffset",
+      "features": [
+        "trees library",
+        "grow via three points",
+        "three-child extrapolation",
+        "level style",
+        "flowchart tree"
+      ]
+    },
+    {
+      "id": "trees-three-point-math",
+      "title": "Three-point polynomial decomposition tree",
+      "source": "trees-three-point/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the TeX Live PGF trees library",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-trees.tex",
+      "semanticOwner": "src/tikz/libraries/trees.js:parseGrowViaThreePoints/threePointChildOffset",
+      "features": [
+        "trees library",
+        "grow via three points",
+        "three-child extrapolation",
+        "math labels"
+      ]
+    },
+    {
+      "id": "trees-three-point-physics",
+      "title": "Three-point particle-decay tree",
+      "source": "trees-three-point/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the TeX Live PGF trees library",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+      "semanticOwner": "src/tikz/libraries/trees.js:parseGrowViaThreePoints/threePointChildOffset",
+      "features": [
+        "trees library",
+        "grow via three points",
+        "two-child placement",
+        "per-level growth styles",
+        "particle decay"
+      ]
+    },
+    {
       "id": "trees-grow-prime-flowchart",
       "title": "Mirrored release workflow tree",
       "source": "trees-grow-prime/flowchart.tex",

@@ -279,6 +279,23 @@ test("semantic audit inventories tree child options and boolean overrides", () =
   assert.ok(report.numbers.some((entry) => entry.id === "number:option:child:12mm"));
 });
 
+test("semantic audit maps three-point tree growth to its geometry owner", () => {
+  const report = auditTikzSource(String.raw`
+    \usetikzlibrary{trees}
+    \begin{tikzpicture}[
+      level 1/.style={grow via three points={one child at (0,-1) and two children at (-.5,-1.5) and (.5,-1.5)}}
+    ]
+      \node {root} child {node {a}} child {node {b}} child {node {c}};
+    \end{tikzpicture}
+  `, { localSourceResolver: fakeResolver });
+  const growth = report.options.find((entry) => entry.key === "grow via three points");
+
+  assert.equal(
+    growth?.implementedBy,
+    "src/tikz/libraries/trees.js:parseGrowViaThreePoints/threePointChildOffset + src/engine/evaluate.js:treeGrowthSpec/treeChildOffset"
+  );
+});
+
 test("semantic audit inventories multi-variable child foreach declarations", () => {
   const report = auditTikzSource(String.raw`
     \begin{tikzpicture}[grow=down,sibling distance=20mm]
