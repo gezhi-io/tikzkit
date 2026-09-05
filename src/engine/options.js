@@ -354,6 +354,7 @@ export function normalizeOptions(command, rawOptions, env) {
       const color = normalizeColor(key);
       applyCurrentColor(style, color, command);
       currentColor = color;
+      semantic["tikzkit current color"] = color;
       if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
@@ -361,6 +362,7 @@ export function normalizeOptions(command, rawOptions, env) {
       const color = normalizeColor(key);
       applyCurrentColor(style, color, command);
       currentColor = color;
+      semantic["tikzkit current color"] = color;
       if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
@@ -431,6 +433,7 @@ export function normalizeOptions(command, rawOptions, env) {
       const color = normalizeColor(String(value));
       applyCurrentColor(style, color, command);
       currentColor = color;
+      semantic["tikzkit current color"] = color;
       if (usesCurrentColorForFill) style.fill = color;
       continue;
     }

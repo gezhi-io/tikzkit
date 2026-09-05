@@ -1281,8 +1281,9 @@
         "repeat text",
         "finite repeat count",
         "path-filling repeat",
-        "terminal text whitespace",
-        "complete glyph box clipping"
+        "soft trailing whitespace",
+        "explicit control-space token",
+        "prewidth state clipping"
       ]
     },
     {
@@ -8701,6 +8702,33 @@
       "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryspy.code.tex",
       "semanticOwner": "src/engine/evaluate.js:createSpy/spyOutlineStyle",
       "features": ["spy using overlays", "rectangle", "fill opacity", "right placement", "connect spies"]
+    },
+    {
+      "id": "decorations-text-repeat-group-reverse",
+      "title": "PGF repeat text with grouped reversed words",
+      "source": "decorations/text-repeat-group-reverse.tex",
+      "sourceCorpus": "TikZKit combination regression derived from TeX Live PGF decorations.text",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextEffects;src/renderers/svg/decorationText.js:renderRepeatedDecorationText",
+      "features": ["text effects along path", "repeat text=1", "group letters", "reverse text", "custom word separator", "curved tangent placement"]
+    },
+    {
+      "id": "decorations-text-repeat-replacements",
+      "title": "PGF repeat text with replacement pictures",
+      "source": "decorations/text-repeat-replacements.tex",
+      "sourceCorpus": "TikZKit combination regression derived from TeX Live PGF decorations.text",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextCharacterReplacements;src/renderers/svg/decorationText.js:renderRepeatedDecorationText",
+      "features": ["text effects along path", "path-filling repeat", "explicit control-space token", "circle character replacements", "replacement picture width", "curved tangent placement"]
+    },
+    {
+      "id": "decorations-text-repeat-manual-spiral",
+      "title": "PGF manual repeat text spiral",
+      "source": "decorations/text-repeat-manual-spiral.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/engine/evaluate.js:decorationTextEffects;src/renderers/svg/decorationText.js:renderRepeatedDecorationText",
+      "features": ["text effects along path", "path-filling repeat", "character count and total variables", "per-character scale expression", "explicit control-space token", "foreach arc spiral", "curved tangent placement"]
     }
   ]
 }

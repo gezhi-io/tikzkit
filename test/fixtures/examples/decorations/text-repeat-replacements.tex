@@ -1,0 +1,16 @@
+% PGF decorations.text repeat combined with measured replacement pictures.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (0,-.5) grid (8,2.5);
+  \draw[gray,dashed] (0,1) -- (8,1);
+  \path[decorate,decoration={text effects along path,text={01\ },raise=2pt,
+    text effects/.cd,repeat text,
+      replace characters=0 with {\fill[purple] circle[radius=2pt];},
+      replace characters=1 with {\fill[orange] circle[radius=3pt];}}]
+    (0,1) .. controls (2,2.5) and (6,-.5) .. (8,1);
+\end{tikzpicture}
+\end{document}

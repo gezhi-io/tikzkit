@@ -1247,6 +1247,29 @@ test("repeats decorations.text source glyphs without placing a partial terminal 
   assert.ok(xPositions.every((x) => x <= 500 + 1e-6), `glyph centers must stay inside their path: ${xPositions.join(", ")}`);
 });
 
+test("draws the final repeated decoration glyph when its prewidth still fits", () => {
+  const scene = createSceneGraph({
+    items: [{
+      type: "textNode",
+      subtype: "decoration-text",
+      text: "A",
+      pathTextRepeat: -1,
+      pathTextCharacterInnerXSepEm: 0.3333,
+      pathCommands: [
+        { type: "moveTo", x: 0, y: 0 },
+        { type: "lineTo", x: 0.3, y: 0 }
+      ],
+      style: { fill: "black" }
+    }]
+  });
+  const svg = renderSvg(scene, { margin: 0, mathRenderer: "svg-text" });
+  const centers = [...svg.matchAll(/class="tikz-decoration-glyph" x="([^"]+)"/g)]
+    .map((match) => Number(match[1]));
+
+  assert.equal(centers.length, 1);
+  assert.ok(centers[0] <= 30 + 1e-6, `the last glyph center must remain on the path: ${centers.join(", ")}`);
+});
+
 test("groups decorations.text words into one tangent-aligned text box", () => {
   const scene = createSceneGraph({
     items: [

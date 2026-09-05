@@ -1,4 +1,5 @@
 import { flattenPath, pathLength, pointAtLength } from "../../engine/geometry.js";
+import { evaluateMath } from "../../engine/math.js";
 import { mathFallbackText, normalizeTikzText, splitInlineMathSegments } from "../../tikz/text.js";
 import { estimateFormulaBox, measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY, TIKZ_MATH_ITALIC_FONT_FAMILY } from "../../tikz/metrics.js";
@@ -16,8 +17,8 @@ export function renderDecorationTextPath(item, unit) {
   // The display-normalized line intentionally drops ordinary TeX braces.
   // Decorations need the raw braces because PGF gives an explicit group one
   // positionable text box instead of scanning it character by character.
-  // It also trims terminal whitespace, but a terminal space is a real text
-  // box for `repeat text` and must survive to become the inter-copy gap.
+  // pgfkeys removes soft whitespace at the value boundary. An explicit TeX
+  // control space (`\ `) survives and is scanned as one character node.
   const rawSourceLine = String(item.text ?? normalized.raw ?? normalized.text ?? "");
   const formattedLine = formatTextLine(rawSourceLine);
   const fontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
@@ -38,6 +39,7 @@ export function renderDecorationTextPath(item, unit) {
     if (effect === "group") glyphs = groupDecorationTextGlyphs(glyphs, item.pathTextWordSeparator);
   }
   glyphs = sizeDecorationTextReplacements(glyphs, fontSize / unit);
+  glyphs = scaleDecorationTextCharacters(glyphs, item);
   glyphs = padDecorationTextNodeBoxes(glyphs, item.pathTextCharacterInnerXSepEm);
   if (!glyphs.length) return "";
   const em = fontSize / unit;
@@ -124,7 +126,10 @@ function renderRepeatedDecorationText({ glyphs, unit, flat, totalLength, distanc
   while (glyphIndex < glyphs.length && distance < totalLength) {
     const glyph = glyphs[glyphIndex];
     const advance = glyph.advance * (fontSize / unit);
-    if (distance + advance > totalLength + 1e-9) break;
+    // PGF runs pre-token, token, and post-token as separate decoration states.
+    // The token is painted once its prewidth fits, even if its postwidth will
+    // then exhaust the remaining path.
+    if (distance + advance / 2 > totalLength + 1e-9) break;
     rendered.push(renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, raise, unit, color, fontFamily, fontSize, charactersAlongPath }));
     distance += advance;
     glyphIndex += 1;
@@ -241,6 +246,26 @@ function sizeDecorationTextReplacements(glyphs, em) {
   });
 }
 
+function scaleDecorationTextCharacters(glyphs, item) {
+  const expression = String(item.pathTextCharacterScaleExpression || "").trim();
+  if (!expression) return glyphs;
+  const countVariable = String(item.pathTextCharacterCountVariable || "").trim();
+  const totalVariable = String(item.pathTextCharacterTotalVariable || "").trim();
+  const total = glyphs.length;
+  return glyphs.map((glyph, index) => {
+    const variables = {};
+    if (countVariable) variables[countVariable] = index + 1;
+    if (totalVariable) variables[totalVariable] = total;
+    const scale = evaluateMath(expression, variables);
+    if (!(scale > 0) || !Number.isFinite(scale)) return glyph;
+    return {
+      ...glyph,
+      advance: glyph.advance * scale,
+      fontScale: glyph.fontScale * scale
+    };
+  });
+}
+
 function ordinaryDecorationTextBaselineOffset(glyph, fontSize) {
   if (glyph.kind === "math-box") return 0.25 * fontSize * (Number(glyph.fontScale) || 1);
   const metrics = measurePlainTextTeXBoxPt(glyph.text, { fontSizePt: 10, fontFamily: glyph.fontFamily });
@@ -323,10 +348,20 @@ function formattedDecorationGlyphs(runs, unit, fontSize, replacements = {}) {
 }
 
 function plainDecorationGlyphs(text, replacements = {}) {
-  return String(text || "")
-    .replace(/[{}]/g, "")
-    .split("")
-    .map((text) => baseDecorationGlyph(text, replacements));
+  const source = String(text || "").replace(/[{}]/g, "");
+  const glyphs = [];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "\\" && source[index + 1] === " ") {
+      glyphs.push(baseDecorationGlyph(" ", replacements));
+      index += 1;
+      continue;
+    }
+    const codePoint = source.codePointAt(index);
+    const character = String.fromCodePoint(codePoint);
+    glyphs.push(baseDecorationGlyph(character, replacements));
+    if (character.length > 1) index += character.length - 1;
+  }
+  return glyphs;
 }
 
 function groupDecorationTextGlyphs(glyphs, wordSeparator = " ") {

@@ -2,7 +2,7 @@ import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, path
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
-import { parseDefaultDecorationTextFormatRuns } from "../tikz/libraries/decorations.text.js";
+import { normalizeDecorationTextKeyValue, parseDefaultDecorationTextFormatRuns } from "../tikz/libraries/decorations.text.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import {
@@ -16665,6 +16665,9 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextCharactersAlongPath: charactersAlongPath,
     pathTextCharacterInnerXSepEm: charactersAlongPath ? 0 : 0.3333,
     pathTextCharacterAnchor: charactersAlongPath ? "base" : "center",
+    pathTextCharacterScaleExpression: textEffects.characterScaleExpression,
+    pathTextCharacterCountVariable: textEffects.characterCountVariable,
+    pathTextCharacterTotalVariable: textEffects.characterTotalVariable,
     pathTextRepeat: repeatText,
     pathTextCharacterReplacements: characterReplacements,
     pathTextFormatRuns: formatRuns,
@@ -16675,7 +16678,12 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     style: {
       ...item.style,
       ...payload.style,
-      fill: visibleTextFill(explicitTextColor ? normalizeColor(explicitTextColor) : undefined, payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
+      fill: visibleTextFill(
+        explicitTextColor ? normalizeColor(explicitTextColor) : undefined,
+        payload.style.fill,
+        item.style?.textFill,
+        pathOptions["tikzkit current color"]
+      ),
       fontFamily,
       fontVariant: resolveInheritedFontVariant(pathOptions.font, env.pictureOptions?.font),
       fontScale: roundNumber(env.canvasScale * fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font))
@@ -16689,6 +16697,9 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
   let fitTextToPath = false;
   let scaleTextToPath = false;
   let charactersAlongPath = false;
+  let characterScaleExpression = "";
+  let characterCountVariable = "";
+  let characterTotalVariable = "";
   const options = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
   const rawDecoration = String(decoration["tikzkit decoration raw"] ?? "");
   const sources = [
@@ -16718,6 +16729,14 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
         || key === "text effects/every character/.append style"
       ) {
         if (decorationTextStyleFollowsPath(value)) charactersAlongPath = true;
+        const characterOptions = parseOptions(stripOuterBraces(value));
+        if (characterOptions.scale !== undefined) {
+          characterScaleExpression = stripOuterBraces(String(characterOptions.scale)).trim();
+        }
+      } else if (key === "character count") {
+        characterCountVariable = decorationTextCounterVariable(value);
+      } else if (key === "character total") {
+        characterTotalVariable = decorationTextCounterVariable(value);
       } else if (key === "reverse text") {
         transforms.push("reverse");
       } else if (key === "group letters" || key === "group letters into words") {
@@ -16752,8 +16771,15 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
     reverseText: transforms.includes("reverse"),
     groupLetters: transforms.includes("group"),
     wordSeparator,
-    charactersAlongPath
+    charactersAlongPath,
+    characterScaleExpression,
+    characterCountVariable,
+    characterTotalVariable
   };
+}
+
+function decorationTextCounterVariable(value) {
+  return stripOuterBraces(String(value ?? "")).trim().match(/^\\([A-Za-z@]+)$/)?.[1] || "";
 }
 
 function decorationTextStyleFollowsPath(rawStyle) {
@@ -16834,7 +16860,10 @@ function decorationTextLayout(decoration = {}, env = {}) {
 
 function decorationTextPayload(raw, pathOptions = {}, env = {}, rawDecoration = "") {
   const rawText = decorationTextValueFromRaw(rawDecoration) ?? String(raw ?? "");
-  const source = substituteTextVariables(stripDecorationTextOuterBraces(rawText), env.variables || {});
+  const source = substituteTextVariables(
+    normalizeDecorationTextKeyValue(stripDecorationTextOuterBraces(rawText)),
+    env.variables || {}
+  );
   const formatRuns = parseDefaultDecorationTextFormatRuns(source);
   const text = formatRuns.map((run) => run.text).join("");
   const style = {};

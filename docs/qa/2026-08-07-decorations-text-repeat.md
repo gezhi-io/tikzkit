@@ -1,5 +1,9 @@
 # `decorations.text`: `repeat text` QA
 
+> Superseded for boundary-space and terminal-state semantics by
+> `docs/qa/2026-09-06-decorations-text-repeat-state-machine.md`. In particular,
+> pgfkeys trims a soft trailing value space; an explicit `\ ` is required.
+
 ## Scope
 
 This pass implements one PGF text-effects slice only: `repeat text` for

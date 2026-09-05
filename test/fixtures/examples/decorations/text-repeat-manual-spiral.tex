@@ -1,0 +1,16 @@
+% TeX Live PGF manual: repeat text with character counters and per-token scale.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}[decoration={text effects along path,
+  text={text effects along path!\ },
+  text effects/.cd,
+    repeat text,
+    character count=\m,character total=\n,
+    characters={text along path,scale=0.5+\m/\n/2}}]
+  \path[draw=gray,ultra thin,postaction=decorate]
+    (180:2) \foreach \a in {0,...,12}{arc (180-\a*90:90-\a*90:1.5-\a/10)};
+\end{tikzpicture}
+\end{document}

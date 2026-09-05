@@ -3033,6 +3033,8 @@ test("preserves decorations.text repeat text cycle semantics", () => {
 \begin{tikzpicture}
   \path[decorate,decoration={text effects along path,text={AB },
     text effects/.cd,repeat text}] (0,1) -- (6,1);
+  \path[decorate,decoration={text effects along path,text={AB\ },
+    text effects/.cd,repeat text}] (0,.5) -- (6,.5);
   \path[decorate,decoration={text effects along path,text={WXY},
     text effects/.cd,repeat text=1}] (0,0) -- (6,0);
 \end{tikzpicture}`;
@@ -3041,10 +3043,104 @@ test("preserves decorations.text repeat text cycle semantics", () => {
   const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(labels.length, 2);
-  assert.equal(labels[0].text, "AB ", "an explicit terminal text space must remain a glyph box");
+  assert.equal(labels.length, 3);
+  assert.equal(labels[0].text, "AB", "pgfkeys removes an ordinary trailing soft space");
   assert.equal(labels[0].pathTextRepeat, -1, "bare repeat text repeats until the path ends");
-  assert.equal(labels[1].pathTextRepeat, 1, "a positive value means one extra source-text copy");
+  assert.equal(labels[1].text, "AB\\ ", "an explicit TeX control space remains one repeat token");
+  assert.equal(labels[2].pathTextRepeat, 1, "a positive value means one extra source-text copy");
+});
+
+test("restarts decorations.text character scaling variables for each repeated copy", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={ABC},
+    text effects/.cd,repeat text=1,character count=\m,character total=\n,
+    characters={text along path,scale=0.5+\m/\n/2}}] (0,0) -- (8,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
+  const fontSizes = [...result.svg.matchAll(/class="tikz-decoration-glyph"[^>]*font-size="([^"]+)"/g)]
+    .map((match) => Number(match[1]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(label.pathTextCharacterScaleExpression, "0.5+\\m/\\n/2");
+  assert.equal(label.pathTextCharacterCountVariable, "m");
+  assert.equal(label.pathTextCharacterTotalVariable, "n");
+  assert.equal(fontSizes.length, 6);
+  assert.equal(new Set(fontSizes.map((value) => value.toFixed(5))).size, 3);
+  expectClose(fontSizes[0], fontSizes[3], 1e-6);
+  expectClose(fontSizes[1], fontSizes[4], 1e-6);
+  expectClose(fontSizes[2], fontSizes[5], 1e-6);
+  assert.ok(fontSizes[0] < fontSizes[1] && fontSizes[1] < fontSizes[2]);
+});
+
+test("combines finite repeat text with grouped words and ordered reversal", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={left-right},
+    text effects/.cd,word separator=-,group letters,reverse text,repeat text=1,
+    characters={text along path}}] (0,0) -- (8,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const words = [...result.svg.matchAll(/class="tikz-decoration-word"[^>]*>([^<]+)<\/text>/g)]
+    .map((match) => match[1]);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(words, ["right", "left", "right", "left"]);
+});
+
+test("combines path-filling repeat text with control spaces and replacement pictures", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={01\ },
+    text effects/.cd,repeat text,
+      replace characters=0 with {\fill[purple] circle[radius=2pt];},
+      replace characters=1 with {\fill[orange] circle[radius=3pt];}}]
+    (0,0) .. controls (2,1) and (6,-1) .. (8,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const circles = [...result.svg.matchAll(/class="tikz-decoration-replacement"[^>]*r="([^"]+)"[^>]*fill="([^"]+)"/g)]
+    .map((match) => ({ radius: Number(match[1]), fill: match[2] }));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(circles.length >= 12, `expected several complete replacement cycles, got ${circles.length}`);
+  assert.notEqual(circles[0].fill, circles[1].fill);
+  assert.ok(circles.every((circle, index) => circle.fill === circles[index % 2].fill));
+  assert.ok(circles.every((circle, index) => index % 2 === 0
+    ? circle.radius < circles[index + 1]?.radius
+    : true));
+  assert.doesNotMatch(result.svg, /class="tikz-decoration-glyph"[^>]*>\\<\/text>/);
+});
+
+test("renders the PGF manual repeat-text spiral with restarted character scales", () => {
+  const source = readFileSync(new URL("fixtures/examples/decorations/text-repeat-manual-spiral.tex", import.meta.url), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
+  const fontSizes = [...result.svg.matchAll(/class="tikz-decoration-glyph"[^>]*font-size="([^"]+)"/g)]
+    .map((match) => Number(match[1]));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(label.pathCommands.filter((command) => command.type === "curveTo").length >= 13);
+  assert.ok(fontSizes.length > 100, `expected repeated text around the spiral, got ${fontSizes.length} glyphs`);
+  assert.ok(new Set(fontSizes.map((value) => value.toFixed(5))).size >= 20);
+  assert.ok(Math.min(...fontSizes) < 20);
+  assert.ok(Math.max(...fontSizes) > 34);
+  assert.match(result.svg, /class="tikz-decoration-glyph"[^>]*fill="black"/);
+  assert.doesNotMatch(result.svg, /class="tikz-decoration-glyph"[^>]*fill="gray"/);
+  assert.doesNotMatch(result.svg, /class="tikz-decoration-glyph"[^>]*>\\<\/text>/);
+});
+
+test("distinguishes draw paint from current and explicit decorations.text colors", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \draw[draw=gray,decorate,decoration={text along path,text={draw only}}] (0,2) -- (4,2);
+  \draw[gray,decorate,decoration={text along path,text={current color}}] (0,1) -- (4,1);
+  \draw[draw=gray,text=blue,decorate,decoration={text along path,text={text color}}] (0,0) -- (4,0);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(labels.map((label) => label.style.fill), ["black", "gray", "blue"]);
 });
 
 test("retains ordered decorations.text word grouping effects and separators", () => {

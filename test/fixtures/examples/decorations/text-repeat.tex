@@ -5,11 +5,15 @@
 
 \begin{document}
 \begin{tikzpicture}
-  \draw[help lines] (0,-0.5) grid (8,2.5);
-  \draw[gray,dashed] (0,2) -- (8,2);
+  \draw[help lines] (0,-0.5) grid (8,3.5);
+  \draw[gray,dashed] (0,3) -- (8,3);
   \path[decorate,decoration={text effects along path,text={AB },raise=2pt,
     text effects/.cd,repeat text}]
-    (0,2) -- (8,2);
+    (0,3) -- (8,3);
+  \draw[gray,dashed] (0,1.75) -- (8,1.75);
+  \path[decorate,decoration={text effects along path,text={AB\ },raise=2pt,
+    text effects/.cd,repeat text}]
+    (0,1.75) -- (8,1.75);
   \draw[gray,dashed] (0,0.5) -- (8,0.5);
   \path[decorate,decoration={text effects along path,text={WXY},raise=2pt,
     text effects/.cd,repeat text=1}]

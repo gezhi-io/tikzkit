@@ -1,0 +1,15 @@
+% PGF decorations.text repeat combined with grouping and ordered reversal.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[help lines] (0,-.5) grid (8,1.5);
+  \draw[gray,dashed] (0,.5) -- (8,.5);
+  \path[decorate,decoration={text effects along path,text={left-right},raise=2pt,
+    text effects/.cd,word separator=-,group letters,reverse text,repeat text=1,
+    characters={text along path}}]
+    (0,.5) .. controls (2,1.5) and (6,-.5) .. (8,.5);
+\end{tikzpicture}
+\end{document}

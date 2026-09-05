@@ -386,20 +386,21 @@ node --test test/snakes-legacy-options.test.js
 ### 路径文字重复
 
 `\usetikzlibrary{decorations.text}` 的文本效果装饰支持路径文字的受限重复形式。
-`repeat text` 不带数值时会重复到无法容纳下一个完整字符盒；`repeat text=N` 则在
-首轮之后再绘制 `N` 轮。花括号中的结尾空格是文字序列的一部分，可用于控制每轮之间
-的间隔。
+`repeat text` 不带数值时会重复到下一个字符的前半宽无法放入路径；`repeat text=N`
+则在首轮之后再绘制 `N` 轮。`pgfkeys` 会清除值边界的普通空格；需要控制循环间隔时，
+应写显式控制空格 `\ `。
 
 ```tex
-\path[decorate,decoration={text effects along path,text={AB },
+\path[decorate,decoration={text effects along path,text={AB\ },
   text effects/.cd,repeat text}] (0,0) -- (8,0);
 \path[decorate,decoration={text effects along path,text={WXY},
   text effects/.cd,repeat text=1}] (0,-1) -- (8,-1);
 ```
 
-该子集只处理完整字符盒的循环与路径末端截断。字符专属样式、任意替换 TikZ 代码，
-以及与 `fit text to path` / `scale text to path` 的组合仍在测试中；后两种组合在本机
-PGF 手册中也标为未定义行为。
+该子集也支持 `character count=\m`、`character total=\n` 和字符样式中的数值
+`scale` 表达式；每轮重复都会重置计数。任意字符专属样式、任意替换 TikZ 代码，以及
+与 `fit text to path` / `scale text to path` 的组合仍在测试中；后两种组合在本机 PGF
+手册中也标为未定义行为。
 
 ### 路径文字的多个后置装饰
 
