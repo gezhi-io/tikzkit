@@ -1,0 +1,51 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+\makeatletter
+\pgfarrowsdeclare{signal leaf}{signal leaf}{
+  \pgfutil@tempdima=.8pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfarrowsleftextend{-2.2\pgfutil@tempdima}
+  \pgfarrowsrightextend{3.2\pgfutil@tempdima}
+  \pgfarrowshullpoint{3.4\pgfutil@tempdima\advance\pgf@x by.5\pgflinewidth}{0pt}
+  \pgfarrowsupperhullpoint{-2.3\pgfutil@tempdima}{2.7\pgfutil@tempdima\advance\pgf@y by.5\pgflinewidth}
+}{
+  \pgfutil@tempdima=.8pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfsetroundjoin
+  \pgfpathmoveto{\pgfqpoint{3.2\pgfutil@tempdima}{0pt}}
+  \pgfpathcurveto
+    {\pgfqpoint{2\pgfutil@tempdima}{2.6\pgfutil@tempdima}}
+    {\pgfqpoint{-.4\pgfutil@tempdima}{2.4\pgfutil@tempdima}}
+    {\pgfqpoint{-2.2\pgfutil@tempdima}{0pt}}
+  \pgfpathcurveto
+    {\pgfqpoint{-.4\pgfutil@tempdima}{-2.4\pgfutil@tempdima}}
+    {\pgfqpoint{2\pgfutil@tempdima}{-2.6\pgfutil@tempdima}}
+    {\pgfqpoint{3.2\pgfutil@tempdima}{0pt}}
+  \pgfpathclose
+  \pgfusepathqfillstroke
+}
+\pgfarrowsdeclarealias{telemetry}{telemetry}{signal leaf}{signal leaf}
+\pgfarrowsdeclarereversed{telemetry reversed}{telemetry reversed}{signal leaf}{signal leaf}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  box/.style={draw,rounded corners=2pt,minimum width=22mm,minimum height=9mm,align=center},
+  node distance=18mm and 22mm
+]
+  \draw[blue!75!black,line width=1.6pt,-{telemetry}] (-.3,2.5) -- (7.9,2.5)
+    node[midway,below=2pt] {Telemetry bus};
+
+  \node[box,fill=blue!8] (sensor) at (0,0) {Sensor};
+  \node[box,fill=green!10,right=of sensor] (controller) {Controller};
+  \node[box,fill=orange!12,right=of controller] (actuator) {Actuator};
+
+  \draw[blue!75!black,very thick,-{telemetry}] (sensor) -- node[above]{sample} (controller);
+  \draw[orange!85!black,thick,-{telemetry reversed}] (controller) -- node[above]{command} (actuator);
+  \draw[green!50!black,thick,{telemetry reversed}-{telemetry}]
+    (sensor.south) |- ([yshift=-12mm]actuator.south) -| (actuator.south)
+    node[pos=.5,below=2pt] {feedback};
+\end{tikzpicture}
+\end{document}

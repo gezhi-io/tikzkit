@@ -372,7 +372,7 @@ function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit
     // PGF's picture bounds include the tip's terminal extension, while the
     // stroked path already accounts for its normal-direction footprint.
     // Mirroring that rule avoids vertically inflating horizontal stealth tips.
-    const normalOffsets = includeNormalBounds
+    const normalOffsets = includeNormalBounds || tip.geometry?.hasExplicitHull === true
       ? [bounds.minY / unit - strokePad, bounds.maxY / unit + strokePad]
       : [0];
     for (const y of normalOffsets) {

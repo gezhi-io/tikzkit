@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The TikZ package loads the PGF arrow core before library declarations."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["draw", "node", "usetikzlibrary"], "findings": "Path styles and active line width are resolved before terminal arrows are instantiated."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {"symbols": ["pgfarrowshullpoint", "pgfarrowsupperhullpoint", "pgfarrowsdeclare", "pgfarrowsdeclarereversed"], "findings": "Explicit hull points determine picture bounds; upper hull points mirror positive y unless harpoon mode is active, and reversal reflects hull x."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex": {"symbols": ["pgfusepath", "pgf@relevantforpicturesizefalse"], "findings": "The path action branch uses transformed hull points for arrow picture bounds and suppresses arrows on clip paths."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex": {"symbols": ["pgfarrowshullpoint", "pgfarrowsupperhullpoint"], "findings": "The manual defines explicit and symmetric upper hull registration, including inline dimension-register mutation."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex": {"symbols": ["clip", "arrow tips"], "findings": "A path carrying the clip action must not draw arrow tips."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js", "outputs/qa/2026-09-05-arrows-declared-hulls-after/diff/arrows-declared-hull-control-network-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js", "outputs/qa/2026-09-05-arrows-declared-hulls-after/diff/arrows-declared-hull-control-network-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-hulls.test.js"]}
+  ]
+}

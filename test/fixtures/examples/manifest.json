@@ -8433,6 +8433,15 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-arrows.tex",
       "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
       "features": ["pgfarrowsdeclare", "pgfarrowsdeclarealias", "pgfarrowsdeclarereversed", "pgfpatharc", "foreach", "real tree graphic"]
+    },
+    {
+      "id": "arrows-declared-hull-control-network",
+      "title": "Hull-aware declared telemetry arrows",
+      "source": "arrows/declared-hull-control-network.tex",
+      "sourceCorpus": "TikZKit control-network regression derived from the PGF declared-arrow hull interface",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:parseDeclaredArrowHull/resolveDeclaredArrowGeometry + src/renderers/svg/bounds.js:includeResolvedArrowTipBounds",
+      "features": ["pgfarrowsdeclare", "pgfarrowshullpoint", "pgfarrowsupperhullpoint", "inline advance", "active line width", "alias", "reversed alias", "picture bounds", "control network"]
     }
   ]
 }

@@ -1419,7 +1419,12 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathStyleEnv = { ...optionEnv, canvasScale: pathCanvasScale };
   const scaledStyle = scaleCanvasStyle(normalized.style, pathStyleScaleEnv(pathStyleEnv, rawOptions));
   const patternDefinition = scaledStyle.pattern ? optionEnv.patterns?.[scaledStyle.pattern] : null;
-  const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
+  const resolvedStyle = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
+  // PGF does not run its arrow setup or endpoint-shortening branch when the
+  // current path is also used as a clipping path.
+  const style = tikzBoolean(pathOptions.clip)
+    ? { ...resolvedStyle, markerStart: undefined, markerEnd: undefined }
+    : resolvedStyle;
   const pathPlane = canvasPlaneEnvironment(env, options, pathTransform);
   const pathEnv = {
     ...optionEnv,

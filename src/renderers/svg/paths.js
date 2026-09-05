@@ -366,7 +366,9 @@ export function resolveInlineArrowTip(tip, style = {}) {
           : 0,
         placement: 0,
         bounds: declaredArrow.bounds,
-        includeBounds: !declaredArrow.usesLegacyExtents
+        includeBounds: declaredArrow.hasExplicitHull === true || !declaredArrow.usesLegacyExtents,
+        hasExplicitHull: declaredArrow.hasExplicitHull === true,
+        strokeBoundsIncluded: declaredArrow.strokeBoundsIncluded === true
       }
     : inlineArrowGeometry(raw, style, {
     customLength: usesCustomArrowDimension(source, raw, "length"),

@@ -1089,6 +1089,8 @@ function parseDeclaredArrowPayload(value) {
       paint: decoded.paint,
       bounds,
       ...extents,
+      ...(decoded.hasExplicitHull === true ? { hasExplicitHull: true } : {}),
+      ...(decoded.strokeBoundsIncluded === true ? { strokeBoundsIncluded: true } : {}),
       ...(decoded.reversed === true ? { reversed: true } : {}),
       ...(program ? { program } : {}),
       ...(lineCap ? { lineCap } : {}),

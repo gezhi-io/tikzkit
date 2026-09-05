@@ -136,6 +136,37 @@ tikzLibrary.implements.push(
 );
 tikzLibrary.notes += " A thirteenth source review on 2026-09-05 covered the legacy compatibility macros `\\pgfarrowsdeclarealias` and `\\pgfarrowsdeclarereversed` in pgfcorearrows.code.tex and the reversed-arrow algorithm in the base arrows manual. TikZKit now resolves alias chains onto an existing declaration, preserves the public arrow name, evaluates the source program at the active line width, reflects only local x coordinates, flips SVG arc sweep, maps bounds to [-maxX,-minX], exchanges and negates backend/tip end, and negates line end. The process flowchart, inclusion/projection map, and TCS leaf tree are strict semantic and MacTeX/tikztosvg visual drivers. Declaration combine/double/triple helpers, arbitrary TeX branches/macros, transformed/intersection/scaled points, hull and clipping commands, and saved-register callbacks remain partial.";
 
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:parseDeclaredArrowHull/evaluateDeclaredCoordinateDimension + src/renderers/svg/paths.js:resolveInlineArrowTip + src/renderers/svg/bounds.js:includeResolvedArrowTipBounds + src/engine/evaluate.js:interpretPathStatement";
+tikzLibrary.features.push(
+  "user-declared pgfarrowshullpoint and symmetric pgfarrowsupperhullpoint picture bounds",
+  "active-line-width hull dimensions with inline pgf@x and pgf@y advance",
+  "reversed declared-arrow hull x reflection",
+  "TikZ clip action suppression of arrow tips and endpoint shortening"
+);
+tikzLibrary.implements.push(
+  "user-declared pgfarrowshullpoint and symmetric pgfarrowsupperhullpoint picture bounds",
+  "active-line-width hull dimensions with inline pgf@x and pgf@y advance",
+  "reversed declared-arrow hull x reflection",
+  "TikZ clip action suppression of arrow tips and endpoint shortening"
+);
+tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Declaration combine/double/triple helpers, arbitrary TeX branches/macros, transformed/intersection/scaled points, hull and clipping commands, and saved-register callbacks remain partial.",
+  "A fourteenth source review on 2026-09-05 covered `\\pgfarrowshullpoint`, `\\pgfarrowsupperhullpoint`, transformed hull picture bounds, and the PGF path-action clip branch. TikZKit now evaluates explicit hull coordinates at the active line width, applies inline `\\advance\\pgf@x` and `\\advance\\pgf@y`, mirrors positive upper-hull y coordinates, reflects hull x for reversed aliases, treats the declared hull as already stroke-inclusive, and preserves it even when an inline path node disables ordinary arrow normal bounds. Paths carrying `clip` suppress their arrow tips and keep unshortened endpoints. The hull-aware control network is the strict semantic and MacTeX/tikztosvg visual driver. Declaration combine/double/triple helpers, arbitrary TeX branches/macros, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, complete clip-region rendering, and saved-register callbacks remain partial."
+);
+tikzLibrary.notes = tikzLibrary.notes
+  .replaceAll(
+    "Clipping, arrow hulls, saved-register callbacks, and arbitrary TeX control flow inside declaration programs remain deferred.",
+    "Saved-register callbacks and arbitrary TeX control flow inside declaration programs remain deferred."
+  )
+  .replaceAll(
+    "Concave/custom shape miters and full declared-arrow hulls remain partial.",
+    "Concave/custom shape miters remain partial."
+  )
+  .replaceAll(
+    "Arbitrary TeX branches/macros, transformed/intersection/scaled points, hull and clipping commands, and saved-register callbacks remain partial.",
+    "Arbitrary TeX branches/macros, transformed/intersection/scaled points, and saved-register callbacks remain partial."
+  );
+
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
     .match(/^(latex|stealth)-prime(-reversed)?$/u);
@@ -758,15 +789,20 @@ function parseDeclaredArrow(setup, drawing, lineWidth) {
   }
   if (drawingSource.slice(cursor).replace(/[\s%]/g, "").length || !commands.length || !paint || !isFiniteBounds(bounds)) return null;
   const legacyExtents = parseLegacyArrowExtents(setup, setupProgram.variables, lineWidth);
+  const explicitHull = parseDeclaredArrowHull(setup, setupProgram.variables, lineWidth);
+  const pictureBounds = explicitHull?.bounds || {
+    minX: bounds.minX,
+    maxX: bounds.maxX,
+    minY: -bounds.maxY,
+    maxY: -bounds.minY
+  };
   return {
     path: commands.join(" "),
     paint,
-    bounds: {
-      minX: bounds.minX,
-      maxX: bounds.maxX,
-      minY: -bounds.maxY,
-      maxY: -bounds.minY
-    },
+    bounds: pictureBounds,
+    ...(explicitHull
+      ? { hasExplicitHull: true, strokeBoundsIncluded: true }
+      : {}),
     ...(legacyExtents || {}),
     ...drawingStyle
   };
@@ -846,6 +882,53 @@ function parseLegacyArrowExtents(setup, variables, lineWidth) {
     tipEnd: Number.isFinite(tipEnd) ? tipEnd : 0,
     lineEnd: Number.isFinite(lineEnd) ? lineEnd : 0
   };
+}
+
+function parseDeclaredArrowHull(setup, variables, lineWidth) {
+  const source = String(setup || "");
+  const commandPattern = /\\(pgfarrowshullpoint|pgfarrowsupperhullpoint)\b/g;
+  const points = [];
+  let match;
+  while ((match = commandPattern.exec(source))) {
+    const xArgument = readBalanced(source, skipWhitespace(source, commandPattern.lastIndex), "{", "}");
+    const yArgument = xArgument && readBalanced(source, skipWhitespace(source, xArgument.end), "{", "}");
+    if (!xArgument || !yArgument) continue;
+    const x = evaluateDeclaredCoordinateDimension(xArgument.content, "pgf@x", variables, lineWidth);
+    const y = evaluateDeclaredCoordinateDimension(yArgument.content, "pgf@y", variables, lineWidth);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      points.push({ x, y });
+      if (match[1] === "pgfarrowsupperhullpoint" && y > 0) points.push({ x, y: -y });
+    }
+    commandPattern.lastIndex = yArgument.end;
+  }
+  if (!points.length) return null;
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxY = Math.max(...points.map((point) => point.y));
+  return {
+    bounds: { minX, maxX, minY: -maxY, maxY: -minY }
+  };
+}
+
+function evaluateDeclaredCoordinateDimension(input, registerName, variables, lineWidth) {
+  const source = String(input || "").trim();
+  const advancePattern = /\\advance\s*\\([A-Za-z@]+)\s+by\s*/g;
+  const first = advancePattern.exec(source);
+  let value = evaluateDeclaredDimension(source.slice(0, first?.index ?? source.length), variables, lineWidth);
+  if (!Number.isFinite(value) || !first) return value;
+
+  let current = first;
+  while (current) {
+    const operandStart = advancePattern.lastIndex;
+    const next = advancePattern.exec(source);
+    const operandEnd = next?.index ?? source.length;
+    const delta = evaluateDeclaredDimension(source.slice(operandStart, operandEnd), variables, lineWidth);
+    if (!Number.isFinite(delta)) return NaN;
+    if (current[1] === registerName) value += delta;
+    current = next;
+  }
+  return value;
 }
 
 function setupDimension(setup, variables, lineWidth, ...commands) {
