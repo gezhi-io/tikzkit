@@ -8491,6 +8491,21 @@
       "externalSource": "tex/latex/bondgraph/bondgraph.sty",
       "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/registerDeclaredArrowSequence/materializeDeclaredArrow + src/renderers/svg/paths.js:resolveInlineArrowTipSequence/resolvedArrowSequenceShortening",
       "features": ["pgfarrowsdeclarecombine", "pgflinewidth separation", "left to", "bar", "positioning", "bond graph"]
+    },
+    {
+      "id": "circuitikz-controlled-source-variants",
+      "title": "circuitikz empty and cute controlled source variants",
+      "source": "circuitikz/controlled-source-variants.tex",
+      "sourceCorpus": "TeX Live circuitikz manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzBipoleSpec/circuitikzVoltageSourceItems/circuitikzCurrentSourceItems/circuitikzCuteControlledSourceLineItem",
+      "features": [
+        "empty controlled source ecsource",
+        "cute european controlled voltage source cvsourceC and cceV",
+        "cute european controlled current source cisourceC and cceI",
+        "csources/scale",
+        "component fill and labels"
+      ]
     }
   ]
 }

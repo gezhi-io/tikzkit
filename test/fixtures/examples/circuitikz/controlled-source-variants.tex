@@ -1,0 +1,15 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\begin{circuitikz}
+  \ctikzset{csources/scale=1.15}
+  \draw[blue] (0,0) to[ecsource, l=$e$] (3,0);
+  \draw[red] (0,2) to[cvsourceC, l=$v_c$, fill=red!10] (3,2);
+  \draw[green!60!black] (0,4) to[cceI, l=$i_c$] (3,4);
+
+  \draw (5,0) to[empty controlled source] (5,3);
+  \draw (7,0) to[cute european controlled voltage source] (7,3);
+  \draw (9,0) to[cute european controlled current source] (9,3);
+\end{circuitikz}
+\end{document}

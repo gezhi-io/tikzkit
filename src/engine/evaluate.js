@@ -2979,6 +2979,51 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       voltageLabel: triangularVoltage.label
     };
   }
+  const emptyControlledSource = circuitikzFirstMatchingOption(
+    options,
+    /^(?:ecsource|empty controlled source)$/i
+  );
+  if (emptyControlledSource) {
+    return {
+      kind: "controlledVoltageSource",
+      sourceKind: "empty",
+      sourceStyle: "empty",
+      componentFill: circuitikzComponentFill(options),
+      label: circuitikzLabelValue(options.l) || emptyControlledSource.label,
+      voltageKey: emptyControlledSource.key,
+      voltageLabel: emptyControlledSource.label
+    };
+  }
+  const cuteControlledVoltage = circuitikzFirstMatchingOption(
+    options,
+    /^(?:cvsourceC|cceV|cute european controlled voltage source)$/i
+  );
+  if (cuteControlledVoltage) {
+    return {
+      kind: "controlledVoltageSource",
+      sourceKind: "controlled",
+      sourceStyle: "cute",
+      componentFill: circuitikzComponentFill(options),
+      label: circuitikzLabelValue(options.l) || cuteControlledVoltage.label,
+      voltageKey: cuteControlledVoltage.key,
+      voltageLabel: cuteControlledVoltage.label
+    };
+  }
+  const cuteControlledCurrent = circuitikzFirstMatchingOption(
+    options,
+    /^(?:cisourceC|cceI|cute european controlled current source)$/i
+  );
+  if (cuteControlledCurrent) {
+    return {
+      kind: "controlledCurrentSource",
+      sourceKind: "controlled",
+      sourceStyle: "cute",
+      componentFill: circuitikzComponentFill(options),
+      label: circuitikzLabelValue(options.l) || null,
+      currentKey: cuteControlledCurrent.key,
+      currentLabel: cuteControlledCurrent.label
+    };
+  }
   const controlledSinusoidalVoltage = circuitikzFirstMatchingOption(
     options,
     /^(?:csV[<>_^]*|cvsourcesin|controlled vsourcesin|controlled sinusoidal voltage source)$/i
@@ -4755,11 +4800,16 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
   const scale = circuitikzLengthScale(env);
   if (spec.kind === "controlledCurrentSource") {
     const halfExtent = 0.49 * scale * circuitikzControlledSourceScale(env);
-    const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+    const style = { ...circuitikzComponentStyle(pathStyle, spec.componentFill), lineJoin: "miter" };
     const sinusoidal = spec.sourceKind === "sinusoidal";
+    const cute = spec.sourceStyle === "cute";
     const items = [{
       type: "path",
-      subtype: sinusoidal ? "circuitikz-controlled-sinusoidal-source" : "circuitikz-controlled-current-source",
+      subtype: sinusoidal
+        ? "circuitikz-controlled-sinusoidal-source"
+        : cute
+          ? "circuitikz-cute-controlled-current-source"
+          : "circuitikz-controlled-current-source",
       sourceKind: spec.sourceKind,
       shape: "diamond",
       style,
@@ -4767,6 +4817,10 @@ function circuitikzCurrentSourceItems(from, to, geometry, spec = {}, pathStyle =
     }];
     if (sinusoidal) {
       items.push(circuitikzSinusoidalSourceWaveItem(geometry, halfExtent, style, env, "csources", "controlled"));
+      return items;
+    }
+    if (cute) {
+      items.push(circuitikzCuteControlledSourceLineItem(geometry, halfExtent, "current", style));
       return items;
     }
     if (spec.sourceStyle === "european") {
@@ -4866,11 +4920,19 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
   const scale = circuitikzLengthScale(env);
   if (spec.kind === "controlledVoltageSource") {
     const halfExtent = 0.49 * scale * circuitikzControlledSourceScale(env);
-    const style = { ...circuitikzComponentStyle(pathStyle), lineJoin: "miter" };
+    const style = { ...circuitikzComponentStyle(pathStyle, spec.componentFill), lineJoin: "miter" };
     const sinusoidal = spec.sourceKind === "sinusoidal";
+    const empty = spec.sourceStyle === "empty";
+    const cute = spec.sourceStyle === "cute";
     const items = [{
       type: "path",
-      subtype: sinusoidal ? "circuitikz-controlled-sinusoidal-source" : "circuitikz-controlled-voltage-source",
+      subtype: sinusoidal
+        ? "circuitikz-controlled-sinusoidal-source"
+        : empty
+          ? "circuitikz-empty-controlled-source"
+          : cute
+            ? "circuitikz-cute-controlled-voltage-source"
+            : "circuitikz-controlled-voltage-source",
       sourceKind: spec.sourceKind,
       shape: "diamond",
       style,
@@ -4878,6 +4940,11 @@ function circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle = {}, 
     }];
     if (sinusoidal) {
       items.push(circuitikzSinusoidalSourceWaveItem(geometry, halfExtent, style, env, "csources", "controlled"));
+      return items;
+    }
+    if (empty) return items;
+    if (cute) {
+      items.push(circuitikzCuteControlledSourceLineItem(geometry, halfExtent, "voltage", style));
       return items;
     }
     if (spec.sourceStyle === "european") {
@@ -5143,6 +5210,28 @@ function circuitikzDiamondPath(geometry, halfExtent) {
     { type: "lineTo", x: bottom.x, y: bottom.y },
     { type: "closePath" }
   ];
+}
+
+function circuitikzCuteControlledSourceLineItem(geometry, halfExtent, sourceType, style) {
+  const axis = sourceType === "voltage" ? geometry.u : geometry.n;
+  const lineHalf = 0.6 * halfExtent;
+  const start = pointAlong(geometry.mid, axis, -lineHalf);
+  const end = pointAlong(geometry.mid, axis, lineHalf);
+  return {
+    type: "path",
+    subtype: `circuitikz-cute-controlled-${sourceType}-source-line`,
+    style: {
+      ...style,
+      fill: "none",
+      lineWidth: roundNumber(style.lineWidth * 3),
+      lineCap: "round",
+      lineJoin: "miter"
+    },
+    commands: [
+      { type: "moveTo", x: start.x, y: start.y },
+      { type: "lineTo", x: end.x, y: end.y }
+    ]
+  };
 }
 
 function circuitikzMosfetItems(from, to, geometry, spec, pathStyle = {}, env = {}) {
