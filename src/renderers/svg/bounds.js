@@ -29,7 +29,7 @@ import { curvedArrowPaint } from "./arrowBending.js";
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  const include = (x, y) => {
+  const includeGlobal = (x, y) => {
     bounds.minX = Math.min(bounds.minX, x);
     bounds.minY = Math.min(bounds.minY, y);
     bounds.maxX = Math.max(bounds.maxX, x);
@@ -38,6 +38,13 @@ export function computeSvgBounds(items, options = {}) {
 
   for (const item of items) {
     if (item.overlay || item.excludeFromBounds) continue;
+    const itemBounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    const include = (x, y) => {
+      itemBounds.minX = Math.min(itemBounds.minX, x);
+      itemBounds.minY = Math.min(itemBounds.minY, y);
+      itemBounds.maxX = Math.max(itemBounds.maxX, x);
+      itemBounds.maxY = Math.max(itemBounds.maxY, y);
+    };
     if (item.type === "nodeBox") {
       const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
       const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
@@ -120,6 +127,7 @@ export function computeSvgBounds(items, options = {}) {
     } else if (item.type === "textNode") {
       if (item.subtype === "decoration-text" && hasPathCommands({ commands: item.pathCommands })) {
         includePathBounds({ type: "path", commands: item.pathCommands, style: item.style || {} }, include, unit);
+        includeClippedItemBounds(item, itemBounds, includeGlobal);
         continue;
       }
       const normalized = normalizeTikzText(item.text, options);
@@ -129,6 +137,7 @@ export function computeSvgBounds(items, options = {}) {
         const scale = imagePlaceholderScale(item, normalized);
         include(item.x - (normalized.width * scale) / 2, item.y - (normalized.height * scale) / 2);
         include(item.x + (normalized.width * scale) / 2, item.y + (normalized.height * scale) / 2);
+        includeClippedItemBounds(item, itemBounds, includeGlobal);
         continue;
       }
       const math = parseMathText(normalized.text);
@@ -167,12 +176,23 @@ export function computeSvgBounds(items, options = {}) {
     } else if (item.type === "marker") {
       includeStandaloneMarkerBounds(item, include, unit);
     }
+    includeClippedItemBounds(item, itemBounds, includeGlobal);
   }
 
   if (!Number.isFinite(bounds.minX)) return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   if (bounds.minX === bounds.maxX) bounds.maxX += 1;
   if (bounds.minY === bounds.maxY) bounds.maxY += 1;
   return bounds;
+}
+
+function includeClippedItemBounds(item, bounds, include) {
+  if (!Number.isFinite(bounds.minX)) return;
+  let clipped = intersectPathClipBounds(bounds, item.clipRect);
+  clipped = intersectPathClipCircleBounds(clipped, item.clipCircle);
+  clipped = intersectPathClipPolygonBounds(clipped, item.clipPolygon);
+  if (!clipped) return;
+  include(clipped.minX, clipped.minY);
+  include(clipped.maxX, clipped.maxY);
 }
 
 function includeStandaloneMarkerBounds(item, include, unit) {
@@ -308,6 +328,19 @@ function intersectPathClipCircleBounds(bounds, clipCircle) {
     minY: y - radius,
     maxX: x + radius,
     maxY: y + radius
+  });
+}
+
+function intersectPathClipPolygonBounds(bounds, clipPolygon) {
+  if (!bounds || !Array.isArray(clipPolygon) || clipPolygon.length < 3) return bounds;
+  const xs = clipPolygon.map((point) => Number(point?.x)).filter(Number.isFinite);
+  const ys = clipPolygon.map((point) => Number(point?.y)).filter(Number.isFinite);
+  if (xs.length < 3 || ys.length < 3) return bounds;
+  return intersectPathClipBounds(bounds, {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
   });
 }
 

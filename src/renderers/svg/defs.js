@@ -24,6 +24,7 @@ export function createSvgDefs(parts = []) {
 export function collectSvgDefs(items, unit) {
   const clipRectDefs = collectClipRectDefs(items);
   const clipCircleDefs = collectClipCircleDefs(items);
+  const clipPolygonDefs = collectClipPolygonDefs(items);
   const patternDefs = collectPatternDefs(items);
   const formOnlyPatternClipDefs = collectFormOnlyPatternClipDefs(items);
   const ballGradientDefs = collectBallGradientDefs(items);
@@ -35,6 +36,7 @@ export function collectSvgDefs(items, unit) {
   return [
     ...clipRectDefs.map((def) => renderClipRectDef(def, unit)),
     ...clipCircleDefs.map((def) => renderClipCircleDef(def, unit)),
+    ...clipPolygonDefs.map((def) => renderClipPolygonDef(def, unit)),
     ...formOnlyPatternClipDefs.map((def) => renderFormOnlyPatternClipDef(def, unit)),
     ...patternDefs.map((def) => renderPatternDef(def, unit)),
     ...ballGradientDefs.map(renderBallGradientDef),
@@ -102,6 +104,13 @@ export function clipCircleId(clipCircle = {}) {
     .join("-")}`;
 }
 
+export function clipPolygonId(clipPolygon = []) {
+  return `tikzkit-clip-polygon-${clipPolygon
+    .flatMap((point) => [point?.x, point?.y])
+    .map((value) => String(Math.round((Number(value) || 0) * 1e6)))
+    .join("-")}`;
+}
+
 export function collectClipRectDefs(items = []) {
   const defs = new Map();
   for (const item of items) {
@@ -118,6 +127,16 @@ export function collectClipCircleDefs(items = []) {
     if (!item?.clipCircle) continue;
     const id = clipCircleId(item.clipCircle);
     defs.set(id, { id, clipCircle: item.clipCircle });
+  }
+  return [...defs.values()];
+}
+
+export function collectClipPolygonDefs(items = []) {
+  const defs = new Map();
+  for (const item of items) {
+    if (!Array.isArray(item?.clipPolygon) || item.clipPolygon.length < 3) continue;
+    const id = clipPolygonId(item.clipPolygon);
+    defs.set(id, { id, clipPolygon: item.clipPolygon });
   }
   return [...defs.values()];
 }
@@ -141,6 +160,13 @@ export function renderClipCircleDef(def, unit) {
   const y = Number(circle.y) || 0;
   const radius = Math.max(0, Number(circle.radius) || 0);
   return `<clipPath id="${escapeAttribute(def.id)}" clipPathUnits="userSpaceOnUse"><circle cx="${format(x * unit)}" cy="${format(-y * unit)}" r="${format(radius * unit)}" /></clipPath>`;
+}
+
+export function renderClipPolygonDef(def, unit) {
+  const points = (def.clipPolygon || [])
+    .map((point) => `${format((Number(point.x) || 0) * unit)},${format(-(Number(point.y) || 0) * unit)}`)
+    .join(" ");
+  return `<clipPath id="${escapeAttribute(def.id)}" clipPathUnits="userSpaceOnUse"><polygon points="${points}" /></clipPath>`;
 }
 
 export function collectPatternDefs(items) {

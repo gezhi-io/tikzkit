@@ -3,7 +3,7 @@ import { isEmptyNormalizedTikzText, normalizeTikzText } from "../../tikz/text.js
 import { computeSvgBounds } from "./bounds.js";
 import { renderDecorationTextPath } from "./decorationText.js";
 import { renderDefaultFontStyleDef } from "./defaultFontCss.js";
-import { clipCircleId, clipRectId, collectSvgDefs, formOnlyPatternClipId } from "./defs.js";
+import { clipCircleId, clipPolygonId, clipRectId, collectSvgDefs, formOnlyPatternClipId } from "./defs.js";
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
 import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
@@ -128,6 +128,18 @@ function svgDocumentSize(view, unit) {
 }
 
 function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y: 0 }) {
+  const rendered = renderItemContent(item, unit, options, index, pageOrigin);
+  const clip = Array.isArray(item.clipPolygon) && item.clipPolygon.length >= 3
+    ? clipPolygonId(item.clipPolygon)
+    : item.clipCircle
+      ? clipCircleId(item.clipCircle)
+      : item.clipRect
+        ? clipRectId(item.clipRect)
+        : null;
+  return clip && rendered ? `<g clip-path="url(#${escapeAttribute(clip)})">${rendered}</g>` : rendered;
+}
+
+function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y: 0 }) {
   if (item.type === "bbox") return "";
   if (item.type === "marker") {
     return item.tip ? renderStandaloneArrowMarker(item, unit) : renderMarker(item, unit);
@@ -214,12 +226,7 @@ function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y:
         style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
       }, unit)}`
       : renderPathWithShadows(item, unit);
-    const clip = item.clipCircle
-      ? clipCircleId(item.clipCircle)
-      : item.clipRect
-        ? clipRectId(item.clipRect)
-        : null;
-    return clip ? `<g clip-path="url(#${escapeAttribute(clip)})">${rendered}</g>` : rendered;
+    return rendered;
   }
   if (item.shape === "circle") {
     return `<circle cx="${format(item.cx * unit)}" cy="${format(-item.cy * unit)}" r="${format(

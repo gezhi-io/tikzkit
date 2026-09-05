@@ -1453,6 +1453,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const subtype = semanticSubtype(pathOptions);
   const clipRect = parseInternalClipRect(pathOptions["tikzkit clip rect"], pathEnv);
   const clipCircle = parseInternalClipCircle(pathOptions["tikzkit clip circle"], pathEnv);
+  const clipPolygon = parseInternalClipPolygon(pathOptions["tikzkit clip polygon"], pathEnv);
 
   if (semantic["name intersections"]) {
     for (const raw of repeatedSemanticValues(semantic["name intersections"])) {
@@ -1509,6 +1510,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       overlay: tikzBoolean(pathOptions.overlay),
       clipRect: shape.clipRect || clipRect,
       clipCircle: shape.clipCircle || clipCircle,
+      clipPolygon: shape.clipPolygon || clipPolygon,
       shadows,
       style: { ...style, ...shadingStyle, ...doubleStyle, ...(shape.style || {}) }
     }));
@@ -1529,6 +1531,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
           overlay: tikzBoolean(pathOptions.overlay),
           clipRect,
           clipCircle,
+          clipPolygon,
           includeStrokeBounds,
           includeArrowNormalBounds: includeStrokeBounds,
           includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(pathOptions),
@@ -1548,6 +1551,11 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     }
   }
   for (const node of built.nodes) {
+    for (const key of ["tikzkit clip rect", "tikzkit clip circle", "tikzkit clip polygon"]) {
+      if (pathOptions[key] !== undefined && node.options?.[key] === undefined) {
+        node.options = { ...(node.options || {}), [key]: pathOptions[key] };
+      }
+    }
     addNodeItems(node, ir, pathEnv);
   }
   applyCanvasTransformBounds(ir, firstItemIndex, pathEnv.canvasTrackingDisabled);
@@ -1578,6 +1586,18 @@ function parseInternalClipCircle(raw, env = {}) {
   const transformedRadius = Math.hypot(...Object.values(applyCoordinateTransformVector({ x: radius, y: 0 }, env)));
   if (!(transformedRadius > 0)) return undefined;
   return { x: center.x, y: center.y, radius: transformedRadius };
+}
+
+function parseInternalClipPolygon(raw, env = {}) {
+  if (raw === undefined || raw === null || raw === true || raw === false) return undefined;
+  const points = splitTopLevel(String(raw), ";").map((entry) => {
+    const values = splitTopLevel(entry, ",")
+      .map((value) => parseDimension(String(value).trim(), env.variables || {}));
+    return values.length === 2 && values.every(Number.isFinite)
+      ? { x: values[0], y: values[1] }
+      : null;
+  });
+  return points.length >= 3 && points.every(Boolean) ? points : undefined;
 }
 
 function expandInlinePathForeachSegments(segments = [], env = {}) {
@@ -9794,6 +9814,11 @@ function addNodeItems(node, ir, env) {
   const nodeEnv = Number.isFinite(Number(node.canvasScale)) && Number(node.canvasScale) > 0
     ? { ...env, canvasScale: Number(node.canvasScale) }
     : nodeCanvasEnv(env, node.options || {});
+  const clips = {
+    clipRect: parseInternalClipRect(node.options?.["tikzkit clip rect"], nodeEnv),
+    clipCircle: parseInternalClipCircle(node.options?.["tikzkit clip circle"], nodeEnv),
+    clipPolygon: parseInternalClipPolygon(node.options?.["tikzkit clip polygon"], nodeEnv)
+  };
   const { style: rawStyle, semantic, options: normalizedNodeOptions } = normalizeOptions("node", node.options || {}, nodeEnv);
   const overlay = tikzBoolean(node.options?.overlay ?? semantic.overlay);
   const scaledStyle = scaleCanvasStyle(rawStyle, nodeEnv);
@@ -9861,6 +9886,7 @@ function addNodeItems(node, ir, env) {
   }
   if (shape === "ground") {
     ir.items.push(circuitikzGroundItem(point, style, nodeEnv));
+    applyNodeClips(ir, firstItemIndex, clips);
     applyNodeOverlay(ir, firstItemIndex, overlay);
     applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
     return;
@@ -10085,8 +10111,17 @@ function addNodeItems(node, ir, env) {
   }
   addAutomataInitialArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
   addAutomataAcceptingArrow(node, point, semantic, style, textStyle, textFont, nodeEnv, ir);
+  applyNodeClips(ir, firstItemIndex, clips);
   applyNodeOverlay(ir, firstItemIndex, overlay);
   applyCanvasTransformBounds(ir, firstItemIndex, nodeEnv.canvasTrackingDisabled);
+}
+
+function applyNodeClips(ir, firstItemIndex, clips = {}) {
+  for (let index = firstItemIndex; index < ir.items.length; index += 1) {
+    for (const key of ["clipRect", "clipCircle", "clipPolygon"]) {
+      if (clips[key]) ir.items[index][key] = clips[key];
+    }
+  }
 }
 
 function forbiddenSignForegroundItem(shape, point, size, rotation, style, semantic, options, env) {
@@ -15742,7 +15777,7 @@ function showPathConstructionInheritedOptions(options = {}) {
     "decorate", "decoration", "postaction", "preaction",
     "name path", "name path global", "name intersections",
     "use as bounding box", "bezier bounding box", "overlay",
-    "tikzkit clip rect", "tikzkit clip circle"
+    "tikzkit clip rect", "tikzkit clip circle", "tikzkit clip polygon"
   ]) {
     delete inherited[key];
   }

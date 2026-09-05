@@ -880,8 +880,8 @@ test("pgfplots axis overlay lowering owns axis coordinate statement transforms",
       geometry
     ),
     [
-      String.raw`\node at (55,32) {mid};`,
-      String.raw`\draw [tikzkit clip rect={5,7,105,57}] (30,44.5) -- (5,57);`,
+      String.raw`\node [tikzkit clip rect={5,7,105,57}] at (55,32) {mid};`,
+      String.raw`\draw [tikzkit clip rect={5,7,105,57}] (30,44.5) -- (5,82);`,
       String.raw`\draw [tikzkit clip rect={5,7,105,57}] (55,32) -- ++(20,12.5);`,
       String.raw`\path[tikzkit clip rect={5,7,105,57},axis pin edge] (125,82) -- (105,57);`
     ]
@@ -928,9 +928,9 @@ test("pgfplots axis overlay lowering projects three-dimensional coordinate syste
       geometry
     ),
     [
-      String.raw`\node at (10,16) {data};`,
-      String.raw`\draw (40,44.5) -- (60,12);`,
-      String.raw`\draw (10,7) -- ++(24,10);`
+      String.raw`\node [tikzkit clip polygon={5,7;55,7;55,97;5,97}] at (10,16) {data};`,
+      String.raw`\draw [tikzkit clip polygon={5,7;55,7;55,97;5,97}] (40,44.5) -- (60,12);`,
+      String.raw`\draw [tikzkit clip polygon={5,7;55,7;55,97;5,97}] (10,7) -- ++(24,10);`
     ]
   );
 });
@@ -2876,8 +2876,8 @@ test("pgfplots data, relative, and direction coordinates honor reversed axes", (
       geometry
     ),
     [
-      String.raw`\node at (0,0.25) {relative};`,
-      String.raw`\node at (0,0.25) {description};`,
+      String.raw`\node [tikzkit clip rect={0,0,2,1}] at (0,0.25) {relative};`,
+      String.raw`\node [tikzkit clip rect={0,0,2,1}] at (0,0.25) {description};`,
       String.raw`\draw [tikzkit clip rect={0,0,2,1}] (2,1) -- ++(-1,-0.5);`
     ]
   );
@@ -2901,8 +2901,8 @@ test("pgfplots data, relative, and direction coordinates honor reversed axes", (
       noRelativeReversal
     ),
     [
-      String.raw`\node at (2,0.75) {relative};`,
-      String.raw`\node at (2,0.75) {normalized};`
+      String.raw`\node [tikzkit clip rect={0,0,2,1}] at (2,0.75) {relative};`,
+      String.raw`\node [tikzkit clip rect={0,0,2,1}] at (2,0.75) {normalized};`
     ]
   );
 });

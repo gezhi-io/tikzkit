@@ -3,7 +3,7 @@ import { formatAxisNumber, formatAxisPoint } from "./format.js";
 
 export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions = {}) {
   const commands = [];
-  const globalClipOption = axisOverlayGlobalClipOption(axisOptions, geometry);
+  const globalClipOption = axisOverlayGlobalClipOption(axisOptions, ranges, geometry);
   let cursor = 0;
   while (cursor < body.length) {
     const start = findNextAxisOverlayStatementStart(body, cursor);
@@ -18,10 +18,18 @@ export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions 
   return withAxisOverlayFont(commands, axisOptions.font);
 }
 
-function axisOverlayGlobalClipOption(axisOptions = {}, geometry = {}) {
-  if (geometry.is3d || !axisBooleanOption(axisOptions.clip, true)) return "";
+function axisOverlayGlobalClipOption(axisOptions = {}, ranges = {}, geometry = {}) {
+  if (!axisBooleanOption(axisOptions.clip, true)) return "";
   const mode = String(axisOptions["clip mode"] ?? "global").trim().toLowerCase();
   if (mode !== "global") return "";
+  if (geometry.is3d) {
+    const hull = projectedAxisBoxHull(ranges, geometry);
+    if (hull.length < 3) return "";
+    const points = hull
+      .map((point) => `${formatAxisNumber(point.x)},${formatAxisNumber(point.y)}`)
+      .join(";");
+    return `tikzkit clip polygon={${points}}`;
+  }
   const minX = Number(geometry.origin?.x);
   const minY = Number(geometry.origin?.y);
   const maxX = minX + Number(geometry.width);
@@ -32,7 +40,7 @@ function axisOverlayGlobalClipOption(axisOptions = {}, geometry = {}) {
 
 function applyAxisOverlayClip(command, clipOption) {
   if (!clipOption) return command;
-  const match = String(command).match(/^(\\(?:filldraw|draw|fill|path))(\s*)/);
+  const match = String(command).match(/^(\\(?:filldraw|coordinate|draw|fill|node|path))(\s*)/);
   if (!match) return command;
   const prefixLength = match[0].length;
   const suffix = command.slice(prefixLength);
@@ -69,7 +77,6 @@ export function transformAxisStatementCoordinates(statement, ranges, geometry) {
     const key = `${axis.toLowerCase()}${bound.toLowerCase() === "min" ? "Min" : "Max"}`;
     return Number.isFinite(ranges[key]) ? String(ranges[key]) : "0";
   });
-  const clampCoordinates = !axisOverlayStatementAllowsDataOverflow(resolvedStatement);
   const protectedText = protectOverlayMathText(resolvedStatement);
   const component = String.raw`(?:\{[^{}]*\}|[^,()[\]{}]+?)`;
   const coordinatePattern = new RegExp(
@@ -96,11 +103,7 @@ export function transformAxisStatementCoordinates(statement, ranges, geometry) {
       ? mapNormalizedAxisPoint({ x, y, z }, geometry, hasZ)
       : normalizedCoordinateSystem === "rel axis cs"
       ? mapRelativeAxisPoint({ x, y, z }, geometry, hasZ)
-      : mapAxisPoint({
-          x: clampCoordinates ? clampAxisCoordinate(x, ranges.xMin, ranges.xMax) : x,
-          y: clampCoordinates ? clampAxisCoordinate(y, ranges.yMin, ranges.yMax) : y,
-          z: clampCoordinates && hasZ ? clampAxisCoordinate(z, ranges.zMin, ranges.zMax) : z
-        }, geometry, hasZ);
+      : mapAxisPoint({ x, y, z }, geometry, hasZ);
     if (!point) return match;
     return formatAxisPoint(point);
   });
@@ -186,10 +189,6 @@ function findStatementEnd(source, start) {
     else if (char === ";" && braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) return index;
   }
   return -1;
-}
-
-function axisOverlayStatementAllowsDataOverflow(statement) {
-  return /\baxis\s+candlestick\s+(?:body|wick)\b/i.test(String(statement)) || /\baxis\s+(?:pin\s+edge|label)\b/i.test(String(statement));
 }
 
 function lowerPgfExtraPathellipse(statement, ranges, geometry) {
@@ -339,7 +338,47 @@ function mapAxisDirectionVector(vector, ranges, geometry, hasZ = false) {
   };
 }
 
-function clampAxisCoordinate(value, min, max) {
-  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max)) return value;
-  return Math.max(Math.min(value, max), min);
+function projectedAxisBoxHull(ranges = {}, geometry = {}) {
+  if (typeof geometry.mapPoint3d !== "function") return [];
+  const boxRanges = geometry.transformRanges || ranges;
+  const xValues = [Number(boxRanges.xMin), Number(boxRanges.xMax)];
+  const yValues = [Number(boxRanges.yMin), Number(boxRanges.yMax)];
+  const zValues = [Number(boxRanges.zMin), Number(boxRanges.zMax)];
+  if (![...xValues, ...yValues, ...zValues].every(Number.isFinite)) return [];
+  const points = [];
+  for (const x of xValues) {
+    for (const y of yValues) {
+      for (const z of zValues) {
+        const point = geometry.mapPoint3d({ x, y, z });
+        if (Number.isFinite(point?.x) && Number.isFinite(point?.y)) points.push(point);
+      }
+    }
+  }
+  return convexHull(points);
+}
+
+function convexHull(points = []) {
+  const unique = new Map();
+  for (const point of points) {
+    const x = Number(point.x);
+    const y = Number(point.y);
+    const key = `${Math.round(x * 1e9)}:${Math.round(y * 1e9)}`;
+    unique.set(key, { x, y });
+  }
+  const sorted = [...unique.values()].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (sorted.length <= 2) return sorted;
+  const cross = (origin, a, b) =>
+    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
+  const lower = [];
+  for (const point of sorted) {
+    while (lower.length >= 2 && cross(lower.at(-2), lower.at(-1), point) <= 1e-12) lower.pop();
+    lower.push(point);
+  }
+  const upper = [];
+  for (let index = sorted.length - 1; index >= 0; index -= 1) {
+    const point = sorted[index];
+    while (upper.length >= 2 && cross(upper.at(-2), upper.at(-1), point) <= 1e-12) upper.pop();
+    upper.push(point);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
