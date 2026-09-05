@@ -1,0 +1,17 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+
+\begin{document}
+\begin{tikzpicture}[>=Stealth]
+  \draw[gray] (-.4,0) -- (5.6,0);
+  \draw[->, orange, very thick]
+    (0,0) parabola[parabola height=2cm] (5,0);
+
+  \fill (0,0) circle (1.5pt);
+  \draw[->, blue, thick] (0,0) -- (1.2,1.05) node[above] {$v_0$};
+  \draw[->, red, thick] (2.5,2) -- (2.5,1.2) node[right] {$g$};
+  \node[below] at (0,0) {launch};
+  \node[below] at (5,0) {landing};
+\end{tikzpicture}
+\end{document}

@@ -24,6 +24,13 @@ export const tikzCommand = {
       notes: "Cubic Bezier segments are converted to drawing IR curve commands."
     },
     {
+      name: "parabola / parabola bend",
+      category: "path operation",
+      status: "implemented",
+      implementedBy: "src/frontend/parser.js:parseParabolaSegment + src/tikz/pathOperations/parabola.js:pgfParabolaCommands + src/engine/evaluate.js:resolveParabolaBend",
+      notes: "Default half-parabolas, explicit bend coordinates, bend, bend pos, and parabola height use PGF's two exact cubic coefficient sets under active coordinate transforms."
+    },
+    {
       name: "to / edge",
       category: "path operation",
       status: "partial",

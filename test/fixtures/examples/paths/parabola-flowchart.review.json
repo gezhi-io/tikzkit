@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "document environment"], "findings": "The LaTeX kernel provides the standalone document shell surrounding the TikZ picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "The package wrapper loads PGF and the TikZ path front end." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\tikz@parabola", "bend pos", "parabola height"], "findings": "Path-local options select an interpolated or elevated bend before TikZ passes two relative vectors to PGF." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex": { "symbols": ["\\pgfpathparabola", "\\pgf@path@parabola@first", "\\pgf@path@parabola@second"], "findings": "PGF emits two optional cubic halves using fixed 0.1125/0.225/0.5 and 0.5/0.8875/0.775 coefficients." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "The terminal arrow tip follows the tangent of the final cubic half." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] }
+  ]
+}

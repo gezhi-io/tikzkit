@@ -84,6 +84,7 @@ import {
   tapeLayoutSize as symbolTapeLayoutSize
 } from "../tikz/libraries/shapes.symbols.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
+import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
   isMatrixNodeOptions as isMatrixLibraryNodeOptions,
@@ -2072,6 +2073,51 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       currentBase = to;
       currentNodeRef = toNodeRef;
       endNodeRef = toNodeRef;
+      continue;
+    }
+    if (segment.kind === "parabola" && current) {
+      const from = currentBase || current;
+      const to = resolveCurveEndpoint(segment.to, from, env, diagnostics);
+      const toNodeRef = /^\+{1,2}/.test(String(segment.to || "").trim())
+        ? null
+        : defaultPathNodeReference(segment.to, env);
+      const bend = resolveParabolaBend(segment, from, to, env, diagnostics);
+      const parabolaCommands = pgfParabolaCommands(from, bend, to, coordinateTransformForEnvironment(env));
+      const firstCurve = parabolaCommands[0];
+      const lastCurve = parabolaCommands.at(-1);
+      const clipped = firstCurve && lastCurve
+        ? clipNodeCubicEndpoints(
+            from,
+            currentNodeRef,
+            { x: firstCurve.x1, y: firstCurve.y1 },
+            { x: lastCurve.x2, y: lastCurve.y2 },
+            to,
+            toNodeRef,
+            env
+          )
+        : { from, to };
+      if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
+      if (lastCurve) {
+        lastCurve.x = clipped.to.x;
+        lastCurve.y = clipped.to.y;
+      }
+      commands.push(...parabolaCommands);
+      if (lastCurve) {
+        const previous = parabolaCommands.length > 1 ? bend : clipped.from;
+        lastSegment = {
+          from: previous,
+          to: clipped.to,
+          c1: { x: lastCurve.x1, y: lastCurve.y1 },
+          c2: { x: lastCurve.x2, y: lastCurve.y2 },
+          tangent: { x: clipped.to.x - lastCurve.x2, y: clipped.to.y - lastCurve.y2 }
+        };
+      }
+      current = clipped.to;
+      currentLocal = null;
+      currentBase = to;
+      currentNodeRef = toNodeRef;
+      endNodeRef = toNodeRef;
+      pending = null;
       continue;
     }
     if (segment.kind === "sineCosine" && current) {
@@ -18013,6 +18059,45 @@ function resolveCurveEndpoint(raw, start, env, diagnostics) {
   const local = resolveCoordinate(relative[1], localCoordinateEnvironment(env), diagnostics);
   const offset = applyCoordinateTransformVector(local, env);
   return roundPoint({ x: start.x + offset.x, y: start.y + offset.y });
+}
+
+function resolveParabolaBend(segment, start, end, env, diagnostics) {
+  const expanded = normalizeOptions(
+    "path",
+    resolveDynamicOptions(segment.options || {}, env),
+    env
+  ).options;
+  let factor = 0;
+  let bend = segment.bend ? { kind: "coordinate", value: segment.bend } : { kind: "interpolation" };
+
+  for (const [key, value] of Object.entries(expanded)) {
+    if (key === "bend") {
+      bend = { kind: "coordinate", value };
+    } else if (key === "bend pos") {
+      const parsed = evaluateMath(value, env.variables || {});
+      if (Number.isFinite(parsed)) factor = parsed;
+    } else if (key === "parabola height") {
+      factor = 0.5;
+      bend = { kind: "height", value };
+    }
+  }
+
+  if (bend.kind === "coordinate") {
+    return resolveControlPoint(stripOptionValueBraces(bend.value), start, env, diagnostics);
+  }
+  const interpolated = {
+    x: start.x + (end.x - start.x) * factor,
+    y: start.y + (end.y - start.y) * factor
+  };
+  if (bend.kind !== "height") return roundPoint(interpolated);
+  const height = parseDimension(bend.value, env.variables || {});
+  const offset = applyCoordinateTransformVector({ x: 0, y: Number.isFinite(height) ? height : 0 }, env);
+  return roundPoint({ x: interpolated.x + offset.x, y: interpolated.y + offset.y });
+}
+
+function stripOptionValueBraces(value) {
+  const text = String(value || "").trim();
+  return text.startsWith("{") && text.endsWith("}") ? text.slice(1, -1).trim() : text;
 }
 
 function stripCurveCoordinateParens(value) {

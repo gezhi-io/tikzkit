@@ -111,8 +111,9 @@ Implemented and exercised across the three cases:
 
 Not implemented or not claimed:
 
-- the mathematical case's `parabola bend` path operation; its axes, point,
-  formula, rotation, and four margins render, but the blue curve is missing
+- `parabola bend` was outside this border slice at the time of its first
+  acceptance. It is now implemented and visually re-accepted in
+  `docs/qa/2026-09-05-parabola-paths.md`; the blue curve is no longer missing
 - arbitrary document-class option expansion, TeX dimension registers inside
   border lists, and full `preview` package page-selection behavior
 - pixel-identical text outlines, arrow paint bounds, and anti-aliasing across

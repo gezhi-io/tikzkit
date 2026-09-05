@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "document environment"], "findings": "The LaTeX kernel provides the standalone document shell surrounding the physics picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "The package wrapper provides the TikZ and PGF layers used by the trajectory." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["parabola height", "\\pgfpointadd"], "findings": "Parabola height resets bend pos to one half and adds a local vertical vector to the interpolated bend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex": { "symbols": ["\\pgfpathparabola", "\\pgfpathcurveto"], "findings": "The launch and landing halves are cubic curves meeting at the elevated bend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "Trajectory and vector tips are filled Stealth arrows aligned to their terminal tangents." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/parabola-path.test.js", "docs/qa/2026-09-05-parabola-paths.md"] }
+  ]
+}

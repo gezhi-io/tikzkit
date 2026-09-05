@@ -8155,6 +8155,33 @@
       "externalSource": "source/latex/standalone/standalone.dtx",
       "semanticOwner": "src/frontend/latex-shell.js:collectPreviewMargins + src/renderers/svg/renderSvg.js:sourceMargins + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
       "features": ["standalone four-value border", "asymmetric physical crop", "scale", "rotate", "force vectors", "Latex arrows"]
+    },
+    {
+      "id": "paths-parabola-flowchart",
+      "title": "Arched flowchart transitions with both parabola bend forms",
+      "source": "paths/parabola-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the TikZ and PGF parabola sources",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+      "semanticOwner": "src/frontend/parser.js:parseParabolaSegment + src/tikz/pathOperations/parabola.js:pgfParabolaCommands + src/engine/evaluate.js:resolveParabolaBend",
+      "features": ["parabola", "parabola bend", "parabola height", "bend pos", "style expansion", "Stealth arrows"]
+    },
+    {
+      "id": "paths-parabola-math",
+      "title": "Two mathematical parabolas with explicit and option bends",
+      "source": "paths/parabola-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the TikZ and PGF parabola sources",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
+      "semanticOwner": "src/frontend/parser.js:parseParabolaSegment + src/tikz/pathOperations/parabola.js:pgfParabolaCommands + src/engine/evaluate.js:resolveParabolaBend",
+      "features": ["parabola", "explicit bend coordinate", "bend option", "two cubic halves", "axes", "mathematical labels"]
+    },
+    {
+      "id": "paths-parabola-physics",
+      "title": "Projectile trajectory from parabola height",
+      "source": "paths/parabola-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the TikZ and PGF parabola sources",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
+      "semanticOwner": "src/frontend/parser.js:parseParabolaSegment + src/tikz/pathOperations/parabola.js:pgfParabolaCommands + src/engine/evaluate.js:resolveParabolaBend",
+      "features": ["parabola height", "local vertical bend", "projectile trajectory", "terminal tangent", "Stealth arrows"]
     }
   ]
 }

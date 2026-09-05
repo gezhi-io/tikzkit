@@ -1620,6 +1620,14 @@ export function parsePathSegments(pathText) {
         continue;
       }
     }
+    if (startsKeyword(pathText, index, "parabola")) {
+      const parsed = parseParabolaSegment(pathText, index);
+      if (parsed) {
+        segments.push(parsed.segment);
+        index = parsed.end;
+        continue;
+      }
+    }
     if (startsKeyword(pathText, index, "plot")) {
       const parsed = parsePlotSegment(pathText, index);
       if (parsed) {
@@ -1912,6 +1920,33 @@ function parseSineCosineSegment(pathText, index) {
       to: target.content.trim()
     },
     end: target.end
+  };
+}
+
+function parseParabolaSegment(pathText, index) {
+  let cursor = skipWhitespace(pathText, index + "parabola".length);
+  const parsedOptions = parseOptionalOptions(pathText, cursor);
+  if (parsedOptions.raw) cursor = skipWhitespace(pathText, parsedOptions.end);
+
+  let bend = null;
+  if (startsKeyword(pathText, cursor, "bend")) {
+    cursor = skipWhitespace(pathText, cursor + "bend".length);
+    const parsedBend = parseCurveCoordinate(pathText, cursor);
+    if (!parsedBend) return null;
+    bend = parsedBend.raw;
+    cursor = skipWhitespace(pathText, parsedBend.end);
+  }
+
+  const endpoint = parseCurveCoordinate(pathText, cursor);
+  if (!endpoint) return null;
+  return {
+    segment: {
+      kind: "parabola",
+      options: parsedOptions.options || {},
+      bend,
+      to: endpoint.raw
+    },
+    end: endpoint.end
   };
 }
 
