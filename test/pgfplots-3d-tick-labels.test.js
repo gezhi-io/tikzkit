@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { axis3DParentBounds, renderAxis3DTicks } from "../src/pgfplots/axis3d.js";
+import { axis3DParentBounds, renderAxis3DTicks, renderAxisLabels3D } from "../src/pgfplots/axis3d.js";
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 
 const ranges = { xMin: 0, xMax: 2, yMin: 0, yMax: 2, zMin: 0, zMax: 10 };
@@ -72,4 +72,18 @@ test("pgfplots 3d parent bounds reserve space for custom labels", () => {
   const wideBounds = axis3DParentBounds(wide, ranges, geometryFor(wide));
 
   assert.ok(wideBounds.width > compactBounds.width + 1);
+});
+
+test("pgfplots boxed 3d labels follow measured near-ticklabel geometry", () => {
+  const compact = { xtick: "{0}", ytick: "{}", ztick: "{}", xticklabels: "{A}", xlabel: "$x$" };
+  const wide = { ...compact, xticklabels: "{A very long pipeline stage}" };
+  const compactTick = tickLabelCommands(compact)[0];
+  const compactLabel = renderAxisLabels3D(compact, ranges, geometryFor(compact))[0];
+  const wideLabel = renderAxisLabels3D(wide, ranges, geometryFor(wide))[0];
+
+  assert.match(compactTick, /axis tick label, anchor=center/);
+  assert.match(compactTick, /inner sep=\.3333em/);
+  assert.doesNotMatch(compactTick, /outer sep=0pt/);
+  assert.match(compactLabel, /axis label, anchor=center/);
+  assert.notEqual(wideLabel, compactLabel, "the axis label must clear the widest measured tick label");
 });

@@ -392,3 +392,61 @@ test("case 015: small-amplitude radial surface remains inside its projected 3D b
     assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
+
+test("case 016: sinusoidal ridge preserves its 50 by 50 mesh and measured 3D labels", () => {
+  const result = renderFixture("3d-function-9");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 4802);
+  assert.equal(fills.length, 2401);
+  assert.equal(facets.length, 2401);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+
+  const axisLabels = Object.fromEntries(
+    labels
+      .filter((item) => ["$x$", "$y$", "$z$"].includes(item.text))
+      .map((item) => [item.text, item])
+  );
+  assert.deepEqual(Object.keys(axisLabels).sort(), ["$x$", "$y$", "$z$"]);
+  assert.equal(axisLabels["$z$"].rotation, 90);
+  assert.ok(axisLabels["$x$"].x < 2, "x label should follow the oblique tick-label edge midpoint");
+  assert.ok(axisLabels["$y$"].x > 9, "y label should clear the longest projected tick labels");
+  assert.ok(axisLabels["$z$"].x > -0.9, "z label should use its rotated near-ticklabel box");
+
+  for (const text of ["-5", "5", "-4", "-2", "0", "2", "4", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.some((item) => item.text === text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 017: continuous rational surface preserves its 55 by 55 mesh and colorbar", () => {
+  const result = renderFixture("3d-function-continuous");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 5832);
+  assert.equal(fills.length, 2916);
+  assert.equal(facets.length, 2916);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+
+  const axisLabels = Object.fromEntries(
+    labels
+      .filter((item) => ["$x$", "$y$", "$z$"].includes(item.text))
+      .map((item) => [item.text, item])
+  );
+  assert.deepEqual(Object.keys(axisLabels).sort(), ["$x$", "$y$", "$z$"]);
+  assert.equal(axisLabels["$z$"].rotation, 90);
+  for (const text of ["-2", "-1", "0", "1", "2", "-0.5", "0.5", "$f(x,y)$"]) {
+    assert.ok(labels.some((item) => item.text === text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});

@@ -727,7 +727,7 @@ test("pgfplots 3d axis lines left suppresses opposite-edge tick marks", () => {
   assert.equal(commands.filter((command) => command.includes("axis tick label")).length, 6);
 });
 
-test("pgfplots oblique y tick labels use the native diagonal anchor", () => {
+test("pgfplots oblique tick labels use measured native near-ticklabel placement", () => {
   const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -50, zMax: 150 };
   const axisOptions = {
     "pgfplots 3d surface": true,
@@ -742,8 +742,14 @@ test("pgfplots oblique y tick labels use the native diagonal anchor", () => {
   const tickCommands = renderAxis3DTicks(axisOptions, ranges, geometry);
   const labelCommands = renderAxisLabels3D(axisOptions, ranges, geometry);
 
-  assert.ok(tickCommands.includes(String.raw`\node[axis tick label, anchor=north east, font=\normalsize, inner sep=0.333em, outer sep=0pt] at (4.143,0.004) {4};`));
-  assert.ok(tickCommands.includes(String.raw`\node[axis tick label, anchor=north west, font=\normalsize, inner sep=0.333em, outer sep=0pt] at (4.664,-0.059) {-5};`));
+  const xTick = tickCommands.find((command) => command.endsWith("{4};"));
+  const yTick = tickCommands.find((command) => command.endsWith("{-5};"));
+  assert.match(xTick, /axis tick label, anchor=center/);
+  assert.match(yTick, /axis tick label, anchor=center/);
+  assert.match(xTick, /inner sep=\.3333em/);
+  assert.match(yTick, /inner sep=\.3333em/);
+  assert.doesNotMatch(xTick, /outer sep=0pt/);
+  assert.doesNotMatch(yTick, /outer sep=0pt/);
   assert.ok(labelCommands.includes(String.raw`\node[axis label, anchor=north] at (1.874,-0.161) {$x$};`));
   assert.ok(labelCommands.includes(String.raw`\node[axis label, anchor=north west] at (6.251,0.301) {$y$};`));
 });
@@ -2209,9 +2215,9 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
   assert.ok(tickCommands.some((command) => command.includes("axis tick label") && command.endsWith("{1};")));
 
   assert.deepEqual(renderAxisLabels3D({ xlabel: "$x$", ylabel: "$y$", zlabel: "$z$", title: "Surface" }, ranges, geometry), [
-    String.raw`\node[axis label, anchor=north] at (0.5,-0.72) {$x$};`,
-    String.raw`\node[axis label, anchor=east] at (-0.531,0.391) {$y$};`,
-    String.raw`\node[axis label, anchor=east, rotate=90] at (-1,0.5) {$z$};`,
+    String.raw`\node[axis label, anchor=center] at (0.5,-0.682) {$x$};`,
+    String.raw`\node[axis label, anchor=center] at (-0.951,0.601) {$y$};`,
+    String.raw`\node[axis label, anchor=center, rotate=90] at (-0.905,0.5) {$z$};`,
     String.raw`\node[axis label, anchor=south] at (0.55,1.45) {Surface};`
   ]);
 });

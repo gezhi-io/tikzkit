@@ -347,6 +347,78 @@ None for this fixture. Outside this case, arbitrary FPU programs, complete
 PGF math parser parity, every legacy/modern compatibility transition, and the
 foreground ticks/grids of `3d box=complete*` remain partial.
 
+## Case 016: Sinusoidal Ridge
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; no optional TikZ library is required.
+- Declaration: the two-stop `whitered` colormap used by the preceding surface
+  fixtures.
+- Axis options: `width=15cm`, `view={60}{55}`, fixed limits, major grid,
+  x domain `-2:2`, y domain `-5:5`, 50 samples, x/y/z labels, and a
+  quarter-height colorbar anchored at `(-0.1,0)`.
+- Drawing command: one `\addplot3[surf]` expression, `sin((x*x)r)*y`.
+
+### Oracle Review
+
+- `pgfplotsticks.code.tex` shows that projected tick labels use the selected
+  edge normal, transform that normal into node coordinates, snap very small
+  components, and solve a line intersection for `near ticklabel` placement.
+  The default node separation is `.3333em`.
+- `pgfplotscoordprocessing.code.tex`, `pgfplots.code.tex`, and
+  `pgfplots.scaling.code.tex` confirm the 50-by-50 expression survey, faceted
+  surface, azimuth/elevation projection, and axis-label placement at the
+  midpoint of the tick-label coordinate system after the largest tick-label
+  extent has been measured.
+- Local `tikztosvg` was found at `/Library/TeX/texbin/tikztosvg`. The accepted
+  artifacts are in
+  `outputs/qa/2026-09-06-case-by-case-016-017-label-cs-final/` and include
+  TikZKit SVG/PNG, tikztosvg SVG/PNG, MacTeX PNG, 1 cm grids, diffs, and sheets.
+- The inspected four-way sheet shows the same ridge orientation, zero
+  crossings, occlusion order, 2,401 faces, projected box, grid, labels, and
+  colorbar. TikZKit is 599x465 pixels, versus 603x468 for MacTeX/tikztosvg;
+  the residual is confined to text rasterization and outer crop, so this case
+  is accepted rather than held for pixel-only tuning.
+
+### Unsupported Source Features
+
+None for this fixture. Arbitrary 3D label coordinate-system overrides and
+exact TeX glyph raster bounds remain library-wide partial features.
+
+## Case 017: Continuous Rational Surface
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; the source uses a 2 mm PreviewBorder.
+- Declaration: `whitered` from `white` to `orange!75!red`.
+- Axis options: `width=15cm`, `view={335}{50}`, fixed `-2:2` x/y domains,
+  major grid, 55 samples, x/y/z labels, and the same anchored quarter-height
+  colorbar.
+- Drawing command: one `\addplot3[surf]` expression,
+  `x*y*y/(x*x+y*y*y*y)`.
+
+### Oracle Review
+
+- `pgfplots.code.tex` defines `surf`, faceted shader ordering, domain/sample
+  keys, view setup, and the colorbar child axis. `pgfplots.scaling.code.tex`
+  computes the projected x/y/z vectors; `pgfplotscoordprocessing.code.tex`
+  expands `samples=55` into a 55-by-55 matrix; and
+  `pgfplotsmeshplothandler.code.tex` depth-sorts the resulting faces.
+- `pgfplotscolormap.code.tex` linearly maps surveyed point meta into the named
+  colormap. `pgfplotsticks.code.tex` supplies the same measured near-ticklabel
+  geometry used for Case 016. `prtightpage.def` applies PreviewBorder after
+  the content box is known.
+- The accepted artifact directory is shared with Case 016. The inspected
+  sheet shows matching positive/negative lobes, central pinch, 2,916 faces,
+  projection, grid, labels, and continuous colorbar. TikZKit is 599x465
+  pixels, versus 600x469 for MacTeX/tikztosvg; only the browser-text crop and
+  antialiasing remain visibly different.
+
+### Unsupported Source Features
+
+None for this fixture. Arbitrary PGF math programs, arbitrary colorbar child
+axis styling, and exact TeX glyph outlines remain outside this case boundary.
+
 ## Case 002: Chi-Squared CDF
 
 ### Source Inventory

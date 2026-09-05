@@ -40,7 +40,7 @@ export const tikzCommand = {
       category: "labels",
       status: "partial",
       implementedBy: "src/pgfplots/axisTikzLowering.js:renderPgfplotsAxisAsTikz + src/pgfplots/labels.js",
-      notes: "Labels are emitted as TikZ nodes; exact PGFPlots offsets are still being tuned."
+      notes: "Labels are emitted as TikZ nodes. Boxed 3D axes use source-reviewed near-ticklabel geometry and measured tick-label extents; exact TeX glyph raster bounds remain partial."
     },
     {
       name: "xtick / ytick / tick distance",
@@ -61,7 +61,7 @@ export const tikzCommand = {
       category: "3D",
       status: "partial",
       implementedBy: "src/frontend/latex-shell.js:renderTernaryAxisAsTikz + src/pgfplots/surface.js",
-      notes: "Focused 3D and ternary slices exist; full PGFPlots 3D camera parity is pending."
+      notes: "Perspective surface projection, boxed grids, ticks, measured near-ticklabel placement, axis labels, and common colorbars are supported; arbitrary PGFPlots 3D child-axis and camera styling remains partial. Cases 016-017 were visually accepted against MacTeX and local tikztosvg on 2026-09-06."
     }
   ],
   examples: [
