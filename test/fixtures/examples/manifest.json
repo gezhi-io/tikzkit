@@ -8370,6 +8370,33 @@
       "externalSource": "tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
       "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
       "features": ["pgfarrowsdeclare", "pgfpointpolar", "elliptical polar radii", "active line width", "fillstroke arrow", "miter join"]
+    },
+    {
+      "id": "arrows-declared-aliases-flowchart",
+      "title": "Aliased and reversed declared process arrows",
+      "source": "arrows/declared-aliases-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the PGF legacy declaration compatibility layer",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "pgfarrowsdeclarealias", "pgfarrowsdeclarereversed", "active line width", "start and end tips", "orthogonal path"]
+    },
+    {
+      "id": "arrows-declared-aliases-math",
+      "title": "Aliased and reversed declared map arrows",
+      "source": "arrows/declared-aliases-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGF legacy declaration compatibility layer",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "pgfarrowsdeclarealias", "pgfarrowsdeclarereversed", "stroke-only tip", "curved path", "bidirectional map"]
+    },
+    {
+      "id": "arrows-declared-aliases-tcs-tree",
+      "title": "PGF manual leaf aliases on a declared-arrow tree",
+      "source": "arrows/declared-aliases-tcs-tree.tex",
+      "sourceCorpus": "TeX Live PGF manual Theoretical Computer Science logo",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-arrows.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "pgfarrowsdeclarealias", "pgfarrowsdeclarereversed", "pgfpatharc", "foreach", "real tree graphic"]
     }
   ]
 }

@@ -125,6 +125,17 @@ tikzLibrary.notes = tikzLibrary.notes.replace(
   "A twelfth source review on 2026-09-05 implemented recursive `\\pgfpointadd`, quick `\\pgfqpointpolar`, and ordinary `\\pgfpointpolar` with one radius or independent `x radius and y radius`. Angles use PGF's degree convention, nested points share the declaration's active-line-width dimension registers, and the resulting local paths retain declaration paint and terminal shortening. Flowchart, inclusion-map, and force-vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, transformed/intersection/scaled points, hull and clipping commands, and saved-register callbacks remain partial."
 );
 
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:resolveDeclaredArrowAliases/reverseDeclaredArrowGeometry/reflectDeclaredArrowPath + src/engine/options.js:parseDeclaredArrowPayload";
+tikzLibrary.features.push(
+  "user-declared legacy pgfarrowsdeclarealias geometry reuse and alias chains",
+  "user-declared legacy pgfarrowsdeclarereversed x reflection and longitudinal extent exchange"
+);
+tikzLibrary.implements.push(
+  "user-declared legacy pgfarrowsdeclarealias geometry reuse and alias chains",
+  "user-declared legacy pgfarrowsdeclarereversed x reflection and longitudinal extent exchange"
+);
+tikzLibrary.notes += " A thirteenth source review on 2026-09-05 covered the legacy compatibility macros `\\pgfarrowsdeclarealias` and `\\pgfarrowsdeclarereversed` in pgfcorearrows.code.tex and the reversed-arrow algorithm in the base arrows manual. TikZKit now resolves alias chains onto an existing declaration, preserves the public arrow name, evaluates the source program at the active line width, reflects only local x coordinates, flips SVG arc sweep, maps bounds to [-maxX,-minX], exchanges and negates backend/tip end, and negates line end. The process flowchart, inclusion/projection map, and TCS leaf tree are strict semantic and MacTeX/tikztosvg visual drivers. Declaration combine/double/triple helpers, arbitrary TeX branches/macros, transformed/intersection/scaled points, hull and clipping commands, and saved-register callbacks remain partial.";
+
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
     .match(/^(latex|stealth)-prime(-reversed)?$/u);
@@ -577,19 +588,21 @@ function delimiterMetrics(shape, reversed, pt, values) {
 // the normal arrow renderer responsible for endpoint placement and rotation.
 export function lowerDeclaredArrowTips(source, diagnostics = []) {
   const text = String(source || "");
-  if (!/\\pgfarrowsdeclare\b/.test(text)) return text;
+  if (!/\\pgfarrowsdeclare(?:alias|reversed)?\b/.test(text)) return text;
   const declarations = new Map();
   const withoutDeclarations = collectDeclarations(text, declarations, diagnostics);
   return declarations.size ? rewriteArrowOptions(withoutDeclarations, declarations) : withoutDeclarations;
 }
 
 function collectDeclarations(source, declarations, diagnostics) {
-  const command = "\\pgfarrowsdeclare";
+  const commandPattern = /\\pgfarrowsdeclare(?:alias|reversed)?\b/g;
+  const aliases = [];
   let output = "";
   let index = 0;
-  while (index < source.length) {
-    const start = source.indexOf(command, index);
-    if (start < 0) return output + source.slice(index);
+  let match;
+  while ((match = commandPattern.exec(source))) {
+    const command = match[0];
+    const start = match.index;
     output += source.slice(index, start);
     let cursor = skipWhitespace(source, start + command.length);
     const forward = readBalanced(source, cursor, "{", "}");
@@ -604,24 +617,75 @@ function collectDeclarations(source, declarations, diagnostics) {
       index = start + command.length;
       continue;
     }
-    const declared = parseDeclaredArrow(setup.content, drawing.content, lineWidthFromPt(0.4));
-    if (!declared) {
-      diagnostics.push({ severity: "warning", message: "Unsupported pgfarrowsdeclare drawing program" });
-      output += source.slice(start, drawing.end);
+    if (command !== "\\pgfarrowsdeclare") {
+      aliases.push({
+        forward: forward.content.trim(),
+        backward: backward.content.trim(),
+        targetForward: setup.content.trim(),
+        targetBackward: drawing.content.trim(),
+        reversed: command === "\\pgfarrowsdeclarereversed"
+      });
     } else {
-      for (const name of [forward.content.trim(), backward.content.trim()]) {
-        if (name) {
-          declarations.set(name, {
-            ...declared,
-            name,
-            program: { setup: setup.content, drawing: drawing.content }
-          });
+      const declared = parseDeclaredArrow(setup.content, drawing.content, lineWidthFromPt(0.4));
+      if (!declared) {
+        diagnostics.push({ severity: "warning", message: "Unsupported pgfarrowsdeclare drawing program" });
+        output += source.slice(start, drawing.end);
+      } else {
+        for (const name of [forward.content.trim(), backward.content.trim()]) {
+          if (name) {
+            declarations.set(name, {
+              ...declared,
+              name,
+              program: { setup: setup.content, drawing: drawing.content }
+            });
+          }
         }
       }
     }
     index = drawing.end;
+    commandPattern.lastIndex = index;
   }
+  output += source.slice(index);
+  resolveDeclaredArrowAliases(aliases, declarations, diagnostics);
   return output;
+}
+
+function resolveDeclaredArrowAliases(aliases, declarations, diagnostics) {
+  let pending = aliases;
+  while (pending.length) {
+    const unresolved = [];
+    let progress = false;
+    for (const alias of pending) {
+      const pairs = [
+        [alias.forward, alias.targetBackward],
+        [alias.backward, alias.targetBackward]
+      ];
+      if (pairs.every(([, target]) => declarations.has(target))) {
+        for (const [name, target] of pairs) {
+          if (!name) continue;
+          const declaration = declarations.get(target);
+          declarations.set(name, {
+            ...declaration,
+            name,
+            reversed: alias.reversed ? !declaration.reversed : declaration.reversed === true
+          });
+        }
+        progress = true;
+      } else {
+        unresolved.push(alias);
+      }
+    }
+    if (!progress) {
+      for (const alias of unresolved) {
+        diagnostics.push({
+          severity: "warning",
+          message: `Unknown declared arrow target: ${alias.targetBackward}`
+        });
+      }
+      return;
+    }
+    pending = unresolved;
+  }
 }
 
 function parseDeclaredArrow(setup, drawing, lineWidth) {
@@ -710,9 +774,62 @@ function parseDeclaredArrow(setup, drawing, lineWidth) {
 
 export function resolveDeclaredArrowGeometry(declaration, lineWidth = lineWidthFromPt(0.4)) {
   const program = declaration?.program;
-  if (!program || typeof program.setup !== "string" || typeof program.drawing !== "string") return declaration;
-  const resolved = parseDeclaredArrow(program.setup, program.drawing, lineWidth);
-  return resolved ? { ...resolved, name: declaration.name, program } : declaration;
+  const resolved = program && typeof program.setup === "string" && typeof program.drawing === "string"
+    ? parseDeclaredArrow(program.setup, program.drawing, lineWidth)
+    : null;
+  const geometry = resolved
+    ? { ...resolved, name: declaration.name, program, reversed: declaration.reversed === true }
+    : declaration;
+  return declaration?.reversed === true ? reverseDeclaredArrowGeometry(geometry) : geometry;
+}
+
+function reverseDeclaredArrowGeometry(geometry) {
+  if (!geometry?.bounds || typeof geometry.path !== "string") return geometry;
+  const bounds = geometry.bounds;
+  return {
+    ...geometry,
+    path: reflectDeclaredArrowPath(geometry.path),
+    bounds: {
+      minX: -bounds.maxX,
+      maxX: -bounds.minX,
+      minY: bounds.minY,
+      maxY: bounds.maxY
+    },
+    ...(Number.isFinite(geometry.backEnd) && Number.isFinite(geometry.tipEnd)
+      ? { backEnd: -geometry.tipEnd, tipEnd: -geometry.backEnd }
+      : {}),
+    ...(Number.isFinite(geometry.lineEnd) ? { lineEnd: -geometry.lineEnd } : {})
+  };
+}
+
+function reflectDeclaredArrowPath(path) {
+  const tokens = String(path).match(/[MLCAZ]|-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/gi) || [];
+  const reflected = [];
+  let index = 0;
+  while (index < tokens.length) {
+    const command = tokens[index++].toUpperCase();
+    reflected.push(command);
+    if (command === "Z") continue;
+    const count = command === "C" ? 6 : command === "A" ? 7 : 2;
+    const values = tokens.slice(index, index + count).map(Number);
+    if (values.length !== count || values.some((value) => !Number.isFinite(value))) return path;
+    if (command === "M" || command === "L") {
+      values[0] = -values[0];
+    } else if (command === "C") {
+      values[0] = -values[0];
+      values[2] = -values[2];
+      values[4] = -values[4];
+    } else if (command === "A") {
+      values[2] = -values[2];
+      values[4] = values[4] ? 0 : 1;
+      values[5] = -values[5];
+    } else {
+      return path;
+    }
+    reflected.push(...values.map(format));
+    index += count;
+  }
+  return reflected.join(" ");
 }
 
 function parseLegacyArrowExtents(setup, variables, lineWidth) {

@@ -1,0 +1,34 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+\makeatletter
+\pgfarrowsdeclare{process tip}{process tip}{
+  \pgfutil@tempdima=.4pt
+  \advance\pgfutil@tempdima by.3\pgflinewidth
+  \pgfarrowsleftextend{-4\pgfutil@tempdima}
+  \pgfarrowsrightextend{2\pgfutil@tempdima}
+}{
+  \pgfutil@tempdima=.4pt
+  \advance\pgfutil@tempdima by.3\pgflinewidth
+  \pgfpathmoveto{\pgfqpoint{2\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-4\pgfutil@tempdima}{3\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{-2\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-4\pgfutil@tempdima}{-3\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqfillstroke
+}
+\pgfarrowsdeclarealias{process alias}{process alias}{process tip}{process tip}
+\pgfarrowsdeclarereversed{process reversed}{process reversed}{process tip}{process tip}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[node distance=19mm,box/.style={draw,rounded corners=2pt,minimum width=18mm,minimum height=8mm}]
+  \node[box] (input) {Input};
+  \node[box,right=of input] (check) {Check};
+  \node[box,right=of check] (done) {Done};
+  \draw[blue,very thick,-{process alias}] (input) -- node[above]{accept} (check);
+  \draw[red,thick,-{process reversed}] (check) -- node[above]{retry} (done);
+  \draw[green!50!black,thick,{process reversed}-{process alias}] (input.south) |- (done.south);
+\end{tikzpicture}
+\end{document}

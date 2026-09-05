@@ -1,0 +1,30 @@
+% Derived from the Theoretical Computer Science logo in the PGF arrows manual.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+
+\pgfarrowsdeclare{leaf}{leaf}
+  {\pgfarrowsleftextend{-2pt} \pgfarrowsrightextend{1pt}}
+{
+  \pgfpathmoveto{\pgfpoint{-2pt}{0pt}}
+  \pgfpatharc{150}{30}{1.8pt}
+  \pgfpatharc{-30}{-150}{1.8pt}
+  \pgfusepathqfill
+}
+\pgfarrowsdeclarealias{sprout}{sprout}{leaf}{leaf}
+\pgfarrowsdeclarereversed{root leaf}{root leaf}{leaf}{leaf}
+
+\begin{document}
+\begin{tikzpicture}[line cap=round]
+  \coordinate (root) at (0,0);
+  \coordinate (fork) at (0,1.2);
+  \draw[brown!70!black,line width=1.2pt,-{root leaf}] (root) -- (fork);
+  \foreach \x/\y in {-1.8/2.5,-.7/2.8,.7/2.8,1.8/2.5} {
+    \draw[green!55!black,line width=.8pt,-{sprout}] (fork) -- (\x,\y);
+  }
+  \foreach \x/\y in {-2.25/3.15,-1.35/3.3,-.95/3.55,-.45/3.65,.45/3.65,.95/3.55,1.35/3.3,2.25/3.15} {
+    \draw[green!70!black,line width=.55pt,-{sprout}] (0,1.75) -- (\x,\y);
+  }
+  \node[below,font=\small\scshape] at (root) {Declared Arrow Tree};
+\end{tikzpicture}
+\end{document}

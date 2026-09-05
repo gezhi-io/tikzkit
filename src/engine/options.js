@@ -1036,6 +1036,7 @@ function parseDeclaredArrowPayload(value) {
       paint: decoded.paint,
       bounds,
       ...extents,
+      ...(decoded.reversed === true ? { reversed: true } : {}),
       ...(program ? { program } : {}),
       ...(lineCap ? { lineCap } : {}),
       ...(lineJoin ? { lineJoin } : {})

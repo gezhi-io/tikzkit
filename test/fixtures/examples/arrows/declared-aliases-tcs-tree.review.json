@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["documentclass", "usepackage", "begin", "end", "scshape"], "findings": "The document shell is removed before TikZ evaluation; scshape selects the small-caps shape."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": {"symbols": ["small"], "findings": "The 10pt class defines small text at 9pt with an 11pt baseline skip."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The package wrapper loads PGF and TikZ."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["draw", "node", "coordinate", "foreach"], "findings": "Core paths, nodes, coordinates, and foreach expansion construct the tree."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": {"symbols": ["pgfpoint"], "findings": "Dimensioned points define the leaf's move and arc start coordinates."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex": {"symbols": ["pgfusepathqfill"], "findings": "The quick fill action paints each closed two-arc leaf tip."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex": {"symbols": ["pgfpatharc"], "findings": "The arc constructor appends circular segments from the current point using degree angles and a radius."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex": {"symbols": ["foreach"], "findings": "The two loops expand branch coordinate lists in source order."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {"symbols": ["pgfarrowsdeclare", "pgfarrowsdeclarealias", "pgfarrowsdeclarereversed"], "findings": "The compatibility layer maps old declarations, aliases, and reversed declarations into modern arrow declarations."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {"symbols": ["pgfpatharc", "pgfarrowsdeclarereversed"], "findings": "Legacy arrow bodies may contain arcs and are reused by reversed public names."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex": {"symbols": ["pgfarrowsdeclare", "reversed"], "findings": "The declared path remains local to the terminal tangent and is reflected before endpoint placement."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {"symbols": ["Theoretical Computer Science", "leaf"], "findings": "The TCS logo uses a custom two-arc filled leaf tip, providing a real declaration-driven visual reference."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js", "outputs/qa/2026-09-05-arrows-declared-aliases-after/diff/arrows-declared-aliases-tcs-tree-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js", "outputs/qa/2026-09-05-arrows-declared-aliases-after/diff/arrows-declared-aliases-tcs-tree-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]}
+  ]
+}

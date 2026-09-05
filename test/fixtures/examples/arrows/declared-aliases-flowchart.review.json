@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["documentclass", "usepackage", "makeatletter", "begin", "end"], "findings": "The document shell and catcode helpers are consumed before TikZ semantic evaluation."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The TikZ package wrapper loads PGF and the TikZ frontend."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["draw", "node", "usetikzlibrary"], "findings": "Core path and node commands plus library loading supply the fixture shell."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": {"symbols": ["pgfqpoint"], "findings": "Quick points provide the local arrow-tip coordinates without unit conversion callbacks."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex": {"symbols": ["pgfusepathqfillstroke"], "findings": "The quick fill-stroke action paints the closed custom process tip."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {"symbols": ["pgfarrowsdeclare", "pgfarrowsdeclarealias", "pgfarrowsdeclarereversed"], "findings": "Alias declarations use means={target}; reversed declarations apply the target with reversed semantics."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {"symbols": ["pgfarrowsdeclarereversed"], "findings": "The installed legacy library repeatedly derives reversed public tips from one source declaration."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex": {"symbols": ["reversed", "line end", "tip end", "backend"], "findings": "Reversal reflects local x, exchanges and negates backend/tip end, and negates line end."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": {"symbols": ["Arrows Library", "reversed"], "findings": "The manual presents ordinary and reversed legacy tips as paired public arrow names."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js", "outputs/qa/2026-09-05-arrows-declared-aliases-after/diff/arrows-declared-aliases-flowchart-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js", "outputs/qa/2026-09-05-arrows-declared-aliases-after/diff/arrows-declared-aliases-flowchart-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-aliases.test.js"]}
+  ]
+}

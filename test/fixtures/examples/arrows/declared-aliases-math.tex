@@ -1,0 +1,36 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+
+\makeatletter
+\pgfarrowsdeclare{open map}{open map}{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfarrowsleftextend{-.5\pgflinewidth}
+  \pgfarrowsrightextend{6\pgfutil@tempdima}
+}{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfsetbuttcap
+  \pgfsetmiterjoin
+  \pgfpathmoveto{\pgfqpoint{0pt}{-4\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{6\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{0pt}{4\pgfutil@tempdima}}
+  \pgfusepathqstroke
+}
+\pgfarrowsdeclarealias{inclusion}{inclusion}{open map}{open map}
+\pgfarrowsdeclarereversed{projection}{projection}{open map}{open map}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[every node/.style={font=\small}]
+  \node (A) at (0,1.2) {$A$};
+  \node (B) at (3,1.2) {$B$};
+  \node (C) at (0,0) {$A/\!\sim$};
+  \node (D) at (3,0) {$B/\!\sim$};
+  \draw[blue,very thick,-{inclusion}] (A) to[bend left=18] node[above] {$i$} (B);
+  \draw[red,very thick,-{projection}] (B) to[bend left=18] node[below] {$p$} (A);
+  \draw[thick,{projection}-{inclusion}] (A) -- node[left] {$q_A$} (C);
+  \draw[thick,-{inclusion}] (C) -- node[below] {$\bar i$} (D);
+\end{tikzpicture}
+\end{document}
