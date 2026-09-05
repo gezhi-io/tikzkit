@@ -48,6 +48,11 @@ Full sources: [algorithm](test/fixtures/examples/pgfplots/stacked-area/algorithm
 [mathematics](test/fixtures/examples/pgfplots/stacked-area/math.tex), and
 [physics](test/fixtures/examples/pgfplots/stacked-area/physics.tex).
 
+See the [public example gallery](docs/examples.md) for more committed SVG,
+PNG, source, and comparison files. Local files under
+`test/fixtures/examples/output/` are generated on demand and do not exist as
+permanent GitHub URLs.
+
 Copy this PGFPlots example into the API, CLI, or browser demo:
 
 ```tex
@@ -132,6 +137,7 @@ npx tikz2svg diagram.tex -o diagram.svg --strict
 ## Documentation
 
 - [Documentation index](docs/README.md)
+- [Public example gallery](docs/examples.md)
 - [Getting started tutorial](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
 - [Extension registry](docs/extension-registry.md)

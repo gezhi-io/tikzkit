@@ -8,6 +8,8 @@ compatibility and QA documents when checking a specific feature.
 
 - [Getting started](getting-started.md): Node.js, browser, Markdown, and CLI
   examples.
+- [Public examples](examples.md): committed TikZ source, TikZKit output, and
+  selected visual comparisons that are safe to link from GitHub or npm.
 - [Usage reference](usage.md): supported syntax and package-specific examples.
 - [Architecture](architecture.md): parser, evaluator, scene graph, and SVG
   renderer boundaries.

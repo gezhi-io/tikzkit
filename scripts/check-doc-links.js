@@ -47,6 +47,38 @@ export function findBrokenDocLinks(root = REPO_ROOT) {
   return broken;
 }
 
+export function findGeneratedOutputDocLinks(root = REPO_ROOT) {
+  const available = listAvailableFiles(root);
+  const markdownFiles = [...available]
+    .filter((file) => file === "README.md" || (file.startsWith("docs/") && file.endsWith(".md")))
+    .sort();
+  const invalid = [];
+
+  for (const file of markdownFiles) {
+    const source = readFileSync(path.join(root, file), "utf8");
+    const searchable = maskCode(source);
+    const targets = [
+      ...matchTargets(searchable, /!?\[[^\]\n]*\]\(([^)\n]+)\)/g),
+      ...matchTargets(searchable, /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)
+    ];
+
+    for (const { target, index } of targets) {
+      const cleanTarget = normalizeTarget(target);
+      if (!cleanTarget) continue;
+      const publicPath = repositoryPathFromPublicUrl(cleanTarget);
+      if (!publicPath && isExternalTarget(cleanTarget)) continue;
+      const resolved = normalizeRepoPath(
+        publicPath || path.join(path.dirname(file), cleanTarget)
+      );
+      if (resolved.startsWith("test/fixtures/examples/output/")) {
+        invalid.push({ file, line: lineAt(source, index), target: cleanTarget, resolved });
+      }
+    }
+  }
+
+  return invalid;
+}
+
 export function repositoryPathFromPublicUrl(target) {
   let url;
   try {
@@ -137,14 +169,23 @@ function lineAt(source, index) {
 
 function run() {
   const broken = findBrokenDocLinks();
-  if (!broken.length) {
+  const generatedOutputLinks = findGeneratedOutputDocLinks();
+  if (!broken.length && !generatedOutputLinks.length) {
     console.log("Documentation links are valid.");
     return;
   }
 
-  console.error("Broken or untracked documentation links:");
-  for (const item of broken) {
-    console.error(`- ${item.file}:${item.line} ${item.target} -> ${item.resolved}`);
+  if (broken.length) {
+    console.error("Broken or untracked documentation links:");
+    for (const item of broken) {
+      console.error(`- ${item.file}:${item.line} ${item.target} -> ${item.resolved}`);
+    }
+  }
+  if (generatedOutputLinks.length) {
+    console.error("Documentation links to local generated output:");
+    for (const item of generatedOutputLinks) {
+      console.error(`- ${item.file}:${item.line} ${item.target} -> ${item.resolved}`);
+    }
   }
   process.exitCode = 1;
 }
