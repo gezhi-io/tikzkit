@@ -130,9 +130,24 @@ test("Bellman-Ford frames retain named vertices across consecutive tikzpictures"
   const source = readFileSync(path.join(FIXTURE_ROOT, "latex-examples", "bellman-ford-algorithm.tex"), "utf8");
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });
   const arrows = result.ir.items.filter((item) => item.type === "path" && item.style.markerEnd?.kind === "to");
+  const curvedEdges = arrows.filter((item) => item.commands.some((command) => command.type === "curveTo"));
+  const nodeBoxes = result.ir.items.filter((item) => item.type === "nodeBox");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
 
   assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.ast.figures.length, 3);
+  assert.equal(nodeBoxes.length, 26);
   assert.equal(arrows.length, 30, "expected all ten graph edges in each of the three frames");
+  assert.equal(curvedEdges.length, 6, "expected two bend-right edges in every frame");
+  assert.equal(labels.filter((text) => text === "$\\infty$").length, 16);
+  assert.equal(labels.includes("\\weight"), false);
+  assert.equal(labels.includes("\\pred"), false);
+  assert.doesNotMatch(result.svg, /\\(?:begin|end)\{(?:frame|figure)\}/);
+  const secondFrameA = result.ir.items.find((item) => item.type === "nodeBox" && item.id === "a" && item.x > 5);
+  const secondFrameWeight = result.ir.items.find((item) => item.type === "textNode" && item.text === "$0$" && item.x > 5);
+  const secondFramePred = result.ir.items.find((item) => item.type === "textNode" && item.text === "-" && item.x > 5);
+  assert.ok(secondFrameWeight.x < secondFrameA.x && secondFramePred.x > secondFrameA.x);
+  assert.ok(secondFrameWeight.y < secondFrameA.y && secondFramePred.y < secondFrameA.y);
 });
 
 test("aggregation concatenate uses logical TeX box anchors without moving fixed layout", () => {

@@ -85,7 +85,7 @@ test("explicit PreviewBorder overrides the standalone document border", () => {
   assert.deepEqual(preprocessed.previewMargins, { left: 0.2, bottom: 0.2, right: 0.2, top: 0.2 });
 });
 
-test("keeps the first beamer frame with its preamble styles and removes layout wrappers", () => {
+test("keeps all beamer frames with their preamble styles and removes layout wrappers", () => {
   const source = String.raw`\documentclass{beamer}
 \usepackage{tikz}
 \tikzset{shared/.style={draw,fill=blue!20}}
@@ -104,7 +104,8 @@ test("keeps the first beamer frame with its preamble styles and removes layout w
   assert.deepEqual(result.diagnostics, []);
   assert.match(result.source, /shared\/\.style=\{draw,fill=blue!20\}/);
   assert.match(result.source, /\{First\}/);
-  assert.doesNotMatch(result.source, /Second|\\(?:begin|end)\{(?:frame|figure)\}/);
+  assert.match(result.source, /\{Second\}/);
+  assert.doesNotMatch(result.source, /\\(?:begin|end)\{(?:frame|figure)\}/);
 });
 
 test("lowers cmyk definecolor values through the tikztosvg DeviceCMYK profile", () => {

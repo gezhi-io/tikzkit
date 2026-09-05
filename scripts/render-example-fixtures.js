@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
 import { parseOptions } from "../src/engine/options.js";
+import { unwrapBeamerFrames } from "../src/frontend/latex-shell.js";
 import { tikzToSvgAsync } from "../src/index.js";
 import { lowerRawGnuplotAddplotsToCoordinates } from "../src/pgfplots/gnuplot.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
@@ -150,7 +151,7 @@ export async function renderExampleFixtures(options = {}) {
         ? { imageResolver: (file) => imageResourceMap.get(normalizeResourceName(file)) }
         : {})
     };
-    const activeFigureId = entry.activeFigureId || null;
+    const activeFigureId = options.activeFigureId || entry.activeFigureId || null;
     const tikzkitSvg = path.join(outputRoot, "tikzkit-svg", `${entry.id}.svg`);
     const tikzkit = await tikzToSvgAsync(
       renderSource,
@@ -283,6 +284,7 @@ export async function renderExampleFixtures(options = {}) {
         fixtureRoot,
         outputRoot,
         engine: nativeLatexEngine,
+        activeFigureId,
         env: options.env || process.env,
         timeoutMs: externalCommandTimeoutMs
       });
@@ -423,7 +425,7 @@ export async function renderNativeMacTeXPng(external, options = {}) {
       rewriteExampleResourceReferences(options.source || await readFile(sourcePath, "utf8"), options.entry?.resources || [])
     )
   );
-  const nativeSource = normalizeNativeMacTeXInput(source);
+  const nativeSource = normalizeActiveFigureMacTeXInput(source, options.activeFigureId);
   const latexArgs = [
     "-interaction=nonstopmode",
     "-halt-on-error",
@@ -498,6 +500,23 @@ export function normalizeNativeMacTeXInput(source) {
     body.join("\n").trim(),
     "\\end{document}"
   ].filter(Boolean).join("\n");
+}
+
+export function normalizeActiveFigureMacTeXInput(source, activeFigureId) {
+  const text = String(source || "");
+  if (!activeFigureId) return normalizeNativeMacTeXInput(text);
+
+  const declarations = text
+    .split(/\r?\n/)
+    .filter((line) => /^\s*\\(?:usepackage|usetikzlibrary|usepgfplotslibrary)\b/.test(line))
+    .map((line) => line.trim());
+  const preambleBody = tikztosvgPreambleBody(text);
+  const selectedBody = normalizeTikztosvgInput(text, { activeFigureId });
+  return normalizeNativeMacTeXInput([
+    ...declarations,
+    preambleBody,
+    selectedBody
+  ].filter(Boolean).join("\n"));
 }
 
 async function materializeNativeReferenceResources(resources, fixtureRoot, workDir) {
@@ -817,7 +836,10 @@ function shouldRetryTikztosvgWithoutQuiet(result) {
 }
 
 export function normalizeTikztosvgInput(source, options = {}) {
-  const selectedSource = normalizeLegacyTkzEuclideSource(selectActiveFigureSource(source, options.activeFigureId));
+  const unwrappedSource = unwrapEnvironment(unwrapBeamerFrames(source), "figure");
+  const selectedSource = normalizeLegacyTkzEuclideSource(
+    selectActiveFigureSource(unwrappedSource, options.activeFigureId)
+  );
   const sourceBody = tikztosvgDocumentBody(selectedSource);
   const withoutDocumentShell = sourceBody
     .split(/\r?\n/)
@@ -829,7 +851,9 @@ export function normalizeTikztosvgInput(source, options = {}) {
     .filter((line) => !/^\\end\{document\}\s*$/.test(line.trim()))
     .filter((line) => !/^\\usetkzobj\{[^}]*\}\s*$/.test(line.trim()))
     .join("\n");
-  const body = unwrapResizebox(unwrapEnvironment(withoutDocumentShell, "preview"));
+  const body = unwrapResizebox(
+    unwrapEnvironment(unwrapBeamerFrames(unwrapEnvironment(withoutDocumentShell, "preview")), "figure")
+  );
   const loweredBody = normalizeCircuitikzEnvironment(
     normalizeLegacyTkzOrthogonalCircleDraws(
       normalizeLegacyTkzTangentCommands(normalizeLegacyTkzAngleSizes(lowerRawGnuplotAddplotsToCoordinates(body)))
@@ -1124,11 +1148,69 @@ export function selectActiveFigureSource(source, activeFigureId) {
   if (!selected) return original;
 
   const context = extractActiveFigureContext(original.slice(0, selected.beginIndex));
+  const semanticPrelude = ranges
+    .slice(0, index)
+    .map((range) => original.slice(range.beginIndex, range.endIndex).trim())
+    .filter(Boolean);
   const selectedPicture = original.slice(selected.beginIndex, selected.endIndex).trim();
+  const selectedWithPrelude = injectSemanticPicturePrelude(selectedPicture, semanticPrelude);
   const hasDocumentEnd = /\\end\{document\}/.test(original.slice(selected.endIndex));
-  return [context.trimEnd(), selectedPicture, hasDocumentEnd ? "\\end{document}" : ""]
+  return [context.trimEnd(), selectedWithPrelude, hasDocumentEnd ? "\\end{document}" : ""]
     .filter(Boolean)
     .join("\n");
+}
+
+function injectSemanticPicturePrelude(selectedPicture, previousPictures) {
+  if (!previousPictures.length) return selectedPicture;
+  const selected = tikzPictureParts(selectedPicture);
+  if (!selected) return selectedPicture;
+  const scopes = previousPictures
+    .map(tikzPictureParts)
+    .filter(Boolean)
+    .map((picture) => {
+      const options = ["reset cm", "overlay", "opacity=0", picture.options].filter(Boolean).join(",");
+      return `\\begin{scope}[${options}]\n${picture.body.trim()}\n\\end{scope}`;
+    });
+  if (!scopes.length) return selectedPicture;
+  return `${selected.opening}\n${scopes.join("\n")}\n${selected.body.trim()}\n\\end{tikzpicture}`;
+}
+
+function tikzPictureParts(source) {
+  const text = String(source || "").trim();
+  const begin = "\\begin{tikzpicture}";
+  const end = "\\end{tikzpicture}";
+  if (!text.startsWith(begin) || !text.endsWith(end)) return null;
+  let cursor = begin.length;
+  while (/\s/.test(text[cursor] || "")) cursor += 1;
+  let options = "";
+  if (text[cursor] === "[") {
+    const optionEnd = balancedSquareBracketEnd(text, cursor);
+    if (optionEnd < 0) return null;
+    options = text.slice(cursor + 1, optionEnd).trim();
+    cursor = optionEnd + 1;
+  }
+  return {
+    opening: text.slice(0, cursor),
+    options,
+    body: text.slice(cursor, text.length - end.length)
+  };
+}
+
+function balancedSquareBracketEnd(text, start) {
+  let squareDepth = 0;
+  let braceDepth = 0;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === "{" && !isEscapedCommand(text, index)) braceDepth += 1;
+    if (character === "}" && !isEscapedCommand(text, index)) braceDepth = Math.max(0, braceDepth - 1);
+    if (braceDepth > 0) continue;
+    if (character === "[") squareDepth += 1;
+    if (character === "]") {
+      squareDepth -= 1;
+      if (squareDepth === 0) return index;
+    }
+  }
+  return -1;
 }
 
 function findTikzPictureRanges(source) {
@@ -1495,6 +1577,7 @@ export function parseExampleRenderArgs(argv = process.argv.slice(2)) {
     continueOnExternalFailure: argv.includes("--continue-on-external-failure"),
     nativeReference: argv.includes("--native-reference"),
     nativeLatexEngine: valueAfter(argv, "--native-latex-engine") || "pdflatex",
+    activeFigureId: valueAfter(argv, "--active-figure") || null,
     preserveOutput: argv.includes("--preserve-output"),
     progress: !argv.includes("--quiet-progress"),
     tikztosvgEngine: valueAfter(argv, "--tikztosvg-engine") || "xelatex",
@@ -1537,6 +1620,7 @@ function exampleRenderUsage() {
     "  --continue-on-external-failure  Finish the batch and write logs before strict failure exits",
     "  --native-reference              Render one local MacTeX PNG reference per case",
     "  --native-latex-engine <engine>  MacTeX engine for references (default: pdflatex)",
+    "  --active-figure <figure:id>     Render one picture and replay earlier named-node state",
     "  --tikztosvg-engine <engine>     TeX engine for tikztosvg (default: xelatex)",
     "  --no-comparison-grid            Do not add the 1cm comparison grid",
     "  --math-renderer <renderer>      TikZKit math renderer, such as svg-text"

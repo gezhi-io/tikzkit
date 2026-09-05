@@ -1565,9 +1565,12 @@
       "source": "latex-examples/bellman-ford-algorithm.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "bellman-ford-algorithm/bellman-ford-algorithm.tex",
-      "semanticOwner": "src/tikz/commands/foreach.js",
+      "semanticOwner": "src/frontend/latex-shell.js + src/frontend/parser.js + src/engine/evaluate.js + src/tikz/commands/foreach.js + src/tikz/libraries/topaths.js",
       "features": [
+        "beamer frame extraction",
+        "cross-picture named-node replay",
         "foreach expansion",
+        "dynamic edge options",
         "node layout",
         "path drawing",
         "arrow tips",

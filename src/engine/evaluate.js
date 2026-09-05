@@ -262,8 +262,12 @@ export function interpretTikz(ast, options = {}) {
     previewBorder: ast.previewBorder,
     previewMargins: ast.previewMargins
   });
-  const pictures = ast.pictures || [];
-  const inlinePictureLayout = pictures.length > 1 && options.multiPictureLayout !== false;
+  const visiblePictures = ast.pictures || [];
+  const evaluationPictures = [
+    ...(ast.semanticPreludePictures || []).map((picture) => ({ picture, semanticOnly: true })),
+    ...visiblePictures.map((picture) => ({ picture, semanticOnly: false }))
+  ];
+  const inlinePictureLayout = visiblePictures.length > 1 && options.multiPictureLayout !== false;
   // PGF registers named nodes and coordinates at document scope. Keep that
   // semantic registry separate from the renderer's optional inline layout:
   // later pictures can refer to an earlier name without inheriting its
@@ -275,10 +279,14 @@ export function interpretTikz(ast, options = {}) {
   let inlineCursorX = 0;
   let lastPictureBounds = null;
 
-  for (let pictureIndex = 0; pictureIndex < pictures.length; pictureIndex += 1) {
-    const picture = pictures[pictureIndex];
+  let visiblePictureIndex = 0;
+  for (const entry of evaluationPictures) {
+    const { picture, semanticOnly } = entry;
+    const pictureIndex = visiblePictureIndex;
     const isTabularPicture = Boolean(picture.tabularLayout);
-    const targetIr = inlinePictureLayout || isTabularPicture ? createSceneGraph({ backgroundItems: [] }) : ir;
+    const targetIr = semanticOnly || inlinePictureLayout || isTabularPicture
+      ? createSceneGraph({ backgroundItems: [] })
+      : ir;
     const pictureCoordinates = documentCoordinates;
     const baseStyles = { ...BUILTIN_STYLES, ...(picture.styles || {}) };
     const styles = { ...baseStyles, ...styleDefinitionsFromOptions(picture.options || {}, baseStyles) };
@@ -349,6 +357,7 @@ export function interpretTikz(ast, options = {}) {
     for (const statement of picture.statements || []) {
       interpretStatement(statement, env, targetIr, diagnostics, options);
     }
+    if (semanticOnly) continue;
     if (tikzBoolean(pictureOptions.framed)) {
       addFramedPicture(targetIr, pictureStart, env);
     }
@@ -359,13 +368,14 @@ export function interpretTikz(ast, options = {}) {
         ast,
         picture,
         pictureIndex,
-        pictures,
+        pictures: visiblePictures,
         cursorX: inlineCursorX,
         previousBounds: lastPictureBounds
       });
       inlineCursorX = layout.cursorX;
       lastPictureBounds = layout.bounds;
     }
+    visiblePictureIndex += 1;
   }
 
   appendTabularPictureLayouts(ir, ast.tabularLayouts || [], tabularPictureIrs);
@@ -1831,7 +1841,10 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
           });
         }
       }
-      const combinedEdgeOptions = { ...effectivePathOptions, ...(segment.options || {}) };
+      const combinedEdgeOptions = {
+        ...effectivePathOptions,
+        ...resolveDynamicOptions(segment.options || {}, env)
+      };
       const customToPath = parseCustomToPathTemplate(combinedEdgeOptions["to path"], parsePathSegments);
       if (!customToPath) {
         pendingInlineNodes.push(...toPathInlineNodes(combinedEdgeOptions["to path"]));
@@ -10393,7 +10406,12 @@ function nodeLabels(options = {}, point, size, env, textStyle = {}) {
     );
     const labelSize = labelPlacementSize(label, env, options);
     const labelLayoutSize = estimateNodeLayoutSize(label.text, normalizedLabelOptions, env);
-    const labelPoint = labelPointForDirection(label.direction, point, size, sep, labelSize);
+    const baseLabelPoint = labelPointForDirection(label.direction, point, size, sep, labelSize);
+    const labelShift = nodeExplicitShift(normalizedLabelOptions, env);
+    const labelPoint = roundPoint({
+      x: baseLabelPoint.x + labelShift.x,
+      y: baseLabelPoint.y + labelShift.y
+    });
     labels.push({
       type: "textNode",
       x: labelPoint.x,

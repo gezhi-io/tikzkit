@@ -4,7 +4,7 @@ import {
   createArrowTip,
   lineWidthFromTikzDimension
 } from "../tikz/metrics.js";
-import { parseDimension } from "./math.js";
+import { parseDimension, substituteTextVariables } from "./math.js";
 
 const TIKZ_UNIT = 100;
 
@@ -327,7 +327,7 @@ function readBalancedGroup(text, start = 0) {
 }
 
 export function normalizeOptions(command, rawOptions, env) {
-  const expanded = expandStyleOptions(rawOptions, env);
+  const expanded = substituteDynamicOptionValues(expandStyleOptions(rawOptions, env), env.variables || {});
   const style = defaultStyleForCommand(command);
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
@@ -529,6 +529,20 @@ export function normalizeOptions(command, rawOptions, env) {
   }
 
   return { style, semantic, options: expanded };
+}
+
+function substituteDynamicOptionValues(options, variables) {
+  const substituted = {};
+  for (const [key, value] of Object.entries(options || {})) {
+    const nextKey = substituteTextVariables(key, variables);
+    const nextValue = Array.isArray(value)
+      ? value.map((entry) => typeof entry === "string" ? substituteTextVariables(entry, variables) : entry)
+      : typeof value === "string"
+        ? substituteTextVariables(value, variables)
+        : value;
+    setOrderedOption(substituted, nextKey, nextValue);
+  }
+  return substituted;
 }
 
 function normalizeLineCap(value) {

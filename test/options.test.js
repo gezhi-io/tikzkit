@@ -65,6 +65,28 @@ test("keeps repeated pgfplots axis line styles and resolves pgflinewidth shorten
   assert.ok(Math.abs(normalized.style.shortenStart + normalized.style.lineWidth * 0.5) < 1e-12);
 });
 
+test("resolves foreach variables inside an expanded style at use time", () => {
+  const normalized = normalizeOptions(
+    "node",
+    { vertex: true },
+    {
+      styles: {
+        vertex: {
+          label: String.raw`{[weight label]center:\weight}`,
+          fill: String.raw`\shade`
+        }
+      },
+      variables: {
+        weight: "$0$",
+        shade: "red!20"
+      }
+    }
+  );
+
+  assert.equal(normalized.options.label, "{[weight label]center:$0$}");
+  assert.equal(normalized.style.fill, "rgb(255 204 204)");
+});
+
 test("strips TeX comments while parsing option lists", () => {
   const options = parseOptions(String.raw`xmin=-2,
     % start the diagram at this x-coordinate

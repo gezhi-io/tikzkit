@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   addComparisonGridToSvg,
   formatExampleRenderSummary,
+  normalizeActiveFigureMacTeXInput,
   normalizeNativeMacTeXInput,
   normalizeTikztosvgInput,
   parseExampleRenderArgs,
@@ -76,6 +77,30 @@ test("native MacTeX reference wraps a bare TikZ fragment with its declarations",
   assert.match(normalized, /\\usetikzlibrary\{angles,calc\}/);
   assert.match(normalized, /\\begin\{document\}[\s\S]*\\begin\{tikzpicture\}/);
   assert.match(normalized, /\\end\{tikzpicture\}[\s\S]*\\end\{document\}$/);
+});
+
+test("active-figure MacTeX input replays preceding named nodes in an invisible overlay scope", () => {
+  const normalized = normalizeActiveFigureMacTeXInput(String.raw`\documentclass{beamer}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+\newcommand{\shared}{Shared}
+\begin{document}
+\begin{frame}
+  \begin{tikzpicture}\node (source) at (0,2) {\shared};\end{tikzpicture}
+\end{frame}
+\begin{frame}
+  \begin{tikzpicture}\node (target) at (1,2) {T};\draw (source)--(target);\end{tikzpicture}
+\end{frame}
+\end{document}`, "figure:1");
+
+  assert.match(normalized, /^\\documentclass\[border=0pt\]\{standalone\}/);
+  assert.match(normalized, /\\usepackage\{tikz\}/);
+  assert.match(normalized, /\\usetikzlibrary\{arrows\}/);
+  assert.match(normalized, /\\newcommand\{\\shared\}\{Shared\}/);
+  assert.match(normalized, /\\begin\{scope\}\[reset cm,overlay,opacity=0\][\s\S]*\\node \(source\)/);
+  assert.match(normalized, /\\node \(target\)[\s\S]*\\draw \(source\)--\(target\)/);
+  assert.equal((normalized.match(/\\begin\{tikzpicture\}/g) || []).length, 1);
+  assert.doesNotMatch(normalized, /\\(?:begin|end)\{frame\}/);
 });
 
 test("example fixture renderer expands local input files before rendering", async () => {
@@ -225,7 +250,7 @@ test("example fixture renderer can select an active tikzpicture for TikZKit and 
       async runCommand(_command, args) {
         const tikztosvgInput = await readFile(args.at(-1), "utf8");
         assert.match(tikztosvgInput, /Second/);
-        assert.doesNotMatch(tikztosvgInput, /First/);
+        assert.match(tikztosvgInput, /\\begin\{scope\}\[reset cm,overlay,opacity=0\][\s\S]*First/);
         assert.doesNotMatch(tikztosvgInput, /middle text/);
         const outputIndex = args.indexOf("-o");
         await writeFile(args[outputIndex + 1], `<svg data-renderer="tikztosvg"></svg>`, "utf8");
@@ -242,7 +267,7 @@ test("example fixture renderer can select an active tikzpicture for TikZKit and 
   assert.match(tikzkitSvg, /Second/);
   assert.doesNotMatch(tikzkitSvg, /First/);
   assert.match(tikztosvgInput, /Second/);
-  assert.doesNotMatch(tikztosvgInput, /First/);
+  assert.match(tikztosvgInput, /\\begin\{scope\}\[reset cm,overlay,opacity=0\][\s\S]*First/);
   assert.match(html, /active figure: figure:1/);
 });
 
@@ -289,6 +314,28 @@ test("tikztosvg normalization preserves standalone and preview crop borders", ()
     preview,
     /\\begin\{scope\}\[reset cm\][\s\S]*\\path\[use as bounding box\][\s\S]*xshift=-2mm[\s\S]*xshift=2mm[\s\S]*\\end\{scope\}/
   );
+});
+
+test("tikztosvg normalization preserves every picture while removing beamer layout wrappers", () => {
+  const normalized = normalizeTikztosvgInput(String.raw`\documentclass{beamer}
+\usepackage{tikz}
+\begin{document}
+\begin{frame}<1->[fragile]{First}
+  \begin{figure}
+    \begin{tikzpicture}\node (a) {A};\end{tikzpicture}
+  \end{figure}
+\end{frame}
+\begin{frame}{Second}
+  \begin{figure}
+    \begin{tikzpicture}\draw (a) -- ++(1,0);\end{tikzpicture}
+  \end{figure}
+\end{frame}
+\end{document}`);
+
+  assert.equal((normalized.match(/\\begin\{tikzpicture\}/g) || []).length, 2);
+  assert.match(normalized, /\\node \(a\) \{A\}/);
+  assert.match(normalized, /\\draw \(a\) -- \+\+\(1,0\)/);
+  assert.doesNotMatch(normalized, /\\(?:begin|end)\{(?:frame|figure)\}/);
 });
 
 test("tikztosvg normalization preserves two-value and four-value standalone crop borders", () => {
@@ -470,7 +517,9 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
     "--continue-on-external-failure",
     "--native-reference",
     "--native-latex-engine",
-    "lualatex"
+    "lualatex",
+    "--active-figure",
+    "figure:2"
   ]);
 
   assert.deepEqual(options.only, ["first-case", "second-case", "third-case"]);
@@ -480,6 +529,7 @@ test("example fixture renderer CLI accepts several case ids after one --only fla
   assert.equal(options.continueOnExternalFailure, true);
   assert.equal(options.nativeReference, true);
   assert.equal(options.nativeLatexEngine, "lualatex");
+  assert.equal(options.activeFigureId, "figure:2");
 });
 
 test("strict batch rendering records every external failure before returning", async () => {

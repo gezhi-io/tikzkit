@@ -73,7 +73,7 @@ export function parseTikz(source, options = {}) {
       }
     }
   }
-  const pictures = picturesToParse.map((picture) => {
+  const parsePicture = (picture) => {
     const prePictureSource = preprocessed.source.slice(0, picture.beginIndex);
     const previousPictureEnd = picture.index > 0
       ? scannedPictures[picture.index - 1]?.endIndex || 0
@@ -119,7 +119,14 @@ export function parseTikz(source, options = {}) {
       body: picture.body,
       statements
     };
-  });
+  };
+  const pictures = picturesToParse.map(parsePicture);
+  // A later TikZ picture may refer to a node registered by an earlier one.
+  // Keep those pictures available for semantic replay when one figure is
+  // selected, while leaving `pictures` as the public paint selection.
+  const semanticPreludePictures = activeFigureIndex == null
+    ? []
+    : scannedPictures.slice(0, activeFigureIndex).map(parsePicture);
 
   return {
     ast: {
@@ -138,6 +145,7 @@ export function parseTikz(source, options = {}) {
       tabularLayouts: activeTabularLayouts,
       figures,
       activeFigureId: activeFigureIndex == null ? null : `figure:${activeFigureIndex}`,
+      semanticPreludePictures,
       pictures
     },
     diagnostics

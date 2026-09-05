@@ -93,7 +93,7 @@ function isDelegatedMacro(name) {
 export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
   let expanded = stripTexComments(String(source));
-  expanded = selectFirstBeamerFrame(expanded);
+  expanded = unwrapBeamerFrames(expanded);
   const previewMargins = collectPreviewMargins(expanded);
   const previewBorder = uniformPreviewBorder(previewMargins);
   expanded = expandTheoreticalComputerScienceLogoMacros(expanded);
@@ -2057,36 +2057,44 @@ function stripTexDocumentShell(source) {
     .replace(/\\(?:begin|end)\s*\{\s*(?:figure|center)\s*\}(?:\[[^\]]*\])?\s*/g, "");
 }
 
-function selectFirstBeamerFrame(source) {
+export function unwrapBeamerFrames(source) {
   const text = String(source || "");
-  const begin = /\\begin\s*\{\s*frame\s*\}/g.exec(text);
+  const beginPattern = /\\begin\s*\{\s*frame\s*\}/g;
+  const endPattern = /\\end\s*\{\s*frame\s*\}/g;
+  let output = "";
+  let cursor = 0;
+  let begin = beginPattern.exec(text);
   if (!begin) return text;
 
-  let contentStart = skipWhitespace(text, begin.index + begin[0].length);
-  while (text[contentStart] === "<") {
-    const end = text.indexOf(">", contentStart + 1);
-    if (end === -1) return text;
-    contentStart = skipWhitespace(text, end + 1);
-  }
-  if (text[contentStart] === "[") {
-    const options = extractBalanced(text, contentStart, "[", "]");
-    if (!options) return text;
-    contentStart = skipWhitespace(text, options.end);
-  }
-  if (text[contentStart] === "{") {
-    const title = extractBalanced(text, contentStart, "{", "}");
-    if (!title) return text;
-    contentStart = skipWhitespace(text, title.end);
+  while (begin) {
+    output += text.slice(cursor, begin.index);
+    let contentStart = skipWhitespace(text, begin.index + begin[0].length);
+    while (text[contentStart] === "<") {
+      const end = text.indexOf(">", contentStart + 1);
+      if (end === -1) return text;
+      contentStart = skipWhitespace(text, end + 1);
+    }
+    if (text[contentStart] === "[") {
+      const options = extractBalanced(text, contentStart, "[", "]");
+      if (!options) return text;
+      contentStart = skipWhitespace(text, options.end);
+    }
+    if (text[contentStart] === "{") {
+      const title = extractBalanced(text, contentStart, "{", "}");
+      if (!title) return text;
+      contentStart = skipWhitespace(text, title.end);
+    }
+
+    endPattern.lastIndex = contentStart;
+    const end = endPattern.exec(text);
+    if (!end) return text;
+    output += `\n${text.slice(contentStart, end.index)}\n`;
+    cursor = end.index + end[0].length;
+    beginPattern.lastIndex = cursor;
+    begin = beginPattern.exec(text);
   }
 
-  const endPattern = /\\end\s*\{\s*frame\s*\}/g;
-  endPattern.lastIndex = contentStart;
-  const end = endPattern.exec(text);
-  if (!end) return text;
-
-  // The browser renderer produces one SVG. Match the native PDF-to-PNG path,
-  // which uses the first Beamer page instead of merging every frame together.
-  return `${text.slice(0, begin.index)}\n${text.slice(contentStart, end.index)}`;
+  return output + text.slice(cursor);
 }
 
 function normalizeTikzPictureAliases(source) {
