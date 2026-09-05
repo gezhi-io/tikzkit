@@ -1,0 +1,298 @@
+# Case-by-Case Visual Acceptance
+
+This ledger follows the exact order shown by the browser workbench. A case is
+accepted only after its complete source inventory, focused regression test,
+TikZKit SVG/PNG, local `tikztosvg` SVG/PNG, MacTeX PNG, and visual comparison
+have all been reviewed.
+
+Generated QA artifacts live under `outputs/qa/` and are intentionally not
+tracked by Git.
+
+| # | Case | Status | Visual review | Focused test | QA artifacts |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `latex-examples-2048` | Accepted 2026-09-05 | Canvas, 4x4 geometry, 1 mm gaps, 0.3 mm corners, colors, text centers, font sizes, and background paint order match. Remaining pixel differences are text rasterization only. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-001-2048/` |
+| 2 | `latex-examples-2d-chi-squared-cdf` | Accepted 2026-09-05 | Six clipped CDF curves, cycle colors/dashes, middle axes, ticks/grid, title, labels, and legend match. TikZKit PNG rounds to one extra pixel in each dimension. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-002-chi-cdf-before/` |
+| 3 | `latex-examples-2d-chi-squared-pdf` | Accepted 2026-09-05 | Six PDF curves, clipped singular branch, cycle colors/dashes, middle axes, ticks/grid, title, labels, and legend match. TikZKit PNG rounds to one extra pixel in each dimension. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-003-chi-pdf-before/` |
+| 4 | `latex-examples-2d-epochs-overfitting` | Accepted 2026-09-05 | Four curve segments and their join at epoch 50, line styles, split marker, path text, large arrow, middle axes, labels, legend, and major/minor ticks match. The 1-3 px canvas difference is outer text/baseline rounding. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-004-epochs-before/` |
+| 5 | `latex-examples-2d-light-bulb` | Accepted 2026-09-05 | Three reciprocal curves, clipping, colors/dashes, 200 samples each, middle axes, labels, major/minor ticks, and three-row legend match. The 3 px height difference is outer label/baseline rounding. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-005-light-bulb-before/` |
+| 6 | `latex-examples-2d-parted-function` | Accepted 2026-09-05 | Six independently sampled domains, all five visible joins, colors, widths, orange zero segments, enlarged limits, grid, ticks, and middle axes match. Canvas width rounds by 1 px. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-006-parted-before/` |
+| 7 | `latex-examples-2d-x-square-with-circle` | Accepted 2026-09-05 | The 50-sample parabola, low-level PGF ellipse center and unequal canvas radii, clipping, grid, enlarged limits, ticks, and middle axes match. Canvas width rounds by 1 px. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-007-x-square-before/` |
+| 8 | `latex-examples-3d-cmos-loss-diagram` | Accepted 2026-09-05 | The 46x46 sampled surface, 45x45 facets, opacity, white-to-orange map, log-frequency axis, 3D projection, grids, ticks, and labels match MacTeX. Local `tikztosvg` has the smaller outer canvas in this case. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-008-cmos-before/` |
+| 9 | `latex-examples-3d-function-2` | Accepted 2026-09-05 | The 56x56 quadratic sample lattice, 55x55 faceted cells, white-to-orange map, 340/25 view, complete 3D box/grid, ticks, labels, and quarter-height colorbar match MacTeX and local `tikztosvg`. TikZKit is 5 px narrower after rasterization because of outer text/crop bounds; the plotted geometry is aligned. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-009-function-2-before/` |
+
+## Case 001: 2048
+
+### Source Inventory
+
+- Packages and libraries: `tikz`, `fit`, `backgrounds`.
+- Document declarations: `\renewcommand\familydefault{\sfdefault}` and HTML
+  `\definecolor` declarations.
+- Style features: parameterized `.style`, nested style application,
+  `minimum size`, `rounded corners`, `text`, `inner sep`, `font`, `fill`, and
+  `node contents`.
+- Commands and environments: `tikzpicture`, `\def`, nested `\foreach` with
+  `count`, `\path`, named nodes, background-layer `scope`, and `fit` over two
+  corner nodes.
+- Numeric and dimension semantics: integer loop counters, unary negative
+  coordinates, `9mm`, `.3mm`, and `1mm`.
+
+### Oracle Review
+
+- MacTeX uses the `CMSSBX10` Type 1 face for all bold sans-serif digits and
+  scales it according to `\Large`, `\large`, and `\normalsize`.
+- The local `tikztosvg` output paints the fitted grid background first, then
+  sixteen rounded tile paths and centered glyph outlines.
+- TikZKit emits the same `116.62pt` square canvas as MacTeX and `tikztosvg`.
+  Tile geometry, colors, and text centers match. The remaining diff pixels are
+  confined to browser text rasterization versus TeX glyph outlines.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 007: X-Square With Circle
+
+### Source Inventory
+
+- Packages: `pgfplots` and `tikz`.
+- Axis options: middle axes, major dashed grid, explicit x limits, surveyed y
+  limits, white background, math labels, outside ticks, negative minor-tick
+  count, enlarged limits, and tension.
+- Drawing commands: one 50-sample quadratic `\addplot`; a `\draw` containing
+  `\pgfextra`; the low-level `\pgfpathellipse` primitive; one translated
+  `\pgfplotspointaxisxy` center; and two unshifted
+  `\pgfplotspointaxisdirectionxy` radius vectors.
+
+### Oracle Review
+
+- `pgfplots.code.tex` lines 9696-9711 map `\pgfplotspointaxisxy` through the
+  complete axis coordinate transform.
+- The same file at lines 9741-9742 maps axis-direction points with `noshift`,
+  so radii are vectors and do not inherit the plot origin.
+- `pgfcorepathconstruct.code.tex` supplies the Bezier ellipse primitive.
+  MacTeX and local `tikztosvg` confirm a center at data `(0,1)` and radii of
+  `0.87` data units. TikZKit lowers these semantics into the shared axis
+  overlay path, yielding the same visibly non-circular canvas ellipse and
+  clipping it to the axis rectangle.
+
+### Unsupported Source Features
+
+None for this fixture. The supported `\pgfextra` grammar is intentionally
+limited to the low-level path primitive family understood by the axis overlay
+lowerer; arbitrary TeX callbacks are not implied.
+
+## Case 008: 3D CMOS Loss Diagram
+
+### Source Inventory
+
+- Packages and libraries: `preview`, `pgfplots`, and the PGFPlots `patchplots`
+  library. The preview environment and border affect only native extraction.
+- Declaration: a two-stop `whitered` colormap from white to
+  `orange!75!red`.
+- Axis options: named colormap, 15 cm width, `view={10}{15}`, fixed limits,
+  major 3D grid, x domain `1.5:6`, y domain `0:10^9`, logarithmic y axis,
+  46 samples in each dimension, and mixed math/plain x/y/z labels.
+- Drawing command: one `\addplot3[surf,opacity=0.9]` expression `x*x*y`.
+  Patch and colorbar commands are comments and remain inert.
+
+### Oracle Review
+
+- `pgfplotsmeshplothandler.code.tex` lines 139-161 initializes a mesh from
+  its surveyed row/column counts and defaults a 3D mesh patch to a rectangle;
+  lines 227-345 initialize the shader and color data stream.
+- MacTeX produces 45 by 45 faceted cells from the 46 by 46 sample lattice.
+  TikZKit emits one fill and one facet stroke per cell, preserving the 0.9
+  opacity, projected grid, logarithmic frequency ticks, and labels.
+- The local `tikztosvg` reference is about 2 px narrower and 8 px shorter
+  than native MacTeX. TikZKit matches the native MacTeX canvas instead, so the
+  reference dimension mismatch is not treated as a TikZKit defect.
+
+### Unsupported Source Features
+
+None exercised by this fixture. The loaded `patchplots` library and commented
+bilinear patch syntax do not participate in the rendered picture.
+
+## Case 009: 3D Quadratic Function
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`. The preview environment and 2 mm border
+  affect only the native extraction.
+- Declaration: a two-stop `whitered` colormap from white to
+  `orange!75!red`.
+- Axis options: named colormap, 15 cm width, `view={340}{25}`, no enlarged
+  limits, major 3D grid, x/y domains `-5:5`, 56 samples per dimension,
+  math x/y/z labels, and a colorbar positioned at `(-0.1,0)` with
+  `south west` anchor and one quarter of the parent-axis height.
+- Drawing command: one `\addplot3[surf]` expression, `x^2 + y^2`.
+
+### Oracle Review
+
+- `pgfplotscoordprocessing.code.tex` lines 5363-5626 resolves independent x
+  and y domains and sample lists for expression plots.
+- `pgfplotsmeshplothandler.code.tex` lines 139-173 reads the mesh row and
+  column counts, while lines 227-345 initialize the default faceted surface
+  shader. A 56 by 56 point lattice therefore produces 55 by 55 rectangular
+  facets.
+- `pgfplots.scaling.code.tex` lines 1920-2157 derives the projected 2D basis
+  from the azimuth and elevation. `pgfplots.code.tex` lines 1117-1237 builds
+  the colorbar as a child axis using the surveyed point-meta range, and
+  `pgfplotscolormap.code.tex` applies the selected map to each facet.
+- MacTeX, local `tikztosvg`, and TikZKit show the same paraboloid, occlusion
+  order, facet density, projected box/grid, tick runs, labels, and colorbar.
+  TikZKit emits 3,025 fills and 3,025 facet strokes with zero diagnostics.
+  The 599x466 TikZKit PNG is 5 px narrower than the 604x466 MacTeX and
+  `tikztosvg` PNGs; inspection shows this difference only in outer text/crop
+  bounds, not in the plotted geometry.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 002: Chi-Squared CDF
+
+### Source Inventory
+
+- Packages: `pgfplots`, `tikz`, and `xcolor`; PGFPlots compatibility level
+  `1.16`.
+- Declarations: four HTML colors and `\pgfplotscreateplotcyclelist` with
+  seven color/dash entries.
+- Axis options: title, explicit legend position and anchor, middle x/y axes,
+  major grid, physical width/height, grid style, numeric domain, restricted y
+  domain, white axis background, x/y labels, outside ticks, enlarged limits,
+  inherited plot width, and named cycle list selection.
+- Plot commands: `\foreach`, `\addplot+`, explicit empty marker, raw gnuplot,
+  constant/function assignments, `set xrange`, `set yrange`, `samples=800`,
+  incomplete gamma/gamma evaluation, and expanded legend entries.
+
+### Oracle Review
+
+- `pgfplots.code.tex` defines the middle-axis choices, legend style anchors,
+  named cycle lists, and domain restriction keys used here.
+- `pgfplotscoordprocessing.code.tex` delegates `raw gnuplot` to a sampled
+  coordinate table. TikZKit implements the numeric subset in the browser and
+  never invokes gnuplot at runtime.
+- MacTeX and local `tikztosvg` confirm six unmarked curves, including the
+  native y-domain truncation of the first, fifth, and sixth curves. TikZKit
+  reproduces their visible endpoints, line widths, cycle colors, dashes,
+  labels, and legend samples with zero diagnostics.
+
+### Unsupported Source Features
+
+None for this fixture. Arbitrary raw gnuplot programs remain outside the
+library-wide contract, but every statement used by this case is supported.
+
+## Case 003: Chi-Squared PDF
+
+### Source Inventory
+
+Case 003 shares Case 002's package, color, cycle-list, axis, loop, plot, and
+legend features. Its raw gnuplot program additionally uses function
+definitions, equality and relational operators, logical OR and NOT, a ternary
+expression, `int`, `exp`, `log`, and `lgamma`.
+
+### Oracle Review
+
+The same local PGFPlots sources reviewed for Case 002 apply. MacTeX and local
+`tikztosvg` confirm that the `k=1` singular branch is clipped to the declared
+`0:0.5` y domain while the remaining five branches retain 800 samples.
+TikZKit reproduces the six curve shapes, the named cycle list, the empty-mark
+override, the labels, and the legend with zero diagnostics.
+
+### Unsupported Source Features
+
+None for this fixture. The browser evaluator supports the raw gnuplot numeric
+grammar exercised here; it does not claim to execute arbitrary gnuplot code.
+
+## Case 004: Epochs Overfitting
+
+### Source Inventory
+
+- Packages and libraries: `pgfplots`, `tikz`, `xcolor`, `positioning`,
+  `decorations.text`, and `decorations.pathmorphing`.
+- Declarations: two HTML colors and two `\tikzstyle` definitions combining
+  color, thickness, sample count, and dashing.
+- Axis options: north-east legend, left-aligned legend cells, middle x/y axes,
+  major grid, explicit physical size and numeric ranges, white background,
+  `xlabel`, `ylabel`, a direct y-label position, outside ticks,
+  `minor tick num=-3`, and `tension=0.08`.
+- Drawing commands: four sampled `\addplot` expressions, two axis-coordinate
+  `\draw` paths, centered `text along path`, a scaled legacy `latex` arrow,
+  and two legend entries.
+
+### Oracle Review
+
+- `pgfplots.code.tex` lines 1986-1991 define the north-east legend placement
+  and per-cell west anchor used here; its middle-axis handlers define the
+  crossing axis arrows and label styles.
+- `pgfplotsticks.code.tex` supplies the minor-tick planner. The unusual
+  negative value still yields the native between-major-tick pattern rather
+  than suppressing ticks.
+- `tikzlibrarydecorations.text.code.tex` lines 111-115 make text-along-path
+  nodes baseline anchored and transformed; lines 577-583 center the measured
+  text by half of the unused decorated path length.
+- MacTeX, local `tikztosvg`, and TikZKit all show the same four curve segments,
+  continuous joins at epoch 50, split marker, centered annotation, rightward
+  arrow, ticks, labels, and two-row legend. Remaining pixels are font
+  rasterization and outer-canvas rounding, with no missing geometry.
+
+### Unsupported Source Features
+
+None for this fixture. `decorations.pathmorphing` and `positioning` are loaded
+but do not contribute commands or options to this particular picture.
+
+## Case 005: Light-Bulb Amortization
+
+### Source Inventory
+
+- Packages and libraries: `pgfplots`, `tikz`, `xcolor`, `positioning`,
+  `decorations.text`, and `decorations.pathmorphing`.
+- Declarations: two unused HTML colors and two unused plot styles inherited
+  from the source template.
+- Axis options: north-east legend, left-aligned cells, middle axes, major grid,
+  explicit width/height and ranges, white background, plain and braced labels,
+  direct y-label placement, outside ticks, negative minor-tick count, and plot
+  tension.
+- Drawing commands: three 200-sample reciprocal `\addplot` expressions with
+  solid, dashed, and dotted styles, plus three legend entries. All decoration
+  drawing commands in the source are comments and therefore have no runtime
+  effect.
+
+### Oracle Review
+
+The same local `pgfplots.code.tex` legend and middle-axis handlers and
+`pgfplotsticks.code.tex` tick planner reviewed for Case 004 apply. MacTeX and
+local `tikztosvg` confirm that the three curves start at the visible y-domain
+boundary and decay to the same endpoints. TikZKit matches those shapes,
+colors, dash patterns, ticks, labels, and legend with zero diagnostics.
+
+### Unsupported Source Features
+
+None for this fixture. Loaded positioning and decoration libraries, declared
+colors, and template styles that are never referenced are correctly inert.
+
+## Case 006: Parted Function
+
+### Source Inventory
+
+- Packages: `pgfplots` and `tikz`.
+- Axis options: south-west legend placement, middle axes, major grid and style,
+  explicit ranges, white background, math x/y labels, outside ticks, negative
+  minor-tick count, enlarged limits, and tension.
+- Drawing commands: six expression-based `\addplot` calls with domains
+  `0:1`, `1:2`, `2:3`, `3:5`, `5:7`, and `-3:0`; sample counts 20, 20, 500,
+  20, 3, and 3; five colors and a common thick stroke.
+- Three legend entries exist only as comments and must stay inert.
+
+### Oracle Review
+
+`pgfplotscoordprocessing.code.tex` performs the domain survey and emits each
+sample stream independently, while `pgfplots.code.tex` applies enlarged axis
+limits after the surveyed ranges are known. MacTeX and local `tikztosvg`
+confirm exact joins at the five piece boundaries, the same parabolic/linear
+shape, and orange zero extensions. TikZKit reproduces the complete geometry
+and axis presentation with zero diagnostics.
+
+### Unsupported Source Features
+
+None for this fixture.

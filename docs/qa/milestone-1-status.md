@@ -16,15 +16,15 @@ render is not a visual acceptance result.
 
 | Source case | Feature inventory | Snapshot diagnostics | Snapshot status |
 | --- | --- | --- | --- |
-| [latex-examples-2048](../../test/fixtures/examples/latex-examples/2048.tex) | TikZ; `fit`, `backgrounds`; `foreach`, paths, nodes | None (0) | Visual review required |
-| [latex-examples-2d-chi-squared-cdf](../../test/fixtures/examples/latex-examples/2d-chi-squared-cdf.tex) | PGFPlots; `foreach`; `addplot` | None (0) | Visual review required |
-| [latex-examples-2d-chi-squared-pdf](../../test/fixtures/examples/latex-examples/2d-chi-squared-pdf.tex) | PGFPlots; `foreach`; `addplot` | None (0) | Visual review required |
-| [latex-examples-2d-epochs-overfitting](../../test/fixtures/examples/latex-examples/2d-epochs-overfitting.tex) | PGFPlots; positioning/decorations; `addplot`, paths | None (0) | Visual review required |
-| [latex-examples-2d-light-bulb](../../test/fixtures/examples/latex-examples/2d-light-bulb.tex) | PGFPlots; positioning/decorations; `addplot`, paths | None (0) | Visual review required |
-| [latex-examples-2d-parted-function](../../test/fixtures/examples/latex-examples/2d-parted-function.tex) | PGFPlots; `addplot` | None (0) | Visual review required |
-| [latex-examples-2d-x-square-with-circle](../../test/fixtures/examples/latex-examples/2d-x-square-with-circle.tex) | PGFPlots; `addplot`, paths | None (0) | Visual review required |
-| [latex-examples-3d-cmos-loss-diagram](../../test/fixtures/examples/latex-examples/3d-cmos-loss-diagram.tex) | PGFPlots 3D; `patchplots`; `addplot3` | None (0) | Visual review required |
-| [latex-examples-3d-function-2](../../test/fixtures/examples/latex-examples/3d-function-2.tex) | PGFPlots 3D; `addplot3` | None (0) | Visual review required |
+| [latex-examples-2048](../../test/fixtures/examples/latex-examples/2048.tex) | TikZ; `fit`, `backgrounds`; `foreach`, paths, nodes | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-2d-chi-squared-cdf](../../test/fixtures/examples/latex-examples/2d-chi-squared-cdf.tex) | PGFPlots; `foreach`; `addplot` | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-2d-chi-squared-pdf](../../test/fixtures/examples/latex-examples/2d-chi-squared-pdf.tex) | PGFPlots; `foreach`; `addplot` | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-2d-epochs-overfitting](../../test/fixtures/examples/latex-examples/2d-epochs-overfitting.tex) | PGFPlots; positioning/decorations; `addplot`, paths | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-2d-light-bulb](../../test/fixtures/examples/latex-examples/2d-light-bulb.tex) | PGFPlots; positioning/decorations; `addplot`, paths | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-2d-parted-function](../../test/fixtures/examples/latex-examples/2d-parted-function.tex) | PGFPlots; `addplot` | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-2d-x-square-with-circle](../../test/fixtures/examples/latex-examples/2d-x-square-with-circle.tex) | PGFPlots; `addplot`, paths | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-3d-cmos-loss-diagram](../../test/fixtures/examples/latex-examples/3d-cmos-loss-diagram.tex) | PGFPlots 3D; `patchplots`; `addplot3` | None (0) | Accepted 2026-09-05; see [case-by-case ledger](case-by-case-acceptance.md) |
+| [latex-examples-3d-function-2](../../test/fixtures/examples/latex-examples/3d-function-2.tex) | PGFPlots 3D; `addplot3` | None (0) | Accepted 2026-09-05: 56x56 quadratic surface, faceted shader, 3D projection/grid/ticks/labels, and colorbar match MacTeX/tikztosvg; focused regression added. |
 | [latex-examples-3d-function-3](../../test/fixtures/examples/latex-examples/3d-function-3.tex) | PGFPlots 3D; `addplot3` | None (0) | Visual review required |
 | [latex-examples-3d-function-4](../../test/fixtures/examples/latex-examples/3d-function-4.tex) | PGFPlots 3D; `addplot3` | None (0) | Visual review required |
 | [latex-examples-3d-function-5](../../test/fixtures/examples/latex-examples/3d-function-5.tex) | PGFPlots 3D; `addplot3` | None (0) | Visual review required |
