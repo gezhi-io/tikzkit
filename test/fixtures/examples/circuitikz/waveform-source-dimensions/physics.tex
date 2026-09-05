@@ -1,0 +1,18 @@
+% Source-backed regression for waveform-source geometry inside a circuit.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\ctikzset{
+  sources/fill=orange!14,
+  bipoles/vsourcesquare/width=.8,
+  bipoles/vsourcesquare/height=1.05,
+  bipoles/vsourcetri/width=.55,
+  bipoles/vsourcetri/height=.85
+}
+\begin{document}
+\begin{circuitikz}[thick]
+  \draw (0,0) to[square voltage source,l_=$V_{\mathrm{pulse}}$] (0,3)
+        -- (3,3) to[R,l=$R$] (3,0) -- (0,0);
+  \draw (5,0) to[triangle voltage source,l_=$V_{\mathrm{ramp}}$] (5,3)
+        -- (8,3) to[C,l=$C$] (8,0) -- (5,0);
+\end{circuitikz}
+\end{document}

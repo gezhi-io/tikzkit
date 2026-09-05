@@ -1,0 +1,17 @@
+% Source-backed regression for Circuitikz square-source dimensions and aliases.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\ctikzset{
+  sources/fill=cyan!12,
+  bipoles/vsourcesquare/width=1.1,
+  bipoles/vsourcesquare/height=.42
+}
+\begin{document}
+\begin{circuitikz}[thick]
+  \draw (0,2.4) to[sqV,l=$clock$] (3.2,2.4) -- (4.2,2.4);
+  \draw (0,0) to[vsourcesquare,l=$enable$] (3.2,0) -- (4.2,0);
+  \draw (0,-2.4) to[square voltage source,l=$reset$] (3.2,-2.4) -- (4.2,-2.4);
+  \draw[dashed] (4.2,-2.4) -- (4.2,2.4);
+  \node[right] at (4.2,0) {digital control};
+\end{circuitikz}
+\end{document}

@@ -75,6 +75,11 @@ export function parseTikz(source, options = {}) {
   }
   const parsePicture = (picture) => {
     const prePictureSource = preprocessed.source.slice(0, picture.beginIndex);
+    const globalCircuitikzSource = sourceOutsidePicturesBefore(
+      preprocessed.source,
+      picture,
+      scannedPictures
+    );
     const previousPictureEnd = picture.index > 0
       ? scannedPictures[picture.index - 1]?.endIndex || 0
       : 0;
@@ -100,6 +105,7 @@ export function parseTikz(source, options = {}) {
       graphicxResize: picture.graphicxResize,
       tabularLayout: tabularLayoutsByPicture.get(picture.index) || null,
       options: { ...globalOptions, ...parseOptions(picture.optionsRaw) },
+      circuitikzOptions: collectCtikzsetDirectOptions(globalCircuitikzSource),
       styles: globalStyles,
       codeHandlers: globalCodeHandlers,
       pics: globalPics,
@@ -2700,6 +2706,37 @@ function collectTikzsetDirectOptions(source) {
     index += 1;
   }
   return options;
+}
+
+function collectCtikzsetDirectOptions(source) {
+  const options = {};
+  let index = 0;
+  while (index < source.length) {
+    if (!source.startsWith("\\ctikzset", index)) {
+      index += 1;
+      continue;
+    }
+    const body = extractBalanced(source, skipWhitespace(source, index + "\\ctikzset".length), "{", "}");
+    if (!body) {
+      index += "\\ctikzset".length;
+      continue;
+    }
+    Object.assign(options, parseOptions(body.content));
+    index = body.end;
+  }
+  return options;
+}
+
+function sourceOutsidePicturesBefore(source, picture, pictures = []) {
+  let output = "";
+  let cursor = 0;
+  for (const prior of pictures) {
+    if (prior.beginIndex >= picture.beginIndex) break;
+    output += source.slice(cursor, prior.beginIndex);
+    cursor = prior.endIndex;
+  }
+  output += source.slice(cursor, picture.beginIndex);
+  return output;
 }
 
 function collectTikzsetStoredVariables(source) {

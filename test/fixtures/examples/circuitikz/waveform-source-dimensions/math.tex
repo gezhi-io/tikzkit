@@ -1,0 +1,18 @@
+% Source-backed regression for independent square and triangle source dimensions.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\ctikzset{
+  sources/scale=1.15,
+  bipoles/vsourcesquare/width=.45,
+  bipoles/vsourcesquare/height=.95,
+  bipoles/vsourcetri/width=1.05,
+  bipoles/vsourcetri/height=.45
+}
+\begin{document}
+\begin{circuitikz}[thick]
+  \draw[blue,fill=blue!10] (0,1.5) to[sqV,l=$q(t)$] (4,1.5);
+  \draw[red,fill=red!10] (0,-1.5) to[tV,l=$\tau(t)$] (4,-1.5);
+  \draw[gray,dotted] (2,-2.6) -- (2,2.6);
+  \node[above] at (2,2.6) {basis signals};
+\end{circuitikz}
+\end{document}

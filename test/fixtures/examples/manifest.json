@@ -8587,6 +8587,33 @@
       "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
       "semanticOwner": "src/tikz/libraries/arrows.js:evaluateDeclaredDimensionProgram/resolveDeclaredArrowGeometry",
       "features": ["pgfarrowssavethe", "two saved registers", "active line width", "force vectors"]
+    },
+    {
+      "id": "circuitikz-waveform-dimensions-algorithm",
+      "title": "Asymmetric square sources in a digital control bus",
+      "source": "circuitikz/waveform-source-dimensions/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from TeX Live Circuitikz waveform-source declarations",
+      "externalSource": "tex/generic/circuitikz/pgfcircbipoles.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzWaveformSourceSettings/circuitikzWaveformSourceItems",
+      "features": ["sqV", "vsourcesquare", "square voltage source", "bipoles/vsourcesquare width and height", "sources/fill"]
+    },
+    {
+      "id": "circuitikz-waveform-dimensions-math",
+      "title": "Asymmetric square and triangle basis-signal sources",
+      "source": "circuitikz/waveform-source-dimensions/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from TeX Live Circuitikz scaled bipoles",
+      "externalSource": "tex/generic/circuitikz/pgfcirc.defines.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzWaveformSourceSettings/circuitikzWaveformEllipsePath",
+      "features": ["sources/scale", "asymmetric source ellipses", "local fill", "open waveform fill isolation"]
+    },
+    {
+      "id": "circuitikz-waveform-dimensions-physics",
+      "title": "Pulse and ramp sources in physical circuits",
+      "source": "circuitikz/waveform-source-dimensions/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from TeX Live Circuitikz source geometry",
+      "externalSource": "tex/generic/circuitikz/pgfcircbipoles.tex",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzBodyLength/circuitikzWaveformSourceItems",
+      "features": ["vertical asymmetric sources", "triangle voltage source", "source lead splitting", "R and C circuit composition"]
     }
   ]
 }
