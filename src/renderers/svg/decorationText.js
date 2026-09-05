@@ -27,7 +27,9 @@ export function renderDecorationTextPath(item, unit) {
   if (flat.length < 2 || totalLength <= 1e-9) return "";
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
   const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  let glyphs = decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize, item.pathTextCharacterReplacements);
+  let glyphs = Array.isArray(item.pathTextFormatRuns) && item.pathTextFormatRuns.length
+    ? formattedDecorationGlyphs(item.pathTextFormatRuns, unit, fontSize, item.pathTextCharacterReplacements)
+    : decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize, item.pathTextCharacterReplacements);
   const textEffects = Array.isArray(item.pathTextEffects) && item.pathTextEffects.length
     ? item.pathTextEffects
     : [item.pathTextReverse ? "reverse" : null, item.pathTextGroupLetters ? "group" : null].filter(Boolean);
@@ -78,16 +80,18 @@ export function renderDecorationTextPath(item, unit) {
       } else {
         const glyphFontSize = fontSize * glyph.fontScale;
         const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
-        const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
+        const fontStyle = glyph.fontStyle && glyph.fontStyle !== "normal" ? ` font-style="${glyph.fontStyle}"` : "";
+        const fontWeight = glyph.fontWeight && Number(glyph.fontWeight) !== 400 ? ` font-weight="${glyph.fontWeight}"` : "";
+        const glyphColor = escapeAttribute(glyph.color || color);
         const className = glyph.kind === "math-box"
           ? "tikz-decoration-math-box"
           : glyph.kind === "word"
             ? "tikz-decoration-word"
             : "tikz-decoration-glyph";
         const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
-        rendered.push(`<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(
+        rendered.push(`<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${glyphColor}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(
           glyphFontSize
-        )}" font-family="${glyphFontFamily}"${fontStyle} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`);
+        )}" font-family="${glyphFontFamily}"${fontStyle}${fontWeight} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`);
       }
     }
     distance += advance;
@@ -135,14 +139,16 @@ function renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, ra
   if (glyph.replacement?.type === "circle") return renderDecorationReplacementCircle(glyph.replacement, x, y, unit);
   const glyphFontSize = fontSize * glyph.fontScale;
   const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
-  const fontStyle = glyph.fontStyle ? ` font-style="${glyph.fontStyle}"` : "";
+  const fontStyle = glyph.fontStyle && glyph.fontStyle !== "normal" ? ` font-style="${glyph.fontStyle}"` : "";
+  const fontWeight = glyph.fontWeight && Number(glyph.fontWeight) !== 400 ? ` font-weight="${glyph.fontWeight}"` : "";
+  const glyphColor = escapeAttribute(glyph.color || color);
   const className = glyph.kind === "math-box"
     ? "tikz-decoration-math-box"
     : glyph.kind === "word"
       ? "tikz-decoration-word"
       : "tikz-decoration-glyph";
   const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
-  return `<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${color}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(glyphFontSize)}" font-family="${glyphFontFamily}"${fontStyle} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`;
+  return `<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${glyphColor}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(glyphFontSize)}" font-family="${glyphFontFamily}"${fontStyle}${fontWeight} transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})">${content}</text>`;
 }
 
 function renderDecorationReplacementCircle(replacement, x, y, unit) {
@@ -251,6 +257,26 @@ function decorationGlyphs(source, formattedLine, unit, fontSize, replacements = 
   return glyphs;
 }
 
+function formattedDecorationGlyphs(runs, unit, fontSize, replacements = {}) {
+  const glyphs = [];
+  for (const run of runs) {
+    const scale = Number(run.fontScale) || 1;
+    const runGlyphs = decorationGlyphs(run.text, formatTextLine(run.text), unit, fontSize * scale, replacements);
+    for (const glyph of runGlyphs) {
+      glyphs.push({
+        ...glyph,
+        advance: glyph.advance * scale,
+        fontScale: glyph.fontScale * scale,
+        color: run.color || "",
+        fontFamily: glyph.kind === "math-box" ? glyph.fontFamily : run.fontFamily || glyph.fontFamily,
+        fontStyle: glyph.kind === "math-box" ? glyph.fontStyle : run.fontStyle || glyph.fontStyle,
+        fontWeight: run.fontWeight || 400
+      });
+    }
+  }
+  return glyphs;
+}
+
 function plainDecorationGlyphs(text, replacements = {}) {
   return String(text || "")
     .replace(/[{}]/g, "")
@@ -278,19 +304,29 @@ function groupDecorationTextGlyphs(glyphs, wordSeparator = " ") {
       normalOffset: first.normalOffset,
       fontFamily: first.fontFamily,
       fontStyle: first.fontStyle,
+      fontWeight: first.fontWeight,
+      color: first.color,
       replacement: null
     });
     letters = [];
   };
 
   for (const glyph of glyphs) {
-    const canJoinWord = glyph.kind === undefined && !glyph.replacement && glyph.text !== separator;
+    const previous = letters.at(-1);
+    const sameStyle = !previous
+      || (previous.color === glyph.color
+        && previous.fontFamily === glyph.fontFamily
+        && previous.fontStyle === glyph.fontStyle
+        && previous.fontWeight === glyph.fontWeight
+        && previous.fontScale === glyph.fontScale);
+    const canJoinWord = glyph.kind === undefined && !glyph.replacement && glyph.text !== separator && sameStyle;
     if (canJoinWord) {
       letters.push(glyph);
       continue;
     }
     flush();
-    grouped.push(glyph);
+    if (glyph.kind === undefined && !glyph.replacement && glyph.text !== separator) letters.push(glyph);
+    else grouped.push(glyph);
   }
   flush();
   return grouped;
@@ -339,6 +375,8 @@ function baseDecorationGlyph(text, replacements = {}) {
     normalOffset: 0,
     fontFamily: "",
     fontStyle: "",
+    fontWeight: 400,
+    color: "",
     replacement: replacements?.[text] || null
   };
 }

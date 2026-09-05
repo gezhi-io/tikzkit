@@ -1,0 +1,15 @@
+% PGF manual decorations.text: default format delimiters switch and reset color.
+\documentclass[border=2pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+
+\begin{document}
+\catcode`\|12
+\begin{tikzpicture}
+  \draw[help lines] grid (3,2);
+  \path[decorate,decoration={text along path,
+    text={a big |\color{green}|green|| juicy apple.}}]
+    (0,0) .. controls (0,2) and (3,0) .. (3,2);
+\end{tikzpicture}
+\end{document}

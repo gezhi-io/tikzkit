@@ -1255,6 +1255,21 @@
       ]
     },
     {
+      "id": "decorations-text-formatting",
+      "title": "PGF decorations.text default format delimiters",
+      "source": "decorations/text-formatting.tex",
+      "sourceCorpus": "TeX Live PGF decorations.text manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.text.js:parseDefaultDecorationTextFormatRuns;src/engine/evaluate.js:decorationTextPayload;src/renderers/svg/decorationText.js:renderDecorationTextPath",
+      "features": [
+        "decorations.text library",
+        "default text format delimiters",
+        "replace and reset format state",
+        "per-character color",
+        "curved path text"
+      ]
+    },
+    {
       "id": "decorations-text-repeat",
       "title": "PGF decorations.text repeat text cycles",
       "source": "decorations/text-repeat.tex",

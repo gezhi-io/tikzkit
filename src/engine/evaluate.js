@@ -2,6 +2,7 @@ import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, path
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
+import { parseDefaultDecorationTextFormatRuns } from "../tikz/libraries/decorations.text.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import {
@@ -16277,14 +16278,16 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   const ny = Math.cos(radians);
   const textFont = resolvedTextFontSpec(
     payload.text,
-    { ...pathOptions, font: `${pathOptions.font || ""} ${payload.fontSource || ""}`.trim() },
+    pathOptions,
     env,
     env.canvasScale
   );
-  const inheritedFontFamily = payload.style.fontFamily || resolveInheritedFontFamily(pathOptions.font, env.pictureOptions?.font);
+  const inheritedFontFamily = resolveInheritedFontFamily(pathOptions.font, env.pictureOptions?.font);
   // Decoration text is still ordinary TeX text inside a positioned node. Keep
   // its rendered face in sync with the CMR metrics used for its path advances.
   const fontFamily = computerModernOpticalTextFamily(payload.text, textFont, inheritedFontFamily) || inheritedFontFamily;
+  const formatRuns = resolvedDecorationTextFormatRuns(payload.formatRuns, pathOptions, textFont, fontFamily, env);
+  const explicitTextColor = String(decoration["text color"] ?? "").trim();
   ir.items.push({
     type: "textNode",
     subtype: "decoration-text",
@@ -16305,6 +16308,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextWordSeparator: textEffects.wordSeparator,
     pathTextRepeat: repeatText,
     pathTextCharacterReplacements: characterReplacements,
+    pathTextFormatRuns: formatRuns,
     x: roundNumber(point.x + nx * raise),
     y: roundNumber(point.y + ny * raise),
     rotation: roundNumber(angle),
@@ -16312,10 +16316,10 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     style: {
       ...item.style,
       ...payload.style,
-      fill: visibleTextFill(normalizeColor(decoration["text color"] || ""), payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
+      fill: visibleTextFill(explicitTextColor ? normalizeColor(explicitTextColor) : undefined, payload.style.fill, item.style?.textFill, item.style?.stroke, item.style?.fill),
       fontFamily,
-      fontVariant: payload.style.fontVariant || resolveInheritedFontVariant(pathOptions.font, env.pictureOptions?.font),
-      fontScale: roundNumber(env.canvasScale * (payload.fontScale || fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font)))
+      fontVariant: resolveInheritedFontVariant(pathOptions.font, env.pictureOptions?.font),
+      fontScale: roundNumber(env.canvasScale * fontScaleFromTikzFont(pathOptions.font || env.pictureOptions?.font))
     }
   });
 }
@@ -16452,27 +16456,41 @@ function decorationTextLayout(decoration = {}, env = {}) {
 
 function decorationTextPayload(raw, pathOptions = {}, env = {}, rawDecoration = "") {
   const rawText = decorationTextValueFromRaw(rawDecoration) ?? String(raw ?? "");
-  let text = substituteTextVariables(stripDecorationTextOuterBraces(rawText), env.variables || {});
-  let styleRaw = "";
-  if (text.startsWith("|")) {
-    const end = text.indexOf("|", 1);
-    if (end !== -1) {
-      styleRaw = text.slice(1, end).trim();
-      text = text.slice(end + 1);
-    }
-  }
+  const source = substituteTextVariables(stripDecorationTextOuterBraces(rawText), env.variables || {});
+  const formatRuns = parseDefaultDecorationTextFormatRuns(source);
+  const text = formatRuns.map((run) => run.text).join("");
   const style = {};
-  const color = decorationTextColor(styleRaw);
+  const color = formatRuns.length === 1 ? decorationTextColor(formatRuns[0].format) : null;
   if (color) style.fill = normalizeColor(color);
-  const fontFamily = resolveFontFamily(`${styleRaw} ${pathOptions.font || ""}`);
-  if (fontFamily) style.fontFamily = fontFamily;
-  const fontPrefix = decorationTextFontPrefix(styleRaw);
   return {
-    text: `${fontPrefix}${text}`,
+    text,
     style,
-    fontScale: fontScaleFromTikzFont(styleRaw),
-    fontSource: styleRaw
+    formatRuns
   };
+}
+
+function resolvedDecorationTextFormatRuns(runs = [], pathOptions = {}, baseFont = {}, baseFamily = "", env = {}) {
+  const baseSize = Number(baseFont.sizePt) || 10;
+  return runs.map((run) => {
+    const format = String(run.format || "").trim();
+    const combinedFont = `${pathOptions.font || ""} ${format}`.trim();
+    const font = resolvedTextFontSpec(run.text, { ...pathOptions, font: combinedFont }, env, env.canvasScale);
+    const inheritedFamily = resolveInheritedFontFamily(combinedFont, env.pictureOptions?.font);
+    const opticalFamily = computerModernOpticalTextFamily(run.text, font, inheritedFamily);
+    const fontFamily = opticalFamily
+      || (font.family === "serif" ? TIKZ_FONT_FAMILY : inheritedFamily)
+      || baseFamily;
+    const size = Number(font.sizePt) || baseSize;
+    const color = decorationTextColor(format);
+    return {
+      text: run.text,
+      color: color ? normalizeColor(color) : null,
+      fontFamily,
+      fontScale: roundNumber(size / baseSize),
+      fontStyle: font.style || "normal",
+      fontWeight: Number(font.weight) || 400
+    };
+  });
 }
 
 function decorationTextValueFromRaw(rawDecoration = "") {
@@ -16500,17 +16518,8 @@ function stripDecorationTextOuterBraces(value = "") {
 }
 
 function decorationTextColor(styleRaw) {
-  const match = String(styleRaw || "").match(/\\color\s*\{([^{}]+)\}/);
-  return match?.[1]?.trim() || null;
-}
-
-function decorationTextFontPrefix(styleRaw) {
-  const commands = [];
-  const raw = String(styleRaw || "");
-  for (const match of raw.matchAll(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny|bf|bfseries|itshape|slshape|sffamily|rmfamily|ttfamily)\b/g)) {
-    commands.push(`\\${match[1]}`);
-  }
-  return commands.length ? `${commands.join("")} ` : "";
+  const matches = [...String(styleRaw || "").matchAll(/\\color\s*\{([^{}]+)\}/g)];
+  return matches.at(-1)?.[1]?.trim() || null;
 }
 
 function visibleTextFill(...candidates) {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
@@ -2841,16 +2842,91 @@ test("places text decorations along invisible paths", () => {
     (0,0) -- (4,0);
 \end{tikzpicture}`;
 
-  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const { ir, diagnostics } = result;
   const label = ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
 
   assert.deepEqual(diagnostics, []);
   assert.ok(label, "expected decoration text node");
-  assert.equal(label.text, String.raw`\footnotesize\bf Decorated`);
+  assert.equal(label.text, "Decorated");
   assert.equal(label.style.fill, "white");
   assert.ok(Math.abs(label.x - 2) < 1e-6, `expected midpoint x=2, got ${label.x}`);
   assert.ok(Math.abs(label.y - 0.2) < 1e-6, `expected raised y=0.2, got ${label.y}`);
   assert.ok(Math.abs(label.rotation) < 1e-6, `expected horizontal text, got ${label.rotation}`);
+  assert.equal(label.font.sizePt, 10);
+  assert.deepEqual(label.pathTextFormatRuns, [
+    {
+      text: "Decorated",
+      color: "white",
+      fontFamily: "TikZKitCMBX8, TikZKitCMUSerif, serif",
+      fontScale: 0.8,
+      fontStyle: "normal",
+      fontWeight: 700
+    }
+  ]);
+  assert.match(result.svg, /fill="white"/);
+  assert.doesNotMatch(result.svg, /footnotesize|>\\</);
+});
+
+test("applies and resets default decorations.text format delimiters", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{decorations.text}
+\begin{tikzpicture}
+  \path[decorate,decoration={text along path,
+    text={a |\large|big |+\bf\color{red}|red|| apple.}}]
+    (0,0) .. controls (0,2) and (3,0) .. (3,2);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(label.text, "a big red apple.");
+  assert.deepEqual(label.pathTextFormatRuns.map(({ text, color, fontScale, fontWeight }) => ({ text, color, fontScale, fontWeight })), [
+    { text: "a ", color: null, fontScale: 1, fontWeight: 400 },
+    { text: "big ", color: null, fontScale: 1.2, fontWeight: 400 },
+    { text: "red", color: "red", fontScale: 1.2, fontWeight: 700 },
+    { text: " apple.", color: null, fontScale: 1, fontWeight: 400 }
+  ]);
+  assert.match(result.svg, /fill="red"/);
+  assert.match(result.svg, /font-size="42\.175/);
+  assert.doesNotMatch(result.svg, /large|bf|\\color|>\|</);
+});
+
+test("combines formatted decoration text with postaction, reverse path, center, and signed raise", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{decorations.text}
+\begin{tikzpicture}
+  \draw[gray,postaction={decorate,decoration={text along path,
+    text={|\scriptsize\itshape\color{blue}|flow},text align={center},reverse path,raise=-2pt}}]
+    (0,0) .. controls (1,1) and (2,1) .. (3,0);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(label.pathTextReversePath, true);
+  assert.equal(label.pathTextAlign, "center");
+  expectClose(label.pathRaise, -2 / 28.4527559, 1e-6);
+  assert.equal(label.pathTextFormatRuns[0].color, "blue");
+  assert.equal(label.pathTextFormatRuns[0].fontScale, 0.7);
+  assert.equal(label.pathTextFormatRuns[0].fontStyle, "italic");
+  assert.match(result.svg, /fill="blue"/);
+  assert.match(result.svg, /font-style="italic"/);
+  assert.doesNotMatch(result.svg, /scriptsize|itshape|\\color/);
+});
+
+test("renders the PGF manual decorations.text formatter example without control text", () => {
+  const source = readFileSync(new URL("fixtures/examples/decorations/text-formatting.tex", import.meta.url), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const label = result.ir.items.find((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(label.text, "a big green juicy apple.");
+  assert.deepEqual(label.pathTextFormatRuns.map(({ text, color }) => ({ text, color })), [
+    { text: "a big ", color: null },
+    { text: "green", color: "rgb(0 255 0)" },
+    { text: " juicy apple.", color: null }
+  ]);
+  assert.match(result.svg, /fill="rgb\(0 255 0\)"/);
+  assert.doesNotMatch(result.svg, /\\color|>\|</);
 });
 
 test("retains decorations.text alignment, indents, fit options, and signed raise", () => {
@@ -3214,10 +3290,12 @@ test("keeps pgfmathsetmacro inside foreach-expanded text decorations", () => {
   assert.deepEqual(diagnostics, []);
   assert.equal(labels.length, 3);
   assert.deepEqual(labels.map((label) => label.text), [
-    String.raw`\footnotesize\bf text 0`,
-    String.raw`\footnotesize\bf text 60`,
-    String.raw`\footnotesize\bf text 120`
+    "text 0",
+    "text 60",
+    "text 120"
   ]);
+  assert.ok(labels.every((label) => label.pathTextFormatRuns[0].fontScale === 0.8));
+  assert.ok(labels.every((label) => label.pathTextFormatRuns[0].fontWeight === 700));
   assert.equal(new Set(centers).size, 3);
 });
 
