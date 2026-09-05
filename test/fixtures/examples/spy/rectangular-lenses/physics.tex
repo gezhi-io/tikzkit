@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{spy}
+\begin{document}
+\begin{tikzpicture}[spy using overlays={rectangle,magnification=3,width=2.5cm,height=1.3cm,connect spies}]
+  \draw[help lines] (0,0) grid (5,3);
+  \draw[very thick,blue] (0.2,0.5) -- (4.8,2.5);
+  \draw[very thick,red] (0.2,2.5) -- (4.8,0.5);
+  \draw[thick] (2.5,0.2) -- (2.5,2.8);
+  \spy[green!60!black] on (2.5,1.5) in node[right] at (5.5,1.5);
+\end{tikzpicture}
+\end{document}

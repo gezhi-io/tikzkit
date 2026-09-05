@@ -8614,6 +8614,33 @@
       "externalSource": "tex/generic/circuitikz/pgfcircbipoles.tex",
       "semanticOwner": "src/engine/evaluate.js:circuitikzBodyLength/circuitikzWaveformSourceItems",
       "features": ["vertical asymmetric sources", "triangle voltage source", "source lead splitting", "R and C circuit composition"]
+    },
+    {
+      "id": "spy-rectangular-lenses-algorithm",
+      "title": "Rectangular spy lens over crossed algorithm traces",
+      "source": "spy/rectangular-lenses/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from the TeX Live spy manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-spy.tex",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/spyMagnifiedPathItems",
+      "features": ["spy using outlines", "rectangle", "independent width and height", "connect spies", "rectangular clipping"]
+    },
+    {
+      "id": "spy-rectangular-lenses-math",
+      "title": "Rectangular spy lens over intersecting functions",
+      "source": "spy/rectangular-lenses/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the TeX Live spy manual",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryspy.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/clipSegmentToRectangle",
+      "features": ["spy using outlines", "rectangle", "below left placement", "path clipping", "axis composition"]
+    },
+    {
+      "id": "spy-rectangular-lenses-physics",
+      "title": "Translucent rectangular spy lens over crossing rays",
+      "source": "spy/rectangular-lenses/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the TeX Live spy overlay style",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryspy.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/spyOutlineStyle",
+      "features": ["spy using overlays", "rectangle", "fill opacity", "right placement", "connect spies"]
     }
   ]
 }

@@ -9186,28 +9186,37 @@ function isZeroPercentColor(value) {
 
 function createSpy(statement, env, ir, diagnostics) {
   const onPoint = resolveCoordinate(statement.on, env, diagnostics);
-  const spyOptions = spyScopeOptions(statement, env);
-  const magnification = spyMagnification(spyOptions, env);
-  const targetSize = spyTargetSize(spyOptions, env);
+  const scope = spyScopeDefinition(env);
+  const onOptions = normalizeOptions(
+    "node",
+    mergeSpyNodeOptions(scope.options, statement.options || {}),
+    env
+  ).options;
+  const inOptions = normalizeOptions(
+    "node",
+    mergeSpyNodeOptions(onOptions, statement.inOptions || {}),
+    env
+  ).options;
+  const magnification = spyMagnification(onOptions, env);
+  const targetSize = spyTargetSize(inOptions, env);
   const sourceSize = {
     width: roundNumber(targetSize.width / magnification),
     height: roundNumber(targetSize.height / magnification)
   };
   const atPoint = statement.at ? resolveCoordinate(statement.at, env, diagnostics) : onPoint;
-  const inCenter = spyInNodeCenter(atPoint, statement.inOptions || {}, targetSize, env);
-  const shape = nodeShape(spyOptions);
-  const radius = Math.max(targetSize.width, targetSize.height) / 2;
-  const sourceRadius = Math.max(sourceSize.width, sourceSize.height) / 2;
+  const inCenter = spyInNodeCenter(atPoint, inOptions, targetSize, env);
+  const onShape = nodeShape(onOptions);
+  const inShape = nodeShape(inOptions);
   const existingItems = [...ir.items];
-  ir.items.push(...spyMagnifiedPathItems(existingItems, onPoint, inCenter, magnification, radius, shape));
+  ir.items.push(...spyMagnifiedPathItems(existingItems, onPoint, inCenter, magnification, targetSize, inShape));
 
   const connectionStyle = spyPathStyle({ thin: true, draw: true, ...statement.options }, env);
-  if (tikzBoolean(spyOptions["connect spies"])) {
+  if (tikzBoolean(onOptions["connect spies"])) {
     const clipped = clipNodeLineEndpoints(
       onPoint,
-      { node: { point: onPoint, width: sourceSize.width, height: sourceSize.height, shape }, mode: "center" },
+      { node: { point: onPoint, width: sourceSize.width, height: sourceSize.height, shape: onShape }, mode: "center" },
       inCenter,
-      { node: { point: inCenter, width: targetSize.width, height: targetSize.height, shape }, mode: "center" },
+      { node: { point: inCenter, width: targetSize.width, height: targetSize.height, shape: inShape }, mode: "center" },
       env
     );
     ir.items.push({
@@ -9222,19 +9231,48 @@ function createSpy(statement, env, ir, diagnostics) {
   }
 
   ir.items.push(
-    spyOutlineItem("spy-on", onPoint, sourceSize, shape, spyPathStyle({ "very thin": true, draw: true, ...statement.options }, env), env),
-    spyOutlineItem("spy-in", inCenter, targetSize, shape, spyPathStyle({ thick: true, draw: true, ...statement.options }, env), env)
+    spyOutlineItem("spy-on", onPoint, sourceSize, onShape, spyOutlineStyle(scope.mode, "on", onOptions, env), env),
+    spyOutlineItem("spy-in", inCenter, targetSize, inShape, spyOutlineStyle(scope.mode, "in", inOptions, env), env)
   );
 }
 
-function spyScopeOptions(statement, env) {
+function spyScopeDefinition(env) {
   const pictureOptions = env.pictureOptions || {};
-  const rawScope = pictureOptions["spy using outlines"] ?? pictureOptions["spy using overlays"] ?? "";
-  const scope = rawScope && rawScope !== true ? parseOptions(rawScope) : {};
-  if (scope.size && !scope["minimum size"]) scope["minimum size"] = scope.size;
-  if (scope.width && !scope["minimum width"]) scope["minimum width"] = scope.width;
-  if (scope.height && !scope["minimum height"]) scope["minimum height"] = scope.height;
-  return normalizeOptions("node", { circle: true, ...scope, ...(statement.inOptions || {}) }, env).options;
+  const mode = Object.hasOwn(pictureOptions, "spy using overlays") ? "overlays" : "outlines";
+  const rawScope = pictureOptions["spy using outlines"] ?? pictureOptions["spy using overlays"] ?? pictureOptions["spy scope"] ?? "";
+  const options = rawScope && rawScope !== true ? parseOptions(rawScope) : {};
+  if (options.size && !options["minimum size"]) options["minimum size"] = options.size;
+  if (options.width && !options["minimum width"]) options["minimum width"] = options.width;
+  if (options.height && !options["minimum height"]) options["minimum height"] = options.height;
+  return { mode, options };
+}
+
+const SPY_NODE_SHAPE_KEYS = new Set([
+  "rectangle",
+  "circle",
+  "ellipse",
+  "diamond",
+  "rounded rectangle",
+  "chamfered rectangle",
+  "regular polygon",
+  "star",
+  "trapezium",
+  "semicircle",
+  "circular sector",
+  "kite",
+  "dart",
+  "isosceles triangle",
+  "cloud"
+]);
+
+function mergeSpyNodeOptions(base = {}, override = {}) {
+  const merged = { ...base };
+  const hasShapeOverride = Object.keys(override).some((key) => key === "shape" || SPY_NODE_SHAPE_KEYS.has(key));
+  if (hasShapeOverride) {
+    delete merged.shape;
+    for (const key of SPY_NODE_SHAPE_KEYS) delete merged[key];
+  }
+  return { ...merged, ...override };
 }
 
 function spyMagnification(options = {}, env) {
@@ -9290,6 +9328,13 @@ function spyPathStyle(options = {}, env) {
   return scaleCanvasStyle(normalizeOptions("draw", options, env).style, env);
 }
 
+function spyOutlineStyle(mode, role, options = {}, env) {
+  const defaults = mode === "overlays"
+    ? { fill: true, "fill opacity": "0.2", "text opacity": "1" }
+    : { [role === "on" ? "very thin" : "thick"]: true, draw: true };
+  return scaleCanvasStyle(normalizeOptions("node", { ...defaults, ...options }, env).style, env);
+}
+
 function spyOutlineItem(subtype, center, size, shape, style, env) {
   if (shape === "circle" || shape === "circleCrossSplit") {
     const r = roundNumber(Math.max(size.width, size.height) / 2);
@@ -9333,15 +9378,20 @@ function rectangleCommands(center, width, height) {
   ];
 }
 
-function spyMagnifiedPathItems(items, onPoint, inCenter, magnification, radius, shape) {
+function spyMagnifiedPathItems(items, onPoint, inCenter, magnification, targetSize, shape) {
   const magnified = [];
+  const radius = Math.max(targetSize.width, targetSize.height) / 2;
   for (const item of items) {
     if (item.type !== "path" || !Array.isArray(item.commands) || item.subtype?.startsWith?.("spy-")) continue;
     const points = flattenPath(item.commands, 0.035);
     for (let index = 1; index < points.length; index += 1) {
       const from = spyTransformPoint(points[index - 1], onPoint, inCenter, magnification);
       const to = spyTransformPoint(points[index], onPoint, inCenter, magnification);
-      const clipped = shape === "circle" || shape === "circleCrossSplit" ? clipSegmentToCircle(from, to, inCenter, radius) : { from, to };
+      const clipped = shape === "circle" || shape === "circleCrossSplit"
+        ? clipSegmentToCircle(from, to, inCenter, radius)
+        : shape === "rectangle"
+          ? clipSegmentToRectangle(from, to, inCenter, targetSize)
+          : { from, to };
       if (!clipped) continue;
       magnified.push({
         type: "path",
@@ -9355,6 +9405,39 @@ function spyMagnifiedPathItems(items, onPoint, inCenter, magnification, radius, 
     }
   }
   return magnified;
+}
+
+function clipSegmentToRectangle(from, to, center, size = {}) {
+  const halfWidth = Math.max(0, Number(size.width) || 0) / 2;
+  const halfHeight = Math.max(0, Number(size.height) || 0) / 2;
+  const left = center.x - halfWidth;
+  const right = center.x + halfWidth;
+  const bottom = center.y - halfHeight;
+  const top = center.y + halfHeight;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  let start = 0;
+  let end = 1;
+  const constraints = [
+    [-dx, from.x - left],
+    [dx, right - from.x],
+    [-dy, from.y - bottom],
+    [dy, top - from.y]
+  ];
+  for (const [direction, distance] of constraints) {
+    if (Math.abs(direction) < 1e-12) {
+      if (distance < 0) return null;
+      continue;
+    }
+    const ratio = distance / direction;
+    if (direction < 0) start = Math.max(start, ratio);
+    else end = Math.min(end, ratio);
+    if (start > end + 1e-12) return null;
+  }
+  return {
+    from: roundPoint({ x: from.x + start * dx, y: from.y + start * dy }),
+    to: roundPoint({ x: from.x + end * dx, y: from.y + end * dy })
+  };
 }
 
 function spyTransformPoint(point, onPoint, inCenter, magnification) {
