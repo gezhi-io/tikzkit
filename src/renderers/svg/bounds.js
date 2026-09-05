@@ -18,7 +18,8 @@ import {
   diamondGeometry,
   isoscelesTriangleGeometry,
   kiteGeometry,
-  semicircleGeometry
+  semicircleGeometry,
+  trapeziumGeometry
 } from "../../tikz/libraries/shapes.geometric.js";
 import { chamferedRectangleGeometry, roundedRectangleGeometry } from "../../tikz/libraries/shapes.misc.js";
 import { arrowBoxGeometry } from "../../tikz/libraries/shapes.arrows.js";
@@ -61,6 +62,8 @@ export function computeSvgBounds(items, options = {}) {
             ? isoscelesTriangleGeometry(item, item.shapeData || {}).bounds
           : item.shape === "diamond"
             ? diamondGeometry(item, item.shapeData || {}).bounds
+          : item.shape === "trapezium"
+            ? trapeziumGeometry(item, item.shapeData || {}).bounds
             : null;
       const symbolBounds = item.shape === "signal"
         ? signalGeometry(item, item.shapeData || {}).bounds

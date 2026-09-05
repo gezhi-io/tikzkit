@@ -11,6 +11,7 @@ import {
   kiteGeometry,
   semicircleGeometry,
   starNodePoints as geometricStarNodePoints,
+  trapeziumGeometry,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../../tikz/libraries/shapes.geometric.js";
 import { chamferedRectangleGeometry, roundedRectangleGeometry } from "../../tikz/libraries/shapes.misc.js";
@@ -164,7 +165,7 @@ export function nodeShapeCommands(item) {
     return closedPolygonCommands(starNodePoints(center, Math.max(halfWidth, halfHeight), item.shapeData || {}));
   }
   if (item.shape === "trapezium") {
-    return closedPolygonCommands(trapeziumNodePoints(center, halfWidth, halfHeight, item.shapeData || {}));
+    return translateCommands(trapeziumGeometry(item, item.shapeData || {}).outlineCommands, item.x, item.y);
   }
   if (item.shape === "superellipse") {
     return superellipseNodeCommands(center, halfWidth, halfHeight);

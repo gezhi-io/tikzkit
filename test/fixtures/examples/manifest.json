@@ -5427,6 +5427,51 @@
       ]
     },
     {
+      "id": "shapes-trapezium-rotation-flowchart",
+      "title": "Rotated trapezium review flowchart",
+      "source": "shapes/trapezium-rotation-flowchart.tex",
+      "sourceCorpus": "TikZKit common flowchart regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:trapeziumLayoutSize/trapeziumGeometry",
+      "features": [
+        "flowchart",
+        "trapezium incircle rotation",
+        "asymmetric side angles",
+        "named side and corner anchors",
+        "positioning and arrow clipping"
+      ]
+    },
+    {
+      "id": "shapes-trapezium-rotation-math",
+      "title": "Rotated trapezium dimension geometry",
+      "source": "shapes/trapezium-rotation-math.tex",
+      "sourceCorpus": "TeX Live PGF shapes.geometric manual and TikZKit mathematics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:trapeziumLayoutSize/trapeziumGeometry",
+      "features": [
+        "mathematics diagram",
+        "shape border rotate 60",
+        "shape border uses incircle",
+        "dimension anchors",
+        "numeric border anchor"
+      ]
+    },
+    {
+      "id": "shapes-trapezium-rotation-physics",
+      "title": "Rotated trapezium detector geometry",
+      "source": "shapes/trapezium-rotation-physics.tex",
+      "sourceCorpus": "TikZKit physics regression",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-shapes.tex",
+      "semanticOwner": "src/tikz/libraries/shapes.geometric.js:trapeziumLayoutSize/trapeziumGeometry",
+      "features": [
+        "physics diagram",
+        "negative arbitrary border rotation",
+        "asymmetric trapezium angles",
+        "automatic border clipping",
+        "side and corner anchors"
+      ]
+    },
+    {
       "id": "shapes-signal-manual-catalog",
       "title": "PGF signal direction and pointer-angle catalog",
       "source": "shapes/signal-manual-catalog.tex",

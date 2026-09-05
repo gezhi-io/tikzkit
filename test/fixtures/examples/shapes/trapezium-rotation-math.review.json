@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The LaTeX kernel supplies the document and package-loading commands used by the fixture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usetikzlibrary"], "findings": "The package entry loads geometric nodes and modern arrow tips." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\node", "\\draw"], "findings": "TikZ keeps node text upright while rotating only the shape border and its named anchors." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The width and height guides use PGF arrow tips independently of node geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["trapezium", "shape border uses incircle", "anchorborder"], "findings": "The declaration rotates its four paint points and independently mitered anchor points, then ray-intersects numeric and compass anchors with that contour." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["width", "height", "shape border rotate=60"], "findings": "This fixture follows the manual's 60-degree trapezium dimension example and adds a numeric border anchor." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] }
+  ]
+}

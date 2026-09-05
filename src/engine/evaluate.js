@@ -39,6 +39,8 @@ import {
   starGeometry as geometricStarGeometry,
   starLayoutSize as geometricStarLayoutSize,
   starNodePoints as geometricStarNodePoints,
+  trapeziumBorderPoint as geometricTrapeziumBorderPoint,
+  trapeziumGeometry as geometricTrapeziumGeometry,
   trapeziumLayoutSize as geometricTrapeziumLayoutSize,
   trapeziumNodePoints as geometricTrapeziumNodePoints
 } from "../tikz/libraries/shapes.geometric.js";
@@ -11741,20 +11743,13 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
       terminalPadding
     );
   } else if (node.shape === "trapezium") {
-    const visibleWidth = Number(node.width) || halfWidth * 2;
-    const visibleHeight = Number(node.height) || halfHeight * 2;
-    const points = trapeziumPoints(
-      { x: 0, y: 0 },
-      visibleWidth / 2,
-      visibleHeight / 2,
-      node.shapeData || {}
-    );
-    const outerPadding = Math.max(0, Number(node.shapeData?.trapeziumOuterSep) || 0);
-    localPoint = polygonBorderPointWithPadding(
-      { x: 0, y: 0 },
+    localPoint = geometricTrapeziumBorderPoint(
+      geometricTrapeziumGeometry(
+        { width: Number(node.width) || halfWidth * 2, height: Number(node.height) || halfHeight * 2 },
+        node.shapeData || {}
+      ),
       { x: localDx, y: localDy },
-      points,
-      outerPadding + terminalPadding
+      terminalPadding
     );
   } else if (polygonNodeShape(node.shape)) {
     const points = nodePolygonPoints(node, { x: 0, y: 0 }, halfWidth, halfHeight);
@@ -11904,7 +11899,9 @@ function trapeziumLayoutSize(contentWidth, contentHeight, options = {}, env = { 
     leftAngle: numberOption(options["trapezium left angle"] ?? options["trapezium angle"], 60),
     rightAngle: numberOption(options["trapezium right angle"] ?? options["trapezium angle"], 60),
     stretches: tikzBoolean(options["trapezium stretches"]),
-    stretchesBody: tikzBoolean(options["trapezium stretches body"])
+    stretchesBody: tikzBoolean(options["trapezium stretches body"]),
+    shapeBorderRotate: numberOption(options["shape border rotate"], 0),
+    shapeBorderUsesIncircle: tikzBoolean(options["shape border uses incircle"])
   });
 }
 
@@ -12160,10 +12157,14 @@ function trapeziumLayoutShapeData(layoutSize = {}) {
     "trapeziumBodyHalfWidth",
     "trapeziumHalfHeight",
     "trapeziumLeftExtension",
-    "trapeziumRightExtension"
+    "trapeziumRightExtension",
+    "trapeziumShapeBorderRotate"
   ]) {
     const value = Number(layoutSize?.[key]);
     if (Number.isFinite(value)) data[key] = value;
+  }
+  if (layoutSize?.trapeziumShapeBorderUsesIncircle !== undefined) {
+    data.trapeziumShapeBorderUsesIncircle = Boolean(layoutSize.trapeziumShapeBorderUsesIncircle);
   }
   return data;
 }
@@ -19596,42 +19597,21 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
     if (named) return named;
   }
   if (shape === "trapezium") {
-    const visibleWidth = Number(size.visibleWidth) || Number(size.width) || 0;
-    const visibleHeight = Number(size.visibleHeight) || Number(size.height) || 0;
-    const points = trapeziumPoints(
-      { x: 0, y: 0 },
-      visibleWidth / 2,
-      visibleHeight / 2,
-      size.shapeData || {}
-    );
-    const outerSep = Math.max(0, Number(size.shapeData?.trapeziumOuterSep) || 0);
-    const border = outerSep > 0 ? polygonMiterOffsetPoints(points, outerSep) : points;
-    const midpoint = (first, second) => ({
-      x: (first.x + second.x) / 2,
-      y: (first.y + second.y) / 2
+    const geometry = geometricTrapeziumGeometry({
+      width: Number(size.visibleWidth) || Number(size.width) || 0,
+      height: Number(size.visibleHeight) || Number(size.height) || 0
+    }, {
+      ...(size.shapeData || {}),
+      trapeziumBaseOffset: Number(size.baseOffset) || 0,
+      trapeziumMidOffset: Number(size.midOffset) || 0
     });
-    const named = {
-      "bottom left corner": border[0],
-      "top left corner": border[1],
-      "top right corner": border[2],
-      "bottom right corner": border[3],
-      "left side": midpoint(border[0], border[1]),
-      "top side": midpoint(border[1], border[2]),
-      "right side": midpoint(border[2], border[3]),
-      "bottom side": midpoint(border[3], border[0])
-    }[anchor] || null;
+    const numericAngle = Number(rawAnchor);
+    if (Number.isFinite(numericAngle)) {
+      const radians = numericAngle * Math.PI / 180;
+      return geometricTrapeziumBorderPoint(geometry, { x: Math.cos(radians), y: Math.sin(radians) });
+    }
+    const named = geometry.anchors?.[anchor] || geometry.anchors?.[rawAnchor];
     if (named) return named;
-    const direction = {
-      north: { x: 0, y: 1 },
-      south: { x: 0, y: -1 },
-      east: { x: 1, y: 0 },
-      west: { x: -1, y: 0 },
-      "north east": { x: 1, y: 1 },
-      "north west": { x: -1, y: 1 },
-      "south east": { x: 1, y: -1 },
-      "south west": { x: -1, y: -1 }
-    }[anchor];
-    if (direction) return polygonBorderPoint({ x: 0, y: 0 }, direction, border);
   }
   if (shape === "circleSolidus") {
     const splitAnchor = circleSolidusLocalAnchor(rawAnchor, size);

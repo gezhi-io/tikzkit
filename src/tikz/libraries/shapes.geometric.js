@@ -1191,8 +1191,18 @@ function starPolygonBorderPoint(points, direction) {
 }
 
 export function trapeziumLayoutSize(contentWidth, contentHeight, options = {}) {
-  let bodyHalfWidth = Math.max(0, Number(contentWidth) || 0) / 2;
-  let halfHeight = Math.max(TRAPEZIUM_EPSILON, Math.max(0, Number(contentHeight) || 0) / 2);
+  const usesIncircle = options.shapeBorderUsesIncircle === true;
+  const rotate = trapeziumRotation(options.shapeBorderRotate, usesIncircle);
+  const swapsAxes = !usesIncircle && (rotate === 90 || rotate === 270);
+  let bodyHalfWidth = Math.max(0, Number(swapsAxes ? contentHeight : contentWidth) || 0) / 2;
+  let halfHeight = Math.max(
+    TRAPEZIUM_EPSILON,
+    Math.max(0, Number(swapsAxes ? contentWidth : contentHeight) || 0) / 2
+  );
+  if (usesIncircle) {
+    bodyHalfWidth = Math.SQRT2 * Math.max(bodyHalfWidth, halfHeight);
+    halfHeight = bodyHalfWidth;
+  }
   const minimumWidth = Math.max(0, Number(options.minimumWidth) || 0);
   const minimumHeight = Math.max(0, Number(options.minimumHeight) || 0);
   const stretchesBody = options.stretchesBody === true;
@@ -1229,21 +1239,50 @@ export function trapeziumLayoutSize(contentWidth, contentHeight, options = {}) {
     }
   }
 
+  const visibleBoundaryPoints = trapeziumBoundaryPoints(
+    bodyHalfWidth,
+    halfHeight,
+    leftExtension,
+    rightExtension,
+    rotate
+  );
+  const bounds = pointBounds(visibleBoundaryPoints);
   return {
-    width: bodyHalfWidth * 2 + Math.abs(leftExtension) + Math.abs(rightExtension),
-    height: halfHeight * 2,
+    width: bounds.maxX - bounds.minX,
+    height: bounds.maxY - bounds.minY,
+    minX: bounds.minX,
+    minY: bounds.minY,
+    maxX: bounds.maxX,
+    maxY: bounds.maxY,
     trapeziumBodyHalfWidth: bodyHalfWidth,
     trapeziumHalfHeight: halfHeight,
     trapeziumLeftExtension: leftExtension,
-    trapeziumRightExtension: rightExtension
+    trapeziumRightExtension: rightExtension,
+    trapeziumShapeBorderRotate: rotate,
+    trapeziumShapeBorderUsesIncircle: usesIncircle
   };
 }
 
 export function trapeziumNodePoints(center, halfWidth, halfHeight, data = {}) {
+  const geometry = trapeziumGeometry(
+    { width: Math.max(0, Number(halfWidth) || 0) * 2, height: Math.max(0, Number(halfHeight) || 0) * 2 },
+    data
+  );
+  const x = Number(center?.x) || 0;
+  const y = Number(center?.y) || 0;
+  return geometry.visibleBoundaryPoints.map((point) => ({ x: x + point.x, y: y + point.y }));
+}
+
+export function trapeziumGeometry(size = {}, data = {}) {
+  const usesIncircle = data.trapeziumShapeBorderUsesIncircle === true || data.shapeBorderUsesIncircle === true;
+  const rotate = trapeziumRotation(
+    data.trapeziumShapeBorderRotate ?? data.shapeBorderRotate,
+    usesIncircle
+  );
   const storedHeight = Number(data.trapeziumHalfHeight);
   const height = Number.isFinite(storedHeight)
     ? Math.max(TRAPEZIUM_EPSILON, Math.abs(storedHeight))
-    : Math.max(TRAPEZIUM_EPSILON, Math.abs(Number(halfHeight) || 0));
+    : Math.max(TRAPEZIUM_EPSILON, Math.abs(Number(size.height) || 0) / 2);
   const storedLeftExtension = Number(data.trapeziumLeftExtension);
   const storedRightExtension = Number(data.trapeziumRightExtension);
   const leftExtension = Number.isFinite(storedLeftExtension)
@@ -1255,16 +1294,79 @@ export function trapeziumNodePoints(center, halfWidth, halfHeight, data = {}) {
   const storedBodyHalfWidth = Number(data.trapeziumBodyHalfWidth);
   const bodyHalfWidth = Number.isFinite(storedBodyHalfWidth)
     ? Math.max(0, storedBodyHalfWidth)
-    : Math.max(0, Math.abs(Number(halfWidth) || 0) - (Math.abs(leftExtension) + Math.abs(rightExtension)) / 2);
-  const x = Number(center?.x) || 0;
-  const y = Number(center?.y) || 0;
+    : Math.max(0, Math.abs(Number(size.width) || 0) / 2 - (Math.abs(leftExtension) + Math.abs(rightExtension)) / 2);
+  const visibleBoundaryPoints = trapeziumBoundaryPoints(
+    bodyHalfWidth,
+    height,
+    leftExtension,
+    rightExtension,
+    rotate
+  );
+  const outerSep = Math.max(0, Number(data.trapeziumOuterSep) || 0);
+  const boundaryPoints = outerSep > TRAPEZIUM_EPSILON
+    ? polygonMiterOffsetPoints(visibleBoundaryPoints, outerSep)
+    : visibleBoundaryPoints.map((point) => ({ ...point }));
+  const anchors = {
+    "bottom left corner": boundaryPoints[0],
+    "top left corner": boundaryPoints[1],
+    "top right corner": boundaryPoints[2],
+    "bottom right corner": boundaryPoints[3],
+    "left side": midpoint(boundaryPoints[0], boundaryPoints[1]),
+    "top side": midpoint(boundaryPoints[1], boundaryPoints[2]),
+    "right side": midpoint(boundaryPoints[2], boundaryPoints[3]),
+    "bottom side": midpoint(boundaryPoints[3], boundaryPoints[0]),
+    center: { x: 0, y: 0 },
+    text: { x: 0, y: 0 },
+    base: { x: 0, y: Number(data.trapeziumBaseOffset) || 0 },
+    mid: { x: 0, y: Number(data.trapeziumMidOffset) || 0 }
+  };
+  const borderGeometry = { boundaryPoints };
+  anchors["base east"] = trapeziumBorderPointFrom(borderGeometry, anchors.base, { x: 1, y: 0 });
+  anchors["base west"] = trapeziumBorderPointFrom(borderGeometry, anchors.base, { x: -1, y: 0 });
+  anchors["mid east"] = trapeziumBorderPointFrom(borderGeometry, anchors.mid, { x: 1, y: 0 });
+  anchors["mid west"] = trapeziumBorderPointFrom(borderGeometry, anchors.mid, { x: -1, y: 0 });
+  for (const [name, direction] of Object.entries(COMPASS_DIRECTIONS)) {
+    anchors[name] = trapeziumBorderPoint(borderGeometry, direction);
+  }
 
+  return {
+    outlineCommands: polygonCommands(visibleBoundaryPoints),
+    visibleBoundaryPoints,
+    boundaryPoints,
+    anchors,
+    visibleAnchors: {
+      "bottom left corner": visibleBoundaryPoints[0],
+      "top left corner": visibleBoundaryPoints[1],
+      "top right corner": visibleBoundaryPoints[2],
+      "bottom right corner": visibleBoundaryPoints[3]
+    },
+    bounds: pointBounds(visibleBoundaryPoints),
+    anchorBounds: pointBounds(boundaryPoints),
+    bodyHalfWidth,
+    halfHeight: height,
+    leftExtension,
+    rightExtension,
+    outerSep,
+    rotate,
+    usesIncircle
+  };
+}
+
+export function trapeziumBorderPoint(geometry = {}, toward = {}, padding = 0) {
+  return trapeziumBorderPointFrom(geometry, { x: 0, y: 0 }, toward, padding);
+}
+
+export function trapeziumBorderPointFrom(geometry = {}, reference = {}, toward = {}, padding = 0) {
+  return polygonBorderPointFrom(geometry.boundaryPoints || [], reference, toward, padding);
+}
+
+function trapeziumBoundaryPoints(bodyHalfWidth, halfHeight, leftExtension, rightExtension, rotate) {
   return [
-    { x: x - bodyHalfWidth - Math.max(0, leftExtension), y: y - height },
-    { x: x - bodyHalfWidth + Math.min(0, leftExtension), y: y + height },
-    { x: x + bodyHalfWidth - Math.min(0, rightExtension), y: y + height },
-    { x: x + bodyHalfWidth + Math.max(0, rightExtension), y: y - height }
-  ];
+    { x: -bodyHalfWidth - Math.max(0, leftExtension), y: -halfHeight },
+    { x: -bodyHalfWidth + Math.min(0, leftExtension), y: halfHeight },
+    { x: bodyHalfWidth - Math.min(0, rightExtension), y: halfHeight },
+    { x: bodyHalfWidth + Math.max(0, rightExtension), y: -halfHeight }
+  ].map((point) => rotatePoint(point, rotate));
 }
 
 function trapeziumSideExtension(halfHeight, rawAngle) {
@@ -1292,6 +1394,12 @@ function normalizeTrapeziumAngle(rawAngle) {
   // PGF accepts a broad angular range. This focused SVG shape needs finite,
   // non-degenerate sides, so retain the safe range already used by TikZKit.
   return Math.max(10, Math.min(170, normalized || fallback));
+}
+
+function trapeziumRotation(rawRotation, usesIncircle = false) {
+  const value = Number(rawRotation);
+  const normalized = Number.isFinite(value) ? ((value % 360) + 360) % 360 : 0;
+  return usesIncircle ? normalized : (Math.round(normalized / 90) * 90) % 360;
 }
 
 function cylinderAspect(rawAspect) {
@@ -1543,6 +1651,58 @@ function polygonBorderPointFrom(points, reference = {}, toward = {}, padding = 0
   };
 }
 
+function polygonMiterOffsetPoints(points, distance) {
+  if (!Array.isArray(points) || points.length < 3 || distance <= TRAPEZIUM_EPSILON) return points;
+  const clockwise = polygonSignedArea(points) < 0;
+  return points.map((vertex, index) => {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const next = points[(index + 1) % points.length];
+    const previousEdge = { x: vertex.x - previous.x, y: vertex.y - previous.y };
+    const nextEdge = { x: next.x - vertex.x, y: next.y - vertex.y };
+    const previousNormal = polygonOutwardNormal(previousEdge, clockwise);
+    const nextNormal = polygonOutwardNormal(nextEdge, clockwise);
+    if (!previousNormal || !nextNormal) return { ...vertex };
+    const previousOffset = {
+      x: vertex.x + previousNormal.x * distance,
+      y: vertex.y + previousNormal.y * distance
+    };
+    const nextOffset = {
+      x: vertex.x + nextNormal.x * distance,
+      y: vertex.y + nextNormal.y * distance
+    };
+    return lineIntersection(previousOffset, previousEdge, nextOffset, nextEdge) || { ...vertex };
+  });
+}
+
+function polygonSignedArea(points) {
+  let twiceArea = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    twiceArea += current.x * next.y - next.x * current.y;
+  }
+  return twiceArea / 2;
+}
+
+function polygonOutwardNormal(edge, clockwise) {
+  const length = Math.hypot(edge.x, edge.y);
+  if (length <= TRAPEZIUM_EPSILON) return null;
+  return clockwise
+    ? { x: -edge.y / length, y: edge.x / length }
+    : { x: edge.y / length, y: -edge.x / length };
+}
+
+function lineIntersection(firstPoint, firstDirection, secondPoint, secondDirection) {
+  const denominator = firstDirection.x * secondDirection.y - firstDirection.y * secondDirection.x;
+  if (Math.abs(denominator) <= TRAPEZIUM_EPSILON) return null;
+  const delta = { x: secondPoint.x - firstPoint.x, y: secondPoint.y - firstPoint.y };
+  const t = (delta.x * secondDirection.y - delta.y * secondDirection.x) / denominator;
+  return {
+    x: firstPoint.x + firstDirection.x * t,
+    y: firstPoint.y + firstDirection.y * t
+  };
+}
+
 function semicircleRotation(rawRotation, usesIncircle = false) {
   const value = Number(rawRotation);
   const normalized = Number.isFinite(value) ? ((value % 360) + 360) % 360 : 0;
@@ -1679,7 +1839,7 @@ export const tikzLibrary = {
     "src/engine/evaluate.js:diamondLayoutSize/nodeShapeData/estimateNodeAnchorSize/nodeBorderPoint/diamondAnchorCoordinate",
     "src/engine/evaluate.js:regularPolygonLayoutSize/regularPolygonStartAngle/regularPolygonOuterRadiusExtension/nodeBorderPoint/polygonBorderPointWithPadding/trapeziumLayoutShapeData/isoscelesTriangleLayoutSize/isoscelesTriangleLayoutShapeData/customNodeLocalAnchor",
     "src/tikz/libraries/shapes.geometric.js:diamondLayoutSize/diamondGeometry/diamondBorderPoint",
-    "src/tikz/libraries/shapes.geometric.js:starLayoutSize/starNodePoints/starGeometry/starBorderPoint/trapeziumLayoutSize/trapeziumNodePoints",
+    "src/tikz/libraries/shapes.geometric.js:starLayoutSize/starNodePoints/starGeometry/starBorderPoint/trapeziumLayoutSize/trapeziumNodePoints/trapeziumGeometry/trapeziumBorderPoint/trapeziumBorderPointFrom",
     "src/tikz/libraries/shapes.geometric.js:cylinderLayoutSize/cylinderGeometry/cylinderBorderPoint/cylinderBorderPointFrom",
     "src/tikz/libraries/shapes.geometric.js:semicircleLayoutSize/semicircleGeometry/semicircleBorderPoint/semicircleBorderPointFrom",
     "src/tikz/libraries/shapes.geometric.js:circularSectorLayoutSize/circularSectorGeometry/circularSectorBorderPoint/circularSectorBorderPointFrom",
@@ -1696,7 +1856,7 @@ export const tikzLibrary = {
     "diamond with PGF aspect/minimum sizing, separate visible and outer-separation contours, complete compass/numeric anchors, and exact border clipping",
     "regular polygon with PGF circumcircle sizing, odd/even orientation, rotation, and border crop",
     "star with PGF radius modes, minimum sizing, border rotation, mitered outer separation, and named inner/outer point anchors",
-    "trapezium with PGF cotangent side geometry, proportional/independent/body-only minimum-size stretching, named side/corner anchors, and mitered border crop",
+    "trapezium with PGF cotangent side geometry, proportional/independent/body-only minimum-size stretching, rounded quarter-turn or exact incircle border rotation, complete named/compass/numeric anchors, and mitered border crop",
     "isosceles triangle with PGF content/incircle sizing, linked or independently stretched minimum dimensions, shifted text center, rounded or exact border rotation, complete named/compass/numeric anchors, and mitered outer-separation clipping",
     "cylinder with PGF quarter-turn border rotation, aspect/minimum sizing, complete end/mid/base named anchors, curved outer-separation border clipping, and separate body/end fills",
     "semicircle with PGF content/minimum sizing, shifted circle center, quarter-turn border rotation, named arc/chord/base/mid anchors, curved outer-separation clipping, and cubic arc paint",
@@ -1716,5 +1876,5 @@ export const tikzLibrary = {
     "kite",
     "dart"
   ],
-  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Reviewed again on 2026-09-04 for the semicircle declaration at lines 1523-1980 and its manual section: natural radius is hypot(half content width, twice the half content height), minimum width constrains the diameter, minimum height constrains the radius, and the circular center shifts away from the text center as the minimum radius grows. Quarter-turn rotation swaps content axes; paint uses the visible arc and chord while named anchors and automatic clipping use the outer-separation contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-semicircle.md`. Reviewed again on 2026-09-04 for the kite declaration at lines 2343-2995 and the corresponding manual section: upper and lower vertex angles independently split the text height, minimum dimensions uniformly scale the four radii, ordinary border rotation is quarter-rounded, and incircle mode permits exact arbitrary rotation. Painted vertices remain separate from the cosecant-expanded miter anchors used by named anchors, positioning, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-kite.md`. Reviewed again on 2026-09-04 for the dart declaration at lines 2995-3540 and its manual section: the tip and tail half angles derive the axial tip length, tail separation, total length, and concave tail depth; minimum height and width scale every derived dimension uniformly. Ordinary rotation is quarter-rounded, while incircle mode preserves an exact arbitrary angle. Paint uses the visible four-point concave polygon, while named, compass, base/mid, numeric, positioning, and automatic clipping anchors use the independently cosecant-expanded miter contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-dart.md`. Reviewed again on 2026-09-04 for the circular sector declaration at lines 3542-4019 and its manual section: half-angle cosecant/cotangent formulas place the sector circle center away from the text center, minimum dimensions scale the center offset and radius together, ordinary rotation is quarter-rounded, and incircle mode preserves arbitrary rotation. Paint uses the visible sector, while named, compass, numeric, positioning, and automatic clipping anchors use the separately mitered outer contour and exact arc intersection. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-circular-sector.md`. Reviewed again on 2026-09-04 for the isosceles triangle declaration at lines 1985-2343 and its manual section: content half-extents derive the apex axis and half-base, the text center remains offset from the geometric center, non-stretch minimum dimensions preserve the apex angle, and `isosceles triangle stretches` recomputes the effective half-angle after independent minimum changes. Ordinary border rotation is quarter-rounded; incircle mode permits exact rotation. Paint uses the visible triangle, while complete named, compass, base/mid, numeric, positioning, and automatic clipping anchors use the separately mitered outer contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-isosceles-triangle.md`. Reviewed again on 2026-09-04 for the ordinary diamond declaration at lines 234-376 and its manual section: `aspect` combines content half-width and half-height before independent minimum constraints; outer x/y separation enlarges the anchor contour while the painted vertices subtract sqrt(2) times each separation. Compass and numeric anchors, positioning, and automatic clipping now use that outer contour; SVG paint and bounds use the contracted contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-diamond.md`. Degenerate circular-sector/dart/kite/isosceles-triangle angular ranges and arbitrary-angle incircle metrics for other geometric shapes remain partial."
+  "notes": "Reviewed locally on 2026-08-07 against pgflibraryshapes.geometric.code.tex and the PGF shapes manual. Regular polygons use the source's sqrt(2)*apothem*sec(180/sides) content radius, circumcircle minimum size, odd/even orientation, `shape border rotate`/`regular polygon rotate`, and the outer-separation mitre extension used by curved terminal arrows. The permanent visual driver is arrows/regular-polygon-curved-terminal.tex. Stars now share PGF's max-content-radius, sqrt(2) inner-radius, ratio/point-height outer-radius, largest-minimum-diameter, and `star rotate` construction across layout, clipping, and SVG paint; arrows-shape-curved-terminal-padding is the visual driver. The default trapezium follows `\\installtrapeziumparameters`: side extensions are 2*half-height*cot(angle), minimum width/height preserve that construction by uniform scaling, and curve terminal rays intersect the mitered offset contour rather than an arbitrary adjacent side. `test/fixtures/arrows/shape-curved-terminal-miters.tex` is the visual regression. Reviewed again on 2026-09-04 for the cylinder declaration at lines 4019-4475 and the manual cylinder section: the end ellipse uses `shape aspect`, quarter-turn border rotation swaps the content axes, minimum width expands only the cross radius after the natural end radius has been fixed, and minimum height extends the body. TikZKit now shares this geometry across layout, paint, bounding boxes, named anchors, and border clipping, with independent body/end fill paths. The permanent drivers are `shapes/cylinder-manual-catalog.tex`, `shapes/cylinder-data-flow.tex`, and `shapes/cylinder-volume-physics.tex`. Reviewed again on 2026-09-04 for the trapezium declaration and manual examples: `trapezium stretches` keeps the final width and height independent while `trapezium stretches body` adds a minimum-width deficit only to the body half-width, preserving the previously computed side extensions. The final geometry record is shared by SVG paint, mitered outer-separation anchors, named side/corner anchors, and arrow border clipping. Permanent flowchart, mathematics, and physics drivers and three-way evidence are recorded in `docs/qa/2026-09-04-shapes-trapezium-stretches.md`. Reviewed again on 2026-09-04 for the star declaration at lines 349-667: visible star paint retains the content radii, while named points, compass anchors, positioning bounds, and automatic edge clipping share the source's independently mitered inner and outer anchor radii. The miter extension is outer separation multiplied by the cosecant of each vertex half angle. Permanent three-way flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-star-anchors.md`. Reviewed again on 2026-09-04 for cylinder anchors at lines 4120-4412: before/after anchors apply outer y separation before quarter rotation, top/bottom use the expanded end radius, and mid/base east/west cast rays from the TeX midline or baseline to the rotated cylinder boundary. TikZKit now keeps a visible paint boundary separate from the outer-separation anchor boundary and uses the latter for named anchors, node placement, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-cylinder-anchors.md`. Reviewed again on 2026-09-04 for the semicircle declaration at lines 1523-1980 and its manual section: natural radius is hypot(half content width, twice the half content height), minimum width constrains the diameter, minimum height constrains the radius, and the circular center shifts away from the text center as the minimum radius grows. Quarter-turn rotation swaps content axes; paint uses the visible arc and chord while named anchors and automatic clipping use the outer-separation contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-semicircle.md`. Reviewed again on 2026-09-04 for the kite declaration at lines 2343-2995 and the corresponding manual section: upper and lower vertex angles independently split the text height, minimum dimensions uniformly scale the four radii, ordinary border rotation is quarter-rounded, and incircle mode permits exact arbitrary rotation. Painted vertices remain separate from the cosecant-expanded miter anchors used by named anchors, positioning, and automatic clipping. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-kite.md`. Reviewed again on 2026-09-04 for the dart declaration at lines 2995-3540 and its manual section: the tip and tail half angles derive the axial tip length, tail separation, total length, and concave tail depth; minimum height and width scale every derived dimension uniformly. Ordinary rotation is quarter-rounded, while incircle mode preserves an exact arbitrary angle. Paint uses the visible four-point concave polygon, while named, compass, base/mid, numeric, positioning, and automatic clipping anchors use the independently cosecant-expanded miter contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-dart.md`. Reviewed again on 2026-09-04 for the circular sector declaration at lines 3542-4019 and its manual section: half-angle cosecant/cotangent formulas place the sector circle center away from the text center, minimum dimensions scale the center offset and radius together, ordinary rotation is quarter-rounded, and incircle mode preserves arbitrary rotation. Paint uses the visible sector, while named, compass, numeric, positioning, and automatic clipping anchors use the separately mitered outer contour and exact arc intersection. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-circular-sector.md`. Reviewed again on 2026-09-04 for the isosceles triangle declaration at lines 1985-2343 and its manual section: content half-extents derive the apex axis and half-base, the text center remains offset from the geometric center, non-stretch minimum dimensions preserve the apex angle, and `isosceles triangle stretches` recomputes the effective half-angle after independent minimum changes. Ordinary border rotation is quarter-rounded; incircle mode permits exact rotation. Paint uses the visible triangle, while complete named, compass, base/mid, numeric, positioning, and automatic clipping anchors use the separately mitered outer contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-isosceles-triangle.md`. Reviewed again on 2026-09-04 for the ordinary diamond declaration at lines 234-376 and its manual section: `aspect` combines content half-width and half-height before independent minimum constraints; outer x/y separation enlarges the anchor contour while the painted vertices subtract sqrt(2) times each separation. Compass and numeric anchors, positioning, and automatic clipping now use that outer contour; SVG paint and bounds use the contracted contour. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-04-shapes-geometric-diamond.md`. Reviewed again on 2026-09-05 for trapezium rotation at lines 947-1523 and the manual's `shape border rotate=60` example: ordinary rotation is rounded to a quarter turn and swaps content axes at 90/270 degrees, while incircle mode uses sqrt(2) times the larger content half-extent and preserves the exact angle. The rotated visible polygon now drives SVG paint and bounds; a separately mitered outer contour drives named, compass, numeric, base/mid, positioning, and automatic clipping anchors. Permanent flowchart, mathematics, and physics evidence is recorded in `docs/qa/2026-09-05-shapes-trapezium-rotation.md`. Degenerate circular-sector/dart/kite/isosceles-triangle angular ranges and arbitrary-angle incircle metrics for other geometric shapes remain partial."
 };

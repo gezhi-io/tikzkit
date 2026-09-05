@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\begin", "\\end"], "findings": "The LaTeX kernel supplies the document shell around the detector picture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usetikzlibrary"], "findings": "TikZ provides the document-facing node and path syntax used by the detector diagram." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\fill", "\\draw", "node"] , "findings": "The path engine resolves inline labels, named shape anchors, and terminal clipping around the detector." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "Incoming and outgoing vectors use separate filled Latex terminal paths." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/shapes/pgflibraryshapes.geometric.code.tex": { "symbols": ["trapezium left angle", "trapezium right angle", "rotate"], "findings": "Asymmetric cotangent side extensions are computed in local coordinates, then paint and anchor contours rotate by the exact incircle angle." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-shapes.tex": { "symbols": ["trapezium", "left side", "top right corner"], "findings": "The manual confirms independent side angles and the named anchors used for the detector window and point." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/shapes-geometric-trapezium-stretches.test.js"] }
+  ]
+}
