@@ -40,13 +40,13 @@ Use `tikzToSvg(source)` for synchronous rendering. The package also exports
 
 The following images were rendered by TikZKit itself.
 
-| Sharp stacked areas | Smooth stacked areas | Constant stacked areas |
+| Geometric construction | 3D function surface | Chained flowchart |
 | --- | --- | --- |
-| <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-algorithm.png" width="360" alt="Sharp stacked area chart rendered by TikZKit"> | <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-math.png" width="360" alt="Smooth stacked area chart rendered by TikZKit"> | <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-physics.png" width="360" alt="Constant stacked area chart rendered by TikZKit"> |
+| <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/arbelos.png" width="360" alt="Arbelos construction rendered by TikZKit"> | <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/3d-function-4.png" width="360" alt="Three-dimensional function surface rendered by TikZKit"> | <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/chains-multiple-joins-flowchart.png" width="360" alt="Flowchart with chained joins rendered by TikZKit"> |
 
-Full sources: [algorithm](test/fixtures/examples/pgfplots/stacked-area/algorithm.tex),
-[mathematics](test/fixtures/examples/pgfplots/stacked-area/math.tex), and
-[physics](test/fixtures/examples/pgfplots/stacked-area/physics.tex).
+Full sources: [arbelos](test/fixtures/examples/latex-examples/arbelos.tex),
+[3D function](test/fixtures/examples/latex-examples/3d-function-4.tex), and
+[chained flowchart](test/fixtures/examples/chains/multiple-joins-flowchart.tex).
 
 See the [public example gallery](docs/examples.md) for more committed SVG,
 PNG, source, and comparison files. Local files under
