@@ -74,6 +74,11 @@ tikzLibrary.notes = tikzLibrary.notes.replace(
 );
 
 tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Setup-code expressions, clipping, arrow hulls, arbitrary TeX macros, and declaration-time line-width arithmetic remain deferred.",
+  "Clipping, arrow hulls, saved-register callbacks, and arbitrary TeX control flow inside declaration programs remain deferred."
+);
+
+tikzLibrary.notes = tikzLibrary.notes.replace(
   "Legacy implies, concave/custom shape miters, and full declared-arrow hulls remain partial.",
   "A ninth source review implemented ordinary `implies`. Its dima=.25*(outer linewidth+inner linewidth), dimb=.5*(outer linewidth-inner linewidth), backend=-1.36*dima-.5*dimb, tip end=2.06*dima+.5*dimb, and symmetric two-cubic open stroke now share one source-derived metrics path with `spaced implies`; only the latter adds the core invisible space. Flowchart, proposition, and physical-feedback fixtures cover straight, orthogonal, curved, start, end, and bidirectional terminals against MacTeX and tikztosvg. Concave/custom shape miters and full declared-arrow hulls remain partial."
 );
@@ -90,6 +95,19 @@ tikzLibrary.implements.push(
   "legacy prime backend/tip-end shaft shortening at path starts and ends"
 );
 tikzLibrary.notes += " A tenth source review on 2026-09-05 covered ordinary `latex'`, `latex' reversed`, `stealth'`, and `stealth' reversed`. TikZKit now preserves all four names, applies d=.28pt+.3*linewidth, reflects reversed cubic paths, uses fill-only paint for latex prime and active-line-width fillstroke with round joins for stealth prime, and shortens each shaft by the declaration's terminal tip end. Flowchart, mathematical-map, and physical-vector fixtures cover straight, orthogonal, curved, start, end, and bidirectional terminals against MacTeX and tikztosvg. Concave/custom shape miters and full declared-arrow hulls remain partial.";
+
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:resolveDeclaredArrowGeometry/evaluateDeclaredDimensionProgram/evaluateDeclaredDimension/declaredArrowDrawingStyle + src/renderers/svg/paths.js:resolveInlineArrowTip/renderInlineArrowTip";
+tikzLibrary.features.push(
+  "user-declared arrow dimension registers, assignment, and advance with active pgflinewidth",
+  "user-declared dynamic backend, line-end, and tip-end dimensions",
+  "user-declared pgfpoint and pgfqpoint paths with declaration cap, join, and paint semantics"
+);
+tikzLibrary.implements.push(
+  "user-declared arrow dimension registers, assignment, and advance with active pgflinewidth",
+  "user-declared dynamic backend, line-end, and tip-end dimensions",
+  "user-declared pgfpoint and pgfqpoint paths with declaration cap, join, and paint semantics"
+);
+tikzLibrary.notes += " An eleventh source review on 2026-09-05 generalized user-declared arrows beyond literal dimensions. Setup and drawing programs now evaluate `\\pgfutil@tempdima`/`tempdimb` assignments and `\\advance`, substitute the active `\\pgflinewidth`, and resolve `\\pgfpoint`/`\\pgfqpoint` coordinates at render time. Dynamic backend, line-end, and tip-end dimensions shorten the shaft; qfill, qstroke, qfillstroke, butt/round caps, and miter/round joins retain declaration paint semantics. The adaptive process, open-map, and force fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, hull and clipping commands, saved-register callbacks, point addition, and polar point expressions remain partial.";
 
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
@@ -570,13 +588,19 @@ function collectDeclarations(source, declarations, diagnostics) {
       index = start + command.length;
       continue;
     }
-    const declared = parseDeclaredArrow(setup.content, drawing.content);
+    const declared = parseDeclaredArrow(setup.content, drawing.content, lineWidthFromPt(0.4));
     if (!declared) {
       diagnostics.push({ severity: "warning", message: "Unsupported pgfarrowsdeclare drawing program" });
       output += source.slice(start, drawing.end);
     } else {
       for (const name of [forward.content.trim(), backward.content.trim()]) {
-        if (name) declarations.set(name, { ...declared, name });
+        if (name) {
+          declarations.set(name, {
+            ...declared,
+            name,
+            program: { setup: setup.content, drawing: drawing.content }
+          });
+        }
       }
     }
     index = drawing.end;
@@ -584,7 +608,11 @@ function collectDeclarations(source, declarations, diagnostics) {
   return output;
 }
 
-function parseDeclaredArrow(setup, drawing) {
+function parseDeclaredArrow(setup, drawing, lineWidth) {
+  const setupProgram = evaluateDeclaredDimensionProgram(setup, lineWidth);
+  const drawingProgram = evaluateDeclaredDimensionProgram(drawing, lineWidth);
+  const drawingStyle = declaredArrowDrawingStyle(drawingProgram.remainder);
+  const drawingSource = stripDeclaredArrowDrawingStyle(drawingProgram.remainder);
   const commands = [];
   const bounds = createBounds();
   let current = null;
@@ -592,8 +620,8 @@ function parseDeclaredArrow(setup, drawing) {
   const commandPattern = /\\(pgfpathmoveto|pgfpathlineto|pgfpathcurveto|pgfpatharc|pgfpathclose|pgfusepathqfillstroke|pgfusepathqfill|pgfusepathqstroke)\b/g;
   let cursor = 0;
   let match;
-  while ((match = commandPattern.exec(drawing))) {
-    if (drawing.slice(cursor, match.index).replace(/[\s%]/g, "").length) return null;
+  while ((match = commandPattern.exec(drawingSource))) {
+    if (drawingSource.slice(cursor, match.index).replace(/[\s%]/g, "").length) return null;
     cursor = commandPattern.lastIndex;
     const name = match[1];
     if (name === "pgfpathclose") {
@@ -605,13 +633,13 @@ function parseDeclaredArrow(setup, drawing) {
       continue;
     }
     if (name === "pgfpatharc") {
-      const first = readBalanced(drawing, skipWhitespace(drawing, cursor), "{", "}");
-      const second = first && readBalanced(drawing, skipWhitespace(drawing, first.end), "{", "}");
-      const third = second && readBalanced(drawing, skipWhitespace(drawing, second.end), "{", "}");
+      const first = readBalanced(drawingSource, skipWhitespace(drawingSource, cursor), "{", "}");
+      const second = first && readBalanced(drawingSource, skipWhitespace(drawingSource, first.end), "{", "}");
+      const third = second && readBalanced(drawingSource, skipWhitespace(drawingSource, second.end), "{", "}");
       if (!first || !second || !third || !current) return null;
       const start = evaluateMath(first.content);
       const end = evaluateMath(second.content);
-      const radius = parseRadius(third.content);
+      const radius = parseRadius(third.content, drawingProgram.variables, lineWidth);
       if (![start, end, radius.x, radius.y].every(Number.isFinite) || radius.x <= 0 || radius.y <= 0) return null;
       const arc = arcSegments(current, start, end, radius, bounds);
       if (!arc) return null;
@@ -624,8 +652,8 @@ function parseDeclaredArrow(setup, drawing) {
     const points = [];
     const count = name === "pgfpathcurveto" ? 3 : 1;
     for (let pointIndex = 0; pointIndex < count; pointIndex += 1) {
-      const argument = readBalanced(drawing, skipWhitespace(drawing, cursor), "{", "}");
-      const point = argument && parsePgfPoint(argument.content);
+      const argument = readBalanced(drawingSource, skipWhitespace(drawingSource, cursor), "{", "}");
+      const point = argument && parsePgfPoint(argument.content, drawingProgram.variables, lineWidth);
       if (!argument || !point) return null;
       points.push(point);
       cursor = argument.end;
@@ -648,8 +676,8 @@ function parseDeclaredArrow(setup, drawing) {
       commands.push(`C ${format(points[0].x)} ${format(-points[0].y)} ${format(points[1].x)} ${format(-points[1].y)} ${format(points[2].x)} ${format(-points[2].y)}`);
     }
   }
-  if (drawing.slice(cursor).replace(/[\s%]/g, "").length || !commands.length || !paint || !isFiniteBounds(bounds)) return null;
-  const legacyExtents = parseLegacyArrowExtents(setup);
+  if (drawingSource.slice(cursor).replace(/[\s%]/g, "").length || !commands.length || !paint || !isFiniteBounds(bounds)) return null;
+  const legacyExtents = parseLegacyArrowExtents(setup, setupProgram.variables, lineWidth);
   return {
     path: commands.join(" "),
     paint,
@@ -659,14 +687,22 @@ function parseDeclaredArrow(setup, drawing) {
       minY: -bounds.maxY,
       maxY: -bounds.minY
     },
-    ...(legacyExtents || {})
+    ...(legacyExtents || {}),
+    ...drawingStyle
   };
 }
 
-function parseLegacyArrowExtents(setup) {
-  const backEnd = setupDimension(setup, "pgfarrowsleftextend", "pgfarrowssetbackend");
-  const tipEnd = setupDimension(setup, "pgfarrowsrightextend", "pgfarrowssettipend");
-  const lineEnd = setupDimension(setup, "pgfarrowssetlineend");
+export function resolveDeclaredArrowGeometry(declaration, lineWidth = lineWidthFromPt(0.4)) {
+  const program = declaration?.program;
+  if (!program || typeof program.setup !== "string" || typeof program.drawing !== "string") return declaration;
+  const resolved = parseDeclaredArrow(program.setup, program.drawing, lineWidth);
+  return resolved ? { ...resolved, name: declaration.name, program } : declaration;
+}
+
+function parseLegacyArrowExtents(setup, variables, lineWidth) {
+  const backEnd = setupDimension(setup, variables, lineWidth, "pgfarrowsleftextend", "pgfarrowssetbackend");
+  const tipEnd = setupDimension(setup, variables, lineWidth, "pgfarrowsrightextend", "pgfarrowssettipend");
+  const lineEnd = setupDimension(setup, variables, lineWidth, "pgfarrowssetlineend");
   if (![backEnd, tipEnd, lineEnd].some(Number.isFinite)) return null;
   // The old compatibility declaration only exposes the arrow's longitudinal
   // ends; it does not register a PGF arrow hull. PGF therefore keeps the
@@ -679,12 +715,14 @@ function parseLegacyArrowExtents(setup) {
   };
 }
 
-function setupDimension(setup, ...commands) {
+function setupDimension(setup, variables, lineWidth, ...commands) {
   for (const command of commands) {
-    const match = String(setup || "").match(new RegExp(`\\\\${command}\\s*\\{([^{}]+)\\}`));
-    if (!match) continue;
-    const dimension = String(match[1]).trim().replace(/^\+/, "");
-    const value = parseDimension(dimension) * TIKZ_UNIT;
+    const start = String(setup || "").search(new RegExp(`\\\\${command}\\b`));
+    if (start < 0) continue;
+    const open = skipWhitespace(setup, start + command.length + 1);
+    const argument = readBalanced(setup, open, "{", "}");
+    if (!argument) continue;
+    const value = evaluateDeclaredDimension(argument.content, variables, lineWidth);
     if (Number.isFinite(value)) return value;
   }
   return null;
@@ -738,23 +776,140 @@ function encodeArrowPayload(declaration) {
     .join("");
 }
 
-function parsePgfPoint(text) {
+function evaluateDeclaredDimensionProgram(source, lineWidth) {
+  const variables = { pgflinewidth: lineWidth };
+  const ranges = [];
+  const text = String(source || "");
+  const statementPattern = /\\advance\b|\\[A-Za-z@]+\s*=/g;
+  let match;
+  while ((match = statementPattern.exec(text))) {
+    const tail = text.slice(match.index);
+    const advance = tail.match(/^\\advance\s*\\([A-Za-z@]+)\s+by\s*/);
+    const assignment = advance ? null : tail.match(/^\\([A-Za-z@]+)\s*=\s*/);
+    if (!advance && !assignment) continue;
+    const name = (advance || assignment)[1];
+    const operandStart = match.index + (advance || assignment)[0].length;
+    const operandEnd = declaredDimensionOperandEnd(text, operandStart);
+    const value = evaluateDeclaredDimension(text.slice(operandStart, operandEnd), variables, lineWidth);
+    if (!Number.isFinite(value)) continue;
+    variables[name] = advance ? (Number(variables[name]) || 0) + value : value;
+    ranges.push([match.index, operandEnd]);
+    statementPattern.lastIndex = operandEnd;
+  }
+  return { variables, remainder: removeSourceRanges(text, ranges) };
+}
+
+function declaredDimensionOperandEnd(source, start) {
+  const boundaryCommands = new Set([
+    "advance",
+    "pgfarrowsleftextend",
+    "pgfarrowsrightextend",
+    "pgfarrowssetbackend",
+    "pgfarrowssetlineend",
+    "pgfarrowssettipend",
+    "pgfpathclose",
+    "pgfpathcurveto",
+    "pgfpathlineto",
+    "pgfpathmoveto",
+    "pgfsetbuttcap",
+    "pgfsetmiterjoin",
+    "pgfsetroundcap",
+    "pgfsetroundjoin",
+    "pgfusepathqfill",
+    "pgfusepathqfillstroke",
+    "pgfusepathqstroke"
+  ]);
+  let cursor = start;
+  while (cursor < source.length) {
+    const character = source[cursor];
+    if (character === "%" || character === "\n" || character === "\r") break;
+    if (character === "\\") {
+      const command = source.slice(cursor + 1).match(/^([A-Za-z@]+)/)?.[1];
+      if (command && boundaryCommands.has(command)) break;
+      if (command && /^\s*=/.test(source.slice(cursor + command.length + 1))) break;
+    }
+    cursor += 1;
+  }
+  return cursor;
+}
+
+function removeSourceRanges(source, ranges) {
+  if (!ranges.length) return source;
+  let output = "";
+  let cursor = 0;
+  for (const [start, end] of ranges) {
+    output += source.slice(cursor, start);
+    output += " ";
+    cursor = end;
+  }
+  return output + source.slice(cursor);
+}
+
+function evaluateDeclaredDimension(input, variables = {}, lineWidth = lineWidthFromPt(0.4)) {
+  let expression = String(input || "")
+    .trim()
+    .replace(/\\the\s*/g, "")
+    .replace(/\{\}/g, "")
+    .replace(/\{([^{}]+)\}/g, "($1)")
+    .replace(/((?:\d+(?:\.\d*)?|\.\d+))\s*(?=\\[A-Za-z@]+)/g, "$1*")
+    .replace(/((?:\d+(?:\.\d*)?|\.\d+))\s*(pt|bp|cm|mm|in|pc|dd|cc|sp|em|ex)\b/g, (match) => {
+      const value = parseDimension(match) * TIKZ_UNIT;
+      return Number.isFinite(value) ? `(${value})` : "NaN";
+    })
+    .replace(/\\([A-Za-z@]+)/g, (_match, name) => {
+      if (name === "pgflinewidth") return `(${lineWidth})`;
+      return Object.hasOwn(variables, name) ? `(${variables[name]})` : "NaN";
+    })
+    .replace(/\s+/g, "");
+  for (let pass = 0; pass < 3; pass += 1) {
+    expression = expression.replace(/\+\+/g, "+").replace(/\+-/g, "-").replace(/-\+/g, "-").replace(/--/g, "+");
+  }
+  if (!expression || !/^[0-9Na()+\-*/.]+$/.test(expression)) return NaN;
+  try {
+    const value = Function(`"use strict"; return (${expression});`)();
+    return Number.isFinite(value) ? value : NaN;
+  } catch {
+    return NaN;
+  }
+}
+
+function declaredArrowDrawingStyle(source) {
+  const text = String(source || "");
+  let lineCap;
+  let lineJoin;
+  if (/\\pgfsetbuttcap\b/.test(text)) lineCap = "butt";
+  else if (/\\pgfsetroundcap\b/.test(text)) lineCap = "round";
+  if (/\\pgfsetmiterjoin\b/.test(text)) lineJoin = "miter";
+  else if (/\\pgfsetroundjoin\b/.test(text)) lineJoin = "round";
+  return { ...(lineCap ? { lineCap } : {}), ...(lineJoin ? { lineJoin } : {}) };
+}
+
+function stripDeclaredArrowDrawingStyle(source) {
+  return String(source || "")
+    .replace(/%[^\n\r]*/g, "")
+    .replace(/\\pgfset(?:butt|round)cap\b/g, "")
+    .replace(/\\pgfset(?:miter|round)join\b/g, "");
+}
+
+function parsePgfPoint(text, variables = {}, lineWidth = lineWidthFromPt(0.4)) {
   const source = String(text || "").trim();
-  if (!source.startsWith("\\pgfpoint")) return null;
-  let cursor = skipWhitespace(source, "\\pgfpoint".length);
+  if (source === "\\pgfpointorigin") return { x: 0, y: 0 };
+  const pointCommand = source.startsWith("\\pgfqpoint") ? "\\pgfqpoint" : source.startsWith("\\pgfpoint") ? "\\pgfpoint" : null;
+  if (!pointCommand) return null;
+  let cursor = skipWhitespace(source, pointCommand.length);
   const x = readBalanced(source, cursor, "{", "}");
   cursor = x ? skipWhitespace(source, x.end) : cursor;
   const y = x && readBalanced(source, cursor, "{", "}");
   if (!x || !y || source.slice(y.end).trim()) return null;
-  const xValue = parseDimension(x.content) * TIKZ_UNIT;
-  const yValue = parseDimension(y.content) * TIKZ_UNIT;
+  const xValue = evaluateDeclaredDimension(x.content, variables, lineWidth);
+  const yValue = evaluateDeclaredDimension(y.content, variables, lineWidth);
   return Number.isFinite(xValue) && Number.isFinite(yValue) ? { x: xValue, y: yValue } : null;
 }
 
-function parseRadius(text) {
-  const point = parsePgfPoint(text);
+function parseRadius(text, variables = {}, lineWidth = lineWidthFromPt(0.4)) {
+  const point = parsePgfPoint(text, variables, lineWidth);
   if (point) return { x: Math.abs(point.x), y: Math.abs(point.y) };
-  const value = parseDimension(String(text || "")) * TIKZ_UNIT;
+  const value = evaluateDeclaredDimension(String(text || ""), variables, lineWidth);
   return { x: value, y: value };
 }
 

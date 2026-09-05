@@ -8271,6 +8271,33 @@
       "externalSource": "tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
       "semanticOwner": "src/frontend/parser.js:parseParabolaSegment + src/tikz/pathOperations/parabola.js:pgfParabolaCommands + src/engine/evaluate.js:resolveParabolaBend",
       "features": ["parabola height", "local vertical bend", "projectile trajectory", "terminal tangent", "Stealth arrows"]
+    },
+    {
+      "id": "arrows-declared-sizing-flowchart",
+      "title": "Line-width-aware declared process arrows",
+      "source": "arrows/declared-sizing-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the PGF legacy latex-prime declaration",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "dimension registers", "pgflinewidth", "advance", "pgfqpoint", "cubic arrow path", "active line width"]
+    },
+    {
+      "id": "arrows-declared-sizing-math",
+      "title": "Line-width-aware declared open map arrows",
+      "source": "arrows/declared-sizing-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGF open triangle declaration",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "two dimension registers", "pgflinewidth", "advance", "pgfqpoint", "stroke-only arrow", "miter join", "butt cap"]
+    },
+    {
+      "id": "arrows-declared-sizing-physics",
+      "title": "Line-width-aware declared force arrows",
+      "source": "arrows/declared-sizing-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the PGF triangle 90 declaration",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "dimension register reassignment", "pgflinewidth", "advance", "pgfqpoint", "fillstroke arrow", "active line width"]
     }
   ]
 }

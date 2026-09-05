@@ -1,0 +1,41 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+
+% Source-derived from the legacy triangle 90 declaration.
+\makeatletter
+\pgfarrowsdeclare{adaptive force}{adaptive force}
+{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfutil@tempdimb=5.5\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by.5\pgflinewidth
+  \pgfarrowsleftextend{-\pgfutil@tempdimb}
+  \pgfutil@tempdimb=.5\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by.707\pgflinewidth
+  \pgfarrowsrightextend{\pgfutil@tempdimb}
+}
+{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfsetmiterjoin
+  \pgfsetbuttcap
+  \pgfpathmoveto{\pgfqpoint{-5.5\pgfutil@tempdima}{-6\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{.5\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-5.5\pgfutil@tempdima}{6\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqfillstroke
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (-3.2,0) -- (3.2,0);
+  \draw[gray!35] (0,-2.3) -- (0,2.5);
+  \fill (0,0) circle (2pt) node[below right] {$O$};
+
+  \draw[blue,line width=.4pt,-{adaptive force}] (0,0) -- (2.65,1.35) node[above right] {$\vec F$};
+  \draw[red,line width=1pt,-{adaptive force}] (0,0) -- (-2.45,1.55) node[above left] {$\vec N$};
+  \draw[green!50!black,line width=1.6pt,-{adaptive force}] (0,0) -- (0,-2.05) node[below] {$m\vec g$};
+\end{tikzpicture}
+\end{document}

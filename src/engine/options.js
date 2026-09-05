@@ -1023,7 +1023,23 @@ function parseDeclaredArrowPayload(value) {
         }
       : {};
     if (usesLegacyExtents && ![extents.backEnd, extents.tipEnd, extents.lineEnd].every(Number.isFinite)) return null;
-    return { name: String(decoded.name || "declared"), path: decoded.path, paint: decoded.paint, bounds, ...extents };
+    const program = decoded.program
+      && typeof decoded.program.setup === "string"
+      && typeof decoded.program.drawing === "string"
+      ? { setup: decoded.program.setup, drawing: decoded.program.drawing }
+      : null;
+    const lineCap = ["butt", "round"].includes(decoded.lineCap) ? decoded.lineCap : null;
+    const lineJoin = ["miter", "round"].includes(decoded.lineJoin) ? decoded.lineJoin : null;
+    return {
+      name: String(decoded.name || "declared"),
+      path: decoded.path,
+      paint: decoded.paint,
+      bounds,
+      ...extents,
+      ...(program ? { program } : {}),
+      ...(lineCap ? { lineCap } : {}),
+      ...(lineJoin ? { lineJoin } : {})
+    };
   } catch {
     return null;
   }

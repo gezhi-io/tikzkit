@@ -1,0 +1,43 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+% Source-derived from the legacy open triangle 90 declaration.
+\makeatletter
+\pgfarrowsdeclare{adaptive open map}{adaptive open map}
+{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfarrowsleftextend{-.5\pgflinewidth}
+  \pgfutil@tempdimb=6\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by.707\pgflinewidth
+  \pgfarrowsrightextend{\pgfutil@tempdimb}
+}
+{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfsetmiterjoin
+  \pgfsetbuttcap
+  \pgfpathmoveto{\pgfqpoint{0pt}{-6\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{6\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{0pt}{6\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqstroke
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=16mm and 24mm,
+  object/.style={draw,circle,minimum size=10mm,inner sep=1pt}
+]
+  \node[object,fill=blue!8] (V) {$V$};
+  \node[object,fill=green!10,right=of V] (W) {$W$};
+  \node[object,fill=orange!10,below=of V] (X) {$X$};
+  \node[object,fill=purple!8,right=of X] (Y) {$Y$};
+
+  \draw[blue,line width=.4pt,-{adaptive open map}] (V) -- node[above] {$f$} (W);
+  \draw[purple,line width=1pt,-{adaptive open map}] (X) -- node[below] {$g$} (Y);
+  \draw[red,line width=1.6pt,-{adaptive open map}] (V) -- node[left] {$p$} (X);
+\end{tikzpicture}
+\end{document}

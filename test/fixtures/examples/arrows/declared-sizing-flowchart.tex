@@ -1,0 +1,48 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+% Source-derived from the legacy latex' declaration in pgflibraryarrows.code.tex.
+\makeatletter
+\pgfarrowsdeclare{adaptive process}{adaptive process}
+{
+  \pgfutil@tempdima=.28pt
+  \advance\pgfutil@tempdima by.3\pgflinewidth
+  \pgfarrowsleftextend{-4\pgfutil@tempdima}
+  \pgfarrowsrightextend{6\pgfutil@tempdima}
+}
+{
+  \pgfutil@tempdima=.28pt
+  \advance\pgfutil@tempdima by.3\pgflinewidth
+  \pgfpathmoveto{\pgfqpoint{6\pgfutil@tempdima}{0pt}}
+  \pgfpathcurveto
+    {\pgfqpoint{3.5\pgfutil@tempdima}{.5\pgfutil@tempdima}}
+    {\pgfqpoint{-1\pgfutil@tempdima}{1.5\pgfutil@tempdima}}
+    {\pgfqpoint{-4\pgfutil@tempdima}{3.75\pgfutil@tempdima}}
+  \pgfpathcurveto
+    {\pgfqpoint{-1.5\pgfutil@tempdima}{1\pgfutil@tempdima}}
+    {\pgfqpoint{-1.5\pgfutil@tempdima}{-1\pgfutil@tempdima}}
+    {\pgfqpoint{-4\pgfutil@tempdima}{-3.75\pgfutil@tempdima}}
+  \pgfpathcurveto
+    {\pgfqpoint{-1\pgfutil@tempdima}{-1.5\pgfutil@tempdima}}
+    {\pgfqpoint{3.5\pgfutil@tempdima}{-.5\pgfutil@tempdima}}
+    {\pgfqpoint{6\pgfutil@tempdima}{0pt}}
+  \pgfusepathqfill
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=13mm and 18mm,
+  stage/.style={draw,rounded corners=2pt,minimum width=24mm,minimum height=8mm,align=center}
+]
+  \node[stage,fill=blue!8] (draft) {Draft};
+  \node[stage,fill=yellow!16,right=of draft] (review) {Review};
+  \node[stage,fill=green!10,right=of review] (publish) {Publish};
+  \node[stage,fill=red!8,below=of review] (revise) {Revise};
+
+  \draw[blue,line width=.4pt,-{adaptive process}] (draft) -- node[above]{submit} (review);
+  \draw[green!50!black,line width=1pt,-{adaptive process}] (review) -- node[above]{approve} (publish);
+  \draw[red,line width=1.6pt,-{adaptive process}] (review) -- node[right]{changes} (revise);
+\end{tikzpicture}
+\end{document}

@@ -28,7 +28,8 @@ import {
   legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
-  legacyTriangleArrowMetrics
+  legacyTriangleArrowMetrics,
+  resolveDeclaredArrowGeometry
 } from "../../tikz/libraries/arrows.js";
 import {
   spacedAngleArrowMetrics,
@@ -351,15 +352,18 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const baseStroke = style.stroke === "none" ? "black" : style.stroke || "black";
   const explicitStroke = source.stroke && source.stroke !== "context-stroke";
   const fill = raw.fill && raw.fill !== "context-stroke" ? raw.fill : baseStroke;
-  const geometry = raw.declaredArrow
+  const declaredArrow = raw.declaredArrow
+    ? resolveDeclaredArrowGeometry(raw.declaredArrow, Math.max(0.01, style.lineWidth ?? 1))
+    : null;
+  const geometry = declaredArrow
     ? {
-        path: raw.declaredArrow.path,
-        shorten: raw.declaredArrow.usesLegacyExtents
-          ? raw.declaredArrow.tipEnd - raw.declaredArrow.lineEnd
+        path: declaredArrow.path,
+        shorten: declaredArrow.usesLegacyExtents
+          ? declaredArrow.tipEnd - declaredArrow.lineEnd
           : 0,
         placement: 0,
-        bounds: raw.declaredArrow.bounds,
-        includeBounds: !raw.declaredArrow.usesLegacyExtents
+        bounds: declaredArrow.bounds,
+        includeBounds: !declaredArrow.usesLegacyExtents
       }
     : inlineArrowGeometry(raw, style, {
     customLength: usesCustomArrowDimension(source, raw, "length"),
@@ -408,7 +412,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const legacyFilledCircleTip = isLegacyFilledCircleTip(raw.kind);
   const legacyFilledShapeTip = legacyFilledTriangleTip || legacyFilledDiamondTip || legacyFilledSquareTip || legacyFilledCircleTip;
   const filledStrokedTip = metaStealthTip || legacyStealthPrime || spacedLegacyStealthPrime || legacyFilledShapeTip || raw.kind === "dimline" || raw.kind === "dimline reverse";
-  const declaredPaint = raw.declaredArrow?.paint;
+  const declaredPaint = declaredArrow?.paint;
   const separation = arrowTipSeparation(raw.separation, style);
   return {
     kind: raw.kind,
@@ -419,8 +423,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || legacyPrime || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
-    lineJoin: isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
+    lineCap: declaredArrow?.lineCap || (legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || legacyPrime || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round"),
+    lineJoin: declaredArrow?.lineJoin || (isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round"),
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -429,7 +433,13 @@ export function resolveInlineArrowTip(tip, style = {}) {
           ? baseStroke
           : raw.stroke || baseStroke
         : "none",
-    fill: declaredPaint === "stroke" || openTip || barTip || raw.open ? "none" : fill,
+    fill: declaredPaint === "stroke"
+      ? "none"
+      : declaredPaint === "fill" || declaredPaint === "fillstroke"
+        ? baseStroke
+        : openTip || barTip || raw.open
+          ? "none"
+          : fill,
     strokeWidth: declaredPaint === "stroke" || declaredPaint === "fillstroke"
       ? style.lineWidth ?? 1
       : barTip
