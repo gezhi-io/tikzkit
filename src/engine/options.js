@@ -835,20 +835,29 @@ export function parseArrowTipSpec(input) {
 
 function parseArrowTipAtom(input, inheritedOptions = {}) {
   const text = String(input || "").trim();
-  const match = text.match(/^([A-Za-z0-9>'()[\]\s-]+)(?:\[([\s\S]*)\])?$/);
+  const match = text.match(/^([A-Za-z0-9>'()\s-]+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
   const options = { ...inheritedOptions, ...(match[2] ? parseOptions(match[2]) : {}) };
   const overrides = {};
   if (options.width) {
     overrides.width = lineWidthFromTikzDimension(options.width);
     overrides.customWidth = true;
+    overrides.widthSpec = parseArrowTipDimensionSpec(options.width);
+  }
+  if (options["width'"]) {
+    overrides.widthPrimeSpec = parseArrowTipDimensionSpec(options["width'"]);
   }
   if (options.length) {
     overrides.length = lineWidthFromTikzDimension(options.length);
     overrides.customLength = true;
+    overrides.lengthSpec = parseArrowTipDimensionSpec(options.length);
   }
   if (options["line width"]) {
     overrides.lineWidth = lineWidthFromTikzDimension(options["line width"]);
+    overrides.lineWidthSpec = parseArrowTipDimensionSpec(options["line width"]);
+  }
+  if (options["line width'"]) {
+    overrides.lineWidthPrimeSpec = parseArrowTipDimensionSpec(options["line width'"]);
   }
   // These are the arrows.meta option keys that affect Stealth's geometry or
   // paint. Keep them on the tip object so the renderer can share the PGF
@@ -858,6 +867,19 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
   if (harpoon) overrides.harpoon = true;
   if (swap) overrides.swap = true;
   if (options.reversed === true) overrides.reversed = true;
+  if (options.round === true) {
+    overrides.roundCap = true;
+    overrides.roundJoin = true;
+  }
+  if (options.sharp === true) {
+    overrides.roundCap = false;
+    overrides.roundJoin = false;
+  }
+  if (options["line cap"] === "round") overrides.roundCap = true;
+  if (options["line cap"] === "butt") overrides.roundCap = false;
+  if (options["line join"] === "round") overrides.roundJoin = true;
+  if (options["line join"] === "miter") overrides.roundJoin = false;
+  if (Number.isFinite(Number(options.slant))) overrides.slant = Number(options.slant);
   if (options.open === true) {
     overrides.open = true;
     overrides.fill = "none";
@@ -909,6 +931,20 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
     length: tip.length * scale,
     width: tip.width * scale,
     ...(tip.lineWidth ? { lineWidth: tip.lineWidth * scale } : {})
+  };
+}
+
+function parseArrowTipDimensionSpec(value) {
+  const text = String(value ?? "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  if (!text) return undefined;
+  const match = text.match(/^(.*?)(?:\s+([-+]?(?:\d+\.?\d*|\.\d+)))?(?:\s+([-+]?(?:\d+\.?\d*|\.\d+)))?$/);
+  if (!match) return undefined;
+  const dimension = lineWidthFromTikzDimension(match[1], NaN);
+  if (!Number.isFinite(dimension)) return undefined;
+  return {
+    dimension,
+    lineWidthFactor: Number.isFinite(Number(match[2])) ? Number(match[2]) : 0,
+    outerFactor: Number.isFinite(Number(match[3])) ? Number(match[3]) : 0
   };
 }
 

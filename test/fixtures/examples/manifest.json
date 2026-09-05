@@ -4370,6 +4370,24 @@
       ]
     },
     {
+      "id": "arrows-meta-straight-barb-circuit-blocks",
+      "title": "PGF Straight Barb dimensions and CircuitikZ-style block spans",
+      "source": "arrows/meta-straight-barb-circuit-blocks.tex",
+      "sourceCorpus": "TeX Live CircuitikZ manual blockdef style and PGF arrows.meta manual",
+      "externalSource": "doc/latex/circuitikz/circuitikzmanual.tex;doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+      "semanticOwner": "src/tikz/metrics.js:straightBarbArrowGeometryFromLineWidth;src/renderers/svg/paths.js:inlineArrowGeometry",
+      "features": [
+        "Straight Barb default dimensions",
+        "tip-local line cap and line join",
+        "harpoon",
+        "reversed",
+        "left and right swap",
+        "custom length",
+        "arrow line end shortening",
+        "opposing CircuitikZ-style block span tips"
+      ]
+    },
+    {
       "id": "arrows-meta-latex-reverse-line-end",
       "title": "PGF arrows.meta reversed Latex line end",
       "source": "arrows/meta-latex-reverse-line-end.tex",

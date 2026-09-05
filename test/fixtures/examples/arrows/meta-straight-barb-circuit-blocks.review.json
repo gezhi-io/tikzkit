@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/circuitikz/circuitikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The browser front end removes the standalone document shell while retaining its TikZ picture and crop-border semantics."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads TikZ core and the PGF libraries used by CircuitikZ."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\draw", "\\path", "\\node", "\\coordinate", "\\tikzset"],
+      "findings": "Core path commands resolve styles before constructing paths, inline nodes, named coordinates, and terminal arrow actions."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/circuitikz/circuitikz.sty": {
+      "symbols": ["\\usepackage{circuitikz}"],
+      "findings": "CircuitikZ loads TikZ and its arrow dependencies before installing the circuit styles used by the manual example."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": ["Straight Barb", "length", "width'", "line width", "harpoon", "reversed"],
+      "findings": "Straight Barb is a connected stroked path whose default length and width depend on the path line width. Its setup computes front and harpoon miter corrections plus distinct tip, back, visual-back, and line ends."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": ["pgfarrowslinewidthdependent", "pgfarrowslengthdependent", "pgfarrowreversed", "pgfarrowswap"],
+      "findings": "Arrow dimensions combine fixed dimensions with line-width or arrow-length factors; reversal reflects x and exchanges extents, while swap reflects y."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex": {
+      "symbols": ["Straight Barb", "round", "sharp", "left", "right", "slant"],
+      "findings": "The manual's canonical matrix establishes expected cap/join, sidedness, scaling, reversal, and slant behavior."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/circuitikz/circuitikzmanual.tex": {
+      "symbols": ["blockdef", "Straight Barb[harpoon, reversed, right]", "Straight Barb[harpoon, reversed, left]"],
+      "findings": "CircuitikZ uses opposing one-sided reversed barbs as blue block-span brackets with a white midpoint label mask."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-meta-straight-barb.test.js", "docs/qa/2026-09-05-arrows-meta-straight-barb.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-meta-straight-barb.test.js", "docs/qa/2026-09-05-arrows-meta-straight-barb.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-meta-straight-barb.test.js", "docs/qa/2026-09-05-arrows-meta-straight-barb.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-meta-straight-barb.test.js", "docs/qa/2026-09-05-arrows-meta-straight-barb.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-meta-straight-barb.test.js", "docs/qa/2026-09-05-arrows-meta-straight-barb.md"] }
+  ],
+  "notes": "Reviewed against MacTeX, tikztosvg, and TikZKit with the same source and one-centimeter comparison grids."
+}

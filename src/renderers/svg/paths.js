@@ -7,7 +7,8 @@ import {
   stealthArrowHalfWidthFromLength,
   stealthArrowLengthFromLineWidth,
   stealthMetaArrowGeometryFromLineWidth,
-  stealthArrowShortenFromLength
+  stealthArrowShortenFromLength,
+  straightBarbArrowGeometryFromLineWidth
 } from "../../tikz/metrics.js";
 import { blurShadowFilterId } from "./defs.js";
 import { escapeAttribute } from "./escape.js";
@@ -367,7 +368,9 @@ export function resolveInlineArrowTip(tip, style = {}) {
       }
     : inlineArrowGeometry(raw, style, {
     customLength: usesCustomArrowDimension(source, raw, "length"),
-    customWidth: usesCustomArrowDimension(source, raw, "width")
+    customWidth: usesCustomArrowDimension(source, raw, "width"),
+    customLineWidth: source.customLineWidth === true
+      || (Object.hasOwn(source, "lineWidth") && !source.lineWidthSpec)
   });
   geometry.bounds ||= {
     minX: -Math.max(Number(raw.length) || 0, Number(geometry.shorten) || 0),
@@ -423,8 +426,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: declaredArrow?.lineCap || (legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || legacyPrime || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round"),
-    lineJoin: declaredArrow?.lineJoin || (isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round"),
+    lineCap: declaredArrow?.lineCap || geometry.lineCap || (legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || legacyPrime || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round"),
+    lineJoin: declaredArrow?.lineJoin || geometry.lineJoin || (isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round"),
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -447,7 +450,9 @@ export function resolveInlineArrowTip(tip, style = {}) {
         ? style.lineWidth ?? raw.lineWidth ?? 1
         : raw.lineWidth || style.lineWidth || 1
       : openTip
-      ? spacedLegacyTo || legacyImplies || legacySideTo ? geometry.lineWidth : style.lineWidth ?? 1
+      ? Number.isFinite(Number(geometry.lineWidth))
+        ? geometry.lineWidth
+        : spacedLegacyTo || legacyImplies || legacySideTo ? geometry.lineWidth : style.lineWidth ?? 1
       : filledCircleTip
         ? style.lineWidth ?? 1
       : filledStrokedTip
@@ -720,11 +725,33 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     };
   }
   if (tip.kind === "straight-barb") {
-    const length = flags.customLength ? tip.length : lineWidthFromPt(1.5 + 2.15 * lineWidthPt);
-    const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(1.35 + 1.9 * lineWidthPt);
+    const innerLineWidth = style.doubleColor !== undefined
+      ? Number.isFinite(Number(style.doubleDistance))
+        ? Math.max(0, Number(style.doubleDistance))
+        : lineWidthFromPt(0.6)
+      : 0;
+    const fullLineWidth = style.doubleColor !== undefined ? 2 * lineWidth + innerLineWidth : lineWidth;
+    const constantSpec = (value) => ({ dimension: value, lineWidthFactor: 0, outerFactor: 0 });
+    const native = straightBarbArrowGeometryFromLineWidth(fullLineWidth, {
+      scale: tip.scale,
+      lengthScale: tip.lengthScale,
+      widthScale: tip.widthScale,
+      lengthSpec: tip.lengthSpec || (flags.customLength ? constantSpec(tip.length) : undefined),
+      widthSpec: tip.widthSpec || (flags.customWidth ? constantSpec(tip.width) : undefined),
+      widthPrimeSpec: tip.widthPrimeSpec,
+      lineWidthSpec: tip.lineWidthSpec || (flags.customLineWidth ? constantSpec(tip.lineWidth) : undefined),
+      lineWidthPrimeSpec: tip.lineWidthPrimeSpec,
+      innerLineWidth,
+      harpoon: tip.harpoon,
+      reversed: tip.reversed,
+      swap: tip.swap,
+      roundCap: tip.roundCap,
+      roundJoin: tip.roundJoin,
+      slant: tip.slant
+    });
     return {
-      path: `M 0 0 L ${format(-length)} ${format(-halfWidth)} M 0 0 L ${format(-length)} ${format(halfWidth)}`,
-      shorten: 0
+      ...native,
+      path: native.points.map((point, index) => `${index ? "L" : "M"} ${format(point.x)} ${format(-point.y)}`).join(" ")
     };
   }
   if (tip.kind === "arc-barb") {

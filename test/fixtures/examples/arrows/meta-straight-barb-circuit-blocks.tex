@@ -1,0 +1,23 @@
+% Derived from the local CircuitikZ manual's blockdef style.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+
+\begin{document}
+\tikzset{
+  stage/.style={draw,minimum width=2.2cm,minimum height=8mm},
+  blockline/.style={blue,line width=0.8pt}
+}
+\begin{tikzpicture}
+  \node[stage] (input) at (0,0) {input stage};
+  \node[stage] (output) at (5.2,0) {output stage};
+  \draw[-{Straight Barb}] (input.east) -- (output.west);
+  \coordinate (block-left) at ([yshift=-8mm]input.south west);
+  \coordinate (block-right) at ([yshift=-8mm]output.south east);
+  \draw[blockline] (block-left) -- (block-right);
+  \draw[blockline,-{Straight Barb[harpoon,reversed,left,length=0.2cm]}]
+    (block-left) -- (block-right);
+  \draw[blockline,-{Straight Barb[harpoon,reversed,right,length=0.2cm]}]
+    (block-right) -- (block-left);
+  \path (block-left) -- node[midway,fill=white,inner sep=2pt] {amplifier block} (block-right);
+\end{tikzpicture}
+\end{document}

@@ -22,7 +22,7 @@ export function curvedArrowPaint(tip, placed, terminal, side, unit = 1) {
         y: sample.point.y + normal.y * point.y
       };
     });
-    return mapped ? { ...mapped, mode: "bend" } : null;
+    return mapped ? { ...mapped, mode: "bend", strokeBoundsIncluded: false } : null;
   }
 
   const factor = Number.isFinite(Number(bending.factor)) ? Number(bending.factor) : 1;
@@ -50,7 +50,8 @@ export function curvedArrowPaint(tip, placed, terminal, side, unit = 1) {
     mode: bending.mode,
     path: tip.geometry?.path || "",
     transform,
-    bounds: transformedBounds(tip.geometry?.bounds, transform)
+    bounds: transformedBounds(tip.geometry?.bounds, transform),
+    strokeBoundsIncluded: tip.geometry?.strokeBoundsIncluded === true
   };
 }
 

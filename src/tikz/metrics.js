@@ -215,6 +215,10 @@ export function createArrowTip(kind = "to", overrides = {}) {
       ? Object.hasOwn(overrides, "meta")
         ? overrides.meta === true
         : sourceKind === "Square" || sourceKind === "Rectangle"
+      : normalizedKind === "straight-barb"
+        ? Object.hasOwn(overrides, "meta")
+          ? overrides.meta === true
+          : true
       : undefined;
   return {
     ...base,
@@ -223,7 +227,7 @@ export function createArrowTip(kind = "to", overrides = {}) {
     // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
     // the source spelling so their geometry can stay distinct downstream.
     ...(normalizedKind === "latex" ? { legacy } : {}),
-    ...(["latex", "stealth", "square"].includes(normalizedKind) ? { meta } : {})
+    ...(["latex", "stealth", "square", "straight-barb"].includes(normalizedKind) ? { meta } : {})
   };
 }
 
@@ -563,6 +567,145 @@ export function stealthMetaArrowGeometryFromLineWidth(lineWidth, scales = {}) {
     harpoon,
     reversed,
     swap
+  };
+}
+
+export function straightBarbArrowGeometryFromLineWidth(lineWidth, arrowOptions = {}) {
+  const unitsPerPt = lineWidthFromPt(1);
+  const pathLineWidth = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default);
+  const pathLineWidthPt = pathLineWidth / unitsPerPt;
+  const innerLineWidthPt = Math.max(0, Number(arrowOptions.innerLineWidth) || 0) / unitsPerPt;
+  const scaleFactor = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
+  const lengthScale = scaleFactor(arrowOptions.scale) * scaleFactor(arrowOptions.lengthScale);
+  const widthScale = scaleFactor(arrowOptions.scale) * scaleFactor(arrowOptions.widthScale);
+
+  // pgfcorearrows.code.tex resolves the two trailing parameters against the
+  // current full stroke. The third parameter only changes double lines.
+  const lineWidthDependent = (spec, fallback) => {
+    const resolved = spec || fallback;
+    const dimensionPt = (Number(resolved.dimension) || 0) / unitsPerPt;
+    const factor = Number(resolved.lineWidthFactor) || 0;
+    const outerFactor = Number(resolved.outerFactor) || 0;
+    const effectiveLineWidthPt = innerLineWidthPt > 0
+      ? pathLineWidthPt * (1 - outerFactor / 2) - innerLineWidthPt * outerFactor / 2
+      : pathLineWidthPt;
+    return dimensionPt + factor * effectiveLineWidthPt;
+  };
+  const lengthDependent = (spec, fallback, lengthPt) => {
+    const resolved = spec || fallback;
+    return (Number(resolved.dimension) || 0) / unitsPerPt
+      + (Number(resolved.lineWidthFactor) || 0) * lengthPt
+      + (Number(resolved.outerFactor) || 0) * pathLineWidthPt;
+  };
+
+  // pgflibraryarrows.meta.code.tex, Straight Barb defaults:
+  // length=+1.5pt 2, width'=+0pt 2, line width=+0pt 1 1.
+  const baseLengthPt = lineWidthDependent(arrowOptions.lengthSpec, {
+    dimension: lineWidthFromPt(1.5),
+    lineWidthFactor: 2,
+    outerFactor: 0
+  });
+  const baseWidthPt = arrowOptions.widthPrimeSpec
+    ? lengthDependent(arrowOptions.widthPrimeSpec, null, baseLengthPt)
+    : arrowOptions.widthSpec
+      ? lineWidthDependent(arrowOptions.widthSpec, null)
+      : 2 * baseLengthPt;
+  const arrowLineWidthPt = arrowOptions.lineWidthPrimeSpec
+    ? lengthDependent(arrowOptions.lineWidthPrimeSpec, null, baseLengthPt)
+    : lineWidthDependent(arrowOptions.lineWidthSpec, {
+        dimension: 0,
+        lineWidthFactor: 1,
+        outerFactor: 1
+      });
+  const lengthPt = Math.max(0.01, baseLengthPt * lengthScale);
+  const widthPt = Math.max(0.01, baseWidthPt * widthScale);
+  const tipLineWidthPt = Math.max(0.01, arrowLineWidthPt);
+  const harpoon = arrowOptions.harpoon === true;
+  const reversed = arrowOptions.reversed === true;
+  const swap = arrowOptions.swap === true;
+  const roundCap = arrowOptions.roundCap === true;
+  const roundJoin = arrowOptions.roundJoin === true;
+  const slant = Number.isFinite(Number(arrowOptions.slant)) ? Number(arrowOptions.slant) : 0;
+  const quotient = lengthPt / widthPt;
+  const frontMiterPt = 0.5 * tipLineWidthPt * Math.sqrt(1 + 4 * quotient * quotient);
+  const harpoonMiterPt = quotient * tipLineWidthPt;
+
+  const forwardTipEndPt = roundJoin
+    ? lengthPt + tipLineWidthPt / 2
+    : lengthPt + frontMiterPt + (harpoon ? harpoonMiterPt : 0);
+  const forwardBackEndPt = -tipLineWidthPt / 2;
+  const forwardVisualTipEndPt = forwardTipEndPt;
+  const forwardVisualBackEndPt = lengthPt + tipLineWidthPt / 2;
+  const forwardLineEndPt = reversed
+    ? lengthPt + (harpoon ? tipLineWidthPt / 2 : 0)
+    : lengthPt - tipLineWidthPt / 2;
+  const tipEndPt = reversed ? -forwardBackEndPt : forwardTipEndPt;
+  const backEndPt = reversed ? -forwardTipEndPt : forwardBackEndPt;
+  const visualTipEndPt = reversed ? -forwardVisualBackEndPt : forwardVisualTipEndPt;
+  const visualBackEndPt = reversed ? -forwardVisualTipEndPt : forwardVisualBackEndPt;
+  const visualSpanPt = visualTipEndPt - visualBackEndPt;
+  const lineEndPt = reversed ? -forwardLineEndPt : forwardLineEndPt;
+
+  const transformPoint = ({ x, y }) => {
+    let transformedX = reversed ? -x : x;
+    let transformedY = swap ? -y : y;
+    transformedX += slant * transformedY;
+    return {
+      x: lineWidthFromPt(transformedX),
+      y: lineWidthFromPt(transformedY)
+    };
+  };
+  const finalHarpoonXPt = lengthPt + (reversed ? tipLineWidthPt : -tipLineWidthPt);
+  const points = [
+    { x: 0, y: widthPt / 2 },
+    { x: lengthPt, y: 0 },
+    harpoon ? { x: finalHarpoonXPt, y: 0 } : { x: 0, y: -widthPt / 2 }
+  ].map(transformPoint);
+
+  const hullFirstXPt = roundJoin
+    ? lengthPt + tipLineWidthPt / 2
+    : lengthPt + frontMiterPt + harpoonMiterPt;
+  const upperHull = [
+    { x: hullFirstXPt, y: harpoon ? -tipLineWidthPt / 2 : 0 },
+    { x: tipLineWidthPt / 2, y: widthPt / 2 + tipLineWidthPt / 2 },
+    { x: -tipLineWidthPt / 2, y: widthPt / 2 + tipLineWidthPt / 2 }
+  ];
+  const hull = [...upperHull];
+  if (!harpoon) hull.push(...upperHull.map(({ x, y }) => ({ x, y: -y })));
+  if (harpoon) hull.push({ x: -tipLineWidthPt / 2, y: -tipLineWidthPt / 2 });
+  const transformedHull = hull.map(transformPoint);
+  const bounds = transformedHull.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    minY: Math.min(result.minY, -point.y),
+    maxX: Math.max(result.maxX, point.x),
+    maxY: Math.max(result.maxY, -point.y)
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+
+  const tipEnd = lineWidthFromPt(tipEndPt);
+  const backEnd = lineWidthFromPt(backEndPt);
+  const lineEnd = lineWidthFromPt(lineEndPt);
+  return {
+    length: lineWidthFromPt(lengthPt),
+    width: lineWidthFromPt(widthPt),
+    lineWidth: lineWidthFromPt(tipLineWidthPt),
+    tipEnd,
+    backEnd,
+    visualTipEnd: lineWidthFromPt(visualTipEndPt),
+    visualBackEnd: lineWidthFromPt(visualBackEndPt),
+    visualSpan: lineWidthFromPt(visualSpanPt),
+    lineEnd,
+    terminalPlacement: tipEnd - lineEnd,
+    placement: tipEnd,
+    assemblyLength: tipEnd - backEnd,
+    points,
+    bounds,
+    strokeBoundsIncluded: true,
+    lineCap: roundCap ? "round" : "butt",
+    lineJoin: roundJoin ? "round" : "miter",
+    harpoon,
+    reversed,
+    swap,
+    slant
   };
 }
 

@@ -10,7 +10,7 @@ import { estimateRichTextRenderBounds } from "./richTextNode.js";
 import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
-import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTip, resolveInlineArrowTipSequence } from "./paths.js";
+import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTip, resolveInlineArrowTipSequence, shortenPathTerminals } from "./paths.js";
 import {
   circularSectorGeometry,
   cylinderGeometry,
@@ -186,7 +186,9 @@ function includeStandaloneMarkerBounds(item, include, unit) {
     include(item.x, item.y);
     return;
   }
-  const pad = Math.max(0, Number(tip.strokeWidth) || Number(item.style?.lineWidth) || 0) / 2;
+  const pad = tip.geometry?.strokeBoundsIncluded === true
+    ? 0
+    : Math.max(0, Number(tip.strokeWidth) || Number(item.style?.lineWidth) || 0) / 2;
   const angle = (-Number(item.angle || 0) * Math.PI) / 180;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
@@ -312,7 +314,14 @@ function intersectPathClipCircleBounds(bounds, clipCircle) {
 function includeInlineArrowBounds(item, include, unit) {
   const style = item.style || {};
   if (!style.markerStart && !style.markerEnd) return;
-  const terminal = pathTerminalSegments(item.commands || []);
+  const originalTerminal = pathTerminalSegments(item.commands || []);
+  const explicitCommands = shortenPathTerminals(
+    item.commands || [],
+    originalTerminal,
+    (Number(style.shortenStart) || 0) / unit,
+    (Number(style.shortenEnd) || 0) / unit
+  );
+  const terminal = pathTerminalSegments(explicitCommands);
   if (style.markerStart && terminal.first) {
     const ux = -(terminal.first.startUx ?? terminal.first.ux);
     const uy = -(terminal.first.startUy ?? terminal.first.uy);
@@ -338,7 +347,9 @@ function includeInlineArrowBounds(item, include, unit) {
 function includeCurvedArrowTipBounds(placed, style, terminal, side, include, unit) {
   const paint = curvedArrowPaint(placed.tip, placed, terminal, side, unit);
   if (!paint?.bounds) return false;
-  const pad = (Number(placed.tip.strokeWidth) || Number(style.lineWidth) || 0) / 2;
+  const pad = paint.strokeBoundsIncluded === true
+    ? 0
+    : (Number(placed.tip.strokeWidth) || Number(style.lineWidth) || 0) / 2;
   include((paint.bounds.minX - pad) / unit, -(paint.bounds.maxY + pad) / unit);
   include((paint.bounds.maxX + pad) / unit, -(paint.bounds.minY - pad) / unit);
   return true;
@@ -351,9 +362,12 @@ function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit
   // Legacy PGF arrow declarations include half the current line width in
   // `\pgfarrowsrightextend`. The emitted tip geometry carries that extension
   // already, so only its remaining stroke half-width belongs outside it.
-  const terminalPad = (Number(tip.strokeWidth) || Number(style.lineWidth) || 0) / unit / 2;
-  const strokePad = (Number(tip.strokeWidth) || 0) / unit / 2;
-  const perpendicular = { x: -uy, y: ux };
+  const strokeBoundsIncluded = tip.geometry?.strokeBoundsIncluded === true;
+  const terminalPad = strokeBoundsIncluded ? 0 : (Number(tip.strokeWidth) || Number(style.lineWidth) || 0) / unit / 2;
+  const strokePad = strokeBoundsIncluded ? 0 : (Number(tip.strokeWidth) || 0) / unit / 2;
+  // Arrow geometry bounds are stored in SVG-local coordinates, whose positive
+  // y direction is the opposite of TikZ's local normal.
+  const perpendicular = { x: uy, y: -ux };
   for (const x of [bounds.minX / unit, bounds.maxX / unit + terminalPad]) {
     // PGF's picture bounds include the tip's terminal extension, while the
     // stroked path already accounts for its normal-direction footprint.
