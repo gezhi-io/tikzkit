@@ -1,0 +1,29 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=10cm,
+    height=7cm,
+    view={35}{25},
+    xmin=0,xmax=4,
+    ymin=0,ymax=2,
+    zmin=0,zmax=16,
+    grid=major,
+    xlabel={Pipeline stage},
+    ylabel={Worker},
+    zlabel={Throughput},
+    extra x ticks={2.5},
+    extra x tick labels={handoff},
+    extra x tick style={tick style={blue,line width=0.8pt},tick label style={text=blue,rotate=12}},
+    extra z ticks={8},
+    extra z tick labels={budget},
+    extra z tick style={tick label style={text=red,font=\scriptsize}}
+  ]
+    \addplot3[blue,very thick,mark=*] coordinates {
+      (0,0,1) (1,0.5,3) (2,1,6) (3,1.5,10) (4,2,15)
+    };
+  \end{axis}
+\end{tikzpicture}
+\end{document}

@@ -8506,6 +8506,33 @@
         "csources/scale",
         "component fill and labels"
       ]
+    },
+    {
+      "id": "pgfplots-3d-extra-ticks-algorithm",
+      "title": "Pipeline surface with independent 3D extra ticks",
+      "source": "pgfplots/3d-extra-ticks/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots three-dimensional extra-tick semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsticks.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks/appendExtraAxis3DTicks",
+      "features": ["extra x ticks", "extra z ticks", "independent labels", "tick style", "rotated label", "3D line plot"]
+    },
+    {
+      "id": "pgfplots-3d-extra-ticks-math",
+      "title": "Mixed-logarithmic 3D curve with transformed extra ticks",
+      "source": "pgfplots/3d-extra-ticks/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGFPlots logarithmic three-dimensional extra-tick semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks/appendExtraAxis3DTicks",
+      "features": ["xmode=log", "ymode=log", "custom log basis y", "extra x ticks", "extra y ticks", "tick template", "3D line plot"]
+    },
+    {
+      "id": "pgfplots-3d-extra-ticks-physics",
+      "title": "Logarithmic intensity surface with an alarm threshold",
+      "source": "pgfplots/3d-extra-ticks/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots z-logarithmic extra-tick semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplotsticks.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks/appendExtraAxis3DTicks + src/pgfplots/axis3d.js:renderAxis3DGrid",
+      "features": ["zmode=log", "extra z ticks", "extra z tick labels", "extra-only major grid", "red tick style", "surface plot"]
     }
   ]
 }

@@ -10823,6 +10823,7 @@ function applyPgfplotsAxisRoleStyles(axisOptions = {}, styles = {}) {
     ["every tick label", ["tick label style"]],
     ["every extra x tick", ["extra x tick style"]],
     ["every extra y tick", ["extra y tick style"]],
+    ["every extra z tick", ["extra z tick style"]],
     ["every axis label", ["x label style", "y label style", "z label style"]],
     ["every axis title", ["title style"]]
   ];

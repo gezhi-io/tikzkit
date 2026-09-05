@@ -396,11 +396,11 @@ export function extraAxisTickPassOptions(axisOptions = {}, axis = "x", addplots 
   if (!values.length) return null;
 
   const pass = mergeExtraTickScope(axisOptions, axis);
-  const opposite = axis === "x" ? "y" : "x";
   pass[`${axis}tick`] = `{${values.join(",")}}`;
-  pass[`${opposite}tick`] = "\\empty";
-  pass["minor x tick num"] = 0;
-  pass["minor y tick num"] = 0;
+  for (const other of ["x", "y", "z"].filter((candidate) => candidate !== axis)) {
+    pass[`${other}tick`] = "\\empty";
+  }
+  for (const candidate of ["x", "y", "z"]) pass[`minor ${candidate} tick num`] = 0;
   pass["pgfplots disable minor ticks"] = true;
   pass[`hide obscured ${axis} ticks`] = false;
   pass["scaled ticks"] = false;
@@ -631,13 +631,13 @@ export function axisTickLabelAlignment(style = {}) {
   return `align=${explicit}`;
 }
 
-function axisTickLabelPositionOptions(style = {}) {
+export function axisTickLabelPositionOptions(style = {}) {
   return ["shift", "xshift", "yshift"]
     .filter((key) => style[key] !== undefined && style[key] !== null && style[key] !== true && String(style[key]).trim() !== "")
     .map((key) => `${key}=${String(style[key]).trim()}`);
 }
 
-function axisTickLabelTextOption(style = {}, fallback = "") {
+export function axisTickLabelTextOption(style = {}, fallback = "") {
   const value = style.text !== undefined && style.text !== null && style.text !== true ? style.text : fallback;
   return value === undefined || value === null || String(value).trim() === "" ? "" : `text=${String(value).trim()}`;
 }

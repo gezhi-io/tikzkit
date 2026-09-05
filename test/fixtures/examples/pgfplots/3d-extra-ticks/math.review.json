@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes PGFPlots and its compatibility layer." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["xmode=log", "ymode=log", "extra x ticks", "extra y ticks"], "findings": "User extra-tick data values pass through the same high-level logarithmic transforms as ordinary ticks." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\pgfplots@draw@extra@ticks@onorientedsurf"], "findings": "Extra labels use their own list or template while retaining the transformed coordinate." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] }
+  ]
+}

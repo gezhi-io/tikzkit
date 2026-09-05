@@ -8,10 +8,13 @@ import {
   axisTickLabelAlignment,
   axisTickLabelAnchor,
   axisTickLabelInnerSep,
+  axisTickLabelPositionOptions,
   axisTickLabelRotation,
   axisTickLabelStyleOptions,
+  axisTickLabelTextOption,
   axisTickNumberFormat,
   axisTickValues,
+  extraAxisTickPassOptions,
   tickDistanceValues as axisTickDistanceValues
 } from "./ticks.js";
 import { parseDimension } from "../engine/math.js";
@@ -65,38 +68,60 @@ export function renderAxis3DBoxForeground(axisOptions = {}, ranges, geometry) {
 }
 
 export function renderAxis3DGrid(axisOptions = {}, ranges, geometry) {
-  if (!shouldRenderAnyAxisGrid(axisOptions)) return [];
-  const ticks = axis3DTickValues(axisOptions, ranges, geometry);
-  const minorTicks = axis3DMinorTickValues(axisOptions, ranges, ticks);
   const background = axis3DBackgroundSides(axisOptions, ranges);
-  const style = joinOptions([
+  const commands = [];
+  if (shouldRenderAnyAxisGrid(axisOptions)) {
+    const ticks = axis3DTickValues(axisOptions, ranges, geometry);
+    const minorTicks = axis3DMinorTickValues(axisOptions, ranges, ticks);
+    const style = axis3DGridStyle(axisOptions);
+    appendAxis3DGridLines(commands, style, geometry, ranges, background, minorTicks, axisOptions, true);
+    appendAxis3DGridLines(commands, style, geometry, ranges, background, ticks, axisOptions, false);
+  }
+  for (const axis of ["x", "y", "z"]) {
+    const pass = extraAxisTickPassOptions(axisOptions, axis, [], ranges);
+    if (!pass || !shouldRenderAnyAxisGrid(pass)) continue;
+    const ticks = { x: [], y: [], z: [], [axis]: pass["pgfplots extra tick values"] || [] };
+    appendAxis3DGridLines(
+      commands,
+      axis3DGridStyle(pass, axis),
+      geometry,
+      ranges,
+      background,
+      ticks,
+      pass,
+      false
+    );
+  }
+  return dedupeAdjacentCommands(commands);
+}
+
+function axis3DGridStyle(axisOptions = {}, axis = "") {
+  return joinOptions([
     "axis 3d grid",
     axisOptions["axis grid color"] || "black!25",
     `line width=${axisOptions["axis grid line width"] || "0.4pt"}`,
-    axisOptions["grid style"] || axisOptions["major grid style"] || ""
+    axisOptions["grid style"] || axisOptions["major grid style"] || "",
+    axis ? axisOptions[`${axis} major grid style`] || "" : ""
   ]);
-  const commands = [];
-  appendAxis3DGridLines(commands, style, geometry, ranges, background, minorTicks, axisOptions, true);
-  appendAxis3DGridLines(commands, style, geometry, ranges, background, ticks, axisOptions, false);
-  return dedupeAdjacentCommands(commands);
 }
 
 export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   const commands = [];
-  const tickStyle = "axis tick, gray, line width=0.2pt";
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
-  const tickLabelStyle = (axis, anchor) => {
-    const style = axisTickLabelStyleOptions(axisOptions, axis);
-    const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, axis, "tick"));
-    const innerSep = axisTickLabelInnerSep(axisOptions, axis) ?? defaultPerspectiveTickLabelInnerSep(axisOptions, axis);
+  const tickLabelStyle = (options, axis, anchor) => {
+    const style = axisTickLabelStyleOptions(options, axis);
+    const font = pgfplotsRoleFontCommand("tick", options, axis3DFontOption(options, axis, "tick"));
+    const innerSep = axisTickLabelInnerSep(options, axis) ?? defaultPerspectiveTickLabelInnerSep(options, axis);
     return joinOptions([
       "axis tick label",
       `anchor=${axisTickLabelAnchor(style, anchor, axis)}`,
       axisTickLabelRotation(style),
       axisTickLabelAlignment(style),
+      ...axisTickLabelPositionOptions(style),
       `font=${font}`,
       `inner sep=${innerSep}`,
-      "outer sep=0pt"
+      "outer sep=0pt",
+      axisTickLabelTextOption(style)
     ]);
   };
   const { x: resolvedXTicks, y: resolvedYTicks, z: resolvedZTicks } = axis3DTickValues(axisOptions, ranges, geometry);
@@ -138,30 +163,33 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     }
   }
   for (const [index, x] of resolvedXTicks.entries()) {
+    const tickStyle = axis3DTickStyle(axisOptions, "x");
     const base = geometry.mapPoint3d({ x, y: layout.x.y, z: layout.x.z });
     const to = offsetAlongNormal(base, invertVector(layout.x.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.x) commands.push(...additionalBoxTickCommands("x", x, layout.x, boxTickEdges.x, center, geometry, tickStyle, tickLength));
     if (labels.x[index] !== "") {
-      commands.push(`\\node[${tickLabelStyle("x", labelAnchors.x)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.x.normal, tickLabelDistance(axisOptions, "x", tickLength)))} {${labels.x[index]}};`);
+      commands.push(`\\node[${tickLabelStyle(axisOptions, "x", labelAnchors.x)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.x.normal, tickLabelDistance(axisOptions, "x", tickLength)))} {${labels.x[index]}};`);
     }
   }
   for (const [index, y] of resolvedYTicks.entries()) {
+    const tickStyle = axis3DTickStyle(axisOptions, "y");
     const base = geometry.mapPoint3d({ x: layout.y.x, y, z: layout.y.z });
     const to = offsetAlongNormal(base, invertVector(layout.y.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.y) commands.push(...additionalBoxTickCommands("y", y, layout.y, boxTickEdges.y, center, geometry, tickStyle, tickLength));
     if (labels.y[index] !== "") {
-      commands.push(`\\node[${tickLabelStyle("y", labelAnchors.y)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.y.normal, tickLabelDistance(axisOptions, "y", tickLength)))} {${labels.y[index]}};`);
+      commands.push(`\\node[${tickLabelStyle(axisOptions, "y", labelAnchors.y)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.y.normal, tickLabelDistance(axisOptions, "y", tickLength)))} {${labels.y[index]}};`);
     }
   }
   for (const [index, z] of resolvedZTicks.entries()) {
+    const tickStyle = axis3DTickStyle(axisOptions, "z");
     const base = geometry.mapPoint3d({ x: layout.z.x, y: layout.z.y, z });
     const to = offsetAlongNormal(base, invertVector(layout.z.normal), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.z) commands.push(...additionalBoxTickCommands("z", z, layout.z, boxTickEdges.z, center, geometry, tickStyle, tickLength));
     if (labels.z[index] !== "") {
-      commands.push(`\\node[${tickLabelStyle("z", labelAnchors.z)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.z.normal, tickLabelDistance(axisOptions, "z", tickLength)))} {${labels.z[index]}};`);
+      commands.push(`\\node[${tickLabelStyle(axisOptions, "z", labelAnchors.z)}] at ${formatAxisPoint(offsetAlongNormal(base, layout.z.normal, tickLabelDistance(axisOptions, "z", tickLength)))} {${labels.z[index]}};`);
     }
   }
   if (zTickFormat?.scaled) {
@@ -172,7 +200,58 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
     commands.push(`\\node[axis tick scale label, anchor=${labelAnchors.z}, font=${font}, inner sep=0pt, outer sep=0pt] at ${formatAxisPoint(scaleBase)} {$${zTickFormat.scaleLabel}$};`);
   }
+  appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, center, tickLabelStyle);
   return dedupeAdjacentCommands(commands.filter(Boolean));
+}
+
+function appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, center, tickLabelStyle) {
+  for (const axis of ["x", "y", "z"]) {
+    const pass = extraAxisTickPassOptions(axisOptions, axis, [], ranges);
+    if (!pass) continue;
+    const values = pass["pgfplots extra tick values"] || [];
+    const labels = axisRenderedTickLabels(
+      pass,
+      axis,
+      pass[`${axis}ticklabels`],
+      values,
+      axisTickNumberFormat(pass, axis),
+      pass[`${axis}ticklabel`]
+    );
+    const edge = layout[axis];
+    const tickLength = parseDimension(String(pass["major tick length"] || pass.tickwidth || "0.15cm"), {});
+    const tickStyle = axis3DTickStyle(pass, axis);
+    const opposite = shouldRenderOpposite3DTicks(pass, axis);
+    const labelAnchor = axisTickAnnotationAnchor(pass, axis, edge.normal);
+    for (const [index, value] of values.entries()) {
+      const coordinate = axis === "x"
+        ? { x: value, y: edge.y, z: edge.z }
+        : axis === "y"
+          ? { x: edge.x, y: value, z: edge.z }
+          : { x: edge.x, y: edge.y, z: value };
+      const base = geometry.mapPoint3d(coordinate);
+      const to = offsetAlongNormal(base, invertVector(edge.normal), tickLength);
+      commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
+      if (opposite) {
+        commands.push(...additionalBoxTickCommands(axis, value, edge, boxTickEdges[axis], center, geometry, tickStyle, tickLength));
+      }
+      if (labels[index] !== "") {
+        const point = offsetAlongNormal(base, edge.normal, tickLabelDistance(pass, axis, tickLength));
+        commands.push(`\\node[${tickLabelStyle(pass, axis, labelAnchor)}] at ${formatAxisPoint(point)} {${labels[index]}};`);
+      }
+    }
+  }
+}
+
+function axis3DTickStyle(axisOptions = {}, axis = "x", kind = "major") {
+  return joinOptions([
+    kind === "minor" ? "axis minor tick" : "axis tick",
+    axisOptions[`${axis} axis tick color`] || axisOptions["axis tick color"] || "gray",
+    `line width=${axisOptions["axis tick line width"] || "0.2pt"}`,
+    axisOptions["tick style"] || "",
+    axisOptions[`${kind} tick style`] || "",
+    axisOptions[`${axis} tick style`] || axisOptions[`${axis}tick style`] || "",
+    axisOptions[`${axis} ${kind} tick style`] || ""
+  ]);
 }
 
 function shouldRenderOpposite3DTicks(axisOptions = {}, axis) {
@@ -868,6 +947,41 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
         geometry.mapPoint3d(coordinate),
         layout[axis].normal,
         tickLabelDistance(axisOptions, axis, tickLength)
+      );
+      includeBounds(bounds, axis3DTextNodeBounds(at, text, font, anchor, rotation, innerSep));
+    }
+  }
+
+  for (const axis of ["x", "y", "z"]) {
+    const pass = extraAxisTickPassOptions(axisOptions, axis, [], ranges);
+    if (!pass) continue;
+    const values = pass["pgfplots extra tick values"] || [];
+    const labels = axisRenderedTickLabels(
+      pass,
+      axis,
+      pass[`${axis}ticklabels`],
+      values,
+      axisTickNumberFormat(pass, axis),
+      pass[`${axis}ticklabel`]
+    );
+    const style = axisTickLabelStyleOptions(pass, axis);
+    const font = pgfplotsRoleFontCommand("tick", pass, axis3DFontOption(pass, axis, "tick"));
+    const anchor = axisTickLabelAnchor(style, axisTickAnnotationAnchor(pass, axis, layout[axis].normal), axis);
+    const innerSep = axisTickLabelInnerSep(pass, axis) ?? defaultPerspectiveTickLabelInnerSep(pass, axis);
+    const rotation = axis3DTickLabelRotationDegrees(style);
+    const extraTickLength = parseDimension(String(pass["major tick length"] || pass.tickwidth || "0.15cm"), {});
+    for (const [index, value] of values.entries()) {
+      const coordinate = axis === "x"
+        ? { x: value, y: layout.x.y, z: layout.x.z }
+        : axis === "y"
+          ? { x: layout.y.x, y: value, z: layout.y.z }
+          : { x: layout.z.x, y: layout.z.y, z: value };
+      const text = labels[index] ?? "";
+      if (text === "") continue;
+      const at = offsetAlongNormal(
+        geometry.mapPoint3d(coordinate),
+        layout[axis].normal,
+        tickLabelDistance(pass, axis, extraTickLength)
       );
       includeBounds(bounds, axis3DTextNodeBounds(at, text, font, anchor, rotation, innerSep));
     }

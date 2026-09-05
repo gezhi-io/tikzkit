@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes PGFPlots and its compatibility layer." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["extra x ticks", "extra z ticks", "every extra x tick", "every extra z tick"], "findings": "Each axis owns an independent extra-tick list and style scope." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsticks.code.tex": { "symbols": ["\\pgfplots@draw@extra@ticks@onorientedsurf"], "findings": "Extra ticks replay grid, tick, and label painting on the currently selected oriented surface." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-3d-extra-ticks.test.js"] }
+  ]
+}
