@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["colorbar horizontal", "every colorbar", "above north west"], "findings": "A colorbar is a child axis; the parent-axis above anchor combines the inner horizontal edge with the outer parent top bound." },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2": { "symbols": ["pgfplots.reference.axisdescription.tex"], "findings": "User colorbar placement and appearance customizations belong after the orientation style." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] }
+  ]
+}

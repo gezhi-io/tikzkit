@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["pgfplots@setkey@ticklabelpos", "top", "upper"], "findings": "Top is an alias of upper for x tick-label placement, independent of the horizontal child-axis anchor." },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2": { "symbols": ["colorbar horizontal"], "findings": "The horizontal colorbar inherits the parent width and maps point-meta values along its x axis." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-colorbar-top.test.js"] }
+  ]
+}

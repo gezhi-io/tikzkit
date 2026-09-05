@@ -8533,6 +8533,33 @@
       "externalSource": "tex/generic/pgfplots/pgfplotsticks.code.tex",
       "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DTicks/appendExtraAxis3DTicks + src/pgfplots/axis3d.js:renderAxis3DGrid",
       "features": ["zmode=log", "extra z ticks", "extra z tick labels", "extra-only major grid", "red tick style", "surface plot"]
+    },
+    {
+      "id": "pgfplots-colorbar-top-algorithm",
+      "title": "Pipeline risk surface with an upper horizontal colorbar",
+      "source": "pgfplots/colorbar-top/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGFPlots child-axis colorbar placement semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarBox/colorbarTickPoint",
+      "features": ["colorbar horizontal", "parent axis.above north west", "anchor=south west", "xticklabel pos=upper", "3D surface"]
+    },
+    {
+      "id": "pgfplots-colorbar-top-math",
+      "title": "Saddle surface with top-side signed color scale",
+      "source": "pgfplots/colorbar-top/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGFPlots upper tick-label aliases",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarHorizontalTickSide",
+      "features": ["colorbar horizontal", "normalized at", "anchor=south", "xticklabel pos=top", "negative color data"]
+    },
+    {
+      "id": "pgfplots-colorbar-top-physics",
+      "title": "Energy surface with upper scientific color scale",
+      "source": "pgfplots/colorbar-top/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGFPlots upper colorbar scaled-tick semantics",
+      "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
+      "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarTickPoint",
+      "features": ["colorbar horizontal", "upper ticks", "scaled ticks", "title", "parent-axis top placement", "3D surface"]
     }
   ]
 }

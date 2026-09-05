@@ -744,6 +744,7 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   );
   const box = colorbarBox(styleOptions, bounds, parentBounds, width, height, orientation);
   const { xMin, xMax, yMin, yMax } = box;
+  const horizontalSide = colorbarHorizontalTickSide(styleOptions);
   const commands = [];
   const gradientStops = colorbarGradientStops(ranges, axisOptions);
   const gradientAngle = orientation === "horizontal" ? 270 : 0;
@@ -764,20 +765,26 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   const tickPrecision = scaledTickLabelPrecision(ticks, tickFormat);
   for (const tick of ticks) {
     const position = (tick - ranges.zMin) / (ranges.zMax - ranges.zMin || 1);
-    const from = colorbarTickPoint(box, position, orientation, 0);
-    const to = colorbarTickPoint(box, position, orientation, 0.08);
-    const labelAnchor = orientation === "horizontal" ? "north" : orientation === "left" ? "east" : "west";
+    const from = colorbarTickPoint(box, position, orientation, 0, horizontalSide);
+    const to = colorbarTickPoint(box, position, orientation, 0.08, horizontalSide);
+    const labelAnchor = orientation === "horizontal"
+      ? horizontalSide === "upper" ? "south" : "north"
+      : orientation === "left" ? "east" : "west";
     const labelOffset = orientation === "horizontal"
-      ? offsetPoint(to, 0, -0.05)
+      ? offsetPoint(to, 0, horizontalSide === "upper" ? 0.05 : -0.05)
       : offsetPoint(to, orientation === "left" ? -0.05 : 0.05, 0);
     commands.push(`\\draw[axis colorbar tick, black, line width=0.22pt] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
     commands.push(`\\node[axis colorbar tick label, anchor=${labelAnchor}, font=${tickFont}] at ${formatAxisPoint(labelOffset)} {${formatScaledAxisTickLabel(tick, tickFormat, { precision: tickPrecision })}};`);
   }
   if (tickFormat.scaled) {
     const scalePoint = orientation === "horizontal"
-      ? { x: xMax, y: yMin - 0.13 }
+      ? { x: xMax, y: horizontalSide === "upper" ? yMax + 0.13 : yMin - 0.13 }
       : { x: orientation === "left" ? xMin - 0.13 : xMax + 0.13, y: yMax };
-    const scaleAnchor = orientation === "left" ? "east" : orientation === "horizontal" ? "north east" : "west";
+    const scaleAnchor = orientation === "left"
+      ? "east"
+      : orientation === "horizontal"
+        ? horizontalSide === "upper" ? "south east" : "north east"
+        : "west";
     commands.push(`\\node[axis colorbar tick scale label, anchor=${scaleAnchor}, font=${tickFont}] at ${formatAxisPoint(scalePoint)} {$${tickFormat.scaleLabel}$};`);
   }
   if (styleOptions.title) {
@@ -786,7 +793,8 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
       axisOptions,
       fontFromStyle(styleOptions["title style"]) || styleOptions["title font"]
     );
-    commands.push(`\\node[axis colorbar title, anchor=south, font=${titleFont}] at ${formatAxisPoint({ x: (xMin + xMax) / 2, y: yMax + 0.12 })} {${styleOptions.title}};`);
+    const titleY = yMax + (orientation === "horizontal" && horizontalSide === "upper" ? 0.36 : 0.12);
+    commands.push(`\\node[axis colorbar title, anchor=south, font=${titleFont}] at ${formatAxisPoint({ x: (xMin + xMax) / 2, y: titleY })} {${styleOptions.title}};`);
   }
   return commands;
 }
@@ -895,7 +903,7 @@ function colorbarBox(styleOptions, bounds, parentBounds, width, height, orientat
     : orientation === "left"
       ? { at: { x: parentBounds.minX - 0.3, y: bounds.maxY }, anchor: "north east" }
       : { at: { x: parentBounds.maxX + 0.3, y: bounds.maxY }, anchor: "north west" };
-  const rawAt = colorbarAt(styleOptions.at, bounds) || defaults.at;
+  const rawAt = colorbarAt(styleOptions.at, bounds, parentBounds) || defaults.at;
   const at = {
     x: rawAt.x + colorbarShift(styleOptions.xshift),
     y: rawAt.y + colorbarShift(styleOptions.yshift)
@@ -1106,9 +1114,19 @@ function colorbarShift(raw) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function colorbarTickPoint(box, position, orientation, extension) {
+function colorbarHorizontalTickSide(styleOptions = {}) {
+  const raw = String(styleOptions["xticklabel pos"] ?? styleOptions["xtick pos"] ?? "lower")
+    .trim()
+    .toLowerCase();
+  return ["upper", "top", "right"].includes(raw) ? "upper" : "lower";
+}
+
+function colorbarTickPoint(box, position, orientation, extension, horizontalSide = "lower") {
   if (orientation === "horizontal") {
-    return { x: box.xMin + (box.xMax - box.xMin) * position, y: box.yMin - extension };
+    return {
+      x: box.xMin + (box.xMax - box.xMin) * position,
+      y: horizontalSide === "upper" ? box.yMax + extension : box.yMin - extension
+    };
   }
   return {
     x: orientation === "left" ? box.xMin - extension : box.xMax + extension,
@@ -1116,9 +1134,22 @@ function colorbarTickPoint(box, position, orientation, extension) {
   };
 }
 
-function colorbarAt(raw, bounds) {
+function colorbarAt(raw, bounds, parentBounds = bounds) {
   if (raw === undefined || raw === null || raw === true) return null;
-  const match = String(raw).trim().match(/^\(?\s*([-+]?\d*\.?\d+)\s*,\s*([-+]?\d*\.?\d+)\s*\)?$/);
+  const text = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  const parentAnchor = text.match(/^\(?\s*parent axis\.(above north west|above north|above north east)\s*\)?$/i);
+  if (parentAnchor) {
+    const anchor = parentAnchor[1].toLowerCase();
+    return {
+      x: anchor.endsWith("west")
+        ? bounds.minX
+        : anchor.endsWith("east")
+          ? bounds.maxX
+          : (bounds.minX + bounds.maxX) / 2,
+      y: parentBounds.maxY
+    };
+  }
+  const match = text.match(/^\(?\s*([-+]?\d*\.?\d+)\s*,\s*([-+]?\d*\.?\d+)\s*\)?$/);
   if (!match) return null;
   return {
     x: bounds.minX + Number(match[1]) * bounds.width,
