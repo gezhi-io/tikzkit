@@ -36,6 +36,7 @@ import {
   renderAxisTrianglePatchCoordinatePlot
 } from "./surface.js";
 import { axisPointIsValidForScale } from "./logAxis.js";
+import { stackedClosedCyclePointChain } from "./areaPlots.js";
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
   if (plot.type === "coordinates") {
@@ -67,8 +68,24 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
       return commands;
     }
     if (plot.closedCycle && mappedPoints.length) {
-      const style = joinOptions(["axis closed cycle", selectPlotFillStyle(plot.options, plotIndex), plotFillOpacityOption(plot.options), "draw=none"]);
-      commands.push(`\\draw[${style}] ${mappedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
+      const style = joinOptions([
+        "axis plot",
+        "axis closed cycle",
+        selectPlotStyle(plot.options, plotIndex),
+        selectPlotFillStyle(plot.options, plotIndex),
+        plotFillOpacityOption(plot.options),
+        pgfplotsNamePathOption(plot.options),
+        pgfplotsPlotClipOption(axisOptions, geometry)
+      ]);
+      const pointChain = stackedClosedCyclePointChain(
+        plot,
+        dataPoints,
+        mappedPoints,
+        axisOptions,
+        geometry,
+        ranges
+      ) || `${mappedPoints.map(formatAxisPoint).join(" -- ")} -- cycle`;
+      commands.push(`\\draw[${style}] ${pointChain};`);
     }
     if (isAxisCombPlot(axisOptions, plot.options, "y")) {
       commands.push(...renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
@@ -76,7 +93,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
       commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
-    if (shouldRenderAxisPlotPath(plot.options) && mappedPoints.length) {
+    if (!plot.closedCycle && shouldRenderAxisPlotPath(plot.options) && mappedPoints.length) {
       const style = joinOptions([
         "axis plot",
         selectPlotStyle(plot.options, plotIndex),

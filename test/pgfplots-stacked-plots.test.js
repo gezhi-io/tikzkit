@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { parseAddplots } from "../src/pgfplots/addplotParser.js";
+import { renderAddplot } from "../src/pgfplots/addplotLowering.js";
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 import { renderLegendEntries } from "../src/pgfplots/legend.js";
 import { renderAxisBars } from "../src/pgfplots/bars.js";
 import { renderNodesNearCoords } from "../src/pgfplots/plotNodes.js";
 import { computeAxisRanges } from "../src/pgfplots/rangeResolver.js";
+import { normalizePgfplotsAreaOptions, stackedClosedCyclePointChain } from "../src/pgfplots/areaPlots.js";
+import { applyPgfplotsCycleStyles } from "../src/pgfplots/axisTikzLowering.js";
 import {
   pgfplotsStackedRenderEntries,
   preparePgfplotsStackedPlots
@@ -472,4 +475,222 @@ test("interval stacked legends use the native single-bar image instead of a line
 
   assert.match(sample, /fill=blue!30/);
   assert.match(sample, /\([^)]*\) -- \([^)]*\) -- \([^)]*\) -- \([^)]*\) -- cycle;/);
+});
+
+test("closed coordinate plots participate in the equal-grid y stack", () => {
+  const first = { ...coordinatePlot([1, 2, 1]), closedCycle: true };
+  const second = { ...coordinatePlot([2, 1, 3]), closedCycle: true };
+  const prepared = preparePgfplotsStackedPlots(
+    { "stack plots": "y" },
+    [first, second]
+  );
+
+  assert.equal(prepared.supported, true);
+  assert.deepEqual(
+    prepared.addplots[1].points.map(({ x, y, stackBaseY }) => ({ x, y, stackBaseY })),
+    [
+      { x: 0, y: 3, stackBaseY: 1 },
+      { x: 1, y: 3, stackBaseY: 2 },
+      { x: 2, y: 4, stackBaseY: 1 }
+    ]
+  );
+});
+
+test("area style enables the native area cycle, legend, and foreground axes", () => {
+  const axisOptions = normalizePgfplotsAreaOptions({ "area style": true });
+  const [plot] = applyPgfplotsCycleStyles(
+    [{ ...coordinatePlot([1, 2]), closedCycle: true }],
+    axisOptions
+  );
+
+  assert.equal(axisOptions["area cycle list"], true);
+  assert.equal(axisOptions["area legend"], true);
+  assert.equal(axisOptions["axis on top"], true);
+  assert.equal(plot.options.draw, "blue");
+  assert.equal(plot.options.fill, "blue!30!white");
+  assert.equal(plot.options.mark, "none");
+});
+
+test("stacked closed cycles follow the previous zero-level curve in reverse", () => {
+  const plot = {
+    ...coordinatePlot([3, 3, 4], { draw: "red", fill: "red!30" }),
+    closedCycle: true,
+    pgfplotsStacked: true,
+    points: [
+      { x: 0, y: 3, stackBaseY: 1 },
+      { x: 1, y: 3, stackBaseY: 2 },
+      { x: 2, y: 4, stackBaseY: 1 }
+    ]
+  };
+  const geometry = { mapPoint: (point) => point };
+  const chain = stackedClosedCyclePointChain(
+    plot,
+    plot.points,
+    plot.points,
+    { "stack plots": "y" },
+    geometry
+  );
+
+  assert.equal(
+    chain,
+    "(0,3) -- (1,3) -- (2,4) -- (2,1) -- (1,2) -- (0,1) -- cycle"
+  );
+});
+
+test("stacked const areas mirror the reversed zero-level step handler", () => {
+  const plot = {
+    ...coordinatePlot([3, 3, 4]),
+    closedCycle: true,
+    pgfplotsStacked: true,
+    options: { "const plot": true },
+    points: [
+      { x: 0, y: 3, stackBaseY: 1 },
+      { x: 1, y: 3, stackBaseY: 2 },
+      { x: 2, y: 4, stackBaseY: 1 }
+    ]
+  };
+  const chain = stackedClosedCyclePointChain(
+    plot,
+    plot.points,
+    plot.points,
+    { "stack plots": "y", "const plot": true },
+    { mapPoint: (point) => point }
+  );
+
+  assert.match(chain, /\(2,4\) -- \(2,1\) -- \(2,2\) -- \(1,2\) -- \(1,1\) -- \(0,1\) -- cycle$/);
+});
+
+test("area legends use the native 0.6cm by 0.2cm filled rectangle", () => {
+  const geometry = {
+    origin: { x: 0, y: 0 },
+    width: 10,
+    height: 6,
+    mapAxisDescriptionPoint: ({ x, y }) => ({ x: x * 10, y: y * 6 })
+  };
+  const commands = renderLegendEntries(
+    { "area legend": true },
+    {},
+    geometry,
+    ["layer"],
+    [{ options: { blue: true, fill: "blue!30" } }]
+  );
+  const sample = commands.find((command) => command.includes("axis legend image"));
+
+  assert.match(sample, /fill=blue!30/);
+  assert.match(sample, /\([^)]*\) -- \([^)]*\) -- \([^)]*\) -- \([^)]*\) -- cycle;/);
+});
+
+test("a plot-level stack plots=false leaves the zero-level stream unchanged", () => {
+  const prepared = preparePgfplotsStackedPlots(
+    { "stack plots": "y" },
+    [
+      coordinatePlot([1]),
+      coordinatePlot([100], { "stack plots": false }),
+      coordinatePlot([2])
+    ]
+  );
+
+  assert.equal(prepared.supported, true);
+  assert.equal(prepared.addplots[0].points[0].y, 1);
+  assert.equal(prepared.addplots[1].points[0].y, 100);
+  assert.equal(prepared.addplots[1].pgfplotsStacked, undefined);
+  assert.deepEqual(
+    prepared.addplots[2].points[0],
+    { x: 0, y: 3, stackBaseY: 1, stackDeltaY: 2, stackIgnored: false }
+  );
+});
+
+test("plain stack plots uses compatibility defaults for negative and zero streams", () => {
+  const modern = preparePgfplotsStackedPlots(
+    { "stack plots": "y" },
+    [coordinatePlot([3]), coordinatePlot([-1])],
+    { compat: "1.18" }
+  );
+  const legacy = preparePgfplotsStackedPlots(
+    { "stack plots": "y" },
+    [coordinatePlot([3]), coordinatePlot([-1])],
+    { compat: "1.12" }
+  );
+
+  assert.equal(modern.axisOptions["stack negative"], "separate");
+  assert.equal(modern.axisOptions["stacked ignores zero"], true);
+  assert.equal(modern.addplots[1].points[0].stackBaseY, 0);
+  assert.equal(legacy.axisOptions["stack negative"], "on previous");
+  assert.equal(legacy.addplots[1].points[0].stackBaseY, 3);
+});
+
+test("the first stacked area clamps its logical zero level to the visible y range", () => {
+  const plot = {
+    ...coordinatePlot([3, 4], { fill: "blue!30" }),
+    closedCycle: true,
+    pgfplotsStacked: true,
+    points: [
+      { x: 0, y: 3, stackBaseY: 0 },
+      { x: 1, y: 4, stackBaseY: 0 }
+    ]
+  };
+  const chain = stackedClosedCyclePointChain(
+    plot,
+    plot.points,
+    plot.points,
+    { "stack plots": "y" },
+    { mapPoint: (point) => point },
+    { yMin: 2, yMax: 5 }
+  );
+
+  assert.equal(chain, "(0,3) -- (1,4) -- (1,2) -- (0,2) -- cycle");
+});
+
+test("a coordinate closed cycle uses one stroked and clipped plot path", () => {
+  const plot = {
+    ...coordinatePlot([1, 2], { draw: "red", fill: "red!30", mark: "none" }),
+    closedCycle: true,
+    pgfplotsStacked: true,
+    points: [
+      { x: 0, y: 1, stackBaseY: 0 },
+      { x: 1, y: 2, stackBaseY: 0 }
+    ]
+  };
+  const commands = renderAddplot(
+    plot,
+    { "stack plots": "y" },
+    { xMin: 0, xMax: 1, yMin: 0, yMax: 2 },
+    { origin: { x: 0, y: 0 }, width: 1, height: 2, mapPoint: (point) => point },
+    {}
+  );
+
+  assert.equal(commands.filter((command) => command.includes("axis plot")).length, 1);
+  assert.match(commands[0], /axis closed cycle/);
+  assert.match(commands[0], /red/);
+  assert.match(commands[0], /fill=red!30/);
+  assert.match(commands[0], /tikzkit clip rect=\{0,0,1,2\}/);
+  assert.match(commands[0], /-- cycle;/);
+  assert.doesNotMatch(commands[0], /draw=none/);
+});
+
+test("area legend preserves missing fill and explicit fill opacity", () => {
+  const geometry = {
+    origin: { x: 0, y: 0 },
+    width: 10,
+    height: 6,
+    mapAxisDescriptionPoint: ({ x, y }) => ({ x: x * 10, y: y * 6 })
+  };
+  const unfilled = renderLegendEntries(
+    { "area legend": true },
+    {},
+    geometry,
+    ["line"],
+    [{ options: { draw: "blue" } }]
+  ).find((command) => command.includes("axis legend image"));
+  const translucent = renderLegendEntries(
+    { "area legend": true },
+    {},
+    geometry,
+    ["area"],
+    [{ options: { draw: "red", fill: "red!30", "fill opacity": 0.4 } }]
+  ).find((command) => command.includes("axis legend image"));
+
+  assert.doesNotMatch(unfilled, /fill=/);
+  assert.match(translucent, /fill=red!30/);
+  assert.match(translucent, /fill opacity=0\.4/);
 });

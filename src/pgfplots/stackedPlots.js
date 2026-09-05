@@ -12,7 +12,8 @@ export function preparePgfplotsStackedPlots(axisOptions = {}, addplots = [], opt
     return { axisOptions: normalizedAxisOptions, addplots, active: true, supported: false };
   }
 
-  const pointCount = addplots[0].points.length;
+  const stackedInputPlots = addplots.filter(plotParticipatesInStack);
+  const pointCount = stackedInputPlots[0].points.length;
   const positiveLevels = Array(pointCount).fill(0);
   const negativeLevels = Array(pointCount).fill(0);
   const previousLevels = Array(pointCount).fill(0);
@@ -24,6 +25,7 @@ export function preparePgfplotsStackedPlots(axisOptions = {}, addplots = [], opt
   const deltaKey = stackAxis === "x" ? "stackDeltaX" : "stackDeltaY";
 
   const stackedPlots = addplots.map((plot) => {
+    if (!plotParticipatesInStack(plot)) return plot;
     const points = plot.points.map((point, pointIndex) => {
       const delta = Number(point[valueKey]);
       const levels = separateNegative
@@ -70,11 +72,15 @@ export function pgfplotsStackedRenderEntries(addplots = [], axisOptions = {}) {
 
 function normalizeStackedAxisOptions(axisOptions, options) {
   const variant = stackedBarVariant(axisOptions);
-  if (!variant) return { ...axisOptions };
+  const explicitStackAxis = pgfplotsStackAxis(axisOptions);
+  if (!variant && !explicitStackAxis) return { ...axisOptions };
 
   const compat = options.compat ?? options.pgfplotsStyleOptions?.compat;
-  const { stackAxis, stackedKey, plotHandler, interval } = variant;
-  const barDirection = normalizedChoice(axisOptions[stackedKey], "plus");
+  const stackAxis = variant?.stackAxis || explicitStackAxis;
+  const interval = variant?.interval || false;
+  const barDirection = variant
+    ? normalizedChoice(axisOptions[variant.stackedKey], "plus")
+    : "plus";
   const stackDirection = normalizedChoice(axisOptions["stack dir"], barDirection);
   const negativeMode = normalizedNegativeMode(
     axisOptions["stack negative"],
@@ -84,14 +90,15 @@ function normalizeStackedAxisOptions(axisOptions, options) {
     ? (interval ? false : compatAtLeast(compat, 1.9))
     : axisOptions["stacked ignores zero"];
 
-  return {
+  const normalized = {
     ...axisOptions,
-    [plotHandler]: true,
     "stack plots": stackAxis,
     "stack dir": stackDirection,
     "stack negative": negativeMode,
     "stacked ignores zero": ignoresZero
   };
+  if (variant) normalized[variant.plotHandler] = true;
+  return normalized;
 }
 
 function stackedBarVariant(axisOptions) {
@@ -106,22 +113,22 @@ function stackedBarVariant(axisOptions) {
 
 function supportsCoordinateStack(addplots, axisOptions, stackAxis) {
   const gridAxis = stackAxis === "x" ? "y" : "x";
-  if (!addplots.length || String(axisOptions[`${stackAxis}mode`] || "").trim().toLowerCase() === "log") return false;
-  const intervalModes = addplots.map((plot) => (
+  const participating = addplots.filter(plotParticipatesInStack);
+  if (!participating.length || String(axisOptions[`${stackAxis}mode`] || "").trim().toLowerCase() === "log") return false;
+  const intervalModes = participating.map((plot) => (
     isPgfplotsIntervalPlot(axisOptions, plot.options || {}, stackAxis)
   ));
   const interval = intervalModes[0];
   if (intervalModes.some((value) => value !== interval)) return false;
-  if (addplots.some((plot) => (
+  if (participating.some((plot) => (
     plot.type !== "coordinates" ||
     plot.is3d ||
-    plot.closedCycle ||
     !Array.isArray(plot.points) ||
     plot.points.length < (interval ? 2 : 1)
   ))) return false;
 
-  const grid = addplots[0].points.map((point) => Number(point[gridAxis]));
-  return addplots.every((plot) => (
+  const grid = participating[0].points.map((point) => Number(point[gridAxis]));
+  return participating.every((plot) => (
     plot.points.length === grid.length &&
     plot.points.every((point, index) => (
       Number.isFinite(Number(point.x)) &&
@@ -129,6 +136,11 @@ function supportsCoordinateStack(addplots, axisOptions, stackAxis) {
       Math.abs(Number(point[gridAxis]) - grid[index]) <= COORDINATE_EPSILON
     ))
   ));
+}
+
+function plotParticipatesInStack(plot) {
+  const value = plot?.options?.["stack plots"];
+  return value === undefined || optionEnabled(value, true);
 }
 
 function normalizedChoice(value, fallback) {
@@ -151,6 +163,20 @@ function optionEnabled(value, fallback) {
 function compatAtLeast(raw, minimum) {
   const value = String(raw ?? "newest").trim().toLowerCase();
   if (!value || value === "newest") return true;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed >= minimum : true;
+  const actualParts = versionParts(value);
+  const minimumParts = versionParts(String(minimum));
+  if (!actualParts || !minimumParts) return true;
+  const length = Math.max(actualParts.length, minimumParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const actual = actualParts[index] || 0;
+    const required = minimumParts[index] || 0;
+    if (actual !== required) return actual > required;
+  }
+  return true;
+}
+
+function versionParts(value) {
+  const match = String(value).trim().match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+  if (!match) return null;
+  return match.slice(1).filter((part) => part !== undefined).map(Number);
 }

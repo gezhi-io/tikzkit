@@ -8020,6 +8020,33 @@
       "externalSource": "tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
       "semanticOwner": "src/pgfplots/stackedPlots.js:preparePgfplotsStackedPlots",
       "features": ["ybar interval stacked=minus", "stack negative=on previous", "downward cumulative intervals", "time boundary grid", "per-coordinate y zero levels"]
+    },
+    {
+      "id": "pgfplots-stacked-area-algorithm",
+      "title": "Pipeline capacity by processing stage",
+      "source": "pgfplots/stacked-area/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from the PGFPlots stacked area manual",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
+      "semanticOwner": "src/pgfplots/areaPlots.js:stackedClosedCyclePointChain",
+      "features": ["stack plots=y", "area style", "sharp closed cycles", "area cycle list", "area legend", "axis on top"]
+    },
+    {
+      "id": "pgfplots-stacked-area-math",
+      "title": "Smooth decomposition of a positive function",
+      "source": "pgfplots/stacked-area/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGFPlots smooth stacked area example",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
+      "semanticOwner": "src/pgfplots/areaPlots.js:stackedClosedCyclePointChain",
+      "features": ["smooth", "stack plots=y", "closed cycle", "reversed smooth zero-level path", "area legend"]
+    },
+    {
+      "id": "pgfplots-stacked-area-physics",
+      "title": "Stored energy by subsystem",
+      "source": "pgfplots/stacked-area/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the PGFPlots const stacked area example",
+      "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
+      "semanticOwner": "src/pgfplots/areaPlots.js:stackedClosedCyclePointChain",
+      "features": ["const plot", "stack plots=y", "closed cycle", "mirrored reverse step path", "area cycle list"]
     }
   ]
 }

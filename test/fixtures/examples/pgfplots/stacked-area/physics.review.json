@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The standalone document shell is removed before browser evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper initializes the PGFPlots frontend and compatibility layer." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["area style", "area cycle list", "area legend", "axis on top"], "findings": "Area style installs the area color cycle, a 0.6cm by 0.2cm filled legend image, and foreground axes." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsstackedplots.code.tex": { "symbols": ["\\pgfplots@stacked@finish@plot", "\\pgfplots@stacked@draw@closedcycle"], "findings": "A stacked closed cycle appends the previous zero-level stream in reverse order before closing." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotsplothandlers.code.tex": { "symbols": ["const plot", "smooth"], "findings": "Plot handlers own the geometry of both the forward boundary and the mirrored reverse zero-level boundary." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex": { "symbols": ["\\pgfplots@prepare@ZERO@coordinates"], "findings": "A logical zero outside the visible axis interval is clamped to the nearest visible bound before it becomes the first stack baseline." },
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2": { "symbols": ["pgfplots.reference.2dplots.tex", "\\closedcycle"], "findings": "The manual documents equal-grid stacked area examples and the same-coordinate-grid limitation." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-stacked-plots.test.js"] }
+  ]
+}

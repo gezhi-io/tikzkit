@@ -20,6 +20,7 @@ import { createPgfplotsDateContext, normalizePgfplotsDateAxisOptions } from "./d
 import { renderAxisFillBetween } from "./fillBetween.js";
 import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
 import { pgfplotsStackedRenderEntries, preparePgfplotsStackedPlots } from "./stackedPlots.js";
+import { normalizePgfplotsAreaOptions, pgfplotsUsesAreaCycle } from "./areaPlots.js";
 
 // PGF's axis-description node box is about 1.7pt narrower on its rotated
 // cross-axis than the browser's CMU text layout box. Apply the correction only
@@ -32,8 +33,9 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   const dateContext = createPgfplotsDateContext(preparedAxisOptions);
   const parsedAddplots = dependencies.parseAddplots(body, { ...options, pgfplotsDateContext: dateContext }, diagnostics);
   const dateAxisOptions = normalizePgfplotsDateAxisOptions(preparedAxisOptions, parsedAddplots, dateContext);
+  const areaAxisOptions = normalizePgfplotsAreaOptions(dateAxisOptions);
   const histogram = preparePgfplotsHistogram(
-    dateAxisOptions,
+    areaAxisOptions,
     parsedAddplots
   );
   const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
@@ -299,6 +301,7 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
     optionEnabled(axisOptions["xbar interval stacked"]) ||
     optionEnabled(axisOptions["ybar interval stacked"])
   );
+  const usesAreaCycle = !cycleName && pgfplotsUsesAreaCycle(axisOptions);
   return addplots.map((plot, index) => {
     const plotOptions = plot.options || {};
     const usesDefaultCycle =
@@ -309,7 +312,7 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
           !plot.is3d &&
           !plotOptions["pgfplots explicit options"]));
     const cycleStyle = cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
-      || (usesStackedBarCycle
+      || (usesStackedBarCycle || usesAreaCycle
         ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6))
         : usesDefaultCycle
           ? defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10))

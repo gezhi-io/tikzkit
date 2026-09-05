@@ -66,8 +66,8 @@ export const tikzCommand = {
       name: "fill / closed cycle / area legend",
       category: "area",
       status: "partial",
-      implementedBy: "src/pgfplots/axisTikzLowering.js:renderPgfplotsAxisAsTikz",
-      notes: "Filled/closed plots are implemented for common 2D examples."
+      implementedBy: "src/pgfplots/areaPlots.js:normalizePgfplotsAreaOptions/stackedClosedCyclePointChain + src/pgfplots/addplotLowering.js:renderCoordinatePlotPath + src/pgfplots/legend.js:renderLegendEntries",
+      notes: "Common 2D fills include equal-grid y-stacked coordinate/table closed cycles with sharp, smooth, and const handlers. Function stacking, x-stacked closed areas, unequal grids, and unbounded/jump closure remain partial."
     }
   ],
   examples: [

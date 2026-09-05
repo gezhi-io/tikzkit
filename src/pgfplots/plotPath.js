@@ -1,7 +1,7 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
 import { formatAxisPoint } from "./format.js";
 
-export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}) {
+export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, options = {}) {
   if (points.length < 2) return points.map(formatAxisPoint).join(" -- ");
   const cycle = Boolean(plotOptions["axis plot cycle"]);
   if (plotOptions["axis plot gap"]) {
@@ -21,7 +21,10 @@ export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}) {
   for (let index = 1; index < points.length; index += 1) {
     const previous = points[index - 1];
     const current = points[index];
-    stepped.push({ x: current.x, y: previous.y }, current);
+    const corner = options.mirrorConstPlot
+      ? { x: previous.x, y: current.y }
+      : { x: current.x, y: previous.y };
+    stepped.push(corner, current);
   }
   const chain = stepped.map(formatAxisPoint).join(" -- ");
   return cycle ? `${chain} -- cycle` : chain;
