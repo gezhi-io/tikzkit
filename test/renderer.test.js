@@ -5,6 +5,7 @@ import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
 import { wrapSvgTextTokensByWidth, svgTextWrapTokens } from "../src/renderers/svg/textLayout.js";
 import { mathFallbackText, normalizeTikzText } from "../src/tikz/text.js";
+import { applyNodeLineBreakSemantics, nodeLineBreaksEnabled } from "../src/tikz/commands/node.js";
 import { estimateFormulaBox } from "../src/tikz/textMetrics.js";
 import {
   createArrowTip,
@@ -164,6 +165,40 @@ test("normalizes TeX newline commands as explicit text line breaks", () => {
 
   assert.deepEqual(normalized.lines, ["Zustand $x_k$,", "Kosten /", "Belohnung $r_k$"]);
   assert.equal(normalized.text, String.raw`Zustand $x_k$,\\Kosten /\\Belohnung $r_k$`);
+});
+
+test("activates ordinary node line breaks only through TikZ text layout keys", () => {
+  assert.equal(nodeLineBreaksEnabled({}), false);
+  assert.equal(nodeLineBreaksEnabled({ align: "none", "text width": "3cm" }), false);
+  assert.equal(nodeLineBreaksEnabled({ align: "center" }), true);
+  assert.equal(nodeLineBreaksEnabled({ "text width": "3cm" }), true);
+  assert.equal(nodeLineBreaksEnabled({ "node halign header": "header" }), true);
+
+  assert.equal(applyNodeLineBreakSemantics(String.raw`1\\2\\[2pt]3`, {}), "123");
+  assert.equal(applyNodeLineBreakSemantics(String.raw`1\\2\\3`, { align: "center" }), String.raw`1\\2\\3`);
+  assert.equal(
+    applyNodeLineBreakSemantics(String.raw`$\begin{matrix}1\\2\end{matrix}$`, {}),
+    String.raw`$\begin{matrix}1\\2\end{matrix}$`
+  );
+  assert.equal(
+    applyNodeLineBreakSemantics(String.raw`\begin{tabular}{c}1\\2\end{tabular}`, {}),
+    String.raw`\begin{tabular}{c}1\\2\end{tabular}`
+  );
+});
+
+test("keeps unaligned node text in one hbox while aligned and fixed-width nodes stay multiline", () => {
+  const result = tikzToSvg(String.raw`
+\begin{tikzpicture}
+  \node[draw] at (0,0) {1\\2\\3};
+  \node[draw,align=center] at (2,0) {1\\2\\3};
+  \node[draw,text width=1cm] at (4,0) {1\\2\\3};
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const textNodes = result.ir.items.filter((item) => item.type === "textNode");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(textNodes.map((item) => item.text), ["123", String.raw`1\\2\\3`, String.raw`1\\2\\3`]);
+  assert.ok(textNodes[0].nodeLayoutHeight < textNodes[1].nodeLayoutHeight);
+  assert.ok(textNodes[0].nodeLayoutHeight < textNodes[2].nodeLayoutHeight);
 });
 
 test("left-aligns wrapped text width nodes unless align=center is explicit", () => {

@@ -450,3 +450,22 @@ test("case 017: continuous rational surface preserves its 55 by 55 mesh and colo
     assert.ok(labels.some((item) => item.text === text), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
+
+test("severe-gap acceptance: inverse-function keeps unaligned node text in one TeX hbox", () => {
+  const result = renderFixture("inverse-function");
+  const boxes = result.ir.items.filter((item) => item.type === "nodeBox");
+  const ordinaryText = result.ir.items
+    .filter((item) => item.type === "textNode" && !item.subtype && item.text)
+    .map((item) => item.text);
+  const decorationText = result.ir.items
+    .filter((item) => item.type === "textNode" && item.subtype === "decoration-text")
+    .map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(ordinaryText, ["123", "abc"]);
+  assert.equal(boxes.length, 2);
+  assert.ok(boxes.every((box) => Math.abs(box.height - 0.702919607165) < 1e-9));
+  assert.ok(boxes.every((box) => Math.abs(box.width - 2.811678428661) < 1e-9));
+  assert.deepEqual(decorationText, ["Aktion {$a_k$}", "Zustand {$x_k$}"]);
+  assert.equal(result.ir.items.filter((item) => item.type === "path").length, 2);
+});

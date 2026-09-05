@@ -87,6 +87,7 @@ import {
   tapeLayoutSize as symbolTapeLayoutSize
 } from "../tikz/libraries/shapes.symbols.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
+import { applyNodeLineBreakSemantics } from "../tikz/commands/node.js";
 import {
   parseEdgeFromParentPathTemplate,
   parseGrowViaThreePoints,
@@ -6552,7 +6553,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   const rawText = resolveNodeTextContent(text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
-  text = resolveTextContent(rawText, env);
+  text = applyNodeLineBreakSemantics(resolveTextContent(rawText, env), expandedOptions);
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
   if (inlinePathLabelNeedsTexMetrics(text, rawOptions, expandedOptions)) {
     expandedOptions["tikzkit inline math label metrics"] = true;
@@ -6840,8 +6841,7 @@ function createNode(statement, env, ir, diagnostics) {
   expandedOptions = applyRotateFitOption(expandedOptions);
   const rawText = resolveNodeTextContent(statement.text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
-  const textMarks = extractTikzmarkNodes(resolveTextContent(rawText, env));
-  const text = textMarks.text;
+  const resolvedText = resolveTextContent(rawText, env);
   if (isMatrixNodeOptions(expandedOptions)) {
     const name = statement.name
       ? resolvePicScopedName(resolveDynamicName(statement.name, env), env)
@@ -6854,7 +6854,7 @@ function createNode(statement, env, ir, diagnostics) {
         name,
         at: statement.at,
         options: expandedOptions,
-        body: text,
+        body: resolvedText,
         raw: statement.raw
       },
       env,
@@ -6864,7 +6864,7 @@ function createNode(statement, env, ir, diagnostics) {
     const record = name ? env.nodes[name] : null;
     return {
       name,
-      text,
+      text: resolvedText,
       point: record?.point || null,
       width: record?.width || 0,
       height: record?.height || 0,
@@ -6873,6 +6873,8 @@ function createNode(statement, env, ir, diagnostics) {
       options: expandedOptions
     };
   }
+  const textMarks = extractTikzmarkNodes(applyNodeLineBreakSemantics(resolvedText, expandedOptions));
+  const text = textMarks.text;
   const nodeEnv = nodeCanvasEnv(env, expandedOptions);
   const fitLayout = resolveFitNodeLayout(expandedOptions, env, nodeEnv);
   const rectangleSplit = rectangleSplitLayout(text, expandedOptions, nodeEnv);
@@ -9820,6 +9822,7 @@ function addNodeItems(node, ir, env) {
     clipPolygon: parseInternalClipPolygon(node.options?.["tikzkit clip polygon"], nodeEnv)
   };
   const { style: rawStyle, semantic, options: normalizedNodeOptions } = normalizeOptions("node", node.options || {}, nodeEnv);
+  const renderedNodeText = applyNodeLineBreakSemantics(node.text, normalizedNodeOptions);
   const overlay = tikzBoolean(node.options?.overlay ?? semantic.overlay);
   const scaledStyle = scaleCanvasStyle(rawStyle, nodeEnv);
   const patternDefinition = scaledStyle.pattern ? nodeEnv.patterns?.[scaledStyle.pattern] : null;
@@ -9851,18 +9854,18 @@ function addNodeItems(node, ir, env) {
     exactMathFontScale: Boolean(semantic["axis legend"]),
     textWidthScale: numberOption(node.options?.["tikzkit text width scale"], 1),
     textWidthScaleExplicit: node.options?.["tikzkit text width scale"] !== undefined,
-    fontFamily: resolveFontFamily(node.text) || resolveInheritedFontFamily(node.options?.font, nodeEnv.pictureOptions?.font),
+    fontFamily: resolveFontFamily(renderedNodeText) || resolveInheritedFontFamily(node.options?.font, nodeEnv.pictureOptions?.font),
     fontVariant: resolveInheritedFontVariant(node.options?.font, nodeEnv.pictureOptions?.font),
     fontWeight: resolveInheritedFontWeight(node.options?.font, nodeEnv.pictureOptions?.font)
   };
   let textFont = resolvedTextFontSpec(
-    node.text,
+    renderedNodeText,
     node.options || {},
     nodeEnv,
     nodeEnv.canvasScale * nodeOptionScale(node.options || {}, nodeEnv)
   );
   textStyle.fontFamily =
-    computerModernOpticalTextFamily(node.text, textFont, textStyle.fontFamily) || textStyle.fontFamily;
+    computerModernOpticalTextFamily(renderedNodeText, textFont, textStyle.fontFamily) || textStyle.fontFamily;
   if (shape === "opAmp") {
     textStyle.fontScale = roundNumber((Number(textStyle.fontScale) || 1) * 0.75);
     textStyle.fontSizeBaseScale = roundNumber((Number(textStyle.fontSizeBaseScale) || 1) * 0.75);
@@ -10067,7 +10070,7 @@ function addNodeItems(node, ir, env) {
       type: "textNode",
       x: textPoint.x,
       y: textPoint.y,
-      text: node.text,
+      text: renderedNodeText,
       font: textFont,
       style: textStyle,
       rotation: rotation || undefined,
@@ -10704,8 +10707,9 @@ function nodeLabels(options = {}, point, size, env, textStyle = {}) {
       normalizedLabelOptions["label distance"] ?? options["label distance"] ?? "0pt",
       env.variables
     );
-    const labelSize = labelPlacementSize(label, env, options);
-    const labelLayoutSize = estimateNodeLayoutSize(label.text, normalizedLabelOptions, env);
+    const labelText = applyNodeLineBreakSemantics(label.text, normalizedLabelOptions);
+    const labelSize = labelPlacementSize({ ...label, text: labelText }, env, options);
+    const labelLayoutSize = estimateNodeLayoutSize(labelText, normalizedLabelOptions, env);
     const baseLabelPoint = labelPointForDirection(label.direction, point, size, sep, labelSize);
     const labelShift = nodeExplicitShift(normalizedLabelOptions, env);
     const labelPoint = roundPoint({
@@ -10716,7 +10720,7 @@ function nodeLabels(options = {}, point, size, env, textStyle = {}) {
       type: "textNode",
       x: labelPoint.x,
       y: labelPoint.y,
-      text: label.text,
+      text: labelText,
       font: labelFontSpec(label, env, options),
       style: labelTextStyle(label, env, textStyle, options),
       // A TikZ label is a real, unpainted node. Its inner sep participates
@@ -10738,8 +10742,9 @@ function nodePins(options = {}, point, size, env, textStyle = {}) {
     const pinDistance = parseDimension(pin.options?.["pin distance"] ?? options["pin distance"] ?? "3ex", env.variables);
     const pinScale = nodeOptionScale(normalizedPinOptions, env);
     const sep = Number.isFinite(pinDistance) ? pinDistance * pinScale : parseDimension("3ex", env.variables) * pinScale;
-    const labelSize = labelPlacementSize(pin, env, options, "pin");
-    const labelLayoutSize = estimateNodeLayoutSize(pin.text, normalizedPinOptions, env);
+    const pinText = applyNodeLineBreakSemantics(pin.text, normalizedPinOptions);
+    const labelSize = labelPlacementSize({ ...pin, text: pinText }, env, options, "pin");
+    const labelLayoutSize = estimateNodeLayoutSize(pinText, normalizedPinOptions, env);
     const labelPoint = labelPointForDirection(pin.direction, point, size, sep, labelSize);
     const edge = pinEdgePoints(pin.direction, point, size, labelPoint, labelSize);
     items.push({
@@ -10755,7 +10760,7 @@ function nodePins(options = {}, point, size, env, textStyle = {}) {
       type: "textNode",
       x: labelPoint.x,
       y: labelPoint.y,
-      text: pin.text,
+      text: pinText,
       font: labelFontSpec(pin, env, options, "pin"),
       style: labelTextStyle(pin, env, textStyle, options, "pin"),
       nodeLayoutWidth: labelLayoutSize.width,
@@ -13989,6 +13994,7 @@ function estimateMatrixCellLayoutSize(text, options = {}, env = { variables: {} 
 }
 
 function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
+  text = applyNodeLineBreakSemantics(text, options);
   if (options["op amp"]) return circuitikzOpAmpSize(env);
   if (options.ground) return circuitikzGroundSize(env);
   if (circuitikzMosfetNodeKind(options)) return circuitikzMosfetNodeSize(env);

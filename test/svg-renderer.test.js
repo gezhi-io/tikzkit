@@ -413,7 +413,7 @@ test("equal-size multiline baseline gap follows FontSpec baseline skip", () => {
 
 test("public multiline SVG uses resolved FontSpec baseline skip for tspan dy", () => {
   const result = tikzToSvg(
-    String.raw`\begin{tikzpicture}\node[font=\small] {A\\B};\end{tikzpicture}`,
+    String.raw`\begin{tikzpicture}\node[font=\small,align=center] {A\\B};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   );
   const textNode = result.ir.items.find((item) => item.type === "textNode");
@@ -473,9 +473,9 @@ test("mixed content size commands only resize the following text segment", () =>
   assert.ok(Math.abs(tinySize / baseSize - 0.5) < 1e-6);
 });
 
-test("multiline content size commands keep absolute 9pt and 5pt line sizes", () => {
+test("aligned multiline content size commands keep absolute 9pt and 5pt line sizes", () => {
   const result = tikzToSvg(
-    String.raw`\begin{tikzpicture}\node {\small A\\\tiny B};\end{tikzpicture}`,
+    String.raw`\begin{tikzpicture}\node[align=center] {\small A\\\tiny B};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   );
   const textNode = result.ir.items.find((item) => item.type === "textNode");
@@ -503,7 +503,7 @@ test("TeX font groups restore size on the same line and after a line break", () 
   assert.ok(Math.abs(groupedSize / inlineBaseSize - 0.9) < 1e-6);
 
   const multiline = tikzToSvg(
-    String.raw`\begin{tikzpicture}\node {{\small A}\\B};\end{tikzpicture}`,
+    String.raw`\begin{tikzpicture}\node[align=center] {{\small A}\\B};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   ).svg;
   const multilineText = multiline.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
