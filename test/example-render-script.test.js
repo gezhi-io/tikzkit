@@ -281,8 +281,14 @@ test("tikztosvg normalization preserves standalone and preview crop borders", ()
 \begin{tikzpicture}\draw (0,0) -- (1,0);\end{tikzpicture}
 \end{document}`);
 
-  assert.match(standalone, /\\path\[use as bounding box\][\s\S]*xshift=-2pt[\s\S]*xshift=2pt/);
-  assert.match(preview, /\\path\[use as bounding box\][\s\S]*xshift=-2mm[\s\S]*xshift=2mm/);
+  assert.match(
+    standalone,
+    /\\begin\{scope\}\[reset cm\][\s\S]*\\path\[use as bounding box\][\s\S]*xshift=-2pt[\s\S]*xshift=2pt[\s\S]*\\end\{scope\}/
+  );
+  assert.match(
+    preview,
+    /\\begin\{scope\}\[reset cm\][\s\S]*\\path\[use as bounding box\][\s\S]*xshift=-2mm[\s\S]*xshift=2mm[\s\S]*\\end\{scope\}/
+  );
 });
 
 test("tikztosvg crop normalization skips tikzpictures held inside command definitions", () => {

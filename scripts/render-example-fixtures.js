@@ -895,14 +895,18 @@ function wrapStandalonePgfplotstableTypeset(body) {
 // Documents using standalone's `border` option or preview's PreviewBorder
 // instead define an explicit output box. Preserve that document-level crop
 // contract in the disposable reference source so its SVG can be compared with
-// both MacTeX and TikZKit without a false all-edge offset.
+// both MacTeX and TikZKit without a false all-edge offset. PreviewBorder is a
+// page-space dimension, so reset the picture CTM before applying it; otherwise
+// a picture-level scale or rotation also transforms the document margin.
 function applyTikztosvgDocumentCropBorder(body, border) {
   const dimension = String(border || "").trim();
   if (!dimension || !/\\begin\{tikzpicture\}/.test(body)) return body;
   const boundingBoxPath = [
+    "\\begin{scope}[reset cm]",
     "\\path[use as bounding box]",
     `  ([xshift=-${dimension},yshift=-${dimension}]current bounding box.south west)`,
-    `  rectangle ([xshift=${dimension},yshift=${dimension}]current bounding box.north east);`
+    `  rectangle ([xshift=${dimension},yshift=${dimension}]current bounding box.north east);`,
+    "\\end{scope}"
   ].join("\n");
 
   // A source can define a command containing an inner tikzpicture. The crop

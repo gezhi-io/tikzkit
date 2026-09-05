@@ -1,0 +1,11 @@
+\documentclass[border=2mm]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\begin{document}
+\begin{tikzpicture}[scale=1.4,rotate=-8]
+  \draw[fill=gray!12,thick] (-.7,-.4) rectangle (.7,.4);
+  \draw[-{Latex},red,very thick] (0,0) -- (2,0) node[right] {$F$};
+  \draw[-{Latex},blue,very thick] (0,0) -- (0,1.5) node[above] {$N$};
+  \draw[-{Latex},green!50!black,very thick] (0,0) -- (0,-1.5) node[below] {$mg$};
+\end{tikzpicture}
+\end{document}

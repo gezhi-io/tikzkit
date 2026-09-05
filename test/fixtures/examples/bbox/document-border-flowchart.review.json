@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/preview.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["documentclass", "setlength", "begin", "end"], "findings": "LaTeX parses the document shell and assigns PreviewBorder as a TeX dimension before the picture is typeset." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/preview.sty": { "symbols": ["preview", "PreviewBorder"], "findings": "The preview environment captures the completed TeX box before tight-page output is applied." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def": { "symbols": ["PreviewBorder", "PreviewBbAdjust"], "findings": "The page width and height receive the physical border after the preview box is measured, independently of any TikZ coordinate transformation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["usepackage{tikz}", "usetikzlibrary"], "findings": "The package entry loads core TikZ and dispatches the arrows.meta library." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["scale", "reset cm", "use as bounding box"], "findings": "The reset-cm key installs pgftransformreset before the disposable crop path is evaluated." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex": { "symbols": ["pgftransformreset"], "findings": "Resetting the PGF transformation matrix restores an identity page-space CTM for the physical margin." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "The flow arrows use the public Stealth tip while crop correction remains independent of arrow paint bounds." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] }
+  ]
+}

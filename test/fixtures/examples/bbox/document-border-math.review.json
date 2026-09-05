@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["documentclass", "begin", "end"], "findings": "LaTeX establishes the document box consumed by standalone without participating in the picture affine transform." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls": { "symbols": ["border", "sa@readborder", "PreviewBbAdjust"], "findings": "Standalone parses one-, two-, or four-sided physical border dimensions and forwards them to the preview tight-page adjustment." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def": { "symbols": ["PreviewBbAdjust", "pdfpagewidth", "pdfpageheight"], "findings": "The border changes PDF page dimensions after the content box is complete, so xscale, yscale, and rotation must not transform it." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["usepackage{tikz}", "usetikzlibrary"], "findings": "The TikZ package loads the frontend and the requested arrows.meta terminal definitions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["xscale", "yscale", "rotate", "reset cm"], "findings": "Picture transforms accumulate in the PGF CTM while reset cm explicitly restores identity for page-space work." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex": { "symbols": ["pgftransformreset"], "findings": "The reset operation clears translation and all four affine matrix coefficients." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "The axis terminals remain governed by their own arrow geometry and are measured before the document border is added." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] }
+  ]
+}

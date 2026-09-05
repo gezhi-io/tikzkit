@@ -8101,6 +8101,33 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/tikz/libraries/decorations.markings.js:markingItemsForPath",
       "features": ["closed arc markings", "fractional interval endpoints", "absolute step", "arrows.meta length", "negative dimension position"]
+    },
+    {
+      "id": "bbox-document-border-flowchart",
+      "title": "Preview border around a scaled processing flow",
+      "source": "bbox/document-border-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the preview tight-page contract",
+      "externalSource": "tex/latex/preview/prtightpage.def",
+      "semanticOwner": "src/frontend/latex-shell.js:collectPreviewBorder + src/renderers/svg/renderSvg.js:sourceMargin + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+      "features": ["preview", "PreviewBorder", "picture scale", "page-space crop", "flowchart nodes", "Stealth arrows"]
+    },
+    {
+      "id": "bbox-document-border-math",
+      "title": "Standalone border around an affine mathematical plot",
+      "source": "bbox/document-border-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from standalone border semantics",
+      "externalSource": "tex/latex/standalone/standalone.cls",
+      "semanticOwner": "src/frontend/latex-shell.js:collectPreviewBorder + src/renderers/svg/renderSvg.js:sourceMargin + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+      "features": ["standalone border", "xscale", "yscale", "rotate", "page-space crop", "mathematical labels"]
+    },
+    {
+      "id": "bbox-document-border-physics",
+      "title": "Standalone border around a rotated force diagram",
+      "source": "bbox/document-border-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from standalone border semantics",
+      "externalSource": "tex/latex/standalone/standalone.cls",
+      "semanticOwner": "src/frontend/latex-shell.js:collectPreviewBorder + src/renderers/svg/renderSvg.js:sourceMargin + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+      "features": ["standalone border", "scale", "rotate", "page-space crop", "force vectors", "Latex arrows"]
     }
   ]
 }

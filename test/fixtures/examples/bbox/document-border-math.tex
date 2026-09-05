@@ -1,0 +1,11 @@
+\documentclass[border=5pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\begin{document}
+\begin{tikzpicture}[xscale=1.6,yscale=.75,rotate=12]
+  \draw[-{Stealth},thin] (-1.2,0) -- (2.2,0) node[right] {$x$};
+  \draw[-{Stealth},thin] (0,-1.2) -- (0,2.2) node[above] {$y$};
+  \draw[blue,very thick] (-1,1) -- (0,0) -- (1,1) -- (2,0);
+  \fill[red] (1,1) circle (1.5pt) node[above right] {$f(1)=1$};
+\end{tikzpicture}
+\end{document}

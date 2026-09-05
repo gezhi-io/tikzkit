@@ -1,0 +1,16 @@
+\documentclass{article}
+\usepackage[pdftex,active,tightpage]{preview}
+\setlength\PreviewBorder{3mm}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\begin{document}
+\begin{preview}
+\begin{tikzpicture}[scale=1.8]
+  \node[draw,rounded corners=2pt,fill=blue!8,minimum width=18mm] (read) at (0,0) {Read};
+  \node[draw,rounded corners=2pt,fill=green!10,minimum width=18mm] (check) at (2,0) {Check};
+  \node[draw,rounded corners=2pt,fill=orange!12,minimum width=18mm] (emit) at (4,0) {Emit};
+  \draw[-{Stealth},thick] (read) -- (check);
+  \draw[-{Stealth},thick] (check) -- (emit);
+\end{tikzpicture}
+\end{preview}
+\end{document}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["documentclass", "begin", "end"], "findings": "The LaTeX shell encloses the standalone picture without changing the force-vector geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls": { "symbols": ["border", "sa@border@left", "sa@border@top"], "findings": "The class stores each border side as a TeX dimension and adds it outside the diagram box." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def": { "symbols": ["PreviewBbAdjust", "pdfhorigin", "pdfvorigin"], "findings": "Tight-page origin and size adjustments occur in page space, after the rotated force diagram has contributed its final box." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["usepackage{tikz}", "usetikzlibrary"], "findings": "The package entry loads TikZ and arrows.meta for the physical force vector terminals." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["scale", "rotate", "reset cm"], "findings": "The disposable reference must leave the source transform intact for the diagram and reset it only around the document crop path." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformations.code.tex": { "symbols": ["pgftransformreset"], "findings": "Identity CTM evaluation keeps a 2mm border at 2mm rather than multiplying it by the picture scale." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "The force arrows contribute their terminal paint bounds before the standalone page border is applied." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/example-render-script.test.js", "docs/qa/2026-09-05-document-border-transforms.md"] }
+  ]
+}
