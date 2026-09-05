@@ -1,0 +1,15 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,spy}
+
+\begin{document}
+\begin{tikzpicture}[spy using overlays={circle,magnification=3,size=2.2cm,connect spies}]
+  \draw[help lines] (-2,-1.5) grid (2,1.5);
+  \draw[very thick,-Stealth] (-1.8,0) -- (1.8,0);
+  \fill[orange!70] (0,0) circle (3pt);
+  \node[draw=blue,fill=white,circle,inner sep=2pt] at (0,0) {$q$};
+  \node[above=4pt] at (0,0) {source};
+  \spy[green!60!black] on (0,0) in node at (3,0);
+\end{tikzpicture}
+\end{document}

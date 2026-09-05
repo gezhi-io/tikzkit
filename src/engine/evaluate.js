@@ -9278,7 +9278,7 @@ function createSpy(statement, env, ir, diagnostics) {
   const onShape = nodeShape(onOptions);
   const inShape = nodeShape(inOptions);
   const existingItems = [...ir.items];
-  ir.items.push(...spyMagnifiedPathItems(existingItems, onPoint, inCenter, magnification, targetSize, inShape));
+  ir.items.push(...spyMagnifiedItems(existingItems, onPoint, inCenter, magnification, targetSize, inShape));
 
   const connectionStyle = spyPathStyle({ thin: true, draw: true, ...statement.options }, env);
   if (tikzBoolean(onOptions["connect spies"])) {
@@ -9448,66 +9448,204 @@ function rectangleCommands(center, width, height) {
   ];
 }
 
-function spyMagnifiedPathItems(items, onPoint, inCenter, magnification, targetSize, shape) {
-  const magnified = [];
-  const radius = Math.max(targetSize.width, targetSize.height) / 2;
-  for (const item of items) {
-    if (item.type !== "path" || !Array.isArray(item.commands) || item.subtype?.startsWith?.("spy-")) continue;
-    const points = flattenPath(item.commands, 0.035);
-    for (let index = 1; index < points.length; index += 1) {
-      const from = spyTransformPoint(points[index - 1], onPoint, inCenter, magnification);
-      const to = spyTransformPoint(points[index], onPoint, inCenter, magnification);
-      const clipped = shape === "circle" || shape === "circleCrossSplit"
-        ? clipSegmentToCircle(from, to, inCenter, radius)
-        : shape === "rectangle"
-          ? clipSegmentToRectangle(from, to, inCenter, targetSize)
-          : { from, to };
-      if (!clipped) continue;
-      magnified.push({
-        type: "path",
-        subtype: "spy-magnified",
-        style: spyMagnifiedStyle(item.style || {}, magnification),
-        commands: [
-          { type: "moveTo", x: clipped.from.x, y: clipped.from.y },
-          { type: "lineTo", x: clipped.to.x, y: clipped.to.y }
-        ]
-      });
-    }
-  }
-  return magnified;
+function spyMagnifiedItems(items, onPoint, inCenter, magnification, targetSize, shape) {
+  const clip = spyLensClip(inCenter, targetSize, shape);
+  return items.flatMap((item) => {
+    if (!item || item.type === "bbox" || item.subtype?.startsWith?.("spy-")) return [];
+    const magnified = spyMagnifiedItem(item, onPoint, inCenter, magnification);
+    if (!magnified) return [];
+    return [{
+      ...magnified,
+      subtype: "spy-magnified",
+      ...clip
+    }];
+  });
 }
 
-function clipSegmentToRectangle(from, to, center, size = {}) {
-  const halfWidth = Math.max(0, Number(size.width) || 0) / 2;
-  const halfHeight = Math.max(0, Number(size.height) || 0) / 2;
-  const left = center.x - halfWidth;
-  const right = center.x + halfWidth;
-  const bottom = center.y - halfHeight;
-  const top = center.y + halfHeight;
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  let start = 0;
-  let end = 1;
-  const constraints = [
-    [-dx, from.x - left],
-    [dx, right - from.x],
-    [-dy, from.y - bottom],
-    [dy, top - from.y]
-  ];
-  for (const [direction, distance] of constraints) {
-    if (Math.abs(direction) < 1e-12) {
-      if (distance < 0) return null;
-      continue;
+function spyMagnifiedItem(item, onPoint, inCenter, magnification) {
+  if (item.type === "path" && Array.isArray(item.commands)) {
+    const transformed = {
+      ...item,
+      commands: item.commands.map((command) => spyTransformCommand(command, onPoint, inCenter, magnification)),
+      style: spyMagnifiedStyle(item.style || {}, magnification)
+    };
+    if (Number.isFinite(Number(item.cx)) && Number.isFinite(Number(item.cy))) {
+      const center = spyTransformPoint(
+        { x: Number(item.cx), y: Number(item.cy) },
+        onPoint,
+        inCenter,
+        magnification
+      );
+      transformed.cx = center.x;
+      transformed.cy = center.y;
     }
-    const ratio = distance / direction;
-    if (direction < 0) start = Math.max(start, ratio);
-    else end = Math.min(end, ratio);
-    if (start > end + 1e-12) return null;
+    for (const key of ["r", "rx", "ry", "width", "height"]) {
+      if (Number.isFinite(Number(item[key]))) transformed[key] = roundNumber(Number(item[key]) * magnification);
+    }
+    if (Number.isFinite(Number(item.x)) && Number.isFinite(Number(item.y))) {
+      const point = spyTransformPoint(item, onPoint, inCenter, magnification);
+      transformed.x = point.x;
+      transformed.y = point.y;
+    }
+    return transformed;
   }
+  if (item.type === "nodeBox") {
+    const point = spyTransformPoint(item, onPoint, inCenter, magnification);
+    return {
+      ...item,
+      id: undefined,
+      x: point.x,
+      y: point.y,
+      width: roundNumber((Number(item.width) || 0) * magnification),
+      height: roundNumber((Number(item.height) || 0) * magnification),
+      rx: Number.isFinite(Number(item.rx)) ? roundNumber(Number(item.rx) * magnification) : item.rx,
+      foregroundOuterSep: spyScalePoint(item.foregroundOuterSep, magnification),
+      shapeData: spyMagnifiedShapeData(item.shapeData, magnification),
+      partWidths: spyScaleArray(item.partWidths, magnification),
+      partHeights: spyScaleArray(item.partHeights, magnification),
+      separatorWidth: Number.isFinite(Number(item.separatorWidth))
+        ? roundNumber(Number(item.separatorWidth) * magnification)
+        : item.separatorWidth,
+      style: spyMagnifiedStyle(item.style || {}, magnification),
+      shadows: spyMagnifiedShadows(item.shadows, magnification)
+    };
+  }
+  if (item.type === "textNode") {
+    const point = spyTransformPoint(item, onPoint, inCenter, magnification);
+    const svgTextPoint = Number.isFinite(Number(item.svgTextX))
+      ? spyTransformPoint({ x: Number(item.svgTextX), y: Number(item.y) || 0 }, onPoint, inCenter, magnification)
+      : null;
+    return {
+      ...item,
+      x: point.x,
+      y: point.y,
+      svgTextX: svgTextPoint?.x,
+      font: spyMagnifiedFont(item.font, magnification),
+      style: {
+        ...(item.style || {}),
+        fontScale: spyScaledNumber(item.style?.fontScale, magnification),
+        fontSizeBaseScale: spyScaledNumber(item.style?.fontSizeBaseScale, magnification)
+      },
+      wrapWidth: spyScaledNumber(item.wrapWidth, magnification),
+      nodeLayoutWidth: spyScaledNumber(item.nodeLayoutWidth, magnification),
+      nodeLayoutHeight: spyScaledNumber(item.nodeLayoutHeight, magnification),
+      fitBox: item.fitBox
+        ? {
+            width: spyScaledNumber(item.fitBox.width, magnification),
+            height: spyScaledNumber(item.fitBox.height, magnification)
+          }
+        : item.fitBox
+    };
+  }
+  if (item.type === "marker") {
+    const point = spyTransformPoint(item, onPoint, inCenter, magnification);
+    return {
+      ...item,
+      x: point.x,
+      y: point.y,
+      style: spyMagnifiedStyle(item.style || {}, magnification)
+    };
+  }
+  if (item.type === "rasterImage") {
+    const point = spyTransformPoint(item, onPoint, inCenter, magnification);
+    return {
+      ...item,
+      x: point.x,
+      y: point.y,
+      width: roundNumber((Number(item.width) || 0) * magnification),
+      height: roundNumber((Number(item.height) || 0) * magnification)
+    };
+  }
+  return null;
+}
+
+function spyLensClip(center, size = {}, shape) {
+  if (shape === "circle" || shape === "circleCrossSplit") {
+    return {
+      clipCircle: {
+        x: center.x,
+        y: center.y,
+        radius: roundNumber(Math.max(Number(size.width) || 0, Number(size.height) || 0) / 2)
+      },
+      clipRect: undefined,
+      clipPolygon: undefined
+    };
+  }
+  if (shape === "rectangle") {
+    return {
+      clipRect: {
+        minX: roundNumber(center.x - (Number(size.width) || 0) / 2),
+        minY: roundNumber(center.y - (Number(size.height) || 0) / 2),
+        maxX: roundNumber(center.x + (Number(size.width) || 0) / 2),
+        maxY: roundNumber(center.y + (Number(size.height) || 0) / 2)
+      },
+      clipCircle: undefined,
+      clipPolygon: undefined
+    };
+  }
+  return {};
+}
+
+function spyTransformCommand(command, onPoint, inCenter, magnification) {
+  if (command.type === "closePath") return { ...command };
+  const transformed = { ...command };
+  if (Number.isFinite(Number(command.x)) && Number.isFinite(Number(command.y))) {
+    Object.assign(transformed, spyTransformPoint(command, onPoint, inCenter, magnification));
+  }
+  for (const suffix of ["1", "2"]) {
+    const xKey = `x${suffix}`;
+    const yKey = `y${suffix}`;
+    if (!Number.isFinite(Number(command[xKey])) || !Number.isFinite(Number(command[yKey]))) continue;
+    const point = spyTransformPoint(
+      { x: Number(command[xKey]), y: Number(command[yKey]) },
+      onPoint,
+      inCenter,
+      magnification
+    );
+    transformed[xKey] = point.x;
+    transformed[yKey] = point.y;
+  }
+  return transformed;
+}
+
+function spyMagnifiedShapeData(shapeData, magnification) {
+  if (!shapeData) return shapeData;
+  return { ...shapeData, ...scaleSize(shapeData, magnification) };
+}
+
+function spyMagnifiedFont(font, magnification) {
+  if (!font) return font;
   return {
-    from: roundPoint({ x: from.x + start * dx, y: from.y + start * dy }),
-    to: roundPoint({ x: from.x + end * dx, y: from.y + end * dy })
+    ...font,
+    sizePt: spyScaledNumber(font.sizePt, magnification),
+    baselineSkipPt: spyScaledNumber(font.baselineSkipPt, magnification)
   };
+}
+
+function spyMagnifiedShadows(shadows, magnification) {
+  if (!Array.isArray(shadows)) return shadows;
+  return shadows.map((shadow) => ({
+    ...shadow,
+    xshift: spyScaledNumber(shadow.xshift, magnification),
+    yshift: spyScaledNumber(shadow.yshift, magnification),
+    blurRadius: spyScaledNumber(shadow.blurRadius, magnification)
+  }));
+}
+
+function spyScaleArray(values, magnification) {
+  return Array.isArray(values) ? values.map((value) => spyScaledNumber(value, magnification)) : values;
+}
+
+function spyScalePoint(point, magnification) {
+  if (!point) return point;
+  return {
+    x: spyScaledNumber(point.x, magnification),
+    y: spyScaledNumber(point.y, magnification)
+  };
+}
+
+function spyScaledNumber(value, magnification) {
+  return Number.isFinite(Number(value)) ? roundNumber(Number(value) * magnification) : value;
 }
 
 function spyTransformPoint(point, onPoint, inCenter, magnification) {
@@ -9518,49 +9656,7 @@ function spyTransformPoint(point, onPoint, inCenter, magnification) {
 }
 
 function spyMagnifiedStyle(style, magnification) {
-  const scaled = { ...style };
-  if (Number.isFinite(Number(scaled.lineWidth))) scaled.lineWidth = roundNumber(Number(scaled.lineWidth) * magnification);
-  delete scaled.markerStart;
-  delete scaled.markerEnd;
-  return scaled;
-}
-
-function clipSegmentToCircle(from, to, center, radius) {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const fx = from.x - center.x;
-  const fy = from.y - center.y;
-  const a = dx * dx + dy * dy;
-  if (a < 1e-12) return pointInsideCircle(from, center, radius) ? { from: roundPoint(from), to: roundPoint(to) } : null;
-  const b = 2 * (fx * dx + fy * dy);
-  const c = fx * fx + fy * fy - radius * radius;
-  const discriminant = b * b - 4 * a * c;
-  const values = [0, 1];
-  if (discriminant >= -1e-12) {
-    const root = Math.sqrt(Math.max(0, discriminant));
-    values.push((-b - root) / (2 * a), (-b + root) / (2 * a));
-  }
-  const sorted = values
-    .filter((value) => value >= -1e-9 && value <= 1 + 1e-9)
-    .map((value) => Math.max(0, Math.min(1, value)))
-    .sort((aValue, bValue) => aValue - bValue);
-  for (let index = 1; index < sorted.length; index += 1) {
-    const start = sorted[index - 1];
-    const end = sorted[index];
-    if (end - start < 1e-9) continue;
-    const mid = (start + end) / 2;
-    const midPoint = { x: from.x + dx * mid, y: from.y + dy * mid };
-    if (!pointInsideCircle(midPoint, center, radius)) continue;
-    return {
-      from: roundPoint({ x: from.x + dx * start, y: from.y + dy * start }),
-      to: roundPoint({ x: from.x + dx * end, y: from.y + dy * end })
-    };
-  }
-  return null;
-}
-
-function pointInsideCircle(point, center, radius) {
-  return Math.hypot(point.x - center.x, point.y - center.y) <= radius + 1e-9;
+  return scaleCanvasStyle(style, { canvasScale: magnification });
 }
 
 function applyNoopSideEffects(statement, env) {

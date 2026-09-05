@@ -38,17 +38,15 @@ test("clips magnified path segments to rectangular spy bounds", () => {
 \end{tikzpicture}`);
   const lens = items.find((item) => item.subtype === "spy-in");
   const magnified = items.filter((item) => item.subtype === "spy-magnified");
-  const left = lens.x;
-  const right = lens.x + lens.width;
-  const bottom = lens.y;
-  const top = lens.y + lens.height;
 
   assert.ok(magnified.length >= 3);
   for (const item of magnified) {
-    for (const command of item.commands) {
-      assert.ok(command.x >= left - 1e-9 && command.x <= right + 1e-9, `x=${command.x} escaped [${left}, ${right}]`);
-      assert.ok(command.y >= bottom - 1e-9 && command.y <= top + 1e-9, `y=${command.y} escaped [${bottom}, ${top}]`);
-    }
+    assert.deepEqual(item.clipRect, {
+      minX: lens.x,
+      minY: lens.y,
+      maxX: lens.x + lens.width,
+      maxY: lens.y + lens.height
+    });
   }
 });
 
@@ -84,6 +82,49 @@ test("uses filled translucent nodes for spy using overlays", () => {
   assert.equal(lens.style.fill, "rgb(0 255 0)");
   assert.equal(source.style.fillOpacity, 0.2);
   assert.equal(lens.style.fillOpacity, 0.2);
+});
+
+test("replays filled paths and curves inside the clipped spy lens", () => {
+  const items = renderSpy(String.raw`
+\usetikzlibrary{spy}
+\begin{tikzpicture}[spy using outlines={circle,magnification=3,size=2cm}]
+  \fill[orange] (-.3,-.2) rectangle (.3,.2);
+  \draw[blue,very thick] (-1,-.4) .. controls (-.3,.8) and (.3,-.8) .. (1,.4);
+  \spy on (0,0) in node at (3,0);
+\end{tikzpicture}`);
+  const magnified = items.filter((item) => item.subtype === "spy-magnified");
+  const fill = magnified.find((item) => item.style?.fill === "rgb(255 128 0)");
+  const curve = magnified.find((item) => item.style?.stroke === "blue");
+
+  assert.ok(fill, "expected the filled rectangle inside the spy lens");
+  assert.ok(fill.commands.some((command) => command.type === "closePath"));
+  assert.ok(curve, "expected the cubic curve inside the spy lens");
+  assert.ok(curve.commands.some((command) => command.type === "curveTo"));
+  assert.ok(magnified.every((item) => item.clipCircle), "expected one shared circular lens clip");
+  assert.ok(curve.style.lineWidth > items.find((item) => item.style?.stroke === "blue").style.lineWidth);
+});
+
+test("replays node shapes and text at magnified canvas size", () => {
+  const items = renderSpy(String.raw`
+\usetikzlibrary{spy}
+\begin{tikzpicture}[spy using outlines={rectangle,magnification=4,width=3cm,height=1.5cm}]
+  \node[draw=purple,fill=yellow!30,circle] at (.2,0) {$x_1$};
+  \node[red] at (-.25,.2) {state};
+  \spy on (0,0) in node at (4,1);
+\end{tikzpicture}`);
+  const nodeBoxes = items.filter((item) => item.subtype === "spy-magnified" && item.type === "nodeBox");
+  const labels = items.filter((item) => item.subtype === "spy-magnified" && item.type === "textNode");
+  const math = labels.find((item) => item.text === "$x_1$");
+  const state = labels.find((item) => item.text === "state");
+
+  assert.equal(nodeBoxes.length, 1);
+  assert.equal(nodeBoxes[0].shape, "circle");
+  assert.ok(nodeBoxes[0].width > 1, `expected magnified node width, got ${nodeBoxes[0].width}`);
+  assert.ok(math && state, "expected both magnified text nodes");
+  assert.equal(math.font.sizePt, 40);
+  assert.equal(state.font.sizePt, 40);
+  assert.ok(labels.every((item) => item.clipRect), "expected rectangular clipping on magnified text");
+  assert.ok(Math.abs(math.x - 4.8) < 1e-9 && Math.abs(math.y - 1) < 1e-9);
 });
 
 for (const fixture of ["algorithm", "math", "physics"]) {

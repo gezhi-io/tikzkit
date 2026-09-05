@@ -8709,7 +8709,7 @@
       "source": "spy/rectangular-lenses/algorithm.tex",
       "sourceCorpus": "TikZKit algorithm regression derived from the TeX Live spy manual",
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-spy.tex",
-      "semanticOwner": "src/engine/evaluate.js:createSpy/spyMagnifiedPathItems",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/spyMagnifiedItems",
       "features": ["spy using outlines", "rectangle", "independent width and height", "connect spies", "rectangular clipping"]
     },
     {
@@ -8729,6 +8729,33 @@
       "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryspy.code.tex",
       "semanticOwner": "src/engine/evaluate.js:createSpy/spyOutlineStyle",
       "features": ["spy using overlays", "rectangle", "fill opacity", "right placement", "connect spies"]
+    },
+    {
+      "id": "spy-magnified-scene-algorithm",
+      "title": "Magnified flow state nodes and dispatch label",
+      "source": "spy/magnified-scene/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from the TeX Live spy replay model",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-spy.tex",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/spyMagnifiedItems",
+      "features": ["magnified node boxes", "magnified text", "node fill", "path label", "rectangular clip"]
+    },
+    {
+      "id": "spy-magnified-scene-math",
+      "title": "Magnified filled function region and formula node",
+      "source": "spy/magnified-scene/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the TeX Live spy replay model",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-spy.tex",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/spyMagnifiedItems",
+      "features": ["magnified closed fill", "preserved curve commands", "magnified math", "circle node", "circular clip"]
+    },
+    {
+      "id": "spy-magnified-scene-physics",
+      "title": "Magnified source charge with filled node and label",
+      "source": "spy/magnified-scene/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the TeX Live spy overlay model",
+      "externalSource": "tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryspy.code.tex",
+      "semanticOwner": "src/engine/evaluate.js:createSpy/spyMagnifiedItems",
+      "features": ["spy using overlays", "magnified filled paths", "magnified node and formula", "plain text", "circular clip"]
     },
     {
       "id": "decorations-text-repeat-group-reverse",
