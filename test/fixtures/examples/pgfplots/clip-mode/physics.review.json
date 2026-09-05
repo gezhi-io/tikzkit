@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document shell is stripped before browser evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper loads the PGFPlots frontend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["clip/.is if", "clip mode/global"], "findings": "clip=false suppresses clip installation even when global mode is selected, preserving the complete function and boundary circle." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\filldraw"], "findings": "TikZ routes filldraw through one path with fill and stroke actions; clip=false leaves both paints complete." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-clip-mode.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-clip-mode.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-clip-mode.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-clip-mode.test.js"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/pgfplots-clip-mode.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-clip-mode.test.js"] }
+  ]
+}

@@ -3,6 +3,7 @@ import { formatAxisNumber, formatAxisPoint } from "./format.js";
 
 export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions = {}) {
   const commands = [];
+  const globalClipOption = axisOverlayGlobalClipOption(axisOptions, geometry);
   let cursor = 0;
   while (cursor < body.length) {
     const start = findNextAxisOverlayStatementStart(body, cursor);
@@ -10,10 +11,43 @@ export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions 
     const end = findStatementEnd(body, start);
     if (end === -1) break;
     const statement = body.slice(start, end + 1);
-    commands.push(...lowerAxisOverlayStatement(statement, ranges, geometry));
+    commands.push(...lowerAxisOverlayStatement(statement, ranges, geometry)
+      .map((command) => applyAxisOverlayClip(command, globalClipOption)));
     cursor = end + 1;
   }
   return withAxisOverlayFont(commands, axisOptions.font);
+}
+
+function axisOverlayGlobalClipOption(axisOptions = {}, geometry = {}) {
+  if (geometry.is3d || !axisBooleanOption(axisOptions.clip, true)) return "";
+  const mode = String(axisOptions["clip mode"] ?? "global").trim().toLowerCase();
+  if (mode !== "global") return "";
+  const minX = Number(geometry.origin?.x);
+  const minY = Number(geometry.origin?.y);
+  const maxX = minX + Number(geometry.width);
+  const maxY = minY + Number(geometry.height);
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return "";
+  return `tikzkit clip rect={${formatAxisNumber(minX)},${formatAxisNumber(minY)},${formatAxisNumber(maxX)},${formatAxisNumber(maxY)}}`;
+}
+
+function applyAxisOverlayClip(command, clipOption) {
+  if (!clipOption) return command;
+  const match = String(command).match(/^(\\(?:filldraw|draw|fill|path))(\s*)/);
+  if (!match) return command;
+  const prefixLength = match[0].length;
+  const suffix = command.slice(prefixLength);
+  return suffix.startsWith("[")
+    ? `${match[1]}${match[2]}[${clipOption},${suffix.slice(1)}`
+    : `${match[1]}${match[2]}[${clipOption}] ${suffix}`;
+}
+
+function axisBooleanOption(raw, fallback) {
+  if (raw === undefined || raw === null || raw === "") return fallback;
+  if (raw === true || raw === false) return raw;
+  const normalized = String(raw).trim().toLowerCase();
+  if (["false", "0", "off", "no"].includes(normalized)) return false;
+  if (["true", "1", "on", "yes"].includes(normalized)) return true;
+  return fallback;
 }
 
 function withAxisOverlayFont(commands, font) {

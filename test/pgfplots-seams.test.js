@@ -881,9 +881,9 @@ test("pgfplots axis overlay lowering owns axis coordinate statement transforms",
     ),
     [
       String.raw`\node at (55,32) {mid};`,
-      String.raw`\draw (30,44.5) -- (5,57);`,
-      String.raw`\draw (55,32) -- ++(20,12.5);`,
-      String.raw`\path[axis pin edge] (125,82) -- (105,57);`
+      String.raw`\draw [tikzkit clip rect={5,7,105,57}] (30,44.5) -- (5,57);`,
+      String.raw`\draw [tikzkit clip rect={5,7,105,57}] (55,32) -- ++(20,12.5);`,
+      String.raw`\path[tikzkit clip rect={5,7,105,57},axis pin edge] (125,82) -- (105,57);`
     ]
   );
 });
@@ -903,7 +903,7 @@ test("pgfplots axis overlay lowering evaluates braced math coordinate components
       ranges,
       geometry
     ),
-    [String.raw`\draw[<->] (60,15) -- (100,15);`]
+    [String.raw`\draw[tikzkit clip rect={0,0,100,50},<->] (60,15) -- (100,15);`]
   );
 });
 
@@ -957,7 +957,7 @@ test("pgfplots axis overlay lowering owns pgfextra pathellipse primitives", () =
       ranges,
       geometry
     ),
-    [String.raw`\draw[blue, thick] (55,32) ellipse (20 and 12.5);`]
+    [String.raw`\draw[tikzkit clip rect={5,7,105,57},blue, thick] (55,32) ellipse (20 and 12.5);`]
   );
 });
 
@@ -982,7 +982,7 @@ test("pgfplots axis direction vectors use enlarged transform ranges for overlays
       ranges,
       geometry
     ),
-    [String.raw`\draw[blue, thick] (3.427,2.583) ellipse (1.656 and 1.835);`]
+    [String.raw`\draw[tikzkit clip rect={0,0,6.853,5.694},blue, thick] (3.427,2.583) ellipse (1.656 and 1.835);`]
   );
 });
 
@@ -2878,7 +2878,7 @@ test("pgfplots data, relative, and direction coordinates honor reversed axes", (
     [
       String.raw`\node at (0,0.25) {relative};`,
       String.raw`\node at (0,0.25) {description};`,
-      String.raw`\draw (2,1) -- ++(-1,-0.5);`
+      String.raw`\draw [tikzkit clip rect={0,0,2,1}] (2,1) -- ++(-1,-0.5);`
     ]
   );
 
