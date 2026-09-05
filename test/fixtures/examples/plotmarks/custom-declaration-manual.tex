@@ -1,0 +1,15 @@
+% TeX Live PGF manual example for a named custom plot mark.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{plotmarks}
+
+\pgfdeclareplotmark{my plot mark}
+  {\pgfpathcircle{\pgfpoint{0cm}{1ex}}{1ex}\pgfusepathqstroke}
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray] (0,0) node {x} (1,1) node {y} (2,.5) node {z};
+  \draw[blue,mark=my plot mark,mark size=3pt]
+    plot coordinates {(0,0) (1,1) (2,.5)};
+\end{tikzpicture}
+\end{document}

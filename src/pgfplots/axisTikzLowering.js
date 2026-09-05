@@ -74,6 +74,15 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     };
   }
   addplots = applyPgfplotsConstantScatterColors(addplots, resolvedAxisOptions);
+  if (Object.keys(options.plotMarkDeclarations || {}).length) {
+    addplots = addplots.map((plot) => ({
+      ...plot,
+      options: {
+        ...(plot.options || {}),
+        "tikzkit plot mark declarations": options.plotMarkDeclarations
+      }
+    }));
+  }
   const overlayBody = lowerPgfplotsPlotReferences(body, addplots);
   if (resolvedAxisOptions["pgfplots ternary axis"]) {
     return dependencies.renderTernaryAxisAsTikz(resolvedAxisOptions, addplots);

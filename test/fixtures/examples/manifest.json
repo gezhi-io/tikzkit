@@ -5330,6 +5330,66 @@
       ]
     },
     {
+      "id": "plotmarks-custom-declaration-manual",
+      "title": "PGF manual shifted-circle custom plot mark",
+      "source": "plotmarks/custom-declaration-manual.tex",
+      "sourceCorpus": "TeX Live PGF manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-plot-handlers.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:collectPgfPlotMarkDeclarations/customPlotMarkOperations",
+      "features": [
+        "pgfdeclareplotmark",
+        "pgfpathcircle",
+        "pgfpoint",
+        "1ex offset and radius",
+        "pgfusepathqstroke"
+      ]
+    },
+    {
+      "id": "plotmarks-custom-declaration-flowchart",
+      "title": "Custom two-pass review target marks",
+      "source": "plotmarks/custom-declaration-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from PGF plot handlers",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:customPlotMarkOperations",
+      "features": [
+        "pgfdeclareplotmark",
+        "multiple path paint operations",
+        "pgfplotmarksize",
+        "pgfusepathqfillstroke",
+        "pgfusepathqstroke"
+      ]
+    },
+    {
+      "id": "plotmarks-custom-declaration-math",
+      "title": "Custom filled caret marks in PGFPlots",
+      "source": "plotmarks/custom-declaration-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGF plot handlers",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex",
+      "semanticOwner": "src/pgfplots/marks.js:renderPlotMark",
+      "features": [
+        "PGFPlots custom mark",
+        "pgfpathmoveto and pgfpathlineto",
+        "pgfpathclose",
+        "pgfusepathqfillstroke",
+        "legend custom mark"
+      ]
+    },
+    {
+      "id": "plotmarks-custom-declaration-physics",
+      "title": "Custom uncertainty ellipses for measurements",
+      "source": "plotmarks/custom-declaration-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGF plot handlers",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex",
+      "semanticOwner": "src/tikz/libraries/plotmarks.js:customPlotMarkOperations",
+      "features": [
+        "pgfdeclareplotmark",
+        "pgfpathellipse",
+        "anisotropic axes",
+        "pgfplotmarksize products",
+        "stroke-only custom mark"
+      ]
+    },
+    {
       "id": "tkz-fct-combined-axes-trig",
       "title": "tkz-base combined trigonometric Cartesian axes",
       "source": "tkz-fct/combined-axes-trig.tex",

@@ -1,6 +1,7 @@
 import { createToken, Lexer } from "chevrotain";
 import { codeDefinitionsFromOptions, isBareDelimiterOptionBracket, parseOptions, parseTikzset, splitTopLevel } from "../engine/options.js";
 import { preprocessTikzSource } from "./latex-shell.js";
+import { parsePgfPlotMarkDeclaration } from "../tikz/libraries/plotmarks.js";
 
 const WhiteSpace = createToken({ name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED });
 const Command = createToken({ name: "Command", pattern: /\\[A-Za-z@]+|\\./ });
@@ -31,6 +32,7 @@ export function parseTikz(source, options = {}) {
   const packages = preprocessed.packages || [];
   const pgfplotsLibraries = preprocessed.pgfplotsLibraries || [];
   const pgfplotsOptions = preprocessed.pgfplotsOptions || {};
+  const plotMarkDeclarations = preprocessed.plotMarkDeclarations || {};
   const previewBorder = preprocessed.previewBorder;
   const previewMargins = preprocessed.previewMargins;
   const randomLists = collectPgfMathRandomLists(preprocessed.source);
@@ -111,6 +113,7 @@ export function parseTikz(source, options = {}) {
       pics: globalPics,
       storedVariables: globalStoredVariables,
       patternDeclarations: globalPatternDeclarations,
+      plotMarkDeclarations,
       coordinateSystems: globalCoordinateSystems,
       pgfMathMacros: globalPgfMath,
       pgfMathSeedsBefore,
@@ -216,6 +219,13 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("\\pgfmathdeclarerandomlist")) return parsePgfMathDeclareRandomList(text, diagnostics);
   if (text.startsWith("\\pgfmathrandomitem")) return parsePgfMathRandomItem(text, diagnostics);
   if (text.startsWith("\\pgfdeclarepatternformonly")) return parsePgfDeclarePatternFormOnly(text, diagnostics);
+  if (text.startsWith("\\pgfdeclareplotmark")) {
+    return parsePgfPlotMarkDeclaration(text)?.statement || unsupported(
+      "pgfdeclareplotmark",
+      text,
+      "Malformed \\pgfdeclareplotmark declaration"
+    );
+  }
   if (text.startsWith("\\ifthenelse")) return parseIfThenElse(text, diagnostics);
   if (text === "\\breakforeach") return { type: "breakforeach", raw: text };
   if (text.startsWith("\\ifnum")) return parseIfNum(text, diagnostics);
@@ -2348,6 +2358,7 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\pgfmathdeclarerandomlist") ||
     text.startsWith("\\pgfmathrandomitem") ||
     text.startsWith("\\pgfdeclarepatternformonly") ||
+    text.startsWith("\\pgfdeclareplotmark") ||
     text.startsWith("\\pgfplotsset") ||
     text.startsWith("\\ctikzset") ||
     text.startsWith("\\pgfplotstableread") ||

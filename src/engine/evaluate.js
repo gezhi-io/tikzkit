@@ -7,6 +7,8 @@ import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import {
   basicPlotMarkGeometry,
+  customPlotMarkOperations,
+  placePlotMarkCommands,
   plotMarkLocalOptions,
   plotMarkGeometryCommands,
   splitFillPlotMarkGeometry,
@@ -336,6 +338,7 @@ export function interpretTikz(ast, options = {}) {
       randomListCounters: {},
       pgfRandom: documentRandom,
       patterns: { ...(picture.patterns || ast.patterns || {}) },
+      plotMarkDeclarations: { ...(picture.plotMarkDeclarations || ast.plotMarkDeclarations || {}) },
       shadings: { ...(picture.shadings || ast.shadings || {}) },
       textEngine: options.textEngine || null,
       textEngineUnit: Number(options.textEngineUnit) || TIKZ_UNIT,
@@ -912,6 +915,11 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   if (statement.type === "pgfdeclarepatternformonly") {
     const declaration = pgfFormOnlyPatternDefinition(statement, env);
     if (declaration) env.patterns[declaration.name] = declaration;
+    return;
+  }
+  if (statement.type === "pgfdeclareplotmark") {
+    const name = stripOuterBraces(String(statement.name || "")).trim().toLowerCase();
+    if (name) env.plotMarkDeclarations[name] = statement;
     return;
   }
   if (statement.type === "pgftransformcm") {
@@ -18259,6 +18267,26 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
     style: applyPlotMarkLocalStyle(item.style, localStyleHints)
   });
   const finalizeItems = (items) => items.map(finalize);
+
+  const customOperations = customPlotMarkOperations(
+    kind,
+    env.plotMarkDeclarations || {},
+    size,
+    env.variables || {}
+  );
+  if (customOperations) {
+    return finalizeItems(customOperations.map((operation) => ({
+      type: "path",
+      shape: "plot-mark",
+      mark: kind,
+      commands: placePlotMarkCommands(operation.commands, point),
+      style: operation.fill
+        ? operation.stroke
+          ? filledStyle
+          : { ...filledStyle, stroke: "none", lineWidth: 0 }
+        : lineStyle
+    })));
+  }
 
   if (kind === "halfcircle" || kind === "halfcircle*") {
     const stroke = pathStyle.stroke || "black";

@@ -4,7 +4,8 @@ import { evaluateMath, parseDimension, roundNumber } from "../../engine/math.js"
 export const tikzLibrary = {
   "name": "plotmarks",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/plotmarks.js:plotMarkLocalOptions/transformPlotMarkCommands/textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark",
+  "implementedBy": "src/tikz/libraries/plotmarks.js:parsePgfPlotMarkDeclaration/collectPgfPlotMarkDeclarations/customPlotMarkOperations/placePlotMarkCommands/plotMarkLocalOptions/transformPlotMarkCommands/textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/frontend/parser.js + src/frontend/latex-shell.js + src/pgfplots/axisTikzLowering.js + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-handlers.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-plots.tex",
   "features": [
     "mark=x",
     "mark=+",
@@ -20,7 +21,8 @@ export const tikzLibrary = {
     "mark=heart",
     "mark=text / text mark / text mark style / text mark as node",
     "mark color / mark options and every mark local paint",
-    "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant"
+    "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant",
+    "custom \\pgfdeclareplotmark path declarations in TikZ and PGFPlots"
   ],
   "implements": [
     "mark=x",
@@ -37,12 +39,287 @@ export const tikzLibrary = {
     "mark=heart",
     "mark=text / text mark / text mark style / text mark as node",
     "mark color / mark options and every mark local paint",
-    "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant"
+    "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant",
+    "custom \\pgfdeclareplotmark path declarations in TikZ and PGFPlots"
   ],
-  "notes": "Reviewed locally on 2026-09-05 against tikz.code.tex, pgflibraryplothandlers.code.tex, pgfcoretransformations.code.tex, pgfplots.markers.code.tex, pgflibraryplotmarks.code.tex, pgfmanual-en-tikz-plots.tex, and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, halfdiamond*, halfsquare*, halfsquare right*, halfsquare left*, and heart paths. Text marks preserve arbitrary TeX content and current color in direct TikZ and PGFPlots. General non-text marks now resolve mark options and every mark replacement/append semantics, local draw/fill/line styling, and ordered scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant matrices in direct TikZ and PGFPlots, including transformed shifts and legend samples. The heart preserves all eight source cubic segments and its asymmetric tip. The split marks share current-fill/mark-color and outline semantics. Arbitrary custom plot-mark declarations and non-uniform affine halfcircle arc conversion remain partial."
+  "notes": "Reviewed locally on 2026-09-06 against pgflibraryplothandlers.code.tex, pgflibraryplotmarks.code.tex, pgfmanual-en-library-plot-handlers.tex, pgfmanual-en-tikz-plots.tex, tikz.code.tex, pgfcoretransformations.code.tex, pgfplots.markers.code.tex, and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, split marks, and heart paths. Text marks preserve arbitrary TeX content and current color. General marks resolve local paint and ordered transforms in direct TikZ and PGFPlots, including legends. Custom \\pgfdeclareplotmark names now register and execute a bounded PGF path vocabulary: move/line/cubic/circle/ellipse/rectangle/close, origin/cartesian/polar/add/diff/scale points, \\pgfplotmarksize scalar products, and stroke/fill/fillstroke actions. Arbitrary TeX programs, conditionals, register assignments, clipping, low-level transform/color/line-state commands, document-order declaration scoping, and non-uniform affine halfcircle arc conversion remain partial."
 };
 
 const CIRCLE_KAPPA = 0.5522847498307936;
+
+export function parsePgfPlotMarkDeclaration(source, start = 0) {
+  const text = String(source || "");
+  const command = "\\pgfdeclareplotmark";
+  if (!text.startsWith(command, start)) return null;
+  let cursor = skipPlotMarkWhitespace(text, start + command.length);
+  const name = extractPlotMarkGroup(text, cursor);
+  if (!name) return null;
+  cursor = skipPlotMarkWhitespace(text, name.end);
+  const body = extractPlotMarkGroup(text, cursor);
+  if (!body) return null;
+  return {
+    statement: {
+      type: "pgfdeclareplotmark",
+      name: name.content.trim(),
+      body: body.content,
+      raw: text.slice(start, body.end)
+    },
+    end: body.end
+  };
+}
+
+export function collectPgfPlotMarkDeclarations(source) {
+  const declarations = {};
+  const text = String(source || "");
+  const command = "\\pgfdeclareplotmark";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const start = text.indexOf(command, cursor);
+    if (start < 0) break;
+    const parsed = parsePgfPlotMarkDeclaration(text, start);
+    if (!parsed) {
+      cursor = start + command.length;
+      continue;
+    }
+    const name = normalizePlotMarkName(parsed.statement.name);
+    if (name) declarations[name] = parsed.statement;
+    cursor = parsed.end;
+  }
+  return declarations;
+}
+
+export function customPlotMarkOperations(mark, declarations = {}, size = parseDimension("2pt", {}), variables = {}) {
+  const declaration = declarations?.[normalizePlotMarkName(mark)];
+  if (!declaration) return null;
+  const source = String(declaration.body || "");
+  const localVariables = { ...(variables || {}), pgfplotmarksize: size };
+  const operations = [];
+  let pending = [];
+  const commandPattern = /\\(pgfpathcurveto|pgfpathmoveto|pgfpathlineto|pgfpathcircle|pgfpathellipse|pgfpathrectangle|pgfpathclose|pgfusepathqfillstroke|pgfusepathqstroke|pgfusepathqfill|pgfusepath)\b/g;
+  let match;
+  while ((match = commandPattern.exec(source))) {
+    const kind = match[1];
+    let cursor = commandPattern.lastIndex;
+    if (kind === "pgfpathclose") {
+      pending.push({ type: "closePath" });
+      continue;
+    }
+    if (kind.startsWith("pgfusepathq")) {
+      const action = kind.slice("pgfusepathq".length);
+      flushCustomPlotMarkPath(operations, pending, action);
+      pending = [];
+      continue;
+    }
+    if (kind === "pgfusepath") {
+      const group = extractPlotMarkGroup(source, skipPlotMarkWhitespace(source, cursor));
+      if (!group) continue;
+      const actions = group.content.toLowerCase();
+      const action = actions.includes("fill") && actions.includes("stroke")
+        ? "fillstroke"
+        : actions.includes("fill")
+          ? "fill"
+          : "stroke";
+      flushCustomPlotMarkPath(operations, pending, action);
+      pending = [];
+      commandPattern.lastIndex = group.end;
+      continue;
+    }
+    const requiredGroups = kind === "pgfpathcurveto" || kind === "pgfpathellipse"
+      ? 3
+      : kind === "pgfpathcircle" || kind === "pgfpathrectangle"
+        ? 2
+        : 1;
+    const groups = [];
+    for (let index = 0; index < requiredGroups; index += 1) {
+      const group = extractPlotMarkGroup(source, skipPlotMarkWhitespace(source, cursor));
+      if (!group) break;
+      groups.push(group.content);
+      cursor = group.end;
+    }
+    if (groups.length !== requiredGroups) continue;
+    if (kind === "pgfpathmoveto" || kind === "pgfpathlineto") {
+      const point = parsePlotMarkPoint(groups[0], size, localVariables);
+      if (point) pending.push({ type: kind === "pgfpathmoveto" ? "moveTo" : "lineTo", ...point });
+    } else if (kind === "pgfpathcurveto") {
+      const points = groups.map((group) => parsePlotMarkPoint(group, size, localVariables));
+      if (points.every(Boolean)) {
+        pending.push({
+          type: "curveTo",
+          x1: points[0].x,
+          y1: points[0].y,
+          x2: points[1].x,
+          y2: points[1].y,
+          x: points[2].x,
+          y: points[2].y
+        });
+      }
+    } else if (kind === "pgfpathcircle") {
+      const center = parsePlotMarkPoint(groups[0], size, localVariables);
+      const radius = parsePlotMarkDimension(groups[1], size, localVariables);
+      if (center && Number.isFinite(radius) && radius >= 0) pending.push(...plotMarkCircleCommands(center, radius));
+    } else if (kind === "pgfpathellipse") {
+      const center = parsePlotMarkPoint(groups[0], size, localVariables);
+      const xAxis = parsePlotMarkPoint(groups[1], size, localVariables);
+      const yAxis = parsePlotMarkPoint(groups[2], size, localVariables);
+      if (center && xAxis && yAxis) pending.push(...plotMarkEllipseCommands(center, xAxis, yAxis));
+    } else if (kind === "pgfpathrectangle") {
+      const origin = parsePlotMarkPoint(groups[0], size, localVariables);
+      const dimensions = parsePlotMarkPoint(groups[1], size, localVariables);
+      if (origin && dimensions) pending.push(...plotMarkRectangleCommands(origin, dimensions));
+    }
+    commandPattern.lastIndex = cursor;
+  }
+  if (pending.length) flushCustomPlotMarkPath(operations, pending, "stroke");
+  return operations;
+}
+
+export function placePlotMarkCommands(commands = [], center = { x: 0, y: 0 }) {
+  return commands.map((command) => {
+    const placed = { ...command };
+    for (const [xKey, yKey] of [["x", "y"], ["x1", "y1"], ["x2", "y2"]]) {
+      if (!Number.isFinite(command[xKey]) || !Number.isFinite(command[yKey])) continue;
+      placed[xKey] = roundNumber(center.x + command[xKey]);
+      placed[yKey] = roundNumber(center.y + command[yKey]);
+    }
+    return placed;
+  });
+}
+
+function flushCustomPlotMarkPath(operations, commands, action) {
+  if (!commands.length) return;
+  operations.push({
+    commands: commands.map((command) => ({ ...command })),
+    stroke: action === "stroke" || action === "fillstroke",
+    fill: action === "fill" || action === "fillstroke"
+  });
+}
+
+function parsePlotMarkPoint(value, size, variables) {
+  const text = stripOuterBraces(String(value || "").trim());
+  if (text === "\\pgfpointorigin") return { x: 0, y: 0 };
+  for (const command of ["pgfpointadd", "pgfpointdiff"]) {
+    const prefix = `\\${command}`;
+    if (!text.startsWith(prefix)) continue;
+    let cursor = skipPlotMarkWhitespace(text, prefix.length);
+    const first = extractPlotMarkGroup(text, cursor);
+    if (!first) return null;
+    cursor = skipPlotMarkWhitespace(text, first.end);
+    const second = extractPlotMarkGroup(text, cursor);
+    if (!second) return null;
+    const a = parsePlotMarkPoint(first.content, size, variables);
+    const b = parsePlotMarkPoint(second.content, size, variables);
+    if (!a || !b) return null;
+    const sign = command === "pgfpointdiff" ? -1 : 1;
+    return { x: roundNumber(a.x + sign * b.x), y: roundNumber(a.y + sign * b.y) };
+  }
+  if (text.startsWith("\\pgfpointscale")) {
+    let cursor = skipPlotMarkWhitespace(text, "\\pgfpointscale".length);
+    const factor = extractPlotMarkGroup(text, cursor);
+    if (!factor) return null;
+    cursor = skipPlotMarkWhitespace(text, factor.end);
+    const point = extractPlotMarkGroup(text, cursor);
+    if (!point) return null;
+    const resolved = parsePlotMarkPoint(point.content, size, variables);
+    const scale = evaluateMath(factor.content, variables);
+    return resolved && Number.isFinite(scale)
+      ? { x: roundNumber(resolved.x * scale), y: roundNumber(resolved.y * scale) }
+      : null;
+  }
+  const polarMatch = /^\\pgf(?:q)?pointpolar\s*/.exec(text);
+  if (polarMatch) {
+    let cursor = polarMatch[0].length;
+    const angle = extractPlotMarkGroup(text, cursor);
+    if (!angle) return null;
+    cursor = skipPlotMarkWhitespace(text, angle.end);
+    const radius = extractPlotMarkGroup(text, cursor);
+    if (!radius) return null;
+    const radians = evaluateMath(angle.content, variables) * Math.PI / 180;
+    const length = parsePlotMarkDimension(radius.content, size, variables);
+    return { x: roundNumber(Math.cos(radians) * length), y: roundNumber(Math.sin(radians) * length) };
+  }
+  const pointMatch = /^\\pgf(?:q)?point(?![A-Za-z])\s*/.exec(text);
+  if (pointMatch) {
+    let cursor = pointMatch[0].length;
+    const x = extractPlotMarkGroup(text, cursor);
+    if (!x) return null;
+    cursor = skipPlotMarkWhitespace(text, x.end);
+    const y = extractPlotMarkGroup(text, cursor);
+    if (!y) return null;
+    return {
+      x: parsePlotMarkDimension(x.content, size, variables),
+      y: parsePlotMarkDimension(y.content, size, variables)
+    };
+  }
+  return null;
+}
+
+function parsePlotMarkDimension(value, size, variables) {
+  let text = stripOuterBraces(String(value || "").trim());
+  text = text.replace(/([0-9.)])\s*(\\pgfplotmarksize\b)/g, "$1*$2");
+  text = text.replace(/\\pgfplotmarksize\b/g, `(${size})`);
+  text = text.replace(/\bsp\b/g, "pt/65536");
+  return roundNumber(parseDimension(text, variables));
+}
+
+function plotMarkCircleCommands(center, radius) {
+  return plotMarkEllipseCommands(center, { x: radius, y: 0 }, { x: 0, y: radius });
+}
+
+function plotMarkEllipseCommands(center, xAxis, yAxis) {
+  const point = (xFactor, yFactor) => ({
+    x: roundNumber(center.x + xAxis.x * xFactor + yAxis.x * yFactor),
+    y: roundNumber(center.y + xAxis.y * xFactor + yAxis.y * yFactor)
+  });
+  const start = point(1, 0);
+  const top = point(0, 1);
+  const left = point(-1, 0);
+  const bottom = point(0, -1);
+  return [
+    { type: "moveTo", ...start },
+    { type: "curveTo", ...plotMarkCurveFields(point(1, CIRCLE_KAPPA), point(CIRCLE_KAPPA, 1), top) },
+    { type: "curveTo", ...plotMarkCurveFields(point(-CIRCLE_KAPPA, 1), point(-1, CIRCLE_KAPPA), left) },
+    { type: "curveTo", ...plotMarkCurveFields(point(-1, -CIRCLE_KAPPA), point(-CIRCLE_KAPPA, -1), bottom) },
+    { type: "curveTo", ...plotMarkCurveFields(point(CIRCLE_KAPPA, -1), point(1, -CIRCLE_KAPPA), start) },
+    { type: "closePath" }
+  ];
+}
+
+function plotMarkCurveFields(first, second, end) {
+  return { x1: first.x, y1: first.y, x2: second.x, y2: second.y, x: end.x, y: end.y };
+}
+
+function plotMarkRectangleCommands(origin, dimensions) {
+  return [
+    { type: "moveTo", x: origin.x, y: origin.y },
+    { type: "lineTo", x: roundNumber(origin.x + dimensions.x), y: origin.y },
+    { type: "lineTo", x: roundNumber(origin.x + dimensions.x), y: roundNumber(origin.y + dimensions.y) },
+    { type: "lineTo", x: origin.x, y: roundNumber(origin.y + dimensions.y) },
+    { type: "closePath" }
+  ];
+}
+
+function normalizePlotMarkName(name) {
+  return stripOuterBraces(String(name || "")).trim().toLowerCase();
+}
+
+function skipPlotMarkWhitespace(source, start) {
+  let cursor = start;
+  while (cursor < source.length && /\s/.test(source[cursor])) cursor += 1;
+  return cursor;
+}
+
+function extractPlotMarkGroup(source, start) {
+  if (source[start] !== "{") return null;
+  let depth = 0;
+  for (let cursor = start; cursor < source.length; cursor += 1) {
+    if (source[cursor] === "{") depth += 1;
+    if (source[cursor] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) return { content: source.slice(start + 1, cursor), end: cursor + 1 };
+    if (depth < 0) return null;
+  }
+  return null;
+}
 export function plotMarkLocalOptions(options = {}, baseOptions = {}) {
   let local = { ...(baseOptions || {}) };
   for (const [key, value] of Object.entries(options || {})) {

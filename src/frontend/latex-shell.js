@@ -6,6 +6,7 @@ import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinition
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
 import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
+import { collectPgfPlotMarkDeclarations } from "../tikz/libraries/plotmarks.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
 import { libraryRoleFontCommand } from "../tex/fontPolicies.js";
@@ -138,10 +139,12 @@ export function preprocessTikzSource(source, options = {}) {
   const tableResult = collectPgfplotstableReads(expanded);
   expanded = lowerPgfplotstableTypeset(tableResult.source, tableResult.tables);
   expanded = replacePgfplotstableReferences(expanded, tableResult.tables);
+  const plotMarkDeclarations = collectPgfPlotMarkDeclarations(expanded);
   const pgfplotsRuntimeOptions = {
     ...withFilecontentsTableResolver(options, filecontentsResult.tables),
     ...createPgfplotsStyleContext(expanded, pgfplotsSet.options),
-    pgfplotsCycleLists
+    pgfplotsCycleLists,
+    plotMarkDeclarations
   };
   expanded = expandTkzGraphMacros(expanded);
   expanded = expandTikzGraphs(expanded, diagnostics);
@@ -162,6 +165,7 @@ export function preprocessTikzSource(source, options = {}) {
     packages,
     pgfplotsLibraries,
     pgfplotsOptions: pgfplotsSet.options,
+    plotMarkDeclarations,
     previewBorder,
     previewMargins
   };

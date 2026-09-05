@@ -4,7 +4,9 @@ import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
 import {
   basicPlotMarkGeometry,
+  customPlotMarkOperations,
   placePlotMarkGeometry,
+  placePlotMarkCommands,
   plotMarkGeometryCommands,
   plotMarkLocalOptions,
   splitFillPlotMarkGeometry,
@@ -57,9 +59,30 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
   const clipOption = plotMarkClipOption(options);
   const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", lineWidth, clipOption, ...localPaint]);
   const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, lineWidth, clipOption, ...localPaint.filter((option) => !option.startsWith("fill="))]);
+  const fillOnlyStyle = joinOptions(["axis mark", "draw=none", `fill=${fill}`, "fill opacity=1", clipOption, ...localPaint.filter((option) => !option.startsWith("draw="))]);
   const size = axisMarkRadius(effectiveOptions);
   if (mark === "text") {
     return renderTextPlotMark(point, options, stroke);
+  }
+  const customOperations = customPlotMarkOperations(
+    mark,
+    options["tikzkit plot mark declarations"] || {},
+    size
+  );
+  if (customOperations) {
+    return customOperations.map((operation) => {
+      const commands = transformPlotMarkCommands(
+        placePlotMarkCommands(operation.commands, point),
+        point,
+        localOptions
+      );
+      const style = operation.fill
+        ? operation.stroke
+          ? filledStyle
+          : fillOnlyStyle
+        : strokedStyle;
+      return `${operation.fill && !operation.stroke ? "\\fill" : "\\draw"}[${style}] ${formatPlotMarkCommands(commands)};`;
+    }).join("");
   }
   if (mark === "x") {
     const diagonal = size / Math.SQRT2;
