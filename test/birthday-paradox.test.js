@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -17,4 +17,7 @@ test("renders birthday-paradox with its manifest-provided pgfplots table", async
 
   const [entry] = summary.cases;
   assert.equal(entry.diagnostics.some((diagnostic) => /Could not resolve pgfplots table/.test(diagnostic.message)), false);
+  const svg = await readFile(path.join(outputRoot, entry.tikzkitSvg), "utf8");
+  assert.match(svg, />23<\/text>/);
+  assert.match(svg, />0\.51<\/text>/);
 });

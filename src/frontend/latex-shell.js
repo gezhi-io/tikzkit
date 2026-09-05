@@ -10813,6 +10813,8 @@ function applyPgfplotsAxisRoleStyles(axisOptions = {}, styles = {}) {
   const merged = { ...axisOptions };
   const mappings = [
     ["every tick label", ["tick label style"]],
+    ["every extra x tick", ["extra x tick style"]],
+    ["every extra y tick", ["extra y tick style"]],
     ["every axis label", ["x label style", "y label style", "z label style"]],
     ["every axis title", ["title style"]]
   ];
@@ -10822,11 +10824,28 @@ function applyPgfplotsAxisRoleStyles(axisOptions = {}, styles = {}) {
     for (const target of targets) {
       const local = merged[target];
       const localStyle = local === undefined || local === true ? {} : parseOptions(String(local));
-      const combined = { ...style, ...localStyle };
+      const combined = target.startsWith("extra ")
+        ? composePgfplotsNestedRoleStyles(style, localStyle)
+        : { ...style, ...localStyle };
       merged[target] = serializePgfplotsStyleOptions(combined);
     }
   }
   return merged;
+}
+
+function composePgfplotsNestedRoleStyles(inherited = {}, local = {}) {
+  const combined = { ...inherited };
+  for (const [key, value] of Object.entries(local)) {
+    if (/(?:^|\s)style$/.test(key) && combined[key] !== undefined) {
+      combined[key] = [combined[key], value]
+        .filter((part) => part !== undefined && part !== null && part !== true && String(part).trim() !== "")
+        .map(String)
+        .join(",");
+    } else {
+      combined[key] = value;
+    }
+  }
+  return combined;
 }
 
 function serializePgfplotsStyleOptions(options = {}) {

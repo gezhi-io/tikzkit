@@ -1923,7 +1923,7 @@
       "source": "latex-examples/birthday-paradox.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "birthday-paradox/birthday-paradox.tex",
-      "semanticOwner": "src/pgfplots/index.js",
+      "semanticOwner": "src/pgfplots/ticks.js",
       "resources": [
         {
           "name": "data.csv",
@@ -1933,7 +1933,9 @@
       "features": [
         "pgfplots axis",
         "addplot",
-        "path drawing"
+        "path drawing",
+        "extra x/y ticks",
+        "extra tick labels"
       ]
     },
     {
@@ -3533,11 +3535,13 @@
       "source": "latex-examples/landtagswahlen-in-bayern.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "landtagswahlen-in-bayern/landtagswahlen-in-bayern.tex",
-      "semanticOwner": "src/pgfplots/index.js",
+      "semanticOwner": "src/pgfplots/ticks.js",
       "features": [
         "pgfplots axis",
         "addplot",
-        "math labels"
+        "math labels",
+        "extra y ticks",
+        "extra y tick labels"
       ],
       "resources": [
         {
