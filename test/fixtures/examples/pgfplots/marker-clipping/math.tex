@@ -1,0 +1,24 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    width=7cm,
+    height=5cm,
+    xmin=0,
+    xmax=2,
+    ymin=0,
+    ymax=2,
+    enlargelimits=false,
+    grid=major,
+    title={Default center clipping},
+    xlabel={$x$},
+    ylabel={$y$}
+  ]
+    \addplot[only marks,mark=*,mark size=6pt,blue]
+      coordinates {(-0.2,1) (0,0.4) (1,1) (2,1.6) (2.2,1)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

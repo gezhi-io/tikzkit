@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document shell is stripped before browser evaluation." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgfplots/pgfplots.sty": { "symbols": ["\\usepackage{pgfplots}"], "findings": "The package wrapper loads the PGFPlots frontend." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex": { "symbols": ["clip", "clip mode", "clip marker paths"], "findings": "Clipping defaults to true and global mode; marker-path clipping is a separate false-by-default switch." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex": { "symbols": ["\\pgfplots@markers@mark@handler", "\\pgfplotsaxisifcontainspoint"], "findings": "With axis clipping enabled, marker centers outside the axis are rejected even when marker geometry is painted later without the clip path." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/pgfplots-marker-clipping.test.js"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/pgfplots-marker-clipping.test.js"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/pgfplots-marker-clipping.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/pgfplots-marker-clipping.test.js"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/pgfplots-marker-clipping.test.js"] }
+  ]
+}

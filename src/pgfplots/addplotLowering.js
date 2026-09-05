@@ -17,7 +17,6 @@ import {
 } from "./plotStyle.js";
 import {
   isSurfacePlot,
-  parseSamplesAt,
   parseDomain,
   PGFPLOTS_DEFAULT_FUNCTION_DOMAIN,
   sampleFunctionDataPoints,
@@ -103,11 +102,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
       commands.push(`\\draw[${style}] ${axisPlotPointChain(mappedPoints, axisOptions, plot.options)};`);
     }
     if (plot.options["only marks"] || plot.options.scatter || (mark && mark !== "none")) {
-      commands.push(...mappedPoints.map((point, index) => renderPlotMark(
-        point,
-        plot.options.scatter ? scatterClassOptionsForPoint(plot.options, dataPoints[index]) : plot.options,
-        plotIndex
-      )));
+      commands.push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, mappedPoints, selectPlotColor(plot.options, plotIndex)));
     commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
@@ -150,7 +145,9 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
       pgfplotsPlotClipOption(axisOptions, geometry)
     ]);
     if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
-    if (shouldRenderPlotMarks(plot.options)) commands.push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+    if (shouldRenderPlotMarks(plot.options)) {
+      commands.push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+    }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
     return commands;
   }
@@ -162,10 +159,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
     const visibleDataPoints = plot.is3d
       ? dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions) && axisPoint3dInRange(point, ranges))
-      : clipAxisDataPointsToRanges(
-        dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions)),
-        clipRanges
-      );
+      : visibleAxisDataPoints(dataPoints, axisOptions, clipRanges);
     const points = visibleDataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
     const commands = [];
     if (!plot.is3d && (plot.fillAnchor || plot.closedCycle || plot.options.fill) && points.length) {
@@ -182,7 +176,9 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
       pgfplotsPlotClipOption(axisOptions, geometry)
     ]);
     if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
-    if (shouldRenderPlotMarks(plot.options)) commands.push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+    if (shouldRenderPlotMarks(plot.options)) {
+      commands.push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+    }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
     return commands;
   }
@@ -213,10 +209,7 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
     const visible = plot.is3d
       ? dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions) && axisPoint3dInRange(point, ranges))
-      : clipAxisDataPointsToRanges(
-        dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions)),
-        clipRanges
-      );
+      : visibleAxisDataPoints(dataPoints, axisOptions, clipRanges);
     return visible.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
   }
   return [];
@@ -225,22 +218,26 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
 function functionPlotPoints(plot, axisOptions, ranges, geometry, options) {
   const clipRanges = axisPlotClipRanges(ranges, geometry);
   const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
-  const hasSamplesAt = parseSamplesAt(plot.options["samples at"] ?? axisOptions["samples at"]).length > 0;
-  const visibleDomain = hasSamplesAt ? plotDomain : clipDomainToAxisRange(plotDomain, clipRanges);
-  if (!visibleDomain) return null;
   const dataPoints = sampleFunctionDataPoints(plot, axisOptions, {
-    domain: visibleDomain,
+    domain: plotDomain,
     pgfplotsSamples: options.pgfplotsSamples || 25,
     pgfplotsMaxSamples: 1200
   });
   const validDataPoints = dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions));
-  const visibleDataPoints = clipAxisDataPointsToRanges(validDataPoints, clipRanges);
+  const visibleDataPoints = pgfplotsClipEnabled(axisOptions)
+    ? clipAxisDataPointsToRanges(validDataPoints, clipRanges)
+    : validDataPoints;
   return {
     clipRanges,
     dataPoints: validDataPoints,
     visibleDataPoints,
     points: visibleDataPoints.map((point) => geometry.mapPoint(point))
   };
+}
+
+function visibleAxisDataPoints(dataPoints, axisOptions, clipRanges) {
+  const valid = dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions));
+  return pgfplotsClipEnabled(axisOptions) ? clipAxisDataPointsToRanges(valid, clipRanges) : valid;
 }
 
 function axisPlotClipRanges(ranges = {}, geometry = {}) {
@@ -278,6 +275,42 @@ function pgfplotsPlotClipOption(axisOptions = {}, geometry = {}) {
   const maxY = minY + Number(geometry.height);
   if (![minX, minY, maxX, maxY].every(Number.isFinite)) return "";
   return `tikzkit clip rect={${minX},${minY},${maxX},${maxY}}`;
+}
+
+function renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex) {
+  const clipMarkersIn2d = !plot.is3d && pgfplotsClipEnabled(axisOptions);
+  const clipRanges = axisPlotClipRanges(ranges, geometry);
+  const accepted = clipMarkersIn2d
+    ? dataPoints.filter((point) => axisPointInRange(point, clipRanges))
+    : dataPoints;
+  const clipOption = clipMarkersIn2d ? pgfplotsMarkerClipOption(axisOptions, geometry) : "";
+  return accepted.map((dataPoint) => {
+    const point = plot.is3d ? geometry.mapPoint3d(dataPoint) : geometry.mapPoint(dataPoint);
+    const pointOptions = plot.options.scatter
+      ? scatterClassOptionsForPoint(plot.options, dataPoint)
+      : plot.options;
+    return renderPlotMark(point, clipOption ? { ...pointOptions, "tikzkit clip rect": clipOption } : pointOptions, plotIndex);
+  });
+}
+
+function pgfplotsMarkerClipOption(axisOptions = {}, geometry = {}) {
+  if (!pgfplotsClipEnabled(axisOptions) || !axisBooleanOption(axisOptions["clip marker paths"], false)) return "";
+  const raw = pgfplotsPlotClipOption(axisOptions, geometry);
+  const match = raw.match(/^tikzkit clip rect=(\{[\s\S]*\})$/);
+  return match ? match[1] : "";
+}
+
+function pgfplotsClipEnabled(axisOptions = {}) {
+  return axisBooleanOption(axisOptions.clip, true);
+}
+
+function axisBooleanOption(raw, fallback) {
+  if (raw === undefined || raw === null || raw === "") return fallback;
+  if (raw === true || raw === false) return raw;
+  const normalized = String(raw).trim().toLowerCase();
+  if (["false", "0", "off", "no"].includes(normalized)) return false;
+  if (["true", "1", "on", "yes"].includes(normalized)) return true;
+  return fallback;
 }
 
 function clipAxisDataPointsToRanges(points, ranges) {
@@ -353,11 +386,4 @@ function appendAxisPoint(points, point) {
   const previous = points[points.length - 1];
   if (previous && Math.abs(previous.x - point.x) < 1e-9 && Math.abs(previous.y - point.y) < 1e-9) return;
   points.push(point);
-}
-
-function clipDomainToAxisRange(domain, ranges) {
-  const start = Math.max(domain.start, ranges.xMin);
-  const end = Math.min(domain.end, ranges.xMax);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return null;
-  return { start, end };
 }

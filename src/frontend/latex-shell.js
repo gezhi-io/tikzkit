@@ -7471,6 +7471,9 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
   const xTickColor = datavisualizationAxisTickStyleColor(xAxisOptions, allAxesOptions);
   const yTickColor = datavisualizationAxisTickStyleColor(yAxisOptions, allAxesOptions);
   return {
+    // Datavisualization visualizers are lowered through our PGFPlots axis
+    // seam, but they do not inherit PGFPlots' default rectangular clip.
+    clip: "false",
     width: datavisualizationAxisLength(xAxisOptions, globalOptions["scientific axes width"] || globalOptions.width || (sparkLine ? sparkLineDefaultWidth : candleStickPlot ? candleStickDefaultWidth : xyCartesianAxes ? xyCartesianDefaultWidth : "5cm"), {
       min: ranges.xMin,
       max: ranges.xMax,

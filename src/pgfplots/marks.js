@@ -54,8 +54,9 @@ export function renderPlotMark(point, options = {}, plotIndex = 0) {
   const fill = localMarkColor(localOptions, "fill", defaultFill);
   const localPaint = plotMarkPaintOptions(localOptions);
   const lineWidth = plotLineWidthOption(localOptions) || plotLineWidthOption(options);
-  const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", lineWidth, ...localPaint]);
-  const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, lineWidth, ...localPaint.filter((option) => !option.startsWith("fill="))]);
+  const clipOption = plotMarkClipOption(options);
+  const filledStyle = joinOptions(["axis mark", `draw=${stroke}`, `fill=${fill}`, "fill opacity=1", lineWidth, clipOption, ...localPaint]);
+  const strokedStyle = joinOptions(["axis mark", `draw=${stroke}`, lineWidth, clipOption, ...localPaint.filter((option) => !option.startsWith("fill="))]);
   const size = axisMarkRadius(effectiveOptions);
   if (mark === "text") {
     return renderTextPlotMark(point, options, stroke);
@@ -105,6 +106,13 @@ function renderTextPlotMark(point, options, color) {
   return `\\node[${style}] at ${formatAxisPoint(point)} {${model.text}};`;
 }
 
+function plotMarkClipOption(options = {}) {
+  const raw = options["tikzkit clip rect"];
+  if (raw === undefined || raw === null || raw === true || raw === false) return "";
+  const value = String(raw).trim();
+  return value ? `tikzkit clip rect=${value}` : "";
+}
+
 function formatTikzOption([key, value]) {
   if (value === false || value === undefined || value === null) return "";
   if (value === true || value === "") return key;
@@ -131,7 +139,8 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
     "axis mark",
     "draw=none",
     `fill=${color}`,
-    "fill opacity=1"
+    "fill opacity=1",
+    plotMarkClipOption(options)
   ]);
   const radius = formatAxisNumber(size);
   const lower = `${formatAxisPoint(left)} arc (${formatAxisNumber(180 + rotation)}:${formatAxisNumber(360 + rotation)}:${radius}) -- cycle;`;
@@ -154,7 +163,8 @@ function renderSplitFillMark(point, options, geometry, strokedStyle, fill, local
     "axis mark",
     "draw=none",
     `fill=${color}`,
-    "fill opacity=1"
+    "fill opacity=1",
+    plotMarkClipOption(options)
   ]);
   const items = [
     `\\fill[${fillStyle(fill)}] ${formatPlotMarkGeometry(geometry.primary, point, localOptions)};`
