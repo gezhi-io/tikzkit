@@ -3491,12 +3491,12 @@
       "source": "latex-examples/karnaugh-map-2.tex",
       "sourceCorpus": "LaTeX-examples-master/tikz",
       "externalSource": "karnaugh-map-2/karnaugh-map-2.tex",
-      "activeFigureId": "figure:0",
-      "semanticOwner": "src/frontend/latex-shell.js + src/tikz/libraries/matrix.js",
+      "semanticOwner": "src/frontend/latex-shell.js + src/tikz/libraries/matrix.js + src/engine/evaluate.js:appendInlinePicture",
       "features": [
         "custom environment expansion",
         "foreach expansion",
         "matrix aliases and anchored layout",
+        "consecutive top-level picture layout",
         "path drawing",
         "math labels"
       ]

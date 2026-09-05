@@ -73,6 +73,21 @@ test("example fixture corpus includes at least 30 copied LaTeX-examples TikZ sou
   assert.ok(realSources.every((source) => !path.isAbsolute(source)), "copied fixtures must use relative source paths");
 });
 
+test("renders every top-level Karnaugh picture instead of selecting only the first map", () => {
+  const entry = manifest.cases.find((item) => item.id === "latex-examples-karnaugh-map-2");
+  const source = readFileSync(path.join(FIXTURE_ROOT, entry.source), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const text = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+  const rightMapValues = result.ir.items.filter((item) =>
+    item.type === "textNode" && ["0", "1", "X"].includes(item.text) && item.x > 4.5
+  );
+
+  assert.equal(entry.activeFigureId, undefined, "a multi-picture document must not be truncated by the fixture manifest");
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(text.filter((value) => value === "X").length, 4);
+  assert.equal(rightMapValues.length, 16);
+});
+
 test("example fixtures convert through the public TikZ to SVG pipeline", () => {
   for (const entry of manifest.cases) {
     const source = readFileSync(path.join(FIXTURE_ROOT, entry.source), "utf8");
