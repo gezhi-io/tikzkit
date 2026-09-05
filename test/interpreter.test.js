@@ -3071,6 +3071,43 @@ test("retains ordered decorations.text word grouping effects and separators", ()
   assert.deepEqual(labels[2].pathTextEffects, ["reverse", "group"]);
 });
 
+test("distinguishes ordinary text-effects nodes from explicit text-along-path nodes", () => {
+  const source = String.raw`
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={group words},
+    text effects/.cd,group letters}] (0,2) -- (6,2);
+  \path[decorate,decoration={text effects along path,text={group words},
+    text effects/.cd,characters={text along path},group letters}] (0,1) -- (6,1);
+  \path[text effects={text along path},decorate,
+    decoration={text effects along path,text={plain text}}] (0,0) -- (6,0);
+\end{tikzpicture}`;
+
+  const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+  const labels = ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(diagnostics, []);
+  assert.equal(labels.length, 3);
+  assert.equal(labels[0].pathTextCharactersAlongPath, false);
+  assert.equal(labels[0].pathTextCharacterInnerXSepEm, 0.3333);
+  assert.equal(labels[0].pathTextCharacterAnchor, "center");
+  assert.equal(labels[1].pathTextCharactersAlongPath, true);
+  assert.equal(labels[1].pathTextCharacterInnerXSepEm, 0);
+  assert.equal(labels[1].pathTextCharacterAnchor, "base");
+  assert.equal(labels[2].pathTextCharactersAlongPath, true);
+});
+
+test("renders the real grouped-word fixture as ordinary padded word nodes", () => {
+  const source = readFileSync(new URL("fixtures/examples/decorations/text-group-words.tex", import.meta.url), "utf8");
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const labels = result.ir.items.filter((item) => item.type === "textNode" && item.subtype === "decoration-text");
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(labels.length, 2);
+  assert.ok(labels.every((label) => label.pathTextCharactersAlongPath === false));
+  assert.equal((result.svg.match(/class="tikz-decoration-word"/g) || []).length, 5);
+  assert.doesNotMatch(result.svg, /class="tikz-decoration-word"[^>]*transform="rotate/);
+});
+
 test("uses the resolved CMR design face for grouped decorations.text words", () => {
   const source = String.raw`
 \begin{tikzpicture}

@@ -1295,6 +1295,63 @@ test("groups decorations.text words into one tangent-aligned text box", () => {
   assert.match(svg, />-<\/text>/);
 });
 
+test("uses ordinary padded nodes unless text effects explicitly follow the path", () => {
+  const baseItem = {
+    type: "textNode",
+    subtype: "decoration-text",
+    text: "group words",
+    pathTextEffects: ["group"],
+    pathCommands: [
+      { type: "moveTo", x: 0, y: 0 },
+      { type: "curveTo", x1: 1, y1: 2, x2: 4, y2: 2, x: 5, y: 0 }
+    ],
+    style: { fill: "black" }
+  };
+  const ordinarySvg = renderSvg(createSceneGraph({
+    items: [{
+      ...baseItem,
+      pathTextCharactersAlongPath: false,
+      pathTextCharacterInnerXSepEm: 0.3333,
+      pathTextCharacterAnchor: "center"
+    }]
+  }), { margin: 0, mathRenderer: "svg-text" });
+  const followingSvg = renderSvg(createSceneGraph({
+    items: [{
+      ...baseItem,
+      pathTextCharactersAlongPath: true,
+      pathTextCharacterInnerXSepEm: 0,
+      pathTextCharacterAnchor: "base"
+    }]
+  }), { margin: 0, mathRenderer: "svg-text" });
+  const ordinaryWords = [...ordinarySvg.matchAll(/class="tikz-decoration-word" x="([^"]+)" y="([^"]+)"[^>]*>/g)];
+  const followingWords = [...followingSvg.matchAll(/class="tikz-decoration-word" x="([^"]+)" y="([^"]+)"[^>]*>/g)];
+
+  assert.equal(ordinaryWords.length, 2);
+  assert.equal(followingWords.length, 2);
+  assert.doesNotMatch(ordinaryWords[0][0], /transform="rotate/);
+  assert.match(followingWords[0][0], /transform="rotate/);
+  assert.ok(
+    Number(ordinaryWords[1][1]) - Number(ordinaryWords[0][1])
+      > Number(followingWords[1][1]) - Number(followingWords[0][1]) + 20,
+    "default inner xsep should visibly separate grouped word nodes"
+  );
+  const flatItem = {
+    ...baseItem,
+    text: "A",
+    pathTextEffects: [],
+    pathCommands: [{ type: "moveTo", x: 0, y: 0 }, { type: "lineTo", x: 5, y: 0 }]
+  };
+  const ordinaryFlat = renderSvg(createSceneGraph({
+    items: [{ ...flatItem, pathTextCharactersAlongPath: false, pathTextCharacterInnerXSepEm: 0.3333 }]
+  }), { margin: 0, mathRenderer: "svg-text" });
+  const followingFlat = renderSvg(createSceneGraph({
+    items: [{ ...flatItem, pathTextCharactersAlongPath: true, pathTextCharacterInnerXSepEm: 0 }]
+  }), { margin: 0, mathRenderer: "svg-text" });
+  const ordinaryY = Number(ordinaryFlat.match(/class="tikz-decoration-glyph"[^>]* y="([^"]+)"/)?.[1]);
+  const followingY = Number(followingFlat.match(/class="tikz-decoration-glyph"[^>]* y="([^"]+)"/)?.[1]);
+  assert.ok(ordinaryY > followingY, "a centered ordinary node should place its text baseline below the path anchor");
+});
+
 test("places braced inline decoration math as one TeX box with a lowered script", () => {
   const scene = createSceneGraph({
     items: [

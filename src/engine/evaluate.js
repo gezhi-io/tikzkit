@@ -16613,6 +16613,8 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
   if (!payload.text) return;
   const layout = decorationTextLayout(decoration, env);
   const textEffects = decorationTextEffects(decoration, pathOptions);
+  const isTextEffectsDecoration = tikzBoolean(decoration["text effects along path"]);
+  const charactersAlongPath = !isTextEffectsDecoration || textEffects.charactersAlongPath;
   const characterReplacements = decorationTextCharacterReplacements(decoration, pathOptions, env);
   const repeatText = decorationTextRepeatCount(decoration, textEffects.options);
   const point = pointAtLength(flat, 0.5);
@@ -16651,6 +16653,9 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextReversePath: tikzBoolean(decoration["reverse path"]),
     pathTextGroupLetters: textEffects.groupLetters,
     pathTextWordSeparator: textEffects.wordSeparator,
+    pathTextCharactersAlongPath: charactersAlongPath,
+    pathTextCharacterInnerXSepEm: charactersAlongPath ? 0 : 0.3333,
+    pathTextCharacterAnchor: charactersAlongPath ? "base" : "center",
     pathTextRepeat: repeatText,
     pathTextCharacterReplacements: characterReplacements,
     pathTextFormatRuns: formatRuns,
@@ -16674,6 +16679,7 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
   let wordSeparator = " ";
   let fitTextToPath = false;
   let scaleTextToPath = false;
+  let charactersAlongPath = false;
   const options = parseOptions(stripOuterBraces(String(pathOptions["text effects"] ?? "")));
   const rawDecoration = String(decoration["tikzkit decoration raw"] ?? "");
   const sources = [
@@ -16692,6 +16698,17 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
       const value = equals === -1 ? "" : sourcePart.slice(equals + 1).trim();
       if (key === "text effects") {
         read(value, depth + 1);
+      } else if (key === "text along path") {
+        charactersAlongPath = tikzBoolean(value);
+      } else if (
+        key === "characters"
+        || key === "characters/.append"
+        || key === "every character/.style"
+        || key === "every character/.append style"
+        || key === "text effects/every character/.style"
+        || key === "text effects/every character/.append style"
+      ) {
+        if (decorationTextStyleFollowsPath(value)) charactersAlongPath = true;
       } else if (key === "reverse text") {
         transforms.push("reverse");
       } else if (key === "group letters" || key === "group letters into words") {
@@ -16716,6 +16733,7 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
     const separator = stripOuterBraces(String(options["word separator"])).trim();
     wordSeparator = separator.toLowerCase() === "space" || !separator ? " " : Array.from(separator)[0] || " ";
   }
+  if (tikzBoolean(options["text along path"])) charactersAlongPath = true;
 
   return {
     options,
@@ -16724,8 +16742,14 @@ function decorationTextEffects(decoration = {}, pathOptions = {}) {
     scaleTextToPath,
     reverseText: transforms.includes("reverse"),
     groupLetters: transforms.includes("group"),
-    wordSeparator
+    wordSeparator,
+    charactersAlongPath
   };
+}
+
+function decorationTextStyleFollowsPath(rawStyle) {
+  const options = parseOptions(stripOuterBraces(String(rawStyle ?? "")));
+  return tikzBoolean(options["text along path"]);
 }
 
 function decorationTextRepeatCount(decoration = {}, textEffects = {}) {
