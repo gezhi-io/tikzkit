@@ -1,0 +1,40 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+% Both the scalar macro and dimension register are snapshotted in setup.
+\makeatletter
+\pgfarrowsdeclare{saved map}{saved map}{
+  \def\arrowfactor{2}
+  \pgfarrowssave\arrowfactor
+  \pgfutil@tempdima=.55pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfarrowssavethe\pgfutil@tempdima
+  \pgfarrowsleftextend{-\pgfutil@tempdima}
+  \pgfarrowsrightextend{\arrowfactor\pgfutil@tempdima}
+}{
+  \pgfsetroundjoin
+  \pgfpathmoveto{\pgfqpoint{\arrowfactor\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-\pgfutil@tempdima}{\arrowfactor\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{0pt}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-\pgfutil@tempdima}{-\arrowfactor\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqfill
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=17mm and 27mm,
+  object/.style={draw,circle,minimum size=10mm,inner sep=1pt}
+]
+  \node[object,fill=blue!8] (V) {$V$};
+  \node[object,fill=green!10,right=of V] (W) {$W$};
+  \node[object,fill=orange!10,below=of V] (X) {$X$};
+  \node[object,fill=purple!8,right=of X] (Y) {$Y$};
+
+  \draw[blue,line width=.4pt,-{saved map}] (V) -- node[above] {$f$} (W);
+  \draw[purple,line width=1pt,-{saved map}] (X) -- node[below] {$g$} (Y);
+  \draw[red,line width=1.6pt,-{saved map}] (V) -- node[left] {$p$} (X);
+\end{tikzpicture}
+\end{document}

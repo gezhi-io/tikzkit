@@ -8560,6 +8560,33 @@
       "externalSource": "tex/generic/pgfplots/pgfplots.code.tex",
       "semanticOwner": "src/pgfplots/axis3d.js:renderAxis3DColorbar/colorbarTickPoint",
       "features": ["colorbar horizontal", "upper ticks", "scaled ticks", "title", "parent-axis top placement", "3D surface"]
+    },
+    {
+      "id": "arrows-declared-saves-algorithm",
+      "title": "Saved setup register in a process flow",
+      "source": "arrows/declared-saves/algorithm.tex",
+      "sourceCorpus": "TikZKit algorithm regression derived from PGF saved arrow-register semantics",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:evaluateDeclaredDimensionProgram/parseDeclaredArrow",
+      "features": ["pgfarrowsdeclare", "pgfarrowssavethe", "setup snapshot", "active line width", "process flow"]
+    },
+    {
+      "id": "arrows-declared-saves-math",
+      "title": "Saved scalar macro and register in mathematical maps",
+      "source": "arrows/declared-saves/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from PGF saved arrow-macro semantics",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:evaluateDeclaredDimensionProgram/evaluateDeclaredDimension",
+      "features": ["pgfarrowssave", "pgfarrowssavethe", "scalar macro", "dimension register", "mathematical map"]
+    },
+    {
+      "id": "arrows-declared-saves-physics",
+      "title": "Saved arrow dimensions in a force diagram",
+      "source": "arrows/declared-saves/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from PGF setup-stage arrow geometry",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:evaluateDeclaredDimensionProgram/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowssavethe", "two saved registers", "active line width", "force vectors"]
     }
   ]
 }

@@ -182,8 +182,21 @@ tikzLibrary.implements.push(
 );
 tikzLibrary.notes = tikzLibrary.notes.replace(
   "Declaration combine/double/triple helpers, arbitrary TeX branches/macros, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, complete clip-region rendering, and saved-register callbacks remain partial.",
-  "A fifteenth source review on 2026-09-05 implemented the legacy `\\pgfarrowsdeclarecombine`, starred combine, `\\pgfarrowsdeclaredouble`, and `\\pgfarrowsdeclaretriple` compatibility macros from pgfcorearrows.code.tex. Declared components remain independently painted rigid tips, compose recursively in source order, use literal or active-line-width separation, preserve the starred dot's intermediate line-end choice, shorten the shaft by the complete assembly, and contribute transformed bounds. The bondgraph left-to-plus-bar declaration, a control flowchart, and a mathematical double/triple catalog are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, nonlinear separation expressions, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, complete clip-region rendering, and saved-register callbacks remain partial."
+  "A fifteenth source review on 2026-09-05 implemented the legacy `\\pgfarrowsdeclarecombine`, starred combine, `\\pgfarrowsdeclaredouble`, and `\\pgfarrowsdeclaretriple` compatibility macros from pgfcorearrows.code.tex. Declared components remain independently painted rigid tips, compose recursively in source order, use literal or active-line-width separation, preserve the starred dot's intermediate line-end choice, shorten the shaft by the complete assembly, and contribute transformed bounds. The bondgraph left-to-plus-bar declaration, a control flowchart, and a mathematical double/triple catalog are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, nonlinear separation expressions, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, and complete clip-region rendering remain partial."
 );
+
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:evaluateDeclaredDimensionProgram/evaluateDeclaredDimension/evaluateDeclaredScalar/declaredDimensionOperandEnd";
+tikzLibrary.features.push(
+  "user-declared pgfarrowssavethe setup-register snapshots restored in drawing code",
+  "user-declared pgfarrowssave numeric scalar and dimension macro snapshots",
+  "same-line assignment/advance/save ordering and saved pgfpatharc angles"
+);
+tikzLibrary.implements.push(
+  "user-declared pgfarrowssavethe setup-register snapshots restored in drawing code",
+  "user-declared pgfarrowssave numeric scalar and dimension macro snapshots",
+  "same-line assignment/advance/save ordering and saved pgfpatharc angles"
+);
+tikzLibrary.notes += " A sixteenth source review on 2026-09-05 covered `\\pgfarrowssavethe` and `\\pgfarrowssave` at pgfcorearrows.code.tex lines 654-700 and 742-752, plus their use by Straight Barb, Hooks, and Tee Barb in pgflibraryarrows.meta.code.tex. TikZKit now snapshots only explicitly saved setup registers and simple numeric/dimension macros, restores them before drawing, preserves assignment/advance/save source order on one line, accepts saved scalar macros beside units or dimension registers, and evaluates them in declared arc angles. Unsaved setup temporaries remain isolated. The process flow, mathematical map, and force-vector fixtures move from three missing-tip diagnostics to zero and match MacTeX/tikztosvg arrow direction, relative aperture, active-line-width growth, and shaft shortening. Arbitrary token-list macros, pgfmath-generated saved macros, conditionals, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, and complete clip-region rendering remain partial.";
 
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
@@ -817,7 +830,7 @@ function resolveDeclaredArrowAliases(aliases, declarations, diagnostics) {
 
 function parseDeclaredArrow(setup, drawing, lineWidth) {
   const setupProgram = evaluateDeclaredDimensionProgram(setup, lineWidth);
-  const drawingProgram = evaluateDeclaredDimensionProgram(drawing, lineWidth);
+  const drawingProgram = evaluateDeclaredDimensionProgram(drawing, lineWidth, setupProgram.savedVariables);
   const drawingStyle = declaredArrowDrawingStyle(drawingProgram.remainder);
   const drawingSource = stripDeclaredArrowDrawingStyle(drawingProgram.remainder);
   const commands = [];
@@ -844,8 +857,8 @@ function parseDeclaredArrow(setup, drawing, lineWidth) {
       const second = first && readBalanced(drawingSource, skipWhitespace(drawingSource, first.end), "{", "}");
       const third = second && readBalanced(drawingSource, skipWhitespace(drawingSource, second.end), "{", "}");
       if (!first || !second || !third || !current) return null;
-      const start = evaluateMath(first.content);
-      const end = evaluateMath(second.content);
+      const start = evaluateDeclaredScalar(first.content, drawingProgram.variables, lineWidth);
+      const end = evaluateDeclaredScalar(second.content, drawingProgram.variables, lineWidth);
       const radius = parseRadius(third.content, drawingProgram.variables, lineWidth);
       if (![start, end, radius.x, radius.y].every(Number.isFinite) || radius.x <= 0 || radius.y <= 0) return null;
       const arc = arcSegments(current, start, end, radius, bounds);
@@ -1107,14 +1120,38 @@ function encodeArrowPayload(declaration) {
     .join("");
 }
 
-function evaluateDeclaredDimensionProgram(source, lineWidth) {
-  const variables = { pgflinewidth: lineWidth };
+function evaluateDeclaredDimensionProgram(source, lineWidth, initialVariables = {}) {
+  const variables = { ...initialVariables, pgflinewidth: lineWidth };
+  const savedVariables = {};
   const ranges = [];
   const text = String(source || "");
-  const statementPattern = /\\advance\b|\\[A-Za-z@]+\s*=/g;
+  const statementPattern = /\\(?:pgfarrowssavethe|pgfarrowssave|edef|def|advance)\b|\\[A-Za-z@]+\s*=/g;
   let match;
   while ((match = statementPattern.exec(text))) {
     const tail = text.slice(match.index);
+    const save = tail.match(/^\\(pgfarrowssavethe|pgfarrowssave)\s*\\([A-Za-z@]+)/);
+    if (save) {
+      const name = save[2];
+      if (Number.isFinite(variables[name])) savedVariables[name] = variables[name];
+      const end = match.index + save[0].length;
+      ranges.push([match.index, end]);
+      statementPattern.lastIndex = end;
+      continue;
+    }
+
+    const definition = tail.match(/^\\(?:edef|def)\s*\\([A-Za-z@]+)\s*/);
+    if (definition) {
+      const body = readBalanced(text, match.index + definition[0].length, "{", "}");
+      if (!body) continue;
+      const value = evaluateDeclaredDimension(body.content, variables, lineWidth);
+      if (Number.isFinite(value)) {
+        variables[definition[1]] = value;
+        ranges.push([match.index, body.end]);
+      }
+      statementPattern.lastIndex = body.end;
+      continue;
+    }
+
     const advance = tail.match(/^\\advance\s*\\([A-Za-z@]+)\s+by\s*/);
     const assignment = advance ? null : tail.match(/^\\([A-Za-z@]+)\s*=\s*/);
     if (!advance && !assignment) continue;
@@ -1127,12 +1164,16 @@ function evaluateDeclaredDimensionProgram(source, lineWidth) {
     ranges.push([match.index, operandEnd]);
     statementPattern.lastIndex = operandEnd;
   }
-  return { variables, remainder: removeSourceRanges(text, ranges) };
+  return { variables, savedVariables, remainder: removeSourceRanges(text, ranges) };
 }
 
 function declaredDimensionOperandEnd(source, start) {
   const boundaryCommands = new Set([
     "advance",
+    "def",
+    "edef",
+    "pgfarrowssave",
+    "pgfarrowssavethe",
     "pgfarrowsleftextend",
     "pgfarrowsrightextend",
     "pgfarrowssetbackend",
@@ -1191,6 +1232,11 @@ function evaluateDeclaredDimension(input, variables = {}, lineWidth = lineWidthF
       if (name === "pgflinewidth") return `(${lineWidth})`;
       return Object.hasOwn(variables, name) ? `(${variables[name]})` : "NaN";
     })
+    .replace(/\((-?(?:\d+(?:\.\d*)?|\.\d+))\)\s*(pt|bp|cm|mm|in|pc|dd|cc|sp|em|ex)\b/g, (_match, value, unit) => {
+      const dimension = parseDimension(`${value}${unit}`) * TIKZ_UNIT;
+      return Number.isFinite(dimension) ? `(${dimension})` : "NaN";
+    })
+    .replace(/\)\(/g, ")*(")
     .replace(/\s+/g, "");
   for (let pass = 0; pass < 3; pass += 1) {
     expression = expression.replace(/\+\+/g, "+").replace(/\+-/g, "-").replace(/-\+/g, "-").replace(/--/g, "+");
@@ -1202,6 +1248,11 @@ function evaluateDeclaredDimension(input, variables = {}, lineWidth = lineWidthF
   } catch {
     return NaN;
   }
+}
+
+function evaluateDeclaredScalar(input, variables, lineWidth) {
+  const value = evaluateDeclaredDimension(input, variables, lineWidth);
+  return Number.isFinite(value) ? value : evaluateMath(input);
 }
 
 function declaredArrowDrawingStyle(source) {

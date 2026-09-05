@@ -1,0 +1,37 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+
+% Two setup registers determine the arrow's independent length and aperture.
+\makeatletter
+\pgfarrowsdeclare{saved force}{saved force}{
+  \pgfutil@tempdima=.45pt
+  \advance\pgfutil@tempdima by.2\pgflinewidth
+  \pgfutil@tempdimb=3\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by.35\pgflinewidth
+  \pgfarrowssavethe\pgfutil@tempdima
+  \pgfarrowssavethe\pgfutil@tempdimb
+  \pgfarrowsleftextend{-1.2\pgfutil@tempdima}
+  \pgfarrowsrightextend{\pgfutil@tempdimb}
+}{
+  \pgfsetmiterjoin
+  \pgfsetbuttcap
+  \pgfpathmoveto{\pgfqpoint{-1.2\pgfutil@tempdima}{-1.9\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{\pgfutil@tempdimb}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-1.2\pgfutil@tempdima}{1.9\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqfillstroke
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (-3.2,0) -- (3.2,0);
+  \draw[gray!35] (0,-2.35) -- (0,2.5);
+  \fill (0,0) circle (2pt) node[below right] {$O$};
+
+  \draw[blue,line width=.4pt,-{saved force}] (0,0) -- (2.65,1.35) node[above right] {$\vec F$};
+  \draw[red,line width=1pt,-{saved force}] (0,0) -- (-2.45,1.55) node[above left] {$\vec N$};
+  \draw[green!50!black,line width=1.6pt,-{saved force}] (0,0) -- (0,-2.05) node[below] {$m\vec g$};
+\end{tikzpicture}
+\end{document}

@@ -4,7 +4,15 @@ export const arrowsExtension = {
   name: "arrows",
   phase: "preprocess",
   description: "Lowers supported PGF user-declared arrow paths into SVG-ready inline arrow tips.",
-  commands: ["pgfarrowsdeclare", "pgfpathmoveto", "pgfpathlineto", "pgfpathcurveto", "pgfpatharc"],
+  commands: [
+    "pgfarrowsdeclare",
+    "pgfarrowssave",
+    "pgfarrowssavethe",
+    "pgfpathmoveto",
+    "pgfpathlineto",
+    "pgfpathcurveto",
+    "pgfpatharc"
+  ],
   preprocess(source, context = {}) {
     return lowerDeclaredArrowTips(source, context.diagnostics || []);
   }

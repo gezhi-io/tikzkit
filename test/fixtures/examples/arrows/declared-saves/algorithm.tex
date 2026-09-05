@@ -1,0 +1,38 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+% The setup computes the shape once; drawing receives only the saved register.
+\makeatletter
+\pgfarrowsdeclare{saved process}{saved process}{
+  \pgfutil@tempdima=.7pt
+  \advance\pgfutil@tempdima by.3\pgflinewidth
+  \pgfarrowssavethe\pgfutil@tempdima
+  \pgfarrowsleftextend{-1.5\pgfutil@tempdima}
+  \pgfarrowsrightextend{2.5\pgfutil@tempdima}
+}{
+  \pgfsetroundjoin
+  \pgfpathmoveto{\pgfqpoint{2.5\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-1.5\pgfutil@tempdima}{1.8\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfqpoint{-.5\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-1.5\pgfutil@tempdima}{-1.8\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqfillstroke
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=15mm and 22mm,
+  stage/.style={draw,rounded corners=2pt,minimum width=22mm,minimum height=9mm,align=center}
+]
+  \node[stage,fill=blue!8] (ingest) {Ingest};
+  \node[stage,fill=yellow!15,right=of ingest] (validate) {Validate};
+  \node[stage,fill=green!10,right=of validate] (publish) {Publish};
+  \node[stage,fill=red!8,below=of validate] (retry) {Retry};
+
+  \draw[blue,line width=.4pt,-{saved process}] (ingest) -- node[above]{batch} (validate);
+  \draw[green!50!black,line width=1pt,-{saved process}] (validate) -- node[above]{valid} (publish);
+  \draw[red,line width=1.6pt,-{saved process}] (validate) -- node[right]{reject} (retry);
+\end{tikzpicture}
+\end{document}
