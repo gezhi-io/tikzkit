@@ -242,9 +242,153 @@ test("case 009: quadratic surface preserves the 56 by 56 mesh and colorbar contr
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   assert.deepEqual(
     [fills[0].style.fill, facets.at(-1).style.stroke],
-    ["rgb(255 101.678625 9.107229)", "rgb(204,81,7)"]
+    ["rgb(255 101.706419 9.151804)", "rgb(204,81,7)"]
   );
   for (const text of ["-5", "5", "10", "20", "30", "40", "50", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 010: rational saddle preserves singular sampling and the rotated 3D view", () => {
+  const result = renderFixture("3d-function-3");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 6050);
+  assert.equal(fills.length, 3025);
+  assert.equal(facets.length, 3025);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+  for (const text of ["-5", "5", "-1", "-0.5", "0", "0.5", "1", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 011: normalized saddle preserves its finite 56 by 56 surface", () => {
+  const result = renderFixture("3d-function-4");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 6050);
+  assert.equal(fills.length, 3025);
+  assert.equal(facets.length, 3025);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+  for (const text of ["-5", "0", "5", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 012: radial cone preserves its 56 by 56 faceted surface", () => {
+  const result = renderFixture("3d-function-5");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 6050);
+  assert.equal(fills.length, 3025);
+  assert.equal(facets.length, 3025);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+  for (const text of ["-5", "0", "5", "2", "4", "6", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 013: three-lobed rational surface preserves its signed topology", () => {
+  const result = renderFixture("3d-function-6");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 6050);
+  assert.equal(fills.length, 3025);
+  assert.equal(facets.length, 3025);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+  for (const text of ["-5", "0", "5", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 014: quartic rational surface preserves asymmetric domains and exact bounds", () => {
+  const result = renderFixture("3d-function-7");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 6050);
+  assert.equal(fills.length, 3025);
+  assert.equal(facets.length, 3025);
+  assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
+  assert.ok(fills.every((item) => item.style.stroke === "none"));
+  assert.ok(facets.every((item) => item.style.stroke !== "none"));
+  for (const text of ["-4", "-2", "0", "2", "4", "5", "-1", "1", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
+    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+  }
+});
+
+test("case 015: small-amplitude radial surface remains inside its projected 3D box", () => {
+  const result = renderFixture("3d-function-8");
+  const surface = result.ir.items.filter((item) => item.subtype === "axis-surface");
+  const fills = surface.filter((item) => item.style.fill !== "none");
+  const facets = surface.filter((item) => item.style.fill === "none");
+  const frame = result.ir.items.filter((item) => item.subtype === "axis-line").slice(0, 6);
+  const textNodes = result.ir.items.filter((item) => item.type === "textNode");
+  const labels = textNodes.map((item) => item.text);
+  const commandPoints = (items) => items.flatMap((item) => item.commands || []).filter((command) =>
+    Number.isFinite(command.x) && Number.isFinite(command.y)
+  );
+  const surfacePoints = commandPoints(surface);
+  const framePoints = commandPoints(frame);
+  const surfaceBounds = {
+    minX: Math.min(...surfacePoints.map((point) => point.x)),
+    maxX: Math.max(...surfacePoints.map((point) => point.x)),
+    minY: Math.min(...surfacePoints.map((point) => point.y)),
+    maxY: Math.max(...surfacePoints.map((point) => point.y))
+  };
+  const frameBounds = {
+    minX: Math.min(...framePoints.map((point) => point.x)),
+    maxX: Math.max(...framePoints.map((point) => point.x)),
+    minY: Math.min(...framePoints.map((point) => point.y)),
+    maxY: Math.max(...framePoints.map((point) => point.y))
+  };
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(surface.length, 4802);
+  assert.equal(fills.length, 2401);
+  assert.equal(facets.length, 2401);
+  assert.ok(surfaceBounds.minX >= frameBounds.minX - 0.001);
+  assert.ok(surfaceBounds.maxX <= frameBounds.maxX + 0.001);
+  assert.ok(surfaceBounds.minY >= frameBounds.minY - 0.001);
+  assert.ok(surfaceBounds.maxY <= frameBounds.maxY + 0.001);
+  const colorbarScale = textNodes
+    .filter((item) => item.text === "$\\cdot 10^{-2}$")
+    .sort((left, right) => left.y - right.y)[0];
+  const colorbarTopTick = textNodes.find((item) => item.text === "1.75");
+  const colorbarTitle = textNodes.find((item) => item.text === "$f(x,y)$");
+  assert.ok(colorbarScale.x < colorbarTopTick.x, "colorbar scale label should sit left of its top tick label");
+  assert.ok(
+    colorbarTitle.y - colorbarScale.y >= 0.24,
+    "colorbar title should preserve the native baseline clearance above the scale label"
+  );
+  for (const text of ["-5", "5", "1.55", "1.6", "1.65", "1.7", "1.75", "$\\cdot 10^{-2}$", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
     assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });

@@ -1,11 +1,12 @@
 import { axisNumber } from "./coordinates.js";
 import { evaluateAxisExpression, evaluateAxisExpressionAtSample } from "./expressions.js";
 import { splitTopLevel } from "../engine/options.js";
-import { roundAxis, roundAxisRange } from "./format.js";
+import { roundAxisRange } from "./format.js";
 import { pgfplotsPlotRangePoints } from "./histogram.js";
 import { isAxisQuiverPlot, parseQuiverOptions, quiverScale, quiverUpdatesLimits } from "./quiverOptions.js";
 import { isLogAxis } from "./ranges.js";
 import { axisLogBase, axisPointIsValidForScale, axisValueIsValidForScale } from "./logAxis.js";
+import { samplePgfplotsSurfaceDomain } from "./sampling.js";
 
 export const PGFPLOTS_DEFAULT_ENLARGE_LIMITS = 0.1;
 export const PGFPLOTS_DEFAULT_FUNCTION_DOMAIN = "-5:5";
@@ -74,8 +75,10 @@ export function computeAxisRanges(axisOptions, addplots) {
         const yDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
         const xSamples = axisSamples(plot.options.samples || axisOptions.samples || 15, 60);
         const ySamples = axisSamples(plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || 15, 60);
-        const sampledXMin = xLog ? firstPositiveDomainSample(plotDomain, xSamples) : plotDomain.start;
-        const sampledYMin = yLog ? firstPositiveDomainSample(yDomain, ySamples) : yDomain.start;
+        const xValues = samplePgfplotsSurfaceDomain(plotDomain, xSamples, plot.options, axisOptions);
+        const yValues = samplePgfplotsSurfaceDomain(yDomain, ySamples, plot.options, axisOptions);
+        const sampledXMin = xLog ? firstPositiveSample(xValues) : plotDomain.start;
+        const sampledYMin = yLog ? firstPositiveSample(yValues) : yDomain.start;
         if (!hasExplicitXMin && Number.isFinite(sampledXMin)) xMin = Math.min(xMin, sampledXMin);
         if (!hasExplicitXMax) xMax = Math.max(xMax, plotDomain.end);
         if (!hasExplicitYMin && Number.isFinite(sampledYMin)) yMin = Math.min(yMin, sampledYMin);
@@ -85,12 +88,8 @@ export function computeAxisRanges(axisOptions, addplots) {
           if (!hasExplicitZMin && axisValueIsValidForScale(zRestriction.start, axisOptions, "z")) zMin = Math.min(zMin, zRestriction.start);
           if (!hasExplicitZMax && axisValueIsValidForScale(zRestriction.end, axisOptions, "z")) zMax = Math.max(zMax, zRestriction.end);
         }
-        for (let xIndex = 0; xIndex < xSamples; xIndex += 1) {
-          const xT = xSamples === 1 ? 0 : xIndex / (xSamples - 1);
-          const x = plotDomain.start + (plotDomain.end - plotDomain.start) * xT;
-          for (let yIndex = 0; yIndex < ySamples; yIndex += 1) {
-            const yT = ySamples === 1 ? 0 : yIndex / (ySamples - 1);
-            const y = yDomain.start + (yDomain.end - yDomain.start) * yT;
+        for (const x of xValues) {
+          for (const y of yValues) {
             const z = restrictSurfaceZ(evaluateAxisExpression(plot.expression, x, axisOptions, { y }), zRestriction);
             if (axisValueIsValidForScale(z, axisOptions, "z")) {
               if (!hasExplicitZMin) zMin = Math.min(zMin, z);
@@ -220,17 +219,17 @@ export function computeAxisRanges(axisOptions, addplots) {
     if (!(zMax > zMin)) zMax = zMin * axisLogBase(axisOptions, "z");
   }
   return {
-    xMin: roundResolvedAxisValue(xMin, xLog),
-    xMax: roundResolvedAxisValue(xMax, xLog),
-    yMin: roundResolvedAxisValue(yMin, yLog),
-    yMax: roundResolvedAxisValue(yMax, yLog),
-    zMin: roundResolvedAxisValue(zMin, zLog),
-    zMax: roundResolvedAxisValue(zMax, zLog)
+    xMin: roundResolvedAxisValue(xMin, xLog, "x"),
+    xMax: roundResolvedAxisValue(xMax, xLog, "x"),
+    yMin: roundResolvedAxisValue(yMin, yLog, "y"),
+    yMax: roundResolvedAxisValue(yMax, yLog, "y"),
+    zMin: roundResolvedAxisValue(zMin, zLog, "z"),
+    zMax: roundResolvedAxisValue(zMax, zLog, "z")
   };
 }
 
-function roundResolvedAxisValue(value, logMode) {
-  return logMode ? Number(Number(value).toPrecision(12)) : roundAxis(value);
+function roundResolvedAxisValue(value, logMode, axis) {
+  return logMode ? Number(Number(value).toPrecision(12)) : roundAxisRange(value, axis);
 }
 
 export function parseDomain(raw) {
@@ -307,14 +306,8 @@ export function parseSamplesAt(raw) {
     .filter(Number.isFinite);
 }
 
-function firstPositiveDomainSample(domain, samples) {
-  let minimum = Infinity;
-  for (let index = 0; index < samples; index += 1) {
-    const t = samples === 1 ? 0 : index / (samples - 1);
-    const value = domain.start + (domain.end - domain.start) * t;
-    if (value > 0) minimum = Math.min(minimum, value);
-  }
-  return minimum;
+function firstPositiveSample(values) {
+  return Math.min(...values.filter((value) => value > 0));
 }
 
 export function sampleParametricDataPoints(plot, axisOptions = {}, options = {}) {
@@ -347,8 +340,8 @@ export function sampleParametricSurfaceGrid(plot, axisOptions = {}, options = {}
     plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25,
     options.pgfplotsSurfaceMaxSamples || 80
   );
-  const uValues = sampleDomain(uDomain, uSamples);
-  const vValues = sampleDomain(vDomain, vSamples);
+  const uValues = samplePgfplotsSurfaceDomain(uDomain, uSamples, plot.options, axisOptions);
+  const vValues = samplePgfplotsSurfaceDomain(vDomain, vSamples, plot.options, axisOptions);
   const zRestriction = parseZRestriction(plot.options, axisOptions);
   const grid = vValues.map((v) => uValues.map((u) => {
     const variables = { y: v };

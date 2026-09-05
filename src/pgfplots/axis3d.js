@@ -36,7 +36,6 @@ import {
 const PGFPLOTS_BOXED_3D_Y_LABEL_DISTANCE = 0.65;
 
 export function renderAxis3DBox(axisOptions = {}, ranges, geometry) {
-  const corners = axis3DBoxCorners(ranges, geometry);
   const style = "axis line, black, line width=0.4pt";
   const axisLines = String(axisOptions["axis lines"] ?? axisOptions.axis ?? "box").trim().toLowerCase();
   if (axisLines === "none" || axisLines === "false") return [];
@@ -47,24 +46,21 @@ export function renderAxis3DBox(axisOptions = {}, ranges, geometry) {
       `\\draw[${openStyle}] ${formatAxisPoint(edges[axis].from)} -- ${formatAxisPoint(edges[axis].to)};`
     );
   }
-  return [
-    `\\draw[${style}] ${formatAxisPoint(corners.c000)} -- ${formatAxisPoint(corners.c100)} -- ${formatAxisPoint(corners.c110)} -- ${formatAxisPoint(corners.c010)} -- cycle;`,
-    `\\draw[${style}] ${formatAxisPoint(corners.c001)} -- ${formatAxisPoint(corners.c101)} -- ${formatAxisPoint(corners.c111)} -- ${formatAxisPoint(corners.c011)} -- cycle;`,
-    `\\draw[${style}] ${formatAxisPoint(corners.c000)} -- ${formatAxisPoint(corners.c001)};`,
-    `\\draw[${style}] ${formatAxisPoint(corners.c100)} -- ${formatAxisPoint(corners.c101)};`,
-    `\\draw[${style}] ${formatAxisPoint(corners.c010)} -- ${formatAxisPoint(corners.c011)};`,
-    `\\draw[${style}] ${formatAxisPoint(corners.c110)} -- ${formatAxisPoint(corners.c111)};`
-  ];
+  const foreground = axis3DForegroundFaces(axisOptions, geometry);
+  return axis3DBoxEdges(ranges, geometry)
+    .filter((edge) => !axis3DEdgeIsForeground(edge, foreground))
+    .map((edge) => `\\draw[${style}] ${formatAxisPoint(edge.from)} -- ${formatAxisPoint(edge.to)};`);
 }
 
 export function renderAxis3DBoxForeground(axisOptions = {}, ranges, geometry) {
   const style = "axis line, black, line width=0.4pt";
   const axisLines = String(axisOptions["axis lines"] ?? axisOptions.axis ?? "box").trim().toLowerCase();
   if (axisLines === "none" || axisLines === "false" || ["left", "middle", "center"].includes(axisLines)) return [];
-  const edges = axis3DTickLabelEdges(ranges, geometry);
-  return ["x", "y", "z"].map((axis) =>
-    `\\draw[${style}] ${formatAxisPoint(edges[axis].from)} -- ${formatAxisPoint(edges[axis].to)};`
-  );
+  if (axis3DBoxMode(axisOptions) === "background") return [];
+  const foreground = axis3DForegroundFaces(axisOptions, geometry);
+  return axis3DBoxEdges(ranges, geometry)
+    .filter((edge) => axis3DEdgeIsForeground(edge, foreground))
+    .map((edge) => `\\draw[${style}] ${formatAxisPoint(edge.from)} -- ${formatAxisPoint(edge.to)};`);
 }
 
 export function renderAxis3DGrid(axisOptions = {}, ranges, geometry) {
@@ -142,7 +138,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   const layout = axis3DAnnotationLayout(ranges, geometry);
   const labelAnchors = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, axisTickAnnotationAnchor(axisOptions, axis, layout[axis].normal)]));
   const oppositeTickAxes = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, shouldRenderOpposite3DTicks(axisOptions, axis)]));
-  const boxTickEdges = Object.values(oppositeTickAxes).some(Boolean) ? axis3DBoxTickEdges(ranges, geometry) : {};
+  const boxTickEdges = Object.values(oppositeTickAxes).some(Boolean) ? axis3DBoxTickEdges(axisOptions, ranges, geometry) : {};
   const center = Object.values(oppositeTickAxes).some(Boolean) ? projectedBoxCenter(ranges, geometry) : null;
   const minorTickLength = parseDimension(String(axisOptions["minor tick length"] || axisOptions.subtickwidth || "0.1cm"), {});
   for (const [axis, values] of Object.entries(minorTicks)) {
@@ -473,24 +469,14 @@ function axis3DTickLabelEdges(ranges, geometry) {
   };
 }
 
-function axis3DBoxTickEdges(ranges, geometry) {
+function axis3DBoxTickEdges(axisOptions, ranges, geometry) {
   const candidates = axis3DParallelEdges(ranges, geometry);
+  const foreground = axis3DForegroundSides(axisOptions, ranges, geometry);
   return {
-    x: chooseProjectedBoxTickEdges(candidates.x, "x", "y"),
-    y: chooseProjectedBoxTickEdges(candidates.y, "y", "y"),
-    z: chooseProjectedBoxTickEdges(candidates.z, "z", "x")
+    x: candidates.x.filter((edge) => edge.y !== foreground.y || edge.z !== foreground.z),
+    y: candidates.y.filter((edge) => edge.x !== foreground.x || edge.z !== foreground.z),
+    z: candidates.z.filter((edge) => edge.x !== foreground.x || edge.y !== foreground.y)
   };
-}
-
-function chooseProjectedBoxTickEdges(edges, axis, labelCoordinate) {
-  const label = chooseProjectedEdge(edges, labelCoordinate);
-  const opposite = chooseProjectedEdge(edges, labelCoordinate, "max");
-  const bridge = edges
-    .filter((edge) => !sameAxis3DEdge(axis, edge, label) && !sameAxis3DEdge(axis, edge, opposite))
-    .reduce((best, edge) => !best || edge.midpoint.y < best.midpoint.y ? edge : best, null);
-  return [label, bridge, opposite].filter((edge, index, selected) =>
-    edge && !selected.slice(0, index).some((candidate) => sameAxis3DEdge(axis, candidate, edge))
-  );
 }
 
 function axis3DParallelEdges(ranges, geometry) {
@@ -779,12 +765,10 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   if (tickFormat.scaled) {
     const scalePoint = orientation === "horizontal"
       ? { x: xMax, y: horizontalSide === "upper" ? yMax + 0.13 : yMin - 0.13 }
-      : { x: orientation === "left" ? xMin - 0.13 : xMax + 0.13, y: yMax };
-    const scaleAnchor = orientation === "left"
-      ? "east"
-      : orientation === "horizontal"
-        ? horizontalSide === "upper" ? "south east" : "north east"
-        : "west";
+      : { x: xMin, y: yMax };
+    const scaleAnchor = orientation === "horizontal"
+      ? horizontalSide === "upper" ? "south east" : "north east"
+      : "south west";
     commands.push(`\\node[axis colorbar tick scale label, anchor=${scaleAnchor}, font=${tickFont}] at ${formatAxisPoint(scalePoint)} {$${tickFormat.scaleLabel}$};`);
   }
   if (styleOptions.title) {
@@ -793,7 +777,9 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
       axisOptions,
       fontFromStyle(styleOptions["title style"]) || styleOptions["title font"]
     );
-    const titleY = yMax + (orientation === "horizontal" && horizontalSide === "upper" ? 0.36 : 0.12);
+    const titleY = yMax + (orientation === "horizontal"
+      ? horizontalSide === "upper" ? 0.36 : 0.12
+      : tickFormat.scaled ? 0.29 : 0.12);
     commands.push(`\\node[axis colorbar title, anchor=south, font=${titleFont}] at ${formatAxisPoint({ x: (xMin + xMax) / 2, y: titleY })} {${styleOptions.title}};`);
   }
   return commands;
@@ -833,6 +819,55 @@ function axis3DBoxCorners(ranges, geometry) {
     c011: geometry.mapPoint3d({ x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }),
     c111: geometry.mapPoint3d({ x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
   };
+}
+
+function axis3DBoxMode(axisOptions = {}) {
+  const raw = axisOptions["3d box"];
+  if (raw === true) return "complete";
+  const value = String(raw ?? "background").trim().toLowerCase();
+  if (value === "" || value === "true" || value === "complete") return "complete";
+  if (value === "complete*") return "complete*";
+  return "background";
+}
+
+function axis3DForegroundFaces(axisOptions = {}, geometry = {}) {
+  const view = pgfplotsViewDirection(axisOptions);
+  return Object.fromEntries(["x", "y", "z"].map((axis) => {
+    const direction = Number(geometry.axisDirections?.[axis]) < 0 ? -1 : 1;
+    return [axis, view[axis] * direction < 0 ? 1 : 0];
+  }));
+}
+
+function axis3DForegroundSides(axisOptions, ranges, geometry) {
+  const faces = axis3DForegroundFaces(axisOptions, geometry);
+  return {
+    x: faces.x ? ranges.xMax : ranges.xMin,
+    y: faces.y ? ranges.yMax : ranges.yMin,
+    z: faces.z ? ranges.zMax : ranges.zMin
+  };
+}
+
+function axis3DBoxEdges(ranges, geometry) {
+  const corners = axis3DBoxCorners(ranges, geometry);
+  const edge = (axis, fixed, from, to) => ({ axis, fixed, from: corners[`c${from}`], to: corners[`c${to}`] });
+  return [
+    edge("x", { y: 0, z: 0 }, "000", "100"),
+    edge("x", { y: 0, z: 1 }, "001", "101"),
+    edge("x", { y: 1, z: 0 }, "010", "110"),
+    edge("x", { y: 1, z: 1 }, "011", "111"),
+    edge("y", { x: 0, z: 0 }, "000", "010"),
+    edge("y", { x: 0, z: 1 }, "001", "011"),
+    edge("y", { x: 1, z: 0 }, "100", "110"),
+    edge("y", { x: 1, z: 1 }, "101", "111"),
+    edge("z", { x: 0, y: 0 }, "000", "001"),
+    edge("z", { x: 0, y: 1 }, "010", "011"),
+    edge("z", { x: 1, y: 0 }, "100", "101"),
+    edge("z", { x: 1, y: 1 }, "110", "111")
+  ];
+}
+
+function axis3DEdgeIsForeground(edge, foreground) {
+  return Object.entries(edge.fixed).every(([axis, side]) => foreground[axis] === side);
 }
 
 function axisColorbarEnabled(axisOptions = {}) {

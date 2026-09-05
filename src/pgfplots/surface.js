@@ -9,6 +9,7 @@ import { isLogAxis, scaleAxisValue } from "./ranges.js";
 import { axisLogBase, axisPointIsValidForScale } from "./logAxis.js";
 import { colorToRgb, normalizeColor } from "../engine/options.js";
 import { encodeRgbaPngDataUri } from "./rasterPng.js";
+import { samplePgfplotsSurfaceDomain } from "./sampling.js";
 
 export function isAxisTrianglePatchPlot(plot, axisOptions = {}) {
   return axisLinearPatchType(plot, axisOptions) === "triangle";
@@ -339,8 +340,8 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
   const xSamples = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25, 80);
   const ySamples = axisSamples(plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25, 80);
   const zRestriction = parseZRestriction(plot.options, axisOptions);
-  const xValues = sampleDomainValues(visibleXDomain, xSamples);
-  const yValues = sampleDomainValues(visibleYDomain, ySamples);
+  const xValues = samplePgfplotsSurfaceDomain(visibleXDomain, xSamples, plot.options, axisOptions);
+  const yValues = samplePgfplotsSurfaceDomain(visibleYDomain, ySamples, plot.options, axisOptions);
   const grid = [];
   for (let yIndex = 0; yIndex < ySamples; yIndex += 1) {
     const row = [];
@@ -689,15 +690,6 @@ function encodeRasterImagePayload(payload) {
 
 function isTopViewShaderInterpSurface(plotOptions = {}, axisOptions = {}) {
   return String(plotOptions.shader || "").trim().toLowerCase() === "interp" && isPgfplotsTopView(axisOptions);
-}
-
-function sampleDomainValues(domain, samples) {
-  const values = [];
-  for (let index = 0; index < samples; index += 1) {
-    const t = samples === 1 ? 0 : index / (samples - 1);
-    values.push(domain.start + (domain.end - domain.start) * t);
-  }
-  return values;
 }
 
 function cellBoundaries(values, min, max) {

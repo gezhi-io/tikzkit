@@ -11,6 +11,7 @@ import {
 } from "../src/pgfplots/geometry.js";
 import { axisAutoMajorTickCountForOptions } from "../src/pgfplots/ticks.js";
 import { pgfplotsSurfaceColor } from "../src/pgfplots/surface.js";
+import { samplePgfplotsSurfaceDomain } from "../src/pgfplots/sampling.js";
 import { sampleAxisQuiverPlot } from "../src/pgfplots/quiver.js";
 import {
   TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X,
@@ -792,7 +793,8 @@ test("pgfplots surface layers keep grid below surfaces and axis annotations abov
       grid: "major",
       xlabel: "x",
       ylabel: "y",
-      zlabel: "z"
+      zlabel: "z",
+      "3d box": "complete"
     },
     String.raw`\addplot3[surf] {x+y};
 \node at (axis cs:0,0,0) {origin};`,
@@ -837,16 +839,13 @@ test("pgfplots surface layers keep grid below surfaces and axis annotations abov
   assert.ok(surfaceMeshIndex >= 0);
   assert.ok(overlayIndex >= 0);
   assert.ok(labelIndex >= 0);
-  assert.ok(gridIndex < surfaceIndex);
+  assert.ok(gridIndex < tickIndex);
+  assert.ok(tickIndex < backgroundAxisLineIndex);
   assert.ok(backgroundAxisLineIndex < surfaceIndex);
   assert.ok(surfaceIndex < surfaceMeshIndex);
   assert.ok(surfaceMeshIndex < overlayIndex);
-  assert.ok(overlayIndex < foregroundAxisLineIndex);
-  assert.ok(surfaceMeshIndex < foregroundAxisLineIndex);
-  assert.ok(foregroundAxisLineIndex < tickIndex);
-  assert.ok(overlayIndex < tickIndex);
-  assert.ok(surfaceMeshIndex < tickIndex);
-  assert.ok(tickIndex < labelIndex);
+  assert.ok(overlayIndex < labelIndex);
+  assert.ok(labelIndex < foregroundAxisLineIndex);
 });
 
 test("pgfplots legend parser owns addlegendentry and legend list statements", () => {
@@ -993,7 +992,8 @@ test("pgfplots expression evaluator owns declared functions, trig mode, and endp
   assert.equal(evaluateAxisExpression("f(x)+g(x,2)", 3, { "pgfplots declared functions": declarations }), 20);
   const constantDeclarations = parsePgfplotsDeclaredFunctions(String.raw`mu=2; sigma=3; h(\x)=\x+mu+sigma`);
   assert.equal(evaluateAxisExpression("h(x)", 4, { "pgfplots declared functions": constantDeclarations }), 9);
-  assert.ok(Math.abs(evaluateAxisExpression("50*sin(1/50)", 0, {}) - 0.01678466796875) < 1e-12);
+  assert.equal(evaluateAxisExpression("50*sin(1/50)", 0, {}), 0.017);
+  assert.equal(evaluateAxisExpression("sin(48.294)", 0, {}), 0.74652);
   assert.equal(
     evaluateAxisExpression("x*y*y/(x*x+y*y*y*y)", 0, {}, { y: 0 }),
     0,
@@ -1066,14 +1066,20 @@ test("pgfplots range resolver owns domains, samples, ranges, and surface restric
     { domain: "-5:5", "y domain": "-5:5", samples: 50, enlargelimits: "false" },
     [{ type: "function", is3d: true, options: { surf: true }, expression: "(x^2+y^2)*sin(1/(x^2+y^2))" }]
   );
-  assert.ok(
-    shallowSurfaceRanges.zMin > 0.0154 && shallowSurfaceRanges.zMin < 0.0156,
-    `expected shallow surface zMin to preserve sampled variation, got ${shallowSurfaceRanges.zMin}`
+  assert.ok(Math.abs(shallowSurfaceRanges.zMin - 0.0154574141) < 1e-6);
+  assert.ok(Math.abs(shallowSurfaceRanges.zMax - 0.0175601749) < 1e-8);
+  const legacySurfaceSamples = samplePgfplotsSurfaceDomain({ start: -5, end: 5 }, 50);
+  assert.deepEqual(
+    [legacySurfaceSamples[0], legacySurfaceSamples[1], legacySurfaceSamples[5], legacySurfaceSamples[24], legacySurfaceSamples[25], legacySurfaceSamples[49]],
+    [-5, -4.79593, -3.97965, -0.10232, 0.10175, 4.99943]
   );
-  assert.ok(
-    shallowSurfaceRanges.zMax > 0.0174 && shallowSurfaceRanges.zMax < 0.0175,
-    `expected shallow surface zMax to preserve sampled variation, got ${shallowSurfaceRanges.zMax}`
+  const correctedSurfaceSamples = samplePgfplotsSurfaceDomain(
+    { start: -5, end: 5 },
+    50,
+    {},
+    { "pgfplots compat": "1.13" }
   );
+  assert.equal(correctedSurfaceSamples[49], 4.99943);
   assert.deepEqual(
     computeAxisRanges(
       { xmin: "-1", xmax: "6", ymin: "-0.25", ymax: "2.25", enlargelimits: "true" },
@@ -2186,9 +2192,16 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
     mapPoint3d: ({ x, y, z }) => ({ x: x + y * 0.1, y: z + y * 0.2 })
   };
 
-  assert.deepEqual(renderAxis3DBox({}, ranges, geometry).slice(0, 2), [
-    String.raw`\draw[axis line, black, line width=0.4pt] (0,0) -- (1,0) -- (1.1,0.2) -- (0.1,0.2) -- cycle;`,
-    String.raw`\draw[axis line, black, line width=0.4pt] (0,1) -- (1,1) -- (1.1,1.2) -- (0.1,1.2) -- cycle;`
+  const background = renderAxis3DBox({}, ranges, geometry);
+  assert.equal(background.length, 9);
+  assert.ok(background.includes(String.raw`\draw[axis line, black, line width=0.4pt] (0,0) -- (1,0);`));
+  assert.ok(background.includes(String.raw`\draw[axis line, black, line width=0.4pt] (0.1,0.2) -- (1.1,0.2);`));
+  assert.ok(background.includes(String.raw`\draw[axis line, black, line width=0.4pt] (1.1,0.2) -- (1.1,1.2);`));
+  assert.deepEqual(renderAxis3DBoxForeground({}, ranges, geometry), []);
+  assert.deepEqual(renderAxis3DBoxForeground({ "3d box": "complete" }, ranges, geometry), [
+    String.raw`\draw[axis line, black, line width=0.4pt] (0,1) -- (1,1);`,
+    String.raw`\draw[axis line, black, line width=0.4pt] (1,1) -- (1.1,1.2);`,
+    String.raw`\draw[axis line, black, line width=0.4pt] (1,0) -- (1,1);`
   ]);
 
   const tickCommands = renderAxis3DTicks({ xtick: "{0,1}", ytick: "{0,1}", ztick: "{0,1}" }, ranges, geometry);
@@ -2201,6 +2214,23 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
     String.raw`\node[axis label, anchor=east, rotate=90] at (-1,0.5) {$z$};`,
     String.raw`\node[axis label, anchor=south] at (0.55,1.45) {Surface};`
   ]);
+});
+
+test("pgfplots background 3d ticks exclude the three foreground box edges", () => {
+  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 1 };
+  const axisOptions = { view: "{65}{65}", xtick: "{0.5}", ytick: "{0.5}", ztick: "{0.5}" };
+  const geometry = createAxisGeometry(axisOptions, ranges);
+  const commands = renderAxis3DTicks(axisOptions, ranges, geometry).filter((command) => command.startsWith(String.raw`\draw`));
+  const foregroundStarts = [
+    geometry.mapPoint3d({ x: 0.5, y: 0, z: 1 }),
+    geometry.mapPoint3d({ x: 1, y: 0.5, z: 1 }),
+    geometry.mapPoint3d({ x: 1, y: 0, z: 0.5 })
+  ].map((point) => `(${Number(point.x.toFixed(3))},${Number(point.y.toFixed(3))})`);
+
+  assert.equal(commands.length, 9);
+  for (const point of foregroundStarts) {
+    assert.equal(commands.some((command) => command.includes(`] ${point} --`)), false, `unexpected foreground tick at ${point}`);
+  }
 });
 
 test("pgfplots 3d major grid lowers bottom and back grid planes", () => {

@@ -1008,17 +1008,17 @@ function relativeAxisEnlargeRange(axisOptions = {}, axis, min, max) {
 
 function roundTransformRanges(ranges, axisOptions = {}) {
   return {
-    xMin: roundTransformAxisValue(ranges.xMin, isLogAxis(axisOptions, "x")),
-    xMax: roundTransformAxisValue(ranges.xMax, isLogAxis(axisOptions, "x")),
-    yMin: roundTransformAxisValue(ranges.yMin, isLogAxis(axisOptions, "y")),
-    yMax: roundTransformAxisValue(ranges.yMax, isLogAxis(axisOptions, "y")),
-    zMin: roundTransformAxisValue(ranges.zMin, isLogAxis(axisOptions, "z")),
-    zMax: roundTransformAxisValue(ranges.zMax, isLogAxis(axisOptions, "z"))
+    xMin: roundTransformAxisValue(ranges.xMin, isLogAxis(axisOptions, "x"), "x"),
+    xMax: roundTransformAxisValue(ranges.xMax, isLogAxis(axisOptions, "x"), "x"),
+    yMin: roundTransformAxisValue(ranges.yMin, isLogAxis(axisOptions, "y"), "y"),
+    yMax: roundTransformAxisValue(ranges.yMax, isLogAxis(axisOptions, "y"), "y"),
+    zMin: roundTransformAxisValue(ranges.zMin, isLogAxis(axisOptions, "z"), "z"),
+    zMax: roundTransformAxisValue(ranges.zMax, isLogAxis(axisOptions, "z"), "z")
   };
 }
 
-function roundTransformAxisValue(value, logMode) {
-  return logMode ? Number(Number(value).toPrecision(12)) : roundAxis(value);
+function roundTransformAxisValue(value, logMode, axis) {
+  return logMode ? Number(Number(value).toPrecision(12)) : roundAxisRange(value, axis);
 }
 
 function axisHasExplicitDisabledEnlargeLimits(axisOptions = {}) {

@@ -135,11 +135,17 @@ const Mod = (left, right) => {
   return value < 0 ? value + right : value;
 };
 const __pgfplots_trig_sp = 65536;
-const __pgfplots_tex_dim = (value) => {
+const __pgfplots_tex_dim_sp = (value) => {
   if (!Number.isFinite(value)) return NaN;
-  const scaled = value * __pgfplots_trig_sp;
-  return (value < 0 ? Math.ceil(scaled) : Math.floor(scaled)) / __pgfplots_trig_sp;
+  return Math.round(value * __pgfplots_trig_sp);
 };
+const __pgfplots_tex_dim = (value) => __pgfplots_tex_dim_sp(value) / __pgfplots_trig_sp;
+const __pgfplots_tex_scale = (value, factor) => {
+  const product = __pgfplots_tex_dim_sp(value) * __pgfplots_tex_dim_sp(factor);
+  const scaled = product / __pgfplots_trig_sp;
+  return (scaled < 0 ? Math.ceil(scaled) : Math.floor(scaled)) / __pgfplots_trig_sp;
+};
+const __pgfplots_tex_output = (value) => Number(__pgfplots_tex_dim(value).toFixed(5));
 const __pgfplots_cos_table = Array.from({ length: 181 }, (_entry, index) =>
   Number(Math.cos((index * Math.PI) / 180).toFixed(5))
 );
@@ -152,12 +158,12 @@ const __pgfplots_interp_cos_table = (value) => {
   if (!(x < 180)) x = __pgfplots_tex_dim(-x + 360);
   const index = Math.max(0, Math.min(180, Math.trunc(x)));
   const fraction = __pgfplots_tex_dim(x - index);
-  if (Math.abs(fraction) < 1e-12) return __pgfplots_tex_dim(__pgfplots_cos_table[index]);
+  if (Math.abs(fraction) < 1e-12) return __pgfplots_tex_output(__pgfplots_cos_table[index]);
   const nextIndex = index + 1 === 181 ? 179 : Math.min(180, index + 1);
   const leftWeight = __pgfplots_tex_dim(1 - fraction);
-  return __pgfplots_tex_dim(
-    __pgfplots_tex_dim(__pgfplots_cos_table[index] * leftWeight) +
-    __pgfplots_tex_dim(__pgfplots_cos_table[nextIndex] * fraction)
+  return __pgfplots_tex_output(
+    __pgfplots_tex_scale(leftWeight, __pgfplots_cos_table[index]) +
+    __pgfplots_tex_scale(fraction, __pgfplots_cos_table[nextIndex])
   );
 };
 const __pgfplots_pgf_cos_deg = (value) => __pgfplots_interp_cos_table(value);
@@ -165,7 +171,7 @@ const __pgfplots_pgf_sin_deg = (value) => __pgfplots_interp_cos_table(__pgfplots
 const __pgfplots_pgf_tan_deg = (value) => {
   const denominator = __pgfplots_pgf_cos_deg(value);
   if (Math.abs(denominator) < 1e-12) return NaN;
-  return __pgfplots_tex_dim(__pgfplots_pgf_sin_deg(value) / denominator);
+  return Number((__pgfplots_pgf_sin_deg(value) / denominator).toPrecision(8));
 };
 `;
 }

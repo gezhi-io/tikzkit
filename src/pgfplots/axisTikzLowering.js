@@ -55,6 +55,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     ...stacked.axisOptions,
     "colormap name": stacked.axisOptions["colormap name"] ?? axisColormapName ?? stacked.axisOptions["colormap name"],
     "pgfplots declared functions": declaredFunctions,
+    "pgfplots compat": options.pgfplotsStyleOptions?.compat,
     "pgfplots colormaps": {
       ...declaredColormaps,
       ...axisColormaps,
@@ -106,8 +107,12 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   if (has3dPlot && !isPgfplotsTopView(axisModel.options)) {
     const axis3DBox = dependencies.renderAxis3DBox(axisModel.options, axisModel.ranges, axisModel.geometry);
     const axis3DBoxForeground = dependencies.renderAxis3DBoxForeground?.(axisModel.options, axisModel.ranges, axisModel.geometry) || [];
-    commands.push(...dependencies.renderAxis3DGrid(axisModel.options, axisModel.ranges, axisModel.geometry));
-    if (axis3DBoxForeground.length) commands.push(...axis3DBox);
+    const axis3DGrid = dependencies.renderAxis3DGrid(axisModel.options, axisModel.ranges, axisModel.geometry);
+    const axis3DTicks = dependencies.renderAxis3DTicks(axisModel.options, axisModel.ranges, axisModel.geometry);
+    const axis3DTickLines = axis3DTicks.filter((command) => command.startsWith("\\draw"));
+    const axis3DTickLabels = axis3DTicks.filter((command) => !command.startsWith("\\draw"));
+    const backgroundAxisCommands = [...axis3DGrid, ...axis3DTickLines, ...axis3DBox, ...axis3DTickLabels];
+    if (!axisOnTop) commands.push(...backgroundAxisCommands);
     pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
       commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
       commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
@@ -118,11 +123,11 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       axisModel.geometry,
       axisModel.options
     ));
-    commands.push(...(axis3DBoxForeground.length ? axis3DBoxForeground : axis3DBox));
-    commands.push(...dependencies.renderAxis3DTicks(axisModel.options, axisModel.ranges, axisModel.geometry));
+    if (axisOnTop) commands.push(...backgroundAxisCommands);
     commands.push(...dependencies.renderAxisLabels3D(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...dependencies.renderAxis3DColorbar(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots));
+    commands.push(...axis3DBoxForeground);
     return `\n${commands.join("\n")}\n`;
   }
   if (shouldRenderAnyAxisGrid(axisModel.options)) {

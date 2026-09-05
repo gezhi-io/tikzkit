@@ -18,7 +18,13 @@ tracked by Git.
 | 6 | `latex-examples-2d-parted-function` | Accepted 2026-09-05 | Six independently sampled domains, all five visible joins, colors, widths, orange zero segments, enlarged limits, grid, ticks, and middle axes match. Canvas width rounds by 1 px. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-006-parted-before/` |
 | 7 | `latex-examples-2d-x-square-with-circle` | Accepted 2026-09-05 | The 50-sample parabola, low-level PGF ellipse center and unequal canvas radii, clipping, grid, enlarged limits, ticks, and middle axes match. Canvas width rounds by 1 px. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-007-x-square-before/` |
 | 8 | `latex-examples-3d-cmos-loss-diagram` | Accepted 2026-09-05 | The 46x46 sampled surface, 45x45 facets, opacity, white-to-orange map, log-frequency axis, 3D projection, grids, ticks, and labels match MacTeX. Local `tikztosvg` has the smaller outer canvas in this case. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-008-cmos-before/` |
-| 9 | `latex-examples-3d-function-2` | Accepted 2026-09-05 | The 56x56 quadratic sample lattice, 55x55 faceted cells, white-to-orange map, 340/25 view, complete 3D box/grid, ticks, labels, and quarter-height colorbar match MacTeX and local `tikztosvg`. TikZKit is 5 px narrower after rasterization because of outer text/crop bounds; the plotted geometry is aligned. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-009-function-2-before/` |
+| 9 | `latex-examples-3d-function-2` | Accepted 2026-09-05 | The 56x56 quadratic sample lattice, 55x55 faceted cells, white-to-orange map, 340/25 view, background 3D box/grid/ticks, labels, and quarter-height colorbar match MacTeX and local `tikztosvg`. TikZKit is 5 px narrower after rasterization because of outer text/crop bounds; the plotted geometry is aligned. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-009-function-2-before/` |
+| 10 | `latex-examples-3d-function-3` | Accepted 2026-09-05 | The rational saddle's four signed branches and central singularity, 56x56 lattice, faceted cells, 10/65 view, 3D box/grid/ticks/labels, and -1..1 colorbar match both local references. TikZKit raster width differs by 1 px. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-010-function-3-before/` |
+| 11 | `latex-examples-3d-function-4` | Accepted 2026-09-05 | The normalized saddle, center cusp, 56x56 sampling, 10/65 projection, faceted shading, background 3D box/grid/ticks, labels, and -5..5 colorbar match both local references. Raster bounds differ by 1 px per axis. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-011-function-4-before/` |
+| 12 | `latex-examples-3d-function-5` | Accepted 2026-09-05 | The radial cone, 56x56 sampling, 65/35 projection, 55x55 facets, background 3D box/grid/ticks, labels, and 0..7 colorbar match MacTeX/tikztosvg. The 5x9 px raster-size residual is confined to outer text/crop bounds. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-012-function-5-before/` |
+| 13 | `latex-examples-3d-function-6` | Accepted 2026-09-05 | The three-lobed rational surface, signed zero crossings, 56x56 sampling, 65/35 projection, background 3D box/grid/ticks, labels, and -5..5 colorbar match MacTeX/tikztosvg. The height residual is outer text/crop only. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-013-function-6-before/` |
+| 14 | `latex-examples-3d-function-7` | Accepted 2026-09-05 | The quartic rational surface, asymmetric y-domain, 56x56 mesh, 65/65 projection, background box/grid/ticks, labels, and -1..1 colorbar match both references, including exact 599x457 raster bounds. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-014-function-7-before/` |
+| 15 | `latex-examples-3d-function-8` | Accepted 2026-09-05 | The legacy 50x50 PGFPlots sampler, fixed-point trigonometry, radial ripple, 65/65 projection, nine-edge background box/ticks, and scientific colorbar match MacTeX and local `tikztosvg`. All PNGs are exactly 603x469. | `test/case-by-case-acceptance.test.js` | `outputs/qa/2026-09-05-case-by-case-015-function-8-final/` |
 
 ## Case 001: 2048
 
@@ -148,6 +154,198 @@ bilinear patch syntax do not participate in the rendered picture.
 ### Unsupported Source Features
 
 None for this fixture.
+
+## Case 010: 3D Rational Saddle
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; preview contributes only the native crop.
+- Declaration: the same two-stop white-to-`orange!75!red` colormap as Case
+  009.
+- Axis options: 15 cm width, `view={10}{65}`, fixed limits, major grid,
+  x/y domains `-5:5`, 56 samples per dimension, x/y/z labels, and the same
+  anchored quarter-height colorbar configuration.
+- Drawing command: one `\addplot3[surf]` expression,
+  `2*x*y/(x*x+y*y)`, whose denominator is singular at the origin.
+
+### Oracle Review
+
+The expression sampler, mesh/shader, 3D projection, colormap, and colorbar
+paths reviewed from the local PGFPlots sources for Case 009 apply here. The
+56-point grid avoids sampling the origin exactly, so all 3,025 rectangular
+facets remain finite while approaching the four signed branches around the
+central singularity. MacTeX, local `tikztosvg`, and TikZKit agree on the
+branch orientation, occlusion order, mesh density, grid/tick placement,
+labels, and `-1` through `1` colorbar. TikZKit emits 3,025 fills and 3,025
+facet strokes with zero diagnostics; its 599x465 PNG differs from both local
+references only by one pixel in width.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 011: 3D Normalized Saddle
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; preview affects only native cropping.
+- Declaration: the same two-stop `whitered` colormap as Cases 009 and 010.
+- Axis options: 15 cm width, `view={10}{65}`, fixed limits, major grid,
+  x/y domains `-5:5`, 56 samples per dimension, x/y/z labels, and an anchored
+  quarter-height colorbar.
+- Drawing command: one `\addplot3[surf]` expression,
+  `2*x*y/sqrt(x*x+y*y)`.
+
+### Oracle Review
+
+The same local PGFPlots expression-sampling, mesh/shader, projection,
+colormap, and colorbar source paths reviewed for Cases 009 and 010 apply.
+Because an even 56-point grid does not include zero, the expression remains
+finite at every sampled point while preserving the sharp central transition.
+MacTeX, local `tikztosvg`, and TikZKit agree on that transition, all 3,025
+facets, occlusion order, projected box/grid, labels, and the `-5,0,5`
+colorbar. TikZKit emits 3,025 fills and 3,025 facet strokes with no
+diagnostics. Its raster is 599x465 versus 600x464 for both local references,
+an outer crop/rounding difference with no displaced plot geometry.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 012: 3D Radial Cone
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; preview affects only native cropping.
+- Declaration: the same two-stop `whitered` colormap as Cases 009-011.
+- Axis options: 15 cm width, `view={65}{35}`, fixed limits, major grid,
+  x/y domains `-5:5`, 56 samples per dimension, x/y/z labels, and the same
+  anchored quarter-height colorbar.
+- Drawing command: one `\addplot3[surf]` expression,
+  `sqrt(x*x+y*y)`.
+
+### Oracle Review
+
+The local PGFPlots expression-sampling, mesh/shader, projection, colormap,
+and colorbar implementations reviewed for Cases 009-011 apply. MacTeX,
+local `tikztosvg`, and TikZKit agree on the cone vertex, radial slope,
+occlusion order, all 3,025 facets, projected box/grid, labels, and colorbar.
+TikZKit emits 3,025 fill paths and 3,025 facet strokes with zero diagnostics.
+The TikZKit PNG is 599x457 versus 604x466 for both local references; visual
+inspection localizes the residual to outer label/crop bounds rather than a
+shift or scale error in the plotted geometry.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 013: 3D Three-Lobed Rational Surface
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; preview affects only native cropping.
+- Declaration: the same two-stop `whitered` colormap as Cases 009-012.
+- Axis options: 15 cm width, `view={65}{35}`, fixed limits, major grid,
+  x/y domains `-5:5`, 56 samples per dimension, x/y/z labels, and an anchored
+  quarter-height colorbar.
+- Drawing command: one `\addplot3[surf]` expression,
+  `(3*x*x*y-y*y*y)/(x*x+y*y)`.
+
+### Oracle Review
+
+The local PGFPlots expression-sampling, mesh/shader, projection, colormap,
+and colorbar implementations reviewed for Cases 009-012 apply. The even
+sample count avoids the denominator's zero at the origin while retaining the
+three-lobed signed topology. MacTeX, local `tikztosvg`, and TikZKit agree on
+the lobe orientation, zero crossings, occlusion order, all 3,025 facets,
+projected box/grid, labels, and `-5,0,5` colorbar. TikZKit emits 3,025 fill
+paths and 3,025 facet strokes with zero diagnostics. Its 599x457 PNG versus
+the references' 604x469 crop differs at outer label bounds; the plotted
+surface and axis intersections remain aligned.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 014: 3D Quartic Rational Surface
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`, with compatibility level `1.13`.
+- Declaration: the same two-stop `whitered` colormap as Cases 009-013.
+- Axis options: 15 cm width, `view={65}{65}`, fixed limits, major grid,
+  x domain `-5:5`, deliberately asymmetric y domain `-4.99:5`, 56 samples
+  per dimension, x/y/z labels, and an anchored quarter-height colorbar.
+- Drawing command: one `\addplot3[surf]` expression,
+  `x*y*y*y/(x*x+y*y*y*y)`.
+
+### Oracle Review
+
+The local PGFPlots expression-sampling, mesh/shader, projection, colormap,
+and colorbar implementations reviewed for Cases 009-013 apply. The source's
+`-4.99` lower y bound avoids a singular sample alignment and is preserved
+rather than rounded to `-5`. MacTeX, local `tikztosvg`, and TikZKit agree on
+the wave orientation, central transition, occlusion order, all 3,025 facets,
+projected box/grid, labels, and `-1,0,1` colorbar. All three PNGs are exactly
+599x457, and TikZKit emits no diagnostics.
+
+### Unsupported Source Features
+
+None for this fixture.
+
+## Case 015: Legacy-Sampled Radial Ripple
+
+### Source Inventory
+
+- Packages: `preview` and `pgfplots`; no optional TikZ library is required.
+- Declaration: a named two-stop `whitered` colormap using `white` and
+  `orange!75!red`.
+- Axis options: `colormap name=whitered`, `width=15cm`, `view={65}{65}`,
+  `enlargelimits=false`, `grid=major`, x/y domains `-5:5`, `samples=50`,
+  x/y/z labels, `colorbar`, and a vertical quarter-height colorbar anchored at
+  `(-0.1,0)` with title `$f(x,y)$`.
+- Drawing command: one `\addplot3[surf]` expression,
+  `(x^2+y^2)*sin(1/(x^2+y^2))`.
+- Numeric semantics: the source has no `\pgfplotsset{compat=...}`, so local
+  PGFPlots uses the legacy `correct sampling=false` path. The even sample
+  count avoids the singular origin.
+
+### Oracle Review
+
+- `pgfplotscoordprocessing.code.tex` and
+  `pgfplotsmeshplothandler.code.tex` show that the surface handler constructs
+  the first two fixed-point coordinates, derives one step, then repeatedly
+  advances through the FPU in legacy mode. The resulting x/y sequence begins
+  `-5`, `-4.79593`, `-4.59186` and ends `4.9994292`; direct interpolation is
+  reserved for `correct sampling=true`.
+- `pgfmathfunctions.trigonometric.code.tex`, `pgflibraryfpu.code.tex`, and
+  `pgfplotsutil.code.tex` show that this expression combines FPU arithmetic
+  with PGF's fixed-point sine lookup/interpolation. A local TeX probe measured
+  the native surface range as `0.0154574141..0.0175601749`.
+- `pgfplots.scaling.code.tex`, `pgfplots.code.tex`, and
+  `pgfplotscolormap.code.tex` confirm that the surveyed range drives both the
+  3D transform and scientific colorbar. TikZKit now shares the same sample
+  generator between range survey and mesh construction, so the surface no
+  longer crosses the upper frame and the complete `1.55..1.75 x 10^-2`
+  colorbar is retained.
+- `pgfplots.code.tex` lines 8100-8198 confirm that the default
+  `3d box=background` omits the three edges shared by both foreground faces.
+  TikZKit now selects nine background edges and their tick runs before the
+  surface; only explicit `3d box=complete` or `complete*` requests the three
+  complementary foreground edges after the surface.
+- Local `tikztosvg` was found at `/Library/TeX/texbin/tikztosvg`. The accepted
+  artifact directory contains TikZKit SVG/PNG, `tikztosvg` SVG/PNG, MacTeX
+  PNG, diffs, and comparison sheets. All three PNGs are 603x469. The reference
+  SVG outlines TeX glyphs as paths; TikZKit keeps browser text and emits 4,802
+  surface fill paths plus matching facet strokes. Both use a single linear
+  gradient, butt line caps, and miter joins. Residual pixels are restricted to
+  text rasterization and subpixel stroke antialiasing.
+
+### Unsupported Source Features
+
+None for this fixture. Outside this case, arbitrary FPU programs, complete
+PGF math parser parity, every legacy/modern compatibility transition, and the
+foreground ticks/grids of `3d box=complete*` remain partial.
 
 ## Case 002: Chi-Squared CDF
 
