@@ -49,8 +49,7 @@ tikztosvg, and MacTeX failures for this case.
 
 `tikztosvg` was found at `/Library/TeX/texbin/tikztosvg`; PNG conversion uses
 `/opt/homebrew/bin/rsvg-convert`. The inspected artifacts are ignored by Git
-and live in
-[`outputs/qa-inline-cmbx-bold-2026-08-08/`](../../outputs/qa-inline-cmbx-bold-2026-08-08/):
+and live locally in `outputs/qa-inline-cmbx-bold-2026-08-08/`:
 
 - `tikzkit-svg/` and `tikzkit-png/` are the JavaScript output.
 - `tikztosvg-svg/` and `tikztosvg-png/` are the local third-party reference.

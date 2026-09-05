@@ -43,6 +43,7 @@
   },
   "scripts": {
     "test": "node --test",
+    "docs:links": "node scripts/check-doc-links.js",
     "web": "node web/server.js",
     "web:output": "node scripts/render-example-fixtures.js --output test/fixtures/examples/output --preserve-output --continue-on-external-failure --tikztosvg-engine pdflatex --math-renderer svg-text",
     "examples:render": "node scripts/render-example-fixtures.js",

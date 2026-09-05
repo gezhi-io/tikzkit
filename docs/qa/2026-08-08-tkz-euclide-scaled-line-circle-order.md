@@ -69,8 +69,8 @@ this change.
 used `/opt/homebrew/bin/rsvg-convert`. Artifacts are intentionally ignored and
 remain under:
 
-- before: [`outputs/qa-tkz-euclide-interlc-before-2026-08-08/`](../../outputs/qa-tkz-euclide-interlc-before-2026-08-08/)
-- after: [`outputs/qa-tkz-euclide-interlc-after-2026-08-08/`](../../outputs/qa-tkz-euclide-interlc-after-2026-08-08/)
+- before: `outputs/qa-tkz-euclide-interlc-before-2026-08-08/`
+- after: `outputs/qa-tkz-euclide-interlc-after-2026-08-08/`
 
 The after directory contains TikZKit SVG/PNG, tikztosvg SVG/PNG, MacTeX PNG,
 1cm grid panels, and

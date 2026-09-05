@@ -50,8 +50,7 @@ It explicitly records every discovered command, option, and numeric literal.
 `tikztosvg` was found at `/Library/TeX/texbin/tikztosvg`; PNG conversion used
 `/opt/homebrew/bin/rsvg-convert`.
 
-Artifacts are under
-[`outputs/qa-tkz-euclide-common/`](../../outputs/qa-tkz-euclide-common/):
+Artifacts are stored locally under `outputs/qa-tkz-euclide-common/`:
 
 - MacTeX: `mactex-png/tkz-euclide-line-circle-common-result.png`
 - TikZKit: `tikzkit-svg/` and `tikzkit-png/`

@@ -37,9 +37,8 @@ the top of this drawing.
 
 ## Visual Evidence
 
-Artifacts are intentionally ignored by Git and are stored at:
-
-[`outputs/qa-svg-text-metrics-arrow/`](../../outputs/qa-svg-text-metrics-arrow/)
+Artifacts are intentionally ignored by Git and are stored locally at
+`outputs/qa-svg-text-metrics-arrow/`.
 
 - `arrow-math-label.pdf` and `mactex.png`: native MacTeX.
 - `tikzkit.svg` and `tikzkit-natural.png`: JavaScript renderer.

@@ -131,20 +131,24 @@ npx tikz2svg diagram.tex -o diagram.svg --strict
 
 ## Documentation
 
+- [Documentation index](docs/README.md)
 - [Getting started tutorial](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
 - [Extension registry](docs/extension-registry.md)
 - [Case-driven acceptance](docs/case-driven-acceptance.md)
-- [Visual QA records](docs/qa)
+- [Generated artifact policy](docs/generated-artifacts.md)
+- [Visual QA records](docs/qa/)
 
-The tutorial and QA images live in the GitHub repository and are intentionally
-excluded from the npm package.
+The tutorial, compatibility notes, and curated images live in the GitHub
+repository and are intentionally excluded from the npm package. Large QA
+outputs are generated locally and are not linked as permanent GitHub files.
 
 ## Develop
 
 ```bash
 npm install
 npm test
+npm run docs:links
 npm run web
 ```
 
