@@ -37,6 +37,7 @@ export function renderDecorationTextPath(item, unit) {
     if (effect === "reverse") glyphs.reverse();
     if (effect === "group") glyphs = groupDecorationTextGlyphs(glyphs, item.pathTextWordSeparator);
   }
+  glyphs = sizeDecorationTextReplacements(glyphs, fontSize / unit);
   glyphs = padDecorationTextNodeBoxes(glyphs, item.pathTextCharacterInnerXSepEm);
   if (!glyphs.length) return "";
   const em = fontSize / unit;
@@ -223,8 +224,21 @@ function padDecorationTextNodeBoxes(glyphs, innerXSepEm) {
   if (!(padding > 0)) return glyphs;
   return glyphs.map((glyph) => ({
     ...glyph,
-    advance: glyph.advance + 2 * padding * (Number(glyph.fontScale) || 1)
+    advance: glyph.replacement
+      ? glyph.advance
+      : glyph.advance + 2 * padding * (Number(glyph.fontScale) || 1)
   }));
+}
+
+function sizeDecorationTextReplacements(glyphs, em) {
+  if (!(em > 1e-9)) return glyphs;
+  return glyphs.map((glyph) => {
+    if (glyph.replacement?.type !== "circle") return glyph;
+    return {
+      ...glyph,
+      advance: (2 * Math.max(0, finiteDistance(glyph.replacement.radius))) / em
+    };
+  });
 }
 
 function ordinaryDecorationTextBaselineOffset(glyph, fontSize) {

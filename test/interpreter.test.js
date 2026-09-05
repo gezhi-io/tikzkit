@@ -3148,8 +3148,65 @@ test("preserves repeated decorations.text circle replacement mappings", () => {
   assert.equal(label.pathTextCharacterReplacements["-"].fill, "none");
   assert.equal(label.pathTextCharacterReplacements["-"].stroke, "blue");
   assert.equal((result.svg.match(/class="tikz-decoration-replacement"/g) || []).length, 7);
+  const centers = [...result.svg.matchAll(/class="tikz-decoration-replacement" cx="([^"]+)" cy="([^"]+)"/g)]
+    .map((match) => `${match[1]},${match[2]}`);
+  assert.equal(new Set(centers).size, 7, "replacement nodes should advance by their own bounds without endpoint collapse");
   assert.match(result.svg, /stroke-width="1\.757299/);
   assert.doesNotMatch(result.svg, />0<\/text>|>1<\/text>|>-<\/text>/);
+});
+
+test("uses replacement circle diameters as decorations.text advances", () => {
+  const source = String.raw`
+\begin{tikzpicture}[decoration={text effects along path,text={001},text align=center,
+  text effects/.cd,
+    replace characters=0 with {\fill[purple] circle[radius=2pt];},
+    replace characters=1 with {\fill[orange] circle[radius=3pt];}}]
+  \path[decorate] (0,0) -- (4,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const circles = [...result.svg.matchAll(/class="tikz-decoration-replacement" cx="([^"]+)"[^>]*r="([^"]+)"/g)]
+    .map((match) => ({ x: Number(match[1]), radius: Number(match[2]) }));
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(circles.length, 3);
+  expectClose(circles[1].x - circles[0].x, circles[0].radius + circles[1].radius, 1e-6);
+  expectClose(circles[2].x - circles[1].x, circles[1].radius + circles[2].radius, 1e-6);
+});
+
+test("keeps ordinary decorations.text node padding beside replacement graphics", () => {
+  const source = String.raw`
+\begin{tikzpicture}[decoration={text effects along path,text={A0A},text align=center,
+  text effects/.cd,replace characters=0 with {\fill[purple] circle[radius=2pt];}}]
+  \path[decorate] (0,0) -- (4,0);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const textXs = [...result.svg.matchAll(/class="tikz-decoration-glyph" x="([^"]+)"/g)].map((match) => Number(match[1]));
+  const circleX = Number(result.svg.match(/class="tikz-decoration-replacement" cx="([^"]+)"/)?.[1]);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(textXs.length, 2);
+  assert.ok(Number.isFinite(circleX));
+  assert.ok(circleX - textXs[0] > 10, "ordinary text keeps its padded node width");
+  expectClose(textXs[1] - circleX, circleX - textXs[0], 1e-6);
+});
+
+test("distributes every replacement in the manual decorations.text curve example", () => {
+  const source = String.raw`
+\begin{tikzpicture}[decoration={text effects along path,
+  text={000-001-010-011-100-101-110-111},text align=center,
+  text effects/.cd,word separator=-,
+    replace characters=0 with {\fill[purple] circle[radius=2pt];},
+    replace characters=1 with {\fill[orange] circle[radius=2pt];},
+    replace characters=- with {\path circle[radius=2pt];}}]
+  \path[decorate] (0,0) .. controls ++(2,0) and ++(-2,0) .. (3,4);
+\end{tikzpicture}`;
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const centers = [...result.svg.matchAll(/class="tikz-decoration-replacement" cx="([^"]+)" cy="([^"]+)"/g)]
+    .map((match) => `${match[1]},${match[2]}`);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(centers.length, 31);
+  assert.equal(new Set(centers).size, 31);
 });
 
 test("renders general shadows as path preactions around the path bounding-box center", () => {
