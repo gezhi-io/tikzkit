@@ -42,3 +42,7 @@ npm run docs:links
 ```
 
 The check rejects local links that resolve only to ignored or missing files.
+It also validates absolute `github.com/gezhi-io/tikzkit` and
+`raw.githubusercontent.com/gezhi-io/tikzkit` URLs against tracked repository
+files. Public examples belong in `docs/images/`; paths under
+`test/fixtures/examples/output/` exist only after a local gallery build.

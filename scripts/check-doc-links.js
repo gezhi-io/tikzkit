@@ -24,7 +24,18 @@ export function findBrokenDocLinks(root = REPO_ROOT) {
 
     for (const { target, index } of targets) {
       const cleanTarget = normalizeTarget(target);
-      if (!cleanTarget || isExternalTarget(cleanTarget)) continue;
+      if (!cleanTarget) continue;
+
+      const repositoryTarget = repositoryPathFromPublicUrl(cleanTarget);
+      if (repositoryTarget) {
+        const resolved = normalizeRepoPath(repositoryTarget);
+        if (!isAvailable(resolved, available)) {
+          broken.push({ file, line: lineAt(source, index), target: cleanTarget, resolved });
+        }
+        continue;
+      }
+
+      if (isExternalTarget(cleanTarget)) continue;
 
       const resolved = normalizeRepoPath(path.join(path.dirname(file), cleanTarget));
       if (resolved.startsWith("../") || !isAvailable(resolved, available)) {
@@ -34,6 +45,37 @@ export function findBrokenDocLinks(root = REPO_ROOT) {
   }
 
   return broken;
+}
+
+export function repositoryPathFromPublicUrl(target) {
+  let url;
+  try {
+    url = new URL(target);
+  } catch {
+    return null;
+  }
+
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (
+    url.hostname === "github.com" &&
+    segments[0] === "gezhi-io" &&
+    segments[1] === "tikzkit" &&
+    segments[2] === "blob" &&
+    segments[3] === "main"
+  ) {
+    return segments.slice(4).join("/");
+  }
+
+  if (
+    url.hostname === "raw.githubusercontent.com" &&
+    segments[0] === "gezhi-io" &&
+    segments[1] === "tikzkit" &&
+    segments[2] === "main"
+  ) {
+    return segments.slice(3).join("/");
+  }
+
+  return null;
 }
 
 function listAvailableFiles(root) {
