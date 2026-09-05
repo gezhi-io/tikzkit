@@ -840,7 +840,11 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
   const sourceName = match[1].trim();
   const aliasDefaults = sourceName === "Parenthesis"
     ? { arc: "+120", length: "+1.725pt +2.3" }
-    : {};
+    : sourceName === "Bar"
+      ? { length: "+0pt" }
+      : sourceName === "Bracket"
+        ? { "inset'": "+0pt +1", length: "+0.75pt +1" }
+        : {};
   const options = { ...aliasDefaults, ...inheritedOptions, ...(match[2] ? parseOptions(match[2]) : {}) };
   const overrides = {};
   if (options.width) {
@@ -855,6 +859,14 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
     overrides.length = lineWidthFromTikzDimension(options.length);
     overrides.customLength = true;
     overrides.lengthSpec = parseArrowTipDimensionSpec(options.length);
+  }
+  if (options.inset) {
+    overrides.inset = lineWidthFromTikzDimension(options.inset);
+    overrides.customInset = true;
+    overrides.insetSpec = parseArrowTipDimensionSpec(options.inset);
+  }
+  if (options["inset'"]) {
+    overrides.insetPrimeSpec = parseArrowTipDimensionSpec(options["inset'"]);
   }
   if (options["line width"]) {
     overrides.lineWidth = lineWidthFromTikzDimension(options["line width"]);

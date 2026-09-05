@@ -6012,6 +6012,15 @@
       "features": ["arrows.meta", "Arc Barb", "Parenthesis", "arc", "harpoon", "left", "right", "reversed", "round", "slant"]
     },
     {
+      "id": "arrows-meta-tee-barb-controls",
+      "title": "Tee Barb flow, interval, and one-sided physical vectors",
+      "source": "arrows/meta-tee-barb-controls.tex",
+      "sourceCorpus": "TeX Live PGF arrows.meta manual and TikZKit control regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+      "semanticOwner": "src/tikz/metrics.js:teeBarbArrowGeometryFromLineWidth + src/renderers/svg/paths.js:resolveInlineArrowTip",
+      "features": ["arrows.meta", "Tee Barb", "inset", "line width", "harpoon", "left", "right", "reversed", "round", "sharp", "slant"]
+    },
+    {
       "id": "arrows-legacy-delimiters-flowchart",
       "title": "Legacy angle and bracket tips in a validation flow",
       "source": "arrows/legacy-delimiters-flowchart.tex",

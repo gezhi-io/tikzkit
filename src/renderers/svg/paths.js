@@ -9,7 +9,8 @@ import {
   stealthArrowLengthFromLineWidth,
   stealthMetaArrowGeometryFromLineWidth,
   stealthArrowShortenFromLength,
-  straightBarbArrowGeometryFromLineWidth
+  straightBarbArrowGeometryFromLineWidth,
+  teeBarbArrowGeometryFromLineWidth
 } from "../../tikz/metrics.js";
 import { blurShadowFilterId } from "./defs.js";
 import { escapeAttribute } from "./escape.js";
@@ -795,18 +796,41 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     };
   }
   if (tip.kind === "tee-barb") {
-    const length = flags.customLength ? tip.length : lineWidthFromPt(1.5 + 2.15 * lineWidthPt);
-    const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(1.35 + 1.9 * lineWidthPt);
+    const innerLineWidth = style.doubleColor !== undefined
+      ? Number.isFinite(Number(style.doubleDistance))
+        ? Math.max(0, Number(style.doubleDistance))
+        : lineWidthFromPt(0.6)
+      : 0;
+    const fullLineWidth = style.doubleColor !== undefined ? 2 * lineWidth + innerLineWidth : lineWidth;
+    const constantSpec = (value) => ({ dimension: value, lineWidthFactor: 0, outerFactor: 0 });
+    const native = teeBarbArrowGeometryFromLineWidth(fullLineWidth, {
+      scale: tip.scale,
+      lengthScale: tip.lengthScale,
+      widthScale: tip.widthScale,
+      lengthSpec: tip.lengthSpec || (flags.customLength ? constantSpec(tip.length) : undefined),
+      widthSpec: tip.widthSpec || (flags.customWidth ? constantSpec(tip.width) : undefined),
+      widthPrimeSpec: tip.widthPrimeSpec,
+      insetSpec: tip.insetSpec || (tip.customInset ? constantSpec(tip.inset) : undefined),
+      insetPrimeSpec: tip.insetPrimeSpec,
+      lineWidthSpec: tip.lineWidthSpec || (flags.customLineWidth ? constantSpec(tip.lineWidth) : undefined),
+      lineWidthPrimeSpec: tip.lineWidthPrimeSpec,
+      innerLineWidth,
+      harpoon: tip.harpoon,
+      reversed: tip.reversed,
+      swap: tip.swap,
+      roundCap: tip.roundCap,
+      roundJoin: tip.roundJoin,
+      slant: tip.slant
+    });
+    const path = native.paths.flatMap((points) => points.length
+      ? [
+          `M ${format(points[0].x)} ${format(-points[0].y)}`,
+          ...points.slice(1).map((point) => `L ${format(point.x)} ${format(-point.y)}`)
+        ]
+      : []).join(" ");
     return {
-      path: [
-        `M 0 ${format(-halfWidth)}`,
-        `L 0 ${format(halfWidth)}`,
-        `M 0 0`,
-        `L ${format(-length)} ${format(-halfWidth)}`,
-        `M 0 0`,
-        `L ${format(-length)} ${format(halfWidth)}`
-      ].join(" "),
-      shorten: 0
+      ...native,
+      path
     };
   }
   if (tip.kind === "kite") {

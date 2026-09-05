@@ -215,7 +215,7 @@ export function createArrowTip(kind = "to", overrides = {}) {
       ? Object.hasOwn(overrides, "meta")
         ? overrides.meta === true
         : sourceKind === "Square" || sourceKind === "Rectangle"
-      : ["straight-barb", "arc-barb"].includes(normalizedKind)
+      : ["straight-barb", "arc-barb", "tee-barb"].includes(normalizedKind)
         ? Object.hasOwn(overrides, "meta")
           ? overrides.meta === true
           : true
@@ -227,7 +227,7 @@ export function createArrowTip(kind = "to", overrides = {}) {
     // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
     // the source spelling so their geometry can stay distinct downstream.
     ...(normalizedKind === "latex" ? { legacy } : {}),
-    ...(["latex", "stealth", "square", "straight-barb", "arc-barb"].includes(normalizedKind) ? { meta } : {})
+    ...(["latex", "stealth", "square", "straight-barb", "arc-barb", "tee-barb"].includes(normalizedKind) ? { meta } : {})
   };
 }
 
@@ -892,6 +892,158 @@ export function arcBarbArrowGeometryFromLineWidth(lineWidth, arrowOptions = {}) 
   };
 }
 
+export function teeBarbArrowGeometryFromLineWidth(lineWidth, arrowOptions = {}) {
+  const unitsPerPt = lineWidthFromPt(1);
+  const pathLineWidth = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default);
+  const pathLineWidthPt = pathLineWidth / unitsPerPt;
+  const innerLineWidthPt = Math.max(0, Number(arrowOptions.innerLineWidth) || 0) / unitsPerPt;
+  const scaleFactor = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
+  const lengthScale = scaleFactor(arrowOptions.scale) * scaleFactor(arrowOptions.lengthScale);
+  const widthScale = scaleFactor(arrowOptions.scale) * scaleFactor(arrowOptions.widthScale);
+  const lineWidthDependent = (spec, fallback) => {
+    const resolved = spec || fallback;
+    const dimensionPt = (Number(resolved.dimension) || 0) / unitsPerPt;
+    const factor = Number(resolved.lineWidthFactor) || 0;
+    const outerFactor = Number(resolved.outerFactor) || 0;
+    const effectiveLineWidthPt = innerLineWidthPt > 0
+      ? pathLineWidthPt * (1 - outerFactor / 2) - innerLineWidthPt * outerFactor / 2
+      : pathLineWidthPt;
+    return dimensionPt + factor * effectiveLineWidthPt;
+  };
+  const lengthDependent = (spec, fallback, lengthPt) => {
+    const resolved = spec || fallback;
+    return (Number(resolved.dimension) || 0) / unitsPerPt
+      + (Number(resolved.lineWidthFactor) || 0) * lengthPt
+      + (Number(resolved.outerFactor) || 0) * pathLineWidthPt;
+  };
+
+  const baseLengthPt = lineWidthDependent(arrowOptions.lengthSpec, {
+    dimension: lineWidthFromPt(1.5),
+    lineWidthFactor: 2,
+    outerFactor: 0
+  });
+  const baseWidthPt = arrowOptions.widthPrimeSpec
+    ? lengthDependent(arrowOptions.widthPrimeSpec, null, baseLengthPt)
+    : lineWidthDependent(arrowOptions.widthSpec, {
+        dimension: lineWidthFromPt(3),
+        lineWidthFactor: 4,
+        outerFactor: 0
+      });
+  const baseInsetPt = arrowOptions.insetPrimeSpec
+    ? lengthDependent(arrowOptions.insetPrimeSpec, null, baseLengthPt)
+    : arrowOptions.insetSpec
+      ? lineWidthDependent(arrowOptions.insetSpec, null)
+      : 0.5 * baseLengthPt;
+  const arrowLineWidthPt = arrowOptions.lineWidthPrimeSpec
+    ? lengthDependent(arrowOptions.lineWidthPrimeSpec, null, baseLengthPt)
+    : lineWidthDependent(arrowOptions.lineWidthSpec, {
+        dimension: 0,
+        lineWidthFactor: 1,
+        outerFactor: 1
+      });
+  const lengthPt = Math.max(0, baseLengthPt * lengthScale);
+  const widthPt = Math.max(0.01, baseWidthPt * widthScale);
+  const insetPt = baseInsetPt * lengthScale;
+  const tipLineWidthPt = Math.max(0.01, arrowLineWidthPt);
+  const harpoon = arrowOptions.harpoon === true;
+  const reversed = arrowOptions.reversed === true;
+  const swap = arrowOptions.swap === true;
+  const roundCap = arrowOptions.roundCap === true;
+  const roundJoin = arrowOptions.roundJoin === true;
+  const slant = Number.isFinite(Number(arrowOptions.slant)) ? Number(arrowOptions.slant) : 0;
+
+  const rawFrontPt = lengthPt - insetPt;
+  const rawBackPt = -insetPt;
+  const frontClamped = rawFrontPt < tipLineWidthPt / 2;
+  const backClamped = rawBackPt > -tipLineWidthPt / 2;
+  const frontPt = frontClamped ? tipLineWidthPt / 2 : rawFrontPt;
+  const backPt = backClamped ? -tipLineWidthPt / 2 : rawBackPt;
+  const forwardTipEndPt = frontPt + (roundCap && !frontClamped ? tipLineWidthPt / 2 : 0);
+  const forwardBackEndPt = backPt - (roundCap && !backClamped ? tipLineWidthPt / 2 : 0);
+  const forwardVisualTipEndPt = forwardTipEndPt;
+  const forwardVisualBackEndPt = tipLineWidthPt / 2;
+  const tipEndPt = reversed ? -forwardBackEndPt : forwardTipEndPt;
+  const backEndPt = reversed ? -forwardTipEndPt : forwardBackEndPt;
+  const visualTipEndPt = reversed ? -forwardVisualBackEndPt : forwardVisualTipEndPt;
+  const visualBackEndPt = reversed ? -forwardVisualTipEndPt : forwardVisualBackEndPt;
+  // Setup compensates for core reversal, leaving the final line end at -t/4.
+  const lineEndPt = -tipLineWidthPt / 4;
+
+  const transformPointPt = ({ x, y }) => {
+    let transformedX = reversed ? -x : x;
+    let transformedY = swap ? -y : y;
+    transformedX += slant * transformedY;
+    return { x: lineWidthFromPt(transformedX), y: lineWidthFromPt(transformedY) };
+  };
+  const hull = [
+    { x: forwardTipEndPt, y: widthPt / 2 },
+    { x: forwardBackEndPt, y: widthPt / 2 }
+  ];
+  if (harpoon) {
+    hull.push({ x: tipLineWidthPt / 2, y: -pathLineWidthPt / 2 });
+  } else {
+    hull.push(
+      { x: forwardTipEndPt, y: -widthPt / 2 },
+      { x: forwardBackEndPt, y: -widthPt / 2 }
+    );
+  }
+  const transformedHull = hull.map(transformPointPt);
+  const bounds = transformedHull.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    minY: Math.min(result.minY, -point.y),
+    maxX: Math.max(result.maxX, point.x),
+    maxY: Math.max(result.maxY, -point.y)
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+
+  const topPt = widthPt / 2 - tipLineWidthPt / 2;
+  const bottomPt = harpoon ? -pathLineWidthPt / 2 : -widthPt / 2 + tipLineWidthPt / 2;
+  const pathsPt = [];
+  if (Math.abs((frontPt - tipLineWidthPt / 2) - (backPt + tipLineWidthPt / 2)) < 1e-9) {
+    pathsPt.push([{ x: 0, y: widthPt / 2 }, { x: 0, y: harpoon ? -pathLineWidthPt / 2 : -widthPt / 2 }]);
+  } else if (frontClamped) {
+    const path = [{ x: backPt, y: topPt }, { x: 0, y: topPt }, { x: 0, y: bottomPt }];
+    if (!harpoon) path.push({ x: backPt, y: -widthPt / 2 + tipLineWidthPt / 2 });
+    pathsPt.push(path);
+  } else {
+    pathsPt.push([{ x: backPt, y: topPt }, { x: frontPt, y: topPt }]);
+    pathsPt.push([{ x: 0, y: topPt }, { x: 0, y: bottomPt }]);
+    if (!harpoon) pathsPt.push([{ x: backPt, y: -widthPt / 2 + tipLineWidthPt / 2 }, { x: frontPt, y: -widthPt / 2 + tipLineWidthPt / 2 }]);
+  }
+  const paths = pathsPt.map((path) => path.map(transformPointPt));
+
+  const tipEnd = lineWidthFromPt(tipEndPt);
+  const backEnd = lineWidthFromPt(backEndPt);
+  const lineEnd = lineWidthFromPt(lineEndPt);
+  return {
+    length: lineWidthFromPt(lengthPt),
+    width: lineWidthFromPt(widthPt),
+    inset: lineWidthFromPt(insetPt),
+    lineWidth: lineWidthFromPt(tipLineWidthPt),
+    front: lineWidthFromPt(frontPt),
+    back: lineWidthFromPt(backPt),
+    frontClamped,
+    backClamped,
+    tipEnd,
+    backEnd,
+    visualTipEnd: lineWidthFromPt(visualTipEndPt),
+    visualBackEnd: lineWidthFromPt(visualBackEndPt),
+    visualSpan: lineWidthFromPt(visualTipEndPt - visualBackEndPt),
+    lineEnd,
+    terminalPlacement: tipEnd - lineEnd,
+    placement: tipEnd,
+    assemblyLength: tipEnd - backEnd,
+    paths,
+    bounds,
+    strokeBoundsIncluded: true,
+    lineCap: roundCap ? "round" : "butt",
+    lineJoin: roundJoin ? "round" : "miter",
+    harpoon,
+    reversed,
+    swap,
+    slant
+  };
+}
+
 export function stealthPrimeArrowDimensions(lineWidth) {
   const unitsPerPt = lineWidthFromPt(1);
   const lineWidthPt = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default) / unitsPerPt;
@@ -1026,7 +1178,7 @@ function normalizeArrowKind(kind) {
   if (text === "latexslim" || text === "latex slim") return "latexslim";
   if (text === "straight barb" || text === "straight-barb") return "straight-barb";
   if (text === "arc barb" || text === "arc-barb" || text === "parenthesis") return "arc-barb";
-  if (text === "tee barb" || text === "tee-barb" || text === "bracket") return "tee-barb";
+  if (text === "tee barb" || text === "tee-barb" || source === "Bar" || source === "Bracket") return "tee-barb";
   if (text === "kite") return "kite";
   if (text === "rectangle") return "square";
   if (text === "rays" || text === "ray") return "rays";

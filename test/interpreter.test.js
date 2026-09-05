@@ -4743,9 +4743,9 @@ test("renders arrows.meta Bar tips as perpendicular line caps", () => {
   const path = result.ir.items.find((item) => item.type === "path" && item.style.markerStart && item.style.markerEnd);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.equal(path.style.markerStart.kind, "bar");
-  assert.equal(path.style.markerEnd.kind, "bar");
-  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-bar" d="M 0 -20 L 0 20"/);
+  assert.equal(path.style.markerStart.kind, "tee-barb");
+  assert.equal(path.style.markerEnd.kind, "tee-barb");
+  assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-tee-barb" d="M 0 -20 L 0 20"/);
 });
 
 test("renders TikZ star arrow tips as filled endpoint dots", () => {

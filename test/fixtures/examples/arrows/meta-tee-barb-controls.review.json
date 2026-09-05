@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/fontmath.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "border=4pt", "\\begin", "\\end"],
+      "findings": "The standalone shell supplies a 4pt crop border, while the document and tikzpicture environment pairs delimit this single visual driver."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/fontmath.ltx": {
+      "symbols": ["\\vec", "\\DeclareMathAccent"],
+      "findings": "fontmath.ltx defines vec as a math accent; the fixture uses it for p and F and otherwise relies on ordinary math letters, brackets, signs, and numerals."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary{arrows.meta}"],
+      "findings": "TikZ loads the PGF frontend and the arrows.meta declaration registry used by every Tee Barb tip in the picture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex": {
+      "symbols": ["\\foreach", "\\x", "\\label", "foreach-variable"],
+      "findings": "PGF's foreach scanner binds x and label from each slash-separated pair, expands the three tick iterations in source order, and scopes both loop variables to the loop body."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": [
+        "\\path", "\\node", "\\draw", "\\foreach", "\\coordinate", "\\fill",
+        "stage/.style", "flow/.style", "axis/.style", "vector/.style",
+        "draw", "fill", "rounded corners", "minimum width", "minimum height",
+        "line width", "anchor", "above", "below", "below left", "right",
+        "to", "out", "in", "rectangle", "circle", "++",
+        "east", "west", "south east", "south west"
+      ],
+      "findings": "TikZ resolves all four local styles, named node anchors, the curved reset connection, the foreach tick expansion, relative vector endpoints, inline labels, rectangle and circle paths. Command occurrences are documentclass, usepackage, usetikzlibrary, begin, end, path, node, draw, foreach, coordinate, fill, and vec. The number-line annotations use inward-facing west/east anchors so both MacTeX and tikztosvg retain complete text inside the picture bounds. Non-arrow options are fully enumerated by the option review rule below."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": [
+        "Tee Barb", "length", "width", "inset'", "line width",
+        "harpoon", "left", "right", "reversed", "round", "sharp", "slant",
+        "length=5pt", "length=6pt", "length=7pt",
+        "width=8pt", "width=9pt", "width=10pt",
+        "line width=.7pt", "line width=.8pt", "line width=.9pt",
+        "slant=.25", "slant=.3"
+      ],
+      "findings": "Tee Barb defaults are length=+1.5pt 2, width=+3pt 4, inset'=+0pt .5, and line width=+0pt 1 1. Setup clamps length-inset and negative inset to half the arrow stroke, derives tip/backend/line-end extents, and constructs either a single stem, a one-sided bar, or a complete I-shaped outline. Harpoon retains one side; left and right choose the retained side; reversed reflects tip geometry and changes shaft shortening; round and sharp select cap/join behavior; slant shears the finished tip. This fixture exercises default and fixed dimensions at both path ends."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": [
+        "pgfarrowslengthdependent", "pgfarrowslinewidthdependent",
+        "pgfarrowreversed", "pgfarrowharpoon", "pgfarrowswap",
+        "start tip", "end tip", "shaft shortening", "bending mode=polar"
+      ],
+      "findings": "The core resolves deferred length, width, inset, and stroke dimensions against the active path width, applies start-tip reversal and explicit reversed/swap transforms, shortens each shaft by the declared line end, and rotates polar-bending tips onto curved terminal tangents."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex": {
+      "symbols": [
+        "Tee Barb", "inset=0pt", "inset'=0pt 1", "line width=2pt",
+        "round", "slant=.3", "left", "right", "harpoon,reversed", "red"
+      ],
+      "findings": "The local manual defines Tee Barb as a T on both sides of the tip and documents the same size, stroke, cap, slant, side, harpoon, reversal, and color families used here. It states that open and fill have no effect and warns that double lines are visually unsuitable; neither ignored combination is present in this fixture."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex": {
+      "symbols": ["to", "out", "in", "node", "terminal tangent"],
+      "findings": "The reset path is a to curve controlled by out=-28 and in=-152; its start tip follows the start tangent, while all other Tee Barb instances terminate straight segments."
+    }
+  },
+  "rules": [
+    {
+      "match": "dependency:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.tex",
+        "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+      ],
+      "notes": "Covers the tikz package and arrows.meta library dependency individually."
+    },
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.tex",
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.review.json"
+      ],
+      "notes": "Covers every command occurrence: documentclass, usepackage, usetikzlibrary, begin, end, path, node, draw, foreach, coordinate, fill, and the vec math command."
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.tex",
+        "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+      ],
+      "notes": "Covers the document and tikzpicture environments individually."
+    },
+    {
+      "match": "declaration:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.tex",
+        "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex"
+      ],
+      "notes": "Covers the foreach-variable declarations x and label individually; both are bound from each slash-separated pair before the tick path is expanded."
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.tex",
+        "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+        "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex"
+      ],
+      "notes": "Covers every option entry: document border; stage/flow/axis/vector style definitions and applications; draw/fill; cyan!8, blue!70!black, black!65, orange!85!black, gray!4, gray!55, and red!75!black colors; rounded corners; minimum width/height; line width; named east/west/south-east/south-west anchors; anchor=east/west, above, below, below left, and right labels; to/out/in routing; start and end arrow assembly; Tee Barb default, length, width, line width, harpoon, left, right, reversed, round, sharp, and slant controls."
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.tex",
+        "test/fixtures/examples/arrows/meta-tee-barb-controls.review.json"
+      ],
+      "notes": "Covers every numeric occurrence. Distinct literals are: -.9, -1.75, -1.9, -152, -2, -2.2, -28, -3, -3.25, -3.3, -5, .08, .25, .3, .42, .65, .7pt, .8pt, .9pt, 0, 1.15, 1.4pt, 1pt, 10pt, 2, 2.25, 2.35, 20mm, 2pt, 3, 3.3, 3.35, 4pt, 5, 5pt, 55, 6pt, 65, 7pt, 70, 75, 8, 8pt, 85, 9mm, and 9pt. Repeated literals are also covered at each occurrence through the number wildcard."
+    }
+  ],
+  "notes": "One coherent Tee Barb control diagram combines a three-stage flowchart, a mathematical coordinate number line, and two physics vectors. It covers default and custom Tee Barb geometry, both path ends, both harpoon sides, reversal, cap/join modes, slant, and active arrow stroke dimensions. Local TeX Live 2025 source and manual were reviewed; this fixture-only slice intentionally changes no manifest, implementation, or test file."
+}
