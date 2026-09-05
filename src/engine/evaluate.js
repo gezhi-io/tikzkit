@@ -2860,7 +2860,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
   for (const terminal of circuitikzTerminals(options, from, to)) {
     shapes.push(circuitikzTerminalItem(terminal, pathStyle, env));
   }
-  appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env);
+  appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, options, env);
   appendCircuitikzAnnotationLabel(nodes, spec, geometry, options, env);
   appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
   appendCircuitikzFlowLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
@@ -2971,7 +2971,8 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       sourceKind: "sinusoidal",
       componentFill: circuitikzComponentFill(options),
       label: circuitikzLabelValue(options.l) || sinusoidalVoltage.label,
-      voltageKey: sinusoidalVoltage.key
+      voltageKey: sinusoidalVoltage.key,
+      voltageLabel: sinusoidalVoltage.label
     };
   }
   const sinusoidalCurrent = circuitikzFirstMatchingOption(options, /^(?:sI[<>_^]*|isourcesin|sinusoidal current source)$/i);
@@ -3087,7 +3088,15 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
     };
   }
   const voltage = circuitikzFirstMatchingOption(options, /^V[<>_^]*$/);
-  if (voltage) return { kind: "voltageSource", sourceKind: "plain", label: voltage.label, voltageKey: voltage.key };
+  if (voltage) {
+    return {
+      kind: "voltageSource",
+      sourceKind: "plain",
+      label: circuitikzLabelValue(options.l) || null,
+      voltageKey: voltage.key,
+      voltageLabel: voltage.label
+    };
+  }
   const controlledVoltage = circuitikzFirstMatchingOption(options, /^cV[<>_^]*$/);
   const controlledVoltageStyle = circuitikzFirstMatchingOption(
     options,
@@ -3100,7 +3109,7 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       sourceStyle: circuitikzControlledSourceStyle(options, env, "voltage"),
       label: circuitikzLabelValue(options.l) || controlledVoltageStyle?.label || null,
       voltageKey: controlledVoltage?.key || null,
-      voltageLabel: controlledVoltage?.label || null
+      voltageLabel: controlledVoltage?.label || controlledVoltageStyle?.label || null
     };
   }
   const controlledCurrent = circuitikzFirstMatchingOption(options, /^cI[<>_^]*$/);
@@ -3124,7 +3133,9 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       kind: "isource",
       sourceKind: "plain",
       sourceStyle: "american",
-      label: circuitikzLabelValue(options.l) || americanCurrentSource
+      label: circuitikzLabelValue(options.l) || null,
+      currentKey: "i",
+      currentLabel: americanCurrentSource
     };
   }
   const europeanCurrentSource = circuitikzFirstLabel(options, ["european current source", "isourceEU"]);
@@ -3133,7 +3144,9 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       kind: "isource",
       sourceKind: "plain",
       sourceStyle: "european",
-      label: circuitikzLabelValue(options.l) || europeanCurrentSource
+      label: circuitikzLabelValue(options.l) || null,
+      currentKey: "i",
+      currentLabel: europeanCurrentSource
     };
   }
   const sourceLabel = circuitikzFirstLabel(options, ["isource", "I", "current source"]);
@@ -3142,7 +3155,9 @@ function circuitikzBipoleSpec(options = {}, env = {}) {
       kind: "isource",
       sourceKind: "plain",
       sourceStyle: circuitikzUsesAmericanCurrentSource(env) ? "american" : "european",
-      label: circuitikzLabelValue(options.l) || sourceLabel
+      label: circuitikzLabelValue(options.l) || null,
+      currentKey: "i",
+      currentLabel: sourceLabel
     };
   }
   const pmosLabel = circuitikzFirstLabel(options, ["Tpmos", "pmos", "tpmos"]);
@@ -5866,24 +5881,33 @@ function circuitikzGroundItem(point, style = {}, env = {}) {
   };
 }
 
-function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {}) {
-  if ((spec.kind === "voltageSource" || spec.kind === "controlledVoltageSource") && circuitikzVoltageSpec({}, spec, env)) return;
-  if (spec.kind === "isource" && spec.sourceKind === "sinusoidal") return;
-  const label = circuitikzTextLabel(spec.label, env);
+function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, options = {}, env = {}) {
+  const explicit = circuitikzComponentLabelSpec(options, env);
+  const activeSource = ["voltageSource", "controlledVoltageSource", "isource", "controlledCurrentSource"].includes(spec.kind);
+  const label = explicit?.label || (!activeSource ? circuitikzTextLabel(spec.label, env) : "");
   if (!label) return;
+  const side = explicit?.side || 1;
+  const normal = side > 0 ? geometry.n : { x: -geometry.n.x, y: -geometry.n.y };
+  const labelGeometry = { ...geometry, n: normal };
   if (spec.kind === "controlledVoltageSource" || spec.kind === "controlledCurrentSource") {
-    const { point, anchor } = circuitikzControlledSourceLabelPlacement(geometry, env);
+    const { point, anchor } = circuitikzControlledSourceLabelPlacement(labelGeometry, env);
     addCircuitikzTextNode(nodes, point, label, { anchor });
     return;
   }
   if (spec.kind === "battery") {
-    const { point, anchor } = circuitikzBatteryLabelPlacement(geometry, env);
+    const { point, anchor } = circuitikzBatteryLabelPlacement(labelGeometry, env);
     addCircuitikzTextNode(nodes, point, label, { anchor });
     return;
   }
   const scale = circuitikzLengthScale(env);
   const opticalDiode = spec.kind === "diode" && ["led", "photodiode", "laser"].includes(spec.diodeKind);
-  const offset = (spec.kind === "isource" || spec.kind === "controlledCurrentSource"
+  const waveformSource = spec.kind === "voltageSource" && ["sinusoidal", "square", "triangular"].includes(spec.sourceKind);
+  const waveformSettings = waveformSource
+    ? circuitikzWaveformSourceSettings("voltage", spec.sourceKind, options, env, spec.componentFill)
+    : null;
+  const offset = waveformSettings
+    ? waveformSettings.halfNormal + 0.17 * scale
+    : (spec.kind === "isource" || spec.kind === "controlledCurrentSource"
     ? 0.7
     : spec.kind === "inductor" && spec.variable
       ? 0.8
@@ -5892,14 +5916,26 @@ function appendCircuitikzComponentLabel(nodes, spec, from, to, geometry, env = {
       : opticalDiode
         ? 0.78
         : 0.46) * scale;
-  addCircuitikzTextNode(nodes, pointNormal(geometry.mid, geometry.n, offset), label, {
+  addCircuitikzTextNode(nodes, pointNormal(geometry.mid, normal, offset), label, {
     // circuitikz labels start from the component's outer shape anchor and
     // attach their inner text edge there. A centered SVG text node makes the
     // glyph overlap the component, most visibly for compact diode bodies.
-    anchor: opticalDiode
-      ? circuitikzOuterTextAnchor(geometry.n)
-      : circuitikzOuterTextAnchor(geometry.n)
+    anchor: circuitikzOuterTextAnchor(normal)
   });
+}
+
+function circuitikzComponentLabelSpec(options = {}, env = {}) {
+  let result = null;
+  for (const [rawKey, value] of Object.entries(options || {})) {
+    const key = String(rawKey || "").trim().toLowerCase();
+    let side = null;
+    if (key === "l" || key === "l^" || key === "label" || key === "label above") side = 1;
+    if (key === "l_" || key === "label below") side = -1;
+    if (side === null) continue;
+    const label = circuitikzTextLabel(value, env);
+    if (label) result = { label, side };
+  }
+  return result;
 }
 
 function circuitikzBatteryLabelPlacement(geometry, env = {}) {
@@ -6095,6 +6131,10 @@ function circuitikzCurrentSpec(options = {}, spec = {}, env = {}) {
     const label = circuitikzTextLabel(spec.currentLabel, env);
     if (label) return { key: circuitikzCurrentAnnotationKey(spec.currentKey || "sI"), label };
   }
+  if ((spec.kind === "isource" || spec.kind === "controlledCurrentSource") && spec.currentLabel) {
+    const label = circuitikzTextLabel(spec.currentLabel, env);
+    if (label) return { key: circuitikzCurrentAnnotationKey(spec.currentKey || "I"), label };
+  }
   return null;
 }
 
@@ -6205,8 +6245,8 @@ function circuitikzVoltageSpec(options = {}, spec = {}, env = {}) {
     const label = circuitikzTextLabel(value, env);
     if (label) return { key, label };
   }
-  if (spec.kind === "voltageSource" && spec.label) {
-    const label = circuitikzTextLabel(spec.label, env);
+  if (spec.kind === "voltageSource" && spec.voltageLabel) {
+    const label = circuitikzTextLabel(spec.voltageLabel, env);
     if (label) return { key: spec.voltageKey || "V", label };
   }
   if (spec.kind === "controlledVoltageSource" && spec.voltageLabel) {

@@ -1569,6 +1569,16 @@ test("renders simple math variables as TeX-like glyph paths in svg-text mode", (
   assert.doesNotMatch(result.svg, /<text[^>]*>\s*x\s*<\/text>/);
 });
 
+test("keeps scoped upright text inside a grouped math subscript", () => {
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+  \node at (0,0) {$V_{\mathrm{pulse}}$};
+\end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.doesNotMatch(result.svg, />V_</);
+  assert.match(result.svg, /baseline-shift="sub"[^>]*>pulse<\/tspan>/);
+});
+
 test("keeps sansmath variables as math italic while preserving the sans math version", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \node[font=\sansmath\sffamily] at (0,0) {$x$};

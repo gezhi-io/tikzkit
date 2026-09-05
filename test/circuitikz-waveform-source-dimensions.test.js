@@ -148,6 +148,30 @@ test("recognizes every documented square and triangle voltage-source alias", () 
   assert.equal(outlines.length, 6);
 });
 
+test("keeps component labels separate from voltage annotations and honors label sides", () => {
+  const result = render(String.raw`
+    \begin{circuitikz}
+      \draw (0,0) to[sqV=wave,l_=source] (0,3)
+            -- (3,3) to[R,l=resistor] (3,0) -- (0,0);
+      \draw (5,0) to[tV,l_=ramp] (5,3)
+            -- (8,3) to[C,l=capacitor] (8,0) -- (5,0);
+    \end{circuitikz}
+  `);
+  const labels = result.ir.items.filter((item) => item.type === "textNode");
+  const label = (text) => labels.find((item) => item.text === text);
+
+  assert.deepEqual(result.diagnostics, []);
+  assert.ok(label("source")?.x > 0);
+  assert.ok(label("resistor")?.x > 3);
+  assert.ok(label("ramp")?.x > 5);
+  assert.ok(label("capacitor")?.x > 8);
+  assert.ok(label("wave"), "the active-source shortcut remains a voltage annotation");
+  assert.equal(
+    result.ir.items.filter((item) => item.subtype === "circuitikz-voltage-arrow").length,
+    1
+  );
+});
+
 test("renders asymmetric waveform sources in algorithm, mathematics, and physics graphics", () => {
   for (const fixture of FIXTURES) {
     const result = tikzToSvg(fixture.source, { margin: 0, mathRenderer: "svg-text" });

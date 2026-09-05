@@ -12,6 +12,8 @@ const UPRIGHT_COMMAND = /\\(?:mathrm|textrm|textnormal|mathsf|mathtt|operatornam
 // whole formula to a single font style.
 export function renderScopedUprightMathContent(tex, fontSize) {
   const source = normalizeBrowserMathMacros(String(tex || ""));
+  const scripted = scriptedMathFallback(source, { allowSimpleScripts: true });
+  if (scripted) return renderScriptedSegmentsContent(scripted, fontSize);
   let output = "";
   let cursor = 0;
   let found = false;
