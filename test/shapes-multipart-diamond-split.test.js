@@ -80,3 +80,22 @@ test("diamond split exposes text, lower, base, mid, and compass anchors", () => 
   assert.ok(paths[2].commands[0].y > box.y);
   assert.ok(paths[2].commands.at(-1).y < box.y);
 });
+
+test("diamond split physics formula uses TeX undelimited frac arguments without widening the node", () => {
+  const result = tikzToSvg(String.raw`
+\usetikzlibrary{arrows.meta,shapes.geometric,shapes.multipart}
+\begin{tikzpicture}[>=Latex]
+  \node[diamond split,draw,aspect=1.25,inner xsep=6pt,inner ysep=4pt,
+    minimum width=43mm,minimum height=28mm] (energy)
+    {$E_k=\frac12mv^2$\nodepart{lower}$E_p=mgh$};
+  \draw[-Latex] (-42mm,0) -- (energy.west);
+  \draw[-Latex] (energy.lower) -- ++(0,-14mm);
+\end{tikzpicture}`, { mathRenderer: "svg-text" });
+  const box = result.ir.items.find((item) => item.type === "nodeBox" && item.id === "energy");
+
+  assert.deepEqual(result.diagnostics, []);
+  closeTo(box.width, 4.79, 0.06);
+  closeTo(box.height, 3.83, 0.06);
+  assert.match(result.svg, /tikz-inline-fraction/);
+  assert.doesNotMatch(result.svg, /\\frac12|>frac12</);
+});

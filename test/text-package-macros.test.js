@@ -24,6 +24,14 @@ test("normalizes mathtools and nicefrac macros to browser math primitives", () =
   assert.equal(mathFallbackText(fraction), "(a+b)/(c_d+1)");
 });
 
+test("normalizes TeX undelimited fraction arguments before browser math rendering", () => {
+  assert.equal(normalizeBrowserMathMacros(String.raw`E_k=\frac12mv^2`), String.raw`E_k=\frac{1}{2}mv^2`);
+  assert.equal(
+    normalizeBrowserMathMacros(String.raw`\frac\pi2+\frac1{x}+\tfrac ab`),
+    String.raw`\frac{\pi}{2}+\frac{1}{x}+\tfrac{a}{b}`
+  );
+});
+
 test("normalizes units package math commands through upright units and nice fractions", () => {
   const normalized = normalizeBrowserMathMacros(String.raw`d=\unit[12]{m},\quad v=\unitfrac[36]{km}{h}`);
 

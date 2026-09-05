@@ -13456,7 +13456,8 @@ function circleSplitPartMetric(text, options = {}, env = { variables: {} }) {
         scale: fontSizePt / 10,
         minWidth: 0,
         widthPadding: 0,
-        texTextMetrics: true
+        texTextMetrics: true,
+        atomSequenceMetrics: true
       });
       width = formula.width;
       height = formula.height;

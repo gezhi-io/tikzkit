@@ -8,6 +8,8 @@ export const texPackage = {
     "explicit paired superscript/subscript cursor restoration in SVG-text fallback",
     "SVG-text array fallback: l/c/r columns, @{} zero intercolumn gaps, basic *{n}{...} repeat, and \\left...\\right delimiters",
     "inline matrix formula metrics use local Computer Modern 5/7/8/9/10pt design-size advances",
+    "TeX undelimited two-argument parsing for \\frac, \\dfrac, and \\tfrac",
+    "SVG-text fraction-sequence metrics for ordinary math atoms and scripts",
     "\\DeclareMathOperator macro expansion"
   ],
   "requires": [],
@@ -30,5 +32,5 @@ export const texPackage = {
   ],
   "observedOptions": [],
   "localSourceReviewed": true,
-  "notes": "Reviewed TeX Live 2025 amsmath.sty and array.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing; matrix uses array with arraycolsep compensation. On 2026-08-07, local cmr/cmmi/cmsy/cmex TFM design sizes were checked for 5/7/8/9/10pt: inline pmatrix layout now uses fixed arraycolsep and design-size digit, relation, delimiter, italic-correction, and common binary-operator advances rather than an empirical small-font blend. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances plus explicit paired-script baseline/cursor restoration for the SVG-text fallback. The portable fallback structurally lays out array l/c/r columns, @{} zero gaps, basic *{n}{...} repetition, and \\left...\\right delimiters. Tags, intertext, split, gathered, multline, nonempty/custom array preambles, cross-reference expansion, and full TeX macro expansion remain unsupported or partial."
+  "notes": "Reviewed TeX Live 2025 amsmath.sty and array.sty: align rows are constructed by align@preamble/start@align and inherit opened-up display spacing; matrix uses array with arraycolsep compensation. On 2026-08-07, local cmr/cmmi/cmsy/cmex TFM design sizes were checked for 5/7/8/9/10pt: inline pmatrix layout now uses fixed arraycolsep and design-size digit, relation, delimiter, italic-correction, and common binary-operator advances rather than an empirical small-font blend. TikZKit uses scoped browser math for interactive previews and calibrated Computer Modern script advances plus explicit paired-script baseline/cursor restoration for the SVG-text fallback. The portable fallback structurally lays out array l/c/r columns, @{} zero gaps, basic *{n}{...} repetition, and \\left...\\right delimiters. On 2026-09-06, LaTeX base `latex.ltx` and `amsmath.sty` were reviewed for the ordinary two-argument definition of `\\frac`: TeX accepts a group or one undelimited token for each argument, so `\\frac12`, `\\frac\\pi2`, and `\\tfrac ab` are normalized before browser rendering and SVG-text measurement. Simple mixed atom/fraction sequences now use local Computer Modern advances and the measured text-style fraction box. Three-way evidence is stored in `outputs/qa/2026-09-06-undelimited-frac-diamond-after`. Tags, intertext, split, gathered, multline, nonempty/custom array preambles, cross-reference expansion, nested general TeX expansion, and full TeX macro expansion remain unsupported or partial."
 };

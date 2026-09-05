@@ -138,13 +138,63 @@ const MATHBB_CAPITAL_EXCEPTIONS = Object.freeze({
 });
 
 export function normalizeBrowserMathMacros(value) {
-  return replaceBrowserNiceFractionCommands(replaceBrowserUnitsCommands(String(value ?? "")))
+  return normalizeUndelimitedFractionArguments(
+    replaceBrowserNiceFractionCommands(replaceBrowserUnitsCommands(String(value ?? "")))
+  )
     .replace(/(?<!\\)\\coloneqq(?![A-Za-z])/g, String.raw`\mathrel{≔}`)
     // Without textcomp, gensymb defines these through ordinary Computer Modern
     // math atoms. Keep their local upright/math-script behavior in SVG output.
     .replace(/(?<!\\)[ \t]*\\degree(?![A-Za-z])/g, String.raw`^\circ`)
     .replace(/(?<!\\)[ \t]*\\celsius(?![A-Za-z])/g, String.raw`^\circ\mathrm{C}`)
     .replace(/(?<!\\)[ \t]*\\ohm(?![A-Za-z])/g, String.raw`\Omega`);
+}
+
+function normalizeUndelimitedFractionArguments(value) {
+  const source = String(value ?? "");
+  const pattern = /\\(?:dfrac|tfrac|frac)(?![A-Za-z])/g;
+  let output = "";
+  let cursor = 0;
+  let match;
+
+  while ((match = pattern.exec(source))) {
+    output += source.slice(cursor, match.index);
+    if (isEscapedAt(source, match.index)) {
+      output += match[0];
+      cursor = match.index + match[0].length;
+      pattern.lastIndex = cursor;
+      continue;
+    }
+
+    const firstStart = skipTextWhitespace(source, match.index + match[0].length);
+    const first = readUndelimitedMacroArgument(source, firstStart);
+    const secondStart = first ? skipTextWhitespace(source, first.end) : firstStart;
+    const second = first ? readUndelimitedMacroArgument(source, secondStart) : null;
+    if (!first || !second) {
+      output += match[0];
+      cursor = match.index + match[0].length;
+      pattern.lastIndex = cursor;
+      continue;
+    }
+
+    output += `${match[0]}{${normalizeUndelimitedFractionArguments(first.content)}}{${normalizeUndelimitedFractionArguments(second.content)}}`;
+    cursor = second.end;
+    pattern.lastIndex = cursor;
+  }
+
+  return output + source.slice(cursor);
+}
+
+function readUndelimitedMacroArgument(source, start) {
+  if (!source[start]) return null;
+  if (source[start] === "{") {
+    const group = readBalancedDelimited(source, start, "{", "}");
+    return group ? { content: group.content, end: group.end } : null;
+  }
+  if (source[start] === "\\") {
+    const command = source.slice(start).match(/^\\(?:[A-Za-z]+|[^A-Za-z])/);
+    return command ? { content: command[0], end: start + command[0].length } : null;
+  }
+  return { content: source[start], end: start + 1 };
 }
 
 function replaceBrowserUnitsCommands(value) {

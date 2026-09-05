@@ -507,6 +507,7 @@ export function estimateFormulaBox(tex, options = {}) {
     widthFactor: Number.isFinite(options.widthFactor) ? options.widthFactor : 0.16,
     widthPadding: Number.isFinite(options.widthPadding) ? options.widthPadding : 0.35 * scale,
     texTextMetrics: Boolean(options.texTextMetrics),
+    atomSequenceMetrics: Boolean(options.atomSequenceMetrics),
     mathVersion: options.mathVersion === "bold" ? "bold" : "normal"
   };
   const compact = estimateFormulaParts(normalized.tex, scale, metric);
@@ -965,6 +966,13 @@ function estimateFormulaParts(tex, scale, metric) {
   const scriptSequenceMetric = simpleScriptSequenceFormulaMetric(tex, scale, metric);
   if (scriptSequenceMetric) return scriptSequenceMetric;
 
+  if (metric.atomSequenceMetrics) {
+    const fractionSequenceMetric = simpleFractionSequenceFormulaMetric(tex, scale, metric);
+    if (fractionSequenceMetric) return fractionSequenceMetric;
+    const atomSequenceMetric = simpleMathAtomSequenceMetric(tex, scale, metric);
+    if (atomSequenceMetric) return atomSequenceMetric;
+  }
+
   const glyphMetric = simpleGlyphFormulaMetric(tex, scale, metric);
   if (glyphMetric) return glyphMetric;
 
@@ -1120,6 +1128,136 @@ function simpleScriptFormulaMetric(tex, scale, metric) {
     height: Math.max(base.height, superscript ? superscript.height + superscriptShift : 0) / TEX_PT_PER_CM,
     depth: Math.max(base.depth, subscript ? subscript.depth + subscriptShift : 0) / TEX_PT_PER_CM
   };
+}
+
+function simpleFractionSequenceFormulaMetric(tex, scale, metric) {
+  if (!metric.texTextMetrics || !/\\(?:frac|dfrac|tfrac)(?![A-Za-z])/.test(tex)) return null;
+  const source = String(tex || "");
+  const commandPattern = /\\(frac|dfrac|tfrac)(?![A-Za-z])/g;
+  const boxes = [];
+  let cursor = 0;
+  let match;
+
+  while ((match = commandPattern.exec(source))) {
+    const prefix = source.slice(cursor, match.index).trim();
+    if (prefix) {
+      const prefixBox = simpleMathAtomSequenceMetric(prefix, scale, { ...metric, widthPadding: 0 });
+      if (!prefixBox) return null;
+      boxes.push(prefixBox);
+    }
+
+    const numeratorStart = skipWhitespace(source, match.index + match[0].length);
+    const numerator = readBalanced(source, numeratorStart, "{", "}");
+    const denominatorStart = numerator ? skipWhitespace(source, numerator.end) : numeratorStart;
+    const denominator = numerator ? readBalanced(source, denominatorStart, "{", "}") : null;
+    if (!numerator || !denominator) return null;
+
+    const scriptMetric = { ...metric, widthPadding: 0 };
+    const numeratorBox = estimateFormulaParts(numerator.content, scale * 0.7, scriptMetric);
+    const denominatorBox = estimateFormulaParts(denominator.content, scale * 0.7, scriptMetric);
+    const displayFactor = match[1] === "dfrac" ? 1.2 : 1;
+    boxes.push({
+      width: Math.max(numeratorBox.width, denominatorBox.width) + (2.4 / TEX_PT_PER_CM) * scale * displayFactor,
+      height: (8.44843 / TEX_PT_PER_CM) * scale * displayFactor,
+      depth: (3.44841 / TEX_PT_PER_CM) * scale * displayFactor
+    });
+    cursor = denominator.end;
+    commandPattern.lastIndex = cursor;
+  }
+
+  const suffix = source.slice(cursor).trim();
+  if (suffix) {
+    const suffixBox = simpleMathAtomSequenceMetric(suffix, scale, { ...metric, widthPadding: 0 });
+    if (!suffixBox) return null;
+    boxes.push(suffixBox);
+  }
+  if (!boxes.length) return null;
+  return {
+    width: boxes.reduce((sum, box) => sum + box.width, 0) + metric.widthPadding,
+    height: Math.max(...boxes.map((box) => box.height)),
+    depth: Math.max(...boxes.map((box) => box.depth))
+  };
+}
+
+function simpleMathAtomSequenceMetric(tex, scale, metric) {
+  if (!metric.texTextMetrics || metric.mathVersion === "bold") return null;
+  const source = String(tex || "").trim();
+  if (!source || /\\/.test(source)) return null;
+  let widthPt = 0;
+  let heightPt = 0;
+  let depthPt = 0;
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    if (/\s/.test(source[cursor])) {
+      cursor += 1;
+      continue;
+    }
+    const char = source[cursor];
+    if (char === "{" || char === "}") {
+      cursor += 1;
+      continue;
+    }
+    const visibleChar = char === "-" ? "−" : char;
+    const spec = /[A-Za-z]/.test(char)
+      ? MATH_ITALIC_TEX_METRICS[char]
+      : MATH_FALLBACK_SYMBOL_TEX_METRICS[visibleChar] || MAIN_REGULAR_TEX_METRICS[visibleChar];
+    if (!spec) return null;
+
+    const baseWidthPt = spec[0] * 10 * scale;
+    let atomWidthPt = baseWidthPt;
+    let atomHeightPt = spec[1] * 10 * scale;
+    let atomDepthPt = spec[2] * 10 * scale;
+    cursor += 1;
+
+    let subscript = null;
+    let superscript = null;
+    while (cursor < source.length) {
+      cursor = skipWhitespace(source, cursor);
+      const marker = source[cursor];
+      if (marker !== "_" && marker !== "^") break;
+      const script = readSimpleMathScript(source, cursor + 1, scale);
+      if (!script) return null;
+      if (marker === "_") subscript = script.metric;
+      else superscript = script.metric;
+      cursor = script.end;
+    }
+
+    if (subscript || superscript) {
+      atomWidthPt += Math.max(subscript?.width || 0, superscript?.width || 0) + 0.5 * scale;
+      const superscriptShift = 3.62892 * scale;
+      const subscriptShift = superscript ? 2.47217 * scale : 1.5 * scale;
+      atomHeightPt = Math.max(atomHeightPt, superscript ? superscript.height + superscriptShift : 0);
+      atomDepthPt = Math.max(atomDepthPt, subscript ? subscript.depth + subscriptShift : 0);
+    }
+
+    widthPt += atomWidthPt;
+    heightPt = Math.max(heightPt, atomHeightPt);
+    depthPt = Math.max(depthPt, atomDepthPt);
+    if ("=<>".includes(char)) widthPt += (10 / 18) * 10 * scale;
+    else if ("+-*".includes(char)) widthPt += (8 / 18) * 10 * scale;
+    else if (char === ",") widthPt += (3 / 18) * 10 * scale;
+  }
+
+  return {
+    width: widthPt / TEX_PT_PER_CM + metric.widthPadding,
+    height: heightPt / TEX_PT_PER_CM,
+    depth: depthPt / TEX_PT_PER_CM
+  };
+}
+
+function readSimpleMathScript(source, start, scale) {
+  const cursor = skipWhitespace(source, start);
+  if (source[cursor] === "{") {
+    const group = readBalanced(source, cursor, "{", "}");
+    if (!group) return null;
+    const metric = scriptStyleTokenMetric(group.content, scale);
+    return metric ? { metric, end: group.end } : null;
+  }
+  const char = source[cursor];
+  if (!/[A-Za-z0-9]/.test(char || "")) return null;
+  const metric = scriptStyleTokenMetric(char, scale);
+  return metric ? { metric, end: cursor + 1 } : null;
 }
 
 function parseSimpleScriptFormula(tex) {
