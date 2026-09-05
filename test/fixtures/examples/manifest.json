@@ -6003,6 +6003,15 @@
       "features": ["arrows.meta", "bending", "flex", "flex'", "bend", "physics trajectories"]
     },
     {
+      "id": "arrows-meta-arc-barb-parenthesis-state-estimator",
+      "title": "Arc Barb flow, Parenthesis interval, and one-sided physical vectors",
+      "source": "arrows/meta-arc-barb-parenthesis-state-estimator.tex",
+      "sourceCorpus": "TeX Live PGF arrows.meta manual and TikZKit state-estimator regression",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+      "semanticOwner": "src/tikz/metrics.js:arcBarbArrowGeometryFromLineWidth + src/renderers/svg/paths.js:resolveInlineArrowTip",
+      "features": ["arrows.meta", "Arc Barb", "Parenthesis", "arc", "harpoon", "left", "right", "reversed", "round", "slant"]
+    },
+    {
       "id": "arrows-legacy-delimiters-flowchart",
       "title": "Legacy angle and bracket tips in a validation flow",
       "source": "arrows/legacy-delimiters-flowchart.tex",

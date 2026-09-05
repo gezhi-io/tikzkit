@@ -1,4 +1,5 @@
 import {
+  arcBarbArrowGeometryFromLineWidth,
   createArrowTip,
   legacyLatexArrowGeometryFromLineWidth,
   latexArrowGeometryFromLineWidth,
@@ -755,16 +756,42 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
     };
   }
   if (tip.kind === "arc-barb") {
-    const length = flags.customLength ? tip.length : lineWidthFromPt(1.65 + 2.3 * lineWidthPt);
-    const halfWidth = flags.customWidth ? tip.width / 2 : lineWidthFromPt(1.45 + 2.0 * lineWidthPt);
+    const innerLineWidth = style.doubleColor !== undefined
+      ? Number.isFinite(Number(style.doubleDistance))
+        ? Math.max(0, Number(style.doubleDistance))
+        : lineWidthFromPt(0.6)
+      : 0;
+    const fullLineWidth = style.doubleColor !== undefined ? 2 * lineWidth + innerLineWidth : lineWidth;
+    const constantSpec = (value) => ({ dimension: value, lineWidthFactor: 0, outerFactor: 0 });
+    const native = arcBarbArrowGeometryFromLineWidth(fullLineWidth, {
+      scale: tip.scale,
+      lengthScale: tip.lengthScale,
+      widthScale: tip.widthScale,
+      lengthSpec: tip.lengthSpec || (flags.customLength ? constantSpec(tip.length) : undefined),
+      widthSpec: tip.widthSpec || (flags.customWidth ? constantSpec(tip.width) : undefined),
+      widthPrimeSpec: tip.widthPrimeSpec,
+      lineWidthSpec: tip.lineWidthSpec || (flags.customLineWidth ? constantSpec(tip.lineWidth) : undefined),
+      lineWidthPrimeSpec: tip.lineWidthPrimeSpec,
+      innerLineWidth,
+      arc: tip.arc,
+      harpoon: tip.harpoon,
+      reversed: tip.reversed,
+      swap: tip.swap,
+      roundCap: tip.roundCap,
+      roundJoin: tip.roundJoin,
+      slant: tip.slant
+    });
+    const first = native.segments[0]?.start;
+    const path = first
+      ? [
+          `M ${format(first.x)} ${format(-first.y)}`,
+          ...native.segments.map((segment) => `C ${format(segment.control1.x)} ${format(-segment.control1.y)} ${format(segment.control2.x)} ${format(-segment.control2.y)} ${format(segment.end.x)} ${format(-segment.end.y)}`),
+          ...(native.axialPoint ? [`L ${format(native.axialPoint.x)} ${format(-native.axialPoint.y)}`] : [])
+        ].join(" ")
+      : "";
     return {
-      path: [
-        `M 0 0`,
-        `C ${format(-length * 0.34)} ${format(-halfWidth * 0.14)} ${format(-length * 0.72)} ${format(-halfWidth * 0.62)} ${format(-length)} ${format(-halfWidth)}`,
-        `M 0 0`,
-        `C ${format(-length * 0.34)} ${format(halfWidth * 0.14)} ${format(-length * 0.72)} ${format(halfWidth * 0.62)} ${format(-length)} ${format(halfWidth)}`
-      ].join(" "),
-      shorten: 0
+      ...native,
+      path
     };
   }
   if (tip.kind === "tee-barb") {

@@ -837,7 +837,11 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
   const text = String(input || "").trim();
   const match = text.match(/^([A-Za-z0-9>'()\s-]+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
-  const options = { ...inheritedOptions, ...(match[2] ? parseOptions(match[2]) : {}) };
+  const sourceName = match[1].trim();
+  const aliasDefaults = sourceName === "Parenthesis"
+    ? { arc: "+120", length: "+1.725pt +2.3" }
+    : {};
+  const options = { ...aliasDefaults, ...inheritedOptions, ...(match[2] ? parseOptions(match[2]) : {}) };
   const overrides = {};
   if (options.width) {
     overrides.width = lineWidthFromTikzDimension(options.width);
@@ -880,6 +884,7 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
   if (options["line join"] === "round") overrides.roundJoin = true;
   if (options["line join"] === "miter") overrides.roundJoin = false;
   if (Number.isFinite(Number(options.slant))) overrides.slant = Number(options.slant);
+  if (Number.isFinite(Number(options.arc))) overrides.arc = Number(options.arc);
   if (options.open === true) {
     overrides.open = true;
     overrides.fill = "none";
@@ -896,7 +901,7 @@ function parseArrowTipAtom(input, inheritedOptions = {}) {
     if (declaredArrow.paint === "fill" || declaredArrow.paint === "fillstroke") overrides.fill = "context-stroke";
     if (declaredArrow.paint === "stroke" || declaredArrow.paint === "fillstroke") overrides.stroke = "context-stroke";
   }
-  const tip = createArrowTip(match[1], overrides);
+  const tip = createArrowTip(sourceName, overrides);
   const scale = arrowTipScaleFactor(options.scale);
   const lengthScale = arrowTipScaleFactor(options["scale length"]);
   const widthScale = arrowTipScaleFactor(options["scale width"]);

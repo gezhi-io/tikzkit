@@ -215,7 +215,7 @@ export function createArrowTip(kind = "to", overrides = {}) {
       ? Object.hasOwn(overrides, "meta")
         ? overrides.meta === true
         : sourceKind === "Square" || sourceKind === "Rectangle"
-      : normalizedKind === "straight-barb"
+      : ["straight-barb", "arc-barb"].includes(normalizedKind)
         ? Object.hasOwn(overrides, "meta")
           ? overrides.meta === true
           : true
@@ -227,7 +227,7 @@ export function createArrowTip(kind = "to", overrides = {}) {
     // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
     // the source spelling so their geometry can stay distinct downstream.
     ...(normalizedKind === "latex" ? { legacy } : {}),
-    ...(["latex", "stealth", "square", "straight-barb"].includes(normalizedKind) ? { meta } : {})
+    ...(["latex", "stealth", "square", "straight-barb", "arc-barb"].includes(normalizedKind) ? { meta } : {})
   };
 }
 
@@ -698,6 +698,189 @@ export function straightBarbArrowGeometryFromLineWidth(lineWidth, arrowOptions =
     placement: tipEnd,
     assemblyLength: tipEnd - backEnd,
     points,
+    bounds,
+    strokeBoundsIncluded: true,
+    lineCap: roundCap ? "round" : "butt",
+    lineJoin: roundJoin ? "round" : "miter",
+    harpoon,
+    reversed,
+    swap,
+    slant
+  };
+}
+
+export function arcBarbArrowGeometryFromLineWidth(lineWidth, arrowOptions = {}) {
+  const unitsPerPt = lineWidthFromPt(1);
+  const pathLineWidth = Math.max(0.01, Number(lineWidth) || TIKZ_LINE_WIDTHS.default);
+  const pathLineWidthPt = pathLineWidth / unitsPerPt;
+  const innerLineWidthPt = Math.max(0, Number(arrowOptions.innerLineWidth) || 0) / unitsPerPt;
+  const scaleFactor = (value) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
+  const lengthScale = scaleFactor(arrowOptions.scale) * scaleFactor(arrowOptions.lengthScale);
+  const widthScale = scaleFactor(arrowOptions.scale) * scaleFactor(arrowOptions.widthScale);
+  const lineWidthDependent = (spec, fallback) => {
+    const resolved = spec || fallback;
+    const dimensionPt = (Number(resolved.dimension) || 0) / unitsPerPt;
+    const factor = Number(resolved.lineWidthFactor) || 0;
+    const outerFactor = Number(resolved.outerFactor) || 0;
+    const effectiveLineWidthPt = innerLineWidthPt > 0
+      ? pathLineWidthPt * (1 - outerFactor / 2) - innerLineWidthPt * outerFactor / 2
+      : pathLineWidthPt;
+    return dimensionPt + factor * effectiveLineWidthPt;
+  };
+  const lengthDependent = (spec, fallback, lengthPt) => {
+    const resolved = spec || fallback;
+    return (Number(resolved.dimension) || 0) / unitsPerPt
+      + (Number(resolved.lineWidthFactor) || 0) * lengthPt
+      + (Number(resolved.outerFactor) || 0) * pathLineWidthPt;
+  };
+
+  // pgflibraryarrows.meta.code.tex: Arc Barb uses the same dependent defaults
+  // as Straight Barb, then subtracts half a tip stroke from each drawing
+  // radius after its logical ends and convex hull have been recorded.
+  const baseLengthPt = lineWidthDependent(arrowOptions.lengthSpec, {
+    dimension: lineWidthFromPt(1.5),
+    lineWidthFactor: 2,
+    outerFactor: 0
+  });
+  const baseWidthPt = arrowOptions.widthPrimeSpec
+    ? lengthDependent(arrowOptions.widthPrimeSpec, null, baseLengthPt)
+    : arrowOptions.widthSpec
+      ? lineWidthDependent(arrowOptions.widthSpec, null)
+      : 2 * baseLengthPt;
+  const arrowLineWidthPt = arrowOptions.lineWidthPrimeSpec
+    ? lengthDependent(arrowOptions.lineWidthPrimeSpec, null, baseLengthPt)
+    : lineWidthDependent(arrowOptions.lineWidthSpec, {
+        dimension: 0,
+        lineWidthFactor: 1,
+        outerFactor: 1
+      });
+  const lengthPt = Math.max(0.01, baseLengthPt * lengthScale);
+  const widthPt = Math.max(0.01, baseWidthPt * widthScale);
+  const tipLineWidthPt = Math.max(0.01, arrowLineWidthPt);
+  const arc = Number.isFinite(Number(arrowOptions.arc)) ? Number(arrowOptions.arc) : 180;
+  const halfArc = arc / 2;
+  const halfArcRadians = halfArc * Math.PI / 180;
+  const cosine = Math.cos(halfArcRadians);
+  const sine = Math.sin(halfArcRadians);
+  const harpoon = arrowOptions.harpoon === true;
+  const reversed = arrowOptions.reversed === true;
+  const swap = arrowOptions.swap === true;
+  const roundCap = arrowOptions.roundCap === true;
+  const roundJoin = arrowOptions.roundJoin === true;
+  const slant = Number.isFinite(Number(arrowOptions.slant)) ? Number(arrowOptions.slant) : 0;
+
+  const forwardTipEndPt = lengthPt;
+  const forwardVisualTipEndPt = lengthPt;
+  const forwardVisualBackEndPt = lengthPt;
+  const forwardLineEndPt = lengthPt - tipLineWidthPt / 2;
+  const forwardBackEndPt = roundCap
+    ? cosine * (lengthPt - tipLineWidthPt / 2) - tipLineWidthPt / 2
+    : cosine * (lengthPt - (halfArc < 90 ? tipLineWidthPt : 0));
+  const tipEndPt = reversed ? -forwardBackEndPt : forwardTipEndPt;
+  const backEndPt = reversed ? -forwardTipEndPt : forwardBackEndPt;
+  const visualTipEndPt = reversed ? -forwardVisualBackEndPt : forwardVisualTipEndPt;
+  const visualBackEndPt = reversed ? -forwardVisualTipEndPt : forwardVisualBackEndPt;
+  const lineEndPt = reversed ? -forwardLineEndPt : forwardLineEndPt;
+
+  const transformPointPt = ({ x, y }) => {
+    let transformedX = reversed ? -x : x;
+    let transformedY = swap ? -y : y;
+    transformedX += slant * transformedY;
+    return { x: lineWidthFromPt(transformedX), y: lineWidthFromPt(transformedY) };
+  };
+  const hull = [];
+  const addHullPoint = (x, y) => hull.push({ x, y });
+  const addUpperHullPoint = (x, y) => {
+    addHullPoint(x, y);
+    if (y > 0 && !harpoon) addHullPoint(x, -y);
+  };
+  addUpperHullPoint(lengthPt, widthPt / 4);
+  if (harpoon) addHullPoint(lengthPt, -pathLineWidthPt / 2);
+  addUpperHullPoint(cosine * lengthPt, sine * widthPt / 2);
+  if (halfArc > 60) {
+    addUpperHullPoint(lengthPt / 2, halfArc < 90 ? sine * widthPt / 2 : widthPt / 2);
+  }
+  if (halfArc > 90) {
+    if (halfArc < 120) {
+      addUpperHullPoint(cosine * lengthPt, widthPt / 2);
+    } else {
+      addUpperHullPoint(-lengthPt / 2, widthPt / 2);
+      if (halfArc > 150) addUpperHullPoint(-lengthPt, widthPt / 4);
+    }
+  }
+  if (halfArc < 90 || harpoon) {
+    addUpperHullPoint(
+      cosine * (lengthPt - tipLineWidthPt),
+      sine * (widthPt / 2 - tipLineWidthPt)
+    );
+  }
+  const transformedHull = hull.map(transformPointPt);
+  const bounds = transformedHull.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    minY: Math.min(result.minY, -point.y),
+    maxX: Math.max(result.maxX, point.x),
+    maxY: Math.max(result.maxY, -point.y)
+  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+
+  const drawRadiusXPt = Math.max(0.005, lengthPt - tipLineWidthPt / 2);
+  const drawRadiusYPt = Math.max(0.005, (widthPt - tipLineWidthPt) / 2);
+  const startAngle = halfArcRadians;
+  const endAngle = harpoon ? 0 : -halfArcRadians;
+  const ellipsePoint = (angle) => ({ x: drawRadiusXPt * Math.cos(angle), y: drawRadiusYPt * Math.sin(angle) });
+  const ellipseDerivative = (angle) => ({ x: -drawRadiusXPt * Math.sin(angle), y: drawRadiusYPt * Math.cos(angle) });
+  const segments = [];
+  let angle0 = startAngle;
+  while (Math.abs(endAngle - angle0) > 1e-12 || segments.length === 0) {
+    const remaining = endAngle - angle0;
+    const absoluteDegrees = Math.abs(remaining) * 180 / Math.PI;
+    const stepDegrees = absoluteDegrees > 90
+      ? absoluteDegrees > 115 ? 90 : 60
+      : absoluteDegrees;
+    const angleStep = Math.sign(remaining || -1) * stepDegrees * Math.PI / 180;
+    const angle1 = angle0 + angleStep;
+    const point0 = ellipsePoint(angle0);
+    const point1 = ellipsePoint(angle1);
+    const derivative0 = ellipseDerivative(angle0);
+    const derivative1 = ellipseDerivative(angle1);
+    const factorMagnitude = Math.abs(stepDegrees - 90) < 1e-9
+      ? 0.55228475
+      : 1.333333333 * Math.tan(stepDegrees * Math.PI / 720);
+    const factor = Math.sign(angleStep || -1) * factorMagnitude;
+    segments.push({
+      start: transformPointPt(point0),
+      control1: transformPointPt({ x: point0.x + factor * derivative0.x, y: point0.y + factor * derivative0.y }),
+      control2: transformPointPt({ x: point1.x - factor * derivative1.x, y: point1.y - factor * derivative1.y }),
+      end: transformPointPt(point1)
+    });
+    angle0 = angle1;
+  }
+  const axialPoint = harpoon
+    ? transformPointPt({
+        x: drawRadiusXPt + (reversed ? tipLineWidthPt / 2 : -tipLineWidthPt / 2),
+        y: 0
+      })
+    : null;
+
+  const tipEnd = lineWidthFromPt(tipEndPt);
+  const backEnd = lineWidthFromPt(backEndPt);
+  const lineEnd = lineWidthFromPt(lineEndPt);
+  return {
+    length: lineWidthFromPt(lengthPt),
+    width: lineWidthFromPt(widthPt),
+    lineWidth: lineWidthFromPt(tipLineWidthPt),
+    arc,
+    halfArc,
+    tipEnd,
+    backEnd,
+    visualTipEnd: lineWidthFromPt(visualTipEndPt),
+    visualBackEnd: lineWidthFromPt(visualBackEndPt),
+    visualSpan: lineWidthFromPt(visualTipEndPt - visualBackEndPt),
+    lineEnd,
+    terminalPlacement: tipEnd - lineEnd,
+    placement: tipEnd,
+    assemblyLength: tipEnd - backEnd,
+    segments,
+    axialPoint,
     bounds,
     strokeBoundsIncluded: true,
     lineCap: roundCap ? "round" : "butt",

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/fontmath.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "border=4pt", "\\begin", "\\end"],
+      "findings": "The standalone document shell contributes a 4pt crop border; document and tikzpicture begin/end pairs delimit the single visual driver."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/fontmath.ltx": {
+      "symbols": ["\\vec", "\\perp", "\\DeclareMathAccent", "\\DeclareMathSymbol"],
+      "findings": "fontmath.ltx declares vec as a letters-family math accent and perp as a symbols-family relation, covering the two math-only commands used by the vector labels."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary{arrows.meta}"],
+      "findings": "TikZ loads PGF path, node, color, coordinate, and arrow infrastructure before the arrows.meta library is registered."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": [
+        "\\path", "\\node", "\\draw", "\\coordinate", "\\fill",
+        "state/.style", "flow/.style", "vector/.style", "draw", "fill",
+        "rounded corners", "minimum width", "minimum height", "line width",
+        "anchor", "above", "below", "below left", "right", "to", "out", "in",
+        "rectangle", "circle", "++", "east", "west", "south east", "south west"
+      ],
+      "findings": "TikZ resolves the three picture-local styles, named node anchors, relative vector endpoints, path actions, and inline label nodes. The 28/152 and -24/-156 out/in pairs create the two flowchart curves; all remaining paths are straight segments, a rectangle, or a circle. The complete non-arrow numeric inventory is: 4pt crop; 2pt, 24mm, and 9mm state dimensions; .8pt and 1pt style strokes; 7, 70, and 85 color mixes; coordinates and offsets -5, -3.1, -2.8, -2.55, -2.2, -2.15, -1.75, -1.7, -1, -.85, .32, .45, .58, 1.15, 1.4pt, 2, 2.15, 2.2, 2.35, 2.55, 2.8, 3.25, 3.35, 3.4, and 5; plus .75pt, 4pt, 55, and 75 in local draw/color options."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": {
+      "symbols": [
+        "Arc Barb", "Parenthesis", "arc", "length", "width", "line width",
+        "round", "harpoon", "left", "right", "reversed", "slant",
+        "arc=120", "arc=135", "arc=210",
+        "length=4.5pt", "length=5pt", "length=6pt", "length=7pt",
+        "width=7pt", "width=8pt", "width=9pt", "width=10pt",
+        "line width=.9pt", "slant=.3"
+      ],
+      "findings": "Arc Barb defaults are length=+1.5pt 2, width'=+0pt 2, and line width=+0pt 1 1. Setup halves arc before evaluating sin/cos, sets tip/visual-back/line/back extents, subtracts half the arrow stroke from length and one arrow stroke from width, then strokes an elliptically scaled arc. Harpoon retains one half and joins it to the shaft; reversed reflects the tip, left/right select the retained side, round changes cap and join, and slant shears the tip. The fixture combines the manual's documented parameter families at 120, 135, and 210 degrees. Parenthesis is exactly Arc Barb[arc=+120,length=+1.725pt +2.3], with round and reversed passed through to that base tip."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {
+      "symbols": [
+        "pgfarrowslengthdependent", "pgfarrowslinewidthdependent",
+        "pgfarrowreversed", "pgfarrowharpoon", "pgfarrowswap",
+        "start tip", "end tip", "shaft shortening"
+      ],
+      "findings": "Fixed dimensions and dependency factors are resolved against the active path and inner/outer line widths before arrow setup. Start-tip assembly applies endpoint reversal, while explicit reversed exchanges the x extents; harpoon and side selection control y reflection. The resulting line end shortens each straight or curved shaft along its terminal tangent."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.code.tex": {
+      "symbols": ["\\pgfpatharc", "cubic Bezier", "arc angle", "x radius", "y radius"],
+      "findings": "Arc paths are approximated by cubic Bezier segments in the local coordinate system. Arc Barb first scales its unit-radius path independently by its adjusted length and half-width."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex": {
+      "symbols": [
+        "Arc Barb", "Parenthesis", "arc=120", "arc=270", "length=2pt",
+        "width=5pt", "line width=2pt", "reversed", "round", "slant=.3",
+        "left", "right", "harpoon,reversed", "red"
+      ],
+      "findings": "The Barbed Arrow Tips examples define the comparison set used by this driver: changed arc, independent length/width/stroke, reversal, round caps, slant, sided harpoons, and color. The manual states that open and fill have no effect and warns that Arc Barb is not correct on double lines; neither unsupported combination is used here. It also describes Parenthesis as a harmonized Arc Barb bow rather than a text glyph."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex": {
+      "symbols": ["to", "out", "in", "node", "sloped path tangent"],
+      "findings": "A to operation installs a curved path from its out and in directions; terminal arrow geometry follows the final tangent, while the intervening node is placed on the completed curve."
+    }
+  },
+  "rules": [
+    {
+      "match": "dependency:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.tex",
+        "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+      ],
+      "notes": "Covers the tikz package and arrows.meta library dependency."
+    },
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.tex",
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.review.json"
+      ],
+      "notes": "Covers every command occurrence: documentclass, usepackage, usetikzlibrary, begin, end, path, node, draw, coordinate, fill, and the vec and perp math commands."
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.tex",
+        "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex"
+      ],
+      "notes": "Covers the document and tikzpicture environments."
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.tex",
+        "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex",
+        "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-paths.tex"
+      ],
+      "notes": "Covers all 28 audited option entries and inline path-node options: documentclass border; state/flow/vector styles; draw/fill and blue!7/blue!70!black/orange!85!black/gray!4/gray!55/red!75!black colors; rounded corners; minimum width/height; line width; state/flow/vector style application; east/west/south-east/south-west anchors; anchor=east/west, above, below, below left, and right labels; to with out/in routing; five full arrow specifications; Arc Barb arc/length/width/line width/round/harpoon/left/right/reversed/slant; and Parenthesis round/reversed."
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.tex",
+        "test/fixtures/examples/arrows/meta-arc-barb-parenthesis-state-estimator.review.json"
+      ],
+      "notes": "Covers all 63 numeric items. Distinct literals are: -.85, -1, -1.7, -1.75, -156, -2.15, -2.2, -2.55, -2.8, -24, -3.1, -5, .3, .32, .45, .58, .75pt, .8pt, .9pt, 1.15, 1.4pt, 10pt, 120, 135, 152, 1pt, 2, 2.15, 2.2, 2.35, 2.55, 2.8, 210, 24mm, 28, 2pt, 3.25, 3.35, 3.4, 4, 4.5pt, 4pt, 5, 55, 5pt, 6pt, 7, 70, 75, 7pt, 85, 8pt, 9mm, and 9pt."
+    }
+  ],
+  "notes": "One coherent state-estimator picture supplies a curved flowchart driver, a Parenthesis mathematical interval, and customized Arc Barb physics vectors. Syntax and geometry were reviewed against the local TeX Live 2025 source and manual; no manifest, implementation, or test file is changed by this fixture-only slice."
+}
