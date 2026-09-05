@@ -52,7 +52,8 @@ import {
 export function renderSvg(ir, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
   const sourceMargin = Number(ir.previewBorder);
-  const margin = options.margin ?? (Number.isFinite(sourceMargin) ? sourceMargin * unit : TIKZ_MARGIN);
+  const sourceMargins = sourceSvgMargins(ir.previewMargins, unit);
+  const margin = options.margin ?? sourceMargins ?? (Number.isFinite(sourceMargin) ? sourceMargin * unit : TIKZ_MARGIN);
   const items = scaleItemsForRenderUnit(ir.items || [], unit);
   const naturalBounds = computeSvgBounds(items, options);
   const graphicxResize = normalizeGraphicxResize(ir.graphicxResize, naturalBounds);
@@ -78,6 +79,17 @@ export function renderSvg(ir, options = {}) {
   }
   defs.unshift(defaultFontStyleDef);
   return renderSvgDocument(viewBox, body, defs, svgDocumentSize(view, unit));
+}
+
+function sourceSvgMargins(value, unit) {
+  if (!value || typeof value !== "object") return null;
+  const margins = {
+    left: Number(value.left) * unit,
+    bottom: Number(value.bottom) * unit,
+    right: Number(value.right) * unit,
+    top: Number(value.top) * unit
+  };
+  return Object.values(margins).every(Number.isFinite) ? margins : null;
 }
 
 function normalizeGraphicxResize(value, bounds) {

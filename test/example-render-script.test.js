@@ -291,6 +291,22 @@ test("tikztosvg normalization preserves standalone and preview crop borders", ()
   );
 });
 
+test("tikztosvg normalization preserves two-value and four-value standalone crop borders", () => {
+  const twoValue = normalizeTikztosvgInput(String.raw`\documentclass[border={2mm 5mm}]{standalone}
+\begin{document}
+\begin{tikzpicture}\draw (0,0) -- (1,0);\end{tikzpicture}
+\end{document}`);
+  const fourValue = normalizeTikztosvgInput(String.raw`\documentclass[border={2pt 5pt 11pt 14pt}]{standalone}
+\begin{document}
+\begin{tikzpicture}\draw (0,0) -- (1,0);\end{tikzpicture}
+\end{document}`);
+
+  assert.match(twoValue, /xshift=-2mm,yshift=-5mm/);
+  assert.match(twoValue, /xshift=2mm,yshift=5mm/);
+  assert.match(fourValue, /xshift=-2pt,yshift=-5pt/);
+  assert.match(fourValue, /xshift=11pt,yshift=14pt/);
+});
+
 test("tikztosvg crop normalization skips tikzpictures held inside command definitions", () => {
   const normalized = normalizeTikztosvgInput(String.raw`\documentclass[border=2pt]{standalone}
 \begin{document}

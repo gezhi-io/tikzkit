@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls": { "symbols": ["border", "sa@readborder", "sa@border@left", "sa@border@bottom", "sa@border@right", "sa@border@top"], "findings": "Four border dimensions are assigned in left, bottom, right, top order." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def": { "symbols": ["PreviewBbAdjust", "pdfpagewidth", "pdfpageheight"], "findings": "Independent side adjustments alter the final page origin and dimensions outside the picture transform." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["rotate", "parabola", "node"], "findings": "The rotated mathematical drawing contributes transformed paint bounds before the page border is applied." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "Axis tips contribute paint bounds independently of the asymmetric document crop." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] }
+  ]
+}

@@ -10,8 +10,9 @@ in the disposable tikztosvg reference source, where the synthetic crop path
 was incorrectly evaluated inside the picture transform.
 
 The boundary is deliberately narrow. This does not claim full `preview`
-package semantics, arbitrary asymmetric standalone borders in the browser,
-general TeX page construction, or pixel-identical browser text rasterization.
+package semantics, general TeX page construction, or pixel-identical browser
+text rasterization. Asymmetric standalone borders were implemented in the
+follow-up slice documented in `2026-09-05-asymmetric-document-borders.md`.
 
 The original real-world driver is
 `test/fixtures/examples/latex-examples/control-flow-graph.tex`, whose
@@ -99,8 +100,8 @@ Not implemented or not claimed here:
 
 - full preview selection hooks such as arbitrary `\PreviewEnvironment`,
   delayed material, floats, and page-level font/section handling
-- general asymmetric browser-side standalone borders and complete TeX page
-  origin semantics
+- complete TeX page construction beyond the implemented standalone and
+  PreviewBorder crop contract
 - pixel-identical conversion between MacTeX glyph outlines and editable SVG
   text under every affine transform
 

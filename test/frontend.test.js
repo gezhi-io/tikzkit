@@ -38,6 +38,37 @@ test("collects standalone document border as the preview margin", () => {
   const preprocessed = preprocessTikzSource(source);
 
   assert.ok(Math.abs(preprocessed.previewBorder - 2 * 2.54 / 72.27) < 1e-9);
+  assert.deepEqual(preprocessed.previewMargins, {
+    left: preprocessed.previewBorder,
+    bottom: preprocessed.previewBorder,
+    right: preprocessed.previewBorder,
+    top: preprocessed.previewBorder
+  });
+});
+
+test("collects two-value standalone borders as horizontal and vertical margins", () => {
+  const preprocessed = preprocessTikzSource(String.raw`\documentclass[border={2mm 5mm}]{standalone}
+\begin{document}\tikz \draw (0,0) -- (1,0);\end{document}`);
+
+  assert.equal(preprocessed.previewBorder, null);
+  assert.deepEqual(preprocessed.previewMargins, {
+    left: 0.2,
+    bottom: 0.5,
+    right: 0.2,
+    top: 0.5
+  });
+});
+
+test("collects four-value standalone borders in left bottom right top order", () => {
+  const point = 2.54 / 72.27;
+  const preprocessed = preprocessTikzSource(String.raw`\documentclass[border={2pt 5pt 11pt 14pt}]{standalone}
+\begin{document}\tikz \draw (0,0) -- (1,0);\end{document}`);
+
+  assert.equal(preprocessed.previewBorder, null);
+  assert.ok(Math.abs(preprocessed.previewMargins.left - 2 * point) < 1e-9);
+  assert.ok(Math.abs(preprocessed.previewMargins.bottom - 5 * point) < 1e-9);
+  assert.ok(Math.abs(preprocessed.previewMargins.right - 11 * point) < 1e-9);
+  assert.ok(Math.abs(preprocessed.previewMargins.top - 14 * point) < 1e-9);
 });
 
 test("explicit PreviewBorder overrides the standalone document border", () => {
@@ -49,7 +80,9 @@ test("explicit PreviewBorder overrides the standalone document border", () => {
 \tikz \draw (0,0) -- (1,0);
 \end{document}`;
 
-  assert.equal(preprocessTikzSource(source).previewBorder, 0.2);
+  const preprocessed = preprocessTikzSource(source);
+  assert.equal(preprocessed.previewBorder, 0.2);
+  assert.deepEqual(preprocessed.previewMargins, { left: 0.2, bottom: 0.2, right: 0.2, top: 0.2 });
 });
 
 test("keeps the first beamer frame with its preamble styles and removes layout wrappers", () => {

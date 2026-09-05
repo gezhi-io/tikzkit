@@ -3,6 +3,7 @@ import { access, chmod, copyFile, mkdir, readdir, readFile, rename, rm, unlink, 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
+import { parseOptions } from "../src/engine/options.js";
 import { tikzToSvgAsync } from "../src/index.js";
 import { lowerRawGnuplotAddplotsToCoordinates } from "../src/pgfplots/gnuplot.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
@@ -899,13 +900,12 @@ function wrapStandalonePgfplotstableTypeset(body) {
 // page-space dimension, so reset the picture CTM before applying it; otherwise
 // a picture-level scale or rotation also transforms the document margin.
 function applyTikztosvgDocumentCropBorder(body, border) {
-  const dimension = String(border || "").trim();
-  if (!dimension || !/\\begin\{tikzpicture\}/.test(body)) return body;
+  if (!border || !/\\begin\{tikzpicture\}/.test(body)) return body;
   const boundingBoxPath = [
     "\\begin{scope}[reset cm]",
     "\\path[use as bounding box]",
-    `  ([xshift=-${dimension},yshift=-${dimension}]current bounding box.south west)`,
-    `  rectangle ([xshift=${dimension},yshift=${dimension}]current bounding box.north east);`,
+    `  ([xshift=-${border.left},yshift=-${border.bottom}]current bounding box.south west)`,
+    `  rectangle ([xshift=${border.right},yshift=${border.top}]current bounding box.north east);`,
     "\\end{scope}"
   ].join("\n");
 
@@ -958,11 +958,30 @@ function tikztosvgDocumentCropBorder(source) {
   const preview = text.match(
     /\\setlength\s*(?:\{\s*\\PreviewBorder\s*\}|\\PreviewBorder)\s*\{([^{}]+)\}/
   );
-  if (preview?.[1]?.trim()) return preview[1].trim();
+  if (preview?.[1]?.trim()) return tikztosvgUniformBorder(preview[1].trim());
 
   const documentClass = text.match(/\\documentclass\s*(?:\[([^\]]*)\])?\s*\{\s*standalone\s*\}/i);
-  const standaloneBorder = documentClass?.[1]?.match(/(?:^|,)\s*border\s*=\s*([^,\]]+)/i);
-  return standaloneBorder?.[1]?.trim() || null;
+  if (!documentClass?.[1]) return null;
+  return tikztosvgStandaloneBorder(parseOptions(documentClass[1]).border);
+}
+
+function tikztosvgStandaloneBorder(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false) return null;
+  const dimensions = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim().split(/\s+/).filter(Boolean);
+  if (dimensions.length === 1) return tikztosvgUniformBorder(dimensions[0]);
+  if (dimensions.length === 2) {
+    const [horizontal, vertical] = dimensions;
+    return { left: horizontal, bottom: vertical, right: horizontal, top: vertical };
+  }
+  if (dimensions.length === 4) {
+    const [left, bottom, right, top] = dimensions;
+    return { left, bottom, right, top };
+  }
+  return null;
+}
+
+function tikztosvgUniformBorder(dimension) {
+  return { left: dimension, bottom: dimension, right: dimension, top: dimension };
 }
 
 function normalizeLegacyTkzEuclideSource(source) {

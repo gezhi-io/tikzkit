@@ -32,6 +32,7 @@ export function parseTikz(source, options = {}) {
   const pgfplotsLibraries = preprocessed.pgfplotsLibraries || [];
   const pgfplotsOptions = preprocessed.pgfplotsOptions || {};
   const previewBorder = preprocessed.previewBorder;
+  const previewMargins = preprocessed.previewMargins;
   const randomLists = collectPgfMathRandomLists(preprocessed.source);
   const shadingDefinitions = collectShadingDefinitions(preprocessed.source);
   const coordinateSystems = collectCoordinateSystemDefinitions(preprocessed.source);
@@ -113,6 +114,7 @@ export function parseTikz(source, options = {}) {
       pgfplotsLibraries,
       pgfplotsOptions,
       previewBorder,
+      previewMargins,
       shadings: shadingDefinitions,
       body: picture.body,
       statements
@@ -130,6 +132,7 @@ export function parseTikz(source, options = {}) {
       pgfplotsLibraries,
       pgfplotsOptions,
       previewBorder,
+      previewMargins,
       shadings: shadingDefinitions,
       coordinateSystems,
       tabularLayouts: activeTabularLayouts,

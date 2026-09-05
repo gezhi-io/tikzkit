@@ -247,7 +247,11 @@ const BUILTIN_STYLES = {
 
 export function interpretTikz(ast, options = {}) {
   const diagnostics = [];
-  const ir = createSceneGraph({ backgroundItems: [], previewBorder: ast.previewBorder });
+  const ir = createSceneGraph({
+    backgroundItems: [],
+    previewBorder: ast.previewBorder,
+    previewMargins: ast.previewMargins
+  });
   const pictures = ast.pictures || [];
   const inlinePictureLayout = pictures.length > 1 && options.multiPictureLayout !== false;
   // PGF registers named nodes and coordinates at document scope. Keep that

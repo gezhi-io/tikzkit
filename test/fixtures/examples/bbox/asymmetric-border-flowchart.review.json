@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.geometric.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls": { "symbols": ["border", "sa@readborder", "sa@border@left", "sa@border@top"], "findings": "Two border dimensions map to equal left/right and equal bottom/top physical margins." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def": { "symbols": ["PreviewBbAdjust"], "findings": "The four page adjustments are applied after the preview content box is measured." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["scale", "node", "draw"], "findings": "Picture scale affects diagram coordinates while the document border remains in page space." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Stealth"], "findings": "The flow connectors use the public Stealth terminal geometry before crop margins are added." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibraryshapes.geometric.code.tex": { "symbols": ["diamond", "aspect"], "findings": "The decision node loads the public diamond shape and its aspect-ratio key." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] }
+  ]
+}

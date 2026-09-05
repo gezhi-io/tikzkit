@@ -3,12 +3,31 @@ import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 
 export function createSvgView(bounds, unit, margin) {
+  const margins = normalizeSvgMargins(margin);
   return {
-    x: bounds.minX * unit - margin,
-    y: -bounds.maxY * unit - margin,
-    width: (bounds.maxX - bounds.minX) * unit + margin * 2,
-    height: (bounds.maxY - bounds.minY) * unit + margin * 2
+    x: bounds.minX * unit - margins.left,
+    y: -bounds.maxY * unit - margins.top,
+    width: (bounds.maxX - bounds.minX) * unit + margins.left + margins.right,
+    height: (bounds.maxY - bounds.minY) * unit + margins.top + margins.bottom
   };
+}
+
+function normalizeSvgMargins(value) {
+  if (value && typeof value === "object") {
+    return {
+      left: finiteMargin(value.left),
+      bottom: finiteMargin(value.bottom),
+      right: finiteMargin(value.right),
+      top: finiteMargin(value.top)
+    };
+  }
+  const margin = finiteMargin(value);
+  return { left: margin, bottom: margin, right: margin, top: margin };
+}
+
+function finiteMargin(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 export function svgViewBox(view) {

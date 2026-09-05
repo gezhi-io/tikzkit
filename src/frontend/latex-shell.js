@@ -94,7 +94,8 @@ export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
   let expanded = stripTexComments(String(source));
   expanded = selectFirstBeamerFrame(expanded);
-  const previewBorder = collectPreviewBorder(expanded);
+  const previewMargins = collectPreviewMargins(expanded);
+  const previewBorder = uniformPreviewBorder(previewMargins);
   expanded = expandTheoreticalComputerScienceLogoMacros(expanded);
   expanded = expandTimelineEnvironments(expanded, diagnostics);
   expanded = expandChronologyEnvironments(expanded, diagnostics);
@@ -161,7 +162,8 @@ export function preprocessTikzSource(source, options = {}) {
     packages,
     pgfplotsLibraries,
     pgfplotsOptions: pgfplotsSet.options,
-    previewBorder
+    previewBorder,
+    previewMargins
   };
 }
 
@@ -317,16 +319,43 @@ function applyDocumentFontPackageAliases(source, packages = []) {
     .replace(/\\sf\b/g, "\\tikzkithelvetfamily");
 }
 
-function collectPreviewBorder(source) {
+function collectPreviewMargins(source) {
   const text = String(source || "");
   const explicitMatch = text.match(
     /\\setlength\s*(?:\{\s*\\PreviewBorder\s*\}|\\PreviewBorder)\s*\{([^{}]+)\}/
   );
-  if (explicitMatch) return nonnegativeDimension(explicitMatch[1]);
+  if (explicitMatch) return uniformPreviewMargins(nonnegativeDimension(explicitMatch[1]));
 
   const documentClassMatch = text.match(/\\documentclass\s*(?:\[([^\]]*)\])?\s*\{\s*standalone\s*\}/i);
   if (!documentClassMatch?.[1]) return null;
-  return nonnegativeDimension(parseOptions(documentClassMatch[1]).border);
+  return standalonePreviewMargins(parseOptions(documentClassMatch[1]).border);
+}
+
+function standalonePreviewMargins(raw) {
+  if (raw === undefined || raw === null || raw === true || raw === false) return null;
+  const dimensions = stripSingleOuterBraces(raw).split(/\s+/).filter(Boolean).map(nonnegativeDimension);
+  if (dimensions.some((value) => value === null)) return null;
+  if (dimensions.length === 1) return uniformPreviewMargins(dimensions[0]);
+  if (dimensions.length === 2) {
+    const [horizontal, vertical] = dimensions;
+    return { left: horizontal, bottom: vertical, right: horizontal, top: vertical };
+  }
+  if (dimensions.length === 4) {
+    const [left, bottom, right, top] = dimensions;
+    return { left, bottom, right, top };
+  }
+  return null;
+}
+
+function uniformPreviewMargins(value) {
+  if (value === null) return null;
+  return { left: value, bottom: value, right: value, top: value };
+}
+
+function uniformPreviewBorder(margins) {
+  if (!margins) return null;
+  const values = [margins.left, margins.bottom, margins.right, margins.top];
+  return values.every((value) => value === values[0]) ? values[0] : null;
 }
 
 function expandStaticPgfmathMacrosBeforePictures(source) {

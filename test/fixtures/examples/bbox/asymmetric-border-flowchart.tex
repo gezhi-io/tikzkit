@@ -1,0 +1,12 @@
+\documentclass[border={2mm 5mm}]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,shapes.geometric}
+\begin{document}
+\begin{tikzpicture}[scale=1.5]
+  \node[draw,rounded corners=2pt,fill=blue!10,minimum width=16mm] (input) at (0,0) {Input};
+  \node[draw,diamond,aspect=2,fill=yellow!18] (test) at (2,0) {Valid?};
+  \node[draw,rounded corners=2pt,fill=green!12,minimum width=16mm] (done) at (4,0) {Done};
+  \draw[-{Stealth},thick] (input) -- (test);
+  \draw[-{Stealth},thick] (test) -- (done);
+\end{tikzpicture}
+\end{document}

@@ -8128,6 +8128,33 @@
       "externalSource": "tex/latex/standalone/standalone.cls",
       "semanticOwner": "src/frontend/latex-shell.js:collectPreviewBorder + src/renderers/svg/renderSvg.js:sourceMargin + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
       "features": ["standalone border", "scale", "rotate", "page-space crop", "force vectors", "Latex arrows"]
+    },
+    {
+      "id": "bbox-asymmetric-border-flowchart",
+      "title": "Two-value standalone border around a scaled flowchart",
+      "source": "bbox/asymmetric-border-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from standalone sa@readborder",
+      "externalSource": "source/latex/standalone/standalone.dtx",
+      "semanticOwner": "src/frontend/latex-shell.js:collectPreviewMargins + src/renderers/svg/renderSvg.js:sourceMargins + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+      "features": ["standalone two-value border", "horizontal and vertical crop margins", "picture scale", "flowchart nodes", "diamond decision", "Stealth arrows"]
+    },
+    {
+      "id": "bbox-asymmetric-border-math",
+      "title": "Four-value standalone border around a rotated mathematical plot",
+      "source": "bbox/asymmetric-border-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from standalone sa@readborder",
+      "externalSource": "source/latex/standalone/standalone.dtx",
+      "semanticOwner": "src/frontend/latex-shell.js:collectPreviewMargins + src/renderers/svg/renderSvg.js:sourceMargins + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+      "features": ["standalone four-value border", "left bottom right top crop order", "rotation", "parabola", "mathematical labels"]
+    },
+    {
+      "id": "bbox-asymmetric-border-physics",
+      "title": "Four-value standalone border around a transformed force diagram",
+      "source": "bbox/asymmetric-border-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from standalone sa@readborder",
+      "externalSource": "source/latex/standalone/standalone.dtx",
+      "semanticOwner": "src/frontend/latex-shell.js:collectPreviewMargins + src/renderers/svg/renderSvg.js:sourceMargins + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+      "features": ["standalone four-value border", "asymmetric physical crop", "scale", "rotate", "force vectors", "Latex arrows"]
     }
   ]
 }

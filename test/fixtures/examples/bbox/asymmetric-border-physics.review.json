@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/standalone/standalone.cls": { "symbols": ["border", "sa@readborder", "PreviewBbAdjust"], "findings": "The standalone crop keeps each physical side independent and in left, bottom, right, top order." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/preview/prtightpage.def": { "symbols": ["PreviewBbAdjust", "pdfhorigin", "pdfvorigin"], "findings": "Left and bottom adjustments change the page origin while right and top complete the final dimensions." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["scale", "rotate", "draw"], "findings": "Force geometry is transformed before the standalone output page applies its independent side margins." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.code.tex": { "symbols": ["Latex"], "findings": "Force-vector tips are measured as picture paint and must not absorb the document border." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/asymmetric-document-border.test.js", "docs/qa/2026-09-05-asymmetric-document-borders.md"] }
+  ]
+}

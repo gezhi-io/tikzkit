@@ -1,10 +1,13 @@
 export const texPackage = {
   "name": "preview",
   "status": "partial",
-  "implementedBy": "src/frontend/latex-shell.js:stripTexDocumentShell/collectPreviewBorder + src/renderers/svg/renderSvg.js:sourceMargin + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
+  "implementedBy": "src/frontend/latex-shell.js:stripTexDocumentShell/collectPreviewMargins + src/frontend/parser.js:previewMargins + src/engine/evaluate.js:previewMargins + src/renderers/svg/renderSvg.js:sourceSvgMargins + src/renderers/svg/document.js:createSvgView + scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder",
   "features": [
     "preview environment package declaration compatibility",
     "PreviewBorder physical crop margin",
+    "standalone one-value uniform border",
+    "standalone two-value horizontal and vertical borders",
+    "standalone four-value left bottom right top borders",
     "transform-independent native and tikztosvg reference crops"
   ],
   "requires": [],
@@ -31,5 +34,5 @@ export const texPackage = {
     "active,tightpage,floats",
     "pdftex,active,tightpage"
   ],
-  "notes": "The document shell is stripped while PreviewBorder or standalone border is retained as an SVG crop margin in physical page units. The local tikztosvg harness evaluates its synthetic use-as-bounding-box path inside reset cm, so picture scale, non-uniform scale, and rotation do not transform the border. The preview package's font, section, display, delayed material, and arbitrary PreviewEnvironment hooks remain unsupported. Visual evidence is in docs/qa/2026-09-05-document-border-transforms.md."
+  "notes": "The document shell is stripped while PreviewBorder or standalone border is retained as four SVG crop margins in physical page units. One standalone dimension applies to every side, two dimensions map to horizontal then vertical margins, and four map to left, bottom, right, then top. The local tikztosvg harness evaluates its synthetic use-as-bounding-box path inside reset cm, so picture scale, non-uniform scale, and rotation do not transform the border. The preview package's font, section, display, delayed material, and arbitrary PreviewEnvironment hooks remain unsupported. Visual evidence is in docs/qa/2026-09-05-document-border-transforms.md and docs/qa/2026-09-05-asymmetric-document-borders.md."
 };
