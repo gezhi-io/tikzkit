@@ -1,5 +1,6 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
+import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
@@ -157,7 +158,6 @@ import {
   lineWidthFromTikzDimension,
   stealthArrowLengthFromLineWidth,
   stealthMetaArrowGeometryFromLineWidth,
-  stealthPrimeArrowDimensions,
   stealthArrowShortenFromLength
 } from "../tikz/metrics.js";
 
@@ -15539,7 +15539,10 @@ function arrowTipShortenCoordinateLength(tip, style = {}) {
   const lengthScale = arrowMetaScale("scale") * arrowMetaScale("lengthScale");
   const widthScale = arrowMetaScale("scale") * arrowMetaScale("widthScale");
   let shorten;
-  if (raw.kind === "stealth") {
+  const legacyPrime = legacyPrimeArrowMetrics(raw.kind, lineWidth);
+  if (legacyPrime) {
+    shorten = legacyPrime.terminalPlacement;
+  } else if (raw.kind === "stealth") {
     shorten = raw.meta
       ? stealthMetaArrowGeometryFromLineWidth(lineWidth, {
         lengthScale,
@@ -15551,8 +15554,6 @@ function arrowTipShortenCoordinateLength(tip, style = {}) {
         ...(customWidth ? { widthPt: raw.width / lineWidthFromPt(1) } : {})
       }).shorten
       : stealthArrowShortenFromLength((customLength ? raw.length : stealthArrowLengthFromLineWidth(lineWidth)) * lengthScale);
-  } else if (raw.kind === "stealth-prime") {
-    shorten = stealthPrimeArrowDimensions(lineWidth).rightExtent;
   } else if (raw.kind === "latex") {
     if (raw.legacy) {
       const length = customLength ? raw.length : lineWidthFromPt(3.2 + 2.4 * lineWidthPt);

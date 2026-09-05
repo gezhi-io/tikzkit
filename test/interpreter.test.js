@@ -4727,7 +4727,7 @@ test("keeps common TikZ arrow tip styles distinct in the drawing IR", () => {
   assert.equal(paths[2].style.markerEnd.kind, "to");
   assert.equal(paths[3].style.markerEnd.kind, "stealth");
   assert.equal(paths[4].style.markerStart.kind, "stealth");
-  assert.equal(paths[5].style.markerEnd.kind, "latex");
+  assert.equal(paths[5].style.markerEnd.kind, "latex-prime");
   assert.equal(customTip.kind, "stealth");
   assert.equal(customTip.stroke, "orange");
   assert.equal(customTip.fill, "red");

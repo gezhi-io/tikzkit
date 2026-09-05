@@ -6,6 +6,7 @@ import {
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
   legacyImpliesArrowMetrics,
+  legacyPrimeArrowMetrics,
   legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
@@ -244,6 +245,20 @@ export function spacedLegacyArrowMetrics(kind, lineWidth) {
   const lineWidthPt = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4)) / unitsPerPt;
   const unitPt = 0.28 + 0.3 * lineWidthPt;
   const spacePt = 0.88 + 0.3 * lineWidthPt;
+  const prime = family.endsWith("-prime")
+    ? legacyPrimeArrowMetrics(`${family}${reversed ? "-reversed" : ""}`, lineWidth)
+    : null;
+  if (prime) {
+    const space = lineWidthFromPt(spacePt);
+    return {
+      ...prime,
+      spaced: true,
+      space,
+      placement: prime.tipEnd + space,
+      terminalPlacement: prime.tipEnd + space,
+      assemblyLength: prime.assemblyLength + space
+    };
+  }
   const source = legacyArrowSourceMetrics(family, reversed, lineWidthPt, unitPt);
   if (!source) return null;
 

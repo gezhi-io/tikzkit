@@ -7,7 +7,6 @@ import {
   stealthArrowHalfWidthFromLength,
   stealthArrowLengthFromLineWidth,
   stealthMetaArrowGeometryFromLineWidth,
-  stealthPrimeArrowDimensions,
   stealthArrowShortenFromLength
 } from "../../tikz/metrics.js";
 import { blurShadowFilterId } from "./defs.js";
@@ -25,6 +24,7 @@ import {
   legacyDiamondArrowMetrics,
   legacyHookArrowMetrics,
   legacyImpliesArrowMetrics,
+  legacyPrimeArrowMetrics,
   legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
@@ -132,7 +132,7 @@ export function renderArrowedPath(item, unit) {
       placedTerminal.first.startUy,
       unit
     )) {
-      pieces.push(renderInlineArrowTip(placed.tip, placed.point, placedTerminal.first.angle + 180, unit, {
+      pieces.push(renderInlineArrowTip(placed.tip, placed.point, (placedTerminal.first.startAngle ?? placedTerminal.first.angle) + 180, unit, {
         placed,
         terminal: placedTerminal.first,
         side: "start"
@@ -316,6 +316,7 @@ function terminalSegment(start, end, startIndex, commandIndex, shortenable, star
     startUy: tangentStart.y / startLength,
     endUx: tangentEnd.x / endLength,
     endUy: tangentEnd.y / endLength,
+    startAngle: svgAngle(tangentStart),
     angle: svgAngle(tangentEnd)
   };
 }
@@ -398,7 +399,8 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const legacyBarTip = isLegacyBarTip(raw.kind);
   const barTip = raw.kind === "bar" || legacyBarTip;
   const filledCircleTip = raw.kind === "circle";
-  const legacyStealthPrime = raw.kind === "stealth-prime";
+  const legacyPrime = isLegacyPrimeTip(raw.kind);
+  const legacyStealthPrime = isLegacyStealthPrimeTip(raw.kind);
   const metaStealthTip = raw.kind === "stealth" && raw.meta;
   const legacyFilledTriangleTip = isLegacyFilledTriangleTip(raw.kind);
   const legacyFilledDiamondTip = isLegacyFilledDiamondTip(raw.kind);
@@ -417,7 +419,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // PGF's default Latex tip is filled and stroked with its normal mitered
     // outline. Round joins are only used when the TikZ arrow option asks for
     // them; applying them globally makes small scaled tips visibly bulbous.
-    lineCap: legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
+    lineCap: legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || legacyPrime || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round",
     lineJoin: isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round",
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
@@ -520,6 +522,8 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   if (serifCm) return legacySerifCmInlineGeometry(serifCm);
   const legacyCap = legacyCapArrowMetrics(tip.kind, lineWidth) || spacedCapArrowMetrics(tip.kind, lineWidth);
   if (legacyCap) return legacyCapInlineGeometry(legacyCap);
+  const legacyPrime = legacyPrimeArrowMetrics(tip.kind, lineWidth);
+  if (legacyPrime) return legacyPrimeArrowInlineGeometry(legacyPrime);
   const spacedLegacy = spacedLegacyArrowMetrics(tip.kind, lineWidth);
   if (spacedLegacy) return spacedLegacyArrowInlineGeometry(spacedLegacy);
   const legacyImplies = legacyImpliesArrowMetrics(
@@ -582,26 +586,6 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         maxX: 0,
         minY: -halfWidth,
         maxY: halfWidth
-      }
-    };
-  }
-  if (tip.kind === "stealth-prime") {
-    const dimensions = stealthPrimeArrowDimensions(lineWidth);
-    const arrowUnit = dimensions.arrowUnit;
-    return {
-      path: [
-        `M ${format(2 * arrowUnit)} 0`,
-        `C ${format(-0.5 * arrowUnit)} ${format(0.5 * arrowUnit)} ${format(-3 * arrowUnit)} ${format(1.5 * arrowUnit)} ${format(-6 * arrowUnit)} ${format(3.25 * arrowUnit)}`,
-        `C ${format(-3 * arrowUnit)} ${format(arrowUnit)} ${format(-3 * arrowUnit)} ${format(-arrowUnit)} ${format(-6 * arrowUnit)} ${format(-3.25 * arrowUnit)}`,
-        `C ${format(-3 * arrowUnit)} ${format(-1.5 * arrowUnit)} ${format(-0.5 * arrowUnit)} ${format(-0.5 * arrowUnit)} ${format(2 * arrowUnit)} 0 Z`
-      ].join(" "),
-      shorten: dimensions.rightExtent,
-      placement: dimensions.rightExtent,
-      bounds: {
-        minX: -dimensions.leftExtent,
-        maxX: dimensions.rightExtent,
-        minY: -dimensions.halfHeight,
-        maxY: dimensions.halfHeight
       }
     };
   }
@@ -924,6 +908,14 @@ function isLegacySpacedStealthPrimeTip(kind) {
   return /^legacy-spaced-stealth-prime(?:-reversed)?$/u.test(String(kind || ""));
 }
 
+function isLegacyPrimeTip(kind) {
+  return /^(?:latex|stealth)-prime(?:-reversed)?$/u.test(String(kind || ""));
+}
+
+function isLegacyStealthPrimeTip(kind) {
+  return /^stealth-prime(?:-reversed)?$/u.test(String(kind || ""));
+}
+
 function legacySquareInlineGeometry(metrics) {
   return {
     path: [
@@ -1102,6 +1094,10 @@ function spacedLegacyArrowInlineGeometry(metrics) {
       maxY: metrics.halfHeight
     }
   };
+}
+
+function legacyPrimeArrowInlineGeometry(metrics) {
+  return spacedLegacyArrowInlineGeometry(metrics);
 }
 
 function legacySideToInlineGeometry(metrics) {

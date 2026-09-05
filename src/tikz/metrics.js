@@ -228,6 +228,12 @@ export function createArrowTip(kind = "to", overrides = {}) {
 }
 
 function legacyArrowTipBase(kind) {
+  if (/^latex-prime(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS.latex, fill: "context-stroke" };
+  }
+  if (/^stealth-prime(?:-reversed)?$/u.test(kind)) {
+    return { ...TIKZ_ARROW_TIPS["stealth-prime"], fill: "context-stroke", stroke: "context-stroke" };
+  }
   if (kind === "legacy-implies") {
     return { ...TIKZ_ARROW_TIPS.to, fill: "none", stroke: "context-stroke" };
   }
@@ -586,6 +592,10 @@ export function lineWidthFromTikzDimension(value, fallback = TIKZ_LINE_WIDTHS.de
 
 function normalizeArrowKind(kind) {
   const source = String(kind || "to").trim().replace(/^>$/, "to");
+  const normalizedPrime = source.match(/^(latex|stealth)-prime(-reversed)?$/iu);
+  if (normalizedPrime) {
+    return `${normalizedPrime[1].toLowerCase()}-prime${normalizedPrime[2] ? "-reversed" : ""}`;
+  }
   if (/^implies$/iu.test(source)) return "legacy-implies";
   if (/^spaced\s+implies$/iu.test(source)) return "legacy-spaced-implies";
   const spacedLegacy = source.match(/^spaced (to|latex'?|stealth'?)( reversed)?$/u);
@@ -594,7 +604,10 @@ function normalizeArrowKind(kind) {
     const family = spacedLegacy[1].replace("'", "");
     return `legacy-spaced-${family}${prime}${spacedLegacy[2] ? "-reversed" : ""}`;
   }
-  if (/^stealth\s*'$/i.test(source)) return "stealth-prime";
+  const ordinaryPrime = source.match(/^(latex|stealth)\s*'(?:\s+(reversed))?$/iu);
+  if (ordinaryPrime) {
+    return `${ordinaryPrime[1].toLowerCase()}-prime${ordinaryPrime[2] ? "-reversed" : ""}`;
+  }
   const text = source.replace(/'/g, "").toLowerCase();
   if (text === "legacy-implies") return text;
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;

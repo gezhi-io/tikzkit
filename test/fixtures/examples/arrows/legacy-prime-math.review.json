@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["latex'", "latex' reversed", "stealth'", "stealth' reversed"], "findings": "The ordinary prime arrow declarations define line-width-dependent cubic paths and asymmetric extents." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclarereversed"], "findings": "Reversal reflects x coordinates and exchanges which declared extent reaches the terminal." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows"], "findings": "The documented spellings retain the apostrophe and optional reversed suffix." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] }
+  ]
+}

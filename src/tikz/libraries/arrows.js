@@ -78,6 +78,53 @@ tikzLibrary.notes = tikzLibrary.notes.replace(
   "A ninth source review implemented ordinary `implies`. Its dima=.25*(outer linewidth+inner linewidth), dimb=.5*(outer linewidth-inner linewidth), backend=-1.36*dima-.5*dimb, tip end=2.06*dima+.5*dimb, and symmetric two-cubic open stroke now share one source-derived metrics path with `spaced implies`; only the latter adds the core invisible space. Flowchart, proposition, and physical-feedback fixtures cover straight, orthogonal, curved, start, end, and bidirectional terminals against MacTeX and tikztosvg. Concave/custom shape miters and full declared-arrow hulls remain partial."
 );
 
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:legacyPrimeArrowMetrics + src/tikz/metrics.js:normalizeArrowKind + src/renderers/svg/paths.js:legacyPrimeArrowInlineGeometry + src/engine/evaluate.js:arrowTipShortenCoordinateLength";
+tikzLibrary.features.push(
+  "legacy latex prime and latex prime reversed source cubic geometry and fill-only paint",
+  "legacy stealth prime and stealth prime reversed source cubic geometry and fillstroke paint",
+  "legacy prime backend/tip-end shaft shortening at path starts and ends"
+);
+tikzLibrary.implements.push(
+  "legacy latex prime and latex prime reversed source cubic geometry and fill-only paint",
+  "legacy stealth prime and stealth prime reversed source cubic geometry and fillstroke paint",
+  "legacy prime backend/tip-end shaft shortening at path starts and ends"
+);
+tikzLibrary.notes += " A tenth source review on 2026-09-05 covered ordinary `latex'`, `latex' reversed`, `stealth'`, and `stealth' reversed`. TikZKit now preserves all four names, applies d=.28pt+.3*linewidth, reflects reversed cubic paths, uses fill-only paint for latex prime and active-line-width fillstroke with round joins for stealth prime, and shortens each shaft by the declaration's terminal tip end. Flowchart, mathematical-map, and physical-vector fixtures cover straight, orthogonal, curved, start, end, and bidirectional terminals against MacTeX and tikztosvg. Concave/custom shape miters and full declared-arrow hulls remain partial.";
+
+export function legacyPrimeArrowMetrics(kind, lineWidth) {
+  const match = String(kind || "").trim().toLowerCase()
+    .match(/^(latex|stealth)-prime(-reversed)?$/u);
+  if (!match) return null;
+
+  const family = `${match[1]}-prime`;
+  const reversed = Boolean(match[2]);
+  const unitsPerPt = lineWidthFromPt(1);
+  const lineWidthPt = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4)) / unitsPerPt;
+  const unitPt = 0.28 + 0.3 * lineWidthPt;
+  const source = family === "latex-prime"
+    ? { back: 4, tip: 6, halfHeight: 3.75, extentStrokePt: 0, arrowLineWidthPt: 0 }
+    : { back: 6, tip: 2, halfHeight: 3.25, extentStrokePt: 0.5 * lineWidthPt, arrowLineWidthPt: lineWidthPt };
+  const backPt = source.back * unitPt + source.extentStrokePt;
+  const tipPt = source.tip * unitPt + source.extentStrokePt;
+  const backEndPt = -(reversed ? tipPt : backPt);
+  const tipEndPt = reversed ? backPt : tipPt;
+  const pt = (value) => lineWidthFromPt(value);
+
+  return {
+    family,
+    reversed,
+    unit: pt(unitPt),
+    lineWidth: pt(lineWidthPt),
+    arrowLineWidth: pt(source.arrowLineWidthPt),
+    backEnd: pt(backEndPt),
+    tipEnd: pt(tipEndPt),
+    halfHeight: pt(source.halfHeight * unitPt + source.extentStrokePt),
+    placement: pt(tipEndPt),
+    terminalPlacement: pt(tipEndPt),
+    assemblyLength: pt(tipEndPt - backEndPt)
+  };
+}
+
 export function legacyDelimiterArrowMetrics(kind, lineWidth) {
   const source = String(kind || "").trim().toLowerCase();
   const reversed = source.endsWith("-reversed");

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usetikzlibrary"], "findings": "The package entry loads the requested arrows and positioning libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "to", "|-"], "findings": "TikZ resolves path terminals before legacy arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Relative node placement is independent of terminal arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["latex'", "latex' reversed", "stealth'", "stealth' reversed"], "findings": "The prime tips use d=.28pt+.3*linewidth, distinct cubic silhouettes, source paint, and reflected reversed aliases." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclarereversed"], "findings": "A reversed legacy tip reuses the source declaration with the reversed transform." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows"], "findings": "The manual lists all four ordinary prime aliases as public legacy arrow names." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] }
+  ]
+}

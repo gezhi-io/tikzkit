@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["latex'", "latex' reversed", "stealth'", "stealth' reversed"], "findings": "The declarations prescribe exact cubic control points, fill versus fillstroke paint, and active-line-width extents." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclarereversed"], "findings": "Reversed force-vector terminals must retain the reflected source silhouette and swapped terminal extent." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["arrows"], "findings": "All four prime aliases are documented in the legacy arrow catalogue." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-legacy-prime.test.js", "docs/qa/2026-09-05-arrows-legacy-prime.md"] }
+  ]
+}
