@@ -1,0 +1,20 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{decorations.markings,positioning}
+
+\definecolor{routeblue}{HTML}{2563EB}
+\definecolor{routegreen}{HTML}{15803D}
+
+\begin{document}
+\begin{tikzpicture}[
+  stage/.style={draw,rounded corners=2pt,minimum width=1.8cm,minimum height=.8cm},
+  decoration={markings,
+    mark=at position .28 with {\node[draw=routeblue,fill=white,font=\scriptsize,above=2pt]{queued};},
+    mark=at position .72 with {\node[draw=routegreen,fill=white,font=\scriptsize,above=2pt]{running};}}
+]
+  \node[stage] (in) {Input};
+  \node[stage,right=5cm of in] (out) {Output};
+  \draw[very thick,postaction={decorate}] (in) to[bend left=20] (out);
+\end{tikzpicture}
+\end{document}

@@ -8356,6 +8356,33 @@
       "features": ["closed arc markings", "fractional interval endpoints", "absolute step", "arrows.meta length", "negative dimension position"]
     },
     {
+      "id": "decorations-markings-code-manual",
+      "title": "PGF manual node markings along a mixed path",
+      "source": "decorations/markings-code/manual.tex",
+      "sourceCorpus": "TeX Live PGF decorations.markings manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.markings.js + src/engine/evaluate.js:interpretDecorationMarkingCode",
+      "features": ["marking node code", "absolute and fractional positions", "negative end-relative position", "local path frame", "transform shape"]
+    },
+    {
+      "id": "decorations-markings-code-flowchart",
+      "title": "Flow route status nodes attached by markings",
+      "source": "decorations/markings-code/flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the PGF markings manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.markings.js + src/engine/evaluate.js:interpretDecorationMarkingCode",
+      "features": ["multiple node markings", "curved to path", "local anchors", "node draw and fill", "postaction decorate"]
+    },
+    {
+      "id": "decorations-markings-code-physics",
+      "title": "Numbered tangent ticks along a field curve",
+      "source": "decorations/markings-code/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the PGF markings manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.markings.js + src/engine/evaluate.js:interpretDecorationMarkingCode",
+      "features": ["repeated drawing code", "repeated node code", "sequence number", "transform shape", "curved path tangents"]
+    },
+    {
       "id": "bbox-document-border-flowchart",
       "title": "Preview border around a scaled processing flow",
       "source": "bbox/document-border-flowchart.tex",

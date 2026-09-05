@@ -12,18 +12,19 @@ import { createMarkerShape } from "../../scene/index.js";
 
 const EPSILON = 1e-9;
 const DIMENSION_UNIT = /(?:cm|mm|pt|em|ex|in|px)\b/i;
+const TEX_PT_PER_CM = 28.4527559;
 
 export function markingItemsForPath(item, options = {}, env = {}) {
   const points = flattenPath(item.commands || []);
   const total = pathLength(points);
   if (points.length < 2 || total <= EPSILON) return [];
 
-  const markers = [];
+  const state = { items: [], sequenceNumber: 0 };
   for (const decoration of activeMarkingDecorations(options)) {
     for (const mark of markingDeclarations(decoration)) {
       const at = mark.match(/^at\s+position\s+([\s\S]+?)\s+with\s+([\s\S]+)$/i);
       if (at) {
-        appendMarkingActions(markers, item, points, total, markingDistance(at[1], total, env), at[2], env);
+        appendMarkingActions(state, item, points, total, markingDistance(at[1], total, env), at[2], env);
         continue;
       }
 
@@ -36,11 +37,11 @@ export function markingItemsForPath(item, options = {}, env = {}) {
       const step = markingStepDistance(between[3], total, env);
       if (![start, end, step].every(Number.isFinite) || step <= EPSILON || end < start - EPSILON) continue;
       for (let distance = start; distance <= end + EPSILON; distance += step) {
-        appendMarkingActions(markers, item, points, total, distance, between[4], env);
+        appendMarkingActions(state, item, points, total, distance, between[4], env);
       }
     }
   }
-  return markers;
+  return state.items;
 }
 
 function activeMarkingDecorations(options) {
@@ -84,13 +85,15 @@ function markingStepDistance(raw, total, env) {
     : evaluateMath(text, env.variables || {}) * total;
 }
 
-function appendMarkingActions(markers, item, points, total, distance, rawBody, env) {
+function appendMarkingActions(state, item, points, total, distance, rawBody, env) {
   if (!Number.isFinite(distance) || distance < -EPSILON || distance > total + EPSILON) return;
   const body = stripOuterBraces(String(rawBody || "").trim());
+  const point = pointAtDistance(points, distance);
+  state.sequenceNumber += 1;
+  const expandedBody = expandMarkInfo(body, state.sequenceNumber, distance);
   const actionPattern = /\\(arrowreversed|arrow)\s*(?:\[([^\]]*)\])?\s*\{([^{}]*)\}/g;
   let action;
-  while ((action = actionPattern.exec(body))) {
-    const point = pointAtDistance(points, distance);
+  while ((action = actionPattern.exec(expandedBody))) {
     const actionOptions = action[2] ? parseOptions(action[2]) : {};
     const style = {
       ...(item.style || {}),
@@ -100,10 +103,10 @@ function appendMarkingActions(markers, item, points, total, distance, rawBody, e
     const stroke = style.stroke === "none" ? "black" : style.stroke || "black";
     style.stroke = stroke;
     style.fill = style.fill === "none" ? stroke : style.fill || stroke;
-    markers.push(createMarkerShape({
-      subtype: /feynman momentum/.test(body)
+    state.items.push(createMarkerShape({
+      subtype: /feynman momentum/.test(expandedBody)
         ? "feynman-momentum"
-        : /feynhand momentum/.test(body)
+        : /feynhand momentum/.test(expandedBody)
           ? "feynhand-momentum"
           : undefined,
       kind: tip.kind,
@@ -115,6 +118,40 @@ function appendMarkingActions(markers, item, points, total, distance, rawBody, e
       style
     }));
   }
+  if (containsTikzMarkingCode(expandedBody)) {
+    state.items.push({
+      type: "markingCode",
+      subtype: "decoration-marking-code",
+      body: expandedBody,
+      x: roundNumber(point.x),
+      y: roundNumber(point.y),
+      angle: roundNumber(point.angle),
+      sequenceNumber: state.sequenceNumber,
+      distance: roundNumber(distance),
+      currentColor: optionsCurrentColor(env, item)
+    });
+  }
+}
+
+function optionsCurrentColor(env, item) {
+  const explicit = env.markingCurrentColor;
+  if (explicit && explicit !== true) return String(explicit);
+  return "black";
+}
+
+function expandMarkInfo(body, sequenceNumber, distance) {
+  const values = {
+    "sequence number": String(sequenceNumber),
+    "distance from start": `${roundNumber(distance * TEX_PT_PER_CM)}pt`
+  };
+  return String(body || "").replace(
+    /\\pgfkeysvalueof\s*\{\s*\/pgf\/decoration\/mark info\/(sequence number|distance from start)\s*\}/g,
+    (_match, key) => values[key]
+  );
+}
+
+function containsTikzMarkingCode(body) {
+  return /\\(?:node|coordinate|draw|path|fill|filldraw|shade|shadedraw|foreach)\b|\\begin\s*\{scope\}/.test(body);
 }
 
 function optionValues(value) {
@@ -149,5 +186,5 @@ export const tikzLibrary = {
     "arrowreversed",
     "postaction decorate"
   ],
-  notes: "Reviewed locally on 2026-09-05: PGF resolves unitless positions as path fractions, negative values from the path end, and dimensioned values as absolute distances; between positions repeatedly advances by the parsed step. TikZ arrow and arrowreversed actions accept local scope options, with reversed implemented as a local x reflection. TikZKit follows those rules for arrow actions and reuses the shared arrows renderer. Mark nodes, mark connection node, mark info keys, and arbitrary marking code remain unsupported."
+  notes: "Reviewed locally on 2026-09-05 and 2026-09-06: PGF resolves unitless positions as path fractions, negative values from the path end, and dimensioned values as absolute distances; between positions repeatedly advances by the parsed step. TikZ arrow and arrowreversed actions accept local scope options, with reversed implemented as a local x reflection. TikZKit follows those rules for arrow actions and reuses the shared arrows renderer. Marking actions containing ordinary TikZ node/path code are handed back to the shared evaluator in a tangent-aligned local coordinate frame, with sequence number and distance from start values expanded for each mark. Mark connection node and arbitrary low-level PGF marking code remain unsupported."
 };

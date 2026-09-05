@@ -1549,14 +1549,14 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
         }
       );
       ir.items.push(item);
-      addDecorationMarkers(item, options, pathEnv, ir);
+      addDecorationMarkers(item, pathOptions, pathEnv, ir, diagnostics);
       for (const postactionDecoration of postactionDecorationPathItems(built, pathOptions, pathEnv)) {
         ir.items.push(postactionDecoration);
       }
       addPostactionShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
     }
     for (const shape of shapesToRender) {
-      addDecorationMarkers(shape, options, pathEnv, ir);
+      addDecorationMarkers(shape, pathOptions, pathEnv, ir, diagnostics);
     }
   }
   for (const node of built.nodes) {
@@ -7764,7 +7764,7 @@ function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) 
     const visible = isVisiblePath("path", style, semantic, built.styleHints);
     for (const shape of built.shapes) {
       ir.items.push(shape);
-      addDecorationMarkers(shape, options, env, ir);
+      addDecorationMarkers(shape, options, env, ir, diagnostics);
     }
     if (visible && hasDrawableCommands(built.commands, built.shapes)) {
       const pathStyle = drawablePathStyle(style, built.styleHints);
@@ -7775,7 +7775,7 @@ function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) 
         commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
       };
       ir.items.push(item);
-      addDecorationMarkers(item, options, env, ir);
+      addDecorationMarkers(item, options, env, ir, diagnostics);
     }
     for (const node of built.nodes) {
       addNodeItems(node, ir, env);
@@ -11362,7 +11362,7 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
       commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
     };
     ir.items.push(item);
-    addDecorationMarkers(item, pathOptionsOnly, env, ir);
+    addDecorationMarkers(item, pathOptionsOnly, env, ir, diagnostics);
   }
   for (const node of built.nodes || []) {
     addNodeItems(node, ir, env);
@@ -21088,8 +21088,53 @@ function optionList(value) {
   return value === undefined || value === null ? [] : Array.isArray(value) ? value : [value];
 }
 
-function addDecorationMarkers(item, options, env, ir) {
-  ir.items.push(...markingItemsForPath(item, options, env));
+function addDecorationMarkers(item, options, env, ir, diagnostics = []) {
+  const markingEnv = {
+    ...env,
+    markingCurrentColor: options["tikzkit current color"]
+  };
+  for (const marking of markingItemsForPath(item, options, markingEnv)) {
+    if (marking.type !== "markingCode") {
+      ir.items.push(marking);
+      continue;
+    }
+    interpretDecorationMarkingCode(marking, env, ir, diagnostics);
+  }
+}
+
+function interpretDecorationMarkingCode(marking, env, ir, diagnostics) {
+  const radians = (Number(marking.angle) || 0) * Math.PI / 180;
+  const markTransform = affineTransform(
+    Math.cos(radians),
+    Math.sin(radians),
+    -Math.sin(radians),
+    Math.cos(radians),
+    Number(marking.x) || 0,
+    Number(marking.y) || 0
+  );
+  const markingEnv = {
+    ...env,
+    variables: { ...(env.variables || {}) },
+    pathLet: { points: {}, numbers: {} },
+    transform: markTransform,
+    canvasTransform: identityTransform(),
+    canvasTrackingDisabled: false,
+    canvasScale: 1,
+    basis: parsePictureBasis({}, env.variables || {}),
+    pictureOptions: {
+      ...showPathConstructionInheritedOptions(env.pictureOptions || {}),
+      ...(marking.currentColor ? { color: marking.currentColor } : {})
+    }
+  };
+  const firstItemIndex = ir.items.length;
+  for (const statement of parseStatements(marking.body, diagnostics)) {
+    interpretStatement(statement, markingEnv, ir, diagnostics);
+  }
+  for (const created of ir.items.slice(firstItemIndex)) {
+    created.subtype ||= "decoration-marking-code";
+    created.markingSequenceNumber = marking.sequenceNumber;
+    created.markingDistance = marking.distance;
+  }
 }
 
 function drawablePathStyle(style, styleHints = {}) {
