@@ -823,7 +823,7 @@ const ARROW_TIP_SEQUENCE_NAMES = [
   "to"
 ].sort((left, right) => right.length - left.length);
 
-function parseArrowTipSpec(input) {
+export function parseArrowTipSpec(input) {
   const text = stripOuterBraces(String(input || "").trim());
   const sequence = parseArrowTipSequence(text);
   if (sequence) return sequence;
@@ -1434,6 +1434,7 @@ function isRepeatableOption(key) {
     key === "postaction" ||
     key === "if" ||
     key === "name intersections" ||
+    key === "mark" ||
     key === "rectangle split empty part width" ||
     key === "rectangle split empty part height" ||
     key === "rectangle split empty part depth"

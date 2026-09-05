@@ -8047,6 +8047,33 @@
       "externalSource": "doc/latex/pgfplots/pgfplots.reference.2dplots.tex",
       "semanticOwner": "src/pgfplots/areaPlots.js:stackedClosedCyclePointChain",
       "features": ["const plot", "stack plots=y", "closed cycle", "mirrored reverse step path", "area cycle list"]
+    },
+    {
+      "id": "decorations-markings-position-actions-flowchart",
+      "title": "Flow dispatch arrows at absolute path positions",
+      "source": "decorations/markings-position-actions/flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the PGF markings manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.markings.js:markingItemsForPath",
+      "features": ["decorations.markings", "absolute dimension position", "negative end-relative position", "arrow options", "postaction decorate"]
+    },
+    {
+      "id": "decorations-markings-position-actions-math",
+      "title": "Tangent arrows sampled along a mathematical curve",
+      "source": "decorations/markings-position-actions/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGF markings manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.markings.js:markingItemsForPath",
+      "features": ["between positions", "absolute dimension step", "curved path tangents", "arrowreversed", "scoped color and line width"]
+    },
+    {
+      "id": "decorations-markings-position-actions-physics",
+      "title": "Magnetic field direction marks around a current",
+      "source": "decorations/markings-position-actions/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the PGF markings manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
+      "semanticOwner": "src/tikz/libraries/decorations.markings.js:markingItemsForPath",
+      "features": ["closed arc markings", "fractional interval endpoints", "absolute step", "arrows.meta length", "negative dimension position"]
     }
   ]
 }

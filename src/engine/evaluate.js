@@ -1,5 +1,6 @@
 import { circleToPath, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
+import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import {
@@ -118,7 +119,6 @@ import {
 import { parsePathSegments, parseStatements } from "../frontend/parser.js";
 import {
   createBoundingBoxShape,
-  createMarkerShape,
   createPathShape,
   createRasterImageShape,
   createSceneGraph,
@@ -1504,14 +1504,14 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
         }
       );
       ir.items.push(item);
-      addDecorationMarkers(item, options, ir);
+      addDecorationMarkers(item, options, pathEnv, ir);
       for (const postactionDecoration of postactionDecorationPathItems(built, pathOptions, pathEnv)) {
         ir.items.push(postactionDecoration);
       }
       addPostactionShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
     }
     for (const shape of shapesToRender) {
-      addDecorationMarkers(shape, options, ir);
+      addDecorationMarkers(shape, options, pathEnv, ir);
     }
   }
   for (const node of built.nodes) {
@@ -7370,7 +7370,7 @@ function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) 
     const visible = isVisiblePath("path", style, semantic, built.styleHints);
     for (const shape of built.shapes) {
       ir.items.push(shape);
-      addDecorationMarkers(shape, options, ir);
+      addDecorationMarkers(shape, options, env, ir);
     }
     if (visible && hasDrawableCommands(built.commands, built.shapes)) {
       const pathStyle = drawablePathStyle(style, built.styleHints);
@@ -7381,7 +7381,7 @@ function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) 
         commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
       };
       ir.items.push(item);
-      addDecorationMarkers(item, options, ir);
+      addDecorationMarkers(item, options, env, ir);
     }
     for (const node of built.nodes) {
       addNodeItems(node, ir, env);
@@ -10862,7 +10862,7 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
       commands: applyArrowEndpointShortening(built.commands, pathStyle, built.endpointRefs)
     };
     ir.items.push(item);
-    addDecorationMarkers(item, pathOptionsOnly, ir);
+    addDecorationMarkers(item, pathOptionsOnly, env, ir);
   }
   for (const node of built.nodes || []) {
     addNodeItems(node, ir, env);
@@ -20487,64 +20487,8 @@ function optionList(value) {
   return value === undefined || value === null ? [] : Array.isArray(value) ? value : [value];
 }
 
-function addDecorationMarkers(item, options, ir) {
-  const decorations = markingsDecorationFromOptions(options);
-  if (!decorations.length) return;
-  const flat = flattenPath(item.commands || []);
-  for (const decoration of decorations) {
-    const mark = String(decoration).match(/mark\s*=\s*at\s+position\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/);
-    if (mark) {
-      addArrowMarkerAt(Number(mark[1]), mark[2], flat, item, ir);
-      continue;
-    }
-    const between = String(decoration).match(
-      /mark\s*=\s*between\s+positions\s+([0-9.]+)\s+and\s+([0-9.]+)\s+step\s+([0-9.]+)\s+with\s*\{([\s\S]+)\}/
-    );
-    if (!between) continue;
-    const start = Number(between[1]);
-    const end = Number(between[2]);
-    const step = Number(between[3]);
-    for (let position = start; position <= end + 1e-9; position += step) {
-      addArrowMarkerAt(position, between[4], flat, item, ir);
-    }
-  }
-}
-
-function markingsDecorationFromOptions(options = {}) {
-  const decorations = [];
-  const topLevelDecoration = options.decoration === undefined ? "" : String(options.decoration);
-  if (topLevelDecoration.includes("markings")) decorations.push(topLevelDecoration);
-  for (const rawPostaction of optionList(options.postaction)) {
-    const postaction = String(rawPostaction || "");
-    if (!postaction.includes("decorate")) continue;
-    const postOptions = parseOptions(postaction);
-    const nestedDecoration = postOptions.decoration === undefined ? "" : String(postOptions.decoration);
-    if (nestedDecoration.includes("markings")) decorations.push(nestedDecoration);
-  }
-  return decorations;
-}
-
-function addArrowMarkerAt(position, body, flat, item, ir) {
-  const arrow = String(body).match(/\\arrow\s*\{([^}]*)\}/);
-  if (!arrow) return;
-  const tip = createArrowTip(arrow[1].trim() || "to");
-  const point = pointAtLength(flat, position);
-  ir.items.push(createMarkerShape({
-    subtype: /feynman momentum/.test(String(body))
-      ? "feynman-momentum"
-      : /feynhand momentum/.test(String(body))
-        ? "feynhand-momentum"
-        : undefined,
-    kind: tip.kind,
-    tip,
-    x: roundNumber(point.x),
-    y: roundNumber(point.y),
-    angle: roundNumber(point.angle),
-    style: {
-      stroke: item.style.stroke === "none" ? "black" : item.style.stroke,
-      fill: item.style.stroke === "none" ? "black" : item.style.stroke
-    }
-  }));
+function addDecorationMarkers(item, options, env, ir) {
+  ir.items.push(...markingItemsForPath(item, options, env));
 }
 
 function drawablePathStyle(style, styleHints = {}) {

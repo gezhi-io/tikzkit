@@ -154,6 +154,7 @@ export {
   renderCompactDashedDoublePath,
   renderDoublePath,
   renderInlineArrowTip,
+  renderStandaloneArrowMarker,
   renderPathElement,
   resolveInlineArrowTip,
   shortenPathTerminals,

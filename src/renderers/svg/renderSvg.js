@@ -13,10 +13,10 @@ import { renderEllipseSplitNodeBox } from "./ellipseSplitNodes.js";
 import { formatSvgNumber as format } from "./format.js";
 import { renderImagePlaceholder } from "./imagePlaceholders.js";
 import { scaleItemsForRenderUnit } from "./layout.js";
-import { renderMarker } from "./markers.js";
 import {
   normalizeKatexTex
 } from "./mathFallbackSyntax.js";
+import { renderMarker } from "./markers.js";
 import { escapeAttribute } from "./escape.js";
 import { renderScopedMathStyleDef } from "./mathHtml.js";
 import {
@@ -30,7 +30,7 @@ import {
   renderLibraryShapeNodeBox
 } from "./nodeShapes.js";
 import { renderMiscOutNodeBox, renderNodeBoxWithOverlay } from "./nodeOverlays.js";
-import { renderPathElement, renderPathWithShadows } from "./paths.js";
+import { renderPathElement, renderPathWithShadows, renderStandaloneArrowMarker } from "./paths.js";
 import { hasRenderableFormOnlyPattern, renderFormOnlyPatternFill } from "./formOnlyPatterns.js";
 import { renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
@@ -117,7 +117,9 @@ function svgDocumentSize(view, unit) {
 
 function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y: 0 }) {
   if (item.type === "bbox") return "";
-  if (item.type === "marker") return renderMarker(item, unit);
+  if (item.type === "marker") {
+    return item.tip ? renderStandaloneArrowMarker(item, unit) : renderMarker(item, unit);
+  }
   if (item.type === "rasterImage") return renderRasterImage(item, unit);
   if (item.type === "nodeBox") {
     const circuitikzNodeBox = renderCircuitikzNodeBox(item, unit);

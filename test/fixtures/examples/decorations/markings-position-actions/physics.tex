@@ -1,0 +1,26 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,decorations.markings}
+
+\definecolor{fieldgreen}{HTML}{047857}
+\definecolor{currentred}{HTML}{DC2626}
+
+\begin{document}
+\begin{tikzpicture}
+  \fill[gray!8] (0,0) circle (2.15cm);
+  \draw[gray!55] (0,0) circle (2.15cm);
+  \fill[currentred] (0,0) circle (2.2pt);
+  \node[currentred,below=2mm] at (0,0) {$I$};
+
+  \draw[fieldgreen,line width=.8pt,postaction={decorate},
+    decoration={markings,
+      mark=between positions 0 and 1 step 12mm with {\arrow{Stealth[length=4pt]}},
+      mark=at position -6mm with {\arrowreversed[currentred,line width=.9pt]{Latex}}}]
+    (0:1.55cm) arc (0:360:1.55cm);
+
+  \draw[gray!60,dashed] (0,0) -- (35:1.55cm);
+  \node[above right] at (35:.8cm) {$r$};
+  \node[fieldgreen,right] at (8:1.7cm) {$\mathbf B$};
+\end{tikzpicture}
+\end{document}

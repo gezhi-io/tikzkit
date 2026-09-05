@@ -92,8 +92,14 @@ export function flattenPath(commands, tolerance = 0.02) {
 
 export function pointAtLength(points, lengthOrRatio) {
   const total = pathLength(points);
-  if (total < EPSILON) return { x: points[0]?.x || 0, y: points[0]?.y || 0, angle: 0 };
   const target = lengthOrRatio <= 1 ? total * lengthOrRatio : lengthOrRatio;
+  return pointAtDistance(points, target);
+}
+
+export function pointAtDistance(points, distanceFromStart) {
+  const total = pathLength(points);
+  if (total < EPSILON) return { x: points[0]?.x || 0, y: points[0]?.y || 0, angle: 0 };
+  const target = Math.max(0, Math.min(total, Number(distanceFromStart) || 0));
   let walked = 0;
   for (let i = 1; i < points.length; i += 1) {
     const previous = points[i - 1];

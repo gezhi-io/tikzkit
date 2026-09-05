@@ -10,7 +10,7 @@ import { estimateRichTextRenderBounds } from "./richTextNode.js";
 import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
 import { svgTextAnchorForItem, textFontScale } from "./textLayout.js";
-import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTipSequence } from "./paths.js";
+import { pathTerminalSegments, placeResolvedInlineArrowTips, resolveInlineArrowTip, resolveInlineArrowTipSequence } from "./paths.js";
 import {
   circularSectorGeometry,
   cylinderGeometry,
@@ -162,7 +162,7 @@ export function computeSvgBounds(items, options = {}) {
       }
       includeTextNodeLayoutBounds(item, include);
     } else if (item.type === "marker") {
-      include(item.x, item.y);
+      includeStandaloneMarkerBounds(item, include, unit);
     }
   }
 
@@ -170,6 +170,32 @@ export function computeSvgBounds(items, options = {}) {
   if (bounds.minX === bounds.maxX) bounds.maxX += 1;
   if (bounds.minY === bounds.maxY) bounds.maxY += 1;
   return bounds;
+}
+
+function includeStandaloneMarkerBounds(item, include, unit) {
+  if (!item.tip) {
+    include(item.x, item.y);
+    return;
+  }
+  const tip = resolveInlineArrowTip(item.tip || item.kind || "to", item.style || {});
+  const geometry = tip.geometry?.bounds;
+  if (!geometry) {
+    include(item.x, item.y);
+    return;
+  }
+  const pad = Math.max(0, Number(tip.strokeWidth) || Number(item.style?.lineWidth) || 0) / 2;
+  const angle = (-Number(item.angle || 0) * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const scaleX = item.reversed ? -1 : 1;
+  for (const x of [geometry.minX - pad, geometry.maxX + pad]) {
+    for (const y of [geometry.minY - pad, geometry.maxY + pad]) {
+      const localX = x * scaleX;
+      const svgX = item.x * unit + localX * cos - y * sin;
+      const svgY = -item.y * unit + localX * sin + y * cos;
+      include(svgX / unit, -svgY / unit);
+    }
+  }
 }
 
 function includeTextNodeLayoutBounds(item, include) {

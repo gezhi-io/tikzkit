@@ -1329,9 +1329,17 @@ export function renderInlineArrowTip(tip, point, angle, unit, curveContext = {})
     const modeClass = curved ? ` tikz-arrow-${escapeAttribute(curved.mode)}` : "";
     const partClass = part.name ? ` tikz-arrow-part-${escapeAttribute(part.name)}` : "";
     const path = curved?.path || part.path;
+    const localScaleX = Number(curveContext.localScaleX) === -1 ? " scale(-1 1)" : "";
     const transform = curved
       ? curvedArrowTransformAttribute(curved)
-      : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})"`;
+      : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})${localScaleX}"`;
     return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}${partClass}" d="${path}" fill="${escapeAttribute(fill)}"${strokePart}${lineStyle}${transform} />`;
   }).join("");
+}
+
+export function renderStandaloneArrowMarker(item, unit) {
+  const tip = resolveInlineArrowTip(item.tip || item.kind || "to", item.style || {});
+  return renderInlineArrowTip(tip, item, -Number(item.angle || 0), unit, {
+    localScaleX: item.reversed ? -1 : 1
+  });
 }
