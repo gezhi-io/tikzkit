@@ -8442,6 +8442,33 @@
       "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
       "semanticOwner": "src/tikz/libraries/arrows.js:parseDeclaredArrowHull/resolveDeclaredArrowGeometry + src/renderers/svg/bounds.js:includeResolvedArrowTipBounds",
       "features": ["pgfarrowsdeclare", "pgfarrowshullpoint", "pgfarrowsupperhullpoint", "inline advance", "active line width", "alias", "reversed alias", "picture bounds", "control network"]
+    },
+    {
+      "id": "arrows-declared-combine-flowchart",
+      "title": "Declared combined arrows in a process flow",
+      "source": "arrows/declared-combine-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the PGF legacy declaration compatibility layer",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/registerDeclaredArrowSequence/materializeDeclaredArrow + src/renderers/svg/paths.js:resolveInlineArrowTipSequence/resolvedArrowSequenceShortening",
+      "features": ["pgfarrowsdeclare", "pgfarrowsdeclarecombine", "starred combine", "literal separation", "line end marker", "start and end tips", "orthogonal path"]
+    },
+    {
+      "id": "arrows-declared-double-triple-math",
+      "title": "Declared double and triple mathematical map arrows",
+      "source": "arrows/declared-double-triple-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGF legacy declaration compatibility layer",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/registerDeclaredArrowSequence/materializeDeclaredArrow + src/renderers/svg/paths.js:resolveInlineArrowTipSequence/resolvedArrowSequenceShortening",
+      "features": ["pgfarrowsdeclare", "pgfarrowsdeclaredouble", "pgfarrowsdeclaretriple", "pgflinewidth separation", "curved path", "bidirectional map"]
+    },
+    {
+      "id": "arrows-declared-combine-bondgraph",
+      "title": "Installed bondgraph combined power arrows",
+      "source": "arrows/declared-combine-bondgraph.tex",
+      "sourceCorpus": "TeX Live bondgraph package declaration used in a compact energy network",
+      "externalSource": "tex/latex/bondgraph/bondgraph.sty",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/registerDeclaredArrowSequence/materializeDeclaredArrow + src/renderers/svg/paths.js:resolveInlineArrowTipSequence/resolvedArrowSequenceShortening",
+      "features": ["pgfarrowsdeclarecombine", "pgflinewidth separation", "left to", "bar", "positioning", "bond graph"]
     }
   ]
 }

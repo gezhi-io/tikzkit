@@ -105,8 +105,6 @@ export function renderArrowedPath(item, unit) {
   const terminal = pathTerminalSegments(item.commands || []);
   const startTips = style.markerStart ? resolveInlineArrowTipSequence(style.markerStart, style, "start") : [];
   const endTips = style.markerEnd ? resolveInlineArrowTipSequence(style.markerEnd, style, "end") : [];
-  const startTip = startTips.at(-1);
-  const endTip = endTips.at(-1);
   const explicitCommands = shortenPathTerminals(
     item.commands || [],
     terminal,
@@ -114,11 +112,11 @@ export function renderArrowedPath(item, unit) {
     (Number(style.shortenEnd) || 0) / unit
   );
   const placedTerminal = pathTerminalSegments(explicitCommands);
-  const startShorten = startTip && placedTerminal.first?.shortenable
-    ? ((startTip.geometry.terminalPlacement ?? startTip.geometry.shorten) + startTip.separation) / unit
+  const startShorten = startTips.length && placedTerminal.first?.shortenable
+    ? resolvedArrowSequenceShortening(startTips) / unit
     : 0;
-  const endShorten = endTip && placedTerminal.last?.shortenable
-    ? ((endTip.geometry.terminalPlacement ?? endTip.geometry.shorten) + endTip.separation) / unit
+  const endShorten = endTips.length && placedTerminal.last?.shortenable
+    ? resolvedArrowSequenceShortening(endTips) / unit
     : 0;
   const commands = shortenPathTerminals(explicitCommands, placedTerminal, startShorten, endShorten);
   const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
@@ -162,11 +160,64 @@ export function renderArrowedPath(item, unit) {
 }
 
 export function resolveInlineArrowTipSequence(rawTip, style = {}, side = "end") {
-  const rawTips = rawTip?.kind === "sequence" && Array.isArray(rawTip.tips) ? rawTip.tips : [rawTip];
-  const ordered = side === "start" ? [...rawTips].reverse() : rawTips;
-  const resolved = ordered.filter(Boolean).map((tip) => resolveInlineArrowTip(tip, style));
+  const rawTokens = declaredArrowSequenceTokens(rawTip);
+  const ordered = side === "start" ? [...rawTokens].reverse() : rawTokens;
+  let afterLineEnd = false;
+  const resolved = [];
+  for (const token of ordered) {
+    if (token?.lineEnd === true) {
+      afterLineEnd = true;
+      continue;
+    }
+    if (!token?.tip) continue;
+    resolved.push({
+      ...resolveInlineArrowTip(token.tip, style),
+      lineEndBreakBefore: afterLineEnd
+    });
+  }
   if (!resolved.some((tip) => tip.bending)) return resolved;
   return resolved.map((tip) => tip.bending ? tip : { ...tip, bending: { mode: "flex", factor: 1 } });
+}
+
+function declaredArrowSequenceTokens(rawTip, inheritedSeparation = null, depth = 0) {
+  if (!rawTip || depth > 12) return [];
+  if (rawTip.kind === "sequence" && Array.isArray(rawTip.tips)) {
+    return rawTip.tips.flatMap((tip) => declaredArrowSequenceTokens(tip, inheritedSeparation, depth + 1));
+  }
+  const declaration = rawTip.declaredArrow;
+  if (declaration?.kind !== "sequence" || !Array.isArray(declaration.tokens)) {
+    return [{
+      tip: inheritedSeparation ? { ...rawTip, separation: inheritedSeparation } : rawTip
+    }];
+  }
+
+  const tokens = [];
+  for (const token of declaration.tokens) {
+    if (token?.lineEnd === true) {
+      tokens.push({ lineEnd: true });
+      continue;
+    }
+    const separation = inheritedSeparation || token.separation || null;
+    const component = createArrowTip(token.name, {
+      ...(token.declaration ? { declaredArrow: token.declaration } : {}),
+      ...(separation ? { separation } : {})
+    });
+    tokens.push(...declaredArrowSequenceTokens(component, separation, depth + 1));
+  }
+  return tokens;
+}
+
+export function resolvedArrowSequenceShortening(tips = []) {
+  let shortening = 0;
+  let afterLineEnd = false;
+  for (const tip of tips) {
+    if (!tip) continue;
+    if (tip.lineEndBreakBefore === true) afterLineEnd = true;
+    shortening = afterLineEnd
+      ? shortening + tip.separation + tip.assemblyLength
+      : (Number(tip.geometry?.terminalPlacement ?? tip.geometry?.shorten) || 0) + tip.separation;
+  }
+  return shortening;
 }
 
 export function placeResolvedInlineArrowTips(tips, endpoint, inwardUx, inwardUy, unit = 1) {
@@ -364,6 +415,12 @@ export function resolveInlineArrowTip(tip, style = {}) {
         shorten: declaredArrow.usesLegacyExtents
           ? declaredArrow.tipEnd - declaredArrow.lineEnd
           : 0,
+        terminalPlacement: declaredArrow.usesLegacyExtents
+          ? declaredArrow.tipEnd - declaredArrow.lineEnd
+          : 0,
+        assemblyLength: declaredArrow.usesLegacyExtents
+          ? declaredArrow.tipEnd - declaredArrow.backEnd
+          : Math.max(0, declaredArrow.bounds.maxX - declaredArrow.bounds.minX),
         placement: 0,
         bounds: declaredArrow.bounds,
         includeBounds: declaredArrow.hasExplicitHull === true || !declaredArrow.usesLegacyExtents,

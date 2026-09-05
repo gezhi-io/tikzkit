@@ -1062,43 +1062,79 @@ function parseDeclaredArrowPayload(value) {
       encoded += String.fromCharCode(Number.parseInt(value.slice(index, index + 2), 16));
     }
     const decoded = JSON.parse(decodeURIComponent(encoded));
-    if (!decoded || typeof decoded.path !== "string" || !decoded.path || !decoded.bounds) return null;
-    const bounds = decoded.bounds;
-    if (![bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite)) return null;
-    if (!["fill", "stroke", "fillstroke"].includes(decoded.paint)) return null;
-    const usesLegacyExtents = decoded.usesLegacyExtents === true;
-    const extents = usesLegacyExtents
-      ? {
-          usesLegacyExtents,
-          backEnd: Number(decoded.backEnd),
-          tipEnd: Number(decoded.tipEnd),
-          lineEnd: Number(decoded.lineEnd)
-        }
-      : {};
-    if (usesLegacyExtents && ![extents.backEnd, extents.tipEnd, extents.lineEnd].every(Number.isFinite)) return null;
-    const program = decoded.program
-      && typeof decoded.program.setup === "string"
-      && typeof decoded.program.drawing === "string"
-      ? { setup: decoded.program.setup, drawing: decoded.program.drawing }
-      : null;
-    const lineCap = ["butt", "round"].includes(decoded.lineCap) ? decoded.lineCap : null;
-    const lineJoin = ["miter", "round"].includes(decoded.lineJoin) ? decoded.lineJoin : null;
-    return {
-      name: String(decoded.name || "declared"),
-      path: decoded.path,
-      paint: decoded.paint,
-      bounds,
-      ...extents,
-      ...(decoded.hasExplicitHull === true ? { hasExplicitHull: true } : {}),
-      ...(decoded.strokeBoundsIncluded === true ? { strokeBoundsIncluded: true } : {}),
-      ...(decoded.reversed === true ? { reversed: true } : {}),
-      ...(program ? { program } : {}),
-      ...(lineCap ? { lineCap } : {}),
-      ...(lineJoin ? { lineJoin } : {})
-    };
+    return normalizeDeclaredArrowPayload(decoded);
   } catch {
     return null;
   }
+}
+
+function normalizeDeclaredArrowPayload(decoded, depth = 0) {
+  if (!decoded || typeof decoded !== "object" || depth > 12) return null;
+  if (decoded.kind === "sequence") {
+    if (!Array.isArray(decoded.tokens) || !decoded.tokens.length || decoded.tokens.length > 64) return null;
+    const tokens = [];
+    for (const token of decoded.tokens) {
+      if (token?.lineEnd === true) {
+        tokens.push({ lineEnd: true });
+        continue;
+      }
+      const name = String(token?.name || "").trim();
+      if (!name) return null;
+      const separation = normalizeDeclaredArrowSeparation(token.separation);
+      const declaration = token.declaration
+        ? normalizeDeclaredArrowPayload(token.declaration, depth + 1)
+        : null;
+      if (token.declaration && !declaration) return null;
+      tokens.push({ name, separation, ...(declaration ? { declaration } : {}) });
+    }
+    return { kind: "sequence", name: String(decoded.name || "declared sequence"), tokens };
+  }
+
+  if (typeof decoded.path !== "string" || !decoded.path || !decoded.bounds) return null;
+  const bounds = decoded.bounds;
+  if (![bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite)) return null;
+  if (!["fill", "stroke", "fillstroke"].includes(decoded.paint)) return null;
+  const usesLegacyExtents = decoded.usesLegacyExtents === true;
+  const extents = usesLegacyExtents
+    ? {
+        usesLegacyExtents,
+        backEnd: Number(decoded.backEnd),
+        tipEnd: Number(decoded.tipEnd),
+        lineEnd: Number(decoded.lineEnd)
+      }
+    : {};
+  if (usesLegacyExtents && ![extents.backEnd, extents.tipEnd, extents.lineEnd].every(Number.isFinite)) return null;
+  const program = decoded.program
+    && typeof decoded.program.setup === "string"
+    && typeof decoded.program.drawing === "string"
+    ? { setup: decoded.program.setup, drawing: decoded.program.drawing }
+    : null;
+  const lineCap = ["butt", "round"].includes(decoded.lineCap) ? decoded.lineCap : null;
+  const lineJoin = ["miter", "round"].includes(decoded.lineJoin) ? decoded.lineJoin : null;
+  return {
+    name: String(decoded.name || "declared"),
+    path: decoded.path,
+    paint: decoded.paint,
+    bounds,
+    ...extents,
+    ...(decoded.hasExplicitHull === true ? { hasExplicitHull: true } : {}),
+    ...(decoded.strokeBoundsIncluded === true ? { strokeBoundsIncluded: true } : {}),
+    ...(decoded.reversed === true ? { reversed: true } : {}),
+    ...(program ? { program } : {}),
+    ...(lineCap ? { lineCap } : {}),
+    ...(lineJoin ? { lineJoin } : {})
+  };
+}
+
+function normalizeDeclaredArrowSeparation(value) {
+  const dimension = Number(value?.dimension);
+  const lineWidthFactor = Number(value?.lineWidthFactor);
+  const outerFactor = Number(value?.outerFactor);
+  return {
+    dimension: Number.isFinite(dimension) ? dimension : 0,
+    lineWidthFactor: Number.isFinite(lineWidthFactor) ? lineWidthFactor : 0,
+    outerFactor: Number.isFinite(outerFactor) ? outerFactor : 0
+  };
 }
 
 function isColorToken(value) {

@@ -167,6 +167,24 @@ tikzLibrary.notes = tikzLibrary.notes
     "Arbitrary TeX branches/macros, transformed/intersection/scaled points, and saved-register callbacks remain partial."
   );
 
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:registerDeclaredArrowSequence/declaredArrowSeparationSpec/materializeDeclaredArrow + src/engine/options.js:normalizeDeclaredArrowPayload/normalizeDeclaredArrowSeparation + src/renderers/svg/paths.js:resolveInlineArrowTipSequence/resolvedArrowSequenceShortening/placeResolvedInlineArrowTips + src/tikz/metrics.js:normalizeArrowKind";
+tikzLibrary.features.push(
+  "legacy pgfarrowsdeclarecombine and starred line-end composition",
+  "legacy pgfarrowsdeclaredouble and pgfarrowsdeclaretriple expansion",
+  "literal and active-line-width declared-arrow separation",
+  "nested declared-arrow sequence painting, placement, shortening, and bounds"
+);
+tikzLibrary.implements.push(
+  "legacy pgfarrowsdeclarecombine and starred line-end composition",
+  "legacy pgfarrowsdeclaredouble and pgfarrowsdeclaretriple expansion",
+  "literal and active-line-width declared-arrow separation",
+  "nested declared-arrow sequence painting, placement, shortening, and bounds"
+);
+tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Declaration combine/double/triple helpers, arbitrary TeX branches/macros, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, complete clip-region rendering, and saved-register callbacks remain partial.",
+  "A fifteenth source review on 2026-09-05 implemented the legacy `\\pgfarrowsdeclarecombine`, starred combine, `\\pgfarrowsdeclaredouble`, and `\\pgfarrowsdeclaretriple` compatibility macros from pgfcorearrows.code.tex. Declared components remain independently painted rigid tips, compose recursively in source order, use literal or active-line-width separation, preserve the starred dot's intermediate line-end choice, shorten the shaft by the complete assembly, and contribute transformed bounds. The bondgraph left-to-plus-bar declaration, a control flowchart, and a mathematical double/triple catalog are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, nonlinear separation expressions, transformed/intersection/scaled points, harpoon-specific one-sided upper hulls, complete clip-region rendering, and saved-register callbacks remain partial."
+);
+
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
     .match(/^(latex|stealth)-prime(-reversed)?$/u);
@@ -619,14 +637,14 @@ function delimiterMetrics(shape, reversed, pt, values) {
 // the normal arrow renderer responsible for endpoint placement and rotation.
 export function lowerDeclaredArrowTips(source, diagnostics = []) {
   const text = String(source || "");
-  if (!/\\pgfarrowsdeclare(?:alias|reversed)?\b/.test(text)) return text;
+  if (!/\\pgfarrows(?:declarecombine|declaredouble|declaretriple|declarealias|declarereversed|declare)\b/.test(text)) return text;
   const declarations = new Map();
   const withoutDeclarations = collectDeclarations(text, declarations, diagnostics);
   return declarations.size ? rewriteArrowOptions(withoutDeclarations, declarations) : withoutDeclarations;
 }
 
 function collectDeclarations(source, declarations, diagnostics) {
-  const commandPattern = /\\pgfarrowsdeclare(?:alias|reversed)?\b/g;
+  const commandPattern = /\\pgfarrows(?:declarecombine|declaredouble|declaretriple|declarealias|declarereversed|declare)\b/g;
   const aliases = [];
   let output = "";
   let index = 0;
@@ -636,49 +654,127 @@ function collectDeclarations(source, declarations, diagnostics) {
     const start = match.index;
     output += source.slice(index, start);
     let cursor = skipWhitespace(source, start + command.length);
-    const forward = readBalanced(source, cursor, "{", "}");
-    cursor = forward ? skipWhitespace(source, forward.end) : cursor;
-    const backward = forward && readBalanced(source, cursor, "{", "}");
-    cursor = backward ? skipWhitespace(source, backward.end) : cursor;
-    const setup = backward && readBalanced(source, cursor, "{", "}");
-    cursor = setup ? skipWhitespace(source, setup.end) : cursor;
-    const drawing = setup && readBalanced(source, cursor, "{", "}");
-    if (!forward || !backward || !setup || !drawing) {
+    const isCombine = command === "\\pgfarrowsdeclarecombine";
+    const isDouble = command === "\\pgfarrowsdeclaredouble";
+    const isTriple = command === "\\pgfarrowsdeclaretriple";
+    const isComposition = isCombine || isDouble || isTriple;
+    let starred = false;
+    if (isCombine && source[cursor] === "*") {
+      starred = true;
+      cursor = skipWhitespace(source, cursor + 1);
+    }
+    let separation = declaredArrowSeparationSpec("0pt");
+    if (isComposition && source[cursor] === "[") {
+      const option = readBalanced(source, cursor, "[", "]");
+      if (!option) {
+        output += command;
+        index = start + command.length;
+        continue;
+      }
+      separation = declaredArrowSeparationSpec(option.content);
+      cursor = skipWhitespace(source, option.end);
+    }
+
+    const argumentCount = isCombine ? 6 : 4;
+    const arguments_ = [];
+    for (let argumentIndex = 0; argumentIndex < argumentCount; argumentIndex += 1) {
+      const argument = readBalanced(source, cursor, "{", "}");
+      if (!argument) break;
+      arguments_.push(argument);
+      cursor = skipWhitespace(source, argument.end);
+    }
+    if (arguments_.length !== argumentCount) {
       output += command;
       index = start + command.length;
       continue;
     }
-    if (command !== "\\pgfarrowsdeclare") {
+    const values = arguments_.map((argument) => argument.content.trim());
+    if (command === "\\pgfarrowsdeclarealias" || command === "\\pgfarrowsdeclarereversed") {
       aliases.push({
-        forward: forward.content.trim(),
-        backward: backward.content.trim(),
-        targetForward: setup.content.trim(),
-        targetBackward: drawing.content.trim(),
+        forward: values[0],
+        backward: values[1],
+        targetForward: values[2],
+        targetBackward: values[3],
         reversed: command === "\\pgfarrowsdeclarereversed"
       });
-    } else {
-      const declared = parseDeclaredArrow(setup.content, drawing.content, lineWidthFromPt(0.4));
+    } else if (command === "\\pgfarrowsdeclare") {
+      const declared = parseDeclaredArrow(arguments_[2].content, arguments_[3].content, lineWidthFromPt(0.4));
       if (!declared) {
         diagnostics.push({ severity: "warning", message: "Unsupported pgfarrowsdeclare drawing program" });
-        output += source.slice(start, drawing.end);
+        output += source.slice(start, arguments_[3].end);
       } else {
-        for (const name of [forward.content.trim(), backward.content.trim()]) {
+        for (const name of values.slice(0, 2)) {
           if (name) {
             declarations.set(name, {
               ...declared,
               name,
-              program: { setup: setup.content, drawing: drawing.content }
+              program: { setup: arguments_[2].content, drawing: arguments_[3].content }
             });
           }
         }
       }
+    } else if (isCombine) {
+      registerDeclaredArrowSequence(declarations, values[0], values[1], values[3], values[4], separation, starred);
+    } else if (isDouble) {
+      registerDeclaredArrowSequence(declarations, values[0], values[1], values[3], values[2], separation, false);
+    } else if (isTriple) {
+      const temporaryForward = `pgf@trip@${values[0]}`;
+      const temporaryBackward = `pgf@trip@${values[1]}`;
+      registerDeclaredArrowSequence(
+        declarations,
+        temporaryForward,
+        temporaryBackward,
+        values[3],
+        values[2],
+        separation,
+        false
+      );
+      registerDeclaredArrowSequence(
+        declarations,
+        values[0],
+        values[1],
+        temporaryBackward,
+        values[2],
+        separation,
+        false
+      );
     }
-    index = drawing.end;
+    index = arguments_.at(-1).end;
     commandPattern.lastIndex = index;
   }
   output += source.slice(index);
   resolveDeclaredArrowAliases(aliases, declarations, diagnostics);
   return output;
+}
+
+function registerDeclaredArrowSequence(declarations, forward, backward, first, second, separation, starred) {
+  for (const name of [forward, backward]) {
+    if (!name) continue;
+    declarations.set(name, {
+      kind: "sequence",
+      name,
+      tokens: [
+        { name: first, separation },
+        ...(starred ? [{ lineEnd: true }] : []),
+        { name: second, separation: { dimension: 0, lineWidthFactor: 0, outerFactor: 0 } }
+      ]
+    });
+  }
+}
+
+function declaredArrowSeparationSpec(input) {
+  const source = String(input || "0pt").trim() || "0pt";
+  const unit = lineWidthFromPt(1);
+  const atZero = evaluateDeclaredDimension(source, {}, 0);
+  const atOne = evaluateDeclaredDimension(source, {}, unit);
+  if (!Number.isFinite(atZero) || !Number.isFinite(atOne)) {
+    return { dimension: 0, lineWidthFactor: 0, outerFactor: 0 };
+  }
+  return {
+    dimension: atZero,
+    lineWidthFactor: (atOne - atZero) / unit,
+    outerFactor: 0
+  };
 }
 
 function resolveDeclaredArrowAliases(aliases, declarations, diagnostics) {
@@ -981,7 +1077,26 @@ function rewriteArrowOption(part, declarations) {
 
 function encodedArrow(name, declarations) {
   const declaration = declarations.get(name);
-  return `${name}[tikzkit declared arrow=${encodeArrowPayload(declaration)}]`;
+  return `${name}[tikzkit declared arrow=${encodeArrowPayload(materializeDeclaredArrow(declaration, declarations))}]`;
+}
+
+function materializeDeclaredArrow(declaration, declarations, seen = new Set()) {
+  if (!declaration || declaration.kind !== "sequence" || seen.has(declaration.name)) return declaration;
+  const nextSeen = new Set(seen).add(declaration.name);
+  return {
+    ...declaration,
+    tokens: declaration.tokens.map((token) => {
+      if (token.lineEnd === true) return { lineEnd: true };
+      const target = declarations.get(token.name);
+      return {
+        name: token.name,
+        separation: token.separation,
+        ...(target && !nextSeen.has(token.name)
+          ? { declaration: materializeDeclaredArrow(target, declarations, nextSeen) }
+          : {})
+      };
+    })
+  };
 }
 
 function encodeArrowPayload(declaration) {

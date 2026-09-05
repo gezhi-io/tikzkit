@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["documentclass", "usepackage", "begin", "end", "makeatletter", "makeatother"], "findings": "The document shell and catcode commands delimit the declaration setup without changing its arrow geometry."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The TikZ package loads the PGF basic layer before the arrows library and user declarations."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["draw", "node", "usetikzlibrary"], "findings": "Draw and node are path operations; path styles and line width are resolved before terminal arrow instantiation."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {"symbols": ["pgfarrowsdeclarecombine", "pgfarrowsdeclarecombine*", "means", "sep"], "findings": "The unstarred helper emits first-end[sep]second-start; the starred helper inserts the line-end dot between those independently painted tips."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": {"symbols": ["pgfqpoint"], "findings": "Quick points assign the supplied dimensions directly to the PGF x and y registers used by declaration paths."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex": {"symbols": ["pgfsetbuttcap", "pgfsetroundcap"], "findings": "The cap commands switch the backend stroke cap and therefore remain local to each painted arrow component."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex": {"symbols": ["pgfusepathqstroke"], "findings": "The quick stroke flushes and strokes the current soft path without path-action hooks, then resets path sizes."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-arrows.tex": {"symbols": ["backend", "line end", "tip end"], "findings": "Each component keeps its own declaration extents; sequence assembly uses tip-end minus backend while shaft shortening follows the selected line end."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex": {"symbols": ["sep", "."], "findings": "Separation may be positive or negative, and the dot selects which component terminates the path line without painting geometry."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js", "outputs/qa/2026-09-05-arrows-declared-combinations-after/diff/arrows-declared-combine-flowchart-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js", "outputs/qa/2026-09-05-arrows-declared-combinations-after/diff/arrows-declared-combine-flowchart-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]}
+  ]
+}

@@ -368,6 +368,24 @@ test("semantic audit preserves the PGF-backed MacTeX source for arrows.meta", ()
   );
 });
 
+test("semantic audit maps legacy declared-arrow composition helpers", () => {
+  const report = auditTikzSource(String.raw`
+    \pgfarrowsdeclarecombine{two}{two}{a}{a}{a}{a}
+    \pgfarrowsdeclaredouble{double}{double}{a}{a}
+    \pgfarrowsdeclaretriple{triple}{triple}{a}{a}
+  `, { localSourceResolver: fakeResolver });
+
+  for (const name of [
+    "\\pgfarrowsdeclarecombine",
+    "\\pgfarrowsdeclaredouble",
+    "\\pgfarrowsdeclaretriple"
+  ]) {
+    const command = report.commands.find((entry) => entry.name === name);
+    assert.match(command?.implementedBy || "", /src\/tikz\/libraries\/arrows\.js/u);
+    assert.equal(command?.localLookup, "pgfcorearrows.code.tex");
+  }
+});
+
 test("semantic audit preserves reviewed PGFPlots library metadata and date label ownership", () => {
   const report = auditTikzSource(String.raw`
     \usepgfplotslibrary{dateplot}

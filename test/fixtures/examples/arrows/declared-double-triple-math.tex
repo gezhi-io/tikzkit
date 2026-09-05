@@ -1,0 +1,30 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+
+\makeatletter
+\pgfarrowsdeclare{map tick}{map tick}{
+  \pgfarrowsleftextend{-.8pt}
+  \pgfarrowsrightextend{1.2pt}
+}{
+  \pgfsetroundcap
+  \pgfpathmoveto{\pgfqpoint{-.8pt}{-1.2pt}}
+  \pgfpathlineto{\pgfqpoint{1.2pt}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-.8pt}{1.2pt}}
+  \pgfusepathqstroke
+}
+\pgfarrowsdeclaredouble[.8pt]{double map}{double map}{map tick}{map tick}
+\pgfarrowsdeclaretriple[\pgflinewidth]{triple map}{triple map}{map tick}{map tick}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}
+  \node (a) at (0,1.2) {$A$};
+  \node (b) at (5,1.2) {$B$};
+  \node (x) at (0,0) {$x$};
+  \node (y) at (5,0) {$f(x)$};
+  \draw[blue!70!black,line width=.8pt,-{double map}] (a) to[bend left=15] node[above] {$f$} (b);
+  \draw[purple!80!black,line width=1.2pt,-{triple map}] (x) -- node[above] {$f\circ f\circ f$} (y);
+  \draw[gray!70,line width=.8pt,{double map}-{triple map}] (a) -- (x);
+\end{tikzpicture}
+\end{document}

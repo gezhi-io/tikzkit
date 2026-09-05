@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/bondgraph/bondgraph.sty",
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/bondgraph/bondgraph_example.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["documentclass", "usepackage", "begin", "end"], "findings": "The document shell loads the package declarations before the picture and does not alter bond-arrow geometry."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/size10.clo": {"symbols": ["small", "@setfontsize"], "findings": "The standard 10pt class maps small text to 9pt with an 11pt baseline skip for the bond labels."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The TikZ package loads the PGF basic layer before arrows and positioning."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["draw", "node", "usetikzlibrary"], "findings": "The bond path's 1.2pt stroke is active when its combined tip is instantiated."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {"symbols": ["pgfarrowsdeclarecombine", "pgflinewidth"], "findings": "The compatibility helper recognizes the exact pgflinewidth token and stores it as an active line-width separation factor."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": {"symbols": ["pgfqpoint"], "findings": "Quick points provide the unscaled local path coordinates for the combined components."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex": {"symbols": ["pgfsetbuttcap", "pgfsetroundcap"], "findings": "The bar and left-to components retain their independent source cap choices."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex": {"symbols": ["pgfusepathqstroke"], "findings": "Quick stroke paints each component without applying the outer TikZ path hooks again."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": {"symbols": ["left to", "bar"], "findings": "The combined bond arrow reuses two independently declared legacy components and their paint rules."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/bondgraph/bondgraph.sty": {"symbols": ["combined", "outbonde", "inbonde"], "findings": "The installed package defines combined from left-to and bar with one active line width of separation, then exposes it as directed bond styles."},
+    "/usr/local/texlive/2025/texmf-dist/doc/latex/bondgraph/bondgraph_example.tex": {"symbols": ["bond", "junction"], "findings": "The package example confirms that the combined terminal is used on real bond-graph connections, not only synthetic arrow probes."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js", "outputs/qa/2026-09-05-arrows-declared-combinations-after/diff/arrows-declared-combine-bondgraph-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js", "outputs/qa/2026-09-05-arrows-declared-combinations-after/diff/arrows-declared-combine-bondgraph-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]}
+  ]
+}

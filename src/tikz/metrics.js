@@ -1100,6 +1100,7 @@ function normalizeArrowKind(kind) {
   if (/^legacy-spaced-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
   if (text === "legacy-spaced-serif-cm") return text;
   if (/^legacy-spaced-(?:(?:square|round)-bracket(?:-reversed)?|bar)$/u.test(text)) return text;
+  if (text === "legacy-bar") return text;
   if (/^legacy-spaced-(?:open-circle|filled-circle|diamond|open-diamond|square|open-square)$/u.test(text)) return text;
   if (text === "legacy-spaced-implies") return text;
   if (source === "Round Cap") return "round-cap";

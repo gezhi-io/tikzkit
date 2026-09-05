@@ -1,0 +1,27 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+\begin{document}
+% This is the declaration used by the installed bondgraph.sty package. Keeping
+% it after library loading also makes the dependency order explicit.
+\makeatletter
+\pgfarrowsdeclarecombine[\pgflinewidth]
+  {combined}{combined}{left to}{left to}{|}{|}
+\makeatother
+
+\begin{tikzpicture}[
+  element/.style={draw,circle,minimum size=9mm,font=\small},
+  junction/.style={draw,rectangle,minimum size=8mm,font=\small},
+  node distance=16mm and 24mm
+]
+  \node[element,fill=blue!8] (source) {$S_e$};
+  \node[junction,right=of source] (j0) {$0$};
+  \node[element,fill=orange!10,right=of j0] (resistor) {$R$};
+  \node[element,fill=green!10,below=of j0] (capacitor) {$C$};
+
+  \draw[very thick,-combined] (source) -- node[above] {$e_1$} (j0);
+  \draw[very thick,-combined] (j0) -- node[above] {$f_2$} (resistor);
+  \draw[very thick,-combined] (j0) -- node[right] {$e_3$} (capacitor);
+\end{tikzpicture}
+\end{document}

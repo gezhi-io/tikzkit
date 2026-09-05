@@ -1,0 +1,44 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+\makeatletter
+\pgfarrowsdeclare{process chevron}{process chevron}{
+  \pgfarrowsleftextend{-1.2pt}
+  \pgfarrowssetlineend{.2pt}
+  \pgfarrowsrightextend{1.8pt}
+}{
+  \pgfsetroundcap
+  \pgfpathmoveto{\pgfqpoint{-1.2pt}{-1.5pt}}
+  \pgfpathlineto{\pgfqpoint{1.8pt}{0pt}}
+  \pgfpathlineto{\pgfqpoint{-1.2pt}{1.5pt}}
+  \pgfusepathqstroke
+}
+\pgfarrowsdeclare{process stop}{process stop}{
+  \pgfarrowsleftextend{-.4pt}
+  \pgfarrowssetlineend{0pt}
+  \pgfarrowsrightextend{.4pt}
+}{
+  \pgfsetbuttcap
+  \pgfpathmoveto{\pgfqpoint{0pt}{-2pt}}
+  \pgfpathlineto{\pgfqpoint{0pt}{2pt}}
+  \pgfusepathqstroke
+}
+\pgfarrowsdeclarecombine[.7pt]{queued}{queued}{process chevron}{process chevron}{process chevron}{process chevron}
+\pgfarrowsdeclarecombine*[.5pt]{committed}{committed}{process chevron}{process chevron}{process stop}{process stop}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  state/.style={draw,rounded corners=2pt,minimum width=20mm,minimum height=8mm},
+  node distance=18mm and 22mm
+]
+  \node[state,fill=blue!8] (draft) {Draft};
+  \node[state,fill=orange!10,right=of draft] (review) {Review};
+  \node[state,fill=green!10,right=of review] (done) {Done};
+  \draw[blue!70!black,very thick,-{queued}] (draft) -- node[above]{queue} (review);
+  \draw[green!45!black,very thick,-{committed}] (review) -- node[above]{commit} (done);
+  \draw[red!70!black,thick,{committed}-{queued}] (done.south) |- ([yshift=-11mm]draft.south) -| (draft.south)
+    node[pos=.5,below=2pt]{rollback};
+\end{tikzpicture}
+\end{document}

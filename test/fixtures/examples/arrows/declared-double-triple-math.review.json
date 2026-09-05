@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {"symbols": ["documentclass", "usepackage", "begin", "end", "makeatletter", "makeatother"], "findings": "The document shell and catcode commands delimit the declaration setup without changing its arrow geometry."},
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {"symbols": ["RequirePackage{pgf}", "tikz.code.tex"], "findings": "The TikZ package loads the PGF basic layer before user declarations."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {"symbols": ["draw", "node", "usetikzlibrary"], "findings": "Path styles and the current line width are fixed before double and triple tips are materialized."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": {"symbols": ["pgfarrowsdeclaredouble", "pgfarrowsdeclaretriple", "pgflinewidth"], "findings": "Double expands to one combine; triple first creates a temporary double and then combines it with the original tip. A literal pgflinewidth separation is normalized to one active line-width factor."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": {"symbols": ["pgfqpoint"], "findings": "Quick points assign dimensions directly to the declaration path coordinate registers."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex": {"symbols": ["pgfsetbuttcap", "pgfsetroundcap"], "findings": "Cap selection belongs to each independently stroked tip component."},
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex": {"symbols": ["pgfusepathqstroke"], "findings": "Quick stroke paints the current component path and resets its path-size registers."},
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-arrows.tex": {"symbols": ["sep", "sequence of arrow tips"], "findings": "End-tip sequences are ordered inward to outward by each component backend, with start sequences reversing that order."}
+  },
+  "rules": [
+    {"match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js", "outputs/qa/2026-09-05-arrows-declared-combinations-after/diff/arrows-declared-double-triple-math-native-sheet.png"]},
+    {"match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js", "outputs/qa/2026-09-05-arrows-declared-combinations-after/diff/arrows-declared-double-triple-math-native-sheet.png"]},
+    {"match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]},
+    {"match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-combinations.test.js"]}
+  ]
+}
