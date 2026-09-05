@@ -78,6 +78,11 @@ const COMMAND_OWNERS = {
   tikz: owner("src/packages/tikz.js", "partial"),
   tikzset: owner("src/engine/options.js", "partial", "tikz.code.tex"),
   tikzstyle: owner("src/frontend/latex-shell.js", "partial", "tikz.code.tex"),
+  tikzchildanchor: owner("src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:treeEdgeRoute", "partial", "tikz.code.tex"),
+  tikzchildnode: owner("src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:treeEdgeRoute", "partial", "tikz.code.tex"),
+  tikzleveldistance: owner("src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:treeEdgeRoute", "partial", "tikz.code.tex"),
+  tikzparentanchor: owner("src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:treeEdgeRoute", "partial", "tikz.code.tex"),
+  tikzparentnode: owner("src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:treeEdgeRoute", "partial", "tikz.code.tex"),
   tikztonodes: owner("src/tikz/libraries/topaths.js:parseCustomToPathTemplate + src/engine/evaluate.js:customToPathLabelNodes/flushCustomToPathNodes", "partial", "tikz.code.tex"),
   tikztostart: owner("src/tikz/libraries/topaths.js:parseCustomToPathTemplate + src/engine/evaluate.js:customToPathEnvironment", "partial", "tikz.code.tex"),
   tikztotarget: owner("src/tikz/libraries/topaths.js:parseCustomToPathTemplate + src/engine/evaluate.js:customToPathEnvironment", "partial", "tikz.code.tex"),
@@ -644,6 +649,12 @@ function walkOptionMap(raw, group, parentKeys, features, review) {
 }
 
 function optionOwner(context, keyPath = []) {
+  if (keyPath[0] === "edge from parent path") {
+    return "src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:treeEdgeRoute/addTreeEdge";
+  }
+  if (keyPath[0] === "edge from parent/.style") {
+    return "src/engine/options.js:withImplicitStyleOption + src/engine/evaluate.js:addTreeEdge";
+  }
   if (keyPath.at(-1) === "grow via three points") {
     return "src/tikz/libraries/trees.js:parseGrowViaThreePoints/threePointChildOffset + src/engine/evaluate.js:treeGrowthSpec/treeChildOffset";
   }
@@ -893,7 +904,7 @@ export function renderAuditMarkdown(report) {
     lines.push("### Required Reviews", "", ...report.gate.todos.map((entry) => `- ${entry}`), "");
   }
   if (report.gate.accepted) lines.push("All semantic items are reviewed and backed by evidence.", "");
-  return `${lines.join("\n")}\n`;
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 function resolveWithKpsewhich(lookup, dependency = {}) {

@@ -1,0 +1,19 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{trees}
+\begin{document}
+\begin{tikzpicture}[
+  grow=down,
+  level distance=18mm,
+  sibling distance=34mm,
+  every node/.style={draw,rounded corners=2pt,minimum width=17mm,minimum height=7mm,fill=blue!8},
+  edge from parent/.style={draw,thick,-stealth},
+  edge from parent path={
+    (\tikzparentnode.south) .. controls +(0,-6mm) and +(0,6mm) .. (\tikzchildnode.north)
+  }
+]
+  \node {Review}
+    child {node {Revise}}
+    child {node {Release}};
+\end{tikzpicture}
+\end{document}

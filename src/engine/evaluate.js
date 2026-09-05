@@ -84,7 +84,13 @@ import {
   tapeLayoutSize as symbolTapeLayoutSize
 } from "../tikz/libraries/shapes.symbols.js";
 import { foreachIterationVariables } from "../tikz/commands/foreach.js";
-import { parseGrowViaThreePoints, threePointChildOffset } from "../tikz/libraries/trees.js";
+import {
+  parseEdgeFromParentPathTemplate,
+  parseGrowViaThreePoints,
+  threePointChildOffset,
+  TREE_CHILD_ALIAS,
+  TREE_PARENT_ALIAS
+} from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
@@ -6936,15 +6942,12 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
   for (const [index, layout] of layouts.entries()) {
     const { child, childTreeOptions, layoutOptions, grow, iterationEnv } = layout;
     const childEdgeOptions = resolveDynamicOptions(child.edgeOptions || {}, iterationEnv);
-    const fixedLateralShift = grow?.kind !== "three-point" && treeUsesFixedLateralShift(layoutOptions);
     const childLocalGrowth = treeGrowthOption(childTreeOptions);
-    const siblingIndex = fixedLateralShift ? 0 : index;
-    const siblingCount = fixedLateralShift ? 1 : layouts.length;
     const siblingDistance = childLocalGrowth
       ? 0
       : treeSiblingDistance(level, iterationEnv, layoutOptions);
     const levelDistance = treeLevelDistance(level, iterationEnv, layoutOptions);
-    const offset = treeChildOffset(siblingIndex, siblingCount, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
+    const offset = treeChildOffset(index, layouts.length, siblingDistance, levelDistance, grow, layoutOptions, iterationEnv);
     offset.x += parseTreeDimension(childTreeOptions.xshift, "0pt", iterationEnv);
     offset.y += parseTreeDimension(childTreeOptions.yshift, "0pt", iterationEnv);
     const projected = grow?.kind === "three-point"
@@ -6983,7 +6986,15 @@ function createNodeTreeChildren(parentNode, children = [], env, ir, diagnostics,
           diagnostics
     );
     if (!childNode) continue;
-    addTreeEdge(parentNode, childNode, { ...layoutOptions, ...childEdgeOptions }, childEnv, ir);
+    addTreeEdge(
+      parentNode,
+      childNode,
+      { ...layoutOptions, ...childEdgeOptions },
+      child.edgeNodes || [],
+      childEnv,
+      ir,
+      diagnostics
+    );
     const descendantEnv = {
       ...childEnv,
       pictureOptions: treeDescendantPictureOptions(childEnv.pictureOptions, childTreeOptions)
@@ -7012,11 +7023,6 @@ function expandTreeChildForeach(children = [], env = {}) {
     }
   }
   return expanded;
-}
-
-function treeUsesFixedLateralShift(options = {}) {
-  const edgePath = String(options["edge from parent path"] || "");
-  return /tikzparentnode\.south/.test(edgePath) && /\|-/.test(edgePath) && /tikzchildnode\.west/.test(edgePath);
 }
 
 function mergeTreeGrowthOptions(...layers) {
@@ -7211,16 +7217,21 @@ function isMindmapOptions(options = {}) {
   return Boolean(options.mindmap || options["tikzkit mindmap"] || options["grow cyclic"]);
 }
 
-function addTreeEdge(parentNode, childNode, options, env, ir) {
+function addTreeEdge(parentNode, childNode, options, edgeNodes, env, ir, diagnostics) {
   const rawOptions = resolveDynamicOptions(
     withImplicitStyleOption(
       "every path",
-      { ...(env.pictureOptions || {}), ...(options || {}) },
+      withImplicitStyleOption(
+        "edge from parent",
+        { ...(env.pictureOptions || {}), ...(options || {}) },
+        env.styles
+      ),
       env.styles
     ),
     env
   );
   const normalized = normalizeOptions("draw", rawOptions, env);
+  const edgeOptions = { ...normalized.options, ...normalized.semantic };
   const style = scaleCanvasStyle(normalized.style, env);
   let mindmapConnection = null;
   if (isMindmapOptions(env.pictureOptions || {}) || isMindmapOptions(options || {})) {
@@ -7239,7 +7250,7 @@ function addTreeEdge(parentNode, childNode, options, env, ir) {
   }
   const parentClipNode = treeEdgeClipNode(parentNode, env);
   const childClipNode = treeEdgeClipNode(childNode, env);
-  const edgeEndpoints = treeEdgeEndpoints(parentClipNode, childClipNode, rawOptions, env);
+  const edgeEndpoints = treeEdgeEndpoints(parentClipNode, childClipNode, edgeOptions, env);
   const connectionBar = mindmapConnection
     ? mindmapConnectionBarCommands(parentNode, childNode)
     : null;
@@ -7255,13 +7266,61 @@ function addTreeEdge(parentNode, childNode, options, env, ir) {
   } else if (mindmapConnection) {
     style.mindmapConnection = { ...mindmapConnection, paint: "stroke" };
   }
-  const commands = connectionBar || treeEdgeCommands(parentClipNode, childClipNode, edgeEndpoints, rawOptions);
+  const route = connectionBar
+    ? { commands: connectionBar, nodes: [], shapes: [], targetOperation: null, env }
+    : treeEdgeRoute(parentClipNode, childClipNode, edgeEndpoints, edgeOptions, env, diagnostics, style);
   ir.items.push({
     type: "path",
     subtype: "tree-edge",
     style,
-    commands
+    commands: route.commands
   });
+  const labels = [...route.nodes];
+  flushCustomToPathNodes(
+    edgeNodes,
+    pathPrimitivesFromCommands(route.commands),
+    route.targetOperation,
+    labels,
+    route.env,
+    style,
+    edgeOptions
+  );
+  for (const shape of route.shapes) ir.items.push(shape);
+  for (const node of labels) addNodeItems(node, ir, route.env);
+}
+
+function treeEdgeRoute(parentNode, childNode, endpoints, options, env, diagnostics, pathStyle) {
+  const template = parseEdgeFromParentPathTemplate(options["edge from parent path"], parsePathSegments, {
+    parentAnchor: options["parent anchor"],
+    childAnchor: options["child anchor"],
+    levelDistance: parseTreeDimension(options["level distance"] ?? env.pictureOptions?.["level distance"], "15mm", env)
+  });
+  if (!template) {
+    return {
+      commands: treeEdgeCommands(endpoints, options),
+      nodes: [],
+      shapes: [],
+      targetOperation: null,
+      env
+    };
+  }
+  const routeEnv = {
+    ...env,
+    coordinates: { ...env.coordinates },
+    nodes: {
+      ...env.nodes,
+      [TREE_PARENT_ALIAS]: parentNode,
+      [TREE_CHILD_ALIAS]: childNode
+    }
+  };
+  const built = buildPath(template.segments, routeEnv, diagnostics, options, pathStyle);
+  return {
+    commands: built.commands,
+    nodes: built.nodes,
+    shapes: built.shapes,
+    targetOperation: template.targetOperation,
+    env: routeEnv
+  };
 }
 
 function treeEdgeEndpoints(parentNode, childNode, options = {}, env = {}) {
@@ -7376,17 +7435,7 @@ function mindmapConceptColor(node, fallback) {
     : normalizeColor(String(value));
 }
 
-function treeEdgeCommands(parentNode, childNode, endpoints, options = {}) {
-  const edgePath = String(options["edge from parent path"] || "");
-  if (/tikzparentnode\.south/.test(edgePath) && /\|-/.test(edgePath) && /tikzchildnode\.west/.test(edgePath)) {
-    const from = nodeAnchorCoordinate(parentNode, "south");
-    const to = nodeAnchorCoordinate(childNode, "west");
-    return [
-      { type: "moveTo", x: from.x, y: from.y },
-      { type: "lineTo", x: from.x, y: to.y },
-      { type: "lineTo", x: to.x, y: to.y }
-    ];
-  }
+function treeEdgeCommands(endpoints, options = {}) {
   if (options["edge from parent fork down"] || options["edge from parent fork up"]) {
     const { from, to } = endpoints;
     const forkY = roundNumber((from.y + to.y) / 2);

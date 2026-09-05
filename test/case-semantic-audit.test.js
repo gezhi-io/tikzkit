@@ -296,6 +296,29 @@ test("semantic audit maps three-point tree growth to its geometry owner", () => 
   );
 });
 
+test("semantic audit maps edge-from-parent templates and node macros to the tree path owner", () => {
+  const report = auditTikzSource(String.raw`
+    \begin{tikzpicture}[
+      edge from parent/.style={draw,thick},
+      edge from parent path={(\tikzparentnode.south) -- +(0,-.4\tikzleveldistance) -| (\tikzchildnode.north)}
+    ]
+      \node {root} child {node {child}};
+    \end{tikzpicture}
+  `);
+  const template = report.options.find((entry) => entry.id === "option:tikzpicture:edge from parent path");
+  const style = report.options.find((entry) => entry.id === "option:tikzpicture:edge from parent/.style");
+  const parent = report.commands.find((entry) => entry.name === "\\tikzparentnode");
+  const child = report.commands.find((entry) => entry.name === "\\tikzchildnode");
+  const levelDistance = report.commands.find((entry) => entry.name === "\\tikzleveldistance");
+
+  assert.match(template?.implementedBy || "", /parseEdgeFromParentPathTemplate/);
+  assert.match(style?.implementedBy || "", /withImplicitStyleOption/);
+  assert.match(parent?.implementedBy || "", /treeEdgeRoute/);
+  assert.match(child?.implementedBy || "", /treeEdgeRoute/);
+  assert.match(levelDistance?.implementedBy || "", /parseEdgeFromParentPathTemplate/);
+  assert.ok(!report.gate.blockers.some((entry) => /tikz(?:parentnode|childnode|leveldistance)/.test(entry)));
+});
+
 test("semantic audit inventories multi-variable child foreach declarations", () => {
   const report = auditTikzSource(String.raw`
     \begin{tikzpicture}[grow=down,sibling distance=20mm]
@@ -423,7 +446,9 @@ test("audit artifact writing creates missing QA directories without overwriting 
     assert.equal(existsSync(reviewPath), true);
     assert.equal(existsSync(outputPath), true);
     assert.equal(JSON.parse(readFileSync(reviewPath, "utf8")).caseStatus, "incomplete");
-    assert.match(readFileSync(outputPath, "utf8"), /Semantic Audit/);
+    const auditMarkdown = readFileSync(outputPath, "utf8");
+    assert.match(auditMarkdown, /Semantic Audit/);
+    assert.ok(!auditMarkdown.endsWith("\n\n"));
     assert.throws(() => writeAuditArtifacts({ report, initReviewPath: reviewPath }), /Refusing to overwrite/);
   } finally {
     rmSync(root, { recursive: true, force: true });

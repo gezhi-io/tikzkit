@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone shell is removed while its border and TikZ picture remain available to the browser renderer."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads the core TikZ parser, PGF path engine, and requested trees library."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["edge from parent path", "\\tikzparentnode", "\\tikzchildnode", "\\tikzleveldistance", "\\tikz@edge@from@parent@macro"],
+      "findings": "The parent edge is a stored path specification evaluated after the child name exists. Parent and child anchor suffixes and the current level-distance register are available during that evaluation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["fork down", "+(0pt,-.5\\tikzleveldistance)", "-|"],
+      "findings": "Lines 115 onward implement orthogonal forks with a relative waypoint based on the current level distance. This fixture uses the same construction with a 0.35 coefficient."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex": {
+      "symbols": ["Edges From Parent", "edge from parent fork down", "level distance"],
+      "findings": "The registry-linked library manual describes the orthogonal fork styles as a half-level-distance stem followed by horizontal and vertical segments."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": {
+      "symbols": ["edge from parent path", "Parent and Child Anchors", "level distance"],
+      "findings": "The manual treats edge templates as regular TikZ paths, so relative coordinates and orthogonal connectors retain normal path semantics."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "test/fixtures/examples/trees-edge-path/math.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after/diff/trees-edge-path-math-native-sheet.png"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after"] }
+  ]
+}

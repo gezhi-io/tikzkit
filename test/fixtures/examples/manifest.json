@@ -7857,6 +7857,51 @@
       ]
     },
     {
+      "id": "trees-edge-path-flowchart",
+      "title": "Curved release workflow tree edges",
+      "source": "trees-edge-path/flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the TeX Live PGF tree-edge manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate",
+      "features": [
+        "trees library",
+        "edge from parent style",
+        "edge from parent path",
+        "cubic control points",
+        "tree edge arrows"
+      ]
+    },
+    {
+      "id": "trees-edge-path-math",
+      "title": "Orthogonal polynomial tree edges",
+      "source": "trees-edge-path/math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the TeX Live PGF tree-edge manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate",
+      "features": [
+        "trees library",
+        "edge from parent path",
+        "relative waypoint",
+        "tikzleveldistance register",
+        "orthogonal edge routing"
+      ]
+    },
+    {
+      "id": "trees-edge-path-physics",
+      "title": "Labeled curved transition tree edges",
+      "source": "trees-edge-path/physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the TeX Live PGF tree-edge manual",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-trees.tex",
+      "semanticOwner": "src/frontend/parser.js:parseTreeEdgeFromParent + src/tikz/libraries/trees.js:parseEdgeFromParentPathTemplate + src/engine/evaluate.js:addTreeEdge",
+      "features": [
+        "trees library",
+        "edge from parent path",
+        "edge from parent options",
+        "edge labels",
+        "math labels"
+      ]
+    },
+    {
       "id": "trees-three-point-flowchart",
       "title": "Three-point release workflow tree",
       "source": "trees-three-point/flowchart.tex",

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone shell is removed while its border and TikZ picture remain available to the browser renderer."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads the core TikZ parser, PGF path engine, and requested trees library."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\tikz@edge@from@parent@macro", "\\tikz@edgetoparentcollect", "\\tikz@children", "edge from parent"],
+      "findings": "Lines 1366-1414 apply the edge-from-parent style and stored path, followed by collected edge nodes. Lines 3135-3160 collect every node specification after `edge from parent`, and lines 4645-4678 execute it after child creation."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["edge from parent path", "\\tikzparentnode", "\\tikzchildnode"],
+      "findings": "The library's predefined parent-edge routes use the same macro-bound path template mechanism now used by this curved transition tree."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex": {
+      "symbols": ["Edges From Parent", "edge from parent fork down", "level distance"],
+      "findings": "The registry-linked library manual describes the orthogonal fork styles as a half-level-distance stem followed by horizontal and vertical segments."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": {
+      "symbols": ["Edges From the Parent Node", "edge from parent node", "implicitly positioned"],
+      "findings": "Nodes following an edge-from-parent command are path nodes. The first label is centered to the left of its curve; the second retains the local dashed option and appears to the right."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "test/fixtures/examples/trees-edge-path/physics.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after/diff/trees-edge-path-physics-native-sheet.png"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after"] }
+  ]
+}

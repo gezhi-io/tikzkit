@@ -1139,7 +1139,9 @@ function parseNode(text, diagnostics = []) {
   if (!label) return unsupported("node", text, "Malformed node text");
   const trailingPath = text.slice(label.end).trim();
   const treeChildren = parseNodeTreeChildren(trailingPath, diagnostics);
-  const hasTreeSyntax = treeChildren.children.length || Object.keys(treeChildren.edgeOptions || {}).length;
+  const hasTreeSyntax = treeChildren.children.length ||
+    Object.keys(treeChildren.edgeOptions || {}).length ||
+    treeChildren.edgeNodes.length;
   return {
     type: "node",
     name,
@@ -1147,6 +1149,7 @@ function parseNode(text, diagnostics = []) {
     at,
     text: label.content,
     edgeFromParentOptions: treeChildren.edgeOptions,
+    edgeFromParentNodes: treeChildren.edgeNodes,
     treeOptions: treeChildren.options,
     children: treeChildren.children,
     path: hasTreeSyntax && !treeChildren.rest
@@ -1165,6 +1168,7 @@ function parseNodeTreeChildren(text, diagnostics = []) {
   const children = [];
   let options = {};
   let edgeOptions = {};
+  const edgeNodes = [];
   let index = 0;
   let guard = 0;
   while (true) {
@@ -1181,6 +1185,7 @@ function parseNodeTreeChildren(text, diagnostics = []) {
     const edgeFromParent = parseTreeEdgeFromParent(text, index);
     if (edgeFromParent) {
       edgeOptions = { ...edgeOptions, ...edgeFromParent.options };
+      edgeNodes.push(...edgeFromParent.nodes);
       if (!Number.isFinite(edgeFromParent.end) || edgeFromParent.end <= index) {
         diagnostics.push({
           severity: "warning",
@@ -1214,6 +1219,7 @@ function parseNodeTreeChildren(text, diagnostics = []) {
   return {
     options,
     edgeOptions,
+    edgeNodes,
     children,
     rest: text.slice(index).trim()
   };
@@ -1265,8 +1271,16 @@ function parseTreeEdgeFromParent(text, start) {
       index = skipWhitespace(text, parsedOptions.end);
     }
   }
+  const nodes = [];
+  while (startsKeyword(text, index, "node")) {
+    const parsed = parseInlineNodeSegment(text, index);
+    if (!parsed) break;
+    nodes.push(parsed.segment);
+    index = skipWhitespace(text, parsed.end);
+  }
   return {
     options,
+    nodes,
     end: index
   };
 }
@@ -1309,6 +1323,7 @@ function parseNodeTreeForeachTemplate(body, options, diagnostics = []) {
     return {
       options,
       edgeOptions: childNode.edgeFromParentOptions || {},
+      edgeNodes: childNode.edgeFromParentNodes || [],
       node: childNode,
       children: childNode.children || []
     };
@@ -1319,6 +1334,7 @@ function parseNodeTreeForeachTemplate(body, options, diagnostics = []) {
   return {
     options,
     edgeOptions: nested.edgeOptions || {},
+    edgeNodes: nested.edgeNodes || [],
     node: {
       type: "coordinate",
       name: null,
@@ -1363,6 +1379,7 @@ function parseNodeTreeChild(text, start, diagnostics = []) {
     child: {
       options: parsedOptions.options,
       edgeOptions: childNode.edgeFromParentOptions || {},
+      edgeNodes: childNode.edgeFromParentNodes || [],
       node: childNode,
       children: childNode.children || []
     },

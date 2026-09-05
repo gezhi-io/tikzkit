@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "\\begin", "\\end", "\\usepackage"],
+      "findings": "The standalone shell is removed while its border and TikZ picture remain available to the browser renderer."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\usepackage{tikz}"],
+      "findings": "The package wrapper loads the core TikZ parser, PGF path engine, and requested trees library."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["edge from parent path", "edge from parent/.style", "\\tikzparentnode", "\\tikzchildnode", "parent anchor", "child anchor"],
+      "findings": "Lines 1366-1414 define the default parent edge as a stored path template. Lines 4645-4678 create the child first, bind the parent and child names, apply edge-from-parent styles, and execute the template with automatic border clipping."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarytrees.code.tex": {
+      "symbols": ["fork down", "edge from parent path", "\\tikzleveldistance"],
+      "findings": "The installed fork styles are ordinary edge-from-parent templates, confirming that custom templates should share the normal path parser instead of a tree-only geometry shortcut."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-trees.tex": {
+      "symbols": ["Edges From Parent", "edge from parent fork down", "level distance"],
+      "findings": "The registry-linked library manual describes the orthogonal fork styles as a half-level-distance stem followed by horizontal and vertical segments."
+    },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-trees.tex": {
+      "symbols": ["Edges From the Parent Node", "edge from parent path", "controls"],
+      "findings": "The documented curved-edge example uses explicit parent and child anchors with relative Bezier controls; this fixture exercises that same accepted template family."
+    }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "test/fixtures/examples/trees-edge-path/flowchart.tex"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after/diff/trees-edge-path-flowchart-native-sheet.png"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/trees-edge-path.test.js", "outputs/qa/2026-09-05-trees-edge-path-after"] }
+  ]
+}
