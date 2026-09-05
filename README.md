@@ -1,16 +1,13 @@
 # TikZKit
 
-TikZKit is an experimental JavaScript interpreter for practical TikZ/PGF
-drawing semantics. It converts TikZ source into SVG in Node.js or in a bundled
-browser app.
+[![npm](https://img.shields.io/npm/v/@gezhi-io/tikzkit.svg)](https://www.npmjs.com/package/@gezhi-io/tikzkit)
 
-It is not a TeX engine and is not a complete replacement for TikZ, PGF, or
-PGFPlots. Compatibility is added and visually checked case by case.
+TikZKit is an experimental JavaScript interpreter that renders supported
+TikZ, PGF, and PGFPlots source as SVG. It runs in Node.js and modern browsers
+without invoking a TeX engine at runtime.
 
-## Credits
-
-TikZKit has been built and continuously improved through the tireless efforts
-of Codex, with visual validation against local MacTeX and `tikztosvg`.
+> TikZKit is under active testing. It is not yet a complete replacement for
+> TeX, TikZ, or PGFPlots.
 
 ## Install
 
@@ -18,9 +15,9 @@ of Codex, with visual validation against local MacTeX and `tikztosvg`.
 npm install @gezhi-io/tikzkit
 ```
 
-TikZKit requires Node.js 20 or newer.
+Node.js 20 or newer is required.
 
-## Node.js
+## Quick Start
 
 ```js
 import { tikzToSvgAsync } from "@gezhi-io/tikzkit";
@@ -36,48 +33,66 @@ if (diagnostics.length) console.warn(diagnostics);
 console.log(svg);
 ```
 
-Use `tikzToSvg(source)` for synchronous rendering. The public package also
-exports `parseTikz`, `interpretTikz`, and `renderSvg` for integrations that
-need the intermediate stages.
+Use `tikzToSvg(source)` for synchronous rendering. The package also exports
+`convertTikzToSvg`, `parseTikz`, `interpretTikz`, and `renderSvg`.
 
-## Markdown
+## Examples
 
-TikZKit detects fenced code blocks whose language is `tikz`:
+The following images were rendered by TikZKit itself.
 
-````markdown
-# A small diagram
+| Sharp stacked areas | Smooth stacked areas | Constant stacked areas |
+| --- | --- | --- |
+| <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-algorithm.png" width="360" alt="Sharp stacked area chart rendered by TikZKit"> | <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-math.png" width="360" alt="Smooth stacked area chart rendered by TikZKit"> | <img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-physics.png" width="360" alt="Constant stacked area chart rendered by TikZKit"> |
 
-```tikz
+Full sources: [algorithm](test/fixtures/examples/pgfplots/stacked-area/algorithm.tex),
+[mathematics](test/fixtures/examples/pgfplots/stacked-area/math.tex), and
+[physics](test/fixtures/examples/pgfplots/stacked-area/physics.tex).
+
+Copy this PGFPlots example into the API, CLI, or browser demo:
+
+```tex
 \begin{tikzpicture}
-  \draw[->] (0,0) -- (2,0) node[right] {$x$};
-  \draw[->] (0,0) -- (0,1.5) node[above] {$y$};
+  \begin{axis}[
+    stack plots=y,
+    area style,
+    width=10cm,
+    height=6cm,
+    grid=major,
+    legend pos=north west
+  ]
+    \addplot coordinates {(0,2) (1,3) (2,2) (3,4)} \closedcycle;
+    \addplot coordinates {(0,1) (1,2) (2,3) (3,2)} \closedcycle;
+    \addplot coordinates {(0,1) (1,1) (2,2) (3,1)} \closedcycle;
+    \legend{compute,I/O,validation}
+  \end{axis}
 \end{tikzpicture}
 ```
-````
 
-Split Markdown into renderable parts with `splitTikzCodeBlocks` and pass each
-TikZ part to `tikzToSvgAsync`:
+## Visual Comparison
+
+Compatibility work is checked against local MacTeX and `tikztosvg`. This
+sheet shows the `tikztosvg` reference, TikZKit output, and their pixel
+difference from left to right.
+
+<img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/readme/stacked-area-comparison.png" width="100%" alt="tikztosvg reference, TikZKit output, and visual difference">
+
+Small text and bounding-box differences remain. The project tracks supported
+features and their explicit boundaries in the
+[extension registry](docs/extension-registry.md).
+
+## Browser
+
+Use TikZKit with Vite, Parcel, webpack, or another browser bundler:
 
 ```js
-import { splitTikzCodeBlocks, tikzToSvgAsync } from "@gezhi-io/tikzkit";
+import { tikzToSvgAsync } from "@gezhi-io/tikzkit";
 
-for (const part of splitTikzCodeBlocks(markdown)) {
-  if (part.type === "tikz") {
-    const { svg } = await tikzToSvgAsync(part.content);
-    // Insert the SVG using your framework or Markdown renderer.
-  }
-}
+const { svg } = await tikzToSvgAsync(tikzSource);
+document.querySelector("#preview").innerHTML = svg;
 ```
 
-TikZKit intentionally does not render the surrounding Markdown. Use a
-Markdown library of your choice for prose, headings, links, and sanitization.
-
-## Browser Demo
-
-The repository includes a small browser consumer at
-[`examples/npm-browser-demo`](examples/npm-browser-demo). It imports the
-published npm package through a browser import map and renders a Markdown TikZ
-code block:
+A complete local browser consumer is available in
+[`examples/npm-browser-demo`](examples/npm-browser-demo):
 
 ```bash
 cd examples/npm-browser-demo
@@ -85,10 +100,28 @@ npm install
 npm run dev
 ```
 
-Open the local URL shown in the terminal. The sample server exists only for
-local development: it serves the installed npm package and its browser
-dependencies. A production application should use its usual bundler or an
-equivalent import-map setup.
+## Markdown
+
+TikZKit can find fenced `tikz` blocks while leaving normal Markdown to the
+renderer of your choice:
+
+```js
+import { splitTikzCodeBlocks, tikzToSvgAsync } from "@gezhi-io/tikzkit";
+
+for (const part of splitTikzCodeBlocks(markdown)) {
+  if (part.type !== "tikz") continue;
+  const { svg } = await tikzToSvgAsync(part.content);
+  renderSvgBlock(svg);
+}
+```
+
+````markdown
+```tikz
+\begin{tikzpicture}
+  \draw[->] (0,0) -- (2,0) node[right] {$x$};
+\end{tikzpicture}
+```
+````
 
 ## CLI
 
@@ -96,46 +129,29 @@ equivalent import-map setup.
 npx tikz2svg diagram.tex -o diagram.svg --strict
 ```
 
-Options:
+## Documentation
 
-```text
---strict                 Treat diagnostics as failures
---math-renderer svg-text Use the SVG text math backend
---unit <pxPerCm>         Set SVG pixels per centimetre
---margin <px>            Set canvas margin
-```
+- [Getting started tutorial](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
+- [Extension registry](docs/extension-registry.md)
+- [Case-driven acceptance](docs/case-driven-acceptance.md)
+- [Visual QA records](docs/qa)
 
-## Local Workbench
+The tutorial and QA images live in the GitHub repository and are intentionally
+excluded from the npm package.
 
-Clone this repository when working on compatibility or using the local editor:
+## Develop
 
 ```bash
 npm install
+npm test
 npm run web
 ```
 
-Then open <http://127.0.0.1:5173/>. The workbench renders entirely in browser
-JavaScript; it does not invoke TeX or an external service.
+Open <http://127.0.0.1:5173/>. Use `PORT=5174 npm run web` when that port is
+already occupied.
 
-## Development
+## Credits
 
-```bash
-npm test
-```
-
-For real-case compatibility work, compare TikZKit against local MacTeX and
-`tikztosvg` rather than accepting a rendering solely because it is visible.
-
-Useful project documentation:
-
-- [Usage guide](docs/usage.md)
-- [Architecture](docs/architecture.md)
-- [Extension registry](docs/extension-registry.md)
-- [Visual QA records](docs/qa)
-
-## Status
-
-TikZKit is under active testing. Complex TeX macro expansion, exact native font
-metrics, complete PGFPlots behavior, and many third-party packages remain
-partial or unsupported. Check the extension registry and visual QA records
-before relying on a feature in production.
+TikZKit has been built and continuously improved through the tireless efforts
+of Codex, with source-level study and visual validation against local TeX.

@@ -6,6 +6,6 @@
     "dev": "node server.js"
   },
   "dependencies": {
-    "@gezhi-io/tikzkit": "^0.1.3"
+    "@gezhi-io/tikzkit": "^0.1.4"
   }
 }
