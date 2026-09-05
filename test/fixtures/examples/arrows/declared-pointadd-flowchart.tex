@@ -1,0 +1,44 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+% Source-derived from the legacy angle 60 declaration.
+\makeatletter
+\pgfarrowsdeclare{polar transition}{polar transition}
+{
+  \pgfutil@tempdima=.3pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfutil@tempdimb=7.29\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by.5\pgflinewidth
+  \pgfarrowsleftextend{-\pgfutil@tempdimb}
+  \pgfutil@tempdimb=.5\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by\pgflinewidth
+  \pgfarrowsrightextend{\pgfutil@tempdimb}
+}
+{
+  \pgfutil@tempdima=.3pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfsetroundcap
+  \pgfsetmiterjoin
+  \pgfpathmoveto{\pgfpointadd{\pgfqpoint{.5\pgfutil@tempdima}{0pt}}{\pgfqpointpolar{150}{9\pgfutil@tempdima}}}
+  \pgfpathlineto{\pgfqpoint{.5\pgfutil@tempdima}{0pt}}
+  \pgfpathlineto{\pgfpointadd{\pgfqpoint{.5\pgfutil@tempdima}{0pt}}{\pgfqpointpolar{-150}{9\pgfutil@tempdima}}}
+  \pgfusepathqstroke
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=13mm and 19mm,
+  task/.style={draw,rounded corners=2pt,minimum width=22mm,minimum height=8mm,align=center}
+]
+  \node[task,fill=blue!8] (input) {Input};
+  \node[task,fill=yellow!14,right=of input] (check) {Check};
+  \node[task,fill=green!10,right=of check] (done) {Done};
+  \node[task,fill=red!8,below=of check] (retry) {Retry};
+
+  \draw[blue,line width=.4pt,-{polar transition}] (input) -- node[above]{parse} (check);
+  \draw[green!50!black,line width=1pt,-{polar transition}] (check) -- node[above]{accept} (done);
+  \draw[red,line width=1.6pt,-{polar transition}] (check) -- node[right]{reject} (retry);
+\end{tikzpicture}
+\end{document}

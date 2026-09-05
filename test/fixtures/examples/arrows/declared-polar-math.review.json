@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-points.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The LaTeX shell contributes no arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry resolves the arrows and positioning libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "circle"], "findings": "Node borders provide the path endpoints before declaration shortening." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of"], "findings": "Positioning establishes the inclusion-map node centers." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["open triangle 60 reversed", "\\pgfqpointpolar{30}", "\\pgfpointorigin", "\\pgfqpointpolar{-30}"], "findings": "The reversed open triangle uses two quick polar points around the origin and stroke-only paint." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsleftextend", "\\pgfarrowsrightextend"], "findings": "Declaration setup controls the map shaft's terminal placement." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": { "symbols": ["\\pgfpointorigin", "\\pgfqpointpolar"], "findings": "The origin is exactly zero and quick polar uses one radius with degree-angle cosine and sine." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex": { "symbols": ["\\pgfusepathqstroke"], "findings": "The open inclusion tip remains unfilled." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex": { "symbols": ["\\pgfsetmiterjoin"], "findings": "The closed outline keeps a miter join." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-points.tex": { "symbols": ["\\pgfpointorigin", "\\pgfqpointpolar"], "findings": "The documented point semantics match the local source implementation." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["open triangle 60 reversed"], "findings": "The manual identifies the public open legacy family." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js"] }
+  ],
+  "notes": "Mathematical inclusion-map fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

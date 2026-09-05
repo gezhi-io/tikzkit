@@ -1,0 +1,42 @@
+\documentclass[border=4pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows,positioning}
+
+% Source-derived from the legacy open triangle 60 reversed declaration.
+\makeatletter
+\pgfarrowsdeclare{polar inclusion}{polar inclusion}
+{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfarrowsleftextend{-\pgflinewidth}
+  \pgfutil@tempdimb=7.794\pgfutil@tempdima
+  \advance\pgfutil@tempdimb by.5\pgflinewidth
+  \pgfarrowsrightextend{\pgfutil@tempdimb}
+}
+{
+  \pgfutil@tempdima=.5pt
+  \advance\pgfutil@tempdima by.25\pgflinewidth
+  \pgfsetmiterjoin
+  \pgfpathmoveto{\pgfqpointpolar{30}{9\pgfutil@tempdima}}
+  \pgfpathlineto{\pgfpointorigin}
+  \pgfpathlineto{\pgfqpointpolar{-30}{9\pgfutil@tempdima}}
+  \pgfpathclose
+  \pgfusepathqstroke
+}
+\makeatother
+
+\begin{document}
+\begin{tikzpicture}[
+  node distance=16mm and 25mm,
+  space/.style={draw,circle,minimum size=10mm,inner sep=1pt}
+]
+  \node[space,fill=blue!8] (A) {$A$};
+  \node[space,fill=green!10,right=of A] (B) {$B$};
+  \node[space,fill=orange!10,below=of A] (C) {$C$};
+  \node[space,fill=purple!8,right=of C] (D) {$D$};
+
+  \draw[blue,line width=.4pt,-{polar inclusion}] (A) -- node[above] {$i$} (B);
+  \draw[purple,line width=1pt,-{polar inclusion}] (C) -- node[below] {$j$} (D);
+  \draw[red,line width=1.6pt,-{polar inclusion}] (A) -- node[left] {$k$} (C);
+\end{tikzpicture}
+\end{document}

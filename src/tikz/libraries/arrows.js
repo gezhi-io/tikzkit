@@ -109,6 +109,22 @@ tikzLibrary.implements.push(
 );
 tikzLibrary.notes += " An eleventh source review on 2026-09-05 generalized user-declared arrows beyond literal dimensions. Setup and drawing programs now evaluate `\\pgfutil@tempdima`/`tempdimb` assignments and `\\advance`, substitute the active `\\pgflinewidth`, and resolve `\\pgfpoint`/`\\pgfqpoint` coordinates at render time. Dynamic backend, line-end, and tip-end dimensions shorten the shaft; qfill, qstroke, qfillstroke, butt/round caps, and miter/round joins retain declaration paint semantics. The adaptive process, open-map, and force fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, hull and clipping commands, saved-register callbacks, point addition, and polar point expressions remain partial.";
 
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:parsePgfPoint/readPgfCommandArguments/splitPolarRadii";
+tikzLibrary.features.push(
+  "user-declared recursive pgfpointadd vector expressions",
+  "user-declared pgfqpointpolar degree-angle points",
+  "user-declared pgfpointpolar circular and elliptical radii"
+);
+tikzLibrary.implements.push(
+  "user-declared recursive pgfpointadd vector expressions",
+  "user-declared pgfqpointpolar degree-angle points",
+  "user-declared pgfpointpolar circular and elliptical radii"
+);
+tikzLibrary.notes = tikzLibrary.notes.replace(
+  "Arbitrary TeX branches/macros, hull and clipping commands, saved-register callbacks, point addition, and polar point expressions remain partial.",
+  "A twelfth source review on 2026-09-05 implemented recursive `\\pgfpointadd`, quick `\\pgfqpointpolar`, and ordinary `\\pgfpointpolar` with one radius or independent `x radius and y radius`. Angles use PGF's degree convention, nested points share the declaration's active-line-width dimension registers, and the resulting local paths retain declaration paint and terminal shortening. Flowchart, inclusion-map, and force-vector fixtures are strict semantic and MacTeX/tikztosvg visual drivers. Arbitrary TeX branches/macros, transformed/intersection/scaled points, hull and clipping commands, and saved-register callbacks remain partial."
+);
+
 export function legacyPrimeArrowMetrics(kind, lineWidth) {
   const match = String(kind || "").trim().toLowerCase()
     .match(/^(latex|stealth)-prime(-reversed)?$/u);
@@ -891,19 +907,76 @@ function stripDeclaredArrowDrawingStyle(source) {
     .replace(/\\pgfset(?:miter|round)join\b/g, "");
 }
 
-function parsePgfPoint(text, variables = {}, lineWidth = lineWidthFromPt(0.4)) {
+function parsePgfPoint(text, variables = {}, lineWidth = lineWidthFromPt(0.4), depth = 0) {
   const source = String(text || "").trim();
+  if (depth > 12) return null;
   if (source === "\\pgfpointorigin") return { x: 0, y: 0 };
+
+  const pointAddArguments = readPgfCommandArguments(source, "\\pgfpointadd", 2);
+  if (pointAddArguments) {
+    const first = parsePgfPoint(pointAddArguments[0], variables, lineWidth, depth + 1);
+    const second = parsePgfPoint(pointAddArguments[1], variables, lineWidth, depth + 1);
+    return first && second ? { x: first.x + second.x, y: first.y + second.y } : null;
+  }
+
+  for (const command of ["\\pgfqpointpolar", "\\pgfpointpolar"]) {
+    const arguments_ = readPgfCommandArguments(source, command, 2);
+    if (!arguments_) continue;
+    const angle = evaluateDeclaredDimension(arguments_[0], variables, lineWidth);
+    const radiusParts = splitPolarRadii(arguments_[1]);
+    if (!Number.isFinite(angle) || (command === "\\pgfqpointpolar" && radiusParts.length !== 1)) return null;
+    const xRadius = evaluateDeclaredDimension(radiusParts[0], variables, lineWidth);
+    const yRadius = evaluateDeclaredDimension(radiusParts[1] ?? radiusParts[0], variables, lineWidth);
+    if (!Number.isFinite(xRadius) || !Number.isFinite(yRadius)) return null;
+    const radians = (angle * Math.PI) / 180;
+    return { x: xRadius * Math.cos(radians), y: yRadius * Math.sin(radians) };
+  }
+
   const pointCommand = source.startsWith("\\pgfqpoint") ? "\\pgfqpoint" : source.startsWith("\\pgfpoint") ? "\\pgfpoint" : null;
   if (!pointCommand) return null;
-  let cursor = skipWhitespace(source, pointCommand.length);
-  const x = readBalanced(source, cursor, "{", "}");
-  cursor = x ? skipWhitespace(source, x.end) : cursor;
-  const y = x && readBalanced(source, cursor, "{", "}");
-  if (!x || !y || source.slice(y.end).trim()) return null;
-  const xValue = evaluateDeclaredDimension(x.content, variables, lineWidth);
-  const yValue = evaluateDeclaredDimension(y.content, variables, lineWidth);
+  const arguments_ = readPgfCommandArguments(source, pointCommand, 2);
+  if (!arguments_) return null;
+  const xValue = evaluateDeclaredDimension(arguments_[0], variables, lineWidth);
+  const yValue = evaluateDeclaredDimension(arguments_[1], variables, lineWidth);
   return Number.isFinite(xValue) && Number.isFinite(yValue) ? { x: xValue, y: yValue } : null;
+}
+
+function readPgfCommandArguments(source, command, count) {
+  if (!source.startsWith(command)) return null;
+  let cursor = command.length;
+  const arguments_ = [];
+  for (let index = 0; index < count; index += 1) {
+    cursor = skipWhitespace(source, cursor);
+    const argument = readBalanced(source, cursor, "{", "}");
+    if (!argument) return null;
+    arguments_.push(argument.content);
+    cursor = argument.end;
+  }
+  return source.slice(cursor).trim() ? null : arguments_;
+}
+
+function splitPolarRadii(source) {
+  const text = String(source || "").trim();
+  let braceDepth = 0;
+  let bracketDepth = 0;
+  let parenthesisDepth = 0;
+  for (let index = 0; index <= text.length - 3; index += 1) {
+    const character = text[index];
+    if (character === "{") braceDepth += 1;
+    else if (character === "}") braceDepth = Math.max(0, braceDepth - 1);
+    else if (character === "[") bracketDepth += 1;
+    else if (character === "]") bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (character === "(") parenthesisDepth += 1;
+    else if (character === ")") parenthesisDepth = Math.max(0, parenthesisDepth - 1);
+    if (braceDepth || bracketDepth || parenthesisDepth || text.slice(index, index + 3) !== "and") continue;
+    const before = text[index - 1] || " ";
+    const after = text[index + 3] || " ";
+    if (!/\s/u.test(before) || !/\s/u.test(after)) continue;
+    const first = text.slice(0, index).trim();
+    const second = text.slice(index + 3).trim();
+    return first && second ? [first, second] : [text];
+  }
+  return [text];
 }
 
 function parseRadius(text, variables = {}, lineWidth = lineWidthFromPt(0.4)) {

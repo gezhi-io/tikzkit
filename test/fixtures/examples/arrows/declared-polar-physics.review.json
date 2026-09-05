@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-points.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\begin", "\\end"], "findings": "The document wrapper does not affect the local force-tip path." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\usepackage{tikz}", "\\usetikzlibrary"], "findings": "The package entry loads PGF before the arrow library." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\fill", "line width"], "findings": "Force-vector styles set color and active width before terminal rendering." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfutil@tempdima", "\\advance"], "findings": "Legacy declarations establish the active-line-width setup and drawing pattern reused by the fixture." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsleftextend", "\\pgfarrowsrightextend"], "findings": "The force shaft is shortened using declaration extents before the local tip transform." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": { "symbols": ["\\pgfpointpolar", "and"], "findings": "Ordinary polar points accept one radius or independent x/y radii and multiply them by degree-angle cosine and sine." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex": { "symbols": ["\\pgfusepathqfillstroke"], "findings": "The force tip combines fill and stroke." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex": { "symbols": ["\\pgfsetmiterjoin"], "findings": "The force-tip corners use the declaration's miter join." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-points.tex": { "symbols": ["\\pgfpointpolar", "x radius and y radius"], "findings": "The manual documents degree angles and elliptical polar radii." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["Arrow Tips"], "findings": "The manual establishes the legacy declaration context for the custom force tip." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js"] }
+  ],
+  "notes": "Physics force-vector fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

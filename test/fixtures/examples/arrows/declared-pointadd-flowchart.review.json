@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-points.tex",
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": { "symbols": ["\\documentclass", "\\usepackage", "\\makeatletter", "\\makeatother"], "findings": "The document shell and catcode guards do not alter arrow geometry." },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": { "symbols": ["\\RequirePackage{pgf,pgffor}", "\\input{tikz.code.tex}"], "findings": "TikZ loads PGF before optional arrow and positioning libraries." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": { "symbols": ["\\draw", "\\node", "line width"], "findings": "Path styles resolve the active width before terminal arrow assembly." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex": { "symbols": ["right=of", "below=of", "node distance"], "findings": "Node placement and border endpoints are independent of the declaration-local point program." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.code.tex": { "symbols": ["\\pgfarrowsdeclare{angle 60}", "\\pgfpointadd", "\\pgfqpointpolar{150}", "\\pgfqpointpolar{-150}"], "findings": "The angle-60 tip adds polar vectors to a half-d offset and repeats active-line-width sizing in drawing code." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.tex": { "symbols": ["\\pgfarrowsdeclare", "\\pgfarrowsleftextend", "\\pgfarrowsrightextend"], "findings": "Setup extents determine shaft shortening while drawing points remain local to the terminal transform." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.tex": { "symbols": ["\\pgfpointadd", "\\pgfqpoint", "\\pgfqpointpolar"], "findings": "Point addition evaluates both vectors and adds x/y; quick polar multiplies one radius by degree-angle cosine and sine." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code.tex": { "symbols": ["\\pgfusepathqstroke"], "findings": "The source-derived angle arrow is stroke-only." },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.code.tex": { "symbols": ["\\pgfsetroundcap", "\\pgfsetmiterjoin"], "findings": "The declaration overrides the arrow path cap and join." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-base-points.tex": { "symbols": ["\\pgfpointadd", "\\pgfqpointpolar"], "findings": "The manual specifies vector addition and degree-angle polar coordinates." },
+    "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-arrows.tex": { "symbols": ["angle 60"], "findings": "The manual confirms the public legacy arrow family used by the fixture." }
+  },
+  "rules": [
+    { "match": "dependency:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "command:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "environment:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "declaration:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "option:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "number:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js", "docs/qa/2026-09-05-arrows-declared-points.md"] },
+    { "match": "expression:*", "status": "verified", "evidence": ["test/arrows-declared-points.test.js"] }
+  ],
+  "notes": "Flowchart fixture reviewed against TikZKit, tikztosvg, and MacTeX."
+}

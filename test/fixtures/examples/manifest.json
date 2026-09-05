@@ -8298,6 +8298,33 @@
       "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
       "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
       "features": ["pgfarrowsdeclare", "dimension register reassignment", "pgflinewidth", "advance", "pgfqpoint", "fillstroke arrow", "active line width"]
+    },
+    {
+      "id": "arrows-declared-pointadd-flowchart",
+      "title": "Declared point-add polar transition arrows",
+      "source": "arrows/declared-pointadd-flowchart.tex",
+      "sourceCorpus": "TikZKit flowchart regression derived from the PGF angle 60 declaration",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "pgfpointadd", "pgfqpointpolar", "active line width", "stroke-only arrow", "round cap", "miter join"]
+    },
+    {
+      "id": "arrows-declared-polar-math",
+      "title": "Declared polar inclusion arrows",
+      "source": "arrows/declared-polar-math.tex",
+      "sourceCorpus": "TikZKit mathematics regression derived from the PGF open triangle 60 reversed declaration",
+      "externalSource": "tex/generic/pgf/libraries/pgflibraryarrows.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "pgfqpointpolar", "pgfpointorigin", "active line width", "stroke-only arrow", "miter join"]
+    },
+    {
+      "id": "arrows-declared-polar-physics",
+      "title": "Declared elliptical-polar thrust arrows",
+      "source": "arrows/declared-polar-physics.tex",
+      "sourceCorpus": "TikZKit physics regression derived from the PGF polar-point implementation",
+      "externalSource": "tex/generic/pgf/basiclayer/pgfcorepoints.code.tex",
+      "semanticOwner": "src/tikz/libraries/arrows.js:lowerDeclaredArrowTips/resolveDeclaredArrowGeometry",
+      "features": ["pgfarrowsdeclare", "pgfpointpolar", "elliptical polar radii", "active line width", "fillstroke arrow", "miter join"]
     }
   ]
 }
