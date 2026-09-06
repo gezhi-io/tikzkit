@@ -7,6 +7,7 @@ import {
   axisPlotPointChain,
   clampAxisBaseline,
   parametricBaselineClosedPoints,
+  splitAxisPlotPointRuns,
   shouldRenderAxisPlotPath
 } from "./plotPath.js";
 import {
@@ -128,15 +129,17 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
     const commands = [];
     if (plot.closedCycle && visibleDataPoints.length) {
       const baselineY = clampAxisBaseline(0, clipRanges.yMin, clipRanges.yMax);
-      const first = visibleDataPoints[0];
-      const last = visibleDataPoints[visibleDataPoints.length - 1];
-      const closedPoints = [
-        geometry.mapPoint({ x: first.x, y: baselineY }),
-        ...points,
-        geometry.mapPoint({ x: last.x, y: baselineY })
-      ];
       const fillStyle = joinOptions(["axis closed cycle", selectPlotFillStyle(plot.options, plotIndex), plotFillOpacityOption(plot.options), "draw=none"]);
-      commands.push(`\\draw[${fillStyle}] ${closedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
+      for (const run of splitAxisPlotPointRuns(visibleDataPoints)) {
+        const first = run[0];
+        const last = run[run.length - 1];
+        const closedPoints = [
+          geometry.mapPoint({ x: first.x, y: baselineY }),
+          ...run.map((point) => geometry.mapPoint(point)),
+          geometry.mapPoint({ x: last.x, y: baselineY })
+        ];
+        commands.push(`\\draw[${fillStyle}] ${closedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
+      }
     }
     const style = joinOptions([
       "axis plot",
@@ -195,6 +198,7 @@ export function renderCurrentPlotCoordinates(plot, axisOptions, ranges, geometry
 }
 
 export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, options = {}) {
+  if (plot.is3d && isAxisQuiverPlot(plot.options || {})) return [];
   if (plot.type === "coordinates" && !isSurfacePlot(plot, axisOptions)) {
     return plot.points
       .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && (!plot.is3d || Number.isFinite(point.z)))
@@ -231,7 +235,7 @@ function functionPlotPoints(plot, axisOptions, ranges, geometry, options) {
     clipRanges,
     dataPoints: validDataPoints,
     visibleDataPoints,
-    points: visibleDataPoints.map((point) => geometry.mapPoint(point))
+    points: visibleDataPoints.map((point) => ({ ...geometry.mapPoint(point), ...(point.breakBefore ? { breakBefore: true } : {}) }))
   };
 }
 
@@ -314,6 +318,15 @@ function axisBooleanOption(raw, fallback) {
 }
 
 function clipAxisDataPointsToRanges(points, ranges) {
+  if (points.some((point) => point.breakBefore)) {
+    const clipped = [];
+    for (const run of splitAxisPlotPointRuns(points)) {
+      const visible = clipAxisDataPointsToRanges(run, ranges);
+      if (visible.length && clipped.length) visible[0] = { ...visible[0], breakBefore: true };
+      clipped.push(...visible);
+    }
+    return clipped;
+  }
   if (points.length < 2) return points.filter((point) => axisPointInRange(point, ranges));
   const clipped = [];
   for (let index = 1; index < points.length; index += 1) {

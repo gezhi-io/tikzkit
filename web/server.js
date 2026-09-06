@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditTikzSource } from "../scripts/case-semantic-audit.js";
+import { auditTikzSource, createReviewBinding } from "../scripts/case-semantic-audit.js";
 import { loadMilestoneCatalog } from "./fixtureCatalog.js";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -107,16 +107,18 @@ async function fixtureAudit(fixture, source, auditCache, localSourceCache) {
   } catch (error) {
     if (error?.code !== "ENOENT") throw error;
   }
+  const review = reviewSource ? JSON.parse(reviewSource) : {};
   const cached = auditCache.get(fixture.id);
-  if (cached?.source === source && cached.reviewSource === reviewSource) return cached.value;
+  if (cached?.source === source && cached.reviewSource === reviewSource
+    && cached.binding === JSON.stringify(createReviewBinding(source, review))) return cached.value;
 
   const report = auditTikzSource(source, {
     sourcePath: fixture.sourcePath,
-    review: reviewSource ? JSON.parse(reviewSource) : {},
+    review,
     localSourceResolver: (lookup) => resolveLocalSource(lookup, localSourceCache)
   });
   const value = publicAudit(report);
-  auditCache.set(fixture.id, { source, reviewSource, value });
+  auditCache.set(fixture.id, { source, reviewSource, binding: JSON.stringify(report.binding), value });
   return value;
 }
 
@@ -177,13 +179,14 @@ function publicFixture(entry) {
 }
 
 async function staticRoute(pathname, { outputRoot }) {
+  // The workbench uses KaTeX for layout only; font assets belong to MacTeX.
+  if (pathname.startsWith("/vendor/katex/") && pathname !== "/vendor/katex/katex.mjs") return null;
   const routes = [
     ["/fonts/", path.join(PROJECT_ROOT, "web", "fonts")],
     ["/src/", path.join(PROJECT_ROOT, "src")],
     ["/vendor/codemirror/", path.join(PROJECT_ROOT, "web", "vendor", "codemirror")],
     ["/vendor/chevrotain/", path.join(PROJECT_ROOT, "node_modules/chevrotain/lib")],
     ["/vendor/katex/", path.join(PROJECT_ROOT, "node_modules/katex/dist")],
-    ["/node_modules/katex/dist/fonts/", path.join(PROJECT_ROOT, "node_modules/katex/dist/fonts")],
     ["/artifacts/", outputRoot],
     ["/", path.join(PROJECT_ROOT, "web")]
   ];

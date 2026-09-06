@@ -2,6 +2,10 @@ import { evaluateMath, parseDimension } from "../engine/math.js";
 import { formatAxisPoint } from "./format.js";
 
 export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, options = {}) {
+  if (points.some((point) => point.breakBefore)) {
+    return splitAxisPlotPointRuns(points)
+      .map((run) => axisPlotPointChain(run, axisOptions, plotOptions, options)).join(" ");
+  }
   if (points.length < 2) return points.map(formatAxisPoint).join(" -- ");
   const cycle = Boolean(plotOptions["axis plot cycle"]);
   if (plotOptions["axis plot gap"]) {
@@ -28,6 +32,15 @@ export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, o
   }
   const chain = stepped.map(formatAxisPoint).join(" -- ");
   return cycle ? `${chain} -- cycle` : chain;
+}
+
+export function splitAxisPlotPointRuns(points) {
+  const runs = [];
+  for (const { breakBefore, ...point } of points) {
+    if (!runs.length || breakBefore) runs.push([]);
+    runs[runs.length - 1].push(point);
+  }
+  return runs;
 }
 
 export function shouldRenderAxisPlotPath(options = {}) {

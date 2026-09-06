@@ -120,6 +120,11 @@ export function preprocessTikzSource(source, options = {}) {
   const macroResult = expandTexLiteMacros(expanded, diagnostics, options);
   expanded = macroResult.source;
   expanded = lowerStandalonePgfplotsCustomLegends(expanded);
+  // Specialized lowering still needs explicit group markers. Convert them to
+  // parser groups only afterwards, without matching escaped control sequences.
+  expanded = expanded.replace(/\\(?:[A-Za-z@]+|[\s\S])/g, (command) =>
+    command === "\\begingroup" ? "{" : command === "\\endgroup" ? "}" : command
+  );
   expanded = expandStaticPgfmathMacrosBeforePictures(expanded);
   expanded = lowerTikzmarkMathOverlays(expanded);
   expanded = lowerNestedInlineTikzNodes(expanded);
@@ -2301,15 +2306,167 @@ function terminatePgfTransformStatements(source) {
 }
 
 function expandTexLiteMacros(source, diagnostics, options) {
-  const macros = new Map();
-  let withoutDefinitions = collectMacroDefinitions(source, macros, diagnostics);
-  const maxPasses = options.macroExpansionPasses || 12;
-  for (let pass = 0; pass < maxPasses; pass += 1) {
-    const next = expandMacroPass(withoutDefinitions, macros);
-    if (next === withoutDefinitions) break;
-    withoutDefinitions = next;
+  const scopes = [{ kind: "root", macros: new Map(), conditionals: new Map() }];
+  const expansionFrames = [];
+  const deferredMacros = new Map();
+  const maxDepth = Math.max(1, Number(options.macroExpansionPasses) || 12);
+  const output = [];
+  let input = source;
+  let index = 0;
+  let expansions = 0;
+  let warned = false;
+  const emit = (text) => {
+    if (/^[A-Za-z@]/.test(text) && /\\[A-Za-z@]+$/.test(output.at(-1) || "")) output.push(" ");
+    output.push(text);
+  };
+  const enterScope = (kind) => {
+    const current = scopes.at(-1);
+    scopes.push({ kind, macros: new Map(current.macros), conditionals: new Map(current.conditionals) });
+  };
+  const leaveScope = (kind) => {
+    if (scopes.length > 1 && scopes.at(-1).kind === kind) scopes.pop();
+  };
+  // Reinsert replacement tokens before unread source so aliases can take their
+  // arguments from that source. Never rescan already emitted tokens.
+  const replaceInput = (end, replacement, depth) => {
+    if (/\\[A-Za-z@]+$/.test(replacement) && /[A-Za-z@]/.test(input[end] || "")) replacement += " ";
+    for (const frame of expansionFrames) frame.end = Math.max(0, frame.end - end) + replacement.length;
+    input = replacement + input.slice(end);
+    index = 0;
+    if (depth !== undefined) expansionFrames.push({ end: replacement.length, depth });
+  };
+  while (index < input.length) {
+    while (expansionFrames.length && index >= expansionFrames.at(-1).end) expansionFrames.pop();
+    const current = scopes.at(-1);
+    const char = input[index];
+    if (char !== "\\") {
+      if (char === "{") enterScope("brace");
+      else if (char === "}") leaveScope("brace");
+      emit(char);
+      index += 1;
+      continue;
+    }
+    const name = readCommandName(input, index + 1);
+    if (!name) {
+      emit(input.slice(index, index + 2));
+      index += 2;
+      continue;
+    }
+    if (["begingroup", "bgroup", "endgroup", "egroup"].includes(name.value)) {
+      const opening = name.value === "begingroup" || name.value === "bgroup";
+      const kind = name.value === "begingroup" || name.value === "endgroup" ? "explicit" : "brace";
+      if (opening) enterScope(kind);
+      else leaveScope(kind);
+      emit(kind === "explicit" ? input.slice(index, name.end) : opening ? "{" : "}");
+      index = name.end;
+      continue;
+    }
+    if (name.value === "begin" || name.value === "end") {
+      const environment = extractBalanced(input, skipWhitespace(input, name.end), "{", "}");
+      if (environment) {
+        // LaTeX cancels the document environment's initial group in latex.ltx.
+        const kind = `environment:${environment.content.trim()}`;
+        if (kind !== "environment:document") {
+          if (name.value === "begin") enterScope(kind);
+          else leaveScope(kind);
+        }
+        emit(input.slice(index, environment.end));
+        index = environment.end;
+        continue;
+      }
+    }
+    if (name.value === "pgfarrowsdeclare") {
+      let end = name.end;
+      let argumentsRead = 0;
+      for (; argumentsRead < 4; argumentsRead += 1) {
+        const argument = extractBalanced(input, skipWhitespace(input, end), "{", "}");
+        if (!argument) break;
+        end = argument.end;
+      }
+      if (argumentsRead === 4) {
+        // Setup and drawing are stored programs; the arrow owner evaluates
+        // their definitions and restores explicitly saved values at use time.
+        emit(input.slice(index, end));
+        index = end;
+        continue;
+      }
+    }
+    if (name.value === "tikzset" || name.value === "ctikzset") {
+      const body = extractBalanced(input, skipWhitespace(input, name.end), "{", "}");
+      if (body) {
+        // PGF key code is stored, not executed at declaration time.
+        emit(expandStoredMacroBody(input.slice(index, body.end), current.macros, maxDepth));
+        index = body.end;
+        continue;
+      }
+    }
+    let definition = null;
+    let globalDefinition = false;
+    if (isDefMacroStart(input, index)) definition = parseDefMacro(input, index);
+    else if (name.value === "gdef") {
+      definition = parseDefMacro(input, index, "\\gdef");
+      globalDefinition = true;
+    } else if (name.value === "global" && isDefMacroStart(input, skipWhitespace(input, name.end))) {
+      definition = parseDefMacro(input, skipWhitespace(input, name.end));
+      globalDefinition = true;
+    } else if (name.value === "newcommand" || name.value === "renewcommand") definition = parseNewCommandMacro(input, index);
+    else if (name.value === "DeclareMathOperator") definition = parseDeclareMathOperator(input, index);
+    if (definition) {
+      if (!isDelegatedMacro(definition.name)) {
+        for (const scope of globalDefinition ? scopes : [current]) scope.macros.set(definition.name, definition.macro);
+      }
+      index = definition.end;
+      continue;
+    }
+    if (name.value === "def" || name.value === "newcommand" || name.value === "renewcommand") {
+      diagnostics.push({ severity: "warning", message: `Could not parse TeX macro near offset ${index}` });
+    }
+    const declaration = name.value === "newif" ? parseNewifDeclaration(input, index) : null;
+    if (declaration) {
+      current.conditionals.set(declaration.name, false);
+      index = declaration.end;
+      continue;
+    }
+    const assignment = parseNewifAssignment(input, index, current.conditionals);
+    if (assignment) {
+      current.conditionals.set(assignment.name, assignment.value);
+      index = assignment.end;
+      continue;
+    }
+    const conditional = parseNewifConditional(input, index, current.conditionals);
+    if (conditional) {
+      replaceInput(conditional.end, conditional.value ? conditional.thenSource : conditional.elseSource);
+      continue;
+    }
+    const macro = current.macros.get(name.value);
+    const invocation = macro ? parseMacroInvocation(input, name.end, macro) : null;
+    if (invocation) {
+      const depth = expansionFrames.at(-1)?.depth || 0;
+      if (depth >= maxDepth || expansions >= 10000) {
+        if (!warned) diagnostics.push({ severity: "warning", message: `TeX macro expansion limit reached at \\${name.value}` });
+        warned = true;
+        emit(input.slice(index, invocation.end));
+        index = invocation.end;
+        continue;
+      }
+      expansions += 1;
+      replaceInput(invocation.end, applyMacroBody(macro.body, invocation.args), depth + 1);
+      continue;
+    }
+    // Neuralnetwork takes an uncalled two-argument macro as its text callback.
+    // Bind that reference now; its environment's local map will be gone later.
+    if (macro && scopes.some((scope) => scope.kind === "environment:neuralnetwork") && /\btext\s*=\s*$/.test(output.slice(-32).join(""))) {
+      let suffix = deferredMacros.size;
+      while (deferredMacros.has(`tikzkitDeferred${suffix}`) || source.includes(`\\tikzkitDeferred${suffix}`)) suffix += 1;
+      const alias = `tikzkitDeferred${suffix}`;
+      deferredMacros.set(alias, { ...macro, name: alias, body: expandStoredMacroBody(macro.body, current.macros, maxDepth) });
+      emit(`\\${alias}`);
+    } else {
+      emit(input.slice(index, name.end));
+    }
+    index = name.end;
   }
-  return { source: withoutDefinitions, macros };
+  return { source: output.join(""), macros: new Map([...scopes[0].macros, ...deferredMacros]) };
 }
 
 export function expandTexLiteEnvironments(source, diagnostics = [], options = {}) {
@@ -2432,9 +2589,9 @@ function expandEnvironmentPass(source, environments, diagnostics) {
       break;
     }
     const inner = source.slice(invocation.end, endIndex);
-    output += applyMacroBody(environment.beginBody, invocation.args);
+    output += "{" + applyMacroBody(environment.beginBody, invocation.args);
     output += inner;
-    output += applyMacroBody(environment.endBody, invocation.args);
+    output += applyMacroBody(environment.endBody, invocation.args) + "}";
     index = endIndex + endToken.length;
   }
   return output;
@@ -2578,60 +2735,8 @@ function isTeXCommandBoundary(source, index) {
   return !/[A-Za-z@]/.test(source[index] || "");
 }
 
-function collectMacroDefinitions(source, macros, diagnostics) {
-  let output = "";
-  let index = 0;
-  while (index < source.length) {
-    const tikzsetCommand = source.startsWith("\\tikzset", index)
-      ? "\\tikzset"
-      : source.startsWith("\\ctikzset", index)
-        ? "\\ctikzset"
-        : null;
-    if (tikzsetCommand) {
-      let cursor = skipWhitespace(source, index + tikzsetCommand.length);
-      const body = extractBalanced(source, cursor, "{", "}");
-      if (body) {
-        output += source.slice(index, body.end);
-        index = body.end;
-        continue;
-      }
-    }
-    if (isDefMacroStart(source, index)) {
-      const parsed = parseDefMacro(source, index);
-      if (parsed) {
-        // Delegated macros are consumed here but left for KaTeX or preprocess extensions to interpret.
-        if (!isDelegatedMacro(parsed.name)) macros.set(parsed.name, parsed.macro);
-        index = parsed.end;
-        continue;
-      }
-    }
-    if (source.startsWith("\\newcommand", index) || source.startsWith("\\renewcommand", index)) {
-      const parsed = parseNewCommandMacro(source, index);
-      if (parsed) {
-        if (!isDelegatedMacro(parsed.name)) macros.set(parsed.name, parsed.macro);
-        index = parsed.end;
-        continue;
-      }
-    }
-    if (source.startsWith("\\DeclareMathOperator", index)) {
-      const parsed = parseDeclareMathOperator(source, index);
-      if (parsed) {
-        macros.set(parsed.name, parsed.macro);
-        index = parsed.end;
-        continue;
-      }
-    }
-    if (isDefMacroStart(source, index) || source.startsWith("\\newcommand", index) || source.startsWith("\\renewcommand", index)) {
-      diagnostics.push({ severity: "warning", message: `Could not parse TeX macro near offset ${index}` });
-    }
-    output += source[index];
-    index += 1;
-  }
-  return output;
-}
-
-function parseDefMacro(source, start) {
-  let index = skipWhitespace(source, start + "\\def".length);
+function parseDefMacro(source, start, command = "\\def") {
+  let index = skipWhitespace(source, start + command.length);
   if (source[index] !== "\\") return null;
   index += 1;
   const name = readCommandName(source, index);
@@ -2772,8 +2877,6 @@ function parseNewCommandMacro(source, start) {
   }
   const body = extractBalanced(source, index, "{", "}");
   if (!body) return null;
-  const usedArgCount = countReferencedMacroArguments(body.content);
-  if (usedArgCount === 0) argCount = 0;
   return {
     name,
     macro: { name, argCount, defaults, body: body.content },
@@ -2816,6 +2919,14 @@ function expandMacroPass(source, macros) {
       index += 1;
       continue;
     }
+    const definition = isDefMacroStart(source, index) ? parseDefMacro(source, index)
+      : /^\\(?:newcommand|renewcommand)\b/.test(source.slice(index)) ? parseNewCommandMacro(source, index)
+        : null;
+    if (definition) {
+      output += source.slice(index, definition.end);
+      index = definition.end;
+      continue;
+    }
     const name = readCommandName(source, index + 1);
     if (!name || !macros.has(name.value)) {
       output += source[index];
@@ -2823,66 +2934,65 @@ function expandMacroPass(source, macros) {
       continue;
     }
     const macro = macros.get(name.value);
-    let cursor = name.end;
-    const args = [];
-    let canExpand = true;
-    if (macro.delimited === "parenSemicolon") {
-      cursor = skipWhitespace(source, cursor);
-      const invocation = source[cursor] === "(" ? extractBalanced(source, cursor, "(", ")") : null;
-      if (!invocation) {
-        canExpand = false;
-      } else {
-        const semicolon = skipWhitespace(source, invocation.end);
-        if (source[semicolon] !== ";") {
-          canExpand = false;
-        } else {
-          args.push(...splitTopLevel(invocation.content, ",").map((part) => part.trim()));
-          cursor = semicolon + 1;
-        }
-      }
-    } else if (macro.delimited === "template") {
-      const parsed = parseTemplateMacroInvocation(source, cursor, macro.template || []);
-      if (!parsed) {
-        canExpand = false;
-      } else {
-        args.push(...parsed.args);
-        cursor = parsed.end;
-      }
-    } else {
-      for (let argIndex = 0; argIndex < macro.argCount; argIndex += 1) {
-        cursor = skipWhitespace(source, cursor);
-        if (macro.defaults?.[argIndex] !== undefined) {
-          if (source[cursor] === "[") {
-            const optionalArg = extractBalanced(source, cursor, "[", "]");
-            if (!optionalArg) {
-              canExpand = false;
-              break;
-            }
-            args.push(optionalArg.content);
-            cursor = optionalArg.end;
-          } else {
-            args.push(macro.defaults[argIndex]);
-          }
-          continue;
-        }
-        const arg = extractBalanced(source, cursor, "{", "}");
-        if (!arg) {
-          canExpand = false;
-          break;
-        }
-        args.push(arg.content);
-        cursor = arg.end;
-      }
-    }
-    if (!canExpand) {
+    const invocation = parseMacroInvocation(source, name.end, macro);
+    if (!invocation) {
       output += source.slice(index, name.end);
       index = name.end;
       continue;
     }
-    output += applyMacroBody(macro.body, args);
-    index = cursor;
+    output += applyMacroBody(macro.body, invocation.args);
+    index = invocation.end;
   }
   return output;
+}
+
+function expandStoredMacroBody(source, macros, maxPasses) {
+  let expanded = source;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    const next = expandMacroPass(expanded, macros);
+    if (next === expanded) break;
+    expanded = next;
+  }
+  return expanded;
+}
+
+function parseMacroInvocation(source, start, macro) {
+  let cursor = start;
+  const args = [];
+  if (macro.delimited === "parenSemicolon") {
+    cursor = skipWhitespace(source, cursor);
+    const invocation = source[cursor] === "(" ? extractBalanced(source, cursor, "(", ")") : null;
+    if (!invocation) return null;
+    const semicolon = skipWhitespace(source, invocation.end);
+    if (source[semicolon] !== ";") return null;
+    args.push(...splitTopLevel(invocation.content, ",").map((part) => part.trim()));
+    cursor = semicolon + 1;
+  } else if (macro.delimited === "template") {
+    const parsed = parseTemplateMacroInvocation(source, cursor, macro.template || []);
+    if (!parsed) return null;
+    args.push(...parsed.args);
+    cursor = parsed.end;
+  } else {
+    for (let argIndex = 0; argIndex < macro.argCount; argIndex += 1) {
+      cursor = skipWhitespace(source, cursor);
+      if (macro.defaults?.[argIndex] !== undefined) {
+        if (source[cursor] === "[") {
+          const optionalArg = extractBalanced(source, cursor, "[", "]");
+          if (!optionalArg) return null;
+          args.push(optionalArg.content);
+          cursor = optionalArg.end;
+        } else {
+          args.push(macro.defaults[argIndex]);
+        }
+        continue;
+      }
+      const arg = extractBalanced(source, cursor, "{", "}");
+      if (!arg) return null;
+      args.push(arg.content);
+      cursor = arg.end;
+    }
+  }
+  return { args, end: cursor };
 }
 
 function parseTemplateMacroInvocation(source, start, template) {
@@ -2954,6 +3064,11 @@ function readTemplateAtom(source, start) {
 function applyMacroBody(body, args) {
   let output = "";
   for (let index = 0; index < body.length; index += 1) {
+    if (body[index] === "#" && body[index + 1] === "#") {
+      output += "#";
+      index += 1;
+      continue;
+    }
     if (body[index] === "#" && /[1-9]/.test(body[index + 1] || "")) {
       const arg = args[Number(body[index + 1]) - 1] ?? "";
       output += macroArgumentText(arg, body[index + 2] || "");
@@ -9394,27 +9509,13 @@ function datavisualizationLegendIsInside(rawPosition) {
 }
 
 function evaluateDatavisualizationExpression(expression, variables, random) {
-  let text = String(expression || "")
+  const text = String(expression || "")
     .replace(/\\value\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}/g, "$1 ")
     .replace(/\\value\s+([A-Za-z_][A-Za-z0-9_]*)/g, "$1")
     .replace(/\brandom\s*\(\s*([^)]+)\s*\)/g, (_match, max) => `(${random.integer(axisNumber(max, 1))})`)
     .replace(/\brnd\b/g, () => `(${roundTikzNumber(random.rnd())})`)
     .replace(/\brand\b/g, () => `(${roundTikzNumber(random.rand())})`);
-  const radianSuffix = /(?:\b[A-Za-z_][A-Za-z0-9_]*\s+r\b|\([^()]*\)\s*r\b|[0-9.]+\s*r\b)/;
-  const radianTrig = radianSuffix.test(text);
-  text = text
-    .replace(/(\b[A-Za-z_][A-Za-z0-9_]*)\s+r\b/g, "$1")
-    .replace(/(\([^()]*\)|[0-9.]+)\s*r\b/g, "$1");
-  const normalized = normalizeAxisExpression(text, radianTrig);
-  if (!normalized || !/^[0-9+\-*/%().,\sA-Za-z_<>=!?:&|]+$/.test(normalized)) return NaN;
-  const names = Object.keys(variables || {});
-  const values = names.map((name) => variables[name]);
-  try {
-    const value = Function(...names, `"use strict"; ${pgfMathRuntimePrelude()} return (${normalized});`)(...values);
-    return Number.isFinite(value) ? value : NaN;
-  } catch {
-    return NaN;
-  }
+  return evaluateAxisExpression(text, variables?.x ?? 0, {}, variables, { throwOnError: true });
 }
 
 function createDatavisualizationRandom(seed) {

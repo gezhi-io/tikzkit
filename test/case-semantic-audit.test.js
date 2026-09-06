@@ -120,7 +120,7 @@ test("review prefix rules preserve individual numeric inventory while sharing ev
   });
 
   assert.equal(report.numbers.length, 3);
-  assert.ok(report.numbers.every((entry) => entry.reviewStatus === "verified"));
+  assert.ok(report.numbers.every((entry) => entry.claimedReviewStatus === "verified" && entry.reviewStatus === "unbound"));
   assert.ok(report.numbers.every((entry) => entry.evidence[0] === "test/pgfplots-seams.test.js"));
   assert.ok(Object.keys(createReviewTemplate(report).features).includes("expression:addplot:1"));
 });
@@ -141,7 +141,8 @@ test("a template todo entry does not shadow a later wildcard review", () => {
   });
 
   const draw = report.commands.find((entry) => entry.name === "\\draw");
-  assert.equal(draw.reviewStatus, "verified");
+  assert.equal(draw.claimedReviewStatus, "verified");
+  assert.equal(draw.reviewStatus, "unbound");
   assert.deepEqual(draw.evidence, ["test/interpreter.test.js"]);
 });
 
@@ -439,7 +440,8 @@ test("review evidence can satisfy individual semantic features without hiding re
     }
   });
 
-  assert.equal(report.commands.find((entry) => entry.name === "\\draw").reviewStatus, "verified");
+  assert.equal(report.commands.find((entry) => entry.name === "\\draw").claimedReviewStatus, "verified");
+  assert.equal(report.commands.find((entry) => entry.name === "\\draw").reviewStatus, "unbound");
   assert.match(renderAuditMarkdown(report), /Numeric Semantics/);
   assert.equal(report.gate.accepted, false);
 });

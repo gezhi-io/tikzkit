@@ -1,5 +1,5 @@
 import { axisNumber } from "./coordinates.js";
-import { evaluateAxisExpression, evaluateAxisExpressionAtSample } from "./expressions.js";
+import { evaluateAxisExpression, evaluateAxisExpressionSamples } from "./expressions.js";
 import { splitTopLevel } from "../engine/options.js";
 import { roundAxisRange } from "./format.js";
 import { pgfplotsPlotRangePoints } from "./histogram.js";
@@ -258,14 +258,20 @@ export function sampleFunctionDataPoints(plot, axisOptions = {}, options = {}) {
   const contextDomain = explicitSamples.length
     ? { start: sampleValues[0], end: sampleValues[sampleValues.length - 1] }
     : plotDomain;
-  return sampleValues.flatMap((x, index) => {
-    const y = evaluateAxisExpressionAtSample(plot.expression, x, axisOptions, {
-      domain: contextDomain,
-      index,
-      samples: sampleValues.length
-    });
-    return Number.isFinite(x) && Number.isFinite(y) ? [{ x, y }] : [];
-  });
+  const values = evaluateAxisExpressionSamples(plot.expression, sampleValues, axisOptions, { domain: contextDomain });
+  const jump = String(plot.options["unbounded coords"] ?? axisOptions["unbounded coords"] ?? "discard").trim() === "jump";
+  const points = [];
+  let interrupted = false;
+  for (const [index, x] of sampleValues.entries()) {
+    const y = values[index];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      interrupted = true;
+      continue;
+    }
+    points.push({ x, y, ...(jump && interrupted && points.length ? { breakBefore: true } : {}) });
+    interrupted = false;
+  }
+  return points;
 }
 
 function sampleQuiverRangePoints(plot, axisOptions = {}) {

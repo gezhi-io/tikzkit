@@ -222,6 +222,7 @@ export function textBaselineSkipRatio(item = {}) {
 
 export function typewriterWidthScale(fontFamily) {
   const text = String(fontFamily || "");
+  if (text.includes("TikZKitCMUMono")) return 1;
   return /(?:Typewriter|mono|Menlo|Monaco|Consolas|Courier)/i.test(text) ? TIKZ_TYPEWRITER_WIDTH_SCALE : 1;
 }
 

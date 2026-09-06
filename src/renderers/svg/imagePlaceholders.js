@@ -6,6 +6,7 @@ import {
 } from "../../tikz/metrics.js";
 import { escapeAttribute, escapeText } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
+import { createSvgIdPrefix, svgDefinitionId } from "./definitionScope.js";
 
 export function renderImagePlaceholder(item, image, unit) {
   const scale = imagePlaceholderScale(item, image);
@@ -239,8 +240,9 @@ function renderMiniTikzGraphic(item, image, unit, scale, x, y) {
     const r = Math.max(0.5, Number(circle.r) * unit * scale);
     let fill = escapeAttribute(circle.fill || "black");
     if (circle.shading === "ball") {
-      const id = `${safeId}-${index}`;
-      defs.push(`<radialGradient id="${id}" cx="32%" cy="28%" r="72%"><stop offset="0%" stop-color="white" /><stop offset="34%" stop-color="${fill}" /><stop offset="100%" stop-color="black" stop-opacity="0.62" /></radialGradient>`);
+      const stops = `<stop offset="0%" stop-color="white" /><stop offset="34%" stop-color="${fill}" /><stop offset="100%" stop-color="black" stop-opacity="0.62" />`;
+      const id = svgDefinitionId(`${safeId}-${index}-${createSvgIdPrefix([stops], unit)}`, item);
+      defs.push(`<radialGradient id="${id}" cx="32%" cy="28%" r="72%">${stops}</radialGradient>`);
       fill = `url(#${id})`;
     }
     return `<circle class="tikz-mini-circle" cx="${format(cx)}" cy="${format(cy)}" r="${format(r)}" fill="${fill}" stroke="none" />`;

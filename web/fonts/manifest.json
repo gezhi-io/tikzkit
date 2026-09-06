@@ -1,0 +1,1296 @@
+[
+  {
+    "family": "TikZKitCMUSerif",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMUSerif-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunrm.otf",
+    "sourceSha256": "5089693f81ed5b83435be7167bf2f93c2608ce92fb3a7e13f6be238a733c38f2",
+    "sha256": "67ca41456a6861263bb21e7d86f7d089ba4c40a2e8556c71e7b7e9a04ec63382",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSerif",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitCMUSerif-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunti.otf",
+    "sourceSha256": "fc38ce9ea06e49bda118a8be9f053791d043a547c248ae30c9e4fad956de3267",
+    "sha256": "042635f62f786100d9d1411c23ba1d2e4b70b26a1d47fb4f6d302f2b82ce1bb6",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSerif",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMUSerif-Bold.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunbx.otf",
+    "sourceSha256": "e956d496776533b0ca1b6e1acaeac896b81b81b908667cbf49840048ed16bd0c",
+    "sha256": "3c9b86d70e60a65f625f8fb505e4ca6da383b9a301a414f909cd76727d9422af",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSerif",
+    "style": "italic",
+    "weight": 700,
+    "file": "TikZKitCMUSerif-BoldItalic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunbi.otf",
+    "sourceSha256": "690cc3c1511a98e79f5bde8a58868405160da1b7d99f3482324c6a915b496b02",
+    "sha256": "79f970cc31253d76c2ced548c3866096eb08990d01b154b2f0969344d6118394",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSans",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMUSans-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunss.otf",
+    "sourceSha256": "a0e41b8611156eed280c3a730ddcf03c35090fb03efc9413bbe2b1e2915de95b",
+    "sha256": "e32453649e94292feffb3a0551fb473a2546732b6b980b8c31b95f6c847473e6",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSans",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitCMUSans-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunsi.otf",
+    "sourceSha256": "73dfa3be33c4a93abe44753f2d622b1eade86a43eb5a76331095e928b329c34f",
+    "sha256": "dbaeca460cedc3b6af105e18b2b04b09f92563cb2d85d0c79dc282889f45715d",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSans",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMUSans-Bold.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunsx.otf",
+    "sourceSha256": "5d3a5b51898be3279b28734ac135dc89f4971dc7be1215981eff3fa9f66300da",
+    "sha256": "bc7c16be5401d235e6bfbaf43bad5a02188789b260c939b39c06a53546c8f9d1",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUSans",
+    "style": "italic",
+    "weight": 700,
+    "file": "TikZKitCMUSans-BoldItalic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunso.otf",
+    "sourceSha256": "b14e795c2592381e899b79e9a97f6147062e173cc10a172b91e08d225bde7b10",
+    "sha256": "42ccc64b847ae73bff9c82871e7bbc43f793369486c251c8f167ddd63b9194b9",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUMono",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMUMono-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmuntt.otf",
+    "sourceSha256": "f4302554e94621459f33526dca714e7f9d537128b37556741568ae7115b252b5",
+    "sha256": "fcb76dea68380a2bb6dc3191f67cea4c8ae87317f65514b4dd26fe9cd42e0337",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUMono",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitCMUMono-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmunit.otf",
+    "sourceSha256": "140bf950cbf4addac395367990117c8e6f327526fef64bf1512928744cde0289",
+    "sha256": "28372feac38fa7855ff5d69028cbb28ab0341705f41afce3f6b8539693005dc2",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUMono",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMUMono-Bold.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmuntb.otf",
+    "sourceSha256": "51cafc61d575ca03cdae46fbcb455b90b8d16c1e73745e4eae1efeefcc877dc0",
+    "sha256": "bde644371a91e47b59e2703692ff62da541a6179ad41b8c046e8cf895e4f167f",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitCMUMono",
+    "style": "italic",
+    "weight": 700,
+    "file": "TikZKitCMUMono-BoldItalic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/cm-unicode/cmuntx.otf",
+    "sourceSha256": "de9a8ff2a27fa20e3520ebb4aea4099824a484f3f386cf7d9c8c3e826155e5d6",
+    "sha256": "13321e6b113ff6614543242b27c671a57e9fa78d0cc6e6711b14c0495e097286",
+    "license": "OFL-CM-Unicode.txt"
+  },
+  {
+    "family": "TikZKitHeros",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitHeros-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/tex-gyre/texgyreheros-regular.otf",
+    "sourceSha256": "6ae1a09d5a940367b7aaaa91ee8bd8a2c333bfe193e7096e23f931357d62081f",
+    "sha256": "5e1a19846f9c57e78f2e990a7cd17110a2a32a8797dacf46f08370efe5ab67fb",
+    "license": "GUST-FONT-LICENSE.txt"
+  },
+  {
+    "family": "TikZKitHeros",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitHeros-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/tex-gyre/texgyreheros-italic.otf",
+    "sourceSha256": "6473df7fa107b3fb4be38973710afe22b0640c2ac076d5337cf126bed9aa108c",
+    "sha256": "2d3334ef4e4385cce196b2c0c772a881845e9b9a470ab996b8fbbe2172745813",
+    "license": "GUST-FONT-LICENSE.txt"
+  },
+  {
+    "family": "TikZKitHeros",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitHeros-Bold.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/tex-gyre/texgyreheros-bold.otf",
+    "sourceSha256": "b170162835f4efc288886dd4231406dc47e19b614cf4416836635599d44a7d60",
+    "sha256": "0eeedcf75f987a6b03492bc3248e2f45423874e2495571d9e4efa6d41ee62395",
+    "license": "GUST-FONT-LICENSE.txt"
+  },
+  {
+    "family": "TikZKitHeros",
+    "style": "italic",
+    "weight": 700,
+    "file": "TikZKitHeros-BoldItalic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/tex-gyre/texgyreheros-bolditalic.otf",
+    "sourceSha256": "166fc6d068d9c9974281555cb3d730365537a9b676ab269bb5163f5a75496505",
+    "sha256": "dae49c1fe2a7fc38a7d71c2440a780d4c0ffcc0f8185c84d42f6283413a966e6",
+    "license": "GUST-FONT-LICENSE.txt"
+  },
+  {
+    "family": "TikZKitCMR5",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR5-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr5.pfb",
+    "sourceSha256": "84d38aac226b5274baca7a292e2039f5284a35d8a2ae31074a475fad87da310b",
+    "sha256": "5897781fb887d8441e196e8079e49941ee8d9c520bad8a7bf8bb2d4aa9675e96",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR6",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR6-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr6.pfb",
+    "sourceSha256": "9fe20cb9ef24a0f4c74d38a65d4eee5cff3165f3b8600407ceba396aeb2b7617",
+    "sha256": "b8fbf037d3f5ad51d3e6bf535e644e116e38a6a2fe30e5d633fe3e071498c330",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR7",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR7-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr7.pfb",
+    "sourceSha256": "b37e8671820b0753c6e233eaa3230c6ab9cff04e6c4baee312d60ae261e5aba1",
+    "sha256": "08f20cfff177e4ff346d6547f99eb1e3909672a1974522cab439faa2724b0495",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR8",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR8-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr8.pfb",
+    "sourceSha256": "8150cbfac5cfe53040327df171c3059f10730b32cabf2504b01713d639a11feb",
+    "sha256": "fd00368a4085d64820c0fc97ea3102a5ef59c2991e2170ad14a75746bb33dcaf",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR9",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR9-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr9.pfb",
+    "sourceSha256": "ba5207eea69eaa9b598de2bd3d9aef27c4ff9831524400f70ff6a0dd3e36059b",
+    "sha256": "d4a4ffbf02d74d9f6ee3b53115e04ea422ad65c3a02f37e2801a4d2637244c9d",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR10",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR10-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr10.pfb",
+    "sourceSha256": "fdcede8794018df5f2b58f0905fb20a2b418ed8f67b73ee12445855dfbe5b1be",
+    "sha256": "871981aec1c43d20af249d00ece1a886617486ee91fe6e3c2bf7cd38ace8853c",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR12",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR12-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr12.pfb",
+    "sourceSha256": "9b58bfa828b9553b7c8331cf26c45443b836f8aab62e820b40a5b65c8531dd42",
+    "sha256": "a904a99749862a9f76dbadfc7420ff8fb7a7eb3ad497a2417e54c27653bdc51e",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMR17",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMR17-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmr17.pfb",
+    "sourceSha256": "465827b4702e12f7deea159c8084753ffc27998963de516e490bd7bd5bed41dd",
+    "sha256": "bb7151fde72e1f09c0828685192f507329497f33cff6f93c11f0742304d4bbe4",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX5",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX5-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx5.pfb",
+    "sourceSha256": "4e99bb2f3ebe368073de2685562f5adf7f43358de406f0d2b4b601ef5f7a566c",
+    "sha256": "5d180989b0d010ab5927621dd4251428247dcb1d430c023ccd3e2343d2900bf3",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX6",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX6-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx6.pfb",
+    "sourceSha256": "1ceb3ea37367394e911a94e4d4b7d5ab3dcefcf19c0c607568951c57385ee394",
+    "sha256": "06997142fd6c6f53f2056d967361ae5b5c458c37033706dd5730eabd4c392b10",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX7",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX7-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx7.pfb",
+    "sourceSha256": "5e6cd2a9ac9933dd764c41fcfc5097bf1cb3bf1f697438eb4c344b9510630974",
+    "sha256": "5285e992244a3a961c2924488b066cf753184e7b153cccc4d066aa860ff3d99b",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX8",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX8-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx8.pfb",
+    "sourceSha256": "fe99cd3dcadd182a24b86e593e56d2e900c992311218c43779f858ed6e1c3b31",
+    "sha256": "f32fa09fa832300f39c514744bbf6cbfa685e1c5ff3571711d96e981f8ba6ab9",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX9",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX9-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx9.pfb",
+    "sourceSha256": "2636ee910f5f5e18a4aa40eee33d1097d91b2d9ac296e8b817b07c8ea2f0e99b",
+    "sha256": "07703a5e536b125c6842ffd9ea239faf83de0127e0b17f9c464435a44ac2527b",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX10",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX10-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx10.pfb",
+    "sourceSha256": "ca41102968b817bf6e8b22fd6de205ca23bf5088218511cce0c8129e1577cb70",
+    "sha256": "5bcc1cd114cfe23f5a403e6ffe669ab6f7cfa26ff6a0a38ace20f192de91beb9",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMBX12",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitCMBX12-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbx12.pfb",
+    "sourceSha256": "c838238f31d86a9f198873dfaf501601a4fc966845b9c59e7dc251c4e85d1f1f",
+    "sha256": "d578ef11ce28325904b95209a1e282a85eac47f8e47a9244b35f554f22bb952b",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMSC10",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitCMSC10-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmcsc10.pfb",
+    "sourceSha256": "06c64598f2ff53539677835e26630083d32abd5258d7e4fa029d742ba213d2f5",
+    "sha256": "7423282f877608b89ccf585106860387beb844f0e1043f2cc1199e2ca5fed0c1",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitMath_AMSCaps",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_AMSCaps-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+    "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+    "sha256": "ab3ae6eff015eed24faccf0e8f1b2bbc229e0f3dbe1cf59fdb6e6a9540ad111a",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitMath_Caligraphic",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Caligraphic-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmsy10.pfb",
+    "sourceSha256": "62ee8cef552017551cd3e026a483e700730103eceaad959c87b7730017f59cff",
+    "sha256": "c70368897f80d9d4dc598fa9309dae055960cf432683931c2872527ffc6a24c3",
+    "license": "OFL-AMSFonts.txt",
+    "coverage": {
+      "metricsFont": "Caligraphic-Regular",
+      "required": 28,
+      "covered": 28,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Caligraphic",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitMath_Caligraphic-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmbsy10.pfb",
+    "sourceSha256": "dd42853a466c1c38ca940375ce49bb18ea336299344a80dab4fa0faf145d19db",
+    "sha256": "82d6fce9b737128cf01a7fdb2797cb9ccb0200564ea33d69484b357b0c5326ff",
+    "license": "OFL-AMSFonts.txt",
+    "coverage": {
+      "metricsFont": "Caligraphic-Regular",
+      "required": 28,
+      "covered": 28,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Fraktur",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Fraktur-Regular.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+    "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+    "sha256": "17f38351c90d3fc10f598ebb6992bacd21968dead5c5d6835899698f08dedc6f",
+    "license": "OFL-AMSFonts.txt",
+    "aliases": {
+      "U+E300": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 0,
+        "sourceGlyph": "dnos",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E301": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 1,
+        "sourceGlyph": "dalt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E302": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 2,
+        "sourceGlyph": "fnos",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E303": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 3,
+        "sourceGlyph": "falt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E304": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 4,
+        "sourceGlyph": "galt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E305": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 5,
+        "sourceGlyph": "kalt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E306": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 6,
+        "sourceGlyph": "talt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E307": {
+        "source": "fonts/type1/public/amsfonts/euler/eufm10.pfb",
+        "sourceSha256": "0d4adc0d8d6b3fd993fe138b6863126d7122cd1ae180d0a19eca0759bf7d0975",
+        "sourceCode": 7,
+        "sourceGlyph": "ualt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Fraktur-Regular",
+      "required": 93,
+      "covered": 93,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Fraktur",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitMath_Fraktur-Bold.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+    "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+    "sha256": "6862d3900b3c339a1dfa67402ae5da96513eeb80e92112309adbbae64a1db920",
+    "license": "OFL-AMSFonts.txt",
+    "aliases": {
+      "U+E301": {
+        "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+        "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+        "sourceCode": 1,
+        "sourceGlyph": "dalt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E302": {
+        "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+        "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+        "sourceCode": 2,
+        "sourceGlyph": "fnos",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E303": {
+        "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+        "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+        "sourceCode": 3,
+        "sourceGlyph": "falt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E304": {
+        "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+        "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+        "sourceCode": 4,
+        "sourceGlyph": "galt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E305": {
+        "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+        "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+        "sourceCode": 5,
+        "sourceGlyph": "kalt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E306": {
+        "source": "fonts/type1/public/amsfonts/euler/eufb10.pfb",
+        "sourceSha256": "bfefdbbb7b989c456b764683fe874625cd9f0496240f94b3be3dfe51bac5c729",
+        "sourceCode": 6,
+        "sourceGlyph": "talt",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Fraktur-Regular",
+      "required": 93,
+      "covered": 91,
+      "missing": [
+        "U+E300",
+        "U+E307"
+      ],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Main",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Main-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "262fbcd50d797533ee781d48c0491b01a5a998e2de003d295659c78cd398c527",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+E020": {
+        "source": "fonts/type1/public/amsfonts/cm/cmsy10.pfb",
+        "sourceSha256": "62ee8cef552017551cd3e026a483e700730103eceaad959c87b7730017f59cff",
+        "sourceCode": 54,
+        "sourceGlyph": "negationslash",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+25B9": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmi10.pfb",
+        "sourceSha256": "e3661061e8aa474d6de5ffa916edceb0e3d8b998862018c147f0357fce00bcd7",
+        "sourceCode": 46,
+        "sourceGlyph": "triangleright",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+25C3": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmi10.pfb",
+        "sourceSha256": "e3661061e8aa474d6de5ffa916edceb0e3d8b998862018c147f0357fce00bcd7",
+        "sourceCode": 47,
+        "sourceGlyph": "triangleleft",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Main-Regular",
+      "required": 276,
+      "covered": 274,
+      "missing": [
+        "U+23B0",
+        "U+23B1"
+      ],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Main",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitMath_Main-Bold.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "21090d96e4e8f2257b351ea8739df626ef141ae40d5d4dd5a511493e007fc3fd",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+E020": {
+        "source": "fonts/type1/public/amsfonts/cm/cmbsy10.pfb",
+        "sourceSha256": "dd42853a466c1c38ca940375ce49bb18ea336299344a80dab4fa0faf145d19db",
+        "sourceCode": 54,
+        "sourceGlyph": "negationslash",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+25B9": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmib10.pfb",
+        "sourceSha256": "6cecc91b2c53569dc3c8ce12211e2252e80eb5d8709f1f1ddae67cb31c96f6a4",
+        "sourceCode": 46,
+        "sourceGlyph": "triangleright",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+25C3": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmib10.pfb",
+        "sourceSha256": "6cecc91b2c53569dc3c8ce12211e2252e80eb5d8709f1f1ddae67cb31c96f6a4",
+        "sourceCode": 47,
+        "sourceGlyph": "triangleleft",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Main-Bold",
+      "required": 252,
+      "covered": 252,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Main",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitMath_Main-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "1ed087308e3bf6787bcbd6b5a5ad2323d043acf6b85553a7b9a490884dbeded2",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "Main-Italic",
+      "required": 126,
+      "covered": 126,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Main",
+    "style": "italic",
+    "weight": 700,
+    "file": "TikZKitMath_Main-BoldItalic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "d06f1d918089b049394cf7e7aea849bb238643e4c2272a0e03e486d13db290a5",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "Main-BoldItalic",
+      "required": 127,
+      "covered": 127,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Math",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitMath_Math-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "87a589471ba81579962a825a296417b04fd6027f32c3e5e5e249aa31d5522eb6",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+E131": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmi10.pfb",
+        "sourceSha256": "e3661061e8aa474d6de5ffa916edceb0e3d8b998862018c147f0357fce00bcd7",
+        "sourceCode": 123,
+        "sourceGlyph": "dotlessi",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E237": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmi10.pfb",
+        "sourceSha256": "e3661061e8aa474d6de5ffa916edceb0e3d8b998862018c147f0357fce00bcd7",
+        "sourceCode": 124,
+        "sourceGlyph": "dotlessj",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Math-Italic",
+      "required": 107,
+      "covered": 107,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Math",
+    "style": "italic",
+    "weight": 700,
+    "file": "TikZKitMath_Math-BoldItalic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "d68af60f363de6a87c81ab45130c7df85ce2f9f6b283bc98423e6e5bcd222858",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+E131": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmib10.pfb",
+        "sourceSha256": "6cecc91b2c53569dc3c8ce12211e2252e80eb5d8709f1f1ddae67cb31c96f6a4",
+        "sourceCode": 123,
+        "sourceGlyph": "dotlessi",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E237": {
+        "source": "fonts/type1/public/amsfonts/cm/cmmib10.pfb",
+        "sourceSha256": "6cecc91b2c53569dc3c8ce12211e2252e80eb5d8709f1f1ddae67cb31c96f6a4",
+        "sourceCode": 124,
+        "sourceGlyph": "dotlessj",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Math-BoldItalic",
+      "required": 107,
+      "covered": 107,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_AMS",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_AMS-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "6f4e4323068b9a930e14ce6aa649df268fa013faeb35ece16cfaaa36dea52cf8",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+E00C": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 0,
+        "sourceGlyph": "lessornotequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E00D": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 1,
+        "sourceGlyph": "greaterornotequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E010": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 10,
+        "sourceGlyph": "notlessorslnteql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E00F": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 11,
+        "sourceGlyph": "notgreaterorslnteql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E011": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 20,
+        "sourceGlyph": "notlessdblequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E00E": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 21,
+        "sourceGlyph": "notgreaterdblequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E01A": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 32,
+        "sourceGlyph": "notsubsetoreql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E01B": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 33,
+        "sourceGlyph": "notsupersetoreql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E016": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 34,
+        "sourceGlyph": "notsubsetordbleql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E018": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 35,
+        "sourceGlyph": "notsupersetordbleql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E017": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 38,
+        "sourceGlyph": "subsetornoteql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E019": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 39,
+        "sourceGlyph": "supersetornoteql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E006": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 46,
+        "sourceGlyph": "notshortbar",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E007": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 47,
+        "sourceGlyph": "notshortparallel",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E008": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 122,
+        "sourceGlyph": "Digamma",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E009": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 123,
+        "sourceGlyph": "kappa",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+0127": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 126,
+        "sourceGlyph": "planckover2pi1",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+03DD": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 122,
+        "sourceGlyph": "Digamma",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2132": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 96,
+        "sourceGlyph": "Finv",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2141": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 97,
+        "sourceGlyph": "Gmir",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2571": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 30,
+        "sourceGlyph": "upslope",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2572": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 31,
+        "sourceGlyph": "downslope",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AB5": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 22,
+        "sourceGlyph": "precedenotslnteql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AB6": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 23,
+        "sourceGlyph": "follownotslnteql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AB7": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 119,
+        "sourceGlyph": "precedesorequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AB8": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 118,
+        "sourceGlyph": "followsorequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AB9": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 24,
+        "sourceGlyph": "precedenotdbleqv",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2ABA": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 25,
+        "sourceGlyph": "follownotdbleqv",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2ACB": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 36,
+        "sourceGlyph": "subsetornotdbleql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2ACC": {
+        "source": "fonts/type1/public/amsfonts/symbols/msbm10.pfb",
+        "sourceSha256": "d2121de7e7c14490a2d352e3b62e62882d6c300235464bfa577e6055696e6e62",
+        "sourceCode": 37,
+        "sourceGlyph": "supersetornotdbleql",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+22D4": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 116,
+        "sourceGlyph": "fork",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+24C8": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 115,
+        "sourceGlyph": "circleS",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2605": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 70,
+        "sourceGlyph": "star",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+29EB": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 7,
+        "sourceGlyph": "diamondsolid",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2A5E": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 91,
+        "sourceGlyph": "perpcorrespond",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AC5": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 106,
+        "sourceGlyph": "subsetdblequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+2AC6": {
+        "source": "fonts/type1/public/amsfonts/symbols/msam10.pfb",
+        "sourceSha256": "f2e3b470b988a46272125e917531690d3c4d03ac7238f112b07337f972a537fa",
+        "sourceCode": 107,
+        "sourceGlyph": "supersetdblequal",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "AMS-Regular",
+      "required": 257,
+      "covered": 255,
+      "missing": [
+        "U+21E0",
+        "U+21E2"
+      ],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Script",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Script-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "96b9c851d79b03116bd8df706172e192d4c4efd4aef18e0a5554a92dbf942167",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "Script-Regular",
+      "required": 28,
+      "covered": 28,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_SansSerif",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_SansSerif-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "b01e57b2b3ea9d4f80918d0df334941eedf50b84cfef9b0330e0c6998de3069a",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "SansSerif-Regular",
+      "required": 121,
+      "covered": 121,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_SansSerif",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitMath_SansSerif-Italic.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "26f1f48b229e36c24e81e4d592e63e169a57ede68bc5fcd3c19499e7bc6759d3",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "SansSerif-Italic",
+      "required": 121,
+      "covered": 121,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_SansSerif",
+    "style": "normal",
+    "weight": 700,
+    "file": "TikZKitMath_SansSerif-Bold.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "5959c23219ba8927968de8e86a02ffcb6098af78ea95ee218961db2456516d34",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "SansSerif-Bold",
+      "required": 120,
+      "covered": 120,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Typewriter",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Typewriter-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "85e2aa7cfa8bee5047f6790721a44ef019a974bec25e8b9a5504b946700962d5",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+007F": {
+        "source": "fonts/type1/public/amsfonts/cm/cmtt10.pfb",
+        "sourceSha256": "d6bdecc0378f3cd16683d1ac348bdbc4ccde9a552e87b53fe9e2de5cfc7aa61d",
+        "sourceCode": 127,
+        "sourceGlyph": "dieresis",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Typewriter-Regular",
+      "required": 125,
+      "covered": 125,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Size1",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Size1-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "c033eb7261d0bf1aa6e318c7b19492d4dafcd50462dec4131c0e68a30d999ae9",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "Size1-Regular",
+      "required": 45,
+      "covered": 45,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Size2",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Size2-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "e64d8c57f8c1e9d8243acb60d43d332ef7d76676a7a820f29ed2c6c4130e8134",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "Size2-Regular",
+      "required": 37,
+      "covered": 37,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Size3",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Size3-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "f498a686cb40779041286e4dc53c2c35a8fadfad264d83b95e8d006a9d3cf3b8",
+    "license": "GUST-FONT-LICENSE.txt",
+    "coverage": {
+      "metricsFont": "Size3-Regular",
+      "required": 21,
+      "covered": 21,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  },
+  {
+    "family": "TikZKitMath_Size4",
+    "style": "normal",
+    "weight": 400,
+    "file": "TikZKitMath_Size4-Regular.woff",
+    "format": "woff",
+    "source": "fonts/opentype/public/lm-math/latinmodern-math.otf",
+    "sourceSha256": "6075562b771f8b82f0c179e363389684f2dd09de30038269e2628e504bd7be0f",
+    "sha256": "20e3b08ee8438d0eb3eb8422d16e2c01f42eee1ef2d41da026fb32ef361d8fbe",
+    "license": "GUST-FONT-LICENSE.txt",
+    "aliases": {
+      "U+E000": {
+        "source": "fonts/type1/public/amsfonts/cm/cmex10.pfb",
+        "sourceSha256": "791b31aa1db8608d0144b3a40fc0fe53383a60f6b00d0e8fd9f06ac4a11df8cb",
+        "sourceCode": 117,
+        "sourceGlyph": "radicalvertex",
+        "yShift": 605,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E001": {
+        "source": "fonts/type1/public/amsfonts/cm/cmex10.pfb",
+        "sourceSha256": "791b31aa1db8608d0144b3a40fc0fe53383a60f6b00d0e8fd9f06ac4a11df8cb",
+        "sourceCode": 118,
+        "sourceGlyph": "radicaltp",
+        "yShift": 565,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E150": {
+        "source": "fonts/type1/public/amsfonts/cm/cmex10.pfb",
+        "sourceSha256": "791b31aa1db8608d0144b3a40fc0fe53383a60f6b00d0e8fd9f06ac4a11df8cb",
+        "sourceCode": 122,
+        "sourceGlyph": "bracehtipdownleft",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E151": {
+        "source": "fonts/type1/public/amsfonts/cm/cmex10.pfb",
+        "sourceSha256": "791b31aa1db8608d0144b3a40fc0fe53383a60f6b00d0e8fd9f06ac4a11df8cb",
+        "sourceCode": 123,
+        "sourceGlyph": "bracehtipdownright",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E152": {
+        "source": "fonts/type1/public/amsfonts/cm/cmex10.pfb",
+        "sourceSha256": "791b31aa1db8608d0144b3a40fc0fe53383a60f6b00d0e8fd9f06ac4a11df8cb",
+        "sourceCode": 124,
+        "sourceGlyph": "bracehtipupleft",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      },
+      "U+E153": {
+        "source": "fonts/type1/public/amsfonts/cm/cmex10.pfb",
+        "sourceSha256": "791b31aa1db8608d0144b3a40fc0fe53383a60f6b00d0e8fd9f06ac4a11df8cb",
+        "sourceCode": 125,
+        "sourceGlyph": "bracehtipupright",
+        "yShift": 0,
+        "license": "OFL-AMSFonts.txt"
+      }
+    },
+    "coverage": {
+      "metricsFont": "Size4-Regular",
+      "required": 47,
+      "covered": 47,
+      "missing": [],
+      "metricsSha256": "1e72fc6b451a565e60b1eb7e89f4738eb74f35edfcf3c9c273015700b42ae04d"
+    }
+  }
+]

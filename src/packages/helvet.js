@@ -8,7 +8,7 @@ export const texPackage = {
   ].join(", "),
   features: [
     "helvet's \\sfdefault -> phv mapping for \\sffamily and \\sf",
-    "Helvetica/Arial SVG font selection for text and sansmath roman glyphs"
+    "MacTeX TeX Gyre Heros font selection for text and sansmath roman glyphs"
   ],
   requires: [],
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/latex/psnfss/helvet.sty",
@@ -23,5 +23,5 @@ export const texPackage = {
     "LaTeX-examples Hyperbolic Triangle Interior Angles"
   ],
   observedOptions: ["scaled"],
-  notes: "Implements the package's practical document-level effect only: explicit sans-family switches select the browser's Helvetica/Arial fallback. The optional scaled factor, exact TeX phv metrics, and arbitrary PSNFSS font series remain deferred."
+  notes: "Implements the package's practical document-level effect only: explicit sans-family switches select bundled MacTeX TeX Gyre Heros. The optional scaled factor, exact TeX phv metrics, and arbitrary PSNFSS font series remain deferred."
 };

@@ -3,7 +3,8 @@ import { isEmptyNormalizedTikzText, normalizeTikzText } from "../../tikz/text.js
 import { computeSvgBounds } from "./bounds.js";
 import { renderDecorationTextPath } from "./decorationText.js";
 import { renderDefaultFontStyleDef } from "./defaultFontCss.js";
-import { clipCircleId, clipPolygonId, clipRectId, collectSvgDefs, formOnlyPatternClipId } from "./defs.js";
+import { fontFamiliesInMarkup } from "../../fonts/index.js";
+import { clipCircleId, clipPolygonId, clipRectId, formOnlyPatternClipId, scopeSvgDefinitions } from "./defs.js";
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
 import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
@@ -54,7 +55,7 @@ export function renderSvg(ir, options = {}) {
   const sourceMargin = Number(ir.previewBorder);
   const sourceMargins = sourceSvgMargins(ir.previewMargins, unit);
   const margin = options.margin ?? sourceMargins ?? (Number.isFinite(sourceMargin) ? sourceMargin * unit : TIKZ_MARGIN);
-  const items = scaleItemsForRenderUnit(ir.items || [], unit);
+  const { items, defs } = scopeSvgDefinitions(scaleItemsForRenderUnit(ir.items || [], unit), unit, options.idPrefix);
   const naturalBounds = computeSvgBounds(items, options);
   const graphicxResize = normalizeGraphicxResize(ir.graphicxResize, naturalBounds);
   const bounds = graphicxResize ? scaleBoundsForGraphicxResize(naturalBounds, graphicxResize) : naturalBounds;
@@ -62,8 +63,6 @@ export function renderSvg(ir, options = {}) {
   const viewBox = svgViewBox(view);
 
   const body = [];
-  const defs = collectSvgDefs(items, unit);
-  const defaultFontStyleDef = renderDefaultFontStyleDef({ fontUrlPrefix: options.fontUrlPrefix || "/fonts/" });
   const background = options.background === undefined ? "white" : options.background;
   body.push(renderSvgBackground(view, background));
   const itemMarkup = [];
@@ -77,7 +76,10 @@ export function renderSvg(ir, options = {}) {
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {
     defs.unshift(renderScopedMathStyleDef());
   }
-  defs.unshift(defaultFontStyleDef);
+  defs.unshift(renderDefaultFontStyleDef({
+    fontUrlPrefix: options.fontUrlPrefix,
+    families: fontFamiliesInMarkup(body.join(""))
+  }));
   return renderSvgDocument(viewBox, body, defs, svgDocumentSize(view, unit));
 }
 
@@ -130,11 +132,11 @@ function svgDocumentSize(view, unit) {
 function renderItem(item, unit, options = {}, index = 0, pageOrigin = { x: 0, y: 0 }) {
   const rendered = renderItemContent(item, unit, options, index, pageOrigin);
   const clip = Array.isArray(item.clipPolygon) && item.clipPolygon.length >= 3
-    ? clipPolygonId(item.clipPolygon)
+    ? clipPolygonId(item.clipPolygon, item)
     : item.clipCircle
-      ? clipCircleId(item.clipCircle)
+      ? clipCircleId(item.clipCircle, item)
       : item.clipRect
-        ? clipRectId(item.clipRect)
+        ? clipRectId(item.clipRect, item)
         : null;
   return clip && rendered ? `<g clip-path="url(#${escapeAttribute(clip)})">${rendered}</g>` : rendered;
 }
@@ -221,7 +223,7 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
   }
   if (item.type === "path" && hasPathCommands(item)) {
     const rendered = hasRenderableFormOnlyPattern(item)
-      ? `${renderFormOnlyPatternFill(item, unit, formOnlyPatternClipId(index), pageOrigin)}${renderPathElement({
+      ? `${renderFormOnlyPatternFill(item, unit, formOnlyPatternClipId(index, item), pageOrigin)}${renderPathElement({
         ...item,
         style: { ...item.style, pattern: undefined, patternDefinition: undefined, fill: "none" }
       }, unit)}`

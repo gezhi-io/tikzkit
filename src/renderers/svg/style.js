@@ -2,6 +2,7 @@ import { colorToRgb, normalizeColor } from "../../engine/options.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { arrowMarkerId } from "./markers.js";
+import { svgDefinitionId } from "./definitionScope.js";
 
 export function styleAttributes(style = {}, options = {}) {
   const mindmapPaint = style.mindmapConnection?.paint;
@@ -31,7 +32,7 @@ export function styleAttributes(style = {}, options = {}) {
   if (Number.isFinite(style.strokeOpacity)) attrs.push(["stroke-opacity", style.strokeOpacity]);
   if (style.fillRule) attrs.push(["fill-rule", style.fillRule]);
   if (style.filter) attrs.push(["filter", style.filter]);
-  if (pathFadingName(style.pathFading)) attrs.push(["mask", `url(#${pathFadingMaskId(style.pathFading)})`]);
+  if (pathFadingName(style.pathFading)) attrs.push(["mask", `url(#${pathFadingMaskId(style.pathFading, style)})`]);
   if (!options.omitMarkers && style.markerStart) attrs.push(["marker-start", `url(#${arrowMarkerId(style.markerStart, style)})`]);
   if (!options.omitMarkers && style.markerEnd) attrs.push(["marker-end", `url(#${arrowMarkerId(style.markerEnd, style)})`]);
   return attrs.map(([key, value]) => ` ${key}="${escapeAttribute(String(value))}"`).join("");
@@ -41,7 +42,7 @@ export function mindmapConnectionGradientId(style = {}) {
   const id = String(style.mindmapConnection?.id || "connection")
     .replace(/[^A-Za-z0-9_-]+/g, "-")
     .replace(/^-|-$/g, "") || "connection";
-  return `tikz-mindmap-connection-${id}`;
+  return svgDefinitionId(`tikz-mindmap-connection-${id}`, style);
 }
 
 export function svgPaint(value) {
@@ -86,12 +87,12 @@ export function pathFadingKey(name) {
     .replace(/^-|-$/g, "");
 }
 
-export function pathFadingGradientId(name) {
-  return `tikz-fading-gradient-${pathFadingKey(name)}-${pathFadingIsRadial(name) ? "radial" : "linear"}`;
+export function pathFadingGradientId(name, context = {}) {
+  return svgDefinitionId(`tikz-fading-gradient-${pathFadingKey(name)}-${pathFadingIsRadial(name) ? "radial" : "linear"}`, context);
 }
 
-export function pathFadingMaskId(name) {
-  return `tikz-fading-${pathFadingKey(name)}-mask`;
+export function pathFadingMaskId(name, context = {}) {
+  return svgDefinitionId(`tikz-fading-${pathFadingKey(name)}-mask`, context);
 }
 
 export function pathFadingIsRadial(name) {
@@ -111,12 +112,12 @@ export function axisGradientId(style = {}) {
   const stops = Array.isArray(style.linearStops)
     ? style.linearStops.map((stop) => `${stop.offset}:${stop.color}`).join("-")
     : "";
-  if (stops) return `tikz-axis-stops-${stablePaintHash(`${angle}-${stops}`)}`;
+  if (stops) return svgDefinitionId(`tikz-axis-stops-${stablePaintHash(`${angle}-${stops}`)}`, style);
   const key = `${top}-${middle}-${bottom}-${angle}-${stops}`
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "axis";
-  return `tikz-axis-${key}`;
+  return svgDefinitionId(`tikz-axis-${key}`, style);
 }
 
 function stablePaintHash(value) {
@@ -134,7 +135,7 @@ export function ballGradientId(style = {}) {
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "gray";
-  return `tikz-ball-${color}`;
+  return svgDefinitionId(`tikz-ball-${color}`, style);
 }
 
 export function radialGradientId(style = {}) {
@@ -143,7 +144,7 @@ export function radialGradientId(style = {}) {
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "radial";
-  return `tikz-radial-${name}`;
+  return svgDefinitionId(`tikz-radial-${name}`, style);
 }
 
 export function mixPaint(color, target, baseAmount) {
@@ -163,7 +164,7 @@ export function patternPathData(kind) {
 export function patternId(style = {}) {
   const kind = String(style.pattern || "lines").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lines";
   const color = String(style.patternColor || style.stroke || "black").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "black";
-  return `tikz-pattern-${kind}-${color}`;
+  return svgDefinitionId(`tikz-pattern-${kind}-${color}`, style);
 }
 
 function paintToRgb(color) {

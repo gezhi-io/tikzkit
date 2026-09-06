@@ -699,7 +699,7 @@ test("applies shadows.blur filters and every-shadow overrides to path preactions
   expectClose(path.shadows[0].blurRadius, 0.1, 1e-12);
   expectClose(path.shadows[0].style.opacity, 0.25, 1e-12);
   assert.match(result.svg, /class="tikz-path-shadow"/);
-  assert.match(result.svg, /filter="url\(#tikzkit-blur-shadow-100\)"/);
+  assert.match(result.svg, /filter="url\(#tikzkit-[\da-f]{16}-tikzkit-blur-shadow-100\)"/);
 });
 
 test("renders circuitikz npn and pnp transistor nodes with B C E anchors", () => {
@@ -2888,7 +2888,7 @@ test("applies and resets default decorations.text format delimiters", () => {
   ]);
   assert.match(result.svg, /fill="red"/);
   assert.match(result.svg, /font-size="42\.175/);
-  assert.doesNotMatch(result.svg, /large|bf|\\color|>\|</);
+  assert.doesNotMatch(result.svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /large|bf|\\color|>\|</);
 });
 
 test("combines formatted decoration text with postaction, reverse path, center, and signed raise", () => {
@@ -3343,8 +3343,8 @@ test("lowers documented drop-shadow defaults and caller opacity overrides", () =
   assert.equal(paths[0].shadows.length, 1);
   assert.equal(paths[1].shadows.length, 1);
   assert.equal(paths[0].shadows[0].scale, 1);
-  expectClose(paths[0].shadows[0].xshift, 0.5 * 4.30554 / 28.4527559, 1e-12);
-  expectClose(paths[0].shadows[0].yshift, -0.5 * 4.30554 / 28.4527559, 1e-12);
+  expectClose(paths[0].shadows[0].xshift, 0.5 * (282168 / 65536) / 28.4527559, 1e-12);
+  expectClose(paths[0].shadows[0].yshift, -0.5 * (282168 / 65536) / 28.4527559, 1e-12);
   assert.equal(paths[0].shadows[0].style.fill, "rgb(128 128 128)");
   expectClose(paths[0].shadows[0].style.opacity, 0.5, 1e-12);
   expectClose(paths[1].shadows[0].style.opacity, 0.25, 1e-12);
@@ -3370,7 +3370,7 @@ test("lowers circular drop shadows and glows as faded path preactions", () => {
   assert.equal(paths[0].shadows[0].style.pathFading, "circle with fuzzy edge 15 percent");
   assert.equal(paths[1].shadows[0].style.pathFading, "circle with fuzzy edge 15 percent");
   assert.match(result.svg, /class="tikz-path-shadow"/);
-  assert.match(result.svg, /mask="url\(#tikz-fading-circle-with-fuzzy-edge-15-percent-mask\)"/);
+  assert.match(result.svg, /mask="url\(#tikzkit-[\da-f]{16}-tikz-fading-circle-with-fuzzy-edge-15-percent-mask\)"/);
   assert.match(result.svg, /<radialGradient[^>]+tikz-fading-gradient-circle-with-fuzzy-edge-15-percent-radial/);
 });
 
@@ -3417,8 +3417,8 @@ test("copies ordinary path fill and draw styles behind copy shadows", () => {
   assert.equal(path.shadows[0].style.fill, "rgb(204 204 255)");
   assert.equal(path.shadows[0].style.stroke, "blue");
   expectClose(path.shadows[0].style.opacity, 0.5, 1e-12);
-  expectClose(path.shadows[0].xshift, 0.5 * 4.30554 / 28.4527559, 1e-12);
-  expectClose(path.shadows[0].yshift, 0.5 * 4.30554 / 28.4527559, 1e-12);
+  expectClose(path.shadows[0].xshift, 0.5 * (282168 / 65536) / 28.4527559, 1e-12);
+  expectClose(path.shadows[0].yshift, 0.5 * (282168 / 65536) / 28.4527559, 1e-12);
   assert.match(result.svg, /class="tikz-path-shadow"/);
   assert.match(result.svg, /stroke="blue" fill="rgb\(204 204 255\)"/);
 });
@@ -3446,7 +3446,7 @@ test("paints the farther double-copy shadow before the nearer copy", () => {
     (0,0) rectangle (2,1);
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
   const path = result.ir.items.find((item) => item.type === "path");
-  const ex = 4.30554 / 28.4527559;
+  const ex = (282168 / 65536) / 28.4527559;
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(path.shadows.length, 2);

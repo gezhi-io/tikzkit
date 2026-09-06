@@ -1,6 +1,7 @@
 import { createArrowTip, latexSlimArrowGeometryFromLineWidth, TIKZ_ARROW } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
+import { svgDefinitionId } from "./definitionScope.js";
 
 export function renderMarker(item, unit) {
   const x = item.x * unit;
@@ -90,14 +91,14 @@ export function resolvedArrowMarker(tip, style = {}) {
     stroke,
     fill
   };
-  marker.id = [
+  marker.id = svgDefinitionId([
     "arrow",
     marker.kind,
     format(marker.length),
     format(marker.width),
     markerColorId(marker.stroke),
     markerColorId(marker.fill)
-  ].join("-");
+  ].join("-"), style);
   return marker;
 }
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +18,7 @@ import {
 } from "../scripts/render-example-fixtures.js";
 import { encodePng } from "../scripts/diff-example-pngs.js";
 import { tikzToSvg, tikzToSvgAsync } from "../src/index.js";
+import { fontManifest } from "../src/fonts/manifest.js";
 
 test("example fixture renderer writes TikZKit and tikztosvg artifacts from manifest cases", async () => {
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-examples-"));
@@ -1249,14 +1251,30 @@ test("example fixture renderer converts SVG artifacts to PNG when rsvg-convert i
   const tikztosvgGridPng = await readFile(path.join(outputRoot, "tikztosvg-grid-png", "axis-basic-range.png"), "utf8");
   const tikzkitSvg = await readFile(path.join(outputRoot, "tikzkit-svg", "axis-basic-range.svg"), "utf8");
 
-  await access(path.join(outputRoot, "fonts", "TikZKitCMUSerif-Roman.otf"));
-  await access(path.join(outputRoot, "fonts", "TikZKitCMSC10-Regular.otf"));
-  await access(path.join(outputRoot, "fonts", "TikZKitMath_Caligraphic-Regular.ttf"));
+  assert.ok(fontManifest.length > 0);
+  for (const font of fontManifest) {
+    const woff = await readFile(path.join(outputRoot, "fonts", font.file));
+    assert.equal(woff.toString("ascii", 0, 4), "wOFF", font.file);
+    assert.equal(createHash("sha256").update(woff).digest("hex"), font.sha256, font.file);
+    const rasterExtension = woff.toString("ascii", 4, 8) === "OTTO" ? ".otf" : ".ttf";
+    const rasterFont = await readFile(path.join(outputRoot, "fonts", font.file.replace(/\.woff$/, rasterExtension)));
+    assert.deepEqual(rasterFont.subarray(0, 4), woff.subarray(4, 8), font.file);
+    assert.equal(rasterFont.readUInt16BE(4), woff.readUInt16BE(12), font.file);
+  }
+  const fontFiles = new Set(fontManifest.map((font) => font.file));
+  const referencedFonts = [...tikzkitSvg.matchAll(/url\('\.\.\/fonts\/([^']+)'\)/g)].map((match) => match[1]);
+  assert.ok(referencedFonts.length > 0);
+  assert.ok(referencedFonts.every((file) => fontFiles.has(file)));
+  const regularSerif = fontManifest.find((font) => font.family === "TikZKitCMUSerif" && font.style === "normal" && font.weight === 400);
+  assert.ok(regularSerif);
+  assert.ok(referencedFonts.includes(regularSerif.file));
+  for (const license of new Set(fontManifest.map((font) => font.license))) {
+    assert.ok((await readFile(path.join(outputRoot, "fonts", license), "utf8")).trim().length > 0, license);
+  }
   assert.match(tikzkitPng, /png:axis-basic-range\.svg/);
   assert.match(tikzkitGridPng, /png:axis-basic-range\.svg/);
   assert.match(tikztosvgPng, /png:axis-basic-range\.svg/);
   assert.match(tikztosvgGridPng, /png:axis-basic-range\.svg/);
-  assert.match(tikzkitSvg, /url\('\.\.\/fonts\/TikZKitCMUSerif-Roman\.otf'\)/);
 });
 
 test("example fixture renderer records tikztosvg logs when rendering fails", async () => {

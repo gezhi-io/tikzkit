@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +13,8 @@ import { collectTikzLibraries } from "../src/tikz/libraries/declarations.js";
 import { MATH_FALLBACK_NAMED_OPERATORS } from "../src/tikz/text.js";
 
 const THIS_FILE = fileURLToPath(import.meta.url);
-const AUDIT_SCHEMA_VERSION = 1;
+const AUDIT_SCHEMA_VERSION = 2;
+const REPO_ROOT = path.resolve(path.dirname(THIS_FILE), "..");
 const MATH_NAMED_OPERATOR_COMMANDS = new Set(MATH_FALLBACK_NAMED_OPERATORS);
 
 const COMMAND_OWNERS = {
@@ -226,11 +228,23 @@ export function auditTikzSource(source, options = {}) {
   const expressions = collectPlotExpressions(cleanSource, lineStarts, review);
   const numbers = collectNumbers(cleanSource, lineStarts, expressions, optionGroups, review);
   const features = [...commands, ...environments, ...optionFeatures, ...declarations, ...numbers, ...expressions];
-  const gate = buildGate({ dependencies, features, review });
+  const binding = createReviewBinding(String(source || ""), review, options);
+  const bindingStatus = !review.binding ? "unbound"
+    : JSON.stringify(review.binding) === JSON.stringify(binding) ? "current" : "stale";
+  for (const feature of features) {
+    feature.approvalCurrent = bindingStatus === "current";
+    if (!feature.approvalCurrent && ["verified", "implemented", "native-noop", "not-applicable"].includes(feature.reviewStatus)) {
+      feature.claimedReviewStatus = feature.reviewStatus;
+      feature.reviewStatus = bindingStatus;
+    }
+  }
+  const gate = buildGate({ dependencies, features, review, binding, bindingStatus });
 
   return {
     schemaVersion: AUDIT_SCHEMA_VERSION,
     sourcePath,
+    binding,
+    bindingStatus,
     summary: {
       packages: dependencies.filter((entry) => entry.kind === "package").length,
       libraries: dependencies.filter((entry) => entry.kind !== "package").length,
@@ -251,6 +265,36 @@ export function auditTikzSource(source, options = {}) {
     numbers,
     expressions,
     gate
+  };
+}
+
+export function createReviewBinding(source, review = {}, options = {}) {
+  const hash = (value) => createHash("sha256").update(value).digest("hex");
+  const files = [];
+  const root = options.implementationRoot || path.join(REPO_ROOT, "src");
+  function visit(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (entry.isFile()) files.push([path.relative(root, file), hash(readFileSync(file))]);
+    }
+  }
+  visit(root);
+  const evidencePaths = [...new Set([
+    ...Object.values(review.features || {}), ...(review.rules || [])
+  ].flatMap((entry) => entry.evidence || []))].sort();
+  return {
+    sourceSha256: hash(source),
+    implementationSha256: hash(JSON.stringify(files)),
+    policySha256: hash(readFileSync(THIS_FILE)),
+    dependenciesSha256: hash(readFileSync(path.join(REPO_ROOT, "package-lock.json"))),
+    evidence: evidencePaths.map((file) => {
+      try {
+        return { path: file, sha256: hash(readFileSync(path.resolve(REPO_ROOT, file))) };
+      } catch {
+        return { path: file, sha256: null };
+      }
+    })
   };
 }
 
@@ -820,9 +864,15 @@ function matchingReviewRule(featureId, rules = []) {
   return null;
 }
 
-function buildGate({ dependencies, features, review }) {
+function buildGate({ dependencies, features, review, binding, bindingStatus }) {
   const blockers = [];
   const todos = [];
+  if (bindingStatus !== "current") {
+    todos.push(`case: ${bindingStatus} review binding; inspect the current source, implementation, and evidence before --bind-review`);
+  }
+  for (const evidence of binding.evidence) {
+    if (!evidence.sha256) blockers.push(`evidence: missing or unreadable ${evidence.path}`);
+  }
 
   for (const dependency of dependencies) {
     if (dependency.implementationStatus === "unsupported") {
@@ -888,6 +938,7 @@ export function renderAuditMarkdown(report) {
     `# Semantic Audit: ${report.sourcePath ? path.basename(report.sourcePath) : "inline source"}`,
     "",
     `Status: **${report.gate.status}**`,
+    `Review binding: **${report.bindingStatus}**. Feature review labels are historical claims until the binding is current.`,
     "",
     "## Summary",
     "",
@@ -1081,13 +1132,14 @@ function escapeRegExp(value) {
 }
 
 function parseCliArgs(argv) {
-  const args = { sourcePath: null, reviewPath: null, outputPath: null, initReviewPath: null, json: false, strict: false, help: false };
+  const args = { sourcePath: null, reviewPath: null, outputPath: null, initReviewPath: null, bindReview: false, json: false, strict: false, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--help" || arg === "-h") args.help = true;
     else if (arg === "--review") args.reviewPath = argv[++index];
     else if (arg === "--output") args.outputPath = argv[++index];
     else if (arg === "--init-review") args.initReviewPath = argv[++index];
+    else if (arg === "--bind-review") args.bindReview = true;
     else if (arg === "--json") args.json = true;
     else if (arg === "--strict") args.strict = true;
     else if (!args.sourcePath) args.sourcePath = arg;
@@ -1115,6 +1167,7 @@ export function createReviewTemplate(report) {
   }
   return {
     schemaVersion: AUDIT_SCHEMA_VERSION,
+    binding: report.binding,
     caseStatus: "incomplete",
     localSources: [],
     localSourceNotes: {},
@@ -1146,7 +1199,7 @@ export function writeAuditArtifacts({ report, outputPath = null, initReviewPath 
 function main() {
   const args = parseCliArgs(process.argv.slice(2));
   if (args.help) {
-    process.stdout.write("Usage: npm run case:audit -- <case.tex> [--review review.json] [--init-review review.json] [--output audit.md] [--json] [--strict]\n");
+    process.stdout.write("Usage: npm run case:audit -- <case.tex> [--review review.json] [--init-review review.json] [--bind-review] [--output audit.md] [--json] [--strict]\n\nLegacy reviews remain readable but cannot pass acceptance. After inspecting the exact source and implementation and rerunning the listed evidence, explicitly use --review review.json --bind-review to record current SHA-256 fingerprints. This preserves review statuses; it does not run tests or verify their claims. Source, implementation, dependency, policy, or evidence changes invalidate the binding. Do not batch-bind old reviews without re-review.\n");
     return;
   }
   if (!args.sourcePath) {
@@ -1157,7 +1210,15 @@ function main() {
   const sourcePath = path.resolve(args.sourcePath);
   const source = readFileSync(sourcePath, "utf8");
   const review = args.reviewPath ? JSON.parse(readFileSync(path.resolve(args.reviewPath), "utf8")) : {};
-  const report = auditTikzSource(source, { sourcePath, review });
+  let report = auditTikzSource(source, { sourcePath, review });
+  if (args.bindReview) {
+    if (!args.reviewPath) throw new Error("--bind-review requires an existing --review file");
+    if (report.binding.evidence.some((entry) => !entry.sha256)) throw new Error("Cannot bind missing or unreadable evidence");
+    review.schemaVersion = AUDIT_SCHEMA_VERSION;
+    review.binding = report.binding;
+    writeFileSync(path.resolve(args.reviewPath), `${JSON.stringify(review, null, 2)}\n`);
+    report = auditTikzSource(source, { sourcePath, review });
+  }
   const output = writeAuditArtifacts({
     report,
     outputPath: args.outputPath,

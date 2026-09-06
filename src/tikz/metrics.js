@@ -10,11 +10,10 @@ export const TIKZ_MATH_ITALIC_FONT_FAMILY = "TikZKitMath_Math, TikZKitMath_Main,
 export const TIKZ_MATH_CALLIGRAPHIC_FONT_FAMILY =
   "TikZKitMath_Caligraphic, TikZKitMath_Main, TikZKitCMUSerif, serif";
 export const TIKZ_MONOSPACE_FONT_FAMILY =
-  "KaTeX_Typewriter, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
+  "TikZKitCMUMono, monospace";
 export const TIKZ_SANS_SERIF_FONT_FAMILY = "TikZKitCMUSans, 'CMU Sans Serif', sans-serif";
-// helvet.sty selects the PSNFSS `phv` family. macOS ships Helvetica, which is
-// its closest browser-native counterpart and avoids changing generic sans text.
-export const TIKZ_HELVETICA_FONT_FAMILY = "Helvetica, Arial, sans-serif";
+// MacTeX's TeX Gyre Heros provides the portable PSNFSS-compatible sans face.
+export const TIKZ_HELVETICA_FONT_FAMILY = "TikZKitHeros, sans-serif";
 export const TIKZ_TEXT_FONT_SIZE = lineWidthFromPt(10);
 export const TIKZ_DISPLAY_MATH_FONT_SIZE = lineWidthFromPt(10);
 // cmtt10.tfm: every glyph advances by 0.524996em. The SVG typewriter font

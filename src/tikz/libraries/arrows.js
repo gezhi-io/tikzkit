@@ -1,4 +1,5 @@
 import { evaluateMath, parseDimension } from "../../engine/math.js";
+import { evaluateRestrictedExpression } from "../../engine/safe-expression.js";
 import { splitTopLevel } from "../../engine/options.js";
 import { lineWidthFromPt, TIKZ_UNIT } from "../metrics.js";
 
@@ -1242,12 +1243,7 @@ function evaluateDeclaredDimension(input, variables = {}, lineWidth = lineWidthF
     expression = expression.replace(/\+\+/g, "+").replace(/\+-/g, "-").replace(/-\+/g, "-").replace(/--/g, "+");
   }
   if (!expression || !/^[0-9Na()+\-*/.]+$/.test(expression)) return NaN;
-  try {
-    const value = Function(`"use strict"; return (${expression});`)();
-    return Number.isFinite(value) ? value : NaN;
-  } catch {
-    return NaN;
-  }
+  return evaluateRestrictedExpression(expression).value;
 }
 
 function evaluateDeclaredScalar(input, variables, lineWidth) {

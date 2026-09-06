@@ -1,6 +1,8 @@
 import { parseTikz } from "./frontend/index.js";
 import { interpretTikz } from "./engine/index.js";
-import { parseDimension } from "./engine/math.js";
+import { MathExpressionError, parseDimension } from "./engine/math.js";
+import { ForeachExpansionError } from "./tikz/commands/foreach.js";
+import { withAxisMathDiagnostics } from "./pgfplots/expressions.js";
 import { computeSvgBounds, createSvgTextEngine, renderSvg } from "./renderers/svg/index.js";
 import { createConversionResult, mergeDiagnostics } from "./shared/result.js";
 import { TIKZ_UNIT } from "./tikz/metrics.js";
@@ -12,8 +14,16 @@ export { createPgfRandom, nextPgfRandomState, pgfRandomRandStep, pgfRandomRndSte
 export { renderSvg } from "./renderers/svg/index.js";
 
 export function tikzToSvg(source, options = {}) {
+  try {
+    return convertSynchronously(source, options);
+  } catch (error) {
+    return runtimeFailureResult(error);
+  }
+}
+
+function convertSynchronously(source, options) {
   const conversionOptions = conversionRenderOptions(options);
-  const parsed = parseTikz(source, options);
+  const parsed = parseForConversion(source, options);
   const interpreted = interpretTikz(parsed.ast, conversionOptions);
   applyGraphicxResizeboxTransform(parsed.ast, interpreted.ir, conversionOptions);
   const diagnostics = mergeDiagnostics(parsed.diagnostics, interpreted.diagnostics);
@@ -29,8 +39,16 @@ export function tikzToSvg(source, options = {}) {
 export const convertTikzToSvg = tikzToSvg;
 
 export async function tikzToSvgAsync(source, options = {}) {
+  try {
+    return await convertWithTextMeasurements(source, options);
+  } catch (error) {
+    return runtimeFailureResult(error);
+  }
+}
+
+async function convertWithTextMeasurements(source, options) {
   const conversionOptions = conversionRenderOptions(options);
-  const parsed = parseTikz(source, options);
+  const parsed = parseForConversion(source, options);
   let interpreted = interpretTikz(parsed.ast, conversionOptions);
   const maxTextEnginePasses = maxAsyncTextEnginePasses(options);
   let exhaustedTextEnginePasses = false;
@@ -56,6 +74,23 @@ export async function tikzToSvgAsync(source, options = {}) {
 }
 
 export const convertTikzToSvgAsync = tikzToSvgAsync;
+
+function runtimeFailureResult(error) {
+  // Only expected, structured input failures cross this public boundary.
+  // In particular, do not collect speculative frontend math probes globally.
+  if (!(error instanceof MathExpressionError) && !(error instanceof ForeachExpansionError)) throw error;
+  return createConversionResult({ diagnostics: [error.diagnostic] });
+}
+
+function parseForConversion(source, options) {
+  const failures = new Map();
+  const parsed = withAxisMathDiagnostics(
+    (diagnostic) => failures.set(`${diagnostic.code}:${diagnostic.expression}`, diagnostic),
+    () => parseTikz(source, options)
+  );
+  parsed.diagnostics.push(...failures.values());
+  return parsed;
+}
 
 function applyGraphicxResizeboxTransform(ast, ir, options = {}) {
   const pictures = ast?.pictures || [];

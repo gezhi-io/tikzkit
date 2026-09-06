@@ -1012,7 +1012,7 @@ test("pgfplots expression evaluator owns declared functions, trig mode, and endp
     0
   );
   assert.match(normalizeAxisExpression("sqrt(4)+deg(pi)", false), /Math\.sqrt/);
-  assert.match(pgfMathRuntimePrelude(), /const atan2/);
+  assert.equal(pgfMathRuntimePrelude().atan2.fn(1, 0), 90);
 });
 
 test("pgfplots declared constants feed sampled 3d surface functions", () => {

@@ -362,9 +362,8 @@ test("embeds the namespaced CMU default font layer for SVG text", () => {
 
   assert.match(svg, /class="tikzkit-default-font-style"/);
   assert.match(svg, /font-family:TikZKitCMUSerif/);
-  assert.match(svg, /font-family:TikZKitCMUSans/);
-  assert.match(svg, /url\('\.\.\/fonts\/TikZKitCMUSerif-Roman\.otf'\)/);
-  assert.match(svg, /url\('\.\.\/fonts\/TikZKitCMUSans-Regular\.otf'\)/);
+  assert.doesNotMatch(svg, /font-family:TikZKitCMUSans/);
+  assert.match(svg, /url\('\.\.\/fonts\/TikZKitCMUSerif-Regular\.woff'\)/);
   assert.match(svg, /font-family="TikZKitCMUSerif, 'CMU Serif', serif"/);
   assert.doesNotMatch(svg, /font-family="KaTeX_Main/);
 });
@@ -486,14 +485,14 @@ test("renders path ball shading as SVG radial gradients", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /<radialGradient[^>]+id="tikz-ball-/);
-  assert.match(svg, /<radialGradient[^>]+id="tikz-ball-[^"]+"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="70%"[^>]+fx="30%"[^>]+fy="30%"/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-[^"]+"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="70%"[^>]+fx="30%"[^>]+fy="30%"/);
   assert.match(svg, /offset="0%" stop-color="rgb\(255 255 217\)"/);
   assert.match(svg, /offset="36%" stop-color="rgb\(255 255 64\)"/);
   assert.match(svg, /offset="72%" stop-color="rgb\(179 179 0\)"/);
   assert.match(svg, /offset="100%" stop-color="rgb\(128 128 0\)"/);
-  assert.match(svg, /<circle[^>]+fill="url\(#tikz-ball-/);
-  assert.match(svg, /<ellipse[^>]+fill="url\(#tikz-ball-/);
+  assert.match(svg, /<circle[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-ball-/);
+  assert.match(svg, /<ellipse[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-ball-/);
 });
 
 test("renders top and bottom color path shading as SVG linear gradients", () => {
@@ -514,17 +513,17 @@ test("renders top and bottom color path shading as SVG linear gradients", () => 
     coordinates: {}
   });
 
-  assert.match(direct, /<linearGradient[^>]+id="tikz-axis-/);
+  assert.match(direct, /<linearGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-axis-/);
   assert.match(direct, /stop-color="white"/);
   assert.match(direct, /stop-color="blue"/);
-  assert.match(direct, /fill="url\(#tikz-axis-/);
+  assert.match(direct, /fill="url\(#tikzkit-[\da-f]{16}-tikz-axis-/);
 
   const interpreted = tikzToSvg(String.raw`\begin{tikzpicture}
     \draw[draw=black,top color=white,bottom color=blue] (0,0) rectangle (1,1);
   \end{tikzpicture}`);
   assert.equal(interpreted.diagnostics.length, 0);
-  assert.match(interpreted.svg, /<linearGradient[^>]+id="tikz-axis-/);
-  assert.match(interpreted.svg, /fill="url\(#tikz-axis-/);
+  assert.match(interpreted.svg, /<linearGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-axis-/);
+  assert.match(interpreted.svg, /fill="url\(#tikzkit-[\da-f]{16}-tikz-axis-/);
 });
 
 test("renders declared radial shading stops as SVG gradients", () => {
@@ -555,10 +554,10 @@ test("renders declared radial shading stops as SVG gradients", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /<radialGradient[^>]+id="tikz-radial-atomshade"/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-radial-atomshade"/);
   assert.match(svg, /stop-opacity="0"/);
   assert.match(svg, /stop-opacity="0.4"/);
-  assert.match(svg, /<ellipse[^>]+fill="url\(#tikz-radial-atomshade/);
+  assert.match(svg, /<ellipse[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-radial-atomshade/);
 });
 
 test("renders axial path fading masks for filled paths", () => {
@@ -579,11 +578,11 @@ test("renders axial path fading masks for filled paths", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /<mask[^>]+id="tikz-fading-west-/);
-  assert.match(svg, /<linearGradient[^>]+id="tikz-fading-gradient-west-/);
+  assert.match(svg, /<mask[^>]+id="tikzkit-[\da-f]{16}-tikz-fading-west-/);
+  assert.match(svg, /<linearGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-fading-gradient-west-/);
   assert.match(svg, /<stop offset="0%" stop-color="black"/);
   assert.match(svg, /<stop offset="75%" stop-color="white"/);
-  assert.match(svg, /<path[^>]+mask="url\(#tikz-fading-west-/);
+  assert.match(svg, /<path[^>]+mask="url\(#tikzkit-[\da-f]{16}-tikz-fading-west-/);
 });
 
 test("renders standalone decoration markers around their own origin after translation", () => {
@@ -627,9 +626,9 @@ test("renders TikZ north east line patterns as SVG pattern fills", () => {
 
   assert.equal(box.style.pattern, "north east lines");
   assert.equal(box.style.patternColor, "red");
-  assert.match(result.svg, /<pattern[^>]+id="tikz-pattern-/);
+  assert.match(result.svg, /<pattern[^>]+id="tikzkit-[\da-f]{16}-tikz-pattern-/);
   assert.match(result.svg, /<path d="M -4 8 L 8 -4 M 0 12 L 12 0"/);
-  assert.match(result.svg, /fill="url\(#tikz-pattern-/);
+  assert.match(result.svg, /fill="url\(#tikzkit-[\da-f]{16}-tikz-pattern-/);
 });
 
 test("renders shapes.arrows nodes as SVG arrow polygons", () => {
@@ -1218,12 +1217,12 @@ test("renders math text nodes through KaTeX inside SVG foreignObject", () => {
   assert.match(svg, /\.tikzkit-math-scope \.tikzkit-math-root/);
   assert.match(svg, /tikzkit-math-msupsub/);
   assert.match(svg, /font-family:TikZKitMath_Main/);
-  assert.match(svg, /\/node_modules\/katex\/dist\/fonts\/KaTeX_Main-Regular\.woff2/);
-  assert.doesNotMatch(svg, /\/node_modules\/katex\/dist\/fonts\/TikZKitMath_Main-Regular\.woff2/);
+  assert.match(svg, /data:font\/woff;base64,/);
+  assert.doesNotMatch(svg, /\/node_modules\/katex\/dist\/fonts\//);
   assert.doesNotMatch(svg, /tikzkit-math-katex-version|katexEqnNo/);
   assert.doesNotMatch(svg, /class="[^"]*\bkatex\b/);
   assert.doesNotMatch(svg, /\.katex\b/);
-  assert.match(svg, /<foreignObject requiredExtensions="http:\/\/www\.w3\.org\/1999\/xhtml"/);
+  assert.match(svg, /<foreignObject [^>]*requiredExtensions="http:\/\/www\.w3\.org\/1999\/xhtml"/);
   assert.doesNotMatch(svg, /<text[^>]*>\$x\^2 \+ y\^2\$<\/text>/);
 });
 
@@ -1982,7 +1981,7 @@ test("renders common relation commands in SVG math fallback", () => {
     `expected local MacTeX formula width near 98.56082pt, got ${normBox.width * 28.45274}pt`
   );
   assert.match(svg, />≤<\/tspan>/);
-  assert.doesNotMatch(svg, /leq|geq|neq|approx|lbrace|rbrace/);
+  assert.doesNotMatch(svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /leq|geq|neq|approx|lbrace|rbrace/);
 });
 
 test("adds TeX-like spacing around relations and named operators in SVG math fallback", () => {
@@ -2381,7 +2380,7 @@ test("renders degree superscripts as a degree symbol in SVG math fallback", () =
   assert.equal(text, "-90°");
   assert.match(svg, />-<tspan>90<\/tspan><tspan[^>]+baseline-shift="super"[^>]*>°<\/tspan>/);
   assert.doesNotMatch(svg, /baseline-shift="super"[^>]+\bdy="/);
-  assert.doesNotMatch(svg, /\^deg|deg/);
+  assert.doesNotMatch(svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /\^deg|deg/);
 });
 
 test("renders common TikZ math symbol macros in SVG text fallback", () => {
@@ -2411,7 +2410,7 @@ test("renders logical negation macros in SVG text fallback", () => {
 
   assert.equal(text, "p(¬ E|¬ H)");
   assert.match(svg, /p\(¬ E\|¬ H\)/);
-  assert.doesNotMatch(svg, /\\?neg|\\?lnot/);
+  assert.doesNotMatch(svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /\\?neg|\\?lnot/);
 });
 
 test("renders triangle label macros and textit labels without leaking TeX command names", () => {
@@ -2849,7 +2848,7 @@ test("treats explicit TeX font size commands as overriding inherited node fonts"
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(boxes.large.width > boxes.small.width * 1.8, `expected local Large to override scriptsize, got ${boxes.small.width} -> ${boxes.large.width}`);
-  assert.match(textNodes[0].style.fontFamily, /Typewriter/);
+  assert.match(textNodes[0].style.fontFamily, /TikZKitCMUMono/);
   assert.match(textNodes[1].style.fontFamily, /(?:TikZKitCMUSans|SansSerif)/);
   assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 1.44)}"`));
   assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 0.7)}"`));
@@ -2912,7 +2911,7 @@ test("renders mathcal atoms with the dedicated TeX calligraphic font", () => {
   );
 
   assert.match(svg, /font-family:TikZKitMath_Caligraphic/);
-  assert.match(svg, /TikZKitMath_Caligraphic-Regular\.ttf/);
+  assert.match(svg, /TikZKitMath_Caligraphic-Regular\.woff/);
   assert.match(svg, /class="tikz-math-calligraphic"[^>]*>N<\/tspan>\(40, 40\)/);
   assert.doesNotMatch(svg, />𝒩/);
 });
@@ -3429,13 +3428,13 @@ test("renders ball shaded circle node boxes as SVG radial gradients", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /<radialGradient[^>]+id="tikz-ball-rgb-102-102-255"/);
-  assert.match(svg, /<radialGradient[^>]+id="tikz-ball-rgb-102-102-255"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="70%"[^>]+fx="30%"[^>]+fy="30%"/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255"/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="70%"[^>]+fx="30%"[^>]+fy="30%"/);
   assert.match(svg, /offset="0%" stop-color="rgb\(232 232 255\)"/);
   assert.match(svg, /offset="36%" stop-color="rgb\(140 140 255\)"/);
   assert.match(svg, /offset="72%" stop-color="rgb\(71 71 179\)"/);
   assert.match(svg, /offset="100%" stop-color="rgb\(51 51 128\)"/);
-  assert.match(svg, /<ellipse[^>]+fill="url\(#tikz-ball-rgb-102-102-255\)"/);
+  assert.match(svg, /<ellipse[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255\)"/);
 });
 
 test("includes circular node boxes in the SVG viewBox bounds", () => {

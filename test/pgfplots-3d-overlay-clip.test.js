@@ -96,7 +96,7 @@ test("clips node boxes, text, and pin edges with a shared SVG polygon", () => {
   assert.ok(clipped.some((item) => item.subtype === "pin-edge"));
   assert.ok(clipped.every((item) => item.clipPolygon.length >= 4));
   assert.match(result.svg, /<clipPath[^>]+><polygon points=/);
-  assert.match(result.svg, /<g clip-path="url\(#tikzkit-clip-polygon-/);
+  assert.match(result.svg, /<g clip-path="url\(#tikzkit-[\da-f]{16}-tikzkit-clip-polygon-/);
 });
 
 test("clips ordinary 2D axis nodes and pins with the shared axis rectangle", () => {
@@ -116,7 +116,7 @@ test("clips ordinary 2D axis nodes and pins with the shared axis rectangle", () 
   assert.ok(clipped.some((item) => item.type === "textNode" && String(item.text).includes("edge label")));
   assert.ok(clipped.some((item) => item.subtype === "pin-edge"));
   assert.match(result.svg, /<clipPath[^>]+><rect /);
-  assert.match(result.svg, /<g clip-path="url\(#tikzkit-clip-/);
+  assert.match(result.svg, /<g clip-path="url\(#tikzkit-[\da-f]{16}-tikzkit-clip-/);
 });
 
 test("removes the visible out-of-range annotations from the real 3D Gaussian fixture", async () => {

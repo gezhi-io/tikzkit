@@ -334,9 +334,13 @@ function pgfplotsAxisTargetBox(axisOptions, width, height, options = {}) {
 
 function compact3DLabelReserveX(axisOptions, requestedWidth, options = {}) {
   if (!options.compact3DExplicitWidth) return PGFPLOTS_AXIS_LABEL_CONST_X;
-  const reserve = axisOptions["plot box ratio"] !== undefined
-    ? PGFPLOTS_PLOT_BOX_RATIO_EXPLICIT_WIDTH_RESERVE_X
-    : PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RESERVE_X;
+  // Equivalent ratios must use the same sizing path. Retain the existing
+  // compact-projection calibration until the full PGF fitting pass is ported.
+  const ratio = parsePgfplotsPlotBoxRatio(axisOptions["plot box ratio"]);
+  const uniform = Math.abs(ratio.x - ratio.y) < 1e-12 && Math.abs(ratio.y - ratio.z) < 1e-12;
+  const reserve = uniform
+    ? PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RESERVE_X
+    : PGFPLOTS_PLOT_BOX_RATIO_EXPLICIT_WIDTH_RESERVE_X;
   return Math.min(reserve, requestedWidth * 0.45);
 }
 

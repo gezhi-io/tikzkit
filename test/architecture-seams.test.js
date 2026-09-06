@@ -660,7 +660,7 @@ test("svg renderer keeps standalone math node serialization in its own module", 
   assert.ok(box.width > 0);
   assert.ok(htmlBox.width > box.width);
   assert.ok(scopedMathHostFontSize(12) < 12);
-  assert.ok(mathStyleScale(String.raw`\displaystyle x`) > 1);
+  assert.equal(mathStyleScale(String.raw`\displaystyle x`), 1);
   assert.match(svgText, /tikz-fraction/);
   assert.match(katexText, /tikzkit-math-scope/);
   assert.match(source, /from "\.\/mathNode\.js"/);

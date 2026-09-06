@@ -7,6 +7,25 @@ const KATEX_MACROS = {
   "\\undermat": "\\underbrace{#2}_{\\color{#3}\\text{#1}}"
 };
 
+const measurementCache = new Map();
+
+export function measureScopedMathExtents(tex, displayMode = false) {
+  const key = JSON.stringify([tex, displayMode]);
+  if (measurementCache.has(key)) return measurementCache.get(key);
+  let result = { height: 0, depth: 0 };
+  try {
+    const tree = katex.__renderToHTMLTree(tex, {
+      displayMode, strict: "ignore", trust: false, macros: KATEX_MACROS
+    });
+    result = { height: Math.max(0, tree.height || 0), depth: Math.max(0, tree.depth || 0) };
+  } catch {
+    // Invalid TeX is reported by the conversion pipeline; keep fallback metrics.
+  }
+  if (measurementCache.size >= 512) measurementCache.delete(measurementCache.keys().next().value);
+  measurementCache.set(key, result);
+  return result;
+}
+
 export function renderScopedMathHtml(tex, options = {}) {
   let html = scopeMathHtml(
     katex.renderToString(tex, {
@@ -45,7 +64,8 @@ export function renderScopedMathStyleDef() {
 // digits, and \mathrm (including the \mathbf replacement) to \sfdefault.
 const TIKZKIT_SANS_MATH_CSS =
   ".tikzkit-math-scope.tikzkit-math-inline-text .tikzkit-math-root{font-size:1em}" +
+  ".tikzkit-math-scope .tikzkit-math-root .tikzkit-math-mathbb,.tikzkit-math-scope .tikzkit-math-root .tikzkit-math-textbb,.tikzkit-math-scope .tikzkit-math-root .tikzkit-math-amsrm{font-family:TikZKitMath_AMSCaps,TikZKitMath_AMS}" +
   ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-sans{font-family:TikZKitCMUSans,'CMU Sans Serif',sans-serif}" +
   ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-sans .tikzkit-math-mathboldsf{font-family:TikZKitCMUSans,'CMU Sans Serif',sans-serif;font-style:normal}" +
-  ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-helvetica{font-family:Helvetica,Arial,sans-serif}" +
-  ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-helvetica .tikzkit-math-mathboldsf{font-family:Helvetica,Arial,sans-serif;font-style:normal}";
+  ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-helvetica{font-family:TikZKitHeros,sans-serif}" +
+  ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-helvetica .tikzkit-math-mathboldsf{font-family:TikZKitHeros,sans-serif;font-style:normal}";

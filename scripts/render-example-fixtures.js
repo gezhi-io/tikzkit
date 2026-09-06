@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { access, chmod, copyFile, mkdir, readdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, mkdir, readdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
@@ -8,6 +9,8 @@ import { unwrapBeamerFrames } from "../src/frontend/latex-shell.js";
 import { tikzToSvgAsync } from "../src/index.js";
 import { lowerRawGnuplotAddplotsToCoordinates } from "../src/pgfplots/gnuplot.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
+import { fontManifest } from "../src/fonts/manifest.js";
+import { decodeWoffFont } from "./font-raster-assets.js";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(SCRIPT_PATH), "..");
@@ -18,38 +21,7 @@ const TEXLIVE_OPENTYPE_FONT_DIRS = [
   "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/lm",
   "/usr/local/texlive/2025/texmf-dist/fonts/opentype/public/lm-math"
 ];
-const MANAGED_TIKZKIT_FONT_FILES = [
-  "TikZKitCMUSans-Bold.otf",
-  "TikZKitCMUSans-BoldItalic.otf",
-  "TikZKitCMUSans-Italic.otf",
-  "TikZKitCMUSans-Regular.otf",
-  "TikZKitCMUSerif-Bold.otf",
-  "TikZKitCMUSerif-BoldItalic.otf",
-  "TikZKitCMUSerif-Italic.otf",
-  "TikZKitCMUSerif-Roman.otf",
-  "TikZKitCMR5-Regular.otf",
-  "TikZKitCMR6-Regular.otf",
-  "TikZKitCMR7-Regular.otf",
-  "TikZKitCMR8-Regular.otf",
-  "TikZKitCMR9-Regular.otf",
-  "TikZKitCMR10-Regular.otf",
-  "TikZKitCMR12-Regular.otf",
-  "TikZKitCMR17-Regular.otf",
-  "TikZKitCMSC10-Regular.otf",
-  "TikZKitCMBX5-Bold.otf",
-  "TikZKitCMBX6-Bold.otf",
-  "TikZKitCMBX7-Bold.otf",
-  "TikZKitCMBX8-Bold.otf",
-  "TikZKitCMBX9-Bold.otf",
-  "TikZKitCMBX10-Bold.otf",
-  "TikZKitCMBX12-Bold.otf",
-  "TikZKitMath_Main-Bold.ttf",
-  "TikZKitMath_Main-Regular.ttf",
-  "TikZKitMath_Caligraphic-Bold.ttf",
-  "TikZKitMath_Caligraphic-Regular.ttf",
-  "TikZKitMath_Math-BoldItalic.ttf",
-  "TikZKitMath_Math-Italic.ttf"
-];
+const MANAGED_TIKZKIT_FONT_FILES = [...new Set(fontManifest.flatMap((font) => [font.file, font.license]))];
 const TEX_PT_PER_CM = 28.4527559;
 const TIKZTOSVG_BUILT_IN_PACKAGES = new Set(["amsmath", "amssymb", "pgfplots", "tikz", "tikz-cd", "xcolor"]);
 const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
@@ -103,8 +75,20 @@ export async function renderExampleFixtures(options = {}) {
     ? await readOptionalJson(path.join(outputRoot, "summary.json"))
     : null;
   const progressStartedAt = new Date().toISOString();
+  const environment = await fingerprintRenderEnvironment();
+  const tools = await captureReferenceTools(external, options, {
+    tikztosvgAvailable, svgToPngAvailable, nativeLatexAvailable, tikztosvgEngine, nativeLatexEngine
+  });
+  const generationId = randomUUID();
+  const manifestSha256 = await optionalFileHash(path.join(fixtureRoot, "manifest.json"));
 
   if (!options.preserveOutput) await clearManagedOutputArtifacts(outputRoot);
+  // A new render must never leave yesterday's passing comparison visible,
+  // including when this run is interrupted before it writes a new summary.
+  await rm(path.join(outputRoot, "diff"), { recursive: true, force: true });
+  await rm(path.join(outputRoot, "diff-png"), { recursive: true, force: true });
+  await rm(path.join(outputRoot, "index.html"), { force: true });
+  await rm(path.join(outputRoot, "summary.json"), { force: true });
   await copyManagedFontAssets(outputRoot);
   await mkdir(path.join(outputRoot, "tikzkit-svg"), { recursive: true });
   if (nativeReferenceRequested) {
@@ -175,6 +159,14 @@ export async function renderExampleFixtures(options = {}) {
     const tikzkitPngStatus = tikzkitPng
       ? await convertSvgToPng(external, tikzkitSvg, tikzkitPng, rsvgEnv, { timeoutMs: externalCommandTimeoutMs })
       : "skipped";
+    const referenceProvenance = {
+      independentNumerics: lowerRawGnuplotAddplotsToCoordinates(referenceSource) === referenceSource,
+      transformations: [],
+      tools
+    };
+    if (!referenceProvenance.independentNumerics) {
+      referenceProvenance.transformations.push("raw-gnuplot-js-sampling");
+    }
 
     let tikztosvgSvg = null;
     let tikztosvgInput = null;
@@ -204,6 +196,7 @@ export async function renderExampleFixtures(options = {}) {
         { timeoutMs: externalCommandTimeoutMs }
       );
       tikztosvgSvg = path.join(outputRoot, "tikztosvg-svg", `${entry.id}.svg`);
+      await rm(tikztosvgSvg, { force: true });
       tikztosvgInput = await writeTikztosvgInput(
         outputRoot,
         entry,
@@ -225,7 +218,7 @@ export async function renderExampleFixtures(options = {}) {
         env: tikztosvgCaseEnv,
         timeoutMs: externalCommandTimeoutMs
       });
-      tikztosvgStatus = result.exitCode === 0 ? "rendered" : "failed";
+      tikztosvgStatus = result.exitCode === 0 && await nonemptyFile(tikztosvgSvg) ? "rendered" : "failed";
       if (result.exitCode !== 0) {
         const diagnosticResult = shouldRetryTikztosvgWithoutQuiet(result)
           ? await external.runCommand("tikztosvg", tikztosvgArgs.filter((arg) => arg !== "-q"), {
@@ -252,7 +245,7 @@ export async function renderExampleFixtures(options = {}) {
       } else {
         await removeTikztosvgLog(outputRoot, entry);
       }
-      if (result.exitCode !== 0 && options.strictTikztosvg && !options.continueOnExternalFailure) {
+      if (tikztosvgStatus !== "rendered" && options.strictTikztosvg && !options.continueOnExternalFailure) {
         throw new Error(`tikztosvg failed for ${entry.id}: ${result.stderr || result.stdout || "see tikztosvg log"}`);
       }
       if (tikztosvgStatus === "rendered" && svgComparisonGrid) {
@@ -318,8 +311,27 @@ export async function renderExampleFixtures(options = {}) {
       mactexPng: mactexPng ? path.relative(outputRoot, mactexPng) : null,
       mactexLog: mactexLog ? path.relative(outputRoot, mactexLog) : null,
       mactexPngStatus,
-      diagnostics: tikzkit.diagnostics
+      diagnostics: tikzkit.diagnostics,
+      referenceProvenance,
+      fingerprints: {
+        generationId,
+        sourcePath,
+        fixtureRoot,
+        manifestSha256,
+        sourceSha256: sha256(source),
+        resources: await resourceFingerprints(entry.resources || [], fixtureRoot),
+        environment,
+        tools,
+        referenceProvenance,
+        renderOptions: { ...renderOptions, activeFigureId, comparisonGridMode, tikztosvgEngine, nativeLatexEngine },
+        artifacts: {}
+      }
     };
+    for (const key of ["tikzkitSvg", "tikzkitPng", "tikztosvgSvg", "tikztosvgPng", "mactexPng"]) {
+      const artifact = renderedCase[key];
+      if (artifact) renderedCase.fingerprints.artifacts[key] = await optionalFileHash(path.join(outputRoot, artifact));
+    }
+    renderedCase.renderFingerprint = sha256(JSON.stringify(renderedCase.fingerprints));
     cases.push(renderedCase);
     const progress = await writeRenderProgress(outputRoot, {
       total: selected.length,
@@ -358,9 +370,151 @@ export async function renderExampleFixtures(options = {}) {
     failedMacTeXPng: summaryCases.filter((entry) => entry.mactexPngStatus === "failed").length,
     cases: summaryCases
   };
+  const blockers = [];
+  if (!cases.length) blockers.push("No cases selected");
+  const toolVersions = new Map();
+  for (const entry of summaryCases) {
+    for (const reason of await validateRenderedCase(outputRoot, entry, environment, toolVersions)) blockers.push(`${entry.id}: ${reason}`);
+    if (entry.tikztosvgStatus !== "rendered") blockers.push(`${entry.id}: tikztosvg reference ${entry.tikztosvgStatus}`);
+    if (!options.skipPng) {
+      if (entry.tikzkitPngStatus !== "rendered") blockers.push(`${entry.id}: TikZKit PNG ${entry.tikzkitPngStatus}`);
+      if (entry.tikztosvgPngStatus !== "rendered") blockers.push(`${entry.id}: reference PNG ${entry.tikztosvgPngStatus}`);
+    }
+    if (nativeReferenceRequested && entry.mactexPngStatus !== "rendered") blockers.push(`${entry.id}: native PNG ${entry.mactexPngStatus}`);
+  }
+  summary.gate = { accepted: blockers.length === 0, scope: "artifact-generation", blockers };
   await writeFile(path.join(outputRoot, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
   await writeExampleComparisonPage(outputRoot, summary);
+  if (options.strictTikztosvg && !options.continueOnExternalFailure && !summary.gate.accepted) {
+    throw new Error(`Strict reference generation failed: ${blockers.join("; ")}`);
+  }
   return summary;
+}
+
+export function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function optionalFileHash(file) {
+  try { return sha256(await readFile(file)); }
+  catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function nonemptyFile(file) {
+  try { return (await readFile(file)).length > 0; }
+  catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+export async function fingerprintRenderEnvironment() {
+  async function hashPaths(paths) {
+    const files = [];
+    async function visit(file) {
+      let entries;
+      try { entries = await readdir(file, { withFileTypes: true }); }
+      catch (error) {
+        if (error.code !== "ENOTDIR" && error.code !== "ENOENT") throw error;
+        files.push([path.relative(REPO_ROOT, file), await optionalFileHash(file)]);
+        return;
+      }
+      for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+        if (entry.isFile() || entry.isDirectory()) await visit(path.join(file, entry.name));
+      }
+    }
+    for (const file of paths) await visit(file);
+    return sha256(JSON.stringify(files));
+  }
+  const externalFonts = [];
+  async function inventoryFontDirectory(directory) {
+    let entries;
+    try { entries = await readdir(directory, { withFileTypes: true }); }
+    catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      externalFonts.push([directory, null]);
+      return;
+    }
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) await inventoryFontDirectory(file);
+      else if (entry.isFile() || entry.isSymbolicLink()) {
+        const info = await stat(file);
+        externalFonts.push([file, info.size, info.mtimeMs, info.ctimeMs]);
+      }
+    }
+  }
+  // System font trees are large. Their file identity metadata supplements the
+  // content hashes of bundled fonts and the hashes of the resulting images.
+  for (const directory of [...TEXLIVE_OPENTYPE_FONT_DIRS, "/System/Library/Fonts", "/Library/Fonts", ...(process.env.HOME ? [path.join(process.env.HOME, "Library/Fonts")] : [])]) {
+    await inventoryFontDirectory(directory);
+  }
+  return {
+    rendererSha256: await hashPaths([path.join(REPO_ROOT, "src"), SCRIPT_PATH, path.join(REPO_ROOT, "scripts/diff-example-pngs.js"), path.join(REPO_ROOT, "scripts/font-raster-assets.js"), path.join(REPO_ROOT, "package-lock.json")]),
+    fontsSha256: await hashPaths([path.join(REPO_ROOT, "web/fonts")]),
+    externalFontInventorySha256: sha256(JSON.stringify(externalFonts))
+  };
+}
+
+async function resourceFingerprints(resources, fixtureRoot) {
+  const files = [...new Set(resources.map((resource) => path.resolve(fixtureRoot, resource.source)))].sort();
+  const fingerprints = [];
+  for (const file of files) fingerprints.push({ path: file, sha256: await optionalFileHash(file) });
+  return fingerprints;
+}
+
+async function toolVersion(external, command) {
+  const result = await external.runCommand(command, ["--version"], { timeoutMs: 3000 });
+  return { exitCode: result.exitCode, version: `${result.stdout || ""}\n${result.stderr || ""}`.trim().slice(0, 4096) };
+}
+
+async function captureReferenceTools(external, options, availability) {
+  if (options.external) return { kind: "external-adapter", versions: options.toolVersions || {} };
+  const commands = new Set();
+  if (availability.tikztosvgAvailable) {
+    commands.add("tikztosvg");
+    commands.add(availability.tikztosvgEngine);
+  }
+  if (availability.svgToPngAvailable) commands.add("rsvg-convert");
+  if (availability.nativeLatexAvailable) {
+    commands.add(availability.nativeLatexEngine);
+    commands.add("pdftocairo");
+  }
+  const versions = {};
+  for (const command of [...commands].sort()) versions[command] = await toolVersion(external, command);
+  return { kind: "local-tools", versions };
+}
+
+export async function validateRenderedCase(outputRoot, entry, environment = null, toolVersions = new Map()) {
+  const recorded = entry.fingerprints;
+  if (!recorded || !entry.renderFingerprint) return ["Unverified legacy render: regenerate artifacts to record fingerprints"];
+  const reasons = [];
+  if (sha256(JSON.stringify(recorded)) !== entry.renderFingerprint) reasons.push("Render fingerprint mismatch");
+  if (JSON.stringify(recorded.referenceProvenance) !== JSON.stringify(entry.referenceProvenance)) reasons.push("Reference provenance changed");
+  const currentEnvironment = environment || await fingerprintRenderEnvironment();
+  if (JSON.stringify(currentEnvironment) !== JSON.stringify(recorded.environment)) reasons.push("Renderer or font fingerprint changed");
+  try {
+    const source = await readExampleSource(recorded.sourcePath, recorded.fixtureRoot);
+    if (sha256(source) !== recorded.sourceSha256) reasons.push("Source fingerprint changed");
+  } catch { reasons.push("Source no longer readable"); }
+  if (await optionalFileHash(path.join(recorded.fixtureRoot, "manifest.json")) !== recorded.manifestSha256) reasons.push("Fixture manifest fingerprint changed");
+  for (const resource of recorded.resources || []) {
+    if (await optionalFileHash(resource.path) !== resource.sha256) reasons.push(`Resource fingerprint changed: ${resource.path}`);
+  }
+  for (const [key, hash] of Object.entries(recorded.artifacts || {})) {
+    if (!hash || !entry[key] || await optionalFileHash(path.join(outputRoot, entry[key])) !== hash) reasons.push(`Artifact fingerprint changed: ${key}`);
+  }
+  if (recorded.tools?.kind === "local-tools") {
+    const external = createExternalLatexAdapter();
+    for (const [command, version] of Object.entries(recorded.tools.versions)) {
+      if (!toolVersions.has(command)) toolVersions.set(command, await toolVersion(external, command));
+      if (JSON.stringify(toolVersions.get(command)) !== JSON.stringify(version)) reasons.push(`Reference tool changed: ${command}`);
+    }
+  }
+  return reasons;
 }
 
 function shouldUseNativeLatexReference(source) {
@@ -380,6 +534,8 @@ async function renderNativeLatexReference(external, options = {}) {
   // tkz-euclide 5 loads every object itself; the old loader is now undefined.
   // Keep user fixtures intact and adapt only the disposable MacTeX reference.
   const referenceSource = normalizeLegacyTkzEuclideSource(lowerRawGnuplotAddplotsToCoordinates(options.source));
+  await rm(workDir, { recursive: true, force: true });
+  await mkdir(workDir, { recursive: true });
   await writeFile(texPath, `${referenceSource.trimEnd()}\n`, "utf8");
 
   const latexArgs = [
@@ -401,7 +557,7 @@ async function renderNativeLatexReference(external, options = {}) {
     env: options.env,
     timeoutMs: options.timeoutMs
   });
-  return { rendered: converted.exitCode === 0, stage: "pdf2svg", result: converted };
+  return { rendered: converted.exitCode === 0 && await nonemptyFile(options.svgPath), stage: "pdf2svg", result: converted };
 }
 
 async function nativeMacTeXAvailable(external, engine) {
@@ -441,6 +597,7 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   await writeFile(texPath, `${nativeSource.trimEnd()}\n`, "utf8");
   await mkdir(path.dirname(outputPng), { recursive: true });
   await mkdir(path.dirname(outputLog), { recursive: true });
+  await rm(outputPng, { force: true });
 
   for (let pass = 0; pass < 2; pass += 1) {
     const latex = await external.runCommand(engine, latexArgs, {
@@ -463,7 +620,7 @@ export async function renderNativeMacTeXPng(external, options = {}) {
   );
   logs.push(`pdftocairo: exitCode ${raster.exitCode}`, raster.stdout || "", raster.stderr || "", "");
   await writeFile(outputLog, logs.join("\n"), "utf8");
-  return raster.exitCode === 0
+  return raster.exitCode === 0 && await nonemptyFile(outputPng)
     ? { status: "rendered", pngPath: outputPng, logPath: outputLog }
     : { status: "failed", pngPath: null, logPath: outputLog };
 }
@@ -772,15 +929,21 @@ async function copyManagedFontAssets(outputRoot) {
   await mkdir(outputFontDir, { recursive: true });
   for (const fileName of MANAGED_TIKZKIT_FONT_FILES) {
     await copyFile(path.join(sourceFontDir, fileName), path.join(outputFontDir, fileName));
+    if (fileName.endsWith(".woff")) {
+      const font = decodeWoffFont(await readFile(path.join(sourceFontDir, fileName)));
+      const extension = font.toString("ascii", 0, 4) === "OTTO" ? ".otf" : ".ttf";
+      await writeFile(path.join(outputFontDir, fileName.replace(/\.woff$/, extension)), font);
+    }
   }
 }
 
 export async function convertSvgToPng(external, svgPath, pngPath, env = process.env, options = {}) {
+  await rm(pngPath, { force: true });
   const result = await external.runCommand("rsvg-convert", ["-b", "white", "-o", pngPath, svgPath], {
     env,
     timeoutMs: options.timeoutMs
   });
-  return result.exitCode === 0 ? "rendered" : "failed";
+  return result.exitCode === 0 && await nonemptyFile(pngPath) ? "rendered" : "failed";
 }
 
 export async function writeTikztosvgInput(outputRoot, entry, source, options = {}) {
@@ -1529,7 +1692,16 @@ export async function writeExampleComparisonPage(outputRoot = DEFAULT_OUTPUT_ROO
     (await readOptionalJson(path.join(root, "diff", "summary.json"))) || {
       cases: []
     };
-  const diffById = new Map((diff.cases || []).map((entry) => [entry.id, entry]));
+  const diffById = new Map();
+  const candidates = new Map((diff.cases || []).map((entry) => [entry.id, entry]));
+  const environment = candidates.size ? await fingerprintRenderEnvironment() : null;
+  const toolVersions = new Map();
+  for (const entry of summary.cases || []) {
+    const comparison = candidates.get(entry.id);
+    if (!comparison || !entry.renderFingerprint || comparison.renderFingerprint !== entry.renderFingerprint) continue;
+    if ((await validateRenderedCase(root, entry, environment, toolVersions)).length) continue;
+    diffById.set(entry.id, comparison);
+  }
   const html = renderComparisonHtml(summary, diffById);
   await writeFile(path.join(root, "index.html"), html, "utf8");
 }
@@ -1600,7 +1772,7 @@ async function main() {
   if (options.progress) options.onProgress = writeRenderProgressLine;
   const summary = await renderExampleFixtures(options);
   process.stdout.write(formatExampleRenderSummary(summary));
-  if (options.strictTikztosvg && summary.failedTikztosvg > 0) process.exitCode = 1;
+  if (options.strictTikztosvg && !summary.gate.accepted) process.exitCode = 1;
 }
 
 function exampleRenderUsage() {
@@ -1619,6 +1791,8 @@ function exampleRenderUsage() {
     "  --strict-tikztosvg              Exit nonzero when tikztosvg cannot render a case",
     "  --continue-on-external-failure  Finish the batch and write logs before strict failure exits",
     "  --native-reference              Render one local MacTeX PNG reference per case",
+    "  Strict mode requires selected cases, fresh SVGs, PNGs unless --skip-png, and every requested native reference.",
+    "  Render/diff fingerprints bind source, implementation, fonts, tool versions and images; regenerate legacy output.",
     "  --native-latex-engine <engine>  MacTeX engine for references (default: pdflatex)",
     "  --active-figure <figure:id>     Render one picture and replay earlier named-node state",
     "  --tikztosvg-engine <engine>     TeX engine for tikztosvg (default: xelatex)",
@@ -1870,6 +2044,8 @@ function renderCaseHtml(entry, diff) {
     <span>tikztosvg: ${escapeHtml(entry.tikztosvgStatus || "skipped")}</span>
     ${entry.mactexPngStatus !== "skipped" ? `<span>MacTeX: ${escapeHtml(entry.mactexPngStatus || "unavailable")}</span>` : ""}
     <span>diagnostics: ${escapeHtml(String(entry.diagnostics?.length || 0))}</span>
+    <span>reference: ${entry.referenceProvenance?.independentNumerics === false ? "dependent JS raw-gnuplot sampling; painting comparison only" : entry.referenceProvenance ? "independent numeric reference" : "provenance unverified"}</span>
+    <span>acceptance: ${diff?.accepted === true ? "passed" : "pending or blocked"}</span>
     ${entry.activeFigureId ? `<span>active figure: ${escapeHtml(entry.activeFigureId)}</span>` : ""}
     ${renderArtifactLink("TikZKit SVG", entry.tikzkitSvg)}
     ${renderArtifactLink("TikZKit grid SVG", entry.tikzkitGridSvg)}

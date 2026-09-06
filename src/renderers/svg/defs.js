@@ -1,6 +1,7 @@
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData } from "./pathData.js";
+import { createSvgIdPrefix, SVG_ID_PREFIX, svgDefinitionId } from "./definitionScope.js";
 import {
   axisGradientId,
   ballGradientId,
@@ -19,6 +20,23 @@ import {
 export function createSvgDefs(parts = []) {
   const body = parts.filter(Boolean).join("");
   return body ? `<defs>${body}</defs>` : "";
+}
+
+export function scopeSvgDefinitions(items, unit, explicitPrefix) {
+  const definitions = collectSvgDefs(items, unit);
+  const prefix = createSvgIdPrefix(definitions, unit, explicitPrefix);
+  if (!definitions.length && explicitPrefix === undefined) return { items, defs: definitions };
+  const scopedItems = items.map((item) => ({
+    ...item,
+    [SVG_ID_PREFIX]: prefix,
+    style: { ...item.style, [SVG_ID_PREFIX]: prefix },
+    ...(item.shadows ? { shadows: item.shadows.map((shadow) => ({
+      ...shadow,
+      [SVG_ID_PREFIX]: prefix,
+      style: { ...shadow.style, [SVG_ID_PREFIX]: prefix }
+    })) } : {})
+  }));
+  return { items: scopedItems, defs: collectSvgDefs(scopedItems, unit) };
 }
 
 export function collectSvgDefs(items, unit) {
@@ -76,14 +94,14 @@ export function renderMindmapConnectionGradientDef(def) {
   return `<linearGradient id="${escapeAttribute(def.id)}" gradientUnits="userSpaceOnUse" x1="${format(def.x1)}" y1="${format(def.y1)}" x2="${format(def.x2)}" y2="${format(def.y2)}"><stop offset="0%" stop-color="${escapeAttribute(svgPaint(def.from || "black"))}" /><stop offset="100%" stop-color="${escapeAttribute(svgPaint(def.to || "black"))}" /></linearGradient>`;
 }
 
-export function formOnlyPatternClipId(index) {
-  return `tikz-form-pattern-clip-${index}`;
+export function formOnlyPatternClipId(index, context = {}) {
+  return svgDefinitionId(`tikz-form-pattern-clip-${index}`, context);
 }
 
 function collectFormOnlyPatternClipDefs(items = []) {
   return items.flatMap((item, index) => {
     if (!item?.style?.patternDefinition || !Array.isArray(item.commands) || !item.commands.length) return [];
-    return [{ id: formOnlyPatternClipId(index), commands: item.commands, fillRule: item.style.fillRule }];
+    return [{ id: formOnlyPatternClipId(index, item), commands: item.commands, fillRule: item.style.fillRule }];
   });
 }
 
@@ -92,30 +110,30 @@ function renderFormOnlyPatternClipDef(def, unit) {
   return `<clipPath id="${escapeAttribute(def.id)}" clipPathUnits="userSpaceOnUse"><path d="${svgPathData(def.commands, unit)}"${fillRule} /></clipPath>`;
 }
 
-export function clipRectId(clipRect = {}) {
-  return `tikzkit-clip-${[clipRect.minX, clipRect.minY, clipRect.maxX, clipRect.maxY]
+export function clipRectId(clipRect = {}, context = {}) {
+  return svgDefinitionId(`tikzkit-clip-${[clipRect.minX, clipRect.minY, clipRect.maxX, clipRect.maxY]
     .map((value) => String(Math.round((Number(value) || 0) * 1e6)))
-    .join("-")}`;
+    .join("-")}`, context);
 }
 
-export function clipCircleId(clipCircle = {}) {
-  return `tikzkit-clip-circle-${[clipCircle.x, clipCircle.y, clipCircle.radius]
+export function clipCircleId(clipCircle = {}, context = {}) {
+  return svgDefinitionId(`tikzkit-clip-circle-${[clipCircle.x, clipCircle.y, clipCircle.radius]
     .map((value) => String(Math.round((Number(value) || 0) * 1e6)))
-    .join("-")}`;
+    .join("-")}`, context);
 }
 
-export function clipPolygonId(clipPolygon = []) {
-  return `tikzkit-clip-polygon-${clipPolygon
+export function clipPolygonId(clipPolygon = [], context = {}) {
+  return svgDefinitionId(`tikzkit-clip-polygon-${clipPolygon
     .flatMap((point) => [point?.x, point?.y])
     .map((value) => String(Math.round((Number(value) || 0) * 1e6)))
-    .join("-")}`;
+    .join("-")}`, context);
 }
 
 export function collectClipRectDefs(items = []) {
   const defs = new Map();
   for (const item of items) {
     if (!item?.clipRect) continue;
-    const id = clipRectId(item.clipRect);
+    const id = clipRectId(item.clipRect, item);
     defs.set(id, { id, clipRect: item.clipRect });
   }
   return [...defs.values()];
@@ -125,7 +143,7 @@ export function collectClipCircleDefs(items = []) {
   const defs = new Map();
   for (const item of items) {
     if (!item?.clipCircle) continue;
-    const id = clipCircleId(item.clipCircle);
+    const id = clipCircleId(item.clipCircle, item);
     defs.set(id, { id, clipCircle: item.clipCircle });
   }
   return [...defs.values()];
@@ -135,7 +153,7 @@ export function collectClipPolygonDefs(items = []) {
   const defs = new Map();
   for (const item of items) {
     if (!Array.isArray(item?.clipPolygon) || item.clipPolygon.length < 3) continue;
-    const id = clipPolygonId(item.clipPolygon);
+    const id = clipPolygonId(item.clipPolygon, item);
     defs.set(id, { id, clipPolygon: item.clipPolygon });
   }
   return [...defs.values()];
@@ -365,15 +383,15 @@ export function collectPathFadingDefs(items) {
     const styles = [item.style, ...(item.shadows || []).map((shadow) => shadow?.style)];
     for (const style of styles) {
       const fading = pathFadingName(style?.pathFading);
-      if (fading) defs.set(fading, { name: fading });
+      if (fading) defs.set(fading, { name: fading, [SVG_ID_PREFIX]: style?.[SVG_ID_PREFIX] });
     }
   }
   return [...defs.values()];
 }
 
 export function renderPathFadingDefs(def) {
-  const gradientId = pathFadingGradientId(def.name);
-  const maskId = pathFadingMaskId(def.name);
+  const gradientId = pathFadingGradientId(def.name, def);
+  const maskId = pathFadingMaskId(def.name, def);
   const stops = pathFadingStops(def.name)
     .map(
       (stop) =>
@@ -427,7 +445,7 @@ export function renderBlurShadowFilterDef(def) {
 
 export function blurShadowFilterId(shadow = {}) {
   const radius = Math.max(1, Math.round((Number(shadow.blurRadius) || 0.06) * 1000));
-  return `tikzkit-blur-shadow-${radius}`;
+  return svgDefinitionId(`tikzkit-blur-shadow-${radius}`, shadow);
 }
 
 function pathFadingAxis(name) {

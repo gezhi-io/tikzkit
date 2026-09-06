@@ -37,7 +37,7 @@ import {
   simpleMathGlyphFormulaFallback,
   simpleMathGlyphRenderBox
 } from "./mathGlyphFallback.js";
-import { renderScopedMathHtml } from "./mathHtml.js";
+import { measureScopedMathExtents, renderScopedMathHtml } from "./mathHtml.js";
 import { renderScopedUprightMathContent } from "./mathUprightFallback.js";
 import { inlineMatrixMathFallback, renderInlineMatrixMathFallback } from "./mathMatrixFallback.js";
 import { niceFractionMathFallback, renderNiceFractionMathFallback } from "./mathNiceFractionFallback.js";
@@ -99,15 +99,17 @@ export function measureMathBoxPt(tex, options = {}) {
   const formulaDepthPt = Math.max(0, Number(formula.depth) || 0) * TEX_PT_PER_CM;
   const formulaTotalPt = formulaHeightPt + formulaDepthPt;
   const extraHeightPt = Math.max(0, rawBox.height - formulaTotalPt);
-  const heightPt = formulaHeightPt + extraHeightPt / 2;
-  const depthPt = formulaDepthPt + extraHeightPt / 2;
+  const measured = measureScopedMathExtents(source, displayMode);
+  const exceedsNativeBox = (measured.height + measured.depth) * rawBox.fontSize > rawBox.height;
+  const heightPt = exceedsNativeBox ? measured.height * rawBox.fontSize : formulaHeightPt + extraHeightPt / 2;
+  const depthPt = exceedsNativeBox ? measured.depth * rawBox.fontSize : formulaDepthPt + extraHeightPt / 2;
   return {
     widthPt: rawBox.width,
     heightPt,
     depthPt,
     baselinePt: heightPt,
     paintWidthPt: paintBox.width,
-    paintHeightPt: paintBox.height,
+    paintHeightPt: glyphBox ? paintBox.height : heightPt + depthPt,
     fontSizePt: font.sizePt,
     svgFontSize: rawBox.fontSize,
     rawWidthPt: rawBox.width,
@@ -270,7 +272,7 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
         : mixedSubscriptFallback
           ? renderMixedSubscriptMathFallback(item, mixedSubscriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight)
           : plainFallback;
-  const foreignObject = `<foreignObject requiredExtensions="http://www.w3.org/1999/xhtml" x="${format(x)}" y="${format(
+  const foreignObject = `<foreignObject overflow="visible" requiredExtensions="http://www.w3.org/1999/xhtml" x="${format(x)}" y="${format(
     y
   )}" width="${format(htmlBox.width)}" height="${format(
     htmlBox.height
@@ -543,6 +545,7 @@ export function scopedMathHostFontSize(fontSize) {
 
 export function scopedMathForeignObjectBox(box, displayMode = false, tex = "") {
   const fontSize = Number(box.fontSize) || TIKZ_TEXT_FONT_SIZE;
+  const measured = measureScopedMathExtents(tex, displayMode);
   const complexInline = !displayMode && Number(box.width) > fontSize * KATEX_COMPLEX_INLINE_WIDTH_RATIO;
   const lineBoxScale = displayMode
     ? KATEX_DISPLAY_LINE_BOX_SCALE
@@ -560,7 +563,7 @@ export function scopedMathForeignObjectBox(box, displayMode = false, tex = "") {
   );
   return {
     width: box.width + widthPad,
-    height: Math.max(box.height, fontSize * lineBoxScale)
+    height: Math.max(box.height, fontSize * lineBoxScale, fontSize * (measured.height + measured.depth))
   };
 }
 
@@ -571,7 +574,7 @@ function hasInlineMatrixTex(tex) {
 export function mathStyleScale(tex, baseSizePt = 10) {
   const styles = [...String(tex || "").matchAll(/\\(display|text|script|scriptscript)style(?![A-Za-z])/g)];
   const style = styles.at(-1)?.[1] || "text";
-  if (style === "display") return 1.18;
+  if (style === "display") return 1;
   if (style === "text") return 1;
   const base = Number(baseSizePt);
   if (!Number.isFinite(base) || base <= 0) return 1;

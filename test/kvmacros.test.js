@@ -75,7 +75,9 @@ test("matches kvmacros picture flow, dvips colors, and curved arrow geometry", (
   const arrow = result.ir.items.find((item) => item.type === "path" && item.style?.markerEnd);
   assert.ok(arrow, "expected the DrawArrow overlay");
   assert.ok(Math.abs(arrow.commands[0].x - 1.8180365) < 1e-6, "expected picture whitespace-adjusted source mark");
-  assert.ok(Math.abs(arrow.commands[1].x1 - 1.2908468) < 1e-6, "expected distance=1.5em control arm");
-  assert.ok(Math.abs(arrow.style.shortenEnd + 68.0950909) < 1e-6, "expected negative shorten >= to remain signed");
+  const cmr10Em = (655361 / 65536) / 28.4527559;
+  assert.ok(Math.abs(arrow.commands[0].x - arrow.commands[1].x1 - 1.5 * cmr10Em) < 1e-10, "expected distance=1.5em control arm");
+  const cmr10Ex = (282168 / 65536) / 28.4527559;
+  assert.ok(Math.abs(arrow.style.shortenEnd + 4.5 * cmr10Ex * 100) < 1e-10, "expected negative shorten >= to remain signed");
   assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-to"/);
 });

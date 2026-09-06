@@ -169,11 +169,11 @@ test("plain Computer Modern text uses MacTeX design fonts across LaTeX sizes", (
   assert.match(result.svg, /font-family="TikZKitCMR8, TikZKitCMUSerif, serif"[^>]*>2012<\/text>/);
   assert.match(result.svg, /font-family="TikZKitCMR7, TikZKitCMUSerif, serif"[^>]*>2956<\/text>/);
   assert.match(result.svg, /font-family="TikZKitCMBX10, TikZKitCMUSerif, serif"[^>]*>Bold title<\/text>/);
-  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR10-Regular\.otf'\)/);
-  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR9-Regular\.otf'\)/);
-  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR8-Regular\.otf'\)/);
-  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR7-Regular\.otf'\)/);
-  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMBX10-Bold\.otf'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR10-Regular\.woff'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR9-Regular\.woff'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR8-Regular\.woff'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR7-Regular\.woff'\)/);
+  assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMBX10-Bold\.woff'\)/);
 });
 
 test("classic stealth bounds follow the PGF line-width geometry", () => {
@@ -557,7 +557,7 @@ test("scoped text font wrappers style only their arguments and restore afterward
     { command: "textbf", text: "bold", attribute: "font-weight", value: "700" },
     { command: "textit", text: "italic", attribute: "font-style", value: "italic" },
     { command: "textsf", text: "sans", attribute: "font-family", value: "TikZKitCMUSans" },
-    { command: "texttt", text: "mono", attribute: "font-family", value: "KaTeX_Typewriter" },
+    { command: "texttt", text: "mono", attribute: "font-family", value: "TikZKitCMUMono" },
     { command: "textsl", text: "slanted", attribute: "font-style", value: "italic" },
     { command: "textsc", text: "caps", attribute: "font-family", value: "TikZKitCMSC10" }
   ];
@@ -1702,14 +1702,14 @@ test("applies helvet's sans-family default to text and sansmath glyphs", () => {
 
   assert.deepEqual(svgText.diagnostics, []);
   assert.equal(svgText.ir.items[0].font.family, "helvetica");
-  assert.match(svgText.svg, /font-family="Helvetica, Arial, sans-serif" font-style="normal">1<\/tspan>/);
-  assert.match(svgText.svg, /font-family="Helvetica, Arial, sans-serif"[^>]*>Helvetica text<\/text>/);
+  assert.match(svgText.svg, /font-family="TikZKitHeros, sans-serif" font-style="normal">1<\/tspan>/);
+  assert.match(svgText.svg, /font-family="TikZKitHeros, sans-serif"[^>]*>Helvetica text<\/text>/);
   assert.doesNotMatch(svgText.svg, /tikzkithelvetfamily/);
 
   const html = tikzToSvg(String.raw`\usepackage{helvet}\usepackage{sansmath}
 \begin{tikzpicture}\node[font=\sansmath\sffamily] at (0,0) {$x+1$};\end{tikzpicture}`, { margin: 0 });
   assert.match(html.svg, /tikzkit-math-helvetica/);
-  assert.match(html.svg, /font-family:Helvetica,Arial,sans-serif/);
+  assert.match(html.svg, /font-family:TikZKitHeros,sans-serif/);
 });
 
 test("renders simple y math glyph at anchored node positions without NaN transforms", () => {

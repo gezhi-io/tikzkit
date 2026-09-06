@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import { parseArgs } from "node:util";
 import { createFilesystemAdapter } from "../adapters/filesystem.js";
 import { tikzToSvgAsync } from "../index.js";
 
@@ -6,17 +7,18 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   const stdout = io.stdout || process.stdout;
   const stderr = io.stderr || process.stderr;
   const filesystem = createFilesystemAdapter(io.filesystem);
-  const parsed = parseCliArgs(argv);
+  let parsed;
+  try {
+    parsed = parseCliArgs(argv);
+  } catch (error) {
+    stderr.write(`${error.message}\n${usageText()}`);
+    return 2;
+  }
 
   if (parsed.help) {
     stdout.write(usageText());
     return 0;
   }
-  if (!parsed.input || !parsed.output) {
-    stdout.write(usageText());
-    return 2;
-  }
-
   const source = await filesystem.readTextFile(parsed.input, "utf8");
   const convertTikzToSvg = io.convertTikzToSvg || tikzToSvgAsync;
   const result = await convertTikzToSvg(source, {
@@ -41,20 +43,36 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
 }
 
 export function parseCliArgs(argv = []) {
-  const args = [...argv];
-  if (args.length === 0 || args.includes("-h") || args.includes("--help")) {
-    return { help: true };
+  const { values, positionals } = parseArgs({
+    args: [...argv],
+    allowPositionals: true,
+    strict: true,
+    options: {
+      help: { type: "boolean", short: "h" },
+      output: { type: "string", short: "o" },
+      strict: { type: "boolean" },
+      "math-renderer": { type: "string" },
+      "svg-text-math": { type: "boolean" },
+      unit: { type: "string" },
+      margin: { type: "string" }
+    }
+  });
+  if (argv.length === 0 || values.help) return { help: true };
+  if (positionals.length !== 1) throw new TypeError("Expected exactly one input file.");
+  const input = positionals[0];
+  if (!input) throw new TypeError("Input file must not be empty.");
+  const output = values.output ?? `${basename(input).replace(/\.[^.]+$/, "")}.svg`;
+  if (!output) throw new TypeError("--output requires a non-empty file name.");
+  const mathRenderer = values["math-renderer"] ?? (values["svg-text-math"] ? "svg-text" : undefined);
+  if (mathRenderer !== undefined && !["katex", "svg-text"].includes(mathRenderer)) {
+    throw new TypeError("--math-renderer must be katex or svg-text.");
   }
-  const input = args[0];
-  const outputIndex = args.findIndex((arg) => arg === "-o" || arg === "--output");
-  const output = outputIndex >= 0 ? args[outputIndex + 1] : input ? `${basename(input).replace(/\.[^.]+$/, "")}.svg` : null;
-  const mathRenderer = valueAfter(args, "--math-renderer") || (args.includes("--svg-text-math") ? "svg-text" : undefined);
-  const unit = numericValueAfter(args, "--unit");
-  const margin = numericValueAfter(args, "--margin");
+  const unit = numericOption(values.unit, "--unit", true);
+  const margin = numericOption(values.margin, "--margin", false);
   return {
     input,
     output,
-    strict: args.includes("--strict"),
+    strict: Boolean(values.strict),
     mathRenderer,
     unit,
     margin,
@@ -65,19 +83,16 @@ export function parseCliArgs(argv = []) {
 export function usageText() {
   return [
     "Usage: tikz2svg input.tikz [-o output.svg] [--strict]",
-    "       [--math-renderer svg-text] [--svg-text-math] [--unit pxPerCm] [--margin px]",
+    "       [--math-renderer katex|svg-text] [--svg-text-math] [--unit pxPerCm] [--margin px]",
     ""
   ].join("\n");
 }
 
-function valueAfter(args, flag) {
-  const index = args.findIndex((arg) => arg === flag);
-  return index >= 0 ? args[index + 1] : undefined;
-}
-
-function numericValueAfter(args, flag) {
-  const value = valueAfter(args, flag);
+function numericOption(value, flag, positive) {
   if (value === undefined) return undefined;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  if (!value.trim() || !Number.isFinite(parsed) || (positive ? parsed <= 0 : parsed < 0)) {
+    throw new TypeError(`${flag} must be a finite ${positive ? "positive" : "non-negative"} number.`);
+  }
+  return parsed;
 }

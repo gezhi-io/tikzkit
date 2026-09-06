@@ -971,7 +971,7 @@ test("propagates scope font options to child nodes, matrices, and inline path la
 
   assert.equal(diagnostics.length, 0);
   assert.equal(labels.length, 3);
-  assert.ok(labels.every((label) => /KaTeX_Typewriter/.test(label.style.fontFamily || "")));
+  assert.ok(labels.every((label) => /TikZKitCMUMono/.test(label.style.fontFamily || "")));
 });
 
 test("preserves dashed translucent node backgrounds", () => {
@@ -1910,8 +1910,9 @@ test("expands simple two-strand braid commands into colored cubic paths", () => 
 });
 
 test("parses em and ex dimensions used by TikZ positioning snippets", () => {
-  expectClose(parseDimension("1em"), 10 / 28.4527559);
-  expectClose(parseDimension("2ex"), (2 * 4.30554) / 28.4527559);
+  // TeX Live CMR10 fontdimen6/fontdimen5, in native scaled points.
+  expectClose(parseDimension("1em"), (655361 / 65536) / 28.4527559);
+  expectClose(parseDimension("2ex"), (2 * 282168 / 65536) / 28.4527559);
 });
 
 test("keeps Case 038 compact math labels from inflating narrow network boxes", () => {

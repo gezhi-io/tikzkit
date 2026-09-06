@@ -88,7 +88,7 @@ import {
   tapeGeometry as symbolTapeGeometry,
   tapeLayoutSize as symbolTapeLayoutSize
 } from "../tikz/libraries/shapes.symbols.js";
-import { foreachIterationVariables } from "../tikz/commands/foreach.js";
+import { createForeachBudget, ForeachExpansionError, foreachIterationVariables } from "../tikz/commands/foreach.js";
 import { applyNodeLineBreakSemantics } from "../tikz/commands/node.js";
 import {
   parseEdgeFromParentPathTemplate,
@@ -119,7 +119,7 @@ import {
   TO_PATH_START_ALIAS,
   TO_PATH_TARGET_ALIAS
 } from "../tikz/libraries/topaths.js";
-import { evaluateMath, parseDimension, roundNumber, roundPoint, substituteTextVariables, substituteVariables } from "./math.js";
+import { evaluateMath, MathExpressionError, normalizeImplicitLengthProducts, parseDimension, roundNumber, roundPoint, substituteTextVariables, substituteVariables, withDimensionFont, withMathDiagnostics } from "./math.js";
 import { createPgfRandom } from "./pgfRandom.js";
 import {
   effectiveMathFontScale,
@@ -181,7 +181,8 @@ const EXPLICIT_NODE_FONT = Symbol("tikzkit.explicitNodeFont");
 const EXPLICIT_PATH_NODE_FONT = Symbol("tikzkit.explicitPathNodeFont");
 const PGF_DEFAULT_Z_VECTOR = { x: -0.385, y: -0.385 };
 const DEFAULT_TEX_VARIABLES = {
-  textwidth: parseDimension("345pt", {})
+  textwidth: parseDimension("345pt", {}),
+  pgflinewidth: "0.4pt"
 };
 
 const BUILTIN_STYLES = {
@@ -279,6 +280,7 @@ export function interpretTikz(ast, options = {}) {
   const documentCoordinates = {};
   const documentNodes = {};
   const documentRandom = createPgfRandom(options.pgfRandomSeed ?? 1);
+  const foreachBudget = createForeachBudget(options.foreachLimits);
   const tabularPictureIrs = new Map();
   let inlineCursorX = 0;
   let lastPictureBounds = null;
@@ -309,6 +311,8 @@ export function interpretTikz(ast, options = {}) {
     );
     const pictureBasis = parsePictureBasis(pictureOptions, baseVariables);
     const pictureTransformEnv = {
+      currentFont: mergeFontSpec(ast.documentFont || createFontSpec(), typeof picture.ambientFont === "string"
+        ? parseTikzFontPatch(picture.ambientFont, { source: "scope" }) : picture.ambientFont || {}),
       variables: { ...baseVariables },
       coordinates: pictureCoordinates,
       nodes: documentNodes,
@@ -323,6 +327,8 @@ export function interpretTikz(ast, options = {}) {
     const pictureCanvasTransform = transformCanvasTransform(pictureOptions, pictureTransformEnv);
     const picturePlane = canvasPlaneEnvironment(pictureTransformEnv, pictureOptions, pictureTransform);
     const env = {
+      foreachBudget,
+      currentFont: pictureTransformEnv.currentFont,
       variables: { ...baseVariables },
       coordinates: pictureCoordinates,
       nodes: documentNodes,
@@ -801,7 +807,10 @@ function evaluatePicturePgfMathMacros(macros = [], defaults = {}) {
   const variables = { ...(defaults || {}) };
   for (const macro of macros || []) {
     if (!macro?.name) continue;
+    // This legacy inventory also contains unbound coordinate-system templates.
+    // Diagnose their instantiated use, not speculative prelude replay.
     const value = evaluateMath(macro.expression, variables);
+    if (!Number.isFinite(value)) continue;
     variables[macro.name] = macro.type === "pgfmathtruncatemacro" ? Math.trunc(value) : value;
   }
   return variables;
@@ -829,6 +838,38 @@ function addFramedPicture(ir, pictureStart, env) {
 }
 
 function interpretStatement(statement, env, ir, diagnostics, options) {
+  const failures = new Map();
+  const recordFailure = (diagnostic) => failures.set(`${diagnostic.code}:${diagnostic.expression}`, diagnostic);
+  const itemCount = ir.items.length;
+  const backgroundItemCount = ir.backgroundItems?.length || 0;
+  const leaf = !["scope", "foreach", "ifthenelse", "ifnum"].includes(statement.type);
+  const registries = leaf ? [env.coordinates, env.nodes, env.variables, env.namedPaths]
+    .filter(Boolean).map((target) => [target, { ...target }]) : [];
+  try {
+    // Frontend and option probes run outside this sink. Nested statements own
+    // their failures, while a failed leaf contributes neither geometry nor names.
+    withMathDiagnostics(recordFailure, () => withDimensionFont(
+      () => env.currentFont || createFontSpec(),
+      () => interpretStatementBody(statement, env, ir, diagnostics, options)
+    ));
+  } catch (error) {
+    if (!(error instanceof MathExpressionError) && !(error instanceof ForeachExpansionError)) throw error;
+    recordFailure(error.diagnostic);
+  }
+  if (!failures.size) return;
+  // Container failures retain completed children and their shared names together.
+  if (leaf) {
+    ir.items.length = itemCount;
+    if (ir.backgroundItems) ir.backgroundItems.length = backgroundItemCount;
+  }
+  for (const [target, previous] of registries) {
+    for (const key of Object.keys(target)) if (!Object.hasOwn(previous, key)) delete target[key];
+    Object.assign(target, previous);
+  }
+  diagnostics.push(...failures.values());
+}
+
+function interpretStatementBody(statement, env, ir, diagnostics, options) {
   env.currentBoundingBox ||= () => computeCurrentBoundingBox(ir);
   if (statement.leadingFont) {
     applyFontSwitch(statement.leadingFont, env);
@@ -6599,6 +6640,13 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   }, env);
   let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
+  return withDimensionFont(
+    () => nodeDimensionFontSpec(expandedOptions, env),
+    () => addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyle, pathSegment, rawOptions, expandedOptions)
+  );
+}
+
+function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyle, pathSegment, rawOptions, expandedOptions) {
   const rawText = resolveNodeTextContent(text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   text = applyNodeLineBreakSemantics(resolveTextContent(rawText, env), expandedOptions);
@@ -6887,6 +6935,13 @@ function createNode(statement, env, ir, diagnostics) {
   expandedOptions[EXPLICIT_NODE_FONT] = resolvedNodeLayerFont(localOptions, env);
   expandedOptions = applyConceptNodeOptions(expandedOptions, env);
   expandedOptions = applyRotateFitOption(expandedOptions);
+  return withDimensionFont(
+    () => nodeDimensionFontSpec(expandedOptions, env),
+    () => createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics)
+  );
+}
+
+function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics) {
   const rawText = resolveNodeTextContent(statement.text, expandedOptions);
   expandedOptions = applyOuterMinipageTextWidth(expandedOptions, rawText, env);
   const resolvedText = resolveTextContent(rawText, env);
@@ -9773,6 +9828,7 @@ function pgfPatternPoint(value, env = {}) {
 function applyFontSwitch(font, env) {
   const next = String(font || "").trim();
   if (!next) return;
+  env.currentFont = mergeFontSpec(env.currentFont || createFontSpec(), parseTikzFontPatch(next, { source: "scope" }));
   const current = String(env.pictureOptions?.font || "").trim();
   env.pictureOptions = {
     ...(env.pictureOptions || {}),
@@ -9956,6 +10012,13 @@ function fitReferencePoints(ref, env = {}) {
 }
 
 function addNodeItems(node, ir, env) {
+  return withDimensionFont(
+    () => nodeDimensionFontSpec(node.options || {}, env),
+    () => addNodeItemsWithFont(node, ir, env)
+  );
+}
+
+function addNodeItemsWithFont(node, ir, env) {
   const firstItemIndex = ir.items.length;
   const nodeEnv = Number.isFinite(Number(node.canvasScale)) && Number(node.canvasScale) > 0
     ? { ...env, canvasScale: Number(node.canvasScale) }
@@ -11511,7 +11574,8 @@ function positioningLibraryHelpers() {
 
 function resolveNodeAnchorPoint(point, options = {}, text = "", env = { variables: {} }, sizeOverride = null) {
   const size = sizeOverride || estimateNodeLayoutSize(text, options, env);
-  const sep = parseNodeLengthDimension(options["inner sep"] ?? options["outer sep"] ?? "0.08cm", env);
+  const rawSep = options["inner sep"] ?? options["outer sep"] ?? "0.08cm";
+  const sep = String(rawSep).trim() === "auto" ? nodeOuterSep(options, env).x : parseNodeLengthDimension(rawSep, env);
   const anchorSize = nodeAnchorTextWidthScaledSize(size, options, sep, env);
   const textAnchorOffsets = nodeTextAnchorOffsets(text, options, env, size);
   const rotation = nodeRotation(options, env);
@@ -11741,9 +11805,9 @@ function resolveDynamicOptions(options = {}, env) {
   for (const [key, value] of Object.entries(options || {})) {
     const resolvedKey = substituteTextVariables(String(key), env.variables).trim();
     const resolvedValue = Array.isArray(value)
-      ? value.map((entry) => typeof entry === "string" ? substituteTextVariables(entry, env.variables) : entry)
+      ? value.map((entry) => typeof entry === "string" ? substituteTextVariables(normalizeImplicitLengthProducts(entry), env.variables) : entry)
       : typeof value === "string"
-        ? substituteTextVariables(value, env.variables)
+        ? substituteTextVariables(normalizeImplicitLengthProducts(value), env.variables)
         : value;
     resolved[resolvedKey] = resolvedValue;
   }
@@ -13936,7 +14000,7 @@ function resolvedTextFontSpec(text, options = {}, env = {}, geometricScale = 1) 
   const scopeFont = env.pictureOptions?.font;
   const nodeFont = Object.hasOwn(options, EXPLICIT_NODE_FONT) ? options[EXPLICIT_NODE_FONT] : options.font;
   const resolved = resolveFontSpec({
-    document: createFontSpec(),
+    document: nodeDimensionFontSpec(options, env),
     scope: parseTikzFontPatch(scopeFont, { source: "scope" }),
     nodeOption: nodeFont === undefined || nodeFont === null
       ? null
@@ -13944,6 +14008,14 @@ function resolvedTextFontSpec(text, options = {}, env = {}, geometricScale = 1) 
     contentCommand: leadingContentFontPatch(text)
   });
   return scaleResolvedFontSpec(resolved, geometricScale);
+}
+
+function nodeDimensionFontSpec(options = {}, env = {}) {
+  // TikZ executes `node font` before dimensions, but `font` only inside the
+  // text box. Explicit em/ex separation and coordinates use the former context.
+  return mergeFontSpec(env.currentFont || createFontSpec(), parseTikzFontPatch(
+    options["node font"] ?? env.pictureOptions?.["node font"], { source: "node-option" }
+  ));
 }
 
 function leadingContentFontPatch(text) {
@@ -14452,6 +14524,7 @@ function parseOuterSepDimension(value, fallback, env) {
 }
 
 function parseNodeLengthDimension(value, env = { variables: {} }) {
+  if (value === undefined || value === null || value === "") return NaN;
   const substituted = substituteVariables(value ?? "", env.variables || {}).trim();
   if (/^\{?\s*[-+]?(?:\d+\.?\d*|\.\d+)\s*\}?$/.test(substituted)) {
     return parseDimension(`${substituted.replace(/[{}]/g, "").trim()}pt`, env.variables);
@@ -19313,7 +19386,7 @@ function applyTransformVector(point, transform = identityTransform()) {
 }
 
 export function resolveCoordinate(raw, env, diagnostics = []) {
-  let text = substituteTextVariables(String(raw).trim(), env.variables);
+  let text = substituteTextVariables(normalizeImplicitLengthProducts(raw).trim(), env.variables);
   text = substitutePathLetNumbers(text, env);
   text = stripOuterBraces(text);
   if (/^\+\(.+\)$/.test(text)) text = text.slice(1);
@@ -19613,16 +19686,14 @@ function coordinateComponentHasDimension(value, variables = {}) {
 }
 
 function parseCoordinateFactor(value, variables = {}) {
-  const evaluated = evaluateMath(value, variables);
-  return Number.isFinite(evaluated) ? evaluated : 0;
+  return evaluateMath(value, variables, { throwOnError: true });
 }
 
 function parseCoordinateCanvasDimension(value, variables = {}) {
   const text = stripOuterBraces(substituteVariables(value, variables).replace(/\{\}/g, "").trim());
   const additive = parseAdditiveCoordinateDimension(text);
   if (Number.isFinite(additive)) return additive;
-  const parsed = parseDimension(text, variables);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return parseDimension(text, variables, { throwOnError: true });
 }
 
 function parseAdditiveCoordinateDimension(text) {

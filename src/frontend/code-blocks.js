@@ -1,18 +1,34 @@
-const TIKZ_FENCE_RE = /(^|\n)(```|''')tikz[^\n]*\n([\s\S]*?)(?:\n\2)(?=\n|$)/g;
-
 export function extractTikzCodeBlocks(markdown) {
+  const source = String(markdown);
   const blocks = [];
-  for (const match of String(markdown).matchAll(TIKZ_FENCE_RE)) {
-    const prefixLength = match[1].length;
-    const start = match.index + prefixLength;
-    const end = match.index + match[0].length;
-    blocks.push({
-      type: "tikz",
-      fence: match[2],
-      code: match[3],
-      start,
-      end
-    });
+  let open = null;
+  // Track every fenced block so examples inside another language stay literal.
+  for (const match of source.matchAll(/[^\r\n]*(?:\r\n|[\r\n]|$)/g)) {
+    if (!match[0]) break;
+    const line = match[0].replace(/(?:\r\n|[\r\n])$/, "");
+    if (open) {
+      const close = line.match(/^ {0,3}([`~']+)[ \t]*$/);
+      if (!close || close[1].length < open.fence.length || close[1] !== open.fence[0].repeat(close[1].length)) continue;
+      if (open.language === "tikz") {
+        blocks.push({
+          type: "tikz",
+          fence: open.fence,
+          code: source.slice(open.contentStart, match.index).replace(/(?:\r\n|[\r\n])$/, ""),
+          start: open.start,
+          end: match.index + line.length
+        });
+      }
+      open = null;
+      continue;
+    }
+    const opening = line.match(/^ {0,3}(`{3,}|~{3,}|'{3,})(.*)$/);
+    if (!opening || (opening[1][0] === "`" && opening[2].includes("`"))) continue;
+    open = {
+      fence: opening[1],
+      language: opening[2].trim().split(/[ \t]+/, 1)[0],
+      start: match.index,
+      contentStart: match.index + match[0].length
+    };
   }
   return blocks;
 }

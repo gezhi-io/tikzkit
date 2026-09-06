@@ -22,8 +22,8 @@ test("PGFPlots data paths use the plot rectangle as their SVG clip", () => {
     \end{tikzpicture}`;
   const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
 
-  assert.match(result.svg, /<clipPath id="tikzkit-clip-/);
-  assert.match(result.svg, /<g clip-path="url\(#tikzkit-clip-/);
+  assert.match(result.svg, /<clipPath id="tikzkit-[\da-f]{16}-tikzkit-clip-/);
+  assert.match(result.svg, /<g clip-path="url\(#tikzkit-[\da-f]{16}-tikzkit-clip-/);
 });
 
 test("interior middle axes use PGFPlots' 45pt plot-box reserve", () => {

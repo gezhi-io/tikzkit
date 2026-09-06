@@ -540,7 +540,8 @@ test("interprets Walmes node matrices with bare bracket delimiters and anchors",
   assert.match(svg, /ϑ/);
 });
 
-test("expands Walmes zero-use macro arguments without requiring a following braced argument", () => {
+test("expands Walmes macros with an explicit unused argument", () => {
+  // Native TeX consumes the following \draw if this required argument is omitted.
   const { diagnostics, ir } = convert(String.raw`
 \newcommand{\target}[1]{%
   \foreach \r in {1,0.5} {
@@ -548,7 +549,7 @@ test("expands Walmes zero-use macro arguments without requiring a following brac
   }
 }
 \begin{tikzpicture}
-  \target
+  \target{}
   \draw (0,0) -- (1,0);
 \end{tikzpicture}`);
 

@@ -1,17 +1,21 @@
 {
   "name": "@gezhi-io/tikzkit",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A pure JavaScript TikZ semantic interpreter that renders supported TikZ to SVG.",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
+    "./fonts": "./src/fonts/index.js",
+    "./fonts/*": "./web/fonts/*",
     "./package.json": "./package.json"
   },
   "files": [
     "bin",
     "src",
-    "web/fonts",
+    "web/fonts/*.woff",
+    "web/fonts/*.txt",
+    "web/fonts/manifest.json",
     "README.md",
     "LICENSE"
   ],
@@ -50,6 +54,7 @@
     "examples:diff": "node scripts/diff-example-pngs.js",
     "examples:import-next": "node scripts/import-latex-examples-batch.js",
     "font:gates": "node scripts/render-font-visual-gates.js",
+    "font:build": "python3 scripts/build-mactex-fonts.py",
     "implementation-examples:render": "node scripts/render-example-fixtures.js --fixtures test/fixtures/implementation-examples --output test/fixtures/implementation-examples/output",
     "implementation-examples:diff": "node scripts/diff-example-pngs.js --output test/fixtures/implementation-examples/output",
     "extension-registry": "node scripts/build-extension-registry.js",

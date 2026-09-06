@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdtemp, mkdir, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import test from "node:test";
 import os from "node:os";
 import path from "node:path";
 import { createWorkbenchServer } from "../web/server.js";
+import { fontManifest } from "../src/fonts/manifest.js";
+import { auditTikzSource } from "../scripts/case-semantic-audit.js";
 
 test("workbench server exposes browser assets and fixture source without rendering", async (t) => {
   const server = await createWorkbenchServer({ host: "127.0.0.1", port: 0 });
@@ -31,34 +34,8 @@ test("workbench server exposes browser assets and fixture source without renderi
   const chevrotain = await fetch(`http://127.0.0.1:${port}/vendor/chevrotain/chevrotain.mjs`);
   const katex = await fetch(`http://127.0.0.1:${port}/vendor/katex/katex.mjs`);
   const katexFont = await fetch(`http://127.0.0.1:${port}/node_modules/katex/dist/fonts/KaTeX_Main-Regular.woff2`);
-  const cmuFonts = await Promise.all([
-    "TikZKitCMUSans-Regular.otf",
-    "TikZKitCMUSans-Italic.otf",
-    "TikZKitCMUSans-Bold.otf",
-    "TikZKitCMUSans-BoldItalic.otf",
-    "TikZKitCMUSerif-Roman.otf",
-    "TikZKitCMUSerif-Italic.otf",
-    "TikZKitCMUSerif-Bold.otf",
-    "TikZKitCMUSerif-BoldItalic.otf",
-    "TikZKitCMR5-Regular.otf",
-    "TikZKitCMR6-Regular.otf",
-    "TikZKitCMR7-Regular.otf",
-    "TikZKitCMR8-Regular.otf",
-    "TikZKitCMR9-Regular.otf",
-    "TikZKitCMR10-Regular.otf",
-    "TikZKitCMR12-Regular.otf",
-    "TikZKitCMR17-Regular.otf",
-    "TikZKitCMSC10-Regular.otf",
-    "TikZKitCMBX5-Bold.otf",
-    "TikZKitCMBX6-Bold.otf",
-    "TikZKitCMBX7-Bold.otf",
-    "TikZKitCMBX8-Bold.otf",
-    "TikZKitCMBX9-Bold.otf",
-    "TikZKitCMBX10-Bold.otf",
-    "TikZKitCMBX12-Bold.otf",
-    "TikZKitMath_Caligraphic-Regular.ttf",
-    "TikZKitMath_Caligraphic-Bold.ttf"
-  ].map((fileName) => fetch(`http://127.0.0.1:${port}/fonts/${fileName}`)));
+  assert.ok(fontManifest.length > 0);
+  const fonts = await Promise.all(fontManifest.map((font) => fetch(`http://127.0.0.1:${port}/fonts/${font.file}`)));
   const openingTags = [...html.matchAll(/<[A-Za-z][^>]*>/g)].map(([tag]) => tag);
   const hasAttribute = (tag, name) => new RegExp(`(?:^|\\s)${name}\\s*=`, "i").test(tag);
   const hasAttributeValue = (tag, name, value) =>
@@ -127,8 +104,15 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.ok(audit.dependencies.every((entry) => !Object.hasOwn(entry, "localSource")));
   assert.ok(audit.dependencies.some((entry) => entry.lookup));
   assert.equal(reviewedAuditResponse.status, 200);
-  assert.equal(reviewedAudit.gate.status, "accepted");
-  assert.equal(reviewedAudit.summary.reviewTodos, 0);
+  assert.equal(reviewedAudit.gate.status, "incomplete");
+  assert.equal(reviewedAudit.gate.accepted, false);
+  assert.ok(reviewedAudit.summary.reviewTodos > 0);
+  assert.ok(reviewedAudit.gate.todos.some((todo) => /unbound review binding/.test(todo)));
+  const reviewedPath = reviewedAudit.commands.find((entry) => entry.name === "\\path");
+  assert.ok(reviewedPath);
+  assert.equal(reviewedPath.claimedReviewStatus, "verified");
+  assert.equal(reviewedPath.reviewStatus, "unbound");
+  assert.equal(reviewedPath.approvalCurrent, false);
   assert.equal(reviewedAudit.summary.blockers, 0);
 
   const draftSource = String.raw`\usetikzlibrary{calc}
@@ -166,12 +150,86 @@ test("workbench server exposes browser assets and fixture source without renderi
   assert.equal(codeMirrorStyles.headers.get("content-type"), "text/css; charset=utf-8");
   assert.equal(chevrotain.status, 200);
   assert.equal(katex.status, 200);
-  assert.equal(katexFont.status, 200);
-  assert.equal(katexFont.headers.get("content-type"), "font/woff2");
-  for (const font of cmuFonts) {
-    assert.equal(font.status, 200);
-    assert.equal(font.headers.get("content-type"), font.url.endsWith(".ttf") ? "font/ttf" : "font/otf");
+  assert.equal(katexFont.status, 404);
+  const vendorFont = await fetch(`http://127.0.0.1:${port}/vendor/katex/fonts/KaTeX_Main-Regular.woff2`);
+  assert.equal(vendorFont.status, 404);
+  for (const [index, response] of fonts.entries()) {
+    const font = fontManifest[index];
+    assert.equal(font.format, "woff", font.file);
+    assert.equal(response.status, 200, font.file);
+    assert.equal(response.headers.get("content-type"), "font/woff", font.file);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes.toString("ascii", 0, 4), "wOFF", font.file);
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), font.sha256, font.file);
   }
+  for (const license of new Set(fontManifest.map((font) => font.license))) {
+    const response = await fetch(`http://127.0.0.1:${port}/fonts/${license}`);
+    assert.equal(response.status, 200, license);
+    assert.ok((await response.text()).trim().length > 0, license);
+  }
+});
+
+test("workbench audit cache invalidates bound approval when evidence changes or disappears", async (t) => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-web-audit-cache-"));
+  t.after(() => rm(fixtureRoot, { recursive: true, force: true }));
+  const source = String.raw`\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}`;
+  const sourcePath = path.join(fixtureRoot, "probe.tex");
+  const evidencePath = path.join(fixtureRoot, "evidence.txt");
+  const evidence = "independently checked baseline\n";
+  await writeFile(evidencePath, evidence);
+  const review = {
+    caseStatus: "accepted",
+    localSources: ["tikz.code.tex", "latex.ltx"],
+    localSourceNotes: { "tikz.code.tex": "Reviewed drawing", "latex.ltx": "Reviewed shell" },
+    rules: [{ match: "*", status: "verified", evidence: [evidencePath] }]
+  };
+  review.binding = auditTikzSource(source, { sourcePath, review }).binding;
+  assert.equal(auditTikzSource(source, { sourcePath, review }).gate.accepted, true);
+  await writeFile(sourcePath, source);
+  await writeFile(path.join(fixtureRoot, "probe.review.json"), JSON.stringify(review));
+  await writeFile(path.join(fixtureRoot, "manifest.json"), JSON.stringify({ cases: [{ id: "probe", source: "probe.tex" }] }));
+  await writeFile(path.join(fixtureRoot, "milestone-1.json"), JSON.stringify({ sourceManifest: "manifest.json", caseIds: ["probe"] }));
+
+  const server = await createWorkbenchServer({ fixtureRoot });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const auditUrl = `http://127.0.0.1:${server.address().port}/api/fixtures/probe/audit`;
+  const fetchAudit = async () => {
+    const response = await fetch(auditUrl);
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  const before = await fetchAudit();
+  assert.equal(before.gate.accepted, true);
+  assert.deepEqual(await fetchAudit(), before);
+  await writeFile(path.join(fixtureRoot, "unrelated.txt"), "not review evidence\n");
+  assert.deepEqual(await fetchAudit(), before);
+
+  const originalStat = await stat(evidencePath);
+  const changedEvidence = evidence.replace("checked", "changed");
+  assert.equal(Buffer.byteLength(changedEvidence), originalStat.size);
+  await writeFile(evidencePath, changedEvidence);
+  await utimes(evidencePath, originalStat.atime, originalStat.mtime);
+  const direct = auditTikzSource(source, { sourcePath, review });
+  assert.equal(direct.bindingStatus, "stale");
+  const changed = await fetchAudit();
+  assert.equal(changed.gate.accepted, false);
+  assert.deepEqual(changed.gate, direct.gate);
+  const draw = changed.commands.find((entry) => entry.name === "\\draw");
+  assert.equal(draw.reviewStatus, "stale");
+  assert.equal(draw.approvalCurrent, false);
+
+  await writeFile(evidencePath, evidence);
+  assert.deepEqual(await fetchAudit(), before);
+  await rm(evidencePath);
+  const missing = await fetchAudit();
+  assert.equal(missing.gate.accepted, false);
+  assert.deepEqual(missing.gate, auditTikzSource(source, { sourcePath, review }).gate);
+  await writeFile(evidencePath, evidence);
+  assert.deepEqual(await fetchAudit(), before);
 });
 
 test("workbench server rejects allowlisted directories", async (t) => {

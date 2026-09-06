@@ -105,6 +105,19 @@ npm install
 npm run dev
 ```
 
+## Fonts
+
+Available from v0.1.5.
+
+SVGs embed their required fonts by default, so they do not depend on a demo
+server or system fonts. All bundled glyphs are converted from local MacTeX
+fonts; their sources, checksums, and licenses are included in `fonts/manifest.json`.
+
+To share cached font files across many diagrams, serve the package's `.woff`
+assets from one directory and use `tikzToSvg(source, { fontUrlPrefix: "/fonts/" })`.
+The separate `@gezhi-io/tikzkit/fonts` entry exports `fontManifest` and
+`fontStyleSheet`. See [font setup and limitations](docs/fonts.md).
+
 ## Markdown
 
 TikZKit can find fenced `tikz` blocks while leaving normal Markdown to the
@@ -140,6 +153,7 @@ npx tikz2svg diagram.tex -o diagram.svg --strict
 - [Public example gallery](docs/examples.md)
 - [Getting started tutorial](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
+- [Fonts](docs/fonts.md)
 - [Extension registry](docs/extension-registry.md)
 - [Case-driven acceptance](docs/case-driven-acceptance.md)
 - [Generated artifact policy](docs/generated-artifacts.md)

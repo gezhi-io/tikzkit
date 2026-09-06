@@ -39,7 +39,7 @@ test("renders declared form-only hatch geometry in SVG pattern defs", () => {
   assert.match(result.svg, /x="-3\.514598" y="-35\.14598" width="31\.631382" height="31\.631382"/);
   assert.match(result.svg, /d="M 3\.514598 35\.14598 L 35\.49744 3\.163138"/);
   assert.match(result.svg, /stroke-width="2\.460219"/);
-  assert.match(result.svg, /<g class="tikz-form-only-pattern" clip-path="url\(#tikz-form-pattern-clip-\d+\)">/);
+  assert.match(result.svg, /<g class="tikz-form-only-pattern" clip-path="url\(#tikzkit-[\da-f]{16}-tikz-form-pattern-clip-\d+\)">/);
   assert.equal((result.svg.match(/stroke="rgb\(255 128 128\)"/g) || []).length > 4, true);
 });
 
@@ -89,8 +89,9 @@ test("anchors form-only tiles to the cropped page origin instead of the TikZ ori
   // The 2pt standalone border moves the PDF page origin by 8.435 SVG units.
   // PGF patterns are page-aligned, so their explicit SVG tiles must preserve
   // that offset rather than restarting at TikZ coordinate (0,0).
-  assert.match(result.svg, /viewBox="-8\.435035 -208\.435035 467\.39012 263\.299316"/);
-  assert.match(result.svg, /<rect x="231\.564965" y="-205\.135719" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
+  // Native CMR10 em/ex metrics also determine the label's crop contribution.
+  assert.match(result.svg, /viewBox="-8\.435035 -208\.435035 467\.390138 263\.299352"/);
+  assert.match(result.svg, /<rect x="231\.564965" y="-205\.135683" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
   assert.doesNotMatch(result.svg, /<rect x="240" y="-220" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
 });
 

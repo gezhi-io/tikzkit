@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync, inflateSync } from "node:zlib";
-import { writeExampleComparisonPage } from "./render-example-fixtures.js";
+import { fingerprintRenderEnvironment, validateRenderedCase, writeExampleComparisonPage } from "./render-example-fixtures.js";
 
 const DEFAULT_OUTPUT_ROOT = path.resolve("test", "fixtures", "examples", "output");
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -22,8 +22,10 @@ export async function compareExamplePngs(options = {}) {
   await mkdir(path.join(outputRoot, "diff-png"), { recursive: true });
 
   const cases = [];
+  const environment = await fingerprintRenderEnvironment();
+  const toolVersions = new Map();
   for (const entry of renderSummary.cases || []) {
-    const result = await compareCase(outputRoot, entry, options);
+    const result = await compareCase(outputRoot, entry, { ...options, environment, toolVersions, nativeReferenceRequested: renderSummary.nativeReferenceRequested });
     cases.push(result);
   }
 
@@ -34,6 +36,15 @@ export async function compareExamplePngs(options = {}) {
     same: cases.filter((entry) => entry.status === "same").length,
     different: cases.filter((entry) => entry.status === "different" || entry.status === "dimension-mismatch").length,
     missing: cases.filter((entry) => entry.status === "missing").length,
+    stale: cases.filter((entry) => entry.status === "stale").length,
+    accepted: cases.length > 0 && cases.every((entry) => entry.accepted),
+    acceptanceScope: options.paintingOnly ? "painting-only; numerical semantics not independently validated" : "independent-reference-comparison",
+    acceptanceComparison: options.register ? "registered" : "raw",
+    thresholds: {
+      pixelTolerance: DEFAULT_PIXEL_TOLERANCE,
+      changedRatioTolerance: DEFAULT_CHANGED_RATIO_TOLERANCE,
+      meanAbsoluteTolerance: DEFAULT_MEAN_ABSOLUTE_TOLERANCE
+    },
     cases
   };
   await writeFile(path.join(outputRoot, "diff", "summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
@@ -59,20 +70,35 @@ async function clearManagedDiffArtifacts(outputRoot) {
 }
 
 async function compareCase(outputRoot, entry, options = {}) {
+  const incomplete = (status, blockers) => ({
+    id: entry.id, status, accepted: false, acceptanceBlockers: blockers,
+    renderFingerprint: entry.renderFingerprint || null,
+    tikzkitPng: entry.tikzkitPng || null, tikztosvgPng: entry.tikztosvgPng || null, diffPng: null
+  });
   if (entry.tikzkitPngStatus !== "rendered" || entry.tikztosvgPngStatus !== "rendered" || !entry.tikzkitPng || !entry.tikztosvgPng) {
-    return {
-      id: entry.id,
-      status: "missing",
-      tikzkitPng: entry.tikzkitPng || null,
-      tikztosvgPng: entry.tikztosvgPng || null,
-      diffPng: null
-    };
+    return incomplete("missing", ["Both freshly rendered PNGs are required"]);
+  }
+
+  const acceptanceBlockers = await validateRenderedCase(outputRoot, entry, options.environment, options.toolVersions);
+  if (entry.renderFingerprint && acceptanceBlockers.length) return incomplete("stale", acceptanceBlockers);
+  if (!entry.referenceProvenance) acceptanceBlockers.push("Reference provenance is unverified");
+  else if (!entry.referenceProvenance.independentNumerics && !options.paintingOnly) {
+    acceptanceBlockers.push("Dependent raw-gnuplot JS sampling: independent numerical acceptance is unavailable; use --painting-only for a limited painting comparison");
+  }
+  if (options.nativeReferenceRequested && (entry.mactexPngStatus !== "rendered" || !entry.mactexPng)) {
+    acceptanceBlockers.push("Requested native PNG is missing");
   }
 
   const tikzkitPath = path.join(outputRoot, entry.tikzkitPng);
   const tikztosvgPath = path.join(outputRoot, entry.tikztosvgPng);
-  const tikzkit = decodePng(await readFile(tikzkitPath));
-  const tikztosvg = decodePng(await readFile(tikztosvgPath));
+  let tikzkit, tikztosvg;
+  try {
+    tikzkit = decodePng(await readFile(tikzkitPath));
+    tikztosvg = decodePng(await readFile(tikztosvgPath));
+  } catch (error) {
+    if (error.code === "ENOENT") return incomplete("missing", ["PNG artifact no longer exists"]);
+    throw error;
+  }
   const comparison = compareDecodedPngs(tikzkit, tikztosvg);
   const registration = options.register
     ? findBestPixelAlignment(tikzkit, tikztosvg, {
@@ -100,17 +126,22 @@ async function compareCase(outputRoot, entry, options = {}) {
       encodePng(composeImageSheet([native, tikztosvg, tikzkit, comparison.diff], { columns: 2, gap: 24, padding: 16 }))
     );
     nativeSheetPng = path.relative(outputRoot, nativeSheetPath);
-    if (options.register) {
-      mactexComparison = {
-        tikzkit: summarizePairComparison(tikzkit, native, options),
-        tikztosvg: summarizePairComparison(tikztosvg, native, options)
-      };
-    }
+    mactexComparison = {
+      tikzkit: summarizePairComparison(tikzkit, native, options),
+      tikztosvg: summarizePairComparison(tikztosvg, native, options)
+    };
+    const nativeStatus = (mactexComparison.tikzkit.registration || mactexComparison.tikzkit).status;
+    if (nativeStatus !== "same") acceptanceBlockers.push(`Native visual comparison: ${nativeStatus}`);
   }
 
+  if ((registration || comparison).status !== "same") acceptanceBlockers.push(`Visual comparison: ${(registration || comparison).status}`);
   return {
     id: entry.id,
     status: comparison.status,
+    accepted: acceptanceBlockers.length === 0,
+    acceptanceBlockers,
+    renderFingerprint: entry.renderFingerprint || null,
+    referenceProvenance: entry.referenceProvenance || null,
     width: comparison.width,
     height: comparison.height,
     expectedWidth: tikztosvg.width,
@@ -142,17 +173,17 @@ async function compareCase(outputRoot, entry, options = {}) {
 
 function summarizePairComparison(actual, expected, options) {
   const raw = compareDecodedPngs(actual, expected);
-  const registration = findBestPixelAlignment(actual, expected, {
+  const registration = options.register ? findBestPixelAlignment(actual, expected, {
     radius: options.alignmentRadius,
     sampleStep: options.alignmentSampleStep
-  });
+  }) : null;
   return {
     status: raw.status,
     comparedPixels: raw.comparedPixels,
     changedPixels: raw.changedPixels,
     changedRatio: raw.changedRatio,
     meanAbsoluteRGBA: raw.meanAbsoluteRGBA,
-    registration: {
+    registration: registration && {
       offsetX: registration.offsetX,
       offsetY: registration.offsetY,
       status: registration.status,
@@ -220,21 +251,21 @@ function compareDecodedPngsAtOffset(actual, expected, offsetX, offsetY, options 
   const meanAbsoluteTolerance = Number.isFinite(options.meanAbsoluteTolerance)
     ? options.meanAbsoluteTolerance
     : DEFAULT_MEAN_ABSOLUTE_TOLERANCE;
-  const overlap = pngOverlap(actual, expected, offsetX, offsetY);
-  const { width, height } = overlap;
+  const canvas = pngUnion(actual, expected, offsetX, offsetY);
+  const { width, height } = canvas;
   const diffPixels = Buffer.alloc(width * height * 4);
   let changedPixels = 0;
   let totalDelta = 0;
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const actualIndex = ((overlap.actualY + y) * actual.width + overlap.actualX + x) * 4;
-      const expectedIndex = ((overlap.expectedY + y) * expected.width + overlap.expectedX + x) * 4;
+      const actualIndex = pixelIndex(actual, canvas.x + x - offsetX, canvas.y + y - offsetY);
+      const expectedIndex = pixelIndex(expected, canvas.x + x, canvas.y + y);
       const diffIndex = (y * width + x) * 4;
       let pixelDelta = 0;
       let maxChannelDelta = 0;
       for (let channel = 0; channel < 4; channel += 1) {
-        const channelDelta = Math.abs(actual.data[actualIndex + channel] - expected.data[expectedIndex + channel]);
+        const channelDelta = Math.abs(whiteChannel(actual, actualIndex, channel) - whiteChannel(expected, expectedIndex, channel));
         pixelDelta += channelDelta;
         maxChannelDelta = Math.max(maxChannelDelta, channelDelta);
       }
@@ -256,14 +287,18 @@ function compareDecodedPngsAtOffset(actual, expected, offsetX, offsetY, options 
 
   const comparedPixels = width * height;
   const dimensionMismatch = actual.width !== expected.width || actual.height !== expected.height;
-  const changedRatio = comparedPixels ? changedPixels / comparedPixels : 0;
-  const meanAbsoluteRGBA = comparedPixels ? totalDelta / (comparedPixels * 4 * 255) : 0;
+  // Keep the denominator independent of translation: adding blank margins
+  // during registration must not dilute a real error below the threshold.
+  const normalizationPixels = Math.max(actual.width, expected.width) * Math.max(actual.height, expected.height);
+  const changedRatio = normalizationPixels ? changedPixels / normalizationPixels : 0;
+  const meanAbsoluteRGBA = normalizationPixels ? totalDelta / (normalizationPixels * 4 * 255) : 0;
   const visuallySame = changedPixels === 0 || (changedRatio <= changedRatioTolerance && meanAbsoluteRGBA <= meanAbsoluteTolerance);
   return {
     status: dimensionMismatch ? "dimension-mismatch" : visuallySame ? "same" : "different",
     width,
     height,
     comparedPixels,
+    normalizationPixels,
     changedPixels,
     changedRatio,
     meanAbsoluteRGBA,
@@ -277,18 +312,18 @@ function compareDecodedPngsAtOffset(actual, expected, offsetX, offsetY, options 
 function scorePngOffset(actual, expected, offsetX, offsetY, options = {}) {
   const pixelTolerance = Number.isFinite(options.pixelTolerance) ? options.pixelTolerance : DEFAULT_PIXEL_TOLERANCE;
   const sampleStep = Math.max(1, Number(options.sampleStep) || 1);
-  const overlap = pngOverlap(actual, expected, offsetX, offsetY);
+  const canvas = pngUnion(actual, expected, offsetX, offsetY);
   let changedPixels = 0;
   let comparedPixels = 0;
   let totalDelta = 0;
-  for (let y = 0; y < overlap.height; y += sampleStep) {
-    for (let x = 0; x < overlap.width; x += sampleStep) {
-      const actualIndex = ((overlap.actualY + y) * actual.width + overlap.actualX + x) * 4;
-      const expectedIndex = ((overlap.expectedY + y) * expected.width + overlap.expectedX + x) * 4;
+  for (let y = 0; y < canvas.height; y += sampleStep) {
+    for (let x = 0; x < canvas.width; x += sampleStep) {
+      const actualIndex = pixelIndex(actual, canvas.x + x - offsetX, canvas.y + y - offsetY);
+      const expectedIndex = pixelIndex(expected, canvas.x + x, canvas.y + y);
       let pixelDelta = 0;
       let maxChannelDelta = 0;
       for (let channel = 0; channel < 4; channel += 1) {
-        const channelDelta = Math.abs(actual.data[actualIndex + channel] - expected.data[expectedIndex + channel]);
+        const channelDelta = Math.abs(whiteChannel(actual, actualIndex, channel) - whiteChannel(expected, expectedIndex, channel));
         pixelDelta += channelDelta;
         maxChannelDelta = Math.max(maxChannelDelta, channelDelta);
       }
@@ -306,19 +341,23 @@ function scorePngOffset(actual, expected, offsetX, offsetY, options = {}) {
   };
 }
 
-function pngOverlap(actual, expected, offsetX, offsetY) {
-  const actualX = Math.max(0, -offsetX);
-  const actualY = Math.max(0, -offsetY);
-  const expectedX = Math.max(0, offsetX);
-  const expectedY = Math.max(0, offsetY);
+function pngUnion(actual, expected, offsetX, offsetY) {
+  const x = Math.min(0, offsetX);
+  const y = Math.min(0, offsetY);
   return {
-    actualX,
-    actualY,
-    expectedX,
-    expectedY,
-    width: Math.max(0, Math.min(actual.width - actualX, expected.width - expectedX)),
-    height: Math.max(0, Math.min(actual.height - actualY, expected.height - expectedY))
+    x, y,
+    width: Math.max(expected.width, actual.width + offsetX) - x,
+    height: Math.max(expected.height, actual.height + offsetY) - y
   };
+}
+
+function pixelIndex(image, x, y) {
+  return x < 0 || y < 0 || x >= image.width || y >= image.height ? -1 : (y * image.width + x) * 4;
+}
+
+function whiteChannel(image, index, channel) {
+  if (index < 0 || channel === 3) return 255;
+  return 255 + (image.data[index + channel] - 255) * image.data[index + 3] / 255;
 }
 
 export function decodePng(buffer) {
@@ -438,6 +477,7 @@ export function formatExampleDiffSummary(summary) {
   return (
     `Compared ${summary.compared}/${summary.total} example PNG pairs` +
     `: ${summary.different} different, ${summary.missing} missing` +
+    `, ${summary.stale || 0} stale; acceptance ${summary.accepted ? "passed" : "blocked"}` +
     ` in ${summary.outputRoot}\n`
   );
 }
@@ -577,18 +617,22 @@ function crc32(buffer) {
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.includes("--help") || argv.includes("-h")) {
-    process.stdout.write("Usage: node scripts/diff-example-pngs.js [--output <directory>] [--register] [--alignment-radius <pixels>]\n");
+    process.stdout.write("Usage: node scripts/diff-example-pngs.js [--output <directory>] [--strict] [--register] [--alignment-radius <pixels>] [--painting-only]\n\n--strict exits 1 for empty, missing, stale, different, unverified or dependent-reference comparisons. Without it, the command writes a report only. Per-channel tolerance: 6/255; changed-pixel ratio: 0.005; mean absolute RGBA: 0.001. Dimensions must match. --register uses union-canvas alignment for acceptance while retaining the raw comparison. --painting-only explicitly excludes independent numerical validation from acceptance. Legacy render summaries must be regenerated.\n");
     return;
   }
-  const summary = await compareExamplePngs(parseArgs(argv));
+  const options = parseArgs(argv);
+  const summary = await compareExamplePngs(options);
   process.stdout.write(formatExampleDiffSummary(summary));
+  if (options.strict && !summary.accepted) process.exitCode = 1;
 }
 
 function parseArgs(argv) {
   return {
     outputRoot: valueAfter(argv, "--output") || DEFAULT_OUTPUT_ROOT,
     register: argv.includes("--register"),
-    alignmentRadius: valueAfter(argv, "--alignment-radius")
+    strict: argv.includes("--strict"),
+    paintingOnly: argv.includes("--painting-only"),
+    alignmentRadius: valueAfter(argv, "--alignment-radius") === undefined ? undefined : Number(valueAfter(argv, "--alignment-radius"))
   };
 }
 

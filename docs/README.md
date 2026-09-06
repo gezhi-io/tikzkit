@@ -13,6 +13,8 @@ compatibility and QA documents when checking a specific feature.
 - [Usage reference](usage.md): supported syntax and package-specific examples.
 - [Architecture](architecture.md): parser, evaluator, scene graph, and SVG
   renderer boundaries.
+- [Fonts](fonts.md): portable SVGs, shared font assets, MacTeX provenance,
+  and remaining font/layout limitations.
 
 ## Compatibility
 
