@@ -743,7 +743,7 @@ test("pgfplots oblique tick labels use measured native near-ticklabel placement"
   const labelCommands = renderAxisLabels3D(axisOptions, ranges, geometry);
 
   const xTick = tickCommands.find((command) => command.endsWith("{4};"));
-  const yTick = tickCommands.find((command) => command.endsWith("{-5};"));
+  const yTick = tickCommands.find((command) => command.endsWith("{\u22125};"));
   assert.match(xTick, /axis tick label, anchor=center/);
   assert.match(yTick, /axis tick label, anchor=center/);
   assert.match(xTick, /inner sep=\.3333em/);
@@ -2290,7 +2290,7 @@ test("pgfplots 3d automatic major ticks scale with axis size", () => {
 
   const commands = renderAxis3DTicks({}, ranges, geometry);
 
-  assert.ok(commands.some((command) => command.includes("axis tick label") && command.endsWith("{-4};")));
+  assert.ok(commands.some((command) => command.includes("axis tick label") && command.endsWith("{\u22124};")));
   assert.ok(commands.some((command) => command.includes("axis tick label") && command.endsWith("{4};")));
 });
 
@@ -2305,9 +2305,9 @@ test("pgfplots 3d automatic major ticks use projected axis length", () => {
   const commands = renderAxis3DTicks({}, ranges, geometry);
   const tickLabels = commands.filter((command) => command.includes("axis tick label"));
 
-  assert.ok(tickLabels.some((command) => command.endsWith("{-4};")));
+  assert.ok(tickLabels.some((command) => command.endsWith("{\u22124};")));
   assert.ok(tickLabels.some((command) => command.endsWith("{4};")));
-  assert.ok(tickLabels.some((command) => command.endsWith("{-3};")));
+  assert.ok(tickLabels.some((command) => command.endsWith("{\u22123};")));
   assert.ok(tickLabels.some((command) => command.endsWith("{3};")));
 });
 
@@ -2330,7 +2330,7 @@ test("pgfplots compact 3d axes inherit the native three-tick minimum", () => {
   const commands = renderAxis3DTicks(axisOptions, ranges, geometry);
   const labels = commands.filter((command) => command.includes("axis tick label"));
 
-  assert.ok(labels.some((command) => command.endsWith("{-5};")));
+  assert.ok(labels.some((command) => command.endsWith("{\u22125};")));
   assert.ok(labels.some((command) => command.endsWith("{5};")));
   assert.ok(!labels.some((command) => command.endsWith("{-4};")));
   assert.ok(!labels.some((command) => command.endsWith("{4};")));
@@ -2349,7 +2349,7 @@ test("pgfplots compact 3d z ticks keep native-like signed major labels", () => {
     .filter(Boolean)
     .slice(-3);
 
-  assert.deepEqual(zLabels, ["-100", "0", "100"]);
+  assert.deepEqual(zLabels, ["\u2212100", "0", "100"]);
 });
 
 test("pgfplots compact 3d z ticks use scaled tick labels for small positive ranges", () => {
@@ -5323,6 +5323,30 @@ test("pgfplots 3d plot box ratio scales basis vectors before the projected box i
   assert.ok(stretchedYToX > baseYToX * 1.7, `expected plot box ratio to lengthen y relative to x, got ${baseYToX} -> ${stretchedYToX}`);
 });
 
+test("pgfplots 3d plot box ratio evaluates PGF math components", () => {
+  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 1 };
+  const numeric = createAxisGeometry(
+    { "scale only axis": true, width: "4cm", height: "4cm", "pgfplots 3d surface": true, view: "{120}{35}", "plot box ratio": "1 2 1" },
+    ranges
+  );
+  const expression = createAxisGeometry(
+    { "scale only axis": true, width: "4cm", height: "4cm", "pgfplots 3d surface": true, view: "{120}{35}", "plot box ratio": "{1}{1+1}{sqrt(4)/2}" },
+    ranges
+  );
+
+  for (const point of [{ x: 0, y: 0, z: 0 }, { x: 1, y: 1, z: 1 }, { x: 0.5, y: 0.25, z: 0.75 }]) {
+    assert.deepEqual(expression.mapPoint3d(point), numeric.mapPoint3d(point));
+  }
+});
+
+test("pgfplots 3d default negative ticks use math minus typography", () => {
+  const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -5, zMax: 5 };
+  const axisOptions = { width: "5cm", samples: "10", mesh: true, view: "{120}{35}", "plot box ratio": "1 2 1" };
+  const commands = renderAxis3DTicks(axisOptions, ranges, createAxisGeometry({ ...axisOptions, "pgfplots 3d surface": true }, ranges));
+
+  assert.ok(commands.some((command) => command.endsWith("{\u22125};")), "negative tick labels should use a math minus glyph");
+});
+
 test("pgfplots 3D scale uniformly units only preserves the native compact unit box", () => {
   const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 2 };
   const geometry = createAxisGeometry(
@@ -5461,14 +5485,24 @@ test("pgfplots 3d compact explicit width keeps native projected plot width", () 
   assert.ok(projectedWidthPt >= 382.5 && projectedWidthPt <= 383.6, `expected 15cm oblique 3D projected box width near tikztosvg 383pt, got ${projectedWidthPt}pt`);
 });
 
-test("pgfplots compact 6cm 3d axes preserve the native explicit-width label reserve", () => {
+test("pgfplots explicit plot box ratio uses the native 45pt description reserve", () => {
+  const geometry = createAxisGeometry(
+    { width: "5cm", view: "{120}{35}", "plot box ratio": "{1}{2}{1}", "pgfplots 3d surface": true },
+    { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -5, zMax: 5 }
+  );
+  const expected = 5 - parseDimension("45pt", {});
+
+  assert.ok(Math.abs(geometry.width - expected) < 1e-9, `expected native 45pt plot-box-ratio reserve, got ${geometry.width}cm`);
+});
+
+test("pgfplots compact 6cm 3d axes preserve the calibrated explicit-width label reserve", () => {
   const geometry = createAxisGeometry(
     { width: "6cm", view: "{155}{45}", "pgfplots 3d surface": true },
     { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -125, zMax: 150 }
   );
   const expected = 6 - parseDimension("43.77pt", {});
 
-  assert.ok(Math.abs(geometry.width - expected) < 1e-9, `expected native 43.77pt reserve, got ${geometry.width}cm`);
+  assert.ok(Math.abs(geometry.width - expected) < 1e-9, `expected calibrated 43.77pt reserve, got ${geometry.width}cm`);
 });
 
 test("pgfplots oblique 3d colorbar axis bbox keeps native top reserve", () => {

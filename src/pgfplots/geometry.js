@@ -10,7 +10,7 @@ import {
   TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X,
   TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y
 } from "../tikz/metrics.js";
-import { parseDimension } from "../engine/math.js";
+import { evaluateMath, parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
 import { createDataToCanvasTransform } from "./transformDataToCanvas.js";
@@ -30,6 +30,7 @@ export const PGFPLOTS_EXPLICIT_MIDDLE_AXIS_RESERVE = parseDimension("45.68pt", {
 export const PGFPLOTS_INTERIOR_MIDDLE_AXIS_RESERVE = parseDimension("45pt", {});
 export const PGFPLOTS_SCALED_Y_MIDDLE_AXIS_RESERVE_X = parseDimension("46.4pt", {});
 export const PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RESERVE_X = parseDimension("43.77pt", {});
+export const PGFPLOTS_PLOT_BOX_RATIO_EXPLICIT_WIDTH_RESERVE_X = parseDimension("45pt", {});
 export const PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_X = parseDimension("47.345pt", {});
 export const PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_Y = parseDimension("46.398pt", {});
 // For an explicit-width oblique 3D axis, PGFPlots retains an outer layout
@@ -324,16 +325,19 @@ function axisEqualImageEnabled(axisOptions = {}) {
 
 function pgfplotsAxisTargetBox(axisOptions, width, height, options = {}) {
   if (pgfplotsScaleOnlyAxis(axisOptions)) return { width, height };
-  const reserveX = compact3DLabelReserveX(width, options);
+  const reserveX = compact3DLabelReserveX(axisOptions, width, options);
   return {
     width: Math.max(0, width - reserveX),
     height: Math.max(0, height - axisLabelReserveY(axisOptions))
   };
 }
 
-function compact3DLabelReserveX(requestedWidth, options = {}) {
+function compact3DLabelReserveX(axisOptions, requestedWidth, options = {}) {
   if (!options.compact3DExplicitWidth) return PGFPLOTS_AXIS_LABEL_CONST_X;
-  return Math.min(PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RESERVE_X, requestedWidth * 0.45);
+  const reserve = axisOptions["plot box ratio"] !== undefined
+    ? PGFPLOTS_PLOT_BOX_RATIO_EXPLICIT_WIDTH_RESERVE_X
+    : PGFPLOTS_COMPACT_3D_EXPLICIT_WIDTH_RESERVE_X;
+  return Math.min(reserve, requestedWidth * 0.45);
 }
 
 function axisLabelReserveY(axisOptions = {}) {
@@ -1147,11 +1151,10 @@ function parsePgfplotsView(raw) {
 }
 
 function parsePgfplotsPlotBoxRatio(raw) {
-  const values = String(raw ?? "1 1 1")
-    .replace(/[{}]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .map(Number);
+  const text = String(raw ?? "1 1 1").trim();
+  const braced = [...text.matchAll(/\{([^{}]+)\}/g)].map((match) => match[1]);
+  const parts = braced.length >= 3 ? braced : text.split(/\s+/);
+  const values = parts.slice(0, 3).map((part) => evaluateMath(part));
   if (values.length < 3 || values.slice(0, 3).some((value) => !Number.isFinite(value) || value <= 0)) {
     return { x: 1, y: 1, z: 1 };
   }

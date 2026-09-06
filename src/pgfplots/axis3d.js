@@ -314,11 +314,11 @@ function formatAxis3DTickLabel(axisOptions, axis, value) {
 
 function axis3DRenderedTickLabels(axisOptions, ticks, zTickFormat, zTickPrecision) {
   const defaults = {
-    x: ticks.x.map((value) => formatAxis3DTickLabel(axisOptions, "x", value)),
-    y: ticks.y.map((value) => formatAxis3DTickLabel(axisOptions, "y", value)),
+    x: ticks.x.map((value) => typesetDefaultAxis3DTickLabel(formatAxis3DTickLabel(axisOptions, "x", value))),
+    y: ticks.y.map((value) => typesetDefaultAxis3DTickLabel(formatAxis3DTickLabel(axisOptions, "y", value))),
     z: ticks.z.map((value) => isLogAxis(axisOptions, "z")
       ? formatAxis3DTickLabel(axisOptions, "z", value)
-      : formatScaledAxisTickLabel(value, zTickFormat, { precision: zTickPrecision }))
+      : typesetDefaultAxis3DTickLabel(formatScaledAxisTickLabel(value, zTickFormat, { precision: zTickPrecision })))
   };
   for (const axis of ["x", "y", "z"]) {
     const raw = axisOptions[`${axis}ticklabels`];
@@ -334,6 +334,12 @@ function axis3DRenderedTickLabels(axisOptions, ticks, zTickFormat, zTickPrecisio
     );
   }
   return defaults;
+}
+
+function typesetDefaultAxis3DTickLabel(text) {
+  const value = String(text ?? "").trim();
+  if (!value || parseMathText(value) || !value.startsWith("-")) return value;
+  return value.replace(/^-/, "\u2212");
 }
 
 function hasCustomAxis3DTickLabels(raw, template) {

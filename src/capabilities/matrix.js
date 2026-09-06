@@ -192,9 +192,9 @@ export const capabilityMatrix = {
     verification: {
       oracle: "unit-test+tikztosvg",
       tests: ["test/pgfplots-seams.test.js", "test/example-render-script.test.js"],
-      artifacts: ["outputs/qa-pgfplots-3d-annotation", "outputs/qa-pgfplots-faceted-order", "outputs/qa-pgfplots-3d-plot-box-ratio"]
+      artifacts: ["outputs/qa-pgfplots-3d-annotation", "outputs/qa-pgfplots-faceted-order", "outputs/qa/2026-09-06-pgfplots-plot-box-ratio-3d-after"]
     },
-    notes: "View-aware projected-edge annotation layout is verified for opposing views. Per-patch faceted painter ordering is verified. Literal finite-positive `plot box ratio={x}{y}{z}` values now scale the projected x/y/z basis vectors before the final requested plot-box fit, as in local PGFPlots; brace and bare whitespace triplets are accepted. Remaining differences include projection calibration, surface/color interpolation, overlays, colorbar placement, exact TeX glyph metrics, expression/macro-valued plot box ratios, view-dir/scale-mode variants, and unsupported shader/patch modes."
+    notes: "View-aware projected-edge annotation layout is verified for opposing views. Per-patch faceted painter ordering is verified. Finite-positive `plot box ratio={x}{y}{z}` values and numeric PGF math expressions now scale the projected x/y/z basis vectors before the final requested plot-box fit, as in local PGFPlots; brace and bare whitespace triplets are accepted. Explicit-width ratio plots use PGFPlots' fixed 45pt description reserve, and default negative 3D ticks use a mathematical minus glyph. Remaining differences include projection calibration, surface/color interpolation, overlays, colorbar placement, arbitrary TeX macro side effects in ratio components, view-dir/scale-mode variants, and unsupported shader/patch modes."
   },
   pgfplots_colorbar: {
     id: "pgfplots_colorbar",
