@@ -2,7 +2,7 @@ export const tikzLibrary = {
   name: "datavisualization.formats.functions",
   status: "partial",
   category: "datavisualization",
-  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions + src/engine/evaluate.js:estimateNodeSize",
+  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions/datavisualizationScreenSpacePinLayout + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/richTextNode.js",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.formats.functions.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-formats.tex",
   localSourceReviewed: "yes",
@@ -21,7 +21,9 @@ export const tikzLibrary = {
     "visualizer style, no lines mark-only mode, straight cycle, smooth cycle, and polygon alias",
     "style sheet=strong colors, vary hue, vary dashing, vary thickness, and vary thickness and dashing for line visualizers",
     "\\tikzdatavisualizationset named styles for focused datavis option bundles",
-    "pin in data text with approximate normal leader edge and node-auto side offset at selected data values, including repeated pin overlays on one visualizer",
+    "pin in data threshold selection at the first source-ordered point at or above when=<attribute> is <number>",
+    "pin in data screen-space normal from the preceding data segment, native 3ex-equivalent offset, TeX node padding, and leader clipping at the auto-anchored label border",
+    "pin in data text and text-prime placement, including repeated pin overlays on one visualizer",
     "label in data and pin in data selection by when=<attribute> is <number>, index=<n>, pos=<fraction>, and default auto visualizer order with focused plain-label normal and auto-anchor center calibration",
     "plain label in data default every data set label small font sizing",
     "label in legend text with a simple visualizer example marker",
@@ -65,5 +67,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally on 2026-08-06 against the function-format loader plus the visualizer legend source: styled inline-math legend node boxes use compact TeX metrics while preserving the SVG math renderer for paint, and explicit south-east outside scatter legends derive their marker/text locations from the native data-bounding-box anchor. It models the native survey/render sampling split for function data, but it is not a full PGF datavisualization object pipeline: full label visualizer object routing, custom pgfooclass visualizers, and exact arbitrary matrix legends remain partial."
+    "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally through 2026-09-06 against the function-format loader, label visualizer object, pin transform, and legend matrix source. Function variables are sampled in source order; `when=x is 1` selects the first surveyed point at or above the threshold and uses the preceding canvas segment for the pin normal. The leader follows the default 3ex-equivalent offset and clips against a TeX-sized auto-anchored label box. South-east outside scatter legends use the data-bounding-box anchor, and mixed prose/math labels preserve west anchoring with inline math at the surrounding text size. It is not a full PGF datavisualization object pipeline: custom pgfooclass visualizers and exact arbitrary matrix legends remain partial. Evidence: docs/qa/2026-09-06-datavisualization-pin-scatter.md."
 };

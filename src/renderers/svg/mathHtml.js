@@ -31,7 +31,10 @@ export function renderScopedMathHtml(tex, options = {}) {
       );
     }
   }
-  return `<span class="tikzkit-math-scope">${html}</span>`;
+  const scopeClass = options.inlineText
+    ? "tikzkit-math-scope tikzkit-math-inline-text"
+    : "tikzkit-math-scope";
+  return `<span class="${scopeClass}">${html}</span>`;
 }
 
 export function renderScopedMathStyleDef() {
@@ -41,6 +44,7 @@ export function renderScopedMathStyleDef() {
 // sansmath leaves math italic letters and symbols alone, but maps operators,
 // digits, and \mathrm (including the \mathbf replacement) to \sfdefault.
 const TIKZKIT_SANS_MATH_CSS =
+  ".tikzkit-math-scope.tikzkit-math-inline-text .tikzkit-math-root{font-size:1em}" +
   ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-sans{font-family:TikZKitCMUSans,'CMU Sans Serif',sans-serif}" +
   ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-sans .tikzkit-math-mathboldsf{font-family:TikZKitCMUSans,'CMU Sans Serif',sans-serif;font-style:normal}" +
   ".tikzkit-math-scope .tikzkit-math-root.tikzkit-math-helvetica{font-family:Helvetica,Arial,sans-serif}" +

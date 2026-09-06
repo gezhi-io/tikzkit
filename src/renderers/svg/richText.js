@@ -254,7 +254,8 @@ export function renderInlineMathHtml(line) {
     if (segment.type === "math") {
       parts.push(
         renderScopedMathHtml(normalizeKatexTex(segment.tex.trim()), {
-          displayMode: false
+          displayMode: false,
+          inlineText: true
         })
       );
     } else if (segment.text) {
@@ -265,13 +266,12 @@ export function renderInlineMathHtml(line) {
 }
 
 export function estimateRichTextBox(lines, fontSize, lineStyles = []) {
-  const fallbackLines = lines.map(formatRichTextBoxLine);
   const width = Math.max(
     42,
     Math.max(
-      ...fallbackLines.map((line, index) => {
+      ...lines.map((line, index) => {
         const scale = Number(lineStyles[index]?.scale) || 1;
-        return String(line).length * fontSize * scale * 0.52 + 18;
+        return estimateRichTextLineWidthEm(line) * fontSize * scale;
       }),
       0
     )
@@ -284,12 +284,17 @@ export function estimateRichTextBox(lines, fontSize, lineStyles = []) {
   return { width, height };
 }
 
-function formatRichTextBoxLine(line) {
+function estimateRichTextLineWidthEm(line) {
   const math = parseMathText(line);
-  if (math) return mathFallbackText(math.tex);
+  if (math) return estimateRichMathWidthEm(math.tex);
   const segments = splitInlineMathSegments(line);
   if (segments.some((segment) => segment.type === "math")) {
-    return segments.map((segment) => (segment.type === "math" ? mathFallbackText(segment.tex) : formatPlainTexText(segment.text))).join("");
+    return segments.reduce(
+      (width, segment) => width + (segment.type === "math"
+        ? estimateRichMathWidthEm(segment.tex)
+        : estimateRichTextWidthEm(formatPlainTexText(segment.text))),
+      0
+    );
   }
-  return formatPlainTexText(line);
+  return estimateRichTextWidthEm(formatPlainTexText(line));
 }

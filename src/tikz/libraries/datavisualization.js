@@ -2,7 +2,7 @@ export const tikzLibrary = {
   name: "datavisualization",
   status: "partial",
   category: "datavisualization",
-  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions + src/engine/evaluate.js:estimateNodeSize",
+  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions/datavisualizationScreenSpacePinLayout + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/richTextNode.js",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-visualizers.tex",
   localSourceReviewed: "yes",
@@ -21,6 +21,8 @@ export const tikzLibrary = {
     "focused legend label node style draw/circle routing through datavis legend entry node style",
     "compact native-style TeX box metrics for styled inline-math legend labels without changing SVG math paint",
     "south east outside scatter legend matrix anchoring from data-bounding-box dimensions and native em offsets",
+    "mixed prose/math legend labels with explicit west/end SVG anchoring and surrounding-text inline math sizing",
+    "pin in data auto placement from the preceding canvas segment with TeX node padding and clipped leader edges",
     "style sheet=strong colors, vary hue, vary dashing, vary thickness, and vary thickness and dashing for line visualizers",
     "default outside line legend samples positioned by native physical em offsets from the data area",
     "custom /pgf/data visualization/style sheets/<name>/<value>/.style definitions for set-based plot styling",
@@ -43,5 +45,5 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally on 2026-08-06 against tikzlibrarydatavisualization.code.tex and pgfmanual-en-dv-visualizers.tex: styled legend labels use native em/ex sample coordinates and TeX-packed inline math dimensions, while SVG math paint remains renderer-owned. Explicit south-east outside scatter legends now use the source's data-bounding-box anchor with physical .8em/.5em/.333em offsets rather than normalized constants. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. This covers common manual Chapter 83 visualizers but not the full PGF data visualization object/survey pipeline, custom pgfooclass visualizers, or exact arbitrary matrix legends."
+    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally through 2026-09-06 against tikzlibrarydatavisualization.code.tex, pgfmoduledatavisualization.code.tex, tikz.code.tex, and pgfmanual-en-dv-visualizers.tex. Explicit south-east outside scatter legends use the source's data-bounding-box anchor with physical .8em/.5em/.333em offsets. Browser mixed prose/math legend labels honor their west anchor and keep inline math at the prose size. Pin labels use the PGF label visualizer's current/previous canvas positions, the default 3ex distance, auto-node padding, and a leader clipped to the label border. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. Custom pgfooclass visualizers and exact arbitrary matrix legends remain partial. Evidence: docs/qa/2026-09-06-datavisualization-pin-scatter.md."
 };

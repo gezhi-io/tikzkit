@@ -194,6 +194,22 @@ test("strict audit blockers expose commands without an implementation owner", ()
   assert.equal(report.gate.status, "blocked");
 });
 
+test("semantic audit assigns datavisualization function values to the function-format owner", () => {
+  const report = auditTikzSource(String.raw`
+    \usetikzlibrary{datavisualization.formats.functions}
+    \tikz \datavisualization data [format=function] {
+      var x : interval [-1:1] samples 3;
+      func y = exp(-\value x*\value x);
+    };
+  `, { localSourceResolver: fakeResolver });
+
+  const value = report.commands.find((entry) => entry.name === "\\value");
+  assert.equal(value?.count, 2);
+  assert.equal(value?.implementedBy, "src/frontend/latex-shell.js:expandDatavisualizationFunctions");
+  assert.equal(value?.localSource, "/texlive/pgflibrarydatavisualization.formats.functions.code.tex");
+  assert.ok(!report.gate.blockers.some((entry) => entry.includes("command:\\value")));
+});
+
 test("audit assigns document-shell and font commands to explicit owners", () => {
   const report = auditTikzSource(String.raw`
     \usepackage[active]{preview}

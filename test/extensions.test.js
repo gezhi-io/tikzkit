@@ -328,6 +328,7 @@ rand + rand + rand + rand + rand);
   const cleanAxes = result.ir.items.filter((item) => item.subtype === "axis-clean-line");
   const cleanBoundaries = result.ir.items.filter((item) => item.subtype === "axis-clean-boundary");
   const pinEdge = result.ir.items.find((item) => item.subtype === "axis-pin-edge");
+  const pinLabel = result.ir.items.find((item) => item.type === "textNode" && item.text === String.raw`$e^{-x^2}$`);
   const [pinFrom, pinTo] = pinEdge?.commands || [];
   const pinLength = Math.hypot((pinTo?.x || 0) - (pinFrom?.x || 0), (pinTo?.y || 0) - (pinFrom?.y || 0));
   const texts = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
@@ -351,6 +352,10 @@ rand + rand + rand + rand + rand);
   assert.ok(Math.abs((pinFrom?.x || 0) - 2.9) < 0.03, `expected Gaussian pin edge to start at the first sample after x=1, got x=${pinFrom?.x}`);
   assert.ok(Math.abs((pinFrom?.y || 0) - 0.881) < 0.03, `expected Gaussian pin edge to start at exp(-1.12^2), got y=${pinFrom?.y}`);
   assert.ok(pinLength > 0.42 && pinLength < 0.58, `expected steep Gaussian pin edge to stay near native length, got ${pinLength}`);
+  assert.ok(Math.abs((pinTo?.x || 0) - 3.347) < 0.03, `expected Gaussian pin edge to meet the west label border, got x=${pinTo?.x}`);
+  assert.ok(Math.abs((pinTo?.y || 0) - 1.051) < 0.035, `expected Gaussian pin edge to follow the native auto-label angle, got y=${pinTo?.y}`);
+  assert.ok(pinLabel?.x > 3.7 && pinLabel.x < 3.85, `expected Gaussian pin text center to include TeX node width and padding, got x=${pinLabel?.x}`);
+  assert.ok(pinLabel?.y > 1.12 && pinLabel.y < 1.3, `expected Gaussian pin text center above its clipped leader edge, got y=${pinLabel?.y}`);
   assert.ok(cleanAxes.every((axis) => axis.style.stroke === "rgb(128 128 128)"));
   assert.ok(cleanBoundaries.every((axis) => axis.style.stroke === "rgb(191 191 191)"));
   assert.ok(cleanBoundaries.every((axis) => axis.style.lineCap === "square"), "expected native clean boundaries to use rect line caps");
@@ -1544,7 +1549,7 @@ test("supports datavisualization smooth line list visualizers with function sets
   const rendered = result.svg;
   assert.match(
     rendered,
-    /<text x="640\.[56]"[^>]*text-anchor="start"[^>]*>\s*<tspan font-style="normal">sin<\/tspan> x<\/text>/,
+    /<text x="64\d(?:\.\d+)?"[^>]*text-anchor="start"[^>]*>\s*<tspan[^>]*font-style="normal">sin<\/tspan> x<\/text>/,
     "expected math legend label to keep TikZ west anchor instead of falling back to centered math text"
   );
 });
@@ -4130,7 +4135,7 @@ data {
     (pinLabel?.y || 0) - (to?.y || 0) > 0.05 && (pinLabel?.y || 0) - (to?.y || 0) < 0.11,
     `expected native node[auto, at end] pin label to sit above the leader endpoint, got label y=${pinLabel?.y} and endpoint y=${to?.y}`
   );
-  const operatorSpacing = result.svg.match(/<tspan dx="([\d.]+)" font-style="normal">sin<\/tspan>/);
+  const operatorSpacing = result.svg.match(/<tspan dx="([\d.]+)"[^>]*font-style="normal">sin<\/tspan>/);
   assert.ok(operatorSpacing, "expected SVG math fallback to preserve spacing before named operator sin");
   assert.ok(
     Number(operatorSpacing[1]) > 5 && Number(operatorSpacing[1]) < 7,

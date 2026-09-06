@@ -2271,6 +2271,27 @@ test("positions KaTeX foreignObjects from west and east math anchors", () => {
   assert.ok(Math.abs(eastX + eastWidth - 450) < 1e-6, `expected east edge at 450, got ${eastX + eastWidth}`);
 });
 
+test("positions mixed KaTeX text from its explicit west anchor", () => {
+  const svg = renderSvg({
+    items: [
+      {
+        type: "textNode",
+        x: 4,
+        y: 0,
+        svgTextAnchor: "start",
+        svgTextX: 1.25,
+        text: String.raw`$\sum_{i=1}^{10} x_i$, where $x_i \sim U(-1,1)$`,
+        style: { fill: "black" }
+      }
+    ],
+    coordinates: {}
+  });
+  const foreignObject = svg.match(/<foreignObject[^>]+>/)?.[0] || "";
+
+  assert.match(foreignObject, /\bx="125"/);
+  assert.match(svg, /class="tikz-rich-text"[^>]+align-items:flex-start[^>]+text-align:left/);
+});
+
 test("aligns inline fraction legend formulas to the same west anchor as ordinary formulas", () => {
   const svg = renderSvg(
     {

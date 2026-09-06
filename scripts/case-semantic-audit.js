@@ -128,6 +128,11 @@ const COMMAND_OWNERS = {
   usepackage: owner("src/packages/declarations.js", "stable", "latex.ltx"),
   usepgfplotslibrary: owner("src/pgfplots/axisOptions.js", "stable", "pgfplots.code.tex"),
   usetikzlibrary: owner("src/tikz/libraries/declarations.js", "stable", "tikz.code.tex"),
+  value: owner(
+    "src/frontend/latex-shell.js:expandDatavisualizationFunctions",
+    "partial",
+    "pgflibrarydatavisualization.formats.functions.code.tex"
+  ),
   year: owner("src/pgfplots/dateCoordinates.js:formatPgfplotsDateLabel", "partial")
 };
 

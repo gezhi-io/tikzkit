@@ -16,6 +16,7 @@ import {
 import {
   fontWeightAttribute,
   normalizedTextAlign,
+  svgTextAnchorPoint,
   textFontScale,
   textLineStyles
 } from "./textLayout.js";
@@ -41,14 +42,27 @@ export function renderRichTextNode(item, normalized, unit, deps = {}) {
   const displayFontSize = hasWrapWidth ? fontSize * KATEX_RICH_TEXT_FONT_SCALE : fontSize;
   const box = estimateRichTextBox(lines, displayFontSize, lineStyles);
   const width = hasWrapWidth ? wrapWidth * unit : box.width;
-  const align = item.textAlign ? normalizedTextAlign(item.textAlign) : hasWrapWidth ? "left" : "center";
+  const anchor = svgTextAnchorPoint(item, unit);
+  const align = anchor.anchor === "start"
+    ? "left"
+    : anchor.anchor === "end"
+      ? "right"
+      : item.textAlign
+        ? normalizedTextAlign(item.textAlign)
+        : hasWrapWidth
+          ? "left"
+          : "center";
   const alignItems = align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start";
   const fallback = renderPlainTextNode(richTextFallbackItem(item, align, hasWrapWidth), normalized, unit, {
     fitFontSizeToBox,
     formatTextLine,
     renderSvgTextLineContent
   });
-  const x = item.x * unit - width / 2;
+  const x = anchor.anchor === "start"
+    ? anchor.x
+    : anchor.anchor === "end"
+      ? anchor.x - width
+      : anchor.x - width / 2;
   const y = -item.y * unit - box.height / 2;
   const htmlLines = lines
     .map((line, index) => {

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "caseStatus": "accepted",
+  "localSources": [
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx",
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.formats.functions.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/datavisualization/pgflibrarydatavisualization.formats.functions.code.tex",
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledatavisualization.code.tex"
+  ],
+  "localSourceNotes": {
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/base/latex.ltx": {
+      "symbols": ["\\documentclass", "document environment"],
+      "findings": "The browser frontend removes the standalone document shell while the native reference keeps the same source body and border option."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty": {
+      "symbols": ["\\RequirePackage{tikz}"],
+      "findings": "The package wrapper activates the generic TikZ frontend used by the inline tikz command."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex": {
+      "symbols": ["\\tikz", "\\usetikzlibrary", "auto", "at end"],
+      "findings": "The inline picture command and auto node placement provide the path-local label anchor and border clipping semantics used by pin in data."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex": {
+      "symbols": ["visualize as smooth line", "visualize as scatter", "pin in data", "south east outside"],
+      "findings": "The label visualizer derives a normal from consecutive canvas positions; the outside legend is a south-west anchored one-column matrix offset from the data bounding box."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.formats.functions.code.tex": {
+      "symbols": ["data/format/function", "\\value"],
+      "findings": "The TikZ frontend selects the function data format and exposes each active variable through the value macro inside function expressions."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/datavisualization/pgflibrarydatavisualization.formats.functions.code.tex": {
+      "symbols": ["var", "interval", "samples", "func", "\\value"],
+      "findings": "Variables are sampled as a source-ordered Cartesian product and each func assignment is evaluated against the current variable values."
+    },
+    "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/modules/pgfmoduledatavisualization.code.tex": {
+      "symbols": ["survey", "visualize", "data point"],
+      "findings": "The native engine surveys data before visualization; the focused lowering preserves that ordering for range calculation, threshold selection, and visualizer routing."
+    }
+  },
+  "rules": [
+    {
+      "match": "command:*",
+      "status": "verified",
+      "evidence": [
+        "test/extensions.test.js",
+        "test/renderer.test.js",
+        "docs/qa/2026-09-06-datavisualization-pin-scatter.md"
+      ]
+    },
+    {
+      "match": "environment:*",
+      "status": "verified",
+      "evidence": [
+        "test/extensions.test.js",
+        "docs/qa/2026-09-06-datavisualization-pin-scatter.md"
+      ]
+    },
+    {
+      "match": "option:*",
+      "status": "verified",
+      "evidence": [
+        "test/extensions.test.js",
+        "docs/qa/2026-09-06-datavisualization-pin-scatter.md"
+      ]
+    },
+    {
+      "match": "number:*",
+      "status": "verified",
+      "evidence": [
+        "test/extensions.test.js",
+        "docs/qa/2026-09-06-datavisualization-pin-scatter.md"
+      ]
+    }
+  ]
+}

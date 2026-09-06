@@ -9,6 +9,7 @@ import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
 import { collectPgfPlotMarkDeclarations } from "../tikz/libraries/plotmarks.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
+import { texTextWidthCm } from "../tikz/textMetrics.js";
 import { libraryRoleFontCommand } from "../tex/fontPolicies.js";
 import { renderAddplot, renderCurrentPlotCoordinates } from "../pgfplots/addplotLowering.js";
 import {
@@ -8306,8 +8307,8 @@ function datavisualizationTickCountFromOption(raw, nested = {}) {
 }
 
 function datavisualizationPinLabelPoint(pin, axisOptions = {}) {
-  const scaled = datavisualizationScreenSpacePinLabelPoint(pin, axisOptions);
-  if (scaled) return scaled;
+  const layout = datavisualizationScreenSpacePinLayout(pin, axisOptions);
+  if (layout) return layout.edge;
   if (Number.isFinite(pin?.labelX) && Number.isFinite(pin?.labelY)) {
     return {
       x: pin.labelX,
@@ -8322,6 +8323,8 @@ function datavisualizationPinLabelPoint(pin, axisOptions = {}) {
 
 function datavisualizationPinTextPoint(pin, edgePoint, axisOptions = {}) {
   if (!pin || !edgePoint || !Number.isFinite(edgePoint.x) || !Number.isFinite(edgePoint.y)) return edgePoint;
+  const layout = datavisualizationScreenSpacePinLayout(pin, axisOptions);
+  if (layout) return layout.text;
   const xMin = Number(axisOptions.xmin);
   const xMax = Number(axisOptions.xmax);
   const yMin = Number(axisOptions.ymin);
@@ -8349,8 +8352,7 @@ function datavisualizationPinTextPoint(pin, edgePoint, axisOptions = {}) {
 
 function datavisualizationPinTextWidthCm(text) {
   const fallback = mathFallbackText(String(text || "")).replace(/\s+/g, " ").trim();
-  const charCount = Math.max(1, [...fallback].length);
-  return Math.max(0.32, Math.min(1.62, charCount * 0.12));
+  return Math.max(0.32, Math.min(2.4, texTextWidthCm(fallback)));
 }
 
 function datavisualizationPinEdgeStart(pin) {
@@ -8366,7 +8368,7 @@ function datavisualizationPinEdgeStart(pin) {
   };
 }
 
-function datavisualizationScreenSpacePinLabelPoint(pin, axisOptions = {}) {
+function datavisualizationScreenSpacePinLayout(pin, axisOptions = {}) {
   if (!pin || !Number.isFinite(pin.x) || !Number.isFinite(pin.y)) return null;
   const xMin = Number(axisOptions.xmin);
   const xMax = Number(axisOptions.xmax);
@@ -8380,12 +8382,10 @@ function datavisualizationScreenSpacePinLabelPoint(pin, axisOptions = {}) {
   const schoolBookPin = axisOptions["axis lines"] === "center" && !pin.pinLength && !Number.isFinite(pin.pinAngle);
   const exactHitPin = Boolean(pin.edgeExact) && !pin.pinLength && !Number.isFinite(pin.pinAngle);
   let distance = parseDimension(String(pin.pinLength || (exactHitPin ? "3ex" : schoolBookPin ? "2.85ex" : "2.62ex")), {});
-  const autoSideOffset = parseDimension("1.55em", {});
   if (
     !Number.isFinite(xScale) ||
     !Number.isFinite(yScale) ||
     !Number.isFinite(distance) ||
-    !Number.isFinite(autoSideOffset) ||
     distance <= 0
   )
     return null;
@@ -8399,8 +8399,14 @@ function datavisualizationScreenSpacePinLabelPoint(pin, axisOptions = {}) {
   } else {
     const prev = pin.previous || { x: pin.x - 1, y: pin.y };
     const next = pin.next || { x: pin.x + 1, y: pin.y };
-    const tangentX = (next.x - prev.x) * xScale || 1;
-    const tangentY = (next.y - prev.y) * yScale || 0;
+    let tangentX = ((pin.swap ? next.x : pin.x) - prev.x) * xScale;
+    let tangentY = ((pin.swap ? next.y : pin.y) - prev.y) * yScale;
+    if (Math.hypot(tangentX, tangentY) < 1e-9) {
+      tangentX = (next.x - pin.x) * xScale;
+      tangentY = (next.y - pin.y) * yScale;
+    }
+    tangentX ||= 1;
+    tangentY ||= 0;
     const length = Math.hypot(tangentX, tangentY) || 1;
     normalX = -tangentY / length;
     normalY = tangentX / length;
@@ -8413,29 +8419,58 @@ function datavisualizationScreenSpacePinLabelPoint(pin, axisOptions = {}) {
     const horizontalDistance = parseDimension("3ex", {});
     if (Number.isFinite(horizontalDistance)) distance = horizontalDistance;
   }
-  const leaderSideOffset = exactHitPin
-    ? 0
-    : datavisualizationPinSideSign(normalX) * datavisualizationAutoSideOffset(normalX, autoSideOffset) * (schoolBookPin ? 0.45 : 1);
-  const xOffset = (normalX * distance) / xScale + leaderSideOffset / xScale;
+  const autoSideOffset = pin.swap ? datavisualizationPinSideSign(normalX) * parseDimension("1.55em", {}) : 0;
+  const xOffset = (normalX * distance + autoSideOffset) / xScale;
   const yOffset = (normalY * distance) / yScale;
-  const normalPoint = {
+  let anchorPoint = {
     x: pin.x + xOffset,
     y: pin.y + yOffset
   };
   if (pin.swap) {
     const anchor = datavisualizationPinEdgeStart(pin);
+    anchorPoint = {
+      x: anchor.x - (anchorPoint.x - anchor.x),
+      y: anchor.y - (anchorPoint.y - anchor.y)
+    };
+    const textWidthCm = datavisualizationPinTextWidthCm(pin.text);
+    const textOffsetCm = Math.max(0.16, Math.min(0.34, textWidthCm * 0.21));
     return {
-      x: anchor.x - (normalPoint.x - anchor.x),
-      y: anchor.y - (normalPoint.y - anchor.y)
+      edge: anchorPoint,
+      text: {
+        x: anchorPoint.x - textOffsetCm / xScale,
+        y: anchorPoint.y - 0.27 / yScale
+      },
+      anchor: anchorPoint
     };
   }
 
-  return normalPoint;
-}
+  const edgeStart = datavisualizationPinEdgeStart(pin);
+  const directionX = (anchorPoint.x - edgeStart.x) * xScale;
+  const directionY = (anchorPoint.y - edgeStart.y) * yScale;
+  const innerSep = parseDimension("3.33333pt", {});
+  const textWidthCm = datavisualizationPinTextWidthCm(pin.text);
+  const halfWidth = (textWidthCm * 1.04) / 2 + innerSep;
+  const halfHeight = parseDimension("4pt", {}) + innerSep;
+  const nodeCenter = {
+    x: anchorPoint.x + (Math.sign(directionX || normalX) * halfWidth) / xScale,
+    y: anchorPoint.y + (Math.sign(directionY || normalY) * halfHeight) / yScale
+  };
+  const centerDx = (nodeCenter.x - edgeStart.x) * xScale;
+  const centerDy = (nodeCenter.y - edgeStart.y) * yScale;
+  const xEntry = Math.abs(centerDx) > 1e-9 ? 1 - halfWidth / Math.abs(centerDx) : 0;
+  const yEntry = Math.abs(centerDy) > 1e-9 ? 1 - halfHeight / Math.abs(centerDy) : 0;
+  const edgeFraction = Math.max(0, Math.min(1, xEntry), Math.min(1, yEntry));
+  const edge = {
+    x: edgeStart.x + (nodeCenter.x - edgeStart.x) * edgeFraction,
+    y: edgeStart.y + (nodeCenter.y - edgeStart.y) * edgeFraction
+  };
+  const textOffsetCm = Math.max(0.34, Math.min(0.37, textWidthCm * 0.22 + 0.25));
+  const text = {
+    x: edge.x + (Math.sign(directionX || normalX) * textOffsetCm) / xScale,
+    y: edge.y + (Math.sign(directionY || normalY) * 0.08) / yScale
+  };
 
-function datavisualizationAutoSideOffset(normalX, autoSideOffset) {
-  if (!Number.isFinite(normalX) || !Number.isFinite(autoSideOffset)) return 0;
-  return Math.abs(normalX) < 0.75 ? autoSideOffset : 0;
+  return { edge, text, anchor: anchorPoint };
 }
 
 function datavisualizationPinSideSign(normalX) {
