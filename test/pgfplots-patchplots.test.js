@@ -41,12 +41,12 @@ test("patchplots rectangle preserves the A-to-B-to-C-to-D vertex stream", () => 
 \usepgfplotslibrary{patchplots}
 \begin{document}
 \begin{tikzpicture}
-  \begin{axis}[view={45}{30},xmin=0,xmax=2,ymin=0,ymax=2,zmin=0,zmax=2]
+  \begin{axis}[view={45}{30},xmin=0,xmax=2,ymin=0,ymax=2,zmin=0,zmax=2,xlabel=$x$,ylabel=$y$,zlabel=$z$]
     \addplot3[patch,patch type=rectangle,draw=black,fill=cyan!50]
       coordinates {(0,0,0) (2,0,1) (2,2,2) (0,2,1)};
   \end{axis}
 \end{tikzpicture}
-\end{document}`);
+\end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
   const surfaces = result.ir.items.filter((item) => item.type === "path" && role(item) === "axis-surface");
@@ -54,10 +54,14 @@ test("patchplots rectangle preserves the A-to-B-to-C-to-D vertex stream", () => 
   const meshes = surfaces.filter((item) => item.style.stroke && item.style.stroke !== "none");
   assert.equal(fills.length, 1);
   assert.equal(meshes.length, 1);
+  assert.equal(fills[0].style.fill, "rgb(128 214 247)");
+  assert.equal(meshes[0].style.stroke, "rgb(204,153,0)");
   assert.equal(fills[0].commands.filter((command) => command.type === "lineTo").length, 3);
   assert.ok(fills[0].commands.some((command) => command.type === "closePath"));
   assert.equal(meshes[0].commands.filter((command) => command.type === "lineTo").length, 3);
   assert.ok(meshes[0].commands.some((command) => command.type === "closePath"));
+  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-z"/);
+  assert.doesNotMatch(result.svg, /<text[^>]*>\s*z\s*<\/text>/);
 });
 
 test("patchplots line renders one open two-vertex mapped-color segment", () => {
