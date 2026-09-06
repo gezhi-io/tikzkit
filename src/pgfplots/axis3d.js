@@ -130,10 +130,11 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     zTickFormat,
     zTickPrecision
   );
-  const layout = axis3DAnnotationLayout(ranges, geometry);
+  const layout = axis3DAnnotationLayout(axisOptions, ranges, geometry);
   const oppositeTickAxes = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, shouldRenderOpposite3DTicks(axisOptions, axis)]));
   const boxTickEdges = Object.values(oppositeTickAxes).some(Boolean) ? axis3DBoxTickEdges(axisOptions, ranges, geometry) : {};
   const center = Object.values(oppositeTickAxes).some(Boolean) ? projectedBoxCenter(ranges, geometry) : null;
+  const tickNormal = (axis, edge) => oppositeTickAxes[axis] ? annotationNormal(edge, center, axis) : edge.normal;
   const minorTickLength = parseDimension(String(axisOptions["minor tick length"] || axisOptions.subtickwidth || "0.1cm"), {});
   for (const [axis, values] of Object.entries(minorTicks)) {
     for (const value of values) {
@@ -144,7 +145,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
           ? { x: edge.x, y: value, z: edge.z }
           : { x: edge.x, y: edge.y, z: value };
       const base = geometry.mapPoint3d(coordinate);
-      const to = offsetAlongNormal(base, invertVector(edge.normal), minorTickLength);
+      const to = offsetAlongNormal(base, invertVector(tickNormal(axis, edge)), minorTickLength);
       const minorStyle = "axis minor tick, gray, line width=0.2pt";
       commands.push(`\\draw[${minorStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
       if (oppositeTickAxes[axis]) {
@@ -155,7 +156,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   for (const [index, x] of resolvedXTicks.entries()) {
     const tickStyle = axis3DTickStyle(axisOptions, "x");
     const base = geometry.mapPoint3d({ x, y: layout.x.y, z: layout.x.z });
-    const to = offsetAlongNormal(base, invertVector(layout.x.normal), tickLength);
+    const to = offsetAlongNormal(base, invertVector(tickNormal("x", layout.x)), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.x) commands.push(...additionalBoxTickCommands("x", x, layout.x, boxTickEdges.x, center, geometry, tickStyle, tickLength));
     if (labels.x[index] !== "") {
@@ -166,7 +167,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   for (const [index, y] of resolvedYTicks.entries()) {
     const tickStyle = axis3DTickStyle(axisOptions, "y");
     const base = geometry.mapPoint3d({ x: layout.y.x, y, z: layout.y.z });
-    const to = offsetAlongNormal(base, invertVector(layout.y.normal), tickLength);
+    const to = offsetAlongNormal(base, invertVector(tickNormal("y", layout.y)), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.y) commands.push(...additionalBoxTickCommands("y", y, layout.y, boxTickEdges.y, center, geometry, tickStyle, tickLength));
     if (labels.y[index] !== "") {
@@ -177,7 +178,7 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   for (const [index, z] of resolvedZTicks.entries()) {
     const tickStyle = axis3DTickStyle(axisOptions, "z");
     const base = geometry.mapPoint3d({ x: layout.z.x, y: layout.z.y, z });
-    const to = offsetAlongNormal(base, invertVector(layout.z.normal), tickLength);
+    const to = offsetAlongNormal(base, invertVector(tickNormal("z", layout.z)), tickLength);
     commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
     if (oppositeTickAxes.z) commands.push(...additionalBoxTickCommands("z", z, layout.z, boxTickEdges.z, center, geometry, tickStyle, tickLength));
     if (labels.z[index] !== "") {
@@ -221,7 +222,8 @@ function appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout,
           ? { x: edge.x, y: value, z: edge.z }
           : { x: edge.x, y: edge.y, z: value };
       const base = geometry.mapPoint3d(coordinate);
-      const to = offsetAlongNormal(base, invertVector(edge.normal), tickLength);
+      const primaryTickNormal = opposite ? annotationNormal(edge, center, axis) : edge.normal;
+      const to = offsetAlongNormal(base, invertVector(primaryTickNormal), tickLength);
       commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
       if (opposite) {
         commands.push(...additionalBoxTickCommands(axis, value, edge, boxTickEdges[axis], center, geometry, tickStyle, tickLength));
@@ -468,38 +470,67 @@ function axis3DBoxTickEdges(axisOptions, ranges, geometry) {
 function axis3DParallelEdges(ranges, geometry) {
   return {
     x: [
-      projectedEdge(geometry, { y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }),
-      projectedEdge(geometry, { y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax }),
-      projectedEdge(geometry, { y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMin }),
-      projectedEdge(geometry, { y: ranges.yMax, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
+      projectedEdge(geometry, ranges, { y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }),
+      projectedEdge(geometry, ranges, { y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax }),
+      projectedEdge(geometry, ranges, { y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMin }),
+      projectedEdge(geometry, ranges, { y: ranges.yMax, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
     ],
     y: [
-      projectedEdge(geometry, { x: ranges.xMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }),
-      projectedEdge(geometry, { x: ranges.xMin, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }),
-      projectedEdge(geometry, { x: ranges.xMax, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMin }),
-      projectedEdge(geometry, { x: ranges.xMax, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
+      projectedEdge(geometry, ranges, { x: ranges.xMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }),
+      projectedEdge(geometry, ranges, { x: ranges.xMin, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }),
+      projectedEdge(geometry, ranges, { x: ranges.xMax, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMin }),
+      projectedEdge(geometry, ranges, { x: ranges.xMax, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
     ],
     z: [
-      projectedEdge(geometry, { x: ranges.xMin, y: ranges.yMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }),
-      projectedEdge(geometry, { x: ranges.xMin, y: ranges.yMax }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }),
-      projectedEdge(geometry, { x: ranges.xMax, y: ranges.yMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax }),
-      projectedEdge(geometry, { x: ranges.xMax, y: ranges.yMax }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
+      projectedEdge(geometry, ranges, { x: ranges.xMin, y: ranges.yMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }),
+      projectedEdge(geometry, ranges, { x: ranges.xMin, y: ranges.yMax }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMin, y: ranges.yMax, z: ranges.zMax }),
+      projectedEdge(geometry, ranges, { x: ranges.xMax, y: ranges.yMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMin, z: ranges.zMax }),
+      projectedEdge(geometry, ranges, { x: ranges.xMax, y: ranges.yMax }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMin }, { x: ranges.xMax, y: ranges.yMax, z: ranges.zMax })
     ]
   };
 }
 
-function projectedEdge(geometry, edge, from, to) {
+function projectedEdge(geometry, ranges, edge, from, to) {
   const projectedFrom = finitePoint(geometry.mapPoint3d(from));
   const projectedTo = finitePoint(geometry.mapPoint3d(to));
   return {
     ...edge,
     from: projectedFrom,
     to: projectedTo,
+    outerNormal: projectedOuterNormal(geometry, ranges, edge, from, to),
     midpoint: {
       x: (projectedFrom.x + projectedTo.x) / 2,
       y: (projectedFrom.y + projectedTo.y) / 2
     }
   };
+}
+
+function projectedOuterNormal(geometry, ranges, edge, from, to) {
+  const varyingAxis = ["x", "y", "z"].find((axis) => edge[axis] === undefined);
+  const midpoint = {
+    x: (from.x + to.x) / 2,
+    y: (from.y + to.y) / 2,
+    z: (from.z + to.z) / 2
+  };
+  const projectedMidpoint = finitePoint(geometry.mapPoint3d(midpoint));
+  const components = [];
+  for (const axis of ["x", "y", "z"]) {
+    if (axis === varyingAxis) continue;
+    const min = Number(ranges[`${axis}Min`]);
+    const max = Number(ranges[`${axis}Max`]);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || Math.abs(max - min) < 1e-12) continue;
+    const current = Number(edge[axis]);
+    const interiorValue = Math.abs(current - min) <= Math.abs(current - max) ? max : min;
+    const interiorPoint = { ...midpoint, [axis]: interiorValue };
+    const inward = normalizedVector(projectedMidpoint, finitePoint(geometry.mapPoint3d(interiorPoint)));
+    if (inward) components.push({ x: -inward.x, y: -inward.y });
+  }
+  if (!components.length) return null;
+  const sum = components.reduce((result, component) => ({
+    x: result.x + component.x,
+    y: result.y + component.y
+  }), { x: 0, y: 0 });
+  return normalizedVector({ x: 0, y: 0 }, sum);
 }
 
 function chooseProjectedEdge(edges, coordinate, direction = "min") {
@@ -538,16 +569,17 @@ function boxTickCommand(axis, value, edge, center, geometry, style, length) {
   return `\\draw[${style}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`;
 }
 
-function axis3DAnnotationLayout(ranges, geometry) {
+function axis3DAnnotationLayout(axisOptions, ranges, geometry) {
   const edges = axis3DTickLabelEdges(ranges, geometry);
   const center = projectedBoxCenter(ranges, geometry);
   return Object.fromEntries(Object.entries(edges).map(([axis, edge]) => {
-    const normal = annotationNormal(edge, center, axis);
+    const normal = annotationNormal(edge, center, axis, shouldRenderOpposite3DTicks(axisOptions, axis));
     return [axis, { ...edge, normal, anchor: anchorForOutwardNormal(normal) }];
   }));
 }
 
-function annotationNormal(edge, center, axis) {
+function annotationNormal(edge, center, axis, useProjectedAxisNormal = false) {
+  if (useProjectedAxisNormal && edge.outerNormal) return edge.outerNormal;
   const tangent = normalizedVector(edge.from, edge.to);
   const outward = normalizedVector(center, edge.midpoint);
   if (!tangent) return outward || axisFallbackNormal(axis);
@@ -723,7 +755,7 @@ function dedupeAdjacentCommands(commands) {
 
 export function renderAxisLabels3D(axisOptions, ranges, geometry) {
   const commands = [];
-  const layout = axis3DAnnotationLayout(ranges, geometry);
+  const layout = axis3DAnnotationLayout(axisOptions, ranges, geometry);
   if (axisOptions.xlabel) {
     const placement = axis3DAxisLabelPlacement(axisOptions, "x", axisOptions.xlabel, ranges, geometry, layout);
     commands.push(axis3DAxisLabelCommand("x", axisOptions.xlabel, placement));
@@ -759,7 +791,7 @@ function axis3DAxisLabelCommand(axis, text, placement) {
   ])}] at ${formatAxisPoint(placement.point)} {${text}};`;
 }
 
-function axis3DAxisLabelPlacement(axisOptions, axis, text, ranges, geometry, layout = axis3DAnnotationLayout(ranges, geometry)) {
+function axis3DAxisLabelPlacement(axisOptions, axis, text, ranges, geometry, layout = axis3DAnnotationLayout(axisOptions, ranges, geometry)) {
   const edge = layout[axis];
   const style = axis3DLabelStyleOptions(axisOptions, axis);
   const font = roleFontOption("axisLabel", axisOptions, axis3DFontOption(axisOptions, axis, "label"));
@@ -1156,7 +1188,7 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
     minY: projected.minY - finiteNonNegative(margin.bottom),
     maxY: projected.maxY + finiteNonNegative(margin.top)
   };
-  const layout = axis3DAnnotationLayout(ranges, geometry);
+  const layout = axis3DAnnotationLayout(axisOptions, ranges, geometry);
   const ticks = axis3DTickValues(axisOptions, ranges, geometry);
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
   const zLog = isLogAxis(axisOptions, "z");

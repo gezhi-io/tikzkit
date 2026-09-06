@@ -870,10 +870,10 @@ function pgfplotsBuiltinColormaps(name) {
   if (normalizedName === "hot") {
     return {
       hot: [
-        { position: 0, color: "blue" },
-        { position: 1, color: "yellow" },
-        { position: 2, color: "orange" },
-        { position: 3, color: "red" }
+        { position: 0, color: "rgb(0 0 255)" },
+        { position: 1, color: "rgb(255 255 0)" },
+        { position: 2, color: "rgb(255 128 0)" },
+        { position: 3, color: "rgb(255 0 0)" }
       ]
     };
   }

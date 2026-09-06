@@ -132,3 +132,40 @@ Implement a separate high-order patch family or a narrowly scoped
 per-vertex-mapped interpolation path. It needs the real ordered control-point
 and shader semantics from the local patchplots sources; it should not be
 hidden inside this open two-vertex primitive.
+
+## 2026-09-06 Perspective Annotation Follow-up
+
+The line itself was already present, but this fixture exposed a shared 3D
+axis defect: the `x=2` and `y=0` labels at the lower projected corner were
+only about `0.21cm` apart and appeared as `20` in the browser. This follow-up
+keeps the acceptance boundary to boxed perspective annotation geometry and
+the built-in `hot` color stops used by the line patch.
+
+Additional local source review:
+
+- `/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplotscoordprocessing.code.tex`, especially `\pgfplotspointouternormalvectorofaxis` and the near-ticklabel anchor calculation;
+- `/usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.code.tex`, for the 3D `ticklabel cs` midpoint and `anchor=near ticklabel` defaults;
+- `pgfplots.libs.patchplots.tex` inside `/usr/local/texlive/2025/texmf-dist/doc/latex/pgfplots/pgfplots.doc.src.tar.bz2`, confirming that the library adds high-order patch classes while the line class remains the base two-vertex handler.
+
+PGFPlots computes an outer normal by taking the two fixed coordinate-axis
+projection vectors, choosing each boundary's outward sign, normalizing the
+two vectors independently, adding them, and normalizing the result. A simple
+screen-space perpendicular to the visible edge is not equivalent under an
+oblique 3D projection. TikZKit now follows the source algorithm. The shared
+corner label centers are `0.349cm` apart in the focused regression and render
+as separate `2` and `0` glyphs in the browser. The built-in `hot` colormap
+also keeps explicit PGF RGB stops, producing `rgb(255 191.5 0)` at the
+midpoint versus tikztosvg's rasterized `rgb(255 190.86 0)`.
+
+The before and after directories both contain TikZKit SVG/PNG, tikztosvg
+SVG/PNG, MacTeX PNG, registered diffs, and four-panel native sheets:
+
+- `outputs/qa/2026-09-06-pgfplots-patchplots-line-before/`
+- `outputs/qa/2026-09-06-pgfplots-patchplots-line-after/`
+
+The after render has zero diagnostics. Visual inspection confirms that the
+open diagonal, its endpoints, `1.2pt` stroke, butt linecap, miter join, and
+clip behavior remain intact while the lower tick collision is removed.
+Focused patchplots and 3D-label tests pass `10/10`; the full suite finishes
+with `2361` passing, `134` existing failures, and `14` skipped, improving the
+pre-change baseline by one passing test with no new failures.

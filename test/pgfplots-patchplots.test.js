@@ -82,6 +82,18 @@ test("patchplots line renders one open two-vertex mapped-color segment", () => {
   assert.equal(surfaces[0].style.fill, "none");
   assert.equal(surfaces[0].style.stroke, "rgb(255 191.5 0)");
   assert.ok(Math.abs(surfaces[0].style.lineWidth - 4.217517642992186) < 1e-9);
+
+  const tickLabels = result.ir.items.filter(
+    (item) => item.type === "textNode" && /^[012]$/u.test(item.text)
+  );
+  const xMaxLabel = tickLabels[2];
+  const yMinLabel = tickLabels[3];
+  assert.ok(xMaxLabel && yMinLabel, "expected x=2 and y=0 labels at the shared projected corner");
+  assert.ok(
+    yMinLabel.x - xMaxLabel.x > 0.34,
+    `PGFPlots outer normals should keep shared-corner tick labels separate, got ${yMinLabel.x - xMaxLabel.x}cm`
+  );
+  assert.ok(Math.abs(yMinLabel.y - xMaxLabel.y) < 0.01);
 });
 
 test("patchplots declaration resolves to its dedicated partial library module", () => {

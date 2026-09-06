@@ -2215,9 +2215,9 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
   assert.ok(tickCommands.some((command) => command.includes("axis tick label") && command.endsWith("{1};")));
 
   assert.deepEqual(renderAxisLabels3D({ xlabel: "$x$", ylabel: "$y$", zlabel: "$z$", title: "Surface" }, ranges, geometry), [
-    String.raw`\node[axis label, anchor=center] at (0.5,-0.682) {$x$};`,
-    String.raw`\node[axis label, anchor=center] at (-0.951,0.601) {$y$};`,
-    String.raw`\node[axis label, anchor=center, rotate=90] at (-0.905,0.5) {$z$};`,
+    String.raw`\node[axis label, anchor=center] at (0.324,-0.746) {$x$};`,
+    String.raw`\node[axis label, anchor=center] at (-0.883,-0.833) {$y$};`,
+    String.raw`\node[axis label, anchor=center, rotate=90] at (-0.913,-0.064) {$z$};`,
     String.raw`\node[axis label, anchor=south] at (0.55,1.45) {Surface};`
   ]);
 });
