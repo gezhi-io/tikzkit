@@ -1,4 +1,5 @@
 import { isPgfplotsIntervalPlot } from "./histogram.js";
+import { pgfplotsCompatAtLeast } from "./compat.js";
 
 const COORDINATE_EPSILON = 1e-9;
 
@@ -84,10 +85,10 @@ function normalizeStackedAxisOptions(axisOptions, options) {
   const stackDirection = normalizedChoice(axisOptions["stack dir"], barDirection);
   const negativeMode = normalizedNegativeMode(
     axisOptions["stack negative"],
-    compatAtLeast(compat, 1.13) ? "separate" : "on previous"
+    compatAtLeast(compat, "1.13") ? "separate" : "on previous"
   );
   const ignoresZero = axisOptions["stacked ignores zero"] === undefined
-    ? (interval ? false : compatAtLeast(compat, 1.9))
+    ? (interval ? false : compatAtLeast(compat, "1.9"))
     : axisOptions["stacked ignores zero"];
 
   const normalized = {
@@ -160,23 +161,7 @@ function optionEnabled(value, fallback) {
   return !["false", "0", "none", "off", "no"].includes(String(value).trim().toLowerCase());
 }
 
+// Stacked plots historically treat an undeclared compat level as `newest`.
 function compatAtLeast(raw, minimum) {
-  const value = String(raw ?? "newest").trim().toLowerCase();
-  if (!value || value === "newest") return true;
-  const actualParts = versionParts(value);
-  const minimumParts = versionParts(String(minimum));
-  if (!actualParts || !minimumParts) return true;
-  const length = Math.max(actualParts.length, minimumParts.length);
-  for (let index = 0; index < length; index += 1) {
-    const actual = actualParts[index] || 0;
-    const required = minimumParts[index] || 0;
-    if (actual !== required) return actual > required;
-  }
-  return true;
-}
-
-function versionParts(value) {
-  const match = String(value).trim().match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
-  if (!match) return null;
-  return match.slice(1).filter((part) => part !== undefined).map(Number);
+  return pgfplotsCompatAtLeast(raw, minimum, { unset: true });
 }

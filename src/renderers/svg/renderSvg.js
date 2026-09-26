@@ -63,7 +63,10 @@ export function renderSvg(ir, options = {}) {
   const viewBox = svgViewBox(view);
 
   const body = [];
-  const background = options.background === undefined ? "white" : options.background;
+  // TikZ and tikztosvg emit a transparent canvas by default; a background is
+  // painted only when the caller asks for one (or a plot shader requires an
+  // opaque ground, which the item renderer adds through the scene graph).
+  const background = options.background === undefined ? "none" : options.background;
   body.push(renderSvgBackground(view, background));
   const itemMarkup = [];
   for (let index = 0; index < items.length; index += 1) {

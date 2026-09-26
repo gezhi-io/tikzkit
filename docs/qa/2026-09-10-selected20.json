@@ -1,0 +1,22 @@
+[
+  "circuitikz-waveform-dimensions-algorithm",
+  "circuitikz-waveform-dimensions-physics",
+  "datavisualization-scatter-south-east-outside",
+  "decorations-markings-position-actions-flowchart",
+  "decorations-markings-position-actions-math",
+  "graphs-node-text-physics",
+  "pgfplots-3d-extra-ticks-algorithm",
+  "pgfplots-3d-extra-ticks-math",
+  "pgfplots-3d-extra-ticks-physics",
+  "pgfplots-colorbar-top-algorithm",
+  "pgfplots-colorbar-top-math",
+  "pgfplots-colorbar-top-physics",
+  "pgfplots-log-axis-physics",
+  "plotmarks-mark-options-math",
+  "shapes-rectangle-split-empty-rules-flowchart",
+  "shapes-rectangle-split-empty-rules-physics",
+  "shapes-trapezium-rotation-math",
+  "trees-child-foreach-math",
+  "trees-edge-path-math",
+  "trees-missing-physics"
+]

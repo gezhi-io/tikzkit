@@ -8783,6 +8783,22 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-decorations.tex",
       "semanticOwner": "src/engine/evaluate.js:decorationTextEffects;src/renderers/svg/decorationText.js:renderRepeatedDecorationText",
       "features": ["text effects along path", "path-filling repeat", "character count and total variables", "per-character scale expression", "explicit control-space token", "foreach arc spiral", "curved tangent placement"]
+    },
+    {
+      "id": "etex-integer-shades",
+      "title": "Rounded e-TeX integer expressions in foreach colors",
+      "source": "workbench/etex-integer-shades.tex",
+      "sourceCorpus": "TikZKit regression derived from the local e-TeX expressions manual",
+      "semanticOwner": "src/tex/etexArithmetic.js:expandTheNumexpr;src/engine/evaluate.js:interpretStatementBody",
+      "features": ["the numexpr", "rounded division", "foreach variable", "computed color"]
+    },
+    {
+      "id": "matrix-style-precedence",
+      "title": "Matrix column, parity, row and cell style precedence",
+      "source": "workbench/matrix-style-precedence.tex",
+      "sourceCorpus": "TikZKit regression derived from the local TikZ matrix inner style order",
+      "semanticOwner": "src/tikz/libraries/matrix.js:matrixCellStyleLayers;src/engine/evaluate.js:createMatrix",
+      "features": ["matrix of nodes", "column style", "odd column style", "row style", "cell style"]
     }
   ]
 }

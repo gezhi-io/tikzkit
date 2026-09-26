@@ -2,14 +2,17 @@ import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
-import { isMiddleAxis } from "./geometry.js";
+import { axisTickLabelNormalExtent, isMiddleAxis } from "./geometry.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
+import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
 
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
 const PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING = "1.98pt";
 const PGFPLOTS_PLAIN_AXIS_LABEL_WIDTH_SCALE = 1.06;
+const PGFPLOTS_ABSOLUTE_XLABEL_SHIFT = parseDimension("15pt", {});
+const PGFPLOTS_ABSOLUTE_YLABEL_SHIFT = parseDimension("35pt", {});
 
 export function createAxisLabelModel(axisOptions = {}) {
   return {
@@ -83,18 +86,30 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
   if (axisOptions.ylabel && !pgfplotsAxisHidden(axisOptions, "y")) {
     const ylabelStyle = axisOptions["ylabel style"] || axisOptions["y label style"];
     const rotation = axisLabelRotation(ylabelStyle, yAxisMiddle || datavisLabelPlacement === "upright" ? null : 90);
+    const boxedYLabel = datavisLabelPlacement !== "upright" && !yAxisMiddle && !isLeftOpenAxis(axisOptions);
+    const nearTicks = pgfplotsLabelsNearTicks(axisOptions);
     const ylabelXOffset =
       datavisLabelPlacement === "upright" && !yAxisMiddle
         ? (axisOptions["datavis clean axes"] ? parseAxisCleanPadding(axisOptions) : 0) + Math.max(0.48, xOffset * 1.8)
         : isLeftOpenAxis(axisOptions)
           ? Math.max(xOffset * 1.65, 0.7)
-          : Math.max(xOffset * 2.6, 1.1);
+          : nearTicks
+            // `ylabel near ticks`: at={(ticklabel cs:0.5)}, anchor=near ticklabel.
+            ? axisTickOutwardProjection(axisOptions, "y") +
+              axisTickLabelNormalExtent(axisOptions, "y", ranges, { width: geometry.width, height: geometry.height })
+            // `ylabel absolute`: at={(0,0.5)}, xshift=-35pt, rotate=90.
+            : PGFPLOTS_ABSOLUTE_YLABEL_SHIFT;
     const point = yAxisMiddle
       ? geometry.mapPoint({ x: xAxis, y: labelRanges.yMax })
       : offsetPoint(geometry.mapPoint({ x: ranges.xMin, y: (ranges.yMin + ranges.yMax) / 2 }), -ylabelXOffset, 0);
+    const defaultYLabelAnchor = yAxisMiddle
+      ? "north west"
+      : boxedYLabel && nearTicks
+        ? nearTicklabelAnchorFacingEast(rotation)
+        : rotation !== null ? "center" : "east";
     const placement = applyAxisLabelStyle(
       point,
-      yAxisMiddle ? "north west" : rotation !== null ? "center" : "east",
+      defaultYLabelAnchor,
       ylabelStyle,
       {
       geometry,
@@ -229,13 +244,9 @@ function parseAxisLabelOffset(value, fallback) {
 
 function defaultXAxisLabelOffset(axisOptions = {}, geometry = {}, fallback, middleAxis) {
   if (middleAxis) return fallback;
-  const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
-  const alignment = String(axisOptions["xtick align"] ?? axisOptions["tick align"] ?? "inside").trim().toLowerCase();
-  const tickProjection = alignment === "outside"
-    ? tickLength
-    : alignment === "center"
-      ? tickLength / 2
-      : 0;
+  // `xlabel absolute` (the initial compat level): at={(0.5,0)}, below, yshift=-15pt.
+  if (!pgfplotsLabelsNearTicks(axisOptions)) return PGFPLOTS_ABSOLUTE_XLABEL_SHIFT;
+  const tickProjection = axisTickOutwardProjection(axisOptions, "x");
   const tickFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "x"));
   const tickFontSizePt = Number(parseTikzFontPatch(tickFont).sizePt) || 10;
   // `xlabel near ticks` resolves through PGFPlots' `ticklabel cs`: it shifts
@@ -247,6 +258,34 @@ function defaultXAxisLabelOffset(axisOptions = {}, geometry = {}, fallback, midd
   const defaultTickInnerSep = parseDimension(`${tickFontSizePt * 0.3333}pt`, {});
   const tickInnerSep = explicitTickLabelInnerSep(axisOptions, "x") || defaultTickInnerSep;
   return Math.max(fallback, tickProjection + tickGlyphHeight + tickInnerSep * 2);
+}
+
+// PGFPlots' `compat/labels`: the initial `default` level maps to `pre 1.3`,
+// which installs `xlabel absolute`/`ylabel absolute`; 1.3 and newer install
+// `xlabel near ticks`/`ylabel near ticks`.
+function pgfplotsLabelsNearTicks(axisOptions = {}) {
+  return pgfplotsCompatAtLeast(pgfplotsCompatLevel(axisOptions), "1.3");
+}
+
+// How far a major tick reaches outside the axis line, which `ticklabel cs`
+// adds before the tick labels.
+function axisTickOutwardProjection(axisOptions = {}, axis) {
+  const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
+  const alignment = String(axisOptions[`${axis}tick align`] ?? axisOptions["tick align"] ?? "inside").trim().toLowerCase();
+  if (alignment === "outside") return tickLength;
+  if (alignment === "center") return tickLength / 2;
+  return 0;
+}
+
+// `anchor=near ticklabel` picks the side of the label node that faces the
+// tick labels. For the left y axis that side points east after rotation.
+function nearTicklabelAnchorFacingEast(rotation) {
+  const turn = (((Math.round(Number(rotation) || 0) % 360) + 360) % 360);
+  if (turn === 90) return "south";
+  if (turn === 270) return "north";
+  if (turn === 180) return "west";
+  if (turn === 0) return "east";
+  return "center";
 }
 
 function axisTickLabelFontOption(axisOptions = {}, axis) {

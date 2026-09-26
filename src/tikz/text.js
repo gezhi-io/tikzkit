@@ -1595,6 +1595,8 @@ export function mathFallbackText(tex) {
     .replace(/\\blacktriangleright/g, "▶")
     .replace(/\\blacktriangleleft/g, "◀")
     .replace(/\\lbrace(?![A-Za-z])/g, MATH_FALLBACK_LBRACE)
+    .replace(/\\langle(?![A-Za-z])\s*/g, "⟨")
+    .replace(/\\rangle(?![A-Za-z])\s*/g, "⟩")
     .replace(/\\\{/g, MATH_FALLBACK_LBRACE)
     .replace(/\\rbrace(?![A-Za-z])/g, MATH_FALLBACK_RBRACE)
     .replace(/\\\}/g, MATH_FALLBACK_RBRACE)

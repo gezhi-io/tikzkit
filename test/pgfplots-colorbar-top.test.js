@@ -7,7 +7,7 @@ import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 
 const ranges = { xMin: -2, xMax: 2, yMin: -2, yMax: 2, zMin: -1, zMax: 1 };
 
-function render(style, rangeOverrides = {}) {
+function render(style, rangeOverrides = {}, optionOverrides = {}) {
   const currentRanges = { ...ranges, ...rangeOverrides };
   const axisOptions = {
     width: "10cm",
@@ -15,7 +15,8 @@ function render(style, rangeOverrides = {}) {
     view: "{35}{25}",
     "pgfplots 3d surface": true,
     "colorbar horizontal": true,
-    "colorbar style": style
+    "colorbar style": style,
+    ...optionOverrides
   };
   const geometry = createAxisGeometry(axisOptions, currentRanges);
   return {
@@ -27,6 +28,27 @@ function render(style, rangeOverrides = {}) {
 function points(command) {
   return [...String(command || "").matchAll(/\(([-+\d.]+),([-+\d.]+)\)/g)]
     .map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
+}
+
+for (const orientation of ["horizontal", "right", "left"]) {
+  test(`pgfplots ${orientation} colorbar positions all compass anchors at the requested point`, () => {
+    const options = { "colorbar horizontal": orientation === "horizontal", colorbar: orientation };
+    const rectangle = (anchor) => points(render(
+      `{at={(0.5,1.08)},anchor=${anchor},width=2cm,height=0.4cm}`,
+      {}, options
+    ).commands.find((command) => command.includes("axis colorbar frame")));
+    const centered = rectangle("center");
+    const at = { x: (centered[0].x + centered[2].x) / 2, y: (centered[0].y + centered[2].y) / 2 };
+    for (const [anchor, fx, fy] of [
+      ["south west", 0, 0], ["south", 0.5, 0], ["south east", 1, 0],
+      ["west", 0, 0.5], ["center", 0.5, 0.5], ["east", 1, 0.5],
+      ["north west", 0, 1], ["north", 0.5, 1], ["north east", 1, 1]
+    ]) {
+      const box = rectangle(anchor);
+      assert.ok(Math.abs(box[0].x + 2 * fx - at.x) < 0.00001, `${anchor} x`);
+      assert.ok(Math.abs(box[0].y + 0.4 * fy - at.y) < 0.00001, `${anchor} y`);
+    }
+  });
 }
 
 test("pgfplots horizontal colorbar can anchor above the parent with upper ticks", () => {

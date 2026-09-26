@@ -1587,3 +1587,9 @@ function parseStyleLength(value, lineWidth, variables = {}) {
 function optionValues(value) {
   return Array.isArray(value) ? value : [value];
 }
+
+export function tikzBoolean(value) {
+  if (value === undefined || value === null || value === false) return false;
+  if (value === true || value === "") return true;
+  return !/^(?:false|0|no|off)$/i.test(String(value).trim());
+}

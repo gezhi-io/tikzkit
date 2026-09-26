@@ -7,7 +7,7 @@ import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./
 import { axisHasExplicitDescriptionPlacement, isMiddleAxis } from "./geometry.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
 import { isLogAxis } from "./ranges.js";
-import { axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
+import { axisLogBase, axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
 import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
 
 const PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE = 1.0001;
@@ -204,6 +204,7 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const oppositeXBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "x");
   const oppositeYBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "y");
   const innerBoxTicks = shouldRenderInsideBoxTicks(axisOptions);
+  const boxTickAlignment = usesPgfplotsBoxTickAlignment(axisOptions);
   const boxRanges = isBoxAxis(axisOptions) ? geometry.transformRanges || ranges : ranges;
   const yAxis = xLineMode === "top"
     ? boxRanges.yMax
@@ -218,7 +219,9 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     const [from, to] =
       middleAxis && !xMinorTickVisual
         ? alignedMiddleAxisTickSegment(base, "x", minorTickLength, xTickAlignment)
-        : axisTickSegment(base, xMinorTickVisual, "x", 0, innerBoxTicks ? minorTickLength : -minorTickLength);
+        : boxTickAlignment && !xMinorTickVisual
+          ? alignedBoxAxisTickSegment(base, "x", minorTickLength, xTickAlignment, 1)
+          : axisTickSegment(base, xMinorTickVisual, "x", 0, innerBoxTicks ? minorTickLength : -minorTickLength);
     commands.push(`\\draw[${xMinorTickVisual?.style || xMinorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
   });
   xTicks.forEach((x, index) => {
@@ -238,11 +241,16 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     const [from, to] =
       middleAxis && !xMajorTickVisual
         ? alignedMiddleAxisTickSegment(base, "x", tickLength, xTickAlignment)
-        : axisTickSegment(base, xMajorTickVisual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
+        : boxTickAlignment && !xMajorTickVisual
+          ? alignedBoxAxisTickSegment(base, "x", tickLength, xTickAlignment, 1)
+          : axisTickSegment(base, xMajorTickVisual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
     commands.push(`\\draw[${xMajorTickVisual?.style || xTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
     if (oppositeXBoxTicks) {
       const topBase = geometry.mapPoint({ x, y: boxRanges.yMax });
-      commands.push(`\\draw[${xTickStyle}] ${formatAxisPoint(topBase)} -- ${formatAxisPoint(offsetPoint(topBase, 0, innerBoxTicks ? -tickLength : tickLength))};`);
+      const [topFrom, topTo] = boxTickAlignment
+        ? alignedBoxAxisTickSegment(topBase, "x", tickLength, xTickAlignment, -1)
+        : [topBase, offsetPoint(topBase, 0, innerBoxTicks ? -tickLength : tickLength)];
+      commands.push(`\\draw[${xTickStyle}] ${formatAxisPoint(topFrom)} -- ${formatAxisPoint(topTo)};`);
     }
     const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(x, ranges.xMin, ranges.xMax));
     if (xMajorTickVisual && shouldShowXLabel) {
@@ -307,7 +315,9 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     const [from, to] =
       middleAxis && !yMinorTickVisual
         ? alignedMiddleAxisTickSegment(base, "y", minorTickLength, yTickAlignment)
-        : axisTickSegment(base, yMinorTickVisual, "y", innerBoxTicks ? minorTickLength : -minorTickLength, 0);
+        : boxTickAlignment && !yMinorTickVisual
+          ? alignedBoxAxisTickSegment(base, "y", minorTickLength, yTickAlignment, 1)
+          : axisTickSegment(base, yMinorTickVisual, "y", innerBoxTicks ? minorTickLength : -minorTickLength, 0);
     commands.push(`\\draw[${yMinorTickVisual?.style || yMinorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
   });
   yTicks.forEach((y, index) => {
@@ -318,13 +328,18 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     const [from, to] =
       middleAxis && !yMajorTickVisual
         ? alignedMiddleAxisTickSegment(base, "y", tickLength, yTickAlignment)
-        : axisTickSegment(base, yMajorTickVisual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
+        : boxTickAlignment && !yMajorTickVisual
+          ? alignedBoxAxisTickSegment(base, "y", tickLength, yTickAlignment, 1)
+          : axisTickSegment(base, yMajorTickVisual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
     if (!schoolBookOriginLabel) {
       commands.push(`\\draw[${yMajorTickVisual?.style || yTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
     }
     if (oppositeYBoxTicks) {
       const rightBase = geometry.mapPoint({ x: boxRanges.xMax, y });
-      commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightBase)} -- ${formatAxisPoint(offsetPoint(rightBase, innerBoxTicks ? -tickLength : tickLength, 0))};`);
+      const [rightFrom, rightTo] = boxTickAlignment
+        ? alignedBoxAxisTickSegment(rightBase, "y", tickLength, yTickAlignment, -1)
+        : [rightBase, offsetPoint(rightBase, innerBoxTicks ? -tickLength : tickLength, 0)];
+      commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightFrom)} -- ${formatAxisPoint(rightTo)};`);
     }
     const shouldShowYLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(y, ranges.yMin, ranges.yMax));
     if (yMajorTickVisual && shouldShowYLabel) {
@@ -933,6 +948,21 @@ function alignedMiddleAxisTickSegment(base, tickAxis, tickLength, alignment) {
   return [offsetPoint(base, start, 0), offsetPoint(base, end, 0)];
 }
 
+// PGFPlots `tick align` on a box axis: `inside` ticks point into the plot box,
+// `outside` ticks point away from it and `center` ticks straddle the frame.
+// `inward` is +1 on the lower/left frame edge and -1 on the upper/right edge.
+function alignedBoxAxisTickSegment(base, tickAxis, tickLength, alignment, inward) {
+  const outward = tickLength * tickAlignmentOffsetFactor(alignment);
+  const start = -outward * inward;
+  const end = (tickLength - outward) * inward;
+  if (tickAxis === "x") return [offsetPoint(base, 0, start), offsetPoint(base, 0, end)];
+  return [offsetPoint(base, start, 0), offsetPoint(base, end, 0)];
+}
+
+function usesPgfplotsBoxTickAlignment(axisOptions = {}) {
+  return isBoxAxis(axisOptions) && !axisOptions["datavis boxed axes"];
+}
+
 function axisTickVisualLabelSpecs(visual, lowPoint, highPoint) {
   if (!visual) return [];
   const specs = [];
@@ -1239,7 +1269,11 @@ export function axisRenderedTickLabels(axisOptions, axis, raw, ticks, formatOpti
   ) {
     return ticks.map((tick) => axisLogTickLabel(axisOptions, axis, tick));
   }
-  return axisTickLabels(raw, scaledAxisTicks(axisOptions, axis, ticks), formatOptions, template);
+  // PGF exposes the display logarithm as \tick, not the original data value.
+  const values = isLogAxis(axisOptions, axis) && hasTickLabelTemplate(template)
+    ? ticks.map((tick) => Math.log(tick) / Math.log(axisLogBase(axisOptions, axis)))
+    : scaledAxisTicks(axisOptions, axis, ticks);
+  return axisTickLabels(raw, values, formatOptions, template);
 }
 
 function hasTickLabelTemplate(template) {

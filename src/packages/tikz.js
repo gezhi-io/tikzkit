@@ -4,6 +4,7 @@ export const texPackage = {
   "implementedBy": "src/frontend/parser.js + src/engine/evaluate.js:interpretPathStatement/transformCanvasTransform/resolvedTextFontSpec/resolveAutoInlineNodePoint/autoInlineNodeAnchor/autoInlineNodeUsesOppositeAnchor/resolveSlopedInlineNodePoint/inlineNodePathTangent/flushOrthogonalInlinePathNodes/arcTimerPointAt/arcTimerTangentAt/arcTimerAngleAt/buildArc + src/tex/fontSpec.js + src/tikz/textMetrics.js + src/renderers/svg/textLayout.js + src/renderers/svg/richText.js + src/renderers/svg/renderSvg.js",
   "registryImplementedBySuffix": "scripts/render-example-fixtures.js:applyTikztosvgDocumentCropBorder/createTikztosvgPreambleInputEnv",
   "features": [
+    "bare node rounded corners default to 4pt; fixed-size math angle delimiters in SVG-text fallback",
     "tikzpicture extraction",
     "draw/path/fill/node/coordinate subset",
     "Computer Modern textstyle/scriptstyle metrics for simple subscript and superscript node labels",

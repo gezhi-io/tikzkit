@@ -1,3 +1,5 @@
+import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
+
 const TEX_SCALED_POINT = 65536;
 
 export function samplePgfplotsSurfaceDomain(domain, samples, plotOptions = {}, axisOptions = {}) {
@@ -23,16 +25,8 @@ export function pgfplotsUsesCorrectSampling(plotOptions = {}, axisOptions = {}) 
   if (explicit !== undefined && explicit !== null && explicit !== "") {
     return !/^(?:false|0|off|no)$/i.test(String(explicit).trim());
   }
-  const compat = String(
-    plotOptions["pgfplots compat"] ??
-      axisOptions["pgfplots compat"] ??
-      plotOptions.compat ??
-      axisOptions.compat ??
-      ""
-  ).trim().toLowerCase();
-  if (compat === "newest") return true;
-  const version = Number.parseFloat(compat);
-  return Number.isFinite(version) && version >= 1.13;
+  // compat levels are dotted versions: 1.2 predates 1.13 even though 1.2 > 1.13 as a decimal.
+  return pgfplotsCompatAtLeast(pgfplotsCompatLevel(axisOptions, plotOptions), "1.13");
 }
 
 function pgfFixedNumber(value) {

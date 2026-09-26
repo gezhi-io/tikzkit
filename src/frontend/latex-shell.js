@@ -11,6 +11,7 @@ import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
 import { texTextWidthCm } from "../tikz/textMetrics.js";
 import { libraryRoleFontCommand } from "../tex/fontPolicies.js";
+import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { renderAddplot, renderCurrentPlotCoordinates } from "../pgfplots/addplotLowering.js";
 import {
   collectPgfplotsLibraries,
@@ -95,6 +96,9 @@ function isDelegatedMacro(name) {
 export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
   let expanded = stripTexComments(String(source));
+  // `\the\numexpr` is plain e-TeX integer arithmetic and must be resolved
+  // before any PGF/TikZ option or coordinate is parsed.
+  expanded = expandTheNumexpr(expanded, diagnostics);
   expanded = unwrapBeamerFrames(expanded);
   const previewMargins = collectPreviewMargins(expanded);
   const previewBorder = uniformPreviewBorder(previewMargins);

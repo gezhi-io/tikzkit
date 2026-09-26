@@ -50,11 +50,37 @@ export function addMatrixDelimiters(ir, options = {}, origin, width, height, mat
 }
 
 export function matrixRowNodeOptions(matrixOptions = {}, rowNumber) {
-  const rowStyle = matrixOptions[`row ${rowNumber}/.style`];
-  if (rowStyle === undefined || rowStyle === true) return {};
-  const rowOptions = parseOptions(rowStyle);
-  const nodeOptions = rowOptions.nodes ? parseOptions(rowOptions.nodes) : {};
-  return { ...matrixInheritedNodeOptions(rowOptions), ...nodeOptions };
+  return matrixIndexedNodeOptions(matrixOptions, `row ${rowNumber}/.style`);
+}
+
+export function matrixColumnNodeOptions(matrixOptions = {}, columnNumber) {
+  return matrixIndexedNodeOptions(matrixOptions, `column ${columnNumber}/.style`);
+}
+
+export function matrixCellNodeOptions(matrixOptions = {}, rowNumber, columnNumber) {
+  return matrixIndexedNodeOptions(matrixOptions, `row ${rowNumber} column ${columnNumber}/.style`);
+}
+
+// Per-cell options in PGF's `matrix/inner style order` (tikz.code.tex):
+//   every cell, column, even odd column, row, even odd row, cell
+// Later layers win, which is why the same key set inside `cells` overrides a
+// matching `row N/.style`.
+export function matrixCellStyleLayers(matrixOptions = {}, rowNumber, columnNumber) {
+  return [
+    matrixColumnNodeOptions(matrixOptions, columnNumber),
+    matrixIndexedNodeOptions(matrixOptions, `every ${columnNumber % 2 ? "odd" : "even"} column/.style`),
+    matrixRowNodeOptions(matrixOptions, rowNumber),
+    matrixIndexedNodeOptions(matrixOptions, `every ${rowNumber % 2 ? "odd" : "even"} row/.style`),
+    matrixCellNodeOptions(matrixOptions, rowNumber, columnNumber)
+  ];
+}
+
+function matrixIndexedNodeOptions(matrixOptions = {}, styleKey) {
+  const style = matrixOptions[styleKey];
+  if (style === undefined || style === true) return {};
+  const styleOptions = parseOptions(style);
+  const nodeOptions = styleOptions.nodes ? parseOptions(styleOptions.nodes) : {};
+  return { ...matrixInheritedNodeOptions(styleOptions), ...nodeOptions };
 }
 
 export function matrixInheritedNodeOptions(options = {}) {

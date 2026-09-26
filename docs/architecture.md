@@ -32,6 +32,7 @@ src/
   tikz/
     commands/              canonical command catalog: draw, fill, node, path, coordinate, foreach, axis, addplot
     libraries/             canonical TikZ library catalog, declarations, and library-specific semantic helpers
+    decorations/           path-decoration dispatch and shared curve-distance/tangent geometry
     metrics.js             TikZ unit, font, line-width, dash, and arrow metric constants
     text.js                TeX/TikZ text normalization and math fallback semantics
     textMetrics.js         TeX/TikZ text and formula box metrics used by node sizing and SVG text layout
@@ -178,6 +179,41 @@ import { moveToCommand, lineToCommand, curveToCommand } from "./engine/pathBuild
 ```
 
 TikZ path semantics still live in the engine evaluator and TikZ command modules, but low-level SceneGraph path command shapes should be constructed through the path builder helpers. This keeps path command structure consistent across straight lines, curves, rectangles, arrows, decorations, and future Canvas/PDF renderers.
+
+## Path Decoration Ownership
+
+Path decoration algorithms are executable library implementations, not metadata-only
+entries that dispatch back to the evaluator:
+
+```txt
+engine/evaluate.js
+  -> tikz/decorations/path.js                 dispatch and support checks
+     -> tikz/libraries/decorations.pathmorphing.js
+     -> tikz/libraries/decorations.pathreplacing.js
+     -> tikz/libraries/decorations.fractals.js
+     -> tikz/libraries/snakes.js
+        -> tikz/decorations/pathGeometry.js   shared curve walking and tangent frames
+```
+
+These functions take SceneGraph path commands and resolved options and return path
+commands. They do not preprocess complete documents, call the evaluator, or emit
+SVG. The interpreter still owns execution order and scene insertion; the renderer
+still owns arrow painting. Geometry uses shared cubic helpers in `engine/geometry.js`
+and length parsing in `engine/units.js`. The legacy `snakes` adapter retains its own
+parameter names and per-segment behavior rather than changing modern decorations.
+
+Run `npm run check:architecture` to check static imports and re-exports across `src/`.
+V8 parses the module graph without linking or executing modules. The check rejects
+missing local modules, new import cycles, semantic-to-renderer imports, and any
+transitive dependency from these decoration modules to the frontend or evaluator.
+It does not check dynamic imports or prove every semantic boundary is isolated.
+
+One existing dependency is explicitly reported as `knownDebt`:
+`tikz/text.js -> frontend/latex-shell.js`. Nested axis content in text re-enters the
+frontend and creates a cycle through extension/text-metric code. It needs a separate
+lowering redesign; passing the guard does not mean the project is cycle-free.
+The large evaluator and frontend adapter also still need further bounded extraction.
+See the [structure audit](qa/2026-09-10-structure-refactor.md) for validation and limits.
 
 ## PGFPlots Seam
 

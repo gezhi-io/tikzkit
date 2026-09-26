@@ -4588,17 +4588,36 @@ test("pgfplots label lowering reserves complete default tick-label nodes", () =>
     geometry
   );
 
+  // No compat level declared: PGFPlots' initial `compat/labels=pre 1.3`
+  // installs `xlabel absolute` (below, yshift=-15pt) and `ylabel absolute`
+  // (xshift=-35pt, rotate=90, centered).
   assert.ok(
-    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,-0.461) {$x$};`),
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,-0.527) {$x$};`),
     commands.join("\n")
   );
   assert.ok(
-    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=center, font=\small, rotate=90] at (-1.1,0.5) {$y$};`),
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=center, font=\small, rotate=90] at (-1.23,0.5) {$y$};`),
     commands.join("\n")
   );
   assert.ok(
     commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south] at (1,1.211) {Title};`),
     commands.join("\n")
+  );
+
+  // compat >= 1.3 installs `near ticks`: the label's near side sits on the
+  // tick-label boundary (`ticklabel cs`), so the rotated y label anchors south.
+  const nearTicks = renderAxisLabels(
+    { xlabel: "$x$", ylabel: "$y$", "axis label font": "\\small", "pgfplots compat": "1.18" },
+    ranges,
+    geometry
+  );
+  assert.ok(
+    nearTicks.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,-0.461) {$x$};`),
+    nearTicks.join("\n")
+  );
+  assert.ok(
+    nearTicks.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south, font=\small, rotate=90] at (-0.41,0.5) {$y$};`),
+    nearTicks.join("\n")
   );
 });
 

@@ -553,16 +553,10 @@ function isStandardBoxAxis(axisOptions = {}) {
 
 function standardBoxAxisContainerMargin(axisOptions = {}, ranges = {}, plotArea = {}) {
   const frameHalfWidth = parseDimension("0.2pt", {});
-  const xLabels = geometryAxisTickLabels(axisOptions, "x", ranges, plotArea);
-  const yLabels = geometryAxisTickLabels(axisOptions, "y", ranges, plotArea);
-  const xInnerSep = geometryTickInnerSep(axisOptions, "x");
-  const yInnerSep = geometryTickInnerSep(axisOptions, "y");
-  const xLabelHeight = Math.max(0, ...xLabels.map(geometryTickLabelHeight));
-  const yLabelWidth = Math.max(0, ...yLabels.map(geometryTickLabelWidth));
   const xOnTop = boxTickLabelsUseUpperSide(axisOptions, "x");
   const yOnRight = boxTickLabelsUseUpperSide(axisOptions, "y");
-  const xReserve = Math.max(frameHalfWidth, xLabelHeight + 2 * xInnerSep);
-  const yReserve = Math.max(frameHalfWidth, yLabelWidth + 2 * yInnerSep);
+  const xReserve = Math.max(frameHalfWidth, axisTickLabelNormalExtent(axisOptions, "x", ranges, plotArea));
+  const yReserve = Math.max(frameHalfWidth, axisTickLabelNormalExtent(axisOptions, "y", ranges, plotArea));
 
   return {
     left: yOnRight ? frameHalfWidth : yReserve,
@@ -639,6 +633,15 @@ function explicitMiddleBoundaryTickMargins(axisOptions = {}, ranges = {}, plotAr
     ),
     right: endXLabel > 0 ? Math.max(0.02, endXLabel / 2 + xInnerSep) : 0.02
   };
+}
+
+// Size of the largest tick-label node along the axis normal (width for y,
+// height for x), including both inner separations. This is the distance that
+// PGFPlots' `ticklabel cs` places axis descriptions from an inside-tick axis.
+export function axisTickLabelNormalExtent(axisOptions = {}, axis, ranges = {}, plotArea = {}) {
+  const labels = geometryAxisTickLabels(axisOptions, axis, ranges, plotArea);
+  const measure = axis === "x" ? geometryTickLabelHeight : geometryTickLabelWidth;
+  return Math.max(0, ...labels.map(measure)) + 2 * geometryTickInnerSep(axisOptions, axis);
 }
 
 function geometryAxisTickLabels(axisOptions = {}, axis, ranges = {}, plotArea = {}) {

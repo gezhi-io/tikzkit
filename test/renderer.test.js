@@ -1168,7 +1168,7 @@ test("shortens curved arrow stems along the terminal tangent", () => {
   assert.match(svg, /transform="translate\(200 0\) rotate\(0\)"/);
 });
 
-test("renders a white page background by default for native TikZ raster comparisons", () => {
+test("leaves the page background transparent by default like TikZ and tikztosvg", () => {
   const ir = {
     items: [
       {
@@ -1183,7 +1183,8 @@ test("renders a white page background by default for native TikZ raster comparis
     coordinates: {}
   };
 
-  assert.match(renderSvg(ir), /class="tikz-background"[^>]+fill="white"/);
+  assert.doesNotMatch(renderSvg(ir), /class="tikz-background"/);
+  assert.match(renderSvg(ir, { background: "white" }), /class="tikz-background"[^>]+fill="white"/);
   assert.doesNotMatch(renderSvg(ir, { background: "none" }), /class="tikz-background"/);
 });
 

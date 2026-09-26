@@ -1178,10 +1178,9 @@ function colorbarBox(styleOptions, bounds, parentBounds, width, height, orientat
   let yMin = at.y - height;
   if (anchor.includes("east")) xMin = at.x - width;
   if (anchor.includes("south")) yMin = at.y;
-  if (anchor === "center") {
-    xMin = at.x - width / 2;
-    yMin = at.y - height / 2;
-  }
+  // PGFPlots cardinal anchors are edge midpoints of the inner axis rectangle.
+  if (["center", "north", "south"].includes(anchor)) xMin = at.x - width / 2;
+  if (["center", "east", "west"].includes(anchor)) yMin = at.y - height / 2;
   return { xMin, xMax: xMin + width, yMin, yMax: yMin + height };
 }
 
