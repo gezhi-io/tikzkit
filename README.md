@@ -36,6 +36,9 @@ console.log(svg);
 Use `tikzToSvg(source)` for synchronous rendering. The package also exports
 `convertTikzToSvg`, `parseTikz`, `interpretTikz`, and `renderSvg`.
 
+From v0.1.6, the SVG canvas is transparent by default. Pass
+`{ background: "white" }` as the second argument for a white canvas.
+
 ## Examples
 
 The following images were rendered by TikZKit itself.
