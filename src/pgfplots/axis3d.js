@@ -288,7 +288,7 @@ function axis3DTicksExplicitlyEmpty(raw) {
 function automaticAxis3DTickValuesForAxis(axisOptions, axis, min, max, count) {
   return isLogAxis(axisOptions, axis)
     ? automaticLogAxis3DTickValues(axisOptions, axis, min, max, count)
-    : automaticAxis3DTickValues(min, max, count);
+    : automaticAxis3DTickValues(min, max, count, axis3DMinimumTickCount(axisOptions));
 }
 
 function automaticLogAxis3DTickValues(axisOptions, axis, min, max, count) {
@@ -348,12 +348,34 @@ function hasCustomAxis3DTickLabels(raw, template) {
   return Boolean(value) && value !== "true" && value !== "false";
 }
 
-function automaticAxis3DTickValues(min, max, count) {
-  return majorAxis3DTickValues(min, max, count).filter((tick) => !autoAxis3DTickOutsideRange(tick, min, max));
+function automaticAxis3DTickValues(min, max, count, minimum) {
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) return [];
+  let desired = count;
+  // PGF retries when MAX < MIN_seed + 2H, where MIN_seed is
+  // (trunc(min/H) - 1)H. Counting visible ticks is not equivalent for
+  // positive ranges. Increase try-min-ticks, retaining the size-based count.
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    desired = Math.max(count, minimum + attempt);
+    const step = majorAxis3DTickStep(min, max, desired);
+    const next = (Math.trunc(min / step) + 1) * step;
+    if (max + step * 1e-9 >= next) break;
+  }
+  return majorAxis3DTickValues(min, max, desired).filter((tick) => !autoAxis3DTickOutsideRange(tick, min, max));
 }
 
 function majorAxis3DTickValues(min, max, maxTicks = 5) {
   if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return [];
+  const step = majorAxis3DTickStep(min, max, maxTicks);
+  const start = Math.ceil(min / step) * step;
+  const values = [];
+  for (let value = start; value <= max + step * 0.2; value += step) {
+    values.push(roundAxis3DTick(value, min, max));
+    if (values.length >= 200) break;
+  }
+  return values;
+}
+
+function majorAxis3DTickStep(min, max, maxTicks) {
   const span = max - min;
   const rawStep = Math.abs(span) / Math.max(1, maxTicks - 1);
   const exponent = Math.floor(Math.log10(rawStep));
@@ -362,14 +384,7 @@ function majorAxis3DTickValues(min, max, maxTicks = 5) {
   const tolerance = 1e-9;
   const niceFraction =
     fraction < 1.5 - tolerance ? 1 : fraction < 3.5 - tolerance ? 2 : fraction < 7.5 - tolerance ? 5 : 10;
-  const step = niceFraction * base;
-  const start = Math.ceil(min / step) * step;
-  const values = [];
-  for (let value = start; value <= max + step * 0.2; value += step) {
-    values.push(roundAxis3DTick(value, min, max));
-    if (values.length >= 200) break;
-  }
-  return values;
+  return niceFraction * base;
 }
 
 function axis3DAutoMajorTickCount(axisOptions = {}, axis, ranges = {}, geometry = {}) {

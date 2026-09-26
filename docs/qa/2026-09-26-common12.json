@@ -1,0 +1,16 @@
+{
+  "cases": [
+    "latex-examples-activation-functions",
+    "latex-examples-bar-chart-grouping",
+    "latex-examples-commutative-diagram",
+    "latex-examples-doubly-linked-list",
+    "latex-examples-equilateral-triangle",
+    "latex-examples-evaluation-tree",
+    "chains-multiple-joins-flowchart",
+    "matrix-style-precedence",
+    "latex-examples-3d-function-4",
+    "latex-examples-hyperbolic-paraboloid",
+    "pgfplots-colorbar-top-math",
+    "pgfplots-colorbar-top-algorithm"
+  ]
+}
