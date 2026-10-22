@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 import test from "node:test";
 
 import { tikzToSvg } from "../src/index.js";
@@ -96,6 +97,6 @@ test("diamond split physics formula uses TeX undelimited frac arguments without 
   assert.deepEqual(result.diagnostics, []);
   closeTo(box.width, 4.79, 0.06);
   closeTo(box.height, 3.83, 0.06);
-  assert.match(result.svg, /tikz-inline-fraction/);
+  assert.equal(assertNativeText(result.svg, "Ek=12mv2").rules, 1);
   assert.doesNotMatch(result.svg, /\\frac12|>frac12</);
 });

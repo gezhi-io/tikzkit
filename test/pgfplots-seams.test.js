@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { nativeMathGroups } from "./helpers/native-math-svg.js";
 import { decodePng } from "../scripts/diff-example-pngs.js";
 import { parseDimension } from "../src/engine/math.js";
 import {
@@ -3591,10 +3592,7 @@ test("pgfplots activation-functions preserves the left edge of every legend form
   assert.ok(rows.every((row) => row.svgTextAnchor === "start"));
   assert.ok(rows.every((row) => Math.abs(row.svgTextX - rows[0].svgTextX) < 1e-9));
 
-  const foreignObjectXs = [...result.svg.matchAll(
-    /<foreignObject\b[^>]*\bx="([0-9.]+)"[^>]*>[\s\S]*?<div\b[^>]*class="tikz-math"/g
-  )].map((match) => Number(match[1]));
-  const legendXs = foreignObjectXs.slice(-5);
+  const legendXs = nativeMathGroups(result.svg).filter(group => group.text.startsWith("φ")).map(group => group.x);
   assert.equal(legendXs.length, 5);
   assert.ok(legendXs.every((x) => Math.abs(x - legendXs[0]) < 1e-9));
 });
@@ -4673,7 +4671,8 @@ test("pgfplots tiny pmatrix legends use native matrix rows and box dimensions", 
     ranges,
     geometry,
     entries,
-    entries.map((_entry, index) => ({ options: { [["red", "blue", "purple", "lime"][index]]: true, thick: true } }))
+    entries.map((_entry, index) => ({ options: { [["red", "blue", "purple", "lime"][index]]: true, thick: true } })),
+    { mathExtension: "ams" }
   );
 
   const width = legendBoxWidthFromCommand(commands[0]);

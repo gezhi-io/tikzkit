@@ -20,6 +20,11 @@ export function mergeFontSpec(base = DEFAULT_FONT_SPEC, patch = {}) {
   return validateFontSpec({ ...createFontSpec(base), ...definedProperties(patch) });
 }
 
+export function mathExtensionForPackages(packages = []) {
+  const mathPackages = packages.filter(pkg => ["amsmath", "mathtools", "amsfonts", "amssymb"].includes(pkg.name));
+  return mathPackages.length && !mathPackages.some(pkg => pkg.options?.cmex10) ? "ams" : undefined;
+}
+
 export function fontSpecFromSizeCommand(command, options = {}) {
   const name = String(command || "").trim().replace(/^\\/, "");
   const profile = documentFontProfile(options.profile || "10pt");

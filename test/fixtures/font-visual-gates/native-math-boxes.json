@@ -1,0 +1,533 @@
+{
+  "source": "MacTeX 2025 pdflatex native-probes/probe.tex; amsmath loaded; dimensions in TeX pt",
+  "sourceSha256": "7894abacd4671b1b741260b3b2ea34cb904dc3472504ce61bd552ac5cd5d354d",
+  "nativeFonts": [
+    {
+      "role": "operators",
+      "font": "cmr10"
+    },
+    {
+      "role": "letters",
+      "font": "cmmi10"
+    },
+    {
+      "role": "bold-letters",
+      "font": "cmmib10"
+    }
+  ],
+  "probes": [
+    {
+      "tex": "\\Theta_B",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 14.6608,
+        "heightPt": 6.83331,
+        "depthPt": 1.49998
+      }
+    },
+    {
+      "tex": "\\varphi_1(x)",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 24.52087,
+        "heightPt": 7.5,
+        "depthPt": 2.5
+      }
+    },
+    {
+      "tex": "\\frac{1}{1+e^{-x}}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 26.19424,
+        "heightPt": 8.44843,
+        "depthPt": 4.28175
+      }
+    },
+    {
+      "tex": "x_i^2",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 10.2014,
+        "heightPt": 8.14003,
+        "depthPt": 2.60292
+      }
+    },
+    {
+      "tex": "x_{i_j}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 12.78041,
+        "heightPt": 4.30554,
+        "depthPt": 3.4722
+      }
+    },
+    {
+      "tex": "x^2+y^2=1",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 50.5045,
+        "heightPt": 8.14003,
+        "depthPt": 1.94444
+      }
+    },
+    {
+      "tex": "\\frac{a_1+b_2}{c_3}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 24.19888,
+        "heightPt": 8.96107,
+        "depthPt": 4.44841
+      }
+    },
+    {
+      "tex": "\\dfrac{a_1+b_2}{c_3}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 33.17194,
+        "heightPt": 13.70952,
+        "depthPt": 8.3595
+      }
+    },
+    {
+      "tex": "\\frac{1}{1+\\frac{x_i}{2}}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 22.05124,
+        "heightPt": 8.44843,
+        "depthPt": 6.53235
+      }
+    },
+    {
+      "tex": "\\varphi_1(x)=\\frac{1}{1+e^{-x}}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 64.04834,
+        "heightPt": 8.44843,
+        "depthPt": 4.28175
+      }
+    },
+    {
+      "tex": "\\varphi_2(x)=\\tanh(x)",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 71.34723,
+        "heightPt": 7.5,
+        "depthPt": 2.5
+      }
+    },
+    {
+      "tex": "\\varphi_3(x)=\\max(0,x)",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 79.40277,
+        "heightPt": 7.5,
+        "depthPt": 2.5
+      }
+    },
+    {
+      "tex": "\\varphi_4(x)=\\log(e^x+1)",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 85.46173,
+        "heightPt": 7.5,
+        "depthPt": 2.5
+      }
+    },
+    {
+      "tex": "\\varphi_5(x)=\\max(x,e^x-1)",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 101.3159,
+        "heightPt": 7.5,
+        "depthPt": 2.5
+      }
+    },
+    {
+      "tex": "E_{\\mathrm{pulse}}",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 25.70287,
+        "heightPt": 6.83331,
+        "depthPt": 2.86108
+      }
+    },
+    {
+      "tex": "e^{-x/2}\\sin(x)",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 51.46187,
+        "heightPt": 8.87892,
+        "depthPt": 2.5
+      }
+    },
+    {
+      "tex": "f_i",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 8.22514,
+        "heightPt": 6.94444,
+        "depthPt": 1.94444
+      }
+    },
+    {
+      "tex": "f^2",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 10.45839,
+        "heightPt": 8.14003,
+        "depthPt": 1.94444
+      }
+    },
+    {
+      "tex": "T_i^2",
+      "sizePt": 10,
+      "native": {
+        "widthPt": 11.71878,
+        "heightPt": 8.14003,
+        "depthPt": 2.60292
+      }
+    },
+    {
+      "tex": "\\Theta_B",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 12.05737,
+        "heightPt": 4.78334,
+        "depthPt": 1.00557
+      }
+    },
+    {
+      "tex": "\\varphi_1(x)",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 19.94734,
+        "heightPt": 5.25,
+        "depthPt": 1.75
+      }
+    },
+    {
+      "tex": "\\frac{1}{1+e^{-x}}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 24.20198,
+        "heightPt": 5.90953,
+        "depthPt": 4.39893
+      }
+    },
+    {
+      "tex": "x_i^2",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 8.43756,
+        "heightPt": 6.24,
+        "depthPt": 1.99998
+      }
+    },
+    {
+      "tex": "x_{i_j}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 11.43843,
+        "heightPt": 3.01389,
+        "depthPt": 3.58234
+      }
+    },
+    {
+      "tex": "x^2+y^2=1",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 41.10553,
+        "heightPt": 6.24,
+        "depthPt": 1.3611
+      }
+    },
+    {
+      "tex": "\\frac{a_1+b_2}{c_3}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 22.38345,
+        "heightPt": 7.2322,
+        "depthPt": 3.9095
+      }
+    },
+    {
+      "tex": "\\dfrac{a_1+b_2}{c_3}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 27.84085,
+        "heightPt": 9.98729,
+        "depthPt": 6.26505
+      }
+    },
+    {
+      "tex": "\\frac{1}{1+\\frac{x_i}{2}}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 20.468,
+        "heightPt": 5.90953,
+        "depthPt": 6.79668
+      }
+    },
+    {
+      "tex": "\\varphi_1(x)=\\frac{1}{1+e^{-x}}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 54.8407,
+        "heightPt": 5.90953,
+        "depthPt": 4.39893
+      }
+    },
+    {
+      "tex": "\\varphi_2(x)=\\tanh(x)",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 57.368,
+        "heightPt": 5.25,
+        "depthPt": 1.75
+      }
+    },
+    {
+      "tex": "\\varphi_3(x)=\\max(0,x)",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 63.90736,
+        "heightPt": 5.25,
+        "depthPt": 1.75
+      }
+    },
+    {
+      "tex": "\\varphi_4(x)=\\log(e^x+1)",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 69.25201,
+        "heightPt": 5.25,
+        "depthPt": 1.75
+      }
+    },
+    {
+      "tex": "\\varphi_5(x)=\\max(x,e^x-1)",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 82.05182,
+        "heightPt": 5.25,
+        "depthPt": 1.75
+      }
+    },
+    {
+      "tex": "E_{\\mathrm{pulse}}",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 21.68356,
+        "heightPt": 4.78334,
+        "depthPt": 2.03333
+      }
+    },
+    {
+      "tex": "e^{-x/2}\\sin(x)",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 42.75179,
+        "heightPt": 6.76779,
+        "depthPt": 1.75
+      }
+    },
+    {
+      "tex": "f_i",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 7.0672,
+        "heightPt": 4.8611,
+        "depthPt": 1.3611
+      }
+    },
+    {
+      "tex": "f^2",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 8.58691,
+        "heightPt": 6.24,
+        "depthPt": 1.3611
+      }
+    },
+    {
+      "tex": "T_i^2",
+      "sizePt": 7,
+      "native": {
+        "widthPt": 9.70248,
+        "heightPt": 6.24,
+        "depthPt": 1.99998
+      }
+    },
+    {
+      "tex": "\\Theta_B",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 11.05743,
+        "heightPt": 3.3988,
+        "depthPt": 1.69446
+      }
+    },
+    {
+      "tex": "\\varphi_1(x)",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 17.86823,
+        "heightPt": 3.75,
+        "depthPt": 1.5
+      }
+    },
+    {
+      "tex": "\\frac{1}{1+e^{-x}}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 24.20198,
+        "heightPt": 5.15953,
+        "depthPt": 4.75322
+      }
+    },
+    {
+      "tex": "x_i^2",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 7.86119,
+        "heightPt": 5.23997,
+        "depthPt": 2.28595
+      }
+    },
+    {
+      "tex": "x_{i_j}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 10.86206,
+        "heightPt": 2.15277,
+        "depthPt": 4.19246
+      }
+    },
+    {
+      "tex": "x^2+y^2=1",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 36.63812,
+        "heightPt": 5.23997,
+        "depthPt": 0.97221
+      }
+    },
+    {
+      "tex": "\\frac{a_1+b_2}{c_3}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 22.38345,
+        "heightPt": 6.58649,
+        "depthPt": 4.15953
+      }
+    },
+    {
+      "tex": "\\dfrac{a_1+b_2}{c_3}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 25.65506,
+        "heightPt": 8.09842,
+        "depthPt": 6.62619
+      }
+    },
+    {
+      "tex": "\\frac{1}{1+\\frac{x_i}{2}}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 20.468,
+        "heightPt": 5.15953,
+        "depthPt": 7.15097
+      }
+    },
+    {
+      "tex": "\\varphi_1(x)=\\frac{1}{1+e^{-x}}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 51.29869,
+        "heightPt": 5.15953,
+        "depthPt": 4.75322
+      }
+    },
+    {
+      "tex": "\\varphi_2(x)=\\tanh(x)",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 50.0831,
+        "heightPt": 3.75,
+        "depthPt": 1.5
+      }
+    },
+    {
+      "tex": "\\varphi_3(x)=\\max(0,x)",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 55.85863,
+        "heightPt": 3.75,
+        "depthPt": 1.5
+      }
+    },
+    {
+      "tex": "\\varphi_4(x)=\\log(e^x+1)",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 61.07668,
+        "heightPt": 4.17053,
+        "depthPt": 1.5
+      }
+    },
+    {
+      "tex": "\\varphi_5(x)=\\max(x,e^x-1)",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 72.39041,
+        "heightPt": 4.17053,
+        "depthPt": 1.5
+      }
+    },
+    {
+      "tex": "E_{\\mathrm{pulse}}",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 20.8475,
+        "heightPt": 3.41667,
+        "depthPt": 2.72221
+      }
+    },
+    {
+      "tex": "e^{-x/2}\\sin(x)",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 39.45259,
+        "heightPt": 5.76776,
+        "depthPt": 1.25
+      }
+    },
+    {
+      "tex": "f_i",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 6.58801,
+        "heightPt": 3.47221,
+        "depthPt": 1.61012
+      }
+    },
+    {
+      "tex": "f^2",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 7.91328,
+        "heightPt": 5.23997,
+        "depthPt": 0.97221
+      }
+    },
+    {
+      "tex": "T_i^2",
+      "sizePt": 5,
+      "native": {
+        "widthPt": 8.93242,
+        "heightPt": 5.23997,
+        "depthPt": 2.28595
+      }
+    }
+  ]
+}

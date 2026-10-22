@@ -84,7 +84,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
     math.displayMode,
     tex
   );
-  const payloadBox = mathRenderer === "svg-text"
+  const payloadBox = mathRenderer === "svg-text" || physicalBox.measurementKind === "cm-tex-box"
     ? renderBox
     : {
         width: htmlBoxPt.width * pointsToRenderUnits,
@@ -107,6 +107,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
     fontVariant: font.variant,
     mathStyle: font.mathStyle,
     mathVersion: font.mathVersion,
+    mathExtension: font.mathExtension,
     baselineSkipPt: font.baselineSkipPt
   });
   const metrics = {
@@ -117,6 +118,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
     midLineY: renderBox.height / 2,
     paragraphId: null,
     renderSourceText: tex,
+    ...(physicalBox.measurementKind ? { measurementKind: physicalBox.measurementKind } : {}),
     ...textEngineFontMetrics(font)
   };
   return {

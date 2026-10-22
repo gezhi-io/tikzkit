@@ -55,6 +55,12 @@ def unicode_cmap(encoding: list[str], glyph_order: list[str]) -> dict[int, str]:
         characters = agl.toUnicode(glyph_name)
         if len(characters) == 1:
             cmap.setdefault(ord(characters), glyph_name)
+    for codepoint, name in ((0x0394, "Delta"), (0x03A9, "Omega")):
+        if name in available:
+            cmap[codepoint] = name
+    for codepoint, name in zip(range(0xFB00, 0xFB05), ("ff", "fi", "fl", "ffi", "ffl")):
+        if name in available:
+            cmap[codepoint] = name
     return cmap
 
 
@@ -66,6 +72,7 @@ def convert_type1_to_otf(
     style_name: str = "Regular",
     weight_name: str = "Regular",
     weight_class: int = 400,
+    character_map: dict[int, str] | None = None,
 ) -> None:
     type1 = t1Lib.T1Font(str(source))
     type1.parse()
@@ -86,7 +93,7 @@ def convert_type1_to_otf(
         # Some Type 1 variants omit the unencoded blank glyph.  In Computer
         # Modern Roman the hyphen advance equals the TFM interword space for
         # each optical design size, so it is a reliable fallback width.
-        space_width = metrics["hyphen"][0]
+        space_width = metrics.get("hyphen", (0, 0))[0]
         space_pen = T2CharStringPen(space_width, glyph_set)
         char_strings["space"] = space_pen.getCharString()
         metrics["space"] = (space_width, 0)
@@ -98,7 +105,8 @@ def convert_type1_to_otf(
     postscript_name = family_name.replace(" ", "") + ("" if style_name == "Regular" else f"-{style_name}")
     builder = FontBuilder(1000, isTTF=False)
     builder.setupGlyphOrder(glyph_order)
-    builder.setupCharacterMap(unicode_cmap(type1.font.get("Encoding", []), glyph_order))
+    builder.setupCharacterMap(character_map if character_map is not None else
+                              unicode_cmap(type1.font.get("Encoding", []), glyph_order))
     builder.setupCFF(
         postscript_name,
         {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 import test from "node:test";
 
 import { tikzToSvg } from "../src/index.js";
@@ -99,6 +100,8 @@ test("renders tikzquads shape labels through the shared math text fallback", () 
   assert.deepEqual(result.diagnostics, []);
   assert.doesNotMatch(result.svg, />I_a</);
   assert.doesNotMatch(result.svg, />V_\{th\}</);
-  assert.match(result.svg, /<tspan>I<\/tspan><tspan[^>]+baseline-shift="sub">a<\/tspan>/);
-  assert.match(result.svg, /<tspan>V<\/tspan><tspan[^>]+baseline-shift="sub">th<\/tspan>/);
+  for (const label of ["Ia", "Vth"]) {
+    const group = assertNativeText(result.svg, label);
+    assert.ok(group.glyphs.slice(1).every(glyph => glyph.size === 7 && glyph.y > 0));
+  }
 });

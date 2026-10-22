@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertNativeText } from "./helpers/native-math-svg.js";
+import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { interpretTikz, parseTikz, renderSvg, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
 import { lineWidthFromPt } from "../src/tikz-metrics.js";
@@ -741,8 +743,11 @@ test("renders Case 003 style inline I/O labels with TeX-like numeric subscripts"
   assert.equal(diagnostics.length, 0);
   assert.equal(labels.length, 2);
   assert.ok(labels.every((label) => label.y > ir.coordinates.s1.y), `expected above labels over the horizontal edges, got ${JSON.stringify(labels)}`);
-  assert.match(svg, /<tspan>I<\/tspan><tspan[^>]+baseline-shift="sub">1<\/tspan>/);
-  assert.match(svg, /<tspan>O<\/tspan><tspan[^>]+baseline-shift="sub">1<\/tspan>/);
+  for (const label of ["I1", "O1"]) {
+    const group = assertNativeText(svg, label);
+    assert.equal(group.glyphs[1].size, 7);
+    assert.ok(group.glyphs[1].y > group.glyphs[0].y);
+  }
   assert.doesNotMatch(svg, /I₁|O₁/);
 });
 
@@ -900,7 +905,9 @@ test("sizes drawn formula nodes from math width, height, and depth", () => {
   const boxes = Object.fromEntries(ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
 
   assert.equal(diagnostics.length, 0);
-  assert.ok(boxes.F.height > 0.75, `expected fraction node to reserve vertical formula space, got ${boxes.F.height}`);
+  const fraction = layoutNativeMath(String.raw`\frac{a+b}{c+d}`);
+  const texHeightCm = (fraction.height + fraction.depth + 2 * 3.333) / 28.4527559;
+  assert.ok(Math.abs(boxes.F.height - texHeightCm) < 0.002, `expected the TeX fraction box plus inner separation, got ${boxes.F.height}`);
   assert.ok(boxes.S.height > 0.65, `expected sum node to reserve script vertical space, got ${boxes.S.height}`);
   assert.ok(boxes.V.width < 1.15, `expected vector circle to stay compact, got ${boxes.V.width}`);
   assert.equal(boxes.V.width, boxes.V.height);

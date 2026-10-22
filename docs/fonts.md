@@ -2,7 +2,9 @@
 
 TikZKit's font module uses glyph outlines from the locally installed MacTeX
 distribution. It does not use KaTeX's font files or download fonts at runtime.
-KaTeX is still the HTML math layout engine, not the source of the bundled glyphs.
+KaTeX supplies math syntax and the fallback HTML layout, not the bundled glyphs.
+Fractions, scripts, radicals, ordinary matrices, `aligned`, `cases` and bold
+math use a shared native CM box layout at the standard LaTeX sizes.
 
 ## Default: Portable SVG
 
@@ -60,6 +62,8 @@ URLs reduce SVG duplication, not the library's JavaScript download size.
 | Unicode text, sans serif, monospace | CM Unicode OpenType |
 | `helvet` | TeX Gyre Heros OpenType |
 | Ordinary math and extensible symbols | Latin Modern Math OpenType |
+| Native formula boxes | CMR/CMMI/CMSY and CMBX/CMMIB/CMBSY optical Type 1 designs selected by local NFSS rules, plus original TFM metrics |
+| Native radicals and delimiters | CMEX7/8/9/10 Type 1 glyph chains and assembly recipes |
 | `\mathcal` | CMSY / CMBSY Type 1 |
 | `\mathbb` capitals | MSBM10 Type 1; remaining symbols use LM Math |
 | `\mathfrak` | Euler EUFM / EUFB Type 1 |
@@ -88,7 +92,7 @@ HTML math and the `svg-text` fallback are different painting paths; the fallback
 cannot reproduce every formula. A font loading successfully is not proof of
 pixel-identical LaTeX output.
 
-The generated manifest contains 53 faces. Coverage checks find six unfilled
+The generated manifest contains 82 faces. Coverage checks find six unfilled
 layout slots: Main U+23B0/U+23B1 (small moustaches), AMS U+21E0/U+21E2 (dashed
 arrows), and Fraktur-Bold U+E300/U+E307 (private-use alternates). These are
 recorded as missing, not supplied from another font distribution. In particular,
@@ -98,6 +102,82 @@ private-use symbols, or unsupported math commands.
 For local PNG comparisons, the fixture renderer decodes the packaged WOFF back
 to the same OpenType tables before invoking the rasterizer. This avoids a silent
 system-font substitution on hosts whose Pango/CoreText cannot load WOFF.
+
+The font builder also sets consistent OpenType weight/style flags and unique
+CFF PostScript identities. CSS declarations alone are insufficient: native SVG
+rasterizers inspect the font tables, not just the `@font-face` descriptors.
+These metadata changes do not modify the source glyph outlines or advances.
+
+## Layered Validation
+
+Do not treat an SVG-text PNG as a screenshot of the default browser renderer.
+Supported native formulas use baseline-positioned SVG glyphs in both modes;
+other formulas can still use different HTML and SVG-text paths.
+Use a locally installed Playwright module and browser, without downloading fonts:
+
+```sh
+node scripts/audit-font-rendering.js \
+  --output outputs/qa/font-audit \
+  --browser-module /absolute/path/to/playwright/index.mjs \
+  --browser-channel chrome
+```
+
+This checks all 82 native font selections and measures 66 TeX boxes at 10/7/5pt.
+The 60 supported native-layout probes must agree within 0.015 TeX pt; six
+legacy-layout controls are reported separately. Seventeen fixtures pass through
+the browser, SVG-text and native PDF. Sixteen use local `tikztosvg`; the
+standalone Jordan math array explicitly uses native LaTeX instead.
+All raster comparisons retain 96dpi physical size;
+there is no independent image fitting or best-offset alignment. The report
+records source/font/tool fingerprints, browser version, and both renderers'
+diagnostics. `font-audit.html` displays live browser/reference SVG pairs.
+Eight formula fixtures also compare every glyph origin in actual browser CSS
+pixels against the reference SVG, without fitting or offset alignment.
+`node scripts/probe-math-structures.js <output-directory>` independently measures
+126 root/matrix/bold combinations. Their recorded native boxes are also covered
+by `test/math-structures.test.js`, with a 0.001pt tolerance.
+`node scripts/probe-math-alignments.js <output-directory>` measures another
+384 native boxes: 16 expressions, 12 sizes and two math versions. The frozen
+measurements in `test/math-alignments.test.js` have a 0.003pt tolerance.
+
+The command fails on font substitutions, missing references, browser errors, or
+renderer diagnostics, failed native-box tolerances or browser glyph positions.
+`visualAccepted` deliberately remains false: human review and unresolved
+layout differences must not disappear behind a successful process exit code.
+TeX hbox measurements are compared with JS layout reservations, which can
+include padding; they are not interchangeable with visible glyph-ink bounds.
+
+See the [font-selection review](qa/2026-10-21-font-selection.md),
+[fraction/script review](qa/2026-10-22-fractions-scripts.md),
+[root/matrix/bold review](qa/2026-10-22-math-structures.md), and
+[alignment/size review](qa/2026-10-22-alignments-sizes.md) for evidence and limits.
+
+The new subset covers ordinary `\frac`, `\dfrac`, `\tfrac`, `_`, `^`, nested
+scripts, grouped colors, roman subscripts, and named operators inside these
+formulas. It uses TeX numerator/denominator shifts, math axis, rule clearances,
+italic corrections and script spacing. AMS packages select optical CMEX
+parameters for small sizes; `amsmath[cmex10]` retains fixed CMEX10 parameters.
+Radicals use native size variants or assembled CMEX pieces. Ordinary matrices
+use baseline struts, column maxima, 5pt array column separation, and math-axis
+centering. `\mathbf`, `\boldsymbol`, and `\boldmath` select different native
+alphabets without synthetic bolding. Native SVG text requests
+`text-rendering="geometricPrecision"` to avoid the browser's extra small-text
+stem darkening; the MacTeX outlines and metrics are unchanged.
+
+`aligned` uses right/left equation columns, display-style cells, 10pt between
+equation pairs, `\openup\jot` row spacing, and `[t]`/`[b]`/`[c]` positioning.
+`cases` uses text-style cells, a native left brace, 1.2 array stretch, and one
+text-font quad between its two left-aligned columns. Positive/negative row
+skips, nested cases, and ordinary roman `\text{...}` conditions are supported.
+
+The 10pt document profile's `\tiny`, `\scriptsize`, `\footnotesize`, `\small`,
+`\normalsize`, `\large`, `\Large`, `\LARGE`, `\huge`, and `\Huge` select the
+corresponding native base/script/scriptscript sizes. Explicit 6pt and 10.95pt
+math are covered too. Other arbitrary base sizes, sans math, accents,
+large-operator limits, `alignedat`/`gathered`/`smallmatrix`, custom array
+preambles and tags remain on the older renderer. No unsupported subexpression
+is dropped. Numbered document-level `align` and page layout are not certified
+by the inline `aligned` implementation.
 
 Run `node scripts/render-mactex-font-smoke.js` for real MacTeX, tikztosvg, SVG,
 PNG, and browser comparison artifacts in `outputs/mactex-font-audit-2026-09-06/`.

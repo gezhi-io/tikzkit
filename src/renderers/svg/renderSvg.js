@@ -290,7 +290,7 @@ function renderRectangleNodeBox(item, unit) {
 
 function nodeBoxStrokeInset(item) {
   const style = item.style || {};
-  if (style.stroke === "none") return 0;
+  if (style.stroke === "none" || item.strokeBoundsIncluded === false) return 0;
   const lineWidth = Number(style.lineWidth);
   return Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth / 2 : 0;
 }

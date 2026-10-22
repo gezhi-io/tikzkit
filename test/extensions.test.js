@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertNativeText } from "./helpers/native-math-svg.js";
+import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { tikzBaguaExtension, tikzThreeDPlotExtension } from "../src/internal.js";
 import { parseDimension } from "../src/math.js";
@@ -637,10 +639,11 @@ test("supports scientific polar axes with function-format angle and radius data"
     `expected clean polar outer boundary at padded max radius like native .5em padding, got ${outerBoundary?.commands?.[0]?.x}`
   );
   assert.ok(texts.includes("$\\frac{1}{2}\\pi$"), "expected polar angle tick labels");
-  assert.ok(
-    halfPiLabel?.y > 3.62 && halfPiLabel.y < 3.76,
-    `expected clean half-plane polar angle tick labels to sit near the tikztosvg glyph bbox, got y=${halfPiLabel?.y}`
-  );
+  const labelGap = halfPiLabel.y - halfPiLabel.nodeLayoutHeight / 2 - outerBoundary.commands[0].x;
+  // MacTeX: 2pt major tick, 1pt inner sep, .1666em outer sep; CMR8's quad is 8.5pt.
+  const nativeGap = (2 + 1 + 0.1666 * 8.5) * 2.54 / 72.27;
+  assert.ok(Math.abs(labelGap - nativeGap) < 0.0002,
+    `expected native tick-to-text spacing after applying 8pt math metrics, got ${labelGap}`);
   assert.ok(texts.includes("2"), "expected polar radius tick labels");
   assert.ok(Math.max(...plotCommands.map((command) => command.y)) > 2.5, "expected polar projection to move radius data upward");
   assert.ok(Math.min(...plotCommands.map((command) => command.x)) < -2, "expected 0 to pi polar projection to use the left half-plane");
@@ -4135,11 +4138,11 @@ data {
     (pinLabel?.y || 0) - (to?.y || 0) > 0.05 && (pinLabel?.y || 0) - (to?.y || 0) < 0.11,
     `expected native node[auto, at end] pin label to sit above the leader endpoint, got label y=${pinLabel?.y} and endpoint y=${to?.y}`
   );
-  const operatorSpacing = result.svg.match(/<tspan dx="([\d.]+)"[^>]*font-style="normal">sin<\/tspan>/);
-  assert.ok(operatorSpacing, "expected SVG math fallback to preserve spacing before named operator sin");
+  const group = assertNativeText(result.svg, "e−x/2sinx");
+  const operatorSpacing = group.glyphs[5].x - layoutNativeMath("e^{-x/2}").width;
   assert.ok(
-    Number(operatorSpacing[1]) > 5 && Number(operatorSpacing[1]) < 7,
-    `expected TeX-like spacing before \\sin after a scripted atom, got dx=${operatorSpacing?.[1]}`
+    Math.abs(operatorSpacing - 10 / 6) < 0.001,
+    `expected 3mu before \\sin after a scripted atom, got ${operatorSpacing}pt`
   );
   assert.ok((to?.x || 0) - (from?.x || 0) > 0.6, "expected the damped sine pin label to sit farther to the right of the data point");
   assert.ok((to?.y || 0) > (from?.y || 0), "expected the damped sine pin label to sit above the data point");

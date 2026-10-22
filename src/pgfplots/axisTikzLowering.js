@@ -135,7 +135,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     if (axisOnTop) commands.push(...backgroundAxisCommands);
     commands.push(...dependencies.renderAxisLabels3D(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...dependencies.renderAxis3DColorbar(axisModel.options, axisModel.ranges, axisModel.geometry));
-    commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots));
+    commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));
     commands.push(...axis3DBoxForeground);
     return `\n${commands.join("\n")}\n`;
   }
@@ -171,7 +171,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   }
   if (axisBox) commands.push(axisBox);
   commands.push(...renderAxisLabels(axisModel.options, axisModel.ranges, axisModel.geometry));
-  commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots));
+  commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));
   commands.push(...renderCurrentAxisCoordinates(axisModel));
   return `\n${commands.join("\n")}\n`;
 }

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
+import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
 import { wrapSvgTextTokensByWidth, svgTextWrapTokens } from "../src/renderers/svg/textLayout.js";
@@ -271,8 +273,11 @@ test("renders nested fractions inside SVG text fraction parts without raw comman
   );
 
   assert.doesNotMatch(svg, /displaystyle|frac-S|\\frac/);
-  assert.match(svg, /θ_s/);
-  assert.match(svg, /θ_r/);
+  const group = nativeMathGroups(svg)[0];
+  assert.ok(group);
+  assert.ok(group.glyphs.some(g => g.text === "θ" && g.size === 10));
+  assert.ok(group.glyphs.filter(g => ["s", "r"].includes(g.text)).every(g => g.size <= 7));
+  assert.ok(group.rules >= 2);
 });
 
 test("normalizes TeX sim relation in SVG text math fallback", () => {
@@ -1206,9 +1211,9 @@ test("namespaces the root TikZ SVG for web CSS isolation", () => {
   assert.match(svg, /^<svg\b[^>]*class="tikz-render-svg"/);
 });
 
-test("renders math text nodes through KaTeX inside SVG foreignObject", () => {
+test("retains KaTeX foreignObject for math outside the native CM subset", () => {
   const svg = renderSvg({
-    items: [{ type: "textNode", x: 0, y: 0, text: "$x^2 + y^2$", style: { fill: "blue" } }],
+    items: [{ type: "textNode", x: 0, y: 0, text: "$\\sqrt{\\hat{x}^2 + y^2}$", style: { fill: "blue" } }],
     coordinates: {}
   });
 
@@ -1229,7 +1234,7 @@ test("renders math text nodes through KaTeX inside SVG foreignObject", () => {
 
 test("keeps the default CMU font style first in defs when math scope styles are emitted", () => {
   const svg = renderSvg({
-    items: [{ type: "textNode", x: 0, y: 0, text: "$x^2 + y^2$", style: { fill: "blue" } }],
+    items: [{ type: "textNode", x: 0, y: 0, text: "$\\sqrt{\\hat{x}^2 + y^2}$", style: { fill: "blue" } }],
     coordinates: {}
   });
 
@@ -1251,7 +1256,7 @@ test("keeps KaTeX switch fallback visible for non-HTML SVG converters", () => {
         type: "textNode",
         x: 0,
         y: 0,
-        text: String.raw`$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`,
+        text: String.raw`$\hat{A}=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`,
         style: { fill: "black" }
       }
     ],
@@ -1323,7 +1328,7 @@ test("renders contour-wrapped math labels as plain math content", () => {
 \end{tikzpicture}`);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /class="tikzkit-math-scope/);
+  assert.match(result.svg, /data-math-layout="cm-tex-box"/);
   assert.doesNotMatch(result.svg, /class="[^"]*\bkatex\b/);
   assert.doesNotMatch(result.svg, /contour/);
 });
@@ -1346,9 +1351,11 @@ test("keeps contour outlines on SVG text math fallbacks", () => {
   );
 
   assert.match(svg, /stroke="white"/);
-  assert.match(svg, /stroke-width="1\.4"/);
+  const contourWidth = Number(svg.match(/<text[^>]*stroke-width="([^"]+)"/)?.[1]);
+  assert.ok(Math.abs(contourWidth * nativeMathGroups(svg)[0].scale - 1.4) < 0.00001);
   assert.match(svg, /paint-order="stroke fill"/);
-  assert.match(svg, /√\(b\/A\)/);
+  const group = assertNativeText(svg, "b/A");
+  assert.ok(group.glyphs.some(g => g.family === "TikZKitCMEX10" && g.text === "\ue070"));
   assert.doesNotMatch(svg, /contour/);
 });
 
@@ -1361,7 +1368,9 @@ test("keeps square root symbols readable in SVG math text fallback", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /√\(b\/A\)/);
+  const group = assertNativeText(svg, "b/A");
+  assert.ok(group.glyphs.some(g => g.family === "TikZKitCMEX10" && g.text === "\ue070"));
+  assert.equal(group.rules, 1);
   assert.doesNotMatch(svg, /sqrtb\/A/);
 });
 
@@ -1981,7 +1990,7 @@ test("renders common relation commands in SVG math fallback", () => {
     Math.abs(normBox.width * 28.45274 - 98.56082) < 0.35,
     `expected local MacTeX formula width near 98.56082pt, got ${normBox.width * 28.45274}pt`
   );
-  assert.match(svg, />≤<\/tspan>/);
+  assertNativeText(svg, "x1≤0");
   assert.doesNotMatch(svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /leq|geq|neq|approx|lbrace|rbrace/);
 });
 
@@ -2039,7 +2048,7 @@ test("renders sum limits and scalable delimiters compactly in SVG math fallback"
   assert.doesNotMatch(svg, /\\(?:left|right|limits|sum)/);
 });
 
-test("renders inline pmatrix as a structured SVG math fallback", () => {
+test("renders inline pmatrix using native CM glyphs and rows", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$A=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`, style: { fill: "black" } }],
@@ -2048,11 +2057,11 @@ test("renders inline pmatrix as a structured SVG math fallback", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /class="tikz-math-matrix-inline"/);
-  assert.match(svg, /class="tikz-matrix-delimiter tikz-matrix-delimiter-left"/);
-  assert.match(svg, /class="tikz-matrix-delimiter tikz-matrix-delimiter-right"/);
+  const group = nativeMathGroups(svg)[0];
+  assert.ok(group);
+  assert.equal(group.glyphs.filter(g => g.family === "TikZKitCMEX10").length, 2);
   assert.doesNotMatch(svg, />\(<\/text>|>\)<\/text>/);
-  assert.match(svg, />A =<\/text>/);
+  assertNativeText(svg, "A=");
   assert.match(svg, />2<\/text>/);
   assert.match(svg, />1<\/text>/);
   assert.match(svg, />0<\/text>/);
@@ -2119,10 +2128,9 @@ test("renders tiny axis-legend pmatrix with exact physical font size", () => {
   assert.deepEqual(result.diagnostics, []);
   assert.equal(node.font.sizePt, 5);
   assert.equal(node.style.exactMathFontScale, true);
-  assert.match(result.svg, /class="tikz-math-matrix-inline"/);
-  assert.match(result.svg, /font-size="17\.57/);
-  const delimiterX = Number(result.svg.match(/tikz-matrix-delimiter-left" d="M ([\d.]+)/)?.[1]);
-  assert.ok(delimiterX >= 0 && delimiterX < 25, `expected the west-anchored matrix to begin at its node anchor, got ${delimiterX}`);
+  const group = nativeMathGroups(result.svg)[0];
+  assert.ok(group.glyphs.filter(g => g.family !== "TikZKitCMEX10").every(g => g.size === 5));
+  assert.ok(group.x >= 0 && group.x < 25, `expected the west-anchored matrix to begin at its node anchor, got ${group.x}`);
 });
 
 test("uses structured inline matrix metrics for anchored math nodes", () => {
@@ -2138,7 +2146,7 @@ test("uses structured inline matrix metrics for anchored math nodes", () => {
   // Local tikztosvg reference for this exact node reports width="52.999pt",
   // which is 1.8627cm. A west anchor at -2.9cm therefore centers near -1.97cm.
   assert.ok(node.x > -2.02 && node.x < -1.92, `expected west-anchored matrix center near tikztosvg width, got ${node.x}`);
-  assert.match(result.svg, /class="tikz-math-matrix-inline"/);
+  assert.match(result.svg, /data-math-layout="cm-tex-box"/);
 });
 
 test("keeps alphabetic math subscripts portable in SVG text fallback", () => {
@@ -2153,7 +2161,8 @@ test("keeps alphabetic math subscripts portable in SVG text fallback", () => {
 
   assert.equal(text, "α_t-1(s₁)");
   assert.doesNotMatch(svg, /�|ₜ|ᵦ|ₑ|ₕ|ᵢ|ⱼ|ₖ|ₗ|ₘ|ₙ|ₒ|ₚ|ᵣ|ₛ|ᵤ|ᵥ|ₓ/);
-  assert.match(svg, /<tspan>β<\/tspan><tspan[^>]+baseline-shift="sub">t\+2<\/tspan>\(<tspan>s<\/tspan><tspan[^>]+baseline-shift="sub">4<\/tspan>\)/);
+  const group = assertNativeText(svg, "βt+2(s4)");
+  assert.ok(group.glyphs.filter(g => ["t", "2", "4"].includes(g.text)).every(g => g.size === 7 && g.y > 0));
   assert.doesNotMatch(svg, /beta|_\{t\+2\}|s_4/);
 });
 
@@ -2202,9 +2211,10 @@ test("renders simple fraction math labels as stacked SVG text fallback", () => {
   );
 
   assert.doesNotMatch(svg, /frac1fs/);
-  assert.match(svg, />1<\/tspan>/);
-  assert.match(svg, /<line /);
-  assert.match(svg, /<tspan>f<\/tspan><tspan[^>]+baseline-shift="sub">s<\/tspan>/);
+  const group = assertNativeText(svg, "1fs");
+  assert.equal(group.rules, 1);
+  assert.equal(group.glyphs[2].size, 5);
+  assert.ok(group.glyphs[0].y < 0 && group.glyphs[1].y > 0);
 });
 
 test("preserves west anchors for structured SVG math fallback labels", () => {
@@ -2226,11 +2236,12 @@ test("preserves west anchors for structured SVG math fallback labels", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<text x="125" y="0"[^>]+text-anchor="start"/);
-  assert.match(svg, /font-family="TikZKitMath_Main, TikZKitCMUSerif, serif"[^>]*>tanh<\/tspan>/);
+  const group = assertNativeText(svg, "φ2(x)=tanh(x)");
+  assert.equal(group.x, 125);
+  assert.ok(group.glyphs.filter(g => "tanh".includes(g.text)).every(g => g.family === "TikZKitCMR10"));
 });
 
-test("positions KaTeX foreignObjects from west and east math anchors", () => {
+test("positions native formulas from west and east math anchors", () => {
   const westSvg = renderSvg({
     items: [
       {
@@ -2259,16 +2270,10 @@ test("positions KaTeX foreignObjects from west and east math anchors", () => {
     ],
     coordinates: {}
   });
-  const westBox = westSvg.match(/<foreignObject[^>]+>/)?.[0] || "";
-  const eastBox = eastSvg.match(/<foreignObject[^>]+>/)?.[0] || "";
-  const eastX = Number(eastBox.match(/\bx="([^"]+)"/)?.[1]);
-  const eastWidth = Number(eastBox.match(/\bwidth="([^"]+)"/)?.[1]);
-
-  assert.match(westBox, /\bx="125"/);
-  assert.match(westSvg, /justify-content:flex-start/);
-  assert.match(eastSvg, /justify-content:flex-end/);
-  assert.ok(Number.isFinite(eastX) && Number.isFinite(eastWidth));
-  assert.ok(Math.abs(eastX + eastWidth - 450) < 1e-6, `expected east edge at 450, got ${eastX + eastWidth}`);
+  const westBox = nativeMathGroups(westSvg)[0];
+  const eastBox = nativeMathGroups(eastSvg)[0];
+  assert.equal(westBox.x, 125);
+  assert.ok(Math.abs(eastBox.x + layoutNativeMath("x^2").width * eastBox.scale - 450) < 1e-5);
 });
 
 test("positions mixed KaTeX text from its explicit west anchor", () => {
@@ -2319,15 +2324,14 @@ test("aligns inline fraction legend formulas to the same west anchor as ordinary
     },
     { mathRenderer: "svg-text" }
   );
-  const inlineFraction = svg.match(/<g class="tikz-inline-fraction">([\s\S]*?)<\/g>/)?.[1] || "";
-
-  assert.match(inlineFraction, /^<text x="125" y="0"[^>]+text-anchor="start"/);
-  assert.match(inlineFraction, />φ<\/tspan>/);
-  assert.match(inlineFraction, /font-style="normal">=<\/tspan>/);
-  assert.match(svg, /<text x="125" y="100"[^>]+text-anchor="start"/);
+  const groups = nativeMathGroups(svg);
+  assert.equal(groups.length, 2);
+  assert.deepEqual(groups.map(g => g.x), [125, 125]);
+  assert.equal(groups[0].rules, 1);
+  assert.ok(groups[1].y > groups[0].y);
 });
 
-test("renders simple alphabetic math subscripts as separate SVG tspans", () => {
+test("renders alphabetic math subscripts in their native script font", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$\mu_a$`, style: { fill: "black" } }],
@@ -2336,7 +2340,9 @@ test("renders simple alphabetic math subscripts as separate SVG tspans", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan>μ<\/tspan><tspan[^>]+baseline-shift="sub">a<\/tspan>/);
+  const group = assertNativeText(svg, "μa");
+  assert.equal(group.glyphs[1].family, "TikZKitCMMI7");
+  assert.ok(group.glyphs[1].y > 0);
   assert.doesNotMatch(svg, /μ_a/);
 });
 
@@ -2349,8 +2355,8 @@ test("renders command-valued math subscripts as separate SVG tspans", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan>π<\/tspan><tspan[^>]+baseline-shift="sub">θ<\/tspan>/);
-  assert.match(svg, /<tspan>s<\/tspan><tspan[^>]+baseline-shift="sub">0<\/tspan>/);
+  const group = assertNativeText(svg, "πθ(s0)");
+  assert.ok(group.glyphs.filter(g => ["θ", "0"].includes(g.text)).every(g => g.size === 7 && g.y > 0));
   assert.doesNotMatch(svg, /π_θ|s₀/);
 });
 
@@ -2539,8 +2545,8 @@ test("renders mixed math identifiers with alphabetic subscripts as SVG tspans", 
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan>I<\/tspan><tspan[^>]+baseline-shift="sub">n<\/tspan>/);
-  assert.match(svg, /<tspan>Q<\/tspan><tspan[^>]+baseline-shift="sub">n<\/tspan>/);
+  const group = assertNativeText(svg, "(In,Qn)");
+  assert.ok(group.glyphs.filter(g => g.text === "n").every(g => g.size === 7 && g.y > 0));
   assert.doesNotMatch(svg, /I_n|Q_n/);
 });
 
@@ -2559,7 +2565,7 @@ test("renders grouped alphabetic math subscripts inside longer SVG fallback form
 
   assert.match(svg, /<tspan>G<\/tspan><tspan[^>]+baseline-shift="sub">AB<\/tspan>\(a⃗\)/);
   assert.match(svg, /<tspan>G<\/tspan><tspan[^>]+baseline-shift="sub">BA<\/tspan>\(b⃗\)/);
-  assert.match(svg, /<tspan>r<\/tspan><tspan[^>]+baseline-shift="sub">t<\/tspan>, <tspan>s<\/tspan><tspan[^>]+baseline-shift="sub">t\+1<\/tspan>/);
+  assertNativeText(svg, "rt,st+1");
   assert.doesNotMatch(svg, /G_AB|G_BA|s_t\+1/);
 });
 
@@ -2609,7 +2615,9 @@ test("renders nested superscripts inside SVG math fallback script groups", () =>
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan>e<\/tspan><tspan[^>]+baseline-shift="super"[^>]*>−x<tspan[^>]+baseline-shift="super">2<\/tspan><\/tspan>/);
+  const group = assertNativeText(svg, "e−x2");
+  assert.deepEqual(group.glyphs.map(g => g.size), [10, 7, 7, 5]);
+  assert.ok(group.glyphs[3].y < group.glyphs[2].y && group.glyphs[2].y < 0);
   assert.doesNotMatch(svg, /-x\^2/);
 });
 
@@ -2622,12 +2630,12 @@ test("keeps named math operators upright after SVG fallback scripts", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan[^>]+font-style="normal"[^>]*>sin<\/tspan>/);
-  assert.match(svg, /baseline-shift="super"[^>]*>−x\/2<\/tspan>/);
+  const group = assertNativeText(svg, "e−x/2sinx");
+  assert.ok(group.glyphs.slice(5, 8).every(g => g.style === "normal" && g.y === 0));
   assert.doesNotMatch(svg, /baseline-shift="super">-x\/2<\/tspan>sin x/);
 });
 
-test("raises SVG math fallback superscripts with explicit dy for rsvg", () => {
+test("places superscripts explicitly and restores the operator baseline for rsvg", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x/2}\sin x$`, style: { fill: "black" } }],
@@ -2636,8 +2644,9 @@ test("raises SVG math fallback superscripts with explicit dy for rsvg", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /baseline-shift="super"[^>]+dy="-[0-9.]+">−x\/2<\/tspan>/);
-  assert.match(svg, /<\/tspan><tspan dy="[0-9.]+"><\/tspan><tspan[^>]+font-style="normal"[^>]*>sin<\/tspan>/);
+  const group = assertNativeText(svg, "e−x/2sinx");
+  assert.ok(group.glyphs.slice(1, 5).every(g => g.y < 0 && g.size === 7));
+  assert.ok(group.glyphs.slice(5).every(g => g.y === 0));
 });
 
 test("calibrates scripted SVG math fallback width for TeX glyph comparisons", () => {
@@ -2665,7 +2674,9 @@ test("adds TeX-like spacing between a scripted atom and following named operator
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /baseline-shift="super"[^>]*>−x\/2<\/tspan>(?:<tspan dy="[^"]+"><\/tspan>)?<tspan[^>]+dx="[^"]+"[^>]+font-style="normal"[^>]*>sin<\/tspan>/);
+  const group = assertNativeText(svg, "e−x/2sinx");
+  const endScript = layoutNativeMath("e^{-x/2}").width;
+  assert.ok(Math.abs(group.glyphs[5].x - endScript - 10 / 6) < 0.001);
 });
 
 test("adds TeX-like operator spacing in scripted SVG math fallback labels", () => {
@@ -2677,8 +2688,10 @@ test("adds TeX-like operator spacing in scripted SVG math fallback labels", () =
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan dx="[^"]+"[^>]*>=<\/tspan>/);
-  assert.match(svg, /<tspan dx="[^"]+"[^>]*>\+<\/tspan>/);
+  const group = assertNativeText(svg, "y=A(x−a)2+b");
+  assert.ok(group.glyphs[1].x > group.glyphs[0].x + 5);
+  const beforePlus = layoutNativeMath("y=A(x-a)^2").width;
+  assert.ok(Math.abs(group.glyphs[9].x - beforePlus - 20 / 9) < 0.001);
   assert.doesNotMatch(svg, />y=A\(x-a\)<\/tspan>/);
 });
 
@@ -2822,7 +2835,8 @@ test("uses TikZ-like text scale for SVG text fallbacks", () => {
   );
 
   assert.match(plain, new RegExp(`font-size="${formatted(lineWidthFromPt(10))}"`));
-  assert.match(math, new RegExp(`font-size="${formatted(lineWidthFromPt(10))}"`));
+  const group = assertNativeText(math, "I12");
+  assert.ok(Math.abs(group.glyphs[0].size * group.scale - lineWidthFromPt(10)) < 1e-5);
 });
 
 test("applies leading TeX font size macros to SVG text scale", () => {
@@ -2897,9 +2911,9 @@ test("uses namespaced TeX main and math italic fonts for SVG math fallback", () 
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /font-family:TikZKitMath_Main/);
-  assert.match(svg, /font-family:TikZKitMath_Math/);
-  assert.match(svg, /font-family="TikZKitMath_Math, TikZKitMath_Main, TikZKitCMUSerif, serif"/);
+  const group = assertNativeText(svg, "x1");
+  assert.deepEqual(group.glyphs.map(g => g.family), ["TikZKitCMMI10", "TikZKitCMR7"]);
+  assert.ok(svg.includes("font-family:TikZKitCMR7"));
 });
 
 test("renders mathcal atoms with the dedicated TeX calligraphic font", () => {
@@ -2987,19 +3001,20 @@ test("keeps a bold math nucleus when it carries a script", () => {
   assert.doesNotMatch(result.svg, /mathbfx/);
 });
 
-test("uses calibrated TeX advances and explicit baseline restoration for paired scripts", () => {
+test("native bold paired scripts preserve the next atom baseline", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}
   \node {$\mathbf{x}_{k+1}^{(P)} H$};
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
-  const rewind = Number(result.svg.match(/<tspan dx="(-[^"]+)"[^>]*font-size="[^"]+"[^>]*dy="[^"]+">k\+1<\/tspan>/)?.[1]);
-
   assert.deepEqual(result.diagnostics, []);
-  // The old three-character estimate produced about -29px at the default
-  // SVG font size. CM's parenthesis/P advances need a larger rewind, while
-  // the empty tspan restores the parent baseline for the next atom.
-  assert.ok(rewind < -32, `expected a TeX-metric script rewind, got ${rewind}`);
-  assert.match(result.svg, /<tspan dx="[^"]+" dy="-[^"]+"><\/tspan>/);
+  const group = assertNativeText(result.svg, "x(P)k+1H");
+  const sub = group.glyphs.find(g => g.text === "k");
+  const sup = group.glyphs.find(g => g.text === "(");
+  assert.equal(sub.x, sup.x);
+  assert.ok(sub.y > 0 && sup.y < 0);
+  assert.equal(sub.size, 7);
+  assert.equal(sup.size, 7);
+  assert.equal(group.glyphs.find(g => g.text === "H").y, 0);
 });
 
 test("uses script-cluster widths when aligning SVG text equations", () => {
@@ -3029,15 +3044,15 @@ test("uses amsmath's opened-up baseline skip for aligned display rows", () => {
     z &= z^2
   \end{align*}};
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
-  const baselines = ["x", "y", "z"].map((variable) => Number(
-    result.svg.match(new RegExp(`<text x="[^"]+" y="([^"]+)" text-anchor="end"[^>]*>${variable}<\\/text>`))?.[1]
-  ));
-  const fontSize = Number(result.svg.match(/tikz-math-aligned-fallback[^]*?font-size="([^"]+)"/)?.[1]);
+  const group = assertNativeText(result.svg, "x=x2y=y2z=z2");
+  const baselines = ["x", "y", "z"].map(variable => group.glyphs.find(g => g.text === variable).y);
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(baselines.every(Number.isFinite));
-  assert.ok(Math.abs((baselines[1] - baselines[0]) - fontSize * 1.5) < 0.01);
-  assert.ok(Math.abs((baselines[2] - baselines[1]) - fontSize * 1.5) < 0.01);
+  // Display superscripts exceed the strut: TeX switches from 15pt baseline
+  // spacing to 4pt lineskip. The native alignment probes cover this branch.
+  assert.ok(Math.abs((baselines[1] - baselines[0]) - 16.24004) < 0.001);
+  assert.ok(Math.abs((baselines[2] - baselines[1]) - 16.24004) < 0.001);
 });
 
 test("constrains mixed rich text to TikZ text width with paragraph alignment", () => {

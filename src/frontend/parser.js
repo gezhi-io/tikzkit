@@ -2262,6 +2262,11 @@ function splitStatements(body) {
   let ifnumDepth = 0;
   for (let i = 0; i < body.length; i += 1) {
     const char = body[i];
+    if (char === "\\" && /[{}\\]/.test(body[i + 1] || "")) {
+      current += body.slice(i, i + 2);
+      i += 1;
+      continue;
+    }
     const insideBrace = brace > 0;
     if (!insideBrace && char === "\\") {
       const command = readCommandName(body, i + 1);
@@ -3055,6 +3060,7 @@ export function extractBalanced(text, start, open, close) {
   let depth = 0;
   for (let i = start; i < text.length; i += 1) {
     const char = text[i];
+    if (char === "\\") { i += 1; continue; }
     if (char === open) depth += 1;
     if (char === close) depth -= 1;
     if (depth === 0) {

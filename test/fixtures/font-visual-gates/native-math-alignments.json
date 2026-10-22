@@ -1,0 +1,4230 @@
+{
+  "sourceSha256": "f14f8b2a1369f37ebad0b8879a6d9873a54b1568efbd6c4e6656f1ab61158744",
+  "mathExtension": "ams",
+  "probes": [
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.44675,
+        "height": 5.26704,
+        "depth": 5.24187
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.64778,
+        "height": 6.19754,
+        "depth": 3.04538
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 32.9822,
+        "height": 7.64116,
+        "depth": 5.14116
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.17313,
+        "height": 3.43056,
+        "depth": 2.66666
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 16.58968,
+        "height": 8.75,
+        "depth": 6.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 21.04803,
+        "height": 16.56001,
+        "depth": 14.06001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 41.33885,
+        "height": 14.57405,
+        "depth": 12.07404
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 55.32243,
+        "height": 10.41116,
+        "depth": 7.91116
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 16.58968,
+        "height": 13.25,
+        "depth": 10.75
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 18.98967,
+        "height": 4.19998,
+        "depth": 18.77463
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 18.98967,
+        "height": 21.17459,
+        "depth": 1.80002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 61.48027,
+        "height": 8.75006,
+        "depth": 6.25008
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 69.82562,
+        "height": 8.75952,
+        "depth": 6.2595
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 56.39256,
+        "height": 10.25009,
+        "depth": 7.75009
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 45.2729,
+        "height": 10.25009,
+        "depth": 7.75009
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 56.06354,
+        "height": 13.75008,
+        "depth": 11.25006
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 28.98172,
+        "height": 5.28093,
+        "depth": 5.32619
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 28.94452,
+        "height": 6.18317,
+        "depth": 3.05975
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 34.2369,
+        "height": 7.68332,
+        "depth": 5.18332
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 27.40002,
+        "height": 3.66661,
+        "depth": 2.66666
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 18.32489,
+        "height": 8.75,
+        "depth": 6.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 23.15472,
+        "height": 16.56001,
+        "depth": 14.06001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 45.1202,
+        "height": 14.581,
+        "depth": 12.08098
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 59.88231,
+        "height": 10.45332,
+        "depth": 7.95332
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 18.32489,
+        "height": 13.25,
+        "depth": 10.75
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 20.72488,
+        "height": 4.19998,
+        "depth": 18.77463
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 20.72488,
+        "height": 21.17459,
+        "depth": 1.80002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 66.15535,
+        "height": 8.75006,
+        "depth": 6.25008
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 72.32114,
+        "height": 8.75952,
+        "depth": 6.2595
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 59.73746,
+        "height": 10.27855,
+        "depth": 7.77853
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 45.64438,
+        "height": 10.25009,
+        "depth": 7.75009
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 5,
+      "baselineSkipPt": 6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 60.18321,
+        "height": 13.75008,
+        "depth": 11.25006
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 28.39342,
+        "height": 6.24,
+        "depth": 4.99184
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 31.19232,
+        "height": 8.6986,
+        "depth": 4.2415
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 37.34827,
+        "height": 10.15007,
+        "depth": 6.65009
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 29.64825,
+        "height": 4.80278,
+        "depth": 1.97221
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 19.21223,
+        "height": 11.25,
+        "depth": 7.75
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 23.66367,
+        "height": 19.46005,
+        "depth": 15.96004
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 47.98053,
+        "height": 15.87816,
+        "depth": 12.37814
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 60.55078,
+        "height": 12.32002,
+        "depth": 8.82
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 19.21223,
+        "height": 16.75,
+        "depth": 13.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 21.61223,
+        "height": 5.59998,
+        "depth": 21.30237
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 21.61223,
+        "height": 24.50232,
+        "depth": 2.40002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 71.90587,
+        "height": 12.25009,
+        "depth": 8.7501
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 81.06047,
+        "height": 12.25009,
+        "depth": 8.7501
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 64.6856,
+        "height": 12.40587,
+        "depth": 8.90587
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 53.07663,
+        "height": 12.84996,
+        "depth": 9.34996
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "normal",
+      "native": {
+        "width": 65.65585,
+        "height": 18.2501,
+        "depth": 14.75009
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 31.58304,
+        "height": 6.24,
+        "depth": 5.07616
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 34.18204,
+        "height": 8.70644,
+        "depth": 4.23366
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 39.11142,
+        "height": 10.15007,
+        "depth": 6.65009
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 31.27419,
+        "height": 4.80278,
+        "depth": 1.97221
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 21.8047,
+        "height": 11.25,
+        "depth": 7.75
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 26.72755,
+        "height": 19.46005,
+        "depth": 15.96004
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 53.271,
+        "height": 15.83284,
+        "depth": 12.33284
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 66.91464,
+        "height": 12.32002,
+        "depth": 8.82
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 21.8047,
+        "height": 16.75,
+        "depth": 13.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 24.2047,
+        "height": 5.59998,
+        "depth": 21.30237
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 24.2047,
+        "height": 24.50232,
+        "depth": 2.40002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 79.30956,
+        "height": 12.25009,
+        "depth": 8.7501
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 84.84938,
+        "height": 12.25009,
+        "depth": 8.7501
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 69.42128,
+        "height": 12.44803,
+        "depth": 8.94803
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 53.70372,
+        "height": 12.84996,
+        "depth": 9.34996
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 7,
+      "baselineSkipPt": 8,
+      "mathVersion": "bold",
+      "native": {
+        "width": 72.23732,
+        "height": 18.2501,
+        "depth": 14.75009
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 29.69255,
+        "height": 6.68999,
+        "depth": 5.37523
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 33.1323,
+        "height": 9.94637,
+        "depth": 4.81378
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 38.59131,
+        "height": 11.6001,
+        "depth": 7.6001
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 31.67017,
+        "height": 5.48889,
+        "depth": 2.4889
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 20.36833,
+        "height": 13,
+        "depth": 8.99998
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 25.06966,
+        "height": 21.06001,
+        "depth": 17.06001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 50.79916,
+        "height": 17.78761,
+        "depth": 13.7876
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 63.26053,
+        "height": 13.77,
+        "depth": 9.76999
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 20.36833,
+        "height": 19.25,
+        "depth": 15.24998
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 22.76833,
+        "height": 6.64996,
+        "depth": 23.5691
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 22.76833,
+        "height": 27.36905,
+        "depth": 2.85002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 76.00655,
+        "height": 14.00012,
+        "depth": 10.00012
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 85.82883,
+        "height": 14.00012,
+        "depth": 10.00012
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 68.12445,
+        "height": 14.37756,
+        "depth": 10.37755
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 56.33133,
+        "height": 14.89995,
+        "depth": 10.89995
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "normal",
+      "native": {
+        "width": 69.39534,
+        "height": 20.75012,
+        "depth": 16.7501
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 33.62224,
+        "height": 6.71109,
+        "depth": 5.44843
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 36.70015,
+        "height": 9.9395,
+        "depth": 4.82065
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 41.01697,
+        "height": 11.6001,
+        "depth": 7.6001
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 33.7132,
+        "height": 5.48889,
+        "depth": 2.4889
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 23.5585,
+        "height": 13,
+        "depth": 8.99998
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 28.91124,
+        "height": 21.06001,
+        "depth": 17.06001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 57.37823,
+        "height": 17.69734,
+        "depth": 13.69734
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 71.30228,
+        "height": 13.77,
+        "depth": 9.76999
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 23.5585,
+        "height": 19.25,
+        "depth": 15.24998
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 25.9585,
+        "height": 6.64996,
+        "depth": 23.5691
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 25.9585,
+        "height": 27.36905,
+        "depth": 2.85002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 85.3312,
+        "height": 14.00012,
+        "depth": 10.00012
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 90.68979,
+        "height": 14.00012,
+        "depth": 10.00012
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 74.11322,
+        "height": 14.41415,
+        "depth": 10.41415
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 57.13824,
+        "height": 14.89995,
+        "depth": 10.89995
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 8,
+      "baselineSkipPt": 9.5,
+      "mathVersion": "bold",
+      "native": {
+        "width": 77.70892,
+        "height": 20.75012,
+        "depth": 16.7501
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 31.06726,
+        "height": 7.68994,
+        "depth": 5.29192
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 35.42345,
+        "height": 8.49326,
+        "depth": 2.68684
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 40.50749,
+        "height": 13.25,
+        "depth": 8.75
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 33.80533,
+        "height": 6.175,
+        "depth": 2.16666
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 22.20126,
+        "height": 14.75,
+        "depth": 10.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.98595,
+        "height": 23.48497,
+        "depth": 18.98495
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 54.65242,
+        "height": 19.02621,
+        "depth": 14.5262
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 66.97696,
+        "height": 15.495,
+        "depth": 10.99498
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 22.20126,
+        "height": 21.75,
+        "depth": 17.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 24.60126,
+        "height": 7.69997,
+        "depth": 25.02467
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 24.60126,
+        "height": 29.4246,
+        "depth": 3.30003
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 82.7794,
+        "height": 15.75012,
+        "depth": 11.25014
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 92.83485,
+        "height": 15.75012,
+        "depth": 11.25014
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 73.55377,
+        "height": 16.1159,
+        "depth": 11.61589
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 61.25099,
+        "height": 16.94995,
+        "depth": 12.44995
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "normal",
+      "native": {
+        "width": 75.585,
+        "height": 23.25014,
+        "depth": 18.75012
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 35.17401,
+        "height": 7.68994,
+        "depth": 5.36511
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 39.19058,
+        "height": 8.49754,
+        "depth": 2.68256
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 43.05885,
+        "height": 13.25,
+        "depth": 8.75
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 35.97055,
+        "height": 6.175,
+        "depth": 2.16666
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 25.6296,
+        "height": 14.75,
+        "depth": 10.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 31.07057,
+        "height": 23.48497,
+        "depth": 18.98495
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 61.66267,
+        "height": 18.97987,
+        "depth": 14.47987
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 75.53624,
+        "height": 15.495,
+        "depth": 10.99498
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 25.6296,
+        "height": 21.75,
+        "depth": 17.25
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 28.02959,
+        "height": 7.69997,
+        "depth": 25.02467
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 28.02959,
+        "height": 29.4246,
+        "depth": 3.30003
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 92.79219,
+        "height": 15.75012,
+        "depth": 11.25014
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 98.01315,
+        "height": 15.75012,
+        "depth": 11.25014
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 79.91888,
+        "height": 16.1525,
+        "depth": 11.6525
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 62.11278,
+        "height": 16.94995,
+        "depth": 12.44995
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 9,
+      "baselineSkipPt": 11,
+      "mathVersion": "bold",
+      "native": {
+        "width": 84.50896,
+        "height": 23.25014,
+        "depth": 18.75012
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 33.06401,
+        "height": 8.14003,
+        "depth": 5.42062
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 38.04869,
+        "height": 9.43407,
+        "depth": 2.96602
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 42.88322,
+        "height": 14.5001,
+        "depth": 9.50012
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 36.43839,
+        "height": 6.86111,
+        "depth": 2.86108
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 24.04851,
+        "height": 16,
+        "depth": 11
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 29.2499,
+        "height": 24.8601,
+        "depth": 19.86009
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 58.98889,
+        "height": 21.32585,
+        "depth": 16.32584
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 71.47269,
+        "height": 16.62004,
+        "depth": 11.62003
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 24.04851,
+        "height": 23.5,
+        "depth": 18.5
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.4485,
+        "height": 8.39996,
+        "depth": 27.66907
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.4485,
+        "height": 32.469,
+        "depth": 3.60004
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 89.59573,
+        "height": 17.50014,
+        "depth": 12.50015
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 100.18338,
+        "height": 17.50014,
+        "depth": 12.50015
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 79.3169,
+        "height": 17.50014,
+        "depth": 12.50015
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 66.16537,
+        "height": 18.39995,
+        "depth": 13.39995
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "normal",
+      "native": {
+        "width": 81.81793,
+        "height": 25.50015,
+        "depth": 20.50014
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 37.42299,
+        "height": 8.14003,
+        "depth": 5.72264
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 42.02344,
+        "height": 9.4306,
+        "depth": 2.96948
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 45.57553,
+        "height": 14.5001,
+        "depth": 9.50012
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 38.71654,
+        "height": 6.86111,
+        "depth": 2.86108
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 27.6735,
+        "height": 16,
+        "depth": 11
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 33.54434,
+        "height": 24.8601,
+        "depth": 19.86009
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 66.43639,
+        "height": 21.98102,
+        "depth": 16.981
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 80.61505,
+        "height": 16.62004,
+        "depth": 11.62003
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 27.6735,
+        "height": 23.5,
+        "depth": 18.5
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 30.07349,
+        "height": 8.39996,
+        "depth": 29.07314
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 30.07349,
+        "height": 33.87306,
+        "depth": 3.60004
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 100.11641,
+        "height": 17.50014,
+        "depth": 12.50015
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 105.66457,
+        "height": 17.50014,
+        "depth": 12.50015
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 85.95642,
+        "height": 17.60126,
+        "depth": 12.60126
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 67.04037,
+        "height": 18.39995,
+        "depth": 13.39995
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 10,
+      "baselineSkipPt": 12,
+      "mathVersion": "bold",
+      "native": {
+        "width": 91.17201,
+        "height": 25.50015,
+        "depth": 20.50014
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 36.98062,
+        "height": 9.51027,
+        "depth": 6.5244
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 44.10744,
+        "height": 11.32681,
+        "depth": 3.5533
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 47.86542,
+        "height": 17.40013,
+        "depth": 11.40015
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 42.11597,
+        "height": 8.23334,
+        "depth": 3.35555
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 28.35733,
+        "height": 18.5,
+        "depth": 12.5
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 33.90948,
+        "height": 28.46545,
+        "depth": 22.46545
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 66.70251,
+        "height": 24.4874,
+        "depth": 18.4874
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 80.8336,
+        "height": 19.15515,
+        "depth": 13.15515
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 28.35733,
+        "height": 27,
+        "depth": 21
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 30.75732,
+        "height": 9.79996,
+        "depth": 32.28287
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 30.75732,
+        "height": 37.88278,
+        "depth": 4.20004
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 105.87292,
+        "height": 21.00017,
+        "depth": 15.00018
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 116.86574,
+        "height": 21.00017,
+        "depth": 15.00018
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 92.58466,
+        "height": 21.00017,
+        "depth": 15.00018
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 77.66396,
+        "height": 21.29994,
+        "depth": 15.29994
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "normal",
+      "native": {
+        "width": 96.53957,
+        "height": 30.00018,
+        "depth": 24.00017
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 42.41298,
+        "height": 9.51027,
+        "depth": 6.98941
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 49.01947,
+        "height": 11.32674,
+        "depth": 3.55338
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 51.52693,
+        "height": 17.40013,
+        "depth": 11.40015
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 44.82404,
+        "height": 8.23334,
+        "depth": 3.35555
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 32.82495,
+        "height": 18.5,
+        "depth": 12.5
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 39.38332,
+        "height": 28.46545,
+        "depth": 22.46545
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 77.88239,
+        "height": 25.87778,
+        "depth": 19.87778
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 92.32121,
+        "height": 19.15515,
+        "depth": 13.15515
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 32.82495,
+        "height": 27,
+        "depth": 21
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 35.22495,
+        "height": 9.79996,
+        "depth": 33.96776
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 35.22495,
+        "height": 39.56767,
+        "depth": 4.20004
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 119.03305,
+        "height": 21.00017,
+        "depth": 15.00018
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 123.69524,
+        "height": 21.00017,
+        "depth": 15.00018
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 100.91582,
+        "height": 21.00017,
+        "depth": 15.00018
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 78.89525,
+        "height": 21.29994,
+        "depth": 15.29994
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 12,
+      "baselineSkipPt": 14,
+      "mathVersion": "bold",
+      "native": {
+        "width": 108.29977,
+        "height": 30.00018,
+        "depth": 24.00017
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 43.05089,
+        "height": 11.67007,
+        "depth": 7.82678
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 52.315,
+        "height": 13.59665,
+        "depth": 4.25948
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 55.22304,
+        "height": 21.59999,
+        "depth": 14.40001
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 50.32854,
+        "height": 9.87999,
+        "depth": 4.10443
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 34.02875,
+        "height": 23.09999,
+        "depth": 15.90001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 40.49127,
+        "height": 33.59999,
+        "depth": 26.40001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 82.11528,
+        "height": 29.94934,
+        "depth": 22.74934
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 94.58478,
+        "height": 23.09999,
+        "depth": 15.90001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 34.02875,
+        "height": 33.59999,
+        "depth": 26.40001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 36.42874,
+        "height": 12.59995,
+        "depth": 38.29942
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 36.42874,
+        "height": 45.49931,
+        "depth": 5.40005
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 126.80734,
+        "height": 25.2002,
+        "depth": 18.00021
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 139.49219,
+        "height": 25.2002,
+        "depth": 18.00021
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 110.60622,
+        "height": 25.87329,
+        "depth": 18.67331
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 92.95657,
+        "height": 26.69992,
+        "depth": 19.49994
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "normal",
+      "native": {
+        "width": 115.60732,
+        "height": 36.2002,
+        "depth": 29.00021
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 49.45901,
+        "height": 11.67007,
+        "depth": 8.26169
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 58.13045,
+        "height": 13.58801,
+        "depth": 4.26811
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 59.5683,
+        "height": 21.59999,
+        "depth": 14.40001
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 53.52477,
+        "height": 9.87999,
+        "depth": 4.10443
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 39.38979,
+        "height": 23.09999,
+        "depth": 15.90001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 47.02974,
+        "height": 33.59999,
+        "depth": 26.40001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 93.04753,
+        "height": 30.89777,
+        "depth": 23.69778
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 108.2911,
+        "height": 23.09999,
+        "depth": 15.90001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 39.38979,
+        "height": 33.59999,
+        "depth": 26.40001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 41.78978,
+        "height": 12.59995,
+        "depth": 40.3213
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 41.78978,
+        "height": 47.5212,
+        "depth": 5.40005
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 142.59926,
+        "height": 25.2002,
+        "depth": 18.00021
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 147.5942,
+        "height": 25.2002,
+        "depth": 18.00021
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 120.49675,
+        "height": 26.09074,
+        "depth": 18.89076
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 94.43413,
+        "height": 26.69992,
+        "depth": 19.49994
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 14.4,
+      "baselineSkipPt": 18,
+      "mathVersion": "bold",
+      "native": {
+        "width": 129.71935,
+        "height": 36.2002,
+        "depth": 29.00021
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 50.17656,
+        "height": 14.00409,
+        "depth": 10.36522
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 61.51358,
+        "height": 16.3396,
+        "depth": 5.08777
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 63.8495,
+        "height": 26.31999,
+        "depth": 17.68001
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 59.34749,
+        "height": 11.856,
+        "depth": 4.92531
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 39.57852,
+        "height": 27.81999,
+        "depth": 19.18001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 47.64346,
+        "height": 40.31999,
+        "depth": 31.68001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 93.23053,
+        "height": 34.79086,
+        "depth": 26.15086
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 108.88152,
+        "height": 27.81999,
+        "depth": 19.18001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 39.57852,
+        "height": 40.31999,
+        "depth": 31.68001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 41.97852,
+        "height": 15.39993,
+        "depth": 45.28221
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 41.97852,
+        "height": 54.08208,
+        "depth": 6.60007
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 148.6819,
+        "height": 30.71991,
+        "depth": 22.07993
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 159.21935,
+        "height": 30.71991,
+        "depth": 22.07993
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 128.60757,
+        "height": 31.94249,
+        "depth": 23.3025
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 105.67998,
+        "height": 32.21991,
+        "depth": 23.57993
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "normal",
+      "native": {
+        "width": 135.24187,
+        "height": 43.71991,
+        "depth": 35.07993
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 58.83426,
+        "height": 14.00409,
+        "depth": 11.09105
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 69.81995,
+        "height": 16.3056,
+        "depth": 5.12177
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 69.282,
+        "height": 26.31999,
+        "depth": 17.68001
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 64.02982,
+        "height": 11.856,
+        "depth": 4.92531
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 47.26785,
+        "height": 27.81999,
+        "depth": 19.18001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 56.18585,
+        "height": 40.31999,
+        "depth": 31.68001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 111.3073,
+        "height": 36.73734,
+        "depth": 28.09734
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 127.4996,
+        "height": 27.81999,
+        "depth": 19.18001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 47.26785,
+        "height": 40.31999,
+        "depth": 31.68001
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 49.66785,
+        "height": 15.39993,
+        "depth": 47.70557
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 49.66785,
+        "height": 56.50543,
+        "depth": 6.60007
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 169.80946,
+        "height": 30.71991,
+        "depth": 22.07993
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 170.76527,
+        "height": 30.71991,
+        "depth": 22.07993
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 141.26277,
+        "height": 32.3054,
+        "depth": 23.66542
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 107.45305,
+        "height": 32.21991,
+        "depth": 23.57993
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 17.28,
+      "baselineSkipPt": 22,
+      "mathVersion": "bold",
+      "native": {
+        "width": 154.35356,
+        "height": 43.71991,
+        "depth": 35.07993
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 59.41374,
+        "height": 16.80637,
+        "depth": 12.39241
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 73.60284,
+        "height": 19.61133,
+        "depth": 6.10649
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 74.42943,
+        "height": 30.185,
+        "depth": 19.815
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 71.02814,
+        "height": 14.22995,
+        "depth": 5.91098
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 47.5035,
+        "height": 31.685,
+        "depth": 21.315
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 57.0818,
+        "height": 47.20016,
+        "depth": 36.83017
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 111.69585,
+        "height": 41.14545,
+        "depth": 30.77544
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 128.37695,
+        "height": 32.35672,
+        "depth": 21.98672
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 47.5035,
+        "height": 45.685,
+        "depth": 35.315
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 49.90349,
+        "height": 17.49992,
+        "depth": 53.12671
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 49.90349,
+        "height": 63.12656,
+        "depth": 7.50008
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 178.21269,
+        "height": 36.29532,
+        "depth": 25.92532
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 190.37782,
+        "height": 36.29532,
+        "depth": 25.92532
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 153.91663,
+        "height": 36.88109,
+        "depth": 26.51108
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 126.60019,
+        "height": 36.6849,
+        "depth": 26.31491
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "normal",
+      "native": {
+        "width": 162.08153,
+        "height": 50.79532,
+        "depth": 40.42532
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 69.77931,
+        "height": 16.80637,
+        "depth": 13.31078
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 83.54712,
+        "height": 19.57059,
+        "depth": 6.14723
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 80.94928,
+        "height": 30.185,
+        "depth": 19.815
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 76.64775,
+        "height": 14.22995,
+        "depth": 5.91098
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 56.73238,
+        "height": 31.685,
+        "depth": 21.315
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 67.33434,
+        "height": 47.20016,
+        "depth": 36.83017
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 133.3916,
+        "height": 43.48166,
+        "depth": 33.11165
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 150.7222,
+        "height": 32.35672,
+        "depth": 21.98672
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 56.73238,
+        "height": 45.685,
+        "depth": 35.315
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 59.13237,
+        "height": 17.49992,
+        "depth": 56.0353
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 59.13237,
+        "height": 66.03514,
+        "depth": 7.50008
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 203.57042,
+        "height": 36.29532,
+        "depth": 25.92532
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 204.2352,
+        "height": 36.29532,
+        "depth": 25.92532
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 169.1053,
+        "height": 37.34027,
+        "depth": 26.97026
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 128.72827,
+        "height": 36.6849,
+        "depth": 26.31491
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 20.74,
+      "baselineSkipPt": 25,
+      "mathVersion": "bold",
+      "native": {
+        "width": 185.01974,
+        "height": 50.79532,
+        "depth": 40.42532
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 74.30797,
+        "height": 22.39798,
+        "depth": 17.2203
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 90.12703,
+        "height": 30.97252,
+        "depth": 14.80708
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 89.84732,
+        "height": 36.24992,
+        "depth": 23.80992
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 88.01161,
+        "height": 17.07045,
+        "depth": 9.56467
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 56.98584,
+        "height": 37.72,
+        "depth": 25.28
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 69.43086,
+        "height": 59.18312,
+        "depth": 46.7431
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 140.15112,
+        "height": 51.2979,
+        "depth": 38.8579
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 155.51823,
+        "height": 39.57097,
+        "depth": 27.13095
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 56.98584,
+        "height": 54.22,
+        "depth": 41.78
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 59.38583,
+        "height": 20.99991,
+        "depth": 62.936
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 59.38583,
+        "height": 74.93582,
+        "depth": 9.00009
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 213.54688,
+        "height": 43.54037,
+        "depth": 31.10037
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 229.58961,
+        "height": 43.54037,
+        "depth": 31.10037
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 186.51665,
+        "height": 45.43001,
+        "depth": 32.99
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 151.63187,
+        "height": 43.7199,
+        "depth": 31.27989
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "normal",
+      "native": {
+        "width": 194.1957,
+        "height": 60.54037,
+        "depth": 48.10037
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 88.7948,
+        "height": 22.39452,
+        "depth": 17.64076
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 103.6965,
+        "height": 30.85666,
+        "depth": 14.92294
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 98.1623,
+        "height": 36.50229,
+        "depth": 24.06229
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 94.99825,
+        "height": 17.07045,
+        "depth": 9.56467
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 68.05698,
+        "height": 37.72,
+        "depth": 25.28
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 82.62482,
+        "height": 59.17792,
+        "depth": 46.73792
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 163.17111,
+        "height": 52.71555,
+        "depth": 40.27554
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 183.71245,
+        "height": 39.8216,
+        "depth": 27.38159
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 68.05698,
+        "height": 54.22,
+        "depth": 41.78
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 70.45697,
+        "height": 20.99991,
+        "depth": 66.42517
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 70.45697,
+        "height": 78.42499,
+        "depth": 9.00009
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 243.96648,
+        "height": 43.54037,
+        "depth": 31.10037
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 246.56877,
+        "height": 43.54037,
+        "depth": 31.10037
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 205.2277,
+        "height": 45.64024,
+        "depth": 33.20023
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 154.18475,
+        "height": 43.7199,
+        "depth": 31.27989
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 24.88,
+      "baselineSkipPt": 30,
+      "mathVersion": "bold",
+      "native": {
+        "width": 221.71281,
+        "height": 60.54037,
+        "depth": 48.10037
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 27.28369,
+        "height": 5.74002,
+        "depth": 5.15851
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 28.78668,
+        "height": 7.44806,
+        "depth": 3.64345
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 35.05054,
+        "height": 8.70006,
+        "depth": 5.70007
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 27.83342,
+        "height": 4.11667,
+        "depth": 2.3111
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 17.72433,
+        "height": 10,
+        "depth": 7
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 22.14804,
+        "height": 18.01007,
+        "depth": 15.01006
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 44.35011,
+        "height": 14.72906,
+        "depth": 11.72906
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 57.55902,
+        "height": 11.23897,
+        "depth": 8.23895
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 17.72433,
+        "height": 15,
+        "depth": 12
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 20.12433,
+        "height": 4.89998,
+        "depth": 20.02458
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 20.12433,
+        "height": 22.82454,
+        "depth": 2.10002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 66.05827,
+        "height": 10.50008,
+        "depth": 7.50009
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 74.87671,
+        "height": 10.50008,
+        "depth": 7.50009
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 59.85004,
+        "height": 11.21922,
+        "depth": 8.21921
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 48.57874,
+        "height": 11.39996,
+        "depth": 8.39996
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "normal",
+      "native": {
+        "width": 60.28055,
+        "height": 16.00009,
+        "depth": 13.00008
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 30.26852,
+        "height": 5.74002,
+        "depth": 5.24283
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 31.54944,
+        "height": 7.44481,
+        "depth": 3.6467
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 36.66028,
+        "height": 8.70006,
+        "depth": 5.70007
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 29.33719,
+        "height": 4.19998,
+        "depth": 2.3111
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 20.05096,
+        "height": 10,
+        "depth": 7
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 24.9134,
+        "height": 18.01007,
+        "depth": 15.01006
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 49.1818,
+        "height": 15.95248,
+        "depth": 12.95248
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 63.38469,
+        "height": 11.27556,
+        "depth": 8.27556
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 20.05096,
+        "height": 15,
+        "depth": 12
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 22.45096,
+        "height": 4.89998,
+        "depth": 20.02458
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 22.45096,
+        "height": 22.82454,
+        "depth": 2.10002
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 72.60735,
+        "height": 10.50008,
+        "depth": 7.50009
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 78.23726,
+        "height": 10.50008,
+        "depth": 7.50009
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 64.15392,
+        "height": 11.26138,
+        "depth": 8.26137
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 49.1232,
+        "height": 11.39996,
+        "depth": 8.39996
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 6,
+      "baselineSkipPt": 7,
+      "mathVersion": "bold",
+      "native": {
+        "width": 66.08516,
+        "height": 16.00009,
+        "depth": 13.00008
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 35.47304,
+        "height": 9.12923,
+        "depth": 6.16231
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 41.44159,
+        "height": 13.61493,
+        "depth": 6.53325
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 45.54022,
+        "height": 16.33748,
+        "depth": 10.8625
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 39.55443,
+        "height": 7.51291,
+        "depth": 3.2178
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.33315,
+        "height": 17.8375,
+        "depth": 12.3625
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 31.86642,
+        "height": 27.37263,
+        "depth": 21.89764
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 64.17903,
+        "height": 23.28476,
+        "depth": 17.80978
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 76.68353,
+        "height": 18.41586,
+        "depth": 12.94089
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 26.33315,
+        "height": 26.1375,
+        "depth": 20.6625
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 28.73314,
+        "height": 9.51996,
+        "depth": 30.05559
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 28.73314,
+        "height": 35.49551,
+        "depth": 4.08003
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 97.99341,
+        "height": 19.16264,
+        "depth": 13.68767
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 109.17809,
+        "height": 19.16264,
+        "depth": 13.68767
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 86.23479,
+        "height": 19.69057,
+        "depth": 14.21559
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 72.3371,
+        "height": 20.55742,
+        "depth": 15.08244
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "normal",
+      "native": {
+        "width": 89.47672,
+        "height": 27.96265,
+        "depth": 22.48766
+      }
+    },
+    {
+      "tex": "x_i^2+\\frac{a_1}{b_j}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 40.47835,
+        "height": 9.12923,
+        "depth": 6.59561
+      }
+    },
+    {
+      "tex": "\\sqrt[3]{1+x_i^2}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 45.9165,
+        "height": 13.60316,
+        "depth": 6.54501
+      }
+    },
+    {
+      "tex": "\\begin{pmatrix}x_i&1\\\\0&y_j\\end{pmatrix}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 48.6693,
+        "height": 16.33748,
+        "depth": 10.8625
+      }
+    },
+    {
+      "tex": "\\mathbf{A}_i+\\boldsymbol{\\alpha_j}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 42.10863,
+        "height": 7.51291,
+        "depth": 3.2178
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\y&=2\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 30.30234,
+        "height": 17.8375,
+        "depth": 12.3625
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=x^2\\\\y&=y^2\\\\z&=z^2\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 36.62251,
+        "height": 27.37263,
+        "depth": 21.89764
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=\\frac{a_1}{b_2}\\\\y_i&=\\sqrt{1+x^2}\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 72.44734,
+        "height": 24.00218,
+        "depth": 18.52719
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1&z&=2\\\\y_i&=x^2&w_j&=3\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 86.92894,
+        "height": 18.41586,
+        "depth": 12.94089
+      }
+    },
+    {
+      "tex": "\\begin{aligned}x&=1\\\\[2pt]y&=2\\\\[-2pt]z&=3\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 30.30234,
+        "height": 26.1375,
+        "depth": 20.6625
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[t]x&=1\\\\y&=\\frac{1}{2}\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 32.70233,
+        "height": 9.51996,
+        "depth": 31.59306
+      }
+    },
+    {
+      "tex": "\\begin{aligned}[b]x&=\\frac{1}{2}\\\\y&=2\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 32.70233,
+        "height": 37.03299,
+        "depth": 4.08003
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}x^2&x\\geq0\\\\-x&x<0\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 109.51318,
+        "height": 19.16264,
+        "depth": 13.68767
+      }
+    },
+    {
+      "tex": "f(x)=\\begin{cases}\\frac{1}{x}&\\text{if }x>0\\\\0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 115.30006,
+        "height": 19.16264,
+        "depth": 13.68767
+      }
+    },
+    {
+      "tex": "\\begin{cases}\\sqrt{x_i}&\\text{for }x_i\\geq0\\\\\\frac{a_i}{b_j}&\\text{if }b_j\\ne0\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 93.62439,
+        "height": 19.90723,
+        "depth": 14.43224
+      }
+    },
+    {
+      "tex": "\\begin{cases}x&\\text{first case}\\\\[3pt]0&\\text{otherwise}\\end{cases}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 73.29521,
+        "height": 20.55742,
+        "depth": 15.08244
+      }
+    },
+    {
+      "tex": "\\begin{aligned}f(x)&=\\begin{cases}x&x>0\\\\0&x\\leq0\\end{cases}\\\\g(x)&=x_i\\end{aligned}",
+      "sizePt": 10.95,
+      "baselineSkipPt": 13.6,
+      "mathVersion": "bold",
+      "native": {
+        "width": 99.71909,
+        "height": 27.96265,
+        "depth": 22.48766
+      }
+    }
+  ]
+}

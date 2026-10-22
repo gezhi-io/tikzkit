@@ -12,6 +12,7 @@ import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
 import { plotFillOpacityOption, selectPlotFillStyle, selectPlotStyle } from "./plotStyle.js";
 import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
+import { cmMathMetrics } from "../tex/cmMathMetrics.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const PGFPLOTS_LEGEND_OUTER_XSEP = 3 / TEX_PT_PER_CM;
@@ -95,7 +96,7 @@ function expandLegendForeach(source) {
   return output;
 }
 
-export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries = [], addplots = []) {
+export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries = [], addplots = [], mathOptions = {}) {
   const raw = axisOptions["legend entries"];
   const entries = raw ? splitLegendEntries(raw) : bodyEntries;
   if (!entries.length) return [];
@@ -104,10 +105,11 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
   const placement = legendPlacement(axisOptions["legend pos"], geometry, axisOptions["legend style"]);
   const mathLegend = entries.every((entry) => Boolean(parseMathText(entry)));
   const compactMathLegend = mathLegend && entries.every(isCompactMathLegendEntry);
+  const measurement = { compact: compactMathLegend, mathExtension: mathOptions.mathExtension };
   const stackedBarLegend = stackedBarLegendOrientation(axisOptions);
   const areaLegend = pgfplotsUsesAreaLegend(axisOptions);
   const rowHeights = mathLegend
-    ? entries.map((entry) => nativeMathLegendRowHeight(entry, fontScale, { compact: compactMathLegend }))
+    ? entries.map((entry) => nativeMathLegendRowHeight(entry, fontScale, measurement))
     : entries.map(() => Math.max(0.19, PGFPLOTS_PLAIN_LEGEND_ROW_HEIGHT * fontScale));
   const imageWidth = areaLegend
     ? PGFPLOTS_LEGEND_IMAGE_WIDTH
@@ -123,7 +125,7 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
       .map((entry, index) => ({ entry, index }))
       .filter(({ index }) => index % columnCount === column)
       .map(({ entry }) => mathLegend
-        ? mathLegendBoxWidth([entry], fontScale, imageWidth, { compact: compactMathLegend })
+        ? mathLegendBoxWidth([entry], fontScale, imageWidth, measurement)
         : plainLegendBoxWidth([entry], fontScale, imageWidth))
   ));
   const legendRowHeights = Array.from({ length: rowCount }, (_unused, row) => Math.max(
@@ -241,13 +243,18 @@ function nativeMathLegendRowHeight(entry, fontScale, options = {}) {
     const formula = estimateFormulaBox(parsed.tex, {
       displayMode: parsed.displayMode,
       scale: fontScale,
+      mathExtension: options.mathExtension,
       texTextMetrics: true,
       minWidth: 0,
       widthPadding: 0
     });
-    // A PGFPlots legend is a TikZ matrix. Its row is therefore expanded by
-    // the actual formula box instead of the surrounding font's baseline skip.
-    // The small clearance matches TeX's matrix strut for two-row inline arrays.
+    if (formula.measurementKind === "cm-tex-box") {
+      // every axis legend: nodes={inner sep=2pt,text depth=0.15em}; the
+      // default 0.2pt outer sep on each edge also contributes to matrix rows.
+      const size = 10 * fontScale;
+      const em = (cmMathMetrics[`CMR${size}`]?.parameters.QUAD || 1) * size;
+      return formula.height + (0.15 * em + 4 + 0.4) / TEX_PT_PER_CM;
+    }
     return formulaTotalHeight(formula) + 0.6 / TEX_PT_PER_CM;
   }
   const textHeightPt = /\\(?:d?frac|tfrac)\b/.test(parsed?.tex || "") ? 9.9484 : 9;
@@ -266,6 +273,7 @@ function mathLegendBoxWidth(entries, fontScale, imageWidth, options = {}) {
       return estimateFormulaBox(parsed.tex, {
         displayMode: parsed.displayMode,
         scale: fontScale,
+        mathExtension: options.mathExtension,
         texTextMetrics: true,
         minWidth: 0,
         widthPadding: (options.compact ? 0 : PGFPLOTS_LEGEND_FORMULA_WIDTH_PADDING) * fontScale

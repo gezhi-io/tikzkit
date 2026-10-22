@@ -164,7 +164,7 @@ import {
   normalizeTikzText,
   outerMinipageTextWidth
 } from "../tikz/text.js";
-import { createFontSpec, mergeFontSpec, parseTikzFontPatch, resolveFontSpec } from "../tex/fontSpec.js";
+import { createFontSpec, mergeFontSpec, parseTikzFontPatch, resolveFontSpec, mathExtensionForPackages } from "../tex/fontSpec.js";
 import {
   TIKZ_FONT_FAMILY,
   TIKZ_HELVETICA_FONT_FAMILY,
@@ -315,8 +315,9 @@ export function interpretTikz(ast, options = {}) {
       }).options
     );
     const pictureBasis = parsePictureBasis(pictureOptions, baseVariables);
+    const mathExtension = mathExtensionForPackages(picture.packages || ast.packages || []);
     const pictureTransformEnv = {
-      currentFont: mergeFontSpec(ast.documentFont || createFontSpec(), typeof picture.ambientFont === "string"
+      currentFont: mergeFontSpec(createFontSpec({ ...ast.documentFont, mathExtension }), typeof picture.ambientFont === "string"
         ? parseTikzFontPatch(picture.ambientFont, { source: "scope" }) : picture.ambientFont || {}),
       variables: { ...baseVariables },
       coordinates: pictureCoordinates,
@@ -10228,7 +10229,7 @@ function addNodeItemsWithFont(node, ir, env) {
       // Rectangle-like node renderers inset the geometry by half the stroke,
       // but circular SVG paths paint their stroke outside the supplied radii.
       // Keep that outer half-stroke in the scene bounds.
-      strokeBoundsIncluded: shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "semicircle" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape),
+      strokeBoundsIncluded: size.strokeBoundsIncluded ?? (shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "semicircle" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape)),
       foregroundOuterSep,
       rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
       pathPicture: semantic["path picture"],
@@ -13826,6 +13827,7 @@ function scaleSize(size, scale = 1) {
     width: roundNumber((Number(size?.width) || 0) * factor),
     height: roundNumber((Number(size?.height) || 0) * factor)
   };
+  if (size.strokeBoundsIncluded !== undefined) scaled.strokeBoundsIncluded = size.strokeBoundsIncluded;
   for (const key of ["minX", "minY", "maxX", "maxY"]) {
     if (Number.isFinite(Number(size?.[key]))) scaled[key] = roundNumber(Number(size[key]) * factor);
   }
@@ -14464,7 +14466,11 @@ function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
       scale: (Number(font.sizePt) || 10) / 10,
       minWidth: 0,
       widthPadding: 0,
-      texTextMetrics: true
+      texTextMetrics: true,
+      displayMode: math.displayMode,
+      mathVersion: font.mathVersion,
+      mathExtension: font.mathExtension,
+      baselineSkipPt: font.baselineSkipPt
     });
     height = formula.height;
     depth = formula.depth;
@@ -14977,12 +14983,13 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       height: roundNumber(Math.max(0.02, emptyHeight))
     }, shapeScale);
   }
+  const exactMathBox = textBox.measurementKind === "cm-tex-box";
   let width = fixedCircleSize ?? (isEmptyCircle
     ? emptyCircleSize
     : textWidth
       ? textWidth + innerXSep * 2
-      : Math.max(0.22, textBox.width + innerXSep * 2));
-  let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(0.35, textBox.height + innerYSep * 2));
+      : Math.max(exactMathBox ? 0 : 0.22, textBox.width + innerXSep * 2));
+  let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(exactMathBox ? 0 : 0.35, textBox.height + innerYSep * 2));
   if (arrowNodeShape(shape)) return scaleSize(arrowNodeLayoutSize(width, height, options, env), shapeScale);
   if (shape === "arrowBox") return scaleSize(arrowBoxLayoutSize(width, height, options, env), shapeScale);
   if (shape === "trapezium") {
@@ -15089,7 +15096,11 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     width = Math.max(width, parseFiniteDimension(options["base width"], env, 1.8));
     height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.8));
   }
-  return scaleSize({ width: roundNumber(width), height: roundNumber(height) }, shapeScale);
+  // Exact TeX hboxes plus inner separation describe PGF's path centerline.
+  // Keep their stroke outside it; legacy measured boxes include paint padding.
+  return scaleSize({ width: roundNumber(width), height: roundNumber(height),
+    ...(shape === "rectangle" && textBox.measurementKind === "cm-tex-box" ? { strokeBoundsIncluded: false } : {})
+  }, shapeScale);
 }
 
 function normalizedFormulaNeedsTexMetrics(normalized) {
@@ -15330,12 +15341,17 @@ function estimateTextMetricBox(normalized, options = {}) {
         minWidth: options.formulaMinWidth,
         widthFactor: options.formulaWidthFactor ?? widthFactor,
         widthPadding: formulaWidthPaddingFor(math.tex, options, widthPadding) * metricNormalization,
-        texTextMetrics: Boolean(options.formulaTexTextMetrics)
+        texTextMetrics: Boolean(options.formulaTexTextMetrics),
+        mathVersion: options.font?.mathVersion,
+        mathExtension: options.font?.mathExtension,
+        baselineSkipPt: options.font?.baselineSkipPt
       });
       const formulaMinHeight = compactMathSymbolUsesNativeHeight(math.tex) ? 0 : (options.formulaMinHeight ?? minHeight);
       return {
         width: formula.width / metricNormalization,
-        height: Math.max(formulaMinHeight * formulaScale, formulaTotalHeight(formula)) / metricNormalization
+        height: (formula.measurementKind === "cm-tex-box" ? formulaTotalHeight(formula)
+          : Math.max(formulaMinHeight * formulaScale, formulaTotalHeight(formula))) / metricNormalization,
+        measurementKind: formula.measurementKind
       };
     }
     const measured = measurePlainTextWithTextEngine(text, lineScale, options);
@@ -15356,7 +15372,8 @@ function estimateTextMetricBox(normalized, options = {}) {
   const maxLineScale = Math.max(scale, ...lineStyles.map((style) => scale * (Number(style?.scale) || 1)));
   return {
     width: Math.max(...boxes.map((box) => box.width), Number(normalized.boxWidth) || 0, 0),
-    height: boxes.reduce((sum, box) => sum + box.height, 0) + Math.max(0, boxes.length - 1) * lineGap * maxLineScale
+    height: boxes.reduce((sum, box) => sum + box.height, 0) + Math.max(0, boxes.length - 1) * lineGap * maxLineScale,
+    ...(boxes.length === 1 && boxes[0].measurementKind ? { measurementKind: boxes[0].measurementKind } : {})
   };
 }
 
@@ -15390,7 +15407,8 @@ function measureMathWithTextEngine(text, math, lineScale, options = {}) {
   const formulaMinHeight = compactMathSymbolUsesNativeHeight(math.tex) ? 0 : (options.formulaMinHeight ?? options.minHeight ?? 0);
   return {
     width,
-    height: Math.max(formulaMinHeight * formulaScale, height)
+    height: metrics?.measurementKind === "cm-tex-box" ? height : Math.max(formulaMinHeight * formulaScale, height),
+    measurementKind: metrics?.measurementKind
   };
 }
 

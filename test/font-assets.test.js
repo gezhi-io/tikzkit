@@ -100,7 +100,9 @@ test("public SVG includes every font face for its emitted math families", () => 
     const { svg } = tikzToSvg(String.raw`\node {$${tex}$};`, { fontUrlPrefix: "/test-fonts" });
     const fontCss = svg.match(/<style class="tikzkit-default-font-style"><!\[CDATA\[([\s\S]*?)\]\]><\/style>/)?.[1];
     assert.ok(fontCss, tex);
-    const faces = fontManifest.filter((entry) => entry.family === family);
+    const nativeFamilies = svg.includes('data-math-layout="cm-tex-box"')
+      ? new Set([...svg.matchAll(/<text\b[^>]*font-family="([^"]+)"/g)].map(m => m[1])) : new Set([family]);
+    const faces = fontManifest.filter((entry) => nativeFamilies.has(entry.family));
     assert.ok(faces.length, `${family} has no packaged faces`);
     for (const font of faces) {
       const face = `font-family:${font.family};font-style:${font.style};font-weight:${font.weight};src:url('/test-fonts/${font.file}')`;

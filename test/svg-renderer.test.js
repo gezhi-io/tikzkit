@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 import {
   arrowMarkerId,
   blurShadowFilterId,
@@ -226,10 +227,11 @@ test("svg text engine measures math before rendering from cache", async () => {
     fontSizePt: 10
   });
   const displayPayload = engine.renderFromCache(displayMetrics.cacheKey);
-  const foreignObjectWidth = Number(displayPayload.body.match(/<foreignObject[^>]* width="([^"]+)"/)?.[1]);
+  const group = assertNativeText(displayPayload.body, "xi");
+  const formulaWidth = measureMathBoxPt(String.raw`\displaystyle x_i`).widthPt * group.scale;
   assert.ok(
-    foreignObjectWidth <= displayPayload.viewBox.width + 1e-6,
-    `expected measured viewBox to cover rendered foreignObject width, got viewBox=${displayPayload.viewBox.width} body=${foreignObjectWidth}`
+    Math.abs(formulaWidth - displayPayload.viewBox.width) < 1e-5,
+    `expected measured viewBox to cover the native formula, got viewBox=${displayPayload.viewBox.width} body=${formulaWidth}`
   );
 });
 
@@ -281,7 +283,7 @@ test("uses local Computer Modern design sizes for inline pmatrix formula metrics
   ];
 
   for (const [tex, expectedWidthPt] of samples) {
-    const box = estimateFormulaBox(tex, { texTextMetrics: true, minWidth: 0, widthPadding: 0 });
+    const box = estimateFormulaBox(tex, { texTextMetrics: true, minWidth: 0, widthPadding: 0, mathExtension: "ams" });
     const widthPt = box.width * 28.45274;
     assert.ok(Math.abs(widthPt - expectedWidthPt) <= 0.02, `expected ${tex} to measure ${expectedWidthPt}pt, got ${widthPt}pt`);
   }
@@ -454,7 +456,8 @@ test("node boldmath font options reach SVG math glyphs", () => {
   const browser = tikzToSvg(
     String.raw`\begin{tikzpicture}\node[font=\boldmath\Large] {$x$};\end{tikzpicture}`
   );
-  assert.match(browser.svg, /tikzkit-math-boldsymbol/);
+  assert.match(browser.svg, /data-math-layout="cm-tex-box"/);
+  assert.match(browser.svg, /<text[^>]+font-family="TikZKitCMMIB10"[^>]+font-size="14.4"[^>]+font-weight="700"[^>]*>x<\/text>/);
 });
 
 test("mixed content size commands only resize the following text segment", () => {
@@ -1656,7 +1659,8 @@ test("keeps scoped upright text inside a grouped math subscript", () => {
 
   assert.deepEqual(result.diagnostics, []);
   assert.doesNotMatch(result.svg, />V_</);
-  assert.match(result.svg, /baseline-shift="sub"[^>]*>pulse<\/tspan>/);
+  const group = assertNativeText(result.svg, "Vpulse");
+  assert.ok(group.glyphs.slice(1).every(glyph => glyph.size === 7 && glyph.style === "normal" && glyph.y > 0));
 });
 
 test("keeps sansmath variables as math italic while preserving the sans math version", () => {
@@ -1756,14 +1760,14 @@ test("matches tikztosvg bounds for the basic arrow math label", () => {
   assert.ok(heightPt < 11.8, `expected height close to tikztosvg 11.73pt, got ${heightPt}pt`);
 });
 
-test("renders simple scripted polynomial math as TeX-like glyph paths in svg-text mode", () => {
+test("renders scripted polynomial math with native optical fonts in svg-text mode", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \node[draw, rounded corners=2pt, inner sep=3pt] at (0,0) {$x^2+y^2=1$};
 \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
 
-  assert.match(result.svg, /class="tikz-math-glyphs tikz-math-glyphs-formula"/);
-  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-y"/);
-  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-equals"/);
+  const group = assertNativeText(result.svg, "x2+y2=1");
+  assert.equal(group.glyphs[3].family, "TikZKitCMMI10");
+  assert.equal(group.glyphs[4].family, "TikZKitCMR7");
   assert.doesNotMatch(result.svg, /<text[^>]*>\s*<tspan>x<\/tspan>/);
 });
 
@@ -1771,13 +1775,20 @@ test("aligns scripted polynomial glyph fallback with tikztosvg point coordinates
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \node[draw, rounded corners=2pt, inner sep=3pt] at (0,0) {$x^2+y^2=1$};
 \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
-  const glyphs = mappedGlyphTransforms(result.svg);
+  const group = assertNativeText(result.svg, "x2+y2=1");
+  const view = result.svg.match(/viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"/).slice(1).map(Number);
+  const bpPerUnit = 72 / 2.54 / 100;
+  const glyphs = group.glyphs.map(glyph => ({
+    x: (group.x + glyph.x * group.scale - view[0]) * bpPerUnit,
+    y: (group.y + glyph.y * group.scale - view[1]) * bpPerUnit,
+    scale: group.scale * bpPerUnit * 72.27 / 72
+  }));
 
   assert.ok(Math.abs(glyphs[0].x - 3.188) < 0.015, `expected first x glyph at 3.188pt, got ${glyphs[0].x}pt`);
   assert.ok(Math.abs(glyphs[0].y - 11.294) < 0.015, `expected main baseline at 11.294pt, got ${glyphs[0].y}pt`);
   assert.ok(Math.abs(glyphs[1].x - 8.882) < 0.015, `expected superscript 2 at 8.882pt, got ${glyphs[1].x}pt`);
   assert.ok(Math.abs(glyphs[1].y - 7.679) < 0.015, `expected superscript baseline at 7.679pt, got ${glyphs[1].y}pt`);
-  assert.ok(Math.abs(glyphs[6].x - 48.50658) < 0.015, `expected final 1 glyph at 48.50658pt, got ${glyphs[6].x}pt`);
+  assert.ok(Math.abs(glyphs[6].x - 48.524513) < 0.015, `expected final 1 glyph at native 48.524513bp, got ${glyphs[6].x}bp`);
   assert.ok(Math.abs(glyphs[0].scale - 1) < 0.001, `expected tikztosvg glyph scale 1, got ${glyphs[0].scale}`);
 });
 

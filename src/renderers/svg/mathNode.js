@@ -5,6 +5,8 @@ import {
   mathFallbackText
 } from "../../tikz/text.js";
 import { createFontSpec } from "../../tex/fontSpec.js";
+import { layoutNativeMath } from "../../tex/mathBox.js";
+import { renderNativeMath } from "./nativeMath.js";
 import {
   TIKZ_DISPLAY_MATH_FONT_SIZE,
   TIKZ_FONT_FAMILY,
@@ -83,6 +85,15 @@ export function measureMathBoxPt(tex, options = {}) {
   const displayMode = Boolean(options.displayMode);
   const extraScale = finitePositiveScale(options.scale);
   const baseMathSizePt = font.sizePt * extraScale;
+  const native = layoutNativeMath(source, { fontSizePt: baseMathSizePt, displayMode, mathVersion,
+    mathExtension: font.mathExtension, baselineSkipPt: font.baselineSkipPt * extraScale });
+  if (native) return {
+    widthPt: native.width, heightPt: native.height, depthPt: native.depth, baselinePt: native.height,
+    paintWidthPt: native.width, paintHeightPt: native.height + native.depth,
+    fontSizePt: font.sizePt, svgFontSize: baseMathSizePt,
+    rawWidthPt: native.width, rawHeightPt: native.height + native.depth,
+    mathVersion, displayMode, renderer: options.renderer || "katex", measurementKind: native.measurementKind
+  };
   const scale = (font.sizePt / 10) * extraScale * mathStyleScale(source, baseMathSizePt);
   const rawBox = estimateMathBox(source, displayMode, TEX_PT_PER_CM, scale, { mathVersion });
   const glyphBox = simpleMathGlyphRenderBox(simpleMathGlyphFallback(source), rawBox);
@@ -126,6 +137,20 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const mathVersion = resolveMathVersion(item?.font?.mathVersion);
   const sourceTex = mathVersion === "sans" ? originalMathTex(item, tex) : tex;
   const contentScale = (math.scale || 1) * textFontScale(item, math);
+  const native = layoutNativeMath(tex, { fontSizePt: 10 * contentScale, displayMode: math.displayMode, mathVersion,
+    mathExtension: item.font?.mathExtension, baselineSkipPt: item.font?.baselineSkipPt });
+  if (native) {
+    const fittedSize = fitFontSizeToBox(10 * contentScale * unit / TEX_PT_PER_CM, item.fitBox, unit, [mathFitText(tex)]);
+    const fitScale = fittedSize / (10 * contentScale * unit / TEX_PT_PER_CM);
+    // Fit-box scaling is applied to the completed TeX box, not independently to
+    // fraction/script glyphs (which would change the NFSS optical-size choice).
+    const box = fitScale === 1 ? native : {
+      ...native, width: native.width * fitScale, height: native.height * fitScale, depth: native.depth * fitScale,
+      items: native.items.map(part => ({ ...part, x: part.x * fitScale, y: part.y * fitScale,
+        ...(part.type === "glyph" ? { size: part.size * fitScale } : { width: part.width * fitScale, height: part.height * fitScale }) }))
+    };
+    return renderNativeMath(item, box, unit, math.color || item.style?.fill);
+  }
   const styleScale = mathStyleScale(tex, 10 * contentScale);
   const box = estimateMathBox(tex, math.displayMode, unit, contentScale * styleScale, { mathVersion });
   const originalFontSize = box.fontSize;

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { nativeMathGroups } from "./helpers/native-math-svg.js";
 import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
 import { tikzFeynmanExtension } from "../src/internal.js";
@@ -133,7 +134,7 @@ $\displaystyle\partial_t \frac{\partial^2 V}{\partial^2 \chi}
   assert.doesNotMatch(result.svg, /displaystylepartial/);
   assert.doesNotMatch(result.svg, />[^<]*frac/);
   assert.match(result.svg, /\u2202/);
-  assert.match(result.svg, /tikz-inline-fraction/);
+  assert.ok(nativeMathGroups(result.svg).some(group => group.text.includes("∂t") && group.rules === 1));
   assert.ok(textNodes.some((item) => item.text === "$+$"), "expected plus sign between diagrams");
   assert.ok(bosons.length >= 6, `expected both feynman loops, got ${bosons.length} boson paths`);
   assert.ok(bosons.filter((item) => item.commands.some((command) => command.type === "curveTo")).length >= 4, "expected quarter/half left loop propagators to be curved");

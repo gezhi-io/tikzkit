@@ -10,7 +10,9 @@ import { collectPgfPlotMarkDeclarations } from "../tikz/libraries/plotmarks.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
 import { texTextWidthCm } from "../tikz/textMetrics.js";
-import { libraryRoleFontCommand } from "../tex/fontPolicies.js";
+import { libraryRoleFontCommand, resolveLibraryFont } from "../tex/fontPolicies.js";
+import { mathExtensionForPackages } from "../tex/fontSpec.js";
+import { nativeMathFont } from "../tex/mathFonts.js";
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { renderAddplot, renderCurrentPlotCoordinates } from "../pgfplots/addplotLowering.js";
 import {
@@ -153,6 +155,7 @@ export function preprocessTikzSource(source, options = {}) {
   const pgfplotsRuntimeOptions = {
     ...withFilecontentsTableResolver(options, filecontentsResult.tables),
     ...createPgfplotsStyleContext(expanded, pgfplotsSet.options),
+    mathExtension: mathExtensionForPackages(packages),
     pgfplotsCycleLists,
     plotMarkDeclarations
   };
@@ -6782,7 +6785,12 @@ function datavisualizationPolarRadiusTickAtPoint(point, config = {}) {
 function datavisualizationPolarAngleLabelPadding(config = {}, clean = false, degrees = null) {
   const radius = Number(config.outerRadius);
   if (clean) {
-    if (Number.isFinite(radius) && radius > 2.5 && datavisualizationPolarIsHalfPlane(config)) return -0.07;
+    if (Number.isFinite(radius) && radius > 2.5 && datavisualizationPolarIsHalfPlane(config)) {
+      // PGF puts tick text at the high endpoint, with 1pt inner / .1666em outer sep.
+      const { sizePt } = resolveLibraryFont("datavisualization", "tick");
+      const emPt = nativeMathFont("CMR", sizePt).parameters.QUAD * sizePt;
+      return DATAVISUALIZATION_CLEAN_POLAR_TICK_LENGTH + parseDimension(`${1 + 0.1666 * emPt}pt`, {});
+    }
     if (Number.isFinite(radius) && radius <= 1.25) {
       const normalized = Number.isFinite(degrees) ? ((degrees % 90) + 90) % 90 : 45;
       const atEndpoint = normalized < 1e-6 || Math.abs(normalized - 90) < 1e-6;
@@ -11458,6 +11466,7 @@ function extractBalanced(text, start, open, close) {
   let depth = 0;
   for (let index = start; index < text.length; index += 1) {
     const char = text[index];
+    if (char === "\\") { index += 1; continue; }
     if (char === open) depth += 1;
     if (char === close) depth -= 1;
     if (depth === 0) {

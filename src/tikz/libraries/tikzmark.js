@@ -168,7 +168,7 @@ function lowerMarkedArrayMathBlock(rawBlock, serial) {
     // centered column. The lowered TikZ matrix needs this wider border gap
     // because its cell-node bounds contain only rendered math, not TeX's
     // alignment boxes.
-    "column sep=0.30cm",
+    "column sep=10pt",
     "row sep=-0.02cm",
     "inner sep=0pt",
     "delimiter sep=0.329cm",

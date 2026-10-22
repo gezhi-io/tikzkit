@@ -60,11 +60,13 @@ test("workbench uses the same zero-margin SVG bounds as fixture comparisons", as
   assert.deepEqual(svgSize(workbench.svg), svgSize(comparison.svg));
 });
 
-test("workbench uses TikZKit-scoped browser math for complex node formulas", async () => {
+test("workbench uses native CM boxes for supported bold formulas", async () => {
   const result = await renderWorkbenchSource(String.raw`\begin{tikzpicture}\node {$\mathbf{x}_{k+1}^{(P)} = A\mathbf{x}_k$};\end{tikzpicture}`);
 
-  assert.match(result.svg, /<foreignObject\b/);
-  assert.match(result.svg, /tikzkit-math-scope/);
+  assert.doesNotMatch(result.svg, /<foreignObject\b/);
+  assert.match(result.svg, /data-math-layout="cm-tex-box"/);
+  assert.match(result.svg, /font-family="TikZKitCMBX10"/);
+  assert.match(result.svg, /font-family="TikZKitCMMI7"/);
   assert.doesNotMatch(result.svg, /class="[^"]*\bkatex\b/);
   assert.deepEqual(result.diagnostics, []);
 });

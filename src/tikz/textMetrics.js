@@ -11,6 +11,7 @@ import { parseExtensibleMathArrow } from "./mathArrows.js";
 import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
 import { parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
+import { layoutNativeMath } from "../tex/mathBox.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const ENGLISH_LEFT_HYPHEN_MIN = 2;
@@ -501,6 +502,11 @@ export function estimateFormulaBox(tex, options = {}) {
   const normalized = leadingMathFontSize(normalizeBrowserMathMacros(tex));
   const optionScale = Number(options.scale) > 0 ? Number(options.scale) : 1;
   const scale = optionScale * normalized.scale;
+  const native = layoutNativeMath(normalized.tex, { fontSizePt: 10 * scale, displayMode,
+    mathVersion: options.mathVersion, mathExtension: options.mathExtension, baselineSkipPt: options.baselineSkipPt });
+  if (native) return { width: native.width / TEX_PT_PER_CM,
+    height: native.height / TEX_PT_PER_CM, depth: native.depth / TEX_PT_PER_CM,
+    measurementKind: native.measurementKind };
   const baseMinWidth = Number.isFinite(options.minWidth) ? options.minWidth : displayMode ? 0.72 : 0.42;
   const minWidth = baseMinWidth * scale;
   const metric = {

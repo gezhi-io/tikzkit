@@ -655,13 +655,14 @@ test("svg renderer keeps standalone math node serialization in its own module", 
   const box = estimateMathBox("x_i", false, 100, 1);
   const htmlBox = scopedMathForeignObjectBox(box, false);
   const svgText = renderMathNode(item, { tex: String.raw`\frac{1}{2}`, displayMode: false, scale: 1 }, 100, { mathRenderer: "svg-text" });
-  const katexText = renderMathNode(item, { tex: "x_i", displayMode: false, scale: 1 }, 100, {});
+  const katexText = renderMathNode(item, { tex: String.raw`\hat{x}_i`, displayMode: false, scale: 1 }, 100, {});
 
   assert.ok(box.width > 0);
   assert.ok(htmlBox.width > box.width);
   assert.ok(scopedMathHostFontSize(12) < 12);
   assert.equal(mathStyleScale(String.raw`\displaystyle x`), 1);
-  assert.match(svgText, /tikz-fraction/);
+  assert.match(svgText, /data-math-layout="cm-tex-box"/);
+  assert.match(svgText, /<rect[^>]*height="0\.39999"/);
   assert.match(katexText, /tikzkit-math-scope/);
   assert.match(source, /from "\.\/mathNode\.js"/);
   assert.doesNotMatch(source, /function renderMathNode/);

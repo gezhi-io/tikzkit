@@ -26,6 +26,9 @@ spec = importlib.util.spec_from_file_location("optical", ROOT / "scripts/build-c
 sys.dont_write_bytecode = True
 optical = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(optical)
+math_spec = importlib.util.spec_from_file_location("cm_math", ROOT / "scripts/build-cm-math.py")
+cm_math = importlib.util.module_from_spec(math_spec)
+math_spec.loader.exec_module(cm_math)
 manifest = []
 data = {}
 type1_cache = {}
@@ -47,12 +50,28 @@ def digest(path):
 
 
 def renamed(font, family, style):
+    bold = "Bold" in style
+    italic = "Italic" in style
+    postscript_name = family.replace("_", "") + "-" + style.replace(" ", "")
     names = {1: family, 2: style, 3: f"TikZKit:{family}:{style}",
-             4: f"{family} {style}", 6: family.replace("_", "") + "-" + style.replace(" ", ""),
+             4: f"{family} {style}", 6: postscript_name,
              16: family, 17: style}
     for record in font["name"].names:
         if record.nameID in names:
             record.string = names[record.nameID].encode(record.getEncoding(), errors="replace")
+    # CSS descriptors alone do not reach Fontconfig/CoreText. Each extracted
+    # LM alphabet needs its own native identity and matching selection flags.
+    os2 = font["OS/2"]
+    os2.usWeightClass = 700 if bold else 400
+    os2.fsSelection = (os2.fsSelection & ~(1 | 32 | 64 | 512)) | (
+        int(italic) | (32 if bold else 0) | (64 if not bold and not italic else 0))
+    font["head"].macStyle = (font["head"].macStyle & ~3) | int(bold) | (int(italic) << 1)
+    cff = font["CFF "].cff
+    cff.fontNames = [postscript_name]
+    top = cff.topDictIndex[0]
+    top.FamilyName = family
+    top.FullName = names[4]
+    top.Weight = "Bold" if bold else "Regular"
     font["head"].created = font["head"].modified = 3786912000
 
 
@@ -175,6 +194,8 @@ with tempfile.TemporaryDirectory() as temporary:
         optical.convert_type1_to_otf(source, converted, family, style_name=style,
                                     weight_name=style, weight_class=700 if style == "Bold" else 400)
         emit(TTFont(converted), source, family, style, "OFL-AMSFonts.txt")
+
+    cm_math.build(TEX, ROOT, Path(temporary), optical, emit, digest)
 
     # NFSS uses CMSY for \mathcal, MSBM for \mathbb, and Euler for \mathfrak.
     # Unicode LM Math alphabets have different outlines despite similar names.
