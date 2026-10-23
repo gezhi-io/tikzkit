@@ -8,6 +8,7 @@ import { isPgfplotsTopView, pgfplotsViewDirection } from "./geometry.js";
 import { isLogAxis, scaleAxisValue } from "./ranges.js";
 import { axisLogBase, axisPointIsValidForScale } from "./logAxis.js";
 import { colorToRgb, normalizeColor } from "../engine/options.js";
+import { resolveColorSpec, colorSpecToRgb } from "../engine/colors.js";
 import { encodeRgbaPngDataUri } from "./rasterPng.js";
 import { samplePgfplotsSurfaceDomain } from "./sampling.js";
 
@@ -64,7 +65,7 @@ function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry
     const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
     return orderedPatches.map((patch) => {
       const mappedColor = pgfplotsLinearPatchMappedColor(
-        surfacePatchColorValue(patch),
+        surfacePatchColorValue(patch, plot.options, axisOptions),
         colorRanges,
         plot.options,
         axisOptions,
@@ -75,18 +76,18 @@ function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry
     });
   }
   return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
-    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
+    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch, plot.options, axisOptions), colorRanges, plotIndex, axisOptions);
     // PGFPlots' linear patch handler uses its faceted mesh color even when
     // the plot also provides a generic draw key. This matches the native
     // triangle patch's separate orange fill and darker mesh outline.
     const mappedColor = pgfplotsLinearPatchMappedColor(
-      surfacePatchColorValue(patch),
+      surfacePatchColorValue(patch, plot.options, axisOptions),
       colorRanges,
       plot.options,
       axisOptions,
       plotIndex
     );
-    const draw = pgfplotsSurfacePatchStrokeColor({ ...plot.options, surf: true }, mappedColor);
+    const draw = pgfplotsSurfacePatchStrokeColor({ ...plot.options, surf: true }, mappedColor, axisOptions);
     const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
     const pointsText = patch.corners.map((corner) => formatAxisPoint(geometry.mapPoint3d(corner))).join(" -- ");
     return renderAxisSurfacePatchLayers(pointsText, { fill, draw, opacity, lineWidth });
@@ -96,10 +97,11 @@ function renderAxisLinearPatchCoordinatePlot(plot, axisOptions, ranges, geometry
 export function renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex = 0) {
   const points = plot.points.filter((point) => axisPointIsValidForScale(point, axisOptions));
   const coordinateRows = finiteSurfaceCoordinateRows(plot.coordinateRows, axisOptions);
-  const steppedCells = steppedSurfaceCellsFromCoordinateRows(coordinateRows);
+  const steppedCells = hasExplicitSurfaceMeshDimensions(plot.options, axisOptions)
+    ? [] : steppedSurfaceCellsFromCoordinateRows(coordinateRows);
   let rowsForColor = null;
   let patches = null;
-  if (steppedCells.length > 0 && !hasExplicitSurfaceMeshDimensions(plot.options, axisOptions)) {
+  if (steppedCells.length > 0) {
     rowsForColor = [steppedCells.map((cell) => ({ x: cell.x0, y: cell.y0, z: cell.z }))];
     patches = cuboidSurfacePatches(steppedCells, ranges, axisOptions);
   } else if (shouldUseRaggedCoordinateRows(coordinateRows, plot.options, axisOptions)) {
@@ -108,6 +110,12 @@ export function renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geome
   } else {
     const grid = inferSurfaceCoordinateGrid(points, plot.options, axisOptions, plot.coordinateRows);
     if (grid) {
+      // pgfplotsplothandlermesh@init@meshkeys switches a one-row or
+      // one-column lattice to line patches. A coordinate change is not
+      // a scanline boundary; only input separators or mesh dimensions are.
+      if (grid.rows === 1 || grid.cols === 1) {
+        return renderOneDimensionalMesh(grid.points.flat(), plot, axisOptions, ranges, geometry, plotIndex);
+      }
       rowsForColor = grid.points;
       patches = coordinateGridPatches(grid.points, ranges, axisOptions);
     }
@@ -120,12 +128,25 @@ export function renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geome
   patches.sort(steppedCells.length > 0 ? (a, b) => b.depth - a.depth : (a, b) => a.depth - b.depth);
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
   return renderAxisSurfacePatchLayerCommands(patches.map((patch) => {
-    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
-    const draw = pgfplotsSurfacePatchStrokeColor(plot.options, fill);
+    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch, plot.options, axisOptions), colorRanges, plotIndex, axisOptions);
+    const draw = pgfplotsSurfacePatchStrokeColor(plot.options, fill, axisOptions);
     const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
     const pointsText = patch.corners.map((corner) => formatAxisPoint(geometry.mapPoint3d(corner))).join(" -- ");
     return renderAxisSurfacePatchLayers(pointsText, { fill, draw, opacity, lineWidth });
   }));
+}
+
+function renderOneDimensionalMesh(points, plot, axisOptions, ranges, geometry, plotIndex) {
+  const colorRanges = surfaceColorRanges(ranges, [points], axisOptions, plot.options);
+  const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
+  const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options, { ignoreShader: true });
+  return points.slice(1).map((point, index) => {
+    const previous = points[index];
+    const patch = surfacePatchFromCorners([previous, point], ranges, axisOptions);
+    const color = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch, plot.options, axisOptions), colorRanges, plotIndex, axisOptions);
+    const segment = [previous, point].map(p => formatAxisPoint(geometry.mapPoint3d(p))).join(" -- ");
+    return `\\draw[axis surface mesh, draw=${color}, fill=none, opacity=${opacity}, line width=${lineWidth}] ${segment};`;
+  });
 }
 
 function coordinateGridPatches(rows, ranges, axisOptions) {
@@ -277,6 +298,12 @@ function uniqueSortedAxisValues(values) {
 }
 
 function steppedSurfaceCellsFromCoordinateRows(rows) {
+  // A level rectangle is not a column. Only the repeated (x,y) samples
+  // of a vertical step authorize the legacy stepped-scanline reconstruction.
+  const hasVerticalStep = rows.some(row => row.some((point, i) => i > 0 &&
+    sameAxisValue(point.x, row[i - 1].x) && sameAxisValue(point.y, row[i - 1].y) &&
+    !sameAxisValue(point.z, row[i - 1].z)));
+  if (!hasVerticalStep) return [];
   const cells = [];
   for (const row of rows || []) {
     if (!Array.isArray(row) || row.length < 4) continue;
@@ -287,7 +314,9 @@ function steppedSurfaceCellsFromCoordinateRows(rows) {
     for (let index = 0; index < basePoints.length - 1; index += 1) {
       const start = basePoints[index];
       const end = basePoints[index + 1];
-      if (sameAxisValue(start.y, end.y) || !sameAxisValue(start.z, end.z) || Math.abs(start.z) < 1e-12) continue;
+      // A zero-height interval is still a faceted rectangle in PGF's mesh,
+      // not missing data. Its outline forms the visible floor grid.
+      if (sameAxisValue(start.y, end.y) || !sameAxisValue(start.z, end.z)) continue;
       cells.push({
         x0: Math.min(baseX, bridge.x),
         x1: Math.max(baseX, bridge.x),
@@ -402,8 +431,8 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
   const colorRanges = surfaceColorRanges(ranges, grid, axisOptions, plot.options);
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
   return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
-    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
-    const draw = pgfplotsSurfacePatchStrokeColor(plot.options, fill);
+    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch, plot.options, axisOptions), colorRanges, plotIndex, axisOptions);
+    const draw = pgfplotsSurfacePatchStrokeColor(plot.options, fill, axisOptions);
     const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
     const points = patch.corners.map((corner) => formatAxisPoint(corner.projected)).join(" -- ");
     return renderAxisSurfacePatchLayers(points, { fill, draw, opacity, lineWidth });
@@ -442,8 +471,8 @@ export function renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geome
   }
   const opacity = axisOpacity(plot.options.opacity ?? axisOptions.opacity ?? 1);
   return renderAxisSurfacePatchLayerCommands(orderedPatches.map((patch) => {
-    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch), colorRanges, plotIndex, axisOptions);
-    const draw = pgfplotsSurfacePatchStrokeColor(plot.options, fill);
+    const fill = pgfplotsSurfacePatchColor(plot.options, surfacePatchColorValue(patch, plot.options, axisOptions), colorRanges, plotIndex, axisOptions);
+    const draw = pgfplotsSurfacePatchStrokeColor(plot.options, fill, axisOptions);
     const lineWidth = pgfplotsSurfacePatchLineWidth(plot.options);
     const points = patch.corners.map((corner) => formatAxisPoint(corner.projected)).join(" -- ");
     return renderAxisSurfacePatchLayers(points, { fill, draw, opacity, lineWidth });
@@ -704,7 +733,7 @@ function cellBoundaries(values, min, max) {
 }
 
 function inferSurfaceCoordinateGrid(points, plotOptions = {}, axisOptions = {}, coordinateRows = null) {
-  if (points.length < 4) return null;
+  if (points.length < 2) return null;
   const optionRows = surfaceMeshDimension(plotOptions["mesh/rows"] ?? axisOptions["mesh/rows"] ?? plotOptions.rows ?? axisOptions.rows);
   const optionCols = surfaceMeshDimension(plotOptions["mesh/cols"] ?? axisOptions["mesh/cols"] ?? plotOptions.cols ?? axisOptions.cols);
   let rows = optionRows;
@@ -721,7 +750,7 @@ function inferSurfaceCoordinateGrid(points, plotOptions = {}, axisOptions = {}, 
     rows = inferred.rows;
     cols = inferred.cols;
   }
-  if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 2 || cols < 2 || rows * cols > points.length) return null;
+  if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 1 || cols < 1 || rows * cols > points.length) return null;
   const grid = [];
   for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
     grid.push(points.slice(rowIndex * cols, rowIndex * cols + cols));
@@ -731,9 +760,9 @@ function inferSurfaceCoordinateGrid(points, plotOptions = {}, axisOptions = {}, 
 
 function surfaceGridFromCoordinateRows(coordinateRows, axisOptions = {}) {
   const rows = finiteSurfaceCoordinateRows(coordinateRows, axisOptions);
-  if (rows.length < 2) return null;
+  if (!rows.length) return null;
   const cols = rows[0].length;
-  if (cols < 2 || rows.some((row) => row.length !== cols)) return null;
+  if (!cols || rows.some((row) => row.length !== cols)) return null;
   return {
     rows: rows.length,
     cols,
@@ -751,7 +780,7 @@ function finiteSurfaceCoordinateRows(coordinateRows, axisOptions = {}) {
 function surfaceMeshDimension(value) {
   if (value === undefined || value === null || value === true || value === "") return null;
   const parsed = Math.round(axisNumber(value, NaN));
-  return Number.isInteger(parsed) && parsed > 1 ? parsed : null;
+  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
 }
 
 function inferSurfaceMatrixShape(points) {
@@ -783,7 +812,9 @@ function clipDomainToRange(domain, min, max) {
 }
 
 function surfaceColorRanges(ranges, grid, axisOptions = {}, plotOptions = {}) {
-  if (!usesPerPlotPointMeta(axisOptions, plotOptions)) return ranges;
+  if (!usesPerPlotPointMeta(axisOptions, plotOptions)) {
+    return { ...ranges, ...(axisOptions["pgfplots surveyed color range"] || {}) };
+  }
   const values = [];
   for (const row of grid || []) {
     for (const point of row || []) {
@@ -825,7 +856,12 @@ function surfacePatchMetaMean(corners, fallback) {
   return values.length === corners.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback;
 }
 
-function surfacePatchColorValue(patch) {
+function surfacePatchColorValue(patch, plotOptions = {}, axisOptions = {}) {
+  // PGF's corrected flat-corner handler reads the first input vertex, before
+  // z-buffer ordering. Sorting patches must not replace this with their mean.
+  if (String(plotOptions.shader ?? axisOptions.shader).trim() === "flat corner") {
+    return surfacePointColorValue(patch.corners[0]);
+  }
   return Number.isFinite(patch?.metaMean) ? patch.metaMean : patch?.zMean;
 }
 
@@ -902,10 +938,20 @@ function firstNonempty(...values) {
   return "";
 }
 
-function pgfplotsSurfacePatchStrokeColor(options = {}, fill) {
-  if (String(options.shader || "").trim().toLowerCase() === "interp") return "none";
-  if (options["faceted color"] && options["faceted color"] !== true && String(options["faceted color"]).trim() !== "none") {
-    return plotColorValue(options["faceted color"]);
+function pgfplotsSurfacePatchStrokeColor(options = {}, fill, axisOptions = {}) {
+  const shader = String(options.shader ?? axisOptions.shader ?? "faceted").trim().toLowerCase();
+  if (shader === "interp") return "none";
+  // PGF's flat shader strokes with the mapped fill color, unlike the
+  // darkened faceted color. The stroke matters at transparent shared edges.
+  if (["flat", "flat mean", "flat corner"].includes(shader)) {
+    // The flat mesh handler calls fillstroke itself; TikZ's draw=none only
+    // disables the surrounding path action, not this mapped-color outline.
+    return options.draw === true ? "black"
+      : options.draw && options.draw !== "none" ? plotColorValue(options.draw) : fill;
+  }
+  const facetedColor = options["faceted color"] ?? axisOptions["faceted color"];
+  if (facetedColor && facetedColor !== true) {
+    return String(facetedColor).trim() === "none" ? "none" : plotColorValue(facetedColor);
   }
   // `surf` installs its own faceted color (`mapped color!80!black`). A
   // generic draw color does not override that PGFPlots key; callers that
@@ -987,7 +1033,8 @@ function pgfplotsCustomSurfaceColor(axisOptions = {}, z, ranges) {
       return interpolateColor(left.color, right.color, local);
     }
   }
-  return stops.at(-1)?.color || "";
+  const last = stops.at(-1)?.color;
+  return last ? formatRgbNumberColor(colorSpecToRgb(last).map(channel => channel * 255)) : "";
 }
 
 function surfaceColorPosition(value, ranges, axisOptions = {}) {
@@ -1004,23 +1051,24 @@ function normalizeColormapStops(stops) {
   const min = Math.min(...positions);
   const max = Math.max(...positions);
   const span = max - min || 1;
+  // pgfplotscolor.code.tex: `colorspace=auto` chooses CMYK only when the
+  // first color is CMYK; gray and RGB first colors select an RGB sequence.
+  const model = resolveColorSpec(stops[0]?.color)?.model === "cmyk" ? "cmyk" : "rgb";
   return stops
     .filter((stop) => Number.isFinite(Number(stop.position)) && stop.color)
     .map((stop) => ({
       position: (Number(stop.position) - min) / span,
-      color: normalizeColor(stop.color)
+      color: resolveColorSpec(stop.color, model)
     }))
+    .filter(stop => stop.color)
     .sort((a, b) => a.position - b.position);
 }
 
 function interpolateColor(left, right, t) {
-  if (t <= 0) return left;
-  if (t >= 1) return right;
-  const leftRgb = parseRgbColor(left);
-  const rightRgb = parseRgbColor(right);
-  if (!leftRgb || !rightRgb) return t < 0.5 ? left : right;
-  const rgb = leftRgb.map((channel, index) => channel + (rightRgb[index] - channel) * Math.max(0, Math.min(1, t)));
-  return formatRgbNumberColor(rgb);
+  const factor = Math.max(0, Math.min(1, t));
+  const mixed = { model: left.model, channels: left.channels.map((channel, index) =>
+    channel + (right.channels[index] - channel) * factor) };
+  return formatRgbNumberColor(colorSpecToRgb(mixed).map(channel => channel * 255));
 }
 
 function parseRgbColor(color) {

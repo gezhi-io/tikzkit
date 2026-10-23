@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {"id":"axis-3d-boxed","title":"3D boxed labels","source":"boxed.tex","axisFrame":"3d"},
+    {"id":"axis-3d-left","title":"3D left axes labels","source":"left.tex","axisFrame":"3d"},
+    {"id":"axis-3d-explicit","title":"3D explicit descriptions","source":"explicit.tex","axisFrame":"3d"},
+    {"id":"axis-3d-small","title":"3D font-dependent clearance","source":"small.tex","axisFrame":"3d"},
+    {"id":"axis-3d-colorbar","title":"Native colorbar ticks and math title","source":"colorbar.tex"},
+    {"id":"axis-3d-colorbar-horizontal","title":"Horizontal colorbar and upper ticks","source":"colorbar-horizontal.tex"},
+    {"id":"axis-3d-default-left","title":"Legacy default 3D scaling","source":"default-left.tex","axisFrame":"3d"},
+    {"id":"3d-function-9","title":"Sinusoidal ridge and legacy scale rounding","source":"../examples/latex-examples/3d-function-9.tex"},
+    {"id":"3d-manhattan-bar-plot","title":"Native 3D coordinate mesh","source":"../examples/latex-examples/3d-manhattan-bar-plot.tex"},
+    {"id":"3d-function-4","title":"Oblique surface and colorbar","source":"../implementation-examples/latex-examples-master/3d-function-4.tex"},
+    {"id":"hypersurface-2","title":"Left axes and saddle","source":"../examples/latex-examples/hypersurface-2.tex"},
+    {"id":"3d-gradient-colored","title":"Top-view axis bounds","source":"../implementation-examples/latex-examples-master/3d-gradient-colored.tex","axisFrame":"box"},
+    {"id":"axis-3d-flat-planes","title":"Single-scanline surface degenerates to line patches","source":"flat-planes.tex"},
+    {"id":"axis-3d-explicit-flat-planes","title":"Explicit flat coordinate meshes without invented side walls","source":"explicit-flat-planes.tex"},
+    {"id":"axis-3d-inline-colormap","title":"Inline colormap with explicit mesh and point-meta bounds","source":"inline-colormap.tex"},
+    {"id":"axis-3d-flat-shader-strokes","title":"Flat shader with and without explicit mesh strokes","source":"flat-shader-strokes.tex"},
+    {"id":"pgfplotstable-number-formats","title":"Scientific notation native-glyph regression","source":"../examples/pgfplots/pgfplotstable-number-formats.tex"}
+  ]
+}

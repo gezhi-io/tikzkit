@@ -1,0 +1,11 @@
+{
+  "cases": [
+    {"id":"compact-math-polar","title":"Polar label outer separation","source":"../font-visual-gates/polar-small-fractions.tex"},
+    {"id":"compact-math-datavis","title":"Scientific function legends","source":"../font-visual-gates/datavisualization-functions.tex"},
+    {"id":"compact-math-legend-shapes","title":"Styled legend label geometry","source":"../examples/workbench/datavisualization-legend-math-metrics.tex"},
+    {"id":"compact-math-lda","title":"Legacy LDA descriptions","source":"../examples/latex-examples/lda-gauss-1.tex"},
+    {"id":"compact-math-patterns","title":"Pattern origin follows the complete page box","source":"../examples/patterns/form-only-primitives.tex"},
+    {"id":"compact-math-btree","title":"CMTT split-node numbers and pointers","source":"../examples/latex-examples/b-tree-2-small-2.tex"},
+    {"id":"compact-math-linked-list","title":"Split anchors in a linked list","source":"../examples/latex-examples/doubly-linked-list.tex"}
+  ]
+}

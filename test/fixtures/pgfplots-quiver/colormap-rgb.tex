@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18,colormap={mixed}{color(0cm)=(blue);color(1cm)=(yellow)}}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[view={0}{90},scale only axis,width=6cm,height=2cm,
+  xmin=0,xmax=4,ymin=0,ymax=1,enlargelimits=false,
+  domain=0:4,y domain=0:1,samples=17,samples y=2,
+  colormap name=mixed,point meta min=0,point meta max=4]
+\addplot3[surf,shader=flat corner,draw=none] {x};
+\end{axis}
+\end{tikzpicture}
+\end{document}

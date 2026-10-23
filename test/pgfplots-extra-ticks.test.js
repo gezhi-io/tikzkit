@@ -4,6 +4,7 @@ import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 import { renderAxisTicks } from "../src/pgfplots/ticks.js";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 
 function renderTicks(axisOptions, ranges = { xMin: 0, xMax: 4, yMin: 0, yMax: 1 }) {
   const options = {
@@ -83,7 +84,8 @@ test("pgfplotsset every extra axis tick styles reach the browser renderer", () =
 \end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /<text[^>]*fill="(?:red|rgb\(255,0,0\))"[^>]*>2\.5<\/text>/);
+  const extraLabel = assertNativeText(result.svg, "2.5");
+  assert.ok(extraLabel.glyphs.every(glyph => glyph.fill === "red"));
 });
 
 test("pgfplots extra ticks remain visible where middle axes cross", () => {
@@ -132,7 +134,10 @@ test("pgfplots composes global and local nested extra tick label styles", () => 
 \end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  const extraLabel = result.svg.match(/<g transform="rotate\(-90 [^"]+\)">[\s\S]*?<text[^>]*>2\.5<\/text>/)?.[0] || "";
-  assert.match(extraLabel, /fill="(?:red|rgb\(255,0,0\))"/);
-  assert.match(extraLabel, /font-family="TikZKitCMR7,/);
+  const label = result.ir.items.find(item => item.type === "textNode" && item.text === "2.5");
+  assert.equal(label.rotation, 90);
+  assert.equal(label.font.sizePt, 7);
+  const extraLabel = assertNativeText(result.svg, "2.5");
+  assert.ok(extraLabel.glyphs.every(glyph => glyph.fill === "red"));
+  assert.ok(extraLabel.glyphs.filter(glyph => /\d/.test(glyph.text)).every(glyph => glyph.family === "TikZKitCMR7"));
 });

@@ -1,0 +1,5 @@
+{
+  "cases": [
+    { "id": "multiline-math-circles", "source": "multiline-math-circles.tex", "title": "Native multiline math boxes and circular node borders" }
+  ]
+}

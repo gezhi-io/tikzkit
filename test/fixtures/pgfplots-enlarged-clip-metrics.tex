@@ -1,0 +1,22 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.9}
+\makeatletter
+\newcommand{\clipprobe}{%
+  \typeout{FINAL LIMITS: \pgfkeysvalueof{/pgfplots/xmin},\pgfkeysvalueof{/pgfplots/xmax},\pgfkeysvalueof{/pgfplots/ymin},\pgfkeysvalueof{/pgfplots/ymax}}%
+  \pgfplotspointdescriptionxy{0}{0}\typeout{CLIP LOWER: \the\pgf@x,\the\pgf@y}%
+  \pgfplotspointdescriptionxy{1}{1}\typeout{CLIP UPPER: \the\pgf@x,\the\pgf@y}%
+  \pgfplotspointaxisxy{0}{0}\typeout{ORIGIN: \the\pgf@x,\the\pgf@y}%
+  \pgfplotspointaxisxy{pi}{1}\typeout{DATA UPPER: \the\pgf@x,\the\pgf@y}%
+}
+\makeatother
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[axis lines=middle,enlarge x limits=true,enlarge y limits=true,
+  xmin=0,xmax=pi,ymin=-1,ymax=1,width=12cm,height=8cm,
+  execute at end axis={\pgfplotsextra{\clipprobe}}]
+\addplot[domain=-8:8,samples=200,blue,very thick] {cos(deg(x))};
+\addplot[domain=-8:8,samples=200,red,very thick] {x};
+\end{axis}
+\end{tikzpicture}
+\end{document}

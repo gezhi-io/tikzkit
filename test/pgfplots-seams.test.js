@@ -4,14 +4,32 @@ import test from "node:test";
 import { nativeMathGroups } from "./helpers/native-math-svg.js";
 import { decodePng } from "../scripts/diff-example-pngs.js";
 import { parseDimension } from "../src/engine/math.js";
+import { parseStatements } from "../src/frontend/parser.js";
+import { createSvgTextEngine } from "../src/renderers/svg/textEngine.js";
 import {
   PGFPLOTS_DEFAULT_AXIS_HEIGHT,
-  PGFPLOTS_DEFAULT_AXIS_WIDTH,
-  PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_X,
-  PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_Y
+  PGFPLOTS_DEFAULT_AXIS_WIDTH
 } from "../src/pgfplots/geometry.js";
+import { formatAxisPoint } from "../src/pgfplots/format.js";
 import { axisAutoMajorTickCountForOptions } from "../src/pgfplots/ticks.js";
 import { pgfplotsSurfaceColor } from "../src/pgfplots/surface.js";
+
+function projectedPatch(geometry, corners) {
+  return corners.map(([x, y, z]) => formatAxisPoint(geometry.mapPoint3d({ x, y, z }))).join(" -- ");
+}
+
+function assertNativeDimension(cm, expectedPt) {
+  const actualPt = cm * 72.27 / 2.54;
+  assert.ok(Math.abs(actualPt - expectedPt) < 0.055, `expected MacTeX ${expectedPt}pt, got ${actualPt}pt`);
+}
+
+// Internal painting flags may be added without changing TikZ node semantics.
+function isTickLabel(command, options) {
+  if (!command.startsWith("\\node[")) return false;
+  const node = parseStatements(command)[0];
+  return Boolean(node?.options?.["axis tick label"]) &&
+    Object.entries(options).every(([key, value]) => node.options[key] === value);
+}
 import { samplePgfplotsSurfaceDomain } from "../src/pgfplots/sampling.js";
 import { sampleAxisQuiverPlot } from "../src/pgfplots/quiver.js";
 import {
@@ -724,7 +742,9 @@ test("pgfplots 3d axis lines left suppresses opposite-edge tick marks", () => {
   const tickOptions = { "axis lines": "left", xtick: "{-1,1}", ytick: "{-1,1}", ztick: "{0,2}" };
   const commands = renderAxis3DTicks(tickOptions, ranges, geometry);
 
-  assert.equal(commands.filter((command) => command.startsWith(String.raw`\draw[axis tick,`)).length, 6);
+  // Two transverse surfaces contribute x/z ticks; the upper x side of
+  // the y edge is suppressed. Shared-corner marks are deduplicated.
+  assert.equal(commands.filter((command) => command.startsWith(String.raw`\draw[axis tick,`)).length, 8);
   assert.equal(commands.filter((command) => command.includes("axis tick label")).length, 6);
 });
 
@@ -745,14 +765,18 @@ test("pgfplots oblique tick labels use measured native near-ticklabel placement"
 
   const xTick = tickCommands.find((command) => command.endsWith("{4};"));
   const yTick = tickCommands.find((command) => command.endsWith("{\u22125};"));
-  assert.match(xTick, /axis tick label, anchor=center/);
-  assert.match(yTick, /axis tick label, anchor=center/);
+  assert.ok(isTickLabel(xTick, { anchor: "center" }));
+  assert.ok(isTickLabel(yTick, { anchor: "center" }));
   assert.match(xTick, /inner sep=\.3333em/);
   assert.match(yTick, /inner sep=\.3333em/);
   assert.doesNotMatch(xTick, /outer sep=0pt/);
   assert.doesNotMatch(yTick, /outer sep=0pt/);
-  assert.ok(labelCommands.includes(String.raw`\node[axis label, anchor=north] at (1.874,-0.161) {$x$};`));
-  assert.ok(labelCommands.includes(String.raw`\node[axis label, anchor=north west] at (6.251,0.301) {$y$};`));
+  const labels = tikzToSvg(`\\begin{tikzpicture}${labelCommands.join("\n")}\\end{tikzpicture}`).ir.items;
+  assert.equal(labels.filter(item => item.type === "textNode").length, 2);
+  assert.ok(labelCommands.every(command => command.includes("anchor=center")));
+  assert.ok(labels.filter(item => item.type === "textNode").every(item => item.style.preferNativeMath));
+  // Physical locations, including both axes at the shared corner, are
+  // measured against MacTeX in pgfplots-3d-label-metrics.test.js.
 });
 
 test("pgfplots top-view surface axes lower through 2D frame and ticks", () => {
@@ -1451,7 +1475,7 @@ test("pgfplots surface lowering owns coordinate meshes and sampled surface patch
       0
     ),
     [
-      String.raw`\path[axis surface fill, draw=none, fill=rgb(255 96 0), opacity=1] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;`,
+      String.raw`\path[axis surface fill, draw=none, fill=rgb(255 95.625 0), opacity=1] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;`,
       String.raw`\draw[axis surface mesh, draw=rgb(204,77,0), fill=none, opacity=1, line width=0.4pt] (0,0) -- (1,0) -- (1,1) -- (0,1) -- cycle;`
     ]
   );
@@ -1577,8 +1601,8 @@ test("pgfplots faceted surface patch paint order preserves default and sorted fi
     0
   );
 
-  assert.ok(defaultCommands[0].includes("(0.511,2.932) -- (3.409,2.648) -- (3.92,4.254) -- (1.022,3.777)"));
-  assert.ok(sortedCommands[0].includes("(0,2.086) -- (2.898,1.043) -- (3.409,2.648) -- (0.511,2.932)"));
+  assert.ok(defaultCommands[0].includes(projectedPatch(geometry, [[-1,0,0], [0,0,0], [0,1,0], [-1,1,-1]])));
+  assert.ok(sortedCommands[0].includes(projectedPatch(geometry, [[-1,-1,1], [0,-1,0], [0,0,0], [-1,0,0]])));
   assert.deepEqual(
     defaultCommands.slice(0, 2).map((command) => (command.startsWith(String.raw`\path[axis surface fill`) ? "fill" : "mesh")),
     ["fill", "mesh"]
@@ -1638,7 +1662,7 @@ test("pgfplots stepped Manhattan cuboids paint distant light faces before foregr
 
   assert.ok(fills.length >= 20);
   assert.match(fills[0], /fill=rgb\(212\.5 212\.5 255\)/);
-  assert.ok(fills.findIndex((line) => /fill=blue[,\]]/.test(line)) > 0, "the tallest foreground top should be painted after distant light faces");
+  assert.ok(fills.findIndex((line) => /fill=(?:blue|rgb\(0 0 255\))[,\]]/.test(line)) > 0, "the tallest foreground top should be painted after distant light faces");
 });
 
 test("pgfplots shader interp surfaces suppress mesh strokes", () => {
@@ -1695,7 +1719,11 @@ test("pgfplots surf colormap uses actual point meta range instead of rounded col
     0
   );
 
-  assert.match(commands[0], /fill=rgb\(255 145\.929643 80\.075843\)/);
+  const rgb = commands[0].match(/fill=rgb\(([^)]+)\)/)[1].split(" ").map(Number);
+  const t = (0.016830743029434353 - ranges.zMin) / (ranges.zMax - ranges.zMin);
+  // xcolor converts orange!75!red to RGB (1,.375,0) before interpolation.
+  [255, 255 * (1 - .625 * t), 255 * (1 - t)].forEach((expected, i) =>
+    assert.ok(Math.abs(rgb[i] - expected) < 1e-6));
 });
 
 test("pgfplots surface point meta colors sampled surfaces independently from z values", () => {
@@ -1981,13 +2009,14 @@ test("pgfplots axis inline colormap option feeds surface colors", () => {
   \begin{axis}[
     xmin=0,xmax=1,ymin=0,ymax=1,zmin=0,zmax=6,
     view={120}{35},
+    point meta min=0,point meta max=6,
     colormap={pos}{color(0cm)=(white); color(6cm)=(blue)}
   ]
-    \addplot3[surf,mark=none] coordinates {(0,0,6) (1,0,6) (0,1,6) (1,1,6)};
+    \addplot3[surf,mesh/cols=2,mark=none] coordinates {(0,0,6) (1,0,6) (0,1,6) (1,1,6)};
   \end{axis}
 \end{tikzpicture}`).svg;
 
-  assert.match(svg, /fill="blue"|fill="rgb\(0,\s*0,\s*255\)"/);
+  assert.match(svg, /fill="blue"|fill="rgb\(0(?:,\s*|\s+)0(?:,\s*|\s+)255\)"/);
   assert.doesNotMatch(svg, /fill="rgb\(240,\s*45,\s*20\)"/);
 });
 
@@ -2084,8 +2113,8 @@ test("pgfplots quiver addplot3 lowers vector samples to arrow paths", () => {
   );
 
   assert.deepEqual(commands, [
-    String.raw`\draw[axis quiver, blue, -stealth] (0,0) -- (0.3,0);`,
-    String.raw`\draw[axis quiver, blue, -stealth] (1,0) -- (1.3,0);`
+    String.raw`\draw[axis quiver, blue] (0,0) -- (0.3,0);`,
+    String.raw`\draw[axis quiver, blue] (1,0) -- (1.3,0);`
   ]);
 
   const latexTipCommands = renderAddplot(
@@ -2109,7 +2138,14 @@ test("pgfplots quiver addplot3 lowers vector samples to arrow paths", () => {
     0
   );
 
-  assert.deepEqual(latexTipCommands, [String.raw`\draw[axis quiver, blue, -{Latex[length=2.8pt,width=2.1pt]}] (0,0) -- (0.3,0);`]);
+  // Native default metadata is 1000. Preserve the arrow expression so the
+  // shared arrows.meta implementation derives dimensions from line width.
+  assert.deepEqual(latexTipCommands, [String.raw`\draw[axis quiver, blue, -{Latex[scale length={max(0.01,1000/1000)}]}] (0,0) -- (0.3,0);`]);
+  const resolved = tikzToSvg(`\\begin{tikzpicture}${latexTipCommands.join("\n")}\\end{tikzpicture}`);
+  const tip = resolved.ir.items.find(item => item.type === "path").style.markerEnd;
+  assert.equal(tip.kind, "latex");
+  assert.equal(tip.lengthScale ?? 1, 1);
+  assert.ok(!tip.customLength && !tip.customWidth);
 });
 
 test("pgfplots quiver Latex scale length follows point meta transformation", () => {
@@ -2139,8 +2175,8 @@ test("pgfplots quiver Latex scale length follows point meta transformation", () 
   );
 
   assert.deepEqual(commands, [
-    String.raw`\draw[axis quiver, blue, -{Latex[length=0.03pt,width=2.1pt]}] (0,0) -- (0,0);`,
-    String.raw`\draw[axis quiver, blue, -{Latex[length=2.8pt,width=2.1pt]}] (1,0) -- (1.3,0);`
+    String.raw`\draw[axis quiver, blue, -{Latex[scale length={max(0.01,0/1000)}]}] (0,0) -- (0,0);`,
+    String.raw`\draw[axis quiver, blue, -{Latex[scale length={max(0.01,1000/1000)}]}] (1,0) -- (1.3,0);`
   ]);
 });
 
@@ -2215,12 +2251,14 @@ test("pgfplots 3d axis lowering owns frame, ticks, and labels", () => {
   assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (0,0) -- (0,0.15);`));
   assert.ok(tickCommands.some((command) => command.includes("axis tick label") && command.endsWith("{1};")));
 
-  assert.deepEqual(renderAxisLabels3D({ xlabel: "$x$", ylabel: "$y$", zlabel: "$z$", title: "Surface" }, ranges, geometry), [
-    String.raw`\node[axis label, anchor=center] at (0.324,-0.746) {$x$};`,
-    String.raw`\node[axis label, anchor=center] at (-0.883,-0.833) {$y$};`,
-    String.raw`\node[axis label, anchor=center, rotate=90] at (-0.913,-0.064) {$z$};`,
-    String.raw`\node[axis label, anchor=south] at (0.55,1.45) {Surface};`
-  ]);
+  const labels = renderAxisLabels3D({ xlabel: "$x$", ylabel: "$y$", zlabel: "$z$", title: "Surface" }, ranges, geometry);
+  assert.equal(labels.length, 4);
+  for (const [index, text] of ["$x$", "$y$", "$z$"].entries()) {
+    assert.ok(labels[index].endsWith(`{${text}};`));
+    assert.match(labels[index], /tikzkit tex node anchors[^\]]*anchor=center/);
+  }
+  assert.match(labels[2], /rotate=90/);
+  assert.equal(labels[3], String.raw`\node[axis label, anchor=south] at (0.55,1.45) {Surface};`);
 });
 
 test("pgfplots background 3d ticks exclude the three foreground box edges", () => {
@@ -2234,7 +2272,7 @@ test("pgfplots background 3d ticks exclude the three foreground box edges", () =
     geometry.mapPoint3d({ x: 1, y: 0, z: 0.5 })
   ].map((point) => `(${Number(point.x.toFixed(3))},${Number(point.y.toFixed(3))})`);
 
-  assert.equal(commands.length, 9);
+  assert.equal(commands.length, 18, "each of nine visible edges has two transverse tick directions");
   for (const point of foregroundStarts) {
     assert.equal(commands.some((command) => command.includes(`] ${point} --`)), false, `unexpected foreground tick at ${point}`);
   }
@@ -2397,7 +2435,7 @@ test("pgfplots boxed 3d axes draw unlabeled ticks along visible box-edge runs", 
   const ticks = commands.filter((command) => command.startsWith(String.raw`\draw[axis tick`));
   const labels = commands.filter((command) => command.includes("axis tick label"));
 
-  assert.equal(ticks.length, 9);
+  assert.equal(ticks.length, 18, "PGF visits both adjacent coordinate planes");
   assert.equal(labels.length, 3);
   assert.ok(ticks.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (0.75,0.2) -- (0.75,0.35);`));
 });
@@ -2513,9 +2551,9 @@ test("pgfplots 3d annotations share view-aware projected edge normals", () => {
     const axisLabelDistance = dot({ x: annotations.label.x - layout.midpoint.x, y: annotations.label.y - layout.midpoint.y }, layout.normal);
     assert.ok(tickDistance < 0);
     assert.ok(labelDistance > 0, `expected label clearance ${labelDistance} to remain outside the frame`);
-    assert.equal(annotations.tickAnchor, layout.anchor);
+    assert.equal(annotations.tickAnchor, "center", "native near-ticklabel anchor is lowered to a measured center");
     assert.ok(axisLabelDistance > 0);
-    assert.equal(annotations.labelAnchor, layout.anchor);
+    assert.equal(annotations.labelAnchor, "center");
   }
 });
 
@@ -2543,14 +2581,15 @@ test("pgfplots 3d annotations handle degenerate projected edges", () => {
   const collapsed = parseZAnnotations(() => ({ x: 1, y: 2 }));
 
   assert.ok(Number.isFinite(outward.tick.x) && Number.isFinite(outward.tick.y));
-  assert.ok(outward.tick.x > outward.base.x && outward.tick.y > outward.base.y);
+  assert.ok(outward.tick.x > outward.base.x);
+  assert.equal(outward.tick.y, outward.base.y, "collapsed z retains the projected x/y tick directions");
   assert.ok(outward.label.x < outward.base.x && outward.label.y < outward.base.y);
-  assert.equal(outward.anchor, "east");
+  assert.equal(outward.anchor, "center");
 
   assert.ok(Number.isFinite(collapsed.tick.x) && Number.isFinite(collapsed.tick.y));
   assert.ok(collapsed.tick.x > collapsed.base.x);
   assert.ok(collapsed.label.x < collapsed.base.x);
-  assert.equal(collapsed.anchor, "east");
+  assert.equal(collapsed.anchor, "center");
 });
 
 test("pgfplots 3d colorbar lowers colormap state to right-side primitives", () => {
@@ -2577,12 +2616,12 @@ test("pgfplots 3d colorbar lowers colormap state to right-side primitives", () =
   const colorBands = commands.filter((command) => command.includes("axis colorbar") && command.includes("draw=none"));
   assert.equal(colorBands.length, 1);
   assert.match(colorBands[0], /shading=axis/);
-  assert.match(colorBands[0], /tikzkit axis stops=\{0\/white.+1\/rgb\(255 96 0\)\}/);
+  assert.match(colorBands[0], /tikzkit axis stops=\{0\/rgb\(255 255 255\).+1\/rgb\(255 95\.625 0\)\}/);
   assert.ok(commands.some((command) => command.includes("axis colorbar frame")));
   assert.ok(commands.some((command) => command.includes("(-0.11,0) -- (0.39,0)")));
   assert.ok(commands.some((command) => command.includes(String.raw`\node[axis colorbar title`) && command.endsWith("{$f(x,y)$};")));
   assert.ok(commands.some((command) => command.includes(String.raw`\node[axis colorbar title`) && !command.includes("font=\\scriptsize")));
-  assert.ok(commands.some((command) => command.endsWith("{-100};")));
+  assert.ok(commands.some((command) => command.endsWith("{\u2212100};")));
   assert.ok(commands.some((command) => command.endsWith("{100};")));
 });
 
@@ -2649,10 +2688,11 @@ test("pgfplots horizontal colorbars use the parent width and bottom tick labels"
 
   assert.equal(fills.length, 1);
   assert.match(fills[0], /shading angle=270/);
-  assert.equal(tickLines.length, 3);
+  assert.equal(tickLines.length, 6);
   assert.ok(tickLines.every((command) => {
     const points = [...command.matchAll(/\(([-+\d.]+),([-+\d.]+)\)/g)].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
-    return points.length === 2 && points[0].x === points[1].x && points[1].y < points[0].y;
+    return points.length === 2 && points[0].x === points[1].x &&
+      Math.abs(Math.abs(points[1].y - points[0].y) - .15) < .001;
   }));
   assert.ok(tickLabels.every((command) => command.includes("anchor=north")));
 
@@ -2676,10 +2716,11 @@ test("pgfplots left colorbars place ticks and labels on the outer left edge", ()
   const tickLines = commands.filter((command) => command.includes("axis colorbar tick,"));
   const tickLabels = commands.filter((command) => command.includes("axis colorbar tick label"));
 
-  assert.equal(tickLines.length, 3);
+  assert.equal(tickLines.length, 6);
   assert.ok(tickLines.every((command) => {
     const points = [...command.matchAll(/\(([-+\d.]+),([-+\d.]+)\)/g)].map((match) => ({ x: Number(match[1]), y: Number(match[2]) }));
-    return points.length === 2 && points[1].x < points[0].x && points[0].y === points[1].y;
+    return points.length === 2 && points[0].y === points[1].y &&
+      Math.abs(Math.abs(points[1].x - points[0].x) - .15) < .001;
   }));
   assert.ok(tickLabels.every((command) => command.includes("anchor=east")));
 });
@@ -2722,11 +2763,14 @@ test("pgfplots 3d colorbar defaults anchor outside the parent description bounds
     "colorbar horizontal": true
   });
 
-  assert.ok(left.parent.minX < -1.2, `expected the rotated z label in the left parent bound, got ${left.parent.minX}`);
+  // pgfplots-3d-bounds-metrics.tex measures the native description anchors.
+  assertNativeDimension(left.parent.minX, -33.80322);
   assert.ok(Math.abs(Math.max(...left.points.map((point) => point.x)) - (left.parent.minX - 0.3)) < 0.001);
   assert.ok(right.parent.maxX > right.geometry.width + 0.3 - 0.001);
+  assertNativeDimension(right.parent.maxX, 193.09420);
   assert.ok(Math.abs(Math.min(...right.points.map((point) => point.x)) - (right.parent.maxX + 0.3)) < 0.001);
   assert.ok(horizontal.parent.minY < -0.7, `expected lower labels in the parent bound, got ${horizontal.parent.minY}`);
+  assertNativeDimension(horizontal.parent.minY, -21.91855);
   assert.ok(Math.abs(Math.max(...horizontal.points.map((point) => point.y)) - (horizontal.parent.minY - 0.3)) < 0.001);
 });
 
@@ -2759,11 +2803,11 @@ test("pgfplots colorbar derives default ticks from its own rendered axis height"
   const colorbarLabels = result.ir.items
     .filter((item) => item.type === "textNode" && Number(item.x) < -0.5)
     .map((item) => item.text)
-    .filter((text) => ["-20", "-10", "0", "10", "20"].includes(text));
+    .filter((text) => ["\u221220", "\u221210", "0", "10", "20"].includes(text));
 
   // The local PGFPlots colorbar is an independent vertical axis. Its 35pt
   // spacing and generic try-min-ticks=4 select a 20-unit step here.
-  assert.deepEqual(colorbarLabels, ["-20", "0", "20"]);
+  assert.deepEqual(colorbarLabels, ["\u221220", "0", "20"]);
 });
 
 test("pgfplots short 3d colorbars reduce automatic tick density to their rendered height", () => {
@@ -2783,7 +2827,7 @@ test("pgfplots short 3d colorbars reduce automatic tick density to their rendere
   const tickLabels = commands.filter((command) => command.includes("axis colorbar tick label"));
 
   assert.equal(tickLabels.length, 3);
-  assert.ok(tickLabels.some((command) => command.endsWith("{-100};")));
+  assert.ok(tickLabels.some((command) => command.endsWith("{\u2212100};")));
   assert.ok(tickLabels.some((command) => command.endsWith("{0};")));
   assert.ok(tickLabels.some((command) => command.endsWith("{100};")));
 });
@@ -2807,7 +2851,7 @@ test("pgfplots tall quarter-height colorbars keep native five-tick density", () 
     .map((command) => command.match(/\{([^{}]+)\};$/)?.[1])
     .filter(Boolean);
 
-  assert.deepEqual(tickLabels, ["-0.4", "-0.2", "0", "0.2", "0.4"]);
+  assert.deepEqual(tickLabels, ["\u22120.4", "\u22120.2", "0", "0.2", "0.4"]);
 });
 
 test("pgfplots colorbar keeps rounded endpoints just outside sampled surface extrema", () => {
@@ -2829,7 +2873,7 @@ test("pgfplots colorbar keeps rounded endpoints just outside sampled surface ext
     .map((command) => command.match(/\{([^{}]+)\};$/)?.[1])
     .filter(Boolean);
 
-  assert.deepEqual(tickLabels, ["-4", "-2", "0", "2", "4"]);
+  assert.deepEqual(tickLabels, ["\u22124", "\u22122", "0", "2", "4"]);
 });
 
 test("pgfplots labels inherit the enclosing uniform tikz picture scale", () => {
@@ -2949,11 +2993,19 @@ test("pgfplots grid lowering emits TikZ draw primitives from axis geometry", () 
   const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "1cm" }, ranges);
   const commands = renderAxisGrid({ grid: "major", "axis grid color": "gray!30" }, [], ranges, geometry);
 
+  // Native probe: small-box in pgfplots-tick-planning-metrics.tex. PGF's
+  // default minimum is four candidate ticks even on a 2cm by 1cm axis.
   assert.deepEqual(commands, [
     String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,0) -- (0,1);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0.5,0) -- (0.5,1);`,
     String.raw`\draw[axis grid, gray!30, line width=0.4pt] (1,0) -- (1,1);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.4pt] (1.5,0) -- (1.5,1);`,
     String.raw`\draw[axis grid, gray!30, line width=0.4pt] (2,0) -- (2,1);`,
     String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,0) -- (2,0);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,0.2) -- (2,0.2);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,0.4) -- (2,0.4);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,0.6) -- (2,0.6);`,
+    String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,0.8) -- (2,0.8);`,
     String.raw`\draw[axis grid, gray!30, line width=0.4pt] (0,1) -- (2,1);`
   ]);
 });
@@ -3113,11 +3165,11 @@ test("pgfplots compact non-enlarged middle axes use integer tick density", () =>
     const commands = renderAxisTicks(axisOptions, addplots, ranges, geometry);
     observed = {
       xLabels: commands
-        .filter((command) => command.includes("axis tick label, anchor=north"))
+        .filter((command) => isTickLabel(command, { anchor: "north" }))
         .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
         .filter(Boolean),
       yLabels: commands
-        .filter((command) => command.includes("axis tick label, anchor=east"))
+        .filter((command) => isTickLabel(command, { anchor: "east" }))
         .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
         .filter(Boolean)
     };
@@ -3261,7 +3313,7 @@ test("pgfplots compact middle major grid follows corrected automatic tick densit
   const tickCommands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const gridCommands = renderAxisGrid(axisOptions, [], ranges, geometry);
   const xLabelValues = tickCommands
-    .filter((command) => command.includes("axis tick label, anchor=north"))
+    .filter((command) => isTickLabel(command, { anchor: "north" }))
     .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
     .filter(Boolean);
   const expectedXGridCoordinates = [-2, -1, 1, 2].map((x) => testNumber(geometry.mapPoint({ x, y: 0 }).x));
@@ -3289,8 +3341,8 @@ test("pgfplots hides explicit ticks obscured by crossing middle axes unless disa
   const ranges = { xMin: 0, xMax: 24, yMin: 0, yMax: 24 };
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
-  const xLabels = commands.filter((command) => command.includes("axis tick label, anchor=north"));
-  const yLabels = commands.filter((command) => command.includes("axis tick label, anchor=east"));
+  const xLabels = commands.filter((command) => isTickLabel(command, { anchor: "north" }));
+  const yLabels = commands.filter((command) => isTickLabel(command, { anchor: "east" }));
 
   assert.equal(xLabels.some((command) => /\{0\};$/.test(command)), false);
   assert.equal(yLabels.some((command) => /\{0\};$/.test(command)), false);
@@ -3316,8 +3368,8 @@ test("pgfplots hides explicit ticks obscured by crossing middle axes unless disa
     "hide obscured y ticks": "false"
   };
   const visibleCommands = renderAxisTicks(visibleOptions, [], ranges, createAxisGeometry(visibleOptions, ranges));
-  assert.equal(visibleCommands.filter((command) => command.includes("axis tick label, anchor=north")).some((command) => /\{0\};$/.test(command)), true);
-  assert.equal(visibleCommands.filter((command) => command.includes("axis tick label, anchor=east")).some((command) => /\{0\};$/.test(command)), true);
+  assert.equal(visibleCommands.filter((command) => isTickLabel(command, { anchor: "north" })).some((command) => /\{0\};$/.test(command)), true);
+  assert.equal(visibleCommands.filter((command) => isTickLabel(command, { anchor: "east" })).some((command) => /\{0\};$/.test(command)), true);
 });
 
 test("pgfplots dst-start fixture matches native boundary ticks and document width", () => {
@@ -3352,7 +3404,7 @@ test("pgfplots automatic major ticks honor the native 35pt maximum spacing", () 
   const geometry = createAxisGeometry(axisOptions, ranges);
   const tickCommands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const xLabelValues = tickCommands
-    .filter((command) => command.includes("axis tick label, anchor=north"))
+    .filter((command) => isTickLabel(command, { anchor: "north" }))
     .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
     .filter(Boolean);
 
@@ -3487,7 +3539,10 @@ test("pgfplots restricted zero-bound middle y axis uses the enlarged transform e
   const geometry = createAxisGeometry(axisOptions, ranges);
   const lines = renderAxisLines(axisOptions, ranges, geometry);
 
-  assert.ok(lines.some((line) => line.includes("(1.186,0) -- (1.186,7.425)")), lines.join("\n"));
+  // The 45pt description reserve changes the axis length, but arrow paint
+  // must not add another 0.2pt to the data-space endpoint (PGFPlots 5146-5163).
+  const expectedY = Number((9 - parseDimension("45pt")).toFixed(3));
+  assert.ok(lines.some((line) => line.includes(`(1.186,0) -- (1.186,${expectedY})`)), lines.join("\n"));
 });
 
 test("pgfplots light bulb fixture keeps its long y-label and legend inside the node-driven crop", () => {
@@ -3498,13 +3553,13 @@ test("pgfplots light bulb fixture keeps its long y-label and legend inside the n
 
   assert.equal(errors.length, 0, errors.map((diagnostic) => diagnostic.message).join("; "));
   assert.ok(size.width >= 397.2 && size.width <= 398.5, `expected width close to tikztosvg 397.81pt, got ${size.width}pt`);
-  // dvisvgm retains an additional blank vertical crop allowance here. The JS
-  // renderer is intentionally node-driven; retain the visible text/legend
-  // bounds without recreating that empty page space.
-  assert.ok(size.height >= 203.2 && size.height <= 204.1, `expected node-driven height near 203.65pt, got ${size.height}pt`);
+  // A later tick align=outside must survive the inferred axis-lines alias.
+  // Fresh pdflatex/tikztosvg measures 209.967bp including the 2pt border;
+  // removing that border leaves 205.98bp, not the old centered-tick crop.
+  assert.ok(Math.abs(size.height - 205.98) < 0.4, `expected native outside-tick height near 205.98pt, got ${size.height}pt`);
 });
 
-test("pgfplots plain text axis labels use native CMU width for layout and SVG rendering", () => {
+test("pgfplots explicit plain labels use physical CM boxes without width fitting", () => {
   const axisOptions = {
     width: "14cm",
     height: "8cm",
@@ -3517,8 +3572,12 @@ test("pgfplots plain text axis labels use native CMU width for layout and SVG re
   const ranges = { xMin: 5, xMax: 100, yMin: 0, yMax: 350 };
   const commands = renderAxisLabels(axisOptions, ranges, createAxisGeometry(axisOptions, ranges));
 
-  assert.ok(commands[0].includes("tikzkit anchor text width scale=1.06, tikzkit text width scale=1.06"));
-  assert.ok(commands[1].includes("tikzkit anchor text width scale=1.06, tikzkit text width scale=1.06"));
+  for (const command of commands) {
+    const node = parseStatements(command)[0];
+    assert.equal(node.options["tikzkit text width scale"], "1");
+    assert.equal(node.options["tikzkit anchor text width scale"], undefined);
+    assert.equal(node.options["tikzkit layout bbox"], true);
+  }
 });
 
 test("pgfplots activation-functions fixture keeps explicit middle-axis bbox close to tikztosvg", () => {
@@ -3569,16 +3628,22 @@ test("pgfplots activation-functions keeps x and y labels attached to middle-axis
   assert.equal(yLabel.font?.sizePt, 10);
   assert.equal(xLabel.font?.family, "serif");
   assert.equal(yLabel.font?.family, "serif");
-  assert.equal(xLabel.style?.textWidthScale, 1.06);
-  assert.equal(yLabel.style?.textWidthScale, 1.06);
+  assert.equal(xLabel.style?.textWidthScale, 1);
+  assert.equal(yLabel.style?.textWidthScale, 1);
   assert.equal(xLabel.style?.textWidthScaleExplicit, true);
   assert.equal(yLabel.style?.textWidthScaleExplicit, true);
   assert.match(result.svg, /<text[^>]*>x<\/text>/);
   assert.match(result.svg, /<text[^>]*>y<\/text>/);
-  assert.ok(xLabel.x >= 14.28 && xLabel.x <= 14.30, `expected xlabel beside the right axis tip, got x=${xLabel.x}`);
-  assert.ok(xLabel.y >= 2.32 && xLabel.y <= 2.34, `expected xlabel above the horizontal axis, got y=${xLabel.y}`);
-  assert.ok(yLabel.x >= 7.41 && yLabel.x <= 7.43, `expected ylabel right of the vertical axis, got x=${yLabel.x}`);
-  assert.ok(yLabel.y >= 6.278 && yLabel.y <= 6.29, `expected ylabel below the top axis tip, got y=${yLabel.y}`);
+  // Local pgfplots-plain-label-metrics.tex, including TeX height/depth and
+  // outer sep. PGF's fixed-point intersection anchors differ by up to .08pt
+  // from exact endpoints; the independent browser gate is .35px at 3x.
+  const texPtPerCm = 72.27 / 2.54;
+  for (const [actual, expected] of [[xLabel.x, 404.14671], [xLabel.y, 66.57121],
+    [yLabel.x, 211.34058], [yLabel.y, 176.00124]]) {
+    assert.ok(Math.abs(actual * texPtPerCm - expected) < 0.1,
+      `axis label center ${actual * texPtPerCm}pt differs from MacTeX ${expected}pt`);
+  }
+  assert.match(result.svg, /data-text-layout="cm-tex-box"/);
 });
 
 test("pgfplots activation-functions preserves the left edge of every legend formula in final IR and SVG", () => {
@@ -3670,7 +3735,7 @@ test("pgfplots middle y auto ticks stay sparse for short positive ranges", () =>
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const yLabels = commands
-    .filter((command) => command.includes("axis tick label, anchor=east"))
+    .filter((command) => isTickLabel(command, { anchor: "east" }))
     .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
     .filter(Boolean);
   const gridCommands = renderAxisGrid(axisOptions, [], ranges, geometry);
@@ -3697,7 +3762,7 @@ test("pgfplots middle y auto ticks keep fractional density for restricted pdf ra
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const yLabels = commands
-    .filter((command) => command.includes("axis tick label, anchor=east"))
+    .filter((command) => isTickLabel(command, { anchor: "east" }))
     .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
     .filter(Boolean);
   const gridCommands = renderAxisGrid(axisOptions, [], ranges, geometry);
@@ -3724,11 +3789,12 @@ test("pgfplots middle x auto ticks keep native horizontal spacing for wide numer
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const xLabels = commands
-    .filter((command) => command.includes("axis tick label, anchor=north"))
+    .filter((command) => isTickLabel(command, { anchor: "north" }))
     .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
     .filter(Boolean);
 
-  assert.deepEqual(xLabels, ["2", "4", "6"]);
+  // The native sparse-range probe uses unit x ticks, not two-unit ticks.
+  assert.deepEqual(xLabels, ["−1", "1", "2", "3", "4", "5", "6"]);
 });
 
 test("pgfplots middle y auto ticks keep native half-step labels for activation ranges", () => {
@@ -3746,7 +3812,7 @@ test("pgfplots middle y auto ticks keep native half-step labels for activation r
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const yLabels = commands
-    .filter((command) => command.includes("axis tick label, anchor=east"))
+    .filter((command) => isTickLabel(command, { anchor: "east" }))
     .map((command) => command.match(/\{([^{}]*)\};$/)?.[1])
     .filter(Boolean);
 
@@ -3773,8 +3839,8 @@ test("pgfplots middle axis auto major grid omits origin grid lines", () => {
   const yGridLines = gridCommands.filter((command) => command.includes("] (0,") && command.includes(`-- (${testNumber(geometry.width)},`));
   const origin = geometry.mapPoint({ x: 0, y: 0 });
 
-  assert.equal(xGridLines.length, 3);
-  assert.equal(yGridLines.length, 2);
+  assert.equal(xGridLines.length, 7);
+  assert.equal(yGridLines.length, 4);
   assert.ok(!gridCommands.includes(String.raw`\draw[axis grid, black!25, line width=0.4pt, dashed, gray!30] (${testNumber(origin.x)},0) -- (${testNumber(origin.x)},${testNumber(geometry.height)});`));
   assert.ok(!gridCommands.includes(String.raw`\draw[axis grid, black!25, line width=0.4pt, dashed, gray!30] (0,${testNumber(origin.y)}) -- (${testNumber(geometry.width)},${testNumber(origin.y)});`));
 });
@@ -3793,10 +3859,14 @@ test("pgfplots minor tick num derives native-like automatic minor tick marks", (
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
   const minorTicks = commands.filter((command) => command.includes("axis minor tick"));
+  // Native default plot dimensions are (240 - 45)pt by (207 - 45)pt;
+  // derive the positions from that oracle, not the former fitted cm reserves.
+  const width = parseDimension("195pt", {});
+  const height = parseDimension("162pt", {});
 
   assert.ok(minorTicks.length >= 10, `expected automatic minor ticks from minor tick num, got ${minorTicks.length}`);
-  assert.ok(minorTicks.includes(String.raw`\draw[axis minor tick, gray, line width=0.2pt] (1.951,0.517) -- (1.951,0.617);`));
-  assert.ok(minorTicks.includes(String.raw`\draw[axis minor tick, gray, line width=0.2pt] (0.925,1.702) -- (1.025,1.702);`));
+  assert.ok(minorTicks.includes(String.raw`\draw[axis minor tick, gray, line width=0.2pt] (${testNumber(width * 2 / 7)},${testNumber(height / 10 - 0.05)}) -- (${testNumber(width * 2 / 7)},${testNumber(height / 10 + 0.05)});`));
+  assert.ok(minorTicks.includes(String.raw`\draw[axis minor tick, gray, line width=0.2pt] (${testNumber(width / 7 - 0.05)},${testNumber(height * 0.3)}) -- (${testNumber(width / 7 + 0.05)},${testNumber(height * 0.3)});`));
 });
 
 test("pgfplots middle axis ticks use native gray thin tick style", () => {
@@ -3813,8 +3883,10 @@ test("pgfplots middle axis ticks use native gray thin tick style", () => {
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisTicks(axisOptions, [], ranges, geometry);
 
-  assert.ok(commands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (2.926,0.492) -- (2.926,0.642);`));
-  assert.ok(commands.includes(String.raw`\draw[axis minor tick, gray, line width=0.2pt] (1.951,0.517) -- (1.951,0.617);`));
+  const width = parseDimension("195pt", {});
+  const height = parseDimension("162pt", {});
+  assert.ok(commands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (${testNumber(width * 3 / 7)},${testNumber(height / 10 - 0.075)}) -- (${testNumber(width * 3 / 7)},${testNumber(height / 10 + 0.075)});`));
+  assert.ok(commands.includes(String.raw`\draw[axis minor tick, gray, line width=0.2pt] (${testNumber(width * 2 / 7)},${testNumber(height / 10 - 0.05)}) -- (${testNumber(width * 2 / 7)},${testNumber(height / 10 + 0.05)});`));
 });
 
 test("pgfplots middle y axis label sits close to the axis tip without expanding bbox", () => {
@@ -3946,12 +4018,10 @@ test("pgfplots axis label style at uses axis description coordinates", () => {
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
-  assert.ok(
-    commands.includes(
-      String.raw`\node[axis label, anchor=north west, tikzkit anchor text width scale=1.06, tikzkit text width scale=1.06] at (-1.242,6.418) {Amortization time in h};`
-    ),
-    `expected ylabel to honor axis description at coordinate, got ${commands.join("\n")}`
-  );
+  const [node] = parseStatements(commands.join("\n"));
+  assert.equal(node.options.anchor, "north west");
+  assert.equal(node.at, "-1.242,6.418");
+  assert.equal(node.text, "Amortization time in h");
 });
 
 test("pgfplots axis description cs label styles position and rotate bias-variance labels", () => {
@@ -3987,8 +4057,8 @@ test("pgfplots axis description cs label styles position and rotate bias-varianc
     `expected x label at the horizontal center below the axis, got ${commands.join("\n")}`
   );
   assert.ok(
-    commands.some((command) => command.includes("tikzkit anchor text width scale=1.06, tikzkit text width scale=1.06")),
-    `expected plain axis labels to keep native CMU width, got ${commands.join("\n")}`
+    commands.every((command) => parseStatements(command)[0].options["tikzkit text width scale"] === "1"),
+    `expected physical native CM text boxes, got ${commands.join("\n")}`
   );
   assert.ok(
     commands.some(
@@ -4017,8 +4087,8 @@ test("pgfplots accepts braced rotation values from inherited label styles", () =
   const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
   assert.ok(
-    commands.some((command) => command.includes("anchor=south") && command.includes("rotate=90")),
-    `expected braced label rotation to survive style serialization, got ${commands.join("\n")}`
+    commands.some((command) => command.includes("anchor=south") && command.includes("rotate=180")),
+    `expected braced rotation to append to the boxed ylabel's default 90 degrees, got ${commands.join("\n")}`
   );
 });
 
@@ -4068,12 +4138,9 @@ test("pgfplots axis labels degrade TeX line breaks to spaces unless alignment is
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
-  assert.ok(
-    commands.includes(
-      String.raw`\node[axis label, anchor=north west, tikzkit anchor text width scale=1.06, tikzkit text width scale=1.06] at (-1.242,6.418) {Amortization time in h};`
-    ),
-    `expected PGFPlots axis label to preserve a word boundary for non-aligned TeX line breaks, got ${commands.join("\n")}`
-  );
+  assert.equal(parseStatements(commands[0])[0].text, "Amortization time in h");
+  const aligned = renderAxisLabels({ ...axisOptions, "y label style": "at={(-0.1,1.0)},align=center" }, ranges, geometry);
+  assert.equal(parseStatements(aligned[0])[0].text, axisOptions.ylabel);
 });
 
 test("pgfplots tick lowering emits TikZ tick and label primitives from axis geometry", () => {
@@ -4083,8 +4150,8 @@ test("pgfplots tick lowering emits TikZ tick and label primitives from axis geom
 
   assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (0,0) -- (0,0.15);`));
   assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (2,0) -- (2,0.15);`));
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=north, font=\scriptsize`) && command.endsWith("{0};")));
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=east, font=\scriptsize`) && command.endsWith("{1};")));
+  assert.ok(commands.some((command) => isTickLabel(command, { anchor: "north", font: String.raw`\scriptsize` }) && command.endsWith("{0};")));
+  assert.ok(commands.some((command) => isTickLabel(command, { anchor: "east", font: String.raw`\scriptsize` }) && command.endsWith("{1};")));
   assert.deepEqual(renderAxisTicks({ ticks: "none" }, [], ranges, geometry), []);
 });
 
@@ -4541,10 +4608,27 @@ test("pgfplots tick lowering uses compact tick-label nodes after computing tickl
   const labelCommand = commands.find((command) => command.includes("{A};"));
 
   assert.ok(labelCommand, "expected lowered x tick label node");
-  assert.match(labelCommand, /axis tick label, anchor=north/);
+  assert.ok(isTickLabel(labelCommand, { anchor: "north" }));
   assert.match(labelCommand, /font=\\normalsize/);
-  assert.match(labelCommand, /tikzkit text width scale=1\.0001/);
   assert.doesNotMatch(labelCommand, /inner sep=/);
+  const result = tikzToSvg(String.raw`\begin{tikzpicture}
+    \begin{axis}[axis lines=middle,width=4cm,height=4cm,xmin=0,xmax=4,
+      ymin=-1,ymax=1,xtick={1},xticklabels={A}]\end{axis}\end{tikzpicture}`);
+  assert.deepEqual(result.diagnostics, []);
+  const tick = result.ir.items.find(item => item.type === "textNode" && item.text === "A");
+  assert.ok(tick);
+  assert.equal(tick.style.mathMode, undefined, "explicit A must stay upright literal text");
+  const engine = createSvgTextEngine();
+  const metrics = engine.measure({ text: tick.text, font: tick.font, ...tick.style });
+  assert.equal(metrics.measurementKind, "cm-text-box");
+  const svgUnitsPerTexPt = 100 * 2.54 / 72.27;
+  // Independent literal-A hbox in pgfplots-native-tick-policy-metrics.tex.
+  assert.ok(Math.abs(metrics.width / svgUnitsPerTexPt - 7.50002) < 0.001);
+  assert.ok(Math.abs(metrics.baselineY / svgUnitsPerTexPt - 6.83331) < 0.001);
+  const payload = engine.renderFromCache(metrics.cacheKey).body;
+  assert.match(payload, /data-text-layout="cm-tex-box"/);
+  assert.match(payload, /dominant-baseline="alphabetic"/);
+  assert.match(payload, /font-family="TikZKitCMR10"[^>]*>A<\/text>/);
 });
 
 test("pgfplots middle axis auto ticks keep terminal boundary labels", () => {
@@ -4568,12 +4652,14 @@ test("pgfplots boxed auto ticks keep terminal max tick labels", () => {
   const geometry = createAxisGeometry({}, ranges);
   const commands = renderAxisTicks({}, [], ranges, geometry);
 
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=north`) && command.endsWith("{5};")), "expected x max tick label");
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis tick label, anchor=east`) && command.endsWith("{5};")), "expected y max tick label");
+  assert.ok(commands.some((command) => isTickLabel(command, { anchor: "north" }) && command.endsWith("{5};")), "expected x max tick label");
+  assert.ok(commands.some((command) => isTickLabel(command, { anchor: "east" }) && command.endsWith("{5};")), "expected y max tick label");
   assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (0,0) -- (0,0.15);`), "expected bottom ticks to use PGFPlots inside gray style");
-  assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (0,5.672) -- (0,5.522);`), "expected top ticks on box axis");
+  // Native default plot height is 162 TeX pt, not the old fitted 161.37pt.
+  const top = parseDimension("162pt", {});
+  assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (0,${testNumber(top)}) -- (0,${testNumber(top - 0.15)});`), "expected top ticks on box axis");
   assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (6.853,0) -- (6.703,0);`), "expected right ticks on box axis");
-  assert.ok(commands.some((command) => command.includes("anchor=north") && command.includes("at (0,-0.028) {0};")), "boxed x labels should preserve the native baseline compensation");
+  assert.ok(commands.some((command) => command.includes("anchor=north") && command.includes("at (0,0) {0};")), "native boxed x labels anchor on the axis without a fitted baseline shift");
   assert.ok(commands.some((command) => command.includes("anchor=east") && command.includes("at (0,0) {0};")), "boxed y labels should place their node boundary on the axis");
 });
 
@@ -4654,7 +4740,10 @@ test("pgfplots legend lowering honors draw and fill from legend style", () => {
     commands[0].startsWith(String.raw`\draw[axis legend box, draw=none, fill=none, line width=0.4pt]`),
     `expected legend style draw/fill to affect the legend box, got ${commands[0]}`
   );
-  assert.ok(commands.some((command) => command.includes(String.raw`\node[axis legend, anchor=center, font=\scriptsize]`)));
+  const node = parseTikz(commands.join("\n")).ast.pictures[0].statements.find(item => item.type === "node");
+  assert.equal(node.options.anchor, "center");
+  assert.equal(node.options.font, "\\scriptsize");
+  assert.equal(node.options["tikzkit native math"], true);
 });
 
 test("pgfplots tiny pmatrix legends use native matrix rows and box dimensions", () => {
@@ -4678,13 +4767,15 @@ test("pgfplots tiny pmatrix legends use native matrix rows and box dimensions", 
   const width = legendBoxWidthFromCommand(commands[0]);
   const height = legendBoxHeightFromCommand(commands[0]);
   const rowYs = commands.filter((command) => command.includes(String.raw`\node[axis legend`)).map(legendNodeYFromCommand);
-  assert.ok(width >= 2.176 && width <= 2.183, `expected 62.008pt tikztosvg pmatrix legend width, got ${width}cm`);
+  // SVG pt is bp (72/in); the lowered TikZ coordinates use TeX pt (72.27/in).
+  // Native matrix anchors give 62.23669 TeX pt after removing outer sep.
+  assert.ok(Math.abs(width * 28.45274 - 62.23669) < 0.004, `expected native pmatrix width, got ${width}cm`);
   assert.ok(height >= 1.91 && height <= 1.94, `expected native 1.926cm legend height, got ${height}cm`);
   assert.equal(rowYs.length, 4);
   for (let index = 0; index < rowYs.length - 1; index += 1) {
     assert.ok(
-      Math.abs((rowYs[index] - rowYs[index + 1]) * 28.45274 - 12.7) <= 0.08,
-      `expected native 12.70pt pmatrix row pitch, got ${(rowYs[index] - rowYs[index + 1]) * 28.45274}pt`
+      Math.abs((rowYs[index] - rowYs[index + 1]) * 28.45274 - 12.75) <= 0.004,
+      `expected native 12.75 TeX pt pmatrix row pitch, got ${(rowYs[index] - rowYs[index + 1]) * 28.45274}pt`
     );
   }
 });
@@ -4713,15 +4804,18 @@ test("pgfplots legend lowering reserves native-like width for math-heavy entries
     ranges,
     geometry,
     entries,
-    entries.map((_entry, index) => ({ options: { "pgfplots plus": true }, index }))
+    entries.map((_entry, index) => ({ options: { "ultra thick": true }, index }))
   );
 
   const width = legendBoxWidthFromCommand(commands[0]);
   const height = legendBoxHeightFromCommand(commands[0]);
-  assert.ok(width >= 4.548 && width <= 4.556, `expected 129.504pt tikztosvg formula legend width, got ${width}cm`);
+  // activation-functions uses ultra thick samples. Its 129.504bp SVG frame
+  // corresponds to 129.98794 TeX pt, not a thin default-cycle sample.
+  assert.ok(Math.abs(width * 28.45274 - 129.98794) < 0.004, `expected native formula legend width, got ${width}cm`);
   assert.ok(height >= 2.44 && height <= 2.48, `expected math-heavy legend height close to tikztosvg 2.46cm, got ${height}cm`);
 
-  const rowYs = commands.filter((command) => command.includes(String.raw`\node[axis legend`)).map(legendNodeYFromCommand);
+  const rowYs = commands.filter(command => command.includes("axis legend image"))
+    .map(command => Number(command.match(/\((-?[0-9.]+),(-?[0-9.]+)\)/)[2]));
   const rowCommands = commands.filter((command) => command.includes(String.raw`\node[axis legend`));
   const rowXs = rowCommands.map(legendNodeXFromCommand);
   const ptPerCm = 28.45274;
@@ -5074,14 +5168,14 @@ test("pgfplots default enlarged middle-axis framing uses native TeX reserves", (
   assert.ok(autoYGeometry.margin.bottom > margin);
 });
 
-test("pgfplots default non-enlarged middle-axis framing preserves existing reserves", () => {
+test("pgfplots default non-enlarged middle-axis framing uses native reserves", () => {
   const geometry = createAxisGeometry(
     { "axis x line": "middle", "axis y line": "middle" },
     { xMin: -1, xMax: 6, yMin: -0.25, yMax: 2.25 }
   );
 
-  assert.equal(TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X, 1.607);
-  assert.equal(TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y, 1.603);
+  assert.equal(TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X, parseDimension("45pt", {}));
+  assert.equal(TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y, parseDimension("45pt", {}));
   assert.ok(Math.abs(geometry.width - (PGFPLOTS_DEFAULT_AXIS_WIDTH - TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X)) < 1e-9);
   assert.ok(Math.abs(geometry.height - (PGFPLOTS_DEFAULT_AXIS_HEIGHT - TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y)) < 1e-9);
 });
@@ -5152,35 +5246,41 @@ test("pgfplots geometry preserves log-axis and 3D projection metadata", () => {
   assert.ok(Number.isFinite(geometry.mapPoint3d({ x: 10, y: 5, z: 2 }).x));
 });
 
-test("pgfplots perspective 3D geometry reserves lateral descriptions without a synthetic top gutter", () => {
+test("pgfplots perspective 3D geometry follows the native fixed-point basis without synthetic gutters", () => {
   const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -49, zMax: 151 };
   const geometry = createAxisGeometry(
     { "pgfplots 3d surface": true },
     ranges
   );
 
-  assert.deepEqual(geometry.margin, { left: 0.52, right: 0.43, top: 0, bottom: 0.32 });
-  assert.ok(Math.abs(geometry.width - (PGFPLOTS_DEFAULT_AXIS_WIDTH - PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_X)) < 1e-9);
-  assert.ok(Math.abs(geometry.height - (PGFPLOTS_DEFAULT_AXIS_HEIGHT - PGFPLOTS_DEFAULT_PERSPECTIVE_3D_RESERVE_Y)) < 1e-9);
+  assert.deepEqual(geometry.margin, { left: 0, right: 0, top: 0, bottom: 0 });
+  // pgfplots-3d-scaling-metrics.tex, CASE default-fixed (TeX pt, not CSS pt).
+  assertNativeDimension(geometry.width, 196.35010);
+  assertNativeDimension(geometry.height, 162.57019);
 
   const origin = geometry.mapPoint3d({ x: ranges.xMin, y: ranges.yMin, z: ranges.zMin });
   const basis = (point) => {
     const mapped = geometry.mapPoint3d(point);
     return { x: mapped.x - origin.x, y: mapped.y - origin.y };
   };
-  assertAxisPointsNearlyEqual(basis({ x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }), { x: 4.618, y: -0.776 }, 0.01);
-  assertAxisPointsNearlyEqual(basis({ x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }), { x: 2.153, y: 1.665 }, 0.01);
-  assertAxisPointsNearlyEqual(basis({ x: ranges.xMin, y: ranges.yMin, z: ranges.zMax }), { x: 0, y: 3.203 }, 0.01);
+  const vectors = [basis({ x: ranges.xMax, y: ranges.yMin, z: ranges.zMin }),
+    basis({ x: ranges.xMin, y: ranges.yMax, z: ranges.zMin }),
+    basis({ x: ranges.xMin, y: ranges.yMin, z: ranges.zMax })];
+  for (const [i, [x, y]] of [[133.91113, -22.52197], [62.43896, 48.29407], [0, 91.75415]].entries()) {
+    assertNativeDimension(vectors[i].x, x);
+    assertNativeDimension(vectors[i].y, y);
+  }
 });
 
-test("pgfplots explicit perspective 3D axes retain the calibrated right description reserve", () => {
+test("pgfplots explicit perspective 3D axes use the native projected box", () => {
   const geometry = createAxisGeometry(
     { width: "15cm", view: "{45}{45}", "pgfplots 3d surface": true },
     { xMin: -90, xMax: 90, yMin: -90, yMax: 90, zMin: -4, zMax: 4 }
   );
 
-  assert.deepEqual(geometry.margin, { left: 0.52, right: parseDimension("8.7pt", {}), top: 0, bottom: 0.32 });
-  assert.match(renderAxisBounds(geometry), /\(13\.767,11\.356\)/);
+  assert.deepEqual(geometry.margin, { left: 0, right: 0, top: 0, bottom: 0 });
+  assertNativeDimension(geometry.width, 377.43530);
+  assertNativeDimension(geometry.height, 321.05713);
 });
 
 test("pgfplots scaled 3D z ticks rely on their measured label bbox instead of an extra top reserve", () => {
@@ -5205,7 +5305,7 @@ test("pgfplots scaled 3D z ticks rely on their measured label bbox instead of an
   assert.ok(Math.abs(top - projectedTop) < 0.001, `expected no synthetic top gutter, got bounds=${bounds}`);
 });
 
-test("pgfplots default surf domains stay tight instead of inheriting 2D auto enlargement", () => {
+test("pgfplots default surf keeps x/y tight and auto-enlarges inferred z limits", () => {
   const surface = {
     type: "function",
     is3d: true,
@@ -5219,8 +5319,9 @@ test("pgfplots default surf domains stay tight instead of inheriting 2D auto enl
     { xMin: ranges.xMin, xMax: ranges.xMax, yMin: ranges.yMin, yMax: ranges.yMax },
     { xMin: -5, xMax: 5, yMin: -5, yMax: 5 }
   );
-  assert.ok(Math.abs(ranges.zMin + 6.8125) < 0.001);
-  assert.equal(ranges.zMax, 1);
+  // PGF's default auto mode adds 10% only to inferred z boundaries in 3D.
+  assert.ok(Math.abs(ranges.zMin + 7.59375) < 0.001);
+  assert.ok(Math.abs(ranges.zMax - 1.78125) < 0.001);
 });
 
 test("pgfplots 3D z labels use the native near-ticklabel default offset", () => {
@@ -5232,7 +5333,10 @@ test("pgfplots 3D z labels use the native near-ticklabel default offset", () => 
 
   const zLabel = result.ir.items.find((item) => item.type === "textNode" && item.text === "$z$");
   assert.ok(zLabel, "expected a generated z axis label");
-  assert.ok(Math.abs(zLabel.x + 1) < 1e-6, `expected a 1cm z label offset, received ${zLabel.x}`);
+  // pgfplots-3d-regression-metrics.tex measures the native near-ticklabel
+  // center, which depends on tick text and is not a fixed 1cm offset.
+  assert.ok(Math.abs(zLabel.x * 72.27 / 2.54 - (-33.31898)) < 0.055);
+  assert.ok(Math.abs(zLabel.y * 72.27 / 2.54 - 60.03885) < 0.055);
 });
 
 test("pgfplots axis equal image keeps x and y data units square for top-view surfaces", () => {
@@ -5434,7 +5538,7 @@ test("pgfplots default 3d surf z buffer follows native reverse-y scanline order"
   );
 
   assert.ok(
-    commands[0].includes("(0.511,2.932) -- (3.409,2.648) -- (3.92,4.254) -- (1.022,3.777)"),
+    commands[0].includes(projectedPatch(geometry, [[-1,0,0], [0,0,0], [0,1,0], [-1,1,-1]])),
     `native default z buffer should start with the reverse-y scanline cell, got ${commands[0]}`
   );
 
@@ -5447,7 +5551,7 @@ test("pgfplots default 3d surf z buffer follows native reverse-y scanline order"
     0
   );
   assert.ok(
-    sortedCommands[0].includes("(0,2.086) -- (2.898,1.043) -- (3.409,2.648) -- (0.511,2.932)"),
+    sortedCommands[0].includes(projectedPatch(geometry, [[-1,-1,1], [0,-1,0], [0,0,0], [-1,0,0]])),
     `explicit z buffer=sort should still use depth sorting, got ${sortedCommands[0]}`
   );
 });
@@ -5498,29 +5602,26 @@ test("pgfplots 3d compact explicit width keeps native projected plot width", () 
     { width: "15cm", view: "{65}{65}", "pgfplots 3d surface": true },
     { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -125, zMax: 150 }
   );
-  const projectedWidthPt = geometry.width * 28.45274;
-
-  assert.ok(projectedWidthPt >= 382.5 && projectedWidthPt <= 383.6, `expected 15cm oblique 3D projected box width near tikztosvg 383pt, got ${projectedWidthPt}pt`);
+  assertNativeDimension(geometry.width, 384.47571);
+  assertNativeDimension(geometry.height, 324.65897);
 });
 
-test("pgfplots explicit plot box ratio uses the native 45pt description reserve", () => {
+test("pgfplots explicit plot box ratio includes native final-vector rounding", () => {
   const geometry = createAxisGeometry(
     { width: "5cm", view: "{120}{35}", "plot box ratio": "{1}{2}{1}", "pgfplots 3d surface": true },
     { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -5, zMax: 5 }
   );
-  const expected = 5 - parseDimension("45pt", {});
-
-  assert.ok(Math.abs(geometry.width - expected) < 1e-9, `expected native 45pt plot-box-ratio reserve, got ${geometry.width}cm`);
+  assertNativeDimension(geometry.width, 97.94617);
+  assertNativeDimension(geometry.height, 78.23181);
 });
 
-test("pgfplots compact 6cm 3d axes preserve the calibrated explicit-width label reserve", () => {
+test("pgfplots compact 6cm 3d axes match native fixed-point sizing", () => {
   const geometry = createAxisGeometry(
     { width: "6cm", view: "{155}{45}", "pgfplots 3d surface": true },
     { xMin: -5, xMax: 5, yMin: -5, yMax: 5, zMin: -125, zMax: 150 }
   );
-  const expected = 6 - parseDimension("43.77pt", {});
-
-  assert.ok(Math.abs(geometry.width - expected) < 1e-9, `expected calibrated 43.77pt reserve, got ${geometry.width}cm`);
+  assertNativeDimension(geometry.width, 126.58691);
+  assertNativeDimension(geometry.height, 102.57263);
 });
 
 test("pgfplots oblique 3d colorbar axis bbox keeps native top reserve", () => {

@@ -1,0 +1,14 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization [scientific axes=clean,
+  x axis={logarithmic,min value=1,max value=1000,ticks=some,grid},
+  y axis={min value=0,max value=3,ticks={step=1},grid},
+  visualize as smooth line,line={label in legend={text={log axis}}}]
+data {x,y
+1,0
+10,1
+100,2
+1000,3
+};
+\end{document}

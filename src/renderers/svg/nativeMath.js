@@ -7,6 +7,14 @@ import { readContourColor } from "./textContour.js";
 const TEX_PT_PER_CM = 28.4527559;
 
 export function renderNativeMath(item, box, unit, color) {
+  return renderNativeBox(item, box, unit, color, 'class="tikz-math-native" data-math-layout="cm-tex-box"');
+}
+
+export function renderNativeText(item, box, unit, color) {
+  return renderNativeBox(item, box, unit, color, 'class="tikz-text-native" data-text-layout="cm-tex-box"');
+}
+
+function renderNativeBox(item, box, unit, color, metadata) {
   const anchor = svgTextAnchorPoint(item, unit);
   const factor = unit / TEX_PT_PER_CM;
   const x = anchor.x - (anchor.anchor === "start" ? 0 : anchor.anchor === "end" ? box.width : box.width / 2) * factor;
@@ -20,5 +28,5 @@ export function renderNativeMath(item, box, unit, color) {
     return `<text${outline} ${position} fill="${fill}" font-family="${escapeAttribute(part.family)}" font-size="${format(part.size)}" font-style="${part.style}" font-weight="${part.weight || 400}">${escapeText(part.text)}</text>`;
   }).join("");
   // Preserve CM outlines instead of browser small-text stem darkening/hinting.
-  return `<g class="tikz-math-native" data-math-layout="cm-tex-box" transform="translate(${format(x)} ${format(baseline)}) scale(${format(factor)})" text-anchor="start" dominant-baseline="alphabetic" text-rendering="geometricPrecision">${children}</g>`;
+  return `<g ${metadata} transform="translate(${format(x)} ${format(baseline)}) scale(${format(factor)})" text-anchor="start" dominant-baseline="alphabetic" text-rendering="geometricPrecision">${children}</g>`;
 }

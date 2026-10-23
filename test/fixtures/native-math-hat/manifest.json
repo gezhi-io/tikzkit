@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {"id":"native-math-hat","title":"Ordinary CM math accents","source":"hat.tex",
+      "nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":45}},
+    {"id":"native-math-hat-families","title":"CM accent family selection","source":"families.tex",
+      "nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":16}},
+    {"id":"function-pin-colors","title":"Real function pin hats","source":"../pgfplots-function-colors/pins.tex"}
+  ]
+}

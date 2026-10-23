@@ -107,7 +107,7 @@ test("supports tikzcd aliases, absolute from/to targets, and phantom labels", ()
   assert.deepEqual(ir.coordinates.Z, cNode);
   assert.ok(ir.items.some((item) => item.type === "path" && item.style.stroke === "red"));
   assert.ok(ir.items.some((item) => item.type === "path" && item.style.stroke === "blue"));
-  assert.ok(ir.items.some((item) => item.type === "path" && item.style.stroke === "purple"));
+  assert.ok(ir.items.some((item) => item.type === "path" && item.style.stroke === "rgb(191 0 64)"));
   assert.equal(ir.items.some((item) => item.type === "path" && item.style.stroke === "none"), false);
   assert.ok(hasMathText(ir, "$\\ulcorner$"));
 });

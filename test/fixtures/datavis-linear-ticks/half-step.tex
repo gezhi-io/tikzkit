@@ -1,0 +1,10 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\tikz \datavisualization[
+  scientific axes=clean,visualize as smooth line/.list={a,b,c},
+  style sheet=strong colors,style sheet=vary thickness,data/format=function]
+data[set=a] { var x : interval [0:4] samples 5; func y = .25*\value x; }
+data[set=b] { var x : interval [0:4] samples 5; func y = .25*\value x + .5; }
+data[set=c] { var x : interval [0:4] samples 5; func y = .25*\value x + 1; };
+\end{document}

@@ -12,6 +12,7 @@ import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
 import { parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
+import { nativeBaselineSkip } from "../tex/mathFonts.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const ENGLISH_LEFT_HYPHEN_MIN = 2;
@@ -497,12 +498,64 @@ export function parseMathText(value) {
   return null;
 }
 
+// TikZ's aligned node text is a halign of hboxes, with the last row as its
+// baseline. Scoped font changes affect the row, not the outer baseline grid.
+// Return null for mixed prose or unsupported rows so no content is dropped.
+export function layoutMultilineMathText(normalized, font = {}, alignment = "center") {
+  const lines = normalized?.lines;
+  if (!Array.isArray(lines) || lines.length < 2 || normalized.displayMathSequence ||
+      /\\\\\s*\[/.test(normalized.raw || "")) return null;
+  const baseSize = Number(font.sizePt) || 10 * (Number(normalized.scale) || 1);
+  const baselineSkip = Number(font.baselineSkipPt) || nativeBaselineSkip(baseSize);
+  if (!(baselineSkip > 0)) return null;
+  const boxes = [];
+  for (const [index, line] of lines.entries()) {
+    const math = parseMathText(line);
+    const style = normalized.lineStyles?.[index] || {};
+    if (!math || math.displayMode || (style.fontSegments?.length || 0) > 1) return null;
+    const sizePt = math.explicitFontSize ? math.scale * 10 : Number(style.fontSizePt) || baseSize;
+    const box = layoutNativeMath(math.tex, {
+      fontSizePt: sizePt,
+      mathVersion: font.mathVersion,
+      mathExtension: font.mathExtension,
+      preferNativeMath: true
+    });
+    if (!box) return null;
+    boxes.push(box);
+  }
+  const width = Math.max(...boxes.map(box => box.width));
+  const rows = [];
+  let baseline = 0;
+  for (const [index, box] of boxes.entries()) {
+    if (index) {
+      const clearance = baselineSkip - boxes[index - 1].depth - box.height;
+      // TeX switches from baselineskip to the default 1pt lineskip when the
+      // adjacent boxes would overlap. This matters for stacked fractions.
+      baseline += clearance < 0 ? boxes[index - 1].depth + box.height + 1 : baselineSkip;
+    }
+    rows.push({ width: box.width, height: box.height, depth: box.depth, baseline });
+  }
+  return {
+    width,
+    height: boxes[0].height + baseline,
+    depth: boxes.at(-1).depth,
+    measurementKind: "cm-tex-box",
+    rows,
+    items: boxes.flatMap((box, index) => {
+      const x = alignment === "left" ? 0 : (width - box.width) / (alignment === "right" ? 1 : 2);
+      const y = rows[index].baseline - baseline;
+      return box.items.map(item => ({ ...item, x: item.x + x, y: item.y + y }));
+    })
+  };
+}
+
 export function estimateFormulaBox(tex, options = {}) {
   const displayMode = Boolean(options.displayMode);
   const normalized = leadingMathFontSize(normalizeBrowserMathMacros(tex));
   const optionScale = Number(options.scale) > 0 ? Number(options.scale) : 1;
   const scale = optionScale * normalized.scale;
   const native = layoutNativeMath(normalized.tex, { fontSizePt: 10 * scale, displayMode,
+    preferNativeMath: options.preferNativeMath,
     mathVersion: options.mathVersion, mathExtension: options.mathExtension, baselineSkipPt: options.baselineSkipPt });
   if (native) return { width: native.width / TEX_PT_PER_CM,
     height: native.height / TEX_PT_PER_CM, depth: native.depth / TEX_PT_PER_CM,

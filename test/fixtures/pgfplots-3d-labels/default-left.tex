@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[axis lines=left,xlabel=$x$,ylabel=$y$,zlabel=$z$,grid=major]
+\addplot3[surf] {x+y};
+\end{axis}
+\end{tikzpicture}
+\end{document}

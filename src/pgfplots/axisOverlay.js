@@ -1,5 +1,6 @@
 import { axisNumber } from "./coordinates.js";
 import { formatAxisNumber, formatAxisPoint } from "./format.js";
+import { axisViewportClipOption } from "./clipping.js";
 
 export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions = {}) {
   const commands = [];
@@ -19,23 +20,9 @@ export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions 
 }
 
 function axisOverlayGlobalClipOption(axisOptions = {}, ranges = {}, geometry = {}) {
-  if (!axisBooleanOption(axisOptions.clip, true)) return "";
   const mode = String(axisOptions["clip mode"] ?? "global").trim().toLowerCase();
   if (mode !== "global") return "";
-  if (geometry.is3d) {
-    const hull = projectedAxisBoxHull(ranges, geometry);
-    if (hull.length < 3) return "";
-    const points = hull
-      .map((point) => `${formatAxisNumber(point.x)},${formatAxisNumber(point.y)}`)
-      .join(";");
-    return `tikzkit clip polygon={${points}}`;
-  }
-  const minX = Number(geometry.origin?.x);
-  const minY = Number(geometry.origin?.y);
-  const maxX = minX + Number(geometry.width);
-  const maxY = minY + Number(geometry.height);
-  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return "";
-  return `tikzkit clip rect={${formatAxisNumber(minX)},${formatAxisNumber(minY)},${formatAxisNumber(maxX)},${formatAxisNumber(maxY)}}`;
+  return axisViewportClipOption(axisOptions, ranges, geometry);
 }
 
 function applyAxisOverlayClip(command, clipOption) {
@@ -47,15 +34,6 @@ function applyAxisOverlayClip(command, clipOption) {
   return suffix.startsWith("[")
     ? `${match[1]}${match[2]}[${clipOption},${suffix.slice(1)}`
     : `${match[1]}${match[2]}[${clipOption}] ${suffix}`;
-}
-
-function axisBooleanOption(raw, fallback) {
-  if (raw === undefined || raw === null || raw === "") return fallback;
-  if (raw === true || raw === false) return raw;
-  const normalized = String(raw).trim().toLowerCase();
-  if (["false", "0", "off", "no"].includes(normalized)) return false;
-  if (["true", "1", "on", "yes"].includes(normalized)) return true;
-  return fallback;
 }
 
 function withAxisOverlayFont(commands, font) {
@@ -336,49 +314,4 @@ function mapAxisDirectionVector(vector, ranges, geometry, hasZ = false) {
     x: (vector.x / xSpan) * geometry.width * (geometry.axisDirections?.x || 1),
     y: (vector.y / ySpan) * geometry.height * (geometry.axisDirections?.y || 1)
   };
-}
-
-function projectedAxisBoxHull(ranges = {}, geometry = {}) {
-  if (typeof geometry.mapPoint3d !== "function") return [];
-  const boxRanges = geometry.transformRanges || ranges;
-  const xValues = [Number(boxRanges.xMin), Number(boxRanges.xMax)];
-  const yValues = [Number(boxRanges.yMin), Number(boxRanges.yMax)];
-  const zValues = [Number(boxRanges.zMin), Number(boxRanges.zMax)];
-  if (![...xValues, ...yValues, ...zValues].every(Number.isFinite)) return [];
-  const points = [];
-  for (const x of xValues) {
-    for (const y of yValues) {
-      for (const z of zValues) {
-        const point = geometry.mapPoint3d({ x, y, z });
-        if (Number.isFinite(point?.x) && Number.isFinite(point?.y)) points.push(point);
-      }
-    }
-  }
-  return convexHull(points);
-}
-
-function convexHull(points = []) {
-  const unique = new Map();
-  for (const point of points) {
-    const x = Number(point.x);
-    const y = Number(point.y);
-    const key = `${Math.round(x * 1e9)}:${Math.round(y * 1e9)}`;
-    unique.set(key, { x, y });
-  }
-  const sorted = [...unique.values()].sort((a, b) => a.x - b.x || a.y - b.y);
-  if (sorted.length <= 2) return sorted;
-  const cross = (origin, a, b) =>
-    (a.x - origin.x) * (b.y - origin.y) - (a.y - origin.y) * (b.x - origin.x);
-  const lower = [];
-  for (const point of sorted) {
-    while (lower.length >= 2 && cross(lower.at(-2), lower.at(-1), point) <= 1e-12) lower.pop();
-    lower.push(point);
-  }
-  const upper = [];
-  for (let index = sorted.length - 1; index >= 0; index -= 1) {
-    const point = sorted[index];
-    while (upper.length >= 2 && cross(upper.at(-2), upper.at(-1), point) <= 1e-12) upper.pop();
-    upper.push(point);
-  }
-  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }

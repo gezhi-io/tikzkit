@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { assertNativeText } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
+import { layoutNativeText } from "../src/tex/textBox.js";
+import { createSvgTextEngine } from "../src/renderers/svg/textEngine.js";
 import { interpretTikz, parseTikz, renderSvg, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
 import { lineWidthFromPt } from "../src/tikz-metrics.js";
@@ -719,8 +721,13 @@ test("renders matrix annotation math fallback with TikZ-like bold and symbol sty
   assert.match(svg, />I</);
   assert.match(svg, /font-weight="700"[^>]*>I</);
   assert.doesNotMatch(svg, /font-style="italic"[^>]*>I</);
-  assert.match(svg, />× 1</);
-  assert.doesNotMatch(svg, /font-style="italic"[^>]*>× 1</);
+  const group = assertNativeText(svg, "\u00d71");
+  assert.equal(group.text, "\u00d71");
+  assert.ok(group.glyphs.every(glyph => glyph.style === "normal" && glyph.fill === "blue"));
+  assert.match(group.glyphs[0].family, /^TikZKitCMSY/);
+  assert.match(group.glyphs[1].family, /^TikZKitCMR/);
+  assert.ok(group.glyphs[0].x < group.glyphs[1].x);
+  assert.equal(group.glyphs[0].y, group.glyphs[1].y);
   assert.ok(annotation.x > cell.x, `expected scaled annotation near the cell east edge, got ${annotation.x} <= ${cell.x}`);
   assert.ok(annotation.y < cell.y, `expected scaled annotation near the cell south edge, got ${annotation.y} >= ${cell.y}`);
   assert.ok(label.y < cell.y - 0.7, `expected below=of label below the cell with TikZ node distance, got ${label.y}`);
@@ -941,7 +948,18 @@ test("propagates tikzpicture monospace font option to text nodes", () => {
 
   assert.equal(diagnostics.length, 0);
   assert.match(text.style.fontFamily, /mono/i);
-  assert.match(svg, /monospace/);
+  assert.match(svg, /data-text-layout="cm-tex-box"/);
+  const glyphs = [...svg.matchAll(/<text\b([^>]*)>([A-Z])<\/text>/g)];
+  assert.equal(glyphs.map(glyph => glyph[2]).join(""), "ACAACG");
+  glyphs.forEach((glyph, index) => {
+    assert.match(glyph[1], /font-family="TikZKitMath_Typewriter"/);
+    assert.match(glyph[1], /font-size="10"/);
+    expectClose(Number(glyph[1].match(/\bx="([^"]+)"/)[1]), index * 5.24996, 0.0001);
+  });
+  const box = layoutNativeText("ACAACG", text.font);
+  expectClose(box.width, 31.49973, 0.0001);
+  expectClose(box.height, 6.11111, 0.0001);
+  assert.equal(box.depth, 0);
 });
 
 test("clips arrows against TeX typewriter text extents", () => {
@@ -1273,15 +1291,28 @@ test("normalizes Gene expression inline TikZ labels and xcolor token text", () =
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
-  const svg = renderSvg(ir, { mathRenderer: "svg-text" });
-
   assert.equal(diagnostics.length, 0);
-  assert.doesNotMatch(svg, /\\tikz|\\node|inner sep|anchor=base|textcolorblueV/);
-  assert.match(svg, />UAG</);
-  assert.match(svg, />STOP</);
-  assert.match(svg, /fill="blue"[^>]*>V</);
-  assert.match(svg, /fill="#006400"[^>]*>CAU</);
-  assert.match(svg, /monospace/);
+  const nativeUag = layoutNativeText("UAG", { family: "monospace", sizePt: 10 });
+  expectClose(nativeUag.width, 15.74986, 0.0001);
+  expectClose(nativeUag.height, 6.11111, 0.0001);
+  assert.equal(nativeUag.depth, 0);
+  for (const mathRenderer of [undefined, "svg-text"]) {
+    for (const textEngine of [undefined, createSvgTextEngine({ mathRenderer })]) {
+      const svg = renderSvg(ir, { mathRenderer, textEngine });
+      assert.doesNotMatch(svg, /\\tikz|\\node|inner sep|anchor=base|textcolorblueV/);
+      const runs = [...svg.matchAll(/<(?:text|tspan)\b([^>]*)>([^<]+)<\/(?:text|tspan)>/g)]
+        .map(match => ({ text: match[2], fill: match[1].match(/\bfill="([^"]+)"/)?.[1] }));
+      const content = runs.map(run => run.text).join("");
+      assert.ok(content.includes("GUGCAUUAG"));
+      assert.ok(content.includes("STOP"));
+      assert.match(svg, /font-family="(?:TikZKitMath_Typewriter|[^"]*monospace[^"]*)"/);
+      const paintedText = color => runs.filter(run => run.fill === color).map(run => run.text).join("");
+      assert.equal(paintedText("blue"), "GUGV");
+      assert.equal(paintedText("#006400"), "CAU");
+      assert.equal(paintedText("white"), "UAGSTOP");
+      assert.equal([...svg.matchAll(/<rect\b[^>]*fill="red"/g)].length, 2);
+    }
+  }
 });
 
 test("renders Gene expression emph path labels as italic text", () => {
@@ -1307,11 +1338,26 @@ test("renders Gene expression typewriter labels with TeX-like horizontal advance
 \end{tikzpicture}`;
 
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
-  const svg = renderSvg(ir, { mathRenderer: "svg-text" });
-
   assert.equal(diagnostics.length, 0);
-  assert.match(svg, /class="tikz-typewriter-text"/);
-  assert.match(svg, /scale\(0\.88 1\)/);
+  const label = "GTGCATCTGACTCCTGAGGAGTAG";
+  const node = ir.items.find(item => item.type === "textNode");
+  const box = layoutNativeText(label, node.font);
+  expectClose(box.width, 125.99890, 0.001);
+  expectClose(box.height, 6.11111, 0.0001);
+  assert.equal(box.depth, 0);
+  for (const mathRenderer of [undefined, "svg-text"]) {
+    const svg = renderSvg(ir, { mathRenderer });
+    assert.match(svg, /data-text-layout="cm-tex-box"/);
+    const glyphs = [...svg.matchAll(/<text\b([^>]*)>([A-Z])<\/text>/g)];
+    assert.equal(glyphs.map(glyph => glyph[2]).join(""), label);
+    glyphs.forEach((glyph, index) => {
+      assert.match(glyph[1], /font-family="TikZKitMath_Typewriter"/);
+      assert.match(glyph[1], /font-size="10"/);
+      expectClose(Number(glyph[1].match(/\bx="([^"]+)"/)[1]), index * 5.24996, 0.0001);
+      assert.equal(Number(glyph[1].match(/\by="([^"]+)"/)[1]), 0);
+    });
+    assert.doesNotMatch(svg, /tikz-typewriter-text|scale\(0\.88 1\)/);
+  }
 });
 
 test("creates PetarV cube pic coordinates while tracking toggle statements", () => {
@@ -1596,11 +1642,14 @@ test("normalizes larger bold math labels used as graph markers", () => {
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const svg = renderSvg(ir, { mathRenderer: "svg-text" });
   const sigma = ir.items.find((item) => item.type === "nodeBox");
-  const crossFontSize = Number(svg.match(/font-size="([^"]+)"[^>]*>×</)?.[1]);
+  const cross = assertNativeText(svg, "×");
+  const crossFontSize = cross.glyphs[0].size * cross.scale;
 
   assert.equal(diagnostics.length, 0);
   assert.ok(sigma.width < 1.2, `expected compact sigma node, got ${sigma.width}`);
   assert.ok(crossFontSize > 72, `expected nested \\mathlarger marker to be visibly enlarged, got ${crossFontSize}`);
+  assert.equal(cross.glyphs[0].size, 20.74, "Five relsize steps select LaTeX's 20.74pt font");
+  assert.match(cross.glyphs[0].family, /CMBSY/);
   assert.match(svg, /font-weight="700"[^>]*>×</);
   assert.match(svg, />Σ</);
   assert.match(svg, />×</);

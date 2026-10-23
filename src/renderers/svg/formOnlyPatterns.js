@@ -31,18 +31,21 @@ export function renderFormOnlyPatternFill(item, unit, clipId, pageOrigin = { x: 
   const lowerY = Number(lowerLeft.y) || 0;
   const upperX = Number(upperRight.x) || lowerX;
   const upperY = Number(upperRight.y) || lowerY;
-  const startX = Math.floor((pathBounds.minX - upperX) / tileWidth) - 1;
-  const endX = Math.ceil((pathBounds.maxX - lowerX) / tileWidth) + 1;
-  const startY = Math.floor((pathBounds.minY - upperY) / tileHeight) - 1;
-  const endY = Math.ceil((pathBounds.maxY - lowerY) / tileHeight) + 1;
+  const pageX = Number(pageOrigin.x) || 0;
+  const pageY = Number(pageOrigin.y) || 0;
+  // PGF tiles are page-aligned. Enumerate the clip in that same coordinate
+  // system; adding the page offset only during painting can leave whole rows
+  // uncovered when labels or a border move the cropped page origin.
+  const startX = Math.floor((pathBounds.minX - pageX / unit - upperX) / tileWidth) - 1;
+  const endX = Math.ceil((pathBounds.maxX - pageX / unit - lowerX) / tileWidth) + 1;
+  const startY = Math.floor((pathBounds.minY + pageY / unit - upperY) / tileHeight) - 1;
+  const endY = Math.ceil((pathBounds.maxY + pageY / unit - lowerY) / tileHeight) + 1;
   const tileCount = Math.max(0, endX - startX + 1) * Math.max(0, endY - startY + 1);
   if (!tileCount || tileCount > MAX_PATTERN_TILES) return "";
 
   const operations = declaredOperations(definition);
   const color = svgPaint(item.style.patternColor || item.style.stroke || "black");
   const lineWidth = Math.max(0, Number(definition.lineWidth) || 0.7) * unit;
-  const pageX = Number(pageOrigin.x) || 0;
-  const pageY = Number(pageOrigin.y) || 0;
   const body = [];
   for (let tileY = startY; tileY <= endY; tileY += 1) {
     for (let tileX = startX; tileX <= endX; tileX += 1) {

@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "id": "path-node-shifts", "source": "path-node-shifts.tex", "title": "Path translation and local node translation" },
+    { "id": "path-node-projection", "source": "path-node-projection.tex", "title": "Named projection point on a shifted path" }
+  ]
+}

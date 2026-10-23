@@ -1,0 +1,13 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\tikz \datavisualization[
+  scientific axes=clean,visualize as smooth line/.list={a,b,c,d,e,f},
+  style sheet=vary thickness and dashing,data/format=function]
+data[set=a] { var x : interval [0:6] samples 3; func y = .12*\value x; }
+data[set=b] { var x : interval [0:6] samples 3; func y = .12*\value x + .35; }
+data[set=c] { var x : interval [0:6] samples 3; func y = .12*\value x + .7; }
+data[set=d] { var x : interval [0:6] samples 3; func y = .12*\value x + 1.05; }
+data[set=e] { var x : interval [0:6] samples 3; func y = .12*\value x + 1.4; }
+data[set=f] { var x : interval [0:6] samples 3; func y = .12*\value x + 1.75; };
+\end{document}

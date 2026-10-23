@@ -29,6 +29,7 @@ src/
   cli/                     CLI adapter
   frontend/                document adapter and parse-facing seam: latex-shell/lexer/parser/AST/diagnostics
   engine/                  evaluation seam: context, registry, units, math, options, geometry, path builder
+    colors.js              color names, natural color models, mixing, and DeviceCMYK conversion
   tikz/
     commands/              canonical command catalog: draw, fill, node, path, coordinate, foreach, axis, addplot
     libraries/             canonical TikZ library catalog, declarations, and library-specific semantic helpers
@@ -255,6 +256,29 @@ src/pgfplots/transformDataToCanvas.js
 
 `src/pgfplots/axisOptions.js` owns PGFPlots library declarations and global option collection. The frontend document adapter should import `collectPgfplotsLibraries`, `collectPgfplotsSetOptions`, and `stripPgfLibraryDeclarations` from this seam instead of keeping PGFPlots-specific parsing rules inline.
 
+`src/pgfplots/ticks.js:createAxisTickModel` owns geometry-dependent 2D tick
+planning. Tick paint and grid paint consume the same candidate positions,
+including explicit distances and automatic interval retries. A model can have
+`disabled: true` and nonempty `values`: `ticks=none` disables tick paint but
+does not erase grid positions. An empty per-axis tick list does erase them.
+Frontend-inferred option aliases must precede source keys so they cannot
+override a later user setting such as `tick align=outside`.
+
+Native middle-axis bounds use measured text nodes and the final plot rectangle
+for default-sized, enlarged, and tick-labelled boundary-origin axes. Do not add
+the former fitted description gutters again. Audited interior-origin tickless
+axes also use painted stroke bounds. Boundary-origin tickless and other
+unreviewed layout families retain their existing paint allowances pending
+separate audits; see `qa/2026-10-23-pgfplots-native-seams.md`.
+
+`src/tex/textBox.js` packs literal one-line CM text from the local MacTeX TFM
+metrics, including optical-size selection, ligatures and kerns. The text engine
+and SVG painter share this box's width, height and depth. The native middle-axis
+scope opts into it; paragraphs, TeX control sequences and unsupported faces keep
+their existing paths. Numeric tick measurement must apply the same math-number
+normalization as painting, so a negative tick is never measured as a text hyphen.
+Do not reintroduce a fitted width or browser-middle baseline for these boxes.
+
 ## Capability Matrix Seam
 
 Feature support is tracked in `src/capabilities/`:
@@ -325,6 +349,7 @@ When adding a TikZ command, TikZ library, PGFPlots feature, data-visualization f
 41. SVG inline matrix math fallback parsing and rendering for `matrix`, `pmatrix`, `bmatrix`, `vmatrix`, `Vmatrix`, `Bmatrix`, and `cases` belongs in `src/renderers/svg/mathMatrixFallback.js`; `renderSvg.js` should only detect the fallback result and delegate matrix cell layout and delimiter path serialization.
 42. SVG fraction math fallback parsing and rendering for `\frac`, `\dfrac`, `\tfrac`, inline fraction prefixes/suffixes, and fraction part `<tspan>` content belongs in `src/renderers/svg/mathFractionFallback.js`; `renderSvg.js` should dispatch to the module and reuse `renderFractionPartContent()` from sum/color fallbacks instead of duplicating fraction-specific layout.
 43. SVG `\sum` upper/lower limit fallback parsing and rendering belongs in `src/renderers/svg/mathSumFallback.js`; `renderSvg.js` should only dispatch to the module for text-content or standalone math-node fallback output.
+    Specialized operator/accent handlers must precede generic script serialization. Alphabet handlers must decline formulas without their alphabet commands; a script alone is not an alphabet change.
 44. SVG math color fallback parsing and rendering for `\textcolor{...}{...}` and stateful `\color{...}` belongs in `src/renderers/svg/mathColorFallback.js`; `renderSvg.js` should only dispatch to the module and provide the non-color math content renderer when needed.
 45. SVG standalone math node serialization, KaTeX `foreignObject` shell sizing, SVG-text fallback selection, and math node box sizing belong in `src/renderers/svg/mathNode.js`; `renderSvg.js` should only call `renderMathNode()` and reuse `estimateMathBox()` / `scopedMathForeignObjectBox()` for bounds.
 46. SVG rich text-node `foreignObject` serialization, plain-text fallback shell, fit-to-box sizing, and rich text render-bound estimation belong in `src/renderers/svg/richTextNode.js`; `renderSvg.js` should only dispatch rich text nodes to that module and inject shared plain-text/math fallback helpers.
@@ -333,6 +358,7 @@ When adding a TikZ command, TikZ library, PGFPlots feature, data-visualization f
 49. SVG text/math fit-to-box font-size reduction belongs in `src/renderers/svg/textFit.js`; renderers and bounds estimators should share `fitFontSizeToBox()` instead of carrying local copies.
 50. `src/index.js` must stay a small public interface. Broad exports for PGFPlots internals, package/library registries, command catalogs, extensions, and low-level renderer helpers belong in `src/internal.js` or their owning module, not in the public entry point.
 51. PGFPlots Axis Model orchestration and axis-to-TikZ lowering belong in `src/pgfplots/axisTikzLowering.js`; `src/frontend/latex-shell.js` should call `renderPgfplotsAxisAsTikz()` and inject only not-yet-migrated helper dependencies until those helpers also move behind PGFPlots seams.
+    Native 2D middle-axis text is scoped here, including overlay labels. Numeric ticks retain their semantic text with an explicit math-number style; shared TeX node boxes drive placement and SVG bounds. Do not migrate boxed/3D or explicitly positioned descriptions without native/browser layout checks.
 52. PGFPlots expression evaluation, declared function expansion, trig-mode normalization, and endpoint sampling compensation belong in `src/pgfplots/expressions.js`; frontend/datavisualization code may call that seam but should not carry independent PGF math evaluators.
 53. PGFPlots range resolution, default function domains, enlarge-limits padding, domain parsing, sample count clamping, parametric sampling, and surface z restrictions belong in `src/pgfplots/rangeResolver.js`; frontend/datavisualization code may call that seam but should not duplicate those range policies.
 54. PGFPlots surface lowering for sampled function surfaces and coordinate mesh patches belongs in `src/pgfplots/surface.js`; frontend code may dispatch a surface addplot to that seam but should not own mesh inference, patch depth sorting, surface color maps, or surface opacity policy.
@@ -342,5 +368,7 @@ When adding a TikZ command, TikZ library, PGFPlots feature, data-visualization f
 58. PGFPlots `\addplot` statement parsing, plot-local style expansion, inline plot nodes, coordinate/table/function/parametric plot model construction, and pgfplotstable row-to-point conversion belongs in `src/pgfplots/addplotParser.js`; frontend code may pass it into axis lowering but should not own addplot syntax or table point extraction.
 59. PGFPlots named style expansion and PGFPlots option-map merging belongs in `src/pgfplots/namedOptions.js`; frontend code may use this seam when preparing axis options but should not keep a second style-expansion implementation.
 60. PGFPlots legend body parsing for `\addlegendentry` and `\legend{...}` belongs in `src/pgfplots/legend.js` with legend layout/rendering helpers; frontend code may pass parsed body entries into axis lowering but should not own legend-list syntax.
+    Mathematical line-legend cell geometry belongs in `src/pgfplots/legendMatrix.js`. It uses TeX boxes, stroked sample bounds and matrix spacing; the SVG renderer only paints those boxes. Native-math opt-in must remain explicit so datavisualization and unrelated text layouts do not change accidentally.
 61. PGFPlots axis overlay statement lowering for `\coordinate`, `\node`, `\draw`, and `\path` inside an axis belongs in `src/pgfplots/axisOverlay.js`; frontend code should not own `axis cs`, `rel axis cs`, `axis description cs`, `/pgfplots/<axis><bound>` replacement, or overlay coordinate clamping rules.
+    `src/pgfplots/clipping.js` owns the renderer-neutral 2D paint rectangle. Plot lines, clipped markers and global overlays must project the final enlarged limits through the same mapping, not reuse the unexpanded transform allocation.
 62. TikZ `\foreach` loop value expansion, tuple variable binding, `count`, and `evaluate=... using ...` option semantics belong in `src/tikz/commands/foreach.js`; engine code should call `foreachIterationVariables()` and only interpret the loop body statements.

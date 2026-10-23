@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertNativeText } from "./helpers/native-math-svg.js";
+import { assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
 import {
   arrowMarkerId,
   blurShadowFilterId,
@@ -95,8 +95,10 @@ test("svg renderer layer exposes render, escaping, defs, text, and path-data hel
     mathRenderer: "svg-text"
   });
   const svgTextHeight = Number(svgTextMath.match(/height="([^"]+)pt"/)?.[1]);
-  assert.ok(svgTextHeight > 7.7);
-  assert.ok(svgTextHeight < 7.9);
+  // compact-math-renderer-metrics.tex: x is 4.30554 TeX pt high, depth zero.
+  // SVG document dimensions use PDF points and are rounded to two decimals.
+  assert.equal(svgTextHeight, Number((4.30554 * 72 / 72.27).toFixed(2)));
+  assertNativeText(svgTextMath, "x");
   assert.equal(
     scopeMathHtml('<span class="katex katex-html custom"></span>'),
     '<span class="tikzkit-math-root tikzkit-math-html tikzkit-math-custom"></span>'
@@ -769,7 +771,7 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
     { ...base, text: "plain $x$" },
     { ...base, fontStyle: "italic" },
     { ...base, fontWeight: "bold" },
-    { ...base, fontFamily: "monospace" },
+    { ...base, fontFamily: "monospace", fontSizePt: 9 },
     { ...base, text: "caf\u00e9" }
   ];
 
@@ -780,6 +782,16 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
     assert.equal(metrics.width, payload.viewBox.width, `expected paint-width fallback for ${JSON.stringify(request)}`);
     assert.equal(metrics.height, payload.viewBox.height, `expected paint-height fallback for ${JSON.stringify(request)}`);
   }
+  const mono = engine.measure({ ...base, fontFamily: "monospace" });
+  const payload = engine.renderFromCache(mono.cacheKey);
+  const unitPerPt = 100 / 28.4527559;
+  assert.equal(mono.measurementKind, "cm-text-box");
+  assert.ok(Math.abs(mono.width / unitPerPt - 57.7495) < 0.0001);
+  assert.ok(Math.abs(mono.height / unitPerPt - 5.53575) < 0.0001);
+  assert.ok(Math.abs(mono.baselineY / unitPerPt - 5.53575) < 0.0001);
+  assert.match(payload.body, /data-text-layout="cm-tex-box"/);
+  const glyphs = [...payload.body.matchAll(/<text[^>]*font-family="TikZKitMath_Typewriter"[^>]*>([^<]*)<\/text>/g)];
+  assert.equal(glyphs.map(glyph => glyph[1]).join(""), base.text);
 });
 
 test("svg text engine uses paint fallback for a logical TeX box request with explicit font size", () => {
@@ -958,7 +970,34 @@ test("svg text engine isolates font variant, math style, and math version cache 
   });
 
   assert.notEqual(textMath.cacheKey, displayMath.cacheKey);
-  assert.ok(displayMath.height > textMath.height);
+  // The independent TeX probe gives the same ordinary atom in both styles.
+  assert.equal(displayMath.height, textMath.height);
+  assert.equal(displayMath.width, textMath.width);
+  assert.equal(displayMath.baselineY, textMath.baselineY);
+  assert.ok(Math.abs(textMath.height / lineWidthFromPt(1) - 4.30554) < 0.001);
+  assert.ok(Math.abs(textMath.width / lineWidthFromPt(1) - 5.71527) < 0.001);
+  assert.deepEqual(
+    assertNativeText(engine.renderFromCache(textMath.cacheKey).body, "x"),
+    assertNativeText(engine.renderFromCache(displayMath.cacheKey).body, "x")
+  );
+
+  // Style-sensitive content must still select a distinct layout, not just key.
+  const fractions = ["text", "display"].map(mathStyle => engine.measure({
+    text: String.raw`$\frac{1}{x}$`, mode: "math", font: createFontSpec({ mathStyle })
+  }));
+  assert.notEqual(fractions[0].cacheKey, fractions[1].cacheKey);
+  for (const [index, [width, height, depth, glyphSize]] of [
+    [6.93472, 8.44843, 3.44841, 7],
+    [8.11526, 13.20952, 6.85951, 10]
+  ].entries()) {
+    const fraction = fractions[index];
+    assert.ok(Math.abs(fraction.width / lineWidthFromPt(1) - width) < 0.001);
+    assert.ok(Math.abs(fraction.height / lineWidthFromPt(1) - height - depth) < 0.001);
+    assert.ok(Math.abs(fraction.baselineY / lineWidthFromPt(1) - height) < 0.001);
+    const group = assertNativeText(engine.renderFromCache(fraction.cacheKey).body, "1x");
+    assert.equal(group.rules, 1);
+    assert.ok(group.glyphs.every(glyph => glyph.size === glyphSize));
+  }
 
   const boldMath = engine.measure({
     text: "$x$",
@@ -1643,13 +1682,19 @@ test("renders xleftarrow optional lower and required upper labels", () => {
   assert.match(result.svg, />g<\/text>/);
 });
 
-test("renders simple math variables as TeX-like glyph paths in svg-text mode", () => {
+test("renders simple math variables with native CMMI glyphs in svg-text mode", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \draw[thick, -stealth] (0,0) -- node[above] {$x$} (2,0);
 \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
 
-  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-x"/);
-  assert.doesNotMatch(result.svg, /<text[^>]*>\s*x\s*<\/text>/);
+  const group = assertNativeText(result.svg, "x");
+  assert.equal(group.glyphs.length, 1);
+  assert.equal(group.glyphs[0].family, "TikZKitCMMI10");
+  assert.equal(group.glyphs[0].size, 10);
+  assert.equal(group.glyphs[0].style, "italic");
+  assert.equal(group.glyphs[0].y, 0);
+  assert.ok(Number.isFinite(group.x) && Number.isFinite(group.y));
+  assert.doesNotMatch(result.svg, /<foreignObject\b|tikz-math-glyph-x/);
 });
 
 test("keeps scoped upright text inside a grouped math subscript", () => {
@@ -1722,7 +1767,18 @@ test("renders simple y math glyph at anchored node positions without NaN transfo
   \node[anchor=north west] at (0.91,4.5) {$y$};
 \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
 
-  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-y"/);
+  const groups = nativeMathGroups(result.svg);
+  assert.equal(groups.length, 2);
+  for (const group of groups) {
+    assert.equal(group.text, "y");
+    assert.equal(group.glyphs.length, 1);
+    assert.equal(group.glyphs[0].family, "TikZKitCMMI10");
+    assert.equal(group.glyphs[0].style, "italic");
+    assert.equal(group.glyphs[0].size, 10);
+    assert.ok([group.x, group.y, group.scale, group.glyphs[0].x, group.glyphs[0].y].every(Number.isFinite));
+    assert.ok(group.scale > 0);
+  }
+  assert.ok(groups[0].y < groups[1].y, "the higher TikZ node retains the higher SVG baseline");
   assert.doesNotMatch(result.svg, /NaN/);
 });
 

@@ -1,0 +1,14 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\tikz \datavisualization[
+  scientific axes=clean,
+  x axis={attribute=angle,ticks={minor steps between steps=4}},
+  y axis={attribute=radius,ticks={some,style=red}},
+  all axes=grid,visualize as line]
+data[format=function] {
+  var t : interval [-3:3] samples 3;
+  func angle = exp(\value t);
+  func radius = \value t*\value t;
+};
+\end{document}

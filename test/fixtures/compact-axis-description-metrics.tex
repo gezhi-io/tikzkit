@@ -1,0 +1,22 @@
+\documentclass{article}
+\usepackage{pgfplots}
+\usepackage{helvet}
+\usepackage[eulergreek]{sansmath}
+\pgfplotsset{compat=1.10}
+\makeatletter
+\newcommand\traceanchor[2]{\pgfpointanchor{#1}{#2}\typeout{ANCHOR #1/#2: \the\pgf@x,\the\pgf@y}}
+\makeatother
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[width=13.5cm,height=8.625cm,xmin=0,xmax=125,ymin=0,ymax=.045,
+  tick align=inside,xtick={40,70,80},ytick=\empty,axis lines=middle,
+  axis line style=very thick,
+  tick label style={font=\sansmath\sffamily,name=tick},
+  xlabel=$x$,x label style={name=xl,at={(axis description cs:.5,0)},anchor=north,font=\boldmath\Large},
+  ylabel=$f(x)$,y label style={name=yl,at={(axis description cs:0,.5)},anchor=south,rotate=90,font=\boldmath\Large}]
+\end{axis}
+\traceanchor{xl}{center}\traceanchor{xl}{north}\traceanchor{xl}{south}
+\traceanchor{yl}{center}\traceanchor{yl}{north}\traceanchor{yl}{south}
+\traceanchor{tick}{center}\traceanchor{tick}{north}\traceanchor{tick}{south}
+\end{tikzpicture}
+\end{document}

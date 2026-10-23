@@ -130,7 +130,7 @@ export function computeSvgBounds(items, options = {}) {
         includeClippedItemBounds(item, itemBounds, includeGlobal);
         continue;
       }
-      const normalized = normalizeTikzText(item.text, options);
+      const normalized = normalizeTikzText(item.text, { ...options, mathMode: item.style?.mathMode });
       if (normalized.invisible) continue;
       if (isEmptyNormalizedTikzText(normalized)) continue;
       if (normalized.kind === "image") {
@@ -152,6 +152,7 @@ export function computeSvgBounds(items, options = {}) {
         const hasResolvedFont = Number.isFinite(Number(item?.font?.sizePt)) && Number(item.font.sizePt) > 0;
         const physicalBox = measureMathBoxPt(math.tex, {
           font: hasResolvedFont ? item.font : undefined,
+          preferNativeMath: item.style?.preferNativeMath,
           mathVersion,
           displayMode: math.displayMode,
           renderer: options.mathRenderer,

@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "pgfplots-compact-middle-ticks", "source": "compact.tex", "title": "Compact middle axes: native minimum tick count" },
+    { "id": "pgfplots-tick-distance-grid", "source": "distance.tex", "title": "Explicit tick distance shared with major and minor grids" },
+    { "id": "pgfplots-tick-retry", "source": "retry.tex", "title": "Retry a rounded interval leaving only the origin" },
+    { "id": "pgfplots-default-middle-ticks", "source": "default-middle.tex", "title": "Default middle axes without sparse-y heuristics" }
+  ]
+}

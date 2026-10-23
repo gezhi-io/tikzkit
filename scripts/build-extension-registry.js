@@ -76,8 +76,9 @@ const CORE_PACKAGE_SUPPORT = {
   },
   relsize: {
     status: "partial",
-    implementedBy: "src/tikz/text.js",
-    notes: "Common size/style macros are normalized, not full relsize semantics"
+    implementedBy: "src/tex/relativeMath.js + src/tex/mathBox.js + src/renderers/svg/nativeMath.js",
+    localSourceReviewed: "yes",
+    notes: "Native relative math styles and nested 10pt-document NFSS sizing for ordinary, bold and scripted wrapped symbols. Large-operator limits, external decorators, arbitrary math-size declarations and text relsize commands remain partial. Evidence: docs/qa/2026-10-23-failure-repairs.md."
   },
   etoolbox: {
     status: "partial",

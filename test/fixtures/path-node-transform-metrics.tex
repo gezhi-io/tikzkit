@@ -1,0 +1,17 @@
+\documentclass{article}
+\usepackage{tikz}
+\makeatletter
+\newcommand{\reportnode}[1]{\pgfpointanchor{#1}{center}\typeout{NODE #1: \the\pgf@x,\the\pgf@y}}
+\makeatother
+\begin{document}
+\begin{tikzpicture}
+  \draw[xshift=1cm,yshift=2cm] (0,0) -- node (a) {} (2,0);
+  \coordinate (p) at (3,1);
+  \path[xshift=-1cm] (p) node (b) {};
+  \draw[shift={(1,2)}] (0,0) -- node[xshift=2mm,yshift=-1mm] (c) {} (2,0);
+  \begin{scope}[rotate=90]
+    \draw[xshift=1cm] (0,0) -- node[yshift=2mm] (d) {} (2,0);
+  \end{scope}
+  \reportnode{a}\reportnode{b}\reportnode{c}\reportnode{d}
+\end{tikzpicture}
+\end{document}

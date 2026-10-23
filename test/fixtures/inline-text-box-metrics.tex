@@ -1,0 +1,13 @@
+\documentclass{article}
+\usepackage{tikz}
+\definecolor{mygreen}{HTML}{006400}
+\newcommand{\measurebox}[2]{%
+  \setbox0=\hbox{#2}%
+  \typeout{INLINE-BOX #1: w=\the\wd0, h=\the\ht0, d=\the\dp0}}
+\begin{document}
+\measurebox{gene}{\tt \textcolor{blue}{GUG}\textcolor{mygreen}{CAU}\tikz[baseline]{\node[rectangle,fill=red,inner sep=.3mm,anchor=base]{\textcolor{white}{UAG}};}}
+\measurebox{stop}{\tikz[baseline]{\node[rectangle,fill=red,inner sep=.3mm,anchor=base]{\textcolor{white}{\tt STOP}};}}
+\measurebox{descenders}{\tt A\tikz[baseline]{\node[rectangle,fill=red,inner xsep=2pt,inner ysep=1pt,anchor=base]{\textcolor{white}{gp}};}B}
+\measurebox{center}{\tt A\tikz[baseline]{\node[rectangle,fill=red,inner sep=1pt]{\textcolor{white}{gp}};}B}
+\measurebox{default-sep}{\tt A\tikz[baseline]{\node[rectangle,fill=red,anchor=base]{\textcolor{white}{gp}};}B}
+\end{document}

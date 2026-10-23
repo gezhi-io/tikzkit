@@ -1,4 +1,5 @@
 import { parseOptions } from "../engine/options.js";
+import { evaluateRestrictedExpression } from "../engine/safe-expression.js";
 
 export function isAxisQuiverPlot(plotOptions = {}) {
   return Boolean(
@@ -11,10 +12,13 @@ export function isAxisQuiverPlot(plotOptions = {}) {
 }
 
 export function parseQuiverOptions(plotOptions = {}) {
-  const nested = plotOptions.quiver && plotOptions.quiver !== true ? parseOptions(plotOptions.quiver) : {};
-  const normalized = { ...nested };
+  const normalized = {};
   for (const [rawKey, value] of Object.entries(plotOptions)) {
     const key = rawKey.replace(/^\/pgfplots\//, "");
+    if (key === "quiver" && value && value !== true) {
+      Object.assign(normalized, parseOptions(value));
+      continue;
+    }
     if (!key.startsWith("quiver/")) continue;
     normalized[key] = value;
     normalized[key.slice("quiver/".length)] = value;
@@ -23,7 +27,7 @@ export function parseQuiverOptions(plotOptions = {}) {
 }
 
 export function quiverScale(raw) {
-  const value = Number(raw);
+  const value = evaluateRestrictedExpression(String(raw ?? "1"), {}, { pgfTrig: true }).value;
   return Number.isFinite(value) ? value : 1;
 }
 

@@ -1,0 +1,18 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usetikzlibrary{arrows.meta}
+\pgfplotsset{compat=1.18,
+ quiver/after arrow/.code={\typeout{QUIVER-META: raw=\pgfplotspointmeta; transformed=\pgfplotspointmetatransformed}}}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[view={0}{90},domain=0:3,y domain=0:0,samples=4,
+ xmin=-1,xmax=5,ymin=-1,ymax=1,zmin=-1,zmax=1,
+ point meta rel=per plot]
+ \addplot3[point meta=x,point meta min=0,point meta max=4,
+ quiver={u=.6,v=0,every arrow/.style={-{Latex}}}] {0};
+ \addplot3[point meta=2,
+ quiver={u=.6,v=0,every arrow/.style={-{Latex}}}] {0};
+ \addplot3[quiver={u=.6,v=0,every arrow/.style={-{Latex}}}] {0};
+\end{axis}
+\end{tikzpicture}
+\end{document}

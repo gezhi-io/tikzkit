@@ -1,0 +1,30 @@
+\documentclass{article}
+\ifdefined\hatprobewithamsmath\usepackage{amsmath}\fi
+\newcommand\hatprobe[2]{%
+  \setbox0=\hbox{$#2$}%
+  \typeout{HAT #1: \the\wd0,\the\ht0,\the\dp0}%
+  \noindent #1: \copy0\par
+}
+\tracingoutput=1
+\showboxbreadth=100
+\showboxdepth=100
+\begin{document}
+\hatprobe{theta}{\hat{\theta}}
+\hatprobe{theta-sub}{\hat{\theta}_1}
+\hatprobe{theta-both}{\hat{\theta}^2_1}
+\hatprobe{theta-inside}{\hat{\theta_1}}
+\hatprobe{theta-grouped}{ {\hat{\theta}}_1 }
+\hatprobe{x}{\hat{x}}
+\hatprobe{f}{\hat{f}}
+\hatprobe{xy}{\hat{xy}}
+\hatprobe{nested}{\hat{\hat{x}}}
+\hatprobe{grouped-x}{\hat{{x}}}
+\hatprobe{script}{\scriptstyle\hat{\theta}_1}
+\hatprobe{scriptscript}{\scriptscriptstyle\hat{\theta}_2}
+{\footnotesize\hatprobe{eight}{\hat{\theta}_1}}
+{\large\hatprobe{twelve}{\hat{\theta}_1}}
+{\boldmath\hatprobe{bold}{\hat{\theta}_1}}
+\hatprobe{mathbf}{\mathbf{\hat{x}}}
+\hatprobe{mathbf-inside}{\hat{\mathbf{x}}}
+\hatprobe{fraction}{\hat{\frac{x}{y}}}
+\end{document}

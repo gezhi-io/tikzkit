@@ -1,0 +1,20 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfmathdeclarefunction{gauss}{2}{%
+  \pgfmathparse{1/(sqrt(2*pi*#2))*exp(-((x-#1)^2)/(2*#2))}%
+}
+\newcommand{\variance}{100}
+\begin{document}
+\pgfmathsetmacro{\plotheight}{max(1/(sqrt(2*pi*\variance)),.032)}
+\begin{tikzpicture}
+  \tikzstyle{plotA}=[ultra thick,red!90!black]
+  \tikzstyle{plotB}=[ultra thick,cyan!50!black]
+  \begin{axis}[xmin=0,xmax=125,ymin=0,ymax=\plotheight]
+    \addplot[domain=0:120,samples=101,plotA] {gauss(80,\variance)};
+    \addplot[domain=0:120,samples=101,plotB] {gauss(40,\variance)};
+    \addplot+[plotB,samples at={70},mark=*] {gauss(40,\variance)};
+    \coordinate (a) at (axis cs:70,.024);
+    \draw[black,thick] (a |- current plot begin) -- (a);
+  \end{axis}
+\end{tikzpicture}
+\end{document}

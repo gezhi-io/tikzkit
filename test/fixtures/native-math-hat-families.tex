@@ -1,0 +1,24 @@
+\documentclass{article}
+\usepackage{amsbsy}
+\ifdefined\hatprobewithamsmath\usepackage{amsmath}\fi
+\newcommand\hatprobe[2]{%
+  \setbox0=\hbox{$#2$}%
+  \typeout{HAT #1: \the\wd0,\the\ht0,\the\dp0}%
+  \noindent #1: \copy0\par
+}
+\tracingoutput=1
+\showboxbreadth=100
+\showboxdepth=100
+\begin{document}
+\hatprobe{mathbf-outside}{\mathbf{\hat{x}}}
+\hatprobe{mathbf-inside}{\hat{\mathbf{x}}}
+\hatprobe{boldsymbol-outside}{\boldsymbol{\hat{x}}}
+\hatprobe{boldsymbol-inside}{\hat{\boldsymbol{x}}}
+{\mathversion{bold}\hatprobe{mathversion-bold}{\hat{x}}}
+\hatprobe{mathnormal-outside}{\mathnormal{\hat{x}}}
+\hatprobe{mathnormal-inside}{\hat{\mathnormal{x}}}
+\hatprobe{mathnormal-mathrm}{\mathnormal{\mathrm{\hat{x}}}}
+\hatprobe{mathbf-mathnormal}{\mathbf{\mathnormal{\hat{x}}}}
+\hatprobe{mathnormal-mathbf}{\mathnormal{\mathbf{\hat{x}}}}
+{\mathversion{bold}\hatprobe{bold-mathnormal}{\mathnormal{\hat{x}}}}
+\end{document}

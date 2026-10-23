@@ -370,7 +370,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy5.pfb",
     "sourceSha256": "46da57e5a06866efa9a20f3dd350811b5d3279a5ae789af63e530f1f570e3c7f",
-    "sha256": "d9271df1c970943716af27e3630b0db9d000d145d874ffcd71796fcc2c82ce0f",
+    "sha256": "d3b19972f8debbbb29689b99d0cd494025d472d1ec75c1f26570734c8ea5d3b8",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -392,7 +392,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy5.pfb",
     "sourceSha256": "65be796f0db8c0d0b29859a28332aaf0861b931ad25a4c0ef94cbc03d6c44b81",
-    "sha256": "e59935cef7e3a06875e2c9eaf5c4129a09790c70b8ef8e6168f5733f96b07a30",
+    "sha256": "a363c2a7715cf023d92c845a9a0579add87c68357595ec364b8138cbf98c9db8",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -414,7 +414,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy6.pfb",
     "sourceSha256": "73eed8a83a07d8ef04d240da22bce1fd3646074f46179e3677f4f42a542f20b6",
-    "sha256": "a69d4a11e18d8d551f4cb9b8a67e075f9acdbd4bb48d93cacda3aabac18ef7c5",
+    "sha256": "1cf7b91a522d1a2d0851bcb92fa735f032ee0f127bd0ad39addf7d053b9de7ce",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -436,7 +436,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy6.pfb",
     "sourceSha256": "7767d3ee98b8ebf33e3636aa2542a5d0c8a1b019255a06f21c039a938445dd07",
-    "sha256": "75581cf37609c84dde48ac1beed695295bf085b485382b31c6da8bf296d0dc88",
+    "sha256": "519b40195779fdef80c1711c3716c3362fcb46405a3bddb9f07418d079b77075",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -458,7 +458,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy7.pfb",
     "sourceSha256": "583b65bd1857bffc2ab184fcb4aad4e70e12eb05c9ca9f1c58c9a00a86c8bccf",
-    "sha256": "dccb24224c962c6f6c5f84865903b779a49d3a3b6189e1b16f8e261d52793da3",
+    "sha256": "b708534ef0511e571413cb0b4d2918dd56d272fa1365bdfecd38b381db42abb7",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -480,7 +480,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy7.pfb",
     "sourceSha256": "643914e3072b41564a8e39fbeaa7b9c9c795d71841ce749194c5df2e5bd440d0",
-    "sha256": "d952f1b6447aa41850ef36af72099383f4d8674937a5f4471bb97bfce9854eb4",
+    "sha256": "eed594f783bf46ceaaa7215628caa4ec3a9ddd034a0b1d6b001a88f331fd0964",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -502,7 +502,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy8.pfb",
     "sourceSha256": "2313392f0f4cd974d9da5fb54a52feae126059759edc04a4e47e33ea6027418b",
-    "sha256": "159c3f39e8895c88c30f60bb898007fe52d2027c8f352f2261bcd1222d320485",
+    "sha256": "0ea0c61f51ed31b45fb1d3983883a66cb083b84c4a8bf4a26faaace0f79d460d",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -524,7 +524,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy8.pfb",
     "sourceSha256": "d16c68314f9c9405fb936a9c54a6f0b5777b7772718a02d98628f93a40b68e10",
-    "sha256": "1b7a01178bdf9a1923bcfa90fc7c49e7f9bd250482652fce3d0e59c0262726af",
+    "sha256": "dbef68c3760fe4a082fbe85bc206c8092a55b77aeca113600a194e4cf093a4b9",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -546,7 +546,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy9.pfb",
     "sourceSha256": "8049871d56d74fe3f8f2375afbb1e59b149bf6835027b4a101051cfca1c1a779",
-    "sha256": "5230bd4532018f2bab2351117e28be27f109cd5d2c0897c507d0ab882d700d33",
+    "sha256": "6ffe5237930c92456be82fe9cadc59dae714b42fd4712d0dbaa6dda43da9b06a",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -568,7 +568,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy9.pfb",
     "sourceSha256": "a274b78189512361e4a724251d00c7c8e33cc242adbe46ca8fbaed18dace8ca0",
-    "sha256": "8ac287c130968c10444a0f36c5756d401c2d715fbf3dcf739d185b3839a14e93",
+    "sha256": "15ab9982cc5ee637be88a753aa7999949503d365bffb683ae274f66d41726a66",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -590,7 +590,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy10.pfb",
     "sourceSha256": "62ee8cef552017551cd3e026a483e700730103eceaad959c87b7730017f59cff",
-    "sha256": "52d3e2fc44b22fc6e471376b0a6a790fd04c35096d6f2995fe770635e73775f3",
+    "sha256": "2d238040b413024562cdf2014e34fa7463bd5db1e387f968d82cf4f48daf5cf0",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -612,7 +612,7 @@
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmbsy10.pfb",
     "sourceSha256": "dd42853a466c1c38ca940375ce49bb18ea336299344a80dab4fa0faf145d19db",
-    "sha256": "fa81a9f85ddb99bc9d3783132ae40a48227b948b1c9f75b2bd2fc0c07f1d055a",
+    "sha256": "d76de7a2f4e65b1787d479f73bf8b233ac84a0bacdae5b031da97cbaed3ed4da",
     "license": "OFL-AMSFonts.txt"
   },
   {

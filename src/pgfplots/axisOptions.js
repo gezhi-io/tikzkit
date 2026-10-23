@@ -1,4 +1,5 @@
 import { parseOptions, splitTopLevel } from "../engine/options.js";
+import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { pgfplotsLibraryCatalog } from "./libraries/index.js";
 
 export const PGFPLOTS_LIBRARY_SUPPORT = pgfplotsLibraryCatalog;
@@ -43,6 +44,34 @@ export function pgfplotsOptionEnabled(value) {
 export function pgfplotsAxisHidden(axisOptions = {}, axis) {
   if (pgfplotsOptionEnabled(axisOptions["hide axis"]) || pgfplotsOptionEnabled(axisOptions.hide)) return true;
   return pgfplotsOptionEnabled(axisOptions[`hide ${axis} axis`]);
+}
+
+// These 2D description families now measure and paint the same TeX boxes.
+// Datavisualization and perspective axes keep their independent layout rules.
+export function pgfplotsUsesNative2DText(options = {}) {
+  if ((options["pgfplots 3d surface"] && !options["tikzkit pgfplots top view"]) ||
+    Object.keys(options).some(key => key.startsWith("datavis "))) return false;
+  if (pgfplotsAxisHidden(options, "x") || pgfplotsAxisHidden(options, "y")) return false;
+  // Picture scaling currently selects a smaller NFSS design rather than
+  // scaling the original TeX box. Do not extend that path in this migration.
+  if (Number(options["tikzkit pgfplots picture scale"] ?? 1) !== 1) return false;
+  const mode = String(options["axis lines"] ?? options["axis lines*"] ?? options.axis ?? options.axisLines ?? "box").toLowerCase();
+  const modes = ["x", "y"].map(axis => String(options[`axis ${axis} line`] ?? options[`axis ${axis} line*`] ?? mode).toLowerCase());
+  const middle = modes.every(value => ["middle", "center"].includes(value));
+  const explicit = Object.entries(options).some(([key, value]) => /(?:^|[xy] ?)label style$/.test(key) && /\bat\s*=/.test(String(value)));
+  // Preserve the already-audited implicit middle-axis path. New description
+  // families are migrated only for CM roman/math; other faces retain their
+  // existing layout until their physical text boxes have been verified.
+  if (!middle || explicit) {
+    for (const [key, value] of Object.entries(options)) {
+      if (!/font$|style$/.test(key)) continue;
+      const command = /font$/.test(key) ? value : parseOptions(String(value)).font;
+      const font = parseTikzFontPatch(command);
+      if ((font.family && font.family !== "serif") || (font.variant && font.variant !== "normal") ||
+        (font.style && font.style !== "normal") || font.mathVersion === "sans") return false;
+    }
+  }
+  return modes.every(value => value === "box") || middle;
 }
 
 export function stripPgfLibraryDeclarations(source) {

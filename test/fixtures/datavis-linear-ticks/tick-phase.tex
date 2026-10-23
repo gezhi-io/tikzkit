@@ -1,0 +1,12 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization [scientific axes=clean,
+  x axis={ticks={step=.5,phase=.25},grid},
+  y axis={ticks={step=.5,phase=-.25},grid},visualize as line]
+data {x, y
+-1, -1
+0, .2
+1, 1
+};
+\end{document}

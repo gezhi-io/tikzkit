@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[
+    xmin=0,xmax=1,ymin=0,ymax=1,zmin=0,zmax=6,
+    view={120}{35},point meta min=0,point meta max=6,
+    colormap={pos}{color(0cm)=(white); color(6cm)=(blue)}
+  ]
+    \addplot3[surf,mesh/cols=2,mark=none] coordinates {(0,0,6) (1,0,6) (0,1,6) (1,1,6)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

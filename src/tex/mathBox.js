@@ -2,6 +2,7 @@ import katex from "katex";
 import { nativeDelimiter } from "./mathDelimiters.js";
 import { nativeMathSize, nativeMathFont, nativeMathFontSize as fontSize, nativeBaselineSkip } from "./mathFonts.js";
 import { layoutMathArray } from "./mathArrays.js";
+import { relativeMathContext, relativeMathParseOptions, scaledMathAttributes } from "./relativeMath.js";
 
 // Renderer-neutral TeX boxes for supported CM formulas. KaTeX supplies syntax;
 // TeX's math-list rules and local TFM metrics determine glyph placement.
@@ -30,13 +31,14 @@ const scriptContext = (ctx, cramped = ctx.cramped) => ({ ...ctx, style: ctx.styl
 export function layoutNativeMath(tex, options = {}) {
   const source = String(tex || "");
   const base = nativeMathSize(Number(options.fontSizePt ?? 10));
-  if (!base || (options.mathVersion && !["normal", "bold"].includes(options.mathVersion)) ||
-      !(options.mathVersion === "bold" || /[\^_]|\\(?:[dt]?frac|sqrt|mathbf|boldsymbol|begin|left|(?:script|scriptscript)style)\b/.test(source))) return null;
+  // TeX measures an ordinary math atom with the same TFM rules as a fraction
+  // or script. Formula complexity must not select a different font/box model.
+  if (!base || (options.mathVersion && !["normal", "bold"].includes(options.mathVersion))) return null;
   const key = JSON.stringify([source, base, Boolean(options.displayMode), options.mathExtension, options.mathVersion, options.baselineSkipPt]);
   if (cache.has(key)) return cache.get(key);
   let result = null;
   try {
-    const ast = katex.__parse(source, { strict: "ignore", trust: false, maxExpand: 1000 });
+    const ast = katex.__parse(source, { strict: "ignore", maxExpand: 1000, ...relativeMathParseOptions });
     result = list(ast, { base, style: options.displayMode ? 0 : 1, cramped: false,
       bold: options.mathVersion === "bold", baselineSkip: options.baselineSkipPt ?? nativeBaselineSkip(base),
       mathExtension: options.mathExtension });
@@ -53,6 +55,15 @@ function append(box, child, x, y = 0) {
   box.items.push(...child.items.map(item => ({ ...item, x: item.x + x, y: item.y + y })));
   box.height = Math.max(box.height, child.height - y);
   box.depth = Math.max(box.depth, child.depth + y);
+}
+
+export function scaleNativeMathBox(box, scale) {
+  if (scale === 1) return box;
+  return { ...box, width: box.width * scale, height: box.height * scale, depth: box.depth * scale,
+    italic: (box.italic || 0) * scale,
+    items: box.items.map(item => ({ ...item, x: item.x * scale, y: item.y * scale,
+      ...(item.type === "glyph" ? { size: item.size * scale }
+        : { width: item.width * scale, height: item.height * scale }) })) };
 }
 
 function list(nodes, ctx) {
@@ -103,7 +114,10 @@ function unicode(text) {
 }
 
 function glyph(text, ctx, mathItalic, atom = "ord") {
-  const char = ctx.textFace ? text : unicode(text);
+  const codepoint = ctx.textFace ? text : unicode(text);
+  // fontmath.ltx maps \cdot to CMSY slot 01. Our MacTeX font subset
+  // encodes that outline as periodcentered, while KaTeX returns U+22C5.
+  const char = !ctx.textFace && codepoint === "\u22c5" ? "\u00b7" : codepoint;
   // fontmath.ltx assigns math punctuation and /, <, > to the letters family.
   // CMR has similar-looking glyphs, but different small optical-size advances.
   let roles = ["/", ",", ".", "<", ">"].includes(char) ? ["CMMI"]
@@ -135,7 +149,25 @@ function build(node, ctx) {
       return build(node.body, { ...ctx, roman: node.font === "mathbf" ? "bold" : node.font === "mathrm" });
     case "styling": return list(node.body, { ...ctx,
       style: ["display", "text", "script", "scriptscript"].indexOf(node.style) });
+    case "html": {
+      const scaled = scaledMathAttributes(node.attributes);
+      if (scaled) {
+        const base = scaled.size ? nativeMathSize(scaled.size) : ctx.base;
+        if (!base) return unsupported();
+        // graphicx first typesets an hbox, then transforms its finished glyphs
+        // and rules. It must not select the optical font at the scaled size.
+        const body = list(node.body, { ...ctx, base, style: 1, cramped: false,
+          baselineSkip: scaled.size ? nativeBaselineSkip(base) : ctx.baselineSkip });
+        return { ...scaleNativeMathBox(body, scaled.scale), atom: "ord", character: false };
+      }
+      const relative = relativeMathContext(node, ctx);
+      if (!relative) return unsupported();
+      // relsize wraps its result in a group: neighboring atoms retain their
+      // original font and glue, even when this atom changes math style.
+      return { ...list(node.body, relative), atom: "ord", character: false };
+    }
     case "supsub": return scripts(node, ctx);
+    case "accent": return accent(node, ctx);
     case "genfrac": return fraction(node, ctx);
     case "sqrt": return radical(node, ctx);
     case "array": return matrix(node, ctx);
@@ -235,6 +267,46 @@ function matrix(node, ctx) {
   return layoutMathArray(node, ctx, { build, append, empty, unsupported, dimension, axis:parameter(ctx,"AXISHEIGHT") });
 }
 
+function singleAccentCharacter(node, ctx) {
+  if (node.type === "ordgroup" && node.body.length === 1) return singleAccentCharacter(node.body[0], ctx);
+  if (node.type === "font" && ["mathrm", "mathbf", "mathnormal"].includes(node.font)) {
+    return singleAccentCharacter(node.body, { ...ctx,
+      roman: node.font === "mathbf" ? "bold" : node.font === "mathrm" });
+  }
+  return ["mathord", "textord"].includes(node.type) || (node.type === "atom" && node.family === "ord")
+    ? build(node, ctx) : null;
+}
+
+function accent(node, ctx, attachedScripts = null) {
+  // fontmath.ltx: ordinary hat is operators slot 5E. Wide/other accents
+  // have different families or size chains and must keep their fallback.
+  if (node.label !== "\\hat" || node.isStretchy || ctx.roman === false) return unsupported();
+  // TeX section 1165 lets a mathalpha accent use the current family:
+  // \mathbf{\hat{x}} selects CMBX, unlike \hat{\mathbf{x}}. An outer
+  // \mathnormal selects CMMI slot 5E, not the ordinary hat supported here.
+  const role = ctx.bold || ctx.roman === "bold" ? "CMBX" : "CMR";
+  const font = nativeMathFont(role, fontSize(ctx));
+  const mark = glyph("\u02c6", { ...ctx, textFace: role }, false);
+  const cramped = { ...ctx, cramped: true };
+  const nucleus = build(node.base, cramped);
+  const character = singleAccentCharacter(node.base, cramped);
+  const skew = character ? (character.font.skewKern?.[character.glyph] || 0) * fontSize(ctx) : 0;
+  let body = nucleus;
+  let delta = Math.min(nucleus.height, font.parameters.XHEIGHT * fontSize(ctx));
+  // TeX sections 738-742: scripts on a character accentee move inside the
+  // nucleus box, but the accent stays centered on its original clean width.
+  if (attachedScripts && character) {
+    body = scripts({ ...attachedScripts, base: node.base }, ctx);
+    delta += body.height - nucleus.height;
+  }
+  const box = empty();
+  append(box, mark, skew + (nucleus.width - mark.width) / 2, delta - body.height - mark.depth);
+  append(box, body, 0);
+  box.width = body.width;
+  box.character = false;
+  return box;
+}
+
 function fraction(node, ctx) {
   if (!node.hasBarLine || node.barSize || node.leftDelim || node.rightDelim || node.continued) return unsupported();
   const childStyle = ctx.style === 0 ? 1 : Math.min(3, ctx.style + 1);
@@ -256,6 +328,13 @@ function fraction(node, ctx) {
 }
 
 function scripts(node, ctx) {
+  let accentee = node.base;
+  // TeX section 1186 removes braces around a lone accent noad before
+  // attaching scripts; KaTeX retains an ordgroup in that spelling.
+  while (accentee?.type === "ordgroup" && accentee.body.length === 1) accentee = accentee.body[0];
+  if (accentee?.type === "accent" && accentee.label === "\\hat" && singleAccentCharacter(accentee.base, ctx)) {
+    return accent(accentee, ctx, node);
+  }
   const base = node.base ? build(node.base, ctx) : empty();
   if (base.atom === "op") return unsupported();
   const subCtx = scriptContext(ctx, true);

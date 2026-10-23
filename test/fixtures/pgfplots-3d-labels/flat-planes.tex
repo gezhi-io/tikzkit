@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[xlabel=$x$,ylabel=$y$,zlabel=$z$,surf,shader=flat]
+  \addplot3[blue!30] coordinates {
+    (-1,1,-1) (0,1,-1) (-1,0,-1) (0,0,-1)
+  };
+  \addplot3[orange!80] coordinates {
+    (0,0,1) (1,0,1) (0,1,1) (1,1,1)
+  };
+\end{axis}
+\end{tikzpicture}
+\end{document}

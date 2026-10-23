@@ -33,7 +33,7 @@ import {
 import { renderMiscOutNodeBox, renderNodeBoxWithOverlay } from "./nodeOverlays.js";
 import { renderPathElement, renderPathWithShadows, renderStandaloneArrowMarker } from "./paths.js";
 import { hasRenderableFormOnlyPattern, renderFormOnlyPatternFill } from "./formOnlyPatterns.js";
-import { renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
+import { nativePlainTextBox, renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
 import { renderRichTextNode } from "./richTextNode.js";
 import {
@@ -190,7 +190,7 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
     if (item.subtype === "decoration-text" && Array.isArray(item.pathCommands) && item.pathCommands.length) {
       return renderDecorationTextPath(item, unit, index);
     }
-    const normalized = normalizeTikzText(item.text, options);
+    const normalized = normalizeTikzText(item.text, { ...options, mathMode: item.style?.mathMode });
     if (normalized.invisible) return "";
     if (isEmptyNormalizedTikzText(normalized)) return "";
     if (normalized.kind === "image") return renderImagePlaceholder(item, normalized, unit);
@@ -211,6 +211,9 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
         options,
         { fitFontSizeToBox }
       );
+    }
+    else if (nativePlainTextBox(item, normalized)) {
+      rendered = renderPlainTextNode(item, normalized, unit);
     }
     else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) {
       rendered = renderRichTextNode(item, normalized, unit, { fitFontSizeToBox, formatTextLine, renderSvgTextLineContent });

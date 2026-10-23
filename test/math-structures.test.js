@@ -95,8 +95,8 @@ test("default browser and SVG-text export share the complete native structure la
 });
 
 test("specialized alignments keep whole-formula fallback rather than losing cells", () => {
-  for (const tex of [String.raw`\begin{aligned}x&=\hat y\\y&=2\end{aligned}`,
-    String.raw`\begin{cases}\hat x&x>0\\0&x<0\end{cases}`,
+  for (const tex of [String.raw`\begin{aligned}x&=\widehat y\\y&=2\end{aligned}`,
+    String.raw`\begin{cases}\widehat x&x>0\\0&x<0\end{cases}`,
     String.raw`\begin{array}{c|r}x&1\\y&2\end{array}`]) {
     assert.equal(layoutNativeMath(tex), null, tex);
   }

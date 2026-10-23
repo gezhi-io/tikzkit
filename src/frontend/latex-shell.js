@@ -5823,8 +5823,8 @@ function renderDatavisualizationAsPgfplots(parsed, context = {}) {
     const plotStyle = datavisualizationLinePlotStyle(plotStyleIndex, plot);
     const style = formatDatavisualizationOptions(plotStyle);
     commands.push(`\\addplot[${style}] coordinates {${coordinates}};`);
-    for (const pin of datavisualizationPlotPins(plot)) {
-      commands.push(...renderDatavisualizationPin(pin, axisOptions, plotStyle, plot));
+    for (const [pinIndex, pin] of datavisualizationPlotPins(plot).entries()) {
+      commands.push(...renderDatavisualizationPin(pin, axisOptions, plotStyle, plot, `${index}-${pinIndex}`));
     }
     for (const label of datavisualizationPlotDataLabels(plot)) {
       commands.push(renderDatavisualizationDataLabel(label, axisOptions, plotStyle, plot));
@@ -6108,14 +6108,9 @@ function datavisualizationScaleCandle(candle, axisScaling = {}) {
 function datavisualizationScaleDatavisualizationOverlay(overlay, axisScaling = {}) {
   if (!overlay) return overlay;
   const scaled = { ...overlay };
-  for (const [xKey, yKey] of [
-    ["x", "y"],
-    ["labelX", "labelY"]
-  ]) {
-    if (Number.isFinite(Number(scaled[xKey]))) scaled[xKey] = datavisualizationScaleAxisValue(scaled[xKey], axisScaling.x);
-    if (Number.isFinite(Number(scaled[yKey]))) scaled[yKey] = datavisualizationScaleAxisValue(scaled[yKey], axisScaling.y);
-  }
-  for (const key of ["edgeStart", "previous", "next"]) {
+  if (Number.isFinite(Number(scaled.x))) scaled.x = datavisualizationScaleAxisValue(scaled.x, axisScaling.x);
+  if (Number.isFinite(Number(scaled.y))) scaled.y = datavisualizationScaleAxisValue(scaled.y, axisScaling.y);
+  for (const key of ["edgeStart", "edgePrevious", "previous", "next"]) {
     if (scaled[key]) scaled[key] = datavisualizationScaleCartesianPoint(scaled[key], axisScaling);
   }
   return scaled;
@@ -6506,7 +6501,7 @@ function renderDatavisualizationPolarRadiusAxes(radiusTicks, config) {
   const axisStyle = "axis clean boundary, black!50, line width=0.4pt, line cap=rect";
   const gridStyle = "axis grid, black!25, line width=0.4pt, line cap=rect";
   const tickStyle = "axis tick, black!50, line width=0.4pt";
-  const labelStyle = joinOptions(["axis tick label", `font=${datavisualizationRoleFont("tick")}`, "inner sep=0pt", config.radiusTickColor ? `text=${config.radiusTickColor}` : ""]);
+  const labelStyle = joinOptions(["axis tick label", `font=${datavisualizationRoleFont("tick")}`, "inner sep=0pt", "outer sep=0pt", config.radiusTickColor ? `text=${config.radiusTickColor}` : ""]);
   const axes = config.clean ? datavisualizationPolarCleanBoundaryAxisAngles(config) : datavisualizationPolarRadiusAxisAngles(config);
   for (const axis of axes) {
     const degrees = typeof axis === "number" ? axis : axis.degrees;
@@ -6670,8 +6665,10 @@ function datavisualizationLogMinorTicks(min, max, majorTicks = []) {
 function renderDatavisualizationPolarTickLabels(radiusTicks, angleTicks, config) {
   const commands = [];
   const tickStyle = "axis tick, black!50, line width=0.4pt";
-  const radiusLabelStyle = joinOptions(["axis tick label", `font=${datavisualizationRoleFont("tick")}`, "inner sep=0pt", config.radiusTickColor ? `text=${config.radiusTickColor}` : ""]);
-  const angleLabelStyle = `axis tick label, font=${datavisualizationRoleFont("tick")}, inner sep=0pt`;
+  // These coordinates already contain the native tick node's inner/outer sep.
+  // Paint the content box here without applying a second anchor separation.
+  const radiusLabelStyle = joinOptions(["axis tick label", `font=${datavisualizationRoleFont("tick")}`, "inner sep=0pt", "outer sep=0pt", config.radiusTickColor ? `text=${config.radiusTickColor}` : ""]);
+  const angleLabelStyle = `axis tick label, font=${datavisualizationRoleFont("tick")}, inner sep=0pt, outer sep=0pt`;
   if (config.clean) {
     for (const tick of radiusTicks) {
       const scaled = datavisualizationPolarRadiusCm(tick, config);
@@ -7635,7 +7632,7 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     "datavis candle stick plot": candleStickPlot ? true : undefined,
     "datavis boxed axes": !cleanAxes && !schoolBookAxes && !sparkLine && !xyCartesianAxes,
     "datavis tick direction": scientificAxisStyles.has("inner ticks") ? "inner" : "outer",
-    "datavis clean padding": candleStickPlot ? "0cm" : "0.175cm",
+    "datavis clean padding": candleStickPlot ? "0cm" : "5pt",
     "datavis clean x max extension": candleStickPlot ? "0.18cm" : undefined,
     "datavis clean y max extension": candleStickPlot ? "0.08cm" : undefined,
     "axis clean line color": "black!50",
@@ -7643,7 +7640,11 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     "axis frame color": !cleanAxes && !schoolBookAxes ? "black!50" : undefined,
     "axis clean line width": majorStrokeWidth,
     "axis boundary line width": candleStickPlot ? "0.25pt" : majorStrokeWidth,
-    "datavis hide out of range tick labels": true,
+    // Datavis computes its list with a 0.1% survey tolerance and paints it
+    // verbatim. Do not reapply PGFPlots' range or crossing-axis tick filters.
+    "datavis hide out of range tick labels": false,
+    "hide obscured x ticks": schoolBookAxes ? "true" : "false",
+    "hide obscured y ticks": schoolBookAxes ? "true" : "false",
     "axis line width": schoolBookAxes || xyCartesianAxes ? majorStrokeWidth : undefined,
     "axis school book padding": schoolBookAxes ? "7.5pt" : undefined,
     // PGF's school-book axis system suppresses the x=0 tick label but keeps
@@ -7656,8 +7657,10 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     "x axis tick label color": xTickColor || undefined,
     "y axis tick label color": yTickColor || undefined,
     "axis tick line width": candleStickPlot ? "0.25pt" : majorStrokeWidth,
+    "tick style": "line cap=round",
     "axis tick label font": datavisualizationRoleFont("tick"),
-    "axis tick label inner sep": candleStickPlot ? "0pt" : undefined,
+    "axis tick label inner sep": candleStickPlot ? "0pt" : "1pt",
+    "tick label style": candleStickPlot ? undefined : "outer sep=1.666pt",
     "x axis tick label distance": candleStickPlot ? "0.08cm" : undefined,
     "y axis tick label distance": candleStickPlot ? "0.045cm" : undefined,
     "axis grid color": "black!25",
@@ -7678,8 +7681,10 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     ytick: sparkLine || (xyCartesianAxes && !datavisualizationAxisVisualizesTicks(yAxisOptions, allAxesOptions)) ? "\\empty" : yTicks,
     xticklabels: sparkLine ? undefined : xTickLabels,
     yticklabels: sparkLine ? undefined : yTickLabels,
-    "x minor tick values": datavisualizationScaleTickOption(xMinorSourceTicks, axisScaling.x),
-    "y minor tick values": datavisualizationScaleTickOption(yMinorSourceTicks, axisScaling.y),
+    // PGF datavis leaves minor steps unset by default. Do not inherit the
+    // unrelated PGFPlots logarithmic axis's automatic 2..9 decade ticks.
+    "x minor tick values": datavisualizationScaleTickOption(xMinorSourceTicks, axisScaling.x) ?? "\\empty",
+    "y minor tick values": datavisualizationScaleTickOption(yMinorSourceTicks, axisScaling.y) ?? "\\empty",
     "x minor grid values": datavisualizationScaleTickOption(xMinorGridSourceTicks || xMinorSourceTicks, axisScaling.x),
     "y minor grid values": datavisualizationScaleTickOption(yMinorGridSourceTicks || yMinorSourceTicks, axisScaling.y),
     "x minor grid low": xMinorGridVisual.low,
@@ -7730,6 +7735,7 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     "axis label font": datavisualizationRoleFont("axisLabel"),
     "x axis label offset": cleanAxes ? "0.58cm" : undefined,
     "major tick length": candleStickPlot ? "0.025cm" : "2pt",
+    "minor tick length": "1.4pt",
     "axis lines": sparkLine ? "none" : cleanAxes ? "none" : schoolBookAxes || xyCartesianAxes ? "center" : "box"
   };
 }
@@ -7769,7 +7775,9 @@ function datavisualizationScaleTickOption(raw, scaling) {
 function datavisualizationSourceTickLabels(raw, scaling, axisOptions = {}, allAxesOptions = {}) {
   const manual = datavisualizationManualTickData(axisOptions, allAxesOptions);
   const hasManualLabels = manual.labels.size > 0;
-  if (!scaling && !hasManualLabels) return undefined;
+  // tick typesetter in tikzlibrarydatavisualization uses pgfmathprintnumber
+  // on the source value even when the mapper is logarithmic.
+  if (!scaling && !hasManualLabels && !datavisualizationAxisIsLogarithmic(axisOptions, allAxesOptions)) return undefined;
   const values = datavisualizationTickOptionValues(raw);
   if (!values.length) return undefined;
   return `{${values.map((value) => `{${datavisualizationTickLabelForValue(value, manual.labels) ?? formatAxisTickLabel(value)}}`).join(",")}}`;
@@ -7962,43 +7970,9 @@ function datavisualizationTickOption(min, max, axis, axisOptions = {}, allAxesOp
   if (logarithmic) return datavisualizationAppendManualAlsoTicks(`{${datavisualizationLogTicks(min, max).map(formatAxisNumber).join(",")}}`, manual);
   if (axis === "x" && options.candleStickPlot) return datavisualizationAppendManualAlsoTicks(`{${datavisualizationIntegerTicks(min, max).map(formatAxisNumber).join(",")}}`, manual);
   if (options.schoolBookAxes) return datavisualizationAppendManualAlsoTicks(`{${datavisualizationIntegerTicks(min, max).map(formatAxisNumber).join(",")}}`, manual);
-  if (options.singlePointScatter && options.cleanAxes && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions)) return datavisualizationAppendManualAlsoTicks("{0}", manual);
-  if (axis === "x" && min >= -0.05 && max > 10 && max <= 25) {
-    const upper = Math.max(5, Math.ceil(max / 5) * 5);
-    return datavisualizationAppendManualAlsoTicks(`{${datavisualizationStepTicks(0, upper, 5).map(formatAxisNumber).join(",")}}`, manual);
-  }
-  if (axis === "x" && Math.abs(max - min) >= 10) return datavisualizationAppendManualAlsoTicks("{-5,-2.5,0,2.5,5}", manual);
-  if (axis === "x" && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min >= -0.05 && min <= 0.05 && max >= 1.8 && max <= 2.1) {
-    return datavisualizationAppendManualAlsoTicks("{0,0.25,0.5,0.75,1,1.25,1.5,1.75,2}", manual);
-  }
-  if (axis === "y" && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min <= -0.95 && max >= 0.95 && max - min <= 2.1) {
-    return datavisualizationAppendManualAlsoTicks("{-1,-0.75,-0.5,-0.25,0,0.25,0.5,0.75,1}", manual);
-  }
-  if (axis === "y" && options.cleanAxes && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min >= -0.05 && min <= 0.05 && max >= 1.8 && max <= 2.1) {
-    return datavisualizationAppendManualAlsoTicks("{0,0.25,0.5,0.75,1,1.25,1.5,1.75,2}", manual);
-  }
-  if (axis === "y" && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min >= -0.05 && min <= 0.05 && max > 2.1 && max <= 2.7) {
-    return datavisualizationAppendManualAlsoTicks("{0,0.5,1,1.5,2,2.5}", manual);
-  }
-  if (axis === "y" && options.cleanAxes && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min >= -0.05 && min <= 0.05 && max > 2.7 && max <= 3.2) {
-    return datavisualizationAppendManualAlsoTicks("{0,0.5,1,1.5,2,2.5,3}", manual);
-  }
-  if (axis === "y" && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min >= -0.05 && min <= 0.05 && max > 2.7 && max <= 6.2) {
-    const upper = Math.max(3, Math.round(max));
-    return datavisualizationAppendManualAlsoTicks(`{${datavisualizationStepTicks(0, upper, 1).map(formatAxisNumber).join(",")}}`, manual);
-  }
-  if (axis === "y" && options.cleanAxes && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min >= -0.05 && min <= 0.05 && max > 0 && max <= 0.55) {
-    const upper = Math.max(0.1, Math.ceil((max - 1e-9) * 10) / 10);
-    return datavisualizationAppendManualAlsoTicks(`{${datavisualizationStepTicks(0, upper, 0.1).map(formatAxisNumber).join(",")}}`, manual);
-  }
-  if (axis === "y" && !datavisualizationAxisWantsGrid(axisOptions, allAxesOptions) && min < -1.5 && min >= -1.75 && max <= 1.5) {
-    const start = Math.ceil((min - 1e-9) * 2) / 2;
-    const end = Math.floor((max + 1e-9) * 2) / 2;
-    return datavisualizationAppendManualAlsoTicks(`{${datavisualizationStepTicks(start, end, 0.5).map(formatAxisNumber).join(",")}}`, manual);
-  }
-  if (axis === "y" && min < -0.05 && max <= 1.5 && min >= -1.5) return datavisualizationAppendManualAlsoTicks("{-1,-0.5,0,0.5,1}", manual);
-  if (axis === "y" && min >= -0.05 && max <= 1.2) return datavisualizationAppendManualAlsoTicks("{0,0.2,0.4,0.6,0.8,1}", manual);
-  const ticks = axisMajorTickValues(min, max, axis === "x" ? 8 : 6);
+  // scientific axes defaults to `ticks=some` (about=5) on both axes.
+  // Use the native mantissa strategy, not range-specific candidate lists.
+  const ticks = datavisualizationAboutTicks(min, max, 5);
   return datavisualizationAppendManualAlsoTicks(`{${ticks.map(formatAxisNumber).join(",")}}`, manual);
 }
 
@@ -8189,15 +8163,16 @@ function datavisualizationExplicitTickOption(min, max, axisOptions = {}, allAxes
       .join(",")}}`;
   }
 
+  const phase = datavisualizationAxisNumericOption(nested.phase) || 0;
   const step = datavisualizationAxisNumericOption(nested.step ?? nested["major step"]);
-  if (Number.isFinite(step) && step > 0) {
-    return `{${datavisualizationStepTicks(min, max, step).map(formatAxisNumber).join(",")}}`;
+  if (Number.isFinite(step)) {
+    return `{${datavisualizationStepTicks(min, max, step, phase).map(formatAxisNumber).join(",")}}`;
   }
 
   const about = datavisualizationTickCountFromOption(normalized, nested);
   if (about) {
     if (options.logarithmic) return `{${datavisualizationLogTicks(min, max).map(formatAxisNumber).join(",")}}`;
-    return `{${datavisualizationAboutTicks(min, max, about).map(formatAxisNumber).join(",")}}`;
+    return `{${datavisualizationAboutTicks(min, max, about, phase).map(formatAxisNumber).join(",")}}`;
   }
   if (options.logarithmic) return `{${datavisualizationLogTicks(min, max).map(formatAxisNumber).join(",")}}`;
   return "";
@@ -8245,6 +8220,15 @@ function datavisualizationMinorTickOption(min, max, axisOptions = {}, allAxesOpt
   if (!Number.isFinite(minorSteps)) return undefined;
   const majorTicks = datavisualizationTickOptionValues(majorTickOption).filter((value) => Number.isFinite(value));
   if (majorTicks.length < 2) return undefined;
+  const majorStep = majorTicks[1] - majorTicks[0];
+  const uniform = majorStep > 0 && majorTicks.every((value, index) =>
+    Math.abs(value - majorTicks[0] - index * majorStep) < majorStep * 1e-6);
+  // Native substeps start at the floored major seed, even if that major
+  // tick is outside the survey interval. Keep the partial end intervals.
+  if (uniform && !datavisualizationAxisIsLogarithmic(axisOptions, allAxesOptions)) {
+    if (majorTicks[0] > min) majorTicks.unshift(majorTicks[0] - majorStep);
+    if (majorTicks.at(-1) < max) majorTicks.push(majorTicks.at(-1) + majorStep);
+  }
   const values = [];
   for (let index = 1; index < majorTicks.length; index += 1) {
     const from = majorTicks[index - 1];
@@ -8252,7 +8236,7 @@ function datavisualizationMinorTickOption(min, max, axisOptions = {}, allAxesOpt
     const step = (to - from) / (minorSteps + 1);
     for (let sub = 1; sub <= minorSteps; sub += 1) {
       const value = from + step * sub;
-      if (value >= min - 1e-9 && value <= max + 1e-9) values.push(roundAxis(value));
+      if (value >= min - 1e-9 && value < max) values.push(roundAxis(value));
     }
   }
   return values.length ? `{${values.map(formatAxisNumber).join(",")}}` : undefined;
@@ -8378,22 +8362,27 @@ function datavisualizationLogTicks(min, max) {
   return [...new Set(values)];
 }
 
-function datavisualizationStepTicks(min, max, step) {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step) || step <= 0 || min > max) return [];
-  const epsilon = Math.max(1e-9, Math.abs(max - min) * 1e-10);
-  const start = Math.ceil((min - epsilon) / step) * step;
+function datavisualizationStepTicks(min, max, step, phase = 0) {
+  if (![min, max, step, phase].every(Number.isFinite) || min > max) return [];
+  if (step <= 0) return [min];
+  // tikz@lib@dv@compute@at@linear floors before applying its survey
+  // tolerance. Index multiplication avoids drift over many small steps.
+  const epsilon = Math.abs(max - min) / 1000;
+  const start = Math.floor((min - phase) / step);
   const values = [];
-  for (let value = start; value <= max + epsilon; value += step) {
-    values.push(roundAxis(value));
-    if (values.length > 500) break;
+  for (let index = 0; index <= 500; index += 1) {
+    const value = (start + index) * step + phase;
+    if (index > 0 && value >= max + epsilon) break;
+    if (value >= min - epsilon) values.push(roundAxis(value));
   }
   return values;
 }
 
-function datavisualizationAboutTicks(min, max, about) {
+function datavisualizationAboutTicks(min, max, about, phase = 0) {
+  if (Number.isFinite(min) && min === max) return [min];
   const step = datavisualizationAboutStep(min, max, about);
   if (!Number.isFinite(step) || step <= 0) return axisMajorTickValues(min, max, about);
-  return datavisualizationStepTicks(datavisualizationSnapTickBoundary(min, step), datavisualizationSnapTickBoundary(max, step), step);
+  return datavisualizationStepTicks(min, max, step, phase);
 }
 
 function datavisualizationAboutStep(min, max, about) {
@@ -8415,72 +8404,17 @@ function datavisualizationAboutStep(min, max, about) {
   return roundAxis(selected * scale);
 }
 
-function datavisualizationSnapTickBoundary(value, step) {
-  if (!Number.isFinite(value) || !Number.isFinite(step) || step <= 0) return value;
-  const nearest = Math.round(value / step) * step;
-  const tolerance = Math.max(1e-6, Math.abs(step) * 1e-6);
-  return Math.abs(value - nearest) <= tolerance ? roundAxis(nearest) : value;
-}
-
 function datavisualizationTickCountFromOption(raw, nested = {}) {
   const text = String(raw || "").trim().toLowerCase();
-  if (text === "few") return 3;
-  if (text === "some") return 5;
-  if (text === "many") return 10;
+  if (text === "few" || nested.few) return 3;
+  if (text === "some" || nested.some) return 5;
+  if (text === "many" || nested.many) return 10;
   const aboutValue = datavisualizationAxisNumericOption(nested.about);
   if (Number.isFinite(aboutValue)) return Math.max(2, Math.min(20, Math.round(aboutValue)));
   const match = text.match(/^about\s+(\d+)$/);
   return match ? Math.max(2, Math.min(20, Number(match[1]))) : 0;
 }
 
-function datavisualizationPinLabelPoint(pin, axisOptions = {}) {
-  const layout = datavisualizationScreenSpacePinLayout(pin, axisOptions);
-  if (layout) return layout.edge;
-  if (Number.isFinite(pin?.labelX) && Number.isFinite(pin?.labelY)) {
-    return {
-      x: pin.labelX,
-      y: pin.labelY
-    };
-  }
-  return {
-    x: pin.x + 0.42,
-    y: pin.y + 0.12
-  };
-}
-
-function datavisualizationPinTextPoint(pin, edgePoint, axisOptions = {}) {
-  if (!pin || !edgePoint || !Number.isFinite(edgePoint.x) || !Number.isFinite(edgePoint.y)) return edgePoint;
-  const layout = datavisualizationScreenSpacePinLayout(pin, axisOptions);
-  if (layout) return layout.text;
-  const xMin = Number(axisOptions.xmin);
-  const xMax = Number(axisOptions.xmax);
-  const yMin = Number(axisOptions.ymin);
-  const yMax = Number(axisOptions.ymax);
-  const width = parseDimension(String(axisOptions.width || "5cm"), {});
-  const height = parseDimension(String(axisOptions.height || "3.09cm"), {});
-  if (![xMin, xMax, yMin, yMax, width, height].every(Number.isFinite) || xMax === xMin || yMax === yMin) return edgePoint;
-
-  const xScale = width / (xMax - xMin);
-  const yScale = height / (yMax - yMin);
-  const edgeStart = datavisualizationPinEdgeStart(pin);
-  const dxCm = (edgePoint.x - edgeStart.x) * xScale;
-  const dyCm = (edgePoint.y - edgeStart.y) * yScale;
-  const xSign = dxCm < 0 ? -1 : 1;
-  const ySign = dyCm < 0 ? -1 : 1;
-  const textWidthCm = datavisualizationPinTextWidthCm(pin.text);
-  const xOffsetCm = xSign * Math.max(0.16, Math.min(0.34, textWidthCm * 0.21));
-  const yOffsetCm = ySign < 0 ? -0.27 : 0.08;
-
-  return {
-    x: edgePoint.x + xOffsetCm / xScale,
-    y: edgePoint.y + yOffsetCm / yScale
-  };
-}
-
-function datavisualizationPinTextWidthCm(text) {
-  const fallback = mathFallbackText(String(text || "")).replace(/\s+/g, " ").trim();
-  return Math.max(0.32, Math.min(2.4, texTextWidthCm(fallback)));
-}
 
 function datavisualizationPinEdgeStart(pin) {
   if (pin?.edgeStart && Number.isFinite(pin.edgeStart.x) && Number.isFinite(pin.edgeStart.y)) {
@@ -8495,115 +8429,6 @@ function datavisualizationPinEdgeStart(pin) {
   };
 }
 
-function datavisualizationScreenSpacePinLayout(pin, axisOptions = {}) {
-  if (!pin || !Number.isFinite(pin.x) || !Number.isFinite(pin.y)) return null;
-  const xMin = Number(axisOptions.xmin);
-  const xMax = Number(axisOptions.xmax);
-  const yMin = Number(axisOptions.ymin);
-  const yMax = Number(axisOptions.ymax);
-  const width = parseDimension(String(axisOptions.width || "5cm"), {});
-  const height = parseDimension(String(axisOptions.height || "3.09cm"), {});
-  if (![xMin, xMax, yMin, yMax, width, height].every(Number.isFinite) || xMax === xMin || yMax === yMin) return null;
-  const xScale = width / (xMax - xMin);
-  const yScale = height / (yMax - yMin);
-  const schoolBookPin = axisOptions["axis lines"] === "center" && !pin.pinLength && !Number.isFinite(pin.pinAngle);
-  const exactHitPin = Boolean(pin.edgeExact) && !pin.pinLength && !Number.isFinite(pin.pinAngle);
-  let distance = parseDimension(String(pin.pinLength || (exactHitPin ? "3ex" : schoolBookPin ? "2.85ex" : "2.62ex")), {});
-  if (
-    !Number.isFinite(xScale) ||
-    !Number.isFinite(yScale) ||
-    !Number.isFinite(distance) ||
-    distance <= 0
-  )
-    return null;
-
-  let normalX;
-  let normalY;
-  if (Number.isFinite(pin.pinAngle)) {
-    const radians = (pin.pinAngle * Math.PI) / 180;
-    normalX = Math.cos(radians);
-    normalY = Math.sin(radians);
-  } else {
-    const prev = pin.previous || { x: pin.x - 1, y: pin.y };
-    const next = pin.next || { x: pin.x + 1, y: pin.y };
-    let tangentX = ((pin.swap ? next.x : pin.x) - prev.x) * xScale;
-    let tangentY = ((pin.swap ? next.y : pin.y) - prev.y) * yScale;
-    if (Math.hypot(tangentX, tangentY) < 1e-9) {
-      tangentX = (next.x - pin.x) * xScale;
-      tangentY = (next.y - pin.y) * yScale;
-    }
-    tangentX ||= 1;
-    tangentY ||= 0;
-    const length = Math.hypot(tangentX, tangentY) || 1;
-    normalX = -tangentY / length;
-    normalY = tangentX / length;
-    if (normalY < 0) {
-      normalX = -normalX;
-      normalY = -normalY;
-    }
-  }
-  if (!pin.pinLength && Math.abs(normalX) > 0.75) {
-    const horizontalDistance = parseDimension("3ex", {});
-    if (Number.isFinite(horizontalDistance)) distance = horizontalDistance;
-  }
-  const autoSideOffset = pin.swap ? datavisualizationPinSideSign(normalX) * parseDimension("1.55em", {}) : 0;
-  const xOffset = (normalX * distance + autoSideOffset) / xScale;
-  const yOffset = (normalY * distance) / yScale;
-  let anchorPoint = {
-    x: pin.x + xOffset,
-    y: pin.y + yOffset
-  };
-  if (pin.swap) {
-    const anchor = datavisualizationPinEdgeStart(pin);
-    anchorPoint = {
-      x: anchor.x - (anchorPoint.x - anchor.x),
-      y: anchor.y - (anchorPoint.y - anchor.y)
-    };
-    const textWidthCm = datavisualizationPinTextWidthCm(pin.text);
-    const textOffsetCm = Math.max(0.16, Math.min(0.34, textWidthCm * 0.21));
-    return {
-      edge: anchorPoint,
-      text: {
-        x: anchorPoint.x - textOffsetCm / xScale,
-        y: anchorPoint.y - 0.27 / yScale
-      },
-      anchor: anchorPoint
-    };
-  }
-
-  const edgeStart = datavisualizationPinEdgeStart(pin);
-  const directionX = (anchorPoint.x - edgeStart.x) * xScale;
-  const directionY = (anchorPoint.y - edgeStart.y) * yScale;
-  const innerSep = parseDimension("3.33333pt", {});
-  const textWidthCm = datavisualizationPinTextWidthCm(pin.text);
-  const halfWidth = (textWidthCm * 1.04) / 2 + innerSep;
-  const halfHeight = parseDimension("4pt", {}) + innerSep;
-  const nodeCenter = {
-    x: anchorPoint.x + (Math.sign(directionX || normalX) * halfWidth) / xScale,
-    y: anchorPoint.y + (Math.sign(directionY || normalY) * halfHeight) / yScale
-  };
-  const centerDx = (nodeCenter.x - edgeStart.x) * xScale;
-  const centerDy = (nodeCenter.y - edgeStart.y) * yScale;
-  const xEntry = Math.abs(centerDx) > 1e-9 ? 1 - halfWidth / Math.abs(centerDx) : 0;
-  const yEntry = Math.abs(centerDy) > 1e-9 ? 1 - halfHeight / Math.abs(centerDy) : 0;
-  const edgeFraction = Math.max(0, Math.min(1, xEntry), Math.min(1, yEntry));
-  const edge = {
-    x: edgeStart.x + (nodeCenter.x - edgeStart.x) * edgeFraction,
-    y: edgeStart.y + (nodeCenter.y - edgeStart.y) * edgeFraction
-  };
-  const textOffsetCm = Math.max(0.34, Math.min(0.37, textWidthCm * 0.22 + 0.25));
-  const text = {
-    x: edge.x + (Math.sign(directionX || normalX) * textOffsetCm) / xScale,
-    y: edge.y + (Math.sign(directionY || normalY) * 0.08) / yScale
-  };
-
-  return { edge, text, anchor: anchorPoint };
-}
-
-function datavisualizationPinSideSign(normalX) {
-  if (!Number.isFinite(normalX) || Math.abs(normalX) < 1e-9) return 1;
-  return normalX > 0 ? 1 : -1;
-}
 
 function datavisualizationVisualName(options, kind) {
   const key =
@@ -9042,16 +8867,13 @@ function datavisualizationPinFromOptions(options, data, points = [], context = {
   const swap = pin["text'"] !== undefined;
   const selection = datavisualizationLabelPointFromOptions(pin, data, points, context);
   if (selection) {
-    const label = datavisualizationPinNormalLabel(points, selection.index);
     const edge = selection.edge || selection;
     return {
       text,
       x: selection.point.x,
       y: selection.point.y,
-      labelX: label.x,
-      labelY: label.y,
       edgeStart: edge.point,
-      edgeExact: Boolean(selection.edgeExact),
+      edgePrevious: points[Math.max(0, edge.index - 1)] || edge.point,
       previous: points[Math.max(0, selection.index - 1)] || selection.point,
       next: points[Math.min(points.length - 1, selection.index + 1)] || selection.point,
       pinLength,
@@ -9138,14 +8960,31 @@ function datavisualizationPlotPins(plot = {}) {
   return plot.pin ? [plot.pin] : [];
 }
 
-function renderDatavisualizationPin(pin, axisOptions = {}, plotStyle = {}, plot = {}) {
-  const pinLabel = datavisualizationPinLabelPoint(pin, axisOptions);
-  const pinText = datavisualizationPinTextPoint(pin, pinLabel, axisOptions);
-  const pinStart = datavisualizationPinEdgeStart(pin);
-  const pinOptions = datavisualizationOverlayNodeOptions(["axis label"], pin, plotStyle, plot);
+function renderDatavisualizationPin(pin, axisOptions = {}, plotStyle = {}, plot = {}, id = "0") {
+  const point = datavisualizationPinEdgeStart(pin);
+  const previous = pin.edgePrevious || pin.previous || { x: point.x - 1, y: point.y };
+  const xScale = parseDimension(String(axisOptions.width || "5cm"), {}) / (Number(axisOptions.xmax) - Number(axisOptions.xmin));
+  const yScale = parseDimension(String(axisOptions.height || "3.09cm"), {}) / (Number(axisOptions.ymax) - Number(axisOptions.ymin));
+  const dx = (point.x - previous.x) * xScale;
+  const dy = (point.y - previous.y) * yScale;
+  const length = Math.hypot(dx, dy) || 1;
+  const angle = Number.isFinite(pin.pinAngle) ? pin.pinAngle * Math.PI / 180 : null;
+  const normal = angle === null ? { x: -dy / length, y: dx / length } : { x: Math.cos(angle), y: Math.sin(angle) };
+  const distance = parseDimension(String(pin.pinLength || "3ex"), {}) * (pin.swap ? -1 : 1);
+  const name = `tikzkit-datavis-pin-${id}`;
+  // The native label visualizer uses the current/previous canvas samples for
+  // both auto anchoring and its normal. Let the shared node/edge interpreter
+  // measure the TeX box and clip the leader, instead of estimating text widths.
+  const pinOptions = datavisualizationOverlayNodeOptions([
+    "axis label", "auto", "at end", ...(pin.swap ? ["swap"] : []),
+    "font=\\small", "inner sep=1pt", "outer sep=.1666em",
+    "tikzkit native math", "tikzkit tex node anchors",
+    `xshift=${roundAxis(normal.x * distance)}cm`, `yshift=${roundAxis(normal.y * distance)}cm`
+  ], pin, plotStyle, plot);
+  const at = p => `(axis cs:${roundAxis(p.x)},${roundAxis(p.y)})`;
   return [
-    `\\draw[axis pin edge, black, line width=0.25pt] (axis cs:${roundTikzNumber(pinStart.x)},${roundTikzNumber(pinStart.y)}) -- (axis cs:${roundTikzNumber(pinLabel.x)},${roundTikzNumber(pinLabel.y)});`,
-    `\\node[${pinOptions.join(",")}] at (axis cs:${roundTikzNumber(pinText.x)},${roundTikzNumber(pinText.y)}) {${protectDatavisualizationOverlayText(pin.text)}};`
+    `\\path ${at(previous)} -- ${at(point)} node[${pinOptions.join(",")}] (${name}) {${protectDatavisualizationOverlayText(pin.text)}};`,
+    `\\draw[axis pin edge,gray,line width=0.2pt] ${at(point)} -- (${name});`
   ];
 }
 
@@ -9380,21 +9219,6 @@ function datavisualizationNearestPointByAttribute(points, attribute, targetValue
     }
   });
   return bestIndex >= 0 ? { point: points[bestIndex], index: bestIndex } : null;
-}
-
-function datavisualizationPinNormalLabel(points, index) {
-  const point = points[index];
-  const previous = points[Math.max(0, index - 1)] || point;
-  const next = points[Math.min(points.length - 1, index + 1)] || point;
-  const tangentX = next.x - previous.x || 1;
-  const tangentY = next.y - previous.y || 0;
-  const length = Math.hypot(tangentX, tangentY) || 1;
-  const normalX = -tangentY / length;
-  const normalY = Math.abs(tangentX / length);
-  return {
-    x: point.x + normalX * 0.42,
-    y: point.y + Math.max(0.12, normalY * 0.18)
-  };
 }
 
 function datavisualizationTextFromOption(raw) {
@@ -9901,7 +9725,7 @@ function renderDatavisualizationLineLegend(plot, plotStyle, rowIndex, legendCoun
     ];
   }
   return [
-    datavisualizationZigZagLegendLine(row, style),
+    datavisualizationZigZagLegendLine(row, style, datavisualizationAxisDescriptionCoordinate, legendPlot.smooth !== false),
     ...datavisualizationLegendLineMarks(row, legendPlot, style, datavisualizationZigZagLegendMarkPoints(row)),
     datavisualizationLegendLabelCommand(plot, row, labelColor)
   ];
@@ -10045,7 +9869,9 @@ function datavisualizationLegendLabelCommand(plot, row, color = "") {
     `anchor=${anchor}`,
     `font=${datavisualizationRoleFont(plot.legendInside ? "insideLegend" : "outsideLegend")}`
   ];
-  if (plot.legendInside && plot.legendTextOnly) options.push("inner xsep=0pt", "inner ysep=1pt");
+  if ((plot.legendInside && plot.legendTextOnly) || plot.legendNodeStyle?.length) {
+    options.push("inner xsep=0pt", "inner ysep=1pt");
+  }
   if (plot.legendTextColored && color) options.push(`text=${color}`);
   options.push(...datavisualizationLegendNodeStyleOptions(plot.legendNodeStyle));
   if (Array.isArray(plot.legendNodeStyle) && plot.legendNodeStyle.length) {
@@ -10221,7 +10047,7 @@ function datavisualizationZigZagLegendMarkPoints(row) {
   ];
 }
 
-function datavisualizationZigZagLegendLine(row, style, coordinate = datavisualizationAxisDescriptionCoordinate) {
+function datavisualizationZigZagLegendLine(row, style, coordinate = datavisualizationAxisDescriptionCoordinate, smooth = true) {
   const span = row.x1 - row.x0;
   const ex = Number.isFinite(row.ex) ? row.ex : 0.017;
   const points = [
@@ -10230,6 +10056,9 @@ function datavisualizationZigZagLegendLine(row, style, coordinate = datavisualiz
     { x: row.x0 + span * 0.75, y: row.y - ex },
     { x: row.x1, y: row.y }
   ];
+  // The native legend feeds these four coordinates to the visualizer's own
+  // plot handler. A straight-line series must not acquire curved examples.
+  if (!smooth) return `\\draw[${style}] ${points.map(coordinate).join(" -- ")};`;
   const segments = [coordinate(points[0])];
   for (let index = 0; index < points.length - 1; index += 1) {
     const previous = points[Math.max(0, index - 1)];
@@ -11023,11 +10852,13 @@ function normalizePgfplotsAxisLineOptions(options = {}) {
   if (options["axis lines"] !== undefined || options.axis !== undefined) return options;
   const xLine = normalizePgfplotsSingleAxisLine(options["axis x line"] ?? options["axis x line*"]);
   const yLine = normalizePgfplotsSingleAxisLine(options["axis y line"] ?? options["axis y line*"]);
+  // This is an inferred alias, not a later PGFKeys assignment. Prepend it so
+  // the source x/y-line keys and subsequent tick alignment retain their order.
   if (xLine === "middle" && yLine === "middle") {
-    return { ...options, "axis lines": "middle" };
+    return { "axis lines": "middle", ...options };
   }
   if (xLine === "center" && yLine === "center") {
-    return { ...options, "axis lines": "center" };
+    return { "axis lines": "center", ...options };
   }
   return options;
 }

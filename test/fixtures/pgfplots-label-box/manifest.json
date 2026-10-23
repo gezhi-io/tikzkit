@@ -1,0 +1,13 @@
+{
+  "cases": [
+    { "id": "pgfplots-box-default", "source": "box-default.tex", "axisFrame": "box", "title": "Default boxed axis: TeX tick boxes and canvas" },
+    { "id": "pgfplots-box-upper", "source": "box-upper.tex", "axisFrame": "box", "title": "Upper boxed tick labels with optical 8pt math" },
+    { "id": "pgfplots-description-shifts", "source": "description-shifts.tex", "title": "Explicit description coordinates, shifts, rotation and shared styles" },
+    { "id": "pgfplots-description-absolute", "source": "description-absolute.tex", "axisFrame": "box", "title": "Legacy absolute descriptions retain physical shifts" },
+    { "id": "pgfplots-description-transform", "source": "description-transform.tex", "axisFrame": "box", "title": "Source-ordered label rotations and physical shifts" },
+    { "id": "pgfplots-box-rotated", "source": "box-rotated.tex", "axisFrame": "box", "title": "Inherited rotation and explicit bold math descriptions" },
+    { "id": "pgfplots-box-scaled", "source": "box-scaled.tex", "axisFrame": "box", "title": "Boxed axis in a scaled TikZ picture" },
+    { "id": "latex-examples-bias-variance", "source": "../examples/latex-examples/bias-variance.tex", "title": "Bias and variance with rotated explicit descriptions" },
+    { "id": "latex-examples-2d-light-bulb", "source": "../examples/latex-examples/2d-light-bulb.tex", "title": "Light bulb: long bare-coordinate label" }
+  ]
+}

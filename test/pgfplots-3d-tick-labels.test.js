@@ -81,9 +81,10 @@ test("pgfplots boxed 3d labels follow measured near-ticklabel geometry", () => {
   const compactLabel = renderAxisLabels3D(compact, ranges, geometryFor(compact))[0];
   const wideLabel = renderAxisLabels3D(wide, ranges, geometryFor(wide))[0];
 
-  assert.match(compactTick, /axis tick label, anchor=center/);
+  assert.match(compactTick, /axis tick label,[^\]]*anchor=center/);
+  assert.match(compactTick, /tikzkit tex node anchors/);
   assert.match(compactTick, /inner sep=\.3333em/);
   assert.doesNotMatch(compactTick, /outer sep=0pt/);
-  assert.match(compactLabel, /axis label, anchor=center/);
+  assert.match(compactLabel, /axis label,[^\]]*anchor=center/);
   assert.notEqual(wideLabel, compactLabel, "the axis label must clear the widest measured tick label");
 });

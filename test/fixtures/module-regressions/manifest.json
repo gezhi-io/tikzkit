@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "id": "math-native-contracts",
+      "source": "math-native-contracts.tex",
+      "title": "Native glyph sizing and scoped math contracts"
+    },
+    {
+      "id": "xcolor-natural-models",
+      "source": "xcolor-natural-models.tex",
+      "title": "Natural-model mixing regression palette"
+    },
+    { "id": "xcolor-gray-and-mixes", "source": "xcolor-gray-and-mixes.tex", "title": "Native gray and case-sensitive color mixes" },
+    { "id": "inline-math-dispatch", "source": "inline-math-dispatch.tex", "title": "Inline sums, accents and scoped alphabets" }
+  ]
+}

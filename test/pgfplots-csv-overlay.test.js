@@ -17,6 +17,8 @@ import { renderPlotMark } from "../src/pgfplots/marks.js";
 import { renderNodesNearCoords } from "../src/pgfplots/plotNodes.js";
 import { computeAxisRanges } from "../src/pgfplots/rangeResolver.js";
 import { axisAutoMajorTickCountForOptions, majorTickValues, renderAxisTicks } from "../src/pgfplots/ticks.js";
+import { createSvgTextEngine } from "../src/renderers/svg/textEngine.js";
+import { nativeMathGroups } from "./helpers/native-math-svg.js";
 
 test("plain addplot table entries receive the native default color-cycle marks", () => {
   const plots = applyPgfplotsCycleStyles([
@@ -371,7 +373,8 @@ test("numeric boxed-axis enlargement expands both transform bounds by the reques
   assert.ok(Math.abs(geometry.margin.right - 0.2 / 28.45274) < 0.001);
   assert.ok(Math.abs(geometry.margin.top - 0.2 / 28.45274) < 0.001);
   assert.ok(ticks.some((command) => command.includes("(0.807,0) -- (0.807,0.15)")));
-  assert.ok(ticks.some((command) => command.includes("at (0.807,-0.028) {−4}")));
+  // Native TeX node anchoring needs no fitted -0.8pt baseline offset.
+  assert.ok(ticks.some((command) => command.includes("at (0.807,0) {−4}")));
   assert.ok(ticks.some((command) => command.includes("at (0,0.61) {−10}")));
 });
 
@@ -483,7 +486,21 @@ test("KIT students CSV fixture renders three series with native tick and legend 
   assert.ok(labels.includes("davon Ausländer"));
   assert.doesNotMatch(result.svg, /\\cdot 10\^\{4\}/);
   assert.equal(firstRotatedYear?.rotation, 60);
-  assert.equal(firstRotatedYear?.style?.textWidthScale, 1.135);
+  assert.equal(firstRotatedYear?.font.sizePt, 7);
+  assert.equal(firstRotatedYear?.style.mathMode, "number");
+  const years = nativeMathGroups(result.svg).filter(group => group.text === "1988");
+  assert.equal(years.length, 1, "the rotated year must retain all four native math glyphs");
+  assert.deepEqual(years[0].glyphs.map(g => [g.text, g.family, g.size, g.y]),
+    [..."1988"].map(text => [text, "TikZKitCMR7", 7, 0]));
+  const engine = createSvgTextEngine();
+  const metrics = engine.measure({ text: firstRotatedYear.text, font: firstRotatedYear.font, ...firstRotatedYear.style });
+  const svgUnitsPerTexPt = 100 * 2.54 / 72.27;
+  // Native pgfmathprintnumber under scriptsize: no fitted 1.135 width.
+  // See fixtures/pgfplots-native-tick-policy-metrics.tex.
+  assert.ok(Math.abs(metrics.width / svgUnitsPerTexPt - 15.94452) < 0.001);
+  assert.ok(Math.abs(metrics.baselineY / svgUnitsPerTexPt - 4.51111) < 0.001);
+  for (const [i, glyph] of years[0].glyphs.entries())
+    assert.ok(Math.abs(glyph.x - i * 15.94452 / 4) < 0.001, "native digit advances must not be stretched");
 });
 
 test("bivariate CSV fixture resolves all 5000 samples as filled scatter marks", () => {

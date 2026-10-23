@@ -1,5 +1,7 @@
 import { measurePlainTextTeXBoxPt, parseMathText } from "../../tikz/textMetrics.js";
 import { normalizeTikzText } from "../../tikz/text.js";
+import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
+import { renderNativeText } from "./nativeMath.js";
 import {
   TIKZ_FONT_FAMILY,
   TIKZ_HELVETICA_FONT_FAMILY,
@@ -66,6 +68,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
   const requestedScale = textEngineFontScale(request) * contentScale;
   const physicalBox = measureMathBoxPt(tex, {
     font,
+    preferNativeMath: request.preferNativeMath,
     displayMode: math.displayMode,
     renderer: mathRenderer,
     scale: contentScale
@@ -96,6 +99,7 @@ function measureMathRequest(math, request, unit, mathRenderer) {
   const fontWeight = font.weight;
   const cacheKey = textEngineCacheKey("math", {
     tex,
+    preferNativeMath: Boolean(request.preferNativeMath),
     displayMode: math.displayMode,
     requestedScale,
     unit,
@@ -132,6 +136,8 @@ function measureMathRequest(math, request, unit, mathRenderer) {
         text: `$${tex}$`,
         style: {
           fill: color,
+          exactMathFontScale: Boolean(request.preferNativeMath),
+          preferNativeMath: Boolean(request.preferNativeMath),
           fontFamily,
           fontStyle,
           fontWeight
@@ -159,6 +165,26 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
   const fontFamily = textEngineRenderFontFamily(font.family);
   const fontStyle = normalTextAttribute(font.style);
   const fontWeight = normalTextAttribute(font.weight);
+  const typewriter = nativeTypewriterFont(font);
+  const native = (request.preferNativeText || typewriter || normalized.inlineNodes?.length) && !(Number(request.textWidthPt) > 0) &&
+    (!request.textWidthScaleExplicit || Number(request.textWidthScale) === 1)
+    ? layoutNativeTextRun(normalized, font) : null;
+  if (native) {
+    const factor = unit / TEX_PT_PER_CM;
+    const width = native.width * factor;
+    const height = (native.height + native.depth) * factor;
+    const cacheKey = textEngineCacheKey("native-text", { text: request.text, font, unit, color, alignment });
+    return {
+      cacheKey,
+      metrics: { cacheKey, width, height, baselineY: native.height * factor, midLineY: height / 2,
+        paragraphId: null, renderSourceText: request.text, measurementKind: native.measurementKind,
+        ...textEngineFontMetrics(font) },
+      payload: () => ({ cacheKey, viewBox: centeredViewBox(width, height),
+        body: renderNativeText({ x: 0, y: 0, text: request.text,
+          svgTextAnchor: alignment === "left" ? "start" : alignment === "right" ? "end" : "middle"
+        }, native, unit, color) })
+    };
+  }
   const item = {
     type: "textNode",
     x: 0,

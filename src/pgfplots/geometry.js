@@ -18,6 +18,7 @@ import { axisNumberList } from "./coordinates.js";
 import { formatAxisTickLabel, roundAxis, roundAxisRange } from "./format.js";
 import { isLogAxis, scaleAxisValue } from "./ranges.js";
 import { axisLogBase } from "./logAxis.js";
+import { createNative3DProjection, resolveNative3DRequestedSize, usesNative3DScaling } from "./scaling3d.js";
 
 export const PGFPLOTS_DEFAULT_AXIS_WIDTH = parseDimension("240pt", {});
 export const PGFPLOTS_DEFAULT_AXIS_HEIGHT = parseDimension("207pt", {});
@@ -58,7 +59,12 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
   const hasExplicitHeight = hasAxisBound(axisOptions.height);
   let requestedWidth = parseAxisDimension(axisOptions.width, xUnitWidth ?? fallbackWidth);
   let requestedHeight = parseAxisDimension(axisOptions.height, yUnitHeight ?? fallbackHeight);
-  if (hasExplicitWidth && !hasExplicitHeight && !yUnitHeight) {
+  if (usesNative3DScaling(axisOptions) && !isTopViewSurface) {
+    ({ width: requestedWidth, height: requestedHeight } = resolveNative3DRequestedSize(requestedWidth, requestedHeight, {
+      inferWidth: !hasExplicitWidth && hasExplicitHeight && !xUnitWidth,
+      inferHeight: hasExplicitWidth && !hasExplicitHeight && !yUnitHeight
+    }));
+  } else if (hasExplicitWidth && !hasExplicitHeight && !yUnitHeight) {
     requestedHeight = requestedWidth / PGFPLOTS_DEFAULT_AXIS_ASPECT;
   } else if (!hasExplicitWidth && hasExplicitHeight && !xUnitWidth) {
     requestedWidth = requestedHeight * PGFPLOTS_DEFAULT_AXIS_ASPECT;
@@ -104,6 +110,16 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
   const inheritedPlotBox = pgfplotsInheritedPlotBox(axisOptions);
   let width = inheritedPlotBox?.width ?? localWidth;
   let height = inheritedPlotBox?.height ?? localHeight;
+  const nativeProjection = is3dSurface && !isTopViewSurface && !inheritedPlotBox && usesNative3DScaling(axisOptions)
+    ? createNative3DProjection({
+      options: axisOptions,
+      view: parsePgfplotsView(axisOptions.view), ratio: parsePgfplotsPlotBoxRatio(axisOptions["plot box ratio"]),
+      ranges, width, height, requestedWidth, requestedHeight
+    }) : null;
+  if (nativeProjection) {
+    width = nativeProjection.width;
+    height = nativeProjection.height;
+  }
   // PGFPlots' `scale uniformly strategy=units only` deliberately does not
   // stretch a 3D plot box to the requested width and height. It keeps the
   // three projected unit vectors at one common physical scale;
@@ -114,7 +130,8 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     height = projected.height * PGFPLOTS_3D_UNIFORM_UNIT_SCALE;
   }
   const origin = inheritedPlotBox?.origin ?? localOrigin;
-  let margin = scaleAxisMargin(axisContainerMargin(axisOptions, { hasExplicitHeight, hasExplicitWidth, ranges, plotArea }), scale);
+  let margin = nativeProjection ? { left: 0, right: 0, top: 0, bottom: 0 }
+    : scaleAxisMargin(axisContainerMargin(axisOptions, { hasExplicitHeight, hasExplicitWidth, ranges, plotArea }), scale);
   if (isPgfplots3DUniformUnitsOnly(axisOptions) && !inheritedPlotBox) {
     // The compact units-only layout has no requested-width reserve. The local
     // PGFPlots SVG retains only the measured tick and description clearance.
@@ -150,7 +167,7 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     z: axisDirectionSign(axisOptions["z dir"])
   };
   const allowRelativeAxisReversal = axisBooleanOption(axisOptions["allow reversal of rel axis cs"], true);
-  const viewProjection = createPgfplots3DViewProjection(
+  const viewProjection = nativeProjection?.project || createPgfplots3DViewProjection(
     axisOptions,
     width,
     height,
@@ -367,6 +384,10 @@ function axisPlotAreaSize(axisOptions, requestedWidth, requestedHeight, options 
   }
   if (axisOptions["hide axis"] || axisOptions.hide) {
     return { width: requestedWidth, height: requestedHeight };
+  }
+  if (usesNative3DScaling(axisOptions) && !isPgfplotsTopView(axisOptions)) {
+    return { width: Math.max(0, requestedWidth - PGFPLOTS_AXIS_LABEL_CONST_X),
+      height: Math.max(0, requestedHeight - PGFPLOTS_AXIS_LABEL_CONST_Y) };
   }
   if (options.isDefaultPerspective3D) {
     // PGFPlots' default 240pt x 207pt dimensions include the descriptions.

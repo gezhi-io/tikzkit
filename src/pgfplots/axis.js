@@ -22,7 +22,7 @@ export function createAxisModel({ axisOptions = {}, addplots = [], ranges = {}, 
       ...geometry,
       mapPoint: geometry.mapPoint || dataToCanvas.mapPoint
     },
-    ticks: createAxisTickModel(axisOptions, normalizedRanges, addplots),
+    ticks: createAxisTickModel(axisOptions, normalizedRanges, addplots, geometry),
     grid: createAxisGridModel(axisOptions),
     labels: createAxisLabelModel(axisOptions),
     plots,

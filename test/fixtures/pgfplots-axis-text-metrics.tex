@@ -1,0 +1,25 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.9}
+\newcommand{\textbox}[2]{\setbox0=\hbox{$#2$}\typeout{BOX #1: \the\wd0,\the\ht0,\the\dp0}}
+\newcommand{\point}[2]{\pgfextractx{\dimen0}{\pgfpointanchor{#1}{#2}}\pgfextracty{\dimen2}{\pgfpointanchor{#1}{#2}}\typeout{POINT #1.#2: \the\dimen0,\the\dimen2}}
+\begin{document}
+\textbox{positive}{0.5}\textbox{negative}{-0.5}
+\textbox{pi}{\pi}\textbox{fraction}{\frac{\pi}{2}}
+\textbox{annotation}{x=y\approx0.739085}
+\begin{tikzpicture}
+\begin{axis}[axis lines=middle,enlarge x limits=true,enlarge y limits=true,
+ xmin=0,xmax=pi,ymin=-1,ymax=1,width=12cm,height=8cm,
+ xtick={0,1.5708,3.14159},xticklabels={$0$,$\frac{\pi}{2}$,$\pi$},
+ xlabel=$x$,ylabel=$y$,
+ xticklabel style={name=xtick-\ticknum},yticklabel style={name=ytick-\ticknum,execute at begin node={\typeout{YTICK \ticknum: \tick}}},
+ xlabel style={name=xlabel},ylabel style={name=ylabel}]
+\addplot[domain=-8:8,very thick,samples=200,blue] {cos(deg(x))};
+\coordinate (a) at (axis cs:0.739085,0.739085);
+\node[label={[name=annotation,label distance=0.1cm]0:$x=y\approx0.739085$}] at (a) {};
+\end{axis}
+\point{current axis}{origin}\point{a}{center}
+\foreach \n in {xtick-1,xtick-2,ytick-1,ytick-2,ytick-4,ytick-5,xlabel,ylabel,annotation}{
+ \point{\n}{center}\point{\n}{text}\point{\n}{north east}\point{\n}{south west}}
+\end{tikzpicture}
+\end{document}

@@ -116,7 +116,7 @@ test("partial real-domain failures are skipped, but wholly invalid and partially
 test("3D quiver plots do not enter the two-dimensional current-plot sampling fallback", () => {
   const result = tikzToSvg(picture(String.raw`
     \begin{axis}[domain=-1:1,y domain=-1:1,xmin=-1,xmax=1,ymin=-1,ymax=1]
-      \addplot3[quiver={u={x},v={y}},samples=3]{x+y};
+      \addplot3[-stealth,quiver={u={x},v={y}},samples=3]{x+y};
     \end{axis}`));
   assert.deepEqual(result.diagnostics, []);
   const arrows = result.ir.items.filter((item) => item.type === "path" && item.style?.markerEnd?.kind === "stealth");
@@ -183,7 +183,9 @@ test("R6 engine accepts frontend document and ambient font metadata", () => {
 
 test("activation, b-tree, portable-font and fit/matrix inputs retain their geometry without probe diagnostics", () => {
   for (const [fixture, count] of [
-    ["examples/latex-examples/activation-functions.tex", 71],
+    // Eight x-tick node layout boxes now join the eight existing y/axis
+    // boxes. The 42 paths and 21 text nodes are unchanged.
+    ["examples/latex-examples/activation-functions.tex", 79],
     ["examples/latex-examples/b-tree-2.tex", 41],
     ["examples/latex-examples/b-tree-3-evolution.tex", 76],
     ["font-visual-gates/mactex-portable-fonts.tex", 11]
@@ -191,6 +193,11 @@ test("activation, b-tree, portable-font and fit/matrix inputs retain their geome
     const result = tikzToSvg(readFileSync(new URL(`./fixtures/${fixture}`, import.meta.url), "utf8"));
     assert.deepEqual(result.diagnostics, [], fixture);
     assert.equal(result.ir.items.length, count, fixture);
+    if (fixture.endsWith("activation-functions.tex")) {
+      assert.equal(result.ir.items.filter(item => item.type === "path").length, 42);
+      assert.equal(result.ir.items.filter(item => item.type === "textNode").length, 21);
+      assert.equal(result.ir.items.filter(item => item.type === "bbox").length, 16);
+    }
   }
   const matrix = tikzToSvg(picture(String.raw`\matrix(m)[matrix of nodes,row sep=-\pgflinewidth,nodes={draw}]{0 &1\\};\node[draw,fit=(m)](f){};`));
   assert.deepEqual(matrix.diagnostics, []);

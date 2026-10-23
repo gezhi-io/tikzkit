@@ -2,8 +2,6 @@ import { parseDimension } from "../engine/math.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
 
-const PGFPLOTS_ARROW_END_PAINT_RESERVE = parseDimension("0.2pt", {});
-
 export function axisOuterBounds(geometry) {
   const layout = geometry.layoutBounds || geometry;
   return {
@@ -97,11 +95,8 @@ export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
   const xTo = geometry.mapPoint({ x: spanRanges.xMax, y: yAxis });
   const yFrom = geometry.mapPoint({ x: xAxis, y: yLineRange.min });
   const yTo = geometry.mapPoint({ x: xAxis, y: yLineRange.max });
-  // Native PGF arrow tips extend the painted axis slightly beyond the path
-  // endpoint. Keep that extent in the generated geometry so the SVG bbox and
-  // raster scaling agree with dvisvgm/tikztosvg.
-  if (xArrowed) xTo.x += PGFPLOTS_ARROW_END_PAINT_RESERVE;
-  if (yArrowed) yTo.y += PGFPLOTS_ARROW_END_PAINT_RESERVE;
+  // Keep the axis endpoint at its transformed data limit. The renderer owns
+  // arrow hull/stroke extents; extending the path too counts them twice.
   xFrom.x -= padding;
   xTo.x += padding;
   yFrom.y -= padding;

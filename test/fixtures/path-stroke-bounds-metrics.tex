@@ -1,0 +1,15 @@
+\documentclass{article}
+\usepackage{tikz}
+\newsavebox{\probe}
+\newcommand{\report}[2]{%
+  \sbox{\probe}{\begin{tikzpicture}#2\end{tikzpicture}}%
+  \typeout{BOUNDS #1: width=\the\wd\probe; height=\the\ht\probe; depth=\the\dp\probe}%
+}
+\begin{document}
+\report{plain}{\draw[line width=4pt] (0,0) -- (2,0);}
+\report{labelled}{\draw[line width=4pt] (0,0) -- node[above] {$x$} (2,0);}
+\report{empty-node}{\draw[line width=4pt] (0,0) -- node[inner sep=0pt] {} (2,0);}
+\report{arrow-labelled}{\draw[thick,-stealth] (0,0) -- node[above] {$x$} (2,0);}
+\report{arrow-plain}{\draw[thick,-stealth] (0,0) -- (2,0);}
+\report{fill-labelled}{\fill (0,0) rectangle (2,1) node[midway] {$x$};}
+\end{document}

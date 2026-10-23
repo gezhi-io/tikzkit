@@ -114,5 +114,11 @@ test("pgfplotsset every extra z tick style reaches the browser 3d renderer", () 
 \end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /<text[^>]*fill="(?:red|rgb\(255,0,0\))"[^>]*>threshold<\/text>/);
+  const label = result.ir.items.find(item => item.type === "textNode" && item.text === "threshold");
+  assert.equal(label?.style.fill, "red");
+  // Native text is emitted as positioned glyph runs (with TeX kerning),
+  // not one browser-shaped string. Check the actual painted sequence.
+  const redGlyphs = [...result.svg.matchAll(/<text[^>]*fill="(?:red|rgb\(255,0,0\))"[^>]*>([^<]*)<\/text>/g)];
+  assert.equal(redGlyphs.map(match => match[1]).join(""), "threshold");
+  assert.match(result.svg, /data-text-layout="cm-tex-box"/);
 });

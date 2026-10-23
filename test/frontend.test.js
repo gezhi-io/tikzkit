@@ -138,7 +138,8 @@ test("inherits global pgfplots tick and axis-label styles into each axis", () =>
   assert.match(result.source, /axis tick label[^\]]*font=[^,\]]*\\sansmath\\sffamily/);
   assert.match(result.source, /axis label[^\]]*font=\\boldmath\\Large/);
   assert.doesNotMatch(result.source, /axis label[^\]]*font=\\sffamily\\footnotesize\\boldmath\\Large/);
-  assert.match(result.source, /axis label[^\]]*anchor=south[^\]]*rotate=90/);
+  // PGFPlots' boxed ylabel already rotates 90 degrees; user rotation appends.
+  assert.match(result.source, /axis label[^\]]*anchor=south[^\]]*rotate=180/);
   assert.match(result.source, /axis label[^\]]*anchor=south[^\]]*font=\\boldmath\\Large/);
 });
 

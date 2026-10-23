@@ -2,12 +2,14 @@ export const tikzLibrary = {
   name: "datavisualization",
   status: "partial",
   category: "datavisualization",
-  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions/datavisualizationScreenSpacePinLayout + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/richTextNode.js",
+  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions/renderDatavisualizationPin/datavisualizationSourceTickLabels/datavisualizationAboutTicks/datavisualizationStepTicks + src/pgfplots/ticks.js + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/richTextNode.js",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-visualizers.tex",
   localSourceReviewed: "yes",
   features: [
     "basic scientific axes lowering",
+    "native linear tick mantissa selection, surveyed ranges, phase, boundary tolerance and single-value ticks",
+    "partial-interval minor ticks with native 1.4pt round-cap marks and CMR8 numeric label boxes",
     "table data blocks with x/y/set columns",
     "named visualizers via visualize as line, smooth line, smooth cycle, and scatter",
     "native scatter mark=x diagonal sizing from mark size / sqrt(2)",
@@ -45,5 +47,6 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
-    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally through 2026-09-06 against tikzlibrarydatavisualization.code.tex, pgfmoduledatavisualization.code.tex, tikz.code.tex, and pgfmanual-en-dv-visualizers.tex. Explicit south-east outside scatter legends use the source's data-bounding-box anchor with physical .8em/.5em/.333em offsets. Browser mixed prose/math legend labels honor their west anchor and keep inline math at the prose size. Pin labels use the PGF label visualizer's current/previous canvas positions, the default 3ex distance, auto-node padding, and a leader clipped to the label border. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. Custom pgfooclass visualizers and exact arbitrary matrix legends remain partial. Evidence: docs/qa/2026-09-06-datavisualization-pin-scatter.md."
+    "Linear tick sources reviewed on 2026-10-23: range/phase/tolerance and about-five selection now follow local PGF. Native numeric tick boxes share measurement and paint; minor marks use 1.4pt round caps. School-book tick lengths and custom tick-text padding remain partial. Twelve browser/reference fixtures are recorded without claiming strict raster parity; see docs/qa/2026-10-23-github-checkpoint.md. " +
+    "Implemented through the same focused preprocessor as datavisualization.formats.functions. Reviewed locally through 2026-09-06 against tikzlibrarydatavisualization.code.tex, pgfmoduledatavisualization.code.tex, tikz.code.tex, and pgfmanual-en-dv-visualizers.tex. Explicit south-east outside scatter legends use the source's data-bounding-box anchor with physical .8em/.5em/.333em offsets. Browser mixed prose/math legend labels honor their west anchor and keep inline math at the prose size. Pin labels use the PGF label visualizer's current/previous canvas positions, the default 3ex distance, auto-node padding, and a leader clipped to the label border. The school-book axis slice retains x=0 label suppression and a north-east y=0 label. Custom pgfooclass visualizers and exact arbitrary matrix legends remain partial. Evidence: docs/qa/2026-09-06-datavisualization-pin-scatter.md. Reviewed again on 2026-10-23: logarithmic labels print source numbers and minor ticks are opt-in; pins now use the first threshold-crossing sample and its preceding canvas point for both label and leader, with small (9pt) CM text and gray 0.2pt edges. Four Chrome pin comparisons pass in default and SVG-text modes. Full tick styling, logarithmic pin normals, arbitrary legend matrices and custom visualizers remain partial. Evidence: docs/qa/2026-10-23-failure-repairs.md."
 };

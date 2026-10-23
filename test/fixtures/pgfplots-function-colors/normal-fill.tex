@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}[
+  declare function={
+    normalpdf(\x,\mu,\sigma)=(2*pi*\sigma^2)^(-0.5)*exp(-(\x-\mu)^2/(2*\sigma^2));
+  }]
+  \begin{axis}[domain=-4:4,xmin=-4,xmax=4,samples=9]
+    \addplot[domain=0:1,draw=none,fill=cyan!50] {normalpdf(x,0,1)} \closedcycle;
+    \addplot[thick] {normalpdf(x,0,1)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

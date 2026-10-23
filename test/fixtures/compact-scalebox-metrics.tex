@@ -1,0 +1,18 @@
+\documentclass{article}
+\usepackage{tikz,graphicx,relsize}
+\newcommand\scaleprobe[2]{%
+  \setbox0=\hbox{#2}%
+  \typeout{SCALEBOX #1: \the\wd0,\the\ht0,\the\dp0}%
+}
+\begin{document}
+\scaleprobe{half}{\scalebox{.5}{$\times1$}}
+\scaleprobe{non-optical}{\scalebox{.37}{$\times1$}}
+\scaleprobe{larger-script}{\scalebox{1.5}{$x_1$}}
+\scaleprobe{fraction}{\scalebox{.5}{$\frac{1}{x+y}$}}
+\scaleprobe{eight}{{\footnotesize\scalebox{.5}{$\times1$}}}
+\scaleprobe{twelve}{{\large\scalebox{.5}{$x_1$}}}
+\scaleprobe{inside-large}{\scalebox{.5}{\large$\times1$}}
+\scaleprobe{nested}{\scalebox{.5}{\scalebox{1.5}{$\sin x$}}}
+\scaleprobe{double}{\scalebox{2}{$\times1$}}
+\scaleprobe{relative}{\scalebox{.5}{$\mathlarger{\mathlarger{x}}$}}
+\end{document}

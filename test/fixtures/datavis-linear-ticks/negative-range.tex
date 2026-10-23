@@ -1,0 +1,14 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization [scientific axes=clean,
+  all axes={grid,ticks=some},visualize as line]
+data {x, y
+-20, -25
+-18, -24
+-16, -23
+-14, -20
+-12, -22
+-10, -21
+};
+\end{document}

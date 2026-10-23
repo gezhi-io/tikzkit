@@ -1,0 +1,18 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usepackage{graphicx}
+\begin{document}
+\begin{tikzpicture}
+  \draw[purple] (-.5,.6) rectangle (6,-3.8);
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (0,0) {$\times 1$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,0) {\scalebox{.5}{$\times 1$}};
+  \node[font=\tiny,anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-.6) {$\times 1$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,-.6) {\scalebox{.37}{$\times 1$}};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-1.2) {\scalebox{1.5}{$x_1$}};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,-1.2) {\scalebox{.5}{$\frac{1}{x+y}$}};
+  \node[font=\footnotesize,anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-2) {\scalebox{.5}{$\times 1$}};
+  \node[font=\large,anchor=base west,inner sep=0pt,outer sep=0pt] at (3,-2) {\scalebox{.5}{$x_1$}};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-2.8) {\scalebox{.5}{\scalebox{1.5}{$\sin x$}}};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt,blue] at (3,-2.8) {\scalebox{2}{$\times 1$}};
+\end{tikzpicture}
+\end{document}

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { parseTikz, tikzToSvg } from "../src/index.js";
+import { assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
 
 const SOURCE = readFileSync(
   new URL("./fixtures/examples/pgfplots/pgfplotstable-inline-typeset.tex", import.meta.url),
@@ -87,8 +88,13 @@ test("formats per-column fixed and scientific pgfplotstable values", () => {
       "1,048,576", "0.001", String.raw`$9.54\cdot 10^{-7}$`
     ]
   );
-  assert.match(result.svg, /2\.50/);
-  assert.match(result.svg, /9\.54/);
+  for (const text of ["2.50\u00b710\u22121", "1.56\u00b710\u22122", "9.54\u00b710\u22127"]) {
+    const group = assertNativeText(result.svg, text);
+    const dot = group.glyphs.find(glyph => glyph.text === "\u00b7");
+    assert.equal(dot.family, "TikZKitCMSY10");
+    const exponent = group.glyphs.slice(-2);
+    assert.ok(exponent.every(glyph => glyph.size === 7 && glyph.y < dot.y));
+  }
 });
 
 test("uses comma decimal and period thousands separators for fixed tables", () => {
@@ -137,8 +143,26 @@ test("aligns supported pgfplotstable scientific exponents on one shared anchor",
   assert.ok(leading.every((item) => item.x === leading[0].x));
   assert.ok(trailing.every((item) => item.x === trailing[0].x));
   assert.ok(trailing.every((item) => item.x === leading[0].x));
-  assert.match(result.svg, /text-anchor="end"/);
-  assert.match(result.svg, /text-anchor="start"/);
+  const groups = nativeMathGroups(result.svg);
+  assert.deepEqual(groups.map(group => group.text), ["1", "\u00b710\u22123", "9.8", "\u00b710\u22122", "1.23", "\u00b7102", "1", "\u00b7100"]);
+  // Native mantissa advances from compact-math-renderer-metrics.tex, in TeX pt.
+  const widths = [5.00002, 12.77782, 17.77783, 5.00002];
+  leading.forEach((item, index) => {
+    const mantissa = groups[2 * index];
+    const exponent = groups[2 * index + 1];
+    const anchor = item.x * 100;
+    const rightEdge = mantissa.x + widths[index] * mantissa.scale;
+    assert.ok(Math.abs(rightEdge - anchor) < 0.001, "native mantissa ends at the shared anchor");
+    assert.ok(Math.abs(exponent.x - anchor) < 0.001, "native exponent fragment starts at the shared anchor");
+    assert.equal(mantissa.scale, exponent.scale);
+    for (const glyph of mantissa.glyphs) {
+      // fontmath.ltx declares the decimal point in letters, slot 3A.
+      assert.equal(glyph.family, glyph.text === "." ? "TikZKitCMMI10" : "TikZKitCMR10");
+      assert.equal(glyph.size, 10);
+    }
+    assert.equal(exponent.glyphs[0].family, "TikZKitCMSY10");
+    assert.ok(exponent.glyphs.slice(3).every(glyph => glyph.size === 7 && glyph.y < 0));
+  });
 });
 
 test("formats pgfplotstable scientific subscripts without inventing sci sep alignment", () => {

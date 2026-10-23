@@ -1,0 +1,6 @@
+{
+  "cases": [
+    {"id":"path-stroke-labelled-arrow","title":"Line-width bounds survive an inline math label","source":"arrow.tex"},
+    {"id":"path-stroke-empty-node","title":"An empty inline node must not crop a thick stroke","source":"empty-node.tex"}
+  ]
+}

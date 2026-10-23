@@ -1,0 +1,11 @@
+{
+  "cases": [
+    {"id":"compact-typewriter","title":"Native cmtt10 descender-aware labels","source":"typewriter.tex","nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":14}},
+    {"id":"compact-math-boxes","title":"Optical nine-point math node boxes","source":"boxes.tex","nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":7}},
+    {"id":"compact-math-glyphs","title":"Native ordinary math boxes","source":"glyphs.tex","nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":18}},
+    {"id":"compact-math-directions","title":"Directional anchors and explicit compass anchors","source":"directions.tex","nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":10}},
+    {"id":"path-stroke-labelled-arrow","title":"Bare math label and native canvas height","source":"../path-stroke-bounds/arrow.tex"},
+    {"id":"earth-skizze","title":"Real diagram with ordinary math labels","source":"../examples/latex-examples/earth-skizze.tex"},
+    {"id":"axis-3d-boxed","title":"3D axis label regression control","source":"../pgfplots-3d-labels/boxed.tex","axisFrame":"3d"}
+  ]
+}

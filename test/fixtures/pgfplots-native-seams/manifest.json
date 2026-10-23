@@ -1,0 +1,13 @@
+{
+  "cases": [
+    { "id": "native-seams-circle", "source": "../examples/latex-examples/2d-x-square-with-circle.tex", "title": "Original x-square and ellipse canvas" },
+    { "id": "native-seams-box", "source": "box.tex", "axisFrame": "box", "title": "Two-centimeter boxed axis bounds" },
+    { "id": "native-seams-middle", "source": "middle.tex", "title": "Legacy middle-axis terminal labels" },
+    { "id": "native-seams-enlarged", "source": "enlarged.tex", "title": "Enlarged middle-axis terminal labels" },
+    { "id": "native-seams-positive", "source": "positive.tex", "title": "Positive-only enlarged middle axes" },
+    { "id": "native-seams-tickless", "source": "tickless.tex", "title": "Explicit-size tickless middle axes" },
+    { "id": "native-seams-tickless-empty", "source": "tickless-empty.tex", "title": "Explicit-size middle axes with empty tick macros" },
+    { "id": "native-seams-unaligned", "source": "unaligned.tex", "axisFrame": "box", "title": "Footnotesize tick with unaligned line break" },
+    { "id": "native-seams-aligned", "source": "aligned.tex", "axisFrame": "box", "title": "Footnotesize tick with explicit center alignment" }
+  ]
+}

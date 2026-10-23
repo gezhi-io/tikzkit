@@ -1,0 +1,6 @@
+{
+  "cases": [
+    { "id": "pgfplots-plain-labels-footnotesize", "source": "footnotesize.tex", "title": "CMR8 labels: ligatures, kerning and descenders" },
+    { "id": "pgfplots-plain-labels-large", "source": "large.tex", "title": "CMR12 labels: ligatures, kerning and descenders" }
+  ]
+}

@@ -2,7 +2,7 @@ import { parseDimension } from "../engine/math.js";
 import { axisNumber } from "./coordinates.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isMiddleAxis } from "./geometry.js";
-import { autoTickOutsideRange, axisAutoMajorTickCountForOptions, axisMajorTickValues, axisMinorTickValues, axisTickValues } from "./ticks.js";
+import { createAxisTickModel, axisMinorTickValues, axisTickValues, shouldHideObscuredAxisTick } from "./ticks.js";
 
 export function createAxisGridModel(axisOptions = {}) {
   return {
@@ -18,22 +18,15 @@ export function createAxisGridModel(axisOptions = {}) {
 export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geometry = {}) {
   const commands = [];
   const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
-  const hasExplicitXMajorTicks =
-    hasExplicitAxisTickOption(axisOptions["x grid values"]) || hasExplicitAxisTickOption(axisOptions.xtick);
-  const hasExplicitYMajorTicks =
-    hasExplicitAxisTickOption(axisOptions["y grid values"]) || hasExplicitAxisTickOption(axisOptions.ytick);
+  const ticks = createAxisTickModel(axisOptions, ranges, addplots, geometry);
   const xTicks = hasExplicitAxisTickOption(axisOptions["x grid values"])
     ? axisTickValues(axisOptions["x grid values"], "x", addplots)
-    : hasExplicitAxisTickOption(axisOptions.xtick)
-      ? axisTickValues(axisOptions.xtick, "x", addplots)
-      : gridTickValues(axisOptions, "x", ranges.xMin, ranges.xMax, axisAutoMajorTickCountForOptions(axisOptions, "x", ranges.xMin, ranges.xMax, geometry, 7));
+    : ticks.x.values;
   const yTicks = hasExplicitAxisTickOption(axisOptions["y grid values"])
     ? axisTickValues(axisOptions["y grid values"], "y", addplots)
-    : hasExplicitAxisTickOption(axisOptions.ytick)
-      ? axisTickValues(axisOptions.ytick, "y", addplots)
-      : gridTickValues(axisOptions, "y", ranges.yMin, ranges.yMax, axisAutoMajorTickCountForOptions(axisOptions, "y", ranges.yMin, ranges.yMax, geometry, 6));
-  const xMajorGridTicks = omitAutoOriginGridTick(axisOptions, "x", xTicks, ranges, hasExplicitXMajorTicks);
-  const yMajorGridTicks = omitAutoOriginGridTick(axisOptions, "y", yTicks, ranges, hasExplicitYMajorTicks);
+    : ticks.y.values;
+  const xMajorGridTicks = visibleGridTicks(axisOptions, "x", xTicks, ranges, ticks.x.explicit);
+  const yMajorGridTicks = visibleGridTicks(axisOptions, "y", yTicks, ranges, ticks.y.explicit);
   const xMinorTicks = hasExplicitAxisTickOption(axisOptions["x minor grid values"])
     ? axisTickValues(axisOptions["x minor grid values"], "x", addplots)
     : axisMinorTickValues(axisOptions, "x", xTicks, ranges.xMin, ranges.xMax, addplots);
@@ -49,8 +42,10 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
   ]);
   const minorStyle = joinOptions([
     "axis minor grid",
-    axisOptions["axis minor grid color"] || "black!12",
-    `line width=${axisOptions["axis minor grid line width"] || axisOptions["axis grid line width"] || "0.2pt"}`,
+    axisOptions["axis minor grid color"] || axisOptions["axis grid color"] || "black!25",
+    `line width=${axisOptions["axis minor grid line width"] || axisOptions["axis grid line width"] || "0.4pt"}`,
+    axisOptions["grid style"] || "",
+    axisOptions["minor grid style"] || "",
     axisOptions["axis minor grid style"] || ""
   ]);
   const xMinorStyle = joinOptions([minorStyle, axisOptions["x minor grid style"] || ""]);
@@ -156,11 +151,10 @@ function parseAxisSchoolBookPadding(axisOptions = {}) {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
 }
 
-function gridTickValues(axisOptions, axis, min, max, maxTicks) {
-  return axisMajorTickValues(axisOptions, axis, min, max, maxTicks).filter((tick) => !autoTickOutsideRange(tick, min, max));
-}
-
-function omitAutoOriginGridTick(axisOptions, axis, ticks, ranges, hasExplicitTicks) {
+function visibleGridTicks(axisOptions, axis, ticks, ranges, hasExplicitTicks) {
+  if (!axisOptions["datavis axis label placement"]) {
+    return ticks.filter(tick => !shouldHideObscuredAxisTick(axisOptions, axis, tick, ranges));
+  }
   if (hasExplicitTicks || !isMiddleAxis(axisOptions)) return ticks;
   const min = axis === "x" ? Number(ranges.xMin) : Number(ranges.yMin);
   const max = axis === "x" ? Number(ranges.xMax) : Number(ranges.yMax);

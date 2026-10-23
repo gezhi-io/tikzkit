@@ -15,6 +15,7 @@ function render(style, rangeOverrides = {}, optionOverrides = {}) {
     view: "{35}{25}",
     "pgfplots 3d surface": true,
     "colorbar horizontal": true,
+    compat: "1.18",
     "colorbar style": style,
     ...optionOverrides
   };
@@ -61,9 +62,10 @@ test("pgfplots horizontal colorbar can anchor above the parent with upper ticks"
   const labels = commands.filter((command) => command.includes("axis colorbar tick label"));
 
   assert.ok(Math.abs(Math.min(...rectangle.map((point) => point.y)) - (parent.maxY + 0.3)) < 0.001);
+  assert.equal(tickLines.length, 6);
   assert.ok(tickLines.every((command) => {
     const [from, to] = points(command);
-    return to.y > from.y;
+    return to.y > rectangle[0].y && to.y < rectangle[2].y && Math.abs(to.y - from.y) > 0;
   }));
   assert.ok(labels.every((command) => command.includes("anchor=south")));
 });
@@ -73,7 +75,9 @@ test("pgfplots upper horizontal colorbar accepts top and right tick-label aliase
     const { commands } = render(`{at={(0.5,1.05)},anchor=south,xtick={-1,1},xticklabel pos=${alias}}`);
     const tickLines = commands.filter((command) => command.includes("axis colorbar tick,"));
     const labels = commands.filter((command) => command.includes("axis colorbar tick label"));
-    assert.ok(tickLines.every((command) => points(command)[1].y > points(command)[0].y), alias);
+    assert.equal(tickLines.length, 4);
+    assert.ok(tickLines.some(command => points(command)[1].y > points(command)[0].y), alias);
+    assert.ok(tickLines.some(command => points(command)[1].y < points(command)[0].y), alias);
     assert.ok(labels.every((command) => command.includes("anchor=south")), alias);
   }
 });
@@ -88,9 +92,9 @@ test("pgfplots upper horizontal colorbar keeps scaled tick multiplier above the 
   const scale = commands.find((command) => command.includes("axis colorbar tick scale label"));
   const title = commands.find((command) => command.includes("axis colorbar title"));
 
-  assert.match(scale || "", /anchor=south east/);
+  assert.match(scale || "", /anchor=south,/);
   assert.ok(points(scale)[0].y > top);
-  assert.ok(points(title)[0].y >= top + 0.3);
+  assert.ok(Math.abs(points(title)[0].y - top - 6 * 2.54 / 72.27) < .001);
 });
 
 test("pgfplots upper horizontal colorbar reaches browser SVG without diagnostics", () => {
@@ -109,5 +113,6 @@ test("pgfplots upper horizontal colorbar reaches browser SVG without diagnostics
 
   assert.deepEqual(result.diagnostics, []);
   assert.match(result.svg, /<linearGradient[^>]+x1="0%"[^>]+x2="100%"/);
-  assert.match(result.svg, />Score<\/text>/);
+  assert.ok(result.ir.items.some(item => item.type === "textNode" && item.text === "Score" && item.style.preferNativeText));
+  assert.match(result.svg, /data-text-layout="cm-tex-box"/);
 });

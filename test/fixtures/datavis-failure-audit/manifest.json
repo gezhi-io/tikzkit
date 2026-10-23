@@ -1,0 +1,13 @@
+{
+  "cases": [
+    { "id": "datavis-boundary-ticks", "source": "boundary-ticks.tex", "title": "Sampled sine and manual pi tick" },
+    { "id": "datavis-school-book-ticks", "source": "school-book-ticks.tex", "title": "School-book explicit limits and origin ticks" },
+    { "id": "datavis-school-book-pin", "source": "school-book-pin.tex", "title": "School-book sampled pin direction" },
+    { "id": "datavis-log-ticks", "source": "log-ticks.tex", "title": "Logarithmic axis number typesetting" },
+    { "id": "datavis-smooth-log-legend", "source": "smooth-log-legend.tex", "title": "Smooth visualizer legend control" },
+    { "id": "damped-pin", "source": "damped-pin.tex", "title": "Damped sine formula pin", "pinGlyphs": 9 },
+    { "id": "damped-pin-swapped", "source": "damped-pin-swapped.tex", "title": "Damped sine swapped formula pin", "pinGlyphs": 9 },
+    { "id": "damped-pin-short", "source": "damped-pin-short.tex", "title": "Damped sine short pin", "pinGlyphs": 1 },
+    { "id": "damped-pin-short-swapped", "source": "damped-pin-short-swapped.tex", "title": "Damped sine swapped short pin", "pinGlyphs": 1 }
+  ]
+}

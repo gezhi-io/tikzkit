@@ -1,0 +1,34 @@
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\makeatletter
+\tikzdatavisualizationset{every ticks/.append style={node style={
+  name=nativetick,
+  append after command={\pgfextra{
+    \pgf@process{\pgfpointanchor{nativetick}{center}}%
+    \typeout{DV-NODE \ProbeName: \tikz@dv@tick@pos; \the\pgf@x,\the\pgf@y}%
+  }}
+}}}
+\let\NativeComputeTicks\tikz@lib@dv@compute@at@linear
+\def\tikz@lib@dv@compute@at@linear{%
+  \NativeComputeTicks
+  \typeout{DV-TICKS \ProbeName: \pgfkeysvalueof{/tikz/data visualization/major}}%
+  \typeout{DV-MINOR \ProbeName: \pgfkeysvalueof{/tikz/data visualization/minor}}%
+}
+\makeatother
+\newcommand\Probe[3]{%
+  \def\ProbeName{#1}%
+  \tikz \datavisualization[scientific axes=clean,#2,visualize as line]
+  #3;\par
+}
+\begin{document}
+\Probe{positive}{}{data point[x=10,y=20] data point[x=20,y=25]}
+\Probe{negative}{}{data point[x=-20,y=-25] data point[x=-10,y=-20]}
+\Probe{single}{}{data point[x=7,y=3]}
+\Probe{phase}{all axes={ticks={step=.5,phase=.25}}}{data point[x=-1,y=-1] data point[x=1,y=1]}
+\Probe{epsilon}{all axes={ticks={step=.5}}}{data point[x=.0005,y=.0005] data point[x=.9995,y=.9995]}
+\Probe{outside}{all axes={ticks={step=.5}}}{data point[x=.002,y=.002] data point[x=.998,y=.998]}
+\Probe{minor}{x axis={ticks={minor steps between steps=4}}}{data point[x=.049787,y=0] data point[x=20.0855,y=9]}
+\Probe{zero-to-two}{}{data point[x=0,y=0] data point[x=2,y=2]}
+\Probe{noninteger}{}{data point[x=0,y=0] data point[x=6,y=2.47]}
+\end{document}

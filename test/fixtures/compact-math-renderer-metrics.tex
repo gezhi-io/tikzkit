@@ -1,0 +1,32 @@
+\documentclass{article}
+\usepackage{tikz}
+\newcommand\compactmathprobe[2]{%
+  \setbox0=\hbox{#2}%
+  \typeout{COMPACT-RENDERER #1: wd=\the\wd0; ht=\the\ht0; dp=\the\dp0}%
+}
+\begin{document}
+\compactmathprobe{x-text}{$\textstyle x$}
+\compactmathprobe{x-display}{$\displaystyle x$}
+\compactmathprobe{fraction-text}{$\textstyle\frac{1}{x}$}
+\compactmathprobe{fraction-display}{$\displaystyle\frac{1}{x}$}
+\compactmathprobe{alpha}{$\alpha$}
+\compactmathprobe{cdot}{$\cdot$}
+\compactmathprobe{dollar-one}{$\$ 1$}
+\compactmathprobe{relation}{$P=(x,y)$}
+\compactmathprobe{P}{$P$}
+\compactmathprobe{equal}{$=$}
+\compactmathprobe{sin}{$\sin x$}
+\compactmathprobe{sin-word}{$\mathop{\mathrm{sin}}\nolimits$}
+\compactmathprobe{scriptsize}{{\scriptsize$2x+3y\le10$}}
+\compactmathprobe{large-t}{{\large$t$}}
+\compactmathprobe{times-one}{$\times 1$}
+\compactmathprobe{scaled-times-one}{\scalebox{.5}{$\times 1$}}
+\compactmathprobe{five-point-times-one}{{\fontsize{5}{6}\selectfont$\times 1$}}
+\compactmathprobe{mantissa-one}{$1$}
+\compactmathprobe{mantissa-nine-eight}{$9.8$}
+\compactmathprobe{mantissa-one-two-three}{$1.23$}
+\compactmathprobe{typewriter-ACAACG}{{\ttfamily ACAACG}}
+\compactmathprobe{typewriter-UAG}{{\ttfamily UAG}}
+\compactmathprobe{typewriter-concatenate}{{\ttfamily concatenate}}
+\compactmathprobe{typewriter-gene}{{\ttfamily GTGCATCTGACTCCTGAGGAGTAG}}
+\end{document}

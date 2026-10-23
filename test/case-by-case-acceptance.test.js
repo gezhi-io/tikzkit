@@ -5,6 +5,8 @@ import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
 
 const FIXTURE_ROOT = new URL("./fixtures/examples/latex-examples/", import.meta.url);
+// Native numerical ticks use the CMSY minus, not a text-font hyphen.
+const nativeTick = text => text.replace(/^-(?=\d)/, "\u2212");
 
 function renderFixture(name) {
   const source = readFileSync(new URL(`${name}.tex`, FIXTURE_ROOT), "utf8");
@@ -242,10 +244,11 @@ test("case 009: quadratic surface preserves the 56 by 56 mesh and colorbar contr
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   assert.deepEqual(
     [fills[0].style.fill, facets.at(-1).style.stroke],
-    ["rgb(255 101.706419 9.151804)", "rgb(204,81,7)"]
+    // Unrounded native RGB interpolation toward (1,.375,0).
+    ["rgb(255 101.344877 9.151804)", "rgb(204,81,7)"]
   );
   for (const text of ["-5", "5", "10", "20", "30", "40", "50", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -264,7 +267,7 @@ test("case 010: rational saddle preserves singular sampling and the rotated 3D v
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   for (const text of ["-5", "5", "-1", "-0.5", "0", "0.5", "1", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -283,7 +286,7 @@ test("case 011: normalized saddle preserves its finite 56 by 56 surface", () => 
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   for (const text of ["-5", "0", "5", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -302,7 +305,7 @@ test("case 012: radial cone preserves its 56 by 56 faceted surface", () => {
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   for (const text of ["-5", "0", "5", "2", "4", "6", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -321,7 +324,7 @@ test("case 013: three-lobed rational surface preserves its signed topology", () 
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   for (const text of ["-5", "0", "5", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -340,7 +343,7 @@ test("case 014: quartic rational surface preserves asymmetric domains and exact 
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
   for (const text of ["-4", "-2", "0", "2", "4", "5", "-1", "1", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -389,7 +392,7 @@ test("case 015: small-amplitude radial surface remains inside its projected 3D b
     "colorbar title should preserve the native baseline clearance above the scale label"
   );
   for (const text of ["-5", "5", "1.55", "1.6", "1.65", "1.7", "1.75", "$\\cdot 10^{-2}$", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.includes(text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -417,10 +420,12 @@ test("case 016: sinusoidal ridge preserves its 50 by 50 mesh and measured 3D lab
   assert.equal(axisLabels["$z$"].rotation, 90);
   assert.ok(axisLabels["$x$"].x < 2, "x label should follow the oblique tick-label edge midpoint");
   assert.ok(axisLabels["$y$"].x > 9, "y label should clear the longest projected tick labels");
-  assert.ok(axisLabels["$z$"].x > -0.9, "z label should use its rotated near-ticklabel box");
+  // Measured by pgfplots-3d-regression-metrics.tex on local MacTeX.
+  assert.ok(Math.abs(axisLabels["$z$"].x * 72.27 / 2.54 - (-26.36691)) < 0.055);
+  assert.ok(Math.abs(axisLabels["$z$"].y * 72.27 / 2.54 - 196.78201) < 0.055);
 
   for (const text of ["-5", "5", "-4", "-2", "0", "2", "4", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
-    assert.ok(labels.some((item) => item.text === text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.some((item) => item.text === nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 
@@ -447,7 +452,7 @@ test("case 017: continuous rational surface preserves its 55 by 55 mesh and colo
   assert.deepEqual(Object.keys(axisLabels).sort(), ["$x$", "$y$", "$z$"]);
   assert.equal(axisLabels["$z$"].rotation, 90);
   for (const text of ["-2", "-1", "0", "1", "2", "-0.5", "0.5", "$f(x,y)$"]) {
-    assert.ok(labels.some((item) => item.text === text), `missing surface tick, axis, or colorbar label ${text}`);
+    assert.ok(labels.some((item) => item.text === nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }
 });
 

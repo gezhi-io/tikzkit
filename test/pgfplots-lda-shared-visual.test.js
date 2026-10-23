@@ -15,7 +15,7 @@ const LDA_FIXTURES = [
   "lda-gauss-variance-small"
 ];
 
-test("PGFPlots reserves the native TeX descent for explicit middle-axis math labels", () => {
+test("PGFPlots explicit CM math labels use the measured box instead of fitted descent", () => {
   const ranges = { xMin: -1, xMax: 1, yMin: -1, yMax: 1 };
   const geometry = {
     origin: { x: 0, y: 0 },
@@ -31,13 +31,16 @@ test("PGFPlots reserves the native TeX descent for explicit middle-axis math lab
   };
 
   const [mathLabel] = renderAxisLabels(options, ranges, geometry);
-  assert.match(mathLabel, /tikzkit layout bbox bottom padding=1\.98pt/);
+  assert.match(mathLabel, /tikzkit layout bbox/);
+  assert.match(mathLabel, /anchor=north/);
+  assert.match(mathLabel, /at \(5,-0\.3\)/);
+  assert.doesNotMatch(mathLabel, /layout bbox bottom padding/);
 
   const [plainLabel] = renderAxisLabels({ ...options, xlabel: "x" }, ranges, geometry);
   assert.doesNotMatch(plainLabel, /layout bbox bottom padding/);
 });
 
-test("PGFPlots arrowed axes include the native arrow-tip paint extent", () => {
+test("PGFPlots axis paths leave arrow paint extents to the renderer", () => {
   const ranges = { xMin: -1, xMax: 1, yMin: -1, yMax: 1 };
   const geometry = {
     lineRanges: ranges,
@@ -45,8 +48,8 @@ test("PGFPlots arrowed axes include the native arrow-tip paint extent", () => {
   };
 
   assert.deepEqual(renderAxisLines({ "axis lines": "middle" }, ranges, geometry), [
-    String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (-1,0) -- (1.007,0);`,
-    String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (0,-1) -- (0,1.007);`
+    String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (-1,0) -- (1,0);`,
+    String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (0,-1) -- (0,1);`
   ]);
   assert.deepEqual(renderAxisLines({ "axis lines": "box" }, ranges, geometry), [
     String.raw`\draw[axis line, black, line width=0.35pt] (-1,0) -- (1,0);`,

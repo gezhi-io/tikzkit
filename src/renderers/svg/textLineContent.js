@@ -64,12 +64,14 @@ export function renderSvgMathFallbackContentWithoutColor(tex, fontSize) {
   const source = normalizeBrowserMathMacros(tex);
   const niceFraction = niceFractionMathFallback(source);
   if (niceFraction) return renderNiceFractionMathContent(niceFraction, fontSize);
-  const scopedUpright = renderScopedUprightMathContent(source, fontSize);
-  if (scopedUpright) return scopedUpright;
   const leadingScript = leadingScriptFallback(source);
   if (leadingScript) return renderLeadingScriptContent(leadingScript, fontSize);
   const sumLimits = renderSumLimitsContentFallback(source, fontSize);
   if (sumLimits) return sumLimits;
+  // A sum may contain an upright alphabet in its limits. Operator layout
+  // must run before the generic alphabet/script fallback in that case.
+  const scopedUpright = renderScopedUprightMathContent(source, fontSize);
+  if (scopedUpright) return scopedUpright;
   const simple = simpleNumericSubscriptFallback(source);
   if (simple) return renderSimpleSubscriptContent(simple, fontSize);
   const scripted = scriptedMathFallback(source, { allowSimpleScripts: true });

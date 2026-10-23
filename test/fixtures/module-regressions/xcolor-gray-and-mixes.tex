@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \foreach \c [count=\i from 0] in {darkgray,darkgray!100,lightgray,lightgray!100,Green,Green!100,Blue!50!white,green!50!white} {
+    \fill[\c] (\i,0) rectangle +(0.8,0.8);
+  }
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\definecolor{mygreen}{HTML}{006400}
+\begin{document}
+\begin{tikzpicture}
+  \draw[red!75!blue] (-2,.6) rectangle (2,-2.6);
+  \node at (0,0) {\tt \textcolor{blue}{GUG}\textcolor{mygreen}{CAU}\tikz[baseline]{\node[rectangle, fill=red,inner sep=0.3mm,anchor=base] (X) {\textcolor{white}{UAG}};}};
+  \node at (0,-1) {\tt \textcolor{blue}V};
+  \node at (0,-2) {\tikz[baseline]{\node[rectangle, fill=red,inner sep=0.3mm,anchor=base] (X) {\textcolor{white}{\tt STOP}};}};
+\end{tikzpicture}
+\end{document}

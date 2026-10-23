@@ -379,7 +379,13 @@ const LIPSUM_PARAGRAPHS = [
 ];
 
 export function normalizeTikzText(value, options = {}) {
-  const rawInput = normalizeTextColorTokenArguments(replaceInlineTikzNodes(stripMinipageWrapper(String(value ?? ""))));
+  // PGF's number printer enters math mode. Preserve the original IR text,
+  // but use mathematical minus/decimal glyphs and suppress comma atom glue.
+  if (options.mathMode === "number" && /^[+\-\u2212]?[\d.,]+$/.test(String(value).trim())) {
+    value = `$${String(value).trim().replaceAll(",", "{,}")}$`;
+  }
+  const inlineNodes = [];
+  const rawInput = normalizeTextColorTokenArguments(replaceInlineTikzNodes(stripMinipageWrapper(String(value ?? "")), inlineNodes));
   const browserRawInput = normalizeBrowserMathMacros(rawInput);
   let text = unwrapWholeShortstack(normalizeTextListEnvironments(browserRawInput).trim());
   const fixedHbox = readWholeHboxTo(text);
@@ -399,6 +405,7 @@ export function normalizeTikzText(value, options = {}) {
   let invisible = false;
   let explicitFontSize = false;
   let contentFontScale = 1;
+  text = normalizeWholeMathScalebox(text, options) || text;
   const wholeScale = readWholeCommand(text, "scalebox", 2);
   if (wholeScale) {
     const parsed = Number(wholeScale.args[0]);
@@ -420,7 +427,6 @@ export function normalizeTikzText(value, options = {}) {
   text = unwrapParboxCommands(stripOuterTextBraces(text));
   text = normalizeWholeAmsDisplayEnvironment(text);
   text = normalizeAdjacentDisplayMathBlocks(text);
-  text = replaceCommand(text, "scalebox", 2, (args) => args[1]);
   // xcolor's \color is a declaration: it changes the following material's
   // paint but never contributes glyphs. Consume leading declarations before
   // deciding whether the remaining content is a whole math expression.
@@ -449,6 +455,8 @@ export function normalizeTikzText(value, options = {}) {
       presentationChanged = true;
     }
   }
+  text = normalizeWholeMathScalebox(text, options) || text;
+  text = replaceCommand(text, "scalebox", 2, (args) => args[1]);
   if (!isMathText(text)) text = replaceCommand(text, "textcolor", 2, (args) => args[1]);
   const preserveMatrixPhantoms = options.mathRenderer === "svg-text" && /\\begin\s*\{(?:matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|cases|array)\}/.test(text);
   text = replaceCommand(text, "phantom", 1, (args) => preserveMatrixPhantoms ? createMatrixPhantom(args[0]) : "");
@@ -474,15 +482,8 @@ export function normalizeTikzText(value, options = {}) {
     text = replaceCommand(text, "bf", 1, (args) => args[0]);
     text = text.replace(/\\boldsymbol\s*(\\[A-Za-z]+)/g, "$1");
   }
-  const largerCount = (text.match(/\\mathlarger\b/g) || []).length;
-  if (largerCount) {
-    scale *= Math.min(2.8, Math.pow(1.2, largerCount));
-    let previous;
-    do {
-      previous = text;
-      text = replaceCommand(text, "mathlarger", 1, (args) => args[0]);
-    } while (text !== previous && text.includes(String.raw`\mathlarger`));
-  }
+  // Relative math size commands belong to the math list, not the whole node.
+  // Preserve their groups so native layout can step styles and optical sizes.
   text = stripZeroWidthTextCommands(text);
   text = restoreEscapedMathDelimiters(text);
   const displayMathSequence = /\$\$[\s\S]*?\$\$\s*\\\\\s*\$\$[\s\S]*?\$\$/.test(text);
@@ -512,6 +513,7 @@ export function normalizeTikzText(value, options = {}) {
   return {
     kind: "text",
     raw: browserRawInput,
+    ...(inlineNodes.length ? { inlineNodes } : {}),
     text,
     scale,
     color,
@@ -543,6 +545,19 @@ export function normalizeTikzText(value, options = {}) {
     })),
     lines: styledLines.map((line) => line.text)
   };
+}
+
+function normalizeWholeMathScalebox(text, options) {
+  const whole = readWholeCommand(stripOuterTextBraces(text), "scalebox", 2);
+  if (!whole) return null;
+  const factor = Number(whole.args[0]);
+  if (!Number.isFinite(factor) || factor <= 0) return null;
+  const inner = normalizeTikzText(whole.args[1], options);
+  const math = readDollarMathSpan(inner.text, 0);
+  if (!math || math.displayMode || math.end !== inner.text.length || inner.invisible) return null;
+  const size = inner.explicitFontSize ? inner.scale * 10 : 0;
+  const color = inner.color ? `\\color{${inner.color}}` : "";
+  return `$\\tikzkitmathscale{${factor}}{${size}}{${color}${math.tex}}$`;
 }
 
 function normalizeWholeAmsDisplayEnvironment(value) {
@@ -828,7 +843,7 @@ function detectTextFontFamily(source) {
   return undefined;
 }
 
-function replaceInlineTikzNodes(source) {
+function replaceInlineTikzNodes(source, inlineNodes = []) {
   const text = String(source || "");
   let output = "";
   let cursor = 0;
@@ -840,6 +855,7 @@ function replaceInlineTikzNodes(source) {
     }
     output += text.slice(cursor, index);
     let readCursor = index + String.raw`\tikz`.length;
+    let pictureOptions = "";
     while (/\s/.test(text[readCursor] || "")) readCursor += 1;
     if (text[readCursor] === "[") {
       const options = readBalancedDelimited(text, readCursor, "[", "]");
@@ -848,6 +864,7 @@ function replaceInlineTikzNodes(source) {
         cursor = readCursor;
         continue;
       }
+      pictureOptions = options.content;
       readCursor = options.end;
     }
     while (/\s/.test(text[readCursor] || "")) readCursor += 1;
@@ -856,7 +873,7 @@ function replaceInlineTikzNodes(source) {
       if (text.startsWith(String.raw`\node`, readCursor)) {
         const end = findInlineTikzStatementEnd(text, readCursor);
         const commandBody = text.slice(readCursor, end);
-        output += inlineTikzNodeReplacement(commandBody);
+        output += inlineTikzNodeReplacement(commandBody, pictureOptions, inlineNodes);
         cursor = text[end] === ";" ? end + 1 : end;
         continue;
       }
@@ -864,7 +881,7 @@ function replaceInlineTikzNodes(source) {
       cursor = readCursor;
       continue;
     }
-    output += inlineTikzNodeReplacement(body.content);
+    output += inlineTikzNodeReplacement(body.content, pictureOptions, inlineNodes);
     cursor = body.end;
   }
   return output;
@@ -884,12 +901,34 @@ function findInlineTikzStatementEnd(text, start) {
   return text.length;
 }
 
-function inlineTikzNodeReplacement(body) {
+function inlineTikzNodeReplacement(body, pictureOptions, inlineNodes) {
   const parsed = extractInlineTikzNode(body);
   if (!parsed) return "";
   const cleaned = normalizeInlineTikzNodeText(parsed.text);
   if (!cleaned) return "";
-  return parsed.fill && parsed.fill !== "none" ? String.raw`\tikzinlinebox{${parsed.fill}}{${cleaned}}` : cleaned;
+  if (!parsed.fill || parsed.fill === "none") return cleaned;
+  // Keep paint/font/spacing semantics alongside the legacy plain-text marker.
+  // Stripping the content here used to make white glyphs and their background
+  // use different fonts and unrelated width estimates in the SVG renderer.
+  inlineNodes.push(inlineTextNodeDescriptor(parsed, pictureOptions));
+  return String.raw`\tikzinlinebox{${parsed.fill}}{${cleaned}}`;
+}
+
+function inlineTextNodeDescriptor(parsed, pictureOptions) {
+  const options = parseGraphicOptions(parsed.options);
+  const allowed = new Set(["rectangle", "fill", "inner sep", "inner xsep", "inner ysep", "anchor", "text", "font"]);
+  if (!/^\s*baseline(?:\s*=\s*0(?:pt|cm|mm)?)?\s*$/.test(pictureOptions) ||
+      Object.keys(options).some(key => !allowed.has(key)) ||
+      !["base", "center"].includes(options.anchor || "center") || !parsed.singleNode) return null;
+  const length = (value) => {
+    const match = String(value).trim().match(/^([+]?(?:\d+(?:\.\d*)?|\.\d+))\s*(pt|cm|mm|em|ex)$/);
+    return match ? { value: Number(match[1]), unit: match[2] } : null;
+  };
+  const paddingX = length(options["inner xsep"] ?? options["inner sep"] ?? ".3333em");
+  const paddingY = length(options["inner ysep"] ?? options["inner sep"] ?? ".3333em");
+  if (!paddingX || !paddingY) return null;
+  return { text: parsed.text, fill: parsed.fill, paddingX, paddingY,
+    anchor: options.anchor || "center", font: options.font || "", color: options.text || null };
 }
 
 function extractInlineTikzNode(body) {
@@ -898,10 +937,12 @@ function extractInlineTikzNode(body) {
   if (index === -1) return null;
   let cursor = index + String.raw`\node`.length;
   let fill = null;
+  let nodeOptions = "";
   while (/\s/.test(text[cursor] || "")) cursor += 1;
   if (text[cursor] === "[") {
     const options = readBalancedDelimited(text, cursor, "[", "]");
     if (!options) return null;
+    nodeOptions = options.content;
     fill = options.content.match(/(?:^|,)\s*fill\s*=\s*([^,\]]+)/)?.[1]?.trim() || null;
     cursor = options.end;
   }
@@ -914,7 +955,8 @@ function extractInlineTikzNode(body) {
   while (/\s/.test(text[cursor] || "")) cursor += 1;
   const content = readBalanced(text, cursor);
   if (!content) return null;
-  return { fill, text: content.content };
+  return { fill, text: content.content, options: nodeOptions,
+    singleNode: !text.slice(0, index).trim() && /^\s*;?\s*$/.test(text.slice(content.end)) };
 }
 
 function normalizeInlineTikzNodeText(text) {

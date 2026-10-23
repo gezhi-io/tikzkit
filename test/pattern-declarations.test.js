@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseTikz, tikzToSvg } from "../src/index.js";
+import { renderFormOnlyPatternFill } from "../src/renderers/svg/formOnlyPatterns.js";
 
 const WIDE_HATCHES = String.raw`
 \begin{tikzpicture}
@@ -90,9 +91,49 @@ test("anchors form-only tiles to the cropped page origin instead of the TikZ ori
   // PGF patterns are page-aligned, so their explicit SVG tiles must preserve
   // that offset rather than restarting at TikZ coordinate (0,0).
   // Native CMR10 em/ex metrics also determine the label's crop contribution.
-  assert.match(result.svg, /viewBox="-8\.435035 -208\.435035 467\.390138 263\.299352"/);
-  assert.match(result.svg, /<rect x="231\.564965" y="-205\.135683" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
+  const viewBox = result.svg.match(/viewBox="([^"]+)"/)[1].split(" ").map(Number);
+  const dimensions = result.svg.match(/width="([\d.]+)pt" height="([\d.]+)pt"/).slice(1).map(Number);
+  // Independent MacTeX page: 132.475 x 74.835bp. The label's default
+  // outer sep now contributes to its placement rather than being dropped.
+  assert.ok(Math.abs(dimensions[0] - 132.475) < .02);
+  assert.ok(Math.abs(dimensions[1] - 74.835) < .02);
+  const paint = result.svg.replace(/<defs>[\s\S]*?<\/defs>/g, "");
+  const tile = paint.match(/<rect x="([\d.-]+)" y="([\d.-]+)" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
+  assert.ok(tile);
+  const latticeError = value => Math.abs(value / 20 - Math.round(value / 20));
+  assert.ok(latticeError(Number(tile[1]) - viewBox[0]) < .000001);
+  assert.ok(latticeError(Number(tile[2]) - viewBox[1] - viewBox[3]) < .000001);
   assert.doesNotMatch(result.svg, /<rect x="240" y="-220" width="20" height="20" fill="rgb\(255 128 0\)" stroke="none"/);
+});
+
+test("page-aligned tiles cover the complete clip after translating the page origin", () => {
+  const unit = 100;
+  const tile = 0.1;
+  const radius = 0.015;
+  const item = {
+    commands: [{ kind: "move", x: 0, y: 0 }, { kind: "line", x: 2, y: 2 }],
+    style: { pattern: "dots", patternDefinition: {
+      tileSize: { x: tile, y: tile },
+      lowerLeft: { x: -radius, y: -radius }, upperRight: { x: radius, y: radius },
+      operations: [{ fill: true, commands: [{ kind: "circle", x: 0, y: 0, radius }] }]
+    } }
+  };
+  for (const origin of [{ x: -8.4, y: 55.6 }, { x: 63, y: -27 }, { x: -140, y: 120 }]) {
+    const svg = renderFormOnlyPatternFill(item, unit, "clip", origin);
+    const circles = [...svg.matchAll(/<circle cx="([\d.-]+)" cy="([\d.-]+)"/g)]
+      .map(match => ({ x: Number(match[1]), y: Number(match[2]) }));
+    assert.ok(circles.length);
+    // Inspect every lattice row/column that intersects the clip, including
+    // the topmost row that disappeared when the crop gained a text descender.
+    for (let y = Math.ceil(origin.y / (tile * unit)); y <= Math.floor((200 + origin.y) / (tile * unit)); y++) {
+      for (let x = Math.ceil(-origin.x / (tile * unit)); x <= Math.floor((200 - origin.x) / (tile * unit)); x++) {
+        const expectedX = origin.x + x * tile * unit;
+        const expectedY = origin.y - y * tile * unit;
+        assert.ok(circles.some(circle => Math.abs(circle.x - expectedX) < 1e-5 && Math.abs(circle.y - expectedY) < 1e-5),
+          `missing tile at ${expectedX},${expectedY} for page origin ${JSON.stringify(origin)}`);
+      }
+    }
+  }
 });
 
 test("uses preamble /.store in variables for a parameterized form-only tile", async () => {

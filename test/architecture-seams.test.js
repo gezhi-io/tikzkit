@@ -655,7 +655,7 @@ test("svg renderer keeps standalone math node serialization in its own module", 
   const box = estimateMathBox("x_i", false, 100, 1);
   const htmlBox = scopedMathForeignObjectBox(box, false);
   const svgText = renderMathNode(item, { tex: String.raw`\frac{1}{2}`, displayMode: false, scale: 1 }, 100, { mathRenderer: "svg-text" });
-  const katexText = renderMathNode(item, { tex: String.raw`\hat{x}_i`, displayMode: false, scale: 1 }, 100, {});
+  const katexText = renderMathNode(item, { tex: String.raw`\widehat{x}_i`, displayMode: false, scale: 1 }, 100, {});
 
   assert.ok(box.width > 0);
   assert.ok(htmlBox.width > box.width);

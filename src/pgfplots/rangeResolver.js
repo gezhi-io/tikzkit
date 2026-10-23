@@ -1,6 +1,6 @@
 import { axisNumber } from "./coordinates.js";
 import { evaluateAxisExpression, evaluateAxisExpressionSamples } from "./expressions.js";
-import { splitTopLevel } from "../engine/options.js";
+import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { roundAxisRange } from "./format.js";
 import { pgfplotsPlotRangePoints } from "./histogram.js";
 import { isAxisQuiverPlot, parseQuiverOptions, quiverScale, quiverUpdatesLimits } from "./quiverOptions.js";
@@ -11,7 +11,7 @@ import { samplePgfplotsSurfaceDomain } from "./sampling.js";
 export const PGFPLOTS_DEFAULT_ENLARGE_LIMITS = 0.1;
 export const PGFPLOTS_DEFAULT_FUNCTION_DOMAIN = "-5:5";
 
-export function computeAxisRanges(axisOptions, addplots) {
+export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true } = {}) {
   const domain = parseDomain(axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const hasSurfacePlot = addplots.some((plot) => isSurfacePlot(plot, axisOptions));
   const xLog = isLogAxis(axisOptions, "x");
@@ -218,6 +218,9 @@ export function computeAxisRanges(axisOptions, addplots) {
     if (!(zMin > 0)) zMin = 1;
     if (!(zMax > zMin)) zMax = zMin * axisLogBase(axisOptions, "z");
   }
+  if (enlargeZ && !zLog && (axisOptions["pgfplots 3d surface"] || addplots.some(plot => plot.is3d))) {
+    [zMin, zMax] = enlarge3DZRange(axisOptions, zMin, zMax, hasExplicitZMin, hasExplicitZMax);
+  }
   return {
     xMin: roundResolvedAxisValue(xMin, xLog, "x"),
     xMax: roundResolvedAxisValue(xMax, xLog, "x"),
@@ -226,6 +229,31 @@ export function computeAxisRanges(axisOptions, addplots) {
     zMin: roundResolvedAxisValue(zMin, zLog, "z"),
     zMax: roundResolvedAxisValue(zMax, zLog, "z")
   };
+}
+
+export function enlarge3DZLimits(options, ranges) {
+  if (isLogAxis(options, "z")) return ranges;
+  const [min, max] = enlarge3DZRange(options, ranges.zMin, ranges.zMax,
+    hasAxisBound(options.zmin), hasAxisBound(options.zmax));
+  return { ...ranges, zMin: roundAxisRange(min, "z"), zMax: roundAxisRange(max, "z") };
+}
+
+function enlarge3DZRange(options, min, max, explicitMin, explicitMax) {
+  // @enlargelimits/auto (pgfplots.code.tex) keeps x/y tight in 3D but
+  // enlarges inferred z limits. Non-boxed axes install enlarge=false.
+  const raw = options["enlarge z limits"] ?? options.enlargelimits ??
+    (axisUsesNonBoxedLine(options, "z") ? false : "auto");
+  const value = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
+  if (["false", "off", "none", "0"].includes(value)) return [min, max];
+  const config = parseOptions(value);
+  const automatic = value === "auto";
+  const lower = !config.upper && (!automatic || !explicitMin);
+  const upper = !config.lower && (!automatic || !explicitMax);
+  const relative = axisNumber(config.rel ?? config.value ?? (Number.isFinite(Number(value)) ? value : 0.1));
+  const absolute = config.abs ?? config["abs value"];
+  const pad = absolute === undefined ? (max - min) * relative : axisNumber(absolute);
+  if (!Number.isFinite(pad) || pad < 0) return [min, max];
+  return [lower ? min - pad : min, upper ? max + pad : max];
 }
 
 function roundResolvedAxisValue(value, logMode, axis) {

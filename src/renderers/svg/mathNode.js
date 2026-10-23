@@ -5,7 +5,8 @@ import {
   mathFallbackText
 } from "../../tikz/text.js";
 import { createFontSpec } from "../../tex/fontSpec.js";
-import { layoutNativeMath } from "../../tex/mathBox.js";
+import { layoutNativeMath, scaleNativeMathBox } from "../../tex/mathBox.js";
+import { readScaledMath } from "../../tex/relativeMath.js";
 import { renderNativeMath } from "./nativeMath.js";
 import {
   TIKZ_DISPLAY_MATH_FONT_SIZE,
@@ -86,6 +87,7 @@ export function measureMathBoxPt(tex, options = {}) {
   const extraScale = finitePositiveScale(options.scale);
   const baseMathSizePt = font.sizePt * extraScale;
   const native = layoutNativeMath(source, { fontSizePt: baseMathSizePt, displayMode, mathVersion,
+    preferNativeMath: options.preferNativeMath,
     mathExtension: font.mathExtension, baselineSkipPt: font.baselineSkipPt * extraScale });
   if (native) return {
     widthPt: native.width, heightPt: native.height, depthPt: native.depth, baselinePt: native.height,
@@ -94,6 +96,15 @@ export function measureMathBoxPt(tex, options = {}) {
     rawWidthPt: native.width, rawHeightPt: native.height + native.depth,
     mathVersion, displayMode, renderer: options.renderer || "katex", measurementKind: native.measurementKind
   };
+  const scaled = readScaledMath(source);
+  if (scaled) {
+    const measured = measureMathBoxPt(scaled.tex, { ...options,
+      font: scaled.size ? { ...font, sizePt: scaled.size } : font });
+    return { ...measured, ...Object.fromEntries([
+      "widthPt", "heightPt", "depthPt", "baselinePt", "paintWidthPt", "paintHeightPt",
+      "rawWidthPt", "rawHeightPt", "svgFontSize"
+    ].map(key => [key, measured[key] * scaled.scale])) };
+  }
   const scale = (font.sizePt / 10) * extraScale * mathStyleScale(source, baseMathSizePt);
   const rawBox = estimateMathBox(source, displayMode, TEX_PT_PER_CM, scale, { mathVersion });
   const glyphBox = simpleMathGlyphRenderBox(simpleMathGlyphFallback(source), rawBox);
@@ -138,18 +149,25 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
   const sourceTex = mathVersion === "sans" ? originalMathTex(item, tex) : tex;
   const contentScale = (math.scale || 1) * textFontScale(item, math);
   const native = layoutNativeMath(tex, { fontSizePt: 10 * contentScale, displayMode: math.displayMode, mathVersion,
+    preferNativeMath: item.style?.preferNativeMath,
     mathExtension: item.font?.mathExtension, baselineSkipPt: item.font?.baselineSkipPt });
   if (native) {
     const fittedSize = fitFontSizeToBox(10 * contentScale * unit / TEX_PT_PER_CM, item.fitBox, unit, [mathFitText(tex)]);
     const fitScale = fittedSize / (10 * contentScale * unit / TEX_PT_PER_CM);
     // Fit-box scaling is applied to the completed TeX box, not independently to
     // fraction/script glyphs (which would change the NFSS optical-size choice).
-    const box = fitScale === 1 ? native : {
-      ...native, width: native.width * fitScale, height: native.height * fitScale, depth: native.depth * fitScale,
-      items: native.items.map(part => ({ ...part, x: part.x * fitScale, y: part.y * fitScale,
-        ...(part.type === "glyph" ? { size: part.size * fitScale } : { width: part.width * fitScale, height: part.height * fitScale }) }))
-    };
+    const box = scaleNativeMathBox(native, fitScale);
     return renderNativeMath(item, box, unit, math.color || item.style?.fill);
+  }
+  const scaled = readScaledMath(tex);
+  if (scaled) {
+    const innerItem = { ...item, text: `$${scaled.tex}$`,
+      ...(scaled.size ? { font: createFontSpec({ ...item.font, sizePt: scaled.size }) } : {}),
+      ...(item.fitBox ? { fitBox: { ...item.fitBox, width: item.fitBox.width / scaled.scale,
+        height: item.fitBox.height / scaled.scale } } : {}) };
+    const body = renderMathNode(innerItem, { ...math, tex: scaled.tex }, unit, options, deps);
+    const anchor = svgTextAnchorPoint(item, unit);
+    return `<g class="tikz-math-scaled" transform="translate(${format(anchor.x)} ${format(anchor.y)}) scale(${format(scaled.scale)}) translate(${format(-anchor.x)} ${format(-anchor.y)})">${body}</g>`;
   }
   const styleScale = mathStyleScale(tex, 10 * contentScale);
   const box = estimateMathBox(tex, math.displayMode, unit, contentScale * styleScale, { mathVersion });
@@ -262,13 +280,15 @@ export function renderMathNode(item, math, unit, options = {}, deps = {}) {
       fallbackFontFamily
     )}">${scopedUprightFallback}</text>`;
   }
-  const styledScriptFallback = styledScriptedMathFallback(tex);
-  if (styledScriptFallback && options.mathRenderer === "svg-text" && mathVersion !== "sans") {
-    return renderScriptedMathFallback(item, styledScriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
-  }
+  // Accent geometry must be resolved before the generic script serializer
+  // turns the nucleus into a combining Unicode character.
   const hatSubscriptFallback = hatAccentSubscriptFallback(tex);
   if (hatSubscriptFallback && options.mathRenderer === "svg-text") {
     return renderHatSubscriptMathFallback(item, hatSubscriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
+  }
+  const styledScriptFallback = styledScriptedMathFallback(tex);
+  if (styledScriptFallback && options.mathRenderer === "svg-text" && mathVersion !== "sans") {
+    return renderScriptedMathFallback(item, styledScriptFallback, fallbackFontSize, unit, color, fontStyle, fontWeight);
   }
   const subscriptFallback = simpleNumericSubscriptFallback(tex);
   if (subscriptFallback && options.mathRenderer === "svg-text") {

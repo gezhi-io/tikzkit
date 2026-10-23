@@ -458,8 +458,11 @@ export const TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN = {
 
 export const TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_X = 1.72;
 export const TIKZ_PGFPLOTS_MIDDLE_AXIS_RESERVED_Y = 1.7;
-export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X = 1.607;
-export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y = 1.603;
+// pgfplots.scaling.code.tex uses the same 45pt description allowance for
+// default and explicit 2D dimensions. Pixel-fitted cm constants shrink the
+// entire coordinate transform, including every tick and grid line.
+export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_X = parseDimension("45pt", {});
+export const TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y = parseDimension("45pt", {});
 export const TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVED_X = TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVE;
 export const TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVED_Y = TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVE;
 export const TIKZ_PGFPLOTS_EXPLICIT_MIDDLE_AXIS_RESERVED_X = 2.457;

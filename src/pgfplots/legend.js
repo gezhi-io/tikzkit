@@ -13,6 +13,7 @@ import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
 import { plotFillOpacityOption, selectPlotFillStyle, selectPlotStyle } from "./plotStyle.js";
 import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
 import { cmMathMetrics } from "../tex/cmMathMetrics.js";
+import { layoutMathLegend } from "./legendMatrix.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const PGFPLOTS_LEGEND_OUTER_XSEP = 3 / TEX_PT_PER_CM;
@@ -108,9 +109,6 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
   const measurement = { compact: compactMathLegend, mathExtension: mathOptions.mathExtension };
   const stackedBarLegend = stackedBarLegendOrientation(axisOptions);
   const areaLegend = pgfplotsUsesAreaLegend(axisOptions);
-  const rowHeights = mathLegend
-    ? entries.map((entry) => nativeMathLegendRowHeight(entry, fontScale, measurement))
-    : entries.map(() => Math.max(0.19, PGFPLOTS_PLAIN_LEGEND_ROW_HEIGHT * fontScale));
   const imageWidth = areaLegend
     ? PGFPLOTS_LEGEND_IMAGE_WIDTH
     : stackedBarLegend
@@ -119,8 +117,22 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
       ? PGFPLOTS_LEGEND_IMAGE_WIDTH
       : Math.max(0.28, 0.42 * fontScale / 0.7);
   const columnCount = legendColumnCount(axisOptions, entries.length);
+  const nativeMatrix = mathLegend && !stackedBarLegend && !areaLegend
+    ? layoutMathLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions })
+    : null;
+  // Text boxes carry sub-point metrics. Three-decimal axis-data rounding is
+  // unnecessarily lossy for a legend baseline, especially at small font sizes.
+  const point = nativeMatrix
+    ? p => `(${Number(p.x.toFixed(6))},${Number(p.y.toFixed(6))})`
+    : formatAxisPoint;
+  // Preserve the separate bar/area and mixed-text paths until their cell
+  // contents have native measurements too. Mathematical line legends never
+  // use the older per-formula clearance estimates below.
+  const rowHeights = nativeMatrix ? [] : mathLegend
+    ? entries.map((entry) => nativeMathLegendRowHeight(entry, fontScale, measurement))
+    : entries.map(() => Math.max(0.19, PGFPLOTS_PLAIN_LEGEND_ROW_HEIGHT * fontScale));
   const rowCount = Math.ceil(entries.length / columnCount);
-  const columnWidths = Array.from({ length: columnCount }, (_unused, column) => Math.max(
+  const columnWidths = nativeMatrix ? [] : Array.from({ length: columnCount }, (_unused, column) => Math.max(
     ...entries
       .map((entry, index) => ({ entry, index }))
       .filter(({ index }) => index % columnCount === column)
@@ -128,34 +140,37 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
         ? mathLegendBoxWidth([entry], fontScale, imageWidth, measurement)
         : plainLegendBoxWidth([entry], fontScale, imageWidth))
   ));
-  const legendRowHeights = Array.from({ length: rowCount }, (_unused, row) => Math.max(
+  const legendRowHeights = nativeMatrix ? [] : Array.from({ length: rowCount }, (_unused, row) => Math.max(
     ...rowHeights.slice(row * columnCount, Math.min(entries.length, (row + 1) * columnCount))
   ));
-  const boxWidth = columnWidths.reduce((sum, width) => sum + width, 0);
-  const boxHeight = mathLegend
+  const boxWidth = nativeMatrix?.width ?? columnWidths.reduce((sum, width) => sum + width, 0);
+  const boxHeight = nativeMatrix?.height ?? (mathLegend
     ? PGFPLOTS_LEGEND_OUTER_YSEP * 2 + legendRowHeights.reduce((sum, height) => sum + height, 0)
-    : Math.max(0.28, PGFPLOTS_PLAIN_LEGEND_OUTER_YSEP * 2 + legendRowHeights.reduce((sum, height) => sum + height, 0));
-  const box = legendBoxFromAnchor(placement.point, placement.anchor, boxWidth, boxHeight);
+    : Math.max(0.28, PGFPLOTS_PLAIN_LEGEND_OUTER_YSEP * 2 + legendRowHeights.reduce((sum, height) => sum + height, 0)));
+  const outer = nativeMatrix?.outerSep || 0;
+  const box = legendBoxFromAnchor(placement.point, placement.anchor, boxWidth + 2 * outer, boxHeight + 2 * outer);
+  box.left += outer; box.right -= outer; box.top -= outer; box.bottom += outer;
   const cellAnchor = legendCellAnchor(axisOptions);
   const boxStyle = legendBoxStyleOption(axisOptions);
   const commands = [
-    `\\draw[${boxStyle}] ${formatAxisPoint({ x: box.left, y: box.top })} -- ${formatAxisPoint({
+    `\\draw[${boxStyle}] ${point({ x: box.left, y: box.top })} -- ${point({
       x: box.right,
       y: box.top
-    })} -- ${formatAxisPoint({ x: box.right, y: box.bottom })} -- ${formatAxisPoint({ x: box.left, y: box.bottom })} -- cycle;`
+    })} -- ${point({ x: box.right, y: box.bottom })} -- ${point({ x: box.left, y: box.bottom })} -- cycle;`
   ];
   entries.forEach((entry, index) => {
     const row = Math.floor(index / columnCount);
     const column = index % columnCount;
     const rowTop = box.top - (mathLegend ? PGFPLOTS_LEGEND_OUTER_YSEP : PGFPLOTS_PLAIN_LEGEND_OUTER_YSEP)
       - legendRowHeights.slice(0, row).reduce((sum, height) => sum + height, 0);
-    const y = rowTop - legendRowHeights[row] / 2;
+    const cell = nativeMatrix?.cells[index];
+    const y = cell ? box.top - cell.down : rowTop - legendRowHeights[row] / 2;
     const cellLeft = box.left + columnWidths.slice(0, column).reduce((sum, width) => sum + width, 0);
     const cellRight = cellLeft + columnWidths[column];
-    const x0 = cellLeft + (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP : PGFPLOTS_PLAIN_LEGEND_IMAGE_LEFT);
-    const x1 = x0 + imageWidth;
-    const textX = x1 + (mathLegend ? PGFPLOTS_LEGEND_TEXT_GAP : PGFPLOTS_PLAIN_LEGEND_TEXT_GAP);
-    const textRight = cellRight - (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP + PGFPLOTS_LEGEND_CELL_INNER_SEP : PGFPLOTS_PLAIN_LEGEND_TEXT_RIGHT);
+    const x0 = cell ? box.left + cell.x0 : cellLeft + (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP : PGFPLOTS_PLAIN_LEGEND_IMAGE_LEFT);
+    const x1 = cell ? box.left + cell.x1 : x0 + imageWidth;
+    const textX = cell ? box.left + cell.textLeft : x1 + (mathLegend ? PGFPLOTS_LEGEND_TEXT_GAP : PGFPLOTS_PLAIN_LEGEND_TEXT_GAP);
+    const textRight = cell ? box.left + cell.textRight : cellRight - (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP + PGFPLOTS_LEGEND_CELL_INNER_SEP : PGFPLOTS_PLAIN_LEGEND_TEXT_RIGHT);
     const labelX = legendCellAnchorX(textX, textRight, cellAnchor);
     const plot = addplots[index];
     const plotHasFill = Object.prototype.hasOwnProperty.call(plot?.options || {}, "fill");
@@ -170,11 +185,11 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
       ? renderAreaLegendImage(imageStyle, x0, x1, y)
       : stackedBarLegend
         ? renderStackedBarLegendImage(imageStyle, x0, x1, y, stackedBarLegend)
-      : `\\draw[${imageStyle}] ${formatAxisPoint({ x: x0, y })} -- ${formatAxisPoint({ x: x1, y })};`);
+      : `\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);
     if (!stackedBarLegend && !areaLegend && shouldRenderPlotMarks(plot?.options || {})) {
       commands.push(renderPlotMark({ x: (x0 + x1) / 2, y }, plot.options, index));
     }
-    commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}] at ${formatAxisPoint({ x: labelX, y })} {${entry.trim()}};`);
+    commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
   });
   return commands;
 }
@@ -219,12 +234,12 @@ function legendColumnCount(axisOptions = {}, entryCount = 0) {
 }
 
 function legendCellAnchor(axisOptions = {}) {
-  const explicit = stripBalancedOuterBraces(String(axisOptions["legend cell align"] || "")).trim().toLowerCase();
+  const legendStyle = parseOptions(axisOptions["legend style"] || "");
+  const explicit = stripBalancedOuterBraces(String(legendStyle["legend cell align"] || axisOptions["legend cell align"] || "")).trim().toLowerCase();
   if (explicit === "left") return "west";
   if (explicit === "right") return "east";
   if (explicit === "center") return "center";
 
-  const legendStyle = parseOptions(axisOptions["legend style"] || "");
   const cells = parseOptions(stripBalancedOuterBraces(String(legendStyle.cells || "")));
   const anchor = stripBalancedOuterBraces(String(cells.anchor || "")).trim().toLowerCase();
   return ["west", "east", "center"].includes(anchor) ? anchor : "center";
@@ -338,7 +353,7 @@ export function legendPlacement(rawPosition, geometry, rawStyle = "") {
     "outer north east": { x: 1.03, y: 1, anchor: "north west" },
     "south east outside": { x: 1.03, y: 0.03, anchor: "south west" }
   };
-  const preset = presets[value] || presets["north east"];
+  const preset = rawPosition ? presets[value] || presets["north east"] : { x: 0.98, y: 0.98, anchor: "north east" };
   const style = parseOptions(String(rawStyle || ""));
   const customAt = parseLegendAt(style.at);
   if (customAt) {

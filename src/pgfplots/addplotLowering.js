@@ -37,6 +37,7 @@ import {
 } from "./surface.js";
 import { axisPointIsValidForScale } from "./logAxis.js";
 import { stackedClosedCyclePointChain } from "./areaPlots.js";
+import { axisClipRectangle } from "./clipping.js";
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
   if (plot.type === "coordinates") {
@@ -273,11 +274,9 @@ function pgfplotsNamePathOption(options = {}) {
 function pgfplotsPlotClipOption(axisOptions = {}, geometry = {}) {
   const raw = axisOptions.clip;
   if (raw === false || String(raw ?? "").trim().toLowerCase() === "false") return "";
-  const minX = Number(geometry.origin?.x);
-  const minY = Number(geometry.origin?.y);
-  const maxX = minX + Number(geometry.width);
-  const maxY = minY + Number(geometry.height);
-  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return "";
+  const rect = axisClipRectangle(geometry);
+  if (!rect) return "";
+  const { minX, minY, maxX, maxY } = rect;
   return `tikzkit clip rect={${minX},${minY},${maxX},${maxY}}`;
 }
 

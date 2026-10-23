@@ -1486,7 +1486,9 @@ function parsePathCommand(command, text, diagnostics = []) {
 function parsePathNodeTree(command, pathOptions, pathText, diagnostics = []) {
   if (!/^(?:node\b)/.test(pathText)) return null;
   const node = parseNode(`\\${pathText}`, diagnostics);
-  if (node?.type !== "node") return null;
+  // An ordinary node-only path still owns a path-local key scope. Lowering
+  // it as a standalone node loses every-node definitions and trailing nodes.
+  if (node?.type !== "node" || !node.children?.length) return null;
   return {
     ...node,
     options: { ...pathOptions, ...(node.options || {}) },

@@ -489,6 +489,10 @@ export function resolveInlineArrowTip(tip, style = {}) {
     // them; applying them globally makes small scaled tips visibly bulbous.
     lineCap: declaredArrow?.lineCap || geometry.lineCap || (legacyBarTip ? "square" : /^legacy-(?:spaced-)?round-cap$/u.test(raw.kind) ? "round" : isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyDiamondTip(raw.kind) || isLegacySquareTip(raw.kind) || isLegacyCircleTip(raw.kind) || isSquareBracketTip(raw.kind) || legacyPrime || spacedLegacyStealthPrime || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "butt" : "round"),
     lineJoin: declaredArrow?.lineJoin || geometry.lineJoin || (isLegacyCapTip(raw.kind) || isLegacyTriangleTip(raw.kind) || isLegacyCircleTip(raw.kind) || isLegacyDelimiterTip(raw.kind) || isLegacyHookTip(raw.kind) || (raw.kind === "latex" && !raw.legacy) || metaStealthTip ? "miter" : "round"),
+    miterLimit: style.miterLimit ?? 10,
+    // Tips are separate SVG paths, so PGF paint state must travel with them.
+    strokeOpacity: style.strokeOpacity ?? style.opacity,
+    fillOpacity: style.fillOpacity ?? style.opacity,
     stroke:
       declaredPaint === "stroke" || declaredPaint === "fillstroke"
         ? baseStroke
@@ -718,9 +722,9 @@ export function inlineArrowGeometry(tip, style = {}, flags = {}) {
         // PGF's Latex tip leaves the point almost tangentially, then rounds
         // out towards its base. Keeping this control-point order is visible
         // on small scaled tips such as Latex[scale=0.5].
-        `C ${format(-length * 0.124)} ${format(-halfWidth * 0.077)} ${format(-length * 0.664)} ${format(-halfWidth * 0.519)} ${format(-length)} ${format(-halfWidth)}`,
+        `C ${format(-length * (1 - 0.877192))} ${format(-halfWidth * 0.077922)} ${format(-length * (1 - 0.337381))} ${format(-halfWidth * 0.519480)} ${format(-length)} ${format(-halfWidth)}`,
         `L ${format(-length)} ${format(halfWidth)}`,
-        `C ${format(-length * 0.664)} ${format(halfWidth * 0.519)} ${format(-length * 0.124)} ${format(halfWidth * 0.077)} 0 0 Z`
+        `C ${format(-length * (1 - 0.337381))} ${format(halfWidth * 0.519480)} ${format(-length * (1 - 0.877192))} ${format(halfWidth * 0.077922)} 0 0 Z`
       ].join(" "),
       shorten: native.shorten,
       assemblyLength: native.assemblyLength,
@@ -1467,8 +1471,10 @@ export function renderInlineArrowTip(tip, point, angle, unit, curveContext = {})
       ? ` stroke="${escapeAttribute(stroke)}" stroke-width="${format(strokeWidth)}"`
       : ` stroke="none"`;
     const lineStyle = strokeWidth > 0
-      ? ` stroke-linecap="${escapeAttribute(part.lineCap || tip.lineCap || "round")}" stroke-linejoin="${escapeAttribute(part.lineJoin || tip.lineJoin || "round")}"`
+      ? ` stroke-linecap="${escapeAttribute(part.lineCap || tip.lineCap || "round")}" stroke-linejoin="${escapeAttribute(part.lineJoin || tip.lineJoin || "round")}" stroke-miterlimit="${format(tip.miterLimit ?? 10)}"`
       : "";
+    const opacity = (Number.isFinite(tip.strokeOpacity) ? ` stroke-opacity="${format(tip.strokeOpacity)}"` : "") +
+      (Number.isFinite(tip.fillOpacity) ? ` fill-opacity="${format(tip.fillOpacity)}"` : "");
     const modeClass = curved ? ` tikz-arrow-${escapeAttribute(curved.mode)}` : "";
     const partClass = part.name ? ` tikz-arrow-part-${escapeAttribute(part.name)}` : "";
     const path = curved?.path || part.path;
@@ -1476,7 +1482,7 @@ export function renderInlineArrowTip(tip, point, angle, unit, curveContext = {})
     const transform = curved
       ? curvedArrowTransformAttribute(curved)
       : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})${localScaleX}"`;
-    return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}${partClass}" d="${path}" fill="${escapeAttribute(fill)}"${strokePart}${lineStyle}${transform} />`;
+    return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}${partClass}" d="${path}" fill="${escapeAttribute(fill)}"${strokePart}${lineStyle}${opacity}${transform} />`;
   }).join("");
 }
 

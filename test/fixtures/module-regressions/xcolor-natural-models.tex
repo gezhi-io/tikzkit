@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{xcolor}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \foreach \c [count=\i from 0] in {yellow,yellow!90!black,yellow!30,green,purple,orange,cyan!50,cyan!20,gray!50,gray!70!black,cyan!50!orange} {
+    \fill[\c] (\i,0) rectangle +(0.8,0.8);
+  }
+\end{tikzpicture}
+\end{document}

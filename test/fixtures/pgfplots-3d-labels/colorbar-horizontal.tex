@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[scale only axis,width=6cm,height=4cm,view={30}{30},
+  enlargelimits=false,xmin=-1,xmax=1,ymin=-1,ymax=1,zmin=10000,zmax=20000,
+  xtick=\empty,ytick=\empty,ztick=\empty,colorbar horizontal,
+  colorbar style={at={(1.2,0)},anchor=south west,width=3cm,height=.5cm,
+    xtick={10000,20000},xticklabel pos=upper,title={Score}}]
+\addplot3[surf,samples=2,domain=-1:1,y domain=-1:1] {5000*(x+3)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

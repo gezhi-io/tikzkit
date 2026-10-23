@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {
+      "id": "compact-math-renderer-gene-colors",
+      "title": "Gene expression color and inline box dispatch",
+      "source": "colors.tex",
+      "nativeGlyphFrame": { "color": "rgb(191, 0, 64)", "count": 14 }
+    },
+    {
+      "id": "compact-math-renderer-gene-literal",
+      "title": "Native CMTT10 gene label advances",
+      "source": "literal.tex",
+      "nativeGlyphFrame": { "color": "rgb(191, 0, 64)", "count": 24 }
+    },
+    {
+      "id": "compact-math-inline-padding",
+      "title": "Inline baseline, descender and font-relative padding",
+      "source": "padding.tex",
+      "nativeGlyphFrame": { "color": "rgb(191, 0, 64)", "count": 12 }
+    }
+  ]
+}

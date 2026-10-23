@@ -1,0 +1,15 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz,amsbsy}
+\begin{document}
+\begin{tikzpicture}
+  \draw[purple] (-0.5,0.6) rectangle (6,-2.9);
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (0,0) {$\mathbf{\hat{x}}$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,0) {$\hat{\mathbf{x}}$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-0.7) {$\boldsymbol{\hat{x}}$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,-0.7) {$\hat{\boldsymbol{x}}$};
+  \node[font=\mathversion{bold},anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-1.4) {$\hat{x}$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,-1.4) {$\hat{\mathnormal{x}}$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (0,-2.1) {$\mathnormal{\mathrm{\hat{x}}}$};
+  \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (3,-2.1) {$\mathnormal{\mathbf{\hat{x}}}$};
+\end{tikzpicture}
+\end{document}

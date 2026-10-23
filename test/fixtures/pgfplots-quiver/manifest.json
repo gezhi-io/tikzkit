@@ -1,0 +1,13 @@
+{
+  "cases": [
+    {"id":"quiver-sampling-window","title":"Sample the full domain before clipping the viewport","source":"sampling-window.tex","quiverPaint":"blue"},
+    {"id":"quiver-single-row","title":"A single y sample uses the native y=0 line","source":"single-row.tex","quiverPaint":"red"},
+    {"id":"colormap-rgb-first","title":"RGB interpolation after xcolor conversion","source":"colormap-rgb.tex"},
+    {"id":"colormap-cmyk-first","title":"CMYK interpolation before display conversion","source":"colormap-cmyk.tex"},
+    {"id":"quiver-inherited-grid","title":"Quiver default and inherited arrow styles","source":"inherited.tex"},
+    {"id":"quiver-point-meta-grid","title":"Point-meta-driven length and unchanged width","source":"point-meta.tex"},
+    {"id":"quiver-style-overrides-grid","title":"Every-arrow style and paint overrides","source":"overrides.tex"},
+    {"id":"3d-gradient-colored","title":"Real gradient field with metadata-sized Latex tips","source":"../examples/latex-examples/3d-gradient-colored.tex"},
+    {"id":"3d-gradient-cos","title":"Oblique surface with inherited classic stealth tips","source":"../examples/latex-examples/3d-gradient-cos.tex"}
+  ]
+}

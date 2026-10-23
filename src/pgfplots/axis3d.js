@@ -1,5 +1,5 @@
 import { createScaledTickFormat, formatAxisNumber, formatAxisPoint, formatScaledAxisTickLabel, joinOptions } from "./format.js";
-import { pgfplotsViewDirection } from "./geometry.js";
+import { createAxisGeometry, pgfplotsViewDirection } from "./geometry.js";
 import { pgfplotsSurfaceColor } from "./surface.js";
 import {
   axisAutoMajorTickCount,
@@ -15,6 +15,7 @@ import {
   axisTickNumberFormat,
   axisTickValues,
   extraAxisTickPassOptions,
+  renderAxisTicks,
   tickDistanceValues as axisTickDistanceValues
 } from "./ticks.js";
 import { parseDimension } from "../engine/math.js";
@@ -24,6 +25,9 @@ import { isLogAxis } from "./ranges.js";
 import { axisLogBase, axisLogTickLabel } from "./logAxis.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
+import { layoutNativeMath } from "../tex/mathBox.js";
+import { layoutNativeText } from "../tex/textBox.js";
+import { axisDescriptionPoint, renderAxisLabels } from "./labels.js";
 import {
   estimateFormulaBox,
   formulaTotalHeight,
@@ -38,14 +42,35 @@ export function renderAxis3DBox(axisOptions = {}, ranges, geometry) {
   if (["left", "middle", "center"].includes(axisLines)) {
     const openStyle = `${style}, -stealth`;
     const edges = axis3DTickLabelEdges(ranges, geometry);
-    return ["x", "y", "z"].map((axis) =>
+    return ["x", "y", "z"].filter(axis => axis3DLineOnSurface(axisOptions, axis)).map((axis) =>
       `\\draw[${openStyle}] ${formatAxisPoint(edges[axis].from)} -- ${formatAxisPoint(edges[axis].to)};`
     );
   }
   const foreground = axis3DForegroundFaces(axisOptions, geometry);
   return axis3DBoxEdges(ranges, geometry)
+    .filter(edge => axis3DLineOnSurface(axisOptions, edge.axis))
     .filter((edge) => !axis3DEdgeIsForeground(edge, foreground))
     .map((edge) => `\\draw[${style}] ${formatAxisPoint(edge.from)} -- ${formatAxisPoint(edge.to)};`);
+}
+
+function axis3DLineOnSurface(options, axis) {
+  const surface = options["tikzkit 3d surface"];
+  return !surface || (axis === "z" ? surface === "x" : surface === "z");
+}
+
+export function renderAxis3DBackground(axisOptions, ranges, geometry) {
+  const commands = [];
+  // pgfplots@draw@axis visits the xy, yz and xz faces in this order.
+  // Later grids can cover earlier box edges; flattening all grids into
+  // one background layer incorrectly leaves every box edge black.
+  for (const surface of ["z", "x", "y"]) {
+    const pass = { ...axisOptions, "tikzkit 3d surface": surface };
+    commands.push(...renderAxis3DGrid(pass, ranges, geometry));
+    commands.push(...renderAxis3DTicks(pass, ranges, geometry).filter(command => command.startsWith("\\draw")));
+    commands.push(...renderAxis3DBox(pass, ranges, geometry));
+  }
+  commands.push(...renderAxis3DTicks(axisOptions, ranges, geometry).filter(command => !command.startsWith("\\draw")));
+  return commands;
 }
 
 export function renderAxis3DBoxForeground(axisOptions = {}, ranges, geometry) {
@@ -106,6 +131,8 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     const innerSep = axisTickLabelInnerSep(options, axis) ?? defaultPerspectiveTickLabelInnerSep(options, axis);
     return joinOptions([
       "axis tick label",
+      "tikzkit native math, tikzkit tex node anchors, tikzkit layout bbox",
+      !options[`${axis}ticklabels`] && !options[`${axis}ticklabel`] ? "tikzkit math number" : "",
       `anchor=${axisTickLabelAnchor(style, anchor, axis)}`,
       axisTickLabelRotation(style),
       axisTickLabelAlignment(style),
@@ -133,8 +160,6 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   const layout = axis3DAnnotationLayout(axisOptions, ranges, geometry);
   const oppositeTickAxes = Object.fromEntries(["x", "y", "z"].map((axis) => [axis, shouldRenderOpposite3DTicks(axisOptions, axis)]));
   const boxTickEdges = Object.values(oppositeTickAxes).some(Boolean) ? axis3DBoxTickEdges(axisOptions, ranges, geometry) : {};
-  const center = Object.values(oppositeTickAxes).some(Boolean) ? projectedBoxCenter(ranges, geometry) : null;
-  const tickNormal = (axis, edge) => oppositeTickAxes[axis] ? annotationNormal(edge, center, axis) : edge.normal;
   const minorTickLength = parseDimension(String(axisOptions["minor tick length"] || axisOptions.subtickwidth || "0.1cm"), {});
   for (const [axis, values] of Object.entries(minorTicks)) {
     for (const value of values) {
@@ -145,20 +170,18 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
           ? { x: edge.x, y: value, z: edge.z }
           : { x: edge.x, y: edge.y, z: value };
       const base = geometry.mapPoint3d(coordinate);
-      const to = offsetAlongNormal(base, invertVector(tickNormal(axis, edge)), minorTickLength);
       const minorStyle = "axis minor tick, gray, line width=0.2pt";
-      commands.push(`\\draw[${minorStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
+      commands.push(...axis3DEdgeTickCommands(axisOptions, axis, base, edge, minorStyle, minorTickLength));
       if (oppositeTickAxes[axis]) {
-        commands.push(...additionalBoxTickCommands(axis, value, layout[axis], boxTickEdges[axis], center, geometry, minorStyle, minorTickLength));
+        commands.push(...additionalBoxTickCommands(axisOptions, axis, value, layout[axis], boxTickEdges[axis], geometry, minorStyle, minorTickLength));
       }
     }
   }
   for (const [index, x] of resolvedXTicks.entries()) {
     const tickStyle = axis3DTickStyle(axisOptions, "x");
     const base = geometry.mapPoint3d({ x, y: layout.x.y, z: layout.x.z });
-    const to = offsetAlongNormal(base, invertVector(tickNormal("x", layout.x)), tickLength);
-    commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
-    if (oppositeTickAxes.x) commands.push(...additionalBoxTickCommands("x", x, layout.x, boxTickEdges.x, center, geometry, tickStyle, tickLength));
+    commands.push(...axis3DEdgeTickCommands(axisOptions, "x", base, layout.x, tickStyle, tickLength));
+    if (oppositeTickAxes.x) commands.push(...additionalBoxTickCommands(axisOptions, "x", x, layout.x, boxTickEdges.x, geometry, tickStyle, tickLength));
     if (labels.x[index] !== "") {
       const placement = axis3DTickLabelPlacement(axisOptions, "x", layout.x, base, labels.x[index], tickLength);
       commands.push(`\\node[${tickLabelStyle(axisOptions, "x", placement.anchor)}] at ${formatAxisPoint(placement.point)} {${labels.x[index]}};`);
@@ -167,9 +190,8 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   for (const [index, y] of resolvedYTicks.entries()) {
     const tickStyle = axis3DTickStyle(axisOptions, "y");
     const base = geometry.mapPoint3d({ x: layout.y.x, y, z: layout.y.z });
-    const to = offsetAlongNormal(base, invertVector(tickNormal("y", layout.y)), tickLength);
-    commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
-    if (oppositeTickAxes.y) commands.push(...additionalBoxTickCommands("y", y, layout.y, boxTickEdges.y, center, geometry, tickStyle, tickLength));
+    commands.push(...axis3DEdgeTickCommands(axisOptions, "y", base, layout.y, tickStyle, tickLength));
+    if (oppositeTickAxes.y) commands.push(...additionalBoxTickCommands(axisOptions, "y", y, layout.y, boxTickEdges.y, geometry, tickStyle, tickLength));
     if (labels.y[index] !== "") {
       const placement = axis3DTickLabelPlacement(axisOptions, "y", layout.y, base, labels.y[index], tickLength);
       commands.push(`\\node[${tickLabelStyle(axisOptions, "y", placement.anchor)}] at ${formatAxisPoint(placement.point)} {${labels.y[index]}};`);
@@ -178,9 +200,8 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
   for (const [index, z] of resolvedZTicks.entries()) {
     const tickStyle = axis3DTickStyle(axisOptions, "z");
     const base = geometry.mapPoint3d({ x: layout.z.x, y: layout.z.y, z });
-    const to = offsetAlongNormal(base, invertVector(tickNormal("z", layout.z)), tickLength);
-    commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
-    if (oppositeTickAxes.z) commands.push(...additionalBoxTickCommands("z", z, layout.z, boxTickEdges.z, center, geometry, tickStyle, tickLength));
+    commands.push(...axis3DEdgeTickCommands(axisOptions, "z", base, layout.z, tickStyle, tickLength));
+    if (oppositeTickAxes.z) commands.push(...additionalBoxTickCommands(axisOptions, "z", z, layout.z, boxTickEdges.z, geometry, tickStyle, tickLength));
     if (labels.z[index] !== "") {
       const placement = axis3DTickLabelPlacement(axisOptions, "z", layout.z, base, labels.z[index], tickLength);
       commands.push(`\\node[${tickLabelStyle(axisOptions, "z", placement.anchor)}] at ${formatAxisPoint(placement.point)} {${labels.z[index]}};`);
@@ -194,11 +215,11 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
     commands.push(`\\node[axis tick scale label, anchor=${axisTickAnnotationAnchor(axisOptions, "z", layout.z.normal)}, font=${font}, inner sep=0pt, outer sep=0pt] at ${formatAxisPoint(scaleBase)} {$${zTickFormat.scaleLabel}$};`);
   }
-  appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, center, tickLabelStyle);
+  appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, tickLabelStyle);
   return dedupeAdjacentCommands(commands.filter(Boolean));
 }
 
-function appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, center, tickLabelStyle) {
+function appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, tickLabelStyle) {
   for (const axis of ["x", "y", "z"]) {
     const pass = extraAxisTickPassOptions(axisOptions, axis, [], ranges);
     if (!pass) continue;
@@ -222,11 +243,9 @@ function appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout,
           ? { x: edge.x, y: value, z: edge.z }
           : { x: edge.x, y: edge.y, z: value };
       const base = geometry.mapPoint3d(coordinate);
-      const primaryTickNormal = opposite ? annotationNormal(edge, center, axis) : edge.normal;
-      const to = offsetAlongNormal(base, invertVector(primaryTickNormal), tickLength);
-      commands.push(`\\draw[${tickStyle}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`);
+      commands.push(...axis3DEdgeTickCommands(pass, axis, base, edge, tickStyle, tickLength));
       if (opposite) {
-        commands.push(...additionalBoxTickCommands(axis, value, edge, boxTickEdges[axis], center, geometry, tickStyle, tickLength));
+        commands.push(...additionalBoxTickCommands(pass, axis, value, edge, boxTickEdges[axis], geometry, tickStyle, tickLength));
       }
       if (labels[index] !== "") {
         const placement = axis3DTickLabelPlacement(pass, axis, edge, base, labels[index], tickLength);
@@ -434,18 +453,23 @@ function axis3DGridLine(style, geometry, from, to) {
 }
 
 function appendAxis3DGridLines(commands, style, geometry, ranges, background, ticks, axisOptions, minor) {
+  const append = (surface, from, to) => {
+    if (!axisOptions["tikzkit 3d surface"] || axisOptions["tikzkit 3d surface"] === surface) {
+      commands.push(axis3DGridLine(style, geometry, from, to));
+    }
+  };
   for (const axis of ["x", "y", "z"]) {
     if (minor && !shouldRenderMinor3DGrid(axisOptions, axis)) continue;
     for (const value of ticks[axis] || []) {
       if (axis === "x") {
-        commands.push(axis3DGridLine(style, geometry, { x: value, y: ranges.yMin, z: background.z }, { x: value, y: ranges.yMax, z: background.z }));
-        commands.push(axis3DGridLine(style, geometry, { x: value, y: background.y, z: ranges.zMin }, { x: value, y: background.y, z: ranges.zMax }));
+        append("z", { x: value, y: ranges.yMin, z: background.z }, { x: value, y: ranges.yMax, z: background.z });
+        append("y", { x: value, y: background.y, z: ranges.zMin }, { x: value, y: background.y, z: ranges.zMax });
       } else if (axis === "y") {
-        commands.push(axis3DGridLine(style, geometry, { x: ranges.xMin, y: value, z: background.z }, { x: ranges.xMax, y: value, z: background.z }));
-        commands.push(axis3DGridLine(style, geometry, { x: background.x, y: value, z: ranges.zMin }, { x: background.x, y: value, z: ranges.zMax }));
+        append("z", { x: ranges.xMin, y: value, z: background.z }, { x: ranges.xMax, y: value, z: background.z });
+        append("x", { x: background.x, y: value, z: ranges.zMin }, { x: background.x, y: value, z: ranges.zMax });
       } else {
-        commands.push(axis3DGridLine(style, geometry, { x: ranges.xMin, y: background.y, z: value }, { x: ranges.xMax, y: background.y, z: value }));
-        commands.push(axis3DGridLine(style, geometry, { x: background.x, y: ranges.yMin, z: value }, { x: background.x, y: ranges.yMax, z: value }));
+        append("y", { x: ranges.xMin, y: background.y, z: value }, { x: ranges.xMax, y: background.y, z: value });
+        append("x", { x: background.x, y: ranges.yMin, z: value }, { x: background.x, y: ranges.yMax, z: value });
       }
     }
   }
@@ -514,11 +538,15 @@ function axis3DParallelEdges(ranges, geometry) {
 function projectedEdge(geometry, ranges, edge, from, to) {
   const projectedFrom = finitePoint(geometry.mapPoint3d(from));
   const projectedTo = finitePoint(geometry.mapPoint3d(to));
+  const transverse = projectedTransverseDirections(geometry, ranges, edge, from, to);
+  const sum = Object.values(transverse).reduce((a, b) => ({ x: a.x + b.x, y: a.y + b.y }), { x: 0, y: 0 });
   return {
     ...edge,
     from: projectedFrom,
     to: projectedTo,
-    outerNormal: projectedOuterNormal(geometry, ranges, edge, from, to),
+    outerNormal: normalizedVector({ x: 0, y: 0 }, sum),
+    transverse,
+    sides: Object.fromEntries(Object.entries(edge).map(([axis, value]) => [axis, value === ranges[`${axis}Min`] ? "lower" : "upper"])),
     midpoint: {
       x: (projectedFrom.x + projectedTo.x) / 2,
       y: (projectedFrom.y + projectedTo.y) / 2
@@ -526,7 +554,7 @@ function projectedEdge(geometry, ranges, edge, from, to) {
   };
 }
 
-function projectedOuterNormal(geometry, ranges, edge, from, to) {
+function projectedTransverseDirections(geometry, ranges, edge, from, to) {
   const varyingAxis = ["x", "y", "z"].find((axis) => edge[axis] === undefined);
   const midpoint = {
     x: (from.x + to.x) / 2,
@@ -534,7 +562,7 @@ function projectedOuterNormal(geometry, ranges, edge, from, to) {
     z: (from.z + to.z) / 2
   };
   const projectedMidpoint = finitePoint(geometry.mapPoint3d(midpoint));
-  const components = [];
+  const components = {};
   for (const axis of ["x", "y", "z"]) {
     if (axis === varyingAxis) continue;
     const min = Number(ranges[`${axis}Min`]);
@@ -544,14 +572,9 @@ function projectedOuterNormal(geometry, ranges, edge, from, to) {
     const interiorValue = Math.abs(current - min) <= Math.abs(current - max) ? max : min;
     const interiorPoint = { ...midpoint, [axis]: interiorValue };
     const inward = normalizedVector(projectedMidpoint, finitePoint(geometry.mapPoint3d(interiorPoint)));
-    if (inward) components.push({ x: -inward.x, y: -inward.y });
+    if (inward) components[axis] = { x: -inward.x, y: -inward.y };
   }
-  if (!components.length) return null;
-  const sum = components.reduce((result, component) => ({
-    x: result.x + component.x,
-    y: result.y + component.y
-  }), { x: 0, y: 0 });
-  return normalizedVector({ x: 0, y: 0 }, sum);
+  return components;
 }
 
 function chooseProjectedEdge(edges, coordinate, direction = "min") {
@@ -563,10 +586,10 @@ function chooseProjectedEdge(edges, coordinate, direction = "min") {
   });
 }
 
-function additionalBoxTickCommands(axis, value, labelEdge, edges, center, geometry, style, length) {
+function additionalBoxTickCommands(axisOptions, axis, value, labelEdge, edges, geometry, style, length) {
   return (edges || [])
     .filter((edge) => !sameAxis3DEdge(axis, edge, labelEdge))
-    .map((edge) => boxTickCommand(axis, value, edge, center, geometry, style, length))
+    .flatMap((edge) => boxTickCommands(axisOptions, axis, value, edge, geometry, style, length))
     .filter(Boolean);
 }
 
@@ -577,25 +600,30 @@ function sameAxis3DEdge(axis, first, second) {
   return first.x === second.x && first.y === second.y;
 }
 
-function boxTickCommand(axis, value, edge, center, geometry, style, length) {
-  if (!edge) return "";
+function boxTickCommands(axisOptions, axis, value, edge, geometry, style, length) {
+  if (!edge) return [];
   const coordinate = axis === "x"
     ? { x: value, y: edge.y, z: edge.z }
     : axis === "y"
       ? { x: edge.x, y: value, z: edge.z }
       : { x: edge.x, y: edge.y, z: value };
   const base = geometry.mapPoint3d(coordinate);
-  const outward = annotationNormal(edge, center, axis);
-  const to = offsetAlongNormal(base, { x: -outward.x, y: -outward.y }, length);
-  return `\\draw[${style}] ${formatAxisPoint(base)} -- ${formatAxisPoint(to)};`;
+  return axis3DEdgeTickCommands(axisOptions, axis, base, edge, style, length);
 }
 
 function axis3DAnnotationLayout(axisOptions, ranges, geometry) {
   const edges = axis3DTickLabelEdges(ranges, geometry);
   const center = projectedBoxCenter(ranges, geometry);
   return Object.fromEntries(Object.entries(edges).map(([axis, edge]) => {
-    const normal = annotationNormal(edge, center, axis, shouldRenderOpposite3DTicks(axisOptions, axis));
-    return [axis, { ...edge, normal, anchor: anchorForOutwardNormal(normal) }];
+    // PGFPlots combines the projected transverse directions, also for open
+    // axes. A screen-perpendicular normal misplaces shared-corner labels.
+    const normal = annotationNormal(edge, center, axis, true);
+    const transverse = axis === "y" ? "x" : "y";
+    // draw@axis@insurface uses xy/z, yx/z and zy/x for tick labels.
+    // The physical tick protrusion follows that plane's transverse vector;
+    // the node's near-ticklabel anchor still uses the combined outer normal.
+    const tickNormal = edge.transverse[transverse] || normal;
+    return [axis, { ...edge, normal, tickNormal, anchor: anchorForOutwardNormal(normal) }];
   }));
 }
 
@@ -665,7 +693,7 @@ function axisFallbackNormal(axis) {
   return { x: -1, y: 0 };
 }
 
-function tickLabelDistance(axisOptions = {}, axis, tickLength = parseDimension("0.15cm", {})) {
+function axis3DTickProtrusion(axisOptions = {}, axis, tickLength) {
   const axisLine = String(
     axisOptions[`axis ${axis} line`] ??
     axisOptions[`axis ${axis} line*`] ??
@@ -673,10 +701,6 @@ function tickLabelDistance(axisOptions = {}, axis, tickLength = parseDimension("
     axisOptions.axis ??
     "box"
   ).trim().toLowerCase();
-  if (axisLine === "box") {
-    const boxedDistance = axis === "x" ? 0.155 : 0.04;
-    return Math.max(0, boxedDistance + axisTickLabelShift(axisOptions, axis));
-  }
   const defaultAlignment = axisLine === "box" ? "inside" : "center";
   const alignment = String(
     axisOptions[`${axis}tick align`] ??
@@ -685,18 +709,43 @@ function tickLabelDistance(axisOptions = {}, axis, tickLength = parseDimension("
     defaultAlignment
   ).trim().toLowerCase();
   const factor = alignment === "outside" ? 1 : alignment === "center" ? 0.5 : 0;
-  const shift = axisTickLabelShift(axisOptions, axis);
-  return Math.max(0, tickLength * factor + shift);
+  return tickLength * factor;
+}
+
+function axis3DEdgeTickCommands(axisOptions, axis, base, edge, style, length) {
+  const protrusion = axis3DTickProtrusion(axisOptions, axis, length);
+  const line = String(axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`] ?? axisOptions["axis lines"] ?? "box");
+  const position = String(axisOptions[`${axis}tick pos`] ?? axisOptions["tick pos"] ?? (line === "box" ? "both" : "left"));
+  const directions = Object.entries(edge.transverse || {}).filter(([transverse]) => {
+    const surface = axisOptions["tikzkit 3d surface"];
+    if (surface && (surface === axis || surface === transverse)) return false;
+    // tickpos is tested in each oriented surface, independently of the
+    // edge chosen for labels (which can lie at the upper data limit).
+    if (position === "left" || position === "bottom") return edge.sides[transverse] === "lower";
+    if (position === "right" || position === "top") return edge.sides[transverse] === "upper";
+    return true;
+  }).map(([, direction]) => direction);
+  if (!Object.keys(edge.transverse || {}).length) directions.push(edge.normal || axisFallbackNormal(axis));
+  // A box edge belongs to two oriented surfaces. PGF draws a tick in each
+  // transverse direction; a single screen normal loses one of those marks.
+  return directions.map(outward => {
+    const from = offsetAlongNormal(base, outward, protrusion);
+    const to = offsetAlongNormal(base, outward, protrusion - length);
+    return `\\draw[${style}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`;
+  });
 }
 
 function axis3DTickLabelPlacement(axisOptions, axis, edge, base, text, tickLength) {
   const style = axisTickLabelStyleOptions(axisOptions, axis);
   const fallbackAnchor = axisTickAnnotationAnchor(axisOptions, axis, edge.normal);
   const explicitAnchor = explicitAxis3DAnchor(style);
+  const protrusion = axis3DTickProtrusion(axisOptions, axis, tickLength);
+  const at = offsetAlongNormal(offsetAlongNormal(base, edge.tickNormal || edge.normal, protrusion),
+    edge.normal, axisTickLabelShift(axisOptions, axis));
   if (explicitAnchor) {
     return {
       anchor: axisTickLabelAnchor(style, fallbackAnchor, axis),
-      point: offsetAlongNormal(base, edge.normal, tickLabelDistance(axisOptions, axis, tickLength))
+      point: at
     };
   }
 
@@ -706,13 +755,14 @@ function axis3DTickLabelPlacement(axisOptions, axis, edge, base, text, tickLengt
   return {
     anchor: "center",
     point: axis3DNearTickLabelCenter(
-      offsetAlongNormal(base, edge.normal, axisTickLabelShift(axisOptions, axis)),
+      at,
       edge,
       edge.normal,
       text,
       font,
       rotation,
-      innerSep
+      innerSep,
+      true
     )
   };
 }
@@ -722,8 +772,8 @@ function explicitAxis3DAnchor(style = {}) {
   return String(style.anchor).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
 }
 
-function axis3DNearTickLabelCenter(at, edge, outward, text, font, rotation, innerSep) {
-  const size = axis3DTextNodeSize(text, font, innerSep);
+function axis3DNearTickLabelCenter(at, edge, outward, text, font, rotation, innerSep, numeric = false) {
+  const size = axis3DTextNodeSize(text, font, innerSep, numeric);
   const radians = -(Number(rotation) || 0) * Math.PI / 180;
   const inward = rotateVector(invertVector(outward), radians);
   const tangent = rotateVector(normalizedVector(edge.from, edge.to) || { x: 1, y: 0 }, radians);
@@ -733,8 +783,11 @@ function axis3DNearTickLabelCenter(at, edge, outward, text, font, rotation, inne
     y: Math.abs(inward.y) > 0.17 ? Math.sign(inward.y) * (size.height / 2 + outerSep) : 0
   };
   const determinant = inward.x * tangent.y - tangent.x * inward.y;
-  if (Math.abs(determinant) < 1e-9) {
-    return offsetAlongNormal(at, outward, Math.abs(dot2(anchor, inward)));
+  if (Math.abs(dot2(inward, tangent)) >= 0.8 || Math.abs(determinant) < 1e-9) {
+    // PGF uses the snapped border anchor when the linear system would be
+    // ill-conditioned, rather than pushing the label far along the normal.
+    const offset = rotateVector(anchor, -radians);
+    return { x: at.x - offset.x, y: at.y - offset.y };
   }
   const normalDistance = (anchor.x * tangent.y - tangent.x * anchor.y) / determinant;
   return offsetAlongNormal(at, outward, Math.max(0, normalDistance));
@@ -805,6 +858,7 @@ export function renderAxisLabels3D(axisOptions, ranges, geometry) {
 function axis3DAxisLabelCommand(axis, text, placement) {
   return `\\node[${joinOptions([
     "axis label",
+    "tikzkit native math, tikzkit tex node anchors, tikzkit layout bbox",
     `anchor=${placement.anchor}`,
     placement.rotation ? `rotate=${placement.rotation}` : "",
     placement.font ? `font=${placement.font}` : "",
@@ -815,18 +869,14 @@ function axis3DAxisLabelCommand(axis, text, placement) {
 function axis3DAxisLabelPlacement(axisOptions, axis, text, ranges, geometry, layout = axis3DAnnotationLayout(axisOptions, ranges, geometry)) {
   const edge = layout[axis];
   const style = axis3DLabelStyleOptions(axisOptions, axis);
-  const font = roleFontOption("axisLabel", axisOptions, axis3DFontOption(axisOptions, axis, "label"));
+  const font = roleFontOption("axisLabel", axisOptions, style.font || axis3DFontOption(axisOptions, axis, "label"));
   const rotation = axis3DLabelRotationDegrees(style, axis === "z" ? 90 : 0);
   const innerSep = style["inner sep"] ?? ".3333em";
   const explicitAnchor = explicitAxis3DAnchor(style);
 
-  if (!shouldRenderOpposite3DTicks(axisOptions, axis)) {
-    const legacy = legacyAxis3DLabelPlacement(axisOptions, axis, edge);
-    return { ...legacy, font, rotation, innerSep, style };
-  }
-
   const tickExtent = axis3DMaximumTickLabelExtent(axisOptions, axis, ranges, geometry, edge);
-  let at = offsetAlongNormal(pointAlongProjectedEdge(edge, 0.5), edge.normal, tickExtent + axis3DLabelShift(axisOptions, axis));
+  let at = axisDescriptionPoint(style.at, geometry) ||
+    offsetAlongNormal(pointAlongProjectedEdge(edge, 0.5), edge.normal, tickExtent + axis3DLabelShift(axisOptions, axis));
   at = offsetPoint(at, axis3DStyleShift(style.xshift), axis3DStyleShift(style.yshift));
   const point = explicitAnchor
     ? at
@@ -838,25 +888,6 @@ function axis3DAxisLabelPlacement(axisOptions, axis, text, ranges, geometry, lay
     rotation,
     innerSep,
     style
-  };
-}
-
-function legacyAxis3DLabelPlacement(axisOptions, axis, edge) {
-  if (axis === "x") {
-    return {
-      point: offsetAlongNormal(pointAlongProjectedEdge(edge, 0.428), edge.normal, 0.615),
-      anchor: axisAnnotationAnchor(axisOptions, axis, edge.normal)
-    };
-  }
-  if (axis === "y") {
-    return {
-      point: offsetAlongNormal(pointAlongProjectedEdge(edge, 0.541), edge.normal, 0.764),
-      anchor: axisAnnotationAnchor(axisOptions, axis, edge.normal)
-    };
-  }
-  return {
-    point: offsetAlongNormal(edge.midpoint, edge.normal, 1),
-    anchor: axisAnnotationAnchor(axisOptions, axis, edge.normal)
   };
 }
 
@@ -892,16 +923,18 @@ function axis3DMaximumTickLabelExtent(axisOptions, axis, ranges, geometry, edge)
         placement.anchor,
         rotation,
         innerSep,
-        base,
+        // PGF measures the hbox from its at-coordinate, then adds the full
+        // scalar tick protrusion, not its dot product with the outer normal.
+        offsetAlongNormal(base, edge.tickNormal || edge.normal, axis3DTickProtrusion(axisOptions, axis, tickLength)),
         edge.normal
-      )
+      ) + axis3DTickProtrusion(axisOptions, axis, tickLength)
     );
   }
   return extent;
 }
 
 function axis3DTextNodeOutwardExtent(at, text, fontCommand, anchor, rotation, innerSep, origin, outward) {
-  const geometry = axis3DTextNodeGeometry(at, text, fontCommand, anchor, rotation, innerSep);
+  const geometry = axis3DTextNodeGeometry(at, text, fontCommand, anchor, rotation, innerSep, true);
   const radians = (Number(rotation) || 0) * Math.PI / 180;
   const localX = { x: Math.cos(radians), y: Math.sin(radians) };
   const localY = { x: -Math.sin(radians), y: Math.cos(radians) };
@@ -975,58 +1008,51 @@ export function renderAxis3DColorbar(axisOptions = {}, ranges, geometry) {
   );
   const box = colorbarBox(styleOptions, bounds, parentBounds, width, height, orientation);
   const { xMin, xMax, yMin, yMax } = box;
-  const horizontalSide = colorbarHorizontalTickSide(styleOptions);
+  const colorRanges = { ...ranges, ...(axisOptions["pgfplots surveyed color range"] || {}) };
   const commands = [];
-  const gradientStops = colorbarGradientStops(ranges, axisOptions);
+  const gradientStops = colorbarGradientStops(colorRanges, axisOptions);
   const gradientAngle = orientation === "horizontal" ? 270 : 0;
   commands.push(
     `\\draw[axis colorbar, draw=none, shading=axis, shading angle=${gradientAngle}, tikzkit axis stops={${gradientStops}}, line width=0pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
   );
   commands.push(
-    `\\draw[axis colorbar frame, black, line width=0.25pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
+    `\\draw[axis colorbar frame, black, line width=0.4pt] ${formatAxisPoint({ x: xMin, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMin })} -- ${formatAxisPoint({ x: xMax, y: yMax })} -- ${formatAxisPoint({ x: xMin, y: yMax })} -- cycle;`
   );
   const ticks = colorbarTickValues(
     orientation === "horizontal" ? styleOptions.xtick : styleOptions.ytick,
-    ranges,
+    colorRanges,
     orientation === "horizontal" ? width : height,
     styleOptions
   );
-  const tickAxis = orientation === "horizontal" ? "x" : "y";
-  const tickFormat = createScaledTickFormat(ticks, scaledTickOptions({ ...axisOptions, ...styleOptions }, tickAxis));
-  const tickPrecision = scaledTickLabelPrecision(ticks, tickFormat);
-  for (const tick of ticks) {
-    const position = (tick - ranges.zMin) / (ranges.zMax - ranges.zMin || 1);
-    const from = colorbarTickPoint(box, position, orientation, 0, horizontalSide);
-    const to = colorbarTickPoint(box, position, orientation, 0.08, horizontalSide);
-    const labelAnchor = orientation === "horizontal"
-      ? horizontalSide === "upper" ? "south" : "north"
-      : orientation === "left" ? "east" : "west";
-    const labelOffset = orientation === "horizontal"
-      ? offsetPoint(to, 0, horizontalSide === "upper" ? 0.05 : -0.05)
-      : offsetPoint(to, orientation === "left" ? -0.05 : 0.05, 0);
-    commands.push(`\\draw[axis colorbar tick, black, line width=0.22pt] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
-    commands.push(`\\node[axis colorbar tick label, anchor=${labelAnchor}, font=${tickFont}] at ${formatAxisPoint(labelOffset)} {${formatScaledAxisTickLabel(tick, tickFormat, { precision: tickPrecision })}};`);
-  }
-  if (tickFormat.scaled) {
-    const scalePoint = orientation === "horizontal"
-      ? { x: xMax, y: horizontalSide === "upper" ? yMax + 0.13 : yMin - 0.13 }
-      : { x: xMin, y: yMax };
-    const scaleAnchor = orientation === "horizontal"
-      ? horizontalSide === "upper" ? "south east" : "north east"
-      : "south west";
-    commands.push(`\\node[axis colorbar tick scale label, anchor=${scaleAnchor}, font=${tickFont}] at ${formatAxisPoint(scalePoint)} {$${tickFormat.scaleLabel}$};`);
-  }
-  if (styleOptions.title) {
-    const titleFont = pgfplotsRoleFontCommand(
-      "title",
-      axisOptions,
-      fontFromStyle(styleOptions["title style"]) || styleOptions["title font"]
-    );
-    const titleY = yMax + (orientation === "horizontal"
-      ? horizontalSide === "upper" ? 0.36 : 0.12
-      : tickFormat.scaled ? 0.29 : 0.12);
-    commands.push(`\\node[axis colorbar title, anchor=south, font=${titleFont}] at ${formatAxisPoint({ x: (xMin + xMax) / 2, y: titleY })} {${styleOptions.title}};`);
-  }
+  // PGFPlots creates a separate 2D axis for the colorbar. Reuse its tick
+  // placement, number formatting and TeX boxes instead of approximating
+  // outward ticks and measuring the title with the surface-label renderer.
+  const horizontal = orientation === "horizontal";
+  const barOptions = {
+    "axis lines": "box", "scale only axis": true, enlargelimits: false,
+    "pgfplots compat": axisOptions["pgfplots compat"] ?? axisOptions.compat,
+    "axis tick label font": tickFont,
+    "axis title font": pgfplotsRoleFontCommand("title", axisOptions,
+      fontFromStyle(styleOptions["title style"]) || styleOptions["title font"]),
+    "yticklabel pos": orientation === "left" ? "left" : "right",
+    "scaled ticks": axisOptions["scaled ticks"],
+    ...styleOptions,
+    width: `${width}cm`, height: `${height}cm`, at: `{(${xMin},${yMin})}`,
+    xtick: horizontal ? `{${ticks.join(",")}}` : "\\empty",
+    ytick: horizontal ? "\\empty" : `{${ticks.join(",")}}`
+  };
+  const barRanges = horizontal
+    ? { xMin: colorRanges.zMin, xMax: colorRanges.zMax, yMin: 0, yMax: 1 }
+    : { xMin: 0, xMax: 1, yMin: colorRanges.zMin, yMax: colorRanges.zMax };
+  const barGeometry = createAxisGeometry(barOptions, barRanges);
+  const native = command => command.replace(/^\\node\[([^,]+),/,
+    "\\node[$1, tikzkit native math, tikzkit tex node anchors,");
+  commands.push(...renderAxisTicks(barOptions, [], barRanges, barGeometry).map(command => native(command
+    .replace("axis tick scale label", "axis colorbar tick scale label")
+    .replace("axis tick label", "axis colorbar tick label")
+    .replace("axis tick,", "axis colorbar tick,"))));
+  commands.push(...renderAxisLabels(barOptions, barRanges, barGeometry)
+    .map(command => native(command.replace("axis label,", "axis colorbar title,"))));
   return commands;
 }
 
@@ -1140,14 +1166,19 @@ function axis3DFontOption(axisOptions = {}, axis, role) {
     return lastFontOption([
       axisOptions["axis tick label font"],
       fontFromStyle(axisOptions["tick label style"]),
+      fontFromStyle(axisOptions["ticklabel style"]),
+      fontFromStyle(axisOptions.ticklabelStyle),
       fontFromStyle(axisOptions[`${axis} tick label style`]),
-      axisOptions[`${axis} tick label font`]
+      fontFromStyle(axisOptions[`${axis}ticklabel style`]),
+      axisOptions[`${axis} tick label font`],
+      axisOptions[`${axis}ticklabel font`]
     ]);
   }
   return lastFontOption([
     axisOptions["axis label font"],
     fontFromStyle(axisOptions["label style"]),
     fontFromStyle(axisOptions[`${axis} label style`]),
+    fontFromStyle(axisOptions[`${axis}label style`]),
     axisOptions[`${axis} label font`]
   ]);
 }
@@ -1201,12 +1232,14 @@ function colorbarBox(styleOptions, bounds, parentBounds, width, height, orientat
 
 export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {}) {
   const projected = axis3DProjectedBounds(ranges, geometry);
-  const margin = geometry.margin || {};
+  // PGF's parent description box encloses the painted frame and actual
+  // node hboxes. Layout allocation gutters are not an additional text box.
+  const halfStroke = parseDimension("0.2pt", {});
   const bounds = {
-    minX: projected.minX - finiteNonNegative(margin.left),
-    maxX: projected.maxX + finiteNonNegative(margin.right),
-    minY: projected.minY - finiteNonNegative(margin.bottom),
-    maxY: projected.maxY + finiteNonNegative(margin.top)
+    minX: projected.minX - halfStroke,
+    maxX: projected.maxX + halfStroke,
+    minY: projected.minY - halfStroke,
+    maxY: projected.maxY + halfStroke
   };
   const layout = axis3DAnnotationLayout(axisOptions, ranges, geometry);
   const ticks = axis3DTickValues(axisOptions, ranges, geometry);
@@ -1237,7 +1270,7 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
         text,
         tickLength
       );
-      includeBounds(bounds, axis3DTextNodeBounds(placement.point, text, font, placement.anchor, rotation, innerSep));
+      includeBounds(bounds, axis3DTextNodeBounds(placement.point, text, font, placement.anchor, rotation, innerSep, true));
     }
   }
 
@@ -1274,7 +1307,7 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
         text,
         extraTickLength
       );
-      includeBounds(bounds, axis3DTextNodeBounds(placement.point, text, font, placement.anchor, rotation, innerSep));
+      includeBounds(bounds, axis3DTextNodeBounds(placement.point, text, font, placement.anchor, rotation, innerSep, true));
     }
   }
 
@@ -1321,8 +1354,8 @@ function axis3DTickLabelRotationDegrees(style = {}) {
   return Number.isFinite(rotation) ? rotation : 0;
 }
 
-function axis3DTextNodeBounds(at, text, fontCommand, anchor = "center", rotation = 0, innerSep = ".3333em") {
-  const { center, size } = axis3DTextNodeGeometry(at, text, fontCommand, anchor, rotation, innerSep);
+function axis3DTextNodeBounds(at, text, fontCommand, anchor = "center", rotation = 0, innerSep = ".3333em", numeric = false) {
+  const { center, size } = axis3DTextNodeGeometry(at, text, fontCommand, anchor, rotation, innerSep, numeric);
   const radians = (Number(rotation) || 0) * Math.PI / 180;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
@@ -1336,15 +1369,16 @@ function axis3DTextNodeBounds(at, text, fontCommand, anchor = "center", rotation
   };
 }
 
-function axis3DTextNodeGeometry(at, text, fontCommand, anchor = "center", rotation = 0, innerSep = ".3333em") {
-  const size = axis3DTextNodeSize(text, fontCommand, innerSep);
+function axis3DTextNodeGeometry(at, text, fontCommand, anchor = "center", rotation = 0, innerSep = ".3333em", numeric = false) {
+  const size = axis3DTextNodeSize(text, fontCommand, innerSep, numeric);
   const radians = (Number(rotation) || 0) * Math.PI / 180;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   const normalizedAnchor = String(anchor || "center").trim().toLowerCase().replace(/-/g, " ");
+  const outerSep = parseDimension("0.2pt", {});
   const anchorVector = {
-    x: normalizedAnchor.includes("east") ? size.width / 2 : normalizedAnchor.includes("west") ? -size.width / 2 : 0,
-    y: normalizedAnchor.includes("north") ? size.height / 2 : normalizedAnchor.includes("south") ? -size.height / 2 : 0
+    x: normalizedAnchor.includes("east") ? size.width / 2 + outerSep : normalizedAnchor.includes("west") ? -size.width / 2 - outerSep : 0,
+    y: normalizedAnchor.includes("north") ? size.height / 2 + outerSep : normalizedAnchor.includes("south") ? -size.height / 2 - outerSep : 0
   };
   const rotatedAnchor = {
     x: anchorVector.x * cos - anchorVector.y * sin,
@@ -1354,11 +1388,24 @@ function axis3DTextNodeGeometry(at, text, fontCommand, anchor = "center", rotati
   return { center, size };
 }
 
-function axis3DTextNodeSize(text, fontCommand, innerSep) {
+function axis3DTextNodeSize(text, fontCommand, innerSep, numeric = false) {
   const patch = parseTikzFontPatch(fontCommand || "");
   const fontSizePt = Number(patch.sizePt) || 10;
   const scale = fontSizePt / 10;
   const math = parseMathText(String(text || "").trim());
+  const number = numeric && /^[+\-\u2212\d.,\s]+$/.test(String(text));
+  const native = math || number
+    ? layoutNativeMath(math?.tex ?? String(text).replaceAll("\u2212", "-"), {
+      fontSizePt, mathVersion: patch.mathVersion, preferNativeMath: true
+    })
+    : layoutNativeText(text, patch);
+  // TFM hboxes have no fitted minimum height or width padding. Resolve em/ex
+  // against the selected font, but keep physical pt/cm separation unchanged.
+  const sep = parseDimension(String(innerSep ?? "0pt"), {}, { font: { ...patch, sizePt: fontSizePt } });
+  if (native) return {
+    width: native.width * 2.54 / 72.27 + 2 * sep,
+    height: (native.height + native.depth) * 2.54 / 72.27 + 2 * sep
+  };
   const measured = math
     ? estimateFormulaBox(math.tex, {
         scale,
@@ -1378,7 +1425,6 @@ function axis3DTextNodeSize(text, fontCommand, innerSep) {
     : measured
       ? (measured.height + measured.depth) / 28.45274
       : 0.18 * scale;
-  const sep = parseDimension(String(innerSep || "0pt"), {}) * scale;
   return {
     width: Math.max(0.08 * scale, contentWidth) + 2 * sep,
     height: Math.max(0.18 * scale, contentHeight) + 2 * sep
@@ -1392,35 +1438,10 @@ function includeBounds(target, addition) {
   target.maxY = Math.max(target.maxY, addition.maxY);
 }
 
-function finiteNonNegative(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : 0;
-}
-
 function colorbarShift(raw) {
   if (raw === undefined || raw === null || raw === true || raw === false) return 0;
   const value = parseDimension(String(raw), {});
   return Number.isFinite(value) ? value : 0;
-}
-
-function colorbarHorizontalTickSide(styleOptions = {}) {
-  const raw = String(styleOptions["xticklabel pos"] ?? styleOptions["xtick pos"] ?? "lower")
-    .trim()
-    .toLowerCase();
-  return ["upper", "top", "right"].includes(raw) ? "upper" : "lower";
-}
-
-function colorbarTickPoint(box, position, orientation, extension, horizontalSide = "lower") {
-  if (orientation === "horizontal") {
-    return {
-      x: box.xMin + (box.xMax - box.xMin) * position,
-      y: horizontalSide === "upper" ? box.yMax + extension : box.yMin - extension
-    };
-  }
-  return {
-    x: orientation === "left" ? box.xMin - extension : box.xMax + extension,
-    y: box.yMin + (box.yMax - box.yMin) * position
-  };
 }
 
 function colorbarAt(raw, bounds, parentBounds = bounds) {

@@ -44,15 +44,27 @@ test("renders cdot with the supported upright math glyph", () => {
     mathRenderer: "svg-text"
   });
 
-  assert.match(result.svg, /font-family="TikZKitMath_Main[^>]*>⋅<\/tspan><tspan>10<\/tspan>/);
+  // fontmath.ltx declares CMSY slot 01, encoded as U+00B7 in our
+  // MacTeX subset. It is not an upright fallback-font U+22C5.
+  const group = assertNativeText(result.svg, "\u00b710\u22122");
+  assert.equal(group.glyphs[0].family, "TikZKitCMSY10");
+  assert.equal(group.glyphs[0].size, 10);
+  assert.deepEqual(group.glyphs.slice(1, 3).map(glyph => glyph.family), ["TikZKitCMR10", "TikZKitCMR10"]);
+  assert.ok(group.glyphs.slice(3).every(glyph => glyph.size === 7 && glyph.y < group.glyphs[1].y));
 });
 
-test("renders a standalone cdot from the native Computer Modern glyph path", () => {
+test("renders a standalone cdot from the native Computer Modern symbol font", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}\node at (0,0) {$\cdot$};\end{tikzpicture}`, {
     mathRenderer: "svg-text"
   });
 
-  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-cdot"/);
+  const group = assertNativeText(result.svg, "\u00b7");
+  assert.equal(group.glyphs.length, 1);
+  assert.equal(group.glyphs[0].family, "TikZKitCMSY10");
+  assert.equal(group.glyphs[0].size, 10);
+  assert.equal(group.glyphs[0].style, "normal");
+  assert.equal(group.glyphs[0].y, 0);
+  assert.doesNotMatch(result.svg, /<foreignObject\b/);
   assert.doesNotMatch(result.svg, />⋅<\/tspan>/);
 });
 
@@ -303,8 +315,11 @@ test("renders escaped dollar math labels in TeX order", () => {
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, />\$1</);
-  assert.doesNotMatch(result.svg, />1\$</);
+  const group = assertNativeText(result.svg, "$1");
+  assert.equal(group.text, "$1");
+  assert.ok(group.glyphs.every(glyph => glyph.family === "TikZKitCMR10" && glyph.style === "normal"));
+  assert.ok(group.glyphs[0].x < group.glyphs[1].x);
+  assert.equal(group.glyphs[0].y, group.glyphs[1].y);
 });
 
 test("renders DeclareMathOperator operator names in SVG text fallback labels", () => {
@@ -412,8 +427,17 @@ test("uses the requested render unit when estimating text bounds", () => {
     { mathRenderer: "svg-text", unit: 28.4527559, margin: 0 }
   );
 
-  assert.match(svg, /viewBox="-28\.452756 -41\.114232 56\.905512 69\.566988"/);
-  assert.match(svg, /font-size="10"/);
+  // compact-math-renderer-metrics.tex: alpha has height 4.30554pt and no depth.
+  // Its centered box at 1.3cm determines the top; the circle owns the other edges.
+  const unit = 28.4527559;
+  const view = svg.match(/viewBox="([^"]+)"/)[1].split(/\s+/).map(Number);
+  const expected = [-unit, -1.3 * unit - 4.30554 / 2, 2 * unit, 2.3 * unit + 4.30554 / 2];
+  view.forEach((value, index) => assert.ok(Math.abs(value - expected[index]) < 0.0001));
+  const group = assertNativeText(svg, "\u03b1");
+  assert.equal(group.scale, 1);
+  assert.equal(group.glyphs[0].size, 10);
+  assert.ok(Math.abs(group.x + 6.43404 / 2) < 0.0001);
+  assert.ok(Math.abs(group.y - (-1.3 * unit + 4.30554 / 2)) < 0.0001);
 });
 
 test("renders TikZ green as xcolor pure green instead of CSS named green", () => {
@@ -859,7 +883,7 @@ test("uses the arrows.meta Latex geometry for thick paths", () => {
   const svg = tikzToSvg(String.raw`\draw[thick,-Latex] (0,0) -- (2,0);`).svg;
   const tip = svg.match(/<path class="tikz-arrow-tip tikz-arrow-latex"[^>]+/u)?.[0] || "";
   assert.match(tip, /stroke-width="2\.811678"/);
-  assert.match(tip, /C -1\.98[0-9]+ -0\.48[0-9]+ -10\.62[0-9]+ -3\.24[0-9]+ -15\.99[0-9]+ -6\.25[0-9]+/);
+  assertNativeLatexControls(tip);
 });
 
 test("applies Latex tip scale after deriving its PGF line-width geometry", () => {
@@ -870,8 +894,20 @@ test("applies Latex tip scale after deriving its PGF line-width geometry", () =>
   // scaled 3.3pt arrow length, rather than blindly halving the 0.8pt path.
   assert.match(tip, /stroke-width="2\.319[0-9]+"/);
   assert.match(tip, /stroke-linecap="butt" stroke-linejoin="miter"/);
-  assert.match(tip, /C -0\.701[0-9]+ -0\.179[0-9]+ -3\.755[0-9]+ -1\.209[0-9]+ -5\.656[0-9]+ -2\.330[0-9]+/);
+  assertNativeLatexControls(tip);
 });
+
+function assertNativeLatexControls(tip) {
+  const values = tip.match(/\bd="M 0 0 C ([^"]+?) L /)?.[1].split(/\s+/).map(Number);
+  assert.equal(values?.length, 6);
+  const [x1, y1, x2, y2, x3, y3] = values;
+  // pgflibraryarrows.meta.code.tex: Latex's exact Bezier control ratios.
+  for (const [actual, expected] of [[x1 / x3, 1 - .877192], [y1 / y3, .077922],
+    [x2 / x3, 1 - .337381], [y2 / y3, .519480]]) {
+    assert.ok(Math.abs(actual - expected) < 1e-6);
+  }
+  assert.match(tip, /stroke-miterlimit="10"/);
+}
 
 test("places scaled arrows.meta Latex tips at their PGF-specific line ends", () => {
   const svg = tikzToSvg(String.raw`
@@ -1212,8 +1248,9 @@ test("namespaces the root TikZ SVG for web CSS isolation", () => {
 });
 
 test("retains KaTeX foreignObject for math outside the native CM subset", () => {
+  assert.equal(layoutNativeMath(String.raw`\sqrt{\widehat{x}^2 + y^2}`), null);
   const svg = renderSvg({
-    items: [{ type: "textNode", x: 0, y: 0, text: "$\\sqrt{\\hat{x}^2 + y^2}$", style: { fill: "blue" } }],
+    items: [{ type: "textNode", x: 0, y: 0, text: "$\\sqrt{\\widehat{x}^2 + y^2}$", style: { fill: "blue" } }],
     coordinates: {}
   });
 
@@ -1234,7 +1271,7 @@ test("retains KaTeX foreignObject for math outside the native CM subset", () => 
 
 test("keeps the default CMU font style first in defs when math scope styles are emitted", () => {
   const svg = renderSvg({
-    items: [{ type: "textNode", x: 0, y: 0, text: "$\\sqrt{\\hat{x}^2 + y^2}$", style: { fill: "blue" } }],
+    items: [{ type: "textNode", x: 0, y: 0, text: "$\\sqrt{\\widehat{x}^2 + y^2}$", style: { fill: "blue" } }],
     coordinates: {}
   });
 
@@ -1256,7 +1293,7 @@ test("keeps KaTeX switch fallback visible for non-HTML SVG converters", () => {
         type: "textNode",
         x: 0,
         y: 0,
-        text: String.raw`$\hat{A}=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`,
+        text: String.raw`$\widehat{A}=\begin{pmatrix}2&1\\0&3\end{pmatrix}$`,
         style: { fill: "black" }
       }
     ],
@@ -1275,8 +1312,9 @@ test("keeps KaTeX switch fallback visible for non-HTML SVG converters", () => {
 });
 
 test("sizes scoped KaTeX foreignObject boxes without clipping scriptsize formulas", () => {
+  assert.equal(layoutNativeMath(String.raw`2\widehat{x}+3y\le10`, { fontSizePt: 7 }), null);
   const svg = renderSvg({
-    items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$2x+3y\le10$`, style: { fill: "black", fontScale: 0.7 } }],
+    items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$2\widehat{x}+3y\le10$`, style: { fill: "black", fontScale: 0.7 } }],
     coordinates: {}
   });
   const box = svg.match(/<foreignObject [^>]*width="([^"]+)" height="([^"]+)"[\s\S]*?style="([^"]+)"/);
@@ -1290,6 +1328,27 @@ test("sizes scoped KaTeX foreignObject boxes without clipping scriptsize formula
   assert.ok(height >= hostFontSize * 1.21 * 1.28, `expected foreignObject height to cover scoped KaTeX line box, got ${height}`);
   assert.ok(hostFontSize < 22, `expected host font-size to compensate KaTeX 1.21em root, got ${hostFontSize}`);
   assert.match(style, /white-space:nowrap/);
+});
+
+test("sizes supported scriptsize formulas from native CM glyph boxes without clipping", () => {
+  const svg = renderSvg({
+    items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$2x+3y\le10$`, style: { fill: "black", fontScale: 0.7 } }],
+    coordinates: {}
+  }, { margin: 0 });
+  const group = assertNativeText(svg, "2x+3y\u226410");
+  assert.equal(group.text, "2x+3y\u226410");
+  assert.ok(group.glyphs.every(glyph => glyph.size === 7));
+  assert.deepEqual(group.glyphs.map(glyph => glyph.family), [
+    "TikZKitCMR7", "TikZKitCMMI7", "TikZKitCMR7", "TikZKitCMR7",
+    "TikZKitCMMI7", "TikZKitCMSY7", "TikZKitCMR7", "TikZKitCMR7"
+  ]);
+  // Independent scriptsize box in compact-math-renderer-metrics.tex, in TeX pt.
+  const [left, top, width, height] = svg.match(/viewBox="([^"]+)"/)[1].split(/\s+/).map(Number);
+  assert.ok(Math.abs(width / group.scale - 45.36935) < 0.001);
+  assert.ok(Math.abs(height / group.scale - (4.79828 + 1.36110)) < 0.001);
+  assert.ok(Math.abs(group.x - left) < 0.001);
+  assert.ok(Math.abs((group.y - top) / group.scale - 4.79828) < 0.001);
+  assert.doesNotMatch(svg, /<foreignObject\b/);
 });
 
 test("includes KaTeX rich text foreignObject in SVG bounds", () => {
@@ -1397,7 +1456,9 @@ test("normalizes common TeX text macros before SVG text rendering", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /class="tikzkit-math-scope/);
+  const group = assertNativeText(svg, "\u00d71");
+  assert.equal(group.text, "\u00d71");
+  assert.ok(group.glyphs.every(glyph => glyph.style === "normal" && glyph.fill === "blue"));
   assert.doesNotMatch(svg, /class="[^"]*\bkatex\b/);
   assert.match(svg, /tikz-image-placeholder/);
   assert.match(svg, />router</);
@@ -1867,8 +1928,12 @@ test("can render math as plain SVG text for raster comparison tools", () => {
   );
 
   assert.match(svg, /<text /);
-  assert.match(svg, /α × x/);
-  assert.match(svg, /font-style="italic"/);
+  const group = assertNativeText(svg, "\u03b1\u00d7x");
+  assert.equal(group.text, "\u03b1\u00d7x");
+  assert.deepEqual(group.glyphs.map(glyph => glyph.family), ["TikZKitCMMI10", "TikZKitCMSY10", "TikZKitCMMI10"]);
+  assert.deepEqual(group.glyphs.map(glyph => glyph.style), ["italic", "normal", "italic"]);
+  assert.ok(group.glyphs.every(glyph => glyph.size === 10 && glyph.y === 0));
+  assert.ok(group.glyphs[0].x < group.glyphs[1].x && group.glyphs[1].x < group.glyphs[2].x);
   assert.doesNotMatch(svg, /<foreignObject /);
 });
 
@@ -2005,11 +2070,17 @@ test("adds TeX-like spacing around relations and named operators in SVG math fal
   );
 
   assert.equal(text, "x = r cos θ");
-  assert.match(svg, /<tspan dx="[^"]+"[^>]*>=<\/tspan>/);
-  const relationSpacing = Number(svg.match(/<tspan dx="([^"]+)"[^>]*>=<\/tspan>/)?.[1]);
-  assert.ok(relationSpacing > 9 && relationSpacing < 11, `expected 5mu relation spacing near 9.76 render units, got ${relationSpacing}`);
-  const textLength = Number(svg.match(/textLength="([^"]+)" lengthAdjust="spacingAndGlyphs"/)?.[1]);
-  assert.ok(textLength > 140 && textLength < 150, `expected TeX-measured relation formula width, got ${textLength}`);
+  const group = assertNativeText(svg, "P=(x,y)");
+  assert.equal(group.text, "P=(x,y)");
+  const [nucleus, relation, open] = group.glyphs;
+  // Native probes: P's advance including italic correction is 7.80904pt;
+  // '=' is 7.77780pt. TeX inserts 5mu (10 * 5 / 18 pt) on both sides.
+  const relationSpace = 10 * 5 / 18;
+  assert.ok(Math.abs(relation.x - nucleus.x - 7.80904 - relationSpace) < 0.001);
+  assert.ok(Math.abs(open.x - relation.x - 7.77780 - relationSpace) < 0.001);
+  assert.ok(Math.abs(layoutNativeMath("P=(x,y)").width - 44.34134) < 0.001);
+  assert.ok(group.glyphs.every(glyph => glyph.y === 0 && glyph.fill === "red"));
+  assert.doesNotMatch(svg, /textLength=|lengthAdjust=/);
 });
 
 test("keeps named math operators upright in plain SVG math fallback labels", () => {
@@ -2021,9 +2092,15 @@ test("keeps named math operators upright in plain SVG math fallback labels", () 
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /font-style="italic"/);
-  assert.match(svg, /<tspan[^>]+font-family="TikZKitMath_Main, TikZKitCMUSerif, serif"[^>]+>sin<\/tspan>/);
-  assert.match(svg, /<tspan[^>]+font-style="normal"[^>]*>sin<\/tspan> x/);
+  const group = assertNativeText(svg, "sinx");
+  assert.equal(group.text, "sinx");
+  assert.ok(group.glyphs.slice(0, 3).every(glyph => glyph.family === "TikZKitCMR10" && glyph.style === "normal"));
+  const variable = group.glyphs[3];
+  assert.equal(variable.family, "TikZKitCMMI10");
+  assert.equal(variable.style, "italic");
+  assert.ok(group.glyphs.every(glyph => glyph.size === 10 && glyph.y === 0));
+  // Native sin-word width is 12.27780pt; an ordinary atom follows after 3mu.
+  assert.ok(Math.abs(variable.x - 12.27780 - 10 * 3 / 18) < 0.001);
   assert.doesNotMatch(svg, />sin x<\/text>/);
 });
 
@@ -2183,12 +2260,15 @@ test("uses italic math style for multiline SVG text fallback math lines", () => 
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan x="0" dy="[^"]+" font-style="italic"><tspan>s<\/tspan>/);
-  assert.match(svg, /<tspan x="0" dy="[^"]+" font-size="[^"]+" font-style="italic"><tspan>α<\/tspan>/);
-  assert.match(svg, /baseline-shift="sub"/);
+  const group = assertNativeText(svg, "s1αt−1(s1)");
+  assert.ok(group.glyphs.filter(g => ["s", "α", "t"].includes(g.text)).every(g => g.style === "italic"));
+  assert.ok(group.glyphs.filter(g => g.text === "1").every(g => g.style === "normal"));
+  assert.deepEqual(group.glyphs.filter(g => g.text === "1").map(g => g.size), [7, 5, 5]);
+  assert.equal(group.glyphs[0].y, -12);
+  assert.equal(group.glyphs.find(g => g.text === "α").y, 0);
 });
 
-test("renders simple numeric math subscripts as separate SVG tspans", () => {
+test("renders numeric math subscripts in the native seven-point optical font", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$I_{16}$`, style: { fill: "black" } }],
@@ -2197,7 +2277,10 @@ test("renders simple numeric math subscripts as separate SVG tspans", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, new RegExp(`<tspan>I</tspan><tspan[^>]+font-size="${formatted(lineWidthFromPt(10) * 0.7)}"[^>]+baseline-shift="sub">16</tspan>`));
+  const group = assertNativeText(svg, "I16");
+  assert.equal(group.glyphs[0].family, "TikZKitCMMI10");
+  assert.ok(group.glyphs.slice(1).every(g => g.family === "TikZKitCMR7" && g.size === 7));
+  assert.ok(group.glyphs.slice(1).every(g => Math.abs(g.y - 1.5) < 0.001));
   assert.doesNotMatch(svg, /I₁₆/);
 });
 
@@ -2360,7 +2443,7 @@ test("renders command-valued math subscripts as separate SVG tspans", () => {
   assert.doesNotMatch(svg, /π_θ|s₀/);
 });
 
-test("renders hat accents with subscripts in SVG math fallback", () => {
+test("renders hat accents and subscripts with native CM glyph placement", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$\hat x_1$`, style: { fill: "white" } }],
@@ -2369,8 +2452,17 @@ test("renders hat accents with subscripts in SVG math fallback", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /class="tikz-math-hat"/);
-  assert.match(svg, /<tspan>x<\/tspan><tspan[^>]+baseline-shift="sub">1<\/tspan>/);
+  const group = assertNativeText(svg, "\u02c6x1");
+  const [accent, nucleus, script] = group.glyphs;
+  assert.equal(accent.family, "TikZKitCMR10");
+  assert.equal(nucleus.family, "TikZKitCMMI10");
+  assert.equal(script.family, "TikZKitCMR7");
+  assert.equal(script.size, 7);
+  // For x (one x-height), TeX leaves the hat glyph on the same baseline;
+  // the CMR accent's ink, rather than a fabricated upward shift, sits above.
+  assert.equal(accent.y, nucleus.y);
+  assert.ok(Math.abs(script.y - nucleus.y - 1.49998) < 0.001);
+  assert.ok(Math.abs(accent.x - nucleus.x - 0.63542) < 0.001);
   assert.doesNotMatch(svg, />hat\s*</);
 });
 
@@ -2416,7 +2508,13 @@ test("renders logical negation macros in SVG text fallback", () => {
   );
 
   assert.equal(text, "p(¬ E|¬ H)");
-  assert.match(svg, /p\(¬ E\|¬ H\)/);
+  const group = assertNativeText(svg, "p(\u00acE|\u00acH)");
+  assert.equal(group.text, "p(\u00acE|\u00acH)");
+  const negations = group.glyphs.filter(glyph => glyph.text === "\u00ac");
+  assert.equal(negations.length, 2);
+  assert.ok(negations.every(glyph => glyph.family === "TikZKitCMSY10" && glyph.style === "normal"));
+  assert.ok(group.glyphs.filter(glyph => ["p", "E", "H"].includes(glyph.text))
+    .every(glyph => glyph.family === "TikZKitCMMI10" && glyph.style === "italic"));
   assert.doesNotMatch(svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /\\?neg|\\?lnot/);
 });
 
@@ -2581,13 +2679,15 @@ test("does not promote scoped math bold commands to whole-label bold", () => {
   const textOpen = svg.match(/<text[^>]+>/)?.[0] || "";
   assert.doesNotMatch(textOpen, /font-weight="700"/);
   assert.doesNotMatch(svg, /\( 0/);
-  assert.match(svg, /<tspan[^>]+font-weight="700"[^>]*>0<\/tspan>/);
-  assert.match(svg, /<\/tspan>, <tspan>G<\/tspan>/);
-  assert.match(svg, /<tspan>G<\/tspan><tspan[^>]+baseline-shift="sub">3<\/tspan>/);
+  const group = assertNativeText(svg, "(0,G3)");
+  assert.equal(group.glyphs.find(g => g.text === "0").family, "TikZKitCMBX10");
+  assert.ok(group.glyphs.filter(g => g.text !== "0").every(g => !g.family.includes("CMBX")));
+  assert.equal(group.glyphs.find(g => g.text === "G").family, "TikZKitCMMI10");
+  assert.equal(group.glyphs.find(g => g.text === "3").size, 7);
   assert.doesNotMatch(svg, /G_3/);
 });
 
-test("renders combined math subscript and superscript groups as SVG tspans", () => {
+test("renders nested native scripts and preserves the unsupported prime fallback", () => {
   const svg = renderSvg(
     {
       items: [
@@ -2600,9 +2700,17 @@ test("renders combined math subscript and superscript groups as SVG tspans", () 
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /<tspan>μ<\/tspan><tspan[^>]+baseline-shift="super">1<\/tspan><tspan[^>]+baseline-shift="sub">id₀<\/tspan>/);
-  assert.match(svg, /<tspan>O'<\/tspan><tspan[^>]+baseline-shift="super">1<\/tspan><tspan[^>]+baseline-shift="sub">0,id₀<\/tspan>/);
-  assert.match(svg, /<tspan>σ<\/tspan><tspan[^>]+baseline-shift="super">1<\/tspan><tspan[^>]+baseline-shift="sub">id<tspan[^>]+baseline-shift="sub">n<\/tspan><\/tspan>/);
+  for (const text of ["μ1id0", "σ1idn"]) {
+    const group = assertNativeText(svg, text);
+    assert.deepEqual(group.glyphs.map(g => g.size), [10, 7, 7, 7, 5]);
+    assert.ok(group.glyphs[1].y < 0 && group.glyphs[2].y > 0);
+    assert.ok(group.glyphs[4].y > group.glyphs[2].y);
+  }
+  // Primes are not supported by the native box parser yet. Keep the legacy
+  // branch covered separately instead of requiring it for supported formulas.
+  assert.match(svg, /font-weight="700"[^>]*><tspan>O'<\/tspan>/);
+  assert.match(svg, /dy="-[^"]+">1<\/tspan>/);
+  assert.match(svg, /dy="[\d.]+">0,id₀<\/tspan>/);
   assert.doesNotMatch(svg, /\^1|μ_id|O'₀/);
 });
 
@@ -2649,7 +2757,7 @@ test("places superscripts explicitly and restores the operator baseline for rsvg
   assert.ok(group.glyphs.slice(5).every(g => g.y === 0));
 });
 
-test("calibrates scripted SVG math fallback width for TeX glyph comparisons", () => {
+test("uses native TeX advances instead of stretching scripted math with textLength", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$e^{-x/2}\sin x$`, style: { fill: "black" } }],
@@ -2657,12 +2765,12 @@ test("calibrates scripted SVG math fallback width for TeX glyph comparisons", ()
     },
     { mathRenderer: "svg-text" }
   );
-  const text = svg.match(/<text[^>]+>\s*<tspan>e<\/tspan>/)?.[0] || "";
-  const textLength = Number(text.match(/\btextLength="([^"]+)"/)?.[1]);
-
-  assert.ok(Number.isFinite(textLength), "expected scripted fallback text to carry a calibrated textLength");
-  assert.ok(textLength > 130 && textLength < 150, `expected TeX-like e^{-x/2} sin x width, got ${textLength}`);
-  assert.match(text, /lengthAdjust="spacing"/);
+  const group = assertNativeText(svg, "e−x/2sinx");
+  // Measured with \setbox0=\hbox{...} in math-native-contracts.tex, 10pt CM.
+  const box = layoutNativeMath(String.raw`e^{-x/2}\sin x`);
+  assert.ok(Math.abs(box.width - 45.3507) < 0.001);
+  assert.ok(Math.abs(group.glyphs.at(-1).x - 39.63557) < 0.001);
+  assert.doesNotMatch(svg, /textLength=|lengthAdjust=/);
 });
 
 test("adds TeX-like spacing between a scripted atom and following named operator", () => {
@@ -2848,7 +2956,11 @@ test("applies leading TeX font size macros to SVG text scale", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 1.2)}"`));
+  const group = assertNativeText(svg, "t");
+  assert.equal(group.glyphs.length, 1);
+  assert.equal(group.glyphs[0].size, 12);
+  assert.equal(group.glyphs[0].family, "TikZKitCMMI12");
+  assert.ok(Math.abs(group.glyphs[0].size * group.scale - lineWidthFromPt(12)) < 0.00001);
   assert.doesNotMatch(svg, /\\large/);
 });
 
@@ -2995,9 +3107,12 @@ test("keeps a bold math nucleus when it carries a script", () => {
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /font-weight="700"[^>]*><tspan>x<\/tspan><\/tspan>/);
-  assert.match(result.svg, /font-size="[^"]+"[^>]*dy="-[^"]+">\(P\)<\/tspan>/);
-  assert.match(result.svg, /dx="-[^"]+"[^>]*font-size="[^"]+"[^>]*dy="[^"]+">k<\/tspan>/);
+  const group = assertNativeText(result.svg, "x(P)k");
+  assert.equal(group.glyphs[0].family, "TikZKitCMBX10");
+  assert.ok(group.glyphs.slice(1, 4).every(g => g.y < 0 && g.size === 7));
+  assert.ok(group.glyphs[4].y > 0 && group.glyphs[4].size === 7);
+  assert.equal(group.glyphs[4].family, "TikZKitCMMI7");
+  assert.equal(group.glyphs[4].x, group.glyphs[1].x);
   assert.doesNotMatch(result.svg, /mathbfx/);
 });
 
@@ -3189,8 +3304,15 @@ test("applies per-line TeX font size macros in KaTeX rich text", () => {
     coordinates: {}
   });
 
-  assert.match(svg, new RegExp(`class="tikz-rich-line"[^>]+font-size:${formatted(lineWidthFromPt(10))}px`));
-  assert.match(svg, new RegExp(`class="tikz-rich-line"[^>]+font-size:${formatted(lineWidthFromPt(7))}px`));
+  // Native halign packs both rows on the outer 12pt baseline grid; each row
+  // retains its own NFSS text/script sizes. HTML line boxes are not the oracle.
+  const group = assertNativeText(svg, "s1αt−1(s1)");
+  assert.equal(group.glyphs[0].size, 10);
+  assert.equal(group.glyphs.find(g => g.text === "α").size, 7);
+  assert.equal(group.glyphs.find(g => g.text === "t").size, 5);
+  assert.ok(Math.abs(group.scale * 10 - lineWidthFromPt(10)) < 0.0001);
+  assert.ok(Math.abs(group.scale * 7 - lineWidthFromPt(7)) < 0.0001);
+  assert.doesNotMatch(svg, /<foreignObject\b/);
 });
 
 test("normalizes mathcal shorthand before KaTeX rendering", () => {

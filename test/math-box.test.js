@@ -34,7 +34,8 @@ test("nested math uses 10/7/5pt optical fonts, not repeatedly scaled 10pt glyphs
 test("math styles are scoped and unsupported syntax keeps the complete old renderer", () => {
   const box = layoutNativeMath(String.raw`x_i+{\scriptstyle y_j}+z_k`);
   assert.equal(box.items.find(i => i.text === "z").size, 10);
-  assert.equal(layoutNativeMath(String.raw`\frac{1}{\hat{x}}`), null);
+  assert.ok(layoutNativeMath(String.raw`\frac{1}{\hat{x}}`));
+  assert.equal(layoutNativeMath(String.raw`\frac{1}{\widehat{x}}`), null);
   assert.equal(layoutNativeMath("x_i", { mathVersion: "sans" }), null);
   assert.equal(layoutNativeMath("x_i", { fontSizePt: 13 }), null);
 });

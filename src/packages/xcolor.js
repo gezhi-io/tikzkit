@@ -1,12 +1,13 @@
 export const texPackage = {
   "name": "xcolor",
-  "status": "builtin",
-  "implementedBy": "src/frontend/latex-shell.js:collectColorDefinitions + src/frontend/parser.js + src/engine/options.js:normalizeColor + src/engine/evaluate.js + src/tikz/text.js + src/renderers/svg/mathNode.js",
+  "status": "partial",
+  "implementedBy": "src/engine/colors.js + src/frontend/latex-shell.js:collectColorDefinitions + src/frontend/parser.js + src/engine/evaluate.js + src/tikz/text.js + src/renderers/svg/mathNode.js",
   "features": [
     "\\definecolor",
     "\\colorlet aliases",
     "HTML/rgb/RGB/gray color models",
     "natural CMYK defaults for cyan/magenta/yellow/olive and their ! mixes",
+    "native darkgray/lightgray intensities and case-sensitive mixing of the supported dvips names",
     "\\textcolor color-name replacement",
     "leading text/math \\color declarations",
     "scoped standalone \\color{name} state"
@@ -34,5 +35,8 @@ export const texPackage = {
     "table",
     "usenames,dvipsnames"
   ],
-  "notes": "Implemented as color definition/mix normalization plus leading text/math \\color declarations and scoped standalone \\color{name} state. Reviewed locally on 2026-08-06: color.sty declares cyan, magenta, yellow, and olive in CMYK, and xcolor preserves their natural model while applying ! mixes. TikZKit therefore blends their CMYK channels before the SVG DeviceCMYK conversion; xcolor-natural-cmyk and csv-2d-gaussian-multivarate-distributions verify the result. Optional xcolor target-model selection, color series, and arbitrary mid-text color-state segmentation remain partial."
+  "notes": "Color definitions, natural-model ! mixes, leading text/math color declarations and scoped color state. Reviewed xcolor.sty, color.sty and dvipsnam.def locally on 2026-10-22: darkgray/lightgray use .25/.75 gray; supported Blue/Green/Red/WildStrawberry/Sepia/LimeGreen names retain case-sensitive CMYK channels through interpolation, then convert once with DeviceCMYK. Shared implementation is isolated in src/engine/colors.js; module-regressions palettes were compared in Chrome against pdflatex/tikztosvg. Status remains partial: complete option-selected named palettes, target-model selection, color series and arbitrary mid-text color-state segmentation are not implemented."
 };
+
+texPackage.features.push("SkyBlue/SpringGreen dvips natural-model colors and reusable model-preserving colormap conversion");
+texPackage.notes += " On 2026-10-23, dvipsnam.def SkyBlue and SpringGreen and PGFPlots first-stop model conversion were reviewed locally. Colormap stops are converted in xcolor's algebraic model before interpolation; DeviceCMYK display conversion happens only after interpolation. Function plots, fills and pins were checked in Chrome against tikztosvg. Exact fixed-point RGB mixture rounding remains partial (red!90!black retains a one-byte difference); this is not a full color-model certification. See docs/qa/2026-10-23-pgfplots-quiver-colors.md.";

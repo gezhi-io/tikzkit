@@ -1550,11 +1550,9 @@ test("supports datavisualization smooth line list visualizers with function sets
   );
 
   const rendered = result.svg;
-  assert.match(
-    rendered,
-    /<text x="64\d(?:\.\d+)?"[^>]*text-anchor="start"[^>]*>\s*<tspan[^>]*font-style="normal">sin<\/tspan> x<\/text>/,
-    "expected math legend label to keep TikZ west anchor instead of falling back to centered math text"
-  );
+  const sinBox = assertNativeText(rendered, "sinx");
+  assert.ok(sinBox.x > 640 && sinBox.x < 650, `native west-aligned legend origin ${sinBox.x}`);
+  assert.deepEqual(sinBox.glyphs.map(g => g.family), ["TikZKitCMR9", "TikZKitCMR9", "TikZKitCMR9", "TikZKitCMMI9"]);
 });
 
 test("applies custom datavisualization style sheets to data point sets", () => {
@@ -1589,7 +1587,7 @@ data point [x=2.25, y=1.75, set=3];`;
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(plots.length, 3, `expected three line visualizers from data point sets, got ${plots.length}`);
-  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(230 230 0)", "rgb(204 0 0)"]);
+  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(232 222 23)", "rgb(204 0 0)"]);
   assert.ok(
     plots.every((plot) => plot.commands.filter((command) => Number.isFinite(command.x) && Number.isFinite(command.y)).length === 2),
     "expected each traffic-light line visualizer to use the two points assigned to its set"
@@ -1640,7 +1638,7 @@ data point [x=2.25, y=1.75, set=3];`;
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(plots.length, 3, `expected three line visualizers from style-sheet key handler, got ${plots.length}`);
-  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(230 230 0)", "rgb(204 0 0)"]);
+  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(232 222 23)", "rgb(204 0 0)"]);
 });
 
 test("supports pgfdvdeclarestylesheet for datavisualization style sheets", () => {
@@ -1671,7 +1669,7 @@ data point [x=2.25, y=1.75, set=3];`;
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(plots.length, 3, `expected three line visualizers from declared stylesheet, got ${plots.length}`);
-  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(230 230 0)", "rgb(204 0 0)"]);
+  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(232 222 23)", "rgb(204 0 0)"]);
 });
 
 test("applies datavisualization set initial remapping before style sheet lookup", () => {
@@ -1703,7 +1701,7 @@ data point [x=2.25, y=1.75, set=critical];`;
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(plots.length, 3, `expected three named visualizers from remapped sets, got ${plots.length}`);
-  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(230 230 0)", "rgb(0 128 0)"]);
+  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(232 222 23)", "rgb(0 128 0)"]);
 });
 
 test("expands datavisualization data groups containing data point streams", () => {
@@ -1740,7 +1738,7 @@ test("expands datavisualization data groups containing data point streams", () =
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(plots.length, 3, `expected three plots from data point data group, got ${plots.length}`);
-  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(230 230 0)", "rgb(0 128 0)"]);
+  assert.deepEqual(strokes, ["rgb(0 128 0)", "rgb(232 222 23)", "rgb(0 128 0)"]);
 });
 
 test("evaluates parameterized default styles in datavisualization style sheets", () => {
@@ -2502,7 +2500,7 @@ data [set=lin] {
   assert.deepEqual(opaque.diagnostics, []);
   assert.deepEqual(transparent.diagnostics, []);
   assert.ok(opaqueBackground, "expected opaque inside legend to render a matrix background");
-  assert.equal(opaqueBackground.style.fill, "rgb(255 255 179)");
+  assert.equal(opaqueBackground.style.fill, "rgb(255 251 179)");
   assert.ok(transparentLabels.every(Boolean), "expected transparent inside legend to keep labels");
   assert.ok(
     transparentBackgrounds.every((background) => background.style.fill === "none"),
@@ -3611,7 +3609,8 @@ data point [x=1, y=0.25, set=line];`;
   const expanded = preprocessTikzSource(source).source;
   const beforeLabel = expanded.slice(0, expanded.indexOf("{line}"));
   const legendExamples = beforeLabel.match(/\\(?:draw|path)\[axis legend example[^\n]*/g) || [];
-  const markExamples = legendExamples.filter((line) => line.includes(" -- ") && !line.includes(".. controls"));
+  // A straight zig-zag sample also uses --. Cross marks have two subpaths.
+  const markExamples = legendExamples.filter((line) => /\)\s+\(/.test(line));
 
   assert.ok(legendExamples.length >= 3, `expected zig-zag line legend to include line plus two marks, got ${legendExamples.length}`);
   assert.equal(markExamples.length, 2, `expected two native zig-zag legend mark coordinates, got ${markExamples.length}`);
@@ -4121,7 +4120,8 @@ data {
   assert.deepEqual(result.diagnostics, []);
   assert.ok(pinEdge, "expected pin in data to render a leader edge");
   assert.ok(pinLabel, "expected pin in data to render the label text");
-  assert.equal(pinLabel?.style.fontScale, 1, "expected datavis pin labels to use the native label visualizer font size");
+  // every data set label selects \\small: cmmi9/cmr9, with 6pt scripts.
+  assert.equal(pinLabel?.style.fontScale, 0.9, "expected the native 9pt label visualizer font");
   assert.ok(
     length > 0.7 && length < 0.85,
     `expected native pin edge to include the node[auto] side offset in addition to 3ex, got ${length}`
@@ -4130,18 +4130,15 @@ data {
   assert.ok(Math.abs((to?.y || 0) - 2.4) < 0.02, `expected damped sine pin leader endpoint near native y=2.40cm, got ${to?.y}`);
   assert.ok(Math.abs((from?.x || 0) - 1.75) < 0.03, `expected native pin edge to start near the post-shifted data point x=1.75cm, got ${from?.x}`);
   assert.ok(Math.abs((from?.y || 0) - 2.01) < 0.03, `expected native pin edge to start near the post-shifted data point y=2.01cm, got ${from?.y}`);
-  assert.ok(
-    (pinLabel?.x || 0) - (to?.x || 0) > 0.25 && (pinLabel?.x || 0) - (to?.x || 0) < 0.38,
-    `expected native node[auto, at end] pin label to sit to the right of the leader endpoint, got label x=${pinLabel?.x} and endpoint x=${to?.x}`
-  );
-  assert.ok(
-    (pinLabel?.y || 0) - (to?.y || 0) > 0.05 && (pinLabel?.y || 0) - (to?.y || 0) < 0.11,
-    `expected native node[auto, at end] pin label to sit above the leader endpoint, got label y=${pinLabel?.y} and endpoint y=${to?.y}`
-  );
   const group = assertNativeText(result.svg, "e−x/2sinx");
-  const operatorSpacing = group.glyphs[5].x - layoutNativeMath("e^{-x/2}").width;
+  // Compare the painted first glyph, not a heuristic offset from node.center.
+  // Native PDF baseline (86.931,20.451)bp, plot origin (28.033,91.155)bp.
+  assert.ok(Math.abs(group.x / 100 - (86.931 - 28.033) * 2.54 / 72) < 0.002);
+  assert.ok(Math.abs(-group.y / 100 - (91.155 - 20.451) * 2.54 / 72) < 0.002);
+  const operatorSpacing = group.glyphs[5].x - layoutNativeMath("e^{-x/2}", { fontSizePt: 9 }).width;
   assert.ok(
-    Math.abs(operatorSpacing - 10 / 6) < 0.001,
+    // cmsy9's QUAD is 9.25pt, so 3mu is 9.25/6pt (not 9/6pt).
+    Math.abs(operatorSpacing - 9.25 / 6) < 0.001,
     `expected 3mu before \\sin after a scripted atom, got ${operatorSpacing}pt`
   );
   assert.ok((to?.x || 0) - (from?.x || 0) > 0.6, "expected the damped sine pin label to sit farther to the right of the data point");
@@ -4182,7 +4179,9 @@ data {
   assert.ok(swappedLabel, "expected text' pin in data to keep the label text");
   assert.ok((normalTo?.y || 0) > (normalFrom?.y || 0), "expected normal pin to sit above the data point");
   assert.ok((swappedTo?.y || 0) < (swappedFrom?.y || 0), "expected text' pin to sit below the data point");
-  assert.ok(Math.abs((swappedTo?.x || 0) - 1.09) < 0.04, `expected text' pin endpoint near tikztosvg x=1.09cm, got ${swappedTo?.x}`);
+  // Native short p: (41.834187,46.006563)bp. A long formula has a
+  // different auto-anchored TeX box, hence a different clipped endpoint.
+  assert.ok(Math.abs((swappedTo?.x || 0) - 1.475817) < 0.005, `expected native short-pin endpoint x=1.475817cm, got ${swappedTo?.x}`);
   assert.ok(Math.abs((swappedTo?.y || 0) - 1.62) < 0.04, `expected text' pin endpoint near tikztosvg y=1.62cm, got ${swappedTo?.y}`);
   assert.ok(
     Math.abs((normalFrom?.x || 0) - (swappedFrom?.x || 0)) < 0.01 && Math.abs((normalFrom?.y || 0) - (swappedFrom?.y || 0)) < 0.01,
@@ -4221,7 +4220,7 @@ data {
     `expected text' pin formula center to sit visibly below the leader endpoint, got endpoint y=${endpoint?.y} label y=${formula?.y}`
   );
   assert.ok(
-    (formula.y || 0) > 1.31 && (formula.y || 0) < 1.38,
+    Math.abs((formula.y || 0) - 1.38299) < 0.002,
     `expected text' pin formula center near native y position, got ${formula?.y}`
   );
 });
@@ -4629,7 +4628,7 @@ data {
   assert.ok(localLabel, "expected locally colored pin label");
   assert.equal(globalLabel?.style.fill, "blue", "global every data set label text colored should color pin label");
   assert.equal(localLabel?.style.fill, "blue", "local pin in data text colored should color pin label");
-  assert.equal(globalPinEdge?.style.stroke, "black", "text colored should not recolor the pin leader edge");
+  assert.equal(globalPinEdge?.style.stroke, "gray", "text colored must preserve the native help-lines pin edge");
 });
 
 test("keeps school-book datavisualization pin leaders on the label-visualizer coordinate", () => {
@@ -5707,8 +5706,10 @@ test("uses PGFPlots native default axis dimensions when width and height are omi
   const yLength = Math.abs(yAxis.commands[1].y - yAxis.commands[0].y);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(Math.abs(xLength - 6.828) < 0.01, `expected PGFPlots default middle-axis width near tikztosvg baseline, got ${xLength}`);
-  assert.ok(yLength > 5, `expected PGFPlots default height near 207pt after axis reservations, got ${yLength}`);
+  // Native scaling subtracts 45pt from 240pt/207pt. pgfplots.code.tex's
+  // inner-axis path ends at the transformed limit, before stroke/arrow paint.
+  assert.ok(Math.abs(xLength - parseDimension("195pt")) < 0.002, `expected native default x-axis length, got ${xLength}`);
+  assert.ok(Math.abs(yLength - parseDimension("162pt")) < 0.002, `expected native default y-axis length, got ${yLength}`);
 });
 
 test("maps draw edge annotations inside PGFPlots axis coordinates", () => {

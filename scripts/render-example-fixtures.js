@@ -26,6 +26,7 @@ const TEX_PT_PER_CM = 28.4527559;
 const TIKZTOSVG_BUILT_IN_PACKAGES = new Set(["amsmath", "amssymb", "pgfplots", "tikz", "tikz-cd", "xcolor"]);
 const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
   "bchart",
+  "bm",
   "brunnian",
   "circuitikz",
   "gensymb",
@@ -35,6 +36,7 @@ const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
   "nicefrac",
   "pgfgantt",
   "pgfplotstable",
+  "relsize",
   "sansmath",
   "tikz-3dplot",
   "tkz-base",
@@ -1053,12 +1055,12 @@ function tikztosvgDocumentBody(source) {
   return text.slice(documentStart.index + documentStart[0].length);
 }
 
-function tikztosvgPreambleBody(source) {
+function tikztosvgPreambleBody(source, { includeLibraries = false } = {}) {
   return tikztosvgSourcePreamble(source)
     .split(/\r?\n/)
     .filter((line) => !/^\s*\\documentclass\b/.test(line))
     .filter((line) => !/^\s*\\usepackage\b/.test(line))
-    .filter((line) => !/^\s*\\(?:usetikzlibrary|usepgfplotslibrary)\b/.test(line))
+    .filter((line) => includeLibraries || !/^\s*\\(?:usetikzlibrary|usepgfplotslibrary)\b/.test(line))
     .filter((line) => !/^\s*\\setlength\s*\\PreviewBorder\b/.test(line))
     .join("\n")
     .trim();
@@ -1564,7 +1566,9 @@ async function createTikztosvgPreambleInputEnv(baseEnv, outputRoot, entry, sourc
     path.join(wrapperDir, `${packageName}.sty`),
     [
       `% TikZKit QA wrapper: loads source declarations before \\begin{document}.`,
-      preamble,
+      // tikztosvg loads -p packages before -l libraries. Keep the source's
+      // library declarations here so preamble keys such as >=stealth' exist.
+      tikztosvgPreambleBody(source, { includeLibraries: true }),
       "\\endinput",
       ""
     ].join("\n"),

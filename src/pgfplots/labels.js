@@ -2,10 +2,11 @@ import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
-import { axisTickLabelNormalExtent, isMiddleAxis } from "./geometry.js";
-import { pgfplotsAxisHidden } from "./axisOptions.js";
+import { axisTickLabelNormalExtent } from "./geometry.js";
+import { pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
+import { layoutNativeText } from "../tex/textBox.js";
 import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
 
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
@@ -27,7 +28,7 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
   const commands = [];
   const xOffset = Math.max(0.28, geometry.width * 0.035);
   const yOffset = Math.max(0.22, geometry.height * 0.06);
-  const middleAxis = isMiddleAxis(axisOptions);
+  const nativeText = pgfplotsUsesNative2DText(axisOptions);
   const xAxisMiddle = isAxisLineMiddle(axisOptions, "x");
   const yAxisMiddle = isAxisLineMiddle(axisOptions, "y");
   const labelFont = (axis) => roleFontOption("axisLabel", axisOptions, axisLabelFontOption(axisOptions, axis));
@@ -61,7 +62,7 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
   const xAxis =
     (ranges.xMin <= 0 && ranges.xMax >= 0) || (labelRanges.xMin <= 0 && labelRanges.xMax >= 0) ? 0 : ranges.xMin;
   if (axisOptions.xlabel && !pgfplotsAxisHidden(axisOptions, "x")) {
-    const xlabelStyle = axisOptions["xlabel style"] || axisOptions["x label style"];
+    const xlabelStyle = axisLabelStyle(axisOptions, "x");
     const point = xAxisMiddle
       ? geometry.mapPoint({ x: labelRanges.xMax, y: yAxis })
       : offsetPoint(geometry.mapPoint({ x: (ranges.xMin + ranges.xMax) / 2, y: ranges.yMin }), 0, -xLabelOffset);
@@ -69,23 +70,28 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
       geometry,
       xOffset,
       yOffset,
+      defaultAtShift: !xAxisMiddle && !pgfplotsLabelsNearTicks(axisOptions)
+        ? { x: 0, y: -PGFPLOTS_ABSOLUTE_XLABEL_SHIFT } : undefined,
       defaultHorizontal: xAxisMiddle ? "right" : "center",
       defaultVertical: xAxisMiddle ? "above" : "below"
     });
     const labelOptions = [
       "axis label",
       "tikzkit layout bbox",
-      ...middleAxisMathLabelLayoutOptions(axisOptions.xlabel, xlabelStyle, xAxisMiddle),
+      ...(!nativeText ? middleAxisMathLabelLayoutOptions(axisOptions.xlabel, xlabelStyle, xAxisMiddle) : []),
       `anchor=${placement.anchor}`,
       ...axisLabelVisualOptions(xlabelStyle),
-      ...plainLabelWidthOptions(axisOptions.xlabel, xAxisMiddle)
+      ...plainLabelWidthOptions(axisLabelText(axisOptions.xlabel, xlabelStyle), nativeText, labelFont("x"))
     ];
+    const rotation = axisLabelRotation(xlabelStyle, null);
+    if (rotation !== null) labelOptions.push(`rotate=${rotation}`);
     if (labelFont("x")) labelOptions.push(`font=${labelFont("x")}`);
     commands.push(`\\node[${joinOptions(labelOptions)}] at ${formatAxisPoint(placement.point)} {${axisLabelText(axisOptions.xlabel, xlabelStyle)}};`);
   }
   if (axisOptions.ylabel && !pgfplotsAxisHidden(axisOptions, "y")) {
-    const ylabelStyle = axisOptions["ylabel style"] || axisOptions["y label style"];
-    const rotation = axisLabelRotation(ylabelStyle, yAxisMiddle || datavisLabelPlacement === "upright" ? null : 90);
+    const ylabelStyle = axisLabelStyle(axisOptions, "y");
+    const defaultRotation = yAxisMiddle || datavisLabelPlacement === "upright" ? null : 90;
+    const rotation = axisLabelRotation(ylabelStyle, defaultRotation);
     const boxedYLabel = datavisLabelPlacement !== "upright" && !yAxisMiddle && !isLeftOpenAxis(axisOptions);
     const nearTicks = pgfplotsLabelsNearTicks(axisOptions);
     const ylabelXOffset =
@@ -115,7 +121,9 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
       geometry,
       xOffset,
       yOffset,
-      defaultAtShift: splitYAxisLabelDefaultShift(axisOptions),
+      defaultRotation,
+      defaultAtShift: !yAxisMiddle && !pgfplotsLabelsNearTicks(axisOptions)
+        ? { x: -PGFPLOTS_ABSOLUTE_YLABEL_SHIFT, y: 0 } : undefined,
       defaultHorizontal: yAxisMiddle ? "right" : "left",
       defaultVertical: yAxisMiddle ? "below" : "center"
       }
@@ -125,8 +133,8 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
       "tikzkit layout bbox",
       `anchor=${placement.anchor}`,
       ...axisLabelVisualOptions(ylabelStyle),
-      ...plainLabelWidthOptions(axisOptions.ylabel, yAxisMiddle),
-      ...middleAxisPlainYLabelLayoutOptions(axisOptions.ylabel, ylabelStyle, yAxisMiddle, geometry)
+      ...plainLabelWidthOptions(axisLabelText(axisOptions.ylabel, ylabelStyle), nativeText, labelFont("y")),
+      ...(!nativeText ? middleAxisPlainYLabelLayoutOptions(axisOptions.ylabel, ylabelStyle, yAxisMiddle, geometry) : [])
     ];
     if (labelFont("y")) labelOptions.push(`font=${labelFont("y")}`);
     if (rotation !== null) labelOptions.push(`rotate=${rotation}`);
@@ -172,11 +180,23 @@ function axisTitleDefaultShift(axisOptions = {}) {
 function axisLabelFontOption(axisOptions = {}, axis) {
   const values = [
     axisOptions["axis label font"],
-    fontFromStyle(axisOptions["label style"]),
-    fontFromStyle(axisOptions[`${axis} label style`]),
+    fontFromStyle(axisLabelStyle(axisOptions, axis)),
     axisOptions[`${axis} label font`]
   ];
   return values.filter((value) => value !== undefined && value !== null && String(value).trim()).at(-1) || "";
+}
+
+// PGF's label style and the two axis-specific aliases append to the same
+// every-axis-label style. Preserve their source order rather than choosing
+// one alias, which used to drop shared colors, inner sep and alias fonts.
+function axisLabelStyle(axisOptions, axis) {
+  const styles = [];
+  for (const [key, value] of Object.entries(axisOptions)) {
+    if (["label style", `${axis} label style`, `${axis}label style`].includes(key) && value !== true && value != null) {
+      styles.push(...(Array.isArray(value) ? value : [value]));
+    }
+  }
+  return styles.join(",");
 }
 
 function fontFromStyle(raw) {
@@ -213,9 +233,10 @@ function middleAxisMathLabelLayoutOptions(value, rawStyle, middleAxis) {
   return [`tikzkit layout bbox bottom padding=${PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING}`];
 }
 
-function plainLabelWidthOptions(value, _middleAxis) {
+function plainLabelWidthOptions(value, nativeText, fontCommand) {
   const text = String(value ?? "").trim();
   if (!text || text.includes("$")) return [];
+  if (nativeText && layoutNativeText(text, parseTikzFontPatch(fontCommand))) return ["tikzkit text width scale=1"];
   // Axis descriptions use the TeX font's physical width. The renderer's
   // generic serif fallback compression predates the bundled CMU fonts and
   // visibly shortens both horizontal labels and rotated y-axis labels. The
@@ -322,10 +343,14 @@ function styleOption(rawStyle, key) {
 }
 
 function axisLabelRotation(rawStyle, fallback) {
-  const raw = parseOptions(String(rawStyle || "")).rotate;
-  if (raw === undefined || raw === null || raw === true || raw === false) return fallback;
-  const value = Number(String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim());
-  return Number.isFinite(value) ? value : fallback;
+  let rotation = fallback;
+  for (const part of splitTopLevel(String(rawStyle || ""), ",")) {
+    const raw = parseOptions(part).rotate;
+    if (raw === undefined || raw === true || raw === false) continue;
+    const value = Number(raw);
+    if (Number.isFinite(value)) rotation = (rotation || 0) + value;
+  }
+  return rotation;
 }
 
 function axisLabelText(value, rawStyle = "") {
@@ -367,11 +392,20 @@ function applyAxisLabelStyle(point, anchor, rawStyle, placement) {
   const atPoint = axisDescriptionPoint(styleOptions.at, placement.geometry);
   if (atPoint) {
     next.point = atPoint;
-    next.point.x += explicitStyleShift(styleOptions.xshift, placement.defaultAtShift?.x || 0);
-    next.point.y += explicitStyleShift(styleOptions.yshift, placement.defaultAtShift?.y || 0);
-  } else {
-    next.point.x += explicitStyleShift(styleOptions.xshift, 0);
-    next.point.y += explicitStyleShift(styleOptions.yshift, 0);
+    next.point.x += placement.defaultAtShift?.x || 0;
+    next.point.y += placement.defaultAtShift?.y || 0;
+  }
+  // TikZ transformations compose; a later xshift does not erase an earlier
+  // absolute-label shift. PGF postmultiplies each transform: shifts after
+  // rotation act in the rotated axes, including the default ylabel rotation.
+  let rotation = placement.defaultRotation || 0;
+  for (const part of splitTopLevel(rawStyleText, ",")) {
+    const transform = parseOptions(part);
+    if (transform.rotate !== undefined && Number.isFinite(Number(transform.rotate))) rotation += Number(transform.rotate);
+    const radians = rotation * Math.PI / 180;
+    const dx = explicitStyleShift(transform.xshift, 0), dy = explicitStyleShift(transform.yshift, 0);
+    next.point.x += Math.cos(radians) * dx - Math.sin(radians) * dy;
+    next.point.y += Math.sin(radians) * dx + Math.cos(radians) * dy;
   }
   let horizontal = anchor.includes("east") ? "east" : anchor.includes("west") ? "west" : "";
   let vertical = anchor.includes("north") ? "north" : anchor.includes("south") ? "south" : "";
@@ -414,14 +448,6 @@ function explicitStyleShift(raw, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function splitYAxisLabelDefaultShift(axisOptions = {}) {
-  const raw = axisOptions["axis y line"] ?? axisOptions["axis y line*"];
-  const mode = String(raw || "").trim().toLowerCase();
-  return mode === "left" || mode === "right"
-    ? { x: -parseDimension("35pt", {}), y: 0 }
-    : { x: 0, y: 0 };
-}
-
 function isLeftOpenAxis(axisOptions = {}) {
   const global = String(axisOptions["axis lines"] ?? axisOptions["axis lines*"] ?? axisOptions.axis ?? "")
     .trim()
@@ -433,7 +459,7 @@ function isLeftOpenAxis(axisOptions = {}) {
   return yLine === "left";
 }
 
-function axisDescriptionPoint(rawAt, geometry = {}) {
+export function axisDescriptionPoint(rawAt, geometry = {}) {
   if (rawAt === undefined || rawAt === null || rawAt === true || rawAt === false) return null;
   const text = String(rawAt).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   const match = text.match(/^\(([\s\S]*)\)$/);

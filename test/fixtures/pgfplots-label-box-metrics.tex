@@ -1,0 +1,49 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\newcommand{\point}[2]{\pgfextractx{\dimen0}{\pgfpointanchor{#1}{#2}}\pgfextracty{\dimen2}{\pgfpointanchor{#1}{#2}}\typeout{POINT #1.#2: \the\dimen0,\the\dimen2}}
+\newcommand{\report}{\point{current axis}{south west}\point{current axis}{north east}\point{current bounding box}{south west}\point{current bounding box}{north east}}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[compat=1.18,xmin=0,xmax=5,ymin=0,ymax=5,
+  xticklabel style={name=xt},yticklabel style={name=yt}]
+  \addplot[mark=none] coordinates {(0,2) (5,2)};
+\end{axis}
+\typeout{CASE default}\report
+\point{xt}{center}\point{xt}{text}\point{yt}{center}\point{yt}{text}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[compat=1.18,axis lines=middle,scale only axis,width=6cm,height=4cm,
+  xmin=-1,xmax=1,ymin=-1,ymax=1,enlargelimits=false,
+  xtick={-1,0,1},ytick={-1,0,1},xlabel={office AV},ylabel={gyp},
+  label style={font=\small,text=red,inner sep=2pt},
+  x label style={name=xl,at={(axis description cs:0.25,-0.1)},anchor=north,xshift=3pt,yshift=-2pt},
+  ylabel style={name=yl,at={(-0.1,0.5)},anchor=south,rotate=90,font=\large,text=blue}]
+\end{axis}
+\typeout{CASE explicit}\report
+\point{xl}{center}\point{xl}{text}\point{xl}{north}
+\point{yl}{center}\point{yl}{text}\point{yl}{south}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[scale only axis,width=6cm,height=4cm,
+  xmin=-1,xmax=1,ymin=-1,ymax=1,enlargelimits=false,
+  xtick={-1,0,1},ytick={-1,0,1},xlabel={office AV},ylabel={gyp},
+  xlabel style={name=xl,at={(axis description cs:0.25,0)},anchor=north},
+  ylabel style={name=yl,at={(-0.1,0.75)},anchor=south}]
+\end{axis}
+\typeout{CASE absolute}\report
+\point{xl}{center}\point{xl}{text}\point{xl}{north}
+\point{yl}{center}\point{yl}{text}\point{yl}{south}
+\end{tikzpicture}
+\begin{tikzpicture}
+\begin{axis}[compat=1.18,scale only axis,width=6cm,height=4cm,
+  xmin=-1,xmax=1,ymin=-1,ymax=1,enlargelimits=false,
+  xtick={-1,0,1},ytick={-1,0,1},xlabel={office AV},ylabel={gyp},
+  x label style={name=xl,at={(axis description cs:0.25,-0.1)},anchor=north,
+    xshift=3pt,rotate=30,yshift=4pt,rotate=-30,xshift=2pt},
+  ylabel style={name=yl,at={(-0.1,0.5)},anchor=south,xshift=6pt,yshift=2pt}]
+\end{axis}
+\typeout{CASE transform}\report
+\point{xl}{center}\point{xl}{text}\point{xl}{north}
+\point{yl}{center}\point{yl}{text}\point{yl}{south}
+\end{tikzpicture}
+\end{document}

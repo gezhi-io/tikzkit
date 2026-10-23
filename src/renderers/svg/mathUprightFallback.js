@@ -5,21 +5,25 @@ import { formatSvgNumber as format } from "./format.js";
 import { readBalancedGroup, skipInlineWhitespace } from "./mathFallbackSyntax.js";
 import { renderMathTextWithUprightOperators, renderScriptedSegmentsContent, scriptedMathFallback } from "./mathScriptFallback.js";
 
-const UPRIGHT_COMMAND = /\\(?:mathrm|textrm|textnormal|mathsf|mathtt|operatorname)\b/g;
+const UPRIGHT_COMMAND = /\\(?:mathrm|textrm|textnormal|mathsf|mathtt|operatorname)\b/;
 
 // TeX math alphabets are scoped: in `d=\mathrm{m}`, only `m` changes
 // alphabet. Serialize those scopes as SVG tspans instead of flattening the
 // whole formula to a single font style.
 export function renderScopedUprightMathContent(tex, fontSize) {
   const source = normalizeBrowserMathMacros(String(tex || ""));
+  // This handler owns alphabet changes, not every scripted formula. Decline
+  // unrelated input so operator limits and accents reach their own layout.
+  if (!UPRIGHT_COMMAND.test(source)) return "";
   const scripted = scriptedMathFallback(source, { allowSimpleScripts: true });
   if (scripted) return renderScriptedSegmentsContent(scripted, fontSize);
   let output = "";
   let cursor = 0;
   let found = false;
   let match;
+  const commands = new RegExp(UPRIGHT_COMMAND, "g");
 
-  while ((match = UPRIGHT_COMMAND.exec(source))) {
+  while ((match = commands.exec(source))) {
     const argumentStart = skipInlineWhitespace(source, match.index + match[0].length);
     const group = readBalancedGroup(source, argumentStart);
     if (!group) continue;
@@ -28,7 +32,7 @@ export function renderScopedUprightMathContent(tex, fontSize) {
       TIKZ_MATH_MAIN_FONT_FAMILY
     )}" font-style="normal">${renderMathFragment(group.content, fontSize)}</tspan>`;
     cursor = group.end;
-    UPRIGHT_COMMAND.lastIndex = cursor;
+    commands.lastIndex = cursor;
     found = true;
   }
 

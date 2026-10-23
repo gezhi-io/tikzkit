@@ -75,7 +75,7 @@ test("supports tikz-network RGB vertex colors and global vertex style", () => {
   assert.equal(nodeBox(ir, "A").style.stroke, "blue");
   assert.equal(nodeBox(ir, "A").style.opacity, 0.4);
   assert.ok(Math.abs(nodeBox(ir, "B").width - parseDimension("1cm")) < 1e-6);
-  assert.equal(nodeBox(ir, "B").style.fill, "green");
+  assert.equal(nodeBox(ir, "B").style.fill, "rgb(0 255 0)");
 });
 
 test("keeps tikz-network vertex labels from inflating the vertex shape", () => {

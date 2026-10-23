@@ -1,0 +1,16 @@
+{
+  "cases": [
+    { "id": "datavis-cartesian-high", "source": "cartesian-high.tex", "title": "Explicit high-side ticks at the Cartesian origin" },
+    { "id": "datavis-positive-range", "source": "positive-range.tex", "title": "Scientific axes with a translated positive range" },
+    { "id": "datavis-negative-range", "source": "negative-range.tex", "title": "Scientific axes with a translated negative range" },
+    { "id": "datavis-single-offset", "source": "single-offset.tex", "title": "A single nonzero scatter point" },
+    { "id": "datavis-tick-phase", "source": "tick-phase.tex", "title": "Phased explicit ticks and fractional endpoints" },
+    { "id": "datavis-tick-epsilon", "source": "tick-epsilon.tex", "title": "Native tick tolerance near survey boundaries" },
+    { "id": "datavis-boundary-ticks", "source": "../datavis-failure-audit/boundary-ticks.tex", "title": "Sampled sine and manual pi tick control" },
+    { "id": "datavis-school-book-ticks", "source": "../datavis-failure-audit/school-book-ticks.tex", "title": "School-book origin suppression control" },
+    { "id": "datavis-minor-partial", "source": "minor-partial.tex", "title": "Minor ticks before the first retained major tick" },
+    { "id": "datavis-colored-legend", "source": "colored-legend.tex", "title": "Default scientific tick density with colored legends" },
+    { "id": "datavis-half-step", "source": "half-step.tex", "title": "Native half-unit ticks on a 0 to 2 range" },
+    { "id": "datavis-noninteger-maximum", "source": "noninteger-maximum.tex", "title": "Noninteger maximum without an invented boundary tick" }
+  ]
+}

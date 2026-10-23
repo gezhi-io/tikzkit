@@ -1,5 +1,7 @@
 import { applyPathDecoration, supportedPathDecoration, decoratedSnakeOmitsArrowPaintBounds } from "../tikz/decorations/path.js";
 import { parseFinitePgfLength } from "./units.js";
+import { layoutNativeMath } from "../tex/mathBox.js";
+import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../tex/textBox.js";
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
@@ -129,6 +131,7 @@ import {
   effectiveMathFontScale,
   estimateFormulaBox,
   formulaTotalHeight,
+  layoutMultilineMathText,
   mathTextMetricUnits,
   measurePlainTextTeXBoxPt,
   parseMathText,
@@ -148,6 +151,7 @@ import { closePathCommand, curveToCommand, lineToCommand, moveToCommand } from "
 import {
   codeDefinitionsFromOptions,
   edgeStyleHintsFromOptions,
+  optionSetsLineWidth,
   findTopLevel,
   normalizeColor,
   normalizeOptions,
@@ -1562,7 +1566,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     }
   }
 
-  const includeStrokeBounds = built.nodes.length === 0;
+  // PGF expands every stroked path by half its pen width before placing
+  // arrow tips. Inline nodes contribute separate boxes, not a replacement.
+  const includeStrokeBounds = true;
   if (!tikzBoolean(pathOptions.overlay) && built.boundsCommands?.length) {
     ir.items.push(createBoundingBoxShape(built.boundsCommands, { includeStrokeBounds, style }));
   }
@@ -1603,7 +1609,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
           clipCircle,
           clipPolygon,
           includeStrokeBounds,
-          includeArrowNormalBounds: includeStrokeBounds,
+          includeArrowNormalBounds: built.nodes.length === 0,
           includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(pathOptions),
           tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
           shadows
@@ -6657,7 +6663,7 @@ function addInlinePathNode(segment, text, point, nodes, env, pathStyle = {}, pat
   const rawOptions = resolveDynamicOptions(segment.options || {}, env);
   const localOptions = normalizeOptions("node", inlineNodeOptions(rawOptions, pathStyle, pathOptions), env).options;
   const normalizedOptions = normalizeOptions("node", {
-    ...inlineNodeInheritedOptions(env, rawOptions),
+    ...inlineNodeInheritedOptions(env, rawOptions, pathOptions),
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env);
   let expandedOptions = applyInlineBareFillCurrentColor(normalizedOptions.options, normalizedOptions.semantic, pathStyle);
@@ -6893,18 +6899,20 @@ function inlineNodeOptions(options = {}, pathStyle = {}, pathOptions = {}) {
 function inlineNodeResolvedOptions(options = {}, env, pathStyle = {}, pathOptions = {}) {
   const rawOptions = resolveDynamicOptions(options || {}, env);
   return normalizeOptions("node", {
-    ...inlineNodeInheritedOptions(env, rawOptions),
+    ...inlineNodeInheritedOptions(env, rawOptions, pathOptions),
     ...inlineNodeOptions(rawOptions, pathStyle, pathOptions)
   }, env).options;
 }
 
 function inlineNodePathPlacementOptions(pathOptions = {}) {
   const inherited = {};
+  // tikz@normal@fig clears tikz@transform before reading node keys. The path
+  // timer/coordinate has already applied path shifts; only node-local shifts
+  // may translate that point again (tikz.code.tex, node transformations).
   for (const key of [
     "above", "below", "left", "right",
     "above left", "above right", "below left", "below right",
     "anchor", "auto", "swap", "sloped", "allow upside down",
-    "xshift", "yshift", "shift",
     "pos", "midway", "near start", "near end", "very near start", "very near end", "at start", "at end"
   ]) {
     if (Object.hasOwn(pathOptions, key)) inherited[key] = pathOptions[key];
@@ -6925,8 +6933,14 @@ function applyInlineBareFillCurrentColor(options = {}, semantic = {}, pathStyle 
   };
 }
 
-function inlineNodeInheritedOptions(env = {}, rawOptions = {}) {
-  const options = inheritedNodeOptions(env);
+function inlineNodeInheritedOptions(env = {}, rawOptions = {}, pathOptions = {}) {
+  // PGF's current pen survives the node group, unlike tikz@transform. Apply
+  // it before every node / nodes and the node's explicit keys, not after them.
+  const pictureOptions = Object.fromEntries(Object.entries(env.pictureOptions || {})
+    .filter(([key]) => !optionSetsLineWidth(key)));
+  const pen = Object.fromEntries(Object.entries(pathOptions).filter(([key]) => optionSetsLineWidth(key)));
+  const options = { ...pen, ...inheritedNodeOptions({ ...env, pictureOptions }) };
+  for (const key of Object.keys(rawOptions)) delete options[key];
   if (!Object.hasOwn(rawOptions, "draw")) delete options.draw;
   if (!Object.hasOwn(rawOptions, "fill")) delete options.fill;
   return options;
@@ -10083,6 +10097,9 @@ function addNodeItemsWithFont(node, ir, env) {
     fontScale: roundNumber(nodeEnv.canvasScale * (node.textFontScale || nodeFontScale(node.options || {}, nodeEnv))),
     fontSizeBaseScale: roundNumber(nodeEnv.canvasScale * nodeOptionScale(node.options || {}, nodeEnv)),
     exactMathFontScale: Boolean(semantic["axis legend"]),
+    preferNativeMath: Boolean(semantic["tikzkit native math"]),
+    ...(semantic["tikzkit tex node anchors"] ? { preferNativeText: true } : {}),
+    ...(semantic["tikzkit native math"] && semantic["tikzkit math number"] ? { mathMode: "number" } : {}),
     textWidthScale: numberOption(node.options?.["tikzkit text width scale"], 1),
     textWidthScaleExplicit: node.options?.["tikzkit text width scale"] !== undefined,
     fontFamily: resolveFontFamily(renderedNodeText) || resolveInheritedFontFamily(node.options?.font, nodeEnv.pictureOptions?.font),
@@ -10294,7 +10311,7 @@ function addNodeItemsWithFont(node, ir, env) {
   } else if (shape === "diamondSplit" && node.diamondSplit) {
     addMultipartTextItems(node, node.diamondSplit, textPoint, size, rotation, textStyle, nodeEnv, ir);
   } else {
-    const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic);
+    const svgTextAnchor = svgTextAnchorForNode(node.options || {}, semantic, nodeEnv);
     const hasExplicitLayoutBounds = Boolean(node.options?.["tikzkit layout bbox"]);
     const skipsImplicitLayoutBounds = Boolean(node.options?.["tikzkit skip implicit node bbox"]) || shape === "starburst" || shape === "semicircle" || shape === "circularSector" || shape === "kite" || shape === "dart";
     ir.items.push({
@@ -10736,8 +10753,11 @@ function nodeTextWrapMode(options = {}, semantic = {}) {
   return normalizedNodeTextAlign(options.align, semantic) === "center" ? "center" : undefined;
 }
 
-function svgTextAnchorForNode(options = {}, semantic = {}) {
+function svgTextAnchorForNode(options = {}, semantic = {}, env) {
   if (!semantic["axis legend"]) return undefined;
+  // A shaped label's west/east anchor positions its border, not the glyphs.
+  // The ordinary node center already includes its padding and shape radius.
+  if (nodeUsesBoxSizing(options, env)) return undefined;
   const anchor = String(options.anchor || "").trim().toLowerCase().replace(/-/g, " ");
   if (anchor.includes("west")) return "start";
   if (anchor.includes("east")) return "end";
@@ -10941,7 +10961,10 @@ function nodeLabels(options = {}, point, size, env, textStyle = {}) {
     const labelText = applyNodeLineBreakSemantics(label.text, normalizedLabelOptions);
     const labelSize = labelPlacementSize({ ...label, text: labelText }, env, options);
     const labelLayoutSize = estimateNodeLayoutSize(labelText, normalizedLabelOptions, env);
-    const baseLabelPoint = labelPointForDirection(label.direction, point, size, sep, labelSize);
+    const outerSep = nodeOuterSep(options, env);
+    const parentSize = size.width || size.height
+      ? { width: size.width + 2 * outerSep.x, height: size.height + 2 * outerSep.y } : size;
+    const baseLabelPoint = labelPointForDirection(label.direction, point, parentSize, sep, labelSize);
     const labelShift = nodeExplicitShift(normalizedLabelOptions, env);
     const labelPoint = roundPoint({
       x: baseLabelPoint.x + labelShift.x,
@@ -11057,6 +11080,7 @@ function labelTextStyle(label, env, fallbackStyle = {}, parentOptions = {}, kind
     fill: style.textFill || semantic.text || "black",
     fontScale: roundNumber(env.canvasScale * nodeFontScale(normalizedLabelOptions, env)),
     fontSizeBaseScale: roundNumber(env.canvasScale * nodeOptionScale(normalizedLabelOptions, env)),
+    preferNativeMath: Boolean(semantic["tikzkit native math"]),
     fontFamily:
       resolveFontFamily(label.text) ||
       resolveInheritedFontFamily(normalizedLabelOptions.font, env.pictureOptions?.font) ||
@@ -11656,7 +11680,6 @@ function rotateVector(x, y, degrees) {
 
 function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorOffsets = {}, shapeData = {}) {
   const direction = nodeDirection(options);
-  const scaledSep = sep * canvasLengthScale(env);
   if (direction) {
     const distance =
       nodeDirectionDistance(options[direction], sep, env) *
@@ -11674,20 +11697,11 @@ function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorO
       direction.includes("below") ? "north" : direction.includes("above") ? "south" : "",
       direction.includes("left") ? "east" : direction.includes("right") ? "west" : ""
     ].filter(Boolean).join(" ");
-    const customAnchor = oppositeAnchor
-      ? customNodeLocalAnchor(nodeShape(options), oppositeAnchor, {
-          ...size,
-          shapeData
-        })
-      : null;
-    const centerOffset = customAnchor
-      ? { x: -customAnchor.x, y: -customAnchor.y }
-      : {
-          x: direction.includes("right") ? size.width / 2 : direction.includes("left") ? -size.width / 2 : 0,
-          y: direction.includes("above") ? size.height / 2 : direction.includes("below") ? -size.height / 2 : 0
-        };
-    const rotated = rotateVector(centerOffset.x, centerOffset.y, rotation);
-    return { x: gapX + rotated.x, y: gapY + rotated.y };
+    // tikz.code.tex defines above/below/left/right by assigning the opposite
+    // compass anchor. Both forms therefore include the same outer separation.
+    const shift = explicitNodeAnchorShift({ ...options, anchor: oppositeAnchor },
+      size, env, rotation, textAnchorOffsets, shapeData);
+    return { x: gapX + shift.x, y: gapY + shift.y };
   }
 
   return explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets, shapeData);
@@ -13288,8 +13302,9 @@ function rectangleSplitLayout(text, options = {}, env = { variables: {} }) {
       env
     );
     const normalized = normalizeTikzText(part.text, env);
+    const font = resolvedTextFontSpec(part.text, metricOptions, env);
     const plain = normalized.kind === "text" && normalized.lines?.length === 1
-      ? measurePlainTextTeXBoxPt(normalized.lines[0], {
+      ? (nativeTypewriterFont(font) && layoutNativeText(normalized.lines[0], font)) || measurePlainTextTeXBoxPt(normalized.lines[0], {
           fontSizePt: 10 * nodeFontScaleForText(normalized, metricOptions, env)
         })
       : null;
@@ -14130,6 +14145,9 @@ function textEngineMetricOptions(env = {}, text = null, options = {}, normalized
   const { semantic } = normalizedOptions;
   const metricOptions = {
     textEngine: options["tikzkit fixed typewriter metrics"] ? null : env.textEngine || null,
+    preferNativeMath: Boolean(semantic["tikzkit native math"]),
+    preferNativeText: Boolean(semantic["tikzkit tex node anchors"]),
+    ...(semantic["tikzkit native math"] && semantic["tikzkit math number"] ? { mathMode: "number" } : {}),
     textEngineUnit: Number(env.textEngineUnit) || TIKZ_UNIT,
     lineBreakMode: nodeTextWrapMode(normalizedOptions.options, semantic)
   };
@@ -14475,7 +14493,10 @@ function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
     height = formula.height;
     depth = formula.depth;
   } else if (line && lines.length === 1) {
-    const measured = measurePlainTextTeXBoxPt(line, {
+    // A base anchor is the original hbox baseline, not the visual middle of
+    // a substitute font. Use the same supported CMTT run as the SVG painter.
+    const native = nativeTypewriterFont(font) || normalized.inlineNodes?.length ? layoutNativeTextRun(normalized, font) : null;
+    const measured = native || measurePlainTextTeXBoxPt(line, {
       fontSizePt: Number(font.sizePt) || 10,
       fontFamily: font.family
     });
@@ -14501,7 +14522,13 @@ function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
 }
 
 function nodeOuterSep(options = {}, env = { variables: {} }) {
-  if (!nodeUsesBoxSizing(options, env)) return { x: 0, y: 0 };
+  // PGF rectangle anchors include half the line width even without draw/fill.
+  // Base/mid side anchors use the same saved southwest/northeast x coordinate.
+  // Unpainted package shapes own their terminal geometry; the rectangle rule
+  // must not enlarge electrical ports or other custom anchors.
+  const baselineSide = /^(?:base|mid) (?:west|east)$/.test(String(options.anchor || "").trim());
+  if (!["rectangle", "circle", "ellipse"].includes(nodeShape(options)) && !baselineSide &&
+      !options["tikzkit tex node anchors"] && !nodeUsesBoxSizing(options, env)) return { x: 0, y: 0 };
   const { style } = normalizeOptions("node", options, env);
   const defaultSep = Math.max(0, (Number(style.lineWidth) || 0) / TIKZ_UNIT / 2);
   return {
@@ -14593,9 +14620,11 @@ function estimateCompactTextSize(text, options = {}, env = { variables: {} }) {
     formulaMinWidth: 0.08,
     formulaWidthPadding: 0.08
   }), nodeTextMetricScaleForText(normalized, nodeFontScaleForText(normalized, options, env)));
-  const innerSep = parseNodeLengthDimension(compactTextInnerSepOption(normalized, options), env);
-  const width = Math.max(0.08, textBox.width + innerSep * 2);
-  const height = Math.max(0.08, textBox.height + innerSep * 2);
+  const innerSep = compactTextInnerSepOption(normalized, options);
+  const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? innerSep, env);
+  const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? innerSep, env);
+  const width = Math.max(0.08, textBox.width + innerXSep * 2);
+  const height = Math.max(0.08, textBox.height + innerYSep * 2);
 
   return { width: roundNumber(width), height: roundNumber(height) };
 }
@@ -14983,13 +15012,13 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
       height: roundNumber(Math.max(0.02, emptyHeight))
     }, shapeScale);
   }
-  const exactMathBox = textBox.measurementKind === "cm-tex-box";
+  const exactTexBox = ["cm-tex-box", "cm-text-box"].includes(textBox.measurementKind);
   let width = fixedCircleSize ?? (isEmptyCircle
     ? emptyCircleSize
     : textWidth
       ? textWidth + innerXSep * 2
-      : Math.max(exactMathBox ? 0 : 0.22, textBox.width + innerXSep * 2));
-  let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(exactMathBox ? 0 : 0.35, textBox.height + innerYSep * 2));
+      : Math.max(exactTexBox ? 0 : 0.22, textBox.width + innerXSep * 2));
+  let height = fixedCircleSize ?? (isEmptyCircle ? width : Math.max(exactTexBox ? 0 : 0.35, textBox.height + innerYSep * 2));
   if (arrowNodeShape(shape)) return scaleSize(arrowNodeLayoutSize(width, height, options, env), shapeScale);
   if (shape === "arrowBox") return scaleSize(arrowBoxLayoutSize(width, height, options, env), shapeScale);
   if (shape === "trapezium") {
@@ -15068,9 +15097,9 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     width = Math.max(width, rectangleSplitHorizontalMinPartWidth(env) * count);
   }
   if (isCircleShape) {
-    const shouldCircumscribe = circleNeedsDiagonalFit(normalized, textBox, isEmptyCircle, null);
+    const shouldCircumscribe = exactTexBox || circleNeedsDiagonalFit(normalized, textBox, isEmptyCircle, null);
     const circumscribed = shouldCircumscribe ? pgfCircleDiameter : 0;
-    const diameter = Math.max(width, height, circumscribed, compactMathCircleMinimumDiameter(normalized));
+    const diameter = Math.max(width, height, circumscribed, exactTexBox ? 0 : compactMathCircleMinimumDiameter(normalized));
     width = diameter;
     height = diameter;
   }
@@ -15316,6 +15345,23 @@ function fixedCircularMinimumSize(options = {}, env = { variables: {} }) {
 }
 
 function estimateTextMetricBox(normalized, options = {}) {
+  // PGF's number printer enters math mode. Use the renderer's normalization
+  // here too: a text hyphen and a math minus have different optical metrics.
+  if (options.mathMode === "number") {
+    normalized = normalizeTikzText(normalized.raw ?? normalized.text, { mathMode: options.mathMode });
+  }
+  const inline = !options.textWidth && normalized.inlineNodes?.length && layoutNativeTextRun(normalized, options.font);
+  if (inline) {
+    const units = TEX_PT_PER_CM * finitePositiveScale(options.fontMetricNormalization);
+    return { width: inline.width / units, height: (inline.height + inline.depth) / units,
+      measurementKind: inline.measurementKind };
+  }
+  const nativeLines = !options.textWidth && layoutMultilineMathText(normalized, options.font);
+  if (nativeLines) {
+    const units = TEX_PT_PER_CM * finitePositiveScale(options.fontMetricNormalization);
+    return { width: nativeLines.width / units, height: (nativeLines.height + nativeLines.depth) / units,
+      measurementKind: nativeLines.measurementKind };
+  }
   const rawLines = normalized.lines.length ? normalized.lines : String(normalized.text || "").split(/\\\\|\n/);
   const scale = normalized.scale || 1;
   const widthFactor = options.widthFactor ?? 0.16;
@@ -15331,12 +15377,28 @@ function estimateTextMetricBox(normalized, options = {}) {
     if (math) {
       const measured = measureMathWithTextEngine(text, math, lineScale, options);
       if (measured) return measured;
+      // Select the optical TFM size before normalizing the box for its caller.
+      // Shrinking a 10pt box is not equivalent to typesetting in cmmi9/cmr9.
+      const normalization = finitePositiveScale(options.fontMetricNormalization);
+      const native = layoutNativeMath(math.tex, {
+        fontSizePt: 10 * lineScale * (math.scale || 1) * normalization,
+        displayMode: math.displayMode,
+        mathVersion: options.font?.mathVersion,
+        mathExtension: options.font?.mathExtension,
+        baselineSkipPt: options.font?.baselineSkipPt
+      });
+      if (native) return {
+        width: native.width / TEX_PT_PER_CM / normalization,
+        height: (native.height + native.depth) / TEX_PT_PER_CM / normalization,
+        measurementKind: native.measurementKind
+      };
       const metricNormalization = options.formulaTexTextMetrics
         ? finitePositiveScale(options.fontMetricNormalization)
         : 1;
       const formulaScale = lineScale * (math.scale || 1) * metricNormalization;
       const formula = estimateFormulaBox(math.tex, {
         displayMode: math.displayMode,
+        preferNativeMath: options.preferNativeMath,
         scale: formulaScale,
         minWidth: options.formulaMinWidth,
         widthFactor: options.formulaWidthFactor ?? widthFactor,
@@ -15353,6 +15415,12 @@ function estimateTextMetricBox(normalized, options = {}) {
           : Math.max(formulaMinHeight * formulaScale, formulaTotalHeight(formula))) / metricNormalization,
         measurementKind: formula.measurementKind
       };
+    }
+    const literal = nativeTypewriterFont(options.font) && layoutNativeText(text, options.font);
+    if (literal) {
+      const units = TEX_PT_PER_CM * finitePositiveScale(options.fontMetricNormalization);
+      return { width: literal.width / units, height: (literal.height + literal.depth) / units,
+        measurementKind: literal.measurementKind };
     }
     const measured = measurePlainTextWithTextEngine(text, lineScale, options);
     if (measured) return measured;
@@ -15385,6 +15453,7 @@ function measureMathWithTextEngine(text, math, lineScale, options = {}) {
   try {
     metrics = textEngine.measure({
       mode: "math",
+      preferNativeMath: options.preferNativeMath,
       text,
       displayMode: Boolean(math.displayMode),
       font: options.font,
@@ -15421,6 +15490,7 @@ function measurePlainTextWithTextEngine(text, lineScale, options = {}) {
   try {
     metrics = textEngine.measure({
       mode: "text",
+      preferNativeText: options.preferNativeText,
       text,
       displayMode: false,
       font: options.font,
@@ -15446,7 +15516,8 @@ function measurePlainTextWithTextEngine(text, lineScale, options = {}) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
   return {
     width,
-    height: metrics?.measurementKind === "tex-box" ? height : Math.max((options.minHeight ?? 0) * lineScale, height)
+    height: ["tex-box", "cm-text-box"].includes(metrics?.measurementKind) ? height : Math.max((options.minHeight ?? 0) * lineScale, height),
+    ...(metrics?.measurementKind === "cm-text-box" ? { measurementKind: metrics.measurementKind } : {})
   };
 }
 

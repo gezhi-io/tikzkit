@@ -1,0 +1,5 @@
+{
+  "cases": [
+    {"id":"compact-scalebox-glyphs","title":"Geometric math scaling with original optical fonts","source":"glyphs.tex","nativeGlyphFrame":{"color":"rgb(191, 0, 64)","count":24}}
+  ]
+}

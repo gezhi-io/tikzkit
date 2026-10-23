@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[width=6cm,height=6cm,axis lines=middle,
+    xmin=-4.4,xmax=4.4,ymin=-4.4,ymax=4.4,enlargelimits=false,
+    max space between ticks=100,try min ticks=2,
+    grid=major,grid style={dashed,gray!30},xlabel=$x$,ylabel=$y$]
+    \addplot[blue,thick,domain=-4.4:4.4,samples=70] {x};
+    \addplot[red,thick,domain=-4.4:4.4,samples=70] {2*sin(deg(x))};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

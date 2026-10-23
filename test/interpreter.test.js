@@ -492,7 +492,7 @@ test("renders path edges, intersection cs coordinates, and inline angle pics", (
     return Math.hypot((to?.x ?? 0) - (from?.x ?? 0), (to?.y ?? 0) - (from?.y ?? 0)) > 1;
   }), "expected node edge operations to produce visible non-zero lines");
   assert.equal(anglePics.length, 4);
-  assert.deepEqual(anglePics.map((pic) => pic.style.fill), ["yellow", "rgb(179 255 179)", "yellow", "rgb(179 255 179)"]);
+  assert.deepEqual(anglePics.map((pic) => pic.style.fill), ["rgb(255 242 0)", "rgb(179 255 179)", "rgb(255 242 0)", "rgb(179 255 179)"]);
   assert.deepEqual(angleLabels.map((node) => node.text), ["$\\alpha$", "$\\beta$", "$\\gamma$", "$\\delta$"]);
 });
 
@@ -1101,7 +1101,9 @@ test("matches PGF horizontal split accumulation, separators, and global typewrit
   assert.deepEqual(result.diagnostics, []);
   // dvisvgm's 69.449bp native extent is 69.709 TeX pt before bp conversion.
   assert.ok(widthPt >= 69.65 && widthPt <= 69.75, `expected native split width near 69.71 TeX pt, got ${widthPt}pt`);
-  assert.ok(heightPt >= 13.0 && heightPt <= 13.15, `expected native split height near 13.05 TeX pt, got ${heightPt}pt`);
+  // Independent CMTT10/PGF probe: compact-math-anchor-metrics.tex. The native
+  // north/south anchors include 0.4pt outer separation on each side.
+  assert.ok(Math.abs(heightPt - (2 * 6.78853 - 0.8)) < 0.001, `native split height: ${heightPt}pt`);
   const oneDigitPartPt = box.partWidths[1] * 28.4527559;
   assert.ok(oneDigitPartPt >= 11.88 && oneDigitPartPt <= 11.96, `expected a cmtt10 digit plus native split padding near 11.92pt, got ${oneDigitPartPt}pt`);
   assert.ok(box.separatorWidth > 0, `expected thick split separators, got ${JSON.stringify(box)}`);
@@ -1211,7 +1213,12 @@ test("optically centers rectangle split text inside each part", () => {
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(labels.every((item) => item.texBoxVerticalAlign), JSON.stringify(labels));
-  assert.match(result.svg, /tikz-text-engine-cache" transform="translate\([^ ]+ 2\.8\d+\)"/);
+  const baselines = [...result.svg.matchAll(/class="tikz-text-native"[^>]*transform="translate\([^ ]+ ([-\d.]+)\)/g)];
+  assert.equal(baselines.length, 2);
+  for (const baseline of baselines) {
+    assert.ok(Math.abs(Number(baseline[1]) * 28.4527559 / 100 - 3.05556) < 0.001,
+      `expected the centered CMTT10 digit baseline, got ${baseline[1]} SVG units`);
+  }
 });
 
 test("repeats the final rectangle split fill across remaining parts like PGF", () => {
@@ -1226,7 +1233,7 @@ test("repeats the final rectangle split fill across remaining parts like PGF", (
   const boxes = result.ir.items.filter((item) => item.type === "nodeBox" && item.shape === "rectangleSplit");
 
   assert.deepEqual(boxes[0]?.partFills, ["white", "white", "white", "white", "white"]);
-  assert.deepEqual(boxes[1]?.partFills, ["blue", "white", "purple", "white", "white"]);
+  assert.deepEqual(boxes[1]?.partFills, ["blue", "white", "rgb(191 0 64)", "white", "white"]);
 });
 
 test("renders rectangle split part fills with TikZ xcolor named colors", () => {
@@ -1421,7 +1428,7 @@ test("uses color option as the current fill color on fill paths", () => {
   const paths = ir.items.filter((item) => item.type === "path");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(paths[0].style.fill, "green");
+  assert.equal(paths[0].style.fill, "rgb(0 255 0)");
   assert.equal(paths[0].style.stroke, "none");
   assert.equal(paths[0].style.opacity, 0.2);
   assert.equal(paths[1].style.fill, "blue");
@@ -1609,8 +1616,8 @@ test("preserves ball shading on path circle and ellipse shapes", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(circle.style.shading, "ball");
-  assert.equal(circle.style.ballColor, "yellow");
-  assert.equal(circle.style.fill, "yellow");
+  assert.equal(circle.style.ballColor, "rgb(255 242 0)");
+  assert.equal(circle.style.fill, "rgb(255 242 0)");
   assert.equal(ellipse.style.shading, "ball");
   assert.equal(ellipse.style.ballColor, "black");
   assert.equal(ellipse.style.fill, "black");
@@ -2258,7 +2265,9 @@ test("places TikZ labels outside the target node box", () => {
   assert.ok(marker, "expected named marker coordinate");
   assert.ok(label, "expected label=above:$P$ text");
   assert.ok(Math.abs(label.x - marker.x) < 1e-6, `expected P label centered above marker, got ${label.x},${marker.x}`);
-  assert.ok(label.y - marker.y > 0.34, `expected P label center to clear marker box, got gap ${label.y - marker.y}`);
+  // MacTeX probe: local anchor delta 10.07357pt, under the inverse .85 CTM.
+  const nativeGap = (71.6719 - 61.59833) * .85 * 2.54 / 72.27;
+  assert.ok(Math.abs(label.y - marker.y - nativeGap) < .00011, `label gap ${label.y - marker.y} vs native ${nativeGap}`);
 });
 
 test("supports compact elliptical arc radii with negative x radius", () => {
@@ -3586,7 +3595,7 @@ test("expands parameterized inline node styles with defaults", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(boxes.length, 2);
-  assert.equal(boxes[0].style.fill, "rgb(192 192 192)");
+  assert.equal(boxes[0].style.fill, "rgb(191 191 191)");
   assert.equal(boxes[0].style.fillOpacity, 0.5);
   assert.equal(boxes[1].style.fill, "rgb(179 179 255)");
   assert.equal(boxes[1].style.fillOpacity, 0.3);
@@ -3943,8 +3952,8 @@ test("uses local label distance and TeX relation spacing for angular labels", ()
   assert.deepEqual(diagnostics, []);
   assert.ok(label, "expected the fixed-point label");
   assert.ok(
-    Math.abs(label.x - 2.653) < 0.015,
-    `expected native east-label center near x=2.653cm, got ${label.x}`
+    Math.abs(label.x * 72.27 / 2.54 - 76.07474) < .001,
+    `expected MacTeX angular-label center at 76.07474pt, got ${label.x}cm`
   );
   assert.equal(label.y, 1);
 });
@@ -4380,7 +4389,7 @@ test("parses unnamed node cells inside matrix of nodes", () => {
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(texts.includes("$0.449497$"));
-  assert.equal(highlighted?.style?.fill, "rgb(128 255 255)");
+  assert.equal(highlighted?.style?.fill, "rgb(128 214 247)");
 });
 
 test("registers TikZ matrix cell aliases declared with vertical bars", () => {
@@ -5007,7 +5016,7 @@ test("keeps common TikZ arrow tip styles distinct in the drawing IR", () => {
   assert.equal(paths[4].style.markerStart.kind, "stealth");
   assert.equal(paths[5].style.markerEnd.kind, "latex-prime");
   assert.equal(customTip.kind, "stealth");
-  assert.equal(customTip.stroke, "orange");
+  assert.equal(customTip.stroke, "rgb(255 128 0)");
   assert.equal(customTip.fill, "red");
   assert.equal(Math.round(customTip.width), Math.round(lineWidthFromTikzDimension("8pt")));
   assert.equal(Math.round(customTip.length), Math.round(lineWidthFromTikzDimension("10pt")));
@@ -5318,8 +5327,9 @@ test("keeps decimal coordinates distinct from numeric node anchors", () => {
   assert.ok(pull && push, "expected both git labels");
   assert.equal(pull.x, 3);
   assert.equal(push.x, 3);
-  assert.ok(pull.y > 0.18 && pull.y < 0.24, `expected pull label above path, got ${pull.y}`);
-  assert.ok(push.y < -0.18 && push.y > -0.24, `expected push label below path, got ${push.y}`);
+  // cmtt10 hbox height/depth and the .6pt outer sep of a very thick path.
+  assert.ok(Math.abs(pull.y * 72.27 / 2.54 - 8.09964) < .001, `native pull center: ${pull.y}`);
+  assert.ok(Math.abs(push.y * 72.27 / 2.54 + 8.09964) < .001, `native push center: ${push.y}`);
   assert.ok(Math.abs(pull.y + push.y) < 1e-6, `expected labels to be symmetric around path, got ${pull.y}, ${push.y}`);
 });
 
@@ -5832,8 +5842,9 @@ test("registers directed inline path node anchors at the displayed node center",
   const start = edge.commands[0];
 
   assert.deepEqual(diagnostics, []);
-  assert.ok(ir.coordinates.p.y > 0.25, `expected named inline node center above origin, got ${ir.coordinates.p.y}`);
-  assert.ok(start.y > -0.02, `expected p.south to stay near the origin, got ${start.y}`);
+  // Independent pdfTeX center from compact-math-anchor-metrics.tex.
+  assert.ok(Math.abs(ir.coordinates.p.y * 72.27 / 2.54 - 6.94963) < .001);
+  assert.ok(Math.abs(start.y) < .00001, `expected p.south at the origin, got ${start.y}`);
 });
 
 test("draws arrowed edge operations inside path statements", () => {
@@ -5867,7 +5878,7 @@ test("applies inline edge style options to the generated path", () => {
   assert.deepEqual(diagnostics, []);
   assert.equal(edge.style.stroke, "red");
   assert.equal(edge.style.lineWidth, TIKZ_LINE_WIDTHS.veryThick);
-  assert.equal(edge.style.markerEnd.stroke, "orange");
+  assert.equal(edge.style.markerEnd.stroke, "rgb(255 128 0)");
   assert.equal(edge.style.markerEnd.fill, "red");
 });
 
@@ -6383,7 +6394,7 @@ test("renders circuitikz pentode tube anchors and partial border labels used by 
   assert.ok(labels.some((label) => label.x < ir.coordinates.V.x && label.y > ir.coordinates.V.y), "expected labels around V northwest side");
   assert.ok(labels.some((label) => label.x > ir.coordinates.H.x && label.y > ir.coordinates.H.y), "expected labels around H northeast side");
   assert.match(svg, /tikz-node-circuitikzPentode/);
-  assert.match(svg, /fill="rgb\(204 255 255\)"/);
+  assert.match(svg, /fill="rgb\(204 239 252\)"/);
 });
 
 test("expands circuitikz quadpole anchor macro pins used by case 1056", () => {
@@ -6530,7 +6541,11 @@ test("uses rendered tensor matrix dimensions for node anchors", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.ok(title, "expected title node");
-  assert.ok(title.y > 2.1 && title.y < 3.1, `expected tensor title to attach to the rendered matrix box, got y=${title.y}`);
+  const narrower = interpretTikz(parseTikz(source.replace("inner ysep=20pt", "inner ysep=10pt")).ast).ir;
+  const otherTitle = narrower.items.find(item => item.type === "textNode" && item.text === String.raw`\bf Tensor form:`);
+  // Text layout is unchanged; each north anchor moves by exactly its added ysep.
+  assert.ok(Math.abs(title.y - otherTitle.y - 10 * 2.54 / 72.27) < 1e-8);
+  assert.ok(Math.abs(title.x - ir.coordinates.box.x) < 1e-8);
 });
 
 test("uses leading math font size macros when sizing circular nodes", () => {
@@ -6660,7 +6675,7 @@ test("samples TikZ plot function curves and applies scoped transforms", () => {
   assert.ok(paths[0].commands.at(-1).y > paths[0].commands[0].y, "expected logistic plot to rise");
   assert.equal(paths[1].commands.length, 9);
   assert.ok(paths[1].commands.some((command) => command.x < 2), "expected rotated beta density to extend left from the shifted baseline");
-  assert.equal(paths[1].style.fill, "rgb(90 90 90)");
+  assert.equal(paths[1].style.fill, "rgb(89 89 89)");
   assert.equal(paths[1].style.fillOpacity, 0.3);
 });
 

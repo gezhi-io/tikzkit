@@ -26,6 +26,8 @@ export function styleAttributes(style = {}, options = {}) {
   if ((style.stroke || "none") !== "none") {
     attrs.push(["stroke-linecap", options.lineCap || style.lineCap || (style.dashArray ? style.dashLineCap || "butt" : "butt")]);
     attrs.push(["stroke-linejoin", options.lineJoin || style.lineJoin || "miter"]);
+    // PGF/PDF defaults to 10; SVG's default of 4 bevels acute TikZ joins.
+    attrs.push(["stroke-miterlimit", style.miterLimit ?? 10]);
   }
   if (Number.isFinite(style.opacity)) attrs.push(["opacity", style.opacity]);
   if (Number.isFinite(style.fillOpacity)) attrs.push(["fill-opacity", style.fillOpacity]);

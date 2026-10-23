@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 
 import { tikzToSvg } from "../src/index.js";
 import { collectPgfplotsLibraries, patchplotsLibrary } from "../src/pgfplots/index.js";
@@ -60,8 +61,9 @@ test("patchplots rectangle preserves the A-to-B-to-C-to-D vertex stream", () => 
   assert.ok(fills[0].commands.some((command) => command.type === "closePath"));
   assert.equal(meshes[0].commands.filter((command) => command.type === "lineTo").length, 3);
   assert.ok(meshes[0].commands.some((command) => command.type === "closePath"));
-  assert.match(result.svg, /class="tikz-math-glyph tikz-math-glyph-z"/);
-  assert.doesNotMatch(result.svg, /<text[^>]*>\s*z\s*<\/text>/);
+  const z = assertNativeText(result.svg, "z");
+  assert.ok(z.glyphs.every(glyph => /CM/.test(glyph.family)), "z uses the bundled MacTeX math font");
+  assert.equal(result.ir.items.find(item => item.type === "textNode" && item.text === "$z$").rotation, 90);
 });
 
 test("patchplots line renders one open two-vertex mapped-color segment", () => {

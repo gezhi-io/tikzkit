@@ -1,0 +1,38 @@
+% Run from the repository root with pdflatex. The original source is unchanged.
+\providecommand{\histogramtickoverride}{}
+\newcommand{\histogrampoint}[2]{%
+  \pgfextractx{\dimen0}{\pgfpointanchor{#1}{#2}}%
+  \pgfextracty{\dimen2}{\pgfpointanchor{#1}{#2}}%
+  \typeout{HISTOGRAM #1.#2: \the\dimen0,\the\dimen2}%
+}
+\AddToHook{begindocument}{%
+  \pgfplotsset{
+    execute at begin axis={\histogramtickoverride},
+    every axis x label/.append style={name=histogram-xlabel},
+    every axis y label/.append style={name=histogram-ylabel},
+    every x tick label/.append style={name=histogram-xtick},
+    every y tick label/.append style={name=histogram-ytick}}
+  \NewCommandCopy\histogramoriginalclipright\clipright
+  \renewcommand\clipright[1][white]{%
+    \typeout{HISTOGRAM BEFORE CROP}%
+    \histogrampoint{current axis}{south west}%
+    \histogrampoint{current axis}{north east}%
+    \histogrampoint{current axis}{outer south west}%
+    \histogrampoint{current axis}{outer north}%
+    \histogrampoint{current axis}{outer east}%
+    \histogrampoint{current bounding box}{south west}%
+    \histogrampoint{current bounding box}{north east}%
+    \histogrampoint{histogram-xlabel}{center}%
+    \histogrampoint{histogram-xlabel}{text}%
+    \histogrampoint{histogram-ylabel}{center}%
+    \histogrampoint{histogram-ylabel}{text}%
+    \histogrampoint{histogram-xtick}{center}%
+    \histogrampoint{histogram-ytick}{center}%
+    \histogrampoint{histogram-ytick}{text}%
+    \histogramoriginalclipright[#1]%
+    \typeout{HISTOGRAM AFTER CROP}%
+    \histogrampoint{current bounding box}{south west}%
+    \histogrampoint{current bounding box}{north east}%
+  }%
+}
+\input{test/fixtures/examples/latex-examples/histogram-large-1d-dataset.tex}

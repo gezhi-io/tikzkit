@@ -1,6 +1,8 @@
-import { measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
+import { layoutMultilineMathText, measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
+import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
+import { renderNativeMath, renderNativeText } from "./nativeMath.js";
 import { formatSvgNumber as format } from "./format.js";
 import { textFontSizeForUnit } from "./layout.js";
 import { hasTextColorSegments, renderSegmentedTextNode } from "./segmentedText.js";
@@ -33,6 +35,8 @@ import {
 const TEX_PT_PER_CM = 28.4527559;
 
 export function renderPlainTextNode(item, normalized, unit, deps = {}) {
+  const native = nativePlainTextBox(item, normalized);
+  if (native) return renderNativeTextBox(item, native, unit, normalized.color || item.style?.fill);
   const formatTextLine = deps.formatTextLine || ((line) => String(line ?? ""));
   const renderSvgTextLineContent = deps.renderSvgTextLineContent || ((_sourceLine, formattedLine) => String(formattedLine ?? ""));
   const fitFontSizeToBox = deps.fitFontSizeToBox || ((baseFontSize) => baseFontSize);
@@ -140,6 +144,8 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
 }
 
 export function renderPlainTextNodeWithTextEngine(item, normalized, unit, options = {}) {
+  const native = nativePlainTextBox(item, normalized);
+  if (native) return renderNativeTextBox(item, native, unit, normalized.color || item.style?.fill);
   const textEngine = options.textEngine;
   if (!textEngine || typeof textEngine.measure !== "function" || typeof textEngine.renderFromCache !== "function") return "";
   const wrapWidth = Number(item.wrapWidth);
@@ -161,6 +167,7 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
       mode: "text",
       text: normalized.raw || item.text || normalized.text,
       displayMode: false,
+      preferNativeText: Boolean(item.style?.preferNativeText),
       font: item.font,
       fontSizePt: 10 * fontScale,
       fontFamily: item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY,
@@ -228,6 +235,8 @@ function mathOnlyGlyphFontScale(sourceLine) {
 }
 
 export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {}) {
+  const native = nativePlainTextBox(item, normalized);
+  if (native) return { width: native.width / TEX_PT_PER_CM, height: (native.height + native.depth) / TEX_PT_PER_CM };
   const formatTextLine = deps.formatTextLine || ((line) => String(line ?? ""));
   const fitFontSizeToBox = deps.fitFontSizeToBox || ((baseFontSize) => baseFontSize);
   const rawFontFamily = resolvedFontFamily(item, normalized);
@@ -289,6 +298,24 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
     width: Math.max(0.08, width),
     height: Math.max(0.08, heightPx / unit)
   };
+}
+
+export function nativePlainTextBox(item, normalized) {
+  if (!item.wrapWidth && !item.fitBox &&
+      !(item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) {
+    const lines = layoutMultilineMathText(normalized, item.font, normalizedTextAlign(item.textAlign));
+    if (lines) return lines;
+  }
+  const typewriter = nativeTypewriterFont(item.font);
+  if ((!item.style?.preferNativeText && !typewriter && !normalized.inlineNodes?.length) || item.wrapWidth || item.fitBox ||
+      (item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) return null;
+  return layoutNativeTextRun(normalized, item.font);
+}
+
+function renderNativeTextBox(item, box, unit, color) {
+  return box.measurementKind === "cm-tex-box"
+    ? renderNativeMath(item, box, unit, color)
+    : renderNativeText(item, box, unit, color);
 }
 
 function measuredWrappedTextHeightPx(lines, lineSizes, offsets, unit) {

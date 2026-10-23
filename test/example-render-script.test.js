@@ -1265,7 +1265,7 @@ test("example fixture renderer converts SVG artifacts to PNG when rsvg-convert i
   const referencedFonts = [...tikzkitSvg.matchAll(/url\('\.\.\/fonts\/([^']+)'\)/g)].map((match) => match[1]);
   assert.ok(referencedFonts.length > 0);
   assert.ok(referencedFonts.every((file) => fontFiles.has(file)));
-  const regularSerif = fontManifest.find((font) => font.family === "TikZKitCMUSerif" && font.style === "normal" && font.weight === 400);
+  const regularSerif = fontManifest.find((font) => font.family === "TikZKitCMR10" && font.style === "normal" && font.weight === 400);
   assert.ok(regularSerif);
   assert.ok(referencedFonts.includes(regularSerif.file));
   for (const license of new Set(fontManifest.map((font) => font.license))) {

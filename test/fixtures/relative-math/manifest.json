@@ -1,0 +1,12 @@
+{
+  "cases": [
+    {
+      "id": "relative-math-sizes", "source": "relative-math-sizes.tex",
+      "title": "Native relsize math styles and bold symbols",
+      "nativeGlyphFrame": {
+        "color": "rgb(128, 128, 128)", "count": 31, "referenceSkip": 5,
+        "excludedControl": "The first unwrapped formula still uses the legacy text path; its five reference glyphs are shown, but not accepted by this relative-size gate."
+      }
+    }
+  ]
+}

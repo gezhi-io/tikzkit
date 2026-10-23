@@ -11,7 +11,8 @@ test("resolves TikZ color mixes to concrete SVG colors", () => {
   assert.equal(normalizeColor("DarkBlue!10"), "rgb(230 230 243)");
   assert.equal(normalizeColor("LightSteelBlue"), "LightSteelBlue");
   assert.equal(normalizeColor("DimGray"), "DimGray");
-  assert.equal(normalizeColor("SpringGreen"), "SpringGreen");
+  // dvipsnam.def (CMYK), verified against local pdf2svg, not CSS SpringGreen.
+  assert.equal(normalizeColor("SpringGreen"), "rgb(189 225 76)");
   assert.equal(normalizeColor("brown"), "rgb(191 128 64)");
   assert.equal(normalizeColor("lime"), "rgb(191 255 0)");
   assert.equal(normalizeColor("cyan"), "rgb(0 173 239)");

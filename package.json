@@ -47,6 +47,7 @@
   },
   "scripts": {
     "test": "node --test",
+    "test:summary": "node --test --test-reporter=./scripts/module-test-reporter.js",
     "check:architecture": "node --experimental-vm-modules scripts/check-architecture.js",
     "docs:links": "node scripts/check-doc-links.js",
     "web": "node web/server.js",

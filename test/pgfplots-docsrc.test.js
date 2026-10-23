@@ -100,7 +100,8 @@ test("pgfplots docsrc: uses default function domain and ternary expressions", ()
   assert.equal(diagnostics.length, 0);
   const plotPaths = paths(ir).filter((item) => role(item) === "axis-plot");
   const red = plotPaths.find((item) => item.style?.stroke === "red");
-  const green = plotPaths.find((item) => item.style?.stroke === "green");
+  // xcolor's green is full-intensity RGB, not the darker CSS named green.
+  const green = plotPaths.find((item) => item.style?.stroke === "rgb(0 255 0)");
   const redYValues = (red?.commands || []).map((command) => command.y).filter(Number.isFinite);
   const greenYValues = (green?.commands || []).map((command) => command.y).filter(Number.isFinite);
 
@@ -198,7 +199,8 @@ test("pgfplots docsrc: samples tikzpicture declare function expressions", () => 
 
   assert.deepEqual(diagnostics, []);
   const plots = paths(ir).filter((item) => role(item) === "axis-plot");
-  const filled = paths(ir).find((item) => role(item) === "axis-closed-cycle" && item.style?.fill === "rgb(128 255 255)");
+  // Native function-normal-fill: cyan is mixed in DeviceCMYK, then painted.
+  const filled = paths(ir).find((item) => role(item) === "axis-closed-cycle" && item.style?.fill === "rgb(128 214 247)");
   assert.ok(plots.length >= 1, "expected declared normalpdf function to render an axis plot");
   assert.ok(filled, "expected declared normalpdf function to render filled closed cycle");
   const labels = textNodes(ir).map((item) => item.text);
@@ -228,7 +230,7 @@ test("pgfplots docsrc: samples pgfmathdeclarefunction with legacy plot styles an
   assert.deepEqual(diagnostics, []);
   const plotPaths = paths(ir).filter((item) => role(item) === "axis-plot");
   const red = plotPaths.find((item) => item.style?.stroke === "rgb(230 0 0)" && item.commands.length > 50);
-  const cyan = plotPaths.find((item) => item.style?.stroke === "rgb(0 128 128)" && item.commands.length > 50);
+  const cyan = plotPaths.find((item) => item.style?.stroke === "rgb(73 118 141)" && item.commands.length > 50);
   assert.ok(red, "expected the legacy plotA style and declared Gaussian to produce a red curve");
   assert.ok(cyan, "expected the legacy plotB style and declared Gaussian to produce a cyan curve");
   const redY = red.commands.map((command) => command.y).filter(Number.isFinite);
@@ -320,7 +322,7 @@ test("pgfplots docsrc: preserves addplot inline node pin labels", () => {
   const second = labelNodes.find((item) => item.text === "$\\hat{\\theta}_2$");
   assert.ok(first, "expected first addplot pin label");
   assert.ok(second, "expected second addplot pin label");
-  assert.equal(first.style?.fill, "orange");
+  assert.equal(first.style?.fill, "rgb(255 128 0)");
   assert.equal(second.style?.fill, "blue");
   assert.ok(paths(ir).filter((item) => item.subtype === "pin-edge").length >= 2, "expected pin connector edges");
 });
@@ -614,11 +616,23 @@ test("pgfplots docsrc: renders addplot3 surf function patches and z labels", () 
   assert.ok(textNodes(ir).some((item) => item.text === "$z$"));
 });
 
-test("pgfplots docsrc: renders 3D surf mesh strokes and rotated text z labels", () => {
-  const { ir, diagnostics } = renderAxis(String.raw`
+test("pgfplots docsrc: renders native flat mesh colors and rotated text z labels", () => {
+  const source = String.raw`
 \begin{axis}[xlabel=$\Re(p_0)$, ylabel=$\Im(p_0)$, zlabel=$n_\text{B}(p_0)$, shader=flat]
   \addplot3[surf, opacity=0.5, domain=1:2, y domain=-1:1, samples=5] {e^x + cos(deg(y))};
-\end{axis}`, { mathRenderer: "svg-text" });
+\end{axis}`;
+  const flat = renderAxis(source, { mathRenderer: "svg-text" });
+  assert.equal(flat.diagnostics.length, 0);
+  const flatPatches = paths(flat.ir).filter((item) => role(item) === "axis-surface");
+  assert.ok(flatPatches.length > 0);
+  for (let index = 0; index < flatPatches.length; index += 2) {
+    assert.equal(flatPatches[index + 1].style.stroke, flatPatches[index].style.fill);
+  }
+
+  // pgfplotsmeshplothandler: flat,draw=black requests a black outline;
+  // flat alone strokes with the mapped color. Guard both native contracts.
+  const { ir, diagnostics } = renderAxis(source.replace("surf, opacity", "surf, draw=black, opacity"),
+    { mathRenderer: "svg-text" });
 
   assert.equal(diagnostics.length, 0);
   const surfaces = paths(ir).filter((item) => role(item) === "axis-surface");
@@ -655,14 +669,14 @@ test("pgfplots docsrc: honors 3D axis tick distance options", () => {
   assert.ok(labels.includes("$\\Re(p_0)$"));
   assert.ok(labels.includes("$\\Im(p_0)$"));
   assert.ok(labels.includes("$s(p_0)$"));
-  assert.equal(labels.filter((label) => label === "-1").length, 3);
+  assert.equal(labels.filter((label) => label === "\u22121").length, 3);
   assert.equal(labels.filter((label) => label === "0").length, 3);
   assert.equal(labels.filter((label) => label === "1").length, 3);
-  assert.ok(!labels.includes("-0.5"));
+  assert.ok(!labels.includes("\u22120.5"));
   assert.ok(!labels.includes("0.5"));
 });
 
-test("pgfplots docsrc: treats axis-level surf addplot3 coordinates as filled 3D patches", () => {
+test("pgfplots docsrc: single-scanline surf coordinates use native line patches", () => {
   const { ir, diagnostics } = renderAxis(String.raw`
 \begin{axis}[xlabel=$x$, ylabel=$y$, zlabel=$z$, surf, shader=flat]
   \addplot3[blue!30] coordinates {
@@ -679,9 +693,11 @@ test("pgfplots docsrc: treats axis-level surf addplot3 coordinates as filled 3D 
   const surfaces = paths(ir).filter((item) => role(item) === "axis-surface");
   const surfaceFills = surfaces.filter((item) => item.style.fill && item.style.fill !== "none");
   const surfaceMeshes = surfaces.filter((item) => item.style.stroke && item.style.stroke !== "none");
-  assert.equal(surfaceFills.length, 2);
-  assert.equal(surfaceMeshes.length, 2);
-  assert.ok(surfaces.every((item) => item.commands?.some((command) => command.type === "lineTo")));
+  // MacTeX's scanline cleanup retains all four coordinates in one row.
+  // pgfplotsmeshplothandler then chooses its one-dimensional line class.
+  assert.equal(surfaceFills.length, 0);
+  assert.equal(surfaceMeshes.length, 6);
+  assert.ok(surfaces.every((item) => item.commands?.filter((command) => command.type === "lineTo").length === 1));
   assert.ok(textNodes(ir).some((item) => item.text === "$z$"));
 });
 

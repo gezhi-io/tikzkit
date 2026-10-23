@@ -1,0 +1,13 @@
+{
+  "cases": [
+    {"id":"function-ternary-colors","title":"Default function domain and TeX green","source":"ternary.tex",
+      "paintColors":[{"property":"stroke","rgb":[0,255,0]},{"property":"stroke","rgb":[255,0,0]}]},
+    {"id":"function-normal-fill","title":"Declared normal density and CMYK cyan fill","source":"normal-fill.tex",
+      "paintColors":[{"property":"fill","rgb":[127.5,213.99,247.00]}]},
+    {"id":"function-legacy-colors","title":"Legacy function and mixed plot colors","source":"legacy.tex",
+      "paintColors":[{"property":"stroke","rgb":[229.5,0,0]},{"property":"stroke","rgb":[72.50,118.50,140.50]}]},
+    {"id":"function-pin-colors","title":"Inline pin labels inherit orange and blue","source":"pins.tex",
+      "paintColors":[{"property":"fill","rgb":[255,127.5,0]},{"property":"fill","rgb":[0,0,255]},
+        {"property":"stroke","rgb":[255,127.5,0]},{"property":"stroke","rgb":[0,0,255]}]}
+  ]
+}
