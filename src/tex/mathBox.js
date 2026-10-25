@@ -128,9 +128,15 @@ function glyph(text, ctx, mathItalic, atom = "ord") {
   // fontmath.ltx maps \cdot to CMSY slot 01. Our MacTeX font subset
   // encodes that outline as periodcentered, while KaTeX returns U+22C5.
   const char = !ctx.textFace && codepoint === "\u22c5" ? "\u00b7" : codepoint;
+  // fontmath.ltx's mathcal selects the symbols alphabet. Capitals keep
+  // their ASCII slots in CMSY; they are not Unicode script characters in CMMI.
+  // Non-capital variable slots need their own symbol mapping, not a roman
+  // lookalike. Retain the complete fallback until that mapping is available.
+  if (ctx.calligraphic && /^[a-z0-9]$/.test(char)) unsupported();
   // fontmath.ltx assigns math punctuation and /, <, > to the letters family.
   // CMR has similar-looking glyphs, but different small optical-size advances.
-  let roles = ["/", ",", ".", "<", ">"].includes(char) ? ["CMMI"]
+  let roles = ctx.calligraphic && /^[A-Z]$/.test(char) ? ["CMSY"]
+    : ["/", ",", ".", "<", ">"].includes(char) ? ["CMMI"]
     : ctx.roman && /^[A-Za-z0-9\u0391-\u03a9]$/.test(char) ? [ctx.roman === "bold" ? "CMBX" : "CMR"]
     : mathItalic ? ["CMMI"] : ["CMR", "CMSY", "CMMI"];
   if (ctx.bold) roles = roles.map(role => ({ CMR: "CMBX", CMMI: "CMMIB", CMSY: "CMBSY" })[role] || role);
@@ -154,9 +160,10 @@ function build(node, ctx) {
     case "color": return list(node.body, { ...ctx, color: node.color });
     case "mclass": return { ...list(node.body, ctx), atom: node.mclass.slice(1), character: false };
     case "font":
-      if (!["mathrm", "mathnormal", "mathbf", "boldsymbol"].includes(node.font)) return unsupported();
+      if (!["mathrm", "mathnormal", "mathbf", "boldsymbol", "mathcal"].includes(node.font)) return unsupported();
       if (node.font === "boldsymbol") return { ...build(node.body, { ...ctx, bold: true }), character: false };
-      return build(node.body, { ...ctx, roman: node.font === "mathbf" ? "bold" : node.font === "mathrm" });
+      return build(node.body, { ...ctx, calligraphic: node.font === "mathcal",
+        roman: node.font === "mathbf" ? "bold" : node.font === "mathrm" });
     case "styling": return list(node.body, { ...ctx,
       style: ["display", "text", "script", "scriptscript"].indexOf(node.style) });
     case "html": {

@@ -1,6 +1,7 @@
 import { nativeMathFont, nativeMathSize } from "./mathFonts.js";
 import { parseTikzFontPatch } from "./fontSpec.js";
 import { layoutNativeMath } from "./mathBox.js";
+import { nativeSpaceFactor } from "./textSpacing.js";
 
 export function nativeTypewriterFont(font = {}) {
   // The installed browser asset is cmtt10. Other NFSS optical sizes need
@@ -179,9 +180,11 @@ export function layoutNativeText(text, font = {}) {
     else chars.push(char);
   }
   const box = { width: 0, height: 0, depth: 0, items: [], measurementKind: "cm-text-box" };
+  let spaceFactor = 1000;
   for (const [index, char] of chars.entries()) {
     if (char === " " || char === "\u00a0") {
-      box.width += metrics.parameters.SPACE * size;
+      box.width += (metrics.parameters.SPACE +
+        (char === " " && spaceFactor >= 2000 ? metrics.parameters.EXTRASPACE : 0)) * size;
       continue;
     }
     const glyph = metrics.glyphs[char];
@@ -192,6 +195,7 @@ export function layoutNativeText(text, font = {}) {
     box.width += glyph[0] * size;
     box.height = Math.max(box.height, glyph[1] * size);
     box.depth = Math.max(box.depth, glyph[2] * size);
+    spaceFactor = nativeSpaceFactor(spaceFactor, char);
   }
   return box;
 }

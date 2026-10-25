@@ -159,6 +159,29 @@ test("3D explicit font and color aliases reach browser and export text", () => {
   }
 });
 
+// Nonstarred box keys replace the label style in compat >= 1.8; later
+// rotations append to it. Native base-east/base-west anchors confirm angles.
+for (const [name, options, compat, rotation, x, y] of [
+  ["explicit box", "axis lines=box", "1.18", 90, 159.81584, -8.18303],
+  ["starred box", "axis lines*=box", "1.18", 0, 159.95908, -8.35263],
+  ["legacy box", "axis lines=box", "1.7", 0, 159.95908, -8.35263],
+  ["style after box", "axis lines=box,y label style={rotate=30}", "1.18", 120, 158.01988, -6.05673],
+  ["style before box", "y label style={rotate=30},axis lines=box", "1.18", 90, 159.81584, -8.18303]
+]) {
+  test(`3D ${name} retains native label style ordering`, () => {
+    const source = fixture("boxed").replace("compat=1.18", `compat=${compat}`)
+      .replace("xlabel={$x$}", `${options},xlabel={$x$}`);
+    for (const renderOptions of [{}, { mathRenderer: "svg-text" }]) {
+      const result = tikzToSvg(source, renderOptions);
+      assert.deepEqual(result.diagnostics, []);
+      const node = result.ir.items.find(item => item.type === "textNode" && item.text === "$y$");
+      assert.equal(node.rotation || 0, rotation);
+      close(node.x * pt, x, `${name} x`);
+      close(node.y * pt, y, `${name} y`);
+    }
+  });
+}
+
 test("open 3D tick labels follow the transverse surface direction", () => {
   const result = tikzToSvg(fixture("left"));
   const expected = [[102.00680, -8.01384], [178.62047, 24.58255], [-7.93454, 80.10287]];

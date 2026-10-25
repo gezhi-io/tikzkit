@@ -1,0 +1,36 @@
+\documentclass{article}
+\usepackage{tikz,amsmath}
+\usetikzlibrary{shapes.misc,shapes.multipart}
+\makeatletter
+\expandafter\let\expandafter\originalrounded\csname pgf@sh@bg@rounded rectangle\endcsname
+\expandafter\def\csname pgf@sh@bg@rounded rectangle\endcsname{%
+  \typeout{ROUNDED BOX \tikz@fig@name: \the\wd\pgfnodeparttextbox,\the\ht\pgfnodeparttextbox,\the\dp\pgfnodeparttextbox}%
+  \originalrounded}
+\newcommand{\reportnode}[1]{%
+  \pgfpointanchor{#1}{east}\typeout{ANCHOR #1/east: \the\pgf@x,\the\pgf@y}%
+  \pgfpointanchor{#1}{west}\typeout{ANCHOR #1/west: \the\pgf@x,\the\pgf@y}%
+  \pgfpointanchor{#1}{north}\typeout{ANCHOR #1/north: \the\pgf@x,\the\pgf@y}%
+  \pgfpointanchor{#1}{south}\typeout{ANCHOR #1/south: \the\pgf@x,\the\pgf@y}}
+\makeatother
+\newcommand{\reportmath}[2]{%
+  \setbox0=\hbox{$#2$}\typeout{MATH #1: \the\wd0,\the\ht0,\the\dp0}}
+\begin{document}
+\reportmath{prime}{(\theta_1',\psi_1')}
+\reportmath{cal}{(\mathcal{T},\mathcal{R})}
+\reportmath{cal-script}{\mathcal{T}_i}
+\reportmath{cal-group}{\mathcal{T_i}}
+\reportmath{cal-prime}{\mathcal{R}'}
+\reportmath{primes}{f'+f''+f'''}
+{\scriptsize\reportmath{small-primes}{\theta_1'+\mathcal{T}_i+\mathcal{R}'}}
+{\boldmath\reportmath{bold-primes}{\theta_1'+\mathcal{T}_i+\mathcal{R}'}}
+\begin{tikzpicture}
+  \node[rounded rectangle,draw,thick,align=center] (A1) {Agent 1\\$(\theta_1',\psi_1')$};
+  \reportnode{A1}
+  \node[rounded rectangle,draw,thick,align=center] (AN) {Agent $n$\\$(\theta_n',\psi_n')$};
+  \reportnode{AN}
+  \node[rounded rectangle,draw,thick,align=center] (G) {Global state\\$(\theta,\psi)$};
+  \reportnode{G}
+  \node[rounded rectangle,draw,thick,align=center] (E1) {Env. 1\\$(\mathcal{T},\mathcal{R})$};
+  \reportnode{E1}
+\end{tikzpicture}
+\end{document}

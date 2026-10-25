@@ -1,0 +1,9 @@
+{
+  "cases": [
+    { "id": "rounded-agent-math", "source": "rounded-agents.tex", "title": "A3C rounded multiline nodes and boundary connections", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 56 } },
+    { "id": "caligraphic-prime-sizes", "source": "alphabets.tex", "title": "CMSY calligraphic letters and primes at native optical sizes", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 126 } },
+    { "id": "surface-prime-labels", "source": "surface.tex", "title": "3D primed labels, calligraphic descriptions and clipped surface", "axisFrame": "3d" },
+    { "id": "observation-prime-labels", "source": "observations.tex", "title": "Nested observation subscripts and scoped bold primes", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 56 } },
+    { "id": "commutative-prime-labels", "source": "../examples/latex-examples/commutative-diagram.tex", "title": "Commutative diagram with nested primed edge labels" }
+  ]
+}

@@ -12,7 +12,7 @@ import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
 import { parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
-import { layoutNativeText } from "../tex/textBox.js";
+import { layoutNativeText, layoutNativeTextRun } from "../tex/textBox.js";
 import { nativeBaselineSkip } from "../tex/mathFonts.js";
 import { wrapNativeTextFirstPass } from "./textWrapping.js";
 
@@ -522,7 +522,8 @@ export function layoutMultilineTeXText(normalized, font = {}, alignment = "cente
       mathVersion: font.mathVersion,
       mathExtension: font.mathExtension,
       preferNativeMath: true
-    }) : normalized.raw === normalized.text ? layoutNativeText(line, { ...font, sizePt }) : null;
+    }) : normalized.raw === normalized.text
+      ? layoutNativeTextRun({ raw: line, text: line }, { ...font, sizePt }) : null;
     if (!box) return null;
     boxes.push(box);
   }

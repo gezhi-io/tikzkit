@@ -6,16 +6,15 @@ scope, native implementation references, browser comparisons and open gaps.
 
 ## Current Work
 
-Latest explicit-test checkpoint: 2951 passed, 33 failed, 14 unchanged skips
-out of 2998 tests. Datavisualization major tick replay and geometry improved;
-six evidence-based stale expectations account for the 39-to-33 failure change,
-with no new failing names. Ten of twelve browser geometry controls pass;
-two legend cases remain unaccepted. Bare Node discovery also runs three manual
-browser probes without their arguments; that separate issue remains open.
-Complete figure compatibility remains partial;
-see the first report for the distinction between rendering fixes and
-evidence-based stale test corrections.
+Latest explicit-test checkpoint: 3001 passed, 28 failed, 14 unchanged skips
+out of 3043 tests. Native multiline math fixes two A3C sizing failures without
+changing those assertions. Explicit boxed 3D axes now reset their label styles
+as local PGFPlots does; later rotations compose. Browser geometry gates retain
+their original tolerances. Bare Node discovery also runs three manual browser
+probes without their arguments; that separate issue remains open. Complete
+figure compatibility remains partial, including ordinary prose-label placement.
 
+- [Native primes, calligraphic math and explicit boxed 3D labels](qa/2026-10-25-math-alphabets.md)
 - [Datavisualization tick geometry and option replay](qa/2026-10-25-datavis-tick-geometry.md)
 - [Small axes, multiline ticks and paint bounds](qa/2026-10-25-pgfplots-small-axes.md)
 - [Logarithmic surfaces, ticks and mixed descriptions](qa/2026-10-25-pgfplots-log-surfaces.md)

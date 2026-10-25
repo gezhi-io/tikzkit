@@ -24,6 +24,7 @@ import { shouldRenderAnyAxisGrid } from "./grid.js";
 import { isLogAxis } from "./ranges.js";
 import { axisLogBase, axisLogTickLabel } from "./logAxis.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
+import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText, layoutNativeMixedText } from "../tex/textBox.js";
@@ -905,7 +906,8 @@ function axis3DAxisLabelCommand(axis, text, placement) {
 function axis3DAxisLabelPlacement(axisOptions, axis, text, ranges, geometry, layout = axis3DAnnotationLayout(axisOptions, ranges, geometry)) {
   const edge = layout[axis];
   const style = axis3DLabelStyleOptions(axisOptions, axis);
-  const font = roleFontOption("axisLabel", axisOptions, style.font || axis3DFontOption(axisOptions, axis, "label"));
+  const font = roleFontOption("axisLabel", axisOptions, style.font ||
+    axisOptions[`${axis} label font`] || axisOptions["axis label font"]);
   const rotation = axis3DLabelRotationDegrees(style, axis === "z" ? 90 : 0);
   const innerSep = style["inner sep"] ?? ".3333em";
   const explicitAnchor = explicitAxis3DAnchor(style);
@@ -980,16 +982,32 @@ function axis3DTextNodeOutwardExtent(at, text, fontCommand, anchor, rotation, in
 }
 
 function axis3DLabelStyleOptions(axisOptions = {}, axis) {
-  const merged = {};
-  for (const raw of [
-    axisOptions["label style"],
-    axisOptions[`${axis} label style`],
-    axisOptions[`${axis}label style`]
-  ]) {
-    if (raw === undefined || raw === null || raw === true || raw === false) continue;
-    Object.assign(merged, parseOptions(String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1")));
+  const common = {};
+  let specific = { rotate: axis === "z" ? 90 : 0 };
+  const modernBoxStyle = pgfplotsCompatAtLeast(pgfplotsCompatLevel(axisOptions), "1.8");
+  for (const [key, raw] of Object.entries(axisOptions)) {
+    // PGF's post-1.8 nonstarred box key reinstalls "label near ticks".
+    // Implicit boxes and starred keys leave every 3d description untouched.
+    if (modernBoxStyle && ["axis lines", `axis ${axis} line`].includes(key) && String(raw).trim() === "box") {
+      specific = { rotate: axis === "x" ? 0 : 90 };
+    }
+    if (!["label style", `${axis} label style`, `${axis}label style`].includes(key)) continue;
+    for (const value of Array.isArray(raw) ? raw : [raw]) {
+      if (value === undefined || value === null || value === true || value === false) continue;
+      appendAxis3DLabelStyle(key === "label style" ? common : specific,
+        parseOptions(String(value).trim().replace(/^\{([\s\S]*)\}$/, "$1")));
+    }
   }
-  return merged;
+  // every axis label runs before the axis-specific style, even when its
+  // declaration appeared later. TikZ rotations compose instead of replacing.
+  return appendAxis3DLabelStyle(common, specific);
+}
+
+function appendAxis3DLabelStyle(target, patch) {
+  const rotation = axis3DLabelRotationDegrees(target) + axis3DLabelRotationDegrees(patch);
+  Object.assign(target, patch);
+  target.rotate = rotation;
+  return target;
 }
 
 function axis3DLabelRotationDegrees(style = {}, fallback = 0) {

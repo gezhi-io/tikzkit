@@ -51,9 +51,9 @@ def character_map(encoding, role):
         overrides.update({15: "\u03f5", 22: "\u03bc", 30: "\u03d5", 36: "\u03d6",
                           37: "\u03f1", 39: "\u03c6"})
     if role in ("CMSY", "CMBSY"):
-        # fontmath.ltx assigns Re/Im to these CMSY slots. Adobe's generic
-        # glyph-name mapping does not identify their TeX symbol outlines.
-        overrides.update({54: "\u0338", 60: "\u211c", 61: "\u2111"})
+        # fontmath.ltx assigns prime, negation and Re/Im to these CMSY slots.
+        # Adobe's generic glyph-name mapping does not identify the outlines.
+        overrides.update({48: "\u2032", 54: "\u0338", 60: "\u211c", 61: "\u2111"})
     result = {}
     for slot, name in enumerate(encoding):
         char = overrides.get(slot, {"ff":"\ufb00", "fi":"\ufb01", "fl":"\ufb02", "ffi":"\ufb03", "ffl":"\ufb04"}.get(name, agl.toUnicode(name)))

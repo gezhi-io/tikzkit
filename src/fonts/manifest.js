@@ -371,7 +371,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy5.pfb",
     "sourceSha256": "46da57e5a06866efa9a20f3dd350811b5d3279a5ae789af63e530f1f570e3c7f",
-    "sha256": "d3b19972f8debbbb29689b99d0cd494025d472d1ec75c1f26570734c8ea5d3b8",
+    "sha256": "af0ca00c4257257f6bd5f3f749d9382075f29daba965b5e8611ee7ebb900d013",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -393,7 +393,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy5.pfb",
     "sourceSha256": "65be796f0db8c0d0b29859a28332aaf0861b931ad25a4c0ef94cbc03d6c44b81",
-    "sha256": "a363c2a7715cf023d92c845a9a0579add87c68357595ec364b8138cbf98c9db8",
+    "sha256": "cd6bfc25cf8967edf18dd3760cec9675487512461f92a2ebf14a478770641deb",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -415,7 +415,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy6.pfb",
     "sourceSha256": "73eed8a83a07d8ef04d240da22bce1fd3646074f46179e3677f4f42a542f20b6",
-    "sha256": "1cf7b91a522d1a2d0851bcb92fa735f032ee0f127bd0ad39addf7d053b9de7ce",
+    "sha256": "1ea11d4e39a6681417ffbf971df15f39eb1d15e78ae57a7406202b00573ed3e1",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -437,7 +437,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy6.pfb",
     "sourceSha256": "7767d3ee98b8ebf33e3636aa2542a5d0c8a1b019255a06f21c039a938445dd07",
-    "sha256": "519b40195779fdef80c1711c3716c3362fcb46405a3bddb9f07418d079b77075",
+    "sha256": "4307562e9329aa305cbcd8637a54ff09164a0dee9eb46f3c7bf749dee9e3b873",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -459,7 +459,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy7.pfb",
     "sourceSha256": "583b65bd1857bffc2ab184fcb4aad4e70e12eb05c9ca9f1c58c9a00a86c8bccf",
-    "sha256": "b708534ef0511e571413cb0b4d2918dd56d272fa1365bdfecd38b381db42abb7",
+    "sha256": "67fe7152f6aefefa4eb18216ecb2ff63ca8fd504eb7e78b07a530aa8c87d5ed6",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -481,7 +481,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy7.pfb",
     "sourceSha256": "643914e3072b41564a8e39fbeaa7b9c9c795d71841ce749194c5df2e5bd440d0",
-    "sha256": "eed594f783bf46ceaaa7215628caa4ec3a9ddd034a0b1d6b001a88f331fd0964",
+    "sha256": "d18f9fc745d6a2047992f1b5083df0f2e7292104903fb6caecda15b4ed81ed4e",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -503,7 +503,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy8.pfb",
     "sourceSha256": "2313392f0f4cd974d9da5fb54a52feae126059759edc04a4e47e33ea6027418b",
-    "sha256": "0ea0c61f51ed31b45fb1d3983883a66cb083b84c4a8bf4a26faaace0f79d460d",
+    "sha256": "73be0d45c6e6430d811eb1553c129366ea0a2487d7b7f3ffd12c009eca2424af",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -525,7 +525,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy8.pfb",
     "sourceSha256": "d16c68314f9c9405fb936a9c54a6f0b5777b7772718a02d98628f93a40b68e10",
-    "sha256": "dbef68c3760fe4a082fbe85bc206c8092a55b77aeca113600a194e4cf093a4b9",
+    "sha256": "741a66c2bb7183c1c81beba22c29234f5c473b82445fd1e7796ebe39adac72bf",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -547,7 +547,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy9.pfb",
     "sourceSha256": "8049871d56d74fe3f8f2375afbb1e59b149bf6835027b4a101051cfca1c1a779",
-    "sha256": "6ffe5237930c92456be82fe9cadc59dae714b42fd4712d0dbaa6dda43da9b06a",
+    "sha256": "4881c8f645cd1c740640bac816151baa7cca17c4dae9ee3959c52c35b944e2cb",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -569,7 +569,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cmextra/cmbsy9.pfb",
     "sourceSha256": "a274b78189512361e4a724251d00c7c8e33cc242adbe46ca8fbaed18dace8ca0",
-    "sha256": "15ab9982cc5ee637be88a753aa7999949503d365bffb683ae274f66d41726a66",
+    "sha256": "c7f08bd5c2fd342ae7b4305866e19fc7beacdc0500c40c6bc2cd71b36cb437c2",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -591,7 +591,7 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmsy10.pfb",
     "sourceSha256": "62ee8cef552017551cd3e026a483e700730103eceaad959c87b7730017f59cff",
-    "sha256": "2d238040b413024562cdf2014e34fa7463bd5db1e387f968d82cf4f48daf5cf0",
+    "sha256": "127921db2e85814899a30be5e265e31923146d8880a4ca4b29015dd9a172b160",
     "license": "OFL-AMSFonts.txt"
   },
   {
@@ -613,7 +613,18 @@ export const fontManifest = [
     "format": "woff",
     "source": "fonts/type1/public/amsfonts/cm/cmbsy10.pfb",
     "sourceSha256": "dd42853a466c1c38ca940375ce49bb18ea336299344a80dab4fa0faf145d19db",
-    "sha256": "d76de7a2f4e65b1787d479f73bf8b233ac84a0bacdae5b031da97cbaed3ed4da",
+    "sha256": "b820bb2b780e962afccae047138fcdaf87414d8528673c48d50789b25a4dc3da",
+    "license": "OFL-AMSFonts.txt"
+  },
+  {
+    "family": "TikZKitCMTI10",
+    "style": "italic",
+    "weight": 400,
+    "file": "TikZKitCMTI10-Italic.woff",
+    "format": "woff",
+    "source": "fonts/type1/public/amsfonts/cm/cmti10.pfb",
+    "sourceSha256": "b6f162e1549a649c7e9b2edfb77306f60e1b0da74547f33cba39ff6ba0bdd473",
+    "sha256": "8b5d7335cd135d47abbd9df3ca10c17689d7af29ef74928b311448033547a3a9",
     "license": "OFL-AMSFonts.txt"
   },
   {

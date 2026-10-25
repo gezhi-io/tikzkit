@@ -2693,7 +2693,7 @@ test("does not promote scoped math bold commands to whole-label bold", () => {
   assert.doesNotMatch(svg, /G_3/);
 });
 
-test("renders nested native scripts and preserves the unsupported prime fallback", () => {
+test("renders nested native scripts and scoped bold primed nuclei", () => {
   const svg = renderSvg(
     {
       items: [
@@ -2712,11 +2712,12 @@ test("renders nested native scripts and preserves the unsupported prime fallback
     assert.ok(group.glyphs[1].y < 0 && group.glyphs[2].y > 0);
     assert.ok(group.glyphs[4].y > group.glyphs[2].y);
   }
-  // Primes are not supported by the native box parser yet. Keep the legacy
-  // branch covered separately instead of requiring it for supported formulas.
-  assert.match(svg, /font-weight="700"[^>]*><tspan>O'<\/tspan>/);
-  assert.match(svg, /dy="-[^"]+">1<\/tspan>/);
-  assert.match(svg, /dy="[\d.]+">0,id₀<\/tspan>/);
+  const bold = assertNativeText(svg, "O\u203210,id0");
+  assert.equal(bold.glyphs[0].family, "TikZKitCMBX10");
+  assert.equal(bold.glyphs[1].family, "TikZKitCMSY7");
+  assert.deepEqual(bold.glyphs.map(g => g.size), [10, 7, 7, 7, 7, 7, 7, 5]);
+  assert.ok(bold.glyphs[1].y < 0 && bold.glyphs[2].y < 0);
+  assert.ok(bold.glyphs[3].y > 0 && bold.glyphs[7].y > bold.glyphs[6].y);
   assert.doesNotMatch(svg, /\^1|μ_id|O'₀/);
 });
 
@@ -3034,7 +3035,7 @@ test("uses namespaced TeX main and math italic fonts for SVG math fallback", () 
   assert.ok(svg.includes("font-family:TikZKitCMR7"));
 });
 
-test("renders mathcal atoms with the dedicated TeX calligraphic font", () => {
+test("renders mathcal atoms with native CMSY metrics and scoped roman punctuation", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`$\mathcal{N}(40, 40)$`, style: { fill: "black" } }],
@@ -3043,13 +3044,16 @@ test("renders mathcal atoms with the dedicated TeX calligraphic font", () => {
     { mathRenderer: "svg-text", fontUrlPrefix: "../fonts/" }
   );
 
-  assert.match(svg, /font-family:TikZKitMath_Caligraphic/);
-  assert.match(svg, /TikZKitMath_Caligraphic-Regular\.woff/);
-  assert.match(svg, /class="tikz-math-calligraphic"[^>]*>N<\/tspan>\(40, 40\)/);
+  const group = assertNativeText(svg, "N(40,40)");
+  assert.equal(group.glyphs[0].family, "TikZKitCMSY10");
+  assert.equal(group.glyphs[1].family, "TikZKitCMR10");
+  assert.equal(group.glyphs[2].family, "TikZKitCMR10");
+  assert.match(svg, /TikZKitCMSY10-Regular\.woff/);
+  assert.ok(Math.abs(group.glyphs[1].x - 9.678507) < .001);
   assert.doesNotMatch(svg, />𝒩/);
 });
 
-test("renders mixed multiline text and inline math with KaTeX by default", () => {
+test("renders mixed multiline text and inline math on native baselines by default", () => {
   const svg = renderSvg({
     items: [
       {
@@ -3063,11 +3067,15 @@ test("renders mixed multiline text and inline math with KaTeX by default", () =>
     coordinates: {}
   });
 
-  assert.match(svg, /class="tikz-rich-text"/);
-  assert.match(svg, /class="tikzkit-math-root"/);
+  const group = assertNativeText(svg, "Agent1(θ\u20321,ψ\u20321)");
+  assert.equal(group.glyphs[0].family, "TikZKitCMR10");
+  assert.equal(group.glyphs[7].family, "TikZKitCMMI10");
+  assert.equal(group.glyphs[8].family, "TikZKitCMSY7");
+  assert.equal(group.glyphs[7].y - group.glyphs[0].y, 12);
+  assert.ok(group.glyphs[8].y < group.glyphs[7].y);
+  assert.ok(group.glyphs[9].y > group.glyphs[7].y);
+  assert.doesNotMatch(svg, /<foreignObject/);
   assert.doesNotMatch(svg, /class="[^"]*\bkatex\b/);
-  assert.match(svg, /Agent 1/);
-  assert.match(svg, /θ/);
 });
 
 test("keeps adjacent display-math blocks on separate rich-text lines", () => {
@@ -3321,7 +3329,7 @@ test("applies per-line TeX font size macros in KaTeX rich text", () => {
   assert.doesNotMatch(svg, /<foreignObject\b/);
 });
 
-test("normalizes mathcal shorthand before KaTeX rendering", () => {
+test("normalizes legacy mathcal shorthand before native rendering", () => {
   const svg = renderSvg({
     items: [
       {
@@ -3335,7 +3343,9 @@ test("normalizes mathcal shorthand before KaTeX rendering", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /class="tikzkit-math-root"/);
+  const group = assertNativeText(svg, "N(y;μ,σ)");
+  assert.equal(group.glyphs[0].family, "TikZKitCMSY10");
+  assert.equal(group.glyphs[2].family, "TikZKitCMMI10");
   assert.doesNotMatch(svg, /class="[^"]*\bkatex\b/);
   assert.doesNotMatch(svg, /katex-error|mathcalN/);
 });
@@ -3357,7 +3367,9 @@ test("renders mixed text and math lines without raw TeX delimiters", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, />Agent 1</);
+  const group = assertNativeText(svg, "Agent1(θ\u20321,ψ\u20321)");
+  assert.equal(group.glyphs[7].y - group.glyphs[0].y, 12);
+  assert.ok(group.glyphs.filter(g => g.text === "\u2032").every(g => g.size === 7 && g.family === "TikZKitCMSY7"));
   assert.doesNotMatch(svg, /\$|\\theta|\\psi/);
 });
 
@@ -3506,8 +3518,14 @@ test("keeps complex Case 035 observation labels legible in SVG text fallback", (
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /baseline-shift="sub"/);
-  assert.match(svg, />O'/);
+  const group = assertNativeText(svg, "O\u20323,idt+1N(yt+1;μidt+1,σidt+1)");
+  assert.equal(group.glyphs[0].family, "TikZKitCMBX10");
+  assert.equal(group.glyphs[1].family, "TikZKitCMSY7");
+  assert.equal(group.glyphs[9].family, "TikZKitCMSY10");
+  assert.equal(group.glyphs[9].y - group.glyphs[0].y, 12);
+  assert.deepEqual(group.glyphs.slice(0, 9).map(g => g.size), [10, 7, 7, 7, 7, 7, 5, 5, 5]);
+  assert.ok(group.glyphs[1].y < group.glyphs[0].y);
+  assert.ok(group.glyphs[6].y > group.glyphs[5].y);
   assert.match(svg, />μ</);
   assert.match(svg, />σ</);
   assert.doesNotMatch(svg, /O'_3,id_t\+1|μ_id_t\+1|σ_id_t\+1|\\mathcal/);

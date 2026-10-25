@@ -2,6 +2,7 @@ import { nativeBaselineSkip, nativeMathFont } from "./mathFonts.js";
 import { layoutNativeMath } from "./mathBox.js";
 import { layoutNativeText, nativeTypewriterFont } from "./textBox.js";
 import { breakNativeParagraph } from "./paragraphBreaking.js";
+import { nativeSpaceFactor } from "./textSpacing.js";
 
 export function nativeParagraphLines(source, font, widthPt, options = {}) {
   const size = Number(font.sizePt) || 10;
@@ -66,9 +67,7 @@ function paragraphLine(source, font, widthPt, justify, pack = true) {
           if (!box) return null;
           pieces.push(box);
           for (const char of token) {
-            const next = /[A-Z]/.test(char) ? 999 : ({ ".": 3000, "?": 3000, "!": 3000, ":": 2000, ";": 1500, ",": 1250 }[char] || 1000);
-            // TeX suppresses sentence space after an uppercase abbreviation.
-            spaceFactor = next > 1000 && spaceFactor < 1000 ? 1000 : next;
+            spaceFactor = nativeSpaceFactor(spaceFactor, char);
           }
         }
       }

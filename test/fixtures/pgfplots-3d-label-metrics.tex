@@ -2,7 +2,7 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \newcommand{\point}[2]{\pgfextractx{\dimen0}{\pgfpointdiff{\pgfpointanchor{origin}{center}}{\pgfpointanchor{#1}{#2}}}\pgfextracty{\dimen2}{\pgfpointdiff{\pgfpointanchor{origin}{center}}{\pgfpointanchor{#1}{#2}}}\typeout{POINT #1.#2: \the\dimen0,\the\dimen2}}
-\newcommand{\report}{\point{current axis}{north east}\point{xl}{center}\point{yl}{center}\point{zl}{center}\point{xt}{center}\point{yt}{center}\point{zt}{center}\point{current bounding box}{south west}\point{current bounding box}{north east}}
+\newcommand{\report}{\point{current axis}{north east}\point{xl}{center}\point{yl}{center}\point{yl}{base west}\point{yl}{base east}\point{zl}{center}\point{xt}{center}\point{yt}{center}\point{zt}{center}\point{current bounding box}{south west}\point{current bounding box}{north east}}
 \newcommand{\probe}[2]{
 \begin{tikzpicture}
 \begin{axis}[view={30}{30},scale only axis,width=6cm,height=4cm,
@@ -25,4 +25,9 @@
   ylabel style={at={(-0.1,0.5)},anchor=south,rotate=90,font=\large,text=blue},
   zlabel style={at={(axis description cs:1.1,0.5)},anchor=north,inner sep=3pt}}
 \probe{small}{view={120}{35},ticklabel style={font=\scriptsize,inner sep=2pt},label style={font=\small,inner sep=2pt}}
+\probe{explicit-box}{axis lines=box}
+\probe{starred-box}{axis lines*=box}
+{\pgfplotsset{compat=1.7}\probe{legacy-box}{axis lines=box}}
+\probe{box-style-after}{axis lines=box,y label style={rotate=30}}
+\probe{box-style-before}{y label style={rotate=30},axis lines=box}
 \end{document}
