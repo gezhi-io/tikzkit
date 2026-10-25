@@ -23,6 +23,14 @@ function assertNativeDimension(cm, expectedPt) {
   assert.ok(Math.abs(actualPt - expectedPt) < 0.055, `expected MacTeX ${expectedPt}pt, got ${actualPt}pt`);
 }
 
+function assertLabelAnchor(commands, text, anchor, nativePointPt) {
+  const node = parseStatements(commands.join("\n")).find(item => item.text === text);
+  assert.ok(node, `missing ${text} description`);
+  assert.equal(node.options.anchor, anchor);
+  const point = node.at.split(",").map(Number);
+  point.forEach((value, i) => assertNativeDimension(value, nativePointPt[i]));
+}
+
 // Internal painting flags may be added without changing TikZ node semantics.
 function isTickLabel(command, options) {
   if (!command.startsWith("\\node[")) return false;
@@ -1315,18 +1323,18 @@ test("pgfplots geometry separates tick/data ranges from enlarged middle-axis tra
   assert.ok(observed.xMaxPoint.x > 6.28 && observed.xMaxPoint.x < 6.29, `expected right tick inset, got ${observed.xMaxPoint.x}`);
 });
 
-test("pgfplots x-square with circle fixture keeps its calibrated semantic canvas", () => {
+test("pgfplots x-square with circle preserves native canvas and enlarged minor ticks", () => {
   const source = readFileSync("test/fixtures/examples/latex-examples/2d-x-square-with-circle.tex", "utf8");
   const result = tikzToSvg(source, { margin: 0, mathRenderer: "svg-text" });
   const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
   const size = svgDocumentSizePt(result.svg);
 
   assert.equal(errors.length, 0, errors.map((diagnostic) => diagnostic.message).join("; "));
-  // dvisvgm/tikztosvg and browser SVG measure different glyph/crop bounds.
-  // The native fixture sheet is the visual acceptance target; keep this unit
-  // regression focused on TikZKit's own calibrated, non-clipped canvas.
-  assert.ok(size.width >= 196.4 && size.width <= 197.5, `expected calibrated width near 196.95pt, got ${size.width}pt`);
-  assert.ok(size.height >= 168.2 && size.height <= 169.4, `expected calibrated height near 168.8pt, got ${size.height}pt`);
+  // Local tikztosvg is 198.653bp x 170.529bp including 2 TeX pt on each
+  // side. margin:0 removes that border; no fitted browser gutter is needed.
+  assert.ok(Math.abs(size.width - (198.653 - 4 * 72 / 72.27)) < 0.06);
+  assert.ok(Math.abs(size.height - (170.529 - 4 * 72 / 72.27)) < 0.06);
+  assert.equal(result.ir.items.filter(item => item.subtype === "axis-minor-tick").length, 25);
   assert.doesNotMatch(result.svg, /<text[^>]*>\s*<\/text>/, "axis bounds must not depend on empty tick labels");
 });
 
@@ -3048,7 +3056,9 @@ test("pgfplots axis line lowering emits bounds, box, middle lines, and clean axe
   const geometry = createAxisGeometry({ "scale only axis": true, width: "2cm", height: "2cm" }, ranges);
 
   assert.equal(
-    renderAxisBounds(geometry),
+    // This primitive serializes caller-provided bounds. Native picture
+    // extents are measured separately in pgfplots-native-seams.test.js.
+    renderAxisBounds({ ...geometry, margin: { left: 0.3, bottom: 0.32, right: 0.207, top: 0.225 } }),
     String.raw`\draw[axis bounds, draw=none, fill=none] (-0.3,-0.32) -- (2.207,-0.32) -- (2.207,2.225) -- (-0.3,2.225) -- cycle;`
   );
   assert.equal(
@@ -3904,7 +3914,8 @@ test("pgfplots middle y axis label sits close to the axis tip without expanding 
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
-  assert.ok(commands.includes(String.raw`\node[axis label, anchor=north west] at (0.975,5.764) {$y$};`));
+  // MacTeX metrics.tex: 195pt x 162pt plot, origin at 1/7 of its width.
+  assertLabelAnchor(commands, "$y$", "north west", [195 / 7, 162]);
 });
 
 test("pgfplots enlarged middle-axis labels use final transformed axis endpoints", () => {
@@ -3931,8 +3942,10 @@ test("pgfplots enlarged middle-axis labels use final transformed axis endpoints"
     zMin: 0,
     zMax: 1
   });
-  assert.ok(partedCommands.includes(String.raw`\node[axis label, anchor=south east] at (6.923,0.949) {$x$};`));
-  assert.ok(partedCommands.includes(String.raw`\node[axis label, anchor=north west] at (1.387,5.785) {$y$};`));
+  // Native endpoint anchors use the final enlarged range and the 195/162pt
+  // plot box, not text-center offsets or an extra allowance for arrow tips.
+  assertLabelAnchor(partedCommands, "$x$", "south east", [195, 162 / 6]);
+  assertLabelAnchor(partedCommands, "$y$", "north west", [195 * 1.7 / 8.4, 162]);
 
   const axisOptions = {
     "axis x line": "middle",
@@ -3947,8 +3960,8 @@ test("pgfplots enlarged middle-axis labels use final transformed axis endpoints"
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
-  assert.ok(commands.includes(String.raw`\node[axis label, anchor=south east] at (6.923,0.474) {$x$};`));
-  assert.ok(commands.includes(String.raw`\node[axis label, anchor=north west] at (3.427,5.785) {$y$};`));
+  assertLabelAnchor(commands, "$x$", "south east", [195, 162 / 12]);
+  assertLabelAnchor(commands, "$y$", "north west", [195 / 2, 162]);
 
   const positiveAxisOptions = {
     "axis x line": "middle",
@@ -3974,17 +3987,17 @@ test("pgfplots enlarged middle-axis labels use final transformed axis endpoints"
     zMin: 0,
     zMax: 1
   });
-  assert.ok(positiveAxisLines.includes(String.raw`\draw[axis line, black, line width=0.35pt] (0,0.474) -- (6.853,0.474);`));
-  assert.ok(positiveAxisLines.includes(String.raw`\draw[axis line, black, line width=0.35pt] (0.571,0) -- (0.571,5.694);`));
-  assert.ok(positiveCommands.includes(String.raw`\node[axis label, anchor=south east] at (6.923,0.474) {$x$};`));
-  assert.ok(positiveCommands.includes(String.raw`\node[axis label, anchor=north west] at (0.571,5.785) {$y$};`));
+  assert.equal(positiveAxisLines.length, 2);
+  assert.ok(positiveAxisLines.every(command => command.includes("(0,0)")));
+  assertLabelAnchor(positiveCommands, "$x$", "south east", [195, 0]);
+  assertLabelAnchor(positiveCommands, "$y$", "north west", [0, 162]);
 
   const styled = renderAxisLabels(
     { ...axisOptions, "xlabel style": "at={(0.25,0.75)},anchor=west" },
     ranges,
     geometry
   );
-  assert.ok(styled.includes(String.raw`\node[axis label, anchor=west] at (1.713,4.27) {$x$};`));
+  assertLabelAnchor(styled, "$x$", "west", [195 * 0.25, 162 * 0.75]);
 
   const withoutTransformRanges = renderAxisLabels(
     { "axis x line": "middle", "axis y line": "middle", xlabel: "$x$", ylabel: "$y$" },
@@ -5213,10 +5226,22 @@ test("pgfplots geometry treats split axis x/y middle options as middle axes", ()
 
   assert.ok(Math.abs(geometry.width - (16 - expectedReserve)) < 0.02, `expected split middle width to use native 45pt reserve, got ${geometry.width}cm`);
   assert.ok(Math.abs(geometry.height - (8 - expectedReserve)) < 0.02, `expected split middle height to use native 45pt reserve, got ${geometry.height}cm`);
-  assert.deepEqual(geometry.margin, { left: 0.48, right: 0.41, top: 0.3, bottom: 0.24 });
+  const common = createAxisGeometry(
+    { width: "16cm", height: "8cm", "axis lines": "middle" },
+    { xMin: -2, xMax: 2, yMin: -1, yMax: 2 }
+  );
+  assert.deepEqual(geometry.margin, common.margin);
   assert.ok(Math.abs(tightGeometry.width - (16 - expectedReserve)) < 0.02);
   assert.ok(Math.abs(tightGeometry.height - (8 - expectedReserve)) < 0.02);
-  assert.deepEqual(tightGeometry.margin, { left: 0.06, right: 0.12, top: 0.06, bottom: 0.06 });
+  const source = readFileSync("test/fixtures/pgfplots-native-seams/tickless.tex", "utf8");
+  const result = tikzToSvg(source, { margin: 0 });
+  const commonResult = tikzToSvg(source.replace("axis x line=middle,axis y line=middle", "axis lines=middle"), { margin: 0 });
+  assert.deepEqual(result.diagnostics, []);
+  assert.deepEqual(svgDocumentSizePt(result.svg), svgDocumentSizePt(commonResult.svg));
+  // The native probe includes only the 0.4pt stroke extent, no margin table.
+  const size = svgDocumentSizePt(result.svg);
+  assert.ok(Math.abs(size.width * 72.27 / 72 - 410.64170) < 0.06);
+  assert.ok(Math.abs(size.height * 72.27 / 72 - 183.02024) < 0.06);
 });
 
 test("pgfplots bare axis-description label coordinates use node-driven bounds", () => {

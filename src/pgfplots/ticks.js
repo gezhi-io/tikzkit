@@ -9,7 +9,7 @@ import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./
 import { axisHasExplicitDescriptionPlacement, axisTickLabelNormalExtent, isMiddleAxis } from "./geometry.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
-import { isLogAxis } from "./ranges.js";
+import { axisZeroValue, isLogAxis } from "./ranges.js";
 import { axisLogBase, axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
 import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
 
@@ -89,12 +89,13 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const explicitYTicks = yTicksDisabled || tickModel.y.explicit;
   const xTicks = xTicksDisabled ? [] : tickModel.x.values;
   const yTicks = yTicksDisabled ? [] : tickModel.y.values;
+  const finalRanges = axisOptions["datavis axis label placement"] ? ranges : geometry.transformRanges || ranges;
   const xMinorTicks = xTicksDisabled || minorTicksDisabled
     ? []
-    : axisMinorTickValues(axisOptions, "x", xTicks, ranges.xMin, ranges.xMax, addplots);
+    : axisMinorTickValues(axisOptions, "x", xTicks, finalRanges.xMin, finalRanges.xMax, addplots);
   const yMinorTicks = yTicksDisabled || minorTicksDisabled
     ? []
-    : axisMinorTickValues(axisOptions, "y", yTicks, ranges.yMin, ranges.yMax, addplots);
+    : axisMinorTickValues(axisOptions, "y", yTicks, finalRanges.yMin, finalRanges.yMax, addplots);
   const xLabels = axisOptions["pgfplots symbolic x labels"]
     ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic x labels"], xTicks)
     : axisOptions["pgfplots x interval tick labels"]
@@ -184,15 +185,16 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const oppositeYBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "y");
   const innerBoxTicks = shouldRenderInsideBoxTicks(axisOptions);
   const boxTickAlignment = usesPgfplotsBoxTickAlignment(axisOptions);
-  const boxRanges = isBoxAxis(axisOptions) ? geometry.transformRanges || ranges : ranges;
+  const boxRanges = finalRanges;
   const yAxis = xLineMode === "top"
     ? boxRanges.yMax
-    : middleAxis && ranges.yMin <= 0 && ranges.yMax >= 0 ? 0 : boxRanges.yMin;
+    : middleAxis ? axisZeroValue(finalRanges, "y") : boxRanges.yMin;
   const xAxis = yLineMode === "right"
     ? boxRanges.xMax
-    : middleAxis && ranges.xMin <= 0 && ranges.xMax >= 0 ? 0 : boxRanges.xMin;
+    : middleAxis ? axisZeroValue(finalRanges, "x") : boxRanges.xMin;
+  // pgfplotsticks prepares minor coordinates independently of tickshow's
+  // major crossing filter. A minor tick at logical ZERO remains visible.
   xMinorTicks.forEach((x) => {
-    if (shouldHideObscuredAxisTick(axisOptions, "x", x, ranges)) return;
     const base = geometry.mapPoint({ x, y: axisTickBaseValue(xMinorTickVisual, "y", yAxis, ranges) });
     if (cleanAxisOffset) base.y -= cleanAxisOffset;
     const [from, to] =
@@ -204,7 +206,7 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     commands.push(`\\draw[${xMinorTickVisual?.style || xMinorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
   });
   xTicks.forEach((x, index) => {
-    if (shouldHideObscuredAxisTick(axisOptions, "x", x, ranges)) return;
+    if (shouldHideObscuredAxisTick(axisOptions, "x", x, finalRanges)) return;
     const base = geometry.mapPoint({ x, y: axisTickBaseValue(xMajorTickVisual, "y", yAxis, ranges) });
     if (cleanAxisOffset) base.y -= cleanAxisOffset;
     const intervalLabelX = axisOptions["pgfplots x interval tick labels"] && Number.isFinite(xTicks[index + 1])
@@ -290,7 +292,6 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     }
   });
   yMinorTicks.forEach((y) => {
-    if (shouldHideObscuredAxisTick(axisOptions, "y", y, ranges)) return;
     const base = geometry.mapPoint({ x: axisTickBaseValue(yMinorTickVisual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
     const [from, to] =
@@ -302,7 +303,7 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     commands.push(`\\draw[${yMinorTickVisual?.style || yMinorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
   });
   yTicks.forEach((y, index) => {
-    if (shouldHideObscuredAxisTick(axisOptions, "y", y, ranges)) return;
+    if (shouldHideObscuredAxisTick(axisOptions, "y", y, finalRanges)) return;
     const base = geometry.mapPoint({ x: axisTickBaseValue(yMajorTickVisual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
     const schoolBookOriginLabel = isDatavisualizationSchoolBookOriginLabel(axisOptions, "y", y, ranges);
@@ -1166,7 +1167,7 @@ export function shouldHideObscuredAxisTick(axisOptions, axis, value, ranges) {
   const touches = (target) => Math.abs(tick - target) <= tolerance;
 
   if (otherMode === "middle" || otherMode === "center") {
-    const crossing = Math.min(max, Math.max(min, 0));
+    const crossing = axisZeroValue(ranges, axis);
     return touches(crossing);
   }
   if (otherMode === "left" || otherMode === "bottom") return touches(min);

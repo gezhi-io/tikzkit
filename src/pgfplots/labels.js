@@ -8,6 +8,7 @@ import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeText } from "../tex/textBox.js";
 import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
+import { axisZeroValue } from "./ranges.js";
 
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
 const PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING = "1.98pt";
@@ -57,10 +58,9 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
   const labelRanges = (xAxisMiddle || yAxisMiddle) && (geometry.lineRanges || geometry.transformRanges)
     ? geometry.lineRanges || geometry.transformRanges
     : ranges;
-  const yAxis =
-    (ranges.yMin <= 0 && ranges.yMax >= 0) || (labelRanges.yMin <= 0 && labelRanges.yMax >= 0) ? 0 : ranges.yMin;
-  const xAxis =
-    (ranges.xMin <= 0 && ranges.xMax >= 0) || (labelRanges.xMin <= 0 && labelRanges.xMax >= 0) ? 0 : ranges.xMin;
+  const finalRanges = geometry.transformRanges || ranges;
+  const yAxis = axisZeroValue(finalRanges, "y");
+  const xAxis = axisZeroValue(finalRanges, "x");
   if (axisOptions.xlabel && !pgfplotsAxisHidden(axisOptions, "x")) {
     const xlabelStyle = axisLabelStyle(axisOptions, "x");
     const point = xAxisMiddle

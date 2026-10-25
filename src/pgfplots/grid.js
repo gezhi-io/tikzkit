@@ -18,6 +18,7 @@ export function createAxisGridModel(axisOptions = {}) {
 export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geometry = {}) {
   const commands = [];
   const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
+  const finalRanges = axisOptions["datavis axis label placement"] ? ranges : geometry.transformRanges || ranges;
   const ticks = createAxisTickModel(axisOptions, ranges, addplots, geometry);
   const xTicks = hasExplicitAxisTickOption(axisOptions["x grid values"])
     ? axisTickValues(axisOptions["x grid values"], "x", addplots)
@@ -25,14 +26,14 @@ export function renderAxisGrid(axisOptions = {}, addplots = [], ranges = {}, geo
   const yTicks = hasExplicitAxisTickOption(axisOptions["y grid values"])
     ? axisTickValues(axisOptions["y grid values"], "y", addplots)
     : ticks.y.values;
-  const xMajorGridTicks = visibleGridTicks(axisOptions, "x", xTicks, ranges, ticks.x.explicit);
-  const yMajorGridTicks = visibleGridTicks(axisOptions, "y", yTicks, ranges, ticks.y.explicit);
+  const xMajorGridTicks = visibleGridTicks(axisOptions, "x", xTicks, finalRanges, ticks.x.explicit);
+  const yMajorGridTicks = visibleGridTicks(axisOptions, "y", yTicks, finalRanges, ticks.y.explicit);
   const xMinorTicks = hasExplicitAxisTickOption(axisOptions["x minor grid values"])
     ? axisTickValues(axisOptions["x minor grid values"], "x", addplots)
-    : axisMinorTickValues(axisOptions, "x", xTicks, ranges.xMin, ranges.xMax, addplots);
+    : axisMinorTickValues(axisOptions, "x", xTicks, finalRanges.xMin, finalRanges.xMax, addplots);
   const yMinorTicks = hasExplicitAxisTickOption(axisOptions["y minor grid values"])
     ? axisTickValues(axisOptions["y minor grid values"], "y", addplots)
-    : axisMinorTickValues(axisOptions, "y", yTicks, ranges.yMin, ranges.yMax, addplots);
+    : axisMinorTickValues(axisOptions, "y", yTicks, finalRanges.yMin, finalRanges.yMax, addplots);
   const padding = parseAxisSchoolBookPadding(axisOptions);
   const style = joinOptions([
     "axis grid",

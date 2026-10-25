@@ -1,0 +1,13 @@
+{
+  "cases": [
+    { "id": "native-seams-positive", "source": "../pgfplots-native-seams/positive.tex", "title": "Positive-only enlarged middle axes" },
+    { "id": "native-seams-circle", "source": "../examples/latex-examples/2d-x-square-with-circle.tex", "title": "Circle enlarged endpoint minor ticks" },
+    { "id": "native-origin-negative", "source": "negative.tex", "title": "Negative-only enlarged middle axes", "axisFrame": "middle-extended" },
+    { "id": "native-origin-zero-minors", "source": "zero-minors.tex", "title": "Explicit minor ticks at the origin" },
+    { "id": "native-origin-positive-grid", "source": "positive-grid.tex", "title": "Positive-only enlarged major grids" },
+    { "id": "native-origin-epochs", "source": "../examples/latex-examples/2d-epochs-overfitting.tex", "title": "Epochs: minor ticks at the crossing", "axisFrame": "middle-extended" },
+    { "id": "native-origin-light-bulb", "source": "../examples/latex-examples/2d-light-bulb.tex", "title": "Amortization: partial-interval minor ticks" },
+    { "id": "native-origin-hypersurface", "source": "../examples/latex-examples/hypersurface-2.tex", "title": "3D projected axis regression", "axisFrame": "3d" },
+    { "id": "native-origin-negative-left", "source": "negative-left.tex", "title": "Negative left axes stay on the lower frame" }
+  ]
+}

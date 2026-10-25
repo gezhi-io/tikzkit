@@ -122,7 +122,10 @@ test("case 004: epochs overfitting preserves plot joins, annotation, and axis co
     [[10.543794107480464, 10.543794107480464], [], [10.543794107480464, 10.543794107480464], []]
   );
   assert.ok(plots.every((item) => item.style.lineWidth === 2.811678428661457));
-  assert.equal(paths.filter((item) => item.subtype === "axis-minor-tick").length, 29);
+  // Local PGF: 45 distinct tick segments = 14 major + 31 minor. Minor
+  // coordinates at the crossing are not removed by the major tick filter.
+  assert.equal(paths.filter((item) => item.subtype === "axis-tick").length, 14);
+  assert.equal(paths.filter((item) => item.subtype === "axis-minor-tick").length, 31);
 
   assert.ok(annotation);
   assert.deepEqual([annotation.text, annotation.x, annotation.y, annotation.rotation], ["overfitting", 8.4185, 1.048, 0]);
@@ -152,7 +155,10 @@ test("case 005: light-bulb amortization preserves reciprocal curves and legend s
     plots.map((item) => [item.commands[0].y, item.commands.at(-1).y]),
     [[1.834, 0.092], [3.668, 0.183], [6.113, 0.306]]
   );
-  assert.equal(result.ir.items.filter((item) => item.subtype === "axis-minor-tick").length, 33);
+  // Local tikztosvg repaints some minors; its 52 distinct segments are
+  // 17 major + 35 minor, including the two formerly hidden crossings.
+  assert.equal(result.ir.items.filter((item) => item.subtype === "axis-tick").length, 17);
+  assert.equal(result.ir.items.filter((item) => item.subtype === "axis-minor-tick").length, 35);
 
   for (const text of [
     "Energy savings",

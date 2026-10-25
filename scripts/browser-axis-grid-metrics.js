@@ -41,6 +41,18 @@ export async function captureAxisGrid(page, { frame = "middle" } = {}) {
       if (!frames.length) throw new Error("Box axis frame not found");
       frameBox = { width: frames[0].width, height: frames[0].height };
       origin = { x: frames[0].x, y: frames[0].bottom };
+    } else if (frame === "middle-extended") {
+      // At an upper-limit crossing both shafts stop before their arrow tips.
+      // Their supporting lines still define one origin. These fixtures also
+      // have shorter annotation/legend rules, so require a unique longest
+      // shaft per direction rather than snapping to the picture's crop.
+      const longest = lines => {
+        const sorted = lines.map(line => ({ ...line, length: Math.hypot(line.b.x - line.a.x, line.b.y - line.a.y) }))
+          .sort((a, b) => b.length - a.length);
+        if (!sorted.length || (sorted[1] && sorted[0].length - sorted[1].length < 0.01)) throw new Error("Ambiguous axis shaft");
+        return sorted[0];
+      };
+      origin = { x: longest(vertical).a.x, y: longest(horizontal).a.y };
     } else {
       if (crossings.length !== 1) throw new Error("Expected exactly one middle axis crossing");
       origin = crossings[0];

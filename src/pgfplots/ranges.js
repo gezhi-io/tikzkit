@@ -16,6 +16,13 @@ export function rangeSpan(ranges, axis) {
   return max - min || 1;
 }
 
+export function axisZeroValue(ranges, axis) {
+  // PGFPlots prepares logical ZERO after enlargement, clamping it to the
+  // final limits. Using the surveyed minimum instead moves one-sided axes
+  // into the plot and incorrectly hides the first major tick.
+  return Math.min(Number(ranges[`${axis}Max`]), Math.max(Number(ranges[`${axis}Min`]), 0));
+}
+
 export function isLogAxis(axisOptions = {}, axis) {
   return String(axisOptions[`${axis}mode`] || axisOptions[`${axis} scale`] || "")
     .trim()

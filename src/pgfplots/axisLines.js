@@ -1,6 +1,7 @@
 import { parseDimension } from "../engine/math.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
+import { axisZeroValue } from "./ranges.js";
 
 export function axisOuterBounds(geometry) {
   const layout = geometry.layoutBounds || geometry;
@@ -82,8 +83,9 @@ export function shouldRenderAxisBox(axisOptions = {}) {
 
 export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
   const spanRanges = geometry.lineRanges || geometry.transformRanges || ranges;
-  const yAxis = axisContainsZero(ranges.yMin, ranges.yMax) || axisContainsZero(spanRanges.yMin, spanRanges.yMax) ? 0 : ranges.yMin;
-  const xAxis = axisContainsZero(ranges.xMin, ranges.xMax) || axisContainsZero(spanRanges.xMin, spanRanges.xMax) ? 0 : ranges.xMin;
+  const finalRanges = geometry.transformRanges || ranges;
+  const yAxis = axisLineBase(axisOptions, "x", "y", finalRanges);
+  const xAxis = axisLineBase(axisOptions, "y", "x", finalRanges);
   const yLineRange = axisLineRange(axisOptions, "y", spanRanges, ranges);
   const padding = parseAxisSchoolBookPadding(axisOptions);
   const globalStyle = axisLineStyleFragments(axisOptions["axis line style"]);
@@ -109,6 +111,13 @@ export function renderAxisLines(axisOptions = {}, ranges = {}, geometry = {}) {
     commands.push(`\\draw[${yStyle}] ${formatAxisPoint(yFrom)} -- ${formatAxisPoint(yTo)};`);
   }
   return commands;
+}
+
+function axisLineBase(axisOptions, direction, normal, ranges) {
+  const mode = specificAxisLineMode(axisOptions, direction) || String(axisOptions["axis lines"] ?? axisOptions.axis ?? "middle");
+  if (["left", "bottom"].includes(mode)) return ranges[`${normal}Min`];
+  if (["right", "top"].includes(mode)) return ranges[`${normal}Max`];
+  return axisZeroValue(ranges, normal);
 }
 
 function axisLineRange(axisOptions = {}, axis, ranges = {}, surveyedRanges = ranges) {
@@ -171,10 +180,6 @@ function shouldArrowAxis(axisOptions = {}, axis) {
   const specific = specificAxisLineMode(axisOptions, axis);
   if (specific) return specific === "left" || specific === "middle" || specific === "center";
   return shouldArrowAxisLines(axisOptions);
-}
-
-function axisContainsZero(min, max) {
-  return Number(min) <= 0 && Number(max) >= 0;
 }
 
 export function renderDatavisualizationCleanAxes(axisOptions = {}, ranges = {}, geometry = {}) {
