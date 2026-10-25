@@ -14171,7 +14171,8 @@ function textEngineMetricOptions(env = {}, text = null, options = {}, normalized
     preferNativeText: Boolean(semantic["tikzkit tex node anchors"]),
     ...(semantic["tikzkit native math"] && semantic["tikzkit math number"] ? { mathMode: "number" } : {}),
     textEngineUnit: Number(env.textEngineUnit) || TIKZ_UNIT,
-    lineBreakMode: nodeTextWrapMode(normalizedOptions.options, semantic)
+    lineBreakMode: nodeTextWrapMode(normalizedOptions.options, semantic),
+    textAlign: options["tikzkit minipage text width"] ? "justify" : normalizedNodeTextAlign(normalizedOptions.options.align, semantic)
   };
   if (text === null || text === undefined) return metricOptions;
   const normalizedText = normalized || normalizeTikzText(text, env);
@@ -14882,7 +14883,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   const isEmptyText = lines.every((line) => !line.trim());
   const isEmptyCircle = isCircleShape && isEmptyText;
   const fixedCircleSize = isCircleShape ? fixedCircularMinimumSize(options, env) : null;
-  if (usesParagraphTextWidth) {
+  if (usesParagraphTextWidth && !textBox.nativeParagraph) {
     const paragraphNormalized = prewrapTextWidth
       ? metricNormalized
       : wrappedTextMetricNormalized(
@@ -15150,7 +15151,8 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   // Exact TeX hboxes plus inner separation describe PGF's path centerline.
   // Keep their stroke outside it; legacy measured boxes include paint padding.
   return scaleSize({ width: roundNumber(width), height: roundNumber(height),
-    ...(shape === "rectangle" && textBox.measurementKind === "cm-tex-box" ? { strokeBoundsIncluded: false } : {})
+    ...(shape === "rectangle" && (textBox.measurementKind === "cm-tex-box" || textBox.nativeParagraph)
+      ? { strokeBoundsIncluded: false } : {})
   }, shapeScale);
 }
 
@@ -15463,7 +15465,8 @@ function estimateTextMetricBox(normalized, options = {}) {
   return {
     width: Math.max(...boxes.map((box) => box.width), Number(normalized.boxWidth) || 0, 0),
     height: boxes.reduce((sum, box) => sum + box.height, 0) + Math.max(0, boxes.length - 1) * lineGap * maxLineScale,
-    ...(boxes.length === 1 && boxes[0].measurementKind ? { measurementKind: boxes[0].measurementKind } : {})
+    ...(boxes.length === 1 && boxes[0].measurementKind ? { measurementKind: boxes[0].measurementKind } : {}),
+    ...(boxes.length === 1 && boxes[0].nativeParagraph ? { nativeParagraph: true } : {})
   };
 }
 
@@ -15525,7 +15528,7 @@ function measurePlainTextWithTextEngine(text, lineScale, options = {}) {
       fontStyle: "normal",
       fontWeight: "normal",
       textWidthPt,
-      alignment: "center",
+      alignment: options.textAlign || "center",
       lineBreakMode: options.lineBreakMode
     });
   } catch {
@@ -15539,7 +15542,8 @@ function measurePlainTextWithTextEngine(text, lineScale, options = {}) {
   return {
     width,
     height: ["tex-box", "cm-text-box"].includes(metrics?.measurementKind) ? height : Math.max((options.minHeight ?? 0) * lineScale, height),
-    ...(metrics?.measurementKind === "cm-text-box" ? { measurementKind: metrics.measurementKind } : {})
+    ...(metrics?.measurementKind === "cm-text-box" ? { measurementKind: metrics.measurementKind } : {}),
+    ...(metrics?.nativeParagraph ? { nativeParagraph: true } : {})
   };
 }
 

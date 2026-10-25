@@ -2,6 +2,7 @@ import { measurePlainTextTeXBoxPt, parseMathText } from "../../tikz/textMetrics.
 import { normalizeTikzText } from "../../tikz/text.js";
 import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
 import { renderNativeText } from "./nativeMath.js";
+import { nativeWrappedParagraphBox } from "./paragraphText.js";
 import {
   TIKZ_FONT_FAMILY,
   TIKZ_HELVETICA_FONT_FAMILY,
@@ -160,31 +161,12 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
   // silently flatten a structured formula during tikzToSvgAsync().
   const normalized = normalizeTikzText(String(request.text ?? ""), { mathRenderer });
   const font = textEngineFont(request);
-  const alignment = normalizedTextAlign(request.alignment);
+  const alignment = request.alignment === "justify" ? "justify" : normalizedTextAlign(request.alignment);
   const color = request.color || "black";
   const fontFamily = textEngineRenderFontFamily(font.family);
   const fontStyle = normalTextAttribute(font.style);
   const fontWeight = normalTextAttribute(font.weight);
   const typewriter = nativeTypewriterFont(font);
-  const native = (request.preferNativeText || typewriter || normalized.inlineNodes?.length) && !(Number(request.textWidthPt) > 0) &&
-    (!request.textWidthScaleExplicit || Number(request.textWidthScale) === 1)
-    ? layoutNativeTextRun(normalized, font) : null;
-  if (native) {
-    const factor = unit / TEX_PT_PER_CM;
-    const width = native.width * factor;
-    const height = (native.height + native.depth) * factor;
-    const cacheKey = textEngineCacheKey("native-text", { text: request.text, font, unit, color, alignment });
-    return {
-      cacheKey,
-      metrics: { cacheKey, width, height, baselineY: native.height * factor, midLineY: height / 2,
-        paragraphId: null, renderSourceText: request.text, measurementKind: native.measurementKind,
-        ...textEngineFontMetrics(font) },
-      payload: () => ({ cacheKey, viewBox: centeredViewBox(width, height),
-        body: renderNativeText({ x: 0, y: 0, text: request.text,
-          svgTextAnchor: alignment === "left" ? "start" : alignment === "right" ? "end" : "middle"
-        }, native, unit, color) })
-    };
-  }
   const item = {
     type: "textNode",
     x: 0,
@@ -205,6 +187,28 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
     },
     wrapWidth: textWidthPtToCm(request.textWidthPt)
   };
+  const paragraph = nativeWrappedParagraphBox(item, normalized);
+  const native = paragraph || ((request.preferNativeText || typewriter || normalized.inlineNodes?.length) && !(Number(request.textWidthPt) > 0) &&
+    (!request.textWidthScaleExplicit || Number(request.textWidthScale) === 1)
+    ? layoutNativeTextRun(normalized, font) : null);
+  if (native) {
+    const factor = unit / TEX_PT_PER_CM;
+    const width = native.width * factor;
+    const height = (native.height + native.depth) * factor;
+    const cacheKey = textEngineCacheKey("native-text", { text: request.text, font, unit, color, alignment,
+      textWidthPt: request.textWidthPt, lineBreakMode: request.lineBreakMode, hyphenate: request.hyphenate });
+    return {
+      cacheKey,
+      metrics: { cacheKey, width, height, baselineY: native.height * factor, midLineY: height / 2,
+        paragraphId: null, renderSourceText: request.text, measurementKind: native.measurementKind,
+        ...(paragraph ? { nativeParagraph: true } : {}),
+        ...textEngineFontMetrics(font) },
+      payload: () => ({ cacheKey, viewBox: centeredViewBox(width, height),
+        body: renderNativeText({ x: 0, y: 0, text: request.text,
+          svgTextAnchor: alignment === "left" ? "start" : alignment === "right" ? "end" : "middle"
+        }, native, unit, color) })
+    };
+  }
   const estimated = estimatePlainTextRenderBounds(item, normalized, unit, {
     formatTextLine
   });

@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shapes}
+\tikzset{decision/.style={diamond,draw,text width=4.5em,text badly centered,inner sep=0pt}}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-2,-2.5) rectangle (11,2.5);
+  \node[decision] at (0,0) {do bounding boxes intersect?};
+  \node[decision] at (4,0) {does line a intersect line segment b?};
+  \node[decision] at (8.7,0) {does line b intersect line segment a?};
+\end{tikzpicture}
+\end{document}

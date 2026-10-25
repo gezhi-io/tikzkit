@@ -1,8 +1,48 @@
 """Extract CM math boxes and optical outlines from the installed MacTeX files."""
 import json
+import struct
 from fontTools import agl, t1Lib
 from fontTools.tfmLib import TFM
 from fontTools.ttLib import TTFont
+
+
+def first_match_programs(tfm):
+    """Keep TeX's first matching lig/kern instruction, not the last one.
+
+    FontTools exposes a flattened map with later matches overwriting earlier
+    ones. CMR's k/v program deliberately precedes a shared w program containing
+    a second, different kern for 'a'. Decode only this ordered part of the
+    already validated TFM; font dimensions still use the standard parser.
+    """
+    data = tfm._data
+    _, lh, bc, ec, nw, nh, nd, ni, nl, _, _, _ = struct.unpack_from(">12H", data)
+    chars = 6 + lh - bc
+    lig_base = chars + ec + 1 + nw + nh + nd + ni
+    kern_base = lig_base + nl
+    ligatures, kerning = {}, {}
+    for char in tfm.chars:
+        _, _, tag, index = struct.unpack_from("4B", data, 4 * (chars + char))
+        if tag % 4 != 1:
+            continue
+        skip, right, op, remainder = struct.unpack_from("4B", data, 4 * (lig_base + index))
+        if skip > 128:
+            index = 256 * op + remainder
+        seen = set()
+        while index < nl:
+            skip, right, op, remainder = struct.unpack_from("4B", data, 4 * (lig_base + index))
+            if skip <= 128 and right not in seen:
+                seen.add(right)
+                if op >= 128:
+                    offset = kern_base + 256 * (op - 128) + remainder
+                    kerning.setdefault(char, {})[right] = struct.unpack_from(">i", data, 4 * offset)[0] / 2**20
+                else:
+                    operation = op if op == 4 or (op > 7 and op != 11) else (
+                        ("/" if op % 4 > 1 else "") + "LIG" + ("/" if op % 2 else "") + ">" * (op // 4))
+                    ligatures.setdefault(char, {})[right] = (operation, remainder)
+            if skip >= 128:
+                break
+            index += skip + 1
+    tfm.ligatures, tfm.kerning = ligatures, kerning
 
 
 def character_map(encoding, role):
@@ -42,6 +82,7 @@ def build(tex, root, temporary, optical, emit, digest, metrics_only=False):
             font.parse()
             mapping = character_map(font.font["Encoding"], role)
             tfm = TFM(str(tfm_path))
+            first_match_programs(tfm)
             family = "TikZKitMath_Typewriter" if role == "CMTT" else f"TikZKit{role}{size}"
             italic = role in ("CMMI", "CMMIB", "CMTI")
             bold = role in ("CMBX", "CMMIB", "CMBSY")

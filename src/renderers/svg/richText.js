@@ -127,7 +127,7 @@ export function richTextSourceLines(source, normalized) {
   return fallbackLines.map(collapseTeXParagraphWhitespace).filter((line) => line.length);
 }
 
-export function wrapRichTextLines(sourceLines, wrapWidth, unit, fontSize, sourceLineStyles) {
+export function wrapRichTextLines(sourceLines, wrapWidth, unit, fontSize, sourceLineStyles, options = {}) {
   const width = Number(wrapWidth) * unit;
   if (!Number.isFinite(width) || width <= 0) {
     return sourceLines.map((line, index) => ({ text: line, style: sourceLineStyles[index] || {} }));
@@ -147,7 +147,8 @@ export function wrapRichTextLines(sourceLines, wrapWidth, unit, fontSize, source
         mathFallbackText(line),
         wrapWidth,
         unit,
-        lineFontSize
+        lineFontSize,
+        options
       );
       for (const entry of wrapped) output.push({ text: entry.contentLine, style });
       return;

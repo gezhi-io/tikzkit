@@ -1,0 +1,22 @@
+\documentclass{article}
+\usepackage{tikz,amsmath}
+\newsavebox{\probe}
+\newcommand{\sampletext}{When $\alpha = \gamma$, keep the relation with its explanatory sentence so the block wraps naturally.}
+\newcommand{\measureparagraph}[3]{%
+  \begingroup#2%
+  \sbox{\probe}{\begin{minipage}{4.25cm}#3\end{minipage}}%
+  \typeout{PARAGRAPH #1: wd=\the\wd\probe, ht=\the\ht\probe, dp=\the\dp\probe, baseline=\the\baselineskip}%
+  \showboxbreadth=1000 \showboxdepth=1000 \showbox\probe
+  \endgroup}
+\begin{document}
+\measureparagraph{normal}{\normalsize}{\sampletext}
+\measureparagraph{small}{\small}{\sampletext}
+\measureparagraph{large}{\large}{\sampletext}
+\measureparagraph{scripts}{\normalsize}{Take $x_i^2 + y_i^2 = r^2$ and compare these values with $\frac{1}{1+x}$ in the next calculation.}
+\measureparagraph{fraction}{\normalsize}{Let $\displaystyle\frac{1+\frac{x}{y}}{1+\frac{y}{x}}$ be the ratio. Compare its value with the previous estimate.}
+\setbox\probe=\vbox{\hsize=45pt\parindent=0pt\parfillskip=0pt
+  \leftskip=0pt plus1fil\rightskip=0pt plus1fil
+  a intersect\par}
+\typeout{CENTERED SHRINK: wd=\the\wd\probe}
+\showboxbreadth=1000 \showboxdepth=1000 \showbox\probe
+\end{document}

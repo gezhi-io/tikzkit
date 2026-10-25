@@ -79,13 +79,23 @@ function list(nodes, ctx) {
   }
   const box = empty();
   let previous;
-  for (const entry of entries) {
+  for (const [index, entry] of entries.entries()) {
     let mu = spacing[previous?.atom]?.[entry.atom] || 0;
     if (ctx.style >= 2 && !(mu === 3 && (previous?.atom === "op" || entry.atom === "op"))) mu = 0;
+    // Top-level math glue remains stretchable in an inline paragraph. Nested
+    // fraction/script boxes are already packed and do not contribute glue.
+    if (mu >= 4) (box.paragraphGlues ||= []).push({ itemIndex: box.items.length,
+      stretch: (mu === 4 ? 2 : 5) * parameter(ctx, "QUAD") / 18,
+      shrink: (mu === 4 ? 4 : 0) * parameter(ctx, "QUAD") / 18 });
     box.width += mu * parameter(ctx, "QUAD") / 18;
     if (previous?.glyph && entry.glyph && previous.font === entry.font) {
       const kern = entry.font.kern[previous.glyph]?.[entry.glyph];
       if (kern !== undefined) box.width += kern * fontSize(ctx);
+    }
+    if (["styling", "color"].includes(nodes[index].type) && entry.paragraphGlues) {
+      (box.paragraphGlues ||= []).push(...entry.paragraphGlues.map(glue => ({
+        ...glue, itemIndex: glue.itemIndex + box.items.length
+      })));
     }
     append(box, entry, box.width);
     box.width += entry.width;

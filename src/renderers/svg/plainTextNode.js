@@ -3,6 +3,7 @@ import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
 import { renderNativeMath, renderNativeText } from "./nativeMath.js";
+import { nativeWrappedParagraphBox } from "./paragraphText.js";
 import { formatSvgNumber as format } from "./format.js";
 import { textFontSizeForUnit } from "./layout.js";
 import { hasTextColorSegments, renderSegmentedTextNode } from "./segmentedText.js";
@@ -301,6 +302,8 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
 }
 
 export function nativePlainTextBox(item, normalized) {
+  const paragraph = nativeWrappedParagraphBox(item, normalized);
+  if (paragraph) return paragraph;
   if (!item.wrapWidth && !item.fitBox &&
       !(item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) {
     const lines = layoutMultilineTeXText(normalized, item.font, normalizedTextAlign(item.textAlign));

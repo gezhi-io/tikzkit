@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "minipage-text-width", "source": "../implementation-examples/real-world/minipage-text-width.tex", "title": "Real minipage with an inline relation", "nativeGlyphFrame": { "color": "rgb(0, 0, 0)", "count": 75 } },
+    { "id": "minipage-native-sizes", "source": "sizes.tex", "title": "Minipage optical sizes and paragraph baseline grids", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 225 } },
+    { "id": "minipage-native-formulas", "source": "formulas.tex", "title": "Paragraph formulas, scripts and tall-line clearance", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 126 } },
+    { "id": "paragraph-diamonds", "source": "diamonds.tex", "title": "Badly centered diamond paragraphs", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 87 } }
+  ]
+}

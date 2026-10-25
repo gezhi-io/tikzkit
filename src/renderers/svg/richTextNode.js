@@ -34,7 +34,8 @@ export function renderRichTextNode(item, normalized, unit, deps = {}) {
   const sourceLines = richTextSourceLines(source, normalized);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
   const wrapped = hasWrapWidth
-    ? wrapRichTextLines(sourceLines, wrapWidth, unit, baseFontSize, sourceLineStyles)
+    ? wrapRichTextLines(sourceLines, wrapWidth, unit, baseFontSize, sourceLineStyles,
+      { lineBreakMode: item.textWrapMode, hyphenate: item.textWrapHyphenation })
     : sourceLines.map((line, index) => ({ text: line, style: sourceLineStyles[index] || {} }));
   const lines = wrapped.length ? wrapped.map((line) => line.text) : [normalized.text || ""];
   const lineStyles = wrapped.length ? wrapped.map((line) => line.style || {}) : textLineStyles(normalized, lines.length);
@@ -98,7 +99,8 @@ export function estimateRichTextRenderBounds(item, normalized, unit, deps = {}) 
   const sourceLines = richTextSourceLines(source, normalized);
   const sourceLineStyles = textLineStyles(normalized, sourceLines.length);
   const wrapped = hasWrapWidth
-    ? wrapRichTextLines(sourceLines, wrapWidth, unit, baseFontSize, sourceLineStyles)
+    ? wrapRichTextLines(sourceLines, wrapWidth, unit, baseFontSize, sourceLineStyles,
+      { lineBreakMode: item.textWrapMode, hyphenate: item.textWrapHyphenation })
     : sourceLines.map((line, index) => ({ text: line, style: sourceLineStyles[index] || {} }));
   const lines = wrapped.length ? wrapped.map((line) => line.text) : [normalized.text || ""];
   const lineStyles = wrapped.length ? wrapped.map((line) => line.style || {}) : textLineStyles(normalized, lines.length);

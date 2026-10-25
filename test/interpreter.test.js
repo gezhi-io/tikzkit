@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { parseDimension } from "../src/math.js";
+import { normalizeTikzText } from "../src/tikz/text.js";
+import { nativePlainTextBox } from "../src/renderers/svg/plainTextNode.js";
 import { TIKZ_LINE_WIDTHS, TIKZ_UNIT, lineWidthFromPt, lineWidthFromTikzDimension, stealthArrowLengthFromLineWidth, stealthArrowShortenFromLength } from "../src/tikz-metrics.js";
 import {
   isoscelesTriangleGeometry,
@@ -317,8 +319,10 @@ test("sizes a mixed-inline-math minipage from the TeX paragraph vbox", () => {
   assert.deepEqual(result.diagnostics, []);
   assert.ok(box, "expected an outer minipage node box");
   // The fixed-width minipage is a TeX vbox, not the union of its painted
-  // glyph boxes. This is 53.6pt including the two 1ex inner separations.
-  assert.ok(Math.abs(box.height - 1.884214) < 1e-5, `expected TeX minipage height, got ${box.height}`);
+  // glyph boxes. The local paragraph probe measures 44.88888pt plus
+  // two 4.30554pt inner separations, not the former estimated 53.6pt.
+  const nativeHeightCm = (44.88888 + 2 * 4.30554) / 28.4527559;
+  assert.ok(Math.abs(box.height - nativeHeightCm) < 1e-5, `expected TeX minipage height, got ${box.height}`);
 });
 
 test("resolves calc scalar multiplication of vector coordinates", () => {
@@ -412,11 +416,21 @@ test("wraps fixed-width diamond text with TeX metrics and native aspect geometry
   expectClose(diamonds[0].width, 3.10, 0.03);
   expectClose(diamonds[1].width, 3.51, 0.03);
   expectClose(diamonds[2].width, 3.93, 0.03);
-  assert.equal((result.svg.match(/>does line<\/tspan>/g) || []).length, 2);
-  assert.match(result.svg, />a intersect<\/tspan>/);
-  assert.match(result.svg, />b<\/tspan>/);
-  assert.doesNotMatch(result.svg, />b intersect<\/tspan>/);
-  assert.doesNotMatch(result.svg, />line b<\/tspan>/);
+  const nativeLines = diamondText.map(item => {
+    const box = nativePlainTextBox(item, normalizeTikzText(item.text));
+    assert.ok(box, "expected the same native paragraph box used for paint");
+    const rows = new Map();
+    for (const glyph of box.items) {
+      if (glyph.type === "glyph") rows.set(glyph.y, (rows.get(glyph.y) || "") + glyph.text);
+    }
+    return [...rows.values()];
+  });
+  assert.deepEqual(nativeLines, [
+    ["do", "bounding", "boxes", "intersect?"],
+    ["doesline", "aintersect", "line", "segment", "b?"],
+    ["doesline", "b", "intersect", "line", "segment", "a?"]
+  ]);
+  assert.equal((result.svg.match(/class="tikz-text-native"/g) || []).length, 3);
 });
 
 test("maps TikZ paragraph alignment styles onto wrapped text nodes", () => {
