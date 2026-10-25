@@ -3,6 +3,7 @@ import { parseFinitePgfLength } from "./units.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../tex/textBox.js";
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
+import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
@@ -3475,7 +3476,7 @@ function circuitikzMosfetNodeSize(env = {}) {
 }
 
 function circuitikzTubeSize(env = {}, options = {}) {
-  const scale = circuitikzLengthScale(env);
+  const scale = circuitikzLengthScale(env) * circuitikzTubeNumber("scale", options, env, 1);
   const rlenScale = 1.4;
   return {
     width: roundNumber(circuitikzTubeNumber("width", options, env, 1) * rlenScale * scale),
@@ -3533,7 +3534,7 @@ function circuitikzQuadpoleSettings(options = {}, env = {}) {
 function circuitikzTransformerCoreSettings(options = {}, env = {}) {
   const rawColor = circuitikzTransformerCoreRawOption("color", options, env);
   const rawDash = circuitikzTransformerCoreRawOption("dash", options, env);
-  const dash = circuitikzTransformerCoreDash(rawDash, env);
+  const dash = circuitikzBraceDashPattern(rawDash);
   return {
     relativeThickness: Math.max(0, circuitikzTransformerCoreNumber("relative thickness", options, env, 1)),
     color: rawColor === undefined || String(rawColor).trim().toLowerCase() === "default"
@@ -3561,7 +3562,7 @@ function circuitikzTransformerCoreNumber(key, options = {}, env = {}, fallback =
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function circuitikzTransformerCoreDash(raw, env = {}) {
+function circuitikzBraceDashPattern(raw) {
   if (raw === undefined || raw === null || raw === true) return { mode: "inherit", array: undefined };
   const value = String(raw).trim();
   const normalized = value.toLowerCase();
@@ -3620,6 +3621,15 @@ function circuitikzTubePartialBorders(options = {}, env = {}) {
   if (raw === undefined || raw === null || raw === true) return "none";
   const value = String(raw).trim();
   return /^[012]{6}$/.test(value) ? value : "none";
+}
+
+function circuitikzTubeSettings(options = {}, env = {}) {
+  const settings = Object.fromEntries(Object.entries(TUBE_DEFAULTS).map(([key, fallback]) =>
+    [key, circuitikzTubeNumber(key, options, env, fallback)]));
+  for (const flag of ["filament", "nocathode", "fullcathode"]) {
+    settings[flag] = tikzBoolean(options[flag] ?? env.pictureOptions?.[flag]);
+  }
+  return settings;
 }
 
 function circuitikzTubeFill(options = {}, style = {}, env = {}) {
@@ -5619,12 +5629,22 @@ function circuitikzTransistorNodeStyle(style = {}, env = {}) {
 }
 
 function circuitikzTubeNodeStyle(style = {}, options = {}, env = {}) {
+  // pgfcirc@setlinewidth falls back from the tube class to tripoles/thickness.
+  const tripoleThickness = evaluateMath(String(options["tripoles/thickness"] ??
+    env.pictureOptions?.["tripoles/thickness"] ?? env.circuitikz?.["tripoles/thickness"] ?? 2), env.variables);
+  const fallback = Number.isFinite(tripoleThickness) ? tripoleThickness : 2;
+  const thickness = circuitikzTubeRawOption("thickness", options, env) === "none"
+    ? fallback : circuitikzTubeNumber("thickness", options, env, fallback);
   return {
     stroke: style.stroke && style.stroke !== "none" ? style.stroke : "black",
     fill: circuitikzTubeFill(options, style, env),
-    lineWidth: Math.max(0.8, Number(style.lineWidth) || 1),
-    lineCap: "butt",
-    lineJoin: "round"
+    lineWidth: (Number.isFinite(style.lineWidth) ? style.lineWidth : lineWidthFromPt(.4)) * thickness,
+    ...(Array.isArray(style.dashArray) ? { dashArray: style.dashArray, dashLineCap: style.dashLineCap } : {}),
+    lineCap: style.lineCap || "butt",
+    lineJoin: style.lineJoin || "miter",
+    opacity: style.opacity,
+    fillOpacity: style.fillOpacity,
+    strokeOpacity: style.strokeOpacity
   };
 }
 
@@ -5673,71 +5693,9 @@ function circuitikzMosfetLocalAnchor(anchorRaw, size = {}) {
   return null;
 }
 
-function circuitikzTriodeLocalAnchor(anchorRaw, size = {}) {
-  const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ");
-  const halfWidth = (Number(size.width) || 0) / 2;
-  const halfHeight = (Number(size.height) || 0) / 2;
-  const cathodeX = halfWidth * 0.4;
-  const anchors = {
-    anode: { x: 0, y: halfHeight },
-    plate: { x: 0, y: halfHeight },
-    cathode: { x: cathodeX, y: -halfHeight },
-    "cathode 1": { x: cathodeX, y: -halfHeight },
-    control: { x: -halfWidth, y: 0 },
-    grid: { x: -halfWidth, y: 0 },
-    east: { x: halfWidth, y: 0 },
-    west: { x: -halfWidth, y: 0 },
-    north: { x: 0, y: halfHeight },
-    south: { x: 0, y: -halfHeight },
-    "north east": { x: halfWidth, y: halfHeight },
-    "north west": { x: -halfWidth, y: halfHeight },
-    "south east": { x: halfWidth, y: -halfHeight },
-    "south west": { x: -halfWidth, y: -halfHeight }
-  };
-  return anchors[anchor] || null;
-}
-
 function circuitikzTubeLocalAnchor(anchorRaw, size = {}) {
   const anchor = String(anchorRaw || "").trim().toLowerCase().replace(/-/g, " ");
-  const halfWidth = (Number(size.width) || 0) / 2;
-  const halfHeight = (Number(size.height) || 0) / 2;
-  const gridShift = 0;
-  const gridSeparation = 0.2;
-  const cathodeX = -halfWidth * 0.4;
-  const geo = {
-    n: { x: 0, y: halfHeight },
-    north: { x: 0, y: halfHeight },
-    s: { x: 0, y: -halfHeight },
-    south: { x: 0, y: -halfHeight },
-    e: { x: halfWidth, y: 0 },
-    east: { x: halfWidth, y: 0 },
-    w: { x: -halfWidth, y: 0 },
-    west: { x: -halfWidth, y: 0 },
-    ne: { x: halfWidth, y: halfHeight },
-    "north east": { x: halfWidth, y: halfHeight },
-    nw: { x: -halfWidth, y: halfHeight },
-    "north west": { x: -halfWidth, y: halfHeight },
-    se: { x: halfWidth, y: -halfHeight },
-    "south east": { x: halfWidth, y: -halfHeight },
-    sw: { x: -halfWidth, y: -halfHeight },
-    "south west": { x: -halfWidth, y: -halfHeight }
-  };
-  const component = {
-    anode: { x: 0, y: halfHeight },
-    plate: { x: 0, y: halfHeight },
-    cathode: { x: cathodeX, y: -halfHeight },
-    "cathode 1": { x: cathodeX, y: -halfHeight },
-    "cathode 2": { x: -cathodeX, y: -halfHeight },
-    control: { x: -halfWidth, y: (-gridSeparation + gridShift) * halfHeight },
-    grid: { x: -halfWidth, y: (-gridSeparation + gridShift) * halfHeight },
-    screen: { x: -halfWidth, y: gridShift * halfHeight },
-    suppressor: { x: -halfWidth, y: (gridSeparation + gridShift) * halfHeight },
-    "tube top": { x: 0, y: halfHeight * 0.8 },
-    "tube bottom": { x: 0, y: -halfHeight * 0.8 },
-    "tube right": { x: halfWidth * 0.8, y: 0 },
-    "tube left": { x: -halfWidth * 0.8, y: 0 }
-  };
-  return geo[anchor] || component[anchor] || null;
+  return tubeGeometry(size, size.shapeData?.tubeKind, size.shapeData?.tubeSettings).anchors[anchor] || null;
 }
 
 function circuitikzQuadpoleLocalAnchor(anchorRaw, size = {}) {
@@ -5829,10 +5787,6 @@ function materializeCircuitikzNodeAnchors(name, env) {
   if (!node) return;
   const anchorsByShape = {
     circuitikzMosfet: ["G", "gate", "D", "drain", "S", "source"],
-    circuitikzTriode: ["anode", "plate", "cathode", "control", "grid", "east", "west", "north west", "south east"],
-    circuitikzPentode: ["anode", "cathode", "control", "screen", "suppressor", "n", "e", "s", "w", "ne", "se", "sw", "nw"],
-    circuitikzTetrode: ["anode", "cathode", "control", "screen", "n", "e", "s", "w", "ne", "se", "sw", "nw"],
-    circuitikzDiodeTube: ["anode", "cathode", "n", "e", "s", "w", "ne", "se", "sw", "nw"],
     circuitikzQuadpole: [
       "A1",
       "A2",
@@ -5851,9 +5805,11 @@ function materializeCircuitikzNodeAnchors(name, env) {
     circuitikzInductor: ["midtap", "core west", "core east"],
     circuitikzVariableCapacitor: ["wiper", "W", "tip"]
   };
-  const anchors = anchorsByShape[node.shape] || [];
+  const anchors = node.shapeData?.tubeKind
+    ? Object.keys(tubeGeometry(node, node.shapeData.tubeKind, node.shapeData.tubeSettings).anchors)
+    : anchorsByShape[node.shape] || [];
   for (const anchor of anchors) {
-    env.coordinates[`${name}.${anchor}`] = nodeAnchorCoordinate(node, anchor);
+    env.coordinates[`${name}.${anchor}`] = nodeAnchorCoordinate(node, anchor, env);
   }
   materializeCircuitikzTransformerCoilAnchors(name, node, env);
 }
@@ -10230,21 +10186,8 @@ function addNodeItemsWithFont(node, ir, env) {
       height: size.height,
       style: circuitikzTransistorNodeStyle(style, nodeEnv)
     });
-  } else if (shape === "circuitikzTriode") {
-    ir.items.push({
-      type: "nodeBox",
-      id: node.name,
-      subtype: "circuitikz-triode",
-      shape,
-      shapeData,
-      x: point.x,
-      y: point.y,
-      width: size.width,
-      height: size.height,
-      style: circuitikzTransistorNodeStyle(style, nodeEnv)
-    });
-  } else if (shape === "circuitikzPentode" || shape === "circuitikzTetrode" || shape === "circuitikzDiodeTube") {
-    const tubeKind = shapeData.tubeKind || (shape === "circuitikzPentode" ? "pentode" : shape === "circuitikzTetrode" ? "tetrode" : "diodetube");
+  } else if (shapeData.tubeKind) {
+    const tubeKind = shapeData.tubeKind;
     ir.items.push({
       type: "nodeBox",
       id: node.name,
@@ -10253,7 +10196,10 @@ function addNodeItemsWithFont(node, ir, env) {
       shapeData: {
         ...shapeData,
         tubeKind,
-        partialBorders: circuitikzTubePartialBorders(node.options || {}, nodeEnv)
+        partialBorders: circuitikzTubePartialBorders(node.options || {}, nodeEnv),
+        partialBorderDash: circuitikzBraceDashPattern(
+          circuitikzTubeRawOption("partial border dash", node.options || {}, nodeEnv) ?? "{{2pt}{2pt}}"
+        ).array
       },
       x: point.x,
       y: point.y,
@@ -12990,6 +12936,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     mosfetNoCircle: Boolean(options.nocircle),
     transistorKind: circuitikzTransistorKind(options),
     tubeKind: circuitikzTubeKind(options),
+    tubeSettings: circuitikzTubeKind(options) ? circuitikzTubeSettings(options, env) : null,
     quadpoleKind: circuitikzQuadpoleKind(options),
     quadpoleSettings: circuitikzQuadpoleKind(options) ? circuitikzQuadpoleSettings(options, env) : null,
     transistorXScale: Math.sign(numberOption(options.xscale, 1)) || 1,
@@ -17614,6 +17561,12 @@ export function resolveCoordinate(raw, env, diagnostics = []) {
   if (intersectionCoordinate) {
     return roundPoint(intersectionCoordinate);
   }
+  // Tube grid anchors use live keys in Circuitikz, unlike the saved cathode
+  // dimensions. Do not let their materialized coordinates freeze those keys.
+  const tubeGridName = text.match(/^(.*)\.(?:grid|control|screen|suppressor)$/)?.[1];
+  if (env.nodes[tubeGridName]?.shapeData?.tubeKind) {
+    return resolveAnchoredNodeCoordinate(text, env);
+  }
   if (Object.hasOwn(env.coordinates, text)) {
     return roundPoint(env.coordinates[text]);
   }
@@ -18107,7 +18060,7 @@ function resolveAnchoredNodeCoordinate(text, env) {
   const name = text.slice(0, dot).trim();
   const anchor = text.slice(dot + 1).trim();
   const node = env.nodes[name];
-  if (node) return nodeAnchorCoordinate(node, anchor);
+  if (node) return nodeAnchorCoordinate(node, anchor, env);
   if (Object.hasOwn(env.coordinates, name)) return env.coordinates[name];
   return null;
 }
@@ -18117,7 +18070,7 @@ function looksLikeExplicitCoordinate(text) {
   return value.includes(",") || /^[-+]?(?:\d+\.?\d*|\.\d+)\s*:/.test(value);
 }
 
-function nodeAnchorCoordinate(node, anchorRaw) {
+function nodeAnchorCoordinate(node, anchorRaw, env) {
   const rawAnchor = String(anchorRaw ?? "center").trim().toLowerCase();
   const visibleWidth = Number(node.width) || 0;
   const visibleHeight = Number(node.height) || 0;
@@ -18131,6 +18084,13 @@ function nodeAnchorCoordinate(node, anchorRaw) {
   }
   const anchor = rawAnchor.replace(/-/g, " ");
   if (!anchor || anchor === "center") return roundPoint(node.point);
+  let shapeData = node.shapeData;
+  if (shapeData?.tubeKind && env && /^(?:grid|control|screen|suppressor)$/.test(anchor)) {
+    shapeData = { ...shapeData, tubeSettings: { ...shapeData.tubeSettings,
+      "grid shift": circuitikzTubeNumber("grid shift", {}, env, TUBE_DEFAULTS["grid shift"]),
+      "grid separation": circuitikzTubeNumber("grid separation", {}, env, TUBE_DEFAULTS["grid separation"])
+    } };
+  }
   const customAnchor = customNodeLocalAnchor(node.shape, rawAnchor, {
     width,
     height,
@@ -18138,7 +18098,7 @@ function nodeAnchorCoordinate(node, anchorRaw) {
     visibleHeight,
     baseOffset: node.baseOffset,
     midOffset: node.midOffset,
-    shapeData: node.shapeData
+    shapeData
   });
   if (customAnchor) {
     const rotated = rotateVector(customAnchor.x, customAnchor.y, Number(node.rotation) || 0);
@@ -18485,10 +18445,7 @@ function customNodeLocalAnchor(shape, anchorRaw, size) {
   if (shape === "circuitikzMosfet") {
     return circuitikzMosfetLocalAnchor(rawAnchor, size);
   }
-  if (shape === "circuitikzTriode") {
-    return circuitikzTriodeLocalAnchor(rawAnchor, size);
-  }
-  if (shape === "circuitikzPentode" || shape === "circuitikzTetrode" || shape === "circuitikzDiodeTube") {
+  if (size.shapeData?.tubeKind) {
     return circuitikzTubeLocalAnchor(rawAnchor, size);
   }
   if (shape === "circuitikzQuadpole") {
@@ -18858,6 +18815,12 @@ function includeItemBounds(item, include) {
   if (item.type === "nodeBox") {
     const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
     const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
+    if (item.shapeData?.tubeKind) {
+      const bounds = tubeGeometry(item, item.shapeData.tubeKind, item.shapeData.tubeSettings).bounds;
+      includeRotatedItemRectangle(item.x + bounds.minX, item.y + bounds.minY,
+        item.x + bounds.maxX, item.y + bounds.maxY, item, include);
+      return;
+    }
     if (item.shape === "cylinder") {
       const bounds = geometricCylinderGeometry(item, item.shapeData || {}).bounds;
       includeRotatedItemRectangle(

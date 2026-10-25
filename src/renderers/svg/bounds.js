@@ -25,6 +25,7 @@ import { chamferedRectangleGeometry, roundedRectangleGeometry } from "../../tikz
 import { arrowBoxGeometry } from "../../tikz/libraries/shapes.arrows.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 import { curvedArrowPaint } from "./arrowBending.js";
+import { tubeGeometry } from "../../extensions/circuitikz/tubes.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -49,7 +50,9 @@ export function computeSvgBounds(items, options = {}) {
       const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
       const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
       const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
-      const geometricBounds = item.shape === "cylinder"
+      const geometricBounds = item.shapeData?.tubeKind
+        ? tubeGeometry(item, item.shapeData.tubeKind, item.shapeData.tubeSettings).bounds
+        : item.shape === "cylinder"
         ? cylinderGeometry(item, item.shapeData || {}).bounds
         : item.shape === "semicircle"
           ? semicircleGeometry(item, item.shapeData || {}).bounds

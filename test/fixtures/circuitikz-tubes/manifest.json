@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "tube-amplifier", "source": "amplifier.tex", "title": "Circuitikz triode amplifier with native terminal anchors" },
+    { "id": "tube-catalog", "source": "catalog.tex", "title": "Diode, triode, tetrode and pentode geometry" },
+    { "id": "tube-settings", "source": "settings.tex", "title": "Tube dimensions, grid parameters, fill and cathode options" },
+    { "id": "tube-filaments", "source": "filaments.tex", "title": "Filament, hidden and full cathodes, fixed partial border dash" }
+  ]
+}

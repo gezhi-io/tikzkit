@@ -1,0 +1,23 @@
+% Circuitikz triode amplifier used by the existing case 1041 regression.
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{tikzpicture}
+\draw (0,0) node (start) {}
+  to[sV=$V_i$] ++(0,2+\ctikzvalof{tubes/height})
+  to[C=$C_i$] ++(2,0) coordinate(Rg)
+  to[R=$R_g$] (Rg |- start)
+  (Rg) to[short,*-] ++(1,0)
+  node[triode,anchor=control] (Tri) {} ++(2,0)
+  (Tri.cathode) to[R=$R_c$,-*] (Tri.cathode |- start)
+  (Tri.anode) to[R=$R_a$] ++(0,2)
+  to[short] ++(3.5,0) node(Vatop) {}
+  to[V<=$V_a$] (Vatop |- start)
+  to[short] (start)
+  (Tri.anode) ++(0,0.2) to[C=$C_o$,*-o] ++(2,0)
+  (Tri.cathode) ++(0,-0.2) to[short,*-] ++(1.5,0) node(Cctop) {}
+  to[C=$C_c$,-*] (start -| Cctop);
+\draw[red,thin,dashed] (Tri.north west) rectangle (Tri.south east);
+\draw (Tri.east) node[right] {12AX7};
+\end{tikzpicture}
+\end{document}

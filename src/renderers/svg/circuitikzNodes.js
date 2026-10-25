@@ -2,6 +2,7 @@ import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { styleAttributes } from "./style.js";
 import { TIKZ_UNIT } from "../../tikz/metrics.js";
+import { tubeGeometry } from "../../extensions/circuitikz/tubes.js";
 
 const CIRCUITIKZ_NODE_SHAPES = new Set([
   "opAmp",
@@ -22,8 +23,7 @@ export function renderCircuitikzNodeBox(item, unit) {
   if (item.shape === "opAmp") return renderCircuitikzOpAmpNodeBox(item, unit);
   if (item.shape === "circuitikzMosfet") return renderCircuitikzMosfetNodeBox(item, unit);
   if (item.shape === "circuitikzTransistor") return renderCircuitikzTransistorNodeBox(item, unit);
-  if (item.shape === "circuitikzTriode") return renderCircuitikzTriodeNodeBox(item, unit);
-  if (["circuitikzPentode", "circuitikzTetrode", "circuitikzDiodeTube"].includes(item.shape)) {
+  if (["circuitikzTriode", "circuitikzPentode", "circuitikzTetrode", "circuitikzDiodeTube"].includes(item.shape)) {
     return renderCircuitikzTubeNodeBox(item, unit);
   }
   if (item.shape === "circuitikzQuadpole") return renderCircuitikzQuadpoleNodeBox(item, unit);
@@ -151,93 +151,34 @@ function renderCircuitikzTransistorNodeBox(item, unit) {
   ].join("");
 }
 
-function renderCircuitikzTriodeNodeBox(item, unit) {
-  const cx = item.x;
-  const cy = item.y;
-  const hw = item.width / 2;
-  const hh = item.height / 2;
-  const stroke = item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black";
-  const lineWidth = item.style?.lineWidth || 1;
-  const tubeRadius = Math.min(hw * 0.82, hh * 0.62);
-  const rx = tubeRadius;
-  const ry = tubeRadius;
-  const anodeY = hh * 0.4;
-  const cathodeY = -hh * 0.4;
-  const cathodeX = hw * 0.4;
-  const gridX = -hw * 0.18;
-  const gridLeft = -hw;
-  const gridDashCount = 5;
-  const dashGap = (ry * 1.6) / (gridDashCount * 2 - 1);
-  const body = [
-    moveLine({ x: 0, y: hh }, { x: 0, y: anodeY }),
-    moveLine({ x: -hw * 0.28, y: anodeY }, { x: hw * 0.28, y: anodeY }),
-    moveLine({ x: cathodeX, y: cathodeY }, { x: cathodeX, y: -hh }),
-    moveLine({ x: -hw * 0.25, y: cathodeY }, { x: cathodeX + hw * 0.08, y: cathodeY }),
-    moveLine({ x: gridLeft, y: 0 }, { x: gridX - hw * 0.08, y: 0 })
-  ];
-  for (let index = 0; index < gridDashCount; index += 1) {
-    const y = -ry * 0.55 + index * dashGap * 2;
-    body.push(moveLine({ x: gridX, y }, { x: gridX, y: y + dashGap }));
-  }
-  return [
-    `<g class="tikz-node-shape tikz-node-circuitikzTriode">`,
-    `<ellipse class="tikz-node-circuitikzTriode-outline" cx="${format(cx * unit)}" cy="${format(
-      -cy * unit
-    )}" rx="${format(rx * unit)}" ry="${format(ry * unit)}" fill="none" stroke="${escapeAttribute(
-      stroke
-    )}" stroke-width="${format(lineWidth)}" />`,
-    `<path class="tikz-node-circuitikzTriode-body" d="${localPathData(body.join(" "), cx, cy, unit)}" fill="none" stroke="${escapeAttribute(
-      stroke
-    )}" stroke-width="${format(lineWidth)}" stroke-linecap="butt" stroke-linejoin="round" />`,
-    `</g>`
-  ].join("");
-}
 
 function renderCircuitikzTubeNodeBox(item, unit) {
-  const cx = item.x;
-  const cy = item.y;
-  const halfWidth = item.width / 2;
-  const halfHeight = item.height / 2;
-  const stroke = item.style?.stroke && item.style.stroke !== "none" ? item.style.stroke : "black";
-  const fill = item.style?.fill || "none";
-  const lineWidth = item.style?.lineWidth || 1;
-  const tubeRx = halfWidth * 0.8;
-  const tubeRy = halfHeight * 0.8;
-  const outline = tubeCapsulePath(tubeRx, tubeRy);
+  const kind = item.shapeData?.tubeKind || {
+    circuitikzTriode: "triode", circuitikzTetrode: "tetrode",
+    circuitikzPentode: "pentode", circuitikzDiodeTube: "diodetube"
+  }[item.shape];
+  const { outline, electrodes } = tubeGeometry(item, kind, item.shapeData?.tubeSettings);
+  const path = commands => localTubePathData(commands, item.x, item.y, unit);
+  const style = { ...item.style, fill: "none" };
   const partial = item.shapeData?.partialBorders || "none";
   const parts = [
     `<g class="tikz-node-shape tikz-node-circuitikzTube tikz-node-${escapeAttribute(item.shape)}">`,
-    `<path class="tikz-node-circuitikzTube-fill" d="${localTubePathData(outline.full, cx, cy, unit)}" fill="${escapeAttribute(
-      fill
-    )}" stroke="none" />`
+    `<path class="tikz-node-circuitikzTube-fill" d="${path(outline.full)}"${styleAttributes({ ...item.style, stroke: "none", dashArray: undefined })} />`
   ];
   if (/^[012]{6}$/.test(partial)) {
-    for (let index = 0; index < outline.parts.length; index += 1) {
-      const styleCode = Number(partial[index]);
-      if (styleCode === 0) continue;
-      const dash = styleCode === 2 ? ` stroke-dasharray="${format(2 * lineWidth)} ${format(2 * lineWidth)}"` : "";
-      parts.push(
-        `<path class="tikz-node-circuitikzTube-border" d="${localTubePathData(outline.parts[index], cx, cy, unit)}" fill="none" stroke="${escapeAttribute(
-          stroke
-        )}" stroke-width="${format(lineWidth)}"${dash} stroke-linecap="butt" stroke-linejoin="round" />`
-      );
+    for (let index = 0; index < outline.parts.length; index++) {
+      const code = Number(partial[index]);
+      if (code === 0) continue;
+      // Each native partial border has its own dash phase, in TeX dimensions.
+      const dashArray = code === 2
+        ? item.shapeData?.partialBorderDash || [2, 2].map(pt => pt * 2.54 / 72.27 * unit)
+        : undefined;
+      parts.push(`<path class="tikz-node-circuitikzTube-border" d="${path(outline.parts[index])}"${styleAttributes({ ...style, dashArray })} />`);
     }
   } else {
-    parts.push(
-      `<path class="tikz-node-circuitikzTube-border" d="${localTubePathData(outline.full, cx, cy, unit)}" fill="none" stroke="${escapeAttribute(
-        stroke
-      )}" stroke-width="${format(lineWidth)}" stroke-linejoin="round" />`
-    );
+    parts.push(`<path class="tikz-node-circuitikzTube-border" d="${path(outline.full)}"${styleAttributes(style)} />`);
   }
-  parts.push(
-    `<path class="tikz-node-circuitikzTube-electrodes" d="${localTubePathData(
-      circuitikzTubeElectrodePath(item),
-      cx,
-      cy,
-      unit
-    )}" fill="none" stroke="${escapeAttribute(stroke)}" stroke-width="${format(lineWidth)}" stroke-linecap="butt" stroke-linejoin="round" />`,
-    `</g>`
-  );
+  parts.push(`<path class="tikz-node-circuitikzTube-electrodes" d="${path(electrodes)}"${styleAttributes(style)} />`, "</g>");
   return parts.join("");
 }
 
@@ -454,81 +395,6 @@ function circuitikzGyratorCommands(item) {
   ];
 }
 
-function tubeCapsulePath(rx, ry) {
-  if (rx > ry) {
-    const straight = Math.max(0, rx - ry);
-    return {
-      full: [
-        ["M", -straight, ry],
-        ["L", straight, ry],
-        ["Q", rx, ry, rx, 0],
-        ["Q", rx, -ry, straight, -ry],
-        ["L", -straight, -ry],
-        ["Q", -rx, -ry, -rx, 0],
-        ["Q", -rx, ry, -straight, ry],
-        ["Z"]
-      ],
-      parts: [
-        [["M", -rx, 0], ["Q", -rx, ry, -straight, ry]],
-        [["M", -straight, ry], ["L", straight, ry]],
-        [["M", straight, ry], ["Q", rx, ry, rx, 0]],
-        [["M", rx, 0], ["Q", rx, -ry, straight, -ry]],
-        [["M", straight, -ry], ["L", -straight, -ry]],
-        [["M", -straight, -ry], ["Q", -rx, -ry, -rx, 0]]
-      ]
-    };
-  }
-  const straight = Math.max(0, ry - rx);
-  return {
-    full: [
-      ["M", -rx, straight],
-      ["Q", -rx, ry, 0, ry],
-      ["Q", rx, ry, rx, straight],
-      ["L", rx, -straight],
-      ["Q", rx, -ry, 0, -ry],
-      ["Q", -rx, -ry, -rx, -straight],
-      ["L", -rx, straight],
-      ["Z"]
-    ],
-    parts: [
-      [["M", 0, ry], ["Q", rx, ry, rx, straight]],
-      [["M", rx, straight], ["L", rx, -straight]],
-      [["M", rx, -straight], ["Q", rx, -ry, 0, -ry]],
-      [["M", 0, -ry], ["Q", -rx, -ry, -rx, -straight]],
-      [["M", -rx, -straight], ["L", -rx, straight]],
-      [["M", -rx, straight], ["Q", -rx, ry, 0, ry]]
-    ]
-  };
-}
-
-function circuitikzTubeElectrodePath(item) {
-  const halfWidth = item.width / 2;
-  const halfHeight = item.height / 2;
-  const kind = item.shapeData?.tubeKind || "pentode";
-  const grids = kind === "pentode" ? [-0.2, 0, 0.2] : kind === "tetrode" ? [-0.1, 0.1] : kind === "triode" ? [0] : [];
-  const commands = [
-    ["M", 0, halfHeight],
-    ["L", 0, halfHeight * 0.4],
-    ["M", -halfWidth * 0.4, halfHeight * 0.4],
-    ["L", halfWidth * 0.4, halfHeight * 0.4],
-    ["M", -halfWidth * 0.4, -halfHeight],
-    ["L", -halfWidth * 0.4, -halfHeight * 0.4],
-    ["L", halfWidth * 0.4, -halfHeight * 0.4],
-    ["L", halfWidth * 0.4, -halfHeight * 0.475]
-  ];
-  for (const grid of grids) {
-    const y = grid * halfHeight;
-    const left = -halfWidth * 0.65;
-    const right = halfWidth * 0.4;
-    commands.push(["M", -halfWidth, y], ["L", left, y]);
-    for (let index = 0; index < 5; index += 1) {
-      const x1 = left + (right - left) * ((index * 2 + 1) / 11);
-      const x2 = left + (right - left) * ((index * 2 + 2) / 11);
-      commands.push(["M", x1, y], ["L", x2, y]);
-    }
-  }
-  return commands;
-}
 
 function localTubePathData(commands, cx, cy, unit) {
   return commands

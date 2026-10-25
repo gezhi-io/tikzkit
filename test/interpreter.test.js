@@ -6352,6 +6352,7 @@ test("renders circuitikz triode amplifier components used by case 1041", () => {
   const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
   const capacitors = ir.items.filter((item) => item.subtype === "circuitikz-capacitor");
   const voltageSources = ir.items.filter((item) => item.subtype === "circuitikz-voltage-source");
+  const sinusoidalSources = ir.items.filter((item) => item.subtype === "circuitikz-sinusoidal-voltage-source");
   const triode = ir.items.find((item) => item.subtype === "circuitikz-triode");
   const labels = ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
   const paths = ir.items.filter((item) => item.type === "path");
@@ -6359,10 +6360,12 @@ test("renders circuitikz triode amplifier components used by case 1041", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(capacitors.length, 3);
-  assert.equal(voltageSources.length, 2);
+  assert.equal(voltageSources.length, 1);
+  assert.equal(sinusoidalSources.length, 1);
   assert.ok(triode, "expected triode tube node");
   assert.ok(ir.coordinates["Tri.anode"].y > ir.coordinates.Tri.y, "expected anode anchor above triode center");
   assert.ok(ir.coordinates["Tri.cathode"].y < ir.coordinates.Tri.y, "expected cathode anchor below triode center");
+  assert.ok(ir.coordinates["Tri.cathode"].x < ir.coordinates.Tri.x, "expected the native left cathode terminal");
   assert.ok(ir.coordinates["Tri.control"].x < ir.coordinates.Tri.x, "expected control anchor left of triode center");
   assert.ok(labels.includes("12AX7"), "expected tube label");
   assert.ok(paths.some((path) => path.commands.some((command) => Number(command.y) > 4)), "expected upper anode rail to stay high");
