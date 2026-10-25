@@ -17,23 +17,24 @@ function near(actual, expected) {
 
 test("RGB-first colormaps convert CMYK stops before interpolation", () => {
   const stops = "color(0cm)=(blue);color(1cm)=(yellow)";
-  // PGF's RGB conversion and linear interpolation; the native TeX probe also
-  // records small fixed-point lookup rounding separately from color algebra.
+  // Native pgfplots-native-colormap/metrics.ltx includes the fixed-point
+  // interval lookup as well as xcolor's RGB conversion.
   near(sample(stops, 0), [0, 0, 255]);
-  near(sample(stops, .5), [127.5, 127.5, 127.5]);
+  near(sample(stops, .5), [.50354, .50354, .49646].map(value => value * 255));
   near(sample(stops, 1), [255, 255, 0]);
 });
 
 test("CMYK-first colormaps interpolate channels before display conversion", () => {
   const stops = "color(0cm)=(cyan);color(1cm)=(black)";
-  // MacTeX's explicit cmyk (.5,0,0,.5) patch, read from pdf2svg percentages.
-  near(sample(stops, .5), [28.431702, 46.469116, 55.099487].map(value => value * 2.55));
+  // metrics.ltx paints the native colormap result (.49646,0,0,.50354).
+  // These percentages are independently read from pdf2svg's DeviceCMYK patch.
+  near(sample(stops, .5), [28.48053, 46.272278, 54.812622].map(value => value * 2.55));
 });
 
 test("dvips color stops use xcolor conversion rather than CSS or painted DeviceCMYK", () => {
   const stops = "color(0cm)=(blue);color(1cm)=(SkyBlue);color(2cm)=(SpringGreen);color(3cm)=(yellow)";
-  near(sample(stops, 1 / 3), [96.9, 255, 224.4]);
-  near(sample(stops, 2 / 3), [188.7, 255, 61.2]);
+  near(sample(stops, 1 / 3), [.3807, 1, .87872].map(value => value * 255));
+  near(sample(stops, 2 / 3), [.74103, 1, .23904].map(value => value * 255));
 });
 
 function flatPatches(shader, data, extra = "") {
@@ -53,10 +54,10 @@ test("flat corner uses the source first vertex, while flat and flat mean average
     const corner = flatPatches("flat corner", data).filter(p => p.style.fill !== "none");
     assert.equal(corner.length, 2);
     near(corner[0].style.fill.match(/[\d.]+/g).map(Number), [0, 0, 255]);
-    near(corner[1].style.fill.match(/[\d.]+/g).map(Number), [127.5, 0, 127.5]);
+    near(corner[1].style.fill.match(/[\d.]+/g).map(Number), [.50354, 0, .49646].map(value => value * 255));
     for (const shader of ["flat", "flat mean"]) {
       const mean = flatPatches(shader, data).filter(p => p.style.fill !== "none");
-      near(mean[0].style.fill.match(/[\d.]+/g).map(Number), [63.75, 0, 191.25]);
+      near(mean[0].style.fill.match(/[\d.]+/g).map(Number), [.25177, 0, .74823].map(value => value * 255));
     }
   }
 });

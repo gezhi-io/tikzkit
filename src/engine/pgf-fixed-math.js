@@ -8,7 +8,7 @@ export const pgfFixedMultiply = (value, factor) => Math.trunc(scaled(value) * sc
 // TeX's print_scaled emits the shortest decimal that round-trips to a dimension.
 // PGF shifts those printed digits when dividing by ten, so integer sp / 10
 // rounding alone differs at half-sp boundaries.
-function dimensionDecimal(value) {
+export function dimensionDecimal(value) {
   const dimension = Math.abs(scaled(value));
   let remainder = 10 * (dimension % SP) + 5;
   let delta = 10;

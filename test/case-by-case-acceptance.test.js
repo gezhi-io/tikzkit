@@ -250,11 +250,11 @@ test("case 009: quadratic surface preserves the 56 by 56 mesh and colorbar contr
   assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 1));
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));
-  assert.deepEqual(
-    [fills[0].style.fill, facets.at(-1).style.stroke],
-    // Unrounded native RGB interpolation toward (1,.375,0).
-    ["rgb(255 101.344877 9.151804)", "rgb(204,81,7)"]
-  );
+  // First polygon in the independently compiled native 3d-function-2 SVG.
+  // PGF's fixed-point lookup is observably different from an exact float lerp.
+  const rgb = fills[0].style.fill.match(/[\d.]+/g).map(Number);
+  [100,39.315796,2.903748].forEach((percent, i) => assert.ok(Math.abs(rgb[i] - percent * 2.55) < .01));
+  assert.equal(facets.at(-1).style.stroke, "rgb(204,80,6)");
   for (const text of ["-5", "5", "10", "20", "30", "40", "50", "$x$", "$y$", "$z$", "$f(x,y)$"]) {
     assert.ok(labels.includes(nativeTick(text)), `missing surface tick, axis, or colorbar label ${text}`);
   }

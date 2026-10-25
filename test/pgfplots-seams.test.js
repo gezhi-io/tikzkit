@@ -718,16 +718,20 @@ test("pgfplots uses the built-in viridis colormap for surfaces", () => {
   assert.equal(result.diagnostics.length, 0);
   assert.ok(fills.length > 0);
   assert.ok(fills.every((fill) => /^rgb\(/.test(fill)));
-  assert.ok(fills.some((fill) => /^rgb\((?:3[0-9]|4[0-9])[,\s]+(?:1[0-9]{2}|2[0-9]{2})[,\s]+/.test(fill)));
+  assert.ok(fills.some(fill => {
+    const [r, g] = fill.match(/[\d.]+/g).map(Number);
+    return r >= 30 && r < 50 && g >= 100 && g < 300;
+  }));
 });
 
 test("pgfplots uses the native hot colormap for an implicit surface", () => {
   const ranges = { zMin: 0, zMax: 3 };
 
-  assert.equal(pgfplotsSurfaceColor(0, ranges), "rgb(0,0,255)");
-  assert.equal(pgfplotsSurfaceColor(1, ranges), "rgb(255,255,0)");
-  assert.equal(pgfplotsSurfaceColor(2, ranges), "rgb(255,128,0)");
-  assert.equal(pgfplotsSurfaceColor(3, ranges), "rgb(255,0,0)");
+  // Native metrics.ltx UNIT hot probes include quantized invh=0.003.
+  [[0,0,1], [1,.99901,0], [1,.498,0], [1,0,0]].forEach((expected, z) => {
+    const actual = pgfplotsSurfaceColor(z, ranges).match(/[\d.]+/g).map(Number);
+    expected.forEach((channel, i) => assert.ok(Math.abs(actual[i] - channel * 255) < .01));
+  });
 });
 
 test("pgfplots 3d axis lines left renders three open axes instead of a box", () => {
@@ -1671,7 +1675,8 @@ test("pgfplots stepped Manhattan cuboids paint distant light faces before foregr
   const fills = body.split("\n").filter((line) => line.includes("axis surface fill"));
 
   assert.ok(fills.length >= 20);
-  assert.match(fills[0], /fill=rgb\(212\.5 212\.5 255\)/);
+  // Native CUBOID wb probe: z=1 in [0,6] maps to (.83217,.83217,1).
+  assert.match(fills[0], /fill=rgb\(212\.20335 212\.20335 255\)/);
   assert.ok(fills.findIndex((line) => /fill=(?:blue|rgb\(0 0 255\))[,\]]/.test(line)) > 0, "the tallest foreground top should be painted after distant light faces");
 });
 
@@ -1730,9 +1735,8 @@ test("pgfplots surf colormap uses actual point meta range instead of rounded col
   );
 
   const rgb = commands[0].match(/fill=rgb\(([^)]+)\)/)[1].split(" ").map(Number);
-  const t = (0.016830743029434353 - ranges.zMin) / (ranges.zMax - ranges.zMin);
-  // xcolor converts orange!75!red to RGB (1,.375,0) before interpolation.
-  [255, 255 * (1 - .625 * t), 255 * (1 - t)].forEach((expected, i) =>
+  // Native NARROW wr probe uses these exact data bounds, not rounded ticks.
+  [1, .56822, .30917].map(value => value * 255).forEach((expected, i) =>
     assert.ok(Math.abs(rgb[i] - expected) < 1e-6));
 });
 
@@ -1764,8 +1768,9 @@ test("pgfplots surface point meta colors sampled surfaces independently from z v
     .map((command) => command.match(/fill=(.*?), opacity=/)?.[1])
     .filter(Boolean);
 
-  assert.ok(fillColors.includes("rgb(63.75 63.75 63.75)"), `expected point meta to drive black-white colormap, got ${fillColors.join(", ")}`);
-  assert.ok(fillColors.includes("rgb(191.25 191.25 191.25)"), `expected point meta to drive black-white colormap, got ${fillColors.join(", ")}`);
+  // Native UNIT bw probes at 1/4 and 3/4; the z values remain constant.
+  assert.ok(fillColors.includes("rgb(64.20135 64.20135 64.20135)"), `expected point meta to drive black-white colormap, got ${fillColors.join(", ")}`);
+  assert.ok(fillColors.includes("rgb(192.60405 192.60405 192.60405)"), `expected point meta to drive black-white colormap, got ${fillColors.join(", ")}`);
 });
 
 test("pgfplots top-view shader interp surfaces lower to one raster image primitive", () => {
@@ -1924,7 +1929,8 @@ test("pgfplotsset colormap declarations feed surface colors", () => {
   \end{axis}
 \end{tikzpicture}`).svg;
 
-  assert.match(svg, /fill="green"|fill="rgb\(0,\s*128,\s*0\)"|fill="rgb\(0\s+255\s+0\)"/);
+  // Native UNIT bgr .5 is (0,.99945,.00055), not an exact green knot.
+  assert.match(svg, /fill="rgb\(0 254\.85975 0\.14025\)"/);
   assert.doesNotMatch(svg, /fill="rgb\(163,\s*169,\s*158\)"/);
 });
 

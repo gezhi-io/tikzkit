@@ -8,7 +8,7 @@ import { isPgfplotsTopView, pgfplotsViewDirection } from "./geometry.js";
 import { isLogAxis, scaleAxisValue } from "./ranges.js";
 import { axisLogBase, axisPointIsValidForScale } from "./logAxis.js";
 import { colorToRgb, normalizeColor } from "../engine/options.js";
-import { resolveColorSpec, colorSpecToRgb } from "../engine/colors.js";
+import { pgfplotsMappedColor, colormapColorCss } from "./colormap.js";
 import { encodeRgbaPngDataUri } from "./rasterPng.js";
 import { samplePgfplotsSurfaceDomain } from "./sampling.js";
 
@@ -922,7 +922,7 @@ function pgfplotsBuiltinColormaps(name) {
       hot: [
         { position: 0, color: "rgb(0 0 255)" },
         { position: 1, color: "rgb(255 255 0)" },
-        { position: 2, color: "rgb(255 128 0)" },
+        { position: 2, color: "rgb(255 127.5 0)", colorSpec: { model: "rgb", channels: [1, .5, 0] } },
         { position: 3, color: "rgb(255 0 0)" }
       ]
     };
@@ -939,7 +939,8 @@ function pgfplotsBuiltinColormaps(name) {
   return {
     viridis: colors.map((rgb, index) => ({
       position: index,
-      color: `rgb(${rgb.map((channel) => Math.round(channel * 255)).join(",")})`
+      color: colormapColorCss({ model: "rgb", channels: rgb }),
+      colorSpec: { model: "rgb", channels: rgb }
     }))
   };
 }
@@ -1009,82 +1010,17 @@ function pgfplotsFacetedStrokeColor(fill) {
 }
 
 export function pgfplotsSurfaceColor(z, ranges, plotIndex = 0, axisOptions = {}) {
-  const custom = pgfplotsCustomSurfaceColor(axisOptions, z, ranges);
-  if (custom) return custom;
-  const t = surfaceColorPosition(z, ranges, axisOptions);
-  // PGFPlots initializes `colormap name=hot`: the historical default is the
-  // same four-stop map as the named `hot` colormap, not a bespoke surface
-  // palette. Keep the implicit and explicit forms visually identical.
-  const stops = [
-    { t: 0, color: [0, 0, 255] },
-    { t: 1 / 3, color: [255, 255, 0] },
-    { t: 2 / 3, color: [255, 128, 0] },
-    { t: 1, color: [255, 0, 0] }
-  ];
-  for (let index = 1; index < stops.length; index += 1) {
-    if (t <= stops[index].t) {
-      const previous = stops[index - 1];
-      const next = stops[index];
-      const local = (t - previous.t) / (next.t - previous.t || 1);
-      const rgb = previous.color.map((channel, channelIndex) => Math.round(channel + (next.color[channelIndex] - channel) * local));
-      return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-    }
-  }
-  return selectPlotColor({}, plotIndex);
-}
-
-function pgfplotsCustomSurfaceColor(axisOptions = {}, z, ranges) {
-  const colormapName = String(axisOptions["colormap name"] || "").trim();
-  const colormap = axisOptions["pgfplots colormaps"]?.[colormapName];
-  if (!Array.isArray(colormap) || colormap.length < 2) return "";
-  const t = surfaceColorPosition(z, ranges, axisOptions);
-  const stops = normalizeColormapStops(colormap);
-  for (let index = 1; index < stops.length; index += 1) {
-    const left = stops[index - 1];
-    const right = stops[index];
-    if (t <= right.position) {
-      const local = (t - left.position) / (right.position - left.position || 1);
-      return interpolateColor(left.color, right.color, local);
-    }
-  }
-  const last = stops.at(-1)?.color;
-  return last ? formatRgbNumberColor(colorSpecToRgb(last).map(channel => channel * 255)) : "";
-}
-
-function surfaceColorPosition(value, ranges, axisOptions = {}) {
+  const name = String(axisOptions["colormap name"] || "hot").trim();
+  const stops = axisOptions["pgfplots colormaps"]?.[name] ?? pgfplotsBuiltinColormaps(name)[name] ?? pgfplotsBuiltinColormaps("hot").hot;
   const logMode = isLogAxis(axisOptions, "z") && !axisOptions["tikzkit explicit surface point meta"];
   const base = axisLogBase(axisOptions, "z");
   // Native survey updates only unspecified meta limits. Explicit bounds are
   // independent of both viewport limits and the sampled data extrema.
   const min = scaleAxisValue(axisNumber(axisOptions["point meta min"], ranges.zMin), logMode, base);
   const max = scaleAxisValue(axisNumber(axisOptions["point meta max"], ranges.zMax), logMode, base);
-  const mapped = scaleAxisValue(value, logMode, base);
-  return Math.max(0, Math.min(1, (mapped - min) / (max - min || 1)));
-}
-
-function normalizeColormapStops(stops) {
-  const positions = stops.map((stop) => Number(stop.position)).filter(Number.isFinite);
-  const min = Math.min(...positions);
-  const max = Math.max(...positions);
-  const span = max - min || 1;
-  // pgfplotscolor.code.tex: `colorspace=auto` chooses CMYK only when the
-  // first color is CMYK; gray and RGB first colors select an RGB sequence.
-  const model = resolveColorSpec(stops[0]?.color)?.model === "cmyk" ? "cmyk" : "rgb";
-  return stops
-    .filter((stop) => Number.isFinite(Number(stop.position)) && stop.color)
-    .map((stop) => ({
-      position: (Number(stop.position) - min) / span,
-      color: resolveColorSpec(stop.color, model)
-    }))
-    .filter(stop => stop.color)
-    .sort((a, b) => a.position - b.position);
-}
-
-function interpolateColor(left, right, t) {
-  const factor = Math.max(0, Math.min(1, t));
-  const mixed = { model: left.model, channels: left.channels.map((channel, index) =>
-    channel + (right.channels[index] - channel) * factor) };
-  return formatRgbNumberColor(colorSpecToRgb(mixed).map(channel => channel * 255));
+  const mapped = scaleAxisValue(z, logMode, base);
+  const color = pgfplotsMappedColor(stops, mapped, min, max);
+  return color ? colormapColorCss(color) : selectPlotColor({}, plotIndex);
 }
 
 function parseRgbColor(color) {
@@ -1106,14 +1042,6 @@ function parseRgbColor(color) {
     yellow: [255, 255, 0]
   };
   return named[text.toLowerCase()] || null;
-}
-
-function formatRgbNumberColor(rgb) {
-  return `rgb(${rgb.map(formatRgbChannel).join(" ")})`;
-}
-
-function formatRgbChannel(value) {
-  return Number(Math.max(0, Math.min(255, value)).toFixed(6)).toString();
 }
 
 function explicitPlotColor(options) {

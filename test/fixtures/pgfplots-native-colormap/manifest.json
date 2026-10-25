@@ -1,0 +1,10 @@
+{
+  "cases": [
+    {"id":"colormap-explicit-meta","source":"../pgfplots-surface-survey/explicit-meta.tex","title":"Native fixed-point metadata lookup","axisFrame":"3d","surfacePaint":true,"paintColors":[{"property":"fill","rgb":[127.5,127.5,255]}]},
+    {"id":"colormap-rgb-heightmap","source":"rgb-heightmap.tex","title":"RGB255 surface and native grid","axisFrame":"3d","surfacePaint":true},
+    {"id":"colormap-nonuniform","source":"nonuniform.tex","title":"Nonuniform RGB map","axisFrame":"3d","surfacePaint":true},
+    {"id":"colormap-gray-stops","source":"gray-stops.tex","title":"Implicit gray positions","axisFrame":"3d","surfacePaint":true},
+    {"id":"colormap-cmyk-stops","source":"cmyk-stops.tex","title":"Explicit CMYK interpolation","axisFrame":"3d","surfacePaint":true},
+    {"id":"colormap-quadratic-colorbar","source":"../examples/latex-examples/3d-function-2.tex","title":"Real quadratic surface and colorbar","axisFrame":"3d"}
+  ]
+}

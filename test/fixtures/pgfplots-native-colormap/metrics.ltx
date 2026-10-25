@@ -1,0 +1,43 @@
+\documentclass{article}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18,
+  colormap={wb}{color(0cm)=(white);color(6cm)=(blue)},
+  colormap={bw}{gray(0cm)=(0);gray(1cm)=(1)},
+  colormap={rgb}{rgb255(0cm)=(12,84,180);rgb255(1cm)=(240,180,32);rgb255(2cm)=(210,40,80)},
+  colormap={uneven}{rgb(0cm)=(0,0,1);rgb(1cm)=(0,1,0);rgb(4cm)=(1,0,0)},
+  colormap={cmyk}{cmyk(0cm)=(1,0,0,0);cmyk(1cm)=(0,0,0,1)},
+  colormap={by}{color(0cm)=(blue);color(1cm)=(yellow)},
+  colormap={dvips}{color(0cm)=(blue);color(1cm)=(SkyBlue);color(2cm)=(SpringGreen);color(3cm)=(yellow)},
+  colormap={br}{color(0cm)=(blue);color(1cm)=(red)},
+  colormap={wr}{color(0cm)=(white);color(1cm)=(orange!75!red)},
+  colormap={bgr}{color(0cm)=(blue);color(1cm)=(green);color(2cm)=(red)}
+}
+\begin{document}
+\makeatletter
+\foreach \name in {wb,bw,rgb,uneven,cmyk,hot}{
+  \typeout{MAP \name: h=\csname pgfpl@cm@\name @h\endcsname; invh=\csname pgfpl@cm@\name @invh\endcsname}
+  \foreach \value in {0,100,250,333.33333,500,750,900,1000}{
+    \pgfplotscolormapfind[0:1000]{\value}{\name}
+    \typeout{COLOR \name\space \value: \pgfmathresult}
+  }
+}
+\pgfplotscolormapfind[0:12]{6}{wb}
+\typeout{TRANSFORMED wb 6/12: \pgfmathresult}
+\pgfplotscolormapfind@transform[0:12][]{6}{wb}
+\typeout{META 6/12: \pgfmathresult}
+\foreach \name in {by,dvips,br,wr,bw,bgr,hot}{
+  \foreach \value in {0,0.25,0.333333333,0.5,0.666666667,0.75,1}{
+    \pgfplotscolormapfind[0:1]{\value}{\name}
+    \typeout{UNIT \name\space \value: \pgfmathresult}
+  }
+}
+\pgfplotscolormapfind[0.015479949354:0.01744910212]{0.016830743029434353}{wr}
+\typeout{NARROW wr: \pgfmathresult}
+\pgfplotscolormapfind[0:6]{1}{wb}
+\typeout{CUBOID wb: \pgfmathresult}
+\pgfplotscolormapfind[0:1]{.5}{cmyk}
+\definecolor{nativecmyk}{cmyk}{\pgfmathresult}
+\tikz\fill[nativecmyk] (0,0) rectangle (1,1);
+\makeatother
+\end{document}

@@ -86,7 +86,8 @@ test("explicit z limits do not remap the same sampled surface colors", () => {
 });
 
 test("explicit point-meta bounds respect axis-wide versus per-plot normalization", () => {
-  for (const [mode, color] of [["axis wide", "rgb(127.5 127.5 255)"], ["per plot", "rgb(0 0 255)"]]) {
+  // Native metrics.ltx TRANSFORMED wb 6/12: (.49648,.49648,1).
+  for (const [mode, color] of [["axis wide", "rgb(126.6024 126.6024 255)"], ["per plot", "rgb(0 0 255)"]]) {
     const source = fixture("explicit-meta").replace("surf,", `surf,point meta rel=${mode},`);
     const result = tikzToSvg(source);
     assert.deepEqual(result.diagnostics, []);

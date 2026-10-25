@@ -6,14 +6,18 @@ scope, native implementation references, browser comparisons and open gaps.
 
 ## Current Work
 
-Latest explicit-test checkpoint: 3001 passed, 28 failed, 14 unchanged skips
-out of 3043 tests. Native multiline math fixes two A3C sizing failures without
-changing those assertions. Explicit boxed 3D axes now reset their label styles
-as local PGFPlots does; later rotations compose. Browser geometry gates retain
-their original tolerances. Bare Node discovery also runs three manual browser
-probes without their arguments; that separate issue remains open. Complete
-figure compatibility remains partial, including ordinary prose-label placement.
+Latest explicit-test checkpoint: 3047 passed, 24 failed, 14 unchanged skips
+out of 3085 tests. The native colormap follow-up fixes numeric color stops and
+PGF fixed-point interpolation. Six color controls and seven 3D regression
+controls pass the existing browser geometry gates. The previously failing
+explicit-meta color gate passes unchanged. All 89 control facets now match
+native computed colors within one byte; two nonuniform-map channels retain a
+one-byte difference. The 24 existing unit-test failures are unchanged, so this
+is visual compatibility progress, not a claim that those failures were removed.
+Bare Node discovery also runs three manual browser probes without arguments;
+that separate issue remains open. Complete figure compatibility remains partial.
 
+- [Native numeric colormaps and fixed-point interpolation](qa/2026-10-25-native-colormap.md)
 - [Native primes, calligraphic math and explicit boxed 3D labels](qa/2026-10-25-math-alphabets.md)
 - [Datavisualization tick geometry and option replay](qa/2026-10-25-datavis-tick-geometry.md)
 - [Small axes, multiline ticks and paint bounds](qa/2026-10-25-pgfplots-small-axes.md)

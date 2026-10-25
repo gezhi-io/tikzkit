@@ -61,7 +61,7 @@ test("three-dimensional z logarithms map equal powers to equal projected gaps", 
 
 test("default surface colors use the transformed logarithmic z coordinate", () => {
   const color = pgfplotsSurfaceColor(10, { zMin: 1, zMax: 100 }, 0, { zmode: "log" });
-  assert.equal(color, "rgb(255,192,0)");
+  assert.equal(color, "rgb(255 190.8675 0)"); // Native hot at log midpoint: (1,.7485,0).
 });
 
 test("addplot3 drops non-positive z coordinates before painting", () => {

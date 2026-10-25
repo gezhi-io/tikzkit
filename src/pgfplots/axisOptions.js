@@ -1,6 +1,7 @@
 import { parseOptions, splitTopLevel } from "../engine/options.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { pgfplotsLibraryCatalog } from "./libraries/index.js";
+export { parsePgfplotsColormaps } from "./colormap.js";
 
 export const PGFPLOTS_LIBRARY_SUPPORT = pgfplotsLibraryCatalog;
 
@@ -176,34 +177,6 @@ function shouldTreatAsCustomCycleColor(value) {
   if (/^(black|white|red|green|blue|cyan|magenta|yellow|gray|grey|orange|purple|brown|pink|violet|lime|teal|olive|lightgray|darkgray)$/i.test(text)) return false;
   if (/^(solid|dashed|dotted|densely dashed|loosely dashed|densely dotted|loosely dotted|mark|only marks|smooth|sharp plot|const plot)$/i.test(text)) return false;
   return /^[A-Za-z][A-Za-z0-9_-]*$/.test(text);
-}
-
-export function parsePgfplotsColormaps(rawColormapOption) {
-  const rawValues = Array.isArray(rawColormapOption) ? rawColormapOption : [rawColormapOption];
-  const colormaps = {};
-  for (const rawValue of rawValues) {
-    if (rawValue === undefined || rawValue === null || rawValue === true) continue;
-    const parsed = parsePgfplotsColormap(String(rawValue));
-    if (!parsed) continue;
-    colormaps[parsed.name] = parsed.stops;
-  }
-  return colormaps;
-}
-
-function parsePgfplotsColormap(rawValue) {
-  const text = rawValue.trim();
-  const match = text.match(/^\{([^{}]+)\}\s*\{([\s\S]*)\}$/);
-  if (!match) return null;
-  const stops = [];
-  const stopPattern = /color\s*\(\s*([-+]?\d*\.?\d+)(?:\s*cm)?\s*\)\s*=\s*\(([^)]+)\)/g;
-  let stopMatch;
-  while ((stopMatch = stopPattern.exec(match[2]))) {
-    stops.push({
-      position: Number(stopMatch[1]),
-      color: stopMatch[2].trim()
-    });
-  }
-  return stops.length ? { name: match[1].trim(), stops } : null;
 }
 
 function skipWhitespace(text, index) {

@@ -295,7 +295,7 @@ function mixChannels(base, target, amount) {
   return base.map((channel, index) => channel * clamped + target[index] * (1 - clamped));
 }
 
-function convertColorSpec(spec, targetModel) {
+export function convertColorSpec(spec, targetModel) {
   if (spec.model === targetModel) return { model: targetModel, channels: [...spec.channels] };
   const rgb = xcolorSpecToRgb(spec);
   if (targetModel === "rgb") return { model: "rgb", channels: rgb };

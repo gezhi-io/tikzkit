@@ -35,11 +35,10 @@ test("log-surface colors average transformed vertex meta like native PGF", () =>
     { mapPoint3d: p => ({ x: p.x, y: p.y + p.z * .1 }) }, {});
   // Native log-surface-z.svg: (59.550476%,59.550476%,40.447998%),
   // (75.135803%,75.135803%,24.862671%), (100%,82.653809%,0%),
-  // (100%,63.86261%,0%), rounded to RGB8. PGF's colormap lookup multiplies
-  // by a fixed-point inverse interval; JS still interpolates in doubles.
-  // Bound that residual to one channel level, not a geometric color mean.
+  // (100%,63.86261%,0%), rounded to RGB8. Keep the same one-byte bound
+  // while accepting fractional CSS channels from native fixed-point lookup.
   const fills = commands.filter(command => command.includes("axis surface fill"))
-    .map(command => command.match(/fill=rgb\((\d+),(\d+),(\d+)\)/)?.slice(1).map(Number));
+    .map(command => command.match(/fill=rgb\(([^)]+)\)/)?.[1].split(/[,\s]+/).map(Number));
   assert.equal(fills.length, 4);
   for (const rgb of [[152, 152, 103], [192, 192, 63], [255, 211, 0], [255, 163, 0]])
     assert.ok(fills.some(fill => fill?.every((channel, i) => Math.abs(channel - rgb[i]) <= 1)), String(rgb));

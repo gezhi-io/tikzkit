@@ -86,7 +86,8 @@ test("patchplots line renders one open two-vertex mapped-color segment", () => {
   assert.equal(surfaces[0].commands.filter((command) => command.type === "lineTo").length, 1);
   assert.equal(surfaces[0].commands.some((command) => command.type === "closePath"), false);
   assert.equal(surfaces[0].style.fill, "none");
-  assert.equal(surfaces[0].style.stroke, "rgb(255 191.5 0)");
+  // Native metrics.ltx UNIT hot .5: (1,.7485,0).
+  assert.equal(surfaces[0].style.stroke, "rgb(255 190.8675 0)");
   assert.ok(Math.abs(surfaces[0].style.lineWidth - 4.217517642992186) < 1e-9);
 
   const tickLabels = result.ir.items.filter(

@@ -10,6 +10,7 @@ import { axisAlignedViewport, captureAxisGrid, compareAxisGrid } from "./browser
 import { captureCrossOuts, compareCrossOuts } from "./browser-cross-out-metrics.js";
 import { captureDatavisPin, compareDatavisPin } from "./browser-datavis-pin-metrics.js";
 import { captureArrowPaint, compareArrowPaint } from "./browser-arrow-metrics.js";
+import { captureSurfacePaint, compareSurfacePaint } from "./browser-surface-paint-metrics.js";
 
 const arg = name => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined;
 assert.ok(arg("--output") && arg("--browser-module"),
@@ -140,6 +141,7 @@ try {
       const pin = entry.pinGlyphs ? await captureDatavisPin(page, entry.pinGlyphs) : undefined;
       const arrowPaint = entry.arrowGeometry ? await captureArrowPaint(page,
         typeof entry.arrowGeometry === "object" ? entry.arrowGeometry : {}) : undefined;
+      const surfacePaint = entry.surfacePaint ? await captureSurfacePaint(page) : undefined;
       const paintColors = entry.paintColors ? await page.evaluate(() => {
         const palette = { fill: new Set(), stroke: new Set() };
         for (const element of document.querySelectorAll("svg path, svg rect, svg circle, svg ellipse, svg polygon, svg text, svg use")) {
@@ -176,7 +178,7 @@ try {
       images.push(decodePng(png));
       const curves = clipMode ? await captureClippedCurves(page, path.join(outputRoot, `${stem}-curves.png`)) : null;
       if (curves) curvePaint.push(curvePaintPoints(decodePng(curves.png), curves.viewport));
-      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, quiverViewport,
+      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, surfacePaint, quiverViewport,
         ...(curves ? { viewport: curves.viewport, curvesImage: `${stem}-curves.png` } : {}) });
     }
     const difference = compareDecodedPngs(images[2], images[1]);
@@ -309,6 +311,13 @@ try {
     const arrowGate = entry.arrowGeometry ? { comparisons: panels.filter((_, i) => i !== 1).map(panel =>
       ({ title: panel.title, ...compareArrowPaint(panel.arrowPaint, panels[1].arrowPaint) })) } : undefined;
     if (arrowGate) arrowGate.accepted = arrowGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
+    const surfacePaintGate = entry.surfacePaint ? {
+      scope: "All filled linear surface polygons: native browser position, size and computed color",
+      comparisons: panels.filter((_, i) => i !== 1).map(panel => ({ title: panel.title,
+        ...compareSurfacePaint(panel.surfacePaint, panels[1].surfacePaint) }))
+    } : undefined;
+    if (surfacePaintGate) surfacePaintGate.accepted = surfacePaintGate.comparisons
+      .filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
     const paintColorGate = entry.paintColors ? {
       scope: "Requested computed SVG paint colors only; not geometry, layering or full visual acceptance",
       toleranceByte: 1,
@@ -342,7 +351,7 @@ try {
       })
     } : undefined;
     if (quiverPaintGate) quiverPaintGate.accepted = quiverPaintGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
-    summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, crossGate, pinGate, arrowGate, paintColorGate, quiverPaintGate,
+    summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, crossGate, pinGate, arrowGate, paintColorGate, surfacePaintGate, quiverPaintGate,
       comparison: "Browser at 3x CSS zoom; SVG-text/reference diff is supplemental, not visual acceptance",
       meanAbsoluteRGBA: difference.meanAbsoluteRGBA });
   }
@@ -361,6 +370,7 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
     pinGates: summaries.filter(c => c.pinGate).map(c => ({ id: c.id, ...c.pinGate })),
     arrowGates: summaries.filter(c => c.arrowGate).map(c => ({ id: c.id, ...c.arrowGate })),
     paintColorGates: summaries.filter(c => c.paintColorGate).map(c => ({ id: c.id, ...c.paintColorGate })),
+    surfacePaintGates: summaries.filter(c => c.surfacePaintGate).map(c => ({ id: c.id, ...c.surfacePaintGate })),
     quiverPaintGates: summaries.filter(c => c.quiverPaintGate).map(c => ({ id: c.id, ...c.quiverPaintGate })),
     axisTextGates: summaries.filter(c => c.axisTextGate).map(c => ({ id: c.id, accepted: c.axisTextGate.accepted,
       comparisons: c.axisTextGate.comparisons.map(({ errors, ...comparison }) => comparison) })),
@@ -374,6 +384,7 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
   assert.ok(summaries.every(c => !c.pinGate || c.pinGate.accepted), "Browser pin endpoints and glyphs must match the native reference");
   assert.ok(summaries.every(c => !c.arrowGate || c.arrowGate.accepted), "Browser arrow curves, shafts, paint and canvas must match the native reference");
   assert.ok(summaries.every(c => !c.paintColorGate || c.paintColorGate.accepted), "Requested browser paint colors must match the native reference");
+  assert.ok(summaries.every(c => !c.surfacePaintGate || c.surfacePaintGate.accepted), "Every surface polygon must match the native browser reference");
   assert.ok(summaries.every(c => !c.quiverPaintGate || c.quiverPaintGate.accepted), "Browser quiver paint must match the native reference");
 } finally {
   await browser.close();

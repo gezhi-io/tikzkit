@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18,colormap={native}{gray=(0);gray=(.5);gray=(1)}}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[width=8cm,height=7cm,view={35}{30},grid=major,
+  xlabel=$x$,ylabel=$y$,zlabel=$z$,colormap name=native,
+  domain=0:4,y domain=0:1,samples=9,samples y=2,
+  point meta min=0,point meta max=4]
+\addplot3[surf] {x};
+\end{axis}
+\end{tikzpicture}
+\end{document}
