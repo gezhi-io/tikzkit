@@ -4857,17 +4857,21 @@ data [format=function] {
   assert.ok(markMatch, "expected datavis scatter legend marker to be generated");
   assert.ok(labelMatch, "expected datavis scatter legend label to be generated");
 
-  const markX = Number(markMatch[1]);
-  const labelX = Number(labelMatch[1]);
-  assert.ok(Math.abs(markX - 6.14) < 0.06, `expected native default scatter legend marker near x=6.14cm, got ${markX}`);
-  assert.ok(Math.abs(labelX - 6.315) < 0.06, `expected native default scatter legend label anchor near x=6.315cm, got ${labelX}`);
+  const result = tikzToSvg(source, { mathRenderer: "svg-text" });
+  assert.deepEqual(result.diagnostics, []);
+  const markX = result.ir.items.find(item => item.subtype === "axis-legend-example").cx;
+  const labelX = result.ir.items.find(item => item.text === "source ordered rand").svgTextX;
+  // MacTeX's independent legend-metrics.tex probe, in TeX pt. The older
+  // 6.14cm expectation was a fitted axis fraction, not a native measurement.
+  const ptPerCm = 72.27 / 2.54;
+  assert.ok(Math.abs(markX * ptPerCm - 158.422) < 0.03);
+  assert.ok(Math.abs(labelX * ptPerCm - 163.41797) < 0.03);
   assert.ok(labelX - markX > 0.12, `expected label to remain to the right of marker, got gap ${labelX - markX}`);
   assert.ok(labelX - markX < 0.23, `expected native-like compact marker-label gap, got ${labelX - markX}`);
 
-  const rendered = tikzToSvg(source, { mathRenderer: "svg-text" }).svg;
-  const svgLabelMatch = rendered.match(/<text x="([-\d.]+)"[^>]*text-anchor="start"[^>]*>source ordered rand<\/text>/);
-  assert.ok(svgLabelMatch, "expected west-anchored legend text to render with SVG text-anchor=start");
-  assert.ok(Math.abs(Number(svgLabelMatch[1]) - 631.5) < 3, `expected rendered legend text to start at native west anchor, got x=${svgLabelMatch?.[1]}`);
+  const svgLabelMatch = [...result.svg.matchAll(/<g class="tikz-text-native"[^>]*translate\(([-\d.]+) ([-\d.]+)\)[^>]*text-anchor="start"/g)].at(-1);
+  assert.ok(svgLabelMatch, "expected native CM glyphs sharing a west-anchored hbox");
+  assert.ok(Math.abs(Number(svgLabelMatch[1]) - 163.41797 / ptPerCm * 100) < 0.1);
 });
 
 test("renders three scatter marks in datavisualization legend when requested", () => {

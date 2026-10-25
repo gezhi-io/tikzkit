@@ -46,15 +46,12 @@ export function renderSvgDocument(viewBox, body = [], defs = [], size = null) {
   if (defs.length) content.push(createSvgDefs(defs));
   content.push(...body);
   const sizeAttributes = size
-    ? ` width="${formatSvgPointDimension(size.widthPt)}pt" height="${formatSvgPointDimension(size.heightPt)}pt"`
+    // Keep physical dimensions as precise as the viewBox: two-decimal pt
+    // rounding changes its aspect ratio and rescales text at browser zoom.
+    ? ` width="${format(size.widthPt)}pt" height="${format(size.heightPt)}pt"`
     : "";
   return `<svg class="tikz-render-svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"${sizeAttributes} viewBox="${viewBox}">\n${content
     .filter(Boolean)
     .map((line) => `  ${line}`)
     .join("\n")}\n</svg>\n`;
-}
-
-function formatSvgPointDimension(value) {
-  const rounded = Math.round((Number(value) + Number.EPSILON) * 100) / 100;
-  return Object.is(rounded, -0) ? "0" : rounded.toFixed(2).replace(/\.?0+$/, "");
 }

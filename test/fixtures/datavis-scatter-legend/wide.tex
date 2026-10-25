@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\tikz \datavisualization [scientific axes=clean,
+  x axis={length=8cm,min value=-100,max value=100,ticks={step=50},grid},
+  y axis={length=2cm,min value=0,max value=100,ticks={step=50},grid},
+  visualize as scatter,
+  legend={east outside},
+  scatter={style={mark=*,mark size=2pt,blue},label in legend={text={measurements at $x_i$}}}]
+data point [x=-100,y=25]
+data point [x=0,y=75]
+data point [x=100,y=50];
+\end{document}

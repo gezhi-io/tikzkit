@@ -1109,17 +1109,38 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
       canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(scopeOptions)),
       canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
       basis: scopePlane?.basis || composeBasis(env.basis, scopeOptions, codeEnv),
+      trackLocalBounds: env.trackLocalBounds || Boolean(scopeOptions["local bounding box"]),
       pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, scopeOptions),
       styles: scopeStyles
     };
     applyChainControlOptions(scopeOptions, scopedEnv, diagnostics);
-    if (isBackgroundScope(scopeOptions)) {
-      const backgroundIr = { ...ir, items: [], backgroundItems: [] };
-      for (const child of statement.body) interpretStatement(child, scopedEnv, backgroundIr, diagnostics, options);
-      ir.backgroundItems.push(...backgroundIr.backgroundItems, ...backgroundIr.items);
-      return;
+    const background = isBackgroundScope(scopeOptions);
+    const scopeIr = background ? { ...ir, items: [], backgroundItems: [] } : ir;
+    const localBoxName = scopeOptions["local bounding box"];
+    let localBounds = null;
+    for (const child of statement.body) {
+      const start = { items: scopeIr.items.length, background: scopeIr.backgroundItems.length };
+      interpretStatement(child, scopedEnv, scopeIr, diagnostics, options);
+      if (localBoxName) {
+        // PGF's local size hook records only this scope's contributions. The
+        // saved rectangle remains addressable after the scope has ended. Read
+        // each new item once, while keeping the anchor available mid-scope.
+        const bounds = computeItemsBoundingBox([
+          ...scopeIr.backgroundItems.slice(start.background), ...scopeIr.items.slice(start.items)
+        ], null);
+        if (bounds) {
+          localBounds = localBounds ? {
+            minX: Math.min(localBounds.minX, bounds.minX), minY: Math.min(localBounds.minY, bounds.minY),
+            maxX: Math.max(localBounds.maxX, bounds.maxX), maxY: Math.max(localBounds.maxY, bounds.maxY)
+          } : bounds;
+          const name = resolveDynamicName(String(localBoxName), scopedEnv);
+          const point = roundPoint({ x: (localBounds.minX + localBounds.maxX) / 2, y: (localBounds.minY + localBounds.maxY) / 2 });
+          env.nodes[name] = { point, width: localBounds.maxX - localBounds.minX, height: localBounds.maxY - localBounds.minY, shape: "rectangle" };
+          env.coordinates[name] = point;
+        }
+      }
     }
-    for (const child of statement.body) interpretStatement(child, scopedEnv, ir, diagnostics, options);
+    if (background) ir.backgroundItems.push(...scopeIr.backgroundItems, ...scopeIr.items);
     return;
   }
   if (statement.type === "path") {
@@ -1579,6 +1600,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   const visible = isVisiblePath(statement.command, style, semantic, built.styleHints);
+  if (!visible && pathEnv.trackLocalBounds && !tikzBoolean(pathOptions.overlay) && built.commands.length) {
+    ir.items.push(createBoundingBoxShape(built.commands));
+  }
   const shadows = pathGeneralShadows(semantic, pathEnv, style);
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
   addShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
@@ -14508,6 +14532,7 @@ function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
       minWidth: 0,
       widthPadding: 0,
       texTextMetrics: true,
+      preferNativeMath: Boolean(options["tikzkit native math"]),
       displayMode: math.displayMode,
       mathVersion: font.mathVersion,
       mathExtension: font.mathExtension,
@@ -14516,9 +14541,9 @@ function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
     height = formula.height;
     depth = formula.depth;
   } else if (line && lines.length === 1) {
-    // A base anchor is the original hbox baseline, not the visual middle of
-    // a substitute font. Use the same supported CMTT run as the SVG painter.
-    const native = nativeTypewriterFont(font) || normalized.inlineNodes?.length ? layoutNativeTextRun(normalized, font) : null;
+    // Base anchors must use the same optical-size hbox as native text paint,
+    // including inline formulas. Legacy flat metrics can move its baseline.
+    const native = layoutNativeTextRun(normalized, font);
     const measured = native || measurePlainTextTeXBoxPt(line, {
       fontSizePt: Number(font.sizePt) || 10,
       fontFamily: font.family

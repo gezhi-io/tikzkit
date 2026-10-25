@@ -1,0 +1,48 @@
+% Independent MacTeX measurements (.ltx excludes this from the JS gallery).
+\documentclass{article}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usetikzlibrary{datavisualization.formats.functions,plotmarks}
+\newcommand{\probe}[2]{%
+  \pgfextractx{\dimen0}{\pgfpointanchor{#1}{#2}}%
+  \pgfextracty{\dimen2}{\pgfpointanchor{#1}{#2}}%
+  \typeout{POINT #1.#2: \the\dimen0,\the\dimen2}}
+\newcommand{\cell}[2]{%
+  \setbox0=\hbox{{#1\hbox{\vrule height .75em width0pt}#2\hbox{\vrule depth .25em width0pt}}}%
+  \typeout{CELL: \the\wd0,\the\ht0,\the\dp0}}
+\begin{document}
+\cell{\small}{a long legend with gyjp}
+\cell{\small}{$\displaystyle\frac{1+x_i}{1+x_i^2}$}
+\cell{\scriptsize}{small measurements}
+\cell{\small}{measurements at $x_i$}
+\begin{tikzpicture}
+\datavisualization [scientific axes=clean,
+  x axis={min value=0,max value=2,ticks={step=1},grid},
+  y axis={min value=0,max value=2,ticks={step=1},grid},
+  visualize as scatter/.list={a,b,c},
+  legend={matrix node style={name=rows}},
+  a={style={mark=*,mark size=1.5pt},label in legend={text={a long legend with gyjp},node style={name=rowA}}},
+  b={style={mark=*,mark size=3pt},label in legend={text={$\displaystyle\frac{1+x_i}{1+x_i^2}$},node style={name=rowB}}},
+  c={style={mark=o,mark size=2pt},label in legend={text={small measurements},node style={name=rowC,font=\scriptsize}}}]
+data point [set=a,x=0,y=0]
+data point [set=b,x=1,y=1]
+data point [set=c,x=2,y=2];
+\probe{rows}{south west}\probe{rows}{north east}
+\probe{rowA}{base west}\probe{rowA}{mid west}
+\probe{rowB}{base west}\probe{rowB}{mid west}
+\probe{rowC}{base west}\probe{rowC}{mid west}
+\end{tikzpicture}
+\begin{tikzpicture}
+\datavisualization [scientific axes=clean,
+  x axis={length=8cm,min value=-100,max value=100,ticks={step=50},grid},
+  y axis={length=2cm,min value=0,max value=100,ticks={step=50},grid},
+  visualize as scatter,
+  legend={east outside,matrix node style={name=wide}},
+  scatter={style={mark=*,mark size=2pt},label in legend={text={measurements at $x_i$},node style={name=wideLabel}}}]
+data point [x=-100,y=25]
+data point [x=0,y=75]
+data point [x=100,y=50];
+\probe{wide}{south west}\probe{wide}{north east}
+\probe{wideLabel}{base west}\probe{wideLabel}{mid west}
+\end{tikzpicture}
+\end{document}

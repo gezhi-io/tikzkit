@@ -71,6 +71,8 @@ test("cli exposes SVG-text math and TeX unit controls for local visual QA", asyn
   assert.doesNotMatch(svg, /foreignObject/);
   assert.match(svg, /font-size="10"/);
   assert.match(svg, /stroke-width="0\.4"/);
-  assert.match(svg, /width="57\.09pt" height="57\.09pt"/);
+  const dimensions = svg.match(/width="([\d.]+)pt" height="([\d.]+)pt"/).slice(1).map(Number);
+  const diameterPt = (2 * 72.27 / 2.54 + .4) * 72 / 72.27;
+  for (const dimension of dimensions) assert.ok(Math.abs(dimension - diameterPt) < 1e-5);
   assert.match(svg, /viewBox="-28\.652756 -28\.652756 57\.305512 57\.305512"/);
 });

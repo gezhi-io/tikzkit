@@ -59,8 +59,8 @@ test("svg renderer layer exposes render, escaping, defs, text, and path-data hel
   });
 
   assert.match(renderSvg(scene), /<svg/);
-  assert.match(renderSvg(scene), /width="34\.02pt"/);
-  assert.match(renderSvg(scene), /height="34\.02pt"/);
+  const dimensions = renderSvg(scene).match(/width="([\d.]+)pt" height="([\d.]+)pt"/).slice(1).map(Number);
+  for (const dimension of dimensions) assert.ok(Math.abs(dimension - 1.2 * 72 / 2.54) < 1e-6);
   assert.equal(escapeAttribute(`"<&>`), "&quot;&lt;&amp;>");
   assert.equal(escapeHtml(`"<&>`), "&quot;&lt;&amp;&gt;");
   assert.equal(svgPathData(scene.items[0].commands, 10), "M 0 0 L 10 0");
@@ -96,8 +96,8 @@ test("svg renderer layer exposes render, escaping, defs, text, and path-data hel
   });
   const svgTextHeight = Number(svgTextMath.match(/height="([^"]+)pt"/)?.[1]);
   // compact-math-renderer-metrics.tex: x is 4.30554 TeX pt high, depth zero.
-  // SVG document dimensions use PDF points and are rounded to two decimals.
-  assert.equal(svgTextHeight, Number((4.30554 * 72 / 72.27).toFixed(2)));
+  // Physical SVG dimensions use PDF points without coarse aspect-ratio loss.
+  assert.ok(Math.abs(svgTextHeight - 4.30554 * 72 / 72.27) < 1 / 65536);
   assertNativeText(svgTextMath, "x");
   assert.equal(
     scopeMathHtml('<span class="katex katex-html custom"></span>'),
@@ -1872,13 +1872,17 @@ test("renders rounded rectangle node boxes as explicit paths", () => {
   assert.doesNotMatch(result.svg, /<rect x="-99\.[^"]*"[^>]*rx="8"/);
 });
 
-test("rounds document point dimensions to tikztosvg precision", () => {
+test("preserves document scale and native point dimensions", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
   \path[draw=blue, fill=blue!15, rounded corners=2pt] (0,0) -- (1.6,0) -- (1.2,1) -- cycle;
 \end{tikzpicture}`, { margin: 0, mathRenderer: "svg-text" });
 
-  assert.match(result.svg, /width="45\.75pt"/);
-  assert.match(result.svg, /height="28\.74pt"/);
+  const dimensions = result.svg.match(/width="([\d.]+)pt" height="([\d.]+)pt"/).slice(1).map(Number);
+  assert.deepEqual(dimensions.map(value => Number(value.toFixed(2))), [45.75, 28.74]);
+  const view = result.svg.match(/viewBox="([^"]+)"/)[1].split(" ").map(Number);
+  for (const [index, dimension] of dimensions.entries()) {
+    assert.ok(Math.abs(dimension - view[index + 2] * 72 / 254) < 1e-6);
+  }
 });
 
 test("calibrates thick stealth arrow tip geometry against tikztosvg", () => {

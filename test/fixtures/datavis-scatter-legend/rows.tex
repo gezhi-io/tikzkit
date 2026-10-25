@@ -1,0 +1,16 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usepackage{amsmath}
+\usetikzlibrary{datavisualization.formats.functions,plotmarks}
+\begin{document}
+\tikz \datavisualization [scientific axes=clean,
+  x axis={min value=0,max value=2,ticks={step=1},grid},
+  y axis={min value=0,max value=2,ticks={step=1},grid},
+  visualize as scatter/.list={a,b,c},
+  a={style={mark=*,mark size=1.5pt,red},label in legend={text={a long legend with gyjp}}},
+  b={style={mark=*,mark size=3pt,blue},label in legend={text={$\displaystyle\frac{1+x_i}{1+x_i^2}$}}},
+  c={style={mark=o,mark size=2pt,black},label in legend={text={small measurements},node style={font=\scriptsize}}}]
+data point [set=a,x=0,y=0]
+data point [set=b,x=1,y=1]
+data point [set=c,x=2,y=2];
+\end{document}

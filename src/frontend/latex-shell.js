@@ -6,6 +6,7 @@ import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinition
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
 import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
+import { renderNativeScatterLegend } from "../tikz/libraries/datavisualizationLegend.js";
 import { collectPgfPlotMarkDeclarations } from "../tikz/libraries/plotmarks.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
@@ -166,7 +167,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = expandPgfganttCharts(expanded, diagnostics);
   expanded = expandPgfplotsInvokeForeach(expanded, diagnostics);
   expanded = expandPgfplotsGroupplots(expanded, diagnostics, pgfplotsRuntimeOptions);
-  expanded = expandDatavisualizationFunctions(expanded, diagnostics);
+  expanded = expandDatavisualizationFunctions(expanded, diagnostics, { mathExtension: pgfplotsRuntimeOptions.mathExtension });
   expanded = expandPgfplotsAxes(expanded, diagnostics, pgfplotsRuntimeOptions, pgfplotsAxisLoweringDependencies());
   expanded = normalizeTikzPictureAliases(expanded);
   expanded = stripTexLayoutLengthCommands(expanded);
@@ -5201,7 +5202,7 @@ function roundTikzNumber(value) {
   return String(Math.round(number * 10000) / 10000);
 }
 
-function expandDatavisualizationFunctions(source, diagnostics) {
+function expandDatavisualizationFunctions(source, diagnostics, options = {}) {
   const rawText = String(source);
   if (!rawText.includes("\\datavisualization")) return rawText;
   const seedInfo = collectDatavisualizationRandomSeed(rawText);
@@ -5229,6 +5230,7 @@ function expandDatavisualizationFunctions(source, diagnostics) {
       continue;
     }
     output += renderDatavisualizationAsPgfplots(parsed, {
+      mathExtension: options.mathExtension,
       randomSeed: seedInfo.seed,
       dataGroups: groupInfo.groups,
       customStyleSheets: styleSheetInfo.styleSheets,
@@ -5834,8 +5836,23 @@ function renderDatavisualizationAsPgfplots(parsed, context = {}) {
     }
   });
 
-  commands.push(...renderDatavisualizationLegendEntryGroups(datavisualizationOrderLegendEntries(legendEntries, parsed.globalOptions, globalOptions), legendContext));
+  const orderedEntries = datavisualizationOrderLegendEntries(legendEntries, parsed.globalOptions, globalOptions);
+  const axisBoxName = "tikzkit datavis axis";
+  const nativeScatterLegend = renderNativeScatterLegend(orderedEntries.map(entry => {
+    const plot = datavisualizationLegendStylePlot(entry.plot);
+    const style = datavisualizationScatterPlotStyle(plot);
+    return { ...entry, plot, sampleStyle: formatDatavisualizationOptions({ ...style, "only marks": false }),
+      sampleColor: style.fill || style.color || style.draw || "black",
+      labelColor: datavisualizationLegendLabelColor(style, plot) || "black" };
+  }), axisBoxName, { mathExtension: context.mathExtension });
+  if (!nativeScatterLegend) commands.push(...renderDatavisualizationLegendEntryGroups(orderedEntries, legendContext));
   commands.push("\\end{axis}");
+  if (nativeScatterLegend) {
+    // Legend placement sees the completed axes, ticks and descriptions, but
+    // not an unrelated picture or the legend itself.
+    commands.unshift(`;{[local bounding box=${axisBoxName}]`);
+    commands.push("}", ...nativeScatterLegend);
+  }
   const body = commands.join("\n");
   if (parsed.wrapsTikzPicture) return `\\begin{tikzpicture}\n${body}\n\\end{tikzpicture}`;
   return body;

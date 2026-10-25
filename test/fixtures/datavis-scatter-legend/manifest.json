@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "scatter-default-legend", "source": "../native-node-text/scatter.tex", "title": "Source-ordered random scatter with default legend",
+      "nativeGlyphFrame": { "color": "rgb(191, 191, 191)", "count": 39 } },
+    { "id": "scatter-mixed-row-heights", "source": "rows.tex", "title": "Scatter legend with tall math, a descender and small text",
+      "nativeGlyphFrame": { "color": "rgb(191, 191, 191)", "count": 51 } },
+    { "id": "scatter-wide-axis", "source": "wide.tex", "title": "Wide axis with large tick labels and a long legend",
+      "nativeGlyphFrame": { "color": "rgb(191, 191, 191)", "count": 35 } }
+  ]
+}

@@ -53,8 +53,8 @@ test("lowers pgfplotstable typeset into a measured text table", () => {
   assert.deepEqual(text.map((item) => item.text), ["Year", "Vehicles", "2,021", "642", "2,022", "904", "2,023", "1,402"]);
   // The table's 82.34pt by 47.81pt TeX layout box plus the source's 2pt
   // standalone border on every edge keeps the SVG crop at 86.34pt by 51.81pt.
-  assert.match(result.svg, /width="86\.34pt"/);
-  assert.match(result.svg, /height="51\.81pt"/);
+  const dimensions = result.svg.match(/width="([\d.]+)pt" height="([\d.]+)pt"/).slice(1);
+  assert.deepEqual(dimensions.map(value => Number(Number(value).toFixed(2))), [86.34, 51.81]);
   assert.ok(!result.svg.includes("pgfplotstabletypeset"));
 });
 

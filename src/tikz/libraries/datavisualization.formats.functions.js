@@ -2,7 +2,7 @@ export const tikzLibrary = {
   name: "datavisualization.formats.functions",
   status: "partial",
   category: "datavisualization",
-  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions/renderDatavisualizationPin/datavisualizationSourceTickLabels/datavisualizationTickPaintOptions + src/pgfplots/datavisTicks.js + src/pgfplots/ticks.js + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/richTextNode.js",
+  implementedBy: "src/frontend/latex-shell.js:expandDatavisualizationFunctions/renderDatavisualizationPin/datavisualizationSourceTickLabels/datavisualizationTickPaintOptions + src/tikz/libraries/datavisualizationLegend.js + src/pgfplots/datavisTicks.js + src/pgfplots/ticks.js + src/engine/evaluate.js:estimateNodeSize + src/renderers/svg/richTextNode.js",
   localSource: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/datavisualization/tikzlibrarydatavisualization.formats.functions.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-dv-formats.tex",
   localSourceReviewed: "yes",
@@ -27,6 +27,7 @@ export const tikzLibrary = {
     "label in data and pin in data selection by when=<attribute> is <number>, index=<n>, pos=<fraction>, and default auto visualizer order with focused plain-label normal and auto-anchor center calibration",
     "plain label in data default every data set label small font sizing",
     "label in legend text with a simple visualizer example marker",
+    "shared native cell-box layout for default/east-outside one-column circular scatter legends",
     "native zig-zag line legend mark coordinates",
     "legend label style=text left placement",
     "legend label style=text colored",
@@ -68,6 +69,7 @@ export const tikzLibrary = {
     "visualizer options/ignore style sheets without consuming style sequence slots"
   ],
   notes:
+    "Shared scatter legend cells reviewed on 2026-10-25; the function-format loader delegates to datavisualization. This slice changes legend layout, not function sampling. Native CM hboxes, optical-size struts and per-row height/depth replace fitted offsets for default/east-outside one-column circular entries. Three browser comparisons pass; custom matrices, nondefault surrounding fonts and other placements remain partial. Evidence: docs/qa/2026-10-25-datavis-scatter-legend.md. " +
     "Shared axis tick replay reviewed on 2026-10-25 against the local datavisualization loader and tick visualizer. Major ticks preserve source order and occurrence-local text; value-based styles change endpoints/paint without replacing that text. Twelve native/browser fixtures cover sampled sine, explicit ticks, duplicate values and single-point controls. Arbitrary legend matrices, nondefault outer-font units and complete minor/subminor styling remain partial. Evidence: docs/qa/2026-10-25-datavis-tick-geometry.md. " +
     "Implemented as a focused preprocessor that lowers supported datavisualization function/table data to the existing PGFPlots axis/addplot subset. Reviewed locally through 2026-09-06 against the function-format loader, label visualizer object, pin transform, and legend matrix source. Function variables are sampled in source order; `when=x is 1` selects the first surveyed point at or above the threshold and uses the preceding canvas segment for the pin normal. The leader follows the default 3ex-equivalent offset and clips against a TeX-sized auto-anchored label box. South-east outside scatter legends use the data-bounding-box anchor, and mixed prose/math labels preserve west anchoring with inline math at the surrounding text size. It is not a full PGF datavisualization object pipeline: custom pgfooclass visualizers and exact arbitrary matrix legends remain partial. Evidence: docs/qa/2026-09-06-datavisualization-pin-scatter.md. Reviewed again on 2026-10-23: logarithmic labels print source numbers and minor ticks are opt-in; pins now use the first threshold-crossing sample and its preceding canvas point for both label and leader, with small (9pt) CM text and gray 0.2pt edges. Four Chrome pin comparisons pass in default and SVG-text modes. Full tick styling, logarithmic pin normals, arbitrary legend matrices and custom visualizers remain partial. Evidence: docs/qa/2026-10-23-failure-repairs.md."
 };

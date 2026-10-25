@@ -30,5 +30,6 @@ test("uses declared tip and line ends to shorten the stem without generic arrow-
   assert.match(result.svg, /d="M 0 0 L 296\.485402 0"/);
   assert.match(result.svg, /d="M 3\.514598 100 L 300 100"/);
   const width = Number(result.svg.match(/width="([\d.]+)pt"/)?.[1]);
-  assert.equal(width, 90.22);
+  // Retain the native two-decimal measurement, not a two-decimal SVG format.
+  assert.equal(Number(width.toFixed(2)), 90.22);
 });
