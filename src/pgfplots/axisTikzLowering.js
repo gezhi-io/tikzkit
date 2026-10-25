@@ -24,7 +24,7 @@ import { preparePgfplotsHistogram } from "./histogram.js";
 import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, renderAxisTicks } from "./ticks.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
-import { defaultPgfplotsBarCycleStyle, defaultPgfplotsCycleMarkStyle } from "./plotStyle.js";
+import { defaultPgfplotsBarCycleStyle, defaultPgfplotsCycleMarkStyle, plotLineWidthOption } from "./plotStyle.js";
 import { createPgfplotsDateContext, normalizePgfplotsDateAxisOptions } from "./dateCoordinates.js";
 import { renderAxisFillBetween } from "./fillBetween.js";
 import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
@@ -224,11 +224,10 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     const defaultSize = axisModel.options.width === undefined && axisModel.options.height === undefined;
     const { xMin, xMax, yMin, yMax } = axisModel.ranges;
     const hasTickDescriptions = Object.values(axisModel.ticks).some(tick => !tick.disabled && tick.values.length);
-    // Native interior tickless axes add only their painted stroke/arrow bounds.
+    // Native tickless axes add only their painted stroke/arrow bounds.
     // The renderer already includes those; a synthetic margin counts them twice.
-    const ticklessInterior = !hasTickDescriptions && xMin < 0 && xMax > 0 && yMin < 0 && yMax > 0;
     const boundaryOrigin = hasTickDescriptions && (xMin >= 0 || xMax <= 0 || yMin >= 0 || yMax <= 0);
-    if (bounds && (enlarged || defaultSize || boundaryOrigin || ticklessInterior || !isMiddleAxis(axisModel.options) ||
+    if (bounds && (enlarged || defaultSize || boundaryOrigin || !hasTickDescriptions || !isMiddleAxis(axisModel.options) ||
       axisHasExplicitDescriptionPlacement(axisModel.options))) commands[0] = renderAxisBounds({
       origin: { x: bounds.minX, y: bounds.minY },
       width: bounds.maxX - bounds.minX, height: bounds.maxY - bounds.minY,
@@ -236,8 +235,12 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     });
   }
   const bodyText = commands.join("\n");
-  return nativeAxisText
-    ? `\n;{[tikzkit native math,tikzkit tex node anchors]\n${bodyText}\n}\n`
+  // Node outer sep is .5 pgflinewidth, including undrawn tick/annotation
+  // boxes. Preserve the axis scope's width instead of shifting text later.
+  const scopeOptions = [nativeAxisText ? "tikzkit native math,tikzkit tex node anchors" : "", plotLineWidthOption(axisModel.options)]
+    .filter(Boolean).join(",");
+  return scopeOptions
+    ? `\n;{[${scopeOptions}]\n${bodyText}\n}\n`
     : `\n${bodyText}\n`;
 }
 
@@ -432,11 +435,7 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
     const plotOptions = plot.options || {};
     const usesDefaultCycle =
       !cycleName &&
-      (plotOptions["pgfplots plus"] ||
-        (plot.type === "coordinates" &&
-          plot.source === "table" &&
-          !plot.is3d &&
-          !plotOptions["pgfplots explicit options"]));
+      (plotOptions["pgfplots plus"] || !plotOptions["pgfplots explicit options"]);
     const cycleStyle = cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
       || (usesStackedBarCycle || usesAreaCycle
         ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6))

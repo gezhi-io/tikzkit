@@ -187,7 +187,16 @@ test("expands PGFPlots groupplots into positioned axis drawings", () => {
 \end{tikzpicture}`);
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(ir.items.filter((item) => item.type === "path" && item.style?.stroke === "blue").length, 2);
+  const curves = ir.items.filter(item => item.subtype === "axis-plot");
+  const marks = ir.items.filter(item => item.subtype === "axis-mark");
+  assert.equal(curves.length, 2);
+  assert.equal(marks.length, 4, "optionless addplot repeats the native cycle marks in each group");
+  assert.ok(curves.every(item => item.style.stroke === "blue"));
+  for (const curve of curves) {
+    for (const point of [curve.commands[0], curve.commands.at(-1)]) {
+      assert.ok(marks.some(mark => Math.abs(mark.cx - point.x) < 0.001 && Math.abs(mark.cy - point.y) < 0.001));
+    }
+  }
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "A"));
   assert.ok(ir.items.some((item) => item.type === "textNode" && item.text === "B"));
 });

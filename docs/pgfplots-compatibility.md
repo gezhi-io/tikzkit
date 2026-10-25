@@ -6,12 +6,18 @@ scope, native implementation references, browser comparisons and open gaps.
 
 ## Current Work
 
-Latest full-suite checkpoint: 2846 passed, 50 failed, 14 unchanged skips
-out of 2910 tests. This batch reduced the previous 55 failures to 50,
-with no new failing tests. Complete figure compatibility remains partial;
+Latest explicit-test checkpoint: 2934 passed, 39 failed, 14 unchanged skips
+out of 2987 tests. This batch reduced the previous 43 failures to 39,
+with no new failing test names. Bare Node discovery also runs three manual
+browser probes without their arguments; that separate issue remains open.
+Complete figure compatibility remains partial;
 see the first report for the distinction between rendering fixes and
 evidence-based stale test corrections.
 
+- [Small axes, multiline ticks and paint bounds](qa/2026-10-25-pgfplots-small-axes.md)
+- [Logarithmic surfaces, ticks and mixed descriptions](qa/2026-10-25-pgfplots-log-surfaces.md)
+- [Surface survey and projected clipping](qa/2026-10-25-pgfplots-surface-survey.md)
+- [Final-range origins and minor ticks](qa/2026-10-25-pgfplots-origin.md)
 - [Quiver styles, sampling and surface colors](qa/2026-10-23-pgfplots-quiver-colors.md)
 - [Histogram bounds and literal tick baselines](qa/2026-10-23-histogram-bounds.md)
 - [Native hats and pin formula construction](qa/2026-10-23-native-math-hat.md)

@@ -52,8 +52,8 @@ test("PGFPlots axis paths leave arrow paint extents to the renderer", () => {
     String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (0,-1) -- (0,1);`
   ]);
   assert.deepEqual(renderAxisLines({ "axis lines": "box" }, ranges, geometry), [
-    String.raw`\draw[axis line, black, line width=0.35pt] (-1,0) -- (1,0);`,
-    String.raw`\draw[axis line, black, line width=0.35pt] (0,-1) -- (0,1);`
+    String.raw`\draw[axis line, black, line width=0.4pt] (-1,0) -- (1,0);`,
+    String.raw`\draw[axis line, black, line width=0.4pt] (0,-1) -- (0,1);`
   ]);
 });
 

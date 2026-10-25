@@ -1,0 +1,15 @@
+{
+  "cases": [
+    { "id": "pgfplots-small-middle", "source": "middle.tex", "title": "Small middle axis: native description reserve" },
+    { "id": "pgfplots-small-box", "source": "box.tex", "axisFrame": "box", "title": "Small box axis sizing control" },
+    { "id": "pgfplots-small-scale-only", "source": "scale-only.tex", "title": "Scale-only axis retains the requested physical size" },
+    { "id": "pgfplots-small-3d", "source": "surface.tex", "axisFrame": "3d", "title": "Small 3D projection and clipping control" },
+    { "id": "pgfplots-tick-no-align", "source": "tick-no-align.tex", "axisFrame": "box", "title": "Default tick text does not enable a halign" },
+    { "id": "pgfplots-tick-center", "source": "tick-center.tex", "axisFrame": "box", "title": "Centered 8pt tick labels and TeX line boxes" },
+    { "id": "pgfplots-tick-left", "source": "tick-left.tex", "axisFrame": "box", "title": "Left-aligned 8pt tick labels" },
+    { "id": "pgfplots-legend-marks", "source": "legend-marks.tex", "title": "Data marks and the independent legend mark" },
+    { "id": "pgfplots-green-left", "source": "green-left.tex", "title": "Xcolor green, addplot+ and left-axis descriptions" },
+    { "id": "latex-examples-line-chart-electric-vehicles-sold", "source": "../examples/latex-examples/line-chart-electric-vehicles-sold.tex", "axisFrame": "box", "title": "Real multiline footnotesize ticks: electric vehicle sales" },
+    { "id": "pgfplots-tickless-cycle-marks", "source": "../pgfplots-middle-axis-empty-ticks.tex", "title": "Tickless axes include native cycle endpoint marks" }
+  ]
+}

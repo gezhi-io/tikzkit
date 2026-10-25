@@ -1,4 +1,4 @@
-import { layoutMultilineMathText, measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
+import { layoutMultilineTeXText, measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
 import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
@@ -303,7 +303,7 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
 export function nativePlainTextBox(item, normalized) {
   if (!item.wrapWidth && !item.fitBox &&
       !(item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) {
-    const lines = layoutMultilineMathText(normalized, item.font, normalizedTextAlign(item.textAlign));
+    const lines = layoutMultilineTeXText(normalized, item.font, normalizedTextAlign(item.textAlign));
     if (lines) return lines;
   }
   const typewriter = nativeTypewriterFont(item.font);

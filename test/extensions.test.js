@@ -182,7 +182,13 @@ test("renders common PGFPlots axis addplot coordinates, functions, and legends",
   assert.deepEqual(result.diagnostics, []);
   assert.equal(result.ir.items.filter((item) => item.subtype === "axis-line").length, 2);
   assert.equal(result.ir.items.filter((item) => item.subtype === "axis-grid-line").length > 0, true);
-  assert.equal(result.ir.items.filter((item) => item.subtype === "axis-mark").length, 3);
+  // PGF paints three data marks and repeats the mark in the legend sample.
+  const marks = result.ir.items.filter((item) => item.subtype === "axis-mark");
+  assert.equal(marks.length, 4);
+  for (const [x, y] of [[1.713, 3.321], [3.427, 2.847], [5.14, 3.321]]) {
+    assert.equal(marks.filter(mark => Math.abs(mark.cx - x) < 0.001 && Math.abs(mark.cy - y) < 0.001).length, 1);
+  }
+  assert.ok(marks.every(mark => mark.style.stroke === "red" && Math.abs(mark.r - 2 * 2.54 / 72.27) < 0.001));
   assert.equal(result.ir.items.some((item) => item.subtype === "axis-plot"), true);
   assert.equal(result.ir.items.filter((item) => item.type === "textNode" && /\$x/.test(item.text)).length, 2);
 });
@@ -5402,7 +5408,7 @@ test("supports common PGFPlots addplot+ labels and addlegendentry", () => {
   const result = tikzToSvg(source);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.equal(result.ir.items.some((item) => item.subtype === "axis-plot" && item.style.stroke === "green"), true);
+  assert.equal(result.ir.items.some((item) => item.subtype === "axis-plot" && item.style.stroke === "rgb(0 255 0)"), true);
   assert.equal(result.ir.items.filter((item) => item.type === "textNode" && ["$x$", "$y$", "Curve", "$x^2$"].includes(item.text)).length, 4);
 });
 
@@ -5868,14 +5874,11 @@ test("respects explicit PGFPlots middle-axis at offsets without extra stack shif
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(yAxes.length, 3);
-  assert.deepEqual(
-    yAxes.map((axis) => ({ min: Number(axis.min.toFixed(3)), max: Number(axis.max.toFixed(3)) })),
-    [
-      { min: 0, max: 1 },
-      { min: -1.5, max: -0.5 },
-      { min: -3, max: -2 }
-    ]
-  );
+  // Native 2cm height minus the full 45pt description reserve is 11.9049pt.
+  yAxes.forEach((axis, i) => {
+    assert.equal(axis.min, -1.5 * i || 0);
+    assert.ok(Math.abs((axis.max - axis.min) * 72.27 / 2.54 - 11.9049) < 0.02);
+  });
 });
 
 test("keeps generated PGFPlots axis label text available for TeX font macro handling", () => {
@@ -5894,7 +5897,7 @@ test("keeps generated PGFPlots axis label text available for TeX font macro hand
   assert.ok(labels.includes(String.raw`\textcolor{blue}{carrier wave}`));
 });
 
-test("adds invisible PGFPlots axis container bounds around plotted content", () => {
+test("keeps PGFPlots axis bounds separate from the measured description boxes", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \begin{axis}[width=4cm,height=2cm,xmin=0,xmax=1,ymin=0,ymax=1,axis lines=middle]
@@ -5912,10 +5915,14 @@ test("adds invisible PGFPlots axis container bounds around plotted content", () 
 
   assert.deepEqual(result.diagnostics, []);
   assert.ok(frame);
-  assert.ok(Math.min(...frameXs) < Math.min(...axisXs));
-  assert.ok(Math.max(...frameXs) > Math.max(...axisXs));
-  assert.ok(Math.min(...frameYs) < Math.min(...axisYs));
-  assert.ok(Math.max(...frameYs) > Math.max(...axisYs));
+  assert.equal(Math.min(...frameXs), Math.min(...axisXs));
+  assert.equal(Math.max(...frameXs), Math.max(...axisXs));
+  assert.equal(Math.min(...frameYs), Math.min(...axisYs));
+  assert.equal(Math.max(...frameYs), Math.max(...axisYs));
+  assert.ok(Math.abs(Math.max(...frameXs) * 72.27 / 2.54 - 68.80951) < 0.02);
+  assert.ok(Math.abs(Math.max(...frameYs) * 72.27 / 2.54 - 11.9049) < 0.02);
+  assert.ok(result.ir.items.some(item => item.subtype === "node-layout" &&
+    item.commands.some(command => command.y < 0)), "tick descriptions supply their own bounds below the frame");
 });
 
 test("expands newcommand optional default arguments", () => {

@@ -1,0 +1,10 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[axis lines=center,grid,domain=-2:2,legend entries={$x^2$, $x^3-x$}]
+  \addplot[only marks,red] coordinates {(-1,1) (0,0) (1,1)};
+  \addplot[blue,samples=9,mark=none] {x^3-x};
+\end{axis}
+\end{tikzpicture}
+\end{document}

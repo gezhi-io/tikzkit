@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[scale only axis,width=4cm,height=2cm,xmin=0,xmax=1,ymin=0,ymax=1,axis lines=middle]
+  \addplot coordinates {(0,0) (1,1)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

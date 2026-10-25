@@ -149,7 +149,7 @@ test("hide x axis suppresses its frame and all x ticks on an overlaid right axis
 
   assert.equal(
     renderAxisBox(options, geometry),
-    String.raw`\draw[axis frame, black, line width=0.35pt] (15,0) -- (15,8);`
+    String.raw`\draw[axis frame, black, line width=0.4pt] (15,0) -- (15,8);`
   );
   assert.ok(renderAxisTicks(options, [], ranges, geometry).every((command) => !command.includes("axis x tick")));
 });
@@ -680,7 +680,7 @@ test("absolute upper enlargement is applied once and preserves unit-scale axes",
   assert.ok(Math.abs(geometry.width / geometry.height - 5.02 / 5) < 1e-9);
 });
 
-test("left open axes place rotated y labels near tick labels", () => {
+test("default-compat starred left axes keep the native 35pt y-label offset", () => {
   const ranges = { xMin: 0, xMax: 5, yMin: 0, yMax: 5, zMin: 0, zMax: 1 };
   const axisOptions = {
     ylabel: "m",
@@ -692,10 +692,12 @@ test("left open axes place rotated y labels near tick labels", () => {
   const geometry = createAxisGeometry(axisOptions, ranges);
   const commands = renderAxisLabels(axisOptions, ranges, geometry);
 
-  assert.ok(
-    commands.some((command) => /anchor=center.*rotate=90.*at \(-0\.7,[^)]+\) \{m\};$/.test(command)),
-    `expected left-open ylabel to follow the native near-tick placement, got ${commands.join("\n")}`
-  );
+  const match = commands.find(command => command.endsWith("{m};"))
+    ?.match(/anchor=center.*rotate=90.*at \(([-\d.]+),([-\d.]+)\)/);
+  assert.ok(match, commands.join("\n"));
+  // pgfplots-small-axis-metrics.tex: center=(-35pt, 51.12076pt).
+  assert.ok(Math.abs(Number(match[1]) * 72.27 / 2.54 + 35) < 0.02);
+  assert.ok(Math.abs(Number(match[2]) * 72.27 / 2.54 - 51.12076) < 0.02);
 });
 
 test("starred left axis lines expand to bottom and left edges without a box", () => {
@@ -710,6 +712,6 @@ test("starred left axis lines expand to bottom and left edges without a box", ()
   assert.equal(axisOptions["axis y line*"], "left");
   assert.equal(
     command,
-    String.raw`\draw[axis frame, black, line width=0.35pt] (0,0) -- (5,0) (0,0) -- (0,5);`
+    String.raw`\draw[axis frame, black, line width=0.4pt] (0,0) -- (5,0) (0,0) -- (0,5);`
   );
 });

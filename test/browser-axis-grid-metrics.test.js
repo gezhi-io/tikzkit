@@ -34,6 +34,36 @@ test("browser grid gate cannot accept empty reference and actual drawings", () =
   assert.equal(compareAxisGrid(empty, empty).accepted, false);
 });
 
+test("unlabeled axes require nonempty matching paint geometry and every crop edge", () => {
+  const plot = { ticks: [], grids: [], glyphs: [], canvas: { left: -8, right: 108, top: -58, bottom: 8 },
+    unlabeledPaint: [
+      { paint: "stroke", color: "rgb(0, 0, 255)", opacity: 1, x: 0, y: -50, width: 100, height: 50, strokeWidth: 1.6 },
+      { paint: "fill", color: "rgb(0, 0, 204)", opacity: 1, x: -8, y: -8, width: 16, height: 16, strokeWidth: 0 }
+    ] };
+  const same = structuredClone(plot);
+  same.unlabeledPaint.reverse();
+  assert.equal(compareAxisGrid(same, plot).accepted, true);
+  for (const modify of [a => a.unlabeledPaint.pop(), a => a.unlabeledPaint[0].x++,
+    a => a.unlabeledPaint[1].color = "red", a => a.unlabeledPaint[0].strokeWidth /= 2,
+    a => a.canvas.bottom++, a => delete a.canvas, a => delete a.unlabeledPaint,
+    a => a.glyphs.push({ x: 0, y: 0 })]) {
+    const actual = structuredClone(plot);
+    modify(actual);
+    assert.equal(compareAxisGrid(actual, plot).accepted, false);
+  }
+});
+
+test("browser grid gate verifies intentionally absent grids without accepting missing ticks or glyphs", () => {
+  const noGrid = { ...structuredClone(reference), grids: [] };
+  assert.equal(compareAxisGrid(noGrid, noGrid).accepted, true);
+  for (const actual of [
+    { ...noGrid, grids: [segment(0, 50)] },
+    { ...noGrid, ticks: [] },
+    { ...noGrid, glyphs: [] }
+  ]) assert.equal(compareAxisGrid(actual, noGrid).accepted, false);
+  assert.equal(compareAxisGrid(noGrid, reference).accepted, false);
+});
+
 test("projected browser gate rejects ticks with the wrong transverse direction", () => {
   const expected = structuredClone(reference);
   expected.ticks[0] = { ...expected.ticks[0], dx: 8, dy: -6 };

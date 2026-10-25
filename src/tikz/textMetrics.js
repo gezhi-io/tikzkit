@@ -12,6 +12,7 @@ import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
 import { parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
 import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
+import { layoutNativeText } from "../tex/textBox.js";
 import { nativeBaselineSkip } from "../tex/mathFonts.js";
 
 const TEX_PT_PER_CM = 28.45274;
@@ -500,8 +501,9 @@ export function parseMathText(value) {
 
 // TikZ's aligned node text is a halign of hboxes, with the last row as its
 // baseline. Scoped font changes affect the row, not the outer baseline grid.
-// Return null for mixed prose or unsupported rows so no content is dropped.
-export function layoutMultilineMathText(normalized, font = {}, alignment = "center") {
+// Literal CM rows use their own optical metrics, not a scaled math/text
+// estimate. Rich commands still fall back together so paint state is retained.
+export function layoutMultilineTeXText(normalized, font = {}, alignment = "center") {
   const lines = normalized?.lines;
   if (!Array.isArray(lines) || lines.length < 2 || normalized.displayMathSequence ||
       /\\\\\s*\[/.test(normalized.raw || "")) return null;
@@ -512,14 +514,14 @@ export function layoutMultilineMathText(normalized, font = {}, alignment = "cent
   for (const [index, line] of lines.entries()) {
     const math = parseMathText(line);
     const style = normalized.lineStyles?.[index] || {};
-    if (!math || math.displayMode || (style.fontSegments?.length || 0) > 1) return null;
-    const sizePt = math.explicitFontSize ? math.scale * 10 : Number(style.fontSizePt) || baseSize;
-    const box = layoutNativeMath(math.tex, {
+    if (math?.displayMode || (style.fontSegments?.length || 0) > 1) return null;
+    const sizePt = math?.explicitFontSize ? math.scale * 10 : Number(style.fontSizePt) || baseSize;
+    const box = math ? layoutNativeMath(math.tex, {
       fontSizePt: sizePt,
       mathVersion: font.mathVersion,
       mathExtension: font.mathExtension,
       preferNativeMath: true
-    });
+    }) : normalized.raw === normalized.text ? layoutNativeText(line, { ...font, sizePt }) : null;
     if (!box) return null;
     boxes.push(box);
   }

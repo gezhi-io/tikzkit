@@ -2,6 +2,7 @@ import { parseDimension } from "../engine/math.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsAxisHidden } from "./axisOptions.js";
 import { axisZeroValue } from "./ranges.js";
+import { plotLineWidthOption } from "./plotStyle.js";
 
 export function axisOuterBounds(geometry) {
   const layout = geometry.layoutBounds || geometry;
@@ -40,7 +41,8 @@ export function renderAxisBox(axisOptions = {}, geometry = {}) {
   const frameStyle = joinOptions([
     "axis frame",
     color,
-    "line width=0.35pt",
+    axisOptions["axis line width"] ? `line width=${axisOptions["axis line width"]}`
+      : plotLineWidthOption(axisOptions) || "line width=0.4pt",
     ...axisLineStyleFragments(axisOptions["axis line style"])
   ]);
   const xMode = pgfplotsAxisHidden(axisOptions, "x") ? "none" : specificAxisLineMode(axisOptions, "x");
@@ -160,9 +162,7 @@ function createAxisLineStyle(axisOptions, globalStyle, axis, arrowed) {
     "black",
     axisOptions["axis line width"]
       ? `line width=${axisOptions["axis line width"]}`
-      : axisOptions["very thick"]
-        ? "very thick"
-        : `line width=${arrowed ? "0.4pt" : "0.35pt"}`,
+      : plotLineWidthOption(axisOptions) || "line width=0.4pt",
     ...globalStyle,
     ...specificStyle,
     arrowed ? "-stealth" : ""

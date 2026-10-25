@@ -1,9 +1,6 @@
 import { parseDimension } from "../engine/math.js";
 import { parseOptions } from "../engine/options.js";
 import { axisNumber, axisNumberList } from "./coordinates.js";
-import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
-import { parseTikzFontPatch } from "../tex/fontSpec.js";
-import { layoutNativeText } from "../tex/textBox.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./format.js";
 import { axisHasExplicitDescriptionPlacement, axisTickLabelNormalExtent, isMiddleAxis } from "./geometry.js";
@@ -20,12 +17,6 @@ const PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE = 1.0001;
 const PGFPLOTS_SCRIPTSIZE_TICK_LABEL_TEXT_WIDTH_SCALE = 1.135;
 const PGFPLOTS_BOX_X_TICKLABEL_BASELINE_SHIFT = parseDimension("0.8pt", {});
 const PGFPLOTS_DEFAULT_MAX_SPACE_BETWEEN_TICKS = parseDimension("35pt", {});
-const TEX_PT_PER_CM = 28.45274;
-const PGF_DEFAULT_NODE_INNER_SEP_PT = 3.333;
-const PGF_DEFAULT_NODE_OUTER_EXTENT_PT = 0.4;
-const CMR8_DIGIT_WIDTH_SCALE = 0.531258 / 0.5;
-const CMR8_MULTILINE_LAYOUT_X_COMPENSATION_PT = 1.654;
-const CMR8_MULTILINE_LAYOUT_BOTTOM_COMPENSATION_PT = 1.125;
 // The legacy left-axis style uses yshift=.3em. The SVG math paint box extends
 // farther above its node center than TeX's glyph box, so retain this calibrated
 // correction for non-middle axes.
@@ -236,12 +227,6 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(x, ranges.xMin, ranges.xMax));
     if (xMajorTickVisual && shouldShowXLabel) {
       for (const spec of axisTickVisualLabelSpecs(xMajorTickVisual, from, to)) {
-        const multilineLayout = multilineTickLabelLayoutOptions(
-          xLabels[index],
-          xTickLabelFont,
-          xTickLabelStyle,
-          xTickLabelInnerSep
-        );
         const labelStyle = joinOptions([
           "axis tick label",
           numericTextOption("x"),
@@ -254,18 +239,11 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
           pgfplotsTickLabelTextWidthScale(xTickLabelFont, axisOptions, xLabels[index]),
           tickLabelNeedsLayoutBox(axisOptions, "x", xLineMode, xTickLabelStyle) ? "tikzkit layout bbox" : "",
           xTickLabelInnerSep !== undefined ? `inner sep=${xTickLabelInnerSep}` : "",
-          ...multilineLayout.options,
           axisTickLabelTextOption(xTickLabelStyle, xTickLabelColor)
         ]);
         if (xLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(spec.point)} {${xLabels[index]}};`);
       }
     } else if (!xMajorTickVisual && shouldShowXLabel) {
-      const multilineLayout = multilineTickLabelLayoutOptions(
-        xLabels[index],
-        xTickLabelFont,
-        xTickLabelStyle,
-        xTickLabelInnerSep
-      );
       const labelStyle = joinOptions([
         "axis tick label",
         numericTextOption("x"),
@@ -278,14 +256,11 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
         pgfplotsTickLabelTextWidthScale(xTickLabelFont, axisOptions, xLabels[index]),
         tickLabelNeedsLayoutBox(axisOptions, "x", xLineMode, xTickLabelStyle) ? "tikzkit layout bbox" : "",
         xTickLabelInnerSep !== undefined ? `inner sep=${xTickLabelInnerSep}` : "",
-        ...multilineLayout.options,
         axisTickLabelTextOption(xTickLabelStyle, xTickLabelColor)
       ]);
       const labelDistance = Number.isFinite(xTickLabelDistance)
         ? xTickLabelDistance
-        : defaultTickLabelDistance(axisOptions, "x", tickLength, xTickAlignment, {
-            explicitNorthSouthAnchor: multilineLayout.nativeNodeBox
-          });
+        : defaultTickLabelDistance(axisOptions, "x", tickLength, xTickAlignment);
       if (xLabels[index] !== "") {
         commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(labelBase, 0, xTickLabelsOnUpperSide ? labelDistance : -labelDistance))} {${xLabels[index]}};`);
       }
@@ -489,80 +464,6 @@ function automaticTickPlanningRange(axisOptions = {}, axis, ranges = {}, geometr
     : { min, max };
 }
 
-function multilineTickLabelLayoutOptions(label, fontCommand = "", labelStyle = {}, innerSep = undefined) {
-  const lines = String(label || "").split(/\\\\(?:\[[^\]]*\])?/).map((line) => line.trim());
-  const font = standardLatexFontMetrics(fontCommand);
-  const centered = axisTickLabelAlignment(labelStyle) === "align=center";
-  if (lines.length < 2 || !font) return { options: [], nativeNodeBox: false };
-  if (!centered) {
-    return /\\footnotesize\b/.test(String(fontCommand || ""))
-      ? {
-          options: [
-            "tikzkit layout bbox x padding=2.36pt",
-            "tikzkit layout bbox bottom padding=3pt"
-          ],
-          nativeNodeBox: false
-        }
-      : { options: [], nativeNodeBox: false };
-  }
-
-  const metrics = lines.map((line) => measurePlainTextTeXBoxPt(line, { fontSizePt: font.sizePt }));
-  if (metrics.some((metric) => !metric)) return { options: [], nativeNodeBox: false };
-
-  const innerSepPt = tickLabelInnerSepPt(innerSep);
-  const first = metrics[0];
-  const last = metrics.at(-1);
-  const heightPt =
-    first.height +
-    font.baselineSkipPt * (lines.length - 1) +
-    Math.max(0, last.depth) +
-    innerSepPt * 2 +
-    PGF_DEFAULT_NODE_OUTER_EXTENT_PT;
-  const options = [`minimum height=${heightPt.toFixed(3)}pt`];
-
-  if (font.sizePt === 8 && lines.every((line) => /^[+\-]?\d+$/.test(line))) {
-    const widthPt =
-      Math.max(...metrics.map((metric) => metric.width * CMR8_DIGIT_WIDTH_SCALE)) +
-      innerSepPt * 2 +
-      PGF_DEFAULT_NODE_OUTER_EXTENT_PT;
-    options.unshift(`minimum width=${widthPt.toFixed(3)}pt`);
-    // The SVG cropper works from painted glyph bounds, while PGF records the
-    // full optical CMR8 hbox. Keep that invisible remainder separate from the
-    // node dimensions so anchor=north still uses the native TeX box.
-    options.push(
-      `tikzkit layout bbox x padding=${CMR8_MULTILINE_LAYOUT_X_COMPENSATION_PT}pt`,
-      `tikzkit layout bbox bottom padding=${CMR8_MULTILINE_LAYOUT_BOTTOM_COMPENSATION_PT}pt`
-    );
-  }
-  return { options, nativeNodeBox: true };
-}
-
-function standardLatexFontMetrics(fontCommand = "") {
-  const text = String(fontCommand || "");
-  const profiles = [
-    [/\\tiny\b/, 5, 6],
-    [/\\scriptsize\b/, 7, 8],
-    [/\\footnotesize\b/, 8, 9.5],
-    [/\\small\b/, 9, 11],
-    [/\\normalsize\b/, 10, 12],
-    [/\\large\b/, 12, 14],
-    [/\\Large\b/, 14.4, 18],
-    [/\\LARGE\b/, 17.28, 22],
-    [/\\huge\b/, 20.74, 25],
-    [/\\Huge\b/, 24.88, 30]
-  ];
-  const match = profiles.find(([pattern]) => pattern.test(text));
-  return match ? { sizePt: match[1], baselineSkipPt: match[2] } : null;
-}
-
-function tickLabelInnerSepPt(raw) {
-  if (raw === undefined || raw === null || raw === true || raw === false || String(raw).trim() === "") {
-    return PGF_DEFAULT_NODE_INNER_SEP_PT;
-  }
-  const value = parseDimension(String(raw), {}) * TEX_PT_PER_CM;
-  return Number.isFinite(value) && value >= 0 ? value : PGF_DEFAULT_NODE_INNER_SEP_PT;
-}
-
 function axisTickLabelFontOption(axisOptions = {}, axis) {
   const candidates = [
     axisOptions["axis tick label font"],
@@ -581,7 +482,9 @@ function pgfplotsTickLabelTextWidthScale(fontCommand = "", axisOptions = {}, lab
   if (axisOptions["datavis axis label placement"]) return "tikzkit text width scale=1";
   // A fitted width disables native literal-text painting, leaving its SVG
   // middle baseline inconsistent with the TeX box used by the node anchor.
-  if (pgfplotsUsesNative2DText(axisOptions) && layoutNativeText(label, parseTikzFontPatch(fontCommand))) {
+  // Literal and multiline CM hboxes now share measurement with painting.
+  // Optical font selection is already in that box, so never fit it again.
+  if (pgfplotsUsesNative2DText(axisOptions)) {
     return "tikzkit text width scale=1";
   }
   const scale = /\\scriptsize\b/.test(String(fontCommand || ""))
@@ -880,8 +783,8 @@ function axisTickSegment(base, visual, tickAxis, defaultDx, defaultDy) {
 function normalizedTickAlignment(axisOptions = {}, axis, middleAxis = false) {
   const keys = Object.keys(axisOptions);
   const alignment = latestOrderedOption(axisOptions, keys, ["tick align", `${axis} tick align`, `${axis}tick align`]);
-  const middleLine = latestOrderedMiddleAxisOption(axisOptions, keys, axis);
-  if (middleAxis && middleLine.index > alignment.index) return "center";
+  const openLine = latestOrderedNonBoxedAxisOption(axisOptions, keys, axis);
+  if (openLine.index > alignment.index) return "center";
   const raw = alignment.value;
   const normalized = String(raw || "").trim().toLowerCase();
   if (normalized === "inside" || normalized === "outside" || normalized === "center") return normalized;
@@ -897,12 +800,12 @@ function latestOrderedOption(options, keys, candidates) {
   return latest;
 }
 
-function latestOrderedMiddleAxisOption(axisOptions, keys, axis) {
+function latestOrderedNonBoxedAxisOption(axisOptions, keys, axis) {
   let latest = { index: -1, value: undefined };
-  for (const key of ["axis", "axis lines", `axis ${axis} line`, `axis ${axis} line*`]) {
+  for (const key of ["axis", "axis lines", `axis ${axis} line`]) {
     const index = keys.indexOf(key);
     const value = String(axisOptions[key] || "").trim().toLowerCase();
-    if (index > latest.index && (value === "middle" || value === "center")) {
+    if (index > latest.index && ["middle", "center", "left", "bottom", "right", "top"].includes(value)) {
       latest = { index, value };
     }
   }
@@ -935,7 +838,7 @@ function alignedBoxAxisTickSegment(base, tickAxis, tickLength, alignment, inward
 }
 
 function usesPgfplotsBoxTickAlignment(axisOptions = {}) {
-  return isBoxAxis(axisOptions) && !axisOptions["datavis boxed axes"];
+  return (isBoxAxis(axisOptions) || pgfplotsUsesNative2DText(axisOptions)) && !axisOptions["datavis boxed axes"];
 }
 
 function axisTickVisualLabelSpecs(visual, lowPoint, highPoint) {
@@ -981,19 +884,19 @@ function shouldRenderInsideBoxTicks(axisOptions = {}) {
   return isBoxAxis(axisOptions);
 }
 
-function defaultTickLabelDistance(axisOptions = {}, axis = "x", tickLength = 0, alignment = "inside", placement = {}) {
+function defaultTickLabelDistance(axisOptions = {}, axis = "x", tickLength = 0, alignment = "inside") {
   // The datavis tick node is anchored at the low endpoint. Its 1pt inner
   // separation and .1666em outer separation supply the remaining clearance.
   if (axisOptions["datavis axis label placement"]) return tickLength;
   if (isMiddleAxis(axisOptions)) return tickLength * tickAlignmentOffsetFactor(alignment);
-  if (!isBoxAxis(axisOptions)) return tickLength * 1.55;
   // Native rectangle anchors already include height, depth and outer sep.
   // Applying the old visual-baseline offset would count that clearance twice.
   if (pgfplotsUsesNative2DText(axisOptions)) return tickLength * tickAlignmentOffsetFactor(alignment);
+  if (!isBoxAxis(axisOptions)) return tickLength * 1.55;
   // A near-ticklabel anchor places the node's layout boundary on the axis.
   // The x label needs the small TeX baseline/depth compensation measured by
   // the native text box. Outside/centered tick protrusion remains geometric.
-  const baselineShift = axis === "x" && !placement.explicitNorthSouthAnchor
+  const baselineShift = axis === "x"
     ? PGFPLOTS_BOX_X_TICKLABEL_BASELINE_SHIFT
     : 0;
   return baselineShift + tickLength * tickAlignmentOffsetFactor(alignment);
@@ -1043,6 +946,7 @@ function boxTickLabelsUseUpperSide(axisOptions = {}, axis = "x") {
 }
 
 function tickLabelNeedsLayoutBox(axisOptions = {}, axis, lineMode = "", labelStyle = {}) {
+  if (pgfplotsUsesNative2DText(axisOptions)) return true;
   if (isBoxAxis(axisOptions)) return true;
   if (axisHasExplicitDescriptionPlacement(axisOptions)) return true;
   // Middle-axis pictures use measured TeX node boxes rather than estimated

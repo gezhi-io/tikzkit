@@ -131,7 +131,7 @@ import {
   effectiveMathFontScale,
   estimateFormulaBox,
   formulaTotalHeight,
-  layoutMultilineMathText,
+  layoutMultilineTeXText,
   mathTextMetricUnits,
   measurePlainTextTeXBoxPt,
   parseMathText,
@@ -1584,6 +1584,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     const styledShapes = built.shapes.map((shape) => ({
       ...shape,
       subtype: shape.subtype || subtype,
+      includeStrokeBounds,
       overlay: tikzBoolean(pathOptions.overlay),
       clipRect: shape.clipRect || clipRect,
       clipCircle: shape.clipCircle || clipCircle,
@@ -15357,7 +15358,7 @@ function estimateTextMetricBox(normalized, options = {}) {
     return { width: inline.width / units, height: (inline.height + inline.depth) / units,
       measurementKind: inline.measurementKind };
   }
-  const nativeLines = !options.textWidth && layoutMultilineMathText(normalized, options.font);
+  const nativeLines = !options.textWidth && layoutMultilineTeXText(normalized, options.font);
   if (nativeLines) {
     const units = TEX_PT_PER_CM * finitePositiveScale(options.fontMetricNormalization);
     return { width: nativeLines.width / units, height: (nativeLines.height + nativeLines.depth) / units,
@@ -17102,6 +17103,7 @@ function compoundFillRuleShape(shapes = [], pathOptions = {}, subtype, { allowSh
   return {
     type: "path",
     subtype: shapes[0].subtype || subtype,
+    includeStrokeBounds: shapes[0].includeStrokeBounds,
     tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
     style: { ...(shapes[0].style || {}) },
     commands: shapes.flatMap((shape) => shape.commands || [])

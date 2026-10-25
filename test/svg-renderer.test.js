@@ -415,18 +415,18 @@ test("equal-size multiline baseline gap follows FontSpec baseline skip", () => {
   assert.equal(lineBaselineGap(baseFontSize, {}, {}), 103.49999999999999);
 });
 
-test("public multiline SVG uses resolved FontSpec baseline skip for tspan dy", () => {
+test("public multiline SVG uses native hboxes on the resolved FontSpec baseline grid", () => {
   const result = tikzToSvg(
     String.raw`\begin{tikzpicture}\node[font=\small,align=center] {A\\B};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   );
   const textNode = result.ir.items.find((item) => item.type === "textNode");
-  const dyValues = [...result.svg.matchAll(/<tspan\b[^>]*\bdy="([^"]+)"/g)].map((match) => Number(match[1]));
-  const expectedBaselineSkip = (11 / 28.4527559) * 100;
+  const group = assertNativeText(result.svg, "AB");
 
   assert.equal(textNode.font.baselineSkipPt, 11);
-  assert.equal(dyValues.length, 2);
-  assert.ok(Math.abs(dyValues[1] - expectedBaselineSkip) < 1e-6);
+  assert.equal(group.glyphs.length, 2);
+  assert.ok(group.glyphs.every(glyph => glyph.size === 9 && glyph.family === "TikZKitCMR9"));
+  assert.ok(Math.abs(group.glyphs[1].y - group.glyphs[0].y - 11) < 1e-6);
 });
 
 test("text-width paragraphs retain their TeX base baseline grid across scoped font changes", () => {

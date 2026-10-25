@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { tikzToSvg } from "../src/index.js";
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 import { renderAxisTicks } from "../src/pgfplots/ticks.js";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 
 const fixtureUrl = new URL(
   "./fixtures/examples/latex-examples/line-chart-electric-vehicles-sold.tex",
@@ -36,23 +37,33 @@ test("PGFPlots lowers centered multiline footnotesize tick labels with native Te
 
   assert.equal(commands.length, 2, commands.join("\n"));
   assert.match(commands[0], /align=center/);
-  assert.match(commands[0], /minimum width=24\.066pt/);
-  assert.match(commands[0], /minimum height=21\.722pt/);
-  assert.match(commands[0], /tikzkit layout bbox x padding=1\.654pt/);
-  assert.match(commands[0], /tikzkit layout bbox bottom padding=1\.125pt/);
   assert.match(commands[0], /at \(0,0\)/);
-  assert.match(commands[1], /minimum width=32\.566pt/);
-  assert.match(commands[1], /minimum height=21\.722pt/);
-  assert.doesNotMatch(commands.join("\n"), /(?:x padding=2\.36|bottom padding=3)pt/);
+  assert.doesNotMatch(commands.join("\n"), /minimum (?:width|height)|bbox (?:x|bottom) padding/);
+  const result = tikzToSvg(`\\begin{tikzpicture}${commands.join("\n")}\\end{tikzpicture}`);
+  assert.deepEqual(result.diagnostics, []);
+  for (const [text, width] of [[String.raw`2012\\2956`, 24.0662], [String.raw`2023\\524219`, 32.5662]]) {
+    const index = result.ir.items.findIndex(item => item.text === text);
+    const box = result.ir.items[index - 1];
+    assert.equal(box.subtype, "node-layout");
+    const points = box.commands.filter(command => "x" in command);
+    const span = key => (Math.max(...points.map(p => p[key])) - Math.min(...points.map(p => p[key]))) * 72.27 / 2.54;
+    // Native halign + inner sep; outer sep (.2pt each side) is not paint.
+    assert.ok(Math.abs(span("x") - (width - 0.4)) < 0.002);
+    assert.ok(Math.abs(span("y") - (21.7215 - 0.4)) < 0.002);
+  }
 });
 
 test("electric vehicles fixture renders both multiline x tick rows without diagnostics", () => {
   const source = readFileSync(fixtureUrl, "utf8");
-  const result = tikzToSvg(source);
-
-  assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, />2012</);
-  assert.match(result.svg, />2956</);
-  assert.match(result.svg, />2023</);
-  assert.match(result.svg, />524219</);
+  for (const mathRenderer of [undefined, "svg-text"]) {
+    const result = tikzToSvg(source, { mathRenderer });
+    assert.deepEqual(result.diagnostics, []);
+    for (const [first, second] of [["2012", "2956"], ["2023", "524219"]]) {
+      const group = assertNativeText(result.svg, first + second);
+      assert.ok(group.glyphs.every(glyph => glyph.size === 8 && glyph.family === "TikZKitCMR8"));
+      assert.equal(new Set(group.glyphs.slice(0, first.length).map(glyph => glyph.y)).size, 1);
+      assert.equal(new Set(group.glyphs.slice(first.length).map(glyph => glyph.y)).size, 1);
+      assert.ok(Math.abs(group.glyphs[first.length].y - group.glyphs[0].y - 9.5) < 0.001);
+    }
+  }
 });

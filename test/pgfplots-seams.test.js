@@ -3065,7 +3065,7 @@ test("pgfplots axis line lowering emits bounds, box, middle lines, and clean axe
   );
   assert.equal(
     renderAxisBox({ "axis lines": "box", "axis frame color": "gray" }, geometry),
-    String.raw`\draw[axis frame, gray, line width=0.35pt] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;`
+    String.raw`\draw[axis frame, gray, line width=0.4pt] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;`
   );
   assert.deepEqual(renderAxisLines({ "axis lines": "middle" }, ranges, geometry), [
     String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (0,1) -- (2,1);`,
@@ -4416,7 +4416,7 @@ test("pgfplots standard box axes subtract the native 45pt reserve on both dimens
   assert.ok(Math.abs(geometry.height - (9 - parseDimension("45pt", {}))) < 1e-9);
 });
 
-test("pgfplots multiline footnotesize ticks preserve native optical layout extents", () => {
+test("pgfplots no-align footnotesize ticks ignore line breaks as native TikZ does", () => {
   const result = tikzToSvg(String.raw`\begin{tikzpicture}
     \begin{axis}[
       xmin=0,xmax=1,ymin=0,ymax=1,
@@ -4425,14 +4425,16 @@ test("pgfplots multiline footnotesize ticks preserve native optical layout exten
     ]
     \end{axis}
   \end{tikzpicture}`);
-  const layoutBoxes = result.ir.items.filter((item) => item.type === "bbox" && item.subtype === "node-layout");
-  const tickBox = layoutBoxes.find((item) => Math.min(...item.commands.map((command) => Number(command.y) || 0)) < -0.75);
+  const index = result.ir.items.findIndex(item => item.type === "textNode" && item.text === "20122956");
+  const tickBox = result.ir.items[index - 1];
 
   assert.ok(tickBox);
-  const xs = tickBox.commands.map((command) => Number(command.x) || 0);
-  const ys = tickBox.commands.map((command) => Number(command.y) || 0);
-  assert.ok((Math.max(...xs) - Math.min(...xs)) * 28.4527559 > 27);
-  assert.ok((Math.max(...ys) - Math.min(...ys)) * 28.4527559 > 22);
+  assert.equal(tickBox.subtype, "node-layout");
+  const points = tickBox.commands.filter(command => "x" in command);
+  const xs = points.map(command => command.x), ys = points.map(command => command.y);
+  // Independent native node probe includes .2pt outer sep on each side.
+  assert.ok(Math.abs((Math.max(...xs) - Math.min(...xs)) * 72.27 / 2.54 - (41.06644 - 0.4)) < 0.002);
+  assert.ok(Math.abs((Math.max(...ys) - Math.min(...ys)) * 72.27 / 2.54 - (12.2215 - 0.4)) < 0.002);
 });
 
 test("pgfplots 3d ticks, labels, titles, and colorbar ticks use role fonts", () => {
@@ -4998,13 +5000,13 @@ test("pgfplots marks lowering owns mark decisions and TikZ mark primitives", () 
   assert.equal(shouldRenderPlotMarks({ "only marks": true }), true);
   assert.equal(
     renderPlotMark({ x: 1, y: 2 }, { mark: "o", blue: true, "mark size": "2pt" }, 0),
-    String.raw`\draw[axis mark, draw=blue] (1,2) circle(0.07);`
+    String.raw`\draw[axis mark, tikzkit quick path, draw=blue] (1,2) circle(0.07);`
   );
   assert.equal(
     renderPlotMark({ x: 1, y: 2 }, { mark: "square*", red: true, "mark size": "2pt" }, 0),
-    String.raw`\draw[axis mark, draw=red, fill=red, fill opacity=1] (0.93,1.93) -- (1.07,1.93) -- (1.07,2.07) -- (0.93,2.07) -- cycle;`
+    String.raw`\draw[axis mark, tikzkit quick path, draw=red, fill=red, fill opacity=1] (0.93,1.93) -- (1.07,1.93) -- (1.07,2.07) -- (0.93,2.07) -- cycle;`
   );
-  assert.match(renderPlotMark({ x: 1, y: 2 }, { mark: "x", blue: true, "mark size": "1pt" }, 0), /axis mark, draw=blue/);
+  assert.match(renderPlotMark({ x: 1, y: 2 }, { mark: "x", blue: true, "mark size": "1pt" }, 0), /axis mark, tikzkit quick path, draw=blue/);
 });
 
 test("pgfplots plot path lowering owns straight, const, smooth, gap, and draw decisions", () => {

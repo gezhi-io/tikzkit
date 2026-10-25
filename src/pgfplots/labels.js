@@ -92,12 +92,12 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
     const ylabelStyle = axisLabelStyle(axisOptions, "y");
     const defaultRotation = yAxisMiddle || datavisLabelPlacement === "upright" ? null : 90;
     const rotation = axisLabelRotation(ylabelStyle, defaultRotation);
-    const boxedYLabel = datavisLabelPlacement !== "upright" && !yAxisMiddle && !isLeftOpenAxis(axisOptions);
+    const boxedYLabel = datavisLabelPlacement !== "upright" && !yAxisMiddle && (nativeText || !isLeftOpenAxis(axisOptions));
     const nearTicks = pgfplotsLabelsNearTicks(axisOptions);
     const ylabelXOffset =
       datavisLabelPlacement === "upright" && !yAxisMiddle
         ? (axisOptions["datavis clean axes"] ? parseAxisCleanPadding(axisOptions) : 0) + Math.max(0.48, xOffset * 1.8)
-        : isLeftOpenAxis(axisOptions)
+        : isLeftOpenAxis(axisOptions) && !nativeText
           ? Math.max(xOffset * 1.65, 0.7)
           : nearTicks
             // `ylabel near ticks`: at={(ticklabel cs:0.5)}, anchor=near ticklabel.

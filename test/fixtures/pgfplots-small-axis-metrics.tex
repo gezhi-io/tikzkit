@@ -1,0 +1,66 @@
+% Independent MacTeX coordinate/node-box probe, not a TikZKit fixture.
+\documentclass{article}
+\usepackage{pgfplots}
+\makeatletter
+\newcommand{\pointreport}[2]{%
+  \pgfextractx{\dimen0}{\pgfpointanchor{#1}{#2}}%
+  \pgfextracty{\dimen2}{\pgfpointanchor{#1}{#2}}%
+  \typeout{POINT #1.#2: \the\dimen0,\the\dimen2}}
+\newcommand{\smallaxis}[1]{%
+  \typeout{CASE #1}%
+  \begin{tikzpicture}
+  \begin{axis}[width=4cm,height=2cm,xmin=0,xmax=1,ymin=0,ymax=1,#1]
+    \addplot coordinates {(0,0) (1,1)};
+    \coordinate (lo) at (axis description cs:0,0);
+    \coordinate (hi) at (axis description cs:1,1);
+  \end{axis}
+  \pointreport{lo}{center}\pointreport{hi}{center}
+  \end{tikzpicture}}
+\newcommand{\tickaxis}[1]{%
+  \typeout{CASE tick #1}%
+  \begin{tikzpicture}
+  \begin{axis}[width=5cm,height=4cm,xmin=0,xmax=1,ymin=0,ymax=1,
+    xtick={0},xticklabels={2012\\2956},ytick=\empty,
+    tick label style={font=\footnotesize},xticklabel style={name=tick,#1}]
+  \end{axis}
+  \pointreport{tick}{north west}\pointreport{tick}{south east}
+  \pointreport{tick}{base}\pointreport{tick}{center}
+  \end{tikzpicture}}
+\makeatother
+\begin{document}
+\smallaxis{axis lines=middle}
+\smallaxis{axis lines=box}
+\smallaxis{axis lines=middle,scale only axis}
+\tickaxis{align=none}
+\tickaxis{align=center}
+\tickaxis{align=left}
+\tickaxis{align=center,line width=.8pt}
+\setbox0=\hbox{\footnotesize 20\,\%}%
+\typeout{TEXT percent: \the\wd0,\the\ht0,\the\dp0}%
+\setbox0=\hbox{\footnotesize 20\%}%
+\typeout{TEXT percent without space: \the\wd0,\the\ht0,\the\dp0}%
+\foreach \axisstyle in {left,box}{%
+\typeout{CASE range \axisstyle}
+\begin{tikzpicture}
+\begin{axis}[axis lines=\axisstyle,xlabel=$x$,ylabel=$y$,title=Curve,
+  xlabel style={name=xl},ylabel style={name=yl},title style={name=ttl}]
+\addplot+[green,mark=none,domain=0:2,samples=5] {x^2};
+\coordinate (zero) at (axis cs:0,0);
+\coordinate (max) at (axis cs:2,4);
+\coordinate (lo) at (axis description cs:0,0);
+\coordinate (hi) at (axis description cs:1,1);
+\end{axis}
+\pointreport{lo}{center}\pointreport{hi}{center}
+\pointreport{zero}{center}\pointreport{max}{center}
+\pointreport{xl}{center}\pointreport{yl}{center}\pointreport{ttl}{center}
+\end{tikzpicture}}
+\typeout{CASE starred label default}%
+\begin{tikzpicture}
+\begin{axis}[width=6cm,xmin=0,xmax=5,ymin=0,ymax=5,
+  axis lines*=left,unit vector ratio*={1 1 1},try min ticks=5,
+  ylabel=m,ylabel style={name=yl}]
+\addplot[draw=none] coordinates {(0,0) (5,5)};
+\end{axis}
+\pointreport{yl}{center}
+\end{tikzpicture}
+\end{document}

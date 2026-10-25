@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[axis lines=left,grid=major,xlabel={$x$},ylabel={$y$},title={Curve}]
+  \addplot+[green,mark=none,domain=0:2,samples=5] {x^2};
+  \addlegendentry{$x^2$}
+\end{axis}
+\end{tikzpicture}
+\end{document}

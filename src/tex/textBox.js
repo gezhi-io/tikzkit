@@ -15,10 +15,9 @@ export function layoutNativeTextRun(normalized, font = {}) {
     return layoutInlineText(normalized, font);
   }
   if (raw === normalized.text && raw.includes("$")) return layoutNativeMixedText(raw, font);
-  // A font declaration may select a literal CMTT hbox. Rich commands still
-  // belong to the segmented renderer: normalization loses their paint state.
-  if (raw !== normalized.text && !(nativeTypewriterFont(font) &&
-      /^\\(?:tt|ttfamily)(?![A-Za-z])\s*[^\\{}$\r\n]*$/.test(raw.trim()))) return null;
+  // Parse supported controls from source, not flattened normalization, to
+  // preserve text kerns, escaped symbols and scoped paint. Unknowns fall back.
+  if (raw !== normalized.text || raw.includes("\\")) return layoutInlineText(normalized, font);
   return layoutNativeText(normalized.text, font);
 }
 
@@ -88,6 +87,25 @@ function layoutInlineText(normalized, font) {
         if (contents === null) return null;
         part = parse(contents, font, color, depth + 1);
       } else if (source[cursor] === "\\") {
+        const symbol = source[cursor + 1];
+        if (",!:;".includes(symbol || "") && symbol) {
+          // LaTeX's text-mode tmspace uses the selected font's quad. In
+          // cmr8 one em is 8.50012pt, not the nominal 8pt font size.
+          const em = { ",": 0.16667, "!": -0.16667, ":": 0.2222, ";": 0.2777 }[symbol];
+          const width = lengthPt({ value: em, unit: "em" }, font);
+          if (!Number.isFinite(width)) return null;
+          box.width += width;
+          cursor += 2;
+          continue;
+        }
+        if ("%$#& ".includes(symbol || "") && symbol) {
+          part = layoutNativeText(symbol, font);
+          if (!part) return null;
+          if (color) part.items = part.items.map(item => ({ ...item, color }));
+          append(box, part);
+          cursor += 2;
+          continue;
+        }
         const command = source.slice(cursor).match(/^\\([A-Za-z]+)/)?.[1];
         if (!command) return null;
         cursor += command.length + 1;

@@ -71,7 +71,8 @@ export function pgfplotsUsesNative2DText(options = {}) {
         (font.style && font.style !== "normal") || font.mathVersion === "sans") return false;
     }
   }
-  return modes.every(value => value === "box") || middle;
+  const left = ["left", "bottom"].includes(modes[0]) && modes[1] === "left";
+  return modes.every(value => value === "box") || middle || left;
 }
 
 export function stripPgfLibraryDeclarations(source) {

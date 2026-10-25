@@ -47,12 +47,18 @@ test("native plain-text selection does not leak outside an axis or into unsuppor
   const result = tikzToSvg(source.replace(String.raw`\end{axis}`, String.raw`\end{axis}\node at (0,-2) {outside};`));
   assert.ok(!result.ir.items.find(item => item.text === "outside").style.preferNativeText);
   const engine = createSvgTextEngine();
-  for (const text of [String.raw`\textit{italic}`, "two\nlines", " x ", "office   AV"]) {
+  for (const text of [String.raw`\textit{italic}`, String.raw`\unknown`, String.raw`\textsf{other}`]) {
     const metrics = engine.measure({ text, preferNativeText: true });
     assert.ok(!engine.renderFromCache(metrics.cacheKey).body.includes('data-text-layout="cm-tex-box"'));
   }
   const mixed = engine.measure({ text: "mixed $x$", preferNativeText: true });
   assert.ok(engine.renderFromCache(mixed.cacheKey).body.includes('data-text-layout="cm-tex-box"'));
+  for (const [raw, collapsed] of [["two\nlines", "two lines"], [" x ", "x"], ["office   AV", "office AV"]]) {
+    const native = engine.measure({ text: raw, preferNativeText: true });
+    const normalized = engine.measure({ text: collapsed, preferNativeText: true });
+    assert.ok(engine.renderFromCache(native.cacheKey).body.includes('data-text-layout="cm-tex-box"'));
+    close(native.width, normalized.width, "TeX source whitespace");
+  }
 });
 
 test("native text uses CM optical sizes, ligatures and kerning from local TFM", () => {

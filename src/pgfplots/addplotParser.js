@@ -34,7 +34,8 @@ export function parseAddplots(body, options = {}, diagnostics = []) {
       plotOptions.mark = "none";
     }
     if (appendCycle) plotOptions["pgfplots plus"] = true;
-    if (String(parsedOptions.raw || "").trim()) plotOptions["pgfplots explicit options"] = true;
+    // Even [] replaces the cycle; only an absent option list (or +) selects it.
+    if (body[cursor] === "[") plotOptions["pgfplots explicit options"] = true;
     cursor = parsedOptions.end;
     cursor = skipWhitespace(body, cursor);
     const statementEnd = findStatementEnd(body, cursor);

@@ -442,26 +442,19 @@ function axisEnlargeLimitConfig(axisOptions = {}, axis, { hasSurfacePlot = false
     return { lower: false, upper: false };
   }
   if ((raw === undefined || raw === null || raw === "") && axisUsesNonBoxedLine(axisOptions, axis)) {
-    // Middle/center axes in the legacy compatibility modes stay tight unless
-    // enlargement is requested explicitly. An edge axis (notably an overlaid
-    // right y-axis) still uses PGFPlots' automatic 10% data-range padding.
-    // The distinction is visible in the native axis line: its frame spans the
-    // enlarged range while the 0..300 ticks occupy only the inner portion.
-    return axisUsesEdgeLine(axisOptions, axis)
-      ? { lower: "auto", upper: "auto" }
-      : { lower: false, upper: false };
+    // every non boxed <axis> axis disables enlargement for unstarred line
+    // choices, including left/right. Starred choices only change geometry:
+    // a right-axis overlay therefore retains automatic range padding.
+    const unstarred = normalizeAxisLineValue(axisOptions[`axis ${axis} line`] ?? axisOptions["axis lines"] ?? axisOptions.axis);
+    return isNonBoxedAxisLineValue(unstarred)
+      ? { lower: false, upper: false }
+      : { lower: "auto", upper: "auto" };
   }
   if (raw === undefined || raw === null || raw === "") return { lower: "auto", upper: "auto" };
   // Explicit enlargement belongs to the geometry transform. Applying it here
   // as well would pad the data range twice and would also lose absolute
   // forms such as {upper,abs=0.02}.
   return { lower: false, upper: false };
-}
-
-function axisUsesEdgeLine(axisOptions = {}, axis) {
-  const global = normalizeAxisLineValue(axisOptions["axis lines"] ?? axisOptions.axis);
-  const local = normalizeAxisLineValue(axisOptions[`axis ${axis} line`] ?? axisOptions[`axis ${axis} line*`]);
-  return [global, local].some((value) => ["left", "right", "top", "bottom"].includes(value));
 }
 
 function axisUsesNonBoxedLine(axisOptions = {}, axis) {

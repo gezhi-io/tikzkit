@@ -413,8 +413,10 @@ function axisPlotAreaSize(axisOptions, requestedWidth, requestedHeight, options 
       : usesDefaultEnlargedReserve
         ? TIKZ_PGFPLOTS_DEFAULT_ENLARGED_MIDDLE_AXIS_RESERVED_Y
         : TIKZ_PGFPLOTS_DEFAULT_MIDDLE_AXIS_RESERVED_Y;
-    const outerWidth = Math.max(target.width * 0.5, target.width - reservedX);
-    const outerHeight = Math.max(target.height * 0.5, target.height - reservedY);
+    // pgfplots@initsizes@handle@label@const subtracts the physical label
+    // reserve even for short axes. A half-size floor stretches small plots.
+    const outerWidth = Math.max(0, target.width - reservedX);
+    const outerHeight = Math.max(0, target.height - reservedY);
     return {
       width: outerWidth / middleAxisSpecificEnlargeFactor(axisOptions, "x"),
       height: outerHeight / middleAxisSpecificEnlargeFactor(axisOptions, "y")

@@ -116,6 +116,25 @@ export async function captureAxisGrid(page, { frame = "middle" } = {}) {
         return { x: p.x - origin.x, y: p.y - origin.y };
       });
     });
+    if (!result.glyphs.length) {
+      // Tickless plots have no glyph baseline to verify. Check every painted
+      // primitive's extent/pen/color and the crop instead. Split fill/stroke
+      // records let Cairo's separate paths match SVG's combined primitives.
+      result.canvas = { left: svgBounds.left - origin.x, right: svgBounds.right - origin.x,
+        top: svgBounds.top - origin.y, bottom: svgBounds.bottom - origin.y };
+      result.unlabeledPaint = [...svg.querySelectorAll("path,circle,ellipse,rect,polygon,polyline,line")]
+        .filter(el => !el.closest("defs")).flatMap(el => {
+          const style = getComputedStyle(el), box = el.getBoundingClientRect(), matrix = el.getScreenCTM();
+          if ((!box.width && !box.height) || style.visibility === "hidden" || style.display === "none") return [];
+          return ["fill", "stroke"].flatMap(paint => {
+            const opacity = Number(style.opacity) * Number(paint === "fill" ? style.fillOpacity : style.strokeOpacity);
+            if (style[paint] === "none" || !opacity || (paint === "fill" && (!box.width || !box.height))) return [];
+            return [{ paint, color: style[paint], opacity, x: box.x - origin.x, y: box.y - origin.y,
+              width: box.width, height: box.height,
+              strokeWidth: paint === "stroke" ? parseFloat(style.strokeWidth) * Math.hypot(matrix.a, matrix.b) : 0 }];
+          });
+        });
+    }
     return result;
   }, { frame });
 }
@@ -147,7 +166,9 @@ export function compareAxisGrid(actual, reference, tolerancePx = 0.35) {
       maxErrorPx = Math.max(maxErrorPx, distance);
       remaining.splice(best, 1);
     }
-    const accepted = reference[key].length > 0 && actual[key].length === reference[key].length && !remaining.length &&
+    // A no-grid axis has an intentionally empty reference line set. Still
+    // reject any added/missing lines; glyph/frame checks reject blank output.
+    const accepted = actual[key].length === reference[key].length && !remaining.length &&
       maxErrorPx < tolerancePx && maxGrayError <= 1;
     return { count: actual[key].length, referenceCount: reference[key].length,
       maxErrorPx: Number.isFinite(maxErrorPx) ? maxErrorPx : null, maxGrayError, accepted };
@@ -160,9 +181,31 @@ export function compareAxisGrid(actual, reference, tolerancePx = 0.35) {
     ? Math.max(...Object.keys(reference).map(key => Math.abs(actual[key] - reference[key]))) : null;
   const frameErrorPx = extentError(actual.frame, reference.frame);
   const canvasErrorPx = extentError(actual.canvas, reference.canvas);
-  const matchingBox = !reference.frame || (frameErrorPx !== null && frameErrorPx < tolerancePx &&
-    canvasErrorPx !== null && canvasErrorPx < tolerancePx);
+  const matchingBox = (!reference.frame || (frameErrorPx !== null && frameErrorPx < tolerancePx)) &&
+    (!reference.canvas || (canvasErrorPx !== null && canvasErrorPx < tolerancePx));
+  let unlabeledPaint;
+  if (!reference.glyphs.length) {
+    const remaining = [...(reference.unlabeledPaint || [])];
+    let maxErrorPx = 0;
+    for (const shape of actual.unlabeledPaint || []) {
+      let best = -1, distance = Infinity;
+      for (let i = 0; i < remaining.length; i++) {
+        const ref = remaining[i];
+        if (ref.paint !== shape.paint || ref.color !== shape.color || ref.opacity !== shape.opacity) continue;
+        const error = Math.max(...["x", "y", "width", "height", "strokeWidth"].map(k => Math.abs(shape[k] - ref[k])));
+        if (error < distance) { distance = error; best = i; }
+      }
+      maxErrorPx = Math.max(maxErrorPx, distance);
+      if (best >= 0) remaining.splice(best, 1);
+    }
+    const count = actual.unlabeledPaint?.length || 0, referenceCount = reference.unlabeledPaint?.length || 0;
+    unlabeledPaint = { count, referenceCount, maxErrorPx: Number.isFinite(maxErrorPx) ? maxErrorPx : null,
+      scope: "Painted primitive extents, colors and pen widths; curve shape still requires visual review",
+      accepted: referenceCount > 0 && count === referenceCount && !remaining.length && maxErrorPx < tolerancePx &&
+        !actual.glyphs.length && canvasErrorPx !== null && canvasErrorPx < tolerancePx };
+  }
   return { ticks, grids, glyphs: actual.glyphs.length, referenceGlyphs: reference.glyphs.length,
-    glyphErrorPx, frameErrorPx, canvasErrorPx, tolerancePx, accepted: matchingBox && ticks.accepted && grids.accepted &&
-      matchingGlyphs && glyphErrorPx < tolerancePx };
+    glyphErrorPx, frameErrorPx, canvasErrorPx, unlabeledPaint, tolerancePx,
+    accepted: matchingBox && ticks.accepted && grids.accepted &&
+      (matchingGlyphs && glyphErrorPx < tolerancePx || unlabeledPaint?.accepted === true) };
 }
