@@ -1,0 +1,17 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization [
+  scientific axes=clean,
+  x axis={min value=0,max value=10,ticks={step=2},grid},
+  y axis={min value=0,max value=10,ticks={step=2},grid},
+  visualize as line,
+  legend={north east inside,label style=text only},
+  line={label in legend={text={line}},pin in data={text={peak},when=x is 10}}]
+data {
+  x, y
+  0, 0
+  10, 7
+};
+\end{document}

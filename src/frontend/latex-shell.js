@@ -6,7 +6,7 @@ import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinition
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
 import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
-import { renderNativeScatterLegend } from "../tikz/libraries/datavisualizationLegend.js";
+import { renderNativeScatterLegend, renderNativeTextOnlyInsideLegend } from "../tikz/libraries/datavisualizationLegend.js";
 import { collectPgfPlotMarkDeclarations } from "../tikz/libraries/plotmarks.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
@@ -5838,15 +5838,22 @@ function renderDatavisualizationAsPgfplots(parsed, context = {}) {
 
   const orderedEntries = datavisualizationOrderLegendEntries(legendEntries, parsed.globalOptions, globalOptions);
   const axisBoxName = "tikzkit datavis axis";
-  const nativeScatterLegend = renderNativeScatterLegend(orderedEntries.map(entry => {
+  const dataBoxName = "tikzkit datavis data";
+  const measuredEntries = orderedEntries.map(entry => {
     const plot = datavisualizationLegendStylePlot(entry.plot);
-    const style = datavisualizationScatterPlotStyle(plot);
+    const style = entry.kind === "line" ? datavisualizationLinePlotStyle(plot.styleIndex || 0, plot) : datavisualizationScatterPlotStyle(plot);
     return { ...entry, plot, sampleStyle: formatDatavisualizationOptions({ ...style, "only marks": false }),
       sampleColor: style.fill || style.color || style.draw || "black",
       labelColor: datavisualizationLegendLabelColor(style, plot) || "black" };
-  }), axisBoxName, { mathExtension: context.mathExtension });
-  if (!nativeScatterLegend) commands.push(...renderDatavisualizationLegendEntryGroups(orderedEntries, legendContext));
+  });
+  const nativeInsideLegend = renderNativeTextOnlyInsideLegend(measuredEntries, dataBoxName, { mathExtension: context.mathExtension });
+  const nativeScatterLegend = nativeInsideLegend ? null : renderNativeScatterLegend(measuredEntries, axisBoxName, { mathExtension: context.mathExtension });
+  if (nativeInsideLegend) {
+    axisOptions["tikzkit datavis data bounding box"] = dataBoxName;
+    commands[0] = `\\begin{axis}[${formatDatavisualizationOptions(axisOptions)}]`;
+  } else if (!nativeScatterLegend) commands.push(...renderDatavisualizationLegendEntryGroups(orderedEntries, legendContext));
   commands.push("\\end{axis}");
+  if (nativeInsideLegend) commands.push(...nativeInsideLegend);
   if (nativeScatterLegend) {
     // Legend placement sees the completed axes, ticks and descriptions, but
     // not an unrelated picture or the legend itself.

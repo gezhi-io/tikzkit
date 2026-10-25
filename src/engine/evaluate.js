@@ -19064,6 +19064,17 @@ function excludeExistingItemsFromBoundingBox(ir) {
 function includeTextNodeItemBounds(item, include) {
   const normalized = normalizeTikzText(item.text);
   if (normalized.invisible) return;
+  // An undrawn node still contributes its measured TeX box and inner sep
+  // to PGF's local bounds. Re-estimating only its ink loses that padding
+  // and changes subsequent fit/local-bounding-box anchors.
+  if (Number.isFinite(item.nodeLayoutWidth) && Number.isFinite(item.nodeLayoutHeight)) {
+    includeRotatedItemRectangle(
+      item.x - item.nodeLayoutWidth / 2, item.y - item.nodeLayoutHeight / 2,
+      item.x + item.nodeLayoutWidth / 2, item.y + item.nodeLayoutHeight / 2,
+      item, include
+    );
+    return;
+  }
   const scale = Number(item.style?.fontScale) || 1;
   let width = 0;
   let height = 0;

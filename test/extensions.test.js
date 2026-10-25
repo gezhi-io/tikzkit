@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { assertNativePlainText, assertNativeText } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
@@ -2355,38 +2356,9 @@ data point [x=-1, y=1,  set=b]   data point [x=1, y=0.5, set=b];`;
 });
 
 test("places datavisualization inside legends within the data frame", () => {
-  const source = String.raw`
-\usetikzlibrary {datavisualization.formats.functions}
-\tikz \datavisualization data group {function classes} = {
-  data [set=log] {
-    var x : interval [0.01:3];
-    func y = ln(\value x);
-  }
-  data [set=lin] {
-    var x : interval [0:3];
-    func y = \value x;
-  }
-  data [set=squared] {
-    var x : interval [0:3];
-    func y = \value x * \value x;
-  }
-  data [set=exp] {
-    var x : interval [0:3];
-    func y = exp(\value x);
-  }
-};
-
-\tikz \datavisualization [
-  scientific axes,
-  visualize as smooth line/.list=
-    {log, lin, squared, exp},
-  legend={south east inside, rows=2, label style=text only},
-  log=    {label in legend={text=$\log x$}},
-  lin=    {label in legend={text=$x/2$}},
-  squared={label in legend={text=$x^2$}},
-  exp=    {label in legend={text=$e^x$}},
-  style sheet=strong colors]
-data group {function classes};`;
+  // The same data/labels, with explicit function format and one picture so
+  // both native engines can execute it without an empty first export page.
+  const source = readFileSync(new URL("./fixtures/datavis-text-only-legend/wide-ranges.tex", import.meta.url), "utf8");
 
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });
   const frame = result.ir.items.find((item) => item.subtype === "axis-frame");
@@ -2412,8 +2384,16 @@ data group {function classes};`;
   assert.ok(labels.every((label) => label.y > bottom && label.y < top), "expected inside legend labels to be vertically inside the frame");
   assert.ok(labels.every((label) => label.style?.fontScale <= 0.8), "expected inside legend labels to use footnotesize or smaller text");
   assert.ok(new Set(labels.map((label) => label.style?.fill || label.style?.stroke).filter(Boolean)).size > 1, "expected text-only inside legend labels to inherit visualizer colors");
-  const topLegendY = Math.max(labels[0].y, labels[2].y);
-  const bottomLegendY = Math.max(labels[1].y, labels[3].y);
+  // Cells align by baseline, not by the unequal ink-box centers of log x
+  // and x^2. Native metrics.ltx records 17.2116pt and 6.7115pt baselines.
+  const baseline = label => {
+    const box = layoutNativeMath(label.text.slice(1, -1), { fontSizePt: label.font.sizePt, preferNativeMath: true });
+    return label.y - (box.height - box.depth) / 2 * 2.54 / 72.27;
+  };
+  assert.ok(Math.abs(baseline(labels[0]) - baseline(labels[2])) < .0001);
+  assert.ok(Math.abs(baseline(labels[1]) - baseline(labels[3])) < .0001);
+  const topLegendY = baseline(labels[0]);
+  const bottomLegendY = baseline(labels[1]);
   const legendRowGap = topLegendY - bottomLegendY;
   assert.ok(topLegendY > 0.55 && topLegendY < 0.62, `expected native text-only inside top row near 0.58cm, got ${topLegendY}`);
   assert.ok(bottomLegendY > 0.20 && bottomLegendY < 0.27, `expected native text-only inside bottom row near 0.23cm, got ${bottomLegendY}`);

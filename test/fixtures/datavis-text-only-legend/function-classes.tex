@@ -1,0 +1,36 @@
+% PGF manual, Style Sheets and Legends: text-only inside legend.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\begin{tikzpicture}
+\datavisualization data group {function classes} = {
+  data [set=log,format=function] {
+    var x : interval [0.2:2.5];
+    func y = ln(\value x);
+  }
+  data [set=lin,format=function] {
+    var x : interval [-2:2.5];
+    func y = 0.5*\value x;
+  }
+  data [set=squared,format=function] {
+    var x : interval [-1.5:1.5];
+    func y = \value x*\value x;
+  }
+  data [set=exp,format=function] {
+    var x : interval [-2.5:1];
+    func y = exp(\value x);
+  }
+};
+\datavisualization [
+  scientific axes,
+  visualize as smooth line/.list={log,lin,squared,exp},
+  legend={south east inside,rows=2,label style=text only},
+  log={label in legend={text=$\log x$}},
+  lin={label in legend={text=$x/2$}},
+  squared={label in legend={text=$x^2$}},
+  exp={label in legend={text=$e^x$}},
+  style sheet=strong colors]
+data group {function classes};
+\end{tikzpicture}
+\end{document}

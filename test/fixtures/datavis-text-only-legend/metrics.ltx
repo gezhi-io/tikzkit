@@ -1,0 +1,25 @@
+% Native-only probe: instrument the manual case without changing its layout.
+\makeatletter
+\newcommand\legendprobe[2]{%
+  \pgf@process{\pgfpointanchor{#1}{#2}}%
+  \typeout{LEGEND-PROBE #1/#2: \the\pgf@x,\the\pgf@y}%
+}
+\makeatother
+\AtBeginDocument{%
+  \tikzset{every matrix/.append style={name=legendProbe},
+    every picture/.append style={execute at end picture={%
+      \ifcsname pgf@sh@ns@legendProbe\endcsname
+        \legendprobe{legendProbe}{south west}%
+        \legendprobe{legendProbe}{north east}%
+        \legendprobe{lastLegendLabel}{base west}%
+        \legendprobe{lastLegendLabel}{mid west}%
+        \legendprobe{data bounding box}{south west}%
+        \legendprobe{data bounding box}{north east}%
+      \fi
+    }}}%
+  \tikzdatavisualizationset{every label in legend/.append style={node style={name=lastLegendLabel}}}%
+}
+\ifdefined\legendfixture\else
+  \def\legendfixture{function-classes}
+\fi
+\input{test/fixtures/datavis-text-only-legend/\legendfixture.tex}

@@ -1,0 +1,16 @@
+{
+  "cases": [
+    { "id": "text-only-function-classes", "source": "function-classes.tex", "title": "Manual function classes with an inside text-only legend",
+      "nativeGlyphFrame": { "color": "rgb(128, 128, 128)", "count": 23, "backgroundColor": "rgb(255, 255, 255)" } },
+    { "id": "text-only-mixed-cells", "source": "mixed-cells.tex", "title": "Native row and column extents with unequal text cells",
+      "nativeGlyphFrame": { "color": "rgb(191, 191, 191)", "count": 48, "backgroundColor": "rgb(255, 255, 255)" } },
+    { "id": "text-only-reversed-rows", "source": "reversed-rows.tex", "title": "North inside placement with left-then-up ordering",
+      "nativeGlyphFrame": { "color": "rgb(191, 191, 191)", "count": 35, "backgroundColor": "rgb(255, 252, 204)" } },
+    { "id": "text-only-wide-ranges", "source": "wide-ranges.tex", "title": "Regression: inside legend with an enlarged data range",
+      "nativeGlyphFrame": { "color": "rgb(128, 128, 128)", "count": 32, "backgroundColor": "rgb(255, 255, 255)" } },
+    { "id": "text-only-pin-boundary", "source": "pin-boundary.tex", "title": "A data pin contributes to the frozen legend placement bounds",
+      "nativeGlyphFrame": { "color": "rgb(191, 191, 191)", "count": 22, "backgroundColor": "rgb(255, 255, 255)",
+        "referenceOrder": [4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,1,2,3,18,19,20,21],
+        "orderReason": "Native emits the four pin glyphs before axis text; JS emits axis text first. All 22 origins remain checked without moving or fitting them." } }
+  ]
+}

@@ -1,0 +1,30 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization [
+  scientific axes=clean,
+  x axis={min value=0,max value=6,length=8cm,ticks={step=2},grid},
+  y axis={min value=0,max value=6,ticks={step=2},grid},
+  visualize as line/.list={a,b,c,d,e},
+  legend={north inside,rows=2,max columns=3,left then up,label style=text only,opaque=yellow!20},
+  a={label in legend={text={First}}},
+  b={label in legend={text={Second}}},
+  c={label in legend={text={Third}}},
+  d={label in legend={text={Fourth}}},
+  e={label in legend={text={Fifth}}},
+  style sheet=strong colors]
+data {
+  x, y, set
+  0, 0, a
+  6, 1, a
+  0, 0, b
+  6, 2, b
+  0, 0, c
+  6, 3, c
+  0, 0, d
+  6, 4, d
+  0, 0, e
+  6, 5, e
+};
+\end{document}

@@ -171,6 +171,10 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     if (!topView3D) commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   }
   const foregroundIntervalNodes = [];
+  // PGF datavisualization freezes `data bounding box` after visualizers,
+  // before axes/ticks/labels. Inside legends must not use the axis range.
+  const dataBoxName = axisModel.options["tikzkit datavis data bounding box"];
+  if (dataBoxName) commands.push(`{[local bounding box=${dataBoxName}]`);
   pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
     const plotCommands = dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex);
     const plotOptions = { ...axisModel.options, ...plot.options };
@@ -190,6 +194,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     axisModel.geometry,
     axisModel.options
   ));
+  if (dataBoxName) commands.push("}");
   if (axisOnTop) {
     if (shouldRenderAnyAxisGrid(axisModel.options)) {
       commands.push(...renderAxisGrid(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));

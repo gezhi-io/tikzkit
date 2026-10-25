@@ -95,6 +95,15 @@ try {
           return { x: p.x - box.x, y: p.y - box.y };
         });
       }, entry.nativeGlyphFrame?.color);
+      const legendBackground = entry.nativeGlyphFrame?.backgroundColor ? await page.evaluate(spec => {
+        const painted = [...document.querySelectorAll("path, rect")].filter(p => !p.closest("defs") &&
+          getComputedStyle(p).fill === spec.backgroundColor);
+        if (painted.length !== 1) throw new Error("Expected exactly one opaque legend background");
+        const frame = [...document.querySelectorAll("path")].find(p => !p.closest("defs") &&
+          getComputedStyle(p).stroke === spec.color).getBoundingClientRect();
+        const box = painted[0].getBoundingClientRect();
+        return { x: box.x - frame.x, y: box.y - frame.y, width: box.width, height: box.height };
+      }, entry.nativeGlyphFrame) : undefined;
       const ticks = textMode ? await page.evaluate(() => {
         const svg = document.querySelector("svg").getBoundingClientRect();
         return [...document.querySelectorAll("svg path")].flatMap(p => {
@@ -167,7 +176,7 @@ try {
       images.push(decodePng(png));
       const curves = clipMode ? await captureClippedCurves(page, path.join(outputRoot, `${stem}-curves.png`)) : null;
       if (curves) curvePaint.push(curvePaintPoints(decodePng(curves.png), curves.viewport));
-      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, quiverViewport,
+      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, quiverViewport,
         ...(curves ? { viewport: curves.viewport, curvesImage: `${stem}-curves.png` } : {}) });
     }
     const difference = compareDecodedPngs(images[2], images[1]);
@@ -212,16 +221,25 @@ try {
     }
     if (entry.nativeGlyphFrame) {
       const spec = entry.nativeGlyphFrame;
-      const reference = panels[1].origins.slice(spec.referenceSkip || 0);
+      let reference = panels[1].origins.slice(spec.referenceSkip || 0);
+      if (spec.referenceOrder) {
+        assert.deepEqual([...spec.referenceOrder].sort((a, b) => a - b), reference.map((_, i) => i),
+          "A glyph paint-order mapping must preserve every reference glyph exactly once");
+        reference = spec.referenceOrder.map(i => reference[i]);
+      }
       const comparisons = [panels[0], panels[2]].map(panel => {
         const glyphs = panel.origins;
         const errorPx = glyphs.length === reference.length ? Math.max(...glyphs.flatMap((p, i) =>
           [Math.abs(p.x - reference[i].x), Math.abs(p.y - reference[i].y)])) : null;
+        const backgroundErrorPx = spec.backgroundColor ? Math.max(...["x", "y", "width", "height"].map(key =>
+          Math.abs(panel.legendBackground[key] - panels[1].legendBackground[key]))) : undefined;
         return { title: panel.title, glyphs: glyphs.length, referenceGlyphs: reference.length, errorPx,
-          accepted: glyphs.length === spec.count && errorPx !== null && errorPx < 0.09 };
+          backgroundErrorPx, accepted: glyphs.length === spec.count && errorPx !== null && errorPx < 0.09 &&
+            (!spec.backgroundColor || backgroundErrorPx < 0.09) };
       });
       nativeGlyphGate = { alignment: "One rectangle-frame translation; fixed physical scale",
         referenceSkip: spec.referenceSkip || 0, excludedControl: spec.excludedControl,
+        referenceOrder: spec.referenceOrder, orderReason: spec.orderReason,
         tolerancePx: 0.09, comparisons, accepted: comparisons.every(c => c.accepted) };
     }
     let legendGate;

@@ -1,0 +1,31 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization [
+  scientific axes=clean,
+  x axis={min value=0,max value=10,ticks={step=2},grid},
+  y axis={min value=0,max value=10,ticks={step=2},grid},
+  visualize as line/.list={a,b,c,d,e},
+  legend={north west inside,columns=3,max rows=2,right then down,label style=text only},
+  a={label in legend={text={long gyjp}}},
+  b={label in legend={text={$\displaystyle\frac{1+x_i}{1+x_i^2}$}}},
+  c={label in legend={text={small},node style={font=\scriptsize}}},
+  d={label in legend={text={$x^2$}}},
+  e={label in legend={text={values at $x_i$}}},
+  style sheet=strong colors]
+data {
+  x, y, set
+  0, 0, a
+  10, 3, a
+  0, 0, b
+  10, 4, b
+  0, 0, c
+  10, 5, c
+  0, 0, d
+  10, 6, d
+  0, 0, e
+  10, 7, e
+};
+\end{document}
