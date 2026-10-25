@@ -5,9 +5,11 @@
 \begin{document}
 \makeatletter
 \pgfsetcurvilinearbeziercurve{\pgfpoint{0cm}{0cm}}{\pgfpoint{0cm}{3cm}}{\pgfpoint{3cm}{3cm}}{\pgfpoint{3cm}{0cm}}
+\typeout{CURVILINEAR TABLE: \the\pgf@curvilinear@time@a;\the\pgf@curvilinear@length@a;\the\pgf@curvilinear@length@b;\the\pgf@curvilinear@length@c;\the\pgf@curvilinear@length@d}
 \foreach \distance in {-1pt,1pt,3pt,10pt,3cm}{%
   \pgfcurvilineardistancetotime{\distance}%
   \typeout{CURVILINEAR distance=\distance;time=\the\pgf@x}%
+  \typeout{CURVILINEAR FAR QUOTIENT: \meaning\pgf@curvilinear@quot@e}%
 }
 \makeatother
 \end{document}

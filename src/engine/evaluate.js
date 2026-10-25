@@ -122,6 +122,7 @@ import {
 import {
   constrainedCurveControlDistance,
   curveToSpecFromOptions,
+  tikzCurveControlDistance,
   parseCustomToPathTemplate,
   TO_PATH_START_ALIAS,
   TO_PATH_TARGET_ALIAS
@@ -2065,8 +2066,22 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       }
       if (loopDirection && pointsAlmostEqual(currentBase || current, to)) {
         const loop = buildSelfLoop(currentBase || current, currentNodeRef, loopDirection, combinedEdgeOptions, env);
-        if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, loop.start);
-        commands.push(...loop.commands);
+        if (segment.kind === "edge") {
+          // An edge is a separate stroked path, including when it loops back
+          // to its source. Combining loops loses all but the final arrow tip.
+          const edgeStyle = edgeDrawableStyle(combinedEdgeOptions, pathStyle, env);
+          const edgeCommands = applyPathDecoration([moveToCommand(loop.start), ...loop.commands], combinedEdgeOptions, env);
+          shapes.push({
+            type: "path",
+            subtype: "edge",
+            commands: applyArrowEndpointShortening(edgeCommands, edgeStyle, { start: currentNodeRef, end: toNodeRef }),
+            style: edgeStyle,
+            includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(combinedEdgeOptions)
+          });
+        } else {
+          if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, loop.start);
+          commands.push(...loop.commands);
+        }
         flushInlinePathNodesAt(pendingInlineNodes, loop.labelPoint, nodes, env, pathStyle, null, effectivePathOptions);
         lastSegment = { from: loop.start, to: loop.end };
         pendingInlineNodes = [];
@@ -2098,21 +2113,18 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
           }
         : null;
       const edgeStyle = segment.kind === "edge" ? edgeDrawableStyle(combinedEdgeOptions, pathStyle, env) : null;
-      const curveStyle = edgeStyle || pathStyle;
-      const clipped = curve
+      let clipped = curve
         ? clipNodeCurveEndpoints(
           edgeFrom,
           currentNodeRef,
           to,
           toNodeRef,
           curve,
-          env,
-          curveArrowTerminalBorderPadding(curveStyle)
+          env
         )
         : straightClipped;
       const targetCommands = segment.kind === "edge" ? [moveToCommand(clipped.from)] : commands;
       if (curve) {
-        if (segment.kind !== "edge" && shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         const distance = tikzCurveControlDistance(clipped.from, clipped.to);
         const outDistance = constrainedCurveControlDistance(
           distance * curve.outLooseness,
@@ -2126,6 +2138,14 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         );
         const c1 = curve.outControl || polarOffset(clipped.from, curve.out, outDistance);
         const c2 = curve.inControl || polarOffset(clipped.to, curve.in, inDistance);
+        if (!curve.relative) {
+          // topaths builds controls from numeric anchors; TikZ curveC then
+          // resolves bare shape endpoints toward those controls. Fractional
+          // angles make these two border points observably different.
+          clipped = clipNodeCubicEndpoints(edgeFrom, currentNodeRef, c1, c2, to, toNodeRef, env);
+        }
+        if (segment.kind === "edge") updateCurrentMoveTo(targetCommands, clipped.from);
+        else if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         targetCommands.push(curveToCommand(c1, c2, clipped.to));
         const labelGeometry = cubicLabelGeometry(clipped.from, c1, c2, clipped.to);
         flushInlinePathNodesAt(pendingInlineNodes, labelGeometry.point, nodes, env, pathStyle, labelGeometry.segment, effectivePathOptions);
@@ -11902,17 +11922,28 @@ function clipNodeReferencePoint(ref, point, toward, env, borderPadding = 0) {
   return nodeBorderPoint(ref.node, point, toward, env, borderPadding);
 }
 
-function clipNodeCurveEndpoints(from, fromRef, to, toRef, curve, env, terminalPadding = {}) {
+function clipNodeCurveEndpoints(from, fromRef, to, toRef, curve, env) {
+  // The saved shape already includes its outer separation. TikZ's curveC
+  // resolves this border before the arrow engine shortens the shaft; the
+  // connecting edge's pen width does not enlarge the node a second time.
+  if (!curve.relative) {
+    // pgf@sh@reanchor uses pgfmathsetcounter for numeric anchors. The control
+    // offset still uses the original angle; only this anchor lookup truncates.
+    return {
+      from: fromRef ? clipNodeReferenceAlongAngle(fromRef, from, Math.trunc(curve.out), env) : roundPoint(from),
+      to: toRef ? clipNodeReferenceAlongAngle(toRef, to, Math.trunc(curve.in), env) : roundPoint(to)
+    };
+  }
   return {
     from: fromRef
       ? curve.outControl
-        ? clipNodeReferencePoint(fromRef, from, curve.outControl, env, terminalPadding.start)
-        : clipNodeReferenceAlongAngle(fromRef, from, curve.out, env, terminalPadding.start)
+        ? clipNodeReferencePoint(fromRef, from, curve.outControl, env)
+        : clipNodeReferenceAlongAngle(fromRef, from, curve.out, env)
       : roundPoint(from),
     to: toRef
       ? curve.inControl
-        ? clipNodeReferencePoint(toRef, to, curve.inControl, env, terminalPadding.end)
-        : clipNodeReferenceAlongAngle(toRef, to, curve.in, env, terminalPadding.end)
+        ? clipNodeReferencePoint(toRef, to, curve.inControl, env)
+        : clipNodeReferenceAlongAngle(toRef, to, curve.in, env)
       : roundPoint(to)
   };
 }
@@ -11929,14 +11960,6 @@ function clipNodeReferenceAlongAngle(ref, center, angleDegrees, env, borderPaddi
   const radians = (angleDegrees * Math.PI) / 180;
   const toward = { x: center.x + Math.cos(radians), y: center.y + Math.sin(radians) };
   return nodeBorderPoint(ref.node, center, toward, env, borderPadding);
-}
-
-function curveArrowTerminalBorderPadding(style = {}) {
-  const halfLineWidth = Math.max(0, Number(style.lineWidth) || 0) / TIKZ_UNIT / 2;
-  return {
-    start: style.markerStart ? halfLineWidth : 0,
-    end: style.markerEnd ? halfLineWidth : 0
-  };
 }
 
 function updateCurrentMoveTo(commands, point) {
@@ -12046,8 +12069,7 @@ function buildSelfLoop(point, nodeRef, direction, options, env) {
   const looseness = parseLoosenessOption(options.looseness, 8, env);
   const explicitDistance = explicitLoopDistance(options, env);
   const minDistance = explicitDistance ?? parseLoopMinDistance(options["min distance"], env);
-  const chord = Math.hypot(end.x - start.x, end.y - start.y);
-  const distance = explicitDistance ?? Math.max(chord * 0.3915 * looseness, minDistance);
+  const distance = explicitDistance ?? Math.max(tikzCurveControlDistance(start, end) * looseness, minDistance);
   const c1 = polarOffset(start, out, distance);
   const c2 = polarOffset(end, inAngle, distance);
   return {
@@ -12105,11 +12127,6 @@ function parseLoosenessOption(value, fallback, env) {
   if (value === true || value === undefined || value === null || value === "") return fallback;
   const looseness = evaluateMath(value, env.variables);
   return Number.isFinite(looseness) && looseness > 0 ? looseness : fallback;
-}
-
-function tikzCurveControlDistance(from, to) {
-  const chord = Math.hypot(to.x - from.x, to.y - from.y);
-  return (chord || 1) * 0.3915;
 }
 
 function applyArrowEndpointShortening(commands, style = {}, endpointRefs = {}) {

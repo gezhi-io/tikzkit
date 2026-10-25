@@ -1,4 +1,5 @@
 import { formatSvgNumber as format } from "./format.js";
+import { pgfFixedPoint, pgfFixedMultiply, pgfFixedDivide, pgfFixedReciprocal, pgfFixedVectorLength } from "../../engine/pgf-fixed-math.js";
 
 const EPSILON = 1e-9;
 const CM_PER_TEX_PT = 2.54 / 72.27;
@@ -101,38 +102,53 @@ export function shortenCubicCurve(points, distance, side) {
 function cubicArcLookup(curve, unitsPerPt) {
   // pgflibrarycurvilinear approximates one physical pt, then accumulates
   // chords at t, 2t, 4t and 8t. A more accurate arc integral is not equivalent.
-  const polygonLength = curve.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - curve[i].x, p.y - curve[i].y), 0);
-  if (polygonLength < EPSILON) return { curve, samples: [{ t: 0, distance: 0 }] };
-  let step = unitsPerPt / polygonLength;
-  const first = cubicPoint(curve, step);
-  const firstDistance = Math.hypot(first.x - curve[0].x, first.y - curve[0].y);
-  if (firstDistance > unitsPerPt) step *= unitsPerPt / firstDistance;
+  const points = curve.map(p => ({ x: pgfFixedPoint(p.x / unitsPerPt), y: pgfFixedPoint(p.y / unitsPerPt) }));
+  const polygonLength = points.slice(1).reduce((sum, p, i) => sum + pgfFixedVectorLength(p.x - points[i].x, p.y - points[i].y), 0);
+  if (polygonLength < EPSILON) return { curve, unitsPerPt, samples: [{ t: 0, distance: 0 }] };
+  // On a fresh native path the initial table is not rescaled: the TeX
+  // conditional reads the previous length register before assignment finishes.
+  // topaths-native-metrics.tex records both fresh and repeated initialization.
+  const step = pgfFixedReciprocal(polygonLength);
   const samples = [{ t: 0, distance: 0 }];
-  let previous = curve[0];
+  let previous = points[0];
   let distance = 0;
   for (const factor of [1, 2, 4, 8]) {
     const t = factor * step;
-    const point = cubicPoint(curve, t);
-    distance += Math.hypot(point.x - previous.x, point.y - previous.y);
-    samples.push({ t, distance });
+    const point = fixedCubicPoint(points, t);
+    distance += pgfFixedVectorLength(point.x - previous.x, point.y - previous.y);
+    samples.push({ t, distance: distance * unitsPerPt });
     previous = point;
   }
-  return { curve, samples };
+  return { curve, samples, unitsPerPt };
 }
 
-function cubicTimeAtDistance({ samples }, distance) {
+function fixedCubicPoint(points, t) {
+  let work = points;
+  while (work.length > 1) work = work.slice(1).map((point, i) => ({
+    x: pgfFixedMultiply(work[i].x, 1 - t) + pgfFixedMultiply(point.x, t),
+    y: pgfFixedMultiply(work[i].y, 1 - t) + pgfFixedMultiply(point.y, t)
+  }));
+  return work[0];
+}
+
+function cubicTimeAtDistance({ samples, unitsPerPt }, distance) {
   for (let i = 1; i < samples.length; i += 1) {
     const left = samples[i - 1];
     const right = samples[i];
     if (distance < right.distance) {
       const span = right.distance - left.distance;
-      return left.t + (span > EPSILON ? (distance - left.distance) * (right.t - left.t) / span : 0);
+      if (span <= EPSILON) return left.t;
+      const divisor = pgfFixedMultiply(span / unitsPerPt, 1 / (2 ** Math.max(0, i - 2)));
+      const quotient = pgfFixedDivide(samples[1].t, divisor);
+      const correction = left.t - pgfFixedMultiply(left.distance / unitsPerPt, quotient);
+      return pgfFixedMultiply(distance / unitsPerPt, quotient) + correction;
     }
   }
   // The native far-distance branch uses the secant from the origin, not the
   // slope of the last interval; keep that behavior even beyond the curve.
   const last = samples.at(-1);
-  return last.distance > EPSILON ? distance * last.t / last.distance : 0;
+  return last.distance > EPSILON
+    ? pgfFixedMultiply(distance / unitsPerPt, pgfFixedDivide(last.t, last.distance / unitsPerPt)) : 0;
 }
 
 function cubicAtDistance(lookup, distance) {

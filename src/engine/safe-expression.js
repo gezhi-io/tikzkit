@@ -336,7 +336,7 @@ const texScale = (value, factor) => Math.trunc(texDimSp(value) * texDimSp(factor
 const texOutput = (value) => Number(texDim(value).toFixed(5));
 const cosTable = Array.from({ length: 181 }, (_entry, index) => Number(Math.cos(rad(index)).toFixed(5)));
 
-function pgfCos(value) {
+export function pgfCos(value) {
   let x = texDim(value);
   const count = Math.trunc(Math.trunc(x) / 360) * -360;
   x = texDim(x + count);

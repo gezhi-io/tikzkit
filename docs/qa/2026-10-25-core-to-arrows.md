@@ -1,5 +1,9 @@
 # Core To Arrow Compatibility
 
+Follow-up: [native to-path geometry](2026-10-25-topaths-native.md) resolves the
+modern-options control-distance failure below. This report retains the original
+checkpoint; text-bearing diagrams and broader compatibility remain incomplete.
+
 ## Scope and Status
 
 This batch covers the shared classical `to` / `to reversed` family, the

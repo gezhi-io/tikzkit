@@ -129,7 +129,8 @@ try {
       const axisGrid = gridMode ? await captureAxisGrid(page, { frame: entry.axisFrame || "middle" }) : undefined;
       const crossOuts = crossMode ? await captureCrossOuts(page) : undefined;
       const pin = entry.pinGlyphs ? await captureDatavisPin(page, entry.pinGlyphs) : undefined;
-      const arrowPaint = entry.arrowGeometry ? await captureArrowPaint(page) : undefined;
+      const arrowPaint = entry.arrowGeometry ? await captureArrowPaint(page,
+        typeof entry.arrowGeometry === "object" ? entry.arrowGeometry : {}) : undefined;
       const paintColors = entry.paintColors ? await page.evaluate(() => {
         const palette = { fill: new Set(), stroke: new Set() };
         for (const element of document.querySelectorAll("svg path, svg rect, svg circle, svg ellipse, svg polygon, svg text, svg use")) {

@@ -1,3 +1,5 @@
+import { pgfCos } from "../../engine/safe-expression.js";
+
 const CURVE_DISTANCE_KEYS = new Set([
   "distance",
   "min distance",
@@ -121,6 +123,7 @@ export function curveToSpecFromOptions(options = {}, from, to, helpers = {}) {
   if (!state.active) return null;
   const base = state.relative ? chordAngle(from, to) : 0;
   return {
+    relative: state.relative,
     out: base + state.out,
     in: base + state.in,
     outLooseness: state.outLooseness,
@@ -169,6 +172,23 @@ export function constrainedCurveControlDistance(distance, minimum = 0, maximum =
   if (Number.isFinite(minimum) && constrained < minimum) constrained = minimum;
   if (Number.isFinite(maximum) && constrained > maximum) constrained = maximum;
   return constrained;
+}
+
+export function tikzCurveControlDistance(from, to) {
+  // tikz@to@compute@distance@main uses a quantized normal, two factors of
+  // sixteen and integer division by (normal / 255), not Euclidean length.
+  const sp = 65536;
+  const spPerCm = sp * 72.27 / 2.54;
+  const x = Math.abs(Math.round(to.x * spPerCm) - Math.round(from.x * spPerCm));
+  const y = Math.abs(Math.round(to.y * spPerCm) - Math.round(from.y * spPerCm));
+  if (x === 0 && y === 0) return 0;
+  const angle = Math.atan2(y, x) * 180 / Math.PI;
+  const normalX = Math.round(pgfCos(angle) * sp);
+  const normalY = Math.round(pgfCos(angle - 90) * sp);
+  const divisor = Math.trunc(Math.max(normalX, normalY) / 255);
+  const dominant = normalX > normalY ? x : y;
+  const length = 16 * Math.trunc(16 * dominant / divisor);
+  return Math.trunc(Math.round(.3915 * sp) * length / sp) / spPerCm;
 }
 
 function setCurveControl(state, side, value) {

@@ -5390,7 +5390,7 @@ test("clips rounded-rectangle paths against the convex PGF end caps", () => {
   assert.ok(straight.commands[0].x < horizontal - 0.1, "rounded end cap should clip inside the rectangular corner");
 });
 
-test("extends curved arrow tips past circular node borders by half the path width", () => {
+test("clips curved arrows to the circle's own outer separation, independent of the edge pen", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \node[circle,draw,minimum size=12pt,inner sep=0pt] (source) at (-2,1) {};
@@ -5403,15 +5403,17 @@ test("extends curved arrow tips past circular node borders by half the path widt
   const arrow = ir.items.find((item) => item.type === "path" && item.style.markerEnd);
   const end = arrow.commands.at(-1);
   const defaultOuterSep = parseDimension("0.2pt");
-  const arrowHalfWidth = TIKZ_LINE_WIDTHS.thick / TIKZ_UNIT / 2;
   const endRadius = Math.hypot(end.x - target.x, end.y - target.y);
 
   assert.deepEqual(diagnostics, []);
   assert.equal(end.type, "curveTo");
-  expectClose(endRadius, target.width / 2 + defaultOuterSep + arrowHalfWidth);
+  expectClose(endRadius, target.width / 2 + defaultOuterSep);
+  // MacTeX soft path, captured before arrow shortening in topaths-shape-metrics.tex.
+  expectClose(end.x, parseDimension("-10.99835pt"), parseDimension(".003pt"));
+  expectClose(end.y, parseDimension("6.3498pt"), parseDimension(".003pt"));
 });
 
-test("matches PGF regular polygon sizing, orientation, rotation, and curved arrow terminal padding", () => {
+test("matches PGF regular polygon sizing, rotation, and pen-independent curved borders", () => {
   const source = String.raw`
 \usetikzlibrary{arrows.meta,shapes.geometric}
 \begin{tikzpicture}
@@ -5428,11 +5430,6 @@ test("matches PGF regular polygon sizing, orientation, rotation, and curved arro
   const thickEnd = arrows.find((item) => item.style.lineWidth === TIKZ_LINE_WIDTHS.veryThick)?.commands.at(-1);
   const thinRadius = Math.hypot(thinEnd.x - rotated.x, thinEnd.y - rotated.y);
   const thickRadius = Math.hypot(thickEnd.x - rotated.x, thickEnd.y - rotated.y);
-  const expectedExtension =
-    ((TIKZ_LINE_WIDTHS.veryThick - TIKZ_LINE_WIDTHS.thin) / TIKZ_UNIT / 2) /
-    // The incoming curve is horizontal, while the rotated hexagon's hit side
-    // is tilted by 15 degrees. PGF expands the border along that side normal.
-    Math.cos((15 * Math.PI) / 180);
 
   assert.deepEqual(diagnostics, []);
   expectClose(flat.width, 2);
@@ -5442,7 +5439,9 @@ test("matches PGF regular polygon sizing, orientation, rotation, and curved arro
   assert.equal(arrows.length, 2);
   assert.equal(thinEnd.type, "curveTo");
   assert.equal(thickEnd.type, "curveTo");
-  expectClose(thickRadius - thinRadius, expectedExtension, 1e-6);
+  expectClose(thickRadius, thinRadius, 1e-6);
+  expectClose(thinEnd.x, parseDimension("88.0938pt"), parseDimension(".003pt"));
+  expectClose(thinEnd.y, 0);
 });
 
 test("matches PGF star radius modes, minimum sizing, and star rotation", () => {
@@ -5491,14 +5490,14 @@ test("matches PGF star radius modes, minimum sizing, and star rotation", () => {
   expectClose(heightNode.shapeData.starPointHeight, 0.4);
 });
 
-test("extends curved terminal arrows beyond rectangle, diamond, star, and trapezium borders", () => {
+test("keeps thin and thick curved arrows on the native rectangle, diamond, star, and trapezium borders", () => {
   const source = String.raw`
 \usetikzlibrary{arrows.meta,shapes.geometric}
 \begin{tikzpicture}
   \node[draw,rectangle,minimum width=2cm,minimum height=1cm,inner sep=0pt] (rect) at (0,3) {};
   \node[draw,diamond,aspect=1.4,minimum width=2cm,minimum height=1.5cm,inner sep=0pt] (diamond) at (0,1) {};
   \node[draw,star,star points=5,star point ratio=1.8,minimum size=1.8cm,inner sep=0pt] (star) at (0,-1) {};
-  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,minimum width=2.2cm,minimum height=1.2cm,inner sep=0pt] (trap) at (0,-3) {};
+  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,minimum width=2.2cm,minimum height=1.2cm,inner sep=1pt] (trap) at (0,-3) {};
   \draw[-{Latex[length=3mm]},thin] (-4,3) to[out=0,in=180] (rect);
   \draw[-{Latex[length=3mm]},line width=4pt] (-4,3) to[out=0,in=180] (rect);
   \draw[-{Latex[length=3mm]},thin] (-4,1) to[out=0,in=180] (diamond);
@@ -5519,16 +5518,22 @@ test("extends curved terminal arrows beyond rectangle, diamond, star, and trapez
     const thickEnd = arrows[index + 1].commands.at(-1);
     assert.equal(thinEnd.type, "curveTo");
     assert.equal(thickEnd.type, "curveTo");
-    assert.ok(
-      thickEnd.x < thinEnd.x - 0.05,
-      `expected ${["rectangle", "diamond", "star", "trapezium"][index / 2]} thick arrow to clear its left border: thin=${thinEnd.x}, thick=${thickEnd.x}`
-    );
+    // Native shape probes use 1pt inner sep for the empty trapezium: the
+    // zero-content, zero-separation shape divides by zero in PGF itself.
+    const nativeX = [-28.65274, -28.65344, -17.66527][index / 2];
+    if (nativeX !== undefined) {
+      expectClose(thinEnd.x, parseDimension(`${nativeX}pt`), parseDimension(".004pt"));
+    }
+    // Trapezium minimum-size scaling still differs from PGF fixed-point
+    // scaling. This regression guards the independently verified pen rule,
+    // not an exact absolute size for that shape (see the QA worklog).
+    expectClose(thickEnd.x, thinEnd.x);
     expectClose(thickEnd.y, thinEnd.y);
   }
 });
 
-test("uses PGF trapezium cotangent sides and switches to the mitered corner contour for curved arrows", () => {
-  const layout = trapeziumLayoutSize(0, 0, {
+test("uses PGF trapezium cotangent sides and the same outer contour for both curved arrow pens", () => {
+  const layout = trapeziumLayoutSize(parseDimension("2pt"), parseDimension("2pt"), {
     minimumWidth: 4,
     minimumHeight: 2,
     leftAngle: 70,
@@ -5544,7 +5549,7 @@ test("uses PGF trapezium cotangent sides and switches to the mitered corner cont
   const source = String.raw`
 \usetikzlibrary{arrows.meta,shapes.geometric}
 \begin{tikzpicture}
-  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,minimum width=4cm,minimum height=2cm,inner sep=0pt] (trap) at (0,0) {};
+  \node[draw,trapezium,trapezium left angle=70,trapezium right angle=110,minimum width=4cm,minimum height=2cm,inner sep=1pt] (trap) at (0,0) {};
   \draw[-{Latex[length=3mm]},thin] (6,6) to[out=180,in=${miterAngle}] (trap);
   \draw[-{Latex[length=3mm]},line width=6pt] (6,6) to[out=180,in=${miterAngle}] (trap);
 \end{tikzpicture}`;
@@ -5553,30 +5558,18 @@ test("uses PGF trapezium cotangent sides and switches to the mitered corner cont
   const [thin, thick] = ir.items.filter((item) => item.type === "path" && item.style.markerEnd);
   const thinEnd = thin?.commands.at(-1);
   const thickEnd = thick?.commands.at(-1);
-  const padding = lineWidthFromPt(6) / TIKZ_UNIT / 2;
-  const direction = {
-    x: Math.cos((miterAngle * Math.PI) / 180),
-    y: Math.sin((miterAngle * Math.PI) / 180)
-  };
-  const rightEdge = { x: points[3].x - points[2].x, y: points[3].y - points[2].y };
-  const rightNormalLength = Math.hypot(rightEdge.x, rightEdge.y);
-  const rightOutward = { x: -rightEdge.y / rightNormalLength, y: rightEdge.x / rightNormalLength };
-  const priorSingleSideOffset = padding / (direction.x * rightOutward.x + direction.y * rightOutward.y);
-  const priorSingleSide = {
-    x: thinEnd.x + direction.x * priorSingleSideOffset,
-    y: thinEnd.y + direction.y * priorSingleSideOffset
-  };
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(layout.width, 4);
+  expectClose(layout.width, 4);
   assert.ok(layout.height > 2, `expected PGF default width scaling to retain trapezium angles, got ${layout.height}`);
   assert.equal(thinEnd.type, "curveTo");
   assert.equal(thickEnd.type, "curveTo");
-  assert.ok(thickEnd.x > thinEnd.x && thickEnd.y > thinEnd.y, "expected thick terminal arrow to clear the top-right border");
-  assert.ok(
-    Math.abs(thickEnd.x - priorSingleSide.x) > 0.01,
-    `expected the padded miter contour to differ from the old right-side-only offset: old=${priorSingleSide.x}, new=${thickEnd.x}`
-  );
+  expectClose(thickEnd.x, thinEnd.x);
+  expectClose(thickEnd.y, thinEnd.y);
+  // The numeric anchor truncates the angle, but the control offset does not;
+  // curveC must therefore recrop in the final control point's direction.
+  expectClose(thinEnd.y / thinEnd.x, thinEnd.y2 / thinEnd.x2, 1e-9);
+  assert.ok(Math.atan2(thinEnd.y, thinEnd.x) * 180 / Math.PI < miterAngle - .1);
 });
 
 test("approximates TikZ bend left and bend right edge arrows as curves", () => {
@@ -5612,10 +5605,12 @@ test("uses PGF to-path looseness control distance", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(normalCurve.type, "curveTo");
-  assert.ok(Math.abs(normalCurve.x1 - 0.783) < 1e-6, `expected PGF 0.3915 control arm, got ${normalCurve.x1}`);
-  assert.ok(Math.abs(normalCurve.x2 - 1.217) < 1e-6, `expected mirrored PGF control arm, got ${normalCurve.x2}`);
-  assert.ok(Math.abs(looseCurve.x1 - 1.566) < 1e-6, `expected looseness=2 to double out arm, got ${looseCurve.x1}`);
-  assert.ok(Math.abs(looseCurve.x2 - 0.434) < 1e-6, `expected looseness=2 to double in arm, got ${looseCurve.x2}`);
+  // Native integer normalization is close to, but not exactly, 0.3915 * 2cm.
+  const nativeDistance = parseDimension("22.19142pt");
+  expectClose(normalCurve.x1, nativeDistance, parseDimension(".0002pt"));
+  expectClose(normalCurve.x2, 2 - nativeDistance, parseDimension(".0002pt"));
+  expectClose(looseCurve.x1, nativeDistance * 2, parseDimension(".0004pt"));
+  expectClose(looseCurve.x2, 2 - nativeDistance * 2, parseDimension(".0004pt"));
 });
 
 test("curves looseness-only to paths between anchors on the same node", () => {

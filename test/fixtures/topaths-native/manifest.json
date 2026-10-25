@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "topaths-control-distance", "source": "control-distance.tex", "title": "Native control distances across directions", "arrowGeometry": { "allStrokes": true } },
+    { "id": "topaths-node-borders", "source": "node-borders.tex", "title": "Bare node and explicit anchor curves" },
+    { "id": "topaths-fractional-loops", "source": "fractional-loops.tex", "title": "Fractional node angles and native loop controls" },
+    { "id": "core-to-modern-options", "source": "../core-to-arrows/modern-options.tex", "title": "Modern To curved shaft regression", "arrowGeometry": true },
+    { "id": "graph-content-and-structure", "source": "../examples/latex-examples/graph-content-and-structure.tex", "title": "Real graph with two bent connections" },
+    { "id": "shape-curved-terminal-padding", "source": "../examples/arrows/shape-curved-terminal-padding.tex", "title": "Thick arrows between geometric nodes" }
+  ]
+}
