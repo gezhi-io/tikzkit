@@ -1,5 +1,6 @@
 import { nativeMathFont, nativeMathSize } from "./mathFonts.js";
 import { parseTikzFontPatch } from "./fontSpec.js";
+import { layoutNativeMath } from "./mathBox.js";
 
 export function nativeTypewriterFont(font = {}) {
   // The installed browser asset is cmtt10. Other NFSS optical sizes need
@@ -13,11 +14,35 @@ export function layoutNativeTextRun(normalized, font = {}) {
   if (normalized.inlineNodes?.length || nativeTypewriterFont(font) && /\\textcolor\b/.test(raw)) {
     return layoutInlineText(normalized, font);
   }
+  if (raw === normalized.text && raw.includes("$")) return layoutNativeMixedText(raw, font);
   // A font declaration may select a literal CMTT hbox. Rich commands still
   // belong to the segmented renderer: normalization loses their paint state.
   if (raw !== normalized.text && !(nativeTypewriterFont(font) &&
       /^\\(?:tt|ttfamily)(?![A-Za-z])\s*[^\\{}$\r\n]*$/.test(raw.trim()))) return null;
   return layoutNativeText(normalized.text, font);
+}
+
+// Inline formulas and literal text share a TeX hbox baseline. Keep CM math
+// script sizes and text spaces intact instead of flattening the source into
+// one browser text run. Unsupported content falls back as a complete unit.
+export function layoutNativeMixedText(source, font = {}) {
+  if (!layoutNativeText(" ", font) || /[\r\n]/.test(source)) return null;
+  const parts = String(source).split("$");
+  if (parts.length < 3 || parts.length % 2 !== 1 || parts.some((part, i) => i % 2 && !part)) return null;
+  const box = { width: 0, height: 0, depth: 0, items: [], measurementKind: "cm-text-box" };
+  for (const [index, part] of parts.entries()) {
+    if (!part) continue;
+    const child = index % 2 ? layoutNativeMath(part, {
+      fontSizePt: Number(font.sizePt) || 10, mathVersion: font.mathVersion,
+      mathExtension: font.mathExtension, preferNativeMath: true
+    }) : layoutNativeText(part.replace(/[ \t]+/g, " "), font);
+    if (!child) return null;
+    box.items.push(...child.items.map(item => ({ ...item, x: item.x + box.width })));
+    box.width += child.width;
+    box.height = Math.max(box.height, child.height);
+    box.depth = Math.max(box.depth, child.depth);
+  }
+  return box;
 }
 
 function layoutInlineText(normalized, font) {

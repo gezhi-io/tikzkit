@@ -76,12 +76,6 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
         const { xSamples, ySamples } = surfaceSampleCounts(plot.options, axisOptions, options);
         const xValues = samplePgfplotsSurfaceDomain(plotDomain, xSamples, plot.options, axisOptions);
         const yValues = samplePgfplotsSurfaceDomain(yDomain, ySamples, plot.options, axisOptions);
-        const sampledXMin = xLog ? firstPositiveSample(xValues) : plotDomain.start;
-        const sampledYMin = yLog ? firstPositiveSample(yValues) : yDomain.start;
-        if (!hasExplicitXMin && Number.isFinite(sampledXMin)) xMin = Math.min(xMin, sampledXMin);
-        if (!hasExplicitXMax) xMax = Math.max(xMax, plotDomain.end);
-        if (!hasExplicitYMin && Number.isFinite(sampledYMin)) yMin = Math.min(yMin, sampledYMin);
-        if (!hasExplicitYMax) yMax = Math.max(yMax, yDomain.end);
         const zRestriction = parseZRestriction(plot.options, axisOptions);
         if (zRestriction) {
           if (!hasExplicitZMin && axisValueIsValidForScale(zRestriction.start, axisOptions, "z")) zMin = Math.min(zMin, zRestriction.start);
@@ -90,10 +84,15 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
         for (const x of xValues) {
           for (const y of yValues) {
             const z = restrictSurfaceZ(evaluateAxisExpression(plot.expression, x, axisOptions, { y }), zRestriction);
-            if (axisValueIsValidForScale(z, axisOptions, "z")) {
-              if (!hasExplicitZMin) zMin = Math.min(zMin, z);
-              if (!hasExplicitZMax) zMax = Math.max(zMax, z);
-            }
+            // PGFPlots discards the whole point before updating any limits.
+            // In particular y=0 on a log axis must not contribute a z=0.
+            if (!axisPointIsValidForScale({ x, y, z }, axisOptions)) continue;
+            if (!hasExplicitXMin) xMin = Math.min(xMin, x);
+            if (!hasExplicitXMax) xMax = Math.max(xMax, x);
+            if (!hasExplicitYMin) yMin = Math.min(yMin, y);
+            if (!hasExplicitYMax) yMax = Math.max(yMax, y);
+            if (!hasExplicitZMin) zMin = Math.min(zMin, z);
+            if (!hasExplicitZMax) zMax = Math.max(zMax, z);
           }
         }
         continue;
@@ -192,12 +191,12 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     if (enlargeYMax) yMax = keepYZero && shouldKeepMiddleAxisZeroUpper(yMax) ? 0 : yMax + yPad;
   }
   if (xLog) {
-    xMin = Math.max(1e-9, xMin);
-    xMax = Math.max(xMin * axisLogBase(axisOptions, "x"), xMax);
+    if (!(xMin > 0)) xMin = 1;
+    if (!(xMax > xMin)) xMax = xMin * axisLogBase(axisOptions, "x");
   }
   if (yLog) {
-    yMin = Math.max(1e-9, yMin);
-    yMax = Math.max(yMin * axisLogBase(axisOptions, "y"), yMax);
+    if (!(yMin > 0)) yMin = 1;
+    if (!(yMax > yMin)) yMax = yMin * axisLogBase(axisOptions, "y");
   }
   if (!Number.isFinite(zMin) || !Number.isFinite(zMax)) {
     zMin = zLog ? 1 : 0;
@@ -221,10 +220,12 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     [zMin, zMax] = enlarge3DZRange(axisOptions, zMin, zMax, hasExplicitZMin, hasExplicitZMax);
   }
   return {
-    xMin: roundResolvedAxisValue(xMin, xLog, "x"),
-    xMax: roundResolvedAxisValue(xMax, xLog, "x"),
-    yMin: roundResolvedAxisValue(yMin, yLog, "y"),
-    yMax: roundResolvedAxisValue(yMax, yLog, "y"),
+    // Surface geometry and the surveyed frame must use the same sample
+    // endpoints; rounding a limit to 0.001 can put facets outside the box.
+    xMin: roundResolvedAxisValue(xMin, xLog || hasSurfacePlot, "x"),
+    xMax: roundResolvedAxisValue(xMax, xLog || hasSurfacePlot, "x"),
+    yMin: roundResolvedAxisValue(yMin, yLog || hasSurfacePlot, "y"),
+    yMax: roundResolvedAxisValue(yMax, yLog || hasSurfacePlot, "y"),
     zMin: roundResolvedAxisValue(zMin, zLog, "z"),
     zMax: roundResolvedAxisValue(zMax, zLog, "z")
   };
@@ -337,10 +338,6 @@ export function parseSamplesAt(raw) {
   return splitTopLevel(text, ",")
     .map((value) => axisNumber(value, NaN))
     .filter(Number.isFinite);
-}
-
-function firstPositiveSample(values) {
-  return Math.min(...values.filter((value) => value > 0));
 }
 
 export function sampleParametricDataPoints(plot, axisOptions = {}, options = {}) {

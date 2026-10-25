@@ -403,10 +403,11 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
       plotIndex
     });
   }
+  const mesh = surfaceGridAfterUnboundedFilter(grid, plot.options, axisOptions);
   const patches = [];
-  for (let yIndex = 0; yIndex < ySamples - 1; yIndex += 1) {
+  for (let yIndex = 0; yIndex < mesh.length - 1; yIndex += 1) {
     for (let xIndex = 0; xIndex < xSamples - 1; xIndex += 1) {
-      const corners = [grid[yIndex][xIndex], grid[yIndex][xIndex + 1], grid[yIndex + 1][xIndex + 1], grid[yIndex + 1][xIndex]];
+      const corners = [mesh[yIndex][xIndex], mesh[yIndex][xIndex + 1], mesh[yIndex + 1][xIndex + 1], mesh[yIndex + 1][xIndex]];
       if (corners.some((corner) => !corner)) continue;
       const zMean = corners.reduce((sum, corner) => sum + corner.z, 0) / corners.length;
       const metaMean = surfacePatchMetaMean(corners, zMean);
@@ -422,7 +423,7 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
       });
     }
   }
-  const orderedPatches = orderFunctionSurfacePatches(patches, xSamples - 1, ySamples - 1, axisOptions, plot.options);
+  const orderedPatches = orderFunctionSurfacePatches(patches, xSamples - 1, mesh.length - 1, axisOptions, plot.options);
   if (isAxisMeshWireframe(plot.options, axisOptions)) {
     return renderAxisMeshWireframePatches(orderedPatches, plot.options, axisOptions, geometry, plotIndex);
   }
@@ -439,12 +440,12 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
 
 export function renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
   const sampled = sampleParametricSurfaceGrid(plot, axisOptions, options);
-  const grid = sampled.grid.map((row) => row.map((point) => point
+  const grid = surfaceGridAfterUnboundedFilter(sampled.grid, plot.options, axisOptions).map((row) => row.map((point) => point
     ? { ...point, projected: geometry.mapPoint3d(point) }
     : null));
   const colorRanges = surfaceColorRanges(ranges, grid, axisOptions, plot.options);
   const patches = [];
-  for (let rowIndex = 0; rowIndex < sampled.vSamples - 1; rowIndex += 1) {
+  for (let rowIndex = 0; rowIndex < grid.length - 1; rowIndex += 1) {
     for (let colIndex = 0; colIndex < sampled.uSamples - 1; colIndex += 1) {
       const corners = [
         grid[rowIndex][colIndex],
@@ -460,7 +461,7 @@ export function renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geome
   const orderedPatches = orderFunctionSurfacePatches(
     patches,
     sampled.uSamples - 1,
-    sampled.vSamples - 1,
+    grid.length - 1,
     axisOptions,
     plot.options
   );
@@ -475,6 +476,17 @@ export function renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geome
     const points = patch.corners.map((corner) => formatAxisPoint(corner.projected)).join(" -- ");
     return renderAxisSurfacePatchLayers(points, { fill, draw, opacity, lineWidth });
   }));
+}
+
+function surfaceGridAfterUnboundedFilter(grid, plotOptions = {}, axisOptions = {}) {
+  const mode = String(plotOptions["unbounded coords"] ?? axisOptions["unbounded coords"] ?? "discard").trim();
+  if (mode === "jump" || !grid.some(row => row.some(point => !point))) return grid;
+  // Survey serializes only valid points in discard mode. The mesh replay
+  // still consumes the declared column count; only jump preserves holes.
+  const columns = grid[0]?.length || 1;
+  const stream = grid.flat().filter(Boolean);
+  return Array.from({ length: Math.ceil(stream.length / columns) }, (_, row) =>
+    Array.from({ length: columns }, (_, col) => stream[row * columns + col] || null));
 }
 
 function isAxisMeshWireframe(plotOptions = {}, axisOptions = {}) {
@@ -852,6 +864,11 @@ function surfacePatchColorValue(patch, plotOptions = {}, axisOptions = {}) {
   // z-buffer ordering. Sorting patches must not replace this with their mean.
   if (String(plotOptions.shader ?? axisOptions.shader).trim() === "flat corner") {
     return surfacePointColorValue(patch.corners[0]);
+  }
+  if (isLogAxis(axisOptions, "z") && !(plotOptions["point meta"] ?? axisOptions["point meta"])) {
+    // Default meta=z is assigned after log transformation. PGF averages
+    // those transformed vertex values, not log(the arithmetic mean).
+    return Math.exp(patch.corners.reduce((sum, point) => sum + Math.log(point.z), 0) / patch.corners.length);
   }
   return Number.isFinite(patch?.metaMean) ? patch.metaMean : patch?.zMean;
 }

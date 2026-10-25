@@ -26,7 +26,7 @@ import { axisLogBase, axisLogTickLabel } from "./logAxis.js";
 import { pgfplotsPictureFontScale, pgfplotsRoleFontCommand } from "./fonts.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
-import { layoutNativeText } from "../tex/textBox.js";
+import { layoutNativeText, layoutNativeMixedText } from "../tex/textBox.js";
 import { axisDescriptionPoint, renderAxisLabels } from "./labels.js";
 import {
   estimateFormulaBox,
@@ -208,12 +208,9 @@ export function renderAxis3DTicks(axisOptions, ranges, geometry) {
     }
   }
   if (zTickFormat?.scaled) {
-    // PGFPlots places this at `zticklabel* cs:1.2,-0.3em`: continue the
-    // selected z tick-label edge beyond its upper endpoint instead of
-    // crowding the highest numeric tick.
-    const scaleBase = pointAlongProjectedEdge(layout.z, 1.2);
-    const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
-    commands.push(`\\node[axis tick scale label, anchor=${axisTickAnnotationAnchor(axisOptions, "z", layout.z.normal)}, font=${font}, inner sep=0pt, outer sep=0pt] at ${formatAxisPoint(scaleBase)} {$${zTickFormat.scaleLabel}$};`);
+    const text = `$${zTickFormat.scaleLabel}$`;
+    const placement = axis3DTickScaleLabelPlacement(axisOptions, layout.z, text);
+    commands.push(`\\node[axis tick scale label, tikzkit native math, tikzkit tex node anchors, tikzkit layout bbox, anchor=center, font=${placement.font}, inner sep=0pt] at ${formatAxisPoint(placement.point)} {${text}};`);
   }
   appendExtraAxis3DTicks(commands, axisOptions, ranges, geometry, layout, boxTickEdges, tickLabelStyle);
   return dedupeAdjacentCommands(commands.filter(Boolean));
@@ -284,18 +281,27 @@ function axis3DTickValues(axisOptions = {}, ranges = {}, geometry = {}) {
   const yDistanceTicks = axisTickDistanceValues(axisOptions, "y", ranges.yMin, ranges.yMax);
   const zDistanceTicks = axisTickDistanceValues(axisOptions, "z", ranges.zMin, ranges.zMax);
   return {
-    x: axis3DTicksExplicitlyEmpty(axisOptions.xtick) ? [] : xTicks.length ? xTicks : xDistanceTicks.length ? xDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "x", ranges.xMin, ranges.xMax, axis3DAutoMajorTickCount(axisOptions, "x", ranges, geometry)),
-    y: axis3DTicksExplicitlyEmpty(axisOptions.ytick) ? [] : yTicks.length ? yTicks : yDistanceTicks.length ? yDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "y", ranges.yMin, ranges.yMax, axis3DAutoMajorTickCount(axisOptions, "y", ranges, geometry)),
-    z: axis3DTicksExplicitlyEmpty(axisOptions.ztick) ? [] : zTicks.length ? zTicks : zDistanceTicks.length ? zDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "z", ranges.zMin, ranges.zMax, axis3DAutoMajorTickCount(axisOptions, "z", ranges, geometry))
+    x: axis3DTicksExplicitlyEmpty(axisOptions.xtick) ? [] : xTicks.length ? xTicks : xDistanceTicks.length ? xDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "x", ranges, geometry),
+    y: axis3DTicksExplicitlyEmpty(axisOptions.ytick) ? [] : yTicks.length ? yTicks : yDistanceTicks.length ? yDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "y", ranges, geometry),
+    z: axis3DTicksExplicitlyEmpty(axisOptions.ztick) ? [] : zTicks.length ? zTicks : zDistanceTicks.length ? zDistanceTicks : automaticAxis3DTickValuesForAxis(axisOptions, "z", ranges, geometry)
   };
 }
 
 function axis3DMinorTickValues(axisOptions = {}, ranges = {}, majorTicks = {}) {
-  return {
-    x: axisMinorTickValues(axisOptions, "x", majorTicks.x || [], ranges.xMin, ranges.xMax),
-    y: axisMinorTickValues(axisOptions, "y", majorTicks.y || [], ranges.yMin, ranges.yMax),
-    z: axisMinorTickValues(axisOptions, "z", majorTicks.z || [], ranges.zMin, ranges.zMax)
-  };
+  return Object.fromEntries(["x", "y", "z"].map(axis => {
+    const major = majorTicks[axis] || [];
+    const values = axisMinorTickValues(axisOptions, axis, major, ranges[`${axis}Min`], ranges[`${axis}Max`]);
+    const explicit = [`${axis} minor tick values`, `minor ${axis}tick`, `minor ${axis} tick`]
+      .some(key => axisOptions[key] !== undefined);
+    if (!explicit && isLogAxis(axisOptions, axis) && axisLogBase(axisOptions, axis) === 10 &&
+        major.length >= 2 && major.every((value, i) => !i || Math.abs(Math.log10(value / major[i - 1]) - 1) < 1e-8)) {
+      // pgfplotsticks loops over factors 1..9, except at the final seed.
+      // The shorter tick at factor 1 is visible on the box's other faces.
+      values.push(...major.slice(0, -1));
+      values.sort((a, b) => a - b);
+    }
+    return [axis, values];
+  }));
 }
 
 function axis3DTicksExplicitlyEmpty(raw) {
@@ -304,23 +310,43 @@ function axis3DTicksExplicitlyEmpty(raw) {
   return value === "" || value === "none" || value === "\\empty" || value === "empty";
 }
 
-function automaticAxis3DTickValuesForAxis(axisOptions, axis, min, max, count) {
+function automaticAxis3DTickValuesForAxis(axisOptions, axis, ranges, geometry) {
+  const min = ranges[`${axis}Min`], max = ranges[`${axis}Max`];
+  const count = axis3DAutoMajorTickCount(axisOptions, axis, ranges, geometry);
+  const length = axis3DProjectedAxisLength(axis, ranges, geometry);
+  const tolerance = axis3DTickPlacementTolerance(axisOptions, axis, max - min, length);
   return isLogAxis(axisOptions, axis)
-    ? automaticLogAxis3DTickValues(axisOptions, axis, min, max, count)
-    : automaticAxis3DTickValues(min, max, count, axis3DMinimumTickCount(axisOptions));
+    ? automaticLogAxis3DTickValues(axisOptions, axis, min, max, count, length)
+    : automaticAxis3DTickValues(min, max, count, axis3DMinimumTickCount(axisOptions), tolerance);
 }
 
-function automaticLogAxis3DTickValues(axisOptions, axis, min, max, count) {
+function axis3DTickPlacementTolerance(options, axis, span, length) {
+  // Native tick placement tolerance is a physical distance, converted back
+  // to data coordinates using the final projected axis basis.
+  const cm = parseDimension(String(options[`${axis}tick placement tolerance`] ?? options["tick placement tolerance"] ?? "0.05pt"), {});
+  return length > 0 ? Math.abs(span) * cm / length : 1e-10;
+}
+
+function automaticLogAxis3DTickValues(axisOptions, axis, min, max, count, length) {
   const base = axisLogBase(axisOptions, axis);
   if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0 || min > max) return [];
-  const minExponent = Math.ceil(Math.log(min) / Math.log(base) - 1e-10);
-  const maxExponent = Math.floor(Math.log(max) / Math.log(base) + 1e-10);
-  const exponentSpan = Math.max(0, maxExponent - minExponent);
-  const exponentStep = Math.max(1, Math.ceil(exponentSpan / Math.max(1, Number(count) || 3)));
-  const firstExponent = Math.ceil(minExponent / exponentStep) * exponentStep;
+  const low = Math.log(min) / Math.log(base), high = Math.log(max) / Math.log(base);
+  const desired = Math.max(3, count);
+  let step = Math.max(1, Math.floor((high - low) / (desired - 1)));
+  let seed = Math.floor(low);
+  if (step > 1 && 2 * (low - seed) < step) seed += 1;
+  // pgfplotsticks retries short log ranges with fractional exponents. This
+  // is not a forced full decade, and these ticks have no automatic minors.
+  if (high + .001 / Math.log(base) < seed + 2 * step) {
+    step = majorAxis3DTickStep(low, high, desired > 3 ? desired - 1 : desired);
+    seed = Math.floor(low / step) * step;
+  }
+  const tolerance = axis3DTickPlacementTolerance(axisOptions, axis, high - low, length);
   const values = [];
-  for (let exponent = firstExponent; exponent <= maxExponent; exponent += exponentStep) {
-    values.push(Number((base ** exponent).toPrecision(12)));
+  for (let i = 0; i < 200; i += 1) {
+    const exponent = seed + i * step;
+    if (exponent > high + tolerance) break;
+    if (exponent >= low - tolerance) values.push(Number((base ** exponent).toPrecision(12)));
   }
   return values;
 }
@@ -367,7 +393,7 @@ function hasCustomAxis3DTickLabels(raw, template) {
   return Boolean(value) && value !== "true" && value !== "false";
 }
 
-function automaticAxis3DTickValues(min, max, count, minimum) {
+function automaticAxis3DTickValues(min, max, count, minimum, tolerance = 0) {
   if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) return [];
   let desired = count;
   // PGF retries when MAX < MIN_seed + 2H, where MIN_seed is
@@ -379,13 +405,14 @@ function automaticAxis3DTickValues(min, max, count, minimum) {
     const next = (Math.trunc(min / step) + 1) * step;
     if (max + step * 1e-9 >= next) break;
   }
-  return majorAxis3DTickValues(min, max, desired).filter((tick) => !autoAxis3DTickOutsideRange(tick, min, max));
+  return majorAxis3DTickValues(min, max, desired, tolerance)
+    .filter((tick) => !autoAxis3DTickOutsideRange(tick, min, max, tolerance));
 }
 
-function majorAxis3DTickValues(min, max, maxTicks = 5) {
+function majorAxis3DTickValues(min, max, maxTicks = 5, tolerance = 0) {
   if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return [];
   const step = majorAxis3DTickStep(min, max, maxTicks);
-  const start = Math.ceil(min / step) * step;
+  const start = Math.ceil((min - tolerance) / step) * step;
   const values = [];
   for (let value = start; value <= max + step * 0.2; value += step) {
     values.push(roundAxis3DTick(value, min, max));
@@ -765,6 +792,15 @@ function axis3DTickLabelPlacement(axisOptions, axis, edge, base, text, tickLengt
       true
     )
   };
+}
+
+function axis3DTickScaleLabelPlacement(axisOptions, edge, text) {
+  const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
+  // every z tick scale label uses zticklabel* cs:1.2,-0.3em and the
+  // near-zticklabel border anchor, not a cardinal east/west anchor.
+  const shift = parseDimension("-0.3em", {}, { font: parseTikzFontPatch(font) });
+  const at = offsetAlongNormal(pointAlongProjectedEdge(edge, 1.2), edge.normal, shift);
+  return { font, point: axis3DNearTickLabelCenter(at, edge, edge.normal, text, font, 0, "0pt") };
 }
 
 function explicitAxis3DAnchor(style = {}) {
@@ -1312,12 +1348,13 @@ export function axis3DParentBounds(axisOptions = {}, ranges = {}, geometry = {})
   }
 
   if (zTickFormat?.scaled) {
-    const font = pgfplotsRoleFontCommand("tick", axisOptions, axis3DFontOption(axisOptions, "z", "tick"));
+    const text = `$${zTickFormat.scaleLabel}$`;
+    const placement = axis3DTickScaleLabelPlacement(axisOptions, layout.z, text);
     includeBounds(bounds, axis3DTextNodeBounds(
-      pointAlongProjectedEdge(layout.z, 1.2),
-      `$${zTickFormat.scaleLabel}$`,
-      font,
-      axisTickAnnotationAnchor(axisOptions, "z", layout.z.normal),
+      placement.point,
+      text,
+      placement.font,
+      "center",
       0,
       "0pt"
     ));
@@ -1398,7 +1435,7 @@ function axis3DTextNodeSize(text, fontCommand, innerSep, numeric = false) {
     ? layoutNativeMath(math?.tex ?? String(text).replaceAll("\u2212", "-"), {
       fontSizePt, mathVersion: patch.mathVersion, preferNativeMath: true
     })
-    : layoutNativeText(text, patch);
+    : layoutNativeMixedText(text, patch) || layoutNativeText(text, patch);
   // TFM hboxes have no fitted minimum height or width padding. Resolve em/ex
   // against the selected font, but keep physical pt/cm separation unchanged.
   const sep = parseDimension(String(innerSep ?? "0pt"), {}, { font: { ...patch, sizePt: fontSizePt } });
@@ -1517,13 +1554,13 @@ function hasPgfplotsFontProfile(axisOptions = {}) {
   return ["normalsize", "small", "footnotesize", "tiny"].some((name) => axisOptions[name]);
 }
 
-function autoAxis3DTickOutsideRange(tick, min, max) {
+function autoAxis3DTickOutsideRange(tick, min, max, physicalTolerance = 0) {
   const value = Number(tick);
   const lower = Number(min);
   const upper = Number(max);
   if (!Number.isFinite(value) || !Number.isFinite(lower) || !Number.isFinite(upper)) return false;
   const span = Math.abs(upper - lower);
-  const tolerance = Math.max(1e-12, span * 1e-9, Math.abs(value) * 1e-12);
+  const tolerance = Math.max(physicalTolerance, 1e-12, span * 1e-9, Math.abs(value) * 1e-12);
   return value < lower - tolerance || value > upper + tolerance;
 }
 

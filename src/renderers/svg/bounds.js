@@ -5,7 +5,7 @@ import { parseMathText } from "../../tikz/textMetrics.js";
 import { TIKZ_UNIT } from "../../tikz/metrics.js";
 import { imagePlaceholderScale } from "./imagePlaceholders.js";
 import { estimateMathBox, mathStyleScale, measureMathBoxPt } from "./mathNode.js";
-import { estimatePlainTextRenderBounds } from "./plainTextNode.js";
+import { estimatePlainTextRenderBounds, nativePlainTextBox } from "./plainTextNode.js";
 import { estimateRichTextRenderBounds } from "./richTextNode.js";
 import { fitFontSizeToBox } from "./textFit.js";
 import { formatTextLine, hasInlineMath } from "./textLineContent.js";
@@ -166,7 +166,7 @@ export function computeSvgBounds(items, options = {}) {
         const width = widthPt / 28.4527559;
         const height = heightPt / 28.4527559;
         includeTextRenderBounds(item, width, height, include);
-      } else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized)) {
+      } else if (options.mathRenderer !== "svg-text" && hasInlineMath(normalized) && !nativePlainTextBox(item, normalized)) {
         const { width, height } = estimateRichTextRenderBounds(item, normalized, unit, { formatTextLine });
         includeTextRenderBounds(item, width, height, include);
       } else {

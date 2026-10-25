@@ -557,7 +557,8 @@ test("pgfplots 3d log axes discard zero samples and use decade ticks", () => {
   const ranges = computeAxisRanges(axisOptions, [plot]);
 
   assert.ok(ranges.yMin > 2e7 && ranges.yMin < 2.3e7);
-  assert.equal(ranges.yMax, 1e9);
+  // Native FPU survey ends just below the mathematical domain endpoint.
+  assert.ok(Math.abs(ranges.yMax / 999944763.889 - 1) < 1e-6);
   const commands = renderAxis3DTicks(axisOptions, ranges, createAxisGeometry(axisOptions, ranges));
   const labels = commands.filter((command) => command.includes("axis tick label"));
   assert.ok(labels.some((command) => command.endsWith("{$10^{8}$};")));
@@ -2418,20 +2419,20 @@ test("pgfplots compact 3d z ticks use scaled tick labels for small positive rang
 });
 
 test("pgfplots 3d scaled z tick multiplier extends beyond the upper tick edge", () => {
-  const ranges = { xMin: 0, xMax: 1, yMin: 0, yMax: 1, zMin: 0, zMax: 3.5e10 };
-  const geometry = {
-    width: 10,
-    height: 8,
-    mapPoint3d: ({ x, y, z }) => ({ x: x + y * 0.2, y: z / 1e10 + y * 0.1 })
-  };
-  const commands = renderAxis3DTicks({ xtick: "{}", ytick: "{}", ztick: "{0,3.5e10}" }, ranges, geometry);
+  const options = { width: "15cm", view: "{10}{15}", enlargelimits: "false", ymode: "log",
+    domain: "1.5:6", "y domain": "0:1e9", samples: 46, "pgfplots 3d surface": true };
+  const ranges = computeAxisRanges(options,
+    [{ is3d: true, type: "function", expression: "x*x*y", options: { surf: true } }]);
+  const commands = renderAxis3DTicks(options, ranges, createAxisGeometry(options, ranges));
   const multiplier = commands.find((command) => command.includes("axis tick scale label"));
   const point = multiplier?.match(/at \(([-0-9.]+),([-0-9.]+)\)/);
 
   assert.ok(point, `expected scaled z multiplier node in ${multiplier}`);
-  assert.equal(Number(point[1]), 0, `expected near-zticklabel anchor to stay on the selected z edge, got ${point[1]}`);
-  assert.ok(Number(point[2]) > 4.1, `expected multiplier beyond zmax, got ${point[2]}`);
-  assert.match(multiplier, /inner sep=0pt, outer sep=0pt/);
+  // Named zscale center from pgfplots-log-surface-metrics.tex. The center
+  // is offset from the edge by both the hbox anchor and -0.3em.
+  assertNativeDimension(Number(point[1]), -8.06972);
+  assertNativeDimension(Number(point[2]), 303.40273);
+  assert.match(multiplier, /tikzkit native math.*anchor=center.*inner sep=0pt/);
   assert.match(multiplier, /\\cdot 10\^\{10\}/);
 });
 
@@ -5268,7 +5269,10 @@ test("pgfplots geometry preserves log-axis and 3D projection metadata", () => {
   );
 
   assert.equal(geometry.xLog, true);
-  assert.deepEqual(geometry.mapPoint({ x: 10, y: 5 }), { x: 1.5, y: 1.5 });
+  assert.deepEqual(geometry.mapPoint({ x: 10, y: 5 }), { x: geometry.width / 2, y: geometry.height / 2 });
+  // LOG FRAME in pgfplots-log-surface-metrics.tex includes native fixed-point rounding.
+  assertNativeDimension(geometry.width, 85.34303);
+  assertNativeDimension(geometry.height, 85.31383);
   assert.ok(Number.isFinite(geometry.mapPoint3d({ x: 10, y: 5, z: 2 }).x));
 });
 
@@ -5341,10 +5345,12 @@ test("pgfplots default surf keeps x/y tight and auto-enlarges inferred z limits"
 
   const ranges = computeAxisRanges({ "pgfplots 3d surface": true }, [surface]);
 
-  assert.deepEqual(
-    { xMin: ranges.xMin, xMax: ranges.xMax, yMin: ranges.yMin, yMax: ranges.yMax },
-    { xMin: -5, xMax: 5, yMin: -5, yMax: 5 }
-  );
+  // DEFAULT SURVEY in pgfplots-log-surface-metrics.tex: legacy sampling
+  // ends at 4.9998401, so the tight box must not expand to an invented 5.
+  assert.equal(ranges.xMin, -5);
+  assert.equal(ranges.yMin, -5);
+  assert.ok(Math.abs(ranges.xMax - 4.9998401) < 1e-6);
+  assert.ok(Math.abs(ranges.yMax - 4.9998401) < 1e-6);
   // PGF's default auto mode adds 10% only to inferred z boundaries in 3D.
   assert.ok(Math.abs(ranges.zMin + 7.59375) < 0.001);
   assert.ok(Math.abs(ranges.zMax - 1.78125) < 0.001);

@@ -15351,7 +15351,7 @@ function estimateTextMetricBox(normalized, options = {}) {
   if (options.mathMode === "number") {
     normalized = normalizeTikzText(normalized.raw ?? normalized.text, { mathMode: options.mathMode });
   }
-  const inline = !options.textWidth && normalized.inlineNodes?.length && layoutNativeTextRun(normalized, options.font);
+  const inline = !options.textWidth && (normalized.inlineNodes?.length || options.preferNativeText) && layoutNativeTextRun(normalized, options.font);
   if (inline) {
     const units = TEX_PT_PER_CM * finitePositiveScale(options.fontMetricNormalization);
     return { width: inline.width / units, height: (inline.height + inline.depth) / units,

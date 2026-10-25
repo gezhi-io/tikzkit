@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "surface-survey-cmos", "source": "../examples/latex-examples/3d-cmos-loss-diagram.tex", "title": "CMOS logarithmic surface", "axisFrame": "3d" },
+    { "id": "log-surface-x", "source": "x.tex", "title": "Invalid x log samples", "axisFrame": "3d" },
+    { "id": "log-surface-y", "source": "y.tex", "title": "Invalid y log samples", "axisFrame": "3d" },
+    { "id": "log-surface-z", "source": "z.tex", "title": "Invalid z log samples", "axisFrame": "3d" }
+  ]
+}

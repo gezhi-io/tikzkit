@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[width=9cm,height=7cm,view={35}{25},enlargelimits=false,
+  zmode=log,domain=-2:2,y domain=-2:2,samples=5,grid=major,
+  xlabel=$x$,ylabel=$y$,zlabel=$z$]
+\addplot3[surf] {x+y};
+\end{axis}
+\end{tikzpicture}
+\end{document}

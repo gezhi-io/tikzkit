@@ -1,5 +1,7 @@
 import { createMathRuntime } from "../engine/safe-expression.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
+import { isLogAxis } from "./ranges.js";
+import { axisLogBase } from "./logAxis.js";
 
 const SP = 65536;
 const PT_PER_CM = 72.27 / 2.54;
@@ -12,7 +14,7 @@ export function usesNative3DScaling(options = {}) {
   return Boolean(options["pgfplots 3d surface"]) &&
     ["auto", "stretch to fill"].includes(mode) &&
     !options["unit vector ratio*"] && !options["axis equal"] && !options["axis equal image"] &&
-    !["x", "y", "z"].some(axis => options[`pgfplots explicit ${axis} unit`] || options[`${axis}mode`] === "log");
+    !["x", "y", "z"].some(axis => options[`pgfplots explicit ${axis} unit`]);
 }
 
 export function resolveNative3DRequestedSize(width, height, { inferWidth = false, inferHeight = false } = {}) {
@@ -53,7 +55,13 @@ export function createNative3DProjection({ options = {}, view, ratio, ranges, wi
     const axis = "xyz"[index];
     const sizePt = axis === "z" && !floatReciprocal ? 42 :
       (axis === "x" ? requestedWidth : requestedHeight) * PT_PER_CM;
-    const span = transformedSpan(ranges[`${axis}Min`], ranges[`${axis}Max`], sizePt);
+    // Log coordinates enter scaling already transformed, without the linear
+    // power-of-ten data rescaling. The default internal basis is e, not 10.
+    const logBasis = options[`log basis ${axis}`] ?? options[`log base ${axis}`];
+    const span = isLogAxis(options, axis)
+      ? dimension(Math.log(ranges[`${axis}Max`] / ranges[`${axis}Min`]) /
+        (logBasis && logBasis !== "e" ? Math.log(axisLogBase(options, axis)) : 1))
+      : transformedSpan(ranges[`${axis}Min`], ranges[`${axis}Max`], sizePt);
     const reciprocal = floatReciprocal ? 1 / span : basicReciprocal(span);
     const component = coordinate => {
       const finalScale = floatFinalScale ? scales[coordinate] * reciprocal :
