@@ -2,7 +2,7 @@ import { axisNumber } from "./coordinates.js";
 import { evaluateAxisExpression } from "./expressions.js";
 import { formatAxisNumber, formatAxisPoint } from "./format.js";
 import { plotColorValue, selectPlotColor, isPlotColorToken } from "./plotStyle.js";
-import { axisSamples, parseDomain, parseZRestriction, restrictSurfaceZ, sampleParametricSurfaceGrid } from "./rangeResolver.js";
+import { parseDomain, parseZRestriction, restrictSurfaceZ, sampleParametricSurfaceGrid, surfaceSampleCounts, PGFPLOTS_DEFAULT_FUNCTION_DOMAIN } from "./rangeResolver.js";
 import { parsePgfplotsColormaps } from "./axisOptions.js";
 import { isPgfplotsTopView, pgfplotsViewDirection } from "./geometry.js";
 import { isLogAxis, scaleAxisValue } from "./ranges.js";
@@ -361,16 +361,14 @@ function surfaceRowsAreRectangular(rows) {
 }
 
 export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
-  const xDomain = parseDomain(plot.options.domain || axisOptions.domain || `${ranges.xMin}:${ranges.xMax}`);
-  const yDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || `${ranges.yMin}:${ranges.yMax}`);
-  const visibleXDomain = clipDomainToAxisRange(xDomain, ranges);
-  const visibleYDomain = clipDomainToRange(yDomain, ranges.yMin, ranges.yMax);
-  if (!visibleXDomain || !visibleYDomain) return [];
-  const xSamples = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25, 80);
-  const ySamples = axisSamples(plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25, 80);
+  // Sample the declared domain, then clip the projected paint. Sampling the
+  // visible interval instead changes facet geometry and point-meta colors.
+  const xDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
+  const yDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
+  const { xSamples, ySamples } = surfaceSampleCounts(plot.options, axisOptions, options);
   const zRestriction = parseZRestriction(plot.options, axisOptions);
-  const xValues = samplePgfplotsSurfaceDomain(visibleXDomain, xSamples, plot.options, axisOptions);
-  const yValues = samplePgfplotsSurfaceDomain(visibleYDomain, ySamples, plot.options, axisOptions);
+  const xValues = samplePgfplotsSurfaceDomain(xDomain, xSamples, plot.options, axisOptions);
+  const yValues = samplePgfplotsSurfaceDomain(yDomain, ySamples, plot.options, axisOptions);
   const grid = [];
   for (let yIndex = 0; yIndex < ySamples; yIndex += 1) {
     const row = [];
@@ -395,8 +393,8 @@ export function renderAxisSurfacePlot(plot, axisOptions, ranges, geometry, optio
       grid,
       xValues,
       yValues,
-      xRange: visibleXDomain,
-      yRange: visibleYDomain,
+      xRange: xDomain,
+      yRange: yDomain,
       plotOptions: plot.options,
       axisOptions,
       ranges: colorRanges,
@@ -804,13 +802,6 @@ function sameAxisValue(left, right) {
   return Math.abs(Number(left) - Number(right)) < 1e-9;
 }
 
-function clipDomainToRange(domain, min, max) {
-  const start = Math.max(domain.start, min);
-  const end = Math.min(domain.end, max);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) return null;
-  return { start, end };
-}
-
 function surfaceColorRanges(ranges, grid, axisOptions = {}, plotOptions = {}) {
   if (!usesPerPlotPointMeta(axisOptions, plotOptions)) {
     return { ...ranges, ...(axisOptions["pgfplots surveyed color range"] || {}) };
@@ -889,8 +880,14 @@ function surfaceColorContext(options = {}, axisOptions = {}) {
   const plotColormaps = parsePgfplotsColormaps(options.colormap);
   const plotColormapName = Object.keys(plotColormaps)[0] || "";
   const colormapName = firstNonempty(options["colormap name"], plotColormapName, axisOptions["colormap name"]);
+  const perPlot = String(options["point meta rel"] ?? axisOptions["point meta rel"]).trim() === "per plot";
+  // Axis-wide normalization retains explicit axis bounds even when a plot
+  // supplies local bounds. Only per-plot normalization selects those first.
+  const metaBound = key => perPlot ? options[key] ?? axisOptions[key] : axisOptions[key] ?? options[key];
   return {
     ...axisOptions,
+    "point meta min": metaBound("point meta min"),
+    "point meta max": metaBound("point meta max"),
     "tikzkit explicit surface point meta": options["point meta"] !== undefined,
     "colormap name": colormapName,
     "pgfplots colormaps": {
@@ -1040,8 +1037,10 @@ function pgfplotsCustomSurfaceColor(axisOptions = {}, z, ranges) {
 function surfaceColorPosition(value, ranges, axisOptions = {}) {
   const logMode = isLogAxis(axisOptions, "z") && !axisOptions["tikzkit explicit surface point meta"];
   const base = axisLogBase(axisOptions, "z");
-  const min = scaleAxisValue(ranges.zMin, logMode, base);
-  const max = scaleAxisValue(ranges.zMax, logMode, base);
+  // Native survey updates only unspecified meta limits. Explicit bounds are
+  // independent of both viewport limits and the sampled data extrema.
+  const min = scaleAxisValue(axisNumber(axisOptions["point meta min"], ranges.zMin), logMode, base);
+  const max = scaleAxisValue(axisNumber(axisOptions["point meta max"], ranges.zMax), logMode, base);
   const mapped = scaleAxisValue(value, logMode, base);
   return Math.max(0, Math.min(1, (mapped - min) / (max - min || 1)));
 }
@@ -1117,11 +1116,6 @@ function axisOpacity(raw) {
   if (!Number.isFinite(value)) return 1;
   return Math.max(0, Math.min(1, value));
 }
-
-function clipDomainToAxisRange(domain, ranges) {
-  return clipDomainToRange(domain, ranges.xMin, ranges.xMax);
-}
-
 function uniqueAxisValues(values) {
   const seen = new Set();
   const result = [];

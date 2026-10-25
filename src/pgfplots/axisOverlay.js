@@ -1,6 +1,6 @@
 import { axisNumber } from "./coordinates.js";
 import { formatAxisNumber, formatAxisPoint } from "./format.js";
-import { axisViewportClipOption } from "./clipping.js";
+import { applyAxisClipOption, axisViewportClipOption } from "./clipping.js";
 
 export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions = {}) {
   const commands = [];
@@ -13,7 +13,7 @@ export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions 
     if (end === -1) break;
     const statement = body.slice(start, end + 1);
     commands.push(...lowerAxisOverlayStatement(statement, ranges, geometry)
-      .map((command) => applyAxisOverlayClip(command, globalClipOption)));
+      .map((command) => applyAxisClipOption(command, globalClipOption)));
     cursor = end + 1;
   }
   return withAxisOverlayFont(commands, axisOptions.font);
@@ -23,17 +23,6 @@ function axisOverlayGlobalClipOption(axisOptions = {}, ranges = {}, geometry = {
   const mode = String(axisOptions["clip mode"] ?? "global").trim().toLowerCase();
   if (mode !== "global") return "";
   return axisViewportClipOption(axisOptions, ranges, geometry);
-}
-
-function applyAxisOverlayClip(command, clipOption) {
-  if (!clipOption) return command;
-  const match = String(command).match(/^(\\(?:filldraw|coordinate|draw|fill|node|path))(\s*)/);
-  if (!match) return command;
-  const prefixLength = match[0].length;
-  const suffix = command.slice(prefixLength);
-  return suffix.startsWith("[")
-    ? `${match[1]}${match[2]}[${clipOption},${suffix.slice(1)}`
-    : `${match[1]}${match[2]}[${clipOption}] ${suffix}`;
 }
 
 function withAxisOverlayFont(commands, font) {

@@ -223,9 +223,11 @@ test("case 008: CMOS loss surface preserves log-axis sampling and faceted opacit
   const labels = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.equal(surface.length, 4050);
-  assert.equal(fills.length, 2025);
-  assert.equal(facets.length, 2025);
+  // Native tikztosvg has 1,980 fills and 1,980 mesh strokes at opacity .9.
+  // y=0 is invalid on the log axis: 46 samples leave 44 by 45 valid cells.
+  assert.equal(surface.length, 3960);
+  assert.equal(fills.length, 1980);
+  assert.equal(facets.length, 1980);
   assert.ok(surface.every((item) => item.commands.length === 5 && item.style.opacity === 0.9));
   assert.ok(fills.every((item) => item.style.stroke === "none"));
   assert.ok(facets.every((item) => item.style.stroke !== "none"));

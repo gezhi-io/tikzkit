@@ -1,0 +1,11 @@
+{
+  "cases": [
+    { "id": "surface-survey-hypersurface", "source": "../examples/latex-examples/hypersurface-2.tex", "title": "Hypersurface: shared default sampling", "axisFrame": "3d" },
+    { "id": "surface-survey-order-2", "source": "../examples/latex-examples/hypersurface-order-2.tex", "title": "Saddle: survey regression", "axisFrame": "3d" },
+    { "id": "surface-survey-parametric", "source": "parametric.tex", "title": "Parametric default sampling", "axisFrame": "3d" },
+    { "id": "surface-survey-clipped", "source": "clipped.tex", "title": "Coarse surface clipped after projection", "axisFrame": "3d" },
+    { "id": "surface-survey-unclipped", "source": "unclipped.tex", "title": "Unclipped coarse surface", "axisFrame": "3d" },
+    { "id": "surface-survey-cmos", "source": "../examples/latex-examples/3d-cmos-loss-diagram.tex", "title": "Logarithmic mesh: discard zero sample", "axisFrame": "3d" },
+    { "id": "surface-survey-explicit-meta", "source": "explicit-meta.tex", "title": "Explicit axis-wide point-meta bounds", "axisFrame": "3d", "paintColors": [{ "property": "fill", "rgb": [127.5,127.5,255] }] }
+  ]
+}

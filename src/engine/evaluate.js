@@ -1566,9 +1566,10 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     }
   }
 
-  // PGF expands every stroked path by half its pen width before placing
-  // arrow tips. Inline nodes contribute separate boxes, not a replacement.
-  const includeStrokeBounds = true;
+  // Ordinary PGF strokes expand bounds by half their pen width. Quick paint
+  // primitives bypass that hook; lowering preserves this distinction.
+  // Inline nodes contribute separate boxes, not a replacement.
+  const includeStrokeBounds = !tikzBoolean(pathOptions["tikzkit quick path"]);
   if (!tikzBoolean(pathOptions.overlay) && built.boundsCommands?.length) {
     ir.items.push(createBoundingBoxShape(built.boundsCommands, { includeStrokeBounds, style }));
   }

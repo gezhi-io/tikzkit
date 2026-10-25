@@ -69,6 +69,9 @@ export async function captureAxisGrid(page, { frame = "middle" } = {}) {
       const rgb = style.stroke.match(/^rgb\((\d+), (\d+), (\d+)\)$/)?.slice(1).map(Number);
       if (!rgb || rgb[0] !== rgb[1] || rgb[1] !== rgb[2] || rgb[0] < 128 || rgb[0] >= 255) continue;
       const d = path.getAttribute("d") || "";
+      // A gray faceted surface may share the grid color. Closed polygons
+      // are mesh paint, never the straight open tick/grid subpaths below.
+      if (/z/i.test(d)) continue;
       const pattern = /M\s*([-\d.e+]+)[ ,]+([-\d.e+]+)\s*L\s*([-\d.e+]+)[ ,]+([-\d.e+]+)/gi;
       if (d.replace(pattern, "").trim()) throw new Error("Expected straight tick/grid subpaths");
       const transform = path.getScreenCTM();

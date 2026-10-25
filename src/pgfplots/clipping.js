@@ -30,6 +30,16 @@ export function axisViewportClipOption(axisOptions = {}, ranges = {}, geometry =
   return `tikzkit clip rect={${[rect.minX, rect.minY, rect.maxX, rect.maxY].map(formatAxisNumber).join(",")}}`;
 }
 
+export function applyAxisClipOption(command, clipOption) {
+  if (!clipOption) return command;
+  const match = String(command).match(/^(\\(?:filldraw|coordinate|draw|fill|node|path))(\s*)/);
+  if (!match) return command;
+  const suffix = command.slice(match[0].length);
+  return suffix.startsWith("[")
+    ? `${match[1]}${match[2]}[${clipOption},${suffix.slice(1)}`
+    : `${match[1]}${match[2]}[${clipOption}] ${suffix}`;
+}
+
 // PGF clips 3D drawings to the convex hull of the projected axis box, not to
 // data-space segments. This also clips arrow outlines that cross the frame.
 function projectedAxisBoxHull(ranges = {}, geometry = {}) {

@@ -37,9 +37,21 @@ import {
 } from "./surface.js";
 import { axisPointIsValidForScale } from "./logAxis.js";
 import { stackedClosedCyclePointChain } from "./areaPlots.js";
-import { axisClipRectangle } from "./clipping.js";
+import { applyAxisClipOption, axisClipRectangle, axisViewportClipOption } from "./clipping.js";
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
+  const commands = renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex);
+  if (!isSurfacePlot(plot, axisOptions) && !axisOptions.patch && !plot.options?.patch) return commands;
+  // Native PGFPlots clips both surface fill and mesh strokes to the projected
+  // axis hull. Axis descriptions are lowered separately and remain unclipped.
+  const clip = axisViewportClipOption(axisOptions, ranges, geometry);
+  // Mesh handlers use PGF's quick paint primitives, bypassing the ordinary
+  // path hook that adds half the pen width to the picture bounding box.
+  const paintOptions = ["tikzkit quick path", clip].filter(Boolean).join(", ");
+  return commands.map(command => applyAxisClipOption(command, paintOptions));
+}
+
+function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex) {
   if (plot.type === "coordinates") {
     if (isAxisLinePatchPlot(plot, axisOptions)) {
       return renderAxisLinePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);

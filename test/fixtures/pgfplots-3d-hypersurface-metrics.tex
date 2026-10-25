@@ -1,0 +1,41 @@
+\documentclass{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.3}
+\makeatletter
+\let\originalfinalscales\pgfplots@scaling@compute@final@scales
+\def\pgfplots@scaling@compute@final@scales#1#2#3#4#5{%
+  \typeout{SCALE input x=#1 y=#2 inv=#3,#4,#5}%
+  \typeout{SCALE limits x=\pgfplots@xmin,\pgfplots@xmax; y=\pgfplots@ymin,\pgfplots@ymax; z=\pgfplots@zmin,\pgfplots@zmax}%
+  \originalfinalscales{#1}{#2}{#3}{#4}{#5}%
+  \typeout{SCALE output xx=\pgfplots@target@unit@scale@xx xy=\pgfplots@target@unit@scale@xy yx=\pgfplots@target@unit@scale@yx yy=\pgfplots@target@unit@scale@yy zx=\pgfplots@target@unit@scale@zx zy=\pgfplots@target@unit@scale@zy}%
+}
+\newcommand{\extent}{%
+  \coordinate (lo) at (axis description cs:0,0);
+  \coordinate (hi) at (axis description cs:1,1);
+  \coordinate (b0) at (rel axis cs:0,0,0);
+  \coordinate (bx) at (rel axis cs:1,0,0);
+  \coordinate (by) at (rel axis cs:0,1,0);
+  \coordinate (bz) at (rel axis cs:0,0,1);
+}
+\newcommand{\report}{%
+  \foreach \v in {hi,xl,yl,zl}{%
+    \pgfextractx{\dimen0}{\pgfpointdiff{\pgfpointanchor{lo}{center}}{\pgfpointanchor{\v}{center}}}%
+    \pgfextracty{\dimen2}{\pgfpointdiff{\pgfpointanchor{lo}{center}}{\pgfpointanchor{\v}{center}}}%
+    \typeout{POINT \v: \the\dimen0,\the\dimen2}}
+  \foreach \v in {bx,by,bz}{%
+    \pgfextractx{\dimen0}{\pgfpointdiff{\pgfpointanchor{b0}{center}}{\pgfpointanchor{\v}{center}}}%
+    \pgfextracty{\dimen2}{\pgfpointdiff{\pgfpointanchor{b0}{center}}{\pgfpointanchor{\v}{center}}}%
+    \typeout{BASIS \v: \the\dimen0,\the\dimen2}}
+}
+\makeatother
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[grid=both,minor tick num=1,xmin=-5,xmax=5,ymin=-5,ymax=5,
+  axis lines=left,xlabel=$x$,ylabel=$y$,zlabel=$z$,
+  xlabel style={name=xl},ylabel style={name=yl},zlabel style={name=zl}]
+\addplot3[surf,colormap name=viridis] {3*x*x-y*y-9*x+1};
+\extent
+\end{axis}
+\report
+\end{tikzpicture}
+\end{document}

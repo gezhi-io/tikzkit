@@ -96,12 +96,17 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   if (resolvedAxisOptions["pgfplots ternary axis"]) {
     return dependencies.renderTernaryAxisAsTikz(resolvedAxisOptions, addplots);
   }
-  const surveyedRanges = dependencies.computeAxisRanges(resolvedAxisOptions, addplots, { enlargeZ: false });
+  const surveyedRanges = dependencies.computeAxisRanges(resolvedAxisOptions, addplots, { ...options, enlargeZ: false });
   const ranges = has3dPlot ? enlarge3DZLimits(resolvedAxisOptions, surveyedRanges) : surveyedRanges;
   if (has3dPlot) {
-    // Point-meta normalization belongs to the survey, before axis padding.
+    // Default z point-meta limits belong to the data, not to the viewport.
+    // Explicit z limits and axis padding must not recolor the same facets.
+    const colorRanges = resolvedAxisOptions.zmin != null || resolvedAxisOptions.zmax != null
+      ? dependencies.computeAxisRanges({ ...resolvedAxisOptions, zmin: undefined, zmax: undefined },
+        addplots, { ...options, enlargeZ: false })
+      : surveyedRanges;
     resolvedAxisOptions["pgfplots surveyed color range"] = {
-      zMin: surveyedRanges.zMin, zMax: surveyedRanges.zMax
+      zMin: colorRanges.zMin, zMax: colorRanges.zMax
     };
   }
   const geometry = createAxisGeometry(resolvedAxisOptions, ranges);

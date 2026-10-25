@@ -814,7 +814,7 @@ test("pgfplots top-view surface axes lower through 2D frame and ticks", () => {
     }
   );
 
-  assert.match(rendered, /\\path\[axis surface raster image=/);
+  assert.match(rendered, /\\path\[[^\]]*axis surface raster image=/);
   assert.doesNotMatch(rendered, /axis surface image cell/);
   assert.doesNotMatch(rendered, /\\draw\[axis surface,/);
   assert.match(rendered, /\\draw\[axis frame,/);
@@ -865,8 +865,9 @@ test("pgfplots surface layers keep grid below surfaces and axis annotations abov
   const foregroundAxisLineIndex = axisLineIndexes.at(-1);
   const tickIndex = rendered.indexOf(String.raw`\draw[axis tick, gray, line width=0.2pt]`);
   const gridIndex = rendered.indexOf(String.raw`\draw[axis 3d grid,`);
-  const surfaceIndex = rendered.indexOf(String.raw`\path[axis surface fill,`);
-  const surfaceMeshIndex = rendered.indexOf(String.raw`\draw[axis surface mesh,`);
+  // Internal viewport/quick-paint options may precede the semantic role.
+  const surfaceIndex = rendered.search(/\\path\[[^\]]*axis surface fill,/);
+  const surfaceMeshIndex = rendered.search(/\\draw\[[^\]]*axis surface mesh,/);
   const overlayIndex = rendered.indexOf(String.raw`{origin};`);
   const labelIndex = rendered.indexOf(String.raw`\node[axis label,`);
 

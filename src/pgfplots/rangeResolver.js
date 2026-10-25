@@ -11,7 +11,7 @@ import { samplePgfplotsSurfaceDomain } from "./sampling.js";
 export const PGFPLOTS_DEFAULT_ENLARGE_LIMITS = 0.1;
 export const PGFPLOTS_DEFAULT_FUNCTION_DOMAIN = "-5:5";
 
-export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true } = {}) {
+export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...options } = {}) {
   const domain = parseDomain(axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const hasSurfacePlot = addplots.some((plot) => isSurfacePlot(plot, axisOptions));
   const xLog = isLogAxis(axisOptions, "x");
@@ -73,8 +73,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true } = {
       }
       if (isSurfacePlot(plot, axisOptions)) {
         const yDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
-        const xSamples = axisSamples(plot.options.samples || axisOptions.samples || 15, 60);
-        const ySamples = axisSamples(plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || 15, 60);
+        const { xSamples, ySamples } = surfaceSampleCounts(plot.options, axisOptions, options);
         const xValues = samplePgfplotsSurfaceDomain(plotDomain, xSamples, plot.options, axisOptions);
         const yValues = samplePgfplotsSurfaceDomain(yDomain, ySamples, plot.options, axisOptions);
         const sampledXMin = xLog ? firstPositiveSample(xValues) : plotDomain.start;
@@ -113,7 +112,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true } = {
     }
     if (plot.type === "parametric") {
       const parametricPoints = isSurfacePlot(plot, axisOptions)
-        ? sampleParametricSurfaceGrid(plot, axisOptions, { pgfplotsSurfaceSamples: 40 }).grid.flat().filter(Boolean)
+        ? sampleParametricSurfaceGrid(plot, axisOptions, options).grid.flat().filter(Boolean)
         : sampleParametricDataPoints(plot, axisOptions, { pgfplotsSamples: 80 });
       for (const point of parametricPoints) {
         if (!axisPointIsValidForScale(point, axisOptions)) continue;
@@ -366,14 +365,7 @@ export function sampleParametricDataPoints(plot, axisOptions = {}, options = {})
 export function sampleParametricSurfaceGrid(plot, axisOptions = {}, options = {}) {
   const uDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const vDomain = parseDomain(plot.options["y domain"] || axisOptions["y domain"] || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
-  const uSamples = axisSamples(
-    plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25,
-    options.pgfplotsSurfaceMaxSamples || 80
-  );
-  const vSamples = axisSamples(
-    plot.options["samples y"] || axisOptions["samples y"] || plot.options.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25,
-    options.pgfplotsSurfaceMaxSamples || 80
-  );
+  const { xSamples: uSamples, ySamples: vSamples } = surfaceSampleCounts(plot.options, axisOptions, options);
   const uValues = samplePgfplotsSurfaceDomain(uDomain, uSamples, plot.options, axisOptions);
   const vValues = samplePgfplotsSurfaceDomain(vDomain, vSamples, plot.options, axisOptions);
   const zRestriction = parseZRestriction(plot.options, axisOptions);
@@ -386,6 +378,17 @@ export function sampleParametricSurfaceGrid(plot, axisOptions = {}, options = {}
     return axisPointIsValidForScale(point, axisOptions) ? point : null;
   }));
   return { grid, uValues, vValues, uDomain, vDomain, uSamples, vSamples };
+}
+
+export function surfaceSampleCounts(plotOptions = {}, axisOptions = {}, options = {}) {
+  // Native survey and replay consume the same stream. TikZ defaults to 25
+  // samples; a coarser survey changes z limits, projection and label positions.
+  const samples = plotOptions.samples || axisOptions.samples || options.pgfplotsSurfaceSamples || 25;
+  const limit = options.pgfplotsSurfaceMaxSamples || 80;
+  return {
+    xSamples: axisSamples(samples, limit),
+    ySamples: axisSamples(plotOptions["samples y"] || axisOptions["samples y"] || samples, limit)
+  };
 }
 
 function sampleDomain(domain, samples) {
