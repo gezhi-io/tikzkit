@@ -1,0 +1,10 @@
+\documentclass[tikz,border=8pt]{standalone}
+\usetikzlibrary{arrows.meta}
+\begin{document}
+\begin{tikzpicture}[line width=1pt]
+  \draw[gray!30] (-.2,.3) rectangle (3.2,-1.8);
+  \draw[-{>[sep=1pt]>[sep=2pt]>}] (0,0)--(3,0);
+  \draw[{>[sep=1pt]>[sep=2pt]}-] (0,-.7)--(3,-.7);
+  \draw[-{>>[sep=2pt]}] (0,-1.4)--(3,-1.4);
+\end{tikzpicture}
+\end{document}

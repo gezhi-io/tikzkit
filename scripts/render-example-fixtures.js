@@ -11,6 +11,9 @@ import { tikzToSvgAsync } from "../src/index.js";
 import { lowerRawGnuplotAddplotsToCoordinates } from "../src/pgfplots/gnuplot.js";
 import { withGalleryDebugGrid } from "./gallery-debug-grid.js";
 import { fontManifest } from "../src/fonts/manifest.js";
+import { loadsModernArrowDefaults } from "../src/tikz/libraries/arrows.meta.js";
+import { collectTikzLibraries } from "../src/tikz/libraries/declarations.js";
+import { collectTexPackages } from "../src/packages/declarations.js";
 import { decodeWoffFont } from "./font-raster-assets.js";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
@@ -169,6 +172,9 @@ export async function renderExampleFixtures(options = {}) {
     };
     if (!referenceProvenance.independentNumerics) {
       referenceProvenance.transformations.push("raw-gnuplot-js-sampling");
+    }
+    if (tikztosvgArrowDefaultReset(referenceSource)) {
+      referenceProvenance.transformations.push("restore-source-classical-To-default-after-tikztosvg-extra-tikz-cd");
     }
 
     let tikztosvgSvg = null;
@@ -1570,6 +1576,7 @@ async function createTikztosvgPackageOptionEnv(external, baseEnv, outputRoot, en
 
 async function createTikztosvgPreambleInputEnv(baseEnv, outputRoot, entry, source, fixtureRoot) {
   const preamble = tikztosvgPreambleBody(source);
+  const arrowReset = tikztosvgArrowDefaultReset(source);
   if (!preamble || !preamble.replace(/%.*/g, "").trim()) return { env: baseEnv, packageArgs: [] };
 
   const wrapperDir = path.join(path.resolve(outputRoot), ".tikzkit-preamble-inputs", entry.id);
@@ -1579,6 +1586,7 @@ async function createTikztosvgPreambleInputEnv(baseEnv, outputRoot, entry, sourc
     path.join(wrapperDir, `${packageName}.sty`),
     [
       `% TikZKit QA wrapper: loads source declarations before \\begin{document}.`,
+      arrowReset,
       // tikztosvg loads -p packages before -l libraries. Keep the source's
       // library declarations here so preamble keys such as >=stealth' exist.
       tikztosvgPreambleBody(source, { includeLibraries: true }),
@@ -1594,6 +1602,14 @@ async function createTikztosvgPreambleInputEnv(baseEnv, outputRoot, entry, sourc
     },
     packageArgs: ["-p", packageName]
   };
+}
+
+export function tikztosvgArrowDefaultReset(source) {
+  // tikztosvg 0.3.0 always imports tikz-cd, which imports arrows.meta. Undo
+  // that extra default before replaying the user's preamble. Never overwrite
+  // explicit source aliases or deliberately requested modern arrow libraries.
+  return loadsModernArrowDefaults(collectTikzLibraries(source), collectTexPackages(source))
+    ? "" : String.raw`\pgfkeys{To/.tip=to}`;
 }
 
 export async function createRsvgFontEnv(outputRoot = DEFAULT_OUTPUT_ROOT, baseEnv = process.env) {
@@ -1897,6 +1913,12 @@ function tikztosvgLibraryArgs(source) {
 
 function tikztosvgInputPreamble(source, body) {
   const lines = [];
+  // With no source preamble commands there is no wrapper package; reset here
+  // instead. Nonempty preambles reset first, before any user-defined aliases.
+  if (!tikztosvgPreambleBody(source).replace(/%.*/g, "").trim()) {
+    const arrowReset = tikztosvgArrowDefaultReset(source);
+    if (arrowReset) lines.push(arrowReset);
+  }
   const libraries = tikztosvgRequiredLibraries(body);
   if (libraries.length) lines.push(`\\usetikzlibrary{${libraries.join(",")}}`);
 

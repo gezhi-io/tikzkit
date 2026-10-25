@@ -353,7 +353,9 @@ function includeInlineArrowBounds(item, include, unit) {
     item.commands || [],
     originalTerminal,
     (Number(style.shortenStart) || 0) / unit,
-    (Number(style.shortenEnd) || 0) / unit
+    (Number(style.shortenEnd) || 0) / unit,
+    { start: resolveInlineArrowTipSequence(style.markerStart, style, "start").some(tip => tip.bending),
+      end: resolveInlineArrowTipSequence(style.markerEnd, style, "end").some(tip => tip.bending) }
   );
   const terminal = pathTerminalSegments(explicitCommands);
   if (style.markerStart && terminal.first) {

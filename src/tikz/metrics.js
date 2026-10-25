@@ -191,23 +191,23 @@ export const TIKZ_ARROW_TIPS = {
 };
 
 export function createArrowTip(kind = "to", overrides = {}) {
-  const sourceKind = String(kind || "to").trim().replace(/^>$/, "to");
+  const sourceKind = String(kind || "to").trim();
   const normalizedKind = overrides.meta === true && sourceKind === "square"
     ? "square"
     : normalizeArrowKind(sourceKind);
   const base = TIKZ_ARROW_TIPS[normalizedKind] || legacyArrowTipBase(normalizedKind) || TIKZ_ARROW_TIPS.to;
-  const legacy = normalizedKind === "latex"
+  const legacy = ["latex", "to", "to-reversed"].includes(normalizedKind)
     ? Object.hasOwn(overrides, "legacy")
       ? overrides.legacy === true
-      : sourceKind === "latex"
+      : sourceKind === "latex" || sourceKind === "to" || normalizedKind === "to-reversed"
     : undefined;
   // PGF's arrows.meta uses capitalized names. Retaining this distinction lets
   // the renderer apply arrows.meta-only keys without changing the classic
   // core `latex` and `stealth` tips.
-  const meta = ["latex", "stealth"].includes(normalizedKind)
+  const meta = ["latex", "stealth", "to"].includes(normalizedKind)
     ? Object.hasOwn(overrides, "meta")
       ? overrides.meta === true
-      : normalizedKind === "latex"
+      : normalizedKind === "latex" || normalizedKind === "to"
         ? !legacy
         : sourceKind === "Stealth"
     : normalizedKind === "square"
@@ -225,12 +225,15 @@ export function createArrowTip(kind = "to", overrides = {}) {
     kind: normalizedKind,
     // PGF's core `latex` and arrows.meta's `Latex` are distinct tips. Keep
     // the source spelling so their geometry can stay distinct downstream.
-    ...(normalizedKind === "latex" ? { legacy } : {}),
-    ...(["latex", "stealth", "square", "straight-barb", "arc-barb", "tee-barb"].includes(normalizedKind) ? { meta } : {})
+    ...(["latex", "to", "to-reversed"].includes(normalizedKind) ? { legacy } : {}),
+    ...(["latex", "stealth", "to", "square", "straight-barb", "arc-barb", "tee-barb"].includes(normalizedKind) ? { meta } : {}),
+    ...(["To", ">", "<"].includes(sourceKind) ? { toAlias: true } : {}),
+    ...([">", "<"].includes(sourceKind) ? { symbolicDirection: sourceKind } : {})
   };
 }
 
 function legacyArrowTipBase(kind) {
+  if (kind === "to-reversed") return TIKZ_ARROW_TIPS.to;
   if (/^latex-prime(?:-reversed)?$/u.test(kind)) {
     return { ...TIKZ_ARROW_TIPS.latex, fill: "context-stroke" };
   }
@@ -1089,6 +1092,8 @@ function normalizeArrowKind(kind) {
     return `${ordinaryPrime[1].toLowerCase()}-prime${ordinaryPrime[2] ? "-reversed" : ""}`;
   }
   const text = source.replace(/'/g, "").toLowerCase();
+  if (text === "to reversed" || text === "to-reversed") return "to-reversed";
+  if (source === "Computer Modern Rightarrow") return "to";
   if (text === "legacy-implies") return text;
   if (/^legacy-(?:(?:left|right)-hook|hooks)(?:-reversed)?$/u.test(text)) return text;
   if (/^legacy-(?:left|right)-to(?:-reversed)?$/u.test(text)) return text;
@@ -1194,5 +1199,5 @@ function normalizeArrowKind(kind) {
   if (text.includes("stealth")) return "stealth";
   if (text.includes("latex")) return "latex";
   if (text.includes("to")) return "to";
-  return text === ">" ? "to" : text || "to";
+  return text === ">" || text === "<" ? "to" : text || "to";
 }

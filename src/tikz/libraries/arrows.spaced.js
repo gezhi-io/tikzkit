@@ -10,7 +10,8 @@ import {
   legacySerifCmArrowMetrics,
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
-  legacyTriangleArrowMetrics
+  legacyTriangleArrowMetrics,
+  legacyToArrowMetrics
 } from "./arrows.js";
 
 export const tikzLibrary = {
@@ -64,6 +65,9 @@ export const tikzLibrary = {
   ],
   notes: "Reviewed locally on 2026-09-04. pgflibraryarrows.spaced.code.tex declares each spaced arrow with the starred combine form `original[sep=0pt].space`. The dot fixes the line end after the visible tip; the invisible `space` arrow from pgfcorearrows.code.tex has backend 0 and tip end 0.88pt+0.3*linewidth. TikZKit first implemented the six cap aliases by reusing their source paths and adding this width to terminal placement, shaft shortening, and assembly length. A second source review added spaced to, latex, latex prime, stealth, and stealth prime plus all reversed forms. A third source review added spaced implies from pgflibraryarrows.code.tex. A fourth added all twelve spaced triangle and spaced open triangle 90/60/45 aliases. A fifth added the six spaced angle aliases. A sixth added spaced left hook, spaced right hook, spaced hooks, and reversed forms. A seventh review added `spaced [`, `spaced ]`, `spaced (`, `spaced )`, and `spaced |`, including all five paired shorthand specifications. Square and round bracket geometry reuses the source active-line-width formulas. The bar now follows `@bar`: backend -0.25 line widths, tip end 0.75 line widths, vertical path at 0.25 line widths, half-height 2pt+1.5 line widths, and a square cap. An eighth review added `spaced o`, `spaced *`, `spaced diamond`, `spaced open diamond`, `spaced square`, and `spaced open square`: each reuses the exact base geometry, fill/stroke semantics, cap/join, and line-width-dependent extents, while only the invisible space increases placement and assembly length. A ninth review added `spaced left to`, `spaced right to`, and reversed variants. They reuse the exact reflected half-arrow and multi-part reversed paint from arrows, then add only the invisible space to placement and assembly length. Flowchart, mathematical-map, and physical-vector fixtures cover straight, orthogonal, diagonal, bidirectional, and curved terminal tangents with MacTeX and tikztosvg references. Spaced serif-cm remains unsupported."
 };
+
+tikzLibrary.implementedBy += " + src/tikz/libraries/arrows.js:legacyToArrowMetrics";
+tikzLibrary.notes += " Reviewed on 2026-10-25: spaced to and spaced to reversed now reuse the same pgfcorearrows metrics as ordinary legacy tips, retaining only their source-declared invisible spacing. The existing spaced-arrow regressions pass. See docs/qa/2026-10-25-core-to-arrows.md.";
 
 tikzLibrary.notes = tikzLibrary.notes.replace(
   "Spaced serif-cm remains unsupported.",
@@ -245,6 +249,12 @@ export function spacedLegacyArrowMetrics(kind, lineWidth) {
   const lineWidthPt = Math.max(0.01, Number(lineWidth) || lineWidthFromPt(0.4)) / unitsPerPt;
   const unitPt = 0.28 + 0.3 * lineWidthPt;
   const spacePt = 0.88 + 0.3 * lineWidthPt;
+  if (family === "to") {
+    const base = legacyToArrowMetrics(reversed ? "to-reversed" : "to", lineWidth);
+    const space = lineWidthFromPt(spacePt);
+    return { ...base, spaced: true, space, placement: base.placement + space,
+      terminalPlacement: base.terminalPlacement + space, assemblyLength: base.assemblyLength + space };
+  }
   const prime = family.endsWith("-prime")
     ? legacyPrimeArrowMetrics(`${family}${reversed ? "-reversed" : ""}`, lineWidth)
     : null;
@@ -295,22 +305,6 @@ export function spacedImpliesArrowMetrics(kind, lineWidth, innerLineWidth = 0, d
 }
 
 function legacyArrowSourceMetrics(family, reversed, lineWidthPt, unitPt) {
-  if (family === "to") {
-    return reversed
-      ? {
-          backEndPt: -0.21 - 0.475 * lineWidthPt,
-          tipEndPt: 0.98 + 1.45 * lineWidthPt,
-          halfHeightPt: 4 * unitPt + 0.4 * lineWidthPt,
-          arrowLineWidthPt: 0.8 * lineWidthPt
-        }
-      : {
-          backEndPt: -0.84 - 1.3 * lineWidthPt,
-          tipEndPt: 0.21 + 0.625 * lineWidthPt,
-          halfHeightPt: 4 * unitPt + 0.4 * lineWidthPt,
-          arrowLineWidthPt: 0.8 * lineWidthPt
-        };
-  }
-
   const source = family === "latex"
     ? { back: 1, tip: 9, halfHeight: 3.75, arrowLineWidthPt: 0 }
     : family === "latex-prime"

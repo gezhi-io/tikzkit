@@ -1,0 +1,13 @@
+% Numeric probe only; it intentionally produces no diagram page.
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{bending}
+\begin{document}
+\makeatletter
+\pgfsetcurvilinearbeziercurve{\pgfpoint{0cm}{0cm}}{\pgfpoint{0cm}{3cm}}{\pgfpoint{3cm}{3cm}}{\pgfpoint{3cm}{0cm}}
+\foreach \distance in {-1pt,1pt,3pt,10pt,3cm}{%
+  \pgfcurvilineardistancetotime{\distance}%
+  \typeout{CURVILINEAR distance=\distance;time=\the\pgf@x}%
+}
+\makeatother
+\end{document}

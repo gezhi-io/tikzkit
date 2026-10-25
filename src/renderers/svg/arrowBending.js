@@ -1,14 +1,14 @@
 import { formatSvgNumber as format } from "./format.js";
 
 const EPSILON = 1e-9;
-const CURVE_SAMPLES = 128;
+const CM_PER_TEX_PT = 2.54 / 72.27;
 
 export function curvedArrowPaint(tip, placed, terminal, side, unit = 1) {
   const bending = tip?.bending;
   if (!bending || !terminal) return null;
   const curve = terminalCurveInSvg(terminal, side, unit);
   if (!curve) return null;
-  const lookup = cubicArcLookup(curve);
+  const lookup = cubicArcLookup(curve, unit * CM_PER_TEX_PT);
   const tipDistance = Number(placed?.curveDistance) || 0;
   const tipOffset = Number(tip.geometry?.logicalTipOffset ?? tip.geometry?.placement) || 0;
 
@@ -29,14 +29,16 @@ export function curvedArrowPaint(tip, placed, terminal, side, unit = 1) {
   const span = bending.mode === "flexPrime"
     ? Number(tip.assemblyLength) || 0
     : Number(tip.geometry?.visualSpan ?? tip.assemblyLength) || 0;
-  const front = cubicAtDistance(lookup, tipDistance);
-  const back = cubicAtDistance(lookup, tipDistance + factor * span);
+  const visualTip = bending.mode === "flexPrime" ? tipOffset : Number(tip.geometry?.visualTipEnd ?? tipOffset);
+  const frontDistance = tipDistance + tipOffset - visualTip;
+  const front = cubicAtDistance(lookup, frontDistance);
+  const back = cubicAtDistance(lookup, frontDistance + factor * span);
   let outward = normalizedVector(front.point.x - back.point.x, front.point.y - back.point.y);
   if (!outward) outward = { x: -front.tangent.x, y: -front.tangent.y };
   const normal = { x: -outward.y, y: outward.x };
   const origin = {
-    x: front.point.x - outward.x * tipOffset,
-    y: front.point.y - outward.y * tipOffset
+    x: front.point.x - outward.x * visualTip,
+    y: front.point.y - outward.y * visualTip
   };
   const transform = {
     a: outward.x,
@@ -48,8 +50,11 @@ export function curvedArrowPaint(tip, placed, terminal, side, unit = 1) {
   };
   return {
     mode: bending.mode,
-    path: tip.geometry?.path || "",
-    transform,
+    path: tip.geometry?.paintPath || tip.geometry?.path || "",
+    // Flex changes orientation, not the cached object's shear or pen shape.
+    transform: tip.geometry?.paintSlant ? { ...transform,
+      c: transform.c + transform.a * tip.geometry.paintSlant,
+      d: transform.d + transform.b * tip.geometry.paintSlant } : transform,
     bounds: transformedBounds(tip.geometry?.bounds, transform),
     strokeBoundsIncluded: tip.geometry?.strokeBoundsIncluded === true
   };
@@ -76,54 +81,63 @@ function toSvgPoint(point, unit) {
   return { x: point.x * unit, y: -point.y * unit };
 }
 
-function cubicArcLookup(curve) {
-  const samples = [{ t: 0, distance: 0, point: cubicPoint(curve, 0) }];
+export function pgfCurvilinearTime(points, distance, unitsPerPt = CM_PER_TEX_PT) {
+  return cubicTimeAtDistance(cubicArcLookup(points, unitsPerPt), distance);
+}
+
+// pgfmodulebending shortens the actual cubic interval, including both controls.
+// Reuse the native distance table so the shaft and tip agree, also for negative
+// shortening (which extends the polynomial, not just its endpoint tangent).
+export function shortenCubicCurve(points, distance, side) {
+  const curve = side === "end" ? [...points].reverse() : points;
+  const t = pgfCurvilinearTime(curve, distance);
+  const lerp = (a, b) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const first = curve.slice(0, 3).map((p, i) => lerp(p, curve[i + 1]));
+  const second = [lerp(first[0], first[1]), lerp(first[1], first[2])];
+  const trimmed = [lerp(second[0], second[1]), second[1], first[2], curve[3]];
+  return side === "end" ? trimmed.reverse() : trimmed;
+}
+
+function cubicArcLookup(curve, unitsPerPt) {
+  // pgflibrarycurvilinear approximates one physical pt, then accumulates
+  // chords at t, 2t, 4t and 8t. A more accurate arc integral is not equivalent.
+  const polygonLength = curve.slice(1).reduce((sum, p, i) => sum + Math.hypot(p.x - curve[i].x, p.y - curve[i].y), 0);
+  if (polygonLength < EPSILON) return { curve, samples: [{ t: 0, distance: 0 }] };
+  let step = unitsPerPt / polygonLength;
+  const first = cubicPoint(curve, step);
+  const firstDistance = Math.hypot(first.x - curve[0].x, first.y - curve[0].y);
+  if (firstDistance > unitsPerPt) step *= unitsPerPt / firstDistance;
+  const samples = [{ t: 0, distance: 0 }];
+  let previous = curve[0];
   let distance = 0;
-  for (let index = 1; index <= CURVE_SAMPLES; index += 1) {
-    const t = index / CURVE_SAMPLES;
+  for (const factor of [1, 2, 4, 8]) {
+    const t = factor * step;
     const point = cubicPoint(curve, t);
-    const previous = samples.at(-1).point;
     distance += Math.hypot(point.x - previous.x, point.y - previous.y);
-    samples.push({ t, distance, point });
+    samples.push({ t, distance });
+    previous = point;
   }
-  return { curve, samples, length: distance };
+  return { curve, samples };
+}
+
+function cubicTimeAtDistance({ samples }, distance) {
+  for (let i = 1; i < samples.length; i += 1) {
+    const left = samples[i - 1];
+    const right = samples[i];
+    if (distance < right.distance) {
+      const span = right.distance - left.distance;
+      return left.t + (span > EPSILON ? (distance - left.distance) * (right.t - left.t) / span : 0);
+    }
+  }
+  // The native far-distance branch uses the secant from the origin, not the
+  // slope of the last interval; keep that behavior even beyond the curve.
+  const last = samples.at(-1);
+  return last.distance > EPSILON ? distance * last.t / last.distance : 0;
 }
 
 function cubicAtDistance(lookup, distance) {
-  if (distance < 0) {
-    const tangent = normalizedCubicTangent(lookup.curve, 0);
-    return {
-      point: {
-        x: lookup.curve[0].x + tangent.x * distance,
-        y: lookup.curve[0].y + tangent.y * distance
-      },
-      tangent
-    };
-  }
-  if (distance > lookup.length) {
-    const tangent = normalizedCubicTangent(lookup.curve, 1);
-    const end = lookup.curve[3];
-    return {
-      point: {
-        x: end.x + tangent.x * (distance - lookup.length),
-        y: end.y + tangent.y * (distance - lookup.length)
-      },
-      tangent
-    };
-  }
-  let low = 0;
-  let high = lookup.samples.length - 1;
-  while (low + 1 < high) {
-    const middle = (low + high) >> 1;
-    if (lookup.samples[middle].distance < distance) low = middle;
-    else high = middle;
-  }
-  const left = lookup.samples[low];
-  const right = lookup.samples[high];
-  const span = right.distance - left.distance;
-  const ratio = span > EPSILON ? (distance - left.distance) / span : 0;
-  const t = left.t + (right.t - left.t) * ratio;
-  return { point: cubicPoint(lookup.curve, t), tangent: normalizedCubicTangent(lookup.curve, t) };
+  const t = cubicTimeAtDistance(lookup, distance);
+  return { t, point: cubicPoint(lookup.curve, t), tangent: normalizedCubicTangent(lookup.curve, t) };
 }
 
 function cubicPoint([p0, p1, p2, p3], t) {

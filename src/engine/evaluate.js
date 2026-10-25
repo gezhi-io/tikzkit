@@ -6,6 +6,7 @@ import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
+import { loadsModernArrowDefaults } from "../tikz/libraries/arrows.meta.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
 import { normalizeDecorationTextKeyValue, parseDefaultDecorationTextFormatRuns } from "../tikz/libraries/decorations.text.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
@@ -337,6 +338,7 @@ export function interpretTikz(ast, options = {}) {
     const pictureCanvasTransform = transformCanvasTransform(pictureOptions, pictureTransformEnv);
     const picturePlane = canvasPlaneEnvironment(pictureTransformEnv, pictureOptions, pictureTransform);
     const env = {
+      arrowMetaLoaded: loadsModernArrowDefaults(ast.libraries, picture.packages || ast.packages),
       foreachBudget,
       currentFont: pictureTransformEnv.currentFont,
       variables: { ...baseVariables },

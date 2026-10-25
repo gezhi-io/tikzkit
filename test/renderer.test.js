@@ -637,13 +637,14 @@ test("renders default TikZ to arrow tip close to native PGF size", () => {
 \begin{tikzpicture}
   \draw[->] (0,0) -- (1,0);
 \end{tikzpicture}`);
-  const arrowPath = result.svg.match(/class="tikz-arrow-tip tikz-arrow-to" d="M (-?[0-9.]+) ([0-9.]+)/);
+  const arrowPath = result.svg.match(/class="tikz-arrow-tip tikz-arrow-to" d="M (-?[0-9.]+) (-?[0-9.]+)/);
 
   assert.ok(arrowPath, "expected inline to arrow path");
   const back = Math.abs(Number(arrowPath[1]));
-  const halfWidth = Number(arrowPath[2]);
-  assert.ok(Math.abs(back - lineWidthFromPt(1.196)) < 0.2, `expected native default to arrow back near 1.196pt, got ${back}`);
-  assert.ok(Math.abs(halfWidth - lineWidthFromPt(1.594)) < 0.25, `expected native default to arrow half width near 1.594pt, got ${halfWidth}`);
+  const halfWidth = Math.abs(Number(arrowPath[2]));
+  // No arrows.meta: core to uses d=.28pt+.3*.4pt, not CM Rightarrow.
+  assert.ok(Math.abs(back - lineWidthFromPt(1.2)) < 1e-5);
+  assert.ok(Math.abs(halfWidth - lineWidthFromPt(1.6)) < 1e-5);
 });
 
 test("renders TikZ north east line patterns as SVG pattern fills", () => {
@@ -837,8 +838,11 @@ test("renders TikZ arrow tips as inline paths and shortens stroked path endpoint
   assert.doesNotMatch(svg, /<marker\b/);
   assert.doesNotMatch(svg, /marker-end=/);
   assert.match(svg, /class="tikz-arrowed-path"/);
-  assert.match(svg, /<path d="M 0 0 L 98\.6 0"/);
-  assert.match(svg, /<path class="tikz-arrow-tip tikz-arrow-to"[^>]+C [^>]+transform="translate\(100 0\) rotate\(0\)"/);
+  const coreEnd = 100 - lineWidthFromPt(.21) - .625 * 1.4;
+  const stemEnd = Number(svg.match(/<path d="M 0 0 L ([\d.]+) 0"/)?.[1]);
+  const tipEnd = Number(svg.match(/<path class="tikz-arrow-tip tikz-arrow-to"[^>]+transform="translate\(([\d.]+) 0\)/)?.[1]);
+  assert.ok(Math.abs(stemEnd - coreEnd) < 1e-5);
+  assert.ok(Math.abs(tipEnd - coreEnd) < 1e-5);
   assert.match(
     svg,
     new RegExp(`<path d="M ${formatted(stealthArrowShortenFromLength(stealthArrowLengthFromLineWidth(2.8))).replace(".", "\\.")} -100 L 100 -100"`)
@@ -852,7 +856,7 @@ test("renders TikZ arrow tips as inline paths and shortens stroked path endpoint
   assert.match(svg, /fill="red"/);
 });
 
-test("includes inline arrow tip geometry in the SVG viewBox", () => {
+test("uses the legacy no-hull rule for a core to arrow picture", () => {
   const svg = renderSvg({
     items: [
       {
@@ -869,7 +873,8 @@ test("includes inline arrow tip geometry in the SVG viewBox", () => {
   const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
 
   assert.ok(viewBox);
-  assert.ok(viewBox[3] > 15, `expected the arrow wings, not only the stem width, in the vertical bounds: ${viewBox}`);
+  // Native pgfcorearrows caches qstroke with picture tracking disabled.
+  assert.ok(Math.abs(viewBox[3] - lineWidthFromPt(.8)) < 1e-5);
 });
 
 test("uses the arrows.meta Latex geometry for thick paths", () => {
@@ -943,7 +948,8 @@ test("inverts an arrows.meta start sequence before applying separation", () => {
     .map((match) => Number(match[1]));
 
   assert.equal(tipXs.length, 2);
-  assert.ok(Math.abs(tipXs[1] - lineWidthFromPt(1.5)) < 0.01, `expected the source-first tip at the start terminal, got ${tipXs}`);
+  // A literal > at the start points inward, unlike the <- shorthand.
+  assert.ok(Math.abs(tipXs[1] - lineWidthFromPt(4.3)) < 0.01, `expected reversed native backend plus source-first sep, got ${tipXs}`);
   assert.ok(Math.abs((tipXs[0] - tipXs[1]) - lineWidthFromPt(5.8)) < 0.01, `expected reversed 3.8pt + 2pt spacing, got ${tipXs}`);
 });
 
@@ -1050,11 +1056,11 @@ test("scales default to arrow tips from IR with the current line width", () => {
   });
   const tipPath = svg.match(/<path class="tikz-arrow-tip tikz-arrow-to"[^>]+d="([^"]+)"/)?.[1];
   assert.ok(tipPath, "expected inline to arrow path");
-  const start = tipPath.match(/^M (-?[\d.]+) ([\d.]+)/);
+  const start = tipPath.match(/^M (-?[\d.]+) (-?[\d.]+)/);
   assert.ok(start, `expected movable to arrow path, got ${tipPath}`);
 
-  assert.ok(Math.abs(Number(start[1]) + lineWidthFromPt(3.027441)) < 0.01, `expected TikZ-like arrow back, got ${start[1]}`);
-  assert.ok(Math.abs(Number(start[2]) - lineWidthFromPt(3.831243)) < 0.01, `expected TikZ-like arrow height, got ${start[2]}`);
+  assert.ok(Math.abs(Number(start[1]) + lineWidthFromPt(1.92)) < 1e-5);
+  assert.ok(Math.abs(Number(start[2]) + lineWidthFromPt(2.56)) < 1e-5);
 });
 
 test("uses TikZ butt caps on dashed arrow stems while keeping arrow tips rounded", () => {

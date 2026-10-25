@@ -454,7 +454,18 @@ export function normalizeOptions(command, rawOptions, env) {
     if (style.dashArray) style.dashLineCap = "butt";
   }
 
+  resolveToAliases(style, env);
   return { style, semantic, options: expanded };
+}
+
+function resolveToAliases(style, env = {}) {
+  const resolve = tip => {
+    if (tip?.kind === "sequence") return { ...tip, tips: tip.tips.map(resolve) };
+    if (!tip?.toAlias) return tip;
+    return { ...tip, legacy: !env.arrowMetaLoaded, meta: Boolean(env.arrowMetaLoaded) };
+  };
+  for (const key of ["markerStart", "markerEnd"]) if (style[key]) style[key] = resolve(style[key]);
+  return style;
 }
 
 function substituteDynamicOptionValues(options, variables) {
@@ -507,19 +518,19 @@ function applyCurrentColor(style, color, command) {
   style.stroke = color;
 }
 
-export function arrowTipsFromOptions(rawOptions = {}) {
+export function arrowTipsFromOptions(rawOptions = {}, env = {}) {
   const defaultArrowTip = parseDefaultArrowTip(rawOptions);
   const hints = {};
   for (const [key, value] of Object.entries(rawOptions || {})) {
     const arrowHints = parseArrowOption(key, value, defaultArrowTip);
     if (arrowHints) Object.assign(hints, arrowHints);
   }
-  return hints;
+  return resolveToAliases(hints, env);
 }
 
 export function edgeStyleHintsFromOptions(rawOptions = {}, env) {
   const { style, options } = normalizeOptions("draw", rawOptions, env);
-  const hints = arrowTipsFromOptions(options);
+  const hints = arrowTipsFromOptions(options, env);
   for (const [key, value] of Object.entries(options || {})) {
     if (optionSetsStroke(key, value)) hints.stroke = style.stroke;
     if (optionSetsFill(key)) hints.fill = style.fill;
@@ -580,7 +591,7 @@ function parseDashLength(value, currentLineWidth) {
 }
 
 function parseDefaultArrowTip(options = {}) {
-  return options[">"] ? parseArrowTipSpec(String(options[">"])) : createArrowTip("to");
+  return options[">"] ? parseArrowTipSpec(String(options[">"])) : createArrowTip("To");
 }
 
 function parseArrowOption(key, value, defaultArrowTip) {
@@ -622,6 +633,7 @@ function parseArrowOption(key, value, defaultArrowTip) {
 }
 
 const ARROW_TIP_SEQUENCE_NAMES = [
+  "to reversed",
   "Computer Modern Rightarrow",
   "Classical TikZ Rightarrow",
   "open triangle 90 reversed",
@@ -775,7 +787,7 @@ export function parseArrowTipSpec(input) {
 
 function parseArrowTipAtom(input, inheritedOptions = {}) {
   const text = String(input || "").trim();
-  const match = text.match(/^([A-Za-z0-9>'()\s-]+)(?:\[([\s\S]*)\])?$/);
+  const match = text.match(/^([A-Za-z0-9><'()\s-]+)(?:\[([\s\S]*)\])?$/);
   if (!match) return createArrowTip(text);
   const sourceName = match[1].trim();
   const aliasDefaults = sourceName === "Parenthesis"
@@ -938,7 +950,7 @@ function parseArrowTipSequence(text) {
     const localOptions = readArrowTipOptionGroup(text, cursor);
     const options = localOptions ? parseOptions(localOptions.content) : {};
     if (localOptions) cursor = localOptions.end;
-    tips.push(parseArrowTipAtom(`${name === "<" ? ">" : name}`, { ...inheritedOptions, ...options }));
+    tips.push(parseArrowTipAtom(name, { ...inheritedOptions, ...options }));
   }
 
   return tips.length > 1 ? { kind: "sequence", tips } : null;

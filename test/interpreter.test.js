@@ -4987,7 +4987,10 @@ test("tikzToSvg emits svg path, inline arrow tip, y-axis flip, and diagnostics f
   assert.match(result.svg, /stroke-dasharray=/);
   assert.doesNotMatch(result.svg, /marker-end=/);
   assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-to"/);
-  assert.match(result.svg, /L 99\.[0-9]+ -99\.[0-9]+/);
+  const endpoint = result.svg.match(/L ([\d.]+) (-[\d.]+)/);
+  const nativeEnd = 100 - lineWidthFromPt(.21 + .625 * .4) / Math.SQRT2;
+  assert.ok(Math.abs(Number(endpoint[1]) - nativeEnd) < 1e-5);
+  assert.ok(Math.abs(Number(endpoint[2]) + nativeEnd) < 1e-5);
   assert.equal(result.diagnostics.some((d) => d.severity === "warning"), true);
 });
 

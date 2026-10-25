@@ -1,0 +1,14 @@
+{
+  "cases": [
+    { "id": "core-to-package-circuitikz", "source": "package-circuitikz.tex", "title": "CircuitikZ imports modern arrows", "arrowGeometry": true },
+    { "id": "core-to-package-tkz-euclide", "source": "package-tkz-euclide.tex", "title": "tkz-euclide imports modern arrows", "arrowGeometry": true },
+    { "id": "core-to-modern-options", "source": "modern-options.tex", "title": "Modern To source options", "arrowGeometry": true },
+    { "id": "core-to-bending-default", "source": "bending-default.tex", "title": "Bending preserves the core default", "arrowGeometry": true },
+    { "id": "core-to-widths", "source": "widths.tex", "title": "Default arrows at native pen widths", "arrowGeometry": true },
+    { "id": "core-to-sequences", "source": "sequences.tex", "title": "Start and end arrow assembly", "arrowGeometry": true },
+    { "id": "core-to-directions", "source": "directions.tex", "title": "Rotated, reversed and shortened arrows", "arrowGeometry": true },
+    { "id": "core-to-crop", "source": "crop.tex", "title": "Legacy quick-paint picture bounds", "arrowGeometry": true },
+    { "id": "datavis-school-book-ticks", "source": "../datavis-failure-audit/school-book-ticks.tex", "title": "School-book axis arrow control", "axisFrame": "datavis-middle" },
+    { "id": "commutative-diagram", "source": "../examples/latex-examples/commutative-diagram.tex", "title": "Real node-to-node arrow control" }
+  ]
+}

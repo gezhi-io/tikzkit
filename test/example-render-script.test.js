@@ -14,11 +14,21 @@ import {
   renderExampleFixtures,
   renderNativeMacTeXPng,
   selectActiveFigureSource,
-  tikztosvgPreambleInputNames
+  tikztosvgPreambleInputNames,
+  tikztosvgArrowDefaultReset
 } from "../scripts/render-example-fixtures.js";
 import { encodePng } from "../scripts/diff-example-pngs.js";
 import { tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { fontManifest } from "../src/fonts/manifest.js";
+
+test("tikztosvg restores the source arrow default after its extra tikz-cd import", () => {
+  assert.equal(tikztosvgArrowDefaultReset(String.raw`\usepackage{tikz}\draw[->](0,0)--(1,0);`), String.raw`\pgfkeys{To/.tip=to}`);
+  assert.equal(tikztosvgArrowDefaultReset(String.raw`\usetikzlibrary{bending}`), String.raw`\pgfkeys{To/.tip=to}`);
+  for (const preamble of [String.raw`\usetikzlibrary{arrows.meta}`, String.raw`\usepackage{tikz-cd}`,
+    String.raw`\usepackage{circuitikz}`, String.raw`\usepackage{tkz-euclide}`, String.raw`\usepackage{tkz-fct}`]) {
+    assert.equal(tikztosvgArrowDefaultReset(preamble), "");
+  }
+});
 
 test("example fixture renderer writes TikZKit and tikztosvg artifacts from manifest cases", async () => {
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-examples-"));

@@ -19,7 +19,8 @@ import { renderUnitScale, scaleStyleForRenderUnit } from "./layout.js";
 import { svgPathData as pathData } from "./pathData.js";
 import { styleAttributes } from "./style.js";
 import { includePathCommandBounds } from "../../scene/index.js";
-import { curvedArrowPaint, curvedArrowTransformAttribute } from "./arrowBending.js";
+import { curvedArrowPaint, curvedArrowTransformAttribute, shortenCubicCurve } from "./arrowBending.js";
+import { computerModernArrowGeometry } from "../../tikz/libraries/arrows.meta.js";
 import {
   legacyCircleArrowMetrics,
   legacyCapArrowMetrics,
@@ -32,6 +33,7 @@ import {
   legacySideToArrowMetrics,
   legacySquareArrowMetrics,
   legacyTriangleArrowMetrics,
+  legacyToArrowMetrics,
   resolveDeclaredArrowGeometry
 } from "../../tikz/libraries/arrows.js";
 import {
@@ -105,11 +107,13 @@ export function renderArrowedPath(item, unit) {
   const terminal = pathTerminalSegments(item.commands || []);
   const startTips = style.markerStart ? resolveInlineArrowTipSequence(style.markerStart, style, "start") : [];
   const endTips = style.markerEnd ? resolveInlineArrowTipSequence(style.markerEnd, style, "end") : [];
+  const precise = { start: startTips.some(tip => tip.bending), end: endTips.some(tip => tip.bending) };
   const explicitCommands = shortenPathTerminals(
     item.commands || [],
     terminal,
     (Number(style.shortenStart) || 0) / unit,
-    (Number(style.shortenEnd) || 0) / unit
+    (Number(style.shortenEnd) || 0) / unit,
+    precise
   );
   const placedTerminal = pathTerminalSegments(explicitCommands);
   const startShorten = startTips.length && placedTerminal.first?.shortenable
@@ -118,7 +122,7 @@ export function renderArrowedPath(item, unit) {
   const endShorten = endTips.length && placedTerminal.last?.shortenable
     ? resolvedArrowSequenceShortening(endTips) / unit
     : 0;
-  const commands = shortenPathTerminals(explicitCommands, placedTerminal, startShorten, endShorten);
+  const commands = shortenPathTerminals(explicitCommands, placedTerminal, startShorten, endShorten, precise);
   const pathStyle = { ...style, markerStart: undefined, markerEnd: undefined };
   const pieces = [
     pathStyle.doubleColor !== undefined
@@ -170,8 +174,12 @@ export function resolveInlineArrowTipSequence(rawTip, style = {}, side = "end") 
       continue;
     }
     if (!token?.tip) continue;
+    // Explicit symbolic tips keep their written direction: a `>` on the
+    // start of a path points inward. Named tips and the `<-` shorthand do not.
+    const reverseSymbol = token.tip.symbolicDirection === (side === "start" ? ">" : "<");
+    const rawTip = reverseSymbol ? { ...token.tip, reversed: !token.tip.reversed } : token.tip;
     resolved.push({
-      ...resolveInlineArrowTip(token.tip, style),
+      ...resolveInlineArrowTip(rawTip, style),
       lineEndBreakBefore: afterLineEnd
     });
   }
@@ -376,19 +384,29 @@ function terminalSegment(start, end, startIndex, commandIndex, shortenable, star
   };
 }
 
-export function shortenPathTerminals(commands, terminal, startAmount, endAmount) {
+export function shortenPathTerminals(commands, terminal, startAmount, endAmount, precise = {}) {
   if (!startAmount && !endAmount) return commands;
   const adjusted = commands.map((command) => ({ ...command }));
+  const trimCurve = (segment, distance, side) => {
+    if (!segment) return Boolean(precise[side] && distance);
+    if (!precise[side] || !distance || adjusted[segment.commandIndex].type !== "curveTo") return false;
+    const [start, c1, c2, end] = shortenCubicCurve(
+      [segment.start, segment.startControl, segment.endControl, segment.end], distance, side);
+    Object.assign(adjusted[segment.startIndex], start);
+    Object.assign(adjusted[segment.commandIndex], end, { x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y });
+    return true;
+  };
   if (startAmount && terminal.first) {
     const command = adjusted[terminal.first.startIndex];
-    if (command && Number.isFinite(command.x) && Number.isFinite(command.y)) {
+    if (!trimCurve(terminal.first, startAmount, "start") && command && Number.isFinite(command.x) && Number.isFinite(command.y)) {
       command.x += (terminal.first.startUx ?? terminal.first.ux) * startAmount;
       command.y += (terminal.first.startUy ?? terminal.first.uy) * startAmount;
     }
   }
   if (endAmount && terminal.last) {
     const command = adjusted[terminal.last.commandIndex];
-    if (command && Number.isFinite(command.x) && Number.isFinite(command.y)) {
+    const segment = startAmount && precise.start ? pathTerminalSegments(adjusted).last : terminal.last;
+    if (!trimCurve(segment, endAmount, "end") && command && Number.isFinite(command.x) && Number.isFinite(command.y)) {
       command.x -= (terminal.last.endUx ?? terminal.last.ux) * endAmount;
       command.y -= (terminal.last.endUy ?? terminal.last.uy) * endAmount;
     }
@@ -445,6 +463,7 @@ export function resolveInlineArrowTip(tip, style = {}) {
   const legacySideTo = isLegacySideToTip(raw.kind);
   const openTip = [
     "to",
+    "to-reversed",
     "hook",
     "two-heads",
     "open-circle",
@@ -562,6 +581,37 @@ export function usesCustomArrowDimension(source = {}, raw = {}, key) {
 export function inlineArrowGeometry(tip, style = {}, flags = {}) {
   const lineWidth = Math.max(0.01, style.lineWidth ?? 1);
   const lineWidthPt = lineWidth / lineWidthFromPt(1);
+  if ((tip.kind === "to" && tip.legacy) || tip.kind === "to-reversed") {
+    const metrics = legacyToArrowMetrics(tip.kind, lineWidth);
+    if (tip.reversed) Object.assign(metrics, {
+      reflect: true, backEnd: -metrics.tipEnd, tipEnd: -metrics.backEnd,
+      placement: -metrics.backEnd, terminalPlacement: -metrics.backEnd
+    });
+    return { ...spacedLegacyArrowInlineGeometry(metrics), includeBounds: false };
+  }
+  if (tip.kind === "to") {
+    const inner = style.doubleColor !== undefined ? Number(style.doubleDistance) || lineWidthFromPt(.6) : 0;
+    const constant = value => ({ dimension: value, lineWidthFactor: 0, outerFactor: 0 });
+    const native = computerModernArrowGeometry(inner ? 2 * lineWidth + inner : lineWidth, {
+      ...tip, innerLineWidth: inner,
+      lengthSpec: tip.lengthSpec || (flags.customLength ? constant(tip.length) : undefined),
+      widthSpec: tip.widthSpec || (flags.customWidth ? constant(tip.width) : undefined),
+      lineWidthSpec: tip.lineWidthSpec || (flags.customLineWidth ? constant(tip.lineWidth) : undefined)
+    });
+    const p = native.points.map(point => `${format(point.x)} ${format(-point.y)}`);
+    const tail = native.axialPoint ? `L ${format(native.axialPoint.x)} ${format(-native.axialPoint.y)}`
+      : `C ${p[4]} ${p[5]} ${p[6]}`;
+    const path = `M ${p[0]} C ${p[1]} ${p[2]} ${p[3]} ${tail}`;
+    if (!tip.slant) return { ...native, path };
+    // PGF shears the cached arrow object, including its pen. Retain transformed
+    // geometry for bounds/bending, but use an SVG matrix for rigid paint.
+    const unslant = point => `${format(point.x - tip.slant * point.y)} ${format(-point.y)}`;
+    const paint = native.points.map(unslant);
+    const paintTail = native.axialPoint ? `L ${unslant(native.axialPoint)}`
+      : `C ${paint[4]} ${paint[5]} ${paint[6]}`;
+    return { ...native, path, paintSlant: -tip.slant,
+      paintPath: `M ${paint[0]} C ${paint[1]} ${paint[2]} ${paint[3]} ${paintTail}` };
+  }
   const arrowMetaScale = (key) => {
     if (!tip.meta) return 1;
     const scale = Number(tip[key]);
@@ -1186,7 +1236,7 @@ function spacedLegacyArrowInlineGeometry(metrics) {
   const u = metrics.unit;
   const reflect = metrics.reversed ? -1 : 1;
   const point = (x, y) => `${format(reflect * x * u)} ${format(-y * u)}`;
-  const sourcePoint = (x, y) => `${format(x * u)} ${format(-y * u)}`;
+  const sourcePoint = (x, y) => `${format((metrics.reflect ? -x : x) * u)} ${format(-y * u)}`;
   let path;
 
   if (metrics.family === "to") {
@@ -1477,11 +1527,13 @@ export function renderInlineArrowTip(tip, point, angle, unit, curveContext = {})
       (Number.isFinite(tip.fillOpacity) ? ` fill-opacity="${format(tip.fillOpacity)}"` : "");
     const modeClass = curved ? ` tikz-arrow-${escapeAttribute(curved.mode)}` : "";
     const partClass = part.name ? ` tikz-arrow-part-${escapeAttribute(part.name)}` : "";
-    const path = curved?.path || part.path;
+    const path = curved?.path || (part.path === tip.geometry.path ? tip.geometry.paintPath : undefined) || part.path;
     const localScaleX = Number(curveContext.localScaleX) === -1 ? " scale(-1 1)" : "";
+    const localSlant = tip.geometry.paintSlant
+      ? ` matrix(1 0 ${format(tip.geometry.paintSlant)} 1 0 0)` : "";
     const transform = curved
       ? curvedArrowTransformAttribute(curved)
-      : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})${localScaleX}"`;
+      : ` transform="translate(${format(point.x * unit)} ${format(-point.y * unit)}) rotate(${format(angle)})${localScaleX}${localSlant}"`;
     return `<path class="tikz-arrow-tip tikz-arrow-${escapeAttribute(tip.kind)}${modeClass}${partClass}" d="${path}" fill="${escapeAttribute(fill)}"${strokePart}${lineStyle}${opacity}${transform} />`;
   }).join("");
 }
