@@ -168,11 +168,12 @@ export function layoutNativeText(text, font = {}) {
   const weight = String(font.weight ?? 400);
   const typewriter = nativeTypewriterFont(font);
   if (!source || /[\\${}\r\n]/.test(source) || !size ||
-      (!typewriter && !/^(?:serif|TikZKitCMR\d+|TikZKitCMUSerif)(?:,|$)/.test(family)) ||
+      (!typewriter && !/^(?:serif|TikZKitCM(?:R|BX)\d+|TikZKitCMUSerif)(?:,|$)/.test(family)) ||
       (typewriter && !["normal", "400"].includes(weight)) ||
       !["normal", "400", "bold", "700"].includes(weight) ||
       (font.style && font.style !== "normal") || (font.variant && font.variant !== "normal")) return null;
-  const metrics = nativeMathFont(typewriter ? "CMTT" : ["bold", "700"].includes(weight) ? "CMBX" : "CMR", size);
+  const bold = ["bold", "700"].includes(weight) || /^TikZKitCMBX/.test(family);
+  const metrics = nativeMathFont(typewriter ? "CMTT" : bold ? "CMBX" : "CMR", size);
   const chars = [];
   for (const char of source) {
     const ligature = metrics.ligatures[chars.at(-1)]?.[char];

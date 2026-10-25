@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText } from "./helpers/native-math-svg.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseArrowTipSpec } from "../src/engine/options.js";
@@ -164,7 +165,7 @@ test("renders the Tee Barb flowchart, interval, and vector fixture without diagn
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal((result.svg.match(/tikz-arrow-tee-barb/g) || []).length, 7);
-  assert.match(result.svg, /sample/);
-  assert.match(result.svg, /accept/);
-  assert.match(result.svg, /reset/);
+  assertNativePlainText(result.svg, "sample");
+  assertNativePlainText(result.svg, "accept");
+  assertNativePlainText(result.svg, "reset");
 });

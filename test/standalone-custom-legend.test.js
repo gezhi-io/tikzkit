@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText } from "./helpers/native-math-svg.js";
 import { readFile, mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -39,6 +40,6 @@ test("renders the actual standalone PGFPlots custom legend in the dependency gra
   const [entry] = summary.cases;
   assert.deepEqual(entry.diagnostics, []);
   const svg = await readFile(path.join(outputRoot, entry.tikzkitSvg), "utf8");
-  assert.match(svg, /Pflichtmodul/);
+  assertNativePlainText(svg, "Pflichtmodul");
   assert.match(svg, /Harte Abhängigkeit/);
 });

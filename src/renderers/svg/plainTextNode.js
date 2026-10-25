@@ -145,8 +145,6 @@ export function renderPlainTextNode(item, normalized, unit, deps = {}) {
 }
 
 export function renderPlainTextNodeWithTextEngine(item, normalized, unit, options = {}) {
-  const native = nativePlainTextBox(item, normalized);
-  if (native) return renderNativeTextBox(item, native, unit, normalized.color || item.style?.fill);
   const textEngine = options.textEngine;
   if (!textEngine || typeof textEngine.measure !== "function" || typeof textEngine.renderFromCache !== "function") return "";
   const wrapWidth = Number(item.wrapWidth);
@@ -194,7 +192,8 @@ export function renderPlainTextNodeWithTextEngine(item, normalized, unit, option
     return "";
   }
   if (!payload?.body) return "";
-  const verticalOffset = plainTextVisualCenterOffset(item, unit);
+  const verticalOffset = metrics.measurementKind === "cm-text-box" || metrics.measurementKind === "cm-tex-box"
+    ? 0 : plainTextVisualCenterOffset(item, unit);
   const horizontalOffset = cachedPlainTextHorizontalOffset(item, align, payload);
   const x = svgTextAnchorForItem(item) ? svgTextAnchorX(item, unit) : item.x * unit;
   return `<g class="tikz-text-engine-cache" transform="translate(${format(x + horizontalOffset)} ${format(-item.y * unit + verticalOffset)})">${payload.body}</g>`;
@@ -304,15 +303,29 @@ export function estimatePlainTextRenderBounds(item, normalized, unit, deps = {})
 export function nativePlainTextBox(item, normalized) {
   const paragraph = nativeWrappedParagraphBox(item, normalized);
   if (paragraph) return paragraph;
+  // Normalization unwraps minipage, but a literal hbox cannot represent its
+  // declared width. Leave unmeasured paragraph wrappers on the fallback path.
+  if (/\\begin\{minipage\}/.test(String(item.text || ""))) return null;
+  const inherited = resolvedFontStyle(item);
+  const font = { ...item.font,
+    sizePt: 10 * (Number(normalized.scale) || 1) * textFontScale(item, normalized),
+    family: resolvedFontFamily(item, normalized),
+    weight: normalized.fontWeight || inherited.fontWeight || 400,
+    style: normalized.fontStyle || inherited.fontStyle || "normal",
+    variant: normalized.fontVariant || inherited.fontVariant || "normal"
+  };
   if (!item.wrapWidth && !item.fitBox &&
       !(item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) {
-    const lines = layoutMultilineTeXText(normalized, item.font, normalizedTextAlign(item.textAlign));
+    const lines = layoutMultilineTeXText(normalized, font, normalizedTextAlign(item.textAlign));
     if (lines) return lines;
   }
-  const typewriter = nativeTypewriterFont(item.font);
-  if ((!item.style?.preferNativeText && !typewriter && !normalized.inlineNodes?.length) || item.wrapWidth || item.fitBox ||
+  // PGF centers the text hbox using (height - depth)/2. SVG's middle baseline
+  // instead uses x-height, so literal labels must share the measured CM box.
+  const literal = normalized.raw === normalized.text && normalized.lines?.length === 1;
+  const typewriter = nativeTypewriterFont(font);
+  if ((!literal && !item.style?.preferNativeText && !typewriter && !normalized.inlineNodes?.length) || item.wrapWidth || item.fitBox ||
       (item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) return null;
-  return layoutNativeTextRun(normalized, item.font);
+  return layoutNativeTextRun(normalized, font);
 }
 
 function renderNativeTextBox(item, box, unit, color) {

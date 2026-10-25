@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText, nativeTextGroups } from "./helpers/native-math-svg.js";
 import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -276,8 +277,8 @@ test("example fixture renderer can select an active tikzpicture for TikZKit and 
   const html = await readFile(path.join(outputRoot, "index.html"), "utf8");
 
   assert.equal(summary.cases[0].activeFigureId, "figure:1");
-  assert.match(tikzkitSvg, /Second/);
-  assert.doesNotMatch(tikzkitSvg, /First/);
+  assertNativePlainText(tikzkitSvg, "Second");
+  assert.ok(nativeTextGroups(tikzkitSvg).every(group => group.text !== "First"));
   assert.match(tikztosvgInput, /Second/);
   assert.match(tikztosvgInput, /\\begin\{scope\}\[reset cm,overlay,opacity=0\][\s\S]*First/);
   assert.match(html, /active figure: figure:1/);

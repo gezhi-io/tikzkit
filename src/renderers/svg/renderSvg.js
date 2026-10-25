@@ -34,6 +34,7 @@ import { renderMiscOutNodeBox, renderNodeBoxWithOverlay } from "./nodeOverlays.j
 import { renderPathElement, renderPathWithShadows, renderStandaloneArrowMarker } from "./paths.js";
 import { hasRenderableFormOnlyPattern, renderFormOnlyPatternFill } from "./formOnlyPatterns.js";
 import { nativePlainTextBox, renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
+import { isSvgTextEngine } from "./textEngine.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
 import { renderRichTextNode } from "./richTextNode.js";
 import {
@@ -195,6 +196,8 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
     if (isEmptyNormalizedTikzText(normalized)) return "";
     if (normalized.kind === "image") return renderImagePlaceholder(item, normalized, unit);
     const math = parseMathText(normalized.text);
+    const customText = !math && options.textEngine && !isSvgTextEngine(options.textEngine)
+      ? renderPlainTextNodeWithTextEngine(item, normalized, unit, options) : "";
     let rendered;
     if (math) {
       const mathScale = (normalized.scale || 1) * (math.scale || 1);
@@ -212,6 +215,11 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
         { fitFontSizeToBox }
       );
     }
+    // A supplied engine owns both measurement and paint, including plain text
+    // that the built-in Computer Modern renderer could otherwise handle.
+    else if (customText) {
+      rendered = customText;
+    }
     else if (nativePlainTextBox(item, normalized)) {
       rendered = renderPlainTextNode(item, normalized, unit);
     }
@@ -219,8 +227,7 @@ function renderItemContent(item, unit, options = {}, index = 0, pageOrigin = { x
       rendered = renderRichTextNode(item, normalized, unit, { fitFontSizeToBox, formatTextLine, renderSvgTextLineContent });
     }
     else {
-      rendered =
-        renderPlainTextNodeWithTextEngine(item, normalized, unit, options) ||
+      rendered = renderPlainTextNodeWithTextEngine(item, normalized, unit, options) ||
         renderPlainTextNode(item, normalized, unit, { fitFontSizeToBox, formatTextLine, renderSvgTextLineContent });
     }
     rendered = applyTextContour(rendered, normalized.raw || item.text);

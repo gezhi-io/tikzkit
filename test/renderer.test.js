@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
+import { assertNativePlainText, assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
@@ -368,23 +368,26 @@ test("renders stable svg for paths, text nodes, circles, and markers", () => {
   assert.match(svg, /viewBox="-10\.5 -110\.5 145\.5 145\.5"/);
   assert.match(svg, /<path d="M 0 0 L 100 -100"/);
   assert.match(svg, /<circle cx="100" cy="0" r="25"/);
-  assert.match(svg, /<text x="50" y="-50"/);
-  assert.match(svg, /font-family="TikZKitCMUSerif, 'CMU Serif', serif"/);
+  const label = assertNativePlainText(svg, "Hi");
+  // MacTeX CMR10 hbox{Hi}: width=10.2778pt, height=6.8333pt, depth=0pt.
+  assert.ok(Math.abs(label.x + 10.2778 * label.scale / 2 - 50) < .001);
+  assert.ok(Math.abs(label.y - 6.8333 * label.scale / 2 + 50) < .001);
+  assert.ok(label.glyphs.every(g => g.family === "TikZKitCMR10"));
   assert.match(svg, /M -6 -5 L 6 0 L -6 5 z/);
   assert.match(svg, /transform="translate\(50 -50\) rotate\(-45\)"/);
 });
 
-test("embeds the namespaced CMU default font layer for SVG text", () => {
+test("embeds the selected MacTeX CMR design font for literal SVG text", () => {
   const svg = renderSvg(
     { items: [{ type: "textNode", x: 0, y: 0, text: "A", style: { fill: "black" } }], coordinates: {} },
     { margin: 0, fontUrlPrefix: "../fonts/" }
   );
 
   assert.match(svg, /class="tikzkit-default-font-style"/);
-  assert.match(svg, /font-family:TikZKitCMUSerif/);
+  assert.match(svg, /font-family:TikZKitCMR10/);
   assert.doesNotMatch(svg, /font-family:TikZKitCMUSans/);
-  assert.match(svg, /url\('\.\.\/fonts\/TikZKitCMUSerif-Regular\.woff'\)/);
-  assert.match(svg, /font-family="TikZKitCMUSerif, 'CMU Serif', serif"/);
+  assert.match(svg, /url\('\.\.\/fonts\/TikZKitCMR10-Regular\.woff'\)/);
+  assertNativePlainText(svg, "A");
   assert.doesNotMatch(svg, /font-family="KaTeX_Main/);
 });
 
@@ -2580,7 +2583,14 @@ test("uses rendered TeX text metrics for plain SVG text viewBox bounds", () => {
   const viewBox = svg.match(/viewBox="([^"]+)"/)?.[1].split(/\s+/).map(Number);
 
   assert.ok(viewBox, "expected SVG viewBox");
-  assert.ok(viewBox[2] >= 170 && viewBox[2] <= 180, `expected scaled Computer Modern text width to be included, got ${viewBox.join(" ")}`);
+  // Independent native-node-text-metrics.tex: hbox{measurements}, CMR10.
+  const width = 61.52788 * 100 / 28.4527559;
+  const height = 6.15079 * 100 / 28.4527559;
+  assert.ok(Math.abs(viewBox[2] - width) < .001);
+  assert.ok(Math.abs(viewBox[3] - height) < .001);
+  const group = assertNativePlainText(svg, "measurements");
+  assert.ok(Math.abs(group.x - viewBox[0]) < .001);
+  assert.ok(Math.abs(group.y - (viewBox[1] + viewBox[3])) < .001);
 });
 
 test("inherits tikzpicture nodes text width and alignment", () => {
@@ -2810,7 +2820,7 @@ test("adds TeX-like operator spacing in scripted SVG math fallback labels", () =
   assert.doesNotMatch(svg, />y=A\(x-a\)<\/tspan>/);
 });
 
-test("renders mixed text and TeX arrows compactly in SVG text fallback", () => {
+test("renders mixed text and TeX arrow subscripts with native glyph sizes", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`LSTM$_\leftarrow$`, style: { fill: "black" } }],
@@ -2819,12 +2829,15 @@ test("renders mixed text and TeX arrows compactly in SVG text fallback", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /LSTM<tspan[^>]+font-size="[^"]+"[^>]+baseline-shift="sub">←<\/tspan>/);
+  const group = assertNativePlainText(svg, "LSTM←");
+  assert.ok(group.glyphs.slice(0, 4).every(g => g.size === 10 && g.y === 0));
+  assert.equal(group.glyphs[4].size, 7);
+  assert.ok(group.glyphs[4].y > 0);
   assert.doesNotMatch(svg, /LSTM_/);
   assert.doesNotMatch(svg, /leftarrow|rightarrow/);
 });
 
-test("renders leading inline math scripts as small shifted tspans", () => {
+test("renders leading inline math scripts below the native text baseline", () => {
   const svg = renderSvg(
     {
       items: [{ type: "textNode", x: 0, y: 0, text: String.raw`LSTM$_\rightarrow$`, style: { fill: "black" } }],
@@ -2833,7 +2846,10 @@ test("renders leading inline math scripts as small shifted tspans", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /LSTM<tspan[^>]+font-size="[^"]+"[^>]+baseline-shift="sub">→<\/tspan>/);
+  const group = assertNativePlainText(svg, "LSTM→");
+  assert.ok(group.glyphs.slice(0, 4).every(g => g.size === 10 && g.y === 0));
+  assert.equal(group.glyphs[4].size, 7);
+  assert.ok(group.glyphs[4].y > 0);
   assert.doesNotMatch(svg, />LSTM→</);
 });
 
@@ -2949,7 +2965,8 @@ test("uses TikZ-like text scale for SVG text fallbacks", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(plain, new RegExp(`font-size="${formatted(lineWidthFromPt(10))}"`));
+  const prose = assertNativePlainText(plain, "Agent");
+  assert.ok(prose.glyphs.every(g => Math.abs(g.size * prose.scale - lineWidthFromPt(10)) < 1e-5));
   const group = assertNativeText(math, "I12");
   assert.ok(Math.abs(group.glyphs[0].size * group.scale - lineWidthFromPt(10)) < 1e-5);
 });

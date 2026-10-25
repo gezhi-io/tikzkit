@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText, nativeTextGroups } from "./helpers/native-math-svg.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { tikzToSvg } from "../src/index.js";
@@ -30,12 +31,15 @@ test("renders automata state, accepting double outline, and directional initial 
   assert.ok(below[0].y < below[1].y);
   assert.ok(Math.abs(below[0].y - below[1].y) > Math.abs(above[0].y - above[1].y));
   assert.match(result.svg, /class="tikz-bpmn-double"/);
-  assert.match(result.svg, />entry<\/text>/);
+  assertNativePlainText(result.svg, "entry");
   assert.match(result.svg, /class="tikz-arrowed-path"/);
 
   const browserResult = tikzToSvg(readFileSync(FIXTURE, "utf8"));
-  assert.match(browserResult.svg, /text-anchor="end"[^>]*>start<\/text>/);
-  assert.match(browserResult.svg, /text-anchor="start"[^>]*>entry<\/text>/);
+  const starts = nativeTextGroups(browserResult.svg).filter(group => group.text === "start");
+  const entry = assertNativePlainText(browserResult.svg, "entry");
+  assert.equal(starts.length, 3);
+  assert.ok(starts[0].x < initialLabels[0].x * 100, "left-side label extends away from its end anchor");
+  assert.ok(Math.abs(entry.x - initialLabels[1].svgTextX * 100) < .001);
 
   const withoutDefaultLabel = tikzToSvg(String.raw`
     \begin{tikzpicture}

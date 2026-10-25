@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertNativeText } from "./helpers/native-math-svg.js";
+import { assertNativePlainText, assertNativeText } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
 import { tikzBaguaExtension, tikzThreeDPlotExtension } from "../src/internal.js";
@@ -5029,14 +5029,13 @@ data {
 
   const svg = tikzToSvg(source, { mathRenderer: "svg-text" }).svg;
   const viewBoxMatch = svg.match(/\bviewBox="([^"]+)"/);
-  const textMatch = svg.match(/<text x="([-\d.]+)"[^>]*text-anchor="start"[^>]*>1 cm per decade<\/text>/);
+  const label = assertNativePlainText(svg, "1 cm per decade");
 
   assert.ok(viewBoxMatch, "expected rendered SVG to include a viewBox");
-  assert.ok(textMatch, "expected west-anchored datavis legend text");
 
   const [viewX, , viewWidth] = viewBoxMatch[1].split(/\s+/).map(Number);
   const viewRight = viewX + viewWidth;
-  const textX = Number(textMatch[1]);
+  const textX = label.x;
 
   assert.ok(
     viewRight > textX + 220,

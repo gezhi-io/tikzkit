@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText } from "./helpers/native-math-svg.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -128,8 +129,15 @@ test("aligns supported fixed pgfplotstable values on one decimal anchor", () => 
   assert.ok(leading.every((item) => item.x === leading[0].x));
   assert.ok(trailing.every((item) => item.x === trailing[0].x));
   assert.ok(leading.every((item, index) => item.x === trailing[index].x));
-  assert.match(result.svg, /text-anchor="end"/);
-  assert.match(result.svg, /text-anchor="start"/);
+  leading.forEach((item, index) => {
+    const left = assertNativePlainText(result.svg, item.text);
+    const right = assertNativePlainText(result.svg, trailing[index].text);
+    // CMR10 digits each advance 5.00002pt. Native paint must end/start
+    // at the shared decimal anchor, regardless of SVG serialization.
+    assert.ok(Math.abs(left.x + item.text.length * 5.00002 * left.scale - item.x * 100) < .001);
+    assert.ok(Math.abs(right.x - item.x * 100) < .001);
+    assert.ok(Math.abs(left.y - right.y) < .001);
+  });
 });
 
 test("aligns supported pgfplotstable scientific exponents on one shared anchor", () => {

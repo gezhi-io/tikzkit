@@ -51,6 +51,9 @@ export const texPackage = {
 };
 
 texPackage.implementedBy += " + src/tex/textBox.js:layoutNativeTextRun + src/tex/relativeMath.js + src/renderers/svg/plainTextNode.js:nativePlainTextBox";
+texPackage.features.push("literal CM labels share resolved optical hboxes and alphabetic baselines between browser and export");
+texPackage.localSourceReviewedLatest += "; pgf/modules/pgfmoduleshapes.code.tex (rectangle center uses text hbox height minus depth, lines 934-1045); tikz/libraries/tikzlibraryfit.code.tex (cardinal-anchor bounds and reset transform); tikz/libraries/datavisualization/tikzlibrarydatavisualization.code.tex (legend matrix padding, mid anchors and label struts, lines 1645-1778 and 1910-2025)";
+texPackage.registryNoteSuffixLatest += " Reviewed 2026-10-25: supported literal CMR/CMBX labels now share native hboxes, resolved optical size and alphabetic baseline in browser/export paint; explicit custom text engines retain paint ownership. Three browser controls expose the improvement and the remaining scatter-legend displacement. The literal control passes 75 glyph origins; seven 3D geometry controls retain acceptance, but the pre-existing explicit-meta color gate remains open. Full formal failures are 27, including one independently measured stale-width expectation correction. Status remains builtin with partial compatibility; see docs/qa/2026-10-25-native-node-text.md.";
 texPackage.features.push(
   "ordinary CM math uses native optical boxes and compass/base anchors in both browser and export",
   "CMTT10 literal runs and supported colored inline rectangular hboxes share native baselines and inner separation",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { nativeTextGroups } from "./helpers/native-math-svg.js";
 import test from "node:test";
 import {
   createFontSpec,
@@ -528,6 +529,12 @@ test("composes nested scope font patches property by property", () => {
 
 function renderedPlainTextFontSize(source) {
   const { svg } = tikzToSvg(source, { mathRenderer: "svg-text" });
+  const native = nativeTextGroups(svg);
+  if (native.length) {
+    assert.equal(native.length, 1);
+    assert.equal(native[0].glyphs.length, 1);
+    return native[0].glyphs[0].size * native[0].scale;
+  }
   const sizes = [...svg.matchAll(/<text\b[^>]*\bfont-size="([^"]+)"/g)].map((match) => Number(match[1]));
   assert.equal(sizes.length, 1);
   assert.ok(Number.isFinite(sizes[0]));

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText } from "./helpers/native-math-svg.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseTikz, interpretTikz, tikzToSvg } from "../src/index.js";
@@ -5256,7 +5257,7 @@ test("renders dashed double arrows as paired strokes with the label preserved", 
   assert.match(result.svg, /class="tikz-double-inner"/);
   assert.match(result.svg, /stroke-dasharray=/);
   assert.match(result.svg, /class="tikz-arrow-tip tikz-arrow-stealth"/);
-  assert.match(result.svg, />dropout</);
+  assertNativePlainText(result.svg, "dropout");
 });
 
 test("recognizes TikZ shapes.arrows node shapes and sizing options", () => {

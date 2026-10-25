@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "id": "native-literal-node-labels", "source": "labels.tex", "title": "Literal text hboxes, optical sizes and node anchors", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 75 } },
+    { "id": "native-prose-commutative", "source": "../examples/latex-examples/commutative-diagram.tex", "title": "Commutative diagram with plain labels and fitted ellipses" },
+    { "id": "native-prose-scatter-legend", "source": "scatter.tex", "title": "Scatter legend literal text and west anchor" }
+  ]
+}

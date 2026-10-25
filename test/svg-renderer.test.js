@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
+import { assertNativePlainText, assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
 import {
   arrowMarkerId,
   blurShadowFilterId,
@@ -167,11 +167,11 @@ test("plain Computer Modern text uses MacTeX design fonts across LaTeX sizes", (
   \end{tikzpicture}`;
   const result = tikzToSvg(source, { fontUrlPrefix: "../fonts/" });
 
-  assert.match(result.svg, /font-family="TikZKitCMR10, TikZKitCMUSerif, serif"[^>]*>Normal<\/text>/);
-  assert.match(result.svg, /font-family="TikZKitCMR9, TikZKitCMUSerif, serif"[^>]*>Small<\/text>/);
-  assert.match(result.svg, /font-family="TikZKitCMR8, TikZKitCMUSerif, serif"[^>]*>2012<\/text>/);
-  assert.match(result.svg, /font-family="TikZKitCMR7, TikZKitCMUSerif, serif"[^>]*>2956<\/text>/);
-  assert.match(result.svg, /font-family="TikZKitCMBX10, TikZKitCMUSerif, serif"[^>]*>Bold title<\/text>/);
+  for (const [text, size, face] of [["Normal", 10, "R"], ["Small", 9, "R"],
+    ["2012", 8, "R"], ["2956", 7, "R"], ["Bold title", 10, "BX"]]) {
+    const group = assertNativePlainText(result.svg, text);
+    assert.ok(group.glyphs.every(g => g.size === size && g.family === `TikZKitCM${face}${size}`));
+  }
   assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR10-Regular\.woff'\)/);
   assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR9-Regular\.woff'\)/);
   assert.match(result.svg, /url\('\.\.\/fonts\/TikZKitCMR8-Regular\.woff'\)/);
@@ -706,7 +706,7 @@ test("measures numeric sans-serif ticks from the TeX Helvetica TFM", () => {
   assert.ok(Math.abs(box.depth - 0.16492) < 0.0001, `expected 0.16492pt depth, got ${box.depth}`);
 });
 
-test("svg text engine logical TeX box preserves negative depth in total height", () => {
+test("svg text engine clamps negative glyph depth when packing a TeX hbox", () => {
   const engine = createSvgTextEngine({ unit: 100 });
   const metrics = engine.measure({
     text: "=",
@@ -719,13 +719,15 @@ test("svg text engine logical TeX box preserves negative depth in total height",
     fontSizePt: 10
   });
   const ptToEngineUnits = 100 / 28.4527559;
-  const expectedHeight = (3.6687 - 1.3313) * ptToEngineUnits;
+  // native-node-text-metrics.tex: hbox{=} has ht=3.66875pt, dp=0pt,
+  // although the CMR10 character's individual TFM depth is negative.
+  const expectedHeight = 3.66875 * ptToEngineUnits;
   const expectedBaseline = 3.6687 * ptToEngineUnits;
 
-  assert.equal(metrics.measurementKind, "tex-box");
-  assert.ok(Math.abs(metrics.height - expectedHeight) < 0.01, `expected height + negative depth ${expectedHeight}, got ${metrics.height}`);
+  assert.equal(metrics.measurementKind, "cm-text-box");
+  assert.ok(Math.abs(metrics.height - expectedHeight) < 0.01, `expected native hbox height ${expectedHeight}, got ${metrics.height}`);
   assert.ok(Math.abs(metrics.baselineY - expectedBaseline) < 0.01, `expected baseline from logical height ${expectedBaseline}, got ${metrics.baselineY}`);
-  assert.ok(metrics.baselineY > metrics.height, `expected negative depth to place baseline below total box height, got ${JSON.stringify(metrics)}`);
+  assert.equal(metrics.baselineY, metrics.height);
 });
 
 test("svg text engine keeps calibrated CMR logical and paint boxes aligned", () => {
@@ -744,13 +746,13 @@ test("svg text engine keeps calibrated CMR logical and paint boxes aligned", () 
   const payload = engine.renderFromCache(metrics.cacheKey);
   const ptToEngineUnits = 100 / 28.4527559;
 
-  assert.equal(metrics.measurementKind, "tex-box");
+  assert.equal(metrics.measurementKind, "cm-text-box");
   assert.ok(Math.abs(metrics.width - 51.6667 * ptToEngineUnits) < 0.05, `expected logical width, got ${metrics.width}`);
   assert.ok(Math.abs(metrics.height - 6.1508 * ptToEngineUnits) < 0.05, `expected logical total height, got ${metrics.height}`);
   assert.ok(Math.abs(metrics.baselineY - 6.1508 * ptToEngineUnits) < 0.05, `expected logical baseline, got ${metrics.baselineY}`);
   assert.ok(Math.abs(payload.viewBox.width - metrics.width) < 0.001, `expected calibrated CMR paint width, got ${payload.viewBox.width}`);
   assert.ok(Math.abs(payload.viewBox.height - metrics.height) < 0.001, `expected calibrated CMR paint height, got ${payload.viewBox.height}`);
-  assert.match(payload.body, />concatenate<\/text>/);
+  assertNativePlainText(payload.body, "concatenate");
 });
 
 test("svg text engine falls back outside the logical TeX box slice", () => {
@@ -767,10 +769,7 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
   };
   const requests = [
     { ...base, textWidthPt: 40 },
-    { ...base, text: String.raw`one\\two` },
-    { ...base, text: "plain $x$" },
     { ...base, fontStyle: "italic" },
-    { ...base, fontWeight: "bold" },
     { ...base, fontFamily: "monospace", fontSizePt: 9 },
     { ...base, text: "caf\u00e9" }
   ];
@@ -781,6 +780,18 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
     assert.equal(metrics.measurementKind, undefined, `expected untyped paint-bound fallback for ${JSON.stringify(request)}`);
     assert.equal(metrics.width, payload.viewBox.width, `expected paint-width fallback for ${JSON.stringify(request)}`);
     assert.equal(metrics.height, payload.viewBox.height, `expected paint-height fallback for ${JSON.stringify(request)}`);
+  }
+  for (const request of [
+    { ...base, text: String.raw`one\\two` },
+    { ...base, text: "plain $x$" },
+    { ...base, fontWeight: "bold" }
+  ]) {
+    const metrics = engine.measure(request);
+    const payload = engine.renderFromCache(metrics.cacheKey);
+    assert.match(metrics.measurementKind, /^cm-(?:text|tex)-box$/);
+    assert.equal(metrics.width, payload.viewBox.width);
+    assert.equal(metrics.height, payload.viewBox.height);
+    assert.match(payload.body, /dominant-baseline="alphabetic"/);
   }
   const mono = engine.measure({ ...base, fontFamily: "monospace" });
   const payload = engine.renderFromCache(mono.cacheKey);
@@ -822,8 +833,11 @@ test("svg text engine uses paint fallback for a minipage logical TeX box wrapper
   assertPlainTextEnginePaintFallback(String.raw`\begin{minipage}{2cm}concatenate\end{minipage}`);
 });
 
-test("svg text engine uses paint fallback for escaped logical TeX box control-symbol syntax", () => {
-  assertPlainTextEnginePaintFallback(String.raw`plain \%`);
+test("svg text engine paints supported escaped text symbols from native hboxes", () => {
+  const engine = createSvgTextEngine();
+  const metrics = engine.measure({ text: String.raw`plain \%`, mode: "text", fontSizePt: 10 });
+  assert.equal(metrics.measurementKind, "cm-text-box");
+  assertNativePlainText(engine.renderFromCache(metrics.cacheKey).body, "plain %");
 });
 
 function assertPlainTextEnginePaintFallback(text) {

@@ -1,7 +1,6 @@
 import { measurePlainTextTeXBoxPt, parseMathText } from "../../tikz/textMetrics.js";
 import { normalizeTikzText } from "../../tikz/text.js";
-import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
-import { renderNativeText } from "./nativeMath.js";
+import { renderNativeMath, renderNativeText } from "./nativeMath.js";
 import { nativeWrappedParagraphBox } from "./paragraphText.js";
 import {
   TIKZ_FONT_FAMILY,
@@ -12,18 +11,23 @@ import {
   TIKZ_UNIT
 } from "../../tikz/metrics.js";
 import { measureMathBoxPt, renderMathNode, scopedMathForeignObjectBox } from "./mathNode.js";
-import { estimatePlainTextRenderBounds, renderPlainTextNode } from "./plainTextNode.js";
+import { estimatePlainTextRenderBounds, nativePlainTextBox, renderPlainTextNode } from "./plainTextNode.js";
 import { normalizedTextAlign } from "./textLayout.js";
 import { formatTextLine, renderSvgTextLineContent } from "./textLineContent.js";
 
 const TEX_PT_PER_CM = 28.4527559;
+const builtInEngines = new WeakSet();
+
+export function isSvgTextEngine(engine) {
+  return builtInEngines.has(engine);
+}
 
 export function createSvgTextEngine(options = {}) {
   const unit = Number(options.unit) > 0 ? Number(options.unit) : TIKZ_UNIT;
   const mathRenderer = options.mathRenderer || "katex";
   const cache = new Map();
 
-  return {
+  const engine = {
     validate() {
       return null;
     },
@@ -44,6 +48,8 @@ export function createSvgTextEngine(options = {}) {
       return [];
     }
   };
+  builtInEngines.add(engine);
+  return engine;
 }
 
 function parseTextEngineMathRequest(request) {
@@ -166,12 +172,11 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
   const fontFamily = textEngineRenderFontFamily(font.family);
   const fontStyle = normalTextAttribute(font.style);
   const fontWeight = normalTextAttribute(font.weight);
-  const typewriter = nativeTypewriterFont(font);
   const item = {
     type: "textNode",
     x: 0,
     y: 0,
-    text: normalized.text,
+    text: String(request.text ?? ""),
     textAlign: alignment,
     textWrapMode: request.lineBreakMode,
     textWrapHyphenation: request.hyphenate,
@@ -182,15 +187,14 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
       fontScale: textEngineFontScale(request),
       fontStyle,
       fontWeight,
+      preferNativeText: Boolean(request.preferNativeText),
       textWidthScale: request.textWidthScale,
       textWidthScaleExplicit: Boolean(request.textWidthScaleExplicit)
     },
     wrapWidth: textWidthPtToCm(request.textWidthPt)
   };
   const paragraph = nativeWrappedParagraphBox(item, normalized);
-  const native = paragraph || ((request.preferNativeText || typewriter || normalized.inlineNodes?.length) && !(Number(request.textWidthPt) > 0) &&
-    (!request.textWidthScaleExplicit || Number(request.textWidthScale) === 1)
-    ? layoutNativeTextRun(normalized, font) : null);
+  const native = paragraph || nativePlainTextBox(item, normalized);
   if (native) {
     const factor = unit / TEX_PT_PER_CM;
     const width = native.width * factor;
@@ -204,7 +208,7 @@ function measurePlainTextRequest(request, unit, mathRenderer) {
         ...(paragraph ? { nativeParagraph: true } : {}),
         ...textEngineFontMetrics(font) },
       payload: () => ({ cacheKey, viewBox: centeredViewBox(width, height),
-        body: renderNativeText({ x: 0, y: 0, text: request.text,
+        body: (native.measurementKind === "cm-tex-box" ? renderNativeMath : renderNativeText)({ x: 0, y: 0, text: request.text,
           svgTextAnchor: alignment === "left" ? "start" : alignment === "right" ? "end" : "middle"
         }, native, unit, color) })
     };

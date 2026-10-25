@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertNativePlainText } from "./helpers/native-math-svg.js";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parseArrowTipSpec } from "../src/engine/options.js";
@@ -121,6 +122,6 @@ test("renders the Arc Barb and Parenthesis state-estimator fixture without diagn
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal((result.svg.match(/tikz-arrow-arc-barb/g) || []).length, 6);
-  assert.match(result.svg, /measurement update/);
-  assert.match(result.svg, /admissible gain/);
+  assertNativePlainText(result.svg, "measurement update");
+  assertNativePlainText(result.svg, "admissible gain");
 });
