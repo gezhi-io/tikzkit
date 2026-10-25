@@ -1,0 +1,16 @@
+% Paragraph diagnostics only; \showbox deliberately reports ! OK.
+\documentclass{article}
+\usepackage{tikz}
+\begin{document}
+\tracingparagraphs=1
+\showboxbreadth=1000 \showboxdepth=10
+\setbox0=\hbox{\begin{tikzpicture}
+  \node[draw,text width=3cm,align=center]
+    {First \texttt{code code code code} then \textit{italic words} last.};
+\end{tikzpicture}}
+\showbox0
+\setbox1=\hbox{\begin{tikzpicture}[nodes={text width=2.2cm,align=left}]
+  \node[draw] {Gerente elige una verificable accion muy larga.};
+\end{tikzpicture}}
+\showbox1
+\end{document}

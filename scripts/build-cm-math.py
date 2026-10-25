@@ -27,8 +27,9 @@ def build(tex, root, temporary, optical, emit, digest, metrics_only=False):
     sources = []
     for size in (5, 6, 7, 8, 9, 10, 12, 17):
         for role, basename in (("CMR", "cmr"), ("CMMI", "cmmi"), ("CMSY", "cmsy"),
-                               ("CMBX", "cmbx"), ("CMMIB", "cmmib"), ("CMBSY", "cmbsy"), ("CMTT", "cmtt")):
-            if role == "CMTT" and size != 10:
+                               ("CMBX", "cmbx"), ("CMMIB", "cmmib"), ("CMBSY", "cmbsy"),
+                               ("CMTT", "cmtt"), ("CMTI", "cmti")):
+            if role in ("CMTT", "CMTI") and size != 10:
                 continue
             if size == 12 and role not in ("CMR", "CMMI", "CMBX"):
                 continue
@@ -42,7 +43,7 @@ def build(tex, root, temporary, optical, emit, digest, metrics_only=False):
             mapping = character_map(font.font["Encoding"], role)
             tfm = TFM(str(tfm_path))
             family = "TikZKitMath_Typewriter" if role == "CMTT" else f"TikZKit{role}{size}"
-            italic = role in ("CMMI", "CMMIB")
+            italic = role in ("CMMI", "CMMIB", "CMTI")
             bold = role in ("CMBX", "CMMIB", "CMBSY")
             style = ("BoldItalic" if italic else "Bold") if bold else ("Italic" if italic else "Regular")
             if not metrics_only and role not in ("CMR", "CMBX", "CMTT"):

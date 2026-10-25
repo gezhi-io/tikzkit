@@ -14,6 +14,7 @@ import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText } from "../tex/textBox.js";
 import { nativeBaselineSkip } from "../tex/mathFonts.js";
+import { wrapNativeTextFirstPass } from "./textWrapping.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const ENGLISH_LEFT_HYPHEN_MIN = 2;
@@ -711,6 +712,8 @@ export function wrapTeXTextLineByWidth(line, maxWidthCm, scale = 1, options = {}
   const text = String(line || "").trim();
   const limit = Number(maxWidthCm);
   if (!text || !Number.isFinite(limit) || limit <= 0) return [stripDiscretionaryHyphens(text)];
+  const nativeLines = wrapNativeTextFirstPass(text, limit * TEX_PT_PER_CM, scale, options);
+  if (nativeLines) return nativeLines;
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length <= 1) return splitOverfullDiscretionaryWords(words, limit, scale, 1.02);
   if (options.lineBreakMode === "flush") return wrapTeXWordsFlush(words.map(stripDiscretionaryHyphens), limit, scale);

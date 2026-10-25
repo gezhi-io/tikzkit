@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \node[draw,text width=3cm,align=center] at (0,0)
+    {Keep \textbf{every bold word in its original order} after wrapping.};
+  \node[draw,text width=3cm,align=center] at (4,0)
+    {First \texttt{code code code code} then \textit{italic words} last.};
+  \node[draw,text width=3cm,align=center] at (8,0)
+    {{\small Smaller repeated repeated repeated words} then normal words.};
+\end{tikzpicture}
+\end{document}

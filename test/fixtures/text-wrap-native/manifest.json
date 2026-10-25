@@ -1,0 +1,9 @@
+{
+  "cases": [
+    { "id": "text-wrap-typewriter", "source": "typewriter.tex", "title": "Scoped typewriter text across centered lines" },
+    { "id": "text-wrap-mixed", "source": "mixed.tex", "title": "Font groups crossing paragraph line breaks" },
+    { "id": "text-wrap-inherited", "source": "inherited.tex", "title": "Inherited text width with ragged paragraph" },
+    { "id": "latex-examples-haskell-type-classes", "source": "../examples/latex-examples/haskell-type-classes.tex", "title": "Haskell type classes: scoped text in a matrix" },
+    { "id": "minipage-text-width", "source": "../implementation-examples/real-world/minipage-text-width.tex", "title": "Minipage prose with an inline formula" }
+  ]
+}

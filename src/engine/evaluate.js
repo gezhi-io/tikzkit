@@ -140,6 +140,7 @@ import {
   texTextWidthCm,
   wrapTeXTextLineByWidth
 } from "../tikz/textMetrics.js";
+import { wrappedTextLineStyles } from "../tikz/textWrapping.js";
 import { parsePathSegments, parseStatements } from "../frontend/parser.js";
 import {
   createBoundingBoxShape,
@@ -19101,12 +19102,11 @@ function wrappedTextMetricNormalized(normalized, wrapWidth, lineBreakMode, wrapO
   metricLines.forEach((line, index) => {
     const wrapped = wrapTeXTextLineByWidth(line, wrapWidth, Number(lineStyles[index]?.scale) || 1, {
       lineBreakMode,
+      lineStyle: lineStyles[index],
       ...wrapOptions
     });
-    for (const wrappedLine of wrapped) {
-      wrappedLines.push(wrappedLine);
-      wrappedStyles.push(lineStyles[index] || {});
-    }
+    wrappedLines.push(...wrapped);
+    wrappedStyles.push(...wrappedTextLineStyles(lineStyles[index], wrapped));
   });
   return {
     ...normalized,

@@ -353,7 +353,8 @@ function renderLineFontSegments(
 ) {
   const segments = Array.isArray(lineStyle?.fontSegments) ? lineStyle.fontSegments : [];
   if (!segments.length) return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
-  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize, 1, parentFamily, parentVariant)) {
+  const onlyScale = Number(segments[0]?.scale) || 1;
+  if (segments.length === 1 && !segmentFontAttributes(segments[0], lineStyle, lineFontSize * onlyScale, onlyScale, parentFamily, parentVariant)) {
     return renderSvgTextLineContent(sourceLine, formattedLine, lineFontSize, unit);
   }
   return segments

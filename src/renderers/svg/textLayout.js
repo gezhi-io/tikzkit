@@ -8,6 +8,7 @@ import {
 } from "../../tikz/textMetrics.js";
 import { mathFallbackText, splitInlineMathSegments } from "../../tikz/text.js";
 import { TIKZ_TYPEWRITER_WIDTH_SCALE } from "../../tikz/metrics.js";
+import { wrappedTextLineStyles } from "../../tikz/textWrapping.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { mathFallbackFontStyle } from "./mathFallbackSyntax.js";
@@ -108,12 +109,13 @@ export function wrapStyledSvgTextLines(
       wrapWidth,
       unit,
       lineFontSize,
-      options
+      { ...options, lineStyle: style }
     );
-    for (const entry of wrapped) {
+    const styles = wrappedTextLineStyles(style, wrapped.map(entry => entry.contentLine));
+    for (const [lineIndex, entry] of wrapped.entries()) {
       lines.push(entry.line);
       contentLines.push(entry.contentLine);
-      lineStyles.push(style);
+      lineStyles.push(styles[lineIndex]);
     }
   }
   return { lines, contentLines, lineStyles };
