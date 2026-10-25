@@ -59,7 +59,9 @@ URLs reduce SVG duplication, not the library's JavaScript download size.
 | Use | Local source family |
 | --- | --- |
 | Roman optical sizes and small caps | AMS Computer Modern `cmr`, `cmbx`, `cmcsc10` Type 1 |
-| Unicode text, sans serif, monospace | CM Unicode OpenType |
+| Sans-serif optical sizes and bold sans | AMS Computer Modern `cmss8/9/10/12/17`, `cmssbx10` Type 1 |
+| Typewriter optical sizes | AMS Computer Modern `cmtt8/9/10/12` Type 1 |
+| Unicode text and fallback text variants | CM Unicode OpenType |
 | `helvet` | TeX Gyre Heros OpenType |
 | Ordinary math and extensible symbols | Latin Modern Math OpenType |
 | Native formula boxes | CMR/CMMI/CMSY and CMBX/CMMIB/CMBSY optical Type 1 designs selected by local NFSS rules, plus original TFM metrics |
@@ -92,7 +94,7 @@ HTML math and the `svg-text` fallback are different painting paths; the fallback
 cannot reproduce every formula. A font loading successfully is not proof of
 pixel-identical LaTeX output.
 
-The generated manifest contains 82 faces. Coverage checks find six unfilled
+The generated manifest contains 93 faces. Coverage checks find six unfilled
 layout slots: Main U+23B0/U+23B1 (small moustaches), AMS U+21E0/U+21E2 (dashed
 arrows), and Fraktur-Bold U+E300/U+E307 (private-use alternates). These are
 recorded as missing, not supplied from another font distribution. In particular,
@@ -122,7 +124,7 @@ node scripts/audit-font-rendering.js \
   --browser-channel chrome
 ```
 
-This checks all 82 native font selections and measures 66 TeX boxes at 10/7/5pt.
+This checks every face in the manifest and measures 66 TeX boxes at 10/7/5pt.
 The 60 supported native-layout probes must agree within 0.015 TeX pt; six
 legacy-layout controls are reported separately. Seventeen fixtures pass through
 the browser, SVG-text and native PDF. Sixteen use local `tikztosvg`; the
@@ -151,6 +153,9 @@ See the [font-selection review](qa/2026-10-21-font-selection.md),
 [fraction/script review](qa/2026-10-22-fractions-scripts.md),
 [root/matrix/bold review](qa/2026-10-22-math-structures.md), and
 [alignment/size review](qa/2026-10-22-alignments-sizes.md) for evidence and limits.
+The [scoped-font review](qa/2026-10-25-scoped-fonts-failures.md) and
+[polar/timeline follow-up](qa/2026-10-25-polar-timeline.md) cover the added
+CMTT and CMSS faces, paragraph glue, font restoration and browser comparisons.
 
 The new subset covers ordinary `\frac`, `\dfrac`, `\tfrac`, `_`, `^`, nested
 scripts, grouped colors, roman subscripts, and named operators inside these

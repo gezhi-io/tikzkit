@@ -33,6 +33,11 @@ The [`qa/`](qa/) directory contains dated implementation and visual-review
 records. These records may mention local generated paths as code, but public
 links point only to files committed to the repository.
 
+Latest checkpoint: [polar ticks and chronology browser validation](qa/2026-10-25-polar-timeline.md).
+The full test collection has 3,119 passes, zero failures and 14 existing skips.
+Browser position/paint gates and whole-image pixel gates are reported
+separately; passing tests does not imply complete TeX compatibility.
+
 The [historical milestone ledger](qa/milestone-1-status.md) documents the
 original 30-case snapshot. The active milestone manifest now contains more
 cases and remains the machine-readable source of truth.

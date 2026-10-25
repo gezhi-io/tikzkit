@@ -2,12 +2,13 @@
 
 [![npm](https://img.shields.io/npm/v/@gezhi-io/tikzkit.svg)](https://www.npmjs.com/package/@gezhi-io/tikzkit)
 
-TikZKit is an experimental JavaScript interpreter that renders supported
+TikZKit is a JavaScript interpreter that renders supported
 TikZ, PGF, and PGFPlots source as SVG. It runs in Node.js and modern browsers
 without invoking a TeX engine at runtime.
 
-> TikZKit is under active testing. It is not yet a complete replacement for
-> TeX, TikZ, or PGFPlots.
+> Usable for supported diagrams and interactive previews, and still under
+> active testing. TikZKit is not a complete or pixel-identical replacement for
+> TeX, TikZ, or PGFPlots. Check diagnostics and compare important output with TeX.
 
 ## Install
 
@@ -16,6 +17,8 @@ npm install @gezhi-io/tikzkit
 ```
 
 Node.js 20 or newer is required.
+Recent changes on `main` may not be published to npm yet; use a local checkout
+to try them (see [Develop](#develop)).
 
 ## Quick Start
 
@@ -56,25 +59,14 @@ PNG, source, and comparison files. Local files under
 `test/fixtures/examples/output/` are generated on demand and do not exist as
 permanent GitHub URLs.
 
-Copy this PGFPlots example into the API, CLI, or browser demo:
+Recent browser-checked examples:
 
-```tex
-\begin{tikzpicture}
-  \begin{axis}[
-    stack plots=y,
-    area style,
-    width=10cm,
-    height=6cm,
-    grid=major,
-    legend pos=north west
-  ]
-    \addplot coordinates {(0,2) (1,3) (2,2) (3,4)} \closedcycle;
-    \addplot coordinates {(0,1) (1,2) (2,3) (3,2)} \closedcycle;
-    \addplot coordinates {(0,1) (1,1) (2,2) (3,1)} \closedcycle;
-    \legend{compute,I/O,validation}
-  \end{axis}
-\end{tikzpicture}
-```
+| Polar functions | Chronology |
+| --- | --- |
+| [<img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/examples/polar-half-plane.png" width="420" alt="Polar functions rendered by TikZKit in Chromium">](docs/examples.md#polar-functions) | [<img src="https://raw.githubusercontent.com/gezhi-io/tikzkit/main/docs/images/examples/chronology.png" width="420" alt="Chronology events rendered by TikZKit in Chromium">](docs/examples.md#chronology) |
+
+Each example includes its source, SVG, and a browser-rendered `tikztosvg`
+reference. These are real JS renderings, not substituted TeX images.
 
 ## Visual Comparison
 
@@ -87,6 +79,11 @@ difference from left to right.
 Small text and bounding-box differences remain. The project tracks supported
 features and their explicit boundaries in the
 [extension registry](docs/extension-registry.md).
+
+The 2026-10-25 checkpoint has **3,119 passing tests, zero failures, and 14
+existing skips**. The focused polar and chronology browser checks pass;
+independent native-PDF pixel comparisons still differ. See the
+[validation record](docs/qa/2026-10-25-polar-timeline.md) for scope and limits.
 
 ## Browser
 
@@ -177,6 +174,10 @@ npm run web
 
 Open <http://127.0.0.1:5173/>. Use `PORT=5174 npm run web` when that port is
 already occupied.
+
+The checkout API is `./src/index.js`; the CLI is `node bin/tikz2svg.js`.
+MacTeX, `tikztosvg`, and image-conversion tools are only needed to rebuild
+native references, not to render SVG with JavaScript.
 
 ## Credits
 
