@@ -28,7 +28,9 @@ test("renders quadripole nodes with electrical ports and anchors", () => {
   assert.ok(result.ir.items.some((item) => item.type === "nodeBox" && item.shape === "tikzquadsQuad"));
   assert.ok(result.ir.items.some((item) => item.type === "textNode" && item.text.includes("two port")));
   assert.match(result.svg, /tikz-node-tikzquadsQuad/);
-  assert.match(result.svg, /Z_a/);
+  const za = assertNativeText(result.svg, "Za");
+  assert.deepEqual(za.glyphs.map(g => g.size), [10, 7]);
+  assert.ok(za.glyphs[1].y > za.glyphs[0].y, "a is a subscript, not a literal underscore");
 });
 
 test("expands QuadParConnect and PG load line into drawable TikZ", () => {
@@ -47,7 +49,10 @@ test("expands QuadParConnect and PG load line into drawable TikZ", () => {
   assert.deepEqual(result.diagnostics, []);
   assert.ok(result.ir.items.filter((item) => item.type === "path" && item.subtype === "tikzquads-parallel-connect").length >= 2);
   assert.ok(result.ir.items.some((item) => item.type === "nodeBox" && item.shape === "tikzquadsPgLoadLine"));
-  assert.match(result.svg, /V_th|V_\{th\}/);
+  const vth = assertNativeText(result.svg, "Vth");
+  assert.deepEqual(vth.glyphs.map(g => g.size), [10, 7, 7]);
+  assert.equal(vth.glyphs[1].y, vth.glyphs[2].y);
+  assert.ok(vth.glyphs[1].y > vth.glyphs[0].y);
 });
 
 test("matches native tikzquads Case 120 geometry and label keys", () => {

@@ -47,3 +47,12 @@ export function renderPlainSvgTextContent(value, unit = TIKZ_UNIT) {
   if (openTspan) output += "</tspan>";
   return output;
 }
+
+export function renderPlainHtmlTextContent(value, unit = TIKZ_UNIT) {
+  return replaceTikzHspaceMarkers(escapeText(value), dimension => {
+    const relative = String(dimension).trim().match(/^[-+]?[0-9.]+\s*(?:em|ex)$/);
+    const width = relative ? relative[0].replace(/\s+/g, "") : `${format((parseDimension(dimension, {}) || 0) * unit)}px`;
+    // A kern has advance, but no ink; negative spacing must also survive.
+    return `<span aria-hidden="true" style="display:inline-block;width:0;margin-left:${escapeAttribute(width)}"></span>`;
+  });
+}

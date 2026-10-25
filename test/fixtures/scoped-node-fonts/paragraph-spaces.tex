@@ -1,0 +1,15 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-.5,-2) rectangle (6,1);
+  \node[text width=65pt,text centered,anchor=base west] at (0,0)
+    {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+  \node[text width=65pt,text badly centered,anchor=base west] at (0,-1.2)
+    {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+  \node[text width=65pt,text centered,anchor=base west] at (3,0)
+    {{\huge\bf DC}\\{\scriptsize End. Next}};
+  \node[font=\small,text width=65pt,text centered,anchor=base west] at (3,-1.2)
+    {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+\end{tikzpicture}
+\end{document}

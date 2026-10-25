@@ -31,6 +31,12 @@ export function breakNativeParagraph(source, width, measure, options = {}) {
     }
     return measured.get(key);
   };
+  return breakMeasuredParagraph(breaks, width, candidate, options);
+}
+
+// Both source-string paragraphs and shaped inline math use the same TeX
+// badness/demerit search. A candidate can carry a string or a packed run list.
+export function breakMeasuredParagraph(breaks, width, candidate, options = {}) {
   for (const [hyphenate, tolerance, emergency] of [[false, 100, 0], [true, 9999, 0], [true, 9999, options.emergencyStretch || 0]]) {
     const states = breaks.map(() => new Map());
     states[0].set(2, { cost: 0, fitness: 2, lines: [] });
@@ -43,12 +49,12 @@ export function breakNativeParagraph(source, width, measure, options = {}) {
         if (!box) return null;
         const delta = width - box.width;
         if (delta < -box.shrink - 1 / 65536) continue;
-        const available = delta < 0 ? box.shrink : box.stretch + emergency;
-        const badness = delta >= 0 && last ? 0 : texBadness(Math.abs(delta), available);
+        const available = delta < 0 ? box.shrink : box.stretch + emergency + (options.backgroundStretch || 0);
+        const badness = delta >= 0 && last && options.lastLineStretch !== false ? 0 : texBadness(Math.abs(delta), available);
         if (badness > tolerance) continue;
         const fitness = badness <= 12 ? 2 : delta < 0 ? 3 : badness > 99 ? 0 : 1;
         for (const previous of states[start].values()) {
-          const cost = previous.cost + (10 + badness) ** 2 + (breaks[end].hyphen ? 50 ** 2 : 0)
+          const cost = previous.cost + (10 + badness) ** 2 + (breaks[end].penalty ?? (breaks[end].hyphen ? 50 : 0)) ** 2
             + (Math.abs(fitness - previous.fitness) > 1 ? 10000 : 0)
             + (breaks[start].hyphen ? last ? 5000 : breaks[end].hyphen ? 10000 : 0 : 0);
           if (cost <= (states[end].get(fitness)?.cost ?? Infinity)) {

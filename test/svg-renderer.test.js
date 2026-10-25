@@ -434,12 +434,11 @@ test("text-width paragraphs retain their TeX base baseline grid across scoped fo
     String.raw`\begin{tikzpicture}\node[text width=3cm] {Enum\\{\small first line}\\{\small second line}};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   );
-  const dyValues = [...result.svg.matchAll(/<tspan\b[^>]*\bdy="([^"]+)"/g)].map((match) => Number(match[1]));
-  const normalBaseline = (12 / 28.4527559) * 100;
-
-  assert.equal(dyValues.length, 3);
-  assert.ok(Math.abs(dyValues[1] - normalBaseline) < 1e-6);
-  assert.ok(Math.abs(dyValues[2] - normalBaseline) < 1e-6);
+  const group = assertNativeText(result.svg, "Enum");
+  const baselines = [...new Set(group.glyphs.map(g => g.y))];
+  assert.deepEqual(baselines, [0, 12, 24]);
+  assert.ok(group.glyphs.filter(g => g.y === 0).every(g => g.size === 10));
+  assert.ok(group.glyphs.filter(g => g.y > 0).every(g => g.size === 9));
 });
 
 test("node boldmath font options reach SVG math glyphs", () => {
@@ -468,14 +467,12 @@ test("mixed content size commands only resize the following text segment", () =>
     { mathRenderer: "svg-text" }
   );
   const textNode = result.ir.items.find((item) => item.type === "textNode");
-  const baseSize = Number(result.svg.match(/<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
-  const tinySize = Number(result.svg.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>tiny<\/tspan>/)?.[1]);
+  const group = assertNativePlainText(result.svg, "normal tiny");
 
   assert.equal(textNode.font.sizePt, 10);
   assert.equal(textNode.font.source, "document");
-  assert.ok(Number.isFinite(baseSize));
-  assert.ok(Number.isFinite(tinySize));
-  assert.ok(Math.abs(tinySize / baseSize - 0.5) < 1e-6);
+  assert.deepEqual(group.glyphs.map(g => g.size), [10, 10, 10, 10, 10, 10, 5, 5, 5, 5]);
+  assert.ok(group.glyphs.every(g => g.y === 0));
 });
 
 test("aligned multiline content size commands keep absolute 9pt and 5pt line sizes", () => {
@@ -484,15 +481,14 @@ test("aligned multiline content size commands keep absolute 9pt and 5pt line siz
     { mathRenderer: "svg-text" }
   );
   const textNode = result.ir.items.find((item) => item.type === "textNode");
-  const baseSize = Number(result.svg.match(/<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
-  const secondLineSize = Number(result.svg.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>B<\/tspan>/)?.[1]);
+  const group = assertNativeText(result.svg, "AB");
 
-  assert.equal(textNode.font.sizePt, 9);
-  assert.equal(textNode.font.baselineSkipPt, 11);
-  assert.equal(textNode.font.source, "content-command");
-  assert.ok(Number.isFinite(baseSize));
-  assert.ok(Number.isFinite(secondLineSize));
-  assert.ok(Math.abs(secondLineSize / baseSize - 5 / 9) < 1e-6);
+  // scoped-node-font-metrics.tex: row-local declarations leave the outer
+  // halign at 10pt/12pt; the two glyphs still select 9pt and 5pt faces.
+  assert.equal(textNode.font.sizePt, 10);
+  assert.equal(textNode.font.baselineSkipPt, 12);
+  assert.deepEqual(group.glyphs.map(g => g.size), [9, 5]);
+  assert.equal(group.glyphs[1].y - group.glyphs[0].y, 12);
 });
 
 test("TeX font groups restore size on the same line and after a line break", () => {
@@ -500,23 +496,17 @@ test("TeX font groups restore size on the same line and after a line break", () 
     String.raw`\begin{tikzpicture}\node {{\small A} B};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   ).svg;
-  const inlineText = inline.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
-  const inlineBaseSize = Number(inlineText.match(/^<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
-  const groupedSize = Number(inlineText.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>A<\/tspan>/)?.[1]);
-
-  assert.match(inlineText, /<tspan\b[^>]*>A<\/tspan> B<\/text>$/);
-  assert.ok(Math.abs(groupedSize / inlineBaseSize - 0.9) < 1e-6);
+  const inlineGroup = assertNativePlainText(inline, "A B");
+  assert.deepEqual(inlineGroup.glyphs.map(g => g.size), [9, 10]);
+  assert.ok(inlineGroup.glyphs.every(g => g.y === 0));
 
   const multiline = tikzToSvg(
     String.raw`\begin{tikzpicture}\node[align=center] {{\small A}\\B};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   ).svg;
-  const multilineText = multiline.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
-  const multilineBaseSize = Number(multilineText.match(/^<text\b[^>]*\bfont-size="([^"]+)"/)?.[1]);
-  const firstLineSize = Number(multilineText.match(/<tspan\b[^>]*\bfont-size="([^"]+)"[^>]*>A<\/tspan>/)?.[1]);
-
-  assert.ok(Math.abs(firstLineSize / multilineBaseSize - 0.9) < 1e-6);
-  assert.match(multilineText, /<tspan\b(?=[^>]*\bdy=)(?![^>]*\bfont-size=)[^>]*>B<\/tspan>/);
+  const multilineGroup = assertNativeText(multiline, "AB");
+  assert.deepEqual(multilineGroup.glyphs.map(g => g.size), [9, 10]);
+  assert.equal(multilineGroup.glyphs[1].y - multilineGroup.glyphs[0].y, 12);
 });
 
 test("mid-line font declarations style only following segments", () => {
@@ -532,6 +522,14 @@ test("mid-line font declarations style only following segments", () => {
       String.raw`\begin{tikzpicture}\node {normal ${entry.command} ${entry.text}};\end{tikzpicture}`,
       { mathRenderer: "svg-text" }
     ).svg;
+    if ([String.raw`\bfseries`, String.raw`\sffamily`].includes(entry.command)) {
+      const glyphs = assertNativePlainText(svg, `normal ${entry.text}`).glyphs;
+      assert.ok(glyphs.slice(0, 6).every(g => g.weight === 400 && g.family === "TikZKitCMR10"));
+      assert.ok(glyphs.slice(6).every(g => entry.command === String.raw`\bfseries`
+        ? g.weight === 700 && g.family === "TikZKitCMBX10"
+        : g.weight === 400 && g.family === "TikZKitCMSS10"));
+      continue;
+    }
     const text = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
     const openingTag = text.match(/^<text\b[^>]*>/)?.[0] || "";
     const segmentPattern = new RegExp(
@@ -553,8 +551,9 @@ test("mid-line font declarations style only following segments", () => {
     String.raw`\begin{tikzpicture}\node {{\bfseries bold} normal};\end{tikzpicture}`,
     { mathRenderer: "svg-text" }
   ).svg;
-  const groupedText = grouped.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
-  assert.match(groupedText, /<tspan\b[^>]*font-weight="700"[^>]*>bold<\/tspan> normal<\/text>$/);
+  const glyphs = assertNativePlainText(grouped, "bold normal").glyphs;
+  assert.ok(glyphs.slice(0, 4).every(g => g.weight === 700));
+  assert.ok(glyphs.slice(4).every(g => g.weight === 400));
 });
 
 test("scoped text font wrappers style only their arguments and restore afterward", () => {
@@ -573,6 +572,14 @@ test("scoped text font wrappers style only their arguments and restore afterward
       String.raw`\begin{tikzpicture}\node {normal ${wrapper} normal};\end{tikzpicture}`,
       { mathRenderer: "svg-text" }
     ).svg;
+    if (["textbf", "texttt", "textsf"].includes(entry.command)) {
+      const glyphs = assertNativePlainText(svg, `normal ${entry.text} normal`).glyphs;
+      assert.ok([...glyphs.slice(0, 6), ...glyphs.slice(10)].every(g => g.weight === 400 && g.family === "TikZKitCMR10"));
+      assert.ok(glyphs.slice(6, 10).every(g => entry.command === "textbf"
+        ? g.weight === 700 && g.family === "TikZKitCMBX10"
+        : g.weight === 400 && g.family === (entry.command === "textsf" ? "TikZKitCMSS10" : "TikZKitCMTT10")));
+      continue;
+    }
     const text = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
     const openingTag = text.match(/^<text\b[^>]*>/)?.[0] || "";
 
@@ -601,6 +608,18 @@ test("scoped text font wrappers style only their arguments and restore afterward
       String.raw`\begin{tikzpicture}\node[font=${entry.option}] {before ${wrapper} after};\end{tikzpicture}`,
       { mathRenderer: "svg-text" }
     ).svg;
+    if (entry.command === "textrm") {
+      const glyphs = assertNativePlainText(svg, "before serif after").glyphs;
+      assert.ok([...glyphs.slice(0, 6), ...glyphs.slice(11)].every(g => g.family === "TikZKitCMSS10"));
+      assert.ok(glyphs.slice(6, 11).every(g => g.family === "TikZKitCMR10"));
+      continue;
+    }
+    if (entry.command === "textmd") {
+      const glyphs = assertNativePlainText(svg, "before medium after").glyphs;
+      assert.ok([...glyphs.slice(0, 6), ...glyphs.slice(12)].every(g => g.weight === 700));
+      assert.ok(glyphs.slice(6, 12).every(g => g.weight === 400));
+      continue;
+    }
     const text = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/)?.[0] || "";
 
     assert.match(
@@ -768,9 +787,7 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
     fontSizePt: 10
   };
   const requests = [
-    { ...base, textWidthPt: 40 },
     { ...base, fontStyle: "italic" },
-    { ...base, fontFamily: "monospace", fontSizePt: 9 },
     { ...base, text: "caf\u00e9" }
   ];
 
@@ -782,6 +799,8 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
     assert.equal(metrics.height, payload.viewBox.height, `expected paint-height fallback for ${JSON.stringify(request)}`);
   }
   for (const request of [
+    { ...base, textWidthPt: 40 },
+    { ...base, fontFamily: "monospace", fontSizePt: 9 },
     { ...base, text: String.raw`one\\two` },
     { ...base, text: "plain $x$" },
     { ...base, fontWeight: "bold" }
@@ -801,12 +820,18 @@ test("svg text engine falls back outside the logical TeX box slice", () => {
   assert.ok(Math.abs(mono.height / unitPerPt - 5.53575) < 0.0001);
   assert.ok(Math.abs(mono.baselineY / unitPerPt - 5.53575) < 0.0001);
   assert.match(payload.body, /data-text-layout="cm-tex-box"/);
-  const glyphs = [...payload.body.matchAll(/<text[^>]*font-family="TikZKitMath_Typewriter"[^>]*>([^<]*)<\/text>/g)];
+  const glyphs = [...payload.body.matchAll(/<text[^>]*font-family="TikZKitCMTT10"[^>]*>([^<]*)<\/text>/g)];
   assert.equal(glyphs.map(glyph => glyph[1]).join(""), base.text);
 });
 
-test("svg text engine uses paint fallback for a logical TeX box request with explicit font size", () => {
-  assertPlainTextEnginePaintFallback(String.raw`\Large concatenate`);
+test("svg text engine shares native logical and painted boxes for an explicit optical size", () => {
+  const engine = createSvgTextEngine();
+  const metrics = engine.measure({ mode: "text", text: String.raw`\Large concatenate`, fontSizePt: 10 });
+  const payload = engine.renderFromCache(metrics.cacheKey);
+  assert.equal(metrics.measurementKind, "cm-text-box");
+  assert.equal(metrics.width, payload.viewBox.width);
+  assert.equal(metrics.height, payload.viewBox.height);
+  assert.ok(assertNativePlainText(payload.body, "concatenate").glyphs.every(g => g.size === 14.4 && g.family === "TikZKitCMR12"));
 });
 
 test("svg text engine uses paint fallback for a scaled logical TeX box request", () => {
@@ -877,9 +902,23 @@ test("svg text engine preserves plain text alignment in cached payloads", () => 
 
   assert.notEqual(left.cacheKey, center.cacheKey);
   assert.notEqual(center.cacheKey, right.cacheKey);
-  assert.match(engine.renderFromCache(left.cacheKey).body, /text-anchor="start"/);
-  assert.match(engine.renderFromCache(center.cacheKey).body, /text-anchor="middle"/);
-  assert.match(engine.renderFromCache(right.cacheKey).body, /text-anchor="end"/);
+  const glyphRows = metrics => {
+    const glyphs = assertNativePlainText(engine.renderFromCache(metrics.cacheKey).body, baseRequest.text).glyphs;
+    return [...new Set(glyphs.map(g => g.y))].map(y => glyphs.filter(g => g.y === y));
+  };
+  const [leftRows, centerRows, rightRows] = [left, center, right].map(glyphRows);
+  assert.equal(leftRows.length, 2);
+  for (let row = 0; row < leftRows.length; row++) {
+    assert.equal(leftRows[row].map(g => g.text).join(""), centerRows[row].map(g => g.text).join(""));
+    assert.equal(leftRows[row].map(g => g.text).join(""), rightRows[row].map(g => g.text).join(""));
+    for (let i = 0; i < leftRows[row].length; i++) {
+      const l = leftRows[row][i], c = centerRows[row][i], r = rightRows[row][i];
+      assert.ok(r.x > c.x && c.x > l.x);
+      assert.ok(Math.abs((c.x - l.x) * 2 - (r.x - l.x)) < .00001);
+      assert.equal(l.y, c.y);
+      assert.equal(l.y, r.y);
+    }
+  }
 });
 
 test("svg text engine keeps an unwrapped left-aligned paragraph centered on its TikZ node", () => {
@@ -1038,7 +1077,9 @@ test("svg text engine cache separates canonical line and segment styles before r
   const plainBody = engine.renderFromCache(plain.cacheKey).body;
   const styledBody = engine.renderFromCache(styled.cacheKey).body;
   assert.doesNotMatch(plainBody, /font-weight="700"/);
-  assert.match(styledBody, /<tspan\b[^>]*font-weight="700"[^>]*>bold<\/tspan>/);
+  const glyphs = assertNativePlainText(styledBody, "normal bold").glyphs;
+  assert.ok(glyphs.slice(0, 6).every(g => g.weight === 400));
+  assert.ok(glyphs.slice(6).every(g => g.weight === 700));
 });
 
 test("tikzToSvg creates svg text engine before sizing math node boxes", () => {

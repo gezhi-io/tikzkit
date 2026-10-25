@@ -38,9 +38,16 @@ test("multiline math uses TeX lineskip for tall rows and rejects partial support
   const rows = box.rows;
   assert.ok(rows[1].baseline - rows[0].baseline > 12);
   assert.ok(Math.abs(rows[1].baseline - rows[0].baseline - rows[0].depth - rows[1].height - 1) < 1e-8);
-  for (const text of [String.raw`$x$\\\textsf{plain}`, String.raw`$x$\\[2pt]$y$`, String.raw`$x$\\$\notasupportedcommand$`]) {
+  for (const text of [String.raw`$x$\\\textit{plain}`, String.raw`$x$\\[2pt]$y$`, String.raw`$x$\\$\notasupportedcommand$`]) {
     assert.equal(layoutMultilineTeXText(normalizeTikzText(text)), null);
   }
+});
+
+test("multiline CMSS prose keeps the surrounding math font and native row spacing", () => {
+  const box = layoutMultilineTeXText(normalizeTikzText(String.raw`$x$\\\textsf{plain}`));
+  assert.equal(box.items[0].family, "TikZKitCMMI10");
+  assert.ok(box.items.slice(1).every(g => g.family === "TikZKitCMSS10"));
+  assert.equal(box.rows[1].baseline - box.rows[0].baseline, 12);
 });
 
 test("multiline TeX retains literal prose rows alongside math", () => {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { assertNativeText } from "./helpers/native-math-svg.js";
 
 import { tikzToSvg } from "../src/index.js";
 import {
@@ -83,11 +84,14 @@ test("normalizes gensymb default math symbols to their TeX Live fallbacks", () =
     mathRenderer: "svg-text"
   });
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /baseline-shift="super"[^>]*>°<\/tspan>/);
-  assert.match(result.svg, /tikz-math-upright[^>]*>C<\/tspan>/);
-  assert.match(result.svg, /10Ω,/);
+  const group = assertNativeText(result.svg, "T=25◦C,R=10Ω,φ=63◦");
+  assert.equal(group.glyphs[0].size, 10);
+  assert.equal(group.glyphs.find(g => g.text === "C").family, "TikZKitCMR10");
+  assert.deepEqual(group.glyphs.filter(g => g.text === "◦").map(g => g.size), [7, 5]);
+  assert.ok(group.glyphs.filter(g => g.text === "◦").every(g => g.y < 0));
   assert.doesNotMatch(result.svg, />degree|>celsius|>ohm|>quad</);
-  assert.match(result.svg, /class="tikz-math-hspace" dx="[^"]+"/);
+  const comma = group.glyphs.find(g => g.text === ",");
+  assert.ok(group.glyphs.find(g => g.text === "R").x - comma.x > 12);
 });
 
 test("normalizes common amssymb relation and empty-set symbols for SVG text", () => {

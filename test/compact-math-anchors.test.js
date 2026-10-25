@@ -88,7 +88,9 @@ test("styled math nodes select the optical font before computing their border", 
   ]) {
     const result = tikzToSvg(`\\begin{tikzpicture}\\node[draw,${shape},font=\\small,inner xsep=0pt,inner ysep=1pt,tikzkit datavis legend math metrics] {$${tex}$};\\end{tikzpicture}`);
     const box = result.ir.items.find(item => item.type === "nodeBox");
-    const diameter = Math.hypot(width, total + 2);
+    // PGF's fixed-point normalization, measured in remaining-layout-metrics.tex:
+    // east/west include 0.2pt outer sep each; the painted diameter does not.
+    const diameter = 2 * 9.2935 - 0.4;
     close(box.width * 72.27 / 2.54, shape === "circle" ? diameter : width, `${shape} width`);
     close(box.height * 72.27 / 2.54, shape === "circle" ? diameter : total + 2, `${shape} height`);
   }
@@ -126,7 +128,9 @@ test("typewriter labels retain their native descenders and font in both renderer
   const box = layoutNativeText("git pull", { family: "monospace", sizePt: 10 });
   close(box.width, 41.99963, "typewriter width");
   close(box.height + box.depth, 8.33334, "typewriter height and depth");
-  assert.equal(layoutNativeText("git pull", { family: "monospace", sizePt: 9 }), null);
+  const small = layoutNativeText("git pull", { family: "monospace", sizePt: 9 });
+  close(small.width, 37.79956, "native CMTT9 width");
+  assert.ok(small.items.every(g => g.family === "TikZKitCMTT9"));
   const source = String.raw`\begin{tikzpicture}\draw[very thick](0,0)--node[above]{\tt git pull}(3,0);\end{tikzpicture}`;
   for (const mathRenderer of [undefined, "svg-text"]) {
     const result = tikzToSvg(source, { mathRenderer });
@@ -134,7 +138,7 @@ test("typewriter labels retain their native descenders and font in both renderer
     const node = result.ir.items.find(item => item.type === "textNode");
     close(node.y * 72.27 / 2.54, 8.09964, "typewriter label center");
     assert.match(result.svg, /class="tikz-text-native"/);
-    assert.equal([...result.svg.matchAll(/<text[^>]*font-family="TikZKitMath_Typewriter"/g)].length, 7);
+    assert.equal([...result.svg.matchAll(/<text[^>]*font-family="TikZKitCMTT10"/g)].length, 7);
   }
 });
 
@@ -153,8 +157,10 @@ test("native typewriter dispatch preserves rich colors, inline boxes, and font r
       assert.ok(/<rect[^>]*fill="red"/.test(result.svg), "red inline box");
     }
     const mixed = tikzToSvg(String.raw`\begin{tikzpicture}\node{\tt A\textbf{B}C};\end{tikzpicture}`, { mathRenderer });
-    assert.ok(/<tspan[^>]*font-weight="700"[^>]*>B<\/tspan>/.test(mixed.svg), "bold B run");
-    assert.ok(!mixed.svg.includes("tikz-text-native"), "a uniform TFM run must not flatten mixed font commands");
+    // ot1cmtt.fd substitutes bx/n with m/n; synthesizing bold is not TeX.
+    const glyphs = [...mixed.svg.matchAll(/<text\b([^>]*)>([ABC])<\/text>/g)];
+    assert.equal(glyphs.map(g => g[2]).join(""), "ABC");
+    assert.ok(glyphs.every(g => /font-family="TikZKitCMTT10"/.test(g[1]) && /font-weight="400"/.test(g[1])));
   }
 });
 

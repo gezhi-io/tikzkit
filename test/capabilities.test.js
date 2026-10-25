@@ -52,14 +52,14 @@ test("capability matrix records PGFPlots faceted painter visual gates", () => {
   assert.deepEqual(feature.verification.artifacts, [
     "outputs/qa-pgfplots-3d-annotation",
     "outputs/qa-pgfplots-faceted-order",
-    "outputs/qa-pgfplots-3d-plot-box-ratio"
+    "outputs/qa/2026-09-06-pgfplots-plot-box-ratio-3d-after"
   ]);
   assert.match(feature.notes, /per-patch faceted painter ordering is verified/i);
   assert.match(feature.notes, /projection calibration/i);
   assert.match(feature.notes, /surface\/color interpolation/i);
   assert.match(feature.notes, /overlays/i);
   assert.match(feature.notes, /colorbar placement/i);
-  assert.match(feature.notes, /exact TeX glyph metrics/i);
+  assert.match(feature.notes, /native TFM glyph metrics/i);
   assert.match(feature.notes, /unsupported shader\/patch modes/i);
   assert.match(feature.notes, /plot box ratio/i);
 });

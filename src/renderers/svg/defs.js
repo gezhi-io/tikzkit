@@ -2,6 +2,8 @@ import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData } from "./pathData.js";
 import { createSvgIdPrefix, SVG_ID_PREFIX, svgDefinitionId } from "./definitionScope.js";
+import { normalizeShadingColor } from "../../engine/colors.js";
+import { emptyBoundingBox, includePathCommandBounds, includePoint } from "../../scene/bbox.js";
 import {
   axisGradientId,
   ballGradientId,
@@ -23,6 +25,7 @@ export function createSvgDefs(parts = []) {
 }
 
 export function scopeSvgDefinitions(items, unit, explicitPrefix) {
+  items = items.map(withAxisShadingAspect);
   const definitions = collectSvgDefs(items, unit);
   const prefix = createSvgIdPrefix(definitions, unit, explicitPrefix);
   if (!definitions.length && explicitPrefix === undefined) return { items, defs: definitions };
@@ -37,6 +40,23 @@ export function scopeSvgDefinitions(items, unit, explicitPrefix) {
     })) } : {})
   }));
   return { items: scopedItems, defs: collectSvgDefs(scopedItems, unit) };
+}
+
+function withAxisShadingAspect(item) {
+  if (item.style?.shading !== "axis") return item;
+  const angle = Number(item.style.shadingAngle || 0) * Math.PI / 180;
+  if (Math.abs(Math.sin(angle) * Math.cos(angle)) < 1e-12) return item;
+  let width = item.width ?? (item.rx ?? item.r) * 2;
+  let height = item.height ?? (item.ry ?? item.r) * 2;
+  if (item.commands?.length) {
+    const bounds = emptyBoundingBox();
+    // PGF uses its path/control-point bounds, not stroke or text extents.
+    includePathCommandBounds(item.commands, (x, y) => includePoint(bounds, { x, y }));
+    width = bounds.maxX - bounds.minX;
+    height = bounds.maxY - bounds.minY;
+  }
+  if (!(width > 0 && height > 0 && Number.isFinite(width / height))) return item;
+  return { ...item, style: { ...item.style, axisShadingAspect: width / height } };
 }
 
 export function collectSvgDefs(items, unit) {
@@ -293,16 +313,19 @@ export function collectBallGradientDefs(items) {
 }
 
 export function renderBallGradientDef(def) {
-  const base = svgPaint(def.color || "gray");
+  const base = normalizeShadingColor(def.color || "gray");
+  // TikZ declares radii 0, 9, 18, 25 and 50bp. pgfshadepath maps the
+  // central 50bp square to the path bounds: the outer radius is one width.
   const stops = [
     { offset: 0, color: mixPaint(base, "white", 0.15) },
-    { offset: 36, color: mixPaint(base, "white", 0.75) },
-    { offset: 72, color: mixPaint(base, "black", 0.7) },
-    { offset: 100, color: mixPaint(base, "black", 0.5) }
+    { offset: 18, color: mixPaint(base, "white", 0.75) },
+    { offset: 36, color: mixPaint(base, "black", 0.7) },
+    { offset: 50, color: mixPaint(base, "black", 0.5) },
+    { offset: 100, color: "black" }
   ];
   return `<radialGradient id="${escapeAttribute(
     def.id
-  )}" cx="50%" cy="50%" r="70%" fx="30%" fy="30%">${stops
+  )}" cx="50%" cy="50%" r="100%" fx="30%" fy="30%">${stops
     .map((stop) => `<stop offset="${format(stop.offset)}%" stop-color="${escapeAttribute(stop.color)}" />`)
     .join("")}</radialGradient>`;
 }
@@ -318,7 +341,8 @@ export function collectAxisGradientDefs(items) {
       middleColor: item.style.middleColor || "gray",
       bottomColor: item.style.bottomColor || item.style.fill || "black",
       stops: Array.isArray(item.style.linearStops) ? item.style.linearStops : [],
-      shadingAngle: item.style.shadingAngle ?? 0
+      shadingAngle: item.style.shadingAngle ?? 0,
+      aspect: item.style.axisShadingAspect ?? 1
     });
   }
   return [...defs.values()];
@@ -330,18 +354,21 @@ export function renderAxisGradientDef(def) {
   const bottom = svgPaint(def.bottomColor || "black");
   const angle = Number(def.shadingAngle);
   const radians = (Number.isFinite(angle) ? angle : 0) * Math.PI / 180;
-  // PGF's unrotated axis shading runs from bottom to top. pgfshadepath maps
-  // the path bounds onto the declaration's central 25%-75% interval, so the
-  // effective path fill interpolates bottom -> middle -> top without the
-  // declaration's outer flat-color margins. Expand along the projected
-  // diagonal so the same mapping covers every rotated path corner.
+  // pgfcoreshade.code.tex rotates in physical space, with the central 50bp
+  // interval spanning (w|sin| + h|cos|)/(|sin| + |cos|). An SVG bbox gradient
+  // is stretched afterwards; invert that mapping to preserve its isolines.
   const directionX = -Math.sin(radians);
   const directionY = -Math.cos(radians);
-  const halfSpan = (Math.abs(directionX) + Math.abs(directionY)) / 2;
-  const x1 = 50 - directionX * halfSpan * 100;
-  const y1 = 50 - directionY * halfSpan * 100;
-  const x2 = 50 + directionX * halfSpan * 100;
-  const y2 = 50 + directionY * halfSpan * 100;
+  const aspect = def.aspect > 0 ? def.aspect : 1;
+  const span = (aspect * Math.abs(directionX) + Math.abs(directionY)) /
+    (Math.abs(directionX) + Math.abs(directionY));
+  const cx = directionX * aspect / span;
+  const cy = directionY / span;
+  const norm = cx * cx + cy * cy;
+  const x1 = 50 - cx / norm * 50;
+  const y1 = 50 - cy / norm * 50;
+  const x2 = 50 + cx / norm * 50;
+  const y2 = 50 + cy / norm * 50;
   const stops = Array.isArray(def.stops) && def.stops.length >= 2
     ? def.stops.map((stop) => `<stop offset="${format(Math.max(0, Math.min(1, Number(stop.offset) || 0)) * 100)}%" stop-color="${escapeAttribute(svgPaint(stop.color || "black"))}" />`).join("")
     : `<stop offset="0%" stop-color="${escapeAttribute(bottom)}" /><stop offset="50%" stop-color="${escapeAttribute(middle)}" /><stop offset="100%" stop-color="${escapeAttribute(top)}" />`;

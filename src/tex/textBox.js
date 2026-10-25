@@ -1,16 +1,18 @@
 import { nativeMathFont, nativeMathSize } from "./mathFonts.js";
-import { parseTikzFontPatch } from "./fontSpec.js";
-import { layoutNativeMath } from "./mathBox.js";
+import { parseTikzFontPatch, unscaledTextFont } from "./fontSpec.js";
+import { layoutNativeMath, scaleNativeMathBox } from "./mathBox.js";
 import { nativeSpaceFactor } from "./textSpacing.js";
 
 export function nativeTypewriterFont(font = {}) {
-  // The installed browser asset is cmtt10. Other NFSS optical sizes need
-  // their own font assets; do not silently stretch this face to replace them.
-  return Number(font.sizePt ?? 10) === 10 &&
-    /(?:Typewriter|monospace|TikZKitCMTT10)/i.test(String(font.family || ""));
+  return Boolean(nativeMathSize(Number(unscaledTextFont(font).sizePt ?? 10))) &&
+    /(?:Typewriter|monospace|TikZKitCMTT\d+)/i.test(String(font.family || ""));
 }
 
 export function layoutNativeTextRun(normalized, font = {}) {
+  if (font.geometricScale && font.geometricScale !== 1) {
+    const box = layoutNativeTextRun(normalized, unscaledTextFont(font));
+    return box && scaleNativeMathBox(box, font.geometricScale);
+  }
   const raw = String(normalized.raw ?? normalized.text ?? "");
   if (normalized.inlineNodes?.length || nativeTypewriterFont(font) && /\\textcolor\b/.test(raw)) {
     return layoutInlineText(normalized, font);
@@ -18,7 +20,7 @@ export function layoutNativeTextRun(normalized, font = {}) {
   if (raw === normalized.text && raw.includes("$")) return layoutNativeMixedText(raw, font);
   // Parse supported controls from source, not flattened normalization, to
   // preserve text kerns, escaped symbols and scoped paint. Unknowns fall back.
-  if (raw !== normalized.text || raw.includes("\\")) return layoutInlineText(normalized, font);
+  if (raw !== normalized.text || /[\\{}]/.test(raw)) return layoutInlineText(normalized, font);
   return layoutNativeText(normalized.text, font);
 }
 
@@ -56,7 +58,9 @@ function layoutInlineText(normalized, font) {
   };
   const lengthPt = (length, font) => {
     const size = Number(font.sizePt || 10);
-    const family = nativeTypewriterFont(font) ? "CMTT" : ["bold", "700"].includes(String(font.weight)) ? "CMBX" : "CMR";
+    const bold = ["bold", "700"].includes(String(font.weight));
+    const family = nativeTypewriterFont(font) ? "CMTT" : nativeSansFont(font)
+      ? (bold ? "CMSSBX" : "CMSS") : bold ? "CMBX" : "CMR";
     const metrics = nativeMathFont(family, size);
     // TeX em is fontdimen6 (the quad), not the nominal font size. cmtt10's
     // quad is 10.4999pt, which affects even PGF's default .3333em inner sep.
@@ -111,11 +115,29 @@ function layoutInlineText(normalized, font) {
         if (!command) return null;
         cursor += command.length + 1;
         while (/\s/.test(source[cursor] || "")) cursor++;
-        if (/^(?:tt|ttfamily|rm|rmfamily)$/.test(command)) {
+        if (/^(?:Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny|tt|ttfamily|sf|sffamily|rm|rmfamily|bf|bfseries|mdseries|upshape|normalfont)$/.test(command)) {
+          // The old LaTeX declarations reset family/series/shape first;
+          // NFSS declarations such as bfseries change only their own axis.
+          if (/^(?:tt|sf|rm|bf|normalfont)$/.test(command)) {
+            font = { ...font, family: "serif", weight: 400, style: "normal", variant: "normal" };
+          }
           font = { ...font, ...parseTikzFontPatch(`\\${command}`) };
           continue;
         }
-        if (command === "textcolor") {
+        if (command === "color") {
+          const paint = group();
+          if (paint === null) return null;
+          color = paint.trim();
+          continue;
+        }
+        if (/^(?:textbf|textmd|textrm|texttt|textsf|textnormal)$/.test(command)) {
+          const contents = group();
+          if (contents === null) return null;
+          const patch = command === "textnormal"
+            ? { family: "serif", weight: 400, style: "normal", variant: "normal" }
+            : parseTikzFontPatch(`\\${{ textbf: "bfseries", textmd: "mdseries", textrm: "rmfamily", texttt: "ttfamily", textsf: "sffamily" }[command]}`);
+          part = parse(contents, { ...font, ...patch }, color, depth + 1);
+        } else if (command === "textcolor") {
           const paint = group();
           const contents = group();
           if (paint === null || contents === null) return null;
@@ -162,18 +184,22 @@ function layoutInlineText(normalized, font) {
 // deriving node anchors from browser font bounds or a fitted width multiplier.
 // Paragraphs, control sequences and non-CM faces keep their existing renderer.
 export function layoutNativeText(text, font = {}) {
+  if (font.geometricScale && font.geometricScale !== 1) {
+    const box = layoutNativeText(text, unscaledTextFont(font));
+    return box && scaleNativeMathBox(box, font.geometricScale);
+  }
   const source = String(text ?? "");
   const size = nativeMathSize(Number(font.sizePt ?? 10));
   const family = String(font.family || "serif");
   const weight = String(font.weight ?? 400);
   const typewriter = nativeTypewriterFont(font);
+  const sans = nativeSansFont(font);
   if (!source || /[\\${}\r\n]/.test(source) || !size ||
-      (!typewriter && !/^(?:serif|TikZKitCM(?:R|BX)\d+|TikZKitCMUSerif)(?:,|$)/.test(family)) ||
-      (typewriter && !["normal", "400"].includes(weight)) ||
+      (!typewriter && !sans && !/^(?:serif|TikZKitCM(?:R|BX)\d+|TikZKitCMUSerif)(?:,|$)/.test(family)) ||
       !["normal", "400", "bold", "700"].includes(weight) ||
       (font.style && font.style !== "normal") || (font.variant && font.variant !== "normal")) return null;
-  const bold = ["bold", "700"].includes(weight) || /^TikZKitCMBX/.test(family);
-  const metrics = nativeMathFont(typewriter ? "CMTT" : bold ? "CMBX" : "CMR", size);
+  const bold = ["bold", "700"].includes(weight) || /^TikZKitCM(?:BX|SSBX)/.test(family);
+  const metrics = nativeMathFont(typewriter ? "CMTT" : sans ? (bold ? "CMSSBX" : "CMSS") : bold ? "CMBX" : "CMR", size);
   const chars = [];
   for (const char of source) {
     const ligature = metrics.ligatures[chars.at(-1)]?.[char];
@@ -184,8 +210,12 @@ export function layoutNativeText(text, font = {}) {
   let spaceFactor = 1000;
   for (const [index, char] of chars.entries()) {
     if (char === " " || char === "\u00a0") {
-      box.width += (metrics.parameters.SPACE +
-        (char === " " && spaceFactor >= 2000 ? metrics.parameters.EXTRASPACE : 0)) * size;
+      // A nonzero TeX spaceskip is a physical glue width: an inner font
+      // declaration must not rescale it. Sentence spaces prefer xspaceskip.
+      const sentence = char === " " && spaceFactor >= 2000;
+      box.width += sentence && font.extraSpaceSkipPt > 0 ? font.extraSpaceSkipPt :
+        (font.spaceSkipPt > 0 ? font.spaceSkipPt : metrics.parameters.SPACE * size) +
+        (sentence ? metrics.parameters.EXTRASPACE * size : 0);
       continue;
     }
     const glyph = metrics.glyphs[char];
@@ -199,4 +229,8 @@ export function layoutNativeText(text, font = {}) {
     spaceFactor = nativeSpaceFactor(spaceFactor, char);
   }
   return box;
+}
+
+export function nativeSansFont(font = {}) {
+  return /^(?:sans-serif|TikZKitCMSS(?:BX)?\d+|TikZKitCMUSans)(?:,|$)/.test(String(font.family || ""));
 }

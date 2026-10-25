@@ -19,7 +19,9 @@ test("native literal selection respects resolved size, family and explicit stret
   const small = nativePlainTextBox(item, normalized);
   assert.ok(small);
   assert.ok(small.items.every(g => g.size === 7 && g.family === "TikZKitCMR7"));
-  assert.equal(nativePlainTextBox({ ...item, font: { family: "sans-serif" } }, normalized), null);
+  const sans = nativePlainTextBox({ ...item, font: { family: "sans-serif" } }, normalized);
+  assert.ok(sans.items.every(g => g.size === 7 && g.family === "TikZKitCMSS8"));
+  assert.equal(nativePlainTextBox({ ...item, font: { family: "Helvetica" } }, normalized), null);
   assert.equal(nativePlainTextBox({ ...item, style: { textWidthScaleExplicit: true, textWidthScale: 2 } }, normalized), null);
   const bold = nativePlainTextBox({ ...item, font: { sizePt: 12, weight: 700 }, style: {} }, normalized);
   assert.ok(bold.items.every(g => g.family === "TikZKitCMBX12" && g.size === 12));

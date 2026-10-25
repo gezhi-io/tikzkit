@@ -100,7 +100,7 @@ function nativeFontRunWidth(run, style, sizePt, space) {
       || !["normal", "italic"].includes(fontStyle)) return null;
   if (!mono && !/^(?:serif|TikZKitCMR\d+|TikZKitCMUSerif)(?:,|$)/.test(family)) return null;
   const bold = ["700", "bold"].includes(weight);
-  if ((mono && (size !== 10 || italic)) || (italic && (size !== 10 || bold))) return null;
+  if ((mono && italic) || (italic && (size !== 10 || bold))) return null;
   const metrics = nativeMathFont(mono ? "CMTT" : italic ? "CMTI" : bold ? "CMBX" : "CMR", size);
   if (!metrics) return null;
   const chars = [];

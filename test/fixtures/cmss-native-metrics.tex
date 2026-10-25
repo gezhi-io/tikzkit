@@ -1,0 +1,19 @@
+\documentclass{article}
+\newcommand{\measure}[2]{\setbox0=\hbox{#2}\typeout{CMSS #1: \the\wd0,\the\ht0,\the\dp0}}
+\begin{document}
+\measure{tiny}{\sffamily\tiny ABCgy}
+\measure{script}{\sffamily\scriptsize ABCgy}
+\measure{foot}{\sffamily\footnotesize ABCgy}
+\measure{small}{\sffamily\small ABCgy}
+\measure{normal}{\sffamily ABCgy}
+\measure{large}{\sffamily\large ABCgy}
+\measure{Large}{\sffamily\Large ABCgy}
+\measure{LARGE}{\sffamily\LARGE ABCgy}
+\measure{Huge}{\sffamily\Huge ABCgy}
+\measure{bold}{\sffamily\bfseries\large ABCgy}
+\measure{node-large}{\sffamily\Large node n}
+\measure{node-small}{\ttfamily\scriptsize node n}
+\measure{mixed}{\sffamily $x$ text}
+\measure{LARGE-spaces}{\sffamily\LARGE A B $x$ C}
+\measure{bold-spaces}{\sffamily\bfseries A B $x$ C}
+\end{document}

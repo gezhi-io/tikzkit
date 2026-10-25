@@ -32,6 +32,7 @@ const TIKZTOSVG_SUPPORTED_EXTERNAL_PACKAGES = new Set([
   "bchart",
   "bm",
   "brunnian",
+  "chronology",
   "circuitikz",
   "gensymb",
   "helvet",
@@ -175,6 +176,9 @@ export async function renderExampleFixtures(options = {}) {
     }
     if (tikztosvgArrowDefaultReset(referenceSource)) {
       referenceProvenance.transformations.push("restore-source-classical-To-default-after-tikztosvg-extra-tikz-cd");
+    }
+    if (needsStandaloneChronologyWrapper(tikztosvgDocumentBody(referenceSource))) {
+      referenceProvenance.transformations.push("capture-native-chronology-resizebox-before-standalone-tikz-crop");
     }
 
     let tikztosvgSvg = null;
@@ -529,6 +533,7 @@ export async function validateRenderedCase(outputRoot, entry, environment = null
 function shouldUseNativeLatexReference(source) {
   const text = String(source || "");
   return (
+    /\\documentclass(?:\[[^\]]*\])?\{beamer\}/.test(text) ||
     /\\(?:input\s*\{?kvmacros|karnaughmap|kvmap)\b/.test(text) ||
     (/\\begin\{preview\}/.test(text) && /\\tikzmark\s*\{/.test(text) && /\\begin\{array\}/.test(text)) ||
     /\\usetkzobj\{[^}]*\}/.test(text)
@@ -561,12 +566,21 @@ async function renderNativeLatexReference(external, options = {}) {
     });
     if (latex.exitCode !== 0) return { rendered: false, stage: `pdflatex-pass-${pass + 1}`, result: latex };
   }
-  const converted = await external.runCommand("pdf2svg", [pdfPath, options.svgPath, "1"], {
+  let converted = await external.runCommand("pdf2svg", [pdfPath, options.svgPath, "1"], {
     cwd: workDir,
     env: options.env,
     timeoutMs: options.timeoutMs
   });
-  return { rendered: converted.exitCode === 0 && await nonemptyFile(options.svgPath), stage: "pdf2svg", result: converted };
+  let stage = "pdf2svg";
+  if (converted.exitCode !== 0) {
+    stage = "pdftocairo-svg";
+    // Poppler's print defaults can shrink and center a fractional-point page.
+    // Preserve the PDF's physical page size for coordinate comparisons.
+    converted = await external.runCommand("pdftocairo", ["-svg", "-origpagesizes", "-noshrink", "-nocenter", "-f", "1", "-l", "1", pdfPath, options.svgPath], {
+      cwd: workDir, env: options.env, timeoutMs: options.timeoutMs
+    });
+  }
+  return { rendered: converted.exitCode === 0 && await nonemptyFile(options.svgPath), stage, result: converted };
 }
 
 async function nativeMacTeXAvailable(external, engine) {
@@ -1032,7 +1046,7 @@ export function normalizeTikztosvgInput(source, options = {}) {
     )
   );
   const tikztosvgBody = applyTikztosvgDocumentCropBorder(
-    wrapStandalonePgfplotstableTypeset(loweredBody),
+    wrapStandaloneChronology(wrapStandalonePgfplotstableTypeset(loweredBody)),
     tikztosvgDocumentCropBorder(selectedSource)
   );
   return `${tikztosvgInputPreamble(selectedSource, tikztosvgBody)}${tikztosvgBody}`;
@@ -1084,6 +1098,32 @@ function wrapStandalonePgfplotstableTypeset(body) {
     "\\node[anchor=north west,inner sep=0pt] at (0,0) {",
     body.trim(),
     "};",
+    "\\end{tikzpicture}"
+  ].join("\n");
+}
+
+function needsStandaloneChronologyWrapper(body) {
+  return !/\\begin\{tikzpicture\}/.test(body)
+    && (body.match(/\\begin\{chronology\*?\}/g) || []).length === 1;
+}
+
+function wrapStandaloneChronology(body) {
+  if (!needsStandaloneChronologyWrapper(body)) return body;
+  // chronology nests TikZ in an lrbox and resizes it after the picture ends.
+  // Use standalone's saved original TikZ environment while building that box.
+  // Build it BEFORE the zero-padding node, so the wrapper's node separations
+  // cannot leak into chronology's internal labels and change native geometry.
+  return [
+    "\\newsavebox{\\tikzkitChronologyReferenceBox}",
+    "\\makeatletter",
+    "\\sbox{\\tikzkitChronologyReferenceBox}{\\begingroup%",
+    "\\let\\tikzpicture\\sa@orig@tikzpicture",
+    "\\let\\endtikzpicture\\sa@orig@endtikzpicture",
+    `${body.trim()}%`,
+    "\\endgroup}",
+    "\\makeatother",
+    "\\begin{tikzpicture}",
+    "\\node[inner sep=0pt,outer sep=0pt] {\\usebox{\\tikzkitChronologyReferenceBox}};",
     "\\end{tikzpicture}"
   ].join("\n");
 }

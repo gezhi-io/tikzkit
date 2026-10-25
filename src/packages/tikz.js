@@ -108,6 +108,17 @@ texPackage.implementedBy += " + src/tex/mathDelimiters.js";
 texPackage.features.push("native roots, matrix boxes and distinct bold mathematical alphabets at 10/7/5pt");
 texPackage.implementedBy += " + src/tex/mathArrays.js + src/tex/mathFonts.js";
 texPackage.features.push("native aligned/cases node boxes and standard LaTeX math sizes from tiny to Huge");
+texPackage.features.push(
+  "native scoped node hboxes, paragraph spaceskip/xspaceskip and row-local font restoration",
+  "MacTeX CMTT8/9/10/12 optical sizes selected before geometric scaling",
+  "PGF fixed-point circle extents and nullfont handling for bare picture text"
+);
+texPackage.implementedBy += " + src/tex/textBox.js + src/tex/paragraphBox.js + src/tex/paragraphBreaking.js + src/pgf/points.js + src/renderers/svg/paragraphText.js";
+texPackage.localSourceReviewedLatest += "; tikz.code.tex:1129-1186 (font replacement and paragraph glue), pgfcorescopes.code.tex:244/309 (nullfont), pgfmoduleshapes.code.tex:1198-1258 and pgfcorepoints.code.tex:944 (fixed-point circle sizing), ot1cmtt.fd:51-82 (optical sizes and bold substitution)";
+texPackage.registryNoteSuffixLatest += " Reviewed 2026-10-25: fetch/decode labels retain outer paragraph spaceskip across inner scriptsize, while row/group font changes restore correctly. Native hboxes and paragraph breaking now share browser/export geometry; CMTT8/9/10/12 are built only from local MacTeX. Fourteen actual browser glyph controls cover 360 origins at unchanged 0.09px tolerance. The 21-failure collection reaches zero, with source-backed semantic fixes and separately documented stale serialization expectations. Mixed rich formulas, full Beamer/chronology layout and general font families remain partial. Evidence: docs/qa/2026-10-25-scoped-fonts-failures.md.";
+texPackage.features.push("CMSY double bars and legal inline-math paragraph breaks", "MacTeX CMSS8/9/10/12/17 and CMSSBX10 text faces");
+texPackage.localSourceReviewedLatest += "; fontmath.ltx (CMSY double-bar slot 107 and math classes); ot1cmss.fd (optical designs and bold substitution); local CMSS/CMSY TFM and PFB files";
+texPackage.registryNoteSuffixLatest += " Mixed-paragraph follow-up: native double bars preserve ordinary/binary/relation glue; measured math noads and legal break penalties feed paragraph layout. Default browser JS and exported SVG text match the real paragraph's three lines and 60 glyph origins within 0.020px at 3x. Six native CMSS faces are packaged with their original metrics. The subsequent authorized chronology browser run passes all 143 glyphs and seven events; independent native-PDF pixel comparisons remain open. Arbitrary nested text/math and general Beamer layout remain partial. Evidence: docs/qa/2026-10-25-visual-followups.md and docs/qa/2026-10-25-polar-timeline.md.";
 texPackage.features.push("native ordinary hat accents with TFM skew, script attachment and math-family selection");
 texPackage.localSourceReviewedLatest += "; tex/latex/base/fontmath.ltx (ordinary hat mathalpha/operators slot 5E); tex.web make_math_accent (sections 738-742) and local CMR/CMMI TFM skew kerns";
 texPackage.registryNoteSuffixLatest += " Reviewed 2026-10-23: ordinary hat accents share native CM glyph layout in default browser and export, including cramped nuclei, optical scripts, mathalpha families and TFM skew kerns. Wide/other accents retain complete-formula fallback. The real function-pin example improves intrinsic hat/subscript geometry but still has absolute pin-placement differences and is not certified as a whole figure.";

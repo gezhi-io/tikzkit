@@ -10,10 +10,11 @@ import {
 import { parseExtensibleMathArrow } from "./mathArrows.js";
 import { parseInlineMathMatrix } from "./mathMatrixSyntax.js";
 import { parseInlinePlotReferenceSample } from "./plotReferenceSamples.js";
-import { fontSpecFromSizeCommand } from "../tex/fontSpec.js";
-import { layoutNativeMath } from "../tex/mathBox.js";
-import { layoutNativeText, layoutNativeTextRun } from "../tex/textBox.js";
-import { nativeBaselineSkip } from "../tex/mathFonts.js";
+import { fontSpecFromSizeCommand, unscaledTextFont } from "../tex/fontSpec.js";
+import { layoutNativeMath, scaleNativeMathBox } from "../tex/mathBox.js";
+import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont, nativeSansFont } from "../tex/textBox.js";
+import { nativeBaselineSkip, nativeMathFont } from "../tex/mathFonts.js";
+import { layoutNativeParagraph, nativeParagraphLines, layoutNativeMixedParagraph } from "../tex/paragraphBox.js";
 import { wrapNativeTextFirstPass } from "./textWrapping.js";
 
 const TEX_PT_PER_CM = 28.45274;
@@ -505,25 +506,34 @@ export function parseMathText(value) {
 // Literal CM rows use their own optical metrics, not a scaled math/text
 // estimate. Rich commands still fall back together so paint state is retained.
 export function layoutMultilineTeXText(normalized, font = {}, alignment = "center") {
+  if (font.geometricScale && font.geometricScale !== 1) {
+    const box = layoutMultilineTeXText(normalized, unscaledTextFont(font), alignment);
+    return box && scaleNativeMathBox(box, font.geometricScale);
+  }
   const lines = normalized?.lines;
   if (!Array.isArray(lines) || lines.length < 2 || normalized.displayMathSequence ||
       /\\\\\s*\[/.test(normalized.raw || "")) return null;
   const baseSize = Number(font.sizePt) || 10 * (Number(normalized.scale) || 1);
   const baselineSkip = Number(font.baselineSkipPt) || nativeBaselineSkip(baseSize);
   if (!(baselineSkip > 0)) return null;
+  // Retain each row's original groups. Flattened line styles cannot express
+  // nested font restoration or several optical sizes on the same baseline.
+  const sourceLines = String(normalized.raw || "").split(/\\\\/);
   const boxes = [];
   for (const [index, line] of lines.entries()) {
     const math = parseMathText(line);
     const style = normalized.lineStyles?.[index] || {};
-    if (math?.displayMode || (style.fontSegments?.length || 0) > 1) return null;
+    if (math?.displayMode) return null;
     const sizePt = math?.explicitFontSize ? math.scale * 10 : Number(style.fontSizePt) || baseSize;
-    const box = math ? layoutNativeMath(math.tex, {
+    const raw = sourceLines.length === lines.length ? sourceLines[index].trim() : null;
+    const sourceBox = raw === null ? null : layoutNativeTextRun({ raw, text: raw }, font);
+    const box = sourceBox || (math ? layoutNativeMath(math.tex, {
       fontSizePt: sizePt,
       mathVersion: font.mathVersion,
       mathExtension: font.mathExtension,
       preferNativeMath: true
     }) : normalized.raw === normalized.text
-      ? layoutNativeTextRun({ raw: line, text: line }, { ...font, sizePt }) : null;
+      ? layoutNativeTextRun({ raw: line, text: line }, { ...font, sizePt }) : null);
     if (!box) return null;
     boxes.push(box);
   }
@@ -551,6 +561,61 @@ export function layoutMultilineTeXText(normalized, font = {}, alignment = "cente
       return box.items.map(item => ({ ...item, x: item.x + x, y: item.y + y }));
     })
   };
+}
+
+export function layoutNativeScopedParagraph(normalized, font, widthPt, alignment, fixedSpacing = true) {
+  if (fixedSpacing) alignment ||= "left";
+  if (font.geometricScale && font.geometricScale !== 1) {
+    const box = layoutNativeScopedParagraph(normalized, unscaledTextFont(font),
+      widthPt / font.geometricScale, alignment, fixedSpacing);
+    return box && scaleNativeMathBox(box, font.geometricScale);
+  }
+  if (!["left", "center", "right"].includes(alignment) ||
+      normalized.inlineNodes?.length || !(widthPt > 0)) return null;
+  // Unlike halign rows, paragraph line breaks do not close a font group.
+  // Cross-row declarations require a stateful paragraph breaker; do not
+  // incorrectly reset them by treating independent lines as scoped hboxes.
+  let depth = 0, inMath = false;
+  for (let i = 0; i < normalized.raw.length; i++) {
+    const char = normalized.raw[i];
+    if (char === "$") { inMath = !inMath; continue; }
+    if (inMath) continue;
+    if (char === "\\") {
+      if (!depth && /^\\(?:Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|scriptsize|tiny|bf|bfseries|mdseries|rm|rmfamily|tt|ttfamily|normalfont|color)\b/.test(normalized.raw.slice(i))) return null;
+      i++;
+    } else if (char === "{") depth++;
+    else if (char === "}") depth--;
+  }
+  // TikZ text centered/ragged installs .3333em spaceskip and .5em
+  // xspaceskip before the body. Badly centered/ragged leaves font glue alone.
+  if (fixedSpacing) {
+    const size = Number(font.sizePt) || 10;
+    const bold = ["bold", "700"].includes(String(font.weight)) || /^TikZKitCMBX/.test(font.family || "");
+    const role = nativeTypewriterFont(font) ? "CMTT" : nativeSansFont(font)
+      ? bold ? "CMSSBX" : "CMSS" : bold ? "CMBX" : "CMR";
+    const quad = nativeMathFont(role, size)?.parameters.QUAD * size;
+    if (!Number.isFinite(quad)) return null;
+    font = { ...font, spaceSkipPt: .3333 * quad, extraSpaceSkipPt: .5 * quad };
+  }
+  // Ragged paragraphs use finite left/right skip glue (2em per side),
+  // not greedy character wrapping. Keep this shared with node measurement.
+  const lines = fixedSpacing && normalized.lines?.length === 1
+    ? nativeParagraphLines(normalized.raw, font, widthPt, {
+      backgroundStretch: (alignment === "center" ? 4 : 2) * Number(font.sizePt || 10),
+      lastLineStretch: alignment !== "center"
+    }) : null;
+  const box = lines ? layoutNativeParagraph(lines, font, widthPt, alignment)
+    : normalized.lines?.length === 1 && layoutNativeMixedParagraph(normalized.raw, font, widthPt, alignment, {
+      backgroundStretch: fixedSpacing ? (alignment === "center" ? 4 : 2) * Number(font.sizePt || 10) : 0,
+      lastLineStretch: alignment !== "center"
+    }) || layoutMultilineTeXText(normalized, font, alignment);
+  if (!box || box.width > widthPt) return null;
+  // Explicit short rows need no reflow. TikZ's text-width minipage is a vtop:
+  // its baseline is the first row, unlike an aligned node's last-row baseline.
+  const dx = alignment === "left" ? 0 : (widthPt - box.width) / (alignment === "right" ? 1 : 2);
+  const dy = box.rows.at(-1).baseline;
+  return { ...box, width: widthPt, height: box.height - dy, depth: box.depth + dy,
+    items: box.items.map(glyph => ({ ...glyph, x: glyph.x + dx, y: glyph.y + dy })) };
 }
 
 export function estimateFormulaBox(tex, options = {}) {

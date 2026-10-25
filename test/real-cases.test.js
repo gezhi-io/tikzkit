@@ -51,5 +51,6 @@ test("supports grid, option-radius shapes, arcs, inline nodes, to curves, plot f
   assert.equal(interpreted.ir.items.some((item) => item.shape === "arc"), true);
   assert.equal(interpreted.ir.items.filter((item) => item.type === "textNode").length >= 3, true);
   assert.equal(interpreted.ir.items.filter((item) => item.type === "marker").length, 5);
-  assert.match(svg, /stroke="rgb\(192 192 192\)"/);
+  // xcolor gray!50 is 0.75 in the gray model, rounded only at RGB output.
+  assert.match(svg, /stroke="rgb\(191 191 191\)"/);
 });

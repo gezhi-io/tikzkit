@@ -313,6 +313,8 @@
       "title": "circuitikz varcap diode plate variants",
       "source": "circuitikz/varcap-diodes.tex",
       "sourceCorpus": "TeX Live circuitikz manual",
+      "semanticOwner": "src/engine/evaluate.js:circuitikzVarcapItems",
+      "features": ["varcap diode aliases", "variable-capacitance plate variants"],
       "libraries": [],
       "packages": [
         "circuitikz"

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { assertNativePlainText, assertNativeText, nativeMathGroups } from "./helpers/native-math-svg.js";
+import { assertNativePlainText, assertNativeText, nativeMathGroups, nativeTextGroups } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { renderSvg, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 import { wrapSvgTextLineWithSource } from "../src/renderers/svg/index.js";
@@ -518,11 +518,12 @@ test("renders path ball shading as SVG radial gradients", () => {
   });
 
   assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-/);
-  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-[^"]+"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="70%"[^>]+fx="30%"[^>]+fy="30%"/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-[^"]+"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="100%"[^>]+fx="30%"[^>]+fy="30%"/);
   assert.match(svg, /offset="0%" stop-color="rgb\(255 255 217\)"/);
-  assert.match(svg, /offset="36%" stop-color="rgb\(255 255 64\)"/);
-  assert.match(svg, /offset="72%" stop-color="rgb\(179 179 0\)"/);
-  assert.match(svg, /offset="100%" stop-color="rgb\(128 128 0\)"/);
+  assert.match(svg, /offset="18%" stop-color="rgb\(255 255 64\)"/);
+  assert.match(svg, /offset="36%" stop-color="rgb\(179 179 0\)"/);
+  assert.match(svg, /offset="50%" stop-color="rgb\(128 128 0\)"/);
+  assert.match(svg, /offset="100%" stop-color="black"/);
   assert.match(svg, /<circle[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-ball-/);
   assert.match(svg, /<ellipse[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-ball-/);
 });
@@ -1565,7 +1566,10 @@ test("keeps TeX phantom text invisible while preserving node box metrics", () =>
   const boxes = Object.fromEntries(result.ir.items.filter((item) => item.type === "nodeBox").map((item) => [item.id, item]));
   assert.ok(Math.abs(boxes.ghost.width - boxes.visible.width) < 0.05, `expected phantom width to match content, got ${boxes.ghost.width} vs ${boxes.visible.width}`);
   assert.doesNotMatch(result.svg, /phantom|sffamily|Large/);
-  assert.equal((result.svg.match(/node n/g) || []).length, 1);
+  const groups = nativeTextGroups(result.svg);
+  assert.equal(groups.length, 1, "the phantom has dimensions but paints no glyphs");
+  assert.equal(groups[0].text, "noden");
+  assert.ok(groups[0].glyphs.every(g => g.family === "TikZKitCMSS12" && g.size === 14.4));
 });
 
 test("preserves TeX hspace as visible SVG text spacing", () => {
@@ -1913,7 +1917,7 @@ test("uses textcolor macros as SVG text fill colors", () => {
     coordinates: {}
   });
 
-  assert.match(svg, /<text[^>]+fill="blue"[^>]*>carrier wave<\/text>/);
+  assert.ok(assertNativePlainText(svg, "carrier wave").glyphs.every(g => g.fill === "blue"));
 });
 
 test("normalizes TeX accent macros in plain SVG text labels", () => {
@@ -1991,11 +1995,10 @@ test("renders stateful color commands inside inline SVG math fallback", () => {
   );
 
   assert.doesNotMatch(svg, /\\color/);
-  assert.match(svg, /<tspan fill="red">/);
-  assert.match(svg, /<tspan fill="blue">/);
-  assert.match(svg, /AB/);
-  assert.match(svg, /∥/);
-  assert.match(svg, /CD/);
+  const group = assertNativePlainText(svg, "When AB‖CD holds");
+  assert.deepEqual(group.glyphs.slice(4, 7).map(g => g.fill), ["red", "red", "red"]);
+  assert.deepEqual(group.glyphs.slice(7, 9).map(g => g.fill), ["blue", "blue"]);
+  assert.equal(group.glyphs[6].family, "TikZKitCMSY10");
 });
 
 test("renders single-token math font commands without leaking command names", () => {
@@ -2020,10 +2023,8 @@ test("applies node option bold sans-serif font to plain text labels", () => {
   const { svg } = tikzToSvg(String.raw`\begin{tikzpicture}
 \node[font=\Large\bfseries\sffamily] at (0,0) {2048};
 \end{tikzpicture}`, { mathRenderer: "svg-text" });
-  const textOpen = svg.match(/<text[^>]+>2048<\/text>/)?.[0] || "";
-
-  assert.match(textOpen, /font-weight="700"/);
-  assert.match(textOpen, /(?:TikZKitCMUSans|SansSerif)/);
+  const glyphs = assertNativePlainText(svg, "2048").glyphs;
+  assert.ok(glyphs.every(g => g.weight === 700 && g.family === "TikZKitCMSSBX10" && g.size === 14.4));
 });
 
 test("renders text commands inside math fallback without leaking command names", () => {
@@ -2486,7 +2487,10 @@ test("renders degree superscripts as a degree symbol in SVG math fallback", () =
   );
 
   assert.equal(text, "-90°");
-  assert.match(svg, />-<tspan>90<\/tspan><tspan[^>]+baseline-shift="super"[^>]*>°<\/tspan>/);
+  const degree = assertNativeText(svg, "−90◦");
+  assert.equal(degree.glyphs.at(-1).family, "TikZKitCMSY7");
+  assert.equal(degree.glyphs.at(-1).size, 7);
+  assert.ok(degree.glyphs.at(-1).y < 0);
   assert.doesNotMatch(svg, /baseline-shift="super"[^>]+\bdy="/);
   assert.doesNotMatch(svg.replace(/data:font\/woff;base64,[A-Za-z0-9+/=]+/g, ""), /\^deg|deg/);
 });
@@ -2502,7 +2506,8 @@ test("renders common TikZ math symbol macros in SVG text fallback", () => {
   );
 
   assert.equal(text, "££ + ⋆");
-  assert.match(svg, /££ \+ ⋆/);
+  const painted = svg.match(/<text\b[\s\S]*?<\/text>/)?.[0].replace(/<[^>]*>/g, "");
+  assert.equal(painted, "££ + ⋆");
   assert.doesNotMatch(svg, /pounds|star|boldsymbol/);
 });
 
@@ -2606,11 +2611,11 @@ test("inherits tikzpicture nodes text width and alignment", () => {
   assert.equal(result.diagnostics.length, 0);
   assert.equal(textNode?.textAlign, "left");
   assert.ok(Math.abs((textNode?.wrapWidth ?? 0) - 2.2) < 1e-6, `expected inherited wrap width, got ${textNode?.wrapWidth}`);
-  assert.match(result.svg, /<text[^>]+text-anchor="start"/);
-  assert.match(result.svg, /Gerente/);
-  assert.match(result.svg, /elige una/);
-  assert.match(result.svg, /accion muy/);
-  assert.match(result.svg, /larga\./);
+  const paragraph = assertNativePlainText(result.svg, "Gerente elige una verifi-cable accion muy larga.");
+  const baselines = [...new Set(paragraph.glyphs.map(g => g.y))];
+  assert.deepEqual(baselines, [0, 12, 24, 36]);
+  assert.deepEqual(baselines.map(y => paragraph.glyphs.filter(g => g.y === y).map(g => g.text).join("")),
+    ["Gerenteelige", "unaveriﬁ-", "cableaccion", "muylarga."]);
 });
 
 test("expands lipsum itemize nodes into wrapped bullet prose", () => {
@@ -2947,9 +2952,8 @@ test("does not promote partial textcolor macros to whole-node fill", () => {
     { mathRenderer: "svg-text" }
   );
 
-  assert.match(svg, /fill="black"/);
-  assert.doesNotMatch(svg, /<text[^>]+fill="red"/);
-  assert.match(svg, /fill="red"[^>]*>AACG/);
+  const glyphs = assertNativePlainText(svg, "AACGAC").glyphs;
+  assert.deepEqual(glyphs.map(g => g.fill), ["red", "red", "red", "red", "black", "black"]);
 });
 
 test("uses TikZ-like text scale for SVG text fallbacks", () => {
@@ -2998,11 +3002,15 @@ test("treats explicit TeX font size commands as overriding inherited node fonts"
   const textNodes = result.ir.items.filter((item) => item.type === "textNode");
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(boxes.large.width > boxes.small.width * 1.8, `expected local Large to override scriptsize, got ${boxes.small.width} -> ${boxes.large.width}`);
+  // Independent hboxes from fixtures/cmss-native-metrics.tex, not a fitted ratio.
+  assert.ok(Math.abs(boxes.large.width * 72.27 / 2.54 - 40.10777) < .001);
+  assert.ok(Math.abs(boxes.small.width * 72.27 / 2.54 - 22.31277) < .001);
   assert.match(textNodes[0].style.fontFamily, /TikZKitCMUMono/);
   assert.match(textNodes[1].style.fontFamily, /(?:TikZKitCMUSans|SansSerif)/);
-  assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 1.44)}"`));
-  assert.match(result.svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 0.7)}"`));
+  const small = assertNativePlainText(result.svg, "node n");
+  assert.ok(small.glyphs.every(g => g.size === 7 && g.family === "TikZKitCMTT8"));
+  const large = nativeTextGroups(result.svg).find(group => group.glyphs[0]?.size === 14.4);
+  assert.ok(large.glyphs.every(g => g.size === 14.4 && g.family === "TikZKitCMSS12"));
 });
 
 test("inherits picture font family when local node font only changes weight or size", () => {
@@ -3031,11 +3039,13 @@ test("wraps text width lines using their local TeX font size", () => {
     coordinates: {}
   });
 
-  assert.match(svg, />Instruction fetch<\/tspan>/);
-  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(10) * 0.7)}"[^>]*>Instruction fetch`));
-  assert.doesNotMatch(svg, />Instruction<\/tspan><tspan[^>]*>fetch<\/tspan>/);
-  const dy = [...svg.matchAll(/dy="([^"]+)"/g)].map((match) => Number(match[1]));
-  assert.ok(dy[1] > 40 && dy[1] < 44, `expected native-like huge/scriptsize baseline gap, got ${dy[1]}`);
+  const group = assertNativeText(svg, "IFInstructionfetch");
+  const caption = group.glyphs.slice(2);
+  assert.ok(caption.every(g => g.size === 7 && g.family === "TikZKitCMR7"));
+  assert.deepEqual([...new Set(caption.map(g => g.y))], [12]);
+  assert.ok(group.glyphs.slice(0, 2).every(g => g.size === 20.74 && g.y === 0));
+  // The fixed TikZ paragraph spaceskip is 3.333pt, even inside scriptsize.
+  assert.ok(Math.abs(caption[11].x - caption[10].x - 7.7497) < .001);
 });
 
 test("uses namespaced TeX main and math italic fonts for SVG math fallback", () => {
@@ -3235,10 +3245,13 @@ test("collapses ordinary TeX source newlines in rich paragraph text", () => {
 \end{tikzpicture}`);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.equal((result.svg.match(/class="tikz-rich-line"/g) || []).length, 1);
-  assert.match(result.svg, /are parallel/);
-  assert.match(result.svg, /i\. e\./);
-  assert.match(result.svg, /∥/);
+  const group = assertNativePlainText(result.svg, "When AB and CD are parallel, i.e., AB‖CD, then α=γ.");
+  assert.equal(new Set(group.glyphs.map(g => g.y)).size, 1);
+  const e = group.glyphs.findIndex((g, i) => g.text === "e" && group.glyphs[i - 1]?.text === ".");
+  // CMR10 period advance + the explicit 1/6-em thin space.
+  assert.ok(Math.abs(group.glyphs[e].x - group.glyphs[e - 1].x - 4.444457) < .001);
+  assert.doesNotMatch(result.svg, /[\uE100\uE101]/, "internal spacing tokens must never become visible glyphs in the browser");
+  assert.match(result.svg, /‖/);
   assert.doesNotMatch(result.svg, /\\,|mathbin/);
 });
 
@@ -3253,12 +3266,12 @@ test("wraps rich TikZ text width paragraphs with TeX-like word metrics", () => {
 \end{tikzpicture}`);
 
   assert.deepEqual(result.diagnostics, []);
-  const lines = richLineTexts(result.svg);
-  assert.equal(lines.length, 3);
-  assert.match(lines[0], /^When we assume that AB and CD$/);
-  assert.match(lines[1], /^are parallel/);
-  assert.match(lines[1], /α=γ|α = γ/);
-  assert.match(lines[2], /^and β=δ|^and β = δ/);
+  const group = assertNativePlainText(result.svg, "When we assume that AB and CD are parallel, i.e., AB‖CD, then α=γ and β=δ.");
+  const baselines = [...new Set(group.glyphs.map(g => g.y))];
+  assert.deepEqual(baselines, [0, 12, 24]);
+  assert.deepEqual(baselines.map(y => group.glyphs.filter(g => g.y === y).map(g => g.text).join("")), [
+    "WhenweassumethatABandCD", "areparallel,i.e.,AB‖CD,thenα=γ", "andβ=δ."
+  ]);
 });
 
 test("keeps compact inline math on the TeX-sized svg-text paragraph line", () => {
@@ -3608,11 +3621,12 @@ test("renders ball shaded circle node boxes as SVG radial gradients", () => {
   });
 
   assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255"/);
-  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="70%"[^>]+fx="30%"[^>]+fy="30%"/);
+  assert.match(svg, /<radialGradient[^>]+id="tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255"[^>]+cx="50%"[^>]+cy="50%"[^>]+r="100%"[^>]+fx="30%"[^>]+fy="30%"/);
   assert.match(svg, /offset="0%" stop-color="rgb\(232 232 255\)"/);
-  assert.match(svg, /offset="36%" stop-color="rgb\(140 140 255\)"/);
-  assert.match(svg, /offset="72%" stop-color="rgb\(71 71 179\)"/);
-  assert.match(svg, /offset="100%" stop-color="rgb\(51 51 128\)"/);
+  assert.match(svg, /offset="18%" stop-color="rgb\(140 140 255\)"/);
+  assert.match(svg, /offset="36%" stop-color="rgb\(71 71 179\)"/);
+  assert.match(svg, /offset="50%" stop-color="rgb\(51 51 128\)"/);
+  assert.match(svg, /offset="100%" stop-color="black"/);
   assert.match(svg, /<ellipse[^>]+fill="url\(#tikzkit-[\da-f]{16}-tikz-ball-rgb-102-102-255\)"/);
 });
 

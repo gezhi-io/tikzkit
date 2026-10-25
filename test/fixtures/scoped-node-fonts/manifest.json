@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "scoped-font-paragraph-spaces", "source": "paragraph-spaces.tex", "title": "Centered and flush paragraph spaces preserve outer-font glue", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 64 } },
+    { "id": "scoped-font-row-reset", "source": "row-reset.tex", "title": "TikZ halign restores the outer font between rows", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 8 } },
+    { "id": "scoped-font-single-hbox", "source": "single-hbox.tex", "title": "Scoped huge and script fonts in one native hbox", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 18 } },
+    { "id": "scoped-font-aligned-rows", "source": "aligned-rows.tex", "title": "Mixed optical sizes and bold faces in aligned rows", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 30 } },
+    { "id": "scoped-font-group-restoration", "source": "group-restoration.tex", "title": "Nested font declarations, argument commands and group restoration", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 20 } },
+    { "id": "scoped-font-fetch-decode", "source": "fetch-decode.tex", "title": "PetarV fetch/decode text-width blocks and connecting arrows", "nativeGlyphFrame": { "color": "rgb(255, 0, 0)", "count": 54 } }
+  ]
+}

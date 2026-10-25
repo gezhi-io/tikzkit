@@ -1,0 +1,21 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\definecolor{sky}{HTML}{AAEEEE}
+\begin{document}
+\begin{tikzpicture}[scale=1.2]
+  \draw[blue] (-2,-2) rectangle (2,2);
+  \draw[fill=sky] (0,0) circle (1.5cm);
+  \draw[fill=brown] (0,0) circle (1cm);
+  \begin{scope}[shift={(-1.35cm,0)},rotate=48]
+    \draw (0,0) -- node {} (2.5cm,0);
+  \end{scope}
+  \draw (0,0) -- (0,1.5cm);
+  \draw (0,0) -- node[anchor=east] {$r$} (138:1cm);
+  \draw[fill=gray!30] (0,0) -- (138:.75cm) arc (138:90:.75cm);
+  \draw (110:.5cm) node {$\varphi$};
+  \draw[lime] (138:1cm) arc (138:90:1cm);
+  \node[lime] at (-.2,.85) {$x$};
+  \draw[blue] (0,1cm) -- node[anchor=west] (height) {$h$} (0,1.5cm);
+  \node at (0,-.2) {Erde};
+\end{tikzpicture}
+\end{document}

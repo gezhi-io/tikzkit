@@ -2,11 +2,13 @@ import { evaluateMath, parseDimension } from "../engine/math.js";
 import { createPgfRandom } from "../engine/pgfRandom.js";
 import { applyPreprocessExtensions } from "../extensions/index.js";
 import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
+import { renderChronologyDocument } from "../extensions/chronologyLayout.js";
 import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../engine/options.js";
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
 import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
-import { renderNativeScatterLegend, renderNativeTextOnlyInsideLegend } from "../tikz/libraries/datavisualizationLegend.js";
+import { renderNativeScatterLegend, renderNativeTextOnlyInsideLegend, renderNativeOutsideLineLegend } from "../tikz/libraries/datavisualizationLegend.js";
+import { polarArcPath, polarProjectedPoint, polarRadiansToDegrees, polarTickTextAnchor } from "../tikz/libraries/datavisualizationPolarTicks.js";
 import { collectPgfPlotMarkDeclarations } from "../tikz/libraries/plotmarks.js";
 import { collectTexPackages } from "../packages/declarations.js";
 import { fontScaleFromTikzFont, mathFallbackText } from "../tikz/text.js";
@@ -102,12 +104,19 @@ export function preprocessTikzSource(source, options = {}) {
   // `\the\numexpr` is plain e-TeX integer arithmetic and must be resolved
   // before any PGF/TikZ option or coordinate is parsed.
   expanded = expandTheNumexpr(expanded, diagnostics);
+  // Beamer stores the title before consuming the frame body. Preserve that
+  // metadata for chronology before the generic frame wrapper is removed.
+  const chronologyFrame = {
+    title: parseFirstFrameTitle(expanded),
+    count: [...expanded.matchAll(/\\begin\{frame\}/g)].length,
+    options: expanded.match(/\\begin\{frame\}\s*\[([^\]]*)\]/)?.[1] || ""
+  };
   expanded = unwrapBeamerFrames(expanded);
   const previewMargins = collectPreviewMargins(expanded);
   const previewBorder = uniformPreviewBorder(previewMargins);
   expanded = expandTheoreticalComputerScienceLogoMacros(expanded);
   expanded = expandTimelineEnvironments(expanded, diagnostics);
-  expanded = expandChronologyEnvironments(expanded, diagnostics);
+  expanded = expandChronologyEnvironments(expanded, diagnostics, chronologyFrame);
   expanded = expandEventPeriodTimelineMacros(expanded, diagnostics);
   const packages = collectTexPackages(expanded);
   expanded = applyDocumentFontPackageAliases(expanded, packages);
@@ -1254,16 +1263,17 @@ function stripTimelineSetupStatements(source) {
 
 const CHRONOLOGY_LINEWIDTH_CM = 10;
 
-function expandChronologyEnvironments(source, diagnostics) {
+function expandChronologyEnvironments(source, diagnostics, frame = {}) {
   const text = String(source);
   if (!text.includes("\\begin{chronology")) return text;
-
+  const beamer = /\\documentclass(?:\[[^\]]*\])?\{beamer\}/.test(text);
+  const metropolis = /\\usetheme(?:\[[^\]]*\])?\{metropolis\}/.test(text);
   const blocks = [];
   let cursor = 0;
   while (cursor < text.length) {
     const begin = findNextChronologyBegin(text, cursor);
     if (!begin) break;
-    const parsed = parseChronologyEnvironment(text, begin, diagnostics);
+    const parsed = parseChronologyEnvironment(text, begin, diagnostics, beamer ? 10.8 : CHRONOLOGY_LINEWIDTH_CM);
     if (!parsed) {
       cursor = begin.index + begin.token.length;
       continue;
@@ -1274,9 +1284,17 @@ function expandChronologyEnvironments(source, diagnostics) {
 
   if (!blocks.length) return text;
   const packageLines = [...text.matchAll(/\\usepackage(?:\[[^\]]*\])?\{[^{}]*\}/g)].map((match) => match[0]);
-  const title = parseFirstFrameTitle(text);
+  const title = frame.title ?? parseFirstFrameTitle(text);
   const includeCompareGrid = text.includes("tikzkit compare grid");
-  return `${packageLines.join("\n")}\n${renderChronologyTikz(blocks, { title, includeCompareGrid })}`;
+  const classOptions = (text.match(/\\documentclass\[([^\]]*)\]\{beamer\}/)?.[1] || "").split(",").map(s => s.trim());
+  const themeOptions = (text.match(/\\usetheme\[([^\]]*)\]\{metropolis\}/)?.[1] || "").split(",").map(s => s.trim()).filter(Boolean);
+  const supportedPage = !beamer || (metropolis && frame.count === 1 && (!frame.options || frame.options === "c") &&
+    classOptions.includes("10pt") && classOptions.every(s => ["10pt", "aspectratio=43"].includes(s)) &&
+    themeOptions.every(s => /^(progressbar=(frametitle|none)|)$/u.test(s)));
+  const native = supportedPage && renderChronologyDocument(blocks, { title, beamer, metropolis,
+    progress: /progressbar\s*=\s*frametitle/.test(text) });
+  if (!native) diagnostics.push({ severity: "warning", message: "chronology: unsupported native page, label content or year range; using approximate layout" });
+  return `${packageLines.join("\n")}\n${native || renderChronologyTikz(blocks, { title, includeCompareGrid })}`;
 }
 
 function findNextChronologyBegin(text, start) {
@@ -1291,7 +1309,7 @@ function findNextChronologyBegin(text, start) {
   return { index: plainIndex, token: plain, endToken: "\\end{chronology}", flipped: false };
 }
 
-function parseChronologyEnvironment(text, begin, diagnostics) {
+function parseChronologyEnvironment(text, begin, diagnostics, lineWidthCm) {
   let index = begin.index + begin.token.length;
   const stepOptions = parseOptionalOptions(text, index);
   index = stepOptions.end;
@@ -1304,16 +1322,10 @@ function parseChronologyEnvironment(text, begin, diagnostics) {
   const width = extractRequiredChronologyGroup(text, index);
   if (!width) return null;
   index = width.end;
-  const unitGroup = extractRequiredChronologyGroup(text, index);
-  let unitRaw = "";
-  if (unitGroup) {
-    unitRaw = unitGroup.content;
-    index = unitGroup.end;
-  } else {
-    const unitOptions = parseOptionalOptions(text, index);
-    unitRaw = unitOptions.raw || width.content;
-    index = unitOptions.end;
-  }
+  // chronology's optional fifth argument is a *total unscaled width*,
+  // enclosed in brackets. A following brace group belongs to the body.
+  const baseWidth = parseOptionalOptions(text, index);
+  index = baseWidth.end;
 
   const endIndex = text.indexOf(begin.endToken, index);
   if (endIndex === -1) {
@@ -1323,8 +1335,8 @@ function parseChronologyEnvironment(text, begin, diagnostics) {
 
   const yearStart = chronologyNumber(start.content, 0);
   const yearStop = chronologyNumber(stop.content, yearStart + 1);
-  const widthCm = chronologyDimension(width.content, CHRONOLOGY_LINEWIDTH_CM * 0.9);
-  const unitCm = chronologyDimension(unitRaw, parseDimension("1ex", {}));
+  const widthCm = chronologyDimension(width.content, lineWidthCm * 0.9, lineWidthCm);
+  const baseWidthCm = chronologyDimension(baseWidth.raw || width.content, widthCm, lineWidthCm);
   const step = Math.max(1, Math.round(chronologyNumber(stepOptions.raw || "5", 5)));
   return {
     block: {
@@ -1333,7 +1345,7 @@ function parseChronologyEnvironment(text, begin, diagnostics) {
       yearStart,
       yearStop,
       widthCm,
-      unitCm,
+      baseWidthCm,
       events: parseChronologyEvents(text.slice(index, endIndex))
     },
     end: endIndex + begin.endToken.length
@@ -1373,7 +1385,7 @@ function parseChronologyEvents(body) {
     events.push({
       startYear: optional.raw ? chronologyNumber(optional.raw, null) : null,
       endYear: chronologyNumber(endDate.content, 0),
-      label: normalizeChronologyLabel(label.content)
+      label: label.content.replace(/\s+/g, " ").trim()
     });
     cursor = label.end;
   }
@@ -1478,13 +1490,13 @@ function positiveModulo(value, divisor) {
   return ((value % divisor) + divisor) % divisor;
 }
 
-function chronologyDimension(raw, fallback) {
+function chronologyDimension(raw, fallback, lineWidthCm = CHRONOLOGY_LINEWIDTH_CM) {
   const text = String(raw || "").trim();
   if (!text) return fallback;
   const lineWidth = text.match(/^([+-]?(?:\d+\.?\d*|\.\d+))?\s*\\(?:line|text)width$/);
   if (lineWidth) {
     const factor = lineWidth[1] === undefined || lineWidth[1] === "" ? 1 : Number(lineWidth[1]);
-    return Number.isFinite(factor) ? Math.max(0.1, factor * CHRONOLOGY_LINEWIDTH_CM) : fallback;
+    return Number.isFinite(factor) ? Math.max(0.1, factor * lineWidthCm) : fallback;
   }
   const parsed = parseDimension(text, {});
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -6171,13 +6183,24 @@ function datavisualizationPointNumericAttribute(point, attribute, fallback = NaN
 function renderDatavisualizationAsPolarTikz(parsed, globalOptions = {}, plotSpecs = []) {
   const config = datavisualizationPolarConfig(globalOptions, plotSpecs);
   const commands = [];
+  const legendPlots = plotSpecs.filter((plot) => plot.points.length && plot.legendLabel);
+  const axisBoxName = "tikzkit polar visualization";
+  const nativeLegend = renderNativeOutsideLineLegend(legendPlots.map(plot => {
+    const style = datavisualizationLinePlotStyle(plot.styleIndex || 0, plot);
+    return { kind: plot.kind === "scatter" || plot.noLines ? "scatter" : "line",
+      plot: { ...plot, legendPosition: config.legendPosition || "right" },
+      sampleStyle: formatDatavisualizationOptions(style),
+      labelColor: plot.legendTextColored ? datavisualizationLegendLabelColor(style, plot) : "black" };
+  }), axisBoxName);
+  if (nativeLegend) commands.push(`;{[local bounding box=${axisBoxName}]`);
   if (config.showAxes) {
-    commands.push(...renderDatavisualizationPolarFrame(config));
+    // The legend is anchored to the visualization's actual painted bounds.
+    // Synthetic canvas padding must not become part of its local bbox.
+    if (!nativeLegend) commands.push(...renderDatavisualizationPolarFrame(config));
     commands.push(...renderDatavisualizationPolarGrid(config));
   }
 
   let legendIndex = 0;
-  const legendPlots = plotSpecs.filter((plot) => plot.points.length && plot.legendLabel);
   const legendCount = legendPlots.length;
   for (const plot of plotSpecs) {
     if (!plot.points.length) continue;
@@ -6190,7 +6213,7 @@ function renderDatavisualizationAsPolarTikz(parsed, globalOptions = {}, plotSpec
     if (plot.kind === "scatter" || plot.noLines) {
       const scatterStyle = formatDatavisualizationOptions({ "axis plot": true, ...datavisualizationScatterPlotStyle(plot) });
       commands.push(`\\draw[${scatterStyle}] plot coordinates {${coordinates}};`);
-      if (plot.legendLabel) {
+      if (plot.legendLabel && !nativeLegend) {
         commands.push(...renderDatavisualizationPolarLegend(plot, datavisualizationScatterPlotStyle(plot), legendIndex, legendCount, config));
         legendIndex += 1;
       }
@@ -6199,12 +6222,13 @@ function renderDatavisualizationAsPolarTikz(parsed, globalOptions = {}, plotSpec
     const plotStyle = datavisualizationLinePlotStyle(plot.styleIndex || 0, plot);
     const style = formatDatavisualizationOptions({ "axis plot": true, ...plotStyle });
     commands.push(`\\draw[${style}] plot${plot.smooth !== false ? "[smooth]" : ""} coordinates {${coordinates}};`);
-    if (plot.legendLabel) {
+    if (plot.legendLabel && !nativeLegend) {
       commands.push(...renderDatavisualizationPolarLegend(plot, plotStyle, legendIndex, legendCount, config));
       legendIndex += 1;
     }
   }
 
+  if (nativeLegend) commands.push("}", ...nativeLegend);
   const body = commands.join("\n");
   if (parsed.wrapsTikzPicture) return `\\begin{tikzpicture}\n${body}\n\\end{tikzpicture}`;
   return body;
@@ -6411,11 +6435,19 @@ function datavisualizationAngleWithinSweep(degrees, startDegrees, endDegrees) {
 
 function renderDatavisualizationPolarGrid(config) {
   const commands = [];
+  const arcPath = radius => polarArcPath(
+    datavisualizationPolarAngleDegrees(config.angleRange.min, config),
+    datavisualizationPolarAngleDegrees(config.angleRange.max, config),
+    radius, config.basis
+  );
   const radiusTicks = datavisualizationPolarRadiusTicks(config);
   const angleTicks = datavisualizationPolarAngleTicks(config);
   const minorAngleTicks = datavisualizationPolarMinorAngleTicks(config, angleTicks);
   const gridStyle = "axis grid, black!25, line width=0.4pt";
   const minorGridStyle = "axis minor grid, black!12, line width=0.2pt";
+  // clean/.style adds a pale axis at max independently of visualize grid.
+  // The coincident strokes must both paint, including their antialiased edges.
+  const paleBoundaryStyle = "axis line, black!25, line width=0.4pt, line cap=rect";
   const boundaryStyle = "axis clean boundary, black!50, line width=0.4pt, line cap=rect";
   const drawGrid = Boolean(config.grid);
   let renderedMaxRadiusBoundary = false;
@@ -6430,27 +6462,21 @@ function renderDatavisualizationPolarGrid(config) {
         commands.push(`\\draw[${boundaryStyle}] (0,0) circle (${roundTikzNumber(scaled)}cm);`);
       }
       if (config.clean && tick >= config.radiusMax - 1e-9) {
-        if (!drawGrid) commands.push(`\\draw[${gridStyle}] (0,0) circle (${roundTikzNumber(scaled)}cm);`);
+        commands.push(`\\draw[${paleBoundaryStyle}] (0,0) circle (${roundTikzNumber(scaled)}cm);`);
         commands.push(`\\draw[${boundaryStyle}] (0,0) circle (${roundTikzNumber(config.paddedOuterRadius)}cm);`);
         renderedMaxRadiusBoundary = true;
       }
     } else {
-      const start = datavisualizationPolarProjectDegrees(config.angleRange.startDegrees, scaled);
       if (drawGrid || (!config.clean && isMaxRadius)) {
         commands.push(
-          `\\draw[${isMaxRadius && !config.clean ? boundaryStyle : gridStyle}] (${roundTikzNumber(start.x)},${roundTikzNumber(start.y)}) arc (${roundTikzNumber(config.angleRange.startDegrees)}:${roundTikzNumber(config.angleRange.endDegrees)}:${roundTikzNumber(scaled)});`
+          `\\draw[${isMaxRadius && !config.clean ? boundaryStyle : gridStyle},axis polar arc] ${arcPath(scaled)};`
         );
         if (isMaxRadius && !config.clean) renderedMaxRadiusBoundary = true;
       }
       if (isMaxRadius && config.clean) {
-        if (!drawGrid) {
-          commands.push(
-            `\\draw[${gridStyle}] (${roundTikzNumber(start.x)},${roundTikzNumber(start.y)}) arc (${roundTikzNumber(config.angleRange.startDegrees)}:${roundTikzNumber(config.angleRange.endDegrees)}:${roundTikzNumber(scaled)});`
-          );
-        }
-        const paddedStart = datavisualizationPolarProjectDegrees(config.angleRange.startDegrees, config.paddedOuterRadius);
+        commands.push(`\\draw[${paleBoundaryStyle},axis polar arc] ${arcPath(scaled)};`);
         commands.push(
-          `\\draw[${boundaryStyle}] (${roundTikzNumber(paddedStart.x)},${roundTikzNumber(paddedStart.y)}) arc (${roundTikzNumber(config.angleRange.startDegrees)}:${roundTikzNumber(config.angleRange.endDegrees)}:${roundTikzNumber(config.paddedOuterRadius)});`
+          `\\draw[${boundaryStyle},axis polar arc] ${arcPath(config.paddedOuterRadius)};`
         );
         renderedMaxRadiusBoundary = true;
       }
@@ -6460,26 +6486,20 @@ function renderDatavisualizationPolarGrid(config) {
     const scaled = datavisualizationPolarRadiusCm(config.radiusMax, config);
     if (datavisualizationPolarIsFullCircle(config)) {
       if (config.clean) {
-        if (!drawGrid) commands.push(`\\draw[${gridStyle}] (0,0) circle (${roundTikzNumber(scaled)}cm);`);
+        commands.push(`\\draw[${paleBoundaryStyle}] (0,0) circle (${roundTikzNumber(scaled)}cm);`);
         commands.push(`\\draw[${boundaryStyle}] (0,0) circle (${roundTikzNumber(config.paddedOuterRadius)}cm);`);
       } else {
         commands.push(`\\draw[${boundaryStyle}] (0,0) circle (${roundTikzNumber(scaled)}cm);`);
       }
     } else {
-      const start = datavisualizationPolarProjectDegrees(config.angleRange.startDegrees, scaled);
       if (config.clean) {
-        if (!drawGrid) {
-          commands.push(
-            `\\draw[${gridStyle}] (${roundTikzNumber(start.x)},${roundTikzNumber(start.y)}) arc (${roundTikzNumber(config.angleRange.startDegrees)}:${roundTikzNumber(config.angleRange.endDegrees)}:${roundTikzNumber(scaled)});`
-          );
-        }
-        const paddedStart = datavisualizationPolarProjectDegrees(config.angleRange.startDegrees, config.paddedOuterRadius);
+        commands.push(`\\draw[${paleBoundaryStyle},axis polar arc] ${arcPath(scaled)};`);
         commands.push(
-          `\\draw[${boundaryStyle}] (${roundTikzNumber(paddedStart.x)},${roundTikzNumber(paddedStart.y)}) arc (${roundTikzNumber(config.angleRange.startDegrees)}:${roundTikzNumber(config.angleRange.endDegrees)}:${roundTikzNumber(config.paddedOuterRadius)});`
+          `\\draw[${boundaryStyle},axis polar arc] ${arcPath(config.paddedOuterRadius)};`
         );
       } else {
         commands.push(
-          `\\draw[${boundaryStyle}] (${roundTikzNumber(start.x)},${roundTikzNumber(start.y)}) arc (${roundTikzNumber(config.angleRange.startDegrees)}:${roundTikzNumber(config.angleRange.endDegrees)}:${roundTikzNumber(scaled)});`
+          `\\draw[${boundaryStyle},axis polar arc] ${arcPath(scaled)};`
         );
       }
     }
@@ -6689,25 +6709,45 @@ function datavisualizationLogMinorTicks(min, max, majorTicks = []) {
 function renderDatavisualizationPolarTickLabels(radiusTicks, angleTicks, config) {
   const commands = [];
   const tickStyle = "axis tick, black!50, line width=0.4pt";
-  // These coordinates already contain the native tick node's inner/outer sep.
-  // Paint the content box here without applying a second anchor separation.
-  const radiusLabelStyle = joinOptions(["axis tick label", `font=${datavisualizationRoleFont("tick")}`, "inner sep=0pt", "outer sep=0pt", config.radiusTickColor ? `text=${config.radiusTickColor}` : ""]);
-  const angleLabelStyle = `axis tick label, font=${datavisualizationRoleFont("tick")}, inner sep=0pt, outer sep=0pt`;
-  if (config.clean) {
+  // every ticks installs these separations before the deferred 8pt node font.
+  // The surrounding 10pt font therefore supplies the .1666em outer separation.
+  const nodeSep = config.clean ? "inner sep=1pt,outer sep=1.666pt" : "inner sep=0pt,outer sep=0pt";
+  const radiusLabelStyle = joinOptions(["axis tick label", `font=${datavisualizationRoleFont("tick")}`, nodeSep, config.radiusTickColor ? `text=${config.radiusTickColor}` : ""]);
+  const angleLabelStyle = `axis tick label, font=${datavisualizationRoleFont("tick")}, ${nodeSep}`;
+  const radiusCommands = [];
+  if (config.clean && !datavisualizationPolarIsFullCircle(config)) {
+    const axes = datavisualizationPolarCleanBoundaryAxisAngles(config);
+    for (const axis of axes) {
+      const offset = datavisualizationPolarCleanBoundaryAxisOffset(axis.degrees, axis.role, config);
+      const length = Math.hypot(offset.x, offset.y) || 1;
+      const outward = { x: offset.x / length, y: offset.y / length };
+      for (const tick of radiusTicks) {
+        if (Math.abs(tick) < 1e-9 && axis.role === "end" && datavisualizationPolarIsHalfPlane(config)) continue;
+        const radius = datavisualizationPolarRadiusCm(tick, config);
+        if (!Number.isFinite(radius)) continue;
+        const point = datavisualizationPolarProjectDegrees(axis.degrees, radius);
+        const from = { x: point.x + offset.x, y: point.y + offset.y };
+        const to = { x: from.x + outward.x * DATAVISUALIZATION_CLEAN_POLAR_TICK_LENGTH,
+          y: from.y + outward.y * DATAVISUALIZATION_CLEAN_POLAR_TICK_LENGTH };
+        radiusCommands.push(`\\draw[${tickStyle}] (${roundTikzNumber(from.x)},${roundTikzNumber(from.y)}) -- (${roundTikzNumber(to.x)},${roundTikzNumber(to.y)});`);
+        radiusCommands.push(`\\node[${radiusLabelStyle},anchor=${polarTickTextAnchor(outward)}] at (${roundTikzNumber(to.x)},${roundTikzNumber(to.y)}) {${datavisualizationPolarRadiusLabel(tick)}};`);
+      }
+    }
+  } else if (config.clean) {
     for (const tick of radiusTicks) {
       const scaled = datavisualizationPolarRadiusCm(tick, config);
       if (!Number.isFinite(scaled)) continue;
       const label = datavisualizationPolarRadiusLabel(tick);
       if (Math.abs(tick) < 1e-9) {
-        commands.push(`\\node[${radiusLabelStyle}, anchor=north] at (0,${roundTikzNumber(-datavisualizationPolarRadiusLabelPadding(config))}) {${label}};`);
+        radiusCommands.push(`\\node[${radiusLabelStyle}, anchor=north] at (0,${roundTikzNumber(-datavisualizationPolarRadiusLabelPadding(config))}) {${label}};`);
         continue;
       }
       const positions = datavisualizationPolarRadiusLabelPositions(scaled, config);
       for (const position of positions) {
-        commands.push(
+        radiusCommands.push(
           `\\draw[${tickStyle}] (${roundTikzNumber(position.tickFrom.x)},${roundTikzNumber(position.tickFrom.y)}) -- (${roundTikzNumber(position.tickTo.x)},${roundTikzNumber(position.tickTo.y)});`
         );
-        commands.push(
+        radiusCommands.push(
           `\\node[${radiusLabelStyle}, anchor=${position.anchor}] at (${roundTikzNumber(position.label.x)},${roundTikzNumber(position.label.y)}) {${label}};`
         );
       }
@@ -6734,10 +6774,10 @@ function renderDatavisualizationPolarTickLabels(radiusTicks, angleTicks, config)
       `\\draw[${tickStyle}] (${roundTikzNumber(inner.x)},${roundTikzNumber(inner.y)}) -- (${roundTikzNumber(outer.x)},${roundTikzNumber(outer.y)});`
     );
     commands.push(
-      `\\node[${angleLabelStyle}, anchor=${datavisualizationPolarAngleLabelAnchor(degrees)}] at (${roundTikzNumber(labelPoint.x)},${roundTikzNumber(labelPoint.y)}) {${label}};`
+      `\\node[${angleLabelStyle}, anchor=${config.clean ? polarTickTextAnchor(outer) : datavisualizationPolarAngleLabelAnchor(degrees)}] at (${roundTikzNumber(labelPoint.x)},${roundTikzNumber(labelPoint.y)}) {${label}};`
     );
   }
-  return commands;
+  return [...commands, ...radiusCommands];
 }
 
 function datavisualizationPolarIsHalfPlane(config) {
@@ -6805,21 +6845,7 @@ function datavisualizationPolarRadiusTickAtPoint(point, config = {}) {
 
 function datavisualizationPolarAngleLabelPadding(config = {}, clean = false, degrees = null) {
   const radius = Number(config.outerRadius);
-  if (clean) {
-    if (Number.isFinite(radius) && radius > 2.5 && datavisualizationPolarIsHalfPlane(config)) {
-      // PGF puts tick text at the high endpoint, with 1pt inner / .1666em outer sep.
-      const { sizePt } = resolveLibraryFont("datavisualization", "tick");
-      const emPt = nativeMathFont("CMR", sizePt).parameters.QUAD * sizePt;
-      return DATAVISUALIZATION_CLEAN_POLAR_TICK_LENGTH + parseDimension(`${1 + 0.1666 * emPt}pt`, {});
-    }
-    if (Number.isFinite(radius) && radius <= 1.25) {
-      const normalized = Number.isFinite(degrees) ? ((degrees % 90) + 90) % 90 : 45;
-      const atEndpoint = normalized < 1e-6 || Math.abs(normalized - 90) < 1e-6;
-      return atEndpoint ? 0 : 0.18;
-    }
-    const proportional = Number.isFinite(radius) && radius > 0 ? radius * 0.032 : 0.08;
-    return Math.min(0.12, Math.max(0.02, proportional));
-  }
+  if (clean) return DATAVISUALIZATION_CLEAN_POLAR_TICK_LENGTH;
   const proportional = Number.isFinite(radius) && radius > 0 ? radius * 0.05 : 0.12;
   return Math.min(0.12, Math.max(0.05, proportional));
 }
@@ -6909,7 +6935,7 @@ function datavisualizationPolarValue(point, attribute) {
 
 function datavisualizationPolarAngleDegrees(value, config) {
   if (!Number.isFinite(value)) return NaN;
-  if (config.angleRange.radians) return (value * 180) / Math.PI;
+  if (config.angleRange.radians) return polarRadiansToDegrees(value);
   let mappedValue = value;
   let mappedMin = config.angleRange.min;
   let mappedMax = config.angleRange.max;
@@ -6931,14 +6957,8 @@ function datavisualizationPolarRadiusCm(value, config) {
 }
 
 function datavisualizationPolarProjectDegrees(degrees, radius, config = null) {
-  const radians = (degrees * Math.PI) / 180;
   const basis = config?.basis || DEFAULT_DATAVISUALIZATION_POLAR_BASIS;
-  const cosine = Math.cos(radians);
-  const sine = Math.sin(radians);
-  return {
-    x: radius * (cosine * basis.zero.x + sine * basis.ninety.x),
-    y: radius * (cosine * basis.zero.y + sine * basis.ninety.y)
-  };
+  return polarProjectedPoint(degrees, radius, basis);
 }
 
 const DEFAULT_DATAVISUALIZATION_POLAR_BASIS = Object.freeze({
@@ -8435,7 +8455,9 @@ function datavisualizationStepTicks(min, max, step, phase = 0) {
   for (let index = 0; index <= 500; index += 1) {
     const value = (start + index) * step + phase;
     if (index > 0 && value >= max + epsilon) break;
-    if (value >= min - epsilon) values.push(roundAxis(value));
+    // The native tick engine keeps numeric values through scaling. Rounding
+    // to label precision here changes geometry (notably pi/12 polar steps).
+    if (value >= min - epsilon) values.push(Number(value.toPrecision(14)));
   }
   return values;
 }

@@ -47,7 +47,7 @@ test("native plain-text selection does not leak outside an axis or into unsuppor
   const result = tikzToSvg(source.replace(String.raw`\end{axis}`, String.raw`\end{axis}\node at (0,-2) {outside};`));
   assert.ok(!result.ir.items.find(item => item.text === "outside").style.preferNativeText);
   const engine = createSvgTextEngine();
-  for (const text of [String.raw`\textit{italic}`, String.raw`\unknown`, String.raw`\textsf{other}`]) {
+  for (const text of [String.raw`\textit{italic}`, String.raw`\unknown`, String.raw`\textsl{other}`]) {
     const metrics = engine.measure({ text, preferNativeText: true });
     assert.ok(!engine.renderFromCache(metrics.cacheKey).body.includes('data-text-layout="cm-tex-box"'));
   }
@@ -112,7 +112,7 @@ test("numeric ticks measure the same optical-size math box that they paint", asy
 });
 
 test("literal-label width repair leaves unsupported font families on the existing path", () => {
-  for (const font of [String.raw`\sffamily`, String.raw`\ttfamily\small`, String.raw`\itshape`, String.raw`\scshape`]) {
+  for (const font of [String.raw`\itshape`, String.raw`\scshape`]) {
     const result = tikzToSvg(String.raw`\usepackage{pgfplots}
       \begin{tikzpicture}\begin{axis}[axis lines=middle,xlabel=label,font=${font}]
       \addplot coordinates {(0,0)(1,1)};\end{axis}\end{tikzpicture}`);
@@ -120,4 +120,13 @@ test("literal-label width repair leaves unsupported font families on the existin
     assert.equal(label.style.textWidthScale, 1.06);
     assert.ok(!result.svg.includes('data-text-layout="cm-tex-box"'));
   }
+});
+
+test("typewriter axis labels use native CMTT9 metrics without width fitting", () => {
+  const result = tikzToSvg(String.raw`\usepackage{pgfplots}
+    \begin{tikzpicture}\begin{axis}[axis lines=middle,xlabel=label,font=\ttfamily\small]
+    \addplot coordinates {(0,0)(1,1)};\end{axis}\end{tikzpicture}`);
+  const label = result.ir.items.find(item => item.text === "label");
+  assert.equal(label.style.textWidthScale, 1);
+  assert.match(result.svg, /font-family="TikZKitCMTT9"/);
 });

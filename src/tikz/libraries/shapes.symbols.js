@@ -19,6 +19,7 @@ export const tikzLibrary = {
     "signal pointer angle",
     "opposite horizontal or vertical pointers",
     "signal compass anchors and border clipping",
+    "separate painted signal contour and mitered outer-separation anchor contour",
     "tape bend top/bottom styles and bend height",
     "tape compass anchors and border clipping",
     "magnetic tape shape and tail controls",
@@ -63,6 +64,9 @@ export const tikzLibrary = {
   ],
   notes: "Implements every node family declared by the TeX Live 2025 shapes.symbols source: forbidden-sign, magnifying-glass, signal, tape, magnetic-tape, cloud, and starburst. Forbidden signs inherit circle sizing, anchors, and border clipping; their source-direction diagonal is a marker-free foreground path painted over text. Magnifying glass also inherits the circle completely, while its source-angle radial handle is a marker-free foreground path that expands paint bounds without changing anchors or edge clipping. Tape follows the source's two elliptical half-wave construction, bend-before-minimum-height sizing, three bend styles, compass anchors, and curved border clipping. Magnetic tape follows the source's sqrt(2) circular sizing, clamped tail controls, asymmetric bounds, compass/tail anchors, and piecewise circular/tail border clipping. Its content-driven radius also uses local TeX metrics for comma-separated subscript sequences ending in dots. Cloud follows the source's inner-ellipse content fit, aspect/minimum-size circum-ellipse equations, circular puff arcs, puff anchors, and shared curved border clipping. Starburst follows the source's sqrt(2) content fit, exact seeded LCG point heights, mitered outer-separation polygon, rotated anchor border, named point anchors, and shared contour clipping; as in the PGF source, shape-border rotation affects anchors while the paint path stays unrotated. The TeX Live 2025 source default cloud puff arc is 150 degrees even though the manual prose says 135. The library remains partial for the already-documented advanced transform and exact TeX metric limits inside individual families."
 };
+
+tikzLibrary.localSourceReviewed += "; signal saved anchors and outer miter offsets, lines 1515-1886";
+tikzLibrary.notes += " Signal follow-up 2026-10-25: painted contours and mitered anchor contours are separate; positioning consumes visible dimensions without applying outer separation twice. The 0.8cm signal-gap probe and 11 browser glyph origins match local PGF. Evidence: docs/qa/2026-10-25-scoped-fonts-failures.md.";
 
 export function isMagnifyingGlassShape(shape) {
   const normalized = String(shape || "").trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -617,16 +621,13 @@ export function signalGeometry(size = {}, data = {}) {
       y: halfHeight + (directions.north === "from" ? pointerY : 0)
     }
   };
-  const points = [
-    anchors.north,
-    anchors["north east"],
-    anchors.east,
-    anchors["south east"],
-    anchors.south,
-    anchors["south west"],
-    anchors.west,
-    anchors["north west"]
-  ].map(roundPoint);
+  const anchorNames = ["north", "north east", "east", "south east", "south", "south west", "west", "north west"];
+  const points = anchorNames.map((name) => roundPoint(anchors[name]));
+  // PGF keeps the painted polygon separate from its mitered anchor border.
+  // Pointer tips need outer sep / sin(angle/2), not rectangular padding.
+  const outerSep = positive(data.signalOuterSep ?? data.outerSep);
+  const anchorPoints = polygonMiterOffsetPoints(points, outerSep).map(roundPoint);
+  anchorNames.forEach((name, index) => { anchors[name] = anchorPoints[index]; });
   const commands = [
     { type: "moveTo", ...points[0] },
     ...points.slice(1).map((point) => ({ type: "lineTo", ...point })),
@@ -643,6 +644,7 @@ export function signalGeometry(size = {}, data = {}) {
     pointerX: round(pointerX),
     pointerY: round(pointerY),
     points,
+    anchorPoints,
     commands,
     anchors: Object.fromEntries(Object.entries(anchors).map(([name, point]) => [name, roundPoint(point)])),
     bounds: {
@@ -658,7 +660,8 @@ export function signalBorderPoint(geometry, toward, padding = 0) {
   const direction = { x: Number(toward?.x) || 0, y: Number(toward?.y) || 0 };
   const length = Math.hypot(direction.x, direction.y);
   if (length <= 1e-12) return { x: 0, y: 0 };
-  const hit = polygonRayHit(geometry?.points || [], direction);
+  const border = geometry?.anchorPoints || geometry?.points || [];
+  const hit = polygonRayHit(border, direction);
   if (!hit) return { x: 0, y: 0 };
   const distance = positive(padding);
   if (distance <= 1e-12) return roundPoint(hit.point);
@@ -666,7 +669,7 @@ export function signalBorderPoint(geometry, toward, padding = 0) {
   const edge = { x: hit.b.x - hit.a.x, y: hit.b.y - hit.a.y };
   const edgeLength = Math.hypot(edge.x, edge.y);
   if (edgeLength <= 1e-12) return roundPoint(hit.point);
-  const area = polygonSignedArea(geometry.points);
+  const area = polygonSignedArea(border);
   const outward = area < 0
     ? { x: -edge.y / edgeLength, y: edge.x / edgeLength }
     : { x: edge.y / edgeLength, y: -edge.x / edgeLength };
@@ -1212,7 +1215,8 @@ function polygonMiterOffsetPoints(points, distance) {
       x: vertex.x + nextNormal.x * distance,
       y: vertex.y + nextNormal.y * distance
     };
-    return lineIntersection(previousOffset, previousEdge, nextOffset, nextEdge) || { ...vertex };
+    // A straight side can contain a named midpoint; it still gets an offset.
+    return lineIntersection(previousOffset, previousEdge, nextOffset, nextEdge) || previousOffset;
   });
 }
 

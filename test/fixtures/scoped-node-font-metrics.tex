@@ -1,0 +1,31 @@
+\documentclass{article}
+\usepackage{tikz}
+\makeatletter
+% Measure after TikZ closes its original text hbox, before shape construction.
+\let\originalnodenext\tikz@fig@continue
+\def\tikz@fig@continue{%
+  \typeout{SCOPED-NODE \tikz@fig@name: w=\the\wd\pgfnodeparttextbox, h=\the\ht\pgfnodeparttextbox, d=\the\dp\pgfnodeparttextbox}%
+  \originalnodenext}
+\newcommand{\measurebox}[2]{%
+  \setbox0=\hbox{#2}%
+  \typeout{SCOPED-HBOX #1: w=\the\wd0, h=\the\ht0, d=\the\dp0}}
+\makeatother
+\begin{document}
+\measurebox{huge}{\huge\bf IF}
+\measurebox{small}{\scriptsize Instruction fetch}
+\measurebox{paragraph-small}{\spaceskip.3333em \xspaceskip.5em \scriptsize Instruction fetch}
+\measurebox{paragraph-sentence}{\spaceskip.3333em \xspaceskip.5em \scriptsize End. Next}
+\measurebox{mono7}{\ttfamily\scriptsize AGTAAG-A}
+\measurebox{mono9}{\ttfamily\small AGTAAG-A}
+\measurebox{mono12}{\ttfamily\large AGTAAG-A}
+\measurebox{groups}{A{\large B{\bfseries C}D}E{\scriptsize fg}H}
+\measurebox{commands}{a\textbf{Bold}b{\color{red}\Large XY}c}
+\begin{tikzpicture}
+  \node (single) {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+  \node[align=center] (aligned) {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+  \node[text width=6.5em,text centered] (paragraph) {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+  \node[align=left] (sizes) {{\small\bfseries gyp}\\{\Large ABC}\\{\tiny pq}XYZ};
+  \node[align=center] (reset) {\small A\\B};
+  \node[align=center] (reset-tiny) {\small A\\\tiny B};
+\end{tikzpicture}
+\end{document}

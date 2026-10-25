@@ -16,7 +16,7 @@ function nativeBoxGroups(svg, kind) {
       const attributes = Object.fromEntries([...glyph[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(m => [m[1], m[2]]));
       return { text: glyph[2].replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&"),
         x: Number(attributes.x), y: Number(attributes.y), size: Number(attributes["font-size"]),
-        family: attributes["font-family"], style: attributes["font-style"], fill: attributes.fill };
+        family: attributes["font-family"], style: attributes["font-style"], weight: Number(attributes["font-weight"]), fill: attributes.fill };
     });
     return { x: Number(transform?.[1]), y: Number(transform?.[2]), scale: Number(transform?.[3]), glyphs,
       text: glyphs.map(g => g.text).join(""), rules: [...match[1].matchAll(/<rect\b[^>]*>/g)].length };

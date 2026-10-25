@@ -1,7 +1,7 @@
 import { layoutMultilineTeXText, measurePlainTextTeXBoxPt, parseMathText, texTextWidthCm } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY } from "../../tikz/metrics.js";
 import { escapeAttribute } from "./escape.js";
-import { layoutNativeTextRun, nativeTypewriterFont } from "../../tex/textBox.js";
+import { layoutNativeTextRun } from "../../tex/textBox.js";
 import { renderNativeMath, renderNativeText } from "./nativeMath.js";
 import { nativeWrappedParagraphBox } from "./paragraphText.js";
 import { formatSvgNumber as format } from "./format.js";
@@ -37,7 +37,7 @@ const TEX_PT_PER_CM = 28.4527559;
 
 export function renderPlainTextNode(item, normalized, unit, deps = {}) {
   const native = nativePlainTextBox(item, normalized);
-  if (native) return renderNativeTextBox(item, native, unit, normalized.color || item.style?.fill);
+  if (native) return renderNativeTextBox(item, native, unit, item.style?.fill);
   const formatTextLine = deps.formatTextLine || ((line) => String(line ?? ""));
   const renderSvgTextLineContent = deps.renderSvgTextLineContent || ((_sourceLine, formattedLine) => String(formattedLine ?? ""));
   const fitFontSizeToBox = deps.fitFontSizeToBox || ((baseFontSize) => baseFontSize);
@@ -309,23 +309,27 @@ export function nativePlainTextBox(item, normalized) {
   const inherited = resolvedFontStyle(item);
   const font = { ...item.font,
     sizePt: 10 * (Number(normalized.scale) || 1) * textFontScale(item, normalized),
-    family: resolvedFontFamily(item, normalized),
-    weight: normalized.fontWeight || inherited.fontWeight || 400,
-    style: normalized.fontStyle || inherited.fontStyle || "normal",
-    variant: normalized.fontVariant || inherited.fontVariant || "normal"
+    family: item.font?.family || resolvedFontFamily(item, normalized),
+    weight: item.font?.weight ?? inherited.fontWeight ?? 400,
+    style: item.font?.style ?? inherited.fontStyle ?? "normal",
+    variant: item.font?.variant ?? inherited.fontVariant ?? "normal"
   };
-  if (!item.wrapWidth && !item.fitBox &&
+  if (!item.wrapWidth &&
       !(item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) {
     const lines = layoutMultilineTeXText(normalized, font, normalizedTextAlign(item.textAlign));
-    if (lines) return lines;
+    if (lines && nativeTextFitsBox(lines, item.fitBox)) return lines;
   }
   // PGF centers the text hbox using (height - depth)/2. SVG's middle baseline
   // instead uses x-height, so literal labels must share the measured CM box.
-  const literal = normalized.raw === normalized.text && normalized.lines?.length === 1;
-  const typewriter = nativeTypewriterFont(font);
-  if ((!literal && !item.style?.preferNativeText && !typewriter && !normalized.inlineNodes?.length) || item.wrapWidth || item.fitBox ||
+  if (normalized.lines?.length !== 1 || item.wrapWidth ||
       (item.style?.textWidthScaleExplicit && Number(item.style.textWidthScale) !== 1)) return null;
-  return layoutNativeTextRun(normalized, font);
+  const box = layoutNativeTextRun(normalized, font);
+  return box && nativeTextFitsBox(box, item.fitBox) ? box : null;
+}
+
+function nativeTextFitsBox(box, fitBox) {
+  return !fitBox || (box.width <= fitBox.width * TEX_PT_PER_CM &&
+    box.height + box.depth <= fitBox.height * TEX_PT_PER_CM);
 }
 
 function renderNativeTextBox(item, box, unit, color) {

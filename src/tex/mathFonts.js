@@ -18,7 +18,12 @@ export function nativeBaselineSkip(base) {
 }
 
 export function nativeMathFont(role, size) {
-  const design = role === "CMEX" ? (size < 8 ? 7 : size < 10 ? size : 10)
+  // ot1cmtt.fd substitutes the 8pt design for tiny/script sizes, then
+  // selects 9, 10 or 12. It has no independent 5/6/7pt typewriter faces.
+  const design = role === "CMTT" ? (size < 9 ? 8 : size < 10 ? 9 : size < 12 ? 10 : 12)
+    : role === "CMSS" ? (size < 9 ? 8 : size < 10 ? 9 : size < 12 ? 10 : size < 17 ? 12 : 17)
+    : role === "CMSSBX" ? 10
+    : role === "CMEX" ? (size < 8 ? 7 : size < 10 ? size : 10)
     : size <= 10 ? size : role === "CMR" ? (size < 12 ? 10 : size < 17 ? 12 : 17)
     : ["CMMI", "CMBX"].includes(role) ? (size < 12 ? 10 : 12) : 10;
   return cmMathMetrics[`${role}${design}`];

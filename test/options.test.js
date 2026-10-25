@@ -2,6 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { cmykToRgb, normalizeColor, normalizeOptions, parseOptions } from "../src/options.js";
 
+test("mixes a classical bar with the active default arrow tip", () => {
+  for (const [source, start, end] of [["|->", "legacy-bar", "stealth"], ["<-|", "stealth", "legacy-bar"], ["|-|", "legacy-bar", "legacy-bar"]]) {
+    const { style } = normalizeOptions("draw", parseOptions(`>=stealth,${source}`), { styles: {}, variables: {} });
+    assert.equal(style.markerStart?.kind, start, source);
+    assert.equal(style.markerEnd?.kind, end, source);
+  }
+});
+
 test("resolves TikZ color mixes to concrete SVG colors", () => {
   assert.equal(normalizeColor("red!30"), "rgb(255 179 179)");
   assert.equal(normalizeColor("green!50"), "rgb(128 255 128)");

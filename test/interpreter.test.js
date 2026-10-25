@@ -1153,10 +1153,9 @@ test("uses cmtt10 advances for a wide horizontal rectangle split", () => {
   const partOriginsPt = layout.parts.map((part) => part.originX * 28.4527559);
 
   assert.deepEqual(result.diagnostics, []);
-  // Local PGF 3.1.10 reports a 192.42pt outer-anchor span. The scene node
-  // excludes the default 0.4pt outer separation on both sides, leaving its
-  // 191.47pt drawing box. A digit-to-empty advance is 12.716pt.
-  assert.ok(widthPt >= 191.4 && widthPt <= 191.55, `expected wide split drawing width near 191.47pt, got ${widthPt}pt`);
+  // remaining-layout-metrics.tex: 192.42168pt outer-anchor span minus
+  // 0.4pt outer separation on each side. CMTT8 supplies the tiny first part.
+  assert.ok(Math.abs(widthPt - 191.62168) < .002, `expected native split drawing width, got ${widthPt}pt`);
   assert.ok(Math.abs((partOriginsPt[2] - partOriginsPt[1]) - 12.716) < 0.08, JSON.stringify(partOriginsPt));
   assert.ok(Math.abs((partOriginsPt[3] - partOriginsPt[2]) - 13.271) < 0.08, JSON.stringify(partOriginsPt));
 });
@@ -1631,8 +1630,8 @@ test("preserves ball shading on path circle and ellipse shapes", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(circle.style.shading, "ball");
-  assert.equal(circle.style.ballColor, "rgb(255 242 0)");
-  assert.equal(circle.style.fill, "rgb(255 242 0)");
+  assert.equal(circle.style.ballColor, "rgb(255 255 0)");
+  assert.equal(circle.style.fill, "rgb(255 255 0)");
   assert.equal(ellipse.style.shading, "ball");
   assert.equal(ellipse.style.ballColor, "black");
   assert.equal(ellipse.style.fill, "black");
@@ -2207,8 +2206,10 @@ test("uses monospace text metrics when clipping TikZ child tree edges", () => {
   const edge = ir.items.find((item) => item.type === "path" && item.subtype === "tree-edge");
 
   assert.deepEqual(diagnostics, []);
-  assert.ok(edge.commands[0].x > 0.4, `expected tree edge to start outside the monospace root text, got ${edge.commands[0].x}`);
-  assert.ok(edge.commands[1].x < 1.2, `expected tree edge to stop before the monospace child text, got ${edge.commands[1].x}`);
+  // pgfpointshapeborder probe in remaining-layout-metrics.tex; PGF's fixed
+  // point ray arithmetic differs from the JS intersection by under .01pt.
+  assert.ok(Math.abs(edge.commands[0].x - parseDimension("12.82996pt")) < .0003);
+  assert.ok(Math.abs(edge.commands[1].x - parseDimension("37.00934pt")) < .0003);
 });
 
 test("inherits tikzpicture path thickness on generated child tree edges", () => {
@@ -4082,10 +4083,12 @@ test("supports common node anchor and shift positioning controls", () => {
   assert.equal(diagnostics.length, 0);
   const a = ir.items.find((item) => item.type === "textNode" && item.text === "$a$");
   const b = ir.items.find((item) => item.type === "textNode" && item.text === "$b$");
-  assert.ok(a.x > 1.35);
+  // Unitless xshift/yshift are TeX points, unlike unitless coordinates.
+  // Independent values from remaining-layout-metrics.tex.
+  assert.ok(Math.abs(a.x - parseDimension("34.82866pt")) < .00001);
   assert.equal(a.y, 1);
   assert.equal(b.x, 2);
-  assert.ok(b.y < 1.7);
+  assert.ok(Math.abs(b.y - parseDimension("49.8003pt")) < .00001);
 });
 
 test("resolves braced polar coordinates in shift prefixes and calc offsets", () => {
@@ -4539,7 +4542,7 @@ test("adds chain join edges with join=by arrow styles", () => {
   const join = ir.items.find(
     (item) =>
       item.type === "path" &&
-      item.style?.markerStart?.kind === "open-circle" &&
+      item.style?.markerStart?.kind === "legacy-open-circle" &&
       item.style?.markerEnd?.kind === "latex"
   );
 
@@ -7118,7 +7121,8 @@ test("applies picture scale to earth geometry while preserving default text and 
   assert.equal(text("$x$").style.fontScale, 1);
   assert.equal(text("$h$").style.fontScale, 1);
   assert.equal(text("Erde").style.fontScale, 1);
-  expectClose(text("$h$").x, 0.254791552534, 1e-12);
+  // MacTeX reports this anchor in the picture's inverse scale-1.2 CTM.
+  expectClose(text("$h$").x, parseDimension("5.34584pt") * 1.2, parseDimension("0.002pt"));
   expectClose(text("$h$").y, 1.5, 1e-12);
   expectClose(text("Erde").y, -0.24, 1e-12);
   assert.ok(paths.every((path) => Math.abs(path.style.lineWidth - lineWidthFromPt(0.4)) < 1e-9));

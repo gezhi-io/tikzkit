@@ -104,7 +104,10 @@ test("lets automata initial by diamond override the state circle", () => {
   assert.ok(nodes[1].width > nodes[0].width);
   assert.ok(nodes[0].width > 0.99 && nodes[0].width < 1.02, `unexpected natural diamond width: ${nodes[0].width}`);
   assert.ok(nodes[1].width > 1.19 && nodes[1].width < 1.21, `unexpected minimum-size diamond width: ${nodes[1].width}`);
-  assert.match(result.svg, /<polygon points=/);
+  const diamonds = [...result.svg.matchAll(/<path class="tikz-node-shape tikz-node-diamond" d="([^"]+)"/g)];
+  assert.equal(diamonds.length, 2);
+  assert.ok(diamonds.every(([, path]) => /^M [\d. -]+(?: L [\d. -]+){3} Z$/.test(path)),
+    "both initial states must paint a closed, four-sided diamond");
 });
 
 test("applies every initial and accepting by arrow styles to their generated paths and text", () => {

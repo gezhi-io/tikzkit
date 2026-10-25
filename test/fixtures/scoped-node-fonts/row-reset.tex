@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-1,-2) rectangle (3,1);
+  \node[draw,align=center,inner sep=2pt] at (0,0) {\small A\\B};
+  \node[draw,align=center,inner sep=2pt] at (2,0) {\small A\\\tiny B};
+  \node[draw,align=center,inner sep=2pt] at (0,-1) {\bfseries A\\B};
+  \node[draw,align=center,inner sep=2pt] at (2,-1) {\color{red}A\\B};
+\end{tikzpicture}
+\end{document}

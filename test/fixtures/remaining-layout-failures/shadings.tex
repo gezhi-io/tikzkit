@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue,line width=.2pt] (-1.2,-1.2) rectangle (6,1.2);
+  \shade[ball color=yellow] (0,0) circle (1cm);
+  \shade[ball color=black] (2.3,0) circle (1cm);
+  \shade[top color=cyan,bottom color=orange,shading angle=45] (3.6,-1) rectangle (5.8,1);
+\end{tikzpicture}
+\end{document}

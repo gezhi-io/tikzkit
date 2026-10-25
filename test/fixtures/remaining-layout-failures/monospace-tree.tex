@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[font=\tt\scriptsize,grow=up,level 1/.style={sibling distance=30mm}]
+  \draw[blue,line width=.2pt] (-2.5,-1) rectangle (2.5,2.5);
+  \node[align=center](root){AC{-}{-}A\\CC{-}{-}A\\ACG-A\\A-GTA\\A-G-A}
+    child{node{AGTA\\AG-A}}
+    child{node{ACGA}};
+\end{tikzpicture}
+\end{document}

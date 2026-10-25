@@ -1,0 +1,12 @@
+{
+  "cases": [
+    { "id": "remaining-html-spacing", "source": "../remaining-layout-failures/html-spacing.tex", "title": "Native mixed paragraph and binary parallel symbol", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 34 } },
+    { "id": "angles-parallel-paragraph", "source": "angles-parallel-paragraph.tex", "title": "Parallel lines with colored explanatory paragraph" },
+    { "id": "remaining-polar-half-plane", "source": "../remaining-layout-failures/polar-half-plane.tex", "title": "Clean polar axes and native line legend", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 69 } },
+    { "id": "remaining-polar-degrees", "source": "../remaining-layout-failures/polar-degrees.tex", "title": "Degree quadrant tick control", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 15 } },
+    { "id": "remaining-chronology-title", "source": "../remaining-layout-failures/chronology-title.tex", "title": "Beamer chronology frame", "nativeGlyphFrame": { "count": 100 }, "chronologyPaint": { "events": 4, "glyphs": 100, "shaftColor": "rgb(35, 55, 59)" } },
+    { "id": "colored-parallel-paragraph", "source": "colored-parallel-paragraph.tex", "title": "Three native lines in the colored paragraph", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 60 } },
+    { "id": "cmss-optical-sizes", "source": "cmss-optical-sizes.tex", "title": "MacTeX CMSS optical sizes and scoped families", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 62 } },
+    { "id": "chronology-core", "source": "chronology-core.tex", "title": "Native chronology box resizing and interval labels", "chronologyPaint": { "events": 3, "glyphs": 43 } }
+  ]
+}

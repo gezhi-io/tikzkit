@@ -12,6 +12,8 @@ export const tikzLibrary = {
   notes: "Reviewed again on 2026-09-04 against tikzlibrarypositioning.code.tex and pgflibraryshapes.geometric.code.tex. Modern placement now follows PGF's exact reference-anchor + distance-vector - self-anchor equation. Paired diagonal distances remain unscaled; a single diagonal distance uses the source's sqrt(1/2) factor. Diamond north/south-east/west anchors use half of the corresponding outer half-extent, while circle and ellipse diagonal anchors follow their radial border. Normal rectangular positioning, base/mid text anchors, and on-grid center placement retain their existing semantics. The permanent drivers are positioning/diagonal-decision-flow.tex, positioning/diagonal-state-network.tex, positioning/diagonal-signal-chain.tex, and paths/custom-to-path-flowchart.tex. Arbitrary rotated asymmetric custom-shape placement and positioning against an explicitly named non-center coordinate remain partial."
 };
 
+tikzLibrary.notes += " Reviewed 2026-10-25: custom signal anchors use visible shape dimensions, preventing a second outer-separation expansion when applying the self anchor. Native signal anchor and 0.8cm gap probes are recorded in docs/qa/2026-10-25-scoped-fonts-failures.md.";
+
 export function resolvePositioningPoint(options, env, selfSize = { width: 0, height: 0 }, helpers) {
   const legacy = resolveLegacyPositioning(options, env, helpers);
   if (legacy) return legacy;
@@ -264,6 +266,8 @@ function resolvePositioningReference(raw, env, helpers) {
       point: node.point,
       width: node.layoutWidth || node.width || 0,
       height: node.layoutHeight || node.height || 0,
+      visibleWidth: node.width || 0,
+      visibleHeight: node.height || 0,
       minX: node.layoutMinX,
       minY: node.layoutMinY,
       maxX: node.layoutMaxX,

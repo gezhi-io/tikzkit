@@ -54,6 +54,21 @@ test("signal layout preserves pointer angle while enforcing minimum size", () =>
   close(signalBorderPoint(geometry, { x: -10, y: 0 }).x, -0.5);
 });
 
+test("signal anchors include PGF pointer and corner outer-separation miters", () => {
+  const outerSep = parseDimension("0.2pt");
+  const geometry = signalGeometry({ width: 2, height: 1 }, {
+    directions: parseSignalDirections("west", "east"), pointerAngle: 90, signalOuterSep: outerSep
+  });
+  close(geometry.anchors.east.x, 1 + Math.SQRT2 * outerSep);
+  close(geometry.anchors.west.x, -0.5 - Math.SQRT2 * outerSep);
+  close(geometry.anchors.north.y, 0.5 + outerSep);
+  close(geometry.anchors["north west"].x, -1 - (1 + Math.SQRT2) * outerSep);
+  close(geometry.anchors["north east"].x, 0.5 + (Math.SQRT2 - 1) * outerSep);
+  close(signalBorderPoint(geometry, { x: 10, y: 0 }).x, geometry.anchors.east.x);
+  close(signalBorderPoint(geometry, { x: -10, y: 0 }).x, geometry.anchors.west.x);
+  close(geometry.bounds.maxX, 1);
+});
+
 test("TikZ signal nodes render pointed paths and clip edges to signal borders", () => {
   const result = tikzToSvg(String.raw`
 \usetikzlibrary{shapes.symbols,positioning,arrows.meta}
@@ -81,7 +96,11 @@ test("TikZ signal nodes render pointed paths and clip edges to signal borders", 
   assert.ok(inputGeometry.points.some((point) => point.x > inputGeometry.halfWidth));
   assert.ok(outputGeometry.bounds.minX < outputGeometry.anchors.west.x);
   assert.ok(output.x > input.x + inputGeometry.bounds.maxX);
-  close(namedAnchorGap, 0.8 + parseDimension("0.2pt") * 2);
+  // positioning measures between the mitered anchors, not the painted polygon.
+  close(namedAnchorGap, 0.8);
+  // Independent pgfpointanchor probe: test/fixtures/remaining-layout-metrics.tex.
+  close(inputGeometry.anchors.east.x, parseDimension("29.9262pt"), 0.00003);
+  close(output.x, parseDimension("72.41537pt"), 0.00003);
   assert.ok(paths.length >= 2);
   close(paths[0].commands.at(-1).x, input.x + inputGeometry.anchors.west.x, 0.04);
   close(paths[1].commands[0].x, input.x + inputGeometry.anchors.east.x, 0.04);

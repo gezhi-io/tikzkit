@@ -6,7 +6,7 @@ import {
 } from "../tikz/metrics.js";
 import { parseDimension, substituteTextVariables } from "./math.js";
 import { evaluateRestrictedExpression } from "./safe-expression.js";
-import { isColorToken, normalizeColor } from "./colors.js";
+import { isColorToken, normalizeColor, normalizeShadingColor } from "./colors.js";
 export { normalizeColor, colorToRgb, cmykToRgb, cmykToCss } from "./colors.js";
 
 const TIKZ_UNIT = 100;
@@ -316,7 +316,7 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (key === "ball color") {
-      semantic["ball color"] = normalizeColor(String(value));
+      semantic["ball color"] = normalizeShadingColor(String(value));
       if (!semantic.shading) semantic.shading = "ball";
       continue;
     }
@@ -327,7 +327,7 @@ export function normalizeOptions(command, rawOptions, env) {
       key === "left color" ||
       key === "right color"
     ) {
-      semantic[key] = normalizeColor(String(value));
+      semantic[key] = normalizeShadingColor(String(value));
       if (key === "middle color") {
         semantic["tikzkit axis middle color"] = semantic[key];
       } else {
@@ -604,6 +604,13 @@ function parseArrowOption(key, value, defaultArrowTip) {
   if (text === "-*") return { markerStart: undefined, markerEnd: parseArrowTipSpec("*") };
   if (text === "*-*") return { markerStart: parseArrowTipSpec("*"), markerEnd: parseArrowTipSpec("*") };
   if (text === "*->") return { markerStart: parseArrowTipSpec("*"), markerEnd: { ...defaultArrowTip } };
+
+  // PGF's short arrow syntax combines literal end caps with the active > tip.
+  const symbolic = text.match(/^([|*<>]?)-([|*<>]?)$/);
+  if (symbolic && (symbolic[1] || symbolic[2])) {
+    const tip = name => !name ? undefined : /[<>]/.test(name) ? { ...defaultArrowTip } : parseArrowTipSpec(name);
+    return { markerStart: tip(symbolic[1]), markerEnd: tip(symbolic[2]) };
+  }
 
   const spacedDelimiterBoth = text.match(/^(spaced\s+[\[\]()|])\s*-\s*(spaced\s+[\[\]()|])$/u);
   if (spacedDelimiterBoth) {

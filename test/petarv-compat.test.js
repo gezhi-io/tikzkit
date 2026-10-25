@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertNativeText } from "./helpers/native-math-svg.js";
+import { assertNativePlainText, assertNativeText } from "./helpers/native-math-svg.js";
 import { layoutNativeMath } from "../src/tex/mathBox.js";
 import { layoutNativeText } from "../src/tex/textBox.js";
 import { createSvgTextEngine } from "../src/renderers/svg/textEngine.js";
@@ -325,11 +325,11 @@ test("applies global tikzstyle definitions to PetarV fetch-decode-execute nodes 
   assert.equal(boxes[2].style.stroke, "#0099cc");
   assert.equal(boxes[0].style.fill, "white");
   assert.ok(boxes[0].rx > 0);
-  assert.ok(boxes[0].height >= parseDimension("4em", {}));
+  expectClose(boxes[0].height * 72.27 / 2.54, 40, .001);
   assert.ok(boxes.every((box) => Math.abs(box.width - boxes[0].width) < 1e-6));
   assert.ok(boxes[0].width < 2.8, `expected text width to constrain block width, got ${boxes[0].width}`);
   assert.equal(arrow.style.stroke, "black");
-  assert.equal(arrow.style.markerEnd.kind, "latex");
+  assert.equal(arrow.style.markerEnd.kind, "latex-prime");
   const outerSep = parseDimension("0.2pt");
   assert.ok(Math.abs(arrow.commands[0].x - (boxes[0].x + boxes[0].width / 2 + outerSep)) < 1e-6);
   assert.ok(Math.abs(arrow.commands.at(-1).x - (boxes[1].x - boxes[1].width / 2 - outerSep)) < 1e-6);
@@ -350,10 +350,10 @@ test("falls back to default black when custom colors are not defined", () => {
   assert.equal(diagnostics.length, 0);
   assert.equal(label.style.fill, "black");
   assert.equal(arrow.style.stroke, "black");
-  assert.equal(arrow.style.markerEnd.kind, "latex");
+  assert.equal(arrow.style.markerEnd.kind, "latex-prime");
 });
 
-test("renders grouped TeX font declarations as line-level SVG text styling", () => {
+test("renders grouped TeX font declarations as one hbox without node alignment", () => {
   const source = String.raw`
 \begin{tikzpicture}
   \node at (0,0) {{\huge \bf IF}\\{\scriptsize Instruction fetch}};
@@ -363,13 +363,12 @@ test("renders grouped TeX font declarations as line-level SVG text styling", () 
   const svg = renderSvg(ir);
 
   assert.equal(diagnostics.length, 0);
-  assert.match(svg, /font-weight="700"/);
-  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(20.7))}"`));
-  assert.match(svg, new RegExp(`font-size="${formatted(lineWidthFromPt(7))}"`));
-  const dyValues = [...svg.matchAll(/dy="([^"]+)"/g)].map((match) => Number(match[1]));
-  assert.ok(dyValues[1] > 45 && dyValues[1] < 55, `expected TeX-like mixed-size line gap, got ${dyValues[1]}`);
-  assert.match(svg, />IF</);
-  assert.match(svg, />Instruction fetch</);
+  // Independent scoped-node-font-metrics.tex: no align means one baseline;
+  // huge is 20.74pt, and the following group restores the normal series.
+  const group = assertNativePlainText(svg, "IFInstruction fetch");
+  assert.ok(group.glyphs.slice(0, 2).every(g => g.size === 20.74 && g.weight === 700));
+  assert.ok(group.glyphs.slice(2).every(g => g.size === 7 && g.weight === 400));
+  assert.ok(group.glyphs.every(g => g.y === 0));
 });
 
 test("applies pgftransformcm and pgftransformreset inside scopes", () => {
@@ -693,7 +692,8 @@ test("renders matrix-of-nodes text at the normal TikZ text size", () => {
   const box = ir.items.find((item) => item.type === "nodeBox");
   const text = ir.items.find((item) => item.type === "textNode");
   const svg = renderSvg(ir, { mathRenderer: "svg-text" });
-  const fontSize = Number(svg.match(/<text[^>]*font-size="([^"]+)"/)?.[1]);
+  const group = assertNativePlainText(svg, "0");
+  const fontSize = group.glyphs[0].size * group.scale;
 
   assert.equal(diagnostics.length, 0);
   assert.equal(text.x, box.x);
@@ -952,7 +952,7 @@ test("propagates tikzpicture monospace font option to text nodes", () => {
   const glyphs = [...svg.matchAll(/<text\b([^>]*)>([A-Z])<\/text>/g)];
   assert.equal(glyphs.map(glyph => glyph[2]).join(""), "ACAACG");
   glyphs.forEach((glyph, index) => {
-    assert.match(glyph[1], /font-family="TikZKitMath_Typewriter"/);
+    assert.match(glyph[1], /font-family="TikZKitCMTT10"/);
     assert.match(glyph[1], /font-size="10"/);
     expectClose(Number(glyph[1].match(/\bx="([^"]+)"/)[1]), index * 5.24996, 0.0001);
   });
@@ -1277,8 +1277,10 @@ test("normalizes GameBoy matrix and edge label TeX macros", () => {
   assert.match(svg, />⋮</);
   assert.match(svg, />⋱</);
   assert.match(svg, />palette</);
-  const tinyFontSize = Number(svg.match(/>↓<\/text>[\s\S]*?/) ? svg.match(/<text[^>]*>↓<\/text>/)?.[0].match(/font-size="([^"]+)"/)?.[1] : NaN);
-  assert.ok(Math.abs(tinyFontSize - lineWidthFromPt(10) * 0.42 * 0.9) < 0.01, `expected TikZ tiny arrow labels to stay compact, got ${tinyFontSize}`);
+  const tiny = assertNativeText(svg, "↓");
+  assert.equal(tiny.glyphs[0].size, 5);
+  assert.equal(tiny.glyphs[0].family, "TikZKitCMBSY5");
+  expectClose(tiny.glyphs[0].size * tiny.scale, lineWidthFromPt(5), 1e-5);
 });
 
 test("normalizes Gene expression inline TikZ labels and xcolor token text", () => {
@@ -1305,7 +1307,7 @@ test("normalizes Gene expression inline TikZ labels and xcolor token text", () =
       const content = runs.map(run => run.text).join("");
       assert.ok(content.includes("GUGCAUUAG"));
       assert.ok(content.includes("STOP"));
-      assert.match(svg, /font-family="(?:TikZKitMath_Typewriter|[^"]*monospace[^"]*)"/);
+      assert.match(svg, /font-family="TikZKitCMTT10"/);
       const paintedText = color => runs.filter(run => run.fill === color).map(run => run.text).join("");
       assert.equal(paintedText("blue"), "GUGV");
       assert.equal(paintedText("#006400"), "CAU");
@@ -1351,7 +1353,7 @@ test("renders Gene expression typewriter labels with TeX-like horizontal advance
     const glyphs = [...svg.matchAll(/<text\b([^>]*)>([A-Z])<\/text>/g)];
     assert.equal(glyphs.map(glyph => glyph[2]).join(""), label);
     glyphs.forEach((glyph, index) => {
-      assert.match(glyph[1], /font-family="TikZKitMath_Typewriter"/);
+      assert.match(glyph[1], /font-family="TikZKitCMTT10"/);
       assert.match(glyph[1], /font-size="10"/);
       expectClose(Number(glyph[1].match(/\bx="([^"]+)"/)[1]), index * 5.24996, 0.0001);
       assert.equal(Number(glyph[1].match(/\by="([^"]+)"/)[1]), 0);
@@ -1889,8 +1891,9 @@ test("scales tkz-graph normal vertex shape like TikZ node scale", () => {
   assert.equal(box.style.fill, "white");
   assert.equal(label.style.fill, "black");
   assert.ok(label.style.fontScale > 0.68 && label.style.fontScale < 0.72, `expected every node scale on label, got ${label.style.fontScale}`);
-  assert.ok(box.width > parseDimension("15.2pt"), `expected scaled tkz normal vertex width near native TikZ, got ${box.width}`);
-  assert.ok(box.width < parseDimension("15.6pt"), `expected scaled tkz normal vertex width near native TikZ, got ${box.width}`);
+  // MacTeX: (9.55193 + 9.55191)pt in the inverse scale-.8 CTM;
+  // remove two .25pt outer separations transformed by node scale .7.
+  expectClose(box.width, parseDimension(`${(9.55193 + 9.55191) * .8 - .5 * .7}pt`), parseDimension(".001pt"));
   assert.deepEqual(label.fitBox, { width: box.width, height: box.height });
 });
 

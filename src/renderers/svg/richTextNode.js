@@ -71,7 +71,7 @@ export function renderRichTextNode(item, normalized, unit, deps = {}) {
       const lineFontSize = displayFontSize * (lineStyle.scale || 1);
       return `<div class="tikz-rich-line"${fontWeightAttribute(lineStyle)} style="font-size:${format(
         lineFontSize
-      )}px;width:100%;">${renderInlineMathHtml(line)}</div>`;
+      )}px;width:100%;">${renderInlineMathHtml(line, unit)}</div>`;
     })
     .join("");
   const foreignObject = `<foreignObject requiredExtensions="http://www.w3.org/1999/xhtml" x="${format(x)}" y="${format(

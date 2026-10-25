@@ -96,7 +96,7 @@ import {
   tapeLayoutSize as symbolTapeLayoutSize
 } from "../tikz/libraries/shapes.symbols.js";
 import { createForeachBudget, ForeachExpansionError, foreachIterationVariables } from "../tikz/commands/foreach.js";
-import { applyNodeLineBreakSemantics } from "../tikz/commands/node.js";
+import { applyNodeLineBreakSemantics, nodeLineBreaksEnabled } from "../tikz/commands/node.js";
 import {
   parseEdgeFromParentPathTemplate,
   parseGrowViaThreePoints,
@@ -135,6 +135,7 @@ import {
   estimateFormulaBox,
   formulaTotalHeight,
   layoutMultilineTeXText,
+  layoutNativeScopedParagraph,
   mathTextMetricUnits,
   measurePlainTextTeXBoxPt,
   parseMathText,
@@ -173,6 +174,7 @@ import {
   outerMinipageTextWidth
 } from "../tikz/text.js";
 import { createFontSpec, mergeFontSpec, parseTikzFontPatch, resolveFontSpec, mathExtensionForPackages } from "../tex/fontSpec.js";
+import { pgfNormalisedVectorLength } from "../pgf/points.js";
 import {
   TIKZ_FONT_FAMILY,
   TIKZ_HELVETICA_FONT_FAMILY,
@@ -1424,10 +1426,8 @@ function mergeScopePictureOptions(parentOptions = {}, scopeOptions = {}) {
   const merged = { ...parentOptions };
   for (const [key, value] of Object.entries(scopeOptions || {})) {
     if (isScopeTransformOption(key) || isScopeDefinitionOption(key)) continue;
-    if (key === "font") {
-      merged.font = [fontOptionText(merged.font), fontOptionText(value)].filter(Boolean).join(" ");
-      continue;
-    }
+    // TikZ's font key replaces \tikz@textfont, including in nested scopes.
+    // Actual TeX font declarations are tracked separately in currentFont.
     merged[key] = value;
   }
   return merged;
@@ -1634,7 +1634,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
         pathStyle,
         {
           subtype: built.styleHints.subtype || subtype,
-          shape: built.styleHints.shape,
+          // Polar lowering supplies native cubic controls but retains arc semantics.
+          shape: built.styleHints.shape || (pathOptions["axis polar arc"] ? "arc" : undefined),
           overlay: tikzBoolean(pathOptions.overlay),
           clipRect,
           clipCircle,
@@ -6700,6 +6701,8 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
   const resolvedShapeData = nodeShapeData(expandedOptions, nodeEnv, text, scaledSize);
   const positioningPoint = resolvePositioning(expandedOptions, nodeEnv, {
     ...scaledPositioningSize,
+    visibleWidth: scaledSize.width,
+    visibleHeight: scaledSize.height,
     ...textAnchorOffsets,
     shape: resolvedShape,
     shapeData: resolvedShapeData,
@@ -7042,6 +7045,8 @@ function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics)
   );
   const point = fitLayout?.point || resolveNodePoint({ ...statement, options: expandedOptions }, env, diagnostics, {
     ...positioningSize,
+    visibleWidth: size.width,
+    visibleHeight: size.height,
     ...textAnchorOffsets,
     shape: resolvedShape,
     shapeData: { ...resolvedShapeData, circleSolidus, ellipseSplit, diamondSplit },
@@ -11607,6 +11612,8 @@ function positioningLibraryHelpers() {
       }
       return nodeAnchorCoordinate({
         ...node,
+        width: node.visibleWidth ?? node.width,
+        height: node.visibleHeight ?? node.height,
         point: { x: 0, y: 0 },
         layoutWidth: node.layoutWidth ?? node.width,
         layoutHeight: node.layoutHeight ?? node.height
@@ -12220,15 +12227,10 @@ function nodeBorderPoint(node, center, toward, env, borderPadding = 0) {
   } else if (node.shape === "signal") {
     const visibleWidth = Number(node.width) || halfWidth * 2;
     const visibleHeight = Number(node.height) || halfHeight * 2;
-    const outerPadding = Math.max(
-      0,
-      ((Number(node.layoutWidth) || visibleWidth) - visibleWidth) / 2,
-      ((Number(node.layoutHeight) || visibleHeight) - visibleHeight) / 2
-    );
     localPoint = symbolSignalBorderPoint(
       symbolSignalGeometry({ width: visibleWidth, height: visibleHeight }, node.shapeData || {}),
       { x: localDx, y: localDy },
-      outerPadding + terminalPadding
+      terminalPadding
     );
   } else if (node.shape === "magneticTape") {
     localPoint = symbolMagneticTapeBorderPoint(
@@ -12891,6 +12893,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const magneticTapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const magnifyingGlassScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const tapeScale = nodeOptionScale(options, env) * canvasLengthScale(env);
+  const signalScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const cloudScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const starburstScale = nodeOptionScale(options, env) * canvasLengthScale(env);
   const { style: cylinderStyle } = normalizeOptions("node", options, env);
@@ -12898,6 +12901,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
   const magneticTapeOuterSep = nodeOuterSep(options, env);
   const magnifyingGlassOuterSep = nodeOuterSep(options, env);
   const tapeOuterSep = nodeOuterSep(options, env);
+  const signalOuterSep = nodeOuterSep(options, env);
   const cloudOuterSep = nodeOuterSep(options, env);
   const starburstOuterSep = nodeOuterSep(options, env);
   const starOuterSep = nodeOuterSep(options, env);
@@ -12998,6 +13002,7 @@ function nodeShapeData(options = {}, env = {}, text, layoutSize = null) {
     cylinderEndFill: normalizeColor(String(options["cylinder end fill"] === true || options["cylinder end fill"] === undefined ? "white" : options["cylinder end fill"])),
     signalDirections: parseSignalDirections(options["signal from"] ?? "nowhere", options["signal to"] ?? "east"),
     signalPointerAngle: numberOption(options["signal pointer angle"], 90),
+    signalOuterSep: Math.max(signalOuterSep.x, signalOuterSep.y) * signalScale,
     tapeBendTop: options["tape bend top"] ?? tapeBend ?? "in and out",
     tapeBendBottom: options["tape bend bottom"] ?? tapeBend ?? "in and out",
     tapeBendHeight: Math.max(0, parseFiniteDimension(options["tape bend height"] ?? "5pt", env, parseDimension("5pt"))) * tapeScale,
@@ -14008,11 +14013,16 @@ function resolvedTextFontSpec(text, options = {}, env = {}, geometricScale = 1) 
   const nodeFont = Object.hasOwn(options, EXPLICIT_NODE_FONT) ? options[EXPLICIT_NODE_FONT] : options.font;
   const resolved = resolveFontSpec({
     document: nodeDimensionFontSpec(options, env),
-    scope: parseTikzFontPatch(scopeFont, { source: "scope" }),
+    // tikz.code.tex assigns \tikz@textfont, rather than appending to it.
+    // A local font=\scriptsize replaces picture font=\ttfamily entirely.
+    scope: nodeFont === undefined || nodeFont === null ? parseTikzFontPatch(scopeFont, { source: "scope" }) : null,
     nodeOption: nodeFont === undefined || nodeFont === null
       ? null
       : parseTikzFontPatch(nodeFont, { source: "node-option" }),
-    contentCommand: leadingContentFontPatch(text)
+    // TikZ halign opens a fresh hbox group per row. A declaration in its
+    // first row is not the outer font used for later rows or baselineskip.
+    contentCommand: !options["text width"] && nodeLineBreaksEnabled(options) && /\\\\/.test(text)
+      ? null : leadingContentFontPatch(text)
   });
   return scaleResolvedFontSpec(resolved, geometricScale);
 }
@@ -14053,6 +14063,7 @@ function scaleResolvedFontSpec(font, scale = 1) {
   return mergeFontSpec(font, {
     sizePt: font.sizePt * factor,
     baselineSkipPt: font.baselineSkipPt * factor,
+    geometricScale: (font.geometricScale || 1) * factor,
     source: font.source
   });
 }
@@ -14286,13 +14297,13 @@ function estimateNodeAnchorSize(text, options = {}, env = { variables: {} }, vis
   }
   if (nodeShape(options) === "signal") {
     const geometry = symbolSignalGeometry(size, nodeShapeData(options, env, text));
-    const minX = roundNumber(geometry.anchors.west.x - outerSep.x);
-    const minY = roundNumber(geometry.anchors.south.y - outerSep.y);
-    const maxX = roundNumber(geometry.anchors.east.x + outerSep.x);
-    const maxY = roundNumber(geometry.anchors.north.y + outerSep.y);
+    const minX = geometry.anchors.west.x;
+    const minY = geometry.anchors.south.y;
+    const maxX = geometry.anchors.east.x;
+    const maxY = geometry.anchors.north.y;
     return {
-      width: roundNumber(geometry.bounds.maxX - geometry.bounds.minX + outerSep.x * 2),
-      height: roundNumber(geometry.bounds.maxY - geometry.bounds.minY + outerSep.y * 2),
+      width: roundNumber(Math.max(...geometry.anchorPoints.map(p => p.x)) - Math.min(...geometry.anchorPoints.map(p => p.x))),
+      height: roundNumber(Math.max(...geometry.anchorPoints.map(p => p.y)) - Math.min(...geometry.anchorPoints.map(p => p.y))),
       minX,
       minY,
       maxX,
@@ -14473,7 +14484,16 @@ function nodeTextAnchorOffsets(text, options = {}, env = {}, visibleSize = {}) {
   let height = Number.NaN;
   let depth = Number.NaN;
   const math = parseMathText(line);
-  if (math && lines.length === 1) {
+  const paragraphWidth = options["text width"] ? parseDimension(options["text width"], env.variables) * canvasScale : null;
+  const semantic = normalizeOptions("node", options, env).semantic;
+  const nativeRows = paragraphWidth
+    ? layoutNativeScopedParagraph(normalized, font, paragraphWidth * TEX_PT_PER_CM,
+      normalizedNodeTextAlign(options.align, semantic), nodeTextWrapMode(options, semantic) !== "flush")
+    : layoutMultilineTeXText(normalized, font);
+  if (nativeRows) {
+    height = nativeRows.height / TEX_PT_PER_CM;
+    depth = nativeRows.depth / TEX_PT_PER_CM;
+  } else if (math && lines.length === 1) {
     const formula = estimateFormulaBox(math.tex, {
       scale: (Number(font.sizePt) || 10) / 10,
       minWidth: 0,
@@ -14849,6 +14869,15 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
           shortFormulaMaxUnits: 3
         }
   ), unscaledTextMetricScale);
+  const nativeParagraph = usesParagraphTextWidth && layoutNativeScopedParagraph(normalized, paragraphFont,
+    textWidth * TEX_PT_PER_CM, normalizedNodeTextAlign(normalizedOptions.options.align, normalizedOptions.semantic),
+    nodeTextWrapMode(normalizedOptions.options, normalizedOptions.semantic) !== "flush");
+  if (nativeParagraph) Object.assign(textBox, {
+    width: nativeParagraph.width / TEX_PT_PER_CM,
+    height: (nativeParagraph.height + nativeParagraph.depth) / TEX_PT_PER_CM,
+    measurementKind: nativeParagraph.measurementKind,
+    nativeParagraph: true
+  });
   textBox.width += explicitHspaceWidth(text, env);
   const innerXSep = parseNodeLengthDimension(options["inner xsep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
   const innerYSep = parseNodeLengthDimension(options["inner ysep"] ?? options["inner sep"] ?? TIKZ_DEFAULT_INNER_SEP, env);
@@ -14884,8 +14913,8 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
   }
   // Claude: 空圆里带 cross（⊗ 乘法器/混频符号，如 case 037）若按 inner sep 撑，会小到几乎看不见。
   // 给它一个合理的默认直径，让 ⊗ 有正常大小；普通空圆（如 dropout 节点）仍保持小。
-  const pgfCircleDiameter = 2 * Math.hypot(textBox.width / 2 + innerXSep, textBox.height / 2 + innerYSep);
-  const emptyCircleDiameter = Math.max(parseDimension("1pt", env.variables), 2 * Math.hypot(innerXSep, innerYSep));
+  const pgfCircleDiameter = 2 * pgfNormalisedVectorLength(textBox.width / 2 + innerXSep, textBox.height / 2 + innerYSep);
+  const emptyCircleDiameter = Math.max(parseDimension("1pt", env.variables), 2 * pgfNormalisedVectorLength(innerXSep, innerYSep));
   const emptyCircleSize = options.cross ? Math.max(0.42, emptyCircleDiameter) : emptyCircleDiameter;
   const textHeight = options["text height"] ? parseDimension(options["text height"], env.variables) : NaN;
   const textDepth = options["text depth"] ? parseDimension(options["text depth"], env.variables) : 0;
@@ -15346,7 +15375,8 @@ function estimateTextMetricBox(normalized, options = {}) {
   if (options.mathMode === "number") {
     normalized = normalizeTikzText(normalized.raw ?? normalized.text, { mathMode: options.mathMode });
   }
-  const inline = !options.textWidth && (normalized.inlineNodes?.length || options.preferNativeText) && layoutNativeTextRun(normalized, options.font);
+  const inline = !options.textWidth && (normalized.inlineNodes?.length || options.preferNativeText ||
+    normalized.raw !== normalized.text && normalized.lines?.length === 1) && layoutNativeTextRun(normalized, options.font);
   if (inline) {
     const units = TEX_PT_PER_CM * finitePositiveScale(options.fontMetricNormalization);
     return { width: inline.width / units, height: (inline.height + inline.depth) / units,

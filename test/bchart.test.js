@@ -122,7 +122,7 @@ test("renders the real bchart fixture with native bar and scale geometry", async
   const textNodes = result.ir.items.filter((item) => item.type === "textNode");
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /font-family="TikZKitCMUSans,[^"]+"/);
+  assert.match(result.svg, /font-family="TikZKitCMSS10"/);
   assert.doesNotMatch(result.svg, /scale\(0\.79 1\)/);
   assert.equal(bars.length, 12);
   for (const bar of bars) {

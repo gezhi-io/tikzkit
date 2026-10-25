@@ -11,6 +11,7 @@ import { captureCrossOuts, compareCrossOuts } from "./browser-cross-out-metrics.
 import { captureDatavisPin, compareDatavisPin } from "./browser-datavis-pin-metrics.js";
 import { captureArrowPaint, compareArrowPaint } from "./browser-arrow-metrics.js";
 import { captureSurfacePaint, compareSurfacePaint } from "./browser-surface-paint-metrics.js";
+import { captureChronologyPaint, compareChronologyPaint } from "./browser-chronology-metrics.js";
 
 const arg = name => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined;
 assert.ok(arg("--output") && arg("--browser-module"),
@@ -19,6 +20,7 @@ const outputRoot = path.resolve(arg("--output"));
 const beforeRoot = arg("--before") ? path.resolve(arg("--before")) : null;
 const fixtureRoot = path.resolve(arg("--fixtures") || "test/fixtures/module-regressions");
 const manifest = JSON.parse(await readFile(path.join(fixtureRoot, "manifest.json"), "utf8"));
+const renderSummary = JSON.parse(await readFile(path.join(outputRoot, "summary.json"), "utf8"));
 const selectedIds = process.argv.flatMap((value, i) => value === "--only" ? [process.argv[i + 1]] : []);
 const cases = manifest.cases.filter(entry => !selectedIds.length || selectedIds.includes(entry.id));
 assert.ok(cases.length, "No matching browser audit cases");
@@ -51,7 +53,9 @@ try {
     assert.deepEqual(result.diagnostics, [], `${id}: browser render diagnostics`);
     const inputs = [
       ["Default JS", result.svg],
-      ["Local tikztosvg", await portableSvg(path.join(outputRoot, "tikztosvg-svg", `${id}.svg`))],
+      [renderSummary.cases?.find(item => item.id === id)?.referenceKind === "native-latex"
+        ? "MacTeX full document (tikztosvg wrapper unsupported)" : "Local tikztosvg",
+        await portableSvg(path.join(outputRoot, "tikztosvg-svg", `${id}.svg`))],
       ["After SVG-text", await portableSvg(path.join(outputRoot, "tikzkit-svg", `${id}.svg`))]
     ];
     if (beforeRoot) {
@@ -142,6 +146,7 @@ try {
       const arrowPaint = entry.arrowGeometry ? await captureArrowPaint(page,
         typeof entry.arrowGeometry === "object" ? entry.arrowGeometry : {}) : undefined;
       const surfacePaint = entry.surfacePaint ? await captureSurfacePaint(page) : undefined;
+      const chronologyPaint = entry.chronologyPaint ? await captureChronologyPaint(page, entry.chronologyPaint) : undefined;
       const paintColors = entry.paintColors ? await page.evaluate(() => {
         const palette = { fill: new Set(), stroke: new Set() };
         for (const element of document.querySelectorAll("svg path, svg rect, svg circle, svg ellipse, svg polygon, svg text, svg use")) {
@@ -178,7 +183,7 @@ try {
       images.push(decodePng(png));
       const curves = clipMode ? await captureClippedCurves(page, path.join(outputRoot, `${stem}-curves.png`)) : null;
       if (curves) curvePaint.push(curvePaintPoints(decodePng(curves.png), curves.viewport));
-      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, surfacePaint, quiverViewport,
+      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, surfacePaint, chronologyPaint, quiverViewport,
         ...(curves ? { viewport: curves.viewport, curvesImage: `${stem}-curves.png` } : {}) });
     }
     const difference = compareDecodedPngs(images[2], images[1]);
@@ -351,7 +356,23 @@ try {
       })
     } : undefined;
     if (quiverPaintGate) quiverPaintGate.accepted = quiverPaintGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
-    summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, crossGate, pinGate, arrowGate, paintColorGate, surfacePaintGate, quiverPaintGate,
+    const chronologyGate = entry.chronologyPaint ? {
+      alignment: "Shaft translation only, fixed physical scale; event bounds, paint and every glyph",
+      tolerancePx: .09,
+      comparisons: panels.flatMap((panel, i) => {
+        if (i === 1) return [];
+        const ref = panels[1];
+        const glyphErrorPx = panel.origins.length === ref.origins.length && panel.origins.length === entry.chronologyPaint.glyphs
+          ? Math.max(...panel.origins.flatMap((p, j) => ["x", "y"].map(key =>
+            Math.abs(p[key] - panel.chronologyPaint.origin[key] -
+              (ref.origins[j][key] - ref.chronologyPaint.origin[key]))))) : null;
+        const paint = compareChronologyPaint(panel.chronologyPaint, ref.chronologyPaint, entry.chronologyPaint.events);
+        return [{ title: panel.title, ...paint, glyphs: panel.origins.length, referenceGlyphs: ref.origins.length,
+          glyphErrorPx, accepted: paint.accepted && glyphErrorPx !== null && glyphErrorPx < .09 }];
+      })
+    } : undefined;
+    if (chronologyGate) chronologyGate.accepted = chronologyGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
+    summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, crossGate, pinGate, arrowGate, paintColorGate, surfacePaintGate, quiverPaintGate, chronologyGate,
       comparison: "Browser at 3x CSS zoom; SVG-text/reference diff is supplemental, not visual acceptance",
       meanAbsoluteRGBA: difference.meanAbsoluteRGBA });
   }
@@ -372,6 +393,7 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
     paintColorGates: summaries.filter(c => c.paintColorGate).map(c => ({ id: c.id, ...c.paintColorGate })),
     surfacePaintGates: summaries.filter(c => c.surfacePaintGate).map(c => ({ id: c.id, ...c.surfacePaintGate })),
     quiverPaintGates: summaries.filter(c => c.quiverPaintGate).map(c => ({ id: c.id, ...c.quiverPaintGate })),
+    chronologyGates: summaries.filter(c => c.chronologyGate).map(c => ({ id: c.id, ...c.chronologyGate })),
     axisTextGates: summaries.filter(c => c.axisTextGate).map(c => ({ id: c.id, accepted: c.axisTextGate.accepted,
       comparisons: c.axisTextGate.comparisons.map(({ errors, ...comparison }) => comparison) })),
     clipGates: summaries.filter(c => c.clipGate).map(c => ({ id: c.id, ...c.clipGate })), outputRoot }, null, 2));
@@ -386,6 +408,7 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
   assert.ok(summaries.every(c => !c.paintColorGate || c.paintColorGate.accepted), "Requested browser paint colors must match the native reference");
   assert.ok(summaries.every(c => !c.surfacePaintGate || c.surfacePaintGate.accepted), "Every surface polygon must match the native browser reference");
   assert.ok(summaries.every(c => !c.quiverPaintGate || c.quiverPaintGate.accepted), "Browser quiver paint must match the native reference");
+  assert.ok(summaries.every(c => !c.chronologyGate || c.chronologyGate.accepted), "Browser chronology events and glyphs must match the native reference");
 } finally {
   await browser.close();
 }

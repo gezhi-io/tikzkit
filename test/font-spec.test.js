@@ -419,8 +419,6 @@ test("preserves scope node-option and content-command FontSpec sources", () => {
   });
   assert.deepEqual(nodeOverride.font, {
     ...createFontSpec(),
-    sizePt: 9,
-    baselineSkipPt: 11,
     weight: 700,
     source: "node-option"
   });
@@ -447,15 +445,13 @@ test("resolves content tiny once in textNode FontSpec without double scaling", (
   assert.ok(Math.abs(tinySize / normalSize - 0.5) < 1e-6);
 });
 
-test("keeps an inherited scope size when a node font only changes weight", () => {
+test("replaces the inherited font key when a node font changes weight", () => {
   const node = renderedTextNode(
     String.raw`\begin{tikzpicture}[font=\small]\node[font=\bfseries] {x};\end{tikzpicture}`
   );
 
   assert.deepEqual(node.font, {
     ...createFontSpec(),
-    sizePt: 9,
-    baselineSkipPt: 11,
     weight: 700,
     source: "node-option"
   });
@@ -480,7 +476,7 @@ test("preserves FontSpec source precedence for inline path nodes", () => {
   );
 
   assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
-  assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
+  assertFontSource(localOverride.font, "node-option", { sizePt: 10, baselineSkipPt: 12, weight: 700 });
   assertFontSource(contentOverride.font, "content-command", { sizePt: 5, baselineSkipPt: 6, weight: 700 });
   assertFontSource(pathOverride.font, "node-option", { sizePt: 14.4, baselineSkipPt: 18, weight: 400 });
 });
@@ -496,7 +492,7 @@ test("preserves FontSpec source precedence for labels", () => {
   );
 
   assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
-  assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
+  assertFontSource(localOverride.font, "node-option", { sizePt: 10, baselineSkipPt: 12, weight: 700 });
 });
 
 test("preserves FontSpec source precedence for pins", () => {
@@ -510,18 +506,16 @@ test("preserves FontSpec source precedence for pins", () => {
   );
 
   assertFontSource(scopeOnly.font, "scope", { sizePt: 9, baselineSkipPt: 11, weight: 400 });
-  assertFontSource(localOverride.font, "node-option", { sizePt: 9, baselineSkipPt: 11, weight: 700 });
+  assertFontSource(localOverride.font, "node-option", { sizePt: 10, baselineSkipPt: 12, weight: 700 });
 });
 
-test("composes nested scope font patches property by property", () => {
+test("replaces the deferred TikZ font key in nested scopes", () => {
   const node = renderedTextNode(
     String.raw`\begin{tikzpicture}[font=\small]\begin{scope}[font=\bfseries]\node {x};\end{scope}\end{tikzpicture}`
   );
 
   assert.deepEqual(node.font, {
     ...createFontSpec(),
-    sizePt: 9,
-    baselineSkipPt: 11,
     weight: 700,
     source: "scope"
   });

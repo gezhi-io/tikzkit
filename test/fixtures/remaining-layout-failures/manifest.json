@@ -1,0 +1,16 @@
+{
+  "cases": [
+    { "id": "remaining-chronology-title", "source": "chronology-title.tex", "title": "Preserved beamer chronology title (broader layout remains partial)" },
+    { "id": "remaining-html-spacing", "source": "html-spacing.tex", "title": "No spacing-token glyphs in browser rich-text fallback (full layout remains partial)" },
+    { "id": "remaining-polar-half-plane", "source": "polar-half-plane.tex", "title": "Clean half-plane tick node separation" },
+    { "id": "remaining-polar-degrees", "source": "polar-degrees.tex", "title": "Native degree glyphs on clean polar axes", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 15 } },
+    { "id": "remaining-shadings", "source": "shadings.tex", "title": "PGF radial and axis shading colors" },
+    { "id": "remaining-paragraph-wrap", "source": "paragraph-wrap.tex", "title": "Native paragraph wrapping under inherited text width", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 41 } },
+    { "id": "remaining-font-key-math-style", "source": "font-key-math-style.tex", "title": "Font key replacement and local math styles", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 37 } },
+    { "id": "remaining-typewriter-scale", "source": "typewriter-scale.tex", "title": "CMTT font selection before node scaling", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 15 } },
+    { "id": "remaining-monospace-tree", "source": "monospace-tree.tex", "title": "Monospace tree node metrics and edge borders", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 37 } },
+    { "id": "remaining-node-shifts", "source": "node-shifts.tex", "title": "Unitless node shifts are TeX points", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 2 } },
+    { "id": "remaining-earth-scale", "source": "earth-scale.tex", "title": "Scaled earth geometry with unscaled math labels", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 8 } },
+    { "id": "remaining-signal-borders", "source": "signal-borders.tex", "title": "Signal named anchors and border separation", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 11 } }
+  ]
+}

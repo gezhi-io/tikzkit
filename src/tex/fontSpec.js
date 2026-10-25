@@ -20,6 +20,17 @@ export function mergeFontSpec(base = DEFAULT_FONT_SPEC, patch = {}) {
   return validateFontSpec({ ...createFontSpec(base), ...definedProperties(patch) });
 }
 
+// TikZ transforms the completed hbox. NFSS selects its optical face before
+// that transform; a scaled 10pt font must not become a 7pt font selection.
+export function unscaledTextFont(font) {
+  const scale = Number(font.geometricScale) || 1;
+  if (scale === 1) return font;
+  return { ...font, geometricScale: 1, sizePt: font.sizePt / scale,
+    baselineSkipPt: font.baselineSkipPt / scale,
+    ...(font.spaceSkipPt > 0 ? { spaceSkipPt: font.spaceSkipPt / scale } : {}),
+    ...(font.extraSpaceSkipPt > 0 ? { extraSpaceSkipPt: font.extraSpaceSkipPt / scale } : {}) };
+}
+
 export function mathExtensionForPackages(packages = []) {
   const mathPackages = packages.filter(pkg => ["amsmath", "mathtools", "amsfonts", "amssymb"].includes(pkg.name));
   return mathPackages.length && !mathPackages.some(pkg => pkg.options?.cmex10) ? "ams" : undefined;

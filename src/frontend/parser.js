@@ -193,10 +193,9 @@ export function parseStatements(body, diagnostics = []) {
 function parseStatement(statement, diagnostics) {
   const text = statement.trim().replace(/;$/, "").trim();
   if (!text) return null;
-  // The imported LaTeX-examples CFB source contains a bare TODO marker inside
-  // the picture. TeX leaves it out of the graphic, so it must not become a
-  // visible or diagnostic TikZ statement in the browser renderer.
-  if (text === "TODO") return { type: "noop", raw: text };
+  // pgfcorescopes.code.tex selects nullfont outside explicit text boxes.
+  // Literal characters have no ink or advance; control syntax still needs parsing.
+  if (/^[^\\{}$&^_#%]+$/.test(text)) return { type: "noop", raw: text };
   const fontPrefix = parseLeadingFontSwitches(text);
   if (fontPrefix) {
     if (!fontPrefix.rest) {

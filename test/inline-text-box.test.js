@@ -31,7 +31,7 @@ test("inline colored hboxes match independent MacTeX width, height and depth", (
     close(box.depth, depth);
     const background = box.items.find(item => item.type === "rule");
     for (const glyph of box.items.filter(item => item.color === "white")) {
-      assert.equal(glyph.family, "TikZKitMath_Typewriter");
+      assert.equal(glyph.family, "TikZKitCMTT10");
       assert.ok(glyph.x >= background.x && glyph.x + 5.24996 <= background.x + background.width);
       assert.ok(glyph.y >= background.y && glyph.y <= background.y + background.height);
     }

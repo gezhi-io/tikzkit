@@ -27,6 +27,60 @@ function measureLabel(plot, defaultFont, mathExtension, ignoredOptions = []) {
   return { style, fontCommand, box, quad: metrics.parameters.QUAD * font.sizePt };
 }
 
+// The standard line visualizer's legend is a matrix of miniature plots.
+// Coordinates and spacing are physical surrounding-font dimensions, not
+// fractions of the axis radius (TikZ DV legend options / text right).
+export function renderNativeOutsideLineLegend(entries, axisBoxName, options = {}) {
+  if (!entries.length) return null;
+  const position = String(entries[0].plot.legendPosition || "right").trim();
+  const side = ({ below: "south", "south outside": "south", above: "north",
+    "north outside": "north", right: "east", "east outside": "east" })[position];
+  if (!side) return null;
+  const ex = nativeMathFont("CMR", 10).parameters.XHEIGHT * 10;
+  const cells = [];
+  for (const entry of entries) {
+    const { plot } = entry;
+    if (entry.kind !== "line" || plot.legendTextOnly || plot.legendTextLeft || plot.cycle ||
+      plot.legendLineCoordinates?.length || plot.legendPosition !== entries[0].plot.legendPosition) return null;
+    const measured = measureLabel(plot, String.raw`\small`, options.mathExtension);
+    if (!measured) return null;
+    const { box, quad } = measured;
+    const x = (.333 + .1666) * 10, baseline = -.5 * ex;
+    // TikZ's picture bbox includes the stroked sample and the label's
+    // struts/inner ysep, but not that label's outer separation.
+    const pen = (parseDimension(plot.lineWidth || "0.6pt", {}) * PT_PER_CM) / 2;
+    cells.push({ ...entry, ...measured, x, baseline,
+      minX: -20 - pen, maxX: x + box.width,
+      minY: Math.min(-.3 * ex - pen, baseline - Math.max(box.depth, .25 * quad) - 1),
+      maxY: Math.max(.3 * ex + pen, baseline + Math.max(box.height, .75 * quad) + 1) });
+  }
+  let x = 0, y = 0;
+  cells.forEach((cell, i) => {
+    if (i) {
+      if (side === "east") y += cells[i - 1].minY - cell.maxY;
+      else x += cells[i - 1].maxX - cell.minX + 8;
+    }
+    cell.origin = { x, y };
+  });
+  const minX = Math.min(...cells.map(cell => cell.origin.x + cell.minX));
+  const maxX = Math.max(...cells.map(cell => cell.origin.x + cell.maxX));
+  const minY = Math.min(...cells.map(cell => cell.origin.y + cell.minY));
+  const maxY = Math.max(...cells.map(cell => cell.origin.y + cell.maxY));
+  const padding = 3.333 + .2;
+  const dx = side === "east" ? 8 + padding - minX : -(minX + maxX) / 2;
+  const dy = side === "south" ? -5 - padding - maxY : side === "north"
+    ? 5 + padding - minY : -(minY + maxY) / 2;
+  const commands = [`{[shift={(${axisBoxName}.${side})},tikzkit native math,tikzkit tex node anchors]`];
+  for (const cell of cells) {
+    const ox = dx + cell.origin.x, oy = dy + cell.origin.y;
+    const coords = [[-20, 0], [-15, .3 * ex], [-5, -.3 * ex], [0, 0]];
+    commands.push(`\\draw[axis legend example,${cell.sampleStyle}] plot${cell.plot.smooth !== false ? "[smooth]" : ""} coordinates {${coords.map(([a,b]) => point(ox + a, oy + b)).join(" ")}};`);
+    commands.push(`\\node[axis legend,anchor=base west,inner sep=0pt,outer sep=0pt,font=${cell.fontCommand},text=${cell.style.text || cell.labelColor}] at ${point(ox + cell.x, oy + cell.baseline)} {${cell.plot.legendLabel}};`);
+  }
+  commands.push("}");
+  return commands;
+}
+
 // Replay the legend object's keys in source order: a placement sets the
 // preferred row/column count, and a later max key can change its orientation.
 function insideMatrixOptions(raw) {

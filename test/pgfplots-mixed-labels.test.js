@@ -42,5 +42,13 @@ test("mixed descriptions measure and paint the same native box in both browser m
 test("unsupported mixed text is not partially consumed", () => {
   for (const source of ["$x$ broken $", "$$x$$ text", String.raw`$x$ \unknown{text}`, "$x$\ntext"])
     assert.equal(layoutNativeMixedText(source), null);
-  assert.equal(layoutNativeMixedText("$x$ text", { family: "sans-serif" }), null);
+  assert.equal(layoutNativeMixedText("$x$ text", { family: "Helvetica" }), null);
+});
+
+test("sans descriptions retain CM math and use the measured CMSS prose box", () => {
+  const box = layoutNativeMixedText("$x$ text", { family: "sans-serif" });
+  // fixtures/cmss-native-metrics.tex: math remains CMMI without sansmath.
+  assert.ok(Math.abs(box.width - 25.3264) < .001);
+  assert.equal(box.items[0].family, "TikZKitCMMI10");
+  assert.ok(box.items.slice(1).every(g => g.family === "TikZKitCMSS10"));
 });

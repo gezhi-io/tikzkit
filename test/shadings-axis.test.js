@@ -21,7 +21,7 @@ test("maps TikZ axis shading shortcuts to PGF-compatible color stops and angles"
     [
       ["blue", "rgb(128 0 128)", "red", 0],
       ["rgb(0 255 0)", "rgb(96 128 32)", "rgb(191 0 64)", 90],
-      ["cyan", "rgb(128 192 128)", "rgb(255 128 0)", 45]
+      ["rgb(0 255 255)", "rgb(128 192 128)", "rgb(255 128 0)", 45]
     ]
   );
   assert.deepEqual(
@@ -30,5 +30,5 @@ test("maps TikZ axis shading shortcuts to PGF-compatible color stops and angles"
   );
   assert.match(result.svg, /<linearGradient[^>]+x1="50%" y1="100%" x2="50%" y2="0%"[^>]*><stop offset="0%" stop-color="red"[^>]*><stop offset="50%" stop-color="rgb\(128 0 128\)"[^>]*><stop offset="100%" stop-color="blue"/);
   assert.match(result.svg, /<linearGradient[^>]+x1="100%" y1="50%" x2="0%" y2="50%"/);
-  assert.match(result.svg, /<linearGradient[^>]+x1="100%" y1="100%" x2="0%" y2="0%"/);
+  assert.match(result.svg, /<linearGradient[^>]+x1="85\.355339%" y1="85\.355339%" x2="14\.644661%" y2="14\.644661%"/);
 });

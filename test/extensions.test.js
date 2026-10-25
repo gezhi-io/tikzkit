@@ -124,7 +124,9 @@ test("expands chronology package timelines from beamer frames", () => {
   assert.equal(result.ast.pictures.length, 1);
   assert.ok(paths.length > 6, "expected generated timeline paths");
   assert.ok(texts.includes("Timeline"), "expected beamer frame title");
-  assert.ok(texts.includes("1800"), "expected first chronology tick label");
+  assert.ok(texts.includes("1850"), "chronology starts at start + step - mod(start, step)");
+  assert.ok(!texts.includes("1800"), "the starting year is not a major tick");
+  assert.equal(paths.filter(item => item.style.markerStart?.kind === "legacy-bar" && item.style.markerEnd?.kind === "to").length, 2);
   assert.ok(texts.some((text) => text.includes("Baker")), "expected event label");
   assert.ok(texts.some((text) => text.includes("Gill")), "expected second chronology event label");
 });
@@ -646,9 +648,10 @@ test("supports scientific polar axes with function-format angle and radius data"
     `expected clean polar outer boundary at padded max radius like native .5em padding, got ${outerBoundary?.commands?.[0]?.x}`
   );
   assert.ok(texts.includes("$\\frac{1}{2}\\pi$"), "expected polar angle tick labels");
-  const labelGap = halfPiLabel.y - halfPiLabel.nodeLayoutHeight / 2 - outerBoundary.commands[0].x;
-  // MacTeX: 2pt major tick, 1pt inner sep, .1666em outer sep; CMR8's quad is 8.5pt.
-  const nativeGap = (2 + 1 + 0.1666 * 8.5) * 2.54 / 72.27;
+  const labelBox = layoutNativeMath(String.raw`\frac{1}{2}\pi`, { fontSizePt: 8 });
+  const labelGap = halfPiLabel.y - (labelBox.height + labelBox.depth) / 2 * 2.54 / 72.27 - outerBoundary.commands[0].x;
+  // Separation is installed before the 8pt node font; .1666em uses the outer 10pt font.
+  const nativeGap = (2 + 1 + 0.1666 * 10) * 2.54 / 72.27;
   assert.ok(Math.abs(labelGap - nativeGap) < 0.0002,
     `expected native tick-to-text spacing after applying 8pt math metrics, got ${labelGap}`);
   assert.ok(texts.includes("2"), "expected polar radius tick labels");
@@ -677,8 +680,8 @@ test("supports scientific polar axes with function-format angle and radius data"
   assert.ok(Math.abs(legendCenters[0].y - legendCenters[1].y) < 0.05, "expected legend=below to use one visual row for polar legends");
   assert.ok(legendCenters[1].x - legendCenters[0].x > 1.1, "expected polar legend entries to use horizontal columns");
   assert.ok(
-    legendCenters.every((center) => center.y < -1.18 && center.y > -1.42),
-    `expected polar below legends to sit on the native south-outside row like tikztosvg, got ${legendCenters.map((center) => center.y).join(", ")}`
+    legendCenters.every((center) => Math.abs(center.y + 1.05925) < .001),
+    `native matrix anchors to the actual polar picture, not an invented padded rectangle: ${legendCenters.map((center) => center.y)}`
   );
 });
 
@@ -960,7 +963,7 @@ data point [angle=40, radius=1.5];`;
   assert.deepEqual(result.diagnostics, []);
   assert.ok(topAngleLabel, "expected generated 90-degree polar tick label");
   assert.ok(
-    topAngleLabel.y > 1.28 && topAngleLabel.y < 1.37,
+    Math.abs(topAngleLabel.y - parseDimension("40.9609pt")) < parseDimension(".005pt"),
     `expected compact math tick label center near tikztosvg, got y=${topAngleLabel.y}`
   );
   const shallowAngleLabel = result.ir.items.find((item) => item.type === "textNode" && item.text === "$30^\\circ$");
@@ -971,7 +974,7 @@ data point [angle=40, radius=1.5];`;
   );
 });
 
-test("renders numeric degree math labels with a real superscript in svg-text fallback", () => {
+test("renders numeric degree math labels from native CMR8 and CMSY6 boxes", () => {
   const source = String.raw`
 \usetikzlibrary { datavisualization.formats.functions, datavisualization.polar }
 \tikz \datavisualization [
@@ -985,9 +988,11 @@ data point [angle=40, radius=1.5];`;
   const result = tikzToSvg(source, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, /<tspan>30<\/tspan><tspan[^>]+baseline-shift="super"[^>]*>°<\/tspan>/);
-  assert.doesNotMatch(result.svg, /<tspan[^>]+baseline-shift="super"[^>]+dy="-[^"]+"[^>]*>°<\/tspan>/);
-  assert.doesNotMatch(result.svg, />30°<\/text>/);
+  const degree = assertNativeText(result.svg, "30◦");
+  assert.deepEqual(degree.glyphs.map(g => [g.family, g.size]), [["TikZKitCMR8", 8], ["TikZKitCMR8", 8], ["TikZKitCMSY6", 6]]);
+  assert.ok(degree.glyphs[2].y < degree.glyphs[0].y);
+  assert.ok(degree.glyphs[2].x > degree.glyphs[1].x);
+  assert.doesNotMatch(result.svg, /baseline-shift="super"/, "the browser must not reapply a superscript shift");
 });
 
 test("clips datavisualization minor grid lines from visualize grid low and high", () => {
@@ -3973,7 +3978,7 @@ data point [angle=40, radius=1.5];`;
     `expected 60 degree label outside the padded quadrant boundary, got y=${sixty.y}`
   );
   assert.ok(
-    ninety.y > 1.28 && ninety.y < 1.37,
+    Math.abs(ninety.y - parseDimension("40.9609pt")) < parseDimension(".005pt"),
     `expected 90 degree endpoint label close to the native tick-text high side, got y=${ninety.y}`
   );
 });

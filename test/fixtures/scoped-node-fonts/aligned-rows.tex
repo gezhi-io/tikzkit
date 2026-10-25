@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-2,-2) rectangle (6,2);
+  \node[draw,align=center,inner sep=2pt] at (0,0)
+    {{\huge\bf IF}\\{\scriptsize Instruction fetch}};
+  \node[draw,align=left,inner sep=2pt,anchor=base west] at (2.5,0)
+    {{\small\bfseries gyp}\\{\Large ABC}\\{\tiny pq}XYZ};
+  \node[anchor=base,draw,inner sep=0pt] at (0,-1) {g};
+\end{tikzpicture}
+\end{document}

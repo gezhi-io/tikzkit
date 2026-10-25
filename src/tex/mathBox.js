@@ -61,6 +61,8 @@ export function scaleNativeMathBox(box, scale) {
   if (scale === 1) return box;
   return { ...box, width: box.width * scale, height: box.height * scale, depth: box.depth * scale,
     italic: (box.italic || 0) * scale,
+    ...(box.rows ? { rows: box.rows.map(row => ({ ...row, width: row.width * scale,
+      height: row.height * scale, depth: row.depth * scale, baseline: row.baseline * scale })) } : {}),
     items: box.items.map(item => ({ ...item, x: item.x * scale, y: item.y * scale,
       ...(item.type === "glyph" ? { size: item.size * scale }
         : { width: item.width * scale, height: item.height * scale }) })) };
@@ -78,19 +80,26 @@ function list(nodes, ctx) {
         !next || ["rel", "close", "punct"].includes(next)) entries[i].atom = "ord";
   }
   const box = empty();
+  box.paragraphParts = [];
   let previous;
   for (const [index, entry] of entries.entries()) {
+    const spacingCtx = entry.spacingContext || ctx;
     let mu = spacing[previous?.atom]?.[entry.atom] || 0;
-    if (ctx.style >= 2 && !(mu === 3 && (previous?.atom === "op" || entry.atom === "op"))) mu = 0;
+    if (spacingCtx.style >= 2 && !(mu === 3 && (previous?.atom === "op" || entry.atom === "op"))) mu = 0;
     // Top-level math glue remains stretchable in an inline paragraph. Nested
     // fraction/script boxes are already packed and do not contribute glue.
     if (mu >= 4) (box.paragraphGlues ||= []).push({ itemIndex: box.items.length,
       stretch: (mu === 4 ? 2 : 5) * parameter(ctx, "QUAD") / 18,
       shrink: (mu === 4 ? 4 : 0) * parameter(ctx, "QUAD") / 18 });
-    box.width += mu * parameter(ctx, "QUAD") / 18;
+    const glueWidth = mu * parameter(spacingCtx, "QUAD") / 18;
+    let kernWidth = 0;
+    box.width += glueWidth;
     if (previous?.glyph && entry.glyph && previous.font === entry.font) {
       const kern = entry.font.kern[previous.glyph]?.[entry.glyph];
-      if (kern !== undefined) box.width += kern * fontSize(ctx);
+      if (kern !== undefined) {
+        kernWidth = kern * fontSize(ctx);
+        box.width += kernWidth;
+      }
     }
     if (["styling", "color"].includes(nodes[index].type) && entry.paragraphGlues) {
       (box.paragraphGlues ||= []).push(...entry.paragraphGlues.map(glue => ({
@@ -99,7 +108,19 @@ function list(nodes, ctx) {
     }
     append(box, entry, box.width);
     box.width += entry.width;
-    previous = entry;
+    // TeX emits binoppenalty/relpenalty after a top-level noad. Keep these
+    // opportunities separate from its shaped nucleus: re-parsing a line's
+    // trailing binary operator would incorrectly reclassify it as ordinary.
+    if (glueWidth || kernWidth) box.paragraphParts.push({ width: glueWidth + kernWidth,
+      stretch: mu >= 4 ? (mu === 4 ? 2 : 5) * parameter(ctx, "QUAD") / 18 : 0,
+      shrink: mu === 4 ? 4 * parameter(ctx, "QUAD") / 18 : 0, glue: true });
+    if (["styling", "color"].includes(nodes[index].type) && entry.paragraphParts) {
+      box.paragraphParts.push(...entry.paragraphParts);
+    } else box.paragraphParts.push({ ...entry,
+      breakPenalty: entry.atom === "bin" ? 700 : entry.atom === "rel" ? 500 : undefined });
+    // TeX keeps the preceding noad across an explicit kern. Do not lose
+    // punctuation glue, but do prevent character kerning across that kern.
+    previous = entry.atom ? entry : previous && { ...previous, glyph: null };
   }
   if (entries.length === 1) Object.assign(box, {
     atom: entries[0].atom, character: entries[0].character, italic: entries[0].italic
@@ -125,9 +146,11 @@ function unicode(text) {
 
 function glyph(text, ctx, mathItalic, atom = "ord") {
   const codepoint = ctx.textFace ? text : unicode(text);
-  // fontmath.ltx maps \cdot to CMSY slot 01. Our MacTeX font subset
-  // encodes that outline as periodcentered, while KaTeX returns U+22C5.
-  const char = !ctx.textFace && codepoint === "\u22c5" ? "\u00b7" : codepoint;
+  // fontmath.ltx maps \cdot and \circ to CMSY slots 01 and 0E.
+  // The original Type 1 outlines use periodcentered and openbullet, whose
+  // Unicode mappings differ from KaTeX's operator codepoints.
+  const char = ctx.textFace ? codepoint
+    : ({ "\u22c5": "\u00b7", "\u2218": "\u25e6", "\u2225": "\u2016" })[codepoint] || codepoint;
   // fontmath.ltx's mathcal selects the symbols alphabet. Capitals keep
   // their ASCII slots in CMSY; they are not Unicode script characters in CMMI.
   // Non-capital variable slots need their own symbol mapping, not a roman
@@ -164,8 +187,10 @@ function build(node, ctx) {
       if (node.font === "boldsymbol") return { ...build(node.body, { ...ctx, bold: true }), character: false };
       return build(node.body, { ...ctx, calligraphic: node.font === "mathcal",
         roman: node.font === "mathbf" ? "bold" : node.font === "mathrm" });
-    case "styling": return list(node.body, { ...ctx,
-      style: ["display", "text", "script", "scriptscript"].indexOf(node.style) });
+    case "styling": {
+      const spacingContext = { ...ctx, style: ["display", "text", "script", "scriptscript"].indexOf(node.style) };
+      return { ...list(node.body, spacingContext), spacingContext };
+    }
     case "html": {
       const scaled = scaledMathAttributes(node.attributes);
       if (scaled) {

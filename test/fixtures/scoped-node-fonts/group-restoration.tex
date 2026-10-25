@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-1,-1) rectangle (5,2);
+  \node[draw,anchor=base west,inner sep=0pt] at (0,1)
+    {A{\large B{\bfseries C}D}E{\scriptsize fg}H};
+  \node[draw,anchor=base west,inner sep=0pt] at (0,0)
+    {a\textbf{Bold}b{\color{red}\Large XY}c};
+  \node[draw,anchor=base west,inner sep=0pt] at (0,-.5)
+    {\bfseries A{\mdseries B}C};
+\end{tikzpicture}
+\end{document}

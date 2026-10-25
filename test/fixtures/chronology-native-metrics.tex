@@ -1,0 +1,23 @@
+\documentclass[10pt]{beamer}
+\usetheme[progressbar=frametitle]{metropolis}
+\usepackage{chronology}
+\makeatletter
+\AtEndEnvironment{tikzpicture}{\typeout{PICTURE: x=\the\pgf@picminx..\the\pgf@picmaxx, y=\the\pgf@picminy..\the\pgf@picmaxy}}
+\AtBeginDocument{\typeout{PAGE: paper=\the\paperwidth,\the\paperheight; text=\the\textwidth,\the\textheight; foot=\the\footheight; ex=\the\fontdimen5\font; parskip=\the\parskip; baselineskip=\the\baselineskip; topskip=\the\topskip}}
+\pretocmd{\endchronology}{\typeout{CHRONO: unit=\the\unit, width=\the\timelinewidth}}{}{}
+\apptocmd{\endchronology}{\typeout{CHRONOBOX: w=\the\wd\timelinebox,h=\the\ht\timelinebox,d=\the\dp\timelinebox}}{}{}
+\pretocmd{\beamer@autobreakframebox}{\typeout{FRAME: title=\the\ht\beamer@frametitlebox,\the\dp\beamer@frametitlebox; content=\the\ht\beamer@framebox,\the\dp\beamer@framebox; textheight=\the\beamer@frametextheight; pagebody=\the\textheight; foot=\the\footheight}}{}{}
+\makeatother
+\begin{document}
+\begin{frame}{Timeline}
+\begin{chronology}[50]{1800}{2020}{.9\linewidth}{1ex}
+  \event{\decimaldate{}{}{1812}}{\small Beginnings of Gerrymandering}
+  \event[\decimaldate{}{}{1960}]{\decimaldate{}{}{2020}}{}
+\end{chronology}
+\par
+\begin{chronology}[10]{1960}{2020}{.9\linewidth}{1ex}
+  \event{\decimaldate{26}{3}{1962}}{\small Baker v. Carr}
+  \event{\decimaldate{}{}{2018}}{\small Gill v. Whitford}
+\end{chronology}
+\end{frame}
+\end{document}

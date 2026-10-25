@@ -307,6 +307,22 @@ test("tikztosvg wraps standalone pgfplotstable output in a tight zero-padding no
   assert.match(normalized, /\\end\{tikzpicture\}/);
 });
 
+test("tikztosvg crops outside a standalone chronology resize box", () => {
+  const body = String.raw`\begin{chronology}[20]{1900}{2020}{9cm}[12cm]
+  \event[1950]{1980}{\small Interval}
+\end{chronology}`;
+  const normalized = normalizeTikztosvgInput(String.raw`\documentclass[border=2pt]{standalone}
+\usepackage{chronology}
+\begin{document}
+${body}
+\end{document}`);
+  assert.match(normalized, /\\node\[inner sep=0pt,outer sep=0pt\] \{/);
+  assert.ok(normalized.includes(body));
+  assert.ok(normalized.indexOf("\\end{chronology}") < normalized.indexOf("\\begin{tikzpicture}"));
+  assert.ok(normalized.indexOf("\\end{chronology}") < normalized.indexOf("use as bounding box"));
+  assert.equal((normalized.match(/\\begin\{tikzpicture\}/g) || []).length, 1);
+});
+
 test("tikztosvg normalization preserves standalone and preview crop borders", () => {
   const standalone = normalizeTikztosvgInput(String.raw`\documentclass[border=2pt]{standalone}
 \begin{document}

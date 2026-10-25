@@ -53,7 +53,8 @@ def character_map(encoding, role):
     if role in ("CMSY", "CMBSY"):
         # fontmath.ltx assigns prime, negation and Re/Im to these CMSY slots.
         # Adobe's generic glyph-name mapping does not identify the outlines.
-        overrides.update({48: "\u2032", 54: "\u0338", 60: "\u211c", 61: "\u2111"})
+        overrides.update({48: "\u2032", 54: "\u0338", 60: "\u211c", 61: "\u2111",
+                          107: "\u2016"})
     result = {}
     for slot, name in enumerate(encoding):
         char = overrides.get(slot, {"ff":"\ufb00", "fi":"\ufb01", "fl":"\ufb02", "ffi":"\ufb03", "ffl":"\ufb04"}.get(name, agl.toUnicode(name)))
@@ -68,12 +69,19 @@ def build(tex, root, temporary, optical, emit, digest, metrics_only=False):
     for size in (5, 6, 7, 8, 9, 10, 12, 17):
         for role, basename in (("CMR", "cmr"), ("CMMI", "cmmi"), ("CMSY", "cmsy"),
                                ("CMBX", "cmbx"), ("CMMIB", "cmmib"), ("CMBSY", "cmbsy"),
-                               ("CMTT", "cmtt"), ("CMTI", "cmti")):
-            if role in ("CMTT", "CMTI") and size != 10:
+                               ("CMTT", "cmtt"), ("CMTI", "cmti"),
+                               ("CMSS", "cmss"), ("CMSSBX", "cmssbx")):
+            if role == "CMSS" and size not in (8, 9, 10, 12, 17):
                 continue
-            if size == 12 and role not in ("CMR", "CMMI", "CMBX"):
+            if role == "CMSSBX" and size != 10:
                 continue
-            if size == 17 and role != "CMR":
+            if role == "CMTT" and size not in (8, 9, 10, 12):
+                continue
+            if role == "CMTI" and size != 10:
+                continue
+            if size == 12 and role not in ("CMR", "CMMI", "CMBX", "CMTT", "CMSS"):
+                continue
+            if size == 17 and role not in ("CMR", "CMSS"):
                 continue
             extra = size < 10 and role in ("CMMIB", "CMBSY")
             source = tex / f"fonts/type1/public/amsfonts/{'cmextra' if extra else 'cm'}/{basename}{size}.pfb"
@@ -83,11 +91,11 @@ def build(tex, root, temporary, optical, emit, digest, metrics_only=False):
             mapping = character_map(font.font["Encoding"], role)
             tfm = TFM(str(tfm_path))
             first_match_programs(tfm)
-            family = "TikZKitMath_Typewriter" if role == "CMTT" else f"TikZKit{role}{size}"
+            family = f"TikZKit{role}{size}"
             italic = role in ("CMMI", "CMMIB", "CMTI")
-            bold = role in ("CMBX", "CMMIB", "CMBSY")
+            bold = role in ("CMBX", "CMMIB", "CMBSY", "CMSSBX")
             style = ("BoldItalic" if italic else "Bold") if bold else ("Italic" if italic else "Regular")
-            if not metrics_only and role not in ("CMR", "CMBX", "CMTT"):
+            if not metrics_only and role not in ("CMR", "CMBX"):
                 converted = temporary / "math.otf"
                 optical.convert_type1_to_otf(source, converted, family, style_name=style,
                     character_map={ord(char): name for char, (_, name) in mapping.items()})

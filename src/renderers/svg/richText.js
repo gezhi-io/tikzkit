@@ -1,6 +1,6 @@
 import { parseMathText } from "../../tikz/textMetrics.js";
 import { mathFallbackText, splitInlineMathSegments } from "../../tikz/text.js";
-import { escapeHtml } from "./escape.js";
+import { renderPlainHtmlTextContent } from "./text.js";
 import { normalizeKatexTex } from "./mathFallbackSyntax.js";
 import { renderScopedMathHtml } from "./mathHtml.js";
 import { formatPlainTexText } from "./text.js";
@@ -249,7 +249,7 @@ export function normalizeRichWrappedLineSpacing(line) {
     .trim();
 }
 
-export function renderInlineMathHtml(line) {
+export function renderInlineMathHtml(line, unit) {
   const parts = [];
   for (const segment of splitInlineMathSegments(line)) {
     if (segment.type === "math") {
@@ -260,7 +260,7 @@ export function renderInlineMathHtml(line) {
         })
       );
     } else if (segment.text) {
-      parts.push(escapeHtml(formatPlainTexText(segment.text)));
+      parts.push(renderPlainHtmlTextContent(formatPlainTexText(segment.text), unit));
     }
   }
   return parts.join("");

@@ -21,18 +21,25 @@ test("parses tikzpicture commands, options, coordinates, foreach, and nodes", ()
   assert.equal(result.ast.pictures[0].statements[2].type, "node");
 });
 
-test("recovers a top-level TikZ command after unsupported bare text", () => {
+test("ignores bare picture text under PGF nullfont and preserves following commands", () => {
   const source = String.raw`
 \begin{tikzpicture}
-  TODO
+  TODO plain text!
   \foreach \x in {1,2} { \node at (\x,0) {\x}; }
   \node at (0,1) {after};
 \end{tikzpicture}`;
   const result = parseTikz(source);
   const statements = result.ast.pictures[0].statements;
 
-  assert.deepEqual(statements.map((statement) => statement.type), ["unsupported", "foreach", "node"]);
-  assert.equal(statements[0].raw.trim(), "TODO");
+  assert.deepEqual(statements.map((statement) => statement.type), ["noop", "foreach", "node"]);
+  assert.equal(statements[0].raw.trim(), "TODO plain text!");
+  assert.deepEqual(result.diagnostics, []);
+});
+
+test("recovers after unsupported commands without treating them as nullfont text", () => {
+  const result = parseTikz(String.raw`\begin{tikzpicture}\notimplemented{value};\node{after};\end{tikzpicture}`);
+  const statements = result.ast.pictures[0].statements;
+  assert.deepEqual(statements.map(statement => statement.type), ["unsupported", "node"]);
   assert.match(statements[0].diagnostic?.message || "", /Unsupported/);
 });
 
@@ -573,7 +580,7 @@ test("records common PGF package and PGFPlots library declarations", () => {
     "pgfgantt"
   ]);
   assert.deepEqual(result.ast.pgfplotsLibraries.map((library) => library.name), ["groupplots"]);
-  assert.equal(result.ast.pgfplotsLibraries[0].status, "builtin");
+  assert.equal(result.ast.pgfplotsLibraries[0].status, "partial");
   assert.equal(result.ast.pgfplotsOptions.compat, "newest");
   assert.doesNotMatch(result.ast.source, /\\usepackage|\\usepgfplotslibrary|\\pgfplotsset/);
 });

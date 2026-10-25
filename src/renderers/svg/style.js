@@ -111,11 +111,12 @@ export function axisGradientId(style = {}) {
   const middle = String(style.middleColor || "gray").trim();
   const bottom = String(style.bottomColor || style.fill || "black").trim();
   const angle = String(style.shadingAngle ?? 0).trim();
+  const aspect = style.axisShadingAspect ? `-aspect-${format(style.axisShadingAspect)}` : "";
   const stops = Array.isArray(style.linearStops)
     ? style.linearStops.map((stop) => `${stop.offset}:${stop.color}`).join("-")
     : "";
-  if (stops) return svgDefinitionId(`tikz-axis-stops-${stablePaintHash(`${angle}-${stops}`)}`, style);
-  const key = `${top}-${middle}-${bottom}-${angle}-${stops}`
+  if (stops) return svgDefinitionId(`tikz-axis-stops-${stablePaintHash(`${angle}-${stops}${aspect}`)}`, style);
+  const key = `${top}-${middle}-${bottom}-${angle}-${stops}${aspect}`
     .replace(/[^A-Za-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase() || "axis";
