@@ -2716,8 +2716,9 @@ data [set=b] {
   assert.equal(labelColors.length, 2, `expected colored legend label styles, got ${JSON.stringify(labels)}`);
   assert.deepEqual(labelColors, exampleColors, `expected legend text to inherit visualizer colors ${exampleColors.join(", ")}, got ${labelColors.join(", ")}`);
   assert.ok(labelColors.some((color) => color !== "black" && color !== "rgb(0 0 0)"), `expected at least one colored legend text, got ${labelColors.join(", ")}`);
-  assert.ok(tickTexts.includes("0.25"), `expected native-like quarter x ticks, got ${tickTexts.join(", ")}`);
-  assert.ok(tickTexts.includes("1.75"), `expected native-like upper quarter x ticks, got ${tickTexts.join(", ")}`);
+  // Local PGF's default `some` selects about five values, not quarter steps.
+  // Native/browser evidence: datavis-linear-ticks/colored-legend.tex.
+  assert.deepEqual(tickTexts, ["0", "0.5", "1", "1.5", "2", "0", "0.5", "1", "1.5", "2"]);
 });
 
 test("applies datavisualization legend label node style to legend text nodes", () => {
@@ -3190,7 +3191,7 @@ data [set=f] { var x : interval [0:1] samples 3; func y = \value x + 5; };`;
   assert.deepEqual(red.legends, red.plots);
 });
 
-test("uses native-like quarter y ticks for datavisualization clean axes over a 0 to 2 range", () => {
+test("uses native half-unit y ticks for datavisualization clean axes over a 0 to 2 range", () => {
   const source = String.raw`
 \usetikzlibrary {datavisualization.formats.functions}
 \tikz \datavisualization
@@ -3216,8 +3217,8 @@ data [set=c] {
   const tickTexts = result.ir.items.filter((item) => item.type === "textNode").map((item) => item.text);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(tickTexts.includes("0.25"), `expected native-like quarter tick labels, got ${tickTexts.join(", ")}`);
-  assert.ok(tickTexts.includes("1.75"), `expected native-like upper quarter tick labels, got ${tickTexts.join(", ")}`);
+  // The independent half-step fixture has the same surveyed range.
+  assert.deepEqual(tickTexts, ["0", "1", "2", "3", "4", "0", "0.5", "1", "1.5", "2"]);
 });
 
 test("keeps datavisualization clean y ticks inside the visible range for non-integer maxima", () => {
@@ -3263,7 +3264,7 @@ data [set=f] {
   assert.ok(!yTickTexts.includes("2.5"), `expected native clean axes to leave the top boundary tick unlabeled, got ${yTickTexts.join(",")}`);
 });
 
-test("keeps datavisualization top boundary tick mark but hides its label", () => {
+test("excludes datavisualization ticks beyond the noninteger surveyed maximum", () => {
   const source = String.raw`
 \usetikzlibrary {datavisualization.formats.functions}
 \tikz \datavisualization
@@ -3282,16 +3283,17 @@ data [set=f] { var x : interval [0:6] samples 3; func y = 0.12*\value x + 1.75; 
   const yTickTexts = result.ir.items
     .filter((item) => item.type === "textNode" && item.x < -0.2)
     .map((item) => item.text);
-  const topTick = result.ir.items.find(
-    (item) =>
-      item.subtype === "axis-tick" &&
-      item.commands?.some((command) => "y" in command && command.y > 3.0)
-  );
+  const yTicks = result.ir.items.filter(item => item.subtype === "axis-tick" &&
+    Math.abs(item.commands[0].y - item.commands.at(-1).y) < 1e-6);
 
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(topTick, "expected native clean axes to keep the top boundary tick/grid position");
-  assert.ok(yTickTexts.includes("2"), `expected the last interior y tick label to remain visible, got ${yTickTexts.join(",")}`);
-  assert.ok(!yTickTexts.includes("2.5"), `expected the top boundary tick label to be omitted, got ${yTickTexts.join(",")}`);
+  // Native range is 0..2.47 with span/1000 tolerance, which excludes 2.5
+  // entirely. The boundary frame is separate from the five tick marks.
+  assert.deepEqual(yTickTexts, ["0", "0.5", "1", "1.5", "2"]);
+  assert.equal(yTicks.length, 5);
+  yTicks.forEach((tick, index) => assert.ok(
+    Math.abs(tick.commands[0].y - index * .5 / 2.47 * 3.09) < .001,
+    `expected tick ${index * .5} in the original surveyed mapping`));
 });
 
 test("uses native-like unit y ticks for datavisualization clean axes over a 0 to 6 range", () => {
@@ -3947,7 +3949,13 @@ data {
   assert.deepEqual(result.diagnostics, []);
   assert.ok(texts.includes("$\\pi$"), "expected custom pi tick label from also at");
   assert.equal(texts.includes("3"), false, "expected no tick text at=3 to hide the generated 3 label");
-  assert.ok(yTickTexts.includes("1"), `expected the top y tick label 1 to remain visible like tikztosvg, got ${yTickTexts.join(",")}`);
+  // Twenty sampled sine values do not reach +/-1; native PGF surveys the
+  // actual samples and does not invent extrema for the analytic function.
+  assert.deepEqual(yTickTexts, ["−0.75", "−0.5", "−0.25", "0", "0.25", "0.5", "0.75"]);
+  const piTick = xTicks.find(tick => Math.abs(tick.commands[0].x - 2.5) < .001 && tick.commands[0].y < 0);
+  assert.ok(piTick, "expected the extra pi tick on the lower side");
+  assert.ok(Math.abs(Math.abs(piTick.commands.at(-1).y - piTick.commands[0].y) -
+    parseDimension("6.30554pt", {})) < .0001, "pi tick includes native 1ex padding before its label");
   assert.ok(
     xTickXs.some((x) => Math.abs(x - (3 / (2 * Math.PI)) * 5) < 0.03),
     `expected the source tick at x=3 to remain visible while its label is hidden, got ${xTickXs.join(", ")}`
@@ -4025,7 +4033,14 @@ data {
     "expected y axis length=3cm plus native school-book padding"
   );
   assert.ok(gridLines.length >= 12, "expected explicit x/y grid lines from step ticks");
-  assert.ok(ticks.length >= 14, "expected school book axes to draw major tick marks on the crossing axes");
+  assert.equal(ticks.length, 12, "native school-book axes suppress both origin tick marks");
+  assert.equal(texts.filter(text => text === "0").length, 1, "only the north-east y=0 label survives");
+  assert.ok(axisLines.every(line => line.style.markerEnd?.kind === "to"));
+  for (const tick of ticks) {
+    const [start, end] = tick.commands;
+    assert.ok(Math.abs(Math.hypot(end.x - start.x, end.y - start.y) - parseDimension("4pt", {})) < .0001,
+      "native major ticks extend 2pt on each side");
+  }
   assert.ok(
     gridLines.every((line) => line.style.lineWidth > 1),
     "expected datavis major grid lines to use TikZ thin/default width rather than the old hairline width"
@@ -4960,12 +4975,14 @@ test("uses sparse native-like ticks for single-point datavisualization scatter",
   samples={label in legend={text=single point}}]
 data point [x=0,y=0,set=samples];`;
 
-  const expanded = preprocessTikzSource(source).source;
-  const yTickLabels = [...expanded.matchAll(/\\node\[axis tick label, anchor=east[^\]]*\]\s+at\s+\([^)]*\)\s+\{([^{}]+)\}/g)]
-    .map((match) => match[1]);
-  const xTickLabels = [...expanded.matchAll(/\\node\[axis tick label, anchor=north[^\]]*\]\s+at\s+\([^)]*\)\s+\{([^{}]+)\}/g)]
-    .map((match) => match[1]);
+  const result = tikzToSvg(source);
+  const labels = result.ast.pictures.flatMap(picture => picture.statements)
+    .filter(item => item.type === "node" && item.options["axis tick label"]);
+  const yTickLabels = labels.filter(item => item.options.anchor === "east").map(item => item.text);
+  const xTickLabels = labels.filter(item => item.options.anchor === "north").map(item => item.text);
 
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.ir.items.filter(item => item.subtype === "axis-tick").length, 2);
   assert.deepEqual(yTickLabels, ["0"], `expected native single-point scatter y axis to only label 0, got ${yTickLabels.join(",")}`);
   assert.deepEqual(xTickLabels, ["0"], `expected native single-point scatter x axis to only label 0, got ${xTickLabels.join(",")}`);
 });

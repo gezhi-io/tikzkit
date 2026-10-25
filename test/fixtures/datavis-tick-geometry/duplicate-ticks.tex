@@ -1,0 +1,11 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization[scientific axes=clean,
+  x axis={ticks={major={
+    at={0,1 as [{style=red,low=-4pt}] $a$,2},
+    also at={1 as [{style=blue,low=-8pt}] $b$},
+    options at={1 as [{node style={font=\footnotesize}}]}}}},
+  y axis={ticks={step=1}},visualize as line]
+data point[x=0,y=0] data point[x=2,y=1];
+\end{document}

@@ -4,8 +4,10 @@
 export async function captureAxisGrid(page, { frame = "middle" } = {}) {
   return page.evaluate(({ frame }) => {
     const svg = document.querySelector("svg");
+    const datavis = frame.startsWith("datavis-");
+    const axisStroke = ["datavis-clean", "datavis-box"].includes(frame) ? "rgb(128, 128, 128)" : "rgb(0, 0, 0)";
     const axes = [...svg.querySelectorAll("path")].flatMap(p => {
-      if (p.closest("defs") || getComputedStyle(p).stroke !== "rgb(0, 0, 0)") return [];
+      if (p.closest("defs") || getComputedStyle(p).stroke !== axisStroke) return [];
       const match = (p.getAttribute("d") || "").match(/^\s*M\s*([-\d.e+]+)[ ,]+([-\d.e+]+)\s*L\s*([-\d.e+]+)[ ,]+([-\d.e+]+)\s*$/i);
       if (!match) return [];
       const matrix = p.getScreenCTM();
@@ -23,7 +25,28 @@ export async function captureAxisGrid(page, { frame = "middle" } = {}) {
     ).map(v => ({ x: v.a.x, y: h.a.y })));
     let origin;
     let frameBox;
-    if (frame === "3d") {
+    if (datavis) {
+      // DV clean axes deliberately stop short of their supporting-line
+      // crossing. Use the axis shafts, not the data border or picture crop.
+      const longest = lines => [...lines].sort((a, b) =>
+        Math.hypot(b.b.x - b.a.x, b.b.y - b.a.y) - Math.hypot(a.b.x - a.a.x, a.b.y - a.a.y))[0];
+      const h = longest(horizontal), v = longest(vertical);
+      const closedBox = frame === "datavis-box" && [...svg.querySelectorAll("path")]
+        .filter(p => !p.closest("defs") && getComputedStyle(p).stroke === axisStroke &&
+          /z/i.test(p.getAttribute("d") || "") && !/[cqast]/i.test(p.getAttribute("d") || ""))
+        .map(p => p.getBoundingClientRect()).filter(b => b.width > 20 && b.height > 20)
+        .sort((a, b) => b.width * b.height - a.width * a.height)[0];
+      if (closedBox) {
+        origin = { x: closedBox.left, y: closedBox.bottom };
+        frameBox = { width: closedBox.width, height: closedBox.height };
+      } else {
+        if (!h || !v) throw new Error("Datavisualization axis shafts not found");
+        origin = frame === "datavis-box"
+          ? { x: Math.min(...vertical.map(v => v.a.x)), y: Math.max(...horizontal.map(h => h.a.y)) }
+          : { x: v.a.x, y: h.a.y };
+        frameBox = { width: Math.abs(h.b.x - h.a.x), height: Math.abs(v.b.y - v.a.y) };
+      }
+    } else if (frame === "3d") {
       if (!axes.length) throw new Error("Projected axis edges not found");
       const points = axes.flatMap(edge => [edge.a, edge.b]);
       const left = Math.min(...points.map(p => p.x)), right = Math.max(...points.map(p => p.x));
@@ -67,13 +90,21 @@ export async function captureAxisGrid(page, { frame = "middle" } = {}) {
       if (path.closest("defs")) continue;
       const style = getComputedStyle(path);
       const rgb = style.stroke.match(/^rgb\((\d+), (\d+), (\d+)\)$/)?.slice(1).map(Number);
-      if (!rgb || rgb[0] !== rgb[1] || rgb[1] !== rgb[2] || rgb[0] < 128 || rgb[0] >= 255) continue;
+      const isGray = rgb && rgb[0] === rgb[1] && rgb[1] === rgb[2];
+      const datavisTick = datavis && style.strokeLinecap === "round";
+      if (datavis ? !datavisTick && !(isGray && rgb[0] > 128 && rgb[0] < 255)
+        : !isGray || rgb[0] < 128 || rgb[0] >= 255) continue;
       const d = path.getAttribute("d") || "";
       // A gray faceted surface may share the grid color. Closed polygons
       // are mesh paint, never the straight open tick/grid subpaths below.
       if (/z/i.test(d)) continue;
       const pattern = /M\s*([-\d.e+]+)[ ,]+([-\d.e+]+)\s*L\s*([-\d.e+]+)[ ,]+([-\d.e+]+)/gi;
-      if (d.replace(pattern, "").trim()) throw new Error("Expected straight tick/grid subpaths");
+      if (d.replace(pattern, "").trim()) {
+        // Native default arrow barbs are round-cap cubic paths too. This
+        // pass measures straight tick/grid segments, not curved arrow paint.
+        if (datavis) continue;
+        throw new Error("Expected straight tick/grid subpaths");
+      }
       const transform = path.getScreenCTM();
       const scale = Math.hypot(transform.a, transform.b);
       for (const match of d.matchAll(pattern)) {
@@ -84,8 +115,9 @@ export async function captureAxisGrid(page, { frame = "middle" } = {}) {
           ...(frame === "3d" ? { dx: Math.abs(end.x - start.x),
             dy: (Math.abs(end.x - start.x) < 0.001 ? Math.sign(end.y - start.y) : Math.sign(end.x - start.x)) * (end.y - start.y) } : {}),
           vertical: Math.abs(end.x - start.x) < Math.abs(end.y - start.y),
-          strokeWidth: parseFloat(style.strokeWidth) * scale, gray: rgb[0] };
-        result[rgb[0] === 128 ? "ticks" : "grids"].push(segment);
+          strokeWidth: parseFloat(style.strokeWidth) * scale, gray: rgb[0],
+          ...(datavis ? { color: style.stroke } : {}) };
+        result[(datavis ? datavisTick : rgb[0] === 128) ? "ticks" : "grids"].push(segment);
       }
     }
     if (frame === "3d") {
@@ -152,6 +184,7 @@ export function compareAxisGrid(actual, reference, tolerancePx = 0.35) {
     const remaining = [...reference[key]];
     let maxErrorPx = 0;
     let maxGrayError = 0;
+    let matchingColors = true;
     for (const segment of actual[key]) {
       let best = -1, distance = Infinity;
       for (let i = 0; i < remaining.length; i++) {
@@ -163,15 +196,16 @@ export function compareAxisGrid(actual, reference, tolerancePx = 0.35) {
       }
       if (best < 0) { maxErrorPx = Infinity; continue; }
       maxGrayError = Math.max(maxGrayError, Math.abs(segment.gray - remaining[best].gray));
+      if (remaining[best].color !== undefined && segment.color !== remaining[best].color) matchingColors = false;
       maxErrorPx = Math.max(maxErrorPx, distance);
       remaining.splice(best, 1);
     }
     // A no-grid axis has an intentionally empty reference line set. Still
     // reject any added/missing lines; glyph/frame checks reject blank output.
     const accepted = actual[key].length === reference[key].length && !remaining.length &&
-      maxErrorPx < tolerancePx && maxGrayError <= 1;
+      maxErrorPx < tolerancePx && maxGrayError <= 1 && matchingColors;
     return { count: actual[key].length, referenceCount: reference[key].length,
-      maxErrorPx: Number.isFinite(maxErrorPx) ? maxErrorPx : null, maxGrayError, accepted };
+      maxErrorPx: Number.isFinite(maxErrorPx) ? maxErrorPx : null, maxGrayError, matchingColors, accepted };
   };
   const matchingGlyphs = reference.glyphs.length > 0 && actual.glyphs.length === reference.glyphs.length;
   const glyphErrorPx = matchingGlyphs ? Math.max(0, ...actual.glyphs.flatMap((p, i) =>

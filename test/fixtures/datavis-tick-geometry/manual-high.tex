@@ -1,0 +1,10 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization[xy Cartesian,
+  x axis={visualize axis={y axis={goto=0}},
+    visualize ticks={common={y axis={goto=0},direction axis=y axis,low=-1pt,high=3pt},major={tick text at high}},
+    ticks={major={at={0,1 as [{tick text padding=4pt}] $a$,2 as [{high=5pt}] $b$,3}}}},
+  y axis={visualize axis={x axis={goto=0}}},visualize as line]
+data point[x=0,y=0] data point[x=3,y=2];
+\end{document}

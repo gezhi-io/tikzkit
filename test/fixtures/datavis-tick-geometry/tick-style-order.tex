@@ -1,0 +1,19 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization[
+  scientific axes=clean,
+  x axis={ticks={
+    low=-2pt,
+    common={low=-3pt},
+    major={low=-4pt,
+      at={2 as [{style=red,low=-5pt}] $a$,0,1},
+      also at={2 as [{style=blue,low=-7pt}] $b$},
+      options at={2 as [{low=-8pt}] ignored}
+    }
+  }},
+  y axis={ticks={step=1}},
+  visualize as line
+] data point[x=0,y=0] data point[x=2,y=1];
+\end{document}

@@ -29,6 +29,17 @@ test("browser grid gate checks glyph positions, line widths and colors", () => {
   }
 });
 
+test("browser grid gate rejects hue changes even when tick gray values match", () => {
+  const expected = structuredClone(reference);
+  expected.ticks[0].color = "rgb(255, 0, 0)";
+  const actual = structuredClone(expected);
+  assert.equal(compareAxisGrid(actual, expected).accepted, true);
+  actual.ticks[0].color = "rgb(0, 0, 255)";
+  assert.equal(compareAxisGrid(actual, expected).accepted, false);
+  delete actual.ticks[0].color;
+  assert.equal(compareAxisGrid(actual, expected).accepted, false);
+});
+
 test("browser grid gate cannot accept empty reference and actual drawings", () => {
   const empty = { ticks: [], grids: [], glyphs: [] };
   assert.equal(compareAxisGrid(empty, empty).accepted, false);

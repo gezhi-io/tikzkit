@@ -1,0 +1,35 @@
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization}
+\makeatletter
+\let\NativeTickNode\tikz@dv@handle@tick
+\def\tikz@dv@handle@tick#1{%
+  \pgfextra{\typeout{DV-ENDPOINT \ProbeName: dir=\pgfkeysvalueof{/tikz/data visualization/direction axis}; value=\tikz@dv@tick@pos; low=\tikz@dv@min@tick; high=\tikz@dv@max@tick; anchor=#1}}%
+  \NativeTickNode{#1}%
+}
+\tikzdatavisualizationset{every ticks/.append style={node style={
+  name=nativetick,
+  append after command={\pgfextra{%
+    \pgf@process{\pgfpointanchor{nativetick}{center}}%
+    \typeout{DV-CENTER \ProbeName: value=\tikz@dv@tick@pos; \the\pgf@x,\the\pgf@y}%
+  }}
+}}}
+\makeatother
+\begin{document}
+\def\ProbeName{school}
+\tikz \datavisualization[school book axes,
+  x axis={ticks={step=1}}, y axis={ticks={step=1}},visualize as line]
+data point[x=-1,y=-1] data point[x=2,y=2];\par
+\def\ProbeName{padding}
+\tikz \datavisualization[scientific axes=clean,
+  x axis={ticks={major={at={0,1,2 as [{tick text padding=1ex}] $p$,3,4},
+    options at={1 as [{low=-5pt}]},no tick text at=3}}},
+  y axis={ticks={step=1}},visualize as line]
+data point[x=0,y=0] data point[x=4,y=2];\par
+\def\ProbeName{stack}
+\tikz \datavisualization[scientific axes=clean,
+  x axis={ticks={step=1,major={stack=3pt}}},
+  y axis={ticks={step=1,major={tick text padding=2pt,options at={1 as [{low=-6pt,high=1pt}]}}}},
+  visualize as line]
+data point[x=0,y=0] data point[x=4,y=2];
+\end{document}

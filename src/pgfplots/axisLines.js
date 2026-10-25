@@ -157,6 +157,11 @@ function isMiddleAxisLine(axisOptions = {}, axis = "x") {
 
 function createAxisLineStyle(axisOptions, globalStyle, axis, arrowed) {
   const specificStyle = axisLineStyleFragments(axisOptions[`${axis} axis line style`]);
+  // Datavisualization owns its visualizer styles: bare Cartesian axes have
+  // no arrows, while school-book axes install TikZ's ordinary `->` style.
+  const arrowStyle = axisOptions["datavis axis label placement"]
+    ? axisOptions["axis school book padding"] ? "->" : ""
+    : arrowed ? "-stealth" : "";
   return joinOptions([
     "axis line",
     "black",
@@ -165,7 +170,7 @@ function createAxisLineStyle(axisOptions, globalStyle, axis, arrowed) {
       : plotLineWidthOption(axisOptions) || "line width=0.4pt",
     ...globalStyle,
     ...specificStyle,
-    arrowed ? "-stealth" : ""
+    arrowStyle
   ]);
 }
 

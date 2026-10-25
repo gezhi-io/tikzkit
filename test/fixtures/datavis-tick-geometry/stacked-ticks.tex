@@ -1,0 +1,9 @@
+\documentclass[tikz,border=2pt]{standalone}
+\usetikzlibrary{datavisualization}
+\begin{document}
+\tikz \datavisualization[scientific axes=clean,
+  x axis={ticks={step=1,major={stack=3pt}}},
+  y axis={ticks={step=1,major={tick text padding=2pt,options at={1 as [{low=-6pt,high=1pt}]}}}},
+  visualize as line]
+data point[x=0,y=0] data point[x=4,y=2];
+\end{document}

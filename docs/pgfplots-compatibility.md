@@ -6,14 +6,17 @@ scope, native implementation references, browser comparisons and open gaps.
 
 ## Current Work
 
-Latest explicit-test checkpoint: 2934 passed, 39 failed, 14 unchanged skips
-out of 2987 tests. This batch reduced the previous 43 failures to 39,
-with no new failing test names. Bare Node discovery also runs three manual
+Latest explicit-test checkpoint: 2951 passed, 33 failed, 14 unchanged skips
+out of 2998 tests. Datavisualization major tick replay and geometry improved;
+six evidence-based stale expectations account for the 39-to-33 failure change,
+with no new failing names. Ten of twelve browser geometry controls pass;
+two legend cases remain unaccepted. Bare Node discovery also runs three manual
 browser probes without their arguments; that separate issue remains open.
 Complete figure compatibility remains partial;
 see the first report for the distinction between rendering fixes and
 evidence-based stale test corrections.
 
+- [Datavisualization tick geometry and option replay](qa/2026-10-25-datavis-tick-geometry.md)
 - [Small axes, multiline ticks and paint bounds](qa/2026-10-25-pgfplots-small-axes.md)
 - [Logarithmic surfaces, ticks and mixed descriptions](qa/2026-10-25-pgfplots-log-surfaces.md)
 - [Surface survey and projected clipping](qa/2026-10-25-pgfplots-surface-survey.md)

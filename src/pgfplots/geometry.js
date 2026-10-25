@@ -490,6 +490,11 @@ function axisUnitDimension(value, span) {
 
 function axisContainerMargin(axisOptions = {}, options = {}) {
   if (axisOptions["hide axis"] || axisOptions.hide) return TIKZ_HIDDEN_AXIS_CONTAINER_MARGIN;
+  // DV axis/tick nodes already contribute their TeX layout boxes. A synthetic
+  // PGFPlots description gutter shifts the crop without moving any data.
+  if (axisOptions["datavis axis label placement"] && !axisOptions["datavis candle stick plot"]) {
+    return { left: 0, right: 0, top: 0, bottom: 0 };
+  }
   if (isMiddleAxis(axisOptions)) {
     // PGFPlots implements axis-description labels as ordinary TikZ nodes. Their
     // complete node boxes (including inner sep) determine the entire picture

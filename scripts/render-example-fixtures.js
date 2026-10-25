@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
 import { parseOptions } from "../src/engine/options.js";
+import { extractBalanced } from "../src/frontend/parser.js";
 import { unwrapBeamerFrames } from "../src/frontend/latex-shell.js";
 import { tikzToSvgAsync } from "../src/index.js";
 import { lowerRawGnuplotAddplotsToCoordinates } from "../src/pgfplots/gnuplot.js";
@@ -1089,7 +1090,7 @@ function wrapStandalonePgfplotstableTypeset(body) {
 // page-space dimension, so reset the picture CTM before applying it; otherwise
 // a picture-level scale or rotation also transforms the document margin.
 function applyTikztosvgDocumentCropBorder(body, border) {
-  if (!border || !/\\begin\{tikzpicture\}/.test(body)) return body;
+  if (!border) return body;
   const boundingBoxPath = [
     "\\begin{scope}[reset cm]",
     "\\path[use as bounding box]",
@@ -1129,6 +1130,18 @@ function applyTikztosvgDocumentCropBorder(body, border) {
       result += `${boundingBoxPath}\n${endPicture}`;
       topLevelPictures -= 1;
       cursor += endPicture.length;
+      continue;
+    }
+
+    if (braceDepth === 0 && topLevelPictures === 0 && /^\\tikz(?![A-Za-z@])/.test(text.slice(cursor))) {
+      // TikZ's shorthand uses the same end-picture hook. Append after existing
+      // hooks so their final paint is included, and leave the original command
+      // body untouched (it may contain semicolons inside DV function data).
+      let after = cursor + 5;
+      while (/\s/.test(text[after] || "")) after++;
+      const options = extractBalanced(text, after, "[", "]");
+      result += `\\tikz[${options ? `${options.content},` : ""}execute at end picture={${boundingBoxPath}}]`;
+      cursor = options?.end ?? after;
       continue;
     }
 

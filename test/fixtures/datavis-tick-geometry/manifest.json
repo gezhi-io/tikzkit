@@ -1,0 +1,76 @@
+{
+  "cases": [
+    {
+      "id": "datavis-school-book-ticks",
+      "source": "../datavis-failure-audit/school-book-ticks.tex",
+      "title": "School-book symmetric ticks and origin",
+      "axisFrame": "datavis-middle"
+    },
+    {
+      "id": "datavis-boundary-ticks",
+      "source": "../datavis-failure-audit/boundary-ticks.tex",
+      "title": "Sampled sine with manual pi tick padding",
+      "axisFrame": "datavis-box"
+    },
+    {
+      "id": "datavis-half-step",
+      "source": "../datavis-linear-ticks/half-step.tex",
+      "title": "Native automatic half-step control",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-noninteger-maximum",
+      "source": "../datavis-linear-ticks/noninteger-maximum.tex",
+      "title": "Surveyed noninteger boundary control",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-colored-legend",
+      "source": "../datavis-linear-ticks/colored-legend.tex",
+      "title": "Colored legend and tick density control",
+      "axisFrame": "datavis-box"
+    },
+    {
+      "id": "datavis-single-offset",
+      "source": "../datavis-linear-ticks/single-offset.tex",
+      "title": "Single nonzero sample control",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-single-zero",
+      "source": "single-zero.tex",
+      "title": "Single sample at the origin",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-manual-low",
+      "source": "manual-low.tex",
+      "title": "Manual tick padding, style and suppression",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-manual-high",
+      "source": "manual-high.tex",
+      "title": "High-side Cartesian tick padding",
+      "axisFrame": "datavis-middle"
+    },
+    {
+      "id": "datavis-stacked-ticks",
+      "source": "stacked-ticks.tex",
+      "title": "Alternating tick padding and asymmetric endpoints",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-duplicate-ticks",
+      "source": "duplicate-ticks.tex",
+      "title": "Duplicate values retain occurrence-local labels and paint",
+      "axisFrame": "datavis-clean"
+    },
+    {
+      "id": "datavis-tick-style-order",
+      "source": "tick-style-order.tex",
+      "title": "Tick option replay preserves source order and occurrence text",
+      "axisFrame": "datavis-clean"
+    }
+  ]
+}

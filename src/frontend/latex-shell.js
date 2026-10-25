@@ -7651,7 +7651,7 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     // the y=0 label at the intersection, anchored north east without a tick.
     // Keep that asymmetric rule explicit for the generic tick renderer.
     "datavis school book y origin label": schoolBookAxes ? true : undefined,
-    "axis tick color": schoolBookAxes ? "black" : "black!50",
+    "axis tick color": schoolBookAxes || xyCartesianAxes ? "black" : "black!50",
     "x axis tick color": xTickColor || undefined,
     "y axis tick color": yTickColor || undefined,
     "x axis tick label color": xTickColor || undefined,
@@ -7681,6 +7681,8 @@ function datavisualizationAxisOptions(globalOptionsRaw, plotSpecs, context = {})
     ytick: sparkLine || (xyCartesianAxes && !datavisualizationAxisVisualizesTicks(yAxisOptions, allAxesOptions)) ? "\\empty" : yTicks,
     xticklabels: sparkLine ? undefined : xTickLabels,
     yticklabels: sparkLine ? undefined : yTickLabels,
+    "datavis x tick options": datavisualizationTickPaintOptions(xSourceTicks, xAxisOptions, allAxesOptions),
+    "datavis y tick options": datavisualizationTickPaintOptions(ySourceTicks, yAxisOptions, allAxesOptions),
     // PGF datavis leaves minor steps unset by default. Do not inherit the
     // unrelated PGFPlots logarithmic axis's automatic 2..9 decade ticks.
     "x minor tick values": datavisualizationScaleTickOption(xMinorSourceTicks, axisScaling.x) ?? "\\empty",
@@ -7780,7 +7782,14 @@ function datavisualizationSourceTickLabels(raw, scaling, axisOptions = {}, allAx
   if (!scaling && !hasManualLabels && !datavisualizationAxisIsLogarithmic(axisOptions, allAxesOptions)) return undefined;
   const values = datavisualizationTickOptionValues(raw);
   if (!values.length) return undefined;
-  return `{${values.map((value) => `{${datavisualizationTickLabelForValue(value, manual.labels) ?? formatAxisTickLabel(value)}}`).join(",")}}`;
+  return `{${values.map((value, index) => {
+    const entry = datavisualizationTickOccurrence(manual, index, values.length);
+    // Inline `as` text belongs to one stream entry. Value-based options are
+    // applied afterwards and can suppress all occurrences of that value.
+    const overrides = manual.styles.filter(item => datavisualizationTickLabelKey(item.value) === datavisualizationTickLabelKey(value));
+    const override = overrides.findLast(item => item.label !== undefined);
+    return `{${override?.label ?? entry?.label ?? formatAxisTickLabel(value)}}`;
+  }).join(",")}}`;
 }
 
 function datavisualizationAxisIsLogarithmic(axisOptions = {}, allAxesOptions = {}) {
@@ -7983,16 +7992,41 @@ function datavisualizationAppendManualAlsoTicks(raw, manual) {
 }
 
 function datavisualizationTickValuesOption(values) {
-  const unique = uniqueAxisValues(values).sort((a, b) => a - b);
-  return `{${unique.map(formatAxisNumber).join(",")}}`;
+  // `also at` appends to PGF's stream. Sorting changes odd/even padding.
+  return `{${values.map(formatAxisNumber).join(",")}}`;
+}
+
+function datavisualizationTickPaintOptions(ticks, axisOptions = {}, allAxesOptions = {}) {
+  const sources = datavisualizationTickRawSources(axisOptions, allAxesOptions);
+  const layers = sources.map(raw => typeof raw === "string" ? raw : "");
+  const options = layers.map(raw => parseOptions(raw));
+  // PGF first replays the axis settings, then common, then major. Keep the
+  // lists out of each serialized tick to avoid quadratic source expansion.
+  const common = [...layers, ...options.map(value => value.common), ...options.map(value => value.major)]
+    .filter(value => typeof value === "string")
+    .flatMap(value => splitTopLevel(value, ","))
+    .filter(part => !/^(?:(?:common|major|minor|subminor)|(?:(?:major|minor|subminor) )?(?:at|also at|options at|no tick text at)(?:\/\.list)?)$/.test(datavisualizationOptionPart(part).key));
+  const manual = datavisualizationManualTickData(axisOptions, allAxesOptions);
+  const values = datavisualizationTickOptionValues(ticks);
+  return `{${values.map((value, index) => {
+    const local = datavisualizationTickOccurrence(manual, index, values.length);
+    const overrides = manual.styles.filter(entry => datavisualizationTickLabelKey(entry.value) === datavisualizationTickLabelKey(value));
+    return `{${[...common, local?.options, ...overrides.map(entry => entry.options)].filter(Boolean).join(",")}}`;
+  }).join(",")}}`;
+}
+
+function datavisualizationTickOccurrence(manual, index, count) {
+  const alsoStart = count - manual.also.length;
+  return index >= alsoStart ? manual.also[index - alsoStart] : manual.at[index];
 }
 
 function datavisualizationManualTickData(axisOptions = {}, allAxesOptions = {}) {
-  const data = { at: [], also: [], labels: new Map() };
+  const data = { at: [], also: [], styles: [], labels: new Map() };
   for (const raw of datavisualizationTickRawSources(axisOptions, allAxesOptions)) {
     const parsed = datavisualizationManualTickDataFromRaw(raw);
     if (parsed.at.length) data.at = parsed.at;
     data.also.push(...parsed.also);
+    data.styles.push(...parsed.styles);
     for (const [key, label] of parsed.labels) data.labels.set(key, label);
   }
   return data;
@@ -8014,7 +8048,7 @@ function firstDefinedValue(...values) {
 }
 
 function datavisualizationManualTickDataFromRaw(raw) {
-  const data = { at: [], also: [], labels: new Map() };
+  const data = { at: [], also: [], styles: [], labels: new Map() };
   const normalized = String(raw).trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (!normalized || normalized === "true" || /^(?:none|false|off|\\empty|empty)$/i.test(normalized)) return data;
   const nested = parseOptions(normalized);
@@ -8039,10 +8073,14 @@ function datavisualizationManualTickDataFromRaw(raw) {
 
   const at = datavisualizationParseManualTickList(atRaw);
   const also = datavisualizationParseManualTickList(alsoRaw);
-  const optionsAt = datavisualizationParseManualTickList(optionsAtRaw);
+  // Native handle@one@at@style applies only the bracketed options. Text
+  // following the brackets is not a replacement for this tick's `as` text.
+  const optionsAt = datavisualizationParseManualTickList(optionsAtRaw)
+    .map(entry => ({ ...entry, label: entry.label === "" ? "" : undefined }));
   const noTickTextAt = datavisualizationParseNoTickTextAtList(noTickTextAtRaw);
   data.at.push(...at);
   data.also.push(...also);
+  data.styles.push(...optionsAt, ...noTickTextAt);
   for (const entry of [...at, ...also, ...optionsAt, ...noTickTextAt]) {
     if (entry.label === undefined) continue;
     data.labels.set(datavisualizationTickLabelKey(entry.value), entry.label);
@@ -8057,7 +8095,7 @@ function datavisualizationParseNoTickTextAtList(raw) {
   return splitTopLevel(text, ",")
     .map((part) => {
       const value = axisNumber(part, NaN);
-      return Number.isFinite(value) ? { value, label: "" } : null;
+      return Number.isFinite(value) ? { value, label: "", options: "no tick text" } : null;
     })
     .filter(Boolean);
 }
@@ -8089,8 +8127,8 @@ function datavisualizationParseManualTickEntry(raw) {
   }
   const options = parseOptions(localOptions);
   const noTickText = Boolean(options["no tick text"]);
-  if (noTickText) return { value, label: "" };
-  return rest ? { value, label: rest } : { value };
+  if (noTickText) return { value, label: "", options: localOptions };
+  return rest ? { value, label: rest, options: localOptions } : { value, options: localOptions };
 }
 
 function datavisualizationTickLabelForValue(value, labels) {

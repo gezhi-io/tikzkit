@@ -9,6 +9,7 @@ import { pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
 import { axisZeroValue, isLogAxis } from "./ranges.js";
 import { axisLogBase, axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
 import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
+import { datavisTickVisual } from "./datavisTicks.js";
 
 const PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE = 1.0001;
 // Computer Modern's optical 7pt design has wider digits than a linearly
@@ -67,6 +68,9 @@ export function renderAxisTicks(axisOptions = {}, addplots = [], ranges = {}, ge
 
 function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geometry = {}) {
   const commands = [];
+  const tickPoint = axisOptions["datavis axis label placement"]
+    ? point => `(${Number(point.x.toFixed(7))},${Number(point.y.toFixed(7))})`
+    : formatAxisPoint;
   const allTicksDisabled = ticksDisabled(axisOptions.ticks) || ticksDisabled(axisOptions.tick);
   const minorTicksDisabled = Boolean(axisOptions["pgfplots disable minor ticks"]);
   const xLineMode = specificAxisLineMode(axisOptions, "x");
@@ -185,20 +189,23 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     : middleAxis ? axisZeroValue(finalRanges, "x") : boxRanges.xMin;
   // pgfplotsticks prepares minor coordinates independently of tickshow's
   // major crossing filter. A minor tick at logical ZERO remains visible.
-  xMinorTicks.forEach((x) => {
-    const base = geometry.mapPoint({ x, y: axisTickBaseValue(xMinorTickVisual, "y", yAxis, ranges) });
+  xMinorTicks.forEach((x, index) => {
+    const visual = datavisTickVisual(axisOptions, "x", index, xMinorTickVisual, minorTickLength, xMinorTickStyle, "minor");
+    const base = geometry.mapPoint({ x, y: axisTickBaseValue(visual, "y", yAxis, ranges) });
     if (cleanAxisOffset) base.y -= cleanAxisOffset;
     const [from, to] =
-      middleAxis && !xMinorTickVisual
+      middleAxis && !visual
         ? alignedMiddleAxisTickSegment(base, "x", minorTickLength, xTickAlignment)
-        : boxTickAlignment && !xMinorTickVisual
+        : boxTickAlignment && !visual
           ? alignedBoxAxisTickSegment(base, "x", minorTickLength, xTickAlignment, 1)
-          : axisTickSegment(base, xMinorTickVisual, "x", 0, innerBoxTicks ? minorTickLength : -minorTickLength);
-    commands.push(`\\draw[${xMinorTickVisual?.style || xMinorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+          : axisTickSegment(base, visual, "x", 0, innerBoxTicks ? minorTickLength : -minorTickLength);
+    commands.push(`\\draw[${visual?.style || xMinorTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
   });
   xTicks.forEach((x, index) => {
     if (shouldHideObscuredAxisTick(axisOptions, "x", x, finalRanges)) return;
-    const base = geometry.mapPoint({ x, y: axisTickBaseValue(xMajorTickVisual, "y", yAxis, ranges) });
+    const visual = datavisTickVisual(axisOptions, "x", index, xMajorTickVisual, tickLength, xTickStyle);
+    if (visual?.scopeStyle) commands.push(`{[${visual.scopeStyle}]`);
+    const base = geometry.mapPoint({ x, y: axisTickBaseValue(visual, "y", yAxis, ranges) });
     if (cleanAxisOffset) base.y -= cleanAxisOffset;
     const intervalLabelX = axisOptions["pgfplots x interval tick labels"] && Number.isFinite(xTicks[index + 1])
       ? (x + xTicks[index + 1]) / 2
@@ -211,12 +218,12 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
     });
     if (cleanAxisOffset) labelBase.y -= cleanAxisOffset;
     const [from, to] =
-      middleAxis && !xMajorTickVisual
+      middleAxis && !visual
         ? alignedMiddleAxisTickSegment(base, "x", tickLength, xTickAlignment)
-        : boxTickAlignment && !xMajorTickVisual
+        : boxTickAlignment && !visual
           ? alignedBoxAxisTickSegment(base, "x", tickLength, xTickAlignment, 1)
-          : axisTickSegment(base, xMajorTickVisual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
-    commands.push(`\\draw[${xMajorTickVisual?.style || xTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+          : axisTickSegment(base, visual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
+    commands.push(`\\draw[${visual?.style || xTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
     if (oppositeXBoxTicks) {
       const topBase = geometry.mapPoint({ x, y: boxRanges.yMax });
       const [topFrom, topTo] = boxTickAlignment
@@ -225,8 +232,8 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
       commands.push(`\\draw[${xTickStyle}] ${formatAxisPoint(topFrom)} -- ${formatAxisPoint(topTo)};`);
     }
     const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(x, ranges.xMin, ranges.xMax));
-    if (xMajorTickVisual && shouldShowXLabel) {
-      for (const spec of axisTickVisualLabelSpecs(xMajorTickVisual, from, to)) {
+    if (visual && shouldShowXLabel) {
+      for (const spec of axisTickVisualLabelSpecs(visual, from, to)) {
         const labelStyle = joinOptions([
           "axis tick label",
           numericTextOption("x"),
@@ -239,11 +246,12 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
           pgfplotsTickLabelTextWidthScale(xTickLabelFont, axisOptions, xLabels[index]),
           tickLabelNeedsLayoutBox(axisOptions, "x", xLineMode, xTickLabelStyle) ? "tikzkit layout bbox" : "",
           xTickLabelInnerSep !== undefined ? `inner sep=${xTickLabelInnerSep}` : "",
-          axisTickLabelTextOption(xTickLabelStyle, xTickLabelColor)
+          axisTickLabelTextOption(xTickLabelStyle, xTickLabelColor),
+          visual.nodeStyle
         ]);
-        if (xLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(spec.point)} {${xLabels[index]}};`);
+        if (xLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${tickPoint(spec.point)} {${xLabels[index]}};`);
       }
-    } else if (!xMajorTickVisual && shouldShowXLabel) {
+    } else if (!visual && shouldShowXLabel) {
       const labelStyle = joinOptions([
         "axis tick label",
         numericTextOption("x"),
@@ -265,31 +273,35 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
         commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(offsetPoint(labelBase, 0, xTickLabelsOnUpperSide ? labelDistance : -labelDistance))} {${xLabels[index]}};`);
       }
     }
+    if (visual?.scopeStyle) commands.push("}");
   });
-  yMinorTicks.forEach((y) => {
-    const base = geometry.mapPoint({ x: axisTickBaseValue(yMinorTickVisual, "x", xAxis, ranges), y });
+  yMinorTicks.forEach((y, index) => {
+    const visual = datavisTickVisual(axisOptions, "y", index, yMinorTickVisual, minorTickLength, yMinorTickStyle, "minor");
+    const base = geometry.mapPoint({ x: axisTickBaseValue(visual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
     const [from, to] =
-      middleAxis && !yMinorTickVisual
+      middleAxis && !visual
         ? alignedMiddleAxisTickSegment(base, "y", minorTickLength, yTickAlignment)
-        : boxTickAlignment && !yMinorTickVisual
+        : boxTickAlignment && !visual
           ? alignedBoxAxisTickSegment(base, "y", minorTickLength, yTickAlignment, 1)
-          : axisTickSegment(base, yMinorTickVisual, "y", innerBoxTicks ? minorTickLength : -minorTickLength, 0);
-    commands.push(`\\draw[${yMinorTickVisual?.style || yMinorTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+          : axisTickSegment(base, visual, "y", innerBoxTicks ? minorTickLength : -minorTickLength, 0);
+    commands.push(`\\draw[${visual?.style || yMinorTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
   });
   yTicks.forEach((y, index) => {
     if (shouldHideObscuredAxisTick(axisOptions, "y", y, finalRanges)) return;
-    const base = geometry.mapPoint({ x: axisTickBaseValue(yMajorTickVisual, "x", xAxis, ranges), y });
+    const visual = datavisTickVisual(axisOptions, "y", index, yMajorTickVisual, tickLength, yTickStyle);
+    if (visual?.scopeStyle) commands.push(`{[${visual.scopeStyle}]`);
+    const base = geometry.mapPoint({ x: axisTickBaseValue(visual, "x", xAxis, ranges), y });
     if (cleanAxisOffset) base.x -= cleanAxisOffset;
     const schoolBookOriginLabel = isDatavisualizationSchoolBookOriginLabel(axisOptions, "y", y, ranges);
     const [from, to] =
-      middleAxis && !yMajorTickVisual
+      middleAxis && !visual
         ? alignedMiddleAxisTickSegment(base, "y", tickLength, yTickAlignment)
-        : boxTickAlignment && !yMajorTickVisual
+        : boxTickAlignment && !visual
           ? alignedBoxAxisTickSegment(base, "y", tickLength, yTickAlignment, 1)
-          : axisTickSegment(base, yMajorTickVisual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
+          : axisTickSegment(base, visual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
     if (!schoolBookOriginLabel) {
-      commands.push(`\\draw[${yMajorTickVisual?.style || yTickStyle}] ${formatAxisPoint(from)} -- ${formatAxisPoint(to)};`);
+      commands.push(`\\draw[${visual?.style || yTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
     }
     if (oppositeYBoxTicks) {
       const rightBase = geometry.mapPoint({ x: boxRanges.xMax, y });
@@ -299,8 +311,9 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
       commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightFrom)} -- ${formatAxisPoint(rightTo)};`);
     }
     const shouldShowYLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(y, ranges.yMin, ranges.yMax));
-    if (yMajorTickVisual && shouldShowYLabel) {
-      for (const spec of axisTickVisualLabelSpecs(yMajorTickVisual, from, to)) {
+    if (visual && shouldShowYLabel) {
+      const specs = schoolBookOriginLabel ? [{ point: base, anchor: "north east" }] : axisTickVisualLabelSpecs(visual, from, to);
+      for (const spec of specs) {
         const labelStyle = joinOptions([
           "axis tick label",
           numericTextOption("y"),
@@ -313,11 +326,12 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
           pgfplotsTickLabelTextWidthScale(yTickLabelFont, axisOptions, yLabels[index]),
           tickLabelNeedsLayoutBox(axisOptions, "y", yLineMode) ? "tikzkit layout bbox" : "",
           yTickLabelInnerSep !== undefined ? `inner sep=${yTickLabelInnerSep}` : "",
-          axisTickLabelTextOption(yTickLabelStyle, yTickLabelColor)
+          axisTickLabelTextOption(yTickLabelStyle, yTickLabelColor),
+          visual.nodeStyle
         ]);
-        if (yLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(spec.point)} {${yLabels[index]}};`);
+        if (yLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${tickPoint(spec.point)} {${yLabels[index]}};`);
       }
-    } else if (!yMajorTickVisual && shouldShowYLabel) {
+    } else if (!visual && shouldShowYLabel) {
       const rightSide = yLineMode === "right" || (isBoxAxis(axisOptions) && yTickLabelsOnUpperSide);
       const labelBase = rightSide && isBoxAxis(axisOptions)
         ? geometry.mapPoint({ x: boxRanges.xMax, y })
@@ -342,6 +356,7 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
         : offsetPoint(labelBase, rightSide ? labelDistance : -labelDistance, 0);
       commands.push(`\\node[${labelStyle}] at ${formatAxisPoint(labelPoint)} {${yLabels[index]}};`);
     }
+    if (visual?.scopeStyle) commands.push("}");
   });
   commands.push(...renderTickScaleLabel(axisOptions, "x", xTicks, geometry, xTickLabelsOnUpperSide ? "top" : xLineMode));
   commands.push(...renderTickScaleLabel(axisOptions, "y", yTicks, geometry, yTickLabelsOnUpperSide ? "right" : yLineMode));
@@ -946,6 +961,7 @@ function boxTickLabelsUseUpperSide(axisOptions = {}, axis = "x") {
 }
 
 function tickLabelNeedsLayoutBox(axisOptions = {}, axis, lineMode = "", labelStyle = {}) {
+  if (axisOptions["datavis axis label placement"]) return true;
   if (pgfplotsUsesNative2DText(axisOptions)) return true;
   if (isBoxAxis(axisOptions)) return true;
   if (axisHasExplicitDescriptionPlacement(axisOptions)) return true;

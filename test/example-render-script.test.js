@@ -318,6 +318,21 @@ test("tikztosvg normalization preserves standalone and preview crop borders", ()
   );
 });
 
+test("tikztosvg preserves document borders on shorthand pictures without editing nested pictures", () => {
+  for (const options of ["", "[scale=2,execute at end picture={\\draw (0,0)--(2,0);}]"]) {
+    const normalized = normalizeTikztosvgInput(String.raw`\documentclass[border=2pt]{standalone}
+\begin{document}
+\newcommand{\inlinepic}{\tikz\draw(0,0)--(1,0);}
+\tikz${options} \draw(0,0)--(1,1);
+\end{document}`);
+    assert.equal((normalized.match(/use as bounding box/g) || []).length, 1);
+    assert.match(normalized, /\\newcommand\{\\inlinepic\}\{\\tikz\\draw/);
+    assert.match(normalized, /execute at end picture=\{\\begin\{scope\}\[reset cm\]/);
+    if (options) assert.match(normalized, /scale=2,execute at end picture=\{\\draw \(0,0\)--\(2,0\);\},execute at end picture/);
+    assert.match(normalized, /xshift=-2pt,yshift=-2pt/);
+  }
+});
+
 test("tikztosvg normalization preserves every picture while removing beamer layout wrappers", () => {
   const normalized = normalizeTikztosvgInput(String.raw`\documentclass{beamer}
 \usepackage{tikz}
