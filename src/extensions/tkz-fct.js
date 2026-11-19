@@ -298,7 +298,8 @@ function renderAxes(state, rawOptions, context = {}) {
       TKZ_LABEL_DISTANCE_PT +
       TKZ_LABEL_INNER_SEP_PT * 2 +
       CMR7_DIGIT_HEIGHT_PT;
-    labelX.push(`\\path[use as bounding box] (0,-${format(tickLabelBottomPt)}pt);`);
+    // This extent belongs only to the tick label, not the rest of the picture.
+    labelX.push(`\\begin{scope}\\path[use as bounding box] (0,-${format(tickLabelBottomPt)}pt);\\end{scope}`);
   }
 
   const labelY = [];

@@ -225,54 +225,57 @@ function escapeRegExp(value) {
 
 export function parsePgfplotsTablePoints(content, tableOptions = {}, diagnostics = [], plotOptions = {}, parserOptions = {}) {
   const rows = normalizePgfplotsTableRows(content, tableOptions);
-  if (rows.length < 2) return [];
-  const headers = rows[0].map((cell) => cell.trim());
-  const xColumn = String(tableOptions.x || "x").trim();
-  const yColumn = String(tableOptions.y || "y").trim();
-  const zColumn = String(tableOptions.z || "z").trim();
-  const xIndex = pgfplotsHeaderIndex(headers, xColumn, 0);
-  const yIndex = pgfplotsHeaderIndex(headers, yColumn, Math.min(1, Math.max(0, headers.length - 1)));
-  const zIndex = pgfplotsHeaderIndex(headers, zColumn, headers.length > 2 ? 2 : -1);
+  if (!rows.length) return [];
+  const noHeader = String(tableOptions.header) === "false" || rows[0].every((cell) =>
+    /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$|^[-+]?(?:inf|nan)$/i.test(cell.trim()));
+  const headers = rows[0].map((cell, i) => noHeader ? String(i) : cell.trim());
+  const selectColumn = (key, fallback) => {
+    const name = tableOptions[key];
+    const requested = tableOptions[key + " index"] ?? fallback;
+    const index = name ? pgfplotsHeaderIndex(headers, name, -1)
+      : /^\d+$/.test(String(requested).trim()) ? Number(requested) : -1;
+    if (index >= 0 && index < headers.length) return index;
+    if (name || tableOptions[key + " index"] !== undefined || key === "x" || key === "y") {
+      diagnostics.push({ severity: "warning", message: `Could not resolve pgfplots table ${key} column '${name || requested}'` });
+    }
+    return -1;
+  };
+  const xIndex = selectColumn("x", 0);
+  const yIndex = selectColumn("y", 1);
+  if (xIndex < 0 || yIndex < 0) return [];
+  const zIndex = selectColumn("z", 2);
   const metaColumn = pgfplotsPointMetaColumn(plotOptions, tableOptions);
-  const metaIndex = metaColumn ? pgfplotsHeaderIndex(headers, metaColumn, -1) : -1;
+  const metaIndex = tableOptions.meta || tableOptions["meta index"] !== undefined
+    ? selectColumn("meta", -1) : pgfplotsHeaderIndex(headers, metaColumn, -1);
   const points = [];
-  for (const row of rows.slice(1)) {
+  for (const row of noHeader ? rows : rows.slice(1)) {
     if (!row.length || row.every((cell) => !String(cell).trim())) continue;
     const rawX = String(row[xIndex] ?? "").trim();
     const rawY = String(row[yIndex] ?? "").trim();
     const dateX = parsePgfplotsDateCoordinate(rawX, "x", parserOptions.pgfplotsDateContext);
     const dateY = parsePgfplotsDateCoordinate(rawY, "y", parserOptions.pgfplotsDateContext);
-    const x = dateX === null ? axisNumber(rawX) : dateX;
-    const y = dateY === null ? axisNumber(rawY) : dateY;
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      const columns = {};
-      headers.forEach((header, index) => {
-        if (header) columns[header] = row[index];
-      });
-      const point = { x, y, raw: `(${row[xIndex]},${row[yIndex]})`, columns };
-      if (dateX !== null || dateY !== null) {
-        point.dateCoordinates = {};
-        if (dateX !== null) point.dateCoordinates.x = rawX;
-        if (dateY !== null) point.dateCoordinates.y = rawY;
-      }
-      if (zIndex >= 0) {
-        const z = axisNumber(row[zIndex], NaN);
-        if (Number.isFinite(z)) {
-          point.z = z;
-          point.raw = `(${row[xIndex]},${row[yIndex]},${row[zIndex]})`;
-        }
-      }
-      if (metaIndex >= 0) {
-        const rawMeta = String(row[metaIndex] ?? "").trim();
-        const numericMeta = axisNumber(rawMeta, NaN);
-        point.meta = Number.isFinite(numericMeta) && !pgfplotsUsesSymbolicPointMeta(plotOptions)
-          ? numericMeta
-          : rawMeta;
-      }
-      points.push(point);
-    } else {
-      diagnostics.push({ severity: "warning", message: "Skipped non-numeric pgfplots table row" });
+    const x = dateX === null ? axisNumber(rawX, NaN) : dateX;
+    const y = dateY === null ? axisNumber(rawY, NaN) : dateY;
+    const columns = Object.fromEntries(headers.map((header, i) => [header, row[i]]).filter(([header]) => header));
+    const point = { x, y, raw: `(${rawX},${rawY})`, columns };
+    if (dateX !== null || dateY !== null) {
+      point.dateCoordinates = {};
+      if (dateX !== null) point.dateCoordinates.x = rawX;
+      if (dateY !== null) point.dateCoordinates.y = rawY;
     }
+    if (zIndex >= 0) {
+      const z = axisNumber(row[zIndex], NaN);
+      if (Number.isFinite(z)) {
+        point.z = z;
+        point.raw = `(${rawX},${rawY},${row[zIndex]})`;
+      }
+    }
+    if (metaIndex >= 0) {
+      const rawMeta = String(row[metaIndex] ?? "").trim();
+      const numericMeta = axisNumber(rawMeta, NaN);
+      point.meta = Number.isFinite(numericMeta) && !pgfplotsUsesSymbolicPointMeta(plotOptions) ? numericMeta : rawMeta;
+    }
+    points.push(point);
   }
   return points;
 }

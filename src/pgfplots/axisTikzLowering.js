@@ -15,7 +15,7 @@ import {
 import { axisHasExplicitDescriptionPlacement, createAxisGeometry, isMiddleAxis, isPgfplotsTopView } from "./geometry.js";
 import { axisClipRectangle } from "./clipping.js";
 import { pgfplotsUsesNative2DText } from "./axisOptions.js";
-import { normalizePgfplotsSymbolicCoordinates } from "./coordinates.js";
+import { filterUnboundedCoordinates, normalizePgfplotsSymbolicCoordinates } from "./coordinates.js";
 import { renderAxisGrid, shouldRenderAnyAxisGrid } from "./grid.js";
 import { renderAxisLabels } from "./labels.js";
 import { renderAxis3DBackground } from "./axis3d.js";
@@ -47,7 +47,8 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     parsedAddplots
   );
   const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
-  const stacked = preparePgfplotsStackedPlots(symbolic.axisOptions, symbolic.addplots, options);
+  const finitePlots = filterUnboundedCoordinates(symbolic.addplots, symbolic.axisOptions);
+  const stacked = preparePgfplotsStackedPlots(symbolic.axisOptions, finitePlots, options);
   let addplots = applyPgfplotsCycleStyles(stacked.addplots, stacked.axisOptions, options);
   const legendEntries = dependencies.parseLegendEntries(body);
   const has3dSurface = addplots.some((plot) => dependencies.isSurfacePlot(plot, dateAxisOptions));

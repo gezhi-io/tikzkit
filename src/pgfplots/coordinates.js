@@ -29,8 +29,8 @@ function parseCoordinateRow(text) {
     const parts = splitTopLevel(match[1], ",");
     if (parts.length >= 2) {
       const point = {
-        x: axisNumber(parts[0]),
-        y: axisNumber(parts[1]),
+        x: axisNumber(parts[0], NaN),
+        y: axisNumber(parts[1], NaN),
         raw: `(${parts[0].trim()},${parts[1].trim()})`
       };
       Object.defineProperties(point, {
@@ -95,6 +95,32 @@ export function symbolicCoordinateLabels(raw) {
   return splitTopLevel(text, ",")
     .map((part) => stripAxisListBraces(part.trim()))
     .filter(Boolean);
+}
+
+// Resolve symbolic/date coordinates first. A rejected point contributes to
+// neither axis limit; "jump" additionally interrupts the next line segment.
+export function filterUnboundedCoordinates(plots, axisOptions) {
+  return plots.map((plot) => {
+    if (plot.type !== "coordinates" || plot.is3d ||
+        plot.points.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))) return plot;
+    const jump = (plot.options["unbounded coords"] ?? axisOptions["unbounded coords"]) === "jump";
+    let interrupted = false;
+    let hasPoint = false;
+    const rows = (plot.coordinateRows || plot.points.rows || [plot.points]).map((row) => {
+      const kept = [];
+      for (const point of row) {
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+          interrupted = true;
+          continue;
+        }
+        kept.push(jump && hasPoint && interrupted ? { ...point, breakBefore: true } : point);
+        interrupted = false;
+        hasPoint = true;
+      }
+      return kept;
+    });
+    return { ...plot, points: rows.flat(), coordinateRows: rows };
+  });
 }
 
 function symbolicCoordinateMap(labels) {

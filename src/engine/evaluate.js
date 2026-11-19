@@ -378,6 +378,7 @@ export function interpretTikz(ast, options = {}) {
       canvasTrackingDisabled: hasTransformCanvas(pictureOptions),
       canvasScale: transformCanvasScale(pictureOptions, pictureTransformEnv),
       basis: picturePlane?.basis || pictureBasis,
+      canvasPlaneBasis: picturePlane?.basis,
       pictureOptions
     };
     for (const declaration of picture.patternDeclarations || []) {
@@ -860,6 +861,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   const itemCount = ir.items.length;
   const backgroundItemCount = ir.backgroundItems?.length || 0;
   const leaf = !["scope", "foreach", "ifthenelse", "ifnum"].includes(statement.type);
+  const boundsWereDisabled = env.pictureBoundsDisabled;
   const registries = leaf ? [env.coordinates, env.nodes, env.variables, env.namedPaths]
     .filter(Boolean).map((target) => [target, { ...target }]) : [];
   try {
@@ -873,9 +875,16 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     if (!(error instanceof MathExpressionError) && !(error instanceof ForeachExpansionError)) throw error;
     recordFailure(error.diagnostic);
   }
-  if (!failures.size) return;
+  if (!failures.size) {
+    if (leaf && boundsWereDisabled) {
+      for (let i = itemCount; i < ir.items.length; i++) ir.items[i].excludeFromBounds = true;
+      for (let i = backgroundItemCount; i < (ir.backgroundItems?.length || 0); i++) ir.backgroundItems[i].excludeFromBounds = true;
+    }
+    return;
+  }
   // Container failures retain completed children and their shared names together.
   if (leaf) {
+    env.pictureBoundsDisabled = boundsWereDisabled;
     ir.items.length = itemCount;
     if (ir.backgroundItems) ir.backgroundItems.length = backgroundItemCount;
   }
@@ -1112,6 +1121,7 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
       canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(scopeOptions)),
       canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
       basis: scopePlane?.basis || composeBasis(env.basis, scopeOptions, codeEnv),
+      canvasPlaneBasis: scopePlane?.basis || env.canvasPlaneBasis,
       trackLocalBounds: env.trackLocalBounds || Boolean(scopeOptions["local bounding box"]),
       pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, scopeOptions),
       styles: scopeStyles
@@ -1548,7 +1558,8 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     canvasTransform: pathCanvasTransform,
     canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(statementTransformOptions)),
     canvasScale: pathCanvasScale,
-    basis: pathPlane?.basis || composeBasis(env.basis, options, optionEnv)
+    basis: pathPlane?.basis || composeBasis(env.basis, options, optionEnv),
+    canvasPlaneBasis: pathPlane?.basis || env.canvasPlaneBasis
   };
   const subtype = semanticSubtype(pathOptions);
   const clipRect = parseInternalClipRect(pathOptions["tikzkit clip rect"], pathEnv);
@@ -1584,12 +1595,14 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   }
 
   if (tikzBoolean(pathOptions["use as bounding box"])) {
-    const bboxCommands = built.commands.length ? built.commands : built.shapes.flatMap((shape) => shape.commands || []);
+    const bboxCommands = [...built.commands, ...built.shapes.flatMap((shape) => shape.commands || [])];
     if (bboxCommands.length) {
       ir.items.push(createBoundingBoxShape(bboxCommands, {
         tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"]),
       }));
     }
+    // PGF stops tracking subsequent paint in this TeX group, without clipping it.
+    env.pictureBoundsDisabled = true;
   }
 
   // Ordinary PGF strokes expand bounds by half their pen width. Quick paint
@@ -2315,13 +2328,14 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     if (segment.kind === "circle") {
       const center = current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       const r = parseDimension(segment.radius, env.variables);
-      const commands = circleCommands(center, r, env);
+      const radiusEnv = radiusGeometryEnvironment(segment.radius, env);
+      const commands = circleCommands(center, r, radiusEnv);
       shapes.push(
         decoratedShape(
           {
             type: "path",
             shape: "circle",
-            projected: usesProjectedLocalGeometry(env),
+            projected: usesProjectedLocalGeometry(radiusEnv),
             subtype: semanticSubtype(pathOptions),
             cx: center.x,
             cy: center.y,
@@ -2337,15 +2351,22 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     }
     if (segment.kind === "ellipse" && current) {
       const [rxRaw, ryRaw] = segment.radius.split(/\s+and\s+/);
-      const rx = parseDimension(segment.options?.["x radius"] || rxRaw, env.variables);
-      const ry = parseDimension(segment.options?.["y radius"] || ryRaw || rxRaw, env.variables);
-      const commands = ellipseCommands(current, rx, ry, env);
+      const xRadius = segment.options?.["x radius"] || rxRaw;
+      const yRadius = segment.options?.["y radius"] || ryRaw || rxRaw;
+      if (coordinateComponentHasDimension(xRadius, env.variables) !== coordinateComponentHasDimension(yRadius, env.variables)) {
+        diagnostics.push({ severity: "error", message: "Cannot mix dimensions and dimensionless values in an ellipse" });
+        continue;
+      }
+      const rx = parseDimension(xRadius, env.variables);
+      const ry = parseDimension(yRadius, env.variables);
+      const radiusEnv = radiusGeometryEnvironment(xRadius, env);
+      const commands = ellipseCommands(current, rx, ry, radiusEnv);
       shapes.push(
         decoratedShape(
           {
             type: "path",
             shape: "ellipse",
-            projected: usesProjectedLocalGeometry(env),
+            projected: usesProjectedLocalGeometry(radiusEnv),
             cx: current.x,
             cy: current.y,
             rx,
@@ -6556,6 +6577,12 @@ function decoratedShape(shape, pathOptions, env) {
     shape: "decoratedPath",
     commands: applyPathDecoration(shape.commands, pathOptions, env)
   };
+}
+
+function radiusGeometryEnvironment(radius, env) {
+  // TikZ uses canvas vectors for a TeX length, but x/y basis vectors for a
+  // number. A canvas plane and ordinary transformations still affect both.
+  return coordinateComponentHasDimension(radius, env.variables) ? { ...env, basis: env.canvasPlaneBasis } : env;
 }
 
 function circleCommands(center, r, env) {

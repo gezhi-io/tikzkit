@@ -67,7 +67,10 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     }
     const dataPoints = plot.points.filter((point) => !point.stackIgnored && axisPointIsValidForScale(point, axisOptions));
     const visiblePlot = { ...plot, points: dataPoints };
-    const mappedPoints = dataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
+    const mappedPoints = dataPoints.map((point) => {
+      const mapped = plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point);
+      return point.breakBefore ? { ...mapped, breakBefore: true } : mapped;
+    });
     const mark = String(plot.options.mark || "").trim().toLowerCase();
     const commands = [];
     if (isAxisBarPlot(axisOptions, plot.options, "y")) {

@@ -1,12 +1,36 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import test from "node:test";
+import { tikzToSvgAsync } from "../src/index.js";
 
 const execFileAsync = promisify(execFile);
+
+test("CLI resolves plot tables relative to its input, not the caller, and leaves missing files unresolved", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "tikz2svg-tables-"));
+  const root = path.join(dir, "project");
+  await mkdir(path.join(root, "data"), { recursive: true });
+  const csv = "time,count\n0,10\n1,17\n2,11\n";
+  await writeFile(path.join(root, "data", "series.csv"), csv);
+  await writeFile(path.join(dir, "private.csv"), csv);
+  await symlink(path.join(dir, "private.csv"), path.join(root, "escape.csv"));
+  const input = path.join(root, "plot.tex");
+  const output = path.join(dir, "result.svg");
+  const render = () => execFileAsync(process.execPath, [path.resolve("bin/tikz2svg.js"), input, "--strict", "-o", output], { cwd: dir });
+  const source = "\\begin{tikzpicture}\\begin{axis}\\addplot table[x=time,y=count,col sep=comma] {data/series.csv};\\end{axis}\\end{tikzpicture}";
+  await writeFile(input, source);
+  await render();
+  const expected = await tikzToSvgAsync(source, { pgfplotsTableResolver: () => csv });
+  assert.ok(expected.ir.items.some((item) => item.subtype === "axis-plot"));
+  assert.equal(await readFile(output, "utf8"), expected.svg);
+  for (const name of ["missing.csv", "../private.csv", "escape.csv"]) {
+    await writeFile(input, source.replace("data/series.csv", name));
+    await assert.rejects(render, /Could not resolve pgfplots table file/);
+  }
+});
 
 test("cli converts tikz and tex inputs to svg files", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "tikz2svg-"));

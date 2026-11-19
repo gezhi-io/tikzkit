@@ -147,6 +147,12 @@ for (const part of splitTikzCodeBlocks(markdown)) {
 npx tikz2svg diagram.tex -o diagram.svg --strict
 ```
 
+The CLI reads PGFPlots tables relative to the input file, including subfolders.
+Keep `students.csv` next to `diagram.tex` for `\addplot table {students.csv}`.
+Supported local data files: `.csv`, `.tsv`, `.dat`, `.data`, `.table`, and `.txt`.
+Missing tables produce a warning, or an error with `--strict`. Files outside
+the input folder are not read.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)

@@ -24,6 +24,7 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
   const result = await convertTikzToSvg(source, {
     strict: parsed.strict,
     mathRenderer: parsed.mathRenderer,
+    pgfplotsTableResolver: filesystem.createLocalTableResolver(parsed.input),
     unit: parsed.unit,
     margin: parsed.margin
   });
