@@ -1,5 +1,5 @@
 import { formatAxisPoint, joinOptions } from "./format.js";
-import { isAxisBarPlot, renderAxisBars } from "./bars.js";
+import { createBarLayout, isAxisBarPlot, renderAxisBars } from "./bars.js";
 import { isAxisCombPlot, renderAxisComb } from "./comb.js";
 import { renderPlotMark, scatterClassOptionsForPoint, shouldRenderPlotMarks } from "./marks.js";
 import { renderAxisPlotInlineNodes, renderNodesNearCoords } from "./plotNodes.js";
@@ -73,14 +73,12 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     });
     const mark = String(plot.options.mark || "").trim().toLowerCase();
     const commands = [];
-    if (isAxisBarPlot(axisOptions, plot.options, "y")) {
-      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, "y", ranges));
-      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
-      return commands;
-    }
-    if (isAxisBarPlot(axisOptions, plot.options, "x")) {
-      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, "x", ranges));
-      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
+    const barAxis = ["y", "x"].find(axis => isAxisBarPlot(axisOptions, plot.options, axis));
+    if (barAxis) {
+      const layout = createBarLayout(axisOptions, plot.options, geometry, barAxis, ranges, plot.barGroup);
+      const clip = plot.barGroup ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
+      commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
+      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex, layout));
       return commands;
     }
     if (plot.closedCycle && mappedPoints.length) {

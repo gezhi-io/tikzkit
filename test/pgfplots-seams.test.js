@@ -5033,7 +5033,7 @@ test("pgfplots bar and comb visualizers lower data points through axis geometry"
 
   assert.equal(isAxisBarPlot({ ybar: true }, {}, "y"), true);
   assert.equal(isAxisCombPlot({}, { ycomb: true }, "y"), true);
-  assert.deepEqual(renderAxisBars([{ x: 1, y: 2 }], { "bar width": 0.2 }, geometry, { blue: true }, 0, "y"), [
+  assert.deepEqual(renderAxisBars([{ x: 1, y: 2 }], { compat: "1.7", "bar width": 0.2 }, geometry, { blue: true }, 0, "y"), [
     String.raw`\draw[axis bar, fill=blue!30, draw=blue] (0.9,0) -- (1.1,0) -- (1.1,2) -- (0.9,2) -- cycle;`
   ]);
   assert.deepEqual(renderAxisComb([{ x: 1, y: 2 }], {}, ranges, geometry, { red: true, thick: true }, 0, "y"), [

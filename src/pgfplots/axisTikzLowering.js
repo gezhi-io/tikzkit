@@ -21,7 +21,7 @@ import { renderAxisLabels } from "./labels.js";
 import { renderAxis3DBackground } from "./axis3d.js";
 import { renderLegendEntries } from "./legend.js";
 import { preparePgfplotsHistogram } from "./histogram.js";
-import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, renderAxisTicks } from "./ticks.js";
+import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, axisTickNumberFormat, normalizedTickAlignment, renderAxisTicks } from "./ticks.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { barPlotStyle, defaultPgfplotsBarCycleStyle, defaultPgfplotsCycleMarkStyle, plotLineWidthOption } from "./plotStyle.js";
@@ -31,6 +31,7 @@ import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
 import { pgfplotsStackedRenderEntries, preparePgfplotsStackedPlots } from "./stackedPlots.js";
 import { normalizePgfplotsAreaOptions, pgfplotsUsesAreaCycle } from "./areaPlots.js";
 import { enlarge3DZLimits } from "./rangeResolver.js";
+import { withBarCategoryTicks, withBarGroups } from "./bars.js";
 
 // Retain the old CMU paint-box allowance only for non-native text. Native
 // TeX node boxes already define the complete outer axis rectangle.
@@ -43,13 +44,13 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   const dateAxisOptions = normalizePgfplotsDateAxisOptions(preparedAxisOptions, parsedAddplots, dateContext);
   const areaAxisOptions = normalizePgfplotsAreaOptions(dateAxisOptions);
   const histogram = preparePgfplotsHistogram(
-    areaAxisOptions,
+    withBarCategoryTicks(areaAxisOptions),
     parsedAddplots
   );
   const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
   const finitePlots = filterUnboundedCoordinates(symbolic.addplots, symbolic.axisOptions);
   const stacked = preparePgfplotsStackedPlots(symbolic.axisOptions, finitePlots, options);
-  let addplots = applyPgfplotsCycleStyles(stacked.addplots, stacked.axisOptions, options);
+  let addplots = applyPgfplotsCycleStyles(withBarGroups(stacked.addplots, areaAxisOptions), stacked.axisOptions, options);
   const legendEntries = dependencies.parseLegendEntries(body);
   const has3dSurface = addplots.some((plot) => dependencies.isSurfacePlot(plot, dateAxisOptions));
   const has3dPlot = addplots.some((plot) => plot.is3d);
@@ -212,7 +213,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   }
   if (axisBox) commands.push(axisBox);
   commands.push(...foregroundIntervalNodes);
-  commands.push(...renderAxisLabels(intervalAxisLabelOptions(axisModel), axisModel.ranges, axisModel.geometry));
+  commands.push(...renderAxisLabels(barAxisLabelOptions(axisModel), axisModel.ranges, axisModel.geometry));
   commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));
   commands.push(...renderCurrentAxisCoordinates(axisModel));
   // Measure descriptions and ticks as one unit, including user overlay labels.
@@ -369,13 +370,14 @@ function renderCurrentAxisCoordinates(axisModel = {}) {
   return commands;
 }
 
-function intervalAxisLabelOptions(axisModel) {
+function barAxisLabelOptions(axisModel) {
   const { options, ticks, geometry } = axisModel;
-  if (!optionEnabled(options["ybar interval"]) || !pgfplotsUsesNative2DText(options) || isMiddleAxis(options) ||
+  const grouped = options["pgfplots bar category axis"];
+  if (!(grouped || optionEnabled(options["ybar interval"])) || !pgfplotsUsesNative2DText(options) || isMiddleAxis(options) ||
     !pgfplotsCompatAtLeast(pgfplotsCompatLevel(options), "1.3")) return options;
   const measured = { ...options };
   for (const axis of ["x", "y"]) {
-    if (!options[`${axis}label`] || !options[`${axis}ticklabels`] || ticks[axis].disabled ||
+    if (!options[`${axis}label`] || (!options[`${axis}ticklabels`] && (!grouped || options[`pgfplots symbolic ${axis} labels`])) || ticks[axis].disabled ||
       options[`extra ${axis} ticks`] !== undefined || options[`${axis} axis label offset`] !== undefined) continue;
     const labelStyle = [options["label style"], options[`${axis} label style`], options[`${axis}label style`]]
       .filter(Boolean).join(",");
@@ -391,7 +393,8 @@ function intervalAxisLabelOptions(axisModel) {
     const fontCommand = pgfplotsRoleFontCommand("tick", options,
       style.font ?? options[`${axis}ticklabel font`] ?? options[`${axis} tick label font`] ?? options["axis tick label font"]);
     const font = parseTikzFontPatch(fontCommand);
-    const boxes = axisRenderedTickLabels(options, axis, options[`${axis}ticklabels`], ticks[axis].values)
+    const boxes = axisRenderedTickLabels(options, axis, options[`${axis}ticklabels`], ticks[axis].values,
+      axisTickNumberFormat(options, axis), options[`${axis}ticklabel`])
       .map(text => {
         const math = String(text).match(/^\$([^$]+)\$$/);
         return math ? layoutNativeMath(math[1], { fontSizePt: font.sizePt, mathVersion: font.mathVersion,
@@ -401,7 +404,7 @@ function intervalAxisLabelOptions(axisModel) {
     const texPtPerCm = 72.27 / 2.54;
     const innerSep = parseDimension(String(axisTickLabelInnerSep(options, axis) ?? "0.3333em"), {});
     const tickLength = parseDimension(String(options["major tick length"] || options.tickwidth || "0.15cm"), {});
-    const alignment = String(options[`${axis}tick align`] ?? options["tick align"] ?? "inside").trim().toLowerCase();
+    const alignment = normalizedTickAlignment(options, axis);
     const tickProjection = tickLength * (alignment === "outside" ? 1 : alignment === "center" ? 0.5 : 0);
     // PGFPlots measures the far edge of each tick node's path for `ticklabel cs`
     // (pgfplotsticks.code.tex:460-496). The near anchor contributes one outer

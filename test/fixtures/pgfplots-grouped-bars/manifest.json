@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "manual-population", "source": "../pgfplots-filled-legends/manual-grouped.tex", "title": "Manual: population by year and series" },
+    { "id": "manual-data-units", "source": "manual-data-units.tex", "title": "Manual: adjacent horizontal bars in data units" },
+    { "id": "manual-participants", "source": "manual-participants.tex", "title": "Manual: participant counts on a symbolic axis" },
+    { "id": "mixed-sign-groups", "source": "mixed-sign-groups.tex", "title": "Positive and negative groups with a line series" }
+  ]
+}

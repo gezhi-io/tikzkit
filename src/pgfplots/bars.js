@@ -1,6 +1,7 @@
 import { parseDimension } from "../engine/math.js";
 import { splitTopLevel } from "../engine/options.js";
 import { axisNumber } from "./coordinates.js";
+import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./histogram.js";
 import { plotColorValue, selectPlotColor, selectPlotFillStyle } from "./plotStyle.js";
@@ -8,20 +9,56 @@ import { plotColorValue, selectPlotColor, selectPlotFillStyle } from "./plotStyl
 export function isAxisBarPlot(axisOptions = {}, plotOptions = {}, axis = "y") {
   const key = axis === "x" ? "xbar" : "ybar";
   if (plotOptions[key] || isPgfplotsIntervalPlot({}, plotOptions, axis)) return true;
-  if (hasExplicitLinePlotHandler(plotOptions)) return false;
+  const other = axis === "x" ? "y" : "x";
+  if (hasExplicitLinePlotHandler(plotOptions) || plotOptions["only marks"] || plotOptions[other + "bar"] ||
+    isPgfplotsIntervalPlot({}, plotOptions, other) || plotOptions.ycomb || plotOptions.xcomb) return false;
   return Boolean(axisOptions[key] || isPgfplotsIntervalPlot(axisOptions, {}, axis));
 }
 
-export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions = {}, plotIndex = 0, orientation = "y", ranges = {}) {
+// Count a handler's plots once, in source order, before the paint order can
+// change. A bare /tikz/ybar installs a handler but not PGFPlots' bar shift auto.
+export function withBarGroups(plots, axis) {
+  if ((!axis.xbar && !axis.ybar && !axis["bar shift auto"]) || optionIsEnabled(axis["stack plots"]) ||
+      axis["xbar stacked"] || axis["ybar stacked"]) return plots;
+  const directions = plots.map(plot => {
+    if (plot.is3d || plot.pgfplotsStacked || plot.options?.hist) return null;
+    return ["y", "x"].find(dir => isAxisBarPlot(axis, plot.options, dir) &&
+      !isPgfplotsIntervalPlot(axis, plot.options, dir));
+  });
+  const counts = { x: 0, y: 0 }, next = { x: 0, y: 0 };
+  for (const dir of directions) if (dir) counts[dir]++;
+  return plots.map((plot, i) => {
+    const dir = directions[i];
+    return dir ? { ...plot, barGroup: { direction: dir, index: next[dir]++, count: counts[dir] } } : plot;
+  });
+}
+
+export function withBarCategoryTicks(axis) {
+  if (!axis.xbar && !axis.ybar) return axis;
+  const expanded = {};
+  const assign = (key, value) => { delete expanded[key]; expanded[key] = value; };
+  for (const [key, value] of Object.entries(axis)) {
+    assign(key, value);
+    // The PGFPlots style changes only the category ticks, at the point the
+    // style is applied. A later explicit tick alignment still wins.
+    if (key === "ybar" || key === "xbar") {
+      const category = key === "ybar" ? "x" : "y";
+      assign(category + "tick align", "outside");
+      expanded["pgfplots bar category axis"] = category;
+    }
+  }
+  return expanded;
+}
+
+export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions = {}, plotIndex = 0, orientation = "y", ranges = {}, layout, clip = "") {
   const commands = [];
-  const rawWidth = plotOptions["bar width"] || axisOptions["bar width"] || 0.2;
-  const width = axisBarWidth(rawWidth);
   const interval = isPgfplotsIntervalPlot(axisOptions, plotOptions, orientation);
   const renderedPoints = interval
     ? pgfplotsIntervalDataPoints({ points, options: plotOptions }, axisOptions, orientation)
     : points;
-  const style = axisBarStyle(plotOptions, plotIndex, interval);
-  const shift = axisBarCanvasShift(plotOptions.shift, orientation, geometry, ranges);
+  const style = joinOptions([axisBarStyle(plotOptions, plotIndex), clip]);
+  layout ??= createBarLayout(axisOptions, plotOptions, geometry, orientation, ranges);
+  const limits = geometry.lineRanges || geometry.transformRanges || ranges;
   for (const [index, point] of renderedPoints.entries()) {
     if (point.stackIgnored) continue;
     if (orientation === "y") {
@@ -31,7 +68,7 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
           : axisNumber(axisOptions.ymin, axisNumber(ranges.yMin, 0))
         : Number.isFinite(Number(point.stackBaseY))
           ? Number(point.stackBaseY)
-          : visibleAxisBaseline(ranges.yMin, ranges.yMax);
+          : visibleAxisBaseline(limits.yMin, limits.yMax);
       const corners = interval
         ? [
             geometry.mapPoint({ x: point.x, y: baseline }),
@@ -39,7 +76,7 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
             geometry.mapPoint({ x: points[index + 1].x, y: point.y }),
             geometry.mapPoint({ x: point.x, y: point.y })
           ]
-        : canvasBarCorners(geometry, point, baseline, width, "y", shift);
+        : canvasBarCorners(geometry, point, baseline, "y", layout(point));
       commands.push(`\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`);
     } else {
       const baseline = interval
@@ -48,7 +85,7 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
           : axisNumber(axisOptions.xmin, axisNumber(ranges.xMin, 0))
         : Number.isFinite(Number(point.stackBaseX))
           ? Number(point.stackBaseX)
-          : visibleAxisBaseline(ranges.xMin, ranges.xMax);
+          : visibleAxisBaseline(limits.xMin, limits.xMax);
       const corners = interval
         ? [
             geometry.mapPoint({ x: baseline, y: point.y }),
@@ -56,20 +93,18 @@ export function renderAxisBars(points, axisOptions = {}, geometry, plotOptions =
             geometry.mapPoint({ x: point.x, y: points[index + 1].y }),
             geometry.mapPoint({ x: baseline, y: points[index + 1].y })
           ]
-        : canvasBarCorners(geometry, point, baseline, width, "x", shift);
+        : canvasBarCorners(geometry, point, baseline, "x", layout(point));
       commands.push(`\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`);
     }
   }
   return commands;
 }
 
-function axisBarStyle(plotOptions, plotIndex, interval) {
+function axisBarStyle(plotOptions, plotIndex) {
   const color = plotColorValue(selectPlotColor(plotOptions, plotIndex));
   const fill = plotOptions.fill && plotOptions.fill !== true
     ? selectPlotFillStyle(plotOptions, plotIndex)
-    : interval
-      ? `fill=${color}!30`
-      : `fill=${color}!30`;
+    : `fill=${color}!30`;
   const draw = String(plotOptions.draw || "").trim().toLowerCase();
   const drawStyle = draw === "none" || draw === "false" || draw === "off"
     ? "draw=none"
@@ -79,24 +114,35 @@ function axisBarStyle(plotOptions, plotIndex, interval) {
   return joinOptions(["axis bar", fill, drawStyle]);
 }
 
-function axisBarWidth(raw) {
-  const text = String(raw ?? "").trim();
-  if (/[-+]?(?:\d+\.?\d*|\.\d+)\s*(?:cm|mm|pt|em|ex|in)\b/i.test(text)) {
-    const physical = parseDimension(text, {});
-    if (Number.isFinite(physical) && physical > 0) return { kind: "canvas", value: physical };
-  }
-  const data = axisNumber(raw, 0.2);
-  return { kind: "data", value: Number.isFinite(data) && data > 0 ? data : 0.2 };
+export function createBarLayout(axis, options, geometry, direction, ranges, group) {
+  const units = pgfplotsCompatAtLeast(pgfplotsCompatLevel(axis, options), "1.7");
+  const length = (raw, dataUnits) => {
+    const text = String(raw).trim();
+    if (/(?:cm|mm|pt|em|ex|in)\b/i.test(text)) return { cm: parseDimension(text, {}) };
+    const value = axisNumber(raw, 0);
+    return dataUnits ? { units: value } : { cm: parseDimension(`${value}pt`, {}) };
+  };
+  const width = length(options["bar width"] ?? axis["bar width"] ?? "10pt", units);
+  const explicit = options["bar shift"] ?? axis["bar shift"];
+  const shift = explicit === undefined ? null : length(explicit, units);
+  const rawGap = options["bar shift auto"] ?? axis["bar shift auto"] ?? axis[direction + "bar"];
+  const gap = length(rawGap === true || rawGap === undefined ? "2pt" : rawGap, false).cm;
+  const translate = axisBarCanvasShift(options.shift, direction, geometry, ranges);
+  return point => {
+    const project = spec => spec.cm ?? (Math.sign(spec.units) *
+      2 * dataBarHalfWidth(geometry, point, Math.abs(spec.units), direction));
+    const breadth = project(width);
+    // pgfplots.code.tex: (i - (n-1)/2) * (width + separation).
+    const displacement = shift ? project(shift) : group ? (group.index - (group.count - 1) / 2) * (breadth + gap) : 0;
+    return { halfWidth: breadth / 2, shift: displacement + translate };
+  };
 }
 
-function canvasBarCorners(geometry, point, baseline, width, orientation, shift) {
+function canvasBarCorners(geometry, point, baseline, orientation, { halfWidth, shift }) {
   const base = geometry.mapPoint(
     orientation === "y" ? { x: point.x, y: baseline } : { x: baseline, y: point.y }
   );
   const tip = geometry.mapPoint(point);
-  const halfWidth = width.kind === "canvas"
-    ? width.value / 2
-    : dataBarHalfWidth(geometry, point, width.value, orientation);
   if (orientation === "y") {
     const center = base.x + shift;
     return [

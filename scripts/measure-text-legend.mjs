@@ -3,17 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { compareDecodedPngs, composeImageSheet, decodePng, encodePng } from "./diff-example-pngs.js";
-
-function cropWithWhiteMargin(image, x, y, width, height) {
-  const data = Buffer.alloc(width * height * 4, 255);
-  const left = Math.max(0, x), right = Math.min(image.width, x + width);
-  if (left < right) for (let row = Math.max(0,y); row < Math.min(image.height,y+height); row++) {
-    const src = (row * image.width + left) * 4;
-    data.set(image.data.subarray(src, src + (right - left) * 4), ((row-y)*width + left-x)*4);
-  }
-  return { width, height, data };
-}
+import { compareDecodedPngs, composeImageSheet, cropWithWhiteMargin, decodePng, encodePng } from "./diff-example-pngs.js";
 
 const [directory, playwrightModule, ...rest] = process.argv.slice(2);
 const filled = rest[0] === "--filled";

@@ -109,7 +109,7 @@ test("stacked bars use per-coordinate zero levels instead of the axis baseline",
   );
   const commands = renderAxisBars(
     [{ x: 1, y: 5, stackBaseY: 2, stackDeltaY: 3, stackIgnored: false }],
-    { ybar: true },
+    { ybar: true, "bar width": "0.2cm" },
     geometry,
     { fill: "orange" },
     1,
@@ -238,7 +238,7 @@ test("xbar stacked bars use their per-coordinate x zero level", () => {
   );
   const commands = renderAxisBars(
     [{ x: 5, y: 1, stackBaseX: 2, stackDeltaX: 3, stackIgnored: false }],
-    { xbar: true },
+    { xbar: true, "bar width": "0.2cm" },
     geometry,
     { fill: "orange" },
     1,

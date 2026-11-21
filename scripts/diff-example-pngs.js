@@ -427,6 +427,16 @@ export function encodePng(image) {
   ]);
 }
 
+export function cropWithWhiteMargin(image, x, y, width, height) {
+  const data = Buffer.alloc(width * height * 4, 255);
+  const left = Math.max(0, x), right = Math.min(image.width, x + width);
+  if (left < right) for (let row = Math.max(0, y); row < Math.min(image.height, y + height); row++) {
+    const start = (row * image.width + left) * 4;
+    data.set(image.data.subarray(start, start + (right - left) * 4), ((row - y) * width + left - x) * 4);
+  }
+  return { width, height, data };
+}
+
 export function composeComparisonSheet(actual, expected, diff, options = {}) {
   return composeImageSheet([actual, expected, diff], { ...options, columns: options.columns || 3 });
 }

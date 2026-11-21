@@ -1,11 +1,13 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
 import { parseOptions } from "../engine/options.js";
 import { axisNumber } from "./coordinates.js";
-import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
+import { formatAxisNumber, formatAxisPoint, formatAxisTickLabel, joinOptions } from "./format.js";
+import { evaluateAxisExpression } from "./expressions.js";
+import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
 import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./histogram.js";
 import { plotColorValue, selectPlotColor } from "./plotStyle.js";
 
-export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}, plotIndex = 0) {
+export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}, plotIndex = 0, barLayout) {
   if (!axisOptions["nodes near coords"] && !plot.options?.["nodes near coords"]) return [];
   const orientation = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") ? "y" : "x";
   const points = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, orientation)
@@ -13,15 +15,14 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
         .filter((point) => !point.stackIgnored)
     : (plot.points || []).filter((point) => !point.stackIgnored);
   const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
+  const group = plot.barGroup;
   const style = joinOptions([
-    "axis near coord",
-    stackedBarAxis ? "anchor=center" : "anchor=south",
-    "font=\\scriptsize",
+    group ? (axisOptions.font && `font=${axisOptions.font}`) : "font=\\scriptsize",
     nodeNearCoordTextColor(plot.options || {}, plotIndex),
     ...nodeNearCoordStyles(axisOptions),
     ...nodeNearCoordStyles(plot.options || {})
   ]);
-  const offset = stackedBarAxis ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
+  const offset = stackedBarAxis || group ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
   return points.map((point, pointIndex) => {
     const positionedPoint = stackedBarAxis
       ? stackedBarNodePoint(point, axisOptions, stackedBarAxis)
@@ -29,18 +30,51 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
     const mapped = plot.is3d && typeof geometry.mapPoint3d === "function"
       ? geometry.mapPoint3d(positionedPoint)
       : geometry.mapPoint(positionedPoint);
-    const template = nodeNearCoordTemplate(point, plot, axisOptions, pointIndex);
-    return `\\node[${joinOptions([style, ...template.styles])}] at ${formatAxisPoint(offsetPoint(mapped, 0, offset))} {${template.label}};`;
+    const meta = group ? barPointMeta(point, pointIndex, plot, axisOptions) : undefined;
+    const anchor = group ? barLabelAnchor(meta, plot, axisOptions) : stackedBarAxis ? "center" : "south";
+    const template = nodeNearCoordTemplate(point, plot, axisOptions, pointIndex, meta);
+    const shift = group && barLayout ? barLayout(point).shift : 0;
+    const at = offsetPoint(mapped, group?.direction === "y" ? shift : 0, group?.direction === "x" ? shift : offset);
+    return `\\node[${joinOptions(["axis near coord", `anchor=${anchor}`, group && "tikzkit tex node anchors", style, ...template.styles])}] at ${formatAxisPoint(at)} {${template.label}};`;
   });
 }
 
-function nodeNearCoordTemplate(point, plot = {}, axisOptions = {}, pointIndex = 0) {
+function barPointMeta(point, index, plot, axis) {
+  const input = String(plot.options?.["point meta"] ?? axis["point meta"] ?? plot.barGroup.direction).trim();
+  const field = input === "f(x)" ? "y" : input.replace(/^raw(?=[xyz]$)/, "");
+  if (["x", "y", "z"].includes(field)) return { input, value: point[field] };
+  if (input === "explicit" || input === "explicit symbolic") return { input, value: point.meta };
+  const variables = { y: point.y, z: point.z ?? 0, rawx: point.x, rawy: point.y, coordindex: index };
+  return { input, value: evaluateAxisExpression(input, point.x, axis, variables) };
+}
+
+function barLabelAnchor(meta, plot, axis) {
+  let align = plot.options?.["nodes near coords align"] ?? axis["nodes near coords align"] ?? "auto";
+  // Native auto alignment depends on the meta handler, not the sign or the
+  // direction of the painted bar. An expression on xbar still defaults above.
+  if (align === "auto") align = meta.input === "x" ? "horizontal" : "vertical";
+  if (align === "horizontal" || align === "vertical") {
+    if (meta.input === "explicit symbolic") return "south";
+    return align === "horizontal" ? (meta.value < 0 ? "east" : "west") : (meta.value < 0 ? "north" : "south");
+  }
+  return ({ left: "east", right: "west", above: "south", below: "north" })[align] || String(align).replace(/^anchor=/, "");
+}
+
+function nodeNearCoordTemplate(point, plot = {}, axisOptions = {}, pointIndex = 0, meta) {
   const rawTemplate = plot.options?.["nodes near coords"] ?? axisOptions["nodes near coords"];
   const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
-  const fallback = point.meta ?? (stackedBarAxis
+  const fallback = meta ? meta.value : point.meta ?? (stackedBarAxis
     ? point[stackedBarAxis === "x" ? "stackDeltaX" : "stackDeltaY"]
     : (plot.is3d ? point.z : point.y));
-  if (rawTemplate === true || rawTemplate === undefined || rawTemplate === null || String(rawTemplate).trim() === "") {
+  const defaultTemplate = rawTemplate === true || rawTemplate === undefined || rawTemplate === null || String(rawTemplate).trim() === "";
+  if (meta && defaultTemplate) {
+    if (meta.input === "explicit symbolic") return { label: String(fallback ?? ""), styles: [] };
+    if (fallback == null || !Number.isFinite(Number(fallback))) return { label: "", styles: [] };
+    const opts = pgfNumberFormatOptions(plot.options, pgfNumberFormatOptions(axisOptions, { fixed: true }));
+    const number = formatAxisTickLabel(fallback, opts).replace(/\u2212/g, "-");
+    return { label: `$${number}$`, styles: ["tikzkit native math", "tikzkit math number"] };
+  }
+  if (defaultTemplate) {
     return { label: formatAxisNumber(fallback), styles: [] };
   }
 
@@ -56,10 +90,10 @@ function nodeNearCoordTemplate(point, plot = {}, axisOptions = {}, pointIndex = 
     const value = evaluateMath(expression);
     return Number.isFinite(value) ? formatAxisNumber(value) : "0";
   });
-  return lowerNodeNearCoordTextTemplate(label);
+  return lowerNodeNearCoordTextTemplate(label, !meta);
 }
 
-function lowerNodeNearCoordTextTemplate(template) {
+function lowerNodeNearCoordTextTemplate(template, defaultScriptsize) {
   let label = String(template || "").trim();
   const styles = [];
   const rotatebox = unwrapRotatebox(label);
@@ -76,7 +110,7 @@ function lowerNodeNearCoordTextTemplate(template) {
   label = label.replace(/\\pgfmathprintnumber(?![A-Za-z@])/g, "");
   const fontMatch = label.match(/\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)(?![A-Za-z@])/);
   if (fontMatch) {
-    if (fontMatch[1] !== "scriptsize") styles.push(`font=\\${fontMatch[1]}`);
+    if (!defaultScriptsize || fontMatch[1] !== "scriptsize") styles.push(`font=\\${fontMatch[1]}`);
     label = label.replace(/\\(?:tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)(?![A-Za-z@])/g, "");
   }
   return { label: label.trim(), styles };

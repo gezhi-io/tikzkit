@@ -6,9 +6,10 @@ import { axisTickLabelNormalExtent } from "./geometry.js";
 import { pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
-import { layoutNativeText } from "../tex/textBox.js";
+import { layoutNativeTextRun } from "../tex/textBox.js";
 import { measurePlainTextTeXBoxPt } from "../tikz/textMetrics.js";
 import { axisZeroValue } from "./ranges.js";
+import { normalizedTickAlignment } from "./ticks.js";
 
 const PGFPLOTS_AXIS_TITLE_SHIFT = parseDimension("6pt", {});
 const PGFPLOTS_MIDDLE_AXIS_MATH_LABEL_BOTTOM_PADDING = "1.98pt";
@@ -59,13 +60,16 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
     ? geometry.lineRanges || geometry.transformRanges
     : ranges;
   const finalRanges = geometry.transformRanges || ranges;
+  // Box descriptions use the displayed frame, not the surveyed data extrema.
+  // Enlargement can move the first bar well inside that frame.
+  const boxRanges = datavisLabelPlacement ? ranges : geometry.lineRanges || finalRanges;
   const yAxis = axisZeroValue(finalRanges, "y");
   const xAxis = axisZeroValue(finalRanges, "x");
   if (axisOptions.xlabel && !pgfplotsAxisHidden(axisOptions, "x")) {
     const xlabelStyle = axisLabelStyle(axisOptions, "x");
     const point = xAxisMiddle
       ? geometry.mapPoint({ x: labelRanges.xMax, y: yAxis })
-      : offsetPoint(geometry.mapPoint({ x: (ranges.xMin + ranges.xMax) / 2, y: ranges.yMin }), 0, -xLabelOffset);
+      : offsetPoint(geometry.mapPoint({ x: (boxRanges.xMin + boxRanges.xMax) / 2, y: boxRanges.yMin }), 0, -xLabelOffset);
     const placement = applyAxisLabelStyle(point, xAxisMiddle ? "south east" : "north", xlabelStyle, {
       geometry,
       xOffset,
@@ -107,7 +111,7 @@ export function renderAxisLabels(axisOptions = {}, ranges = {}, geometry = {}) {
             : PGFPLOTS_ABSOLUTE_YLABEL_SHIFT;
     const point = yAxisMiddle
       ? geometry.mapPoint({ x: xAxis, y: labelRanges.yMax })
-      : offsetPoint(geometry.mapPoint({ x: ranges.xMin, y: (ranges.yMin + ranges.yMax) / 2 }), -ylabelXOffset, 0);
+      : offsetPoint(geometry.mapPoint({ x: boxRanges.xMin, y: (boxRanges.yMin + boxRanges.yMax) / 2 }), -ylabelXOffset, 0);
     const defaultYLabelAnchor = yAxisMiddle
       ? "north west"
       : boxedYLabel && nearTicks
@@ -236,7 +240,7 @@ function middleAxisMathLabelLayoutOptions(value, rawStyle, middleAxis) {
 function plainLabelWidthOptions(value, nativeText, fontCommand) {
   const text = String(value ?? "").trim();
   if (!text || text.includes("$")) return [];
-  if (nativeText && layoutNativeText(text, parseTikzFontPatch(fontCommand))) return ["tikzkit text width scale=1"];
+  if (nativeText && layoutNativeTextRun({ raw:text, text }, parseTikzFontPatch(fontCommand))) return ["tikzkit text width scale=1"];
   // Axis descriptions use the TeX font's physical width. The renderer's
   // generic serif fallback compression predates the bundled CMU fonts and
   // visibly shortens both horizontal labels and rotated y-axis labels. The
@@ -292,7 +296,7 @@ function pgfplotsLabelsNearTicks(axisOptions = {}) {
 // adds before the tick labels.
 function axisTickOutwardProjection(axisOptions = {}, axis) {
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
-  const alignment = String(axisOptions[`${axis}tick align`] ?? axisOptions["tick align"] ?? "inside").trim().toLowerCase();
+  const alignment = normalizedTickAlignment(axisOptions, axis);
   if (alignment === "outside") return tickLength;
   if (alignment === "center") return tickLength / 2;
   return 0;

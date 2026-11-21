@@ -96,6 +96,11 @@ texPackage.features.push("native matrix bounds and stock area, grouped, stacked 
 texPackage.localSourceReviewedExtra += "; pgfplots.code.tex stock area/bar legend image code and pgflibraryplothandlers.code.tex first/next interval handlers; reviewed 2026-11-21";
 texPackage.registryNoteSuffixLatest += " Stock filled legends now use physical PGF rectangles and signed matrix bounds, including grouped pairs, asymmetric single bars and empty stacked-interval samples. Six cases match local tikztosvg in the live editor and SVG-text export for 16 rectangles and 97 glyph positions (under 0.01 TeX pt). Grouped data offsets, point meta and custom image code remain partial. Evidence: docs/qa/2026-11-21-filled-legends.md.";
 
+texPackage.implementedBy += "; src/pgfplots/bars.js:withBarGroups/createBarLayout; src/pgfplots/plotNodes.js:barPointMeta/barLabelAnchor; src/pgfplots/axisTikzLowering.js:barAxisLabelOptions";
+texPackage.features.push("ordinary grouped coordinate bars with physical or compat-dependent data widths, signed near-coordinate labels and measured axis descriptions");
+texPackage.localSourceReviewedExtra += "; pgfplots.code.tex:888-901,3401-3491,4875-4927; pgfplotsplothandlers.code.tex:414-491; pgfplotscoordprocessing.code.tex:364-378,2745,7320ff; pgfplotsticks.code.tex:460-496,1140-1148; pgflibraryplothandlers.code.tex:380ff; reviewed 2026-11-21";
+texPackage.registryNoteSuffixLatest += " Ordinary grouped xbar/ybar coordinates now share a projected width, series shift, clipped zero baseline and point-meta label position. Native category tick direction and enlarged-box descriptions are checked in four live editor cases (28 bars). Interval/stacked grouping, custom metadata callbacks, and error-bar placement are not covered by this slice. Evidence: docs/qa/2026-11-21-grouped-bars.md.";
+
 texPackage.implementedBy += "; src/tex/textBox.js:layoutNativeMixedText; src/pgfplots/legend.js:legendPlacement; src/pgfplots/marks.js:renderPlotMark";
 texPackage.features.push("mixed text/inline math line legends, ordered position presets and measured stock mark-only images");
 texPackage.localSourceReviewedExtra += "; pgfplots.code.tex color cycle, nested legend presets and image/text matrix; pgfmodulematrix.code.tex signed cell extents; pgflibraryplotmarks.code.tex compound quick paint; reviewed 2026-11-21";

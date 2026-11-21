@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[width=9cm,height=6cm,ybar,bar width=8pt,
+  xmin=.5,xmax=3.5,ymin=-5,ymax=5,enlargelimits=false,xtick={1,2,3}]
+  \addplot+[nodes near coords] coordinates {(1,3) (2,-2) (3,1)};
+  \addplot[black,sharp plot,no marks] coordinates {(.5,0) (3.5,0)};
+  \addplot+[nodes near coords] coordinates {(1,-1) (2,2) (3,4)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,13 @@
+% PGFPlots manual, pgfplots.reference.2dplots.tex: dimensionless bar width.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[xbar=0pt,bar width=2,width=7cm,height=12cm,
+  minor y tick num=4,ytick=data,enlargelimits=0.15]
+  \addplot coordinates {(10,5) (15,10) (5,15) (24,20) (30,25)};
+  \addplot coordinates {(3,5) (5,10) (15,15) (20,20) (35,25)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

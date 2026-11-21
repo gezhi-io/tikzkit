@@ -1,0 +1,13 @@
+% PGFPlots manual, pgfplots.reference.2dplots.tex: horizontal value labels.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[xbar,xmin=0,width=12cm,height=3.5cm,enlarge y limits=0.5,
+  xlabel={\#participants},symbolic y coords={no,yes},ytick=data,
+  nodes near coords,nodes near coords align={horizontal}]
+  \addplot coordinates {(3,no) (7,yes)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

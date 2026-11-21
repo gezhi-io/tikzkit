@@ -69,3 +69,6 @@ data series overlap instead of standing side by side, and the value labels use
 the raw population rather than the authored `point meta=y *10^-7`. The default
 standalone page margins also differ in several charts. Custom legend image code
 and arbitrary per-series plot handlers are not certified here.
+
+Follow-up: the [grouped data bar audit](2026-11-21-grouped-bars.md) fixes and
+verifies the population chart's overlapping bars and raw value labels.

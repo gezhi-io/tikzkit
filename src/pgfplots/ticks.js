@@ -40,12 +40,14 @@ export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplot
   const allDisabled = ticksDisabled(axisOptions.ticks) || ticksDisabled(axisOptions.tick);
   const raw = axis === "x" ? axisOptions.xtick ?? axisOptions["x tick"] : axisOptions.ytick ?? axisOptions["y tick"];
   const disabled = allDisabled || pgfplotsAxisHidden(axisOptions, axis) || ticksDisabled(raw);
-  const min = Number(ranges[`${axis}Min`]);
-  const max = Number(ranges[`${axis}Max`]);
+  const limits = axisOptions["pgfplots bar category axis"] && isBoxAxis(axisOptions)
+    ? geometry.lineRanges || geometry.transformRanges || ranges : ranges;
+  const min = Number(limits[`${axis}Min`]);
+  const max = Number(limits[`${axis}Max`]);
   const distanceTicks = tickDistanceValues(axisOptions, axis, min, max);
   const explicitDistance = axisTickDistance(axisOptions, axis) > 0;
   const explicit = hasExplicitTickOption(raw) || explicitDistance;
-  const planning = automaticTickPlanningRange(axisOptions, axis, ranges, geometry);
+  const planning = automaticTickPlanningRange(axisOptions, axis, limits, geometry);
   // `ticks=none` disables paint, not the positions used by grid=major/both.
   // Only an empty per-axis tick list removes the shared candidate positions.
   const values = ticksDisabled(raw)
@@ -81,8 +83,6 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   // Grid rendering consumes this same plan, including explicit distances,
   // automatic-step retries and final-range filtering.
   const tickModel = createAxisTickModel(axisOptions, ranges, addplots, geometry);
-  const explicitXTicks = xTicksDisabled || tickModel.x.explicit;
-  const explicitYTicks = yTicksDisabled || tickModel.y.explicit;
   const xTicks = xTicksDisabled ? [] : tickModel.x.values;
   const yTicks = yTicksDisabled ? [] : tickModel.y.values;
   const finalRanges = axisOptions["datavis axis label placement"] ? ranges : geometry.transformRanges || ranges;
@@ -103,9 +103,7 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
         xTicks,
         axisTickNumberFormat(axisOptions, "x"),
         axisOptions.xticklabel
-      ).map((label, index) =>
-    !explicitXTicks && autoTickOutsideRange(xTicks[index], ranges.xMin, ranges.xMax) ? "" : label
-    );
+      );
   const yLabels = axisOptions["pgfplots symbolic y labels"]
     ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic y labels"], yTicks)
     : axisRenderedTickLabels(
@@ -115,8 +113,6 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
       yTicks,
       axisTickNumberFormat(axisOptions, "y"),
       axisOptions.yticklabel
-    ).map((label, index) =>
-    !explicitYTicks && autoTickOutsideRange(yTicks[index], ranges.yMin, ranges.yMax) ? "" : label
     );
   const tickLength = parseDimension(String(axisOptions["major tick length"] || axisOptions.tickwidth || "0.15cm"), {});
   const xTickLabelDistance = explicitNonnegativeDimension(axisOptions["x axis tick label distance"]);
@@ -780,7 +776,7 @@ function axisTickSegment(base, visual, tickAxis, defaultDx, defaultDy) {
   return [from, to];
 }
 
-function normalizedTickAlignment(axisOptions = {}, axis, middleAxis = false) {
+export function normalizedTickAlignment(axisOptions = {}, axis, middleAxis = false) {
   const keys = Object.keys(axisOptions);
   const alignment = latestOrderedOption(axisOptions, keys, ["tick align", `${axis} tick align`, `${axis}tick align`]);
   const openLine = latestOrderedNonBoxedAxisOption(axisOptions, keys, axis);
@@ -1016,6 +1012,15 @@ function renderTickScaleLabel(axisOptions, axis, ticks, geometry, lineMode) {
         ? "south east"
         : "south west";
   const font = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, axis));
+  if (axis === "y" && isBoxAxis(axisOptions) && pgfplotsUsesNative2DText(axisOptions) &&
+    pgfplotsCompatAtLeast(pgfplotsCompatLevel(axisOptions), "1.3")) {
+    // yticklabel* cs:1.03,-0.3em is measured from the tick axis itself;
+    // the starred form does not add the tick-label boxes to the normal.
+    const right = lineMode === "right";
+    const inset = PGFPLOTS_MIDDLE_Y_SCALE_LABEL_NORMAL_OFFSET;
+    point = { x: right ? origin.x + width - inset : origin.x + inset, y: origin.y + 1.03 * height };
+    anchor = right ? "south east" : "south west";
+  }
   if (axis === "x" && !isMiddleAxis(axisOptions) &&
     pgfplotsCompatAtLeast(pgfplotsCompatLevel(axisOptions), "1.3")) {
     // xlabel near ticks places the scale at xticklabel cs:0.9,5pt.
