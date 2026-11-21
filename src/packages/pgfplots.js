@@ -101,6 +101,11 @@ texPackage.features.push("ordinary grouped coordinate bars with physical or comp
 texPackage.localSourceReviewedExtra += "; pgfplots.code.tex:888-901,3401-3491,4875-4927; pgfplotsplothandlers.code.tex:414-491; pgfplotscoordprocessing.code.tex:364-378,2745,7320ff; pgfplotsticks.code.tex:460-496,1140-1148; pgflibraryplothandlers.code.tex:380ff; reviewed 2026-11-21";
 texPackage.registryNoteSuffixLatest += " Ordinary grouped xbar/ybar coordinates now share a projected width, series shift, clipped zero baseline and point-meta label position. Native category tick direction and enlarged-box descriptions are checked in four live editor cases (28 bars). Interval/stacked grouping, custom metadata callbacks, and error-bar placement are not covered by this slice. Evidence: docs/qa/2026-11-21-grouped-bars.md.";
 
+texPackage.implementedBy += "; src/pgfplots/bars.js:sampleFunctionBars; src/pgfplots/addplotLowering.js:renderAddplot (marker pass)";
+texPackage.features.push("ordinary sampled function bars and the 2D global/individual plot-marker paint phases");
+texPackage.localSourceReviewedExtra += "; pgfplotscoordprocessing.code.tex:5474-5558; pgfplots.markers.code.tex:34-108; pgfplots.code.tex:9642-9652; reviewed 2026-11-21";
+texPackage.registryNoteSuffixLatest += " Ordinary 2D xbar/ybar function plots now send samples to the bar handler. Unclipped global marks paint after data paths; individual or clipped marks stay with the series. Four live workbench plots verify 22 bars, including mixed coordinate and function data and explicit sample positions. Evidence: docs/qa/2026-11-21-function-bars.md.";
+
 texPackage.implementedBy += "; src/tex/textBox.js:layoutNativeMixedText; src/pgfplots/legend.js:legendPlacement; src/pgfplots/marks.js:renderPlotMark";
 texPackage.features.push("mixed text/inline math line legends, ordered position presets and measured stock mark-only images");
 texPackage.localSourceReviewedExtra += "; pgfplots.code.tex color cycle, nested legend presets and image/text matrix; pgfmodulematrix.code.tex signed cell extents; pgflibraryplotmarks.code.tex compound quick paint; reviewed 2026-11-21";

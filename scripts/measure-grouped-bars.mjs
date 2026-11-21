@@ -5,8 +5,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { compareDecodedPngs, composeImageSheet, cropWithWhiteMargin, decodePng, encodePng } from "./diff-example-pngs.js";
 
-const [directory, playwrightModule, ...ids] = process.argv.slice(2);
-assert.ok(directory && playwrightModule, "Usage: node scripts/measure-grouped-bars.mjs <audit-dir> <playwright-module> [case ...]");
+const [directory, playwrightModule, ...args] = process.argv.slice(2);
+const ids = args.filter(arg => arg !== "--solid-paint");
+const checkPaint = args.includes("--solid-paint");
+assert.ok(directory && playwrightModule, "Usage: node scripts/measure-grouped-bars.mjs <audit-dir> <playwright-module> [--solid-paint] [case ...]");
 async function measure() {
   await document.fonts.ready;
   const elements = [...document.querySelectorAll("path,text,use")].filter(el => !el.closest("defs,symbol,clipPath"));
@@ -61,6 +63,32 @@ async function measure() {
 }
 
 const maxError = (a,b) => a.length === b.length ? Math.max(0, ...a.map((v,i) => Math.abs(v-b[i]))) : null;
+
+// Bounds alone cannot detect a later bar covering an earlier mark. Probe
+// opaque, flat color interiors on the registered reference; ignore antialiasing.
+function solidPaint(actual, reference) {
+  const { width, height, data } = reference;
+  let solidPixels = 0, wrongPaint = 0;
+  for (let y = 3; y < height - 3; y += 2) {
+    for (let x = 3; x < width - 3; x += 2) {
+      const i = (y*width+x)*4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      if (data[i+3] !== 255 || Math.max(r,g,b) - Math.min(r,g,b) < 50) continue;
+      let solid = true;
+      for (let dy = -3; solid && dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          const j = i + (dy*width+dx)*4;
+          if (data[j] !== r || data[j+1] !== g || data[j+2] !== b || data[j+3] !== 255) { solid = false; break; }
+        }
+      }
+      if (!solid) continue;
+      solidPixels++;
+      if (actual.data[i+3] !== 255 || Math.max(Math.abs(actual.data[i]-r),
+        Math.abs(actual.data[i+1]-g), Math.abs(actual.data[i+2]-b)) > 2) wrongPaint++;
+    }
+  }
+  return { solidPixels, wrongPaint };
+}
 const audit = JSON.parse(await readFile(path.join(directory, "browser-audit.json"), "utf8"));
 const { chromium } = await import(pathToFileURL(path.resolve(playwrightModule)).href);
 const browser = await chromium.launch({ channel:"chrome", headless:true });
@@ -94,6 +122,10 @@ try {
       if (!panels[i].title.startsWith("Before") && outliers.length) console.log(id, panels[i].title, "tick outliers", JSON.stringify(outliers));
     }
     const before = panels.findIndex(p => p.title.startsWith("Before"));
+    if (checkPaint) for (const [i, panel] of panels.entries()) {
+      if (i === 1) continue;
+      Object.assign(results.find(r => r.id === id && r.panel === panel.title), solidPaint(crops[i], crops[1]));
+    }
     const comparison = [...(before < 0 ? [] : [crops[before]]), crops[0], crops[1], compareDecodedPngs(crops[0],crops[1]).diff];
     await writeFile(path.join(directory,"browser",id+"-bar-sheet.png"),encodePng(composeImageSheet(comparison,{columns:2,gap:6,padding:6})));
   }
@@ -104,6 +136,8 @@ assert.ok(results.length && ids.every(id => results.some(r => r.id === id)), "Mi
 await writeFile(path.join(directory,"bar-metrics.json"),JSON.stringify(results,null,2)+"\n");
 console.table(results);
 for (const r of results.filter(r => !r.panel.startsWith("Before"))) {
+  if (checkPaint) assert.ok(r.solidPixels > 0 && r.wrongPaint === 0,
+    `${r.id}/${r.panel}: ${r.wrongPaint} of ${r.solidPixels} interior colors differ`);
   for (const key of ["size","fills","strokes","glyphs","titles","ticks","pens","colors","glyphColors"]) {
     assert.ok(r[key] !== null && r[key] <= (key.endsWith("olors") ? 1 : key === "pens" ? .01 : .1), `${r.id}/${r.panel}/${key}: ${r[key]}`);
   }

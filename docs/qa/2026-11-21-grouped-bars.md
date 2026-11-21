@@ -52,3 +52,5 @@ at most one channel value. The population bar bounds previously differed
 by up to 18.69 pt. This verifies the plotted geometry, not pixel identity or
 the outer page margins. Function-sampled bars, error bars, custom metadata
 callbacks and arbitrary per-series paint styles are not certified by these cases.
+The [function-bar follow-up](2026-11-21-function-bars.md) covers the
+sampled-input case and the painting order of overlapping marks.

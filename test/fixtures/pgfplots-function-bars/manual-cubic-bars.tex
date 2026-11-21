@@ -1,0 +1,13 @@
+% PGFPlots manual, pgfplots.reference.axisdescription.tex: ybar legend.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[legend pos=north west]
+  \addplot {x^3};
+  \addplot[ybar,ybar legend,fill=red,draw=red!60,mark=none,samples=5] {-30*(x+4)};
+  \legend{first,second}
+\end{axis}
+\end{tikzpicture}
+\end{document}

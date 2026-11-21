@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[width=9cm,height=6cm,ybar=3pt,bar width=5pt,nodes near coords,
+  xmin=-2.5,xmax=2.5,ymin=0,ymax=6,enlargelimits=false,xtick=data]
+  \addplot+[domain=-2:2,samples=5] {1+x^2};
+  \addplot coordinates {(-2,2) (-1,3) (0,4) (1,3) (2,2)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

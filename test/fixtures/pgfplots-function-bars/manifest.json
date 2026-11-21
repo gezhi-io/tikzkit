@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "manual-cubic-bars", "source": "manual-cubic-bars.tex", "title": "Native manual: a cubic line and five function bars" },
+    { "id": "sampled-and-tabulated", "source": "sampled-and-tabulated.tex", "title": "Sampled and tabulated data in the same bar group" },
+    { "id": "nonuniform-horizontal", "source": "nonuniform-horizontal.tex", "title": "Signed horizontal bars at explicit sample positions" },
+    { "id": "individual-marker-phase", "source": "individual-marker-phase.tex", "title": "Individual clipping keeps marks with their own series" }
+  ]
+}

@@ -5,6 +5,23 @@ import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./histogram.js";
 import { plotColorValue, selectPlotColor, selectPlotFillStyle } from "./plotStyle.js";
+import { sampleFunctionDataPoints } from "./rangeResolver.js";
+import { pgfplotsStackAxis } from "./stackedPlots.js";
+
+export function sampleFunctionBars(plots, axisOptions, options = {}) {
+  if (pgfplotsStackAxis(axisOptions)) return plots;
+  return plots.map(plot => {
+    if (plot.type !== "function" || plot.is3d) return plot;
+    const ordinaryBar = ["x", "y"].some(dir => isAxisBarPlot(axisOptions, plot.options, dir) &&
+      !isPgfplotsIntervalPlot(axisOptions, plot.options, dir));
+    if (!ordinaryBar) return plot;
+    // Native expression input streams surveyed points into the chosen plot
+    // handler. Keep one sample list for limits, tick=data, labels and paint.
+    const points = sampleFunctionDataPoints(plot, axisOptions,
+      { pgfplotsSamples: options.pgfplotsSamples || 25, pgfplotsMaxSamples: 1200 });
+    return { ...plot, type: "coordinates", points, coordinateRows: [points] };
+  });
+}
 
 export function isAxisBarPlot(axisOptions = {}, plotOptions = {}, axis = "y") {
   const key = axis === "x" ? "xbar" : "ybar";

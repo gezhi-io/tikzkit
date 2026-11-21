@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[xmin=0,xmax=4,ymin=0,ymax=4,enlargelimits=false,clip mode=individual]
+  \addplot[domain=1:3,samples=3,blue,mark=*,mark size=3pt] {2};
+  \addplot[ybar,domain=1:3,samples=3,fill=red,draw=red,bar width=12pt] {3};
+\end{axis}
+\end{tikzpicture}
+\end{document}

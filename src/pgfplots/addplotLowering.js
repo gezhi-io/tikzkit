@@ -39,8 +39,8 @@ import { axisPointIsValidForScale } from "./logAxis.js";
 import { stackedClosedCyclePointChain } from "./areaPlots.js";
 import { applyAxisClipOption, axisClipRectangle, axisViewportClipOption } from "./clipping.js";
 
-export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0) {
-  const commands = renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex);
+export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0, afterAxisMarks = null) {
+  const commands = renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex, afterAxisMarks);
   if (!isSurfacePlot(plot, axisOptions) && !axisOptions.patch && !plot.options?.patch) return commands;
   // Native PGFPlots clips both surface fill and mesh strokes to the projected
   // axis hull. Axis descriptions are lowered separately and remain unclipped.
@@ -51,7 +51,7 @@ export function renderAddplot(plot, axisOptions, ranges, geometry, options, plot
   return commands.map(command => applyAxisClipOption(command, paintOptions));
 }
 
-function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex) {
+function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex, afterAxisMarks) {
   if (plot.type === "coordinates") {
     if (isAxisLinePatchPlot(plot, axisOptions)) {
       return renderAxisLinePatchCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
@@ -78,7 +78,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const layout = createBarLayout(axisOptions, plot.options, geometry, barAxis, ranges, plot.barGroup);
       const clip = plot.barGroup ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
       commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
-      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex, layout));
+      (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex, layout));
       return commands;
     }
     if (plot.closedCycle && mappedPoints.length) {
@@ -103,8 +103,8 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     }
     if (isAxisCombPlot(axisOptions, plot.options, "y")) {
       commands.push(...renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
-      if (shouldRenderPlotMarks(plot.options)) commands.push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
-      commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
+      if (shouldRenderPlotMarks(plot.options)) (afterAxisMarks ?? commands).push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+      (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
     if (!plot.closedCycle && shouldRenderAxisPlotPath(plot.options) && mappedPoints.length) {
@@ -117,10 +117,10 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       commands.push(`\\draw[${style}] ${axisPlotPointChain(mappedPoints, axisOptions, plot.options)};`);
     }
     if (plot.options["only marks"] || plot.options.scatter || (mark && mark !== "none")) {
-      commands.push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+      (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, mappedPoints, selectPlotColor(plot.options, plotIndex)));
-    commands.push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
+    (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
     return commands;
   }
   if (plot.type === "function") {
@@ -137,7 +137,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const combDataPoints = clipAxisCombDataPoints(dataPoints, clipRanges);
       const points = combDataPoints.map((point) => geometry.mapPoint(point));
       const commands = renderAxisComb(combDataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y");
-      if (shouldRenderPlotMarks(plot.options)) commands.push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+      if (shouldRenderPlotMarks(plot.options)) (afterAxisMarks ?? commands).push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
       return commands;
     }
     const commands = [];
@@ -163,7 +163,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     ]);
     if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
     if (shouldRenderPlotMarks(plot.options)) {
-      commands.push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+      (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
     return commands;
@@ -194,7 +194,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     ]);
     if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
     if (shouldRenderPlotMarks(plot.options)) {
-      commands.push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+      (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
     return commands;

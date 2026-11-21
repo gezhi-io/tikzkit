@@ -31,7 +31,7 @@ import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
 import { pgfplotsStackedRenderEntries, preparePgfplotsStackedPlots } from "./stackedPlots.js";
 import { normalizePgfplotsAreaOptions, pgfplotsUsesAreaCycle } from "./areaPlots.js";
 import { enlarge3DZLimits } from "./rangeResolver.js";
-import { withBarCategoryTicks, withBarGroups } from "./bars.js";
+import { sampleFunctionBars, withBarCategoryTicks, withBarGroups } from "./bars.js";
 
 // Retain the old CMU paint-box allowance only for non-native text. Native
 // TeX node boxes already define the complete outer axis rectangle.
@@ -84,6 +84,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       "tikzkit pgfplots inherited plot box": inheritedPlotBox
     };
   }
+  if (!has3dPlot) addplots = sampleFunctionBars(addplots, resolvedAxisOptions, options);
   addplots = applyPgfplotsConstantScatterColors(addplots, resolvedAxisOptions);
   if (Object.keys(options.plotMarkDeclarations || {}).length) {
     addplots = addplots.map((plot) => ({
@@ -172,22 +173,19 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     commands.push(...renderAxisLineCommands(axisModel));
     if (!topView3D) commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   }
-  const foregroundIntervalNodes = [];
+  const afterAxisMarks = [];
   // PGF datavisualization freezes `data bounding box` after visualizers,
   // before axes/ticks/labels. Inside legends must not use the axis range.
   const dataBoxName = axisModel.options["tikzkit datavis data bounding box"];
   if (dataBoxName) commands.push(`{[local bounding box=${dataBoxName}]`);
   pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
-    const plotCommands = dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex);
     const plotOptions = { ...axisModel.options, ...plot.options };
-    const afterAxis = axisOnTop && optionEnabled(plotOptions["ybar interval"]) &&
-      !optionEnabled(plotOptions["clip marker paths"]) &&
+    // PGFPlots postpones globally unclipped marks until every plot has painted.
+    // Individual clipping and explicit layers keep the series' own paint order.
+    const deferMarks = !has3dPlot && !dataBoxName && !optionEnabled(plotOptions["clip marker paths"]) &&
       String(plotOptions["clip mode"] ?? "global").trim() === "global" && !plotOptions["set layers"];
-    for (const command of plotCommands) {
-      // Unclipped interval labels belong to PGFPlots' after-axis marker pass,
-      // otherwise an `axis on top` grid erases parts of the rotated numbers.
-      (afterAxis && command.startsWith("\\node[axis near coord") ? foregroundIntervalNodes : commands).push(command);
-    }
+    commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry,
+      options, plotIndex, deferMarks ? afterAxisMarks : null));
     commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
   });
   commands.push(...dependencies.renderAxisOverlayStatements(
@@ -212,7 +210,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   }
   if (axisBox) commands.push(axisBox);
-  commands.push(...foregroundIntervalNodes);
+  commands.push(...afterAxisMarks);
   commands.push(...renderAxisLabels(barAxisLabelOptions(axisModel), axisModel.ranges, axisModel.geometry));
   commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));
   commands.push(...renderCurrentAxisCoordinates(axisModel));
