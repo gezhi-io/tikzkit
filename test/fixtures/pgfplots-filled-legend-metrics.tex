@@ -1,0 +1,21 @@
+% Run the installed legend image code and report the resulting PGF picture bounds.
+\documentclass{article}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\makeatletter
+\newcommand{\probe}[3]{\begin{tikzpicture}[#2]
+  \pgfplotsset{#3}
+  \pgfkeysvalueof{/pgfplots/legend image code/.@cmd}{blue,fill=blue!30}\pgfeov
+  \typeout{IMAGE #1: \the\pgf@picminx,\the\pgf@picminy,\the\pgf@picmaxx,\the\pgf@picmaxy}
+\end{tikzpicture}}
+\makeatother
+\begin{document}
+\probe{area}{}{area legend}
+\probe{group-y}{ybar}{ybar legend}
+\probe{group-x}{xbar}{xbar legend}
+\probe{single-y}{ybar}{single ybar legend}
+\probe{single-x}{xbar}{single xbar legend}
+\probe{interval-y}{ybar interval}{ybar interval legend}
+\probe{interval-x}{xbar interval}{xbar interval legend}
+\probe{interval-single}{ybar interval}{single ybar legend}
+\end{document}

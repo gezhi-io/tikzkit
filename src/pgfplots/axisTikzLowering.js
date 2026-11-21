@@ -24,7 +24,7 @@ import { preparePgfplotsHistogram } from "./histogram.js";
 import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, renderAxisTicks } from "./ticks.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
-import { defaultPgfplotsBarCycleStyle, defaultPgfplotsCycleMarkStyle, plotLineWidthOption } from "./plotStyle.js";
+import { barPlotStyle, defaultPgfplotsBarCycleStyle, defaultPgfplotsCycleMarkStyle, plotLineWidthOption } from "./plotStyle.js";
 import { createPgfplotsDateContext, normalizePgfplotsDateAxisOptions } from "./dateCoordinates.js";
 import { renderAxisFillBetween } from "./fillBetween.js";
 import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
@@ -430,21 +430,15 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
   const cycleName = String(axisOptions["cycle list name"] || "").trim();
   const cycleList = cycleName ? options.pgfplotsCycleLists?.[cycleName] : null;
   const everyAxisPlotStyle = axisStyleOptions(axisOptions["every axis plot/.append style"]);
-  const usesStackedBarCycle = !cycleName && (
-    optionEnabled(axisOptions["xbar stacked"]) ||
-    optionEnabled(axisOptions["ybar stacked"]) ||
-    optionEnabled(axisOptions["xbar interval stacked"]) ||
-    optionEnabled(axisOptions["ybar interval stacked"])
-  );
-  const usesAreaCycle = !cycleName && pgfplotsUsesAreaCycle(axisOptions);
+  const usesBarCycle = barPlotStyle(axisOptions) || pgfplotsUsesAreaCycle(axisOptions);
   return addplots.map((plot, index) => {
     const plotOptions = plot.options || {};
     const usesDefaultCycle =
       !cycleName &&
       (plotOptions["pgfplots plus"] || !plotOptions["pgfplots explicit options"]);
     const cycleStyle = cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
-      || (usesStackedBarCycle || usesAreaCycle
-        ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6))
+      || (usesDefaultCycle && usesBarCycle
+        ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6), plotOptions)
         : usesDefaultCycle
           ? defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10))
           : {});

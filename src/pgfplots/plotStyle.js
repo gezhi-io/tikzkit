@@ -25,6 +25,14 @@ export const PGFPLOTS_DEFAULT_BAR_STYLES = [
   { draw: "green", fill: "green!80!black", mark: "none" }
 ];
 
+// A stacked style also installs its plain TikZ data handler. Keep the more
+// specific PGFPlots key when selecting its cycle and legend image.
+export function barPlotStyle(options = {}) {
+  return ["xbar interval stacked", "ybar interval stacked", "xbar stacked", "ybar stacked",
+    "xbar interval", "ybar interval", "xbar", "ybar"].find(key =>
+    options[key] !== undefined && options[key] !== false && options[key] !== "false");
+}
+
 export function defaultPgfplotsCycleMarkStyle(plotIndex = 0) {
   const index = ((Number(plotIndex) || 0) % PGFPLOTS_DEFAULT_MARKS.length + PGFPLOTS_DEFAULT_MARKS.length) % PGFPLOTS_DEFAULT_MARKS.length;
   const style = { mark: PGFPLOTS_DEFAULT_MARKS[index], "pgfplots cycle color": PGFPLOTS_DEFAULT_COLORS[index] };
@@ -32,9 +40,12 @@ export function defaultPgfplotsCycleMarkStyle(plotIndex = 0) {
   return style;
 }
 
-export function defaultPgfplotsBarCycleStyle(plotIndex = 0) {
+export function defaultPgfplotsBarCycleStyle(plotIndex = 0, overrides = {}) {
   const index = ((Number(plotIndex) || 0) % PGFPLOTS_DEFAULT_BAR_STYLES.length + PGFPLOTS_DEFAULT_BAR_STYLES.length) % PGFPLOTS_DEFAULT_BAR_STYLES.length;
-  return { ...PGFPLOTS_DEFAULT_BAR_STYLES[index] };
+  const style = { ...PGFPLOTS_DEFAULT_BAR_STYLES[index] };
+  // The cycle sets a color before addplot+ processes the author's color keys.
+  if (explicitPlotColor(overrides)) delete style.draw;
+  return style;
 }
 
 export function selectPlotColor(options, plotIndex = 0) {

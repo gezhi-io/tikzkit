@@ -5,7 +5,7 @@ import { estimateFormulaBox, parseMathText } from "../tikz/textMetrics.js";
 import { createFontSpec, parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeMixedText, layoutNativeText } from "../tex/textBox.js";
 import { axisMarkRadius, shouldRenderPlotMarks } from "./marks.js";
-import { selectPlotStyle } from "./plotStyle.js";
+import { legendHalfPen } from "./legendImages.js";
 import { basicPlotMarkGeometry, plotMarkGeometryCommands, plotMarkLocalOptions, transformPlotMarkCommands } from "../tikz/libraries/plotmarks.js";
 import { emptyBoundingBox, includePoint, includePathCommandBounds } from "../scene/bbox.js";
 
@@ -13,8 +13,7 @@ const PT_PER_CM = 72.27 / 2.54;
 const IMAGE_WIDTH = 0.6;
 
 function lineImageBounds(options, index, thick) {
-  const style = selectPlotStyle(options, index) + (thick ? ",thick" : "");
-  const pen = normalizeOptions("draw", parseOptions(style), { variables: {}, styles: {} }).style.lineWidth / TIKZ_UNIT / 2;
+  const pen = legendHalfPen(options, index, thick);
   const bounds = emptyBoundingBox();
   if (!options["only marks"]) {
     includePoint(bounds, { x: -pen, y: -pen });
@@ -37,18 +36,22 @@ function lineImageBounds(options, index, thick) {
   return bounds;
 }
 
-// pgfplots.code.tex: every axis legend is a matrix of alternating line-image
-// and text-node cells. pgfmodulematrix uses picture bounds, not node outer sep,
-// for column widths and row heights. Keep all dimensions in physical cm here.
-export function layoutLineLegend(entries, { font: fontCommand, fontScale, columns, axisOptions, plots, mathOptions }) {
+export function legendDimensionFont(axisOptions, style = parseOptions(axisOptions["legend style"] || ""),
+  nodes = parseOptions(style.nodes || "")) {
+  return createFontSpec({ ...parseTikzFontPatch(axisOptions["node font"]),
+    ...parseTikzFontPatch(style["node font"]), ...parseTikzFontPatch(nodes["node font"]) });
+}
+
+// pgfmodulematrix uses picture bounds, not node outer sep, for columns and
+// rows of alternating image and text cells. Dimensions here are physical cm.
+export function layoutLineLegend(entries, { font: fontCommand, fontScale, columns, axisOptions, plots, mathOptions,
+  filledImages = [], dimensionFont = legendDimensionFont(axisOptions) }) {
   const font = createFontSpec({ ...parseTikzFontPatch(fontCommand), sizePt: 10 * fontScale,
     mathExtension: mathOptions.mathExtension });
   const style = parseOptions(axisOptions["legend style"] || "");
   const nodes = parseOptions(style.nodes || "");
   // tikz@textfont is scoped inside the text hbox. Shape dimensions are
   // evaluated afterwards (tikz.code.tex), using node font, not font=\tiny.
-  const dimensionFont = createFontSpec({ ...parseTikzFontPatch(axisOptions["node font"]),
-    ...parseTikzFontPatch(style["node font"]), ...parseTikzFontPatch(nodes["node font"]) });
   const length = (value, fallback) => value === undefined ? fallback : parseDimension(value, {}, { font: dimensionFont });
   const innerX = length(style["inner xsep"] ?? style["inner sep"], 3 / PT_PER_CM);
   const innerY = length(style["inner ysep"] ?? style["inner sep"], 2 / PT_PER_CM);
@@ -71,7 +74,7 @@ export function layoutLineLegend(entries, { font: fontCommand, fontScale, column
       preferNativeMath: true, minWidth: 0, widthPadding: 0, texTextMetrics: true });
   });
   if (text.some(box => !box)) return null;
-  const images = entries.map((_, i) => lineImageBounds(plots[i]?.options || {}, i, axisOptions.thick));
+  const images = entries.map((_, i) => filledImages[i]?.bounds ?? lineImageBounds(plots[i]?.options || {}, i, axisOptions.thick));
   if (images.some(image => !image)) return null;
   const imageColumns = Array.from({ length: columns }, (_, col) => {
     const column = images.filter((_, i) => i % columns === col);

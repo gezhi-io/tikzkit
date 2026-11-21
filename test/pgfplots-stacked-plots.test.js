@@ -457,7 +457,7 @@ test("stacked interval terminal coordinates affect survey and nodes but not bars
   assert.ok(nodes.some((command) => command.includes("(2,103.08) {103}")));
 });
 
-test("interval stacked legends use the native single-bar image instead of a line sample", () => {
+test("the interval handler needs a second coordinate before it paints a legend sample", () => {
   const geometry = {
     origin: { x: 0, y: 0 },
     width: 10,
@@ -471,10 +471,8 @@ test("interval stacked legends use the native single-bar image instead of a line
     ["layer"],
     [{ options: { blue: true, fill: "blue!30" } }]
   );
-  const sample = commands.find((command) => command.includes("axis legend image"));
-
-  assert.match(sample, /fill=blue!30/);
-  assert.match(sample, /\([^)]*\) -- \([^)]*\) -- \([^)]*\) -- \([^)]*\) -- cycle;/);
+  assert.ok(commands.some(command => command.endsWith("{layer};")));
+  assert.ok(!commands.some(command => command.includes("axis legend image")));
 });
 
 test("closed coordinate plots participate in the equal-grid y stack", () => {

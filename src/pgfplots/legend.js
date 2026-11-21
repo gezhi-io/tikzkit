@@ -11,9 +11,9 @@ import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
 import { plotFillOpacityOption, selectPlotFillStyle, selectPlotStyle } from "./plotStyle.js";
-import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
+import { filledLegendImage } from "./legendImages.js";
 import { cmMathMetrics } from "../tex/cmMathMetrics.js";
-import { layoutLineLegend } from "./legendMatrix.js";
+import { layoutLineLegend, legendDimensionFont } from "./legendMatrix.js";
 import { axisDescriptionPoint } from "./labels.js";
 
 const TEX_PT_PER_CM = 28.45274;
@@ -108,27 +108,25 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
   const mathLegend = entries.every((entry) => Boolean(parseMathText(entry)));
   const compactMathLegend = mathLegend && entries.every(isCompactMathLegendEntry);
   const measurement = { compact: compactMathLegend, mathExtension: mathOptions.mathExtension };
-  const stackedBarLegend = stackedBarLegendOrientation(axisOptions);
-  const areaLegend = pgfplotsUsesAreaLegend(axisOptions);
-  const imageWidth = areaLegend
-    ? PGFPLOTS_LEGEND_IMAGE_WIDTH
-    : stackedBarLegend
-    ? (stackedBarLegend === "x" ? 8 : 6) / TEX_PT_PER_CM
+  const dimensionFont = legendDimensionFont(axisOptions);
+  const filledImages = entries.map((_, i) => filledLegendImage(axisOptions, addplots[i]?.options || {}, i, dimensionFont));
+  const imageWidth = filledImages.every(Boolean)
+    ? Math.max(...filledImages.map(({ bounds }) => bounds.maxX - bounds.minX))
     : mathLegend
       ? PGFPLOTS_LEGEND_IMAGE_WIDTH
       : Math.max(0.28, 0.42 * fontScale / 0.7);
   const columnCount = legendColumnCount(axisOptions, entries.length);
-  const measureCells = columnCount > 1 || entries.some((entry, i) =>
+  const measureCells = filledImages.some(Boolean) || columnCount > 1 || entries.some((entry, i) =>
     parseMathText(entry) || entry.includes("$") || addplots[i]?.options?.["only marks"]);
-  const nativeMatrix = measureCells && !stackedBarLegend && !areaLegend
-    ? layoutLineLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions })
+  const nativeMatrix = measureCells
+    ? layoutLineLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions, filledImages, dimensionFont })
     : null;
   // Text boxes carry sub-point metrics. Three-decimal axis-data rounding is
   // unnecessarily lossy for a legend baseline, especially at small font sizes.
   const point = nativeMatrix
     ? p => `(${Number(p.x.toFixed(6))},${Number(p.y.toFixed(6))})`
     : formatAxisPoint;
-  // Keep bar/area samples and unsupported TeX on their existing layout path.
+  // Unsupported text retains the estimated layout, even with a stock image.
   const rowHeights = nativeMatrix ? [] : mathLegend
     ? entries.map((entry) => nativeMathLegendRowHeight(entry, fontScale, measurement))
     : entries.map(() => Math.max(0.19, PGFPLOTS_PLAIN_LEGEND_ROW_HEIGHT * fontScale));
@@ -174,55 +172,32 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
     const textRight = cell ? box.left + cell.textRight : cellRight - (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP + PGFPLOTS_LEGEND_CELL_INNER_SEP : PGFPLOTS_PLAIN_LEGEND_TEXT_RIGHT);
     const labelX = legendCellAnchorX(textX, textRight, cellAnchor);
     const plot = addplots[index];
+    const image = filledImages[index];
     const plotHasFill = Object.prototype.hasOwnProperty.call(plot?.options || {}, "fill");
     const imageStyle = joinOptions([
       "axis legend image",
       selectPlotStyle(plot?.options || {}, index),
-      stackedBarLegend || (areaLegend && plotHasFill) ? selectPlotFillStyle(plot?.options || {}, index) : "",
-      stackedBarLegend || areaLegend ? plotFillOpacityOption(plot?.options || {}) : "",
+      image && plotHasFill ? selectPlotFillStyle(plot.options, index) : "",
+      image ? plotFillOpacityOption(plot?.options || {}) : "",
+      image && plot?.options?.["draw opacity"] !== undefined ? `draw opacity=${plot.options["draw opacity"]}` : "",
+      image && plot?.options?.opacity !== undefined ? `opacity=${plot.options.opacity}` : "",
       axisOptions.thick ? "thick" : ""
     ]);
-    if (areaLegend) commands.push(renderAreaLegendImage(imageStyle, x0, x1, y));
-    else if (stackedBarLegend) commands.push(renderStackedBarLegendImage(imageStyle, x0, x1, y, stackedBarLegend));
-    else if (!plot?.options?.["only marks"]) {
+    if (image) {
+      const origin = cell ? x0 : x0 - image.bounds.minX;
+      for (const { minX, maxX, minY, maxY } of image.rects) {
+        const corners = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]];
+        commands.push(`\\draw[${imageStyle}] ${corners.map(([x, dy]) => point({ x: origin + x, y: y + dy })).join(" -- ")} -- cycle;`);
+      }
+    } else if (!plot?.options?.["only marks"]) {
       commands.push(`\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);
     }
-    if (!stackedBarLegend && !areaLegend && shouldRenderPlotMarks(plot?.options || {})) {
+    if (!image && shouldRenderPlotMarks(plot?.options || {})) {
       commands.push(renderPlotMark({ x: (x0 + x1) / 2, y }, plot.options, index));
     }
     commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix && parseMathText(entry) ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
   });
   return commands;
-}
-
-function renderAreaLegendImage(style, x0, x1, y) {
-  const halfHeight = 0.1;
-  const corners = [
-    { x: x0, y: y - halfHeight },
-    { x: x1, y: y - halfHeight },
-    { x: x1, y: y + halfHeight },
-    { x: x0, y: y + halfHeight }
-  ];
-  return `\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`;
-}
-
-function stackedBarLegendOrientation(axisOptions = {}) {
-  if (axisOptions["xbar stacked"] || axisOptions["xbar interval stacked"]) return "x";
-  if (axisOptions["ybar stacked"] || axisOptions["ybar interval stacked"]) return "y";
-  return null;
-}
-
-function renderStackedBarLegendImage(style, x0, x1, y, orientation) {
-  const width = orientation === "x" ? 8 / TEX_PT_PER_CM : 6 / TEX_PT_PER_CM;
-  const height = orientation === "x" ? 6 / TEX_PT_PER_CM : 8 / TEX_PT_PER_CM;
-  const centerX = (x0 + x1) / 2;
-  const corners = [
-    { x: centerX - width / 2, y: y - height / 2 },
-    { x: centerX + width / 2, y: y - height / 2 },
-    { x: centerX + width / 2, y: y + height / 2 },
-    { x: centerX - width / 2, y: y + height / 2 }
-  ];
-  return `\\draw[${style}] ${corners.map(formatAxisPoint).join(" -- ")} -- cycle;`;
 }
 
 function legendColumnCount(axisOptions = {}, entryCount = 0) {

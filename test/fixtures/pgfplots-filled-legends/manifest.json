@@ -1,0 +1,10 @@
+{
+  "cases": [
+    { "id": "area-energy", "source": "../examples/pgfplots/stacked-area/physics.tex", "title": "Area samples for stored energy" },
+    { "id": "area-functions", "source": "../examples/pgfplots/stacked-area/math.tex", "title": "Stacked functions with math labels" },
+    { "id": "stacked-horizontal", "source": "../examples/pgfplots/xbar-stacked/algorithm.tex", "title": "Horizontal bars for pipeline work" },
+    { "id": "stacked-vertical", "source": "../examples/pgfplots/stacked-plots/physics.tex", "title": "Vertical bars for energy losses" },
+    { "id": "stacked-interval", "source": "../examples/pgfplots/interval-stacked/physics.tex", "title": "Stacked intervals for thermal losses" },
+    { "id": "manual-grouped", "source": "manual-grouped.tex", "title": "Manual: grouped population bars" }
+  ]
+}
