@@ -498,6 +498,10 @@ export function basicPlotMarkGeometry(mark, size) {
   const radialPoints = (angles) => angles.map((angle) => polarPoint(angle, size));
   const geometry = (primitives, filled = false) => ({ kind, primitives, filled });
 
+  if (kind === "x" || kind === "+") {
+    const [a, b] = kind === "x" ? [45, 135] : [0, 90];
+    return geometry([a, b].map(angle => segment(polarPoint(angle, size), polarPoint(angle + 180, size))));
+  }
   if (kind === "asterisk") {
     return geometry([
       segment({ x: 0, y: -size }, { x: 0, y: size }),

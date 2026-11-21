@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "id": "manual-east", "source": "manual-east.tex", "title": "PGFPlots manual: a mixed label in an east-aligned legend" },
+    { "id": "fraction-rows", "source": "fraction-rows.tex", "title": "Subscripts and fractions on a text baseline" },
+    { "id": "affine-marks", "source": "../examples/plotmarks/mark-options-math.tex", "title": "Affine plot marks with an inline-math legend" }
+  ]
+}

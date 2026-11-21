@@ -1,4 +1,4 @@
-import { parseOptions } from "../engine/options.js";
+import { parseOptions, splitTopLevel, stripTexComments } from "../engine/options.js";
 import { fontScaleFromTikzFont } from "../tikz/text.js";
 import {
   estimateFormulaBox,
@@ -14,6 +14,7 @@ import { plotFillOpacityOption, selectPlotFillStyle, selectPlotStyle } from "./p
 import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
 import { cmMathMetrics } from "../tex/cmMathMetrics.js";
 import { layoutLineLegend } from "./legendMatrix.js";
+import { axisDescriptionPoint } from "./labels.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const PGFPLOTS_LEGEND_OUTER_XSEP = 3 / TEX_PT_PER_CM;
@@ -117,8 +118,9 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
       ? PGFPLOTS_LEGEND_IMAGE_WIDTH
       : Math.max(0.28, 0.42 * fontScale / 0.7);
   const columnCount = legendColumnCount(axisOptions, entries.length);
-  const plainColumns = columnCount > 1 && entries.every(entry => !parseMathText(entry));
-  const nativeMatrix = (mathLegend || plainColumns) && !stackedBarLegend && !areaLegend
+  const measureCells = columnCount > 1 || entries.some((entry, i) =>
+    parseMathText(entry) || entry.includes("$") || addplots[i]?.options?.["only marks"]);
+  const nativeMatrix = measureCells && !stackedBarLegend && !areaLegend
     ? layoutLineLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions })
     : null;
   // Text boxes carry sub-point metrics. Three-decimal axis-data rounding is
@@ -126,9 +128,7 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
   const point = nativeMatrix
     ? p => `(${Number(p.x.toFixed(6))},${Number(p.y.toFixed(6))})`
     : formatAxisPoint;
-  // Preserve the separate bar/area and mixed-text paths until their cell
-  // contents have native measurements too. Mathematical line legends never
-  // use the older per-formula clearance estimates below.
+  // Keep bar/area samples and unsupported TeX on their existing layout path.
   const rowHeights = nativeMatrix ? [] : mathLegend
     ? entries.map((entry) => nativeMathLegendRowHeight(entry, fontScale, measurement))
     : entries.map(() => Math.max(0.19, PGFPLOTS_PLAIN_LEGEND_ROW_HEIGHT * fontScale));
@@ -182,15 +182,15 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
       stackedBarLegend || areaLegend ? plotFillOpacityOption(plot?.options || {}) : "",
       axisOptions.thick ? "thick" : ""
     ]);
-    commands.push(areaLegend
-      ? renderAreaLegendImage(imageStyle, x0, x1, y)
-      : stackedBarLegend
-        ? renderStackedBarLegendImage(imageStyle, x0, x1, y, stackedBarLegend)
-      : `\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);
+    if (areaLegend) commands.push(renderAreaLegendImage(imageStyle, x0, x1, y));
+    else if (stackedBarLegend) commands.push(renderStackedBarLegendImage(imageStyle, x0, x1, y, stackedBarLegend));
+    else if (!plot?.options?.["only marks"]) {
+      commands.push(`\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);
+    }
     if (!stackedBarLegend && !areaLegend && shouldRenderPlotMarks(plot?.options || {})) {
       commands.push(renderPlotMark({ x: (x0 + x1) / 2, y }, plot.options, index));
     }
-    commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix && mathLegend ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
+    commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix && parseMathText(entry) ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
   });
   return commands;
 }
@@ -355,30 +355,25 @@ export function legendPlacement(rawPosition, geometry, rawStyle = "") {
     "south east outside": { x: 1.03, y: 0.03, anchor: "south west" }
   };
   const preset = rawPosition ? presets[value] || presets["north east"] : { x: 0.98, y: 0.98, anchor: "north east" };
-  const style = parseOptions(String(rawStyle || ""));
-  const customAt = parseLegendAt(style.at);
-  if (customAt) {
-    const point = typeof geometry.mapAxisDescriptionPoint === "function"
-      ? geometry.mapAxisDescriptionPoint(customAt)
-      : {
-          x: geometry.origin.x + geometry.width * customAt.x,
-          y: geometry.origin.y + geometry.height * customAt.y
-        };
-    return {
-      anchor: String(style.anchor || preset.anchor).trim().toLowerCase(),
-      point
-    };
+  let { x, y, anchor } = preset;
+  let customAt = null;
+  // A preset assigns both at and anchor where it occurs in the key list.
+  for (const key of splitTopLevel(stripTexComments(rawStyle), ",")) {
+    const style = parseOptions(key);
+    const nested = presets[String(style["legend pos"] || "").trim().toLowerCase()];
+    if (nested) {
+      ({ x, y, anchor } = nested);
+      customAt = null;
+    }
+    if (typeof style.at === "string") {
+      customAt = axisDescriptionPoint(style.at.replace(/^axis description cs\s*:\s*/i, ""), geometry) ?? customAt;
+    }
+    if (style.anchor) anchor = String(style.anchor).trim().toLowerCase();
   }
-  const point = typeof geometry.mapAxisDescriptionPoint === "function"
-    ? geometry.mapAxisDescriptionPoint({ x: preset.x, y: preset.y })
-    : {
-        x: geometry.origin.x + geometry.width * preset.x,
-        y: geometry.origin.y + geometry.height * preset.y
-      };
-  return {
-    anchor: String(style.anchor || preset.anchor).trim().toLowerCase(),
-    point
-  };
+  const point = customAt ?? (typeof geometry.mapAxisDescriptionPoint === "function"
+    ? geometry.mapAxisDescriptionPoint({ x, y })
+    : { x: geometry.origin.x + geometry.width * x, y: geometry.origin.y + geometry.height * y });
+  return { anchor, point };
 }
 
 export function legendBoxFromAnchor(point, anchor, width, height) {
@@ -390,15 +385,6 @@ export function legendBoxFromAnchor(point, anchor, width, height) {
   const bottom = vertical === "north" ? point.y - height : vertical === "south" ? point.y : point.y - height / 2;
   const top = bottom + height;
   return { left, right, top, bottom };
-}
-
-function parseLegendAt(raw) {
-  const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
-  const match = text.match(/^(?:axis description cs\s*:\s*)?\(\s*([-+]?\d*\.?\d+)\s*,\s*([-+]?\d*\.?\d+)\s*\)$/i);
-  if (!match) return null;
-  const x = Number(match[1]);
-  const y = Number(match[2]);
-  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 }
 
 export function estimateLegendEntryWidth(entry, fontScale = 0.7) {

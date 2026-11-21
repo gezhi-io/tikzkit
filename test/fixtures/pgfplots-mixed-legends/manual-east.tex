@@ -1,0 +1,17 @@
+% Picture from the PGFPlots manual, pgfplots.reference.axisdescription.tex
+% ("every axis legend", cells={anchor=east} example).
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[
+  legend style={cells={anchor=east},legend pos=outer north east},
+]
+  \addplot coordinates {(0,0) (1,1)};
+  \addplot coordinates {(0,1) (1,2)};
+  \addplot coordinates {(0,2) (1,3)};
+  \legend{$l_1$, legend $2$,$l_3$}
+\end{axis}
+\end{tikzpicture}
+\end{document}

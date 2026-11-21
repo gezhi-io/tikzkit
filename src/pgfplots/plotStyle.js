@@ -1,6 +1,8 @@
 import { joinOptions } from "./format.js";
 
-export const PGFPLOTS_DEFAULT_COLORS = ["blue", "red", "brown!80!black", "black!60!green", "orange", "violet", "cyan", "magenta"];
+// The pen and the marker fill are separate keys in PGFPlots' "color" list.
+export const PGFPLOTS_DEFAULT_COLORS = ["blue", "red", "brown!60!black", "black", "blue",
+  "red", "brown!60!black", "black", "blue", "red"];
 export const PGFPLOTS_DEFAULT_MARKS = ["*", "square*", "otimes*", "star", "diamond*", "*", "square*", "otimes*", "star", "diamond*"];
 export const PGFPLOTS_DEFAULT_MARK_FILLS = [
   "blue!80!black",
@@ -25,7 +27,7 @@ export const PGFPLOTS_DEFAULT_BAR_STYLES = [
 
 export function defaultPgfplotsCycleMarkStyle(plotIndex = 0) {
   const index = ((Number(plotIndex) || 0) % PGFPLOTS_DEFAULT_MARKS.length + PGFPLOTS_DEFAULT_MARKS.length) % PGFPLOTS_DEFAULT_MARKS.length;
-  const style = { mark: PGFPLOTS_DEFAULT_MARKS[index] };
+  const style = { mark: PGFPLOTS_DEFAULT_MARKS[index], "pgfplots cycle color": PGFPLOTS_DEFAULT_COLORS[index] };
   if (PGFPLOTS_DEFAULT_MARK_FILLS[index]) style["mark fill"] = PGFPLOTS_DEFAULT_MARK_FILLS[index];
   return style;
 }
@@ -38,14 +40,14 @@ export function defaultPgfplotsBarCycleStyle(plotIndex = 0) {
 export function selectPlotColor(options, plotIndex = 0) {
   const explicit = explicitPlotColor(options);
   if (explicit) return explicit;
-  return plotUsesCycleColor(options) ? PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length] : "black";
+  return options["pgfplots cycle color"] || (plotUsesCycleColor(options) ? PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length] : "black");
 }
 
 export function selectPlotMarkFillColor(options, plotIndex = 0) {
   if (options["mark fill"] && options["mark fill"] !== true) return plotColorValue(options["mark fill"]);
   if (options.fill && options.fill !== true) return plotColorValue(options.fill);
   const explicit = explicitPlotColor(options);
-  const cycle = PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length];
+  const cycle = options["pgfplots cycle color"] || PGFPLOTS_DEFAULT_COLORS[plotIndex % PGFPLOTS_DEFAULT_COLORS.length];
   if (options["pgfplots plus"]) {
     if (!explicit || explicit === "black") return pgfplotsMarkFillColor(cycle);
     return pgfplotsMarkFillColor(explicit);

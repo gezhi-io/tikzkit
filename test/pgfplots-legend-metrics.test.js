@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderLegendEntries } from "../src/pgfplots/legend.js";
-import { layoutNativeText } from "../src/tex/textBox.js";
+import { legendPlacement, renderLegendEntries } from "../src/pgfplots/legend.js";
+import { layoutNativeMixedText, layoutNativeText } from "../src/tex/textBox.js";
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
-import { tikzToSvg, tikzToSvgAsync } from "../src/index.js";
+import { defaultPgfplotsCycleMarkStyle, selectPlotColor, selectPlotMarkFillColor } from "../src/pgfplots/plotStyle.js";
+import { renderPlotMark } from "../src/pgfplots/marks.js";
+import { interpretTikz, parseTikz, tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 
 const pt = 72.27 / 2.54;
 const geometry = { origin: { x: 0, y: 0 }, width: 4, height: 3 };
@@ -13,6 +15,82 @@ const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 0.00
   `${actual}pt should match the MacTeX box ${expected}pt`);
 const render = (entries, extra = {}, plots = entries.map(() => ({ options: { "very thick": true } }))) =>
   renderLegendEntries({ "legend style": "at={(0,0)},anchor=north", ...extra }, {}, geometry, entries, plots);
+
+test("a nested legend pos applies its position and anchor in key order", () => {
+  const place = style => legendPlacement("south west", geometry, style);
+  assert.deepEqual(place("at={(0,0)},anchor=south,legend pos=outer north east"),
+    { point: { x: 4.12, y: 3 }, anchor: "north west" });
+  assert.deepEqual(place("anchor=east,legend pos=outer north east,at={(.5,0)},anchor=north"),
+    { point: { x: 2, y: 0 }, anchor: "north" });
+  assert.deepEqual(place("legend pos=north east,at={(axis description cs:.5,.25)}"),
+    { point: { x: 2, y: .75 }, anchor: "north east" });
+});
+
+test("alternate pure-math delimiters and literal-only scatter labels retain measured cells", () => {
+  assert.equal(render(["\\(x_i\\)"])[0], render(["$x_i$"])[0]);
+  const width = cmds => { const [a, b] = coordinates(cmds[0]); return b.x - a.x; };
+  const options = { mark: "square*", "mark size": "2pt" };
+  const plain = render(["Label"], {}, [{ options: { ...options, "only marks": true } }]);
+  close(width(plain), 6 + 4 + 4 + layoutNativeText("Label").width);
+});
+
+test("the default third legend mark paints its cross and circle together with a darker pen", () => {
+  const options = defaultPgfplotsCycleMarkStyle(2);
+  const mark = renderPlotMark({ x: 0, y: 0 }, options, 2);
+  const { svg, diagnostics } = tikzToSvg("\\begin{tikzpicture}" + mark + "\\end{tikzpicture}");
+  assert.deepEqual(diagnostics, []);
+  assert.equal((svg.match(/<path\b/g) || []).length, 1, "pgfusepathqfillstroke paints the complete mark once");
+  assert.equal(selectPlotColor(options, 2), "brown!60!black");
+  assert.equal(selectPlotMarkFillColor(options, 2), "brown!80!black");
+  assert.match(svg, /stroke="rgb\(115 77 38\)"/);
+  assert.match(svg, /fill="rgb\(153 102 51\)"/);
+});
+
+test("quick paint continues from the center of a closed round mark", () => {
+  for (const primitive of ["circle (7pt)", "ellipse [x radius=7pt,y radius=4pt]"]) {
+    const source = "\\begin{tikzpicture}\\draw[tikzkit quick path] (1,2) " + primitive + " -- (2,2);\\end{tikzpicture}";
+    const { ir, diagnostics } = interpretTikz(parseTikz(source).ast);
+    assert.deepEqual(diagnostics, []);
+    const paths = ir.items.filter(item => item.type === "path");
+    assert.equal(paths.length, 1);
+    assert.deepEqual(paths[0].commands.slice(-3), [{ type: "closePath" },
+      { type: "moveTo", x: 1, y: 2 }, { type: "lineTo", x: 2, y: 2 }]);
+  }
+});
+
+// Numbers below are independent measurements from pgfplots-mixed-legend-metrics.tex.
+for (const sample of [
+  { title: "small fractions and scripts in two columns",
+    entries: ["Fit $y=x^2$", "Ratio $\\frac{1}{2}$", "Data", "$x_i$ vs. $y_i$"], size: 9,
+    style: "font=\\small,legend columns=2,cells={anchor=west},column sep=3pt,row sep=2pt",
+    nw: [-39.86264, 27.88356], se: [95.62976, -3.35622],
+    labels: [[-13.79083, 15.99362], [55.98967, 16.06161], [-13.79083, 2.34372], [55.98967, 3.48122]] },
+  { title: "transformed marks without phantom line samples",
+    entries: ["$y=x^2$ samples", "anisotropic markers"], size: 10, style: "",
+    nw: [-25.60358, 27.88356], se: [81.3707, -2.60075],
+    labels: [[0.23083, 15.54355], [-9.57944, 3.09918]],
+    marks: [{ mark: "diamond*", "every mark/.append style": "scale=1.35" },
+      { mark: "triangle*", "mark options": "xscale=1.7,yscale=.6,rotate=25" }] }
+]) {
+  test("mixed legend matches native matrix: " + sample.title, () => {
+    const plots = sample.entries.map((_, i) => ({ options: sample.marks
+      ? { "only marks": true, "mark size": "4pt", ...sample.marks[i] } : { thick: true, mark: "none" } }));
+    const commands = render(sample.entries, { "legend style": "at={(0,0)},anchor=north," + sample.style }, plots);
+    const [nw, ne, se] = coordinates(commands[0]);
+    close(ne.x - nw.x, sample.se[0] - sample.nw[0] - 0.4);
+    close(nw.y - se.y, sample.nw[1] - sample.se[1] - 0.4);
+    const nodes = commands.filter(c => c.startsWith("\\node[axis legend"));
+    for (const [i, entry] of sample.entries.entries()) {
+      const font = { sizePt: sample.size };
+      const box = entry.includes("$") ? layoutNativeMixedText(entry, font) : layoutNativeText(entry, font);
+      const [anchor] = coordinates(nodes[i]);
+      close(anchor.x - (sample.marks ? box.width / 2 : 0) - nw.x + .2, sample.labels[i][0] - sample.nw[0]);
+      close(anchor.y - (box.height - box.depth) / 2 - nw.y - .2, sample.labels[i][1] - sample.nw[1]);
+    }
+    assert.equal(commands.filter(c => c.includes("axis legend image")).length, sample.marks ? 0 : 4);
+    assert.equal(commands.filter(c => c.includes("axis mark,")).length, sample.marks ? 2 : 0);
+  });
+}
 
 // Native anchor and hbox measurements: test/fixtures/pgfplots-text-legend-metrics.tex.
 for (const sample of [

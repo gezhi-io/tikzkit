@@ -1755,6 +1755,7 @@ function isCoordinateNodePlacementPath(segments = []) {
 
 function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}) {
   const commands = [];
+  const compoundQuickPath = segments.length > 2 && tikzBoolean(pathOptions["tikzkit quick path"]);
   const shapes = [];
   const nodes = [];
   const styleHints = {};
@@ -2329,7 +2330,13 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const center = current || applyCoordinateTransform({ x: 0, y: 0 }, env);
       const r = parseDimension(segment.radius, env.variables);
       const radiusEnv = radiusGeometryEnvironment(segment.radius, env);
-      const commands = circleCommands(center, r, radiusEnv);
+      const outline = circleCommands(center, r, radiusEnv);
+      // PGF appends the closed outline, then moves back to its center. A
+      // compound mark must keep this subpath until the single quick paint.
+      if (compoundQuickPath) {
+        commands.push(...outline, moveToCommand(center));
+        continue;
+      }
       shapes.push(
         decoratedShape(
           {
@@ -2340,7 +2347,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
             cx: center.x,
             cy: center.y,
             r,
-            commands,
+            commands: outline,
             style: {}
           },
           effectivePathOptions,
@@ -2360,7 +2367,11 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       const rx = parseDimension(xRadius, env.variables);
       const ry = parseDimension(yRadius, env.variables);
       const radiusEnv = radiusGeometryEnvironment(xRadius, env);
-      const commands = ellipseCommands(current, rx, ry, radiusEnv);
+      const outline = ellipseCommands(current, rx, ry, radiusEnv);
+      if (compoundQuickPath) {
+        commands.push(...outline, moveToCommand(current));
+        continue;
+      }
       shapes.push(
         decoratedShape(
           {
@@ -2371,7 +2382,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
             cy: current.y,
             rx,
             ry,
-            commands
+            commands: outline
           },
           effectivePathOptions,
           env

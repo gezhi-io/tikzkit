@@ -3,11 +3,39 @@ import { parseDimension } from "../engine/math.js";
 import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { estimateFormulaBox, parseMathText } from "../tikz/textMetrics.js";
 import { createFontSpec, parseTikzFontPatch } from "../tex/fontSpec.js";
-import { layoutNativeText } from "../tex/textBox.js";
-import { shouldRenderPlotMarks } from "./marks.js";
+import { layoutNativeMixedText, layoutNativeText } from "../tex/textBox.js";
+import { axisMarkRadius, shouldRenderPlotMarks } from "./marks.js";
 import { selectPlotStyle } from "./plotStyle.js";
+import { basicPlotMarkGeometry, plotMarkGeometryCommands, plotMarkLocalOptions, transformPlotMarkCommands } from "../tikz/libraries/plotmarks.js";
+import { emptyBoundingBox, includePoint, includePathCommandBounds } from "../scene/bbox.js";
 
 const PT_PER_CM = 72.27 / 2.54;
+const IMAGE_WIDTH = 0.6;
+
+function lineImageBounds(options, index, thick) {
+  const style = selectPlotStyle(options, index) + (thick ? ",thick" : "");
+  const pen = normalizeOptions("draw", parseOptions(style), { variables: {}, styles: {} }).style.lineWidth / TIKZ_UNIT / 2;
+  const bounds = emptyBoundingBox();
+  if (!options["only marks"]) {
+    includePoint(bounds, { x: -pen, y: -pen });
+    includePoint(bounds, { x: IMAGE_WIDTH + pen, y: pen });
+  }
+  if (shouldRenderPlotMarks(options)) {
+    const center = { x: IMAGE_WIDTH / 2, y: 0 };
+    const local = plotMarkLocalOptions(options);
+    const size = axisMarkRadius({ ...options, ...local });
+    const mark = String(options.mark || "*").toLowerCase();
+    const shape = basicPlotMarkGeometry(mark, size) ??
+      (["*", "o"].includes(mark) ? { primitives: [{ type: "circle", radius: size }] } : null);
+    if (!shape || options["tikzkit plot mark declarations"]?.[mark]) return null;
+    // Stock marks use PGF quick paint: the marker path, not its pen width,
+    // contributes to the cell. The unused plot coordinates contribute nothing.
+    const commands = transformPlotMarkCommands(plotMarkGeometryCommands(shape, center), center, local);
+    includePathCommandBounds(commands, (x, y) => includePoint(bounds, { x, y }));
+  }
+  if (!Number.isFinite(bounds.minX)) includePoint(bounds, { x: 0, y: 0 });
+  return bounds;
+}
 
 // pgfplots.code.tex: every axis legend is a matrix of alternating line-image
 // and text-node cells. pgfmodulematrix uses picture bounds, not node outer sep,
@@ -32,10 +60,9 @@ export function layoutLineLegend(entries, { font: fontCommand, fontScale, column
   const text = entries.map(entry => {
     const math = parseMathText(entry);
     if (!math) {
-      // Literal labels use the same TeX hboxes that the SVG text renderer paints.
-      // Leave controls and mixed text to their existing layout path.
-      if (/[\\$#%&^_~{}]/.test(entry)) return null;
-      const box = layoutNativeText(entry.trim(), font);
+      const source = entry.trim();
+      if (source.split("$").some((span, i) => !(i % 2) && /[\\#%&^_~{}]/.test(span))) return null;
+      const box = source.includes("$") ? layoutNativeMixedText(source, font) : layoutNativeText(source, font);
       return box && { width: box.width / PT_PER_CM, height: box.height / PT_PER_CM, depth: box.depth / PT_PER_CM };
     }
     return estimateFormulaBox(math.tex, { scale: fontScale * (math.scale || 1),
@@ -44,37 +71,39 @@ export function layoutLineLegend(entries, { font: fontCommand, fontScale, column
       preferNativeMath: true, minWidth: 0, widthPadding: 0, texTextMetrics: true });
   });
   if (text.some(box => !box)) return null;
-  const imageWidth = 0.6;
-  const images = entries.map((_entry, index) => {
-    const options = plots[index]?.options || {};
-    const style = selectPlotStyle(options, index) + (axisOptions.thick ? ",thick" : "");
-    const stroke = normalizeOptions("draw", parseOptions(style), { variables: {}, styles: {} }).style.lineWidth / TIKZ_UNIT;
-    const radius = shouldRenderPlotMarks(options) ? length(options["mark size"] || "2pt") : 0;
-    return { overhang: Math.max(stroke / 2, radius - imageWidth / 2), height: Math.max(stroke, 2 * radius + stroke) };
+  const images = entries.map((_, i) => lineImageBounds(plots[i]?.options || {}, i, axisOptions.thick));
+  if (images.some(image => !image)) return null;
+  const imageColumns = Array.from({ length: columns }, (_, col) => {
+    const column = images.filter((_, i) => i % columns === col);
+    return { left: Math.min(...column.map(b => b.minX)), right: Math.max(...column.map(b => b.maxX)) };
   });
-  const imageOverhangs = Array.from({ length: columns }, (_, col) => Math.max(
-    ...images.filter((_, i) => i % columns === col).map(image => image.overhang)));
   const textWidths = Array.from({ length: columns }, (_, col) => Math.max(
     ...text.filter((_, i) => i % columns === col).map(box => box.width)));
-  const widths = textWidths.map((width, col) => imageWidth + 2 * imageOverhangs[col] + width + 2 * cellX + columnSep);
-  const rows = Array.from({ length: Math.ceil(entries.length / columns) }, (_, row) => Math.max(
-    ...text.slice(row * columns, (row + 1) * columns).map((box, col) => Math.max(
-      length(nodes["text height"], box.height) + fixedDepth + 2 * cellY, images[row * columns + col].height))));
+  const widths = textWidths.map((width, col) => imageColumns[col].right - imageColumns[col].left + width + 2 * cellX + columnSep);
+  const rows = Array.from({ length: Math.ceil(entries.length / columns) }, (_, row) => {
+    let above = 0, below = 0;
+    for (let i = row * columns; i < Math.min(text.length, (row + 1) * columns); i++) {
+      const half = (length(nodes["text height"], text[i].height) + fixedDepth) / 2 + cellY;
+      above = Math.max(above, half, images[i].maxY);
+      below = Math.max(below, half, -images[i].minY);
+    }
+    return { above, height: above + below };
+  });
   const cells = text.map((box, index) => {
     const col = index % columns;
     const row = Math.floor(index / columns);
     const left = innerX + widths.slice(0, col).reduce((a, b) => a + b, 0) + col * columnSep;
-    const top = innerY + rows.slice(0, row).reduce((a, b) => a + b, 0) + row * rowSep;
-    const x0 = left + imageOverhangs[col];
-    const textLeft = left + imageWidth + 2 * imageOverhangs[col] + columnSep + cellX;
-    return { x0, x1: x0 + imageWidth, textLeft, textRight: textLeft + textWidths[col],
-      down: top + rows[row] / 2,
+    const top = innerY + rows.slice(0, row).reduce((a, b) => a + b.height, 0) + row * rowSep;
+    const x0 = left - imageColumns[col].left;
+    const textLeft = x0 + imageColumns[col].right + columnSep + cellX;
+    return { x0, x1: x0 + IMAGE_WIDTH, textLeft, textRight: textLeft + textWidths[col],
+      down: top + rows[row].above,
       // TikZ centers the node using its forced text depth; the glyphs retain
       // their real TeX depth. Fractions must not share the sample's paint center.
       textOffset: (fixedDepth - box.depth + box.height - length(nodes["text height"], box.height)) / 2 };
   });
   const borderStyle = normalizeOptions("draw", parseOptions(`line width=${style["line width"] || "0.4pt"}`), { variables: {}, styles: {} }).style;
   return { width: 2 * innerX + widths.reduce((a, b) => a + b, 0) + (columns - 1) * columnSep,
-    height: 2 * innerY + rows.reduce((a, b) => a + b, 0) + (rows.length - 1) * rowSep,
+    height: 2 * innerY + rows.reduce((a, b) => a + b.height, 0) + (rows.length - 1) * rowSep,
     outerSep: borderStyle.lineWidth / TIKZ_UNIT / 2, cells };
 }
