@@ -12,10 +12,11 @@ import { captureDatavisPin, compareDatavisPin } from "./browser-datavis-pin-metr
 import { captureArrowPaint, compareArrowPaint } from "./browser-arrow-metrics.js";
 import { captureSurfacePaint, compareSurfacePaint } from "./browser-surface-paint-metrics.js";
 import { captureChronologyPaint, compareChronologyPaint } from "./browser-chronology-metrics.js";
+import { openWorkbenchAudit } from "./workbench-audit-driver.js";
 
 const arg = name => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined;
 assert.ok(arg("--output") && arg("--browser-module"),
-  "Usage: node scripts/audit-module-regressions.js --output <rendered directory> --browser-module <local playwright/index.mjs> [--fixtures <directory>] [--only <id>] [--before <baseline directory>] [--legend-metrics] [--plot-clip-metrics] [--axis-text-metrics] [--tick-grid-metrics] [--cross-out-metrics]");
+  "Usage: node scripts/audit-module-regressions.js --output <rendered directory> --browser-module <local playwright/index.mjs> [--fixtures <directory>] [--only <id>] [--before <baseline directory>] [--workbench] [--legend-metrics] [--plot-clip-metrics] [--axis-text-metrics] [--tick-grid-metrics] [--cross-out-metrics]");
 const outputRoot = path.resolve(arg("--output"));
 const beforeRoot = arg("--before") ? path.resolve(arg("--before")) : null;
 const fixtureRoot = path.resolve(arg("--fixtures") || "test/fixtures/module-regressions");
@@ -42,17 +43,19 @@ const { chromium } = await import(pathToFileURL(path.resolve(arg("--browser-modu
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const summaries = [];
 await mkdir(path.join(outputRoot, "browser"), { recursive: true });
+let workbench;
 try {
+  if (process.argv.includes("--workbench")) workbench = await openWorkbenchAudit(browser, fixtureRoot, outputRoot);
   const page = await browser.newPage({ viewport: { width: 1800, height: 1600 }, deviceScaleFactor: 1 });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
   for (const entry of cases) {
     const { id } = entry;
     const source = await readFile(path.join(fixtureRoot, entry.source), "utf8");
-    const result = tikzToSvg(source);
+    const result = workbench ? await workbench.render(id, source) : tikzToSvg(source);
     assert.deepEqual(result.diagnostics, [], `${id}: browser render diagnostics`);
     const inputs = [
-      ["Default JS", result.svg],
+      [workbench ? "Live workbench JS" : "Default JS", result.svg],
       [renderSummary.cases?.find(item => item.id === id)?.referenceKind === "native-latex"
         ? "MacTeX full document (tikztosvg wrapper unsupported)" : "Local tikztosvg",
         await portableSvg(path.join(outputRoot, "tikztosvg-svg", `${id}.svg`))],
@@ -186,7 +189,8 @@ try {
       panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, surfacePaint, chronologyPaint, quiverViewport,
         ...(curves ? { viewport: curves.viewport, curvesImage: `${stem}-curves.png` } : {}) });
     }
-    const difference = compareDecodedPngs(images[2], images[1]);
+    const comparisonIndex = workbench ? 0 : 2;
+    const difference = compareDecodedPngs(images[comparisonIndex], images[1]);
     const sheet = `browser/${id}-sheet.png`;
     await writeFile(path.join(outputRoot, sheet), encodePng(composeImageSheet(
       [...images, difference.diff], { columns: 2, gap: 20, padding: 20 })));
@@ -216,7 +220,7 @@ try {
       }
       alignedSheet = `browser/${id}-aligned-sheet.png`;
       await writeFile(path.join(outputRoot, alignedSheet), encodePng(composeImageSheet(
-        [...aligned, compareDecodedPngs(aligned[2], aligned[1]).diff], { columns: 2, gap: 20, padding: 20 })));
+        [...aligned, compareDecodedPngs(aligned[comparisonIndex], aligned[1]).diff], { columns: 2, gap: 20, padding: 20 })));
     }
     let nativeGlyphGate;
     if (id === "math-native-contracts") {
@@ -373,7 +377,7 @@ try {
     } : undefined;
     if (chronologyGate) chronologyGate.accepted = chronologyGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
     summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, crossGate, pinGate, arrowGate, paintColorGate, surfacePaintGate, quiverPaintGate, chronologyGate,
-      comparison: "Browser at 3x CSS zoom; SVG-text/reference diff is supplemental, not visual acceptance",
+      comparison: `Browser at 3x CSS zoom; ${panels[comparisonIndex].title}/reference diff is supplemental, not visual acceptance`,
       meanAbsoluteRGBA: difference.meanAbsoluteRGBA });
   }
   assert.deepEqual(errors, []);
@@ -410,5 +414,6 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
   assert.ok(summaries.every(c => !c.quiverPaintGate || c.quiverPaintGate.accepted), "Browser quiver paint must match the native reference");
   assert.ok(summaries.every(c => !c.chronologyGate || c.chronologyGate.accepted), "Browser chronology events and glyphs must match the native reference");
 } finally {
+  await workbench?.close();
   await browser.close();
 }

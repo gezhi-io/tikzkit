@@ -1,0 +1,5 @@
+{
+  "cases": [
+    { "id": "small-rows", "source": "small-rows.tex", "title": "Small text, explicit column spacing and an incomplete row" }
+  ]
+}

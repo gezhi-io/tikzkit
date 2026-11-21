@@ -3,6 +3,7 @@ import { parseDimension } from "../engine/math.js";
 import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { estimateFormulaBox, parseMathText } from "../tikz/textMetrics.js";
 import { createFontSpec, parseTikzFontPatch } from "../tex/fontSpec.js";
+import { layoutNativeText } from "../tex/textBox.js";
 import { shouldRenderPlotMarks } from "./marks.js";
 import { selectPlotStyle } from "./plotStyle.js";
 
@@ -11,7 +12,7 @@ const PT_PER_CM = 72.27 / 2.54;
 // pgfplots.code.tex: every axis legend is a matrix of alternating line-image
 // and text-node cells. pgfmodulematrix uses picture bounds, not node outer sep,
 // for column widths and row heights. Keep all dimensions in physical cm here.
-export function layoutMathLegend(entries, { font: fontCommand, fontScale, columns, axisOptions, plots, mathOptions }) {
+export function layoutLineLegend(entries, { font: fontCommand, fontScale, columns, axisOptions, plots, mathOptions }) {
   const font = createFontSpec({ ...parseTikzFontPatch(fontCommand), sizePt: 10 * fontScale,
     mathExtension: mathOptions.mathExtension });
   const style = parseOptions(axisOptions["legend style"] || "");
@@ -30,11 +31,19 @@ export function layoutMathLegend(entries, { font: fontCommand, fontScale, column
   const columnSep = length(style["column sep"], 0);
   const text = entries.map(entry => {
     const math = parseMathText(entry);
+    if (!math) {
+      // Literal labels use the same TeX hboxes that the SVG text renderer paints.
+      // Leave controls and mixed text to their existing layout path.
+      if (/[\\$#%&^_~{}]/.test(entry)) return null;
+      const box = layoutNativeText(entry.trim(), font);
+      return box && { width: box.width / PT_PER_CM, height: box.height / PT_PER_CM, depth: box.depth / PT_PER_CM };
+    }
     return estimateFormulaBox(math.tex, { scale: fontScale * (math.scale || 1),
       displayMode: math.displayMode, mathVersion: font.mathVersion,
       mathExtension: font.mathExtension, baselineSkipPt: font.baselineSkipPt,
       preferNativeMath: true, minWidth: 0, widthPadding: 0, texTextMetrics: true });
   });
+  if (text.some(box => !box)) return null;
   const imageWidth = 0.6;
   const images = entries.map((_entry, index) => {
     const options = plots[index]?.options || {};

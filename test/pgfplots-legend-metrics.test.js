@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderLegendEntries } from "../src/pgfplots/legend.js";
+import { layoutNativeText } from "../src/tex/textBox.js";
+import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 import { tikzToSvg, tikzToSvgAsync } from "../src/index.js";
 
 const pt = 72.27 / 2.54;
@@ -11,6 +13,78 @@ const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 0.00
   `${actual}pt should match the MacTeX box ${expected}pt`);
 const render = (entries, extra = {}, plots = entries.map(() => ({ options: { "very thick": true } }))) =>
   renderLegendEntries({ "legend style": "at={(0,0)},anchor=north", ...extra }, {}, geometry, entries, plots);
+
+// Native anchor and hbox measurements: test/fixtures/pgfplots-text-legend-metrics.tex.
+for (const sample of [
+  { title: "student counts", entries: ["Eingeschriebene Studenten", "davon Frauen", "davon Ausl\u00e4nder"],
+    style: "legend columns=-1,draw=none", size: 10, anchor: "center", frame: 321.53256,
+    lines: [[-157.36629, -8.42218], [-18.3276, -8.42218], [62.87767, -8.42218]],
+    labels: [[-137.89447, -11.14442], [1.14421, -11.14442], [82.34949, -11.14442]] },
+  { title: "small type with a partially filled last row", entries: ["Menge", "Werte", "Gesamtmenge"],
+    style: "legend columns=2,column sep=4pt,row sep=2pt,font=\\small", size: 9, anchor: "west", frame: 142.31868,
+    lines: [[-67.75935, -8.02495], [18.50858, -8.02495], [-67.75935, -21.67485]],
+    labels: [[-44.28754, -10.34996], [41.9804, -10.34996], [-44.28754, -23.99986]] }
+]) {
+  test(`PGFPlots multi-column text legend matches MacTeX: ${sample.title}`, () => {
+    const commands = render(sample.entries, { "legend style": "at={(0,0)},anchor=north," + sample.style,
+      "legend cell align": sample.anchor === "west" ? "left" : "center" },
+      sample.entries.map(() => ({ options: { thick: true, mark: "none" } })));
+    const frame = coordinates(commands[0]);
+    close(frame[1].x - frame[0].x, sample.frame);
+    const lines = commands.filter(c => c.includes("axis legend image")).map(coordinates);
+    const labels = commands.filter(c => c.includes("\\node[axis legend")).map(coordinates);
+    for (const [i, entry] of sample.entries.entries()) {
+      close(lines[i][0].x, sample.lines[i][0]);
+      close(lines[i][0].y, sample.lines[i][1]);
+      close(lines[i][1].x - lines[i][0].x, 0.6 * pt);
+      const box = layoutNativeText(entry, { sizePt: sample.size });
+      close(labels[i][0].x - (sample.anchor === "center" ? box.width / 2 : 0), sample.labels[i][0]);
+      close(labels[i][0].y - (box.height - box.depth) / 2, sample.labels[i][1]);
+    }
+  });
+}
+
+test("upright CM diaereses use the accent and base glyphs at the MacTeX advance", () => {
+  for (const [text, base, width, height, dx, dy] of [
+    ["\u00e4", "a", 5.00002, 6.67859, 0, 0],
+    ["\u00f6", "o", 5.00002, 6.67859, 0, 0],
+    ["\u00fc", "u", 5.55557, 6.67859, 0.27778, 0],
+    ["\u00c4", "A", 7.50002, 9.20636, 1.25, -2.52777],
+    ["\u00d6", "O", 7.7778, 9.20636, 1.38889, -2.52777],
+    ["\u00dc", "U", 7.50002, 9.20636, 1.25, -2.52777]
+  ]) {
+    const box = layoutNativeText(text);
+    assert.ok(box);
+    close(box.width, width);
+    close(box.height, height);
+    close(box.depth, 0);
+    assert.deepEqual(box.items.map(i => i.text), ["\u00a8", base]);
+    close(box.items[0].x, dx);
+    close(box.items[0].y, dy);
+    close(box.items[1].x, 0);
+  }
+  close(layoutNativeText("davon Ausl\u00e4nder").width, 73.41682);
+  assert.equal(layoutNativeText("\u00e4", { style: "italic" }), null);
+  assert.equal(layoutNativeText("\u2603"), null);
+});
+
+test("axis description positions honor either spelling of the y tick label style", () => {
+  const ranges = { xMin: 1986, xMax: 2014, yMin: 0, yMax: 26000, zMin: 0, zMax: 1 };
+  for (const key of ["yticklabel style", "y tick label style", "ticklabel style"]) {
+    const geometry = createAxisGeometry({ width: "15cm", height: "8cm", "axis lines": "middle",
+      "enlarge y limits": true, [key]: "{scaled ticks=false}" }, ranges);
+    close(geometry.mapAxisDescriptionPoint({ x: 0.5, y: 1 }).x * pt, (15 * pt - 45) / 2);
+  }
+});
+
+test("a composed text label keeps its complete accessible name as well as both painted glyphs", async () => {
+  const source = "\\begin{tikzpicture}\\node {Harte Abh\u00e4ngigkeit};\\end{tikzpicture}";
+  for (const { svg, diagnostics } of [tikzToSvg(source), await tikzToSvgAsync(source)]) {
+    assert.deepEqual(diagnostics, []);
+    assert.match(svg, /role="img" aria-label="Harte Abh\u00e4ngigkeit"/);
+    assert.match(svg, />\u00a8<\/text><text\b[^>]+>a<\/text>/);
+  }
+});
 
 test("legend cells use TeX text depth, node padding, and the stroked sample bbox", () => {
   const commands = render([String.raw`$\cos x$`, "$x$"]);

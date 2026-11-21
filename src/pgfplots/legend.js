@@ -13,7 +13,7 @@ import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
 import { plotFillOpacityOption, selectPlotFillStyle, selectPlotStyle } from "./plotStyle.js";
 import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
 import { cmMathMetrics } from "../tex/cmMathMetrics.js";
-import { layoutMathLegend } from "./legendMatrix.js";
+import { layoutLineLegend } from "./legendMatrix.js";
 
 const TEX_PT_PER_CM = 28.45274;
 const PGFPLOTS_LEGEND_OUTER_XSEP = 3 / TEX_PT_PER_CM;
@@ -117,8 +117,9 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
       ? PGFPLOTS_LEGEND_IMAGE_WIDTH
       : Math.max(0.28, 0.42 * fontScale / 0.7);
   const columnCount = legendColumnCount(axisOptions, entries.length);
-  const nativeMatrix = mathLegend && !stackedBarLegend && !areaLegend
-    ? layoutMathLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions })
+  const plainColumns = columnCount > 1 && entries.every(entry => !parseMathText(entry));
+  const nativeMatrix = (mathLegend || plainColumns) && !stackedBarLegend && !areaLegend
+    ? layoutLineLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions })
     : null;
   // Text boxes carry sub-point metrics. Three-decimal axis-data rounding is
   // unnecessarily lossy for a legend baseline, especially at small font sizes.
@@ -189,7 +190,7 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
     if (!stackedBarLegend && !areaLegend && shouldRenderPlotMarks(plot?.options || {})) {
       commands.push(renderPlotMark({ x: (x0 + x1) / 2, y }, plot.options, index));
     }
-    commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
+    commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix && mathLegend ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
   });
   return commands;
 }

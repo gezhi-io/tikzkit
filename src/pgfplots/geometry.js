@@ -18,6 +18,7 @@ import { axisNumberList } from "./coordinates.js";
 import { formatAxisTickLabel, roundAxis, roundAxisRange } from "./format.js";
 import { isLogAxis, scaleAxisValue } from "./ranges.js";
 import { axisLogBase } from "./logAxis.js";
+import { axisTickLabelStyleOptions } from "./axisOptions.js";
 import { createNative3DProjection, resolveNative3DRequestedSize, usesNative3DScaling } from "./scaling3d.js";
 
 export const PGFPLOTS_DEFAULT_AXIS_WIDTH = parseDimension("240pt", {});
@@ -461,7 +462,7 @@ function perpendicularMiddleAxisIsInterior(axis, ranges = {}) {
 }
 
 function middleAxisUsesScaledYTicks(axisOptions = {}, ranges = {}) {
-  const yTickStyle = parseOptions(String(axisOptions["y tick label style"] ?? axisOptions.yticklabelStyle ?? ""));
+  const yTickStyle = axisTickLabelStyleOptions(axisOptions, "y");
   const raw = axisOptions["scaled y ticks"] ?? axisOptions["scaled ticks"] ?? yTickStyle["scaled y ticks"] ?? yTickStyle["scaled ticks"];
   if (raw === false || /^(?:false|none|off|0)$/i.test(String(raw || "").trim())) return false;
   const maxAbs = Math.max(Math.abs(Number(ranges.yMin) || 0), Math.abs(Number(ranges.yMax) || 0));

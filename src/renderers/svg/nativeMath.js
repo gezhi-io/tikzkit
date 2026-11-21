@@ -11,7 +11,11 @@ export function renderNativeMath(item, box, unit, color) {
 }
 
 export function renderNativeText(item, box, unit, color) {
-  return renderNativeBox(item, box, unit, color, 'class="tikz-text-native" data-text-layout="cm-tex-box"');
+  // Literal words may paint as separate letters, ligatures and accent marks.
+  // Expose the intact label, never a raw TeX command, to assistive readers.
+  const text = String(item.text ?? "").trim();
+  const label = text && !/[\\${}\r\n]/.test(text) ? ` role="img" aria-label="${escapeAttribute(text)}"` : "";
+  return renderNativeBox(item, box, unit, color, 'class="tikz-text-native" data-text-layout="cm-tex-box"' + label);
 }
 
 function renderNativeBox(item, box, unit, color, metadata) {

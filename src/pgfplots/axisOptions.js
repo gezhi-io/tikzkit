@@ -5,6 +5,18 @@ export { parsePgfplotsColormaps } from "./colormap.js";
 
 export const PGFPLOTS_LIBRARY_SUPPORT = pgfplotsLibraryCatalog;
 
+// PGFPlots declares xticklabel style and yticklabel style as aliases of
+// x/y tick label style. Sizing and painting must see the same option list.
+export function axisTickLabelStyleOptions(options = {}, axis = "x") {
+  const merged = {};
+  for (const name of ["tick label style", "ticklabel style", "ticklabelStyle",
+    `${axis}ticklabelStyle`, `${axis} tick label style`, `${axis}ticklabel style`]) {
+    const style = options[name];
+    if (style != null && typeof style !== "boolean") Object.assign(merged, parseOptions(stripBalancedOuterBraces(style)));
+  }
+  return merged;
+}
+
 export function createAxisOptions(rawOptions = {}) {
   const normalized = Object.fromEntries(
     Object.entries(rawOptions).map(([key, value]) => [key.replace(/^\/pgfplots\//, ""), value])

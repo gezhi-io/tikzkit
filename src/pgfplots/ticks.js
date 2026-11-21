@@ -5,7 +5,8 @@ import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { formatAxisPoint, formatAxisTickLabel, joinOptions, roundAxis } from "./format.js";
 import { axisHasExplicitDescriptionPlacement, axisTickLabelNormalExtent, isMiddleAxis } from "./geometry.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
-import { pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
+import { axisTickLabelStyleOptions, pgfplotsAxisHidden, pgfplotsUsesNative2DText } from "./axisOptions.js";
+export { axisTickLabelStyleOptions };
 import { axisZeroValue, isLogAxis } from "./ranges.js";
 import { axisLogBase, axisLogMajorTickValues, axisLogMinorTickValues, axisLogTickLabel } from "./logAxis.js";
 import { pgfNumberFormatOptions } from "../pgf/numberFormat.js";
@@ -506,22 +507,6 @@ function pgfplotsTickLabelTextWidthScale(fontCommand = "", axisOptions = {}, lab
     ? PGFPLOTS_SCRIPTSIZE_TICK_LABEL_TEXT_WIDTH_SCALE
     : PGFPLOTS_TICK_LABEL_TEXT_WIDTH_SCALE;
   return `tikzkit text width scale=${scale}`;
-}
-
-export function axisTickLabelStyleOptions(axisOptions = {}, axis = "x") {
-  const styles = [
-    axisOptions["tick label style"],
-    axisOptions["ticklabel style"],
-    axisOptions.ticklabelStyle,
-    axisOptions[`${axis} tick label style`],
-    axisOptions[`${axis}ticklabel style`]
-  ];
-  const merged = {};
-  for (const style of styles) {
-    if (style === undefined || style === null || style === true || style === false) continue;
-    Object.assign(merged, parseOptions(stripBalancedOuterBracesForList(String(style).trim())));
-  }
-  return merged;
 }
 
 export function axisTickLabelAnchor(style = {}, fallback = "center", axis = "") {

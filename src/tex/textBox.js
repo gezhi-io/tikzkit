@@ -218,10 +218,25 @@ export function layoutNativeText(text, font = {}) {
         (sentence ? metrics.parameters.EXTRASPACE * size : 0);
       continue;
     }
-    const glyph = metrics.glyphs[char];
-    if (!glyph) return null;
+    let base = char;
+    let glyph = metrics.glyphs[char];
+    // OT1's diaeresis is a separate glyph centered over an upright base.
+    // TeX raises it by (base height - fontdimen5), with no extra advance.
+    if (!glyph) {
+      const decomposed = char.normalize("NFD");
+      const accent = metrics.glyphs["\u00a8"];
+      if (!/^[AOUaou]\u0308$/.test(decomposed) || !accent) return null;
+      base = decomposed[0];
+      glyph = metrics.glyphs[base];
+      if (!glyph) return null;
+      const raise = (glyph[1] - metrics.parameters.XHEIGHT) * size;
+      box.items.push({ type: "glyph", text: "\u00a8", x: box.width + (glyph[0] - accent[0]) * size / 2, y: -raise,
+        size, family: metrics.family, style: metrics.style, weight: metrics.weight });
+      box.height = Math.max(box.height, accent[1] * size + raise);
+      box.depth = Math.max(box.depth, accent[2] * size - raise);
+    }
     box.width += (metrics.kern[chars[index - 1]]?.[char] || 0) * size;
-    box.items.push({ type: "glyph", text: char, x: box.width, y: 0, size,
+    box.items.push({ type: "glyph", text: base, x: box.width, y: 0, size,
       family: metrics.family, style: metrics.style, weight: metrics.weight });
     box.width += glyph[0] * size;
     box.height = Math.max(box.height, glyph[1] * size);
