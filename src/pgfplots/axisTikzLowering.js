@@ -99,7 +99,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   if (resolvedAxisOptions["pgfplots ternary axis"]) {
     return dependencies.renderTernaryAxisAsTikz(resolvedAxisOptions, addplots);
   }
-  const surveyedRanges = dependencies.computeAxisRanges(resolvedAxisOptions, addplots, { ...options, enlargeZ: false });
+  const surveyedRanges = dependencies.computeAxisRanges(resolvedAxisOptions, addplots, { ...options, enlargeZ: false, diagnostics });
   const ranges = has3dPlot ? enlarge3DZLimits(resolvedAxisOptions, surveyedRanges) : surveyedRanges;
   if (has3dPlot) {
     // Default z point-meta limits belong to the data, not to the viewport.

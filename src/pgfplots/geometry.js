@@ -919,6 +919,7 @@ function projectedMiddleAxisRanges(axisOptions = {}, ranges = {}, options = {}) 
   if (!isMiddleAxis(axisOptions)) {
     for (const axis of ["x", "y"]) {
       if (!axisEnlargeEnabledFor(axisOptions, axis)) continue;
+      if (ranges.surveyedLogLimits?.[axis] && !axisOptions["pgfplots 3d surface"] && isLogAxis(axisOptions, axis)) continue;
       const adjusted = relativeAxisEnlargeRange(axisOptions, axis, result[`${axis}Min`], result[`${axis}Max`]);
       result[`${axis}Min`] = adjusted.min;
       result[`${axis}Max`] = adjusted.max;

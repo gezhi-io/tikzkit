@@ -51,7 +51,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     }
   }
   for (const plot of addplots) {
-    const errorBars = resolvePlotErrorBars(axisOptions, plot);
+    const errorBars = resolvePlotErrorBars(axisOptions, plot, options.diagnostics);
     if (plot.type === "coordinates") {
       surveyErrors(plot.points, errorBars);
       for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
@@ -161,6 +161,12 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
       }
     }
   }
+  // PGF enlarges the surveyed log limits before its empty-range fallback.
+  const log2D = (xLog || yLog) && !axisOptions["pgfplots 3d surface"] && !addplots.some(plot => plot.is3d);
+  const logXLimits = log2D && xLog && enlargeLogRange(axisOptions, "x", xMin, xMax, hasExplicitXMin, hasExplicitXMax);
+  const logYLimits = log2D && yLog && enlargeLogRange(axisOptions, "y", yMin, yMax, hasExplicitYMin, hasExplicitYMax);
+  if (logXLimits) [xMin, xMax] = logXLimits;
+  if (logYLimits) [yMin, yMax] = logYLimits;
   if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
     yMin = yLog ? 1 : -1;
     yMax = yLog ? 10 : 1;
@@ -189,8 +195,8 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
       yMax += 1;
     }
   }
-  const keepXZero = middleAxisKeepsZeroRange(axisOptions, "x", hasExplicitYMin || hasExplicitYMax);
-  const keepYZero = middleAxisKeepsZeroRange(axisOptions, "y", hasExplicitXMin || hasExplicitXMax);
+  const keepXZero = !xLog && middleAxisKeepsZeroRange(axisOptions, "x", hasExplicitYMin || hasExplicitYMax);
+  const keepYZero = !yLog && middleAxisKeepsZeroRange(axisOptions, "y", hasExplicitXMin || hasExplicitXMax);
   if (!hasExplicitXMin && keepXZero && xMin >= 0) xMin = 0;
   if (!hasExplicitXMax && keepXZero && xMax <= 0) xMax = 0;
   if (!hasExplicitYMin && keepYZero && yMin >= 0) yMin = 0;
@@ -246,7 +252,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
   if (enlargeZ && !zLog && (axisOptions["pgfplots 3d surface"] || addplots.some(plot => plot.is3d))) {
     [zMin, zMax] = enlarge3DZRange(axisOptions, zMin, zMax, hasExplicitZMin, hasExplicitZMax);
   }
-  return {
+  const ranges = {
     // Surface geometry and the surveyed frame must use the same sample
     // endpoints; rounding a limit to 0.001 can put facets outside the box.
     xMin: roundResolvedAxisValue(xMin, xLog || hasSurfacePlot || errorX, "x"),
@@ -256,6 +262,12 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     zMin: roundResolvedAxisValue(zMin, zLog, "z"),
     zMax: roundResolvedAxisValue(zMax, zLog, "z")
   };
+  // Geometry also accepts raw, unsurveyed ranges. Mark only limits that
+  // finished this phase, without altering the six public numeric fields.
+  if (logXLimits || logYLimits) Object.defineProperty(ranges, "surveyedLogLimits", {
+    value: { x: Boolean(logXLimits), y: Boolean(logYLimits) }
+  });
+  return ranges;
 }
 
 export function enlarge3DZLimits(options, ranges) {
@@ -455,6 +467,57 @@ function isSurfaceOptions(options = {}) {
 
 function hasAxisBound(value) {
   return value !== undefined && value !== null && value !== true && String(value).trim() !== "";
+}
+
+function enlargeLogRange(options, axis, min, max, explicitMin, explicitMax) {
+  if (!(min > 0 && max > min && Number.isFinite(max))) return null;
+  let setting = "auto";
+  for (const [key, value] of Object.entries(options)) {
+    if (key === "enlargelimits" || key === `enlarge ${axis} limits` || key === `enlarge ${axis} limits*`) setting = value;
+    else if ((key === "axis lines" || key === `axis ${axis} line` || key === "axis") &&
+      isNonBoxedAxisLineValue(normalizeAxisLineValue(value))) setting = false;
+  }
+  let lower = false, upper = false, relative = PGFPLOTS_DEFAULT_ENLARGE_LIMITS, absolute = null;
+  const list = String(setting).trim().replace(/^\{([\s\S]*)\}$/, "$1");
+  // @enlargelimits/rel and /abs enable both sides; /value and /abs value
+  // change the magnitude only. Replay the keys in source order.
+  for (const token of splitTopLevel(list, ",")) {
+    for (const [key, value] of Object.entries(parseOptions(token))) {
+      switch (key) {
+        case "auto": lower = !explicitMin; upper = !explicitMax; break;
+        case "true": lower = upper = true; break;
+        case "false": case "off": case "none": lower = upper = false; break;
+        case "lower": lower = true; upper = false; break;
+        case "upper": lower = false; upper = true; break;
+        case "rel": case "value":
+          if (key === "rel") lower = upper = true;
+          relative = axisNumber(value, NaN); absolute = null;
+          break;
+        case "abs": case "abs value":
+          if (key === "abs") lower = upper = true;
+          // Physical TeX dimensions belong to the later figure-sizing phase.
+          absolute = axisNumber(value, NaN);
+          break;
+        default:
+          lower = upper = true; relative = axisNumber(key, NaN); absolute = null;
+      }
+    }
+  }
+  if (!lower && !upper) return [min, max];
+  // pgfplots@enlarge@limit@for subtracts the transformed limits in pt,
+  // multiplies that original span as a TeX dimension, and ignores <= .001pt.
+  // The unconfigured internal log is natural, irrespective of decimal labels.
+  const basis = String(options[`log basis ${axis}`] ?? options[`log base ${axis}`] ?? "").trim().toLowerCase();
+  const unit = basis && basis !== "e" ? Math.log(axisLogBase(options, axis)) : 1;
+  const sp = 65536;
+  const low = Math.round(Math.log(min) / unit * sp), high = Math.round(Math.log(max) / unit * sp);
+  const pad = absolute === null ? Math.trunc((high - low) * Math.round(relative * sp) / sp)
+    : Math.round(Math.log(absolute) / unit * sp);
+  if (!Number.isFinite(pad)) return null;
+  if (!(pad > Math.round(.001 * sp))) return [min, max];
+  const a = lower ? Math.exp((low - pad) / sp * unit) : min;
+  const b = upper ? Math.exp((high + pad) / sp * unit) : max;
+  return [a > 0 ? a : min, Number.isFinite(b) ? b : max];
 }
 
 function axisEnlargeLimitConfig(axisOptions = {}, axis, { hasSurfacePlot = false } = {}) {

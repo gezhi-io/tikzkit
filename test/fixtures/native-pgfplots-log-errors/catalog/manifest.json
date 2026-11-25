@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"manual-log-relative","title":"Manual: log-log table with relative x and y errors","source":"../manual-log-relative.tex"},
+    {"id":"semilogy-asymmetric","title":"Semilogy: independent linear x and log y arms","source":"../semilogy-asymmetric.tex"},
+    {"id":"loglog-mixed-bases","title":"Log-log: base 2 x and base 10 y, absolute and relative errors","source":"../loglog-mixed-bases.tex"},
+    {"id":"nonpositive-lower","title":"Semilogx: zero, negative and positive lower endpoints","source":"../nonpositive-lower.tex"},
+    {"id":"semilogy-invalid-centers","title":"Semilogy: invalid center breaks the line and must not extend the other axis","source":"../semilogy-invalid-centers.tex"}
+  ]
+}

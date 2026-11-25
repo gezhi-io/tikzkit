@@ -101,13 +101,17 @@ test("pgfplots extra ticks remain visible where middle axes cross", () => {
 });
 
 test("pgfplots extra passes do not repeat explicitly configured minor ticks", () => {
-  const commands = renderTicks({
+  const options = {
+    "scale only axis": true, enlargelimits: false,
     "x minor tick values": "{0.5}",
-    "y minor tick values": "{0.5}",
-    "extra x ticks": "{2.5}"
-  });
-
-  assert.equal(commands.filter((command) => command.includes("\\draw[axis minor tick")).length, 2);
+    "y minor tick values": "{0.5}"
+  };
+  const strokes = opts => renderTicks(opts).filter(c => c.startsWith("\\draw[axis minor tick"))
+    .map(c => c.slice(c.indexOf("] ") + 2)).sort();
+  const baseline = strokes(options);
+  assert.deepEqual(baseline, ["(1,0) -- (1,0.1);", "(1,5) -- (1,4.9);",
+    "(0,2.5) -- (0.1,2.5);", "(8,2.5) -- (7.9,2.5);"].sort());
+  assert.deepEqual(strokes({ ...options, "extra x ticks": "{2.5}" }), baseline);
 });
 
 test("pgfplots tick style applies symmetrically to x and y minor ticks", () => {

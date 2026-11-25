@@ -19,7 +19,11 @@ export function axisTickLabelStyleOptions(options = {}, axis = "x") {
 
 export function createAxisOptions(rawOptions = {}) {
   const normalized = Object.fromEntries(
-    Object.entries(rawOptions).map(([key, value]) => [key.replace(/^\/pgfplots\//, ""), value])
+    Object.entries(rawOptions).map(([rawKey, value]) => {
+      const key = rawKey.replace(/^\/pgfplots\//, "");
+      const mode = key.match(/^([xyz]mode)\/(log|linear|normal)$/);
+      return mode ? [mode[1], mode[2]] : [key, value];
+    })
   );
   const starredAxisLines = normalized["axis lines*"];
   if (starredAxisLines !== undefined && starredAxisLines !== null && starredAxisLines !== "") {

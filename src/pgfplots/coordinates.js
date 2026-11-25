@@ -1,5 +1,6 @@
 import { evaluateMath } from "../engine/math.js";
 import { splitTopLevel, stripOuterBraces, stripTexComments } from "../engine/options.js";
+import { isLogAxis } from "./ranges.js";
 
 export function parseCoordinateList(input, plotOptions = {}, diagnostics = []) {
   const rows = parseCoordinateRows(input, plotOptions, diagnostics);
@@ -174,16 +175,20 @@ export function symbolicCoordinateLabels(raw) {
 // Resolve symbolic/date coordinates first. A rejected point contributes to
 // neither axis limit; "jump" additionally interrupts the next line segment.
 export function filterUnboundedCoordinates(plots, axisOptions) {
+  // Like pgfplotsaxisdatapointsurveyed, reject the whole measurement before
+  // updating either limit if any component cannot be transformed.
+  const logX = isLogAxis(axisOptions, "x"), logY = isLogAxis(axisOptions, "y");
+  const valid = ({ x, y }) => Number.isFinite(x) && Number.isFinite(y)
+    && (!logX || x > 0) && (!logY || y > 0);
   return plots.map((plot) => {
-    if (plot.type !== "coordinates" || plot.is3d ||
-        plot.points.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))) return plot;
+    if (plot.type !== "coordinates" || plot.is3d || plot.points.every(valid)) return plot;
     const jump = (plot.options["unbounded coords"] ?? axisOptions["unbounded coords"]) === "jump";
     let interrupted = false;
     let hasPoint = false;
     const rows = (plot.coordinateRows || plot.points.rows || [plot.points]).map((row) => {
       const kept = [];
       for (const point of row) {
-        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+        if (!valid(point)) {
           interrupted = true;
           continue;
         }

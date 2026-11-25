@@ -1,3 +1,5 @@
+import { isLogAxis } from "./ranges.js";
+
 const DEFAULT_DISPLAY_LOG_BASE = 10;
 
 export function axisLogBase(axisOptions = {}, axis) {
@@ -21,7 +23,10 @@ export function axisLogMajorTickValues(axisOptions = {}, axis, min, max, desired
   const minExponent = logarithm(low, base);
   const maxExponent = logarithm(high, base);
   const target = Math.max(3, Math.floor(Number(desiredTicks) || 5));
-  const rawStep = (maxExponent - minExponent) / Math.max(1, target - 2);
+  // The normal PGFPlots decade planner uses desirednumticks - 1. A step
+  // below two decades stays at one, which also enables the minor tick loop.
+  const datavis = axisOptions["datavis axis label placement"];
+  const rawStep = (maxExponent - minExponent + (datavis ? 0 : .001 / Math.log(base))) / (target - (datavis ? 2 : 1));
   const exponentStep = niceLogExponentStep(rawStep);
   const alignedExponent = Math.ceil((minExponent - 1e-10) / exponentStep) * exponentStep;
   const firstExponent = exponentStep > 1
@@ -36,7 +41,7 @@ export function axisLogMajorTickValues(axisOptions = {}, axis, min, max, desired
   return ticks;
 }
 
-export function axisLogMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max) {
+export function axisLogMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max, nativeTickMarks = false) {
   const base = axisLogBase(axisOptions, axis);
   if (Math.abs(base - DEFAULT_DISPLAY_LOG_BASE) > 1e-12) return [];
   const exponents = majorTicks
@@ -49,14 +54,25 @@ export function axisLogMinorTickValues(axisOptions = {}, axis, majorTicks = [], 
   const high = Number(max);
   if (!(low > 0 && high > low)) return [];
   const firstDecade = Math.floor(logarithm(low, base));
-  const lastDecade = Math.ceil(logarithm(high, base));
+  const maxExponent = logarithm(high, base);
+  // PGF's automatic major list ends at MAX + 0.5*H (+0.001 in log
+  // coordinates for rounding); its final candidate is never subdivided.
+  const lastDecade = nativeTickMarks ? Math.floor(maxExponent + .5 + .001 / Math.log(base)) : Math.ceil(maxExponent);
   const ticks = [];
-  for (let exponent = firstDecade; exponent < lastDecade; exponent += 1) {
-    const decade = base ** exponent;
-    for (let multiplier = 2; multiplier <= 9; multiplier += 1) {
+  function addInterval(decade) {
+    // The native tick path includes i=1 (under the major), unlike a list
+    // of strictly intermediate values for grids or datavis visualizers.
+    for (let multiplier = nativeTickMarks ? 1 : 2; multiplier <= 9; multiplier += 1) {
       const value = roundLogValue(multiplier * decade);
       if (value >= low * (1 - 1e-10) && value <= high * (1 + 1e-10)) ticks.push(value);
     }
+  }
+  const explicit = axisOptions[`${axis}tick`] ?? axisOptions[`${axis} tick`];
+  if (nativeTickMarks && explicit != null && explicit !== "") {
+    // PGF subdivides every supplied interval, but not the final listed tick.
+    for (const anchor of majorTicks.slice(0, -1)) addInterval(Number(anchor));
+  } else {
+    for (let exponent = firstDecade; exponent < lastDecade; exponent++) addInterval(base ** exponent);
   }
   return ticks;
 }
@@ -75,19 +91,13 @@ export function axisLogTickLabel(axisOptions = {}, axis, value) {
 export function axisValueIsValidForScale(value, axisOptions = {}, axis) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return false;
-  return !isLogAxisOption(axisOptions, axis) || numeric > 0;
+  return !isLogAxis(axisOptions, axis) || numeric > 0;
 }
 
 export function axisPointIsValidForScale(point = {}, axisOptions = {}) {
   return axisValueIsValidForScale(point.x, axisOptions, "x") &&
     axisValueIsValidForScale(point.y, axisOptions, "y") &&
     (point.z === undefined || point.z === null || axisValueIsValidForScale(point.z, axisOptions, "z"));
-}
-
-function isLogAxisOption(axisOptions, axis) {
-  return String(axisOptions[`${axis}mode`] || axisOptions[`${axis} scale`] || "")
-    .trim()
-    .toLowerCase() === "log";
 }
 
 function logarithm(value, base) {

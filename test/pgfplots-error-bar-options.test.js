@@ -104,12 +104,17 @@ test("the shared survey/render gate accepts grouped bars and excludes unreviewed
   for (const flags of [{ is3d: true }, { pgfplotsStacked: true }, { histogram: { bins: 3 } }]) {
     assert.equal(resolvePlotErrorBars(on, flags), null);
   }
-  for (const opts of [{ "pgfplots 3d surface": true }, { "pgfplots ternary axis": true }, { xmode: "log" },
-    { "y scale": "log" }, { "stack plots": "y" }, { "xbar stacked": true }, { "ybar interval stacked": true },
-    { "/pgfplots/xmode/log": true }, { "stack plots/y": true }, { "xbar interval": ".8" },
+  for (const opts of [{ "pgfplots 3d surface": true }, { "pgfplots ternary axis": true },
+    { "stack plots": "y" }, { "xbar stacked": true }, { "ybar interval stacked": true },
+    { "stack plots/y": true }, { "xbar interval": ".8" },
     { "/tikz/ybar interval": true }, { hist: "bins=4" }]) {
     assert.equal(resolvePlotErrorBars({ ...on, ...opts }, { options: {} }), null);
     assert.equal(resolvePlotErrorBars(on, { options: opts }), null);
+  }
+  for (const [dimension, opts] of [["x", {xmode:"log"}], ["y", {"y scale":"log"}], ["x", {"/pgfplots/xmode/log":true}]]) {
+    const axis = createAxisOptions({ ...on, ...opts });
+    assert.equal(resolvePlotErrorBars(axis, { options:{} })[dimension].logarithmic, true);
+    assert.equal(resolvePlotErrorBars(on, { options:opts }), null, "a single series cannot change the shared coordinate system");
   }
   for (const flag of ["xbar", "ybar"]) {
     const plot = { options: { [flag]: true, "stack plots": "false" }, barGroup: { direction: flag[0] } };

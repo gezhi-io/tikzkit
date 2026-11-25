@@ -51,6 +51,13 @@ become extra data points.
 Requires `\usepackage{pgfplots}`. [Standalone source with x and y errors](../test/fixtures/native-pgfplots-error-bars/fixed-scatter.tex)
 and [native/browser comparison](qa/2026-11-25-pgfplots-error-bars.md).
 
+On a logarithmic axis the uncertainty is still in **data units**. For
+example, `(2,4) +- (0,2)` ends at 2 and 6 on the y-axis. The lower arm
+is longer on the page because `log(4/2) > log(6/4)`. Use
+`y explicit relative` for fractional errors instead (e.g. `.2` for 20%).
+See the [original double-log table example](../test/fixtures/native-pgfplots-log-errors/manual-log-relative.tex)
+and its [browser comparison](qa/2026-11-25-pgfplots-log-errors.md).
+
 ## Polar Functions
 
 | TikZKit in Chromium | Local tikztosvg in Chromium |

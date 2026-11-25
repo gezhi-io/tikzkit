@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{semilogyaxis}[scale only axis,width=56mm,height=35mm,
+    enlargelimits=false,unbounded coords=jump,
+    axis lines=box,xtick=\empty,ytick=\empty]
+    \addplot[blue,mark=*,error bars/.cd,
+        x dir=both,x fixed=0.25,y dir=plus,y fixed=1]
+        coordinates {(1,1) (2,2) (100,0) (20000,-1) (3,3) (4,4)};
+\end{semilogyaxis}
+\end{tikzpicture}
+\end{document}

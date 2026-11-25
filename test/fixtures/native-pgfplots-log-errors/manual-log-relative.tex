@@ -1,0 +1,23 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{loglogaxis}
+    \addplot+ [
+        error bars/.cd,
+            x dir=both,x fixed relative=0.5,
+            y dir=both,y explicit relative,
+    ] table [x=x,y=y,y error=error] {
+        x       y       error
+        32      32      0
+        64      64      0
+        128     128     0.3
+        1024    1024    0.2
+        32068   32068   0.6
+        64000   64000   0.6
+        128000  128000  0.6
+    };
+\end{loglogaxis}
+\end{tikzpicture}
+\end{document}

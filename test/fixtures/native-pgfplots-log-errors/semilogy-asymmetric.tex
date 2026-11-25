@@ -1,0 +1,20 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{semilogyaxis}[scale only axis,width=56mm,height=35mm,
+    xmin=-5,xmax=11,ymin=1,ymax=128,enlargelimits=false,
+    axis lines=box,xtick=\empty,ytick=\empty]
+    \addplot[only marks,blue,mark=*,error bars/.cd,
+        x dir=both,x explicit,y dir=both,y explicit]
+        coordinates {(-2,8) += (2,24) -= (1,4)};
+    \addplot[only marks,red,mark=*,error bars/.cd,
+        x dir=plus,x explicit,y dir=plus,y explicit]
+        coordinates {(3,16) +- (2,16)};
+    \addplot[only marks,green!50!black,mark=*,error bars/.cd,
+        x dir=minus,x explicit,y dir=minus,y explicit]
+        coordinates {(8,64) +- (2,48)};
+\end{semilogyaxis}
+\end{tikzpicture}
+\end{document}

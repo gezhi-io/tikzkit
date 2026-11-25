@@ -1,5 +1,6 @@
 import { parseOptions, splitTopLevel, stripOuterBraces, stripTexComments } from "../engine/options.js";
 import { mergePgfplotsOptionMaps } from "./namedOptions.js";
+import { isLogAxis } from "./ranges.js";
 
 const root = "/pgfplots";
 const family = root + "/error bars";
@@ -92,14 +93,15 @@ export function resolveErrorBarOptions(axisOptions, plotOptions) {
 
 const excludedHandlers = new Set(["pgfplots 3d surface", "pgfplots ternary axis", "xbar stacked", "ybar stacked",
   "xbar interval", "ybar interval", "xbar interval stacked", "ybar interval stacked", "hist", "pgfplots histogram",
-  "xmode/log", "ymode/log", "stack plots/x", "stack plots/y", "stack plots/z"]);
+  "stack plots/x", "stack plots/y", "stack plots/z"]);
 
-function excludedGeometry(options) {
+function excludedGeometry(options, plotLocal = false) {
   for (const [rawKey, value] of entries(options)) {
     const key = rawKey.replace(/^\/(?:pgfplots|tikz)\//, "");
     if (value == null || value === false) continue;
-    if ((key === "xmode" || key === "ymode" || key === "x scale" || key === "y scale") &&
-        String(value).trim().toLowerCase() === "log") return true;
+    // A series must use the parent axis transform, not install its own scale.
+    if (plotLocal && (/^[xy]mode\/log$/.test(key) || (/^(?:[xy]mode|[xy] scale)$/.test(key) &&
+        String(value).trim().toLowerCase() === "log"))) return true;
     if (key === "stack plots" && !["false", "none", "off", "0"].includes(String(value).trim().toLowerCase())) return true;
     if (excludedHandlers.has(key) && value !== "false") return true;
   }
@@ -108,10 +110,23 @@ function excludedGeometry(options) {
 
 // Deliberately independent of range resolution and rendering: both call this
 // gate. Ordinary grouped xbar/ybar have a canvas shift, not different data.
-export function resolvePlotErrorBars(axisOptions, plot) {
+export function resolvePlotErrorBars(axisOptions, plot, diagnostics) {
   if (!plot || plot.is3d || plot.pgfplotsStacked || plot.histogram) return null;
   const config = resolveErrorBarOptions(axisOptions, plot.options);
-  return !config || excludedGeometry(axisOptions) || excludedGeometry(plot.options) ? null : config;
+  if (!config || excludedGeometry(axisOptions) || excludedGeometry(plot.options, true)) return null;
+  for (const axis of axes) {
+    if (!isLogAxis(axisOptions, axis)) continue;
+    const dim = config[axis];
+    dim.logarithmic = true;
+    // PGF prepares *both* fixed factors before looking at the requested
+    // sides. Per-point explicit factors, in contrast, silently omit bad arms.
+    if (dim.dir !== "none" && dim.mode === "fixed relative" && Math.abs(dim.value) >= 1) {
+      const sign = dim.value < 0 ? "+" : "-";
+      diagnostics?.push({ severity: "error", code: "PGFPLOTS_LOG_ERROR_FACTOR",
+        message: `PGFPlots error bars/${axis} fixed relative=${dim.value}: log(1 ${sign} ${dim.value}) is undefined.` });
+    }
+  }
+  return config;
 }
 
 // pgfplots.errorbars.code.tex, linear survey: relative errors multiply the
@@ -120,10 +135,10 @@ export function resolvePlotErrorBars(axisOptions, plot) {
 export function errorBarEndpoints(point, config) {
   if (!config) return [];
   const x = number(point?.x), y = number(point?.y);
-  if (x === null || y === null) return [];
+  if (x === null || y === null || (config.x.logarithmic && x <= 0) || (config.y.logarithmic && y <= 0)) return [];
   const endpoints = [];
   for (const axis of axes) {
-    const { dir, mode, value } = config[axis];
+    const { dir, mode, value, logarithmic } = config[axis];
     if (dir === "none") continue;
     const origin = axis === "x" ? x : y;
     for (const side of sides) {
@@ -132,7 +147,10 @@ export function errorBarEndpoints(point, config) {
       if (error === null) continue;
       const delta = side === "plus" ? error : -error;
       const target = mode.endsWith("relative") ? origin * (1 + delta) : origin + delta;
-      if (Number.isFinite(target)) endpoints.push({ axis, side, x, y, [axis]: target || 0 });
+      // pgfplots.errorbars.code.tex:261-415 takes the log *after* adding the
+      // absolute error or multiplying by the factor. Our geometry owns that
+      // projection; pass it the raw endpoint. log(1)=0 is a valid result.
+      if (Number.isFinite(target) && (!logarithmic || target > 0)) endpoints.push({ axis, side, x, y, [axis]: target || 0 });
     }
   }
   return endpoints;

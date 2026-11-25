@@ -86,12 +86,13 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const xTicks = xTicksDisabled ? [] : tickModel.x.values;
   const yTicks = yTicksDisabled ? [] : tickModel.y.values;
   const finalRanges = axisOptions["datavis axis label placement"] ? ranges : geometry.transformRanges || ranges;
+  const datavis = Boolean(axisOptions["datavis axis label placement"] || axisOptions["datavis boxed axes"] || axisOptions["datavis clean axes"]);
   const xMinorTicks = xTicksDisabled || minorTicksDisabled
     ? []
-    : axisMinorTickValues(axisOptions, "x", xTicks, finalRanges.xMin, finalRanges.xMax, addplots);
+    : axisMinorTickValues(axisOptions, "x", xTicks, finalRanges.xMin, finalRanges.xMax, addplots, !datavis && !axisOptions["x minor tick visualized"]);
   const yMinorTicks = yTicksDisabled || minorTicksDisabled
     ? []
-    : axisMinorTickValues(axisOptions, "y", yTicks, finalRanges.yMin, finalRanges.yMax, addplots);
+    : axisMinorTickValues(axisOptions, "y", yTicks, finalRanges.yMin, finalRanges.yMax, addplots, !datavis && !axisOptions["y minor tick visualized"]);
   const xLabels = axisOptions["pgfplots symbolic x labels"]
     ? symbolicAxisTickLabels(axisOptions["pgfplots symbolic x labels"], xTicks)
     : axisOptions["pgfplots x interval tick labels"]
@@ -159,8 +160,9 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const middleAxis = isMiddleAxis(axisOptions);
   const xTickAlignment = normalizedTickAlignment(axisOptions, "x", middleAxis);
   const yTickAlignment = normalizedTickAlignment(axisOptions, "y", middleAxis);
-  const xTickLabelsOnUpperSide = boxTickLabelsUseUpperSide(axisOptions, "x");
-  const yTickLabelsOnUpperSide = boxTickLabelsUseUpperSide(axisOptions, "y");
+  const sides = { x: pgfplotsTickSides(axisOptions, "x"), y: pgfplotsTickSides(axisOptions, "y") };
+  const xTickLabelsOnUpperSide = sides.x.labelUpper;
+  const yTickLabelsOnUpperSide = sides.y.labelUpper;
   const xTickLabelFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "x"));
   const yTickLabelFont = pgfplotsRoleFontCommand("tick", axisOptions, axisTickLabelFontOption(axisOptions, "y"));
   const xTickLabelInnerSep = axisTickLabelInnerSep(axisOptions, "x");
@@ -173,8 +175,6 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
       !axisOptions[`pgfplots symbolic ${axis} labels`] ? "tikzkit math number" : "";
   const hideOutOfRangeTickLabels = Boolean(axisOptions["datavis hide out of range tick labels"]);
   const cleanAxisOffset = axisOptions["datavis clean axes"] ? parseAxisCleanPadding(axisOptions) : 0;
-  const oppositeXBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "x");
-  const oppositeYBoxTicks = shouldRenderBoxOppositeTicks(axisOptions, "y");
   const innerBoxTicks = shouldRenderInsideBoxTicks(axisOptions);
   const boxTickAlignment = usesPgfplotsBoxTickAlignment(axisOptions);
   const boxRanges = finalRanges;
@@ -184,50 +184,57 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   const xAxis = yLineMode === "right"
     ? boxRanges.xMax
     : middleAxis ? axisZeroValue(finalRanges, "x") : boxRanges.xMin;
+  function frameBase(axis, value, side) {
+    const b = axis === "x" ? "y" : "x";
+    const reverse = geometry.axisDirections?.[b] === -1 || axisOptions[b + " dir"] === "reverse";
+    const edge = side === "middle" ? axisZeroValue(boxRanges, b)
+      : boxRanges[b + ((side === "upper") !== reverse ? "Max" : "Min")];
+    return geometry.mapPoint({ [axis]: value, [b]: edge });
+  }
+  function drawTick(axis, value, visual, length, style, minor, hidePrimary = false) {
+    const b = axis === "x" ? "y" : "x";
+    const align = axis === "x" ? xTickAlignment : yTickAlignment;
+    const plan = sides[axis];
+    const native = !datavis && !visual;
+    const base = native ? frameBase(axis, value, plan.primary) : geometry.mapPoint({
+      [axis]: value, [b]: axisTickBaseValue(visual, b, axis === "x" ? yAxis : xAxis, ranges)
+    });
+    if (cleanAxisOffset) base[b] -= cleanAxisOffset;
+    const d = innerBoxTicks ? length : -length;
+    const [from, to] = native ? alignedBoxAxisTickSegment(base, axis, length, align, plan.primary === "upper" ? -1 : 1)
+      : middleAxis && !visual ? alignedMiddleAxisTickSegment(base, axis, length, align)
+      : boxTickAlignment && !visual ? alignedBoxAxisTickSegment(base, axis, length, align, 1)
+      : axisTickSegment(base, visual, axis, axis === "y" ? d : 0, axis === "x" ? d : 0);
+    if (!hidePrimary) commands.push(`\\draw[${visual?.style || style}] ${tickPoint(from)} -- ${tickPoint(to)};`);
+    if (native ? plan.both : !minor && shouldRenderBoxOppositeTicks(axisOptions, axis)) {
+      const upper = native ? frameBase(axis, value, "upper") : geometry.mapPoint({ [axis]: value, [b]: boxRanges[b + "Max"] });
+      const [a, z] = native || boxTickAlignment ? alignedBoxAxisTickSegment(upper, axis, length, align, -1)
+        : axisTickSegment(upper, null, axis, axis === "y" ? -d : 0, axis === "x" ? -d : 0);
+      commands.push(`\\draw[${style}] ${formatAxisPoint(a)} -- ${formatAxisPoint(z)};`);
+    }
+    return { base, from, to };
+  }
   // pgfplotsticks prepares minor coordinates independently of tickshow's
   // major crossing filter. A minor tick at logical ZERO remains visible.
   xMinorTicks.forEach((x, index) => {
     const visual = datavisTickVisual(axisOptions, "x", index, xMinorTickVisual, minorTickLength, xMinorTickStyle, "minor");
-    const base = geometry.mapPoint({ x, y: axisTickBaseValue(visual, "y", yAxis, ranges) });
-    if (cleanAxisOffset) base.y -= cleanAxisOffset;
-    const [from, to] =
-      middleAxis && !visual
-        ? alignedMiddleAxisTickSegment(base, "x", minorTickLength, xTickAlignment)
-        : boxTickAlignment && !visual
-          ? alignedBoxAxisTickSegment(base, "x", minorTickLength, xTickAlignment, 1)
-          : axisTickSegment(base, visual, "x", 0, innerBoxTicks ? minorTickLength : -minorTickLength);
-    commands.push(`\\draw[${visual?.style || xMinorTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
+    drawTick("x", x, visual, minorTickLength, xMinorTickStyle, true);
   });
   xTicks.forEach((x, index) => {
     if (shouldHideObscuredAxisTick(axisOptions, "x", x, finalRanges)) return;
     const visual = datavisTickVisual(axisOptions, "x", index, xMajorTickVisual, tickLength, xTickStyle);
     if (visual?.scopeStyle) commands.push(`{[${visual.scopeStyle}]`);
-    const base = geometry.mapPoint({ x, y: axisTickBaseValue(visual, "y", yAxis, ranges) });
-    if (cleanAxisOffset) base.y -= cleanAxisOffset;
+    const { from, to } = drawTick("x", x, visual, tickLength, xTickStyle, false);
     const intervalLabelX = axisOptions["pgfplots x interval tick labels"] && Number.isFinite(xTicks[index + 1])
       ? (x + xTicks[index + 1]) / 2
       : x;
-    const labelBase = geometry.mapPoint({
+    const labelBase = !datavis && !visual ? frameBase("x", intervalLabelX, sides.x.labelSide) : geometry.mapPoint({
       x: intervalLabelX,
       y: xTickLabelsOnUpperSide && isBoxAxis(axisOptions)
         ? boxRanges.yMax
         : axisTickBaseValue(xMajorTickVisual, "y", yAxis, ranges)
     });
     if (cleanAxisOffset) labelBase.y -= cleanAxisOffset;
-    const [from, to] =
-      middleAxis && !visual
-        ? alignedMiddleAxisTickSegment(base, "x", tickLength, xTickAlignment)
-        : boxTickAlignment && !visual
-          ? alignedBoxAxisTickSegment(base, "x", tickLength, xTickAlignment, 1)
-          : axisTickSegment(base, visual, "x", 0, innerBoxTicks ? tickLength : -tickLength);
-    commands.push(`\\draw[${visual?.style || xTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
-    if (oppositeXBoxTicks) {
-      const topBase = geometry.mapPoint({ x, y: boxRanges.yMax });
-      const [topFrom, topTo] = boxTickAlignment
-        ? alignedBoxAxisTickSegment(topBase, "x", tickLength, xTickAlignment, -1)
-        : [topBase, offsetPoint(topBase, 0, innerBoxTicks ? -tickLength : tickLength)];
-      commands.push(`\\draw[${xTickStyle}] ${formatAxisPoint(topFrom)} -- ${formatAxisPoint(topTo)};`);
-    }
     const shouldShowXLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(x, ranges.xMin, ranges.xMax));
     if (visual && shouldShowXLabel) {
       for (const spec of axisTickVisualLabelSpecs(visual, from, to)) {
@@ -274,39 +281,14 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
   });
   yMinorTicks.forEach((y, index) => {
     const visual = datavisTickVisual(axisOptions, "y", index, yMinorTickVisual, minorTickLength, yMinorTickStyle, "minor");
-    const base = geometry.mapPoint({ x: axisTickBaseValue(visual, "x", xAxis, ranges), y });
-    if (cleanAxisOffset) base.x -= cleanAxisOffset;
-    const [from, to] =
-      middleAxis && !visual
-        ? alignedMiddleAxisTickSegment(base, "y", minorTickLength, yTickAlignment)
-        : boxTickAlignment && !visual
-          ? alignedBoxAxisTickSegment(base, "y", minorTickLength, yTickAlignment, 1)
-          : axisTickSegment(base, visual, "y", innerBoxTicks ? minorTickLength : -minorTickLength, 0);
-    commands.push(`\\draw[${visual?.style || yMinorTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
+    drawTick("y", y, visual, minorTickLength, yMinorTickStyle, true);
   });
   yTicks.forEach((y, index) => {
     if (shouldHideObscuredAxisTick(axisOptions, "y", y, finalRanges)) return;
     const visual = datavisTickVisual(axisOptions, "y", index, yMajorTickVisual, tickLength, yTickStyle);
     if (visual?.scopeStyle) commands.push(`{[${visual.scopeStyle}]`);
-    const base = geometry.mapPoint({ x: axisTickBaseValue(visual, "x", xAxis, ranges), y });
-    if (cleanAxisOffset) base.x -= cleanAxisOffset;
     const schoolBookOriginLabel = isDatavisualizationSchoolBookOriginLabel(axisOptions, "y", y, ranges);
-    const [from, to] =
-      middleAxis && !visual
-        ? alignedMiddleAxisTickSegment(base, "y", tickLength, yTickAlignment)
-        : boxTickAlignment && !visual
-          ? alignedBoxAxisTickSegment(base, "y", tickLength, yTickAlignment, 1)
-          : axisTickSegment(base, visual, "y", innerBoxTicks ? tickLength : -tickLength, 0);
-    if (!schoolBookOriginLabel) {
-      commands.push(`\\draw[${visual?.style || yTickStyle}] ${tickPoint(from)} -- ${tickPoint(to)};`);
-    }
-    if (oppositeYBoxTicks) {
-      const rightBase = geometry.mapPoint({ x: boxRanges.xMax, y });
-      const [rightFrom, rightTo] = boxTickAlignment
-        ? alignedBoxAxisTickSegment(rightBase, "y", tickLength, yTickAlignment, -1)
-        : [rightBase, offsetPoint(rightBase, innerBoxTicks ? -tickLength : tickLength, 0)];
-      commands.push(`\\draw[${yTickStyle}] ${formatAxisPoint(rightFrom)} -- ${formatAxisPoint(rightTo)};`);
-    }
+    const { base, from, to } = drawTick("y", y, visual, tickLength, yTickStyle, false, schoolBookOriginLabel);
     const shouldShowYLabel = !(hideOutOfRangeTickLabels && autoTickOutsideRange(y, ranges.yMin, ranges.yMax));
     if (visual && shouldShowYLabel) {
       const specs = schoolBookOriginLabel ? [{ point: base, anchor: "north east" }] : axisTickVisualLabelSpecs(visual, from, to);
@@ -329,8 +311,8 @@ function renderAxisTickPass(axisOptions = {}, addplots = [], ranges = {}, geomet
         if (yLabels[index] !== "") commands.push(`\\node[${labelStyle}] at ${tickPoint(spec.point)} {${yLabels[index]}};`);
       }
     } else if (!visual && shouldShowYLabel) {
-      const rightSide = yLineMode === "right" || (isBoxAxis(axisOptions) && yTickLabelsOnUpperSide);
-      const labelBase = rightSide && isBoxAxis(axisOptions)
+      const rightSide = datavis ? yLineMode === "right" || (isBoxAxis(axisOptions) && yTickLabelsOnUpperSide) : yTickLabelsOnUpperSide;
+      const labelBase = !datavis ? frameBase("y", y, sides.y.labelSide) : rightSide && isBoxAxis(axisOptions)
         ? geometry.mapPoint({ x: boxRanges.xMax, y })
         : base;
       const labelStyle = joinOptions([
@@ -662,11 +644,11 @@ function explicitMinorTickValues(axisOptions = {}, axis, addplots = []) {
   return hasExplicitTickOption(raw) ? axisTickValues(raw, axis, addplots) : null;
 }
 
-export function axisMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max, addplots = []) {
+export function axisMinorTickValues(axisOptions = {}, axis, majorTicks = [], min, max, addplots = [], nativeTickMarks = false) {
   const explicit = explicitMinorTickValues(axisOptions, axis, addplots);
   if (explicit) return explicit;
   return isLogAxis(axisOptions, axis)
-    ? axisLogMinorTickValues(axisOptions, axis, majorTicks, min, max)
+    ? axisLogMinorTickValues(axisOptions, axis, majorTicks, min, max, nativeTickMarks)
     : automaticMinorTickValues(axisOptions, axis, majorTicks, min, max);
 }
 
@@ -933,12 +915,19 @@ function isBoxAxis(axisOptions = {}) {
   return String(raw).trim().toLowerCase() === "box";
 }
 
-function boxTickLabelsUseUpperSide(axisOptions = {}, axis = "x") {
-  if (!isBoxAxis(axisOptions)) return false;
-  const raw = axisOptions[`${axis}ticklabel pos`] ?? axisOptions[`${axis} tick label pos`] ?? axisOptions.ticklabelpos ?? axisOptions["ticklabel pos"] ?? axisOptions["tick label pos"];
-  const value = String(raw || "").trim().toLowerCase();
-  // PGFPlots treats top/right as aliases for upper on every axis.
-  return value === "upper" || value === "top" || value === "right";
+function pgfplotsTickSides(options, axis) {
+  const keys = Object.keys(options);
+  const line = latestOrderedOption(options, keys, ["axis", "axis lines", "axis lines*", `axis ${axis} line`, `axis ${axis} line*`]);
+  const mode = String(line.value ?? "box").toLowerCase();
+  const middle = mode === "middle" || mode === "center";
+  const tick = latestOrderedOption(options, keys, ["tickpos", "tick pos", `${axis}tick pos`]);
+  const pos = tick.index > line.index ? tick.value : mode === "box" ? "both" : middle ? "middle"
+    : mode === "right" || mode === "top" ? "right" : "left";
+  const primary = pos === "right" ? "upper" : pos === "middle" ? "middle" : "lower";
+  const label = latestOrderedOption(options, keys, ["ticklabelpos", "ticklabel pos", "tick label pos",
+    `${axis}ticklabel pos`, `${axis} tick label pos`]).value;
+  const labelUpper = mode === "box" && label && label !== "default" ? ["upper", "top", "right"].includes(label) : pos === "right";
+  return { primary, both: mode === "box" && pos === "both", labelUpper, labelSide: middle ? "middle" : labelUpper ? "upper" : "lower" };
 }
 
 function tickLabelNeedsLayoutBox(axisOptions = {}, axis, lineMode = "", labelStyle = {}) {
