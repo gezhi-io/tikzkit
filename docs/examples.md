@@ -31,6 +31,8 @@ grids, and sharp, smooth, or constant plot handlers.
 
 ## PGFPlots Measurement Errors
 
+See also [statistical boxplots](#pgfplots-boxplots) for distributions rather than individual uncertainties.
+
 The three measurements below have a symmetric uncertainty, different upper and
 lower uncertainties, and no reported uncertainty, respectively. Only the three
 measurements are joined; the endpoints affect the automatic range but do not
@@ -57,6 +59,33 @@ is longer on the page because `log(4/2) > log(6/4)`. Use
 `y explicit relative` for fractional errors instead (e.g. `.2` for 20%).
 See the [original double-log table example](../test/fixtures/native-pgfplots-log-errors/manual-log-relative.tex)
 and its [browser comparison](qa/2026-11-25-pgfplots-log-errors.md).
+
+## PGFPlots Boxplots
+
+The statistics library accepts raw observations or a five-number summary.
+For example, this plots the median, middle half and whiskers of twelve
+observations without first calculating them in JavaScript:
+
+```tex
+\usepackage{pgfplots}
+\usepgfplotslibrary{statistics}
+\pgfplotsset{compat=1.18}
+% Inside the document:
+\begin{tikzpicture}
+  \begin{axis}[y=1cm]
+    \addplot+[boxplot] table[row sep=\\,y index=0] {
+      data\\1\\2\\1\\5\\4\\10\\7\\10\\9\\8\\9\\9\\
+    };
+  \end{axis}
+\end{tikzpicture}
+```
+
+To draw a supplied summary, use `boxplot prepared`;
+the coordinates then contain **outliers**, not observations to connect.
+An empty coordinate list still draws the box.
+[Raw sample source](../test/fixtures/examples/pgfplots/boxplot-manual-samples.tex)
+ · [Three prepared groups](../test/fixtures/examples/pgfplots/boxplot-manual-prepared.tex)
+ · [Browser and native comparison](qa/2026-11-25-pgfplots-boxplots.md).
 
 ## Polar Functions
 

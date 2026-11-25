@@ -249,16 +249,17 @@ test("pgfplots exposes an axis model seam before SceneGraph rendering", () => {
 
 test("pgfplots owns library declarations and global option collection", () => {
   const source = String.raw`
-\usepgfplotslibrary{groupplots,statistics}
+\usepgfplotslibrary{groupplots,statistics,smithchart}
 \pgfplotsset{compat=newest,every axis/.style={grid=major}}
 \begin{tikzpicture}\end{tikzpicture}`;
 
   const libraries = collectPgfplotsLibraries(source);
   const pgfplotsSet = collectPgfplotsSetOptions(source);
 
-  assert.deepEqual(libraries.map((library) => library.name), ["groupplots", "statistics"]);
+  assert.deepEqual(libraries.map((library) => library.name), ["groupplots", "statistics", "smithchart"]);
   assert.equal(libraries[0].status, "partial");
-  assert.equal(libraries[1].status, "unsupported");
+  assert.equal(libraries[1].status, "partial");
+  assert.equal(libraries[2].status, "unsupported");
   assert.equal(pgfplotsSet.options.compat, "newest");
   assert.equal(pgfplotsSet.options["every axis/.style"], "grid=major");
   assert.doesNotMatch(pgfplotsSet.source, /\\pgfplotsset/);

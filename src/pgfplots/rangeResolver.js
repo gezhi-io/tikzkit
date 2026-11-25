@@ -54,7 +54,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     const errorBars = resolvePlotErrorBars(axisOptions, plot, options.diagnostics);
     if (plot.type === "coordinates") {
       surveyErrors(plot.points, errorBars);
-      for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
+      for (const point of plot.boxplotSurveyPoints ?? pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
         if (!axisValueIsValidForScale(point.x, axisOptions, "x")) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
         if (!hasExplicitXMax) xMax = Math.max(xMax, point.x);
@@ -64,7 +64,7 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
           if (!hasExplicitXMax) xMax = Math.max(xMax, stackedBaseX);
         }
       }
-      for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "y")) {
+      for (const point of plot.boxplotSurveyPoints ?? pgfplotsPlotRangePoints(plot, axisOptions, "y")) {
         if (!axisValueIsValidForScale(point.y, axisOptions, "y")) continue;
         if (!hasExplicitYMin) yMin = Math.min(yMin, point.y);
         if (!hasExplicitYMax) yMax = Math.max(yMax, point.y);
@@ -252,13 +252,14 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
   if (enlargeZ && !zLog && (axisOptions["pgfplots 3d surface"] || addplots.some(plot => plot.is3d))) {
     [zMin, zMax] = enlarge3DZRange(axisOptions, zMin, zMax, hasExplicitZMin, hasExplicitZMax);
   }
+  // Round only after projecting. A small boxplot may span less than .001
+  // in data units, and a surface must retain its true outer facet endpoints.
+  const preciseFrame = hasSurfacePlot || addplots.some(plot => plot.boxplot);
   const ranges = {
-    // Surface geometry and the surveyed frame must use the same sample
-    // endpoints; rounding a limit to 0.001 can put facets outside the box.
-    xMin: roundResolvedAxisValue(xMin, xLog || hasSurfacePlot || errorX, "x"),
-    xMax: roundResolvedAxisValue(xMax, xLog || hasSurfacePlot || errorX, "x"),
-    yMin: roundResolvedAxisValue(yMin, yLog || hasSurfacePlot || errorY, "y"),
-    yMax: roundResolvedAxisValue(yMax, yLog || hasSurfacePlot || errorY, "y"),
+    xMin: roundResolvedAxisValue(xMin, xLog || preciseFrame || errorX, "x"),
+    xMax: roundResolvedAxisValue(xMax, xLog || preciseFrame || errorX, "x"),
+    yMin: roundResolvedAxisValue(yMin, yLog || preciseFrame || errorY, "y"),
+    yMax: roundResolvedAxisValue(yMax, yLog || preciseFrame || errorY, "y"),
     zMin: roundResolvedAxisValue(zMin, zLog, "z"),
     zMax: roundResolvedAxisValue(zMax, zLog, "z")
   };
@@ -295,8 +296,8 @@ function enlarge3DZRange(options, min, max, explicitMin, explicitMax) {
   return [lower ? min - pad : min, upper ? max + pad : max];
 }
 
-function roundResolvedAxisValue(value, logMode, axis) {
-  return logMode ? Number(Number(value).toPrecision(12)) : roundAxisRange(value, axis);
+function roundResolvedAxisValue(value, preservePrecision, axis) {
+  return preservePrecision ? Number(Number(value).toPrecision(12)) : roundAxisRange(value, axis);
 }
 
 export function parseDomain(raw) {

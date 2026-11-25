@@ -46,14 +46,18 @@ export function createTickAxisModel(axis, axisOptions = {}, ranges = {}, addplot
   const max = Number(limits[`${axis}Max`]);
   const distanceTicks = tickDistanceValues(axisOptions, axis, min, max);
   const explicitDistance = axisTickDistance(axisOptions, axis) > 0;
-  const explicit = hasExplicitTickOption(raw) || explicitDistance;
+  let listed = hasExplicitTickOption(raw) ? axisTickValues(raw, axis, addplots) : null;
+  // An empty first coordinate stream expands "data" to the native auto
+  // setting. This is distinct from an explicitly disabled tick list.
+  if (raw === "data" && !listed.length) listed = null;
+  const explicit = listed !== null || explicitDistance;
   const planning = automaticTickPlanningRange(axisOptions, axis, limits, geometry);
   // `ticks=none` disables paint, not the positions used by grid=major/both.
   // Only an empty per-axis tick list removes the shared candidate positions.
   const values = ticksDisabled(raw)
     ? []
-    : hasExplicitTickOption(raw)
-      ? axisTickValues(raw, axis, addplots)
+    : listed !== null
+      ? listed
       : explicitDistance
         ? distanceTicks
         : autoMajorTickValues(axisOptions, axis, planning.min, planning.max,
@@ -702,7 +706,10 @@ export function axisTickValues(raw, axis, addplots = []) {
   const text = String(raw || "").trim().replace(/^\{([\s\S]*)\}$/, "$1").trim();
   if (!text || text === "\\empty" || text === "empty") return [];
   if (text === "data") {
-    const values = addplots.flatMap((plot) => plot.points || []).map((point) => point[axis]).filter(Number.isFinite);
+    // PGFPlots records ticks only in the first plot's coordinate stream.
+    // Box limits are surveyed separately; only actual outliers enter that stream.
+    const first = addplots[0];
+    const values = (first?.dataTickPoints ?? first?.points ?? []).map((point) => point[axis]).filter(Number.isFinite);
     return [...new Set(values)];
   }
   return axisNumberList(text);

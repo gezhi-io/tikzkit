@@ -147,6 +147,7 @@ export {
   fillbetweenLibrary,
   groupplotsLibrary,
   patchplotsLibrary,
+  statisticsLibrary,
   knownPgfplotsLibraries,
   pgfplotsLibraryCatalog
 } from "./libraries/index.js";

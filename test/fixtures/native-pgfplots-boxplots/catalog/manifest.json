@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"boxplot-manual-prepared","title":"Manual: three prepared horizontal boxes","source":"../../examples/pgfplots/boxplot-manual-prepared.tex"},
+    {"id":"boxplot-manual-samples","title":"Manual: twelve unsorted observations","source":"../../examples/pgfplots/boxplot-manual-samples.tex"},
+    {"id":"vertical-mixed","title":"Vertical boxes at 1, 2 and 5 with an ordinary line","source":"../vertical-mixed.tex"},
+    {"id":"compat-111","title":"Legacy estimator: both tails are whiskers","source":"../compat-111.tex"},
+    {"id":"compat-112","title":"R7 estimator: both tails are outliers","source":"../compat-112.tex"}
+  ]
+}

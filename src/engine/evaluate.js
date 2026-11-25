@@ -16954,6 +16954,11 @@ function semanticSubtype(options = {}) {
   if (options["tikzquads parallel path"]) return "tikzquads-parallel-connect";
   if (options["tikzquads kind"]) return `tikzquads-${String(options["tikzquads kind"]).trim().replace(/\s+/g, "-")}`;
   if (options["axis error bar"]) return "axis-error-bar";
+  if (options["axis boxplot box"]) return "axis-boxplot-box";
+  if (options["axis boxplot median"]) return "axis-boxplot-median";
+  if (options["axis boxplot whisker"]) return "axis-boxplot-whisker";
+  if (options["axis boxplot average"]) return "axis-boxplot-average";
+  if (options["axis boxplot outlier"]) return "axis-boxplot-outlier";
   if (options["axis error cap"]) return "axis-error-cap";
   if (options["axis mark"]) return "axis-mark";
   if (options["axis bar"]) return "axis-bar";

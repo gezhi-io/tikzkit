@@ -105,8 +105,15 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
     plotBoxAlreadyLabelAdjusted,
     ranges
   });
-  const localWidth = plotArea.width * scale;
-  const localHeight = plotArea.height * scale;
+  // pgfplots@initsizes@setunitvector uses a supplied 2D basis directly:
+  // the 45pt description allowance applies only to an auto-sized direction.
+  const transformRanges = axisTransformRanges(axisOptions, ranges);
+  const fixedSpan = (axis, fallback) => {
+    if (is3dSurface || unitRatio || !axisOptions["pgfplots explicit " + axis + " unit"] || isLogAxis(axisOptions, axis)) return fallback;
+    return axisUnitDimension(axisOptions[axis], transformRanges[axis + "Max"] - transformRanges[axis + "Min"]) ?? fallback;
+  };
+  const localWidth = fixedSpan("x", plotArea.width) * scale;
+  const localHeight = fixedSpan("y", plotArea.height) * scale;
   const localOrigin = parseAxisAt(axisOptions.at);
   const inheritedPlotBox = pgfplotsInheritedPlotBox(axisOptions);
   let width = inheritedPlotBox?.width ?? localWidth;
@@ -143,7 +150,6 @@ export function createAxisGeometry(axisOptions = {}, ranges = {}) {
       bottom: margin.bottom + 0.12
     };
   }
-  const transformRanges = axisTransformRanges(axisOptions, ranges);
   const lineRanges = axisLineRanges(axisOptions, ranges);
   const transform = createDataToCanvasTransform({ ranges: transformRanges, geometry: { origin, width, height }, axisOptions });
   const descriptionBounds = createAxisDescriptionBounds(lineRanges, transform.mapPoint);

@@ -8801,6 +8801,24 @@
       "sourceCorpus": "TikZKit regression derived from the local TikZ matrix inner style order",
       "semanticOwner": "src/tikz/libraries/matrix.js:matrixCellStyleLayers;src/engine/evaluate.js:createMatrix",
       "features": ["matrix of nodes", "column style", "odd column style", "row style", "cell style"]
+    },
+    {
+      "id": "pgfplots-boxplot-manual-prepared",
+      "title": "Boxplots from three prepared five-number summaries",
+      "source": "pgfplots/boxplot-manual-prepared.tex",
+      "sourceCorpus": "TeX Live PGFPlots statistics manual",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.libs.statistics.tex",
+      "semanticOwner": "src/pgfplots/boxplots.js:preparePgfplotsBoxplots",
+      "features": ["boxplot prepared", "five-number summary", "outliers", "empty coordinate stream"]
+    },
+    {
+      "id": "pgfplots-boxplot-manual-samples",
+      "title": "Boxplot calculated from a single column of samples",
+      "source": "pgfplots/boxplot-manual-samples.tex",
+      "sourceCorpus": "TeX Live PGFPlots statistics manual",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.libs.statistics.tex",
+      "semanticOwner": "src/pgfplots/boxplotStatistics.js:summarizeBoxplot",
+      "features": ["boxplot", "single-column table", "sample quantiles", "explicit category unit"]
     }
   ]
 }

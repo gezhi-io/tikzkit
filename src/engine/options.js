@@ -128,7 +128,11 @@ function setParsedOption(options, key, value) {
     key = value === true || value === "" || value === "none" ? "/tikz/pattern" : "pattern";
   }
   if (isRepeatableOption(key) && Object.hasOwn(options, key)) {
-    options[key] = [...optionValues(options[key]), value];
+    const values = [...optionValues(options[key]), value];
+    // Decorations consume all mark specifications; plot handlers consume the
+    // last marker assignment at its actual position relative to style keys.
+    if (key === "mark") delete options[key];
+    options[key] = values;
     return;
   }
   // Reassignment alone retains a JS key's first position. TeX executes the

@@ -1,5 +1,6 @@
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { createBarLayout, isAxisBarPlot, renderAxisBars } from "./bars.js";
+import { renderBoxplot } from "./boxplotPaint.js";
 import { filledPlotPaint } from "./filledPlotPaint.js";
 import { isAxisCombPlot, renderAxisComb } from "./comb.js";
 import { renderPlotMark, scatterClassOptionsForPoint, shouldRenderPlotMarks } from "./marks.js";
@@ -42,6 +43,7 @@ import { stackedClosedCyclePointChain } from "./areaPlots.js";
 import { applyAxisClipOption, axisClipRectangle, axisViewportClipOption } from "./clipping.js";
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0, afterAxisMarks = null) {
+  if (plot.boxplot) return renderBoxplot(plot, axisOptions, ranges, geometry, plotIndex, afterAxisMarks, renderAxisPlotMarks);
   const commands = renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex, afterAxisMarks);
   if (!isSurfacePlot(plot, axisOptions) && !axisOptions.patch && !plot.options?.patch) return commands;
   // Native PGFPlots clips both surface fill and mesh strokes to the projected

@@ -21,6 +21,7 @@ import { renderAxisLabels } from "./labels.js";
 import { renderAxis3DBackground } from "./axis3d.js";
 import { renderLegendEntries } from "./legend.js";
 import { preparePgfplotsHistogram } from "./histogram.js";
+import { preparePgfplotsBoxplots } from "./boxplots.js";
 import { axisRenderedTickLabels, axisTickLabelInnerSep, axisTickLabelStyleOptions, axisTickNumberFormat, normalizedTickAlignment, renderAxisTicks } from "./ticks.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
@@ -30,7 +31,7 @@ import { renderAxisFillBetween } from "./fillBetween.js";
 import { lowerPgfplotsPlotReferences } from "./plotReferences.js";
 import { pgfplotsStackedRenderEntries, preparePgfplotsStackedPlots } from "./stackedPlots.js";
 import { normalizePgfplotsAreaOptions, pgfplotsUsesAreaCycle } from "./areaPlots.js";
-import { enlarge3DZLimits } from "./rangeResolver.js";
+import { enlarge3DZLimits, sampleFunctionDataPoints, sampleParametricDataPoints } from "./rangeResolver.js";
 import { sampleFunctionBars, withBarCategoryTicks, withBarGroups } from "./bars.js";
 
 // Retain the old CMU paint-box allowance only for non-native text. Native
@@ -48,16 +49,20 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     parsedAddplots
   );
   const symbolic = normalizePgfplotsSymbolicCoordinates(histogram.addplots, histogram.axisOptions);
-  const finitePlots = filterUnboundedCoordinates(symbolic.addplots, symbolic.axisOptions);
+  const declaredFunctions = dependencies.parsePgfplotsDeclaredFunctions([
+    ...(options.pgfplotsDeclareFunctions || []),
+    ...dependencies.optionValues(preparedAxisOptions["declare function"])
+  ]);
+  const boxplots = preparePgfplotsBoxplots({ ...symbolic.axisOptions,
+    "pgfplots declared functions": declaredFunctions,
+    "pgfplots compat": preparedAxisOptions.compat ?? options.pgfplotsStyleOptions?.compat
+  }, symbolic.addplots, options, diagnostics);
+  const finitePlots = filterUnboundedCoordinates(boxplots, symbolic.axisOptions);
   const stacked = preparePgfplotsStackedPlots(symbolic.axisOptions, finitePlots, options);
   let addplots = applyPgfplotsCycleStyles(withBarGroups(stacked.addplots, areaAxisOptions), stacked.axisOptions, options);
   const legendEntries = dependencies.parseLegendEntries(body);
   const has3dSurface = addplots.some((plot) => dependencies.isSurfacePlot(plot, dateAxisOptions));
   const has3dPlot = addplots.some((plot) => plot.is3d);
-  const declaredFunctions = dependencies.parsePgfplotsDeclaredFunctions([
-    ...(options.pgfplotsDeclareFunctions || []),
-    ...dependencies.optionValues(preparedAxisOptions["declare function"])
-  ]);
   const declaredColormaps = dependencies.parsePgfplotsColormaps?.(options.pgfplotsStyleOptions?.colormap) || {};
   const axisColormaps = dependencies.parsePgfplotsColormaps?.(preparedAxisOptions.colormap) || {};
   const axisColormapName = Object.keys(axisColormaps)[0] || "";
@@ -85,6 +90,12 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     };
   }
   if (!has3dPlot) addplots = sampleFunctionBars(addplots, resolvedAxisOptions, options);
+  const first = addplots[0];
+  if (!has3dPlot && (first?.type === "function" || first?.type === "parametric") &&
+    ["xtick", "ytick", "x tick", "y tick"].some(key => resolvedAxisOptions[key] === "data")) {
+    const sample = first.type === "function" ? sampleFunctionDataPoints : sampleParametricDataPoints;
+    addplots = [{ ...first, dataTickPoints: sample(first, resolvedAxisOptions, options) }, ...addplots.slice(1)];
+  }
   addplots = applyPgfplotsConstantScatterColors(addplots, resolvedAxisOptions);
   if (Object.keys(options.plotMarkDeclarations || {}).length) {
     addplots = addplots.map((plot) => ({

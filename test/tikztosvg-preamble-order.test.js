@@ -16,6 +16,7 @@ test("tikztosvg preamble libraries run before declarations that use their keys",
 \usetikzlibrary{arrows,shapes.misc}
 \tikzset{>=stealth',point/.style={cross out,draw}}
 \usepgfplotslibrary{fillbetween}
+\usepgfplotslibrary{statistics}
 \pgfplotsset{every axis/.append style={clip=false}}
 \begin{document}
 \begin{tikzpicture}\draw[->] (0,0) -- (1,0);\end{tikzpicture}
@@ -29,6 +30,7 @@ test("tikztosvg preamble libraries run before declarations that use their keys",
       async runCommand(command, args) {
         assert.equal(command, "tikztosvg");
         const packages = args.flatMap((value, index) => value === "-p" ? [args[index + 1]] : []);
+        assert.ok(!args.includes("pgfplots.statistics"), "A second load through TikZ would reset the boxplot estimator after compat");
         assert.ok(packages.includes("relsize"), "Native relative math needs relsize.sty");
         assert.ok(packages.includes("bm"), "Native bold math needs bm.sty");
         wrapper = await readFile(path.join(outputRoot, ".tikzkit-preamble-inputs",

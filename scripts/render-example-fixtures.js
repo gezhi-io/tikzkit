@@ -222,7 +222,7 @@ export async function renderExampleFixtures(options = {}) {
         ...tikztosvgEngineArgs(tikztosvgEngine, referenceSource),
         ...tikztosvgPackageArgs(referenceSource),
         ...tikztosvgPreambleWrapper.packageArgs,
-        ...tikztosvgLibraryArgs(referenceSource),
+        ...tikztosvgLibraryArgs(referenceSource, tikztosvgPreambleWrapper.packageArgs.length > 0),
         "-q",
         "-o",
         tikztosvgSvg,
@@ -1912,18 +1912,22 @@ function tikztosvgPackageDeclarations(source) {
   return packages;
 }
 
-function tikztosvgLibraryArgs(source) {
+function tikztosvgLibraryArgs(source, hasPreambleWrapper) {
   const libraries = [];
+  // PGFPlots and TikZ have independent library-load guards. Replaying
+  // \usepgfplotslibrary as "-l pgfplots.*" after the preamble re-executes
+  // initialization (notably the estimator after compat has selected R7).
+  const pgfplotsLibraries = text => [...String(text).matchAll(/\\usepgfplotslibrary\s*\{([^}]*)\}/g)]
+    .flatMap(match => match[1].split(",").map(s => "pgfplots." + s.trim()));
+  const alreadyLoaded = new Set(hasPreambleWrapper ? pgfplotsLibraries(tikztosvgSourcePreamble(source)) : []);
   const add = (library) => {
     const normalized = String(library || "").trim();
-    if (normalized && !libraries.includes(normalized)) libraries.push(normalized);
+    if (normalized && !alreadyLoaded.has(normalized) && !libraries.includes(normalized)) libraries.push(normalized);
   };
   for (const match of String(source || "").matchAll(/\\usetikzlibrary\s*\{([^}]*)\}/g)) {
     match[1].split(",").forEach(add);
   }
-  for (const match of String(source || "").matchAll(/\\usepgfplotslibrary\s*\{([^}]*)\}/g)) {
-    match[1].split(",").forEach((library) => add(`pgfplots.${String(library).trim()}`));
-  }
+  pgfplotsLibraries(source).forEach(add);
   return libraries.flatMap((library) => ["-l", library]);
 }
 
