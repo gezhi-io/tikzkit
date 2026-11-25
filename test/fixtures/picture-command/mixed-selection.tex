@@ -1,0 +1,7 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\tikz[scale=2] \coordinate (saved) at (1,0);
+\begin{tikzpicture}\fill[red] (0,0) circle (2pt);\end{tikzpicture}
+\tikz{\draw[blue,very thick] (saved) -- (3,.8) -- (3.8,0)}
+\end{document}

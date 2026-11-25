@@ -1,4 +1,5 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
+import { expandPictureCommands } from "./picture-command.js";
 import { createPgfRandom } from "../engine/pgfRandom.js";
 import { applyPreprocessExtensions } from "../extensions/index.js";
 import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
@@ -141,6 +142,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = expanded.replace(/\\(?:[A-Za-z@]+|[\s\S])/g, (command) =>
     command === "\\begingroup" ? "{" : command === "\\endgroup" ? "}" : command
   );
+  expanded = expandPictureCommands(expanded, diagnostics);
   expanded = expandStaticPgfmathMacrosBeforePictures(expanded);
   expanded = lowerTikzmarkMathOverlays(expanded);
   expanded = lowerNestedInlineTikzNodes(expanded);

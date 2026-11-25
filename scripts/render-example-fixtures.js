@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createExternalLatexAdapter } from "../src/adapters/externalLatex.js";
 import { parseOptions } from "../src/engine/options.js";
 import { extractBalanced } from "../src/frontend/parser.js";
+import { findPictureCommands, findTopLevelPictures } from "../src/frontend/picture-command.js";
 import { unwrapBeamerFrames } from "../src/frontend/latex-shell.js";
 import { tikzToSvgAsync } from "../src/index.js";
 import { lowerRawGnuplotAddplotsToCoordinates } from "../src/pgfplots/gnuplot.js";
@@ -1358,7 +1359,7 @@ export function selectActiveFigureSource(source, activeFigureId) {
   const original = String(source || "");
   if (!activeFigureId) return original;
   const documentStart = original.indexOf("\\begin{document}");
-  const allRanges = findTikzPictureRanges(original);
+  const allRanges = findTopLevelPictures(original);
   const documentRanges = documentStart === -1
     ? allRanges
     : allRanges.filter((range) => range.beginIndex > documentStart);
@@ -1393,14 +1394,25 @@ function injectSemanticPicturePrelude(selectedPicture, previousPictures) {
     .filter(Boolean)
     .map((picture) => {
       const options = ["reset cm", "overlay", "opacity=0", picture.options].filter(Boolean).join(",");
+      // Like the braced picture command, \scoped allows the last path to end
+      // at the closing brace. Preserve that behavior during invisible replay.
+      if (picture.short) return `\\scoped[${options}]{\n${picture.body.trim()}\n}`;
       return `\\begin{scope}[${options}]\n${picture.body.trim()}\n\\end{scope}`;
     });
   if (!scopes.length) return selectedPicture;
+  if (selected.short) return `\\tikz${selected.rawOptions}{\n${scopes.join("\n")}\n${selected.body.trim()}\n}`;
   return `${selected.opening}\n${scopes.join("\n")}\n${selected.body.trim()}\n\\end{tikzpicture}`;
 }
 
 function tikzPictureParts(source) {
   const text = String(source || "").trim();
+  if (/^\\tikz(?![A-Za-z@])/.test(text)) {
+    const [short] = findPictureCommands(text);
+    if (short?.endIndex === text.length) return {
+      short: true, rawOptions: short.options, options: short.options.slice(1, -1), body: short.body
+    };
+    return null;
+  }
   const begin = "\\begin{tikzpicture}";
   const end = "\\end{tikzpicture}";
   if (!text.startsWith(begin) || !text.endsWith(end)) return null;
@@ -1437,41 +1449,6 @@ function balancedSquareBracketEnd(text, start) {
   return -1;
 }
 
-function findTikzPictureRanges(source) {
-  const begin = String.raw`\begin{tikzpicture}`;
-  const end = String.raw`\end{tikzpicture}`;
-  const ranges = [];
-  let cursor = 0;
-  let depth = 0;
-  let currentBegin = null;
-
-  while (cursor < source.length) {
-    const nextBegin = source.indexOf(begin, cursor);
-    const nextEnd = source.indexOf(end, cursor);
-    if (nextBegin === -1 && nextEnd === -1) break;
-    if (nextBegin !== -1 && (nextEnd === -1 || nextBegin < nextEnd)) {
-      if (depth === 0) currentBegin = nextBegin;
-      depth += 1;
-      cursor = nextBegin + begin.length;
-      continue;
-    }
-    if (nextEnd !== -1) {
-      depth = Math.max(0, depth - 1);
-      cursor = nextEnd + end.length;
-      if (depth === 0 && currentBegin != null) {
-        ranges.push({
-          beginIndex: currentBegin,
-          endIndex: cursor
-        });
-        currentBegin = null;
-      }
-      continue;
-    }
-    break;
-  }
-
-  return ranges;
-}
 
 function resolveActiveFigureIndex(activeFigureId, count) {
   const match = /^figure:(\d+)(?::|$)/.exec(String(activeFigureId || "").trim());
@@ -1492,7 +1469,7 @@ function extractActiveFigureContext(prefix) {
 }
 
 function removeTikzPictureRanges(source) {
-  const ranges = findTikzPictureRanges(source);
+  const ranges = findTopLevelPictures(source);
   if (!ranges.length) return source;
   let output = "";
   let cursor = 0;

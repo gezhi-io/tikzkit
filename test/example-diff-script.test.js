@@ -4,7 +4,20 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { deflateSync } from "node:zlib";
+import { inkAgreement } from "../scripts/measure-vector-ink.mjs";
 import { compareDecodedPngs, compareExamplePngs, decodePng, findBestPixelAlignment, formatExampleDiffSummary } from "../scripts/diff-example-pngs.js";
+
+test("foreground agreement rejects blank, shifted, recolored and resized images", () => {
+  const image = (...pixels) => ({ width: pixels.length, height: 1, data: pixels.flat() });
+  const white = [255, 255, 255, 255], red = [255, 0, 0, 255], blue = [0, 0, 255, 255];
+  const source = image(red, white);
+  assert.equal(inkAgreement(source, image(red, [0, 0, 0, 0])), 1);
+  assert.equal(inkAgreement(source, image(white, red)), 0);
+  assert.equal(inkAgreement(source, image(blue, white)), .5);
+  assert.equal(inkAgreement(image(white), image(white)), 0);
+  assert.equal(inkAgreement(source, image(red)), 0);
+  assert.ok(inkAgreement(source, image([255, 0, 0, 128], white)) < .81);
+});
 
 test("example PNG diff report compares rendered TikZKit and tikztosvg PNG artifacts", async () => {
   const outputRoot = await mkdtemp(path.join(os.tmpdir(), "tikzkit-example-diff-"));

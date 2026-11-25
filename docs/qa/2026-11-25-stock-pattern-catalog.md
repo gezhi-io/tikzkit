@@ -51,5 +51,5 @@ node scripts/measure-pattern-paint.mjs "$Q" "$F/paint-probes.json"
 Set `PLAYWRIGHT_MODULE` to the local Playwright entry point. Open
 `browser-audit.html` in the output directory for per-case images;
 `tikztosvg-svg/`, `mactex-png/` and `pattern-metrics.json` hold the references
-and individual results. The cases use a `tikzpicture` environment, not the
-general unbraced inline `\tikz` shorthand.
+and individual results. These cases use a `tikzpicture` environment. For the
+standalone `\tikz` command, see [the separate picture-command comparison](2026-11-25-picture-command.md).

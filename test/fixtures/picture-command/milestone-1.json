@@ -1,0 +1,12 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "manual-rectangle",
+    "manual-three-paths",
+    "manual-circles",
+    "manual-rotated-grid",
+    "scoped-pattern",
+    "function-options",
+    "mixed-selection"
+  ]
+}

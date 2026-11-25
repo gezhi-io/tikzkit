@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "id": "manual-rectangle",
+      "title": "Manual: one unbraced rectangle",
+      "source": "manual-rectangle.tex"
+    },
+    {
+      "id": "manual-three-paths",
+      "title": "Manual: three independent colored paths",
+      "source": "manual-three-paths.tex"
+    },
+    {
+      "id": "manual-circles",
+      "title": "Manual: ten circles from a single foreach",
+      "source": "manual-circles.tex"
+    },
+    {
+      "id": "manual-rotated-grid",
+      "title": "Manual: picture options transform a millimeter grid",
+      "source": "manual-rotated-grid.tex"
+    },
+    {
+      "id": "scoped-pattern",
+      "title": "Local styles on the short pattern command",
+      "source": "scoped-pattern.tex"
+    },
+    {
+      "id": "function-options",
+      "title": "Scaled inline visualization with semicolons in the function body",
+      "source": "function-options.tex"
+    },
+    {
+      "id": "mixed-selection",
+      "title": "Third figure: a short picture referencing an earlier named coordinate",
+      "source": "mixed-selection.tex",
+      "activeFigureId": "figure:2"
+    }
+  ]
+}

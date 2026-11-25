@@ -1,0 +1,12 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{datavisualization.formats.functions}
+\begin{document}
+\tikz[xscale=1.35] \datavisualization[
+    scientific axes=clean, visualize as line,
+    x axis={ticks=none}, y axis={ticks=none}]
+  data [format=function] {
+    var x : interval [0:2] samples 5;
+    func y = \value x * \value x;
+  };
+\end{document}

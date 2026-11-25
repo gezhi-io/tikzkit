@@ -1,0 +1,7 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{patterns}
+\begin{document}
+\tikzset{tile/.style={pattern=sixpointed stars,pattern color=blue}}
+\tikz[scale=1.25,tile] \pattern (0,0) rectangle (1.8,.9);
+\end{document}
