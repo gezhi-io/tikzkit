@@ -7,6 +7,8 @@ import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
 import { fixedCapacitorItems, fixedCapacitorSettings } from "../extensions/circuitikz/capacitors.js";
 import { fixedResistorItem, fixedResistorSettings } from "../extensions/circuitikz/resistors.js";
+import { potentiometerBodyItem, potentiometerGeometry, potentiometerSettings } from "../extensions/circuitikz/potentiometers.js";
+import { potentiometerWiperItems } from "../extensions/circuitikz/wiperArrow.js";
 import { roundTerminalSettings } from "../extensions/circuitikz/roundTerminals.js";
 import { passiveLabelLayout } from "../extensions/circuitikz/passiveLabels.js";
 import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
@@ -1584,6 +1586,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathEnv = {
     ...optionEnv,
     circuitikz: withCircuitikzKeys(env.circuitikz, statementTransformOptions),
+    pathInk: { stroke: normalized.strokeInk, fill: normalized.fillInk },
     pathLet: { points: {}, numbers: {} },
     variables: { ...(env.variables || {}) },
     transform: pathPlane?.transform || pathTransform,
@@ -1657,6 +1660,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const requestedArrowAction = requestedStyle.markerStart || requestedStyle.markerEnd ||
     requestedStyle.shortenStart !== undefined || requestedStyle.shortenEnd !== undefined;
   const visible = isVisiblePath(requestedArrowAction ? "path" : statement.command, pathStyle, semantic);
+  // PGF node bodies paint independently of the parent path's draw/fill modes.
+  // An unpainted connection still contributes its constructed ends to the box.
+  const hasNodePaint = built.shapes.some(shape => shape.paintAfterPath);
   // PGF's first clip contributes its path to the picture box. Subsequent
   // paint is clipped but no longer grows the box until the graphics scope ends.
   const clip = tikzBoolean(built.actionOptions.clip) ? {
@@ -1671,7 +1677,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
     }));
   } else if (!visible && !tikzBoolean(pathOptions.overlay) &&
-      (pathEnv.trackLocalBounds || requestedArrowAction)) {
+      (pathEnv.trackLocalBounds || requestedArrowAction || hasNodePaint)) {
     const geometry = constructed.concat(built.splitContours.flatMap(s => s.commands));
     if (geometry.length) ir.items.push(createBoundingBoxShape(geometry, requestedArrowAction ? { retainZeroExtent: true } : {}));
   }
@@ -1680,7 +1686,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   addShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
   let afterContour;
   const foregroundShapes = new Map();
-  if (visible || built.styleHints.visiblePic || built.shapes.some(shape => shape.subtype === "edge")) {
+  if (visible || hasNodePaint || built.styleHints.visiblePic || built.shapes.some(shape => shape.subtype === "edge")) {
     const shapeBase = { ...withoutArrowActions(style), ...shadingStyle, ...doubleStyle };
     const splitContours = new Set(built.splitContours);
     const contourStyle = splitContours.size ? withoutArrowActions(pathStyle) : shapeBase;
@@ -2912,6 +2918,12 @@ function drawPolyline(commands, points, startNodeRef, endNodeRef, env) {
 }
 
 function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, fromRef, toRef, options = {}, localToOptions, env, pathStyle = {}, styleHints = null }) {
+  // A named TikZ style can select the bipole as well as set its geometry.
+  // Expand only the local keys here; their effects end with this connection.
+  if (env.styles && Object.keys(localToOptions || {}).some(key => Object.hasOwn(env.styles, key))) {
+    localToOptions = normalizeOptions("path", localToOptions, env).options;
+    options = mergeOptionOrder({ ...options }, localToOptions);
+  }
   const spec = circuitikzBipoleSpec(options, env);
   if (!spec || !from || !to) return null;
   const keys = withCircuitikzKeys(env.circuitikz, localToOptions);
@@ -2924,10 +2936,41 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, fromRef,
   // painted leads use TikZ's implicit shape borders; explicit anchors are literal.
   const wire = spec.kind === "mosfet" ? { from, to } : clipNodeLineEndpoints(from, fromRef, to, toRef, env);
   if (spec.kind !== "mosfet" && shouldBreakAtNodeExit(fromRef)) moveToNodeExit(commands, wire.from);
-  const splitWire = length => appendCircuitikzSplitWire(commands, wire.to, geometry, length, pathStyle, styleHints, options, env);
+  const splitWire = (length, ends) => appendCircuitikzSplitWire(commands, wire.to, geometry, length, pathStyle, styleHints, options, env, ends);
   let passiveBody = null;
   if (spec.kind === "short") {
     commands.push(lineToCommand(wire.to));
+  } else if (spec.kind === "potentiometer") {
+    const kind = spec.region ?? keys?.["resistor/kind"] ?? "american";
+    const settings = potentiometerSettings(kind, keys, env.variables, nodeCanvasScale(options, env));
+    const inverted = tikzBoolean(options.invert ?? options.inverted);
+    const mirrored = tikzBoolean(options.mirror ?? options.mirrored);
+    const shape = potentiometerGeometry(geometry, settings, inverted, mirrored);
+    const { left, right } = shape.anchors;
+    const split = splitWire(settings.bodyLength, inverted ? { start: right, end: left } : { start: left, end: right });
+    // Like a TikZ node, the component paints even on a non-stroking parent path.
+    // A local pen changes the body, not the leads; the head uses PGF's fill ink.
+    const color = keys?.color && keys.color !== "none" ? normalizeColor(String(keys.color)) : undefined;
+    const bodyStyle = { ...pathStyle, stroke: color ?? env.pathInk?.stroke ?? pathStyle.stroke };
+    if (Object.keys(localToOptions || {}).some(optionSetsLineWidth)) {
+      bodyStyle.lineWidth = scaleCanvasStyle(normalizeOptions("draw", localToOptions, env).style, env).lineWidth;
+    }
+    const wiperSettings = { ...settings, color, wiperHeadFill: env.pathInk?.fill, canvasScale: canvasLengthScale(env),
+      wiperStartArrow: keys?.["wiper start arrow"], wiperEndArrow: keys?.["wiper end arrow"] };
+    shapes.push(potentiometerBodyItem(geometry, settings, bodyStyle, circuitikzComponentFill(options), inverted, mirrored),
+      ...potentiometerWiperItems(shape, wiperSettings, bodyStyle));
+    if (split.postLead) shapes.push(split.postLead);
+    if (spec.name) {
+      const name = resolveDynamicName(spec.name, env);
+      env.nodes[name] = { shape: "circuitikzPotentiometer", point: shape.anchors.center, width: settings.bodyLength,
+        height: shape.labelHalfNormal.positive + shape.labelHalfNormal.negative,
+        rotation: Math.atan2(geometry.u.y, geometry.u.x) * 180 / Math.PI,
+        shapeData: { savedAnchors: shape.anchors } };
+      env.coordinates[name] = shape.anchors.center;
+      for (const [anchor, point] of Object.entries(shape.anchors)) env.coordinates[`${name}.${anchor}`] = point;
+    }
+    passiveBody = { bodyLength: settings.bodyLength, halfNormal: shape.labelHalfNormal.positive,
+      halfNormalBelow: shape.labelHalfNormal.negative };
   } else if (spec.kind === "resistor") {
     const kind = options["european resistor"] !== undefined ? "european"
       : options["american resistor"] !== undefined ? "american" : keys?.["resistor/kind"] ?? "american";
@@ -3022,6 +3065,11 @@ function circuitikzPackageSettings(packages = []) {
 
 function circuitikzBipoleSpec(options = {}, env = {}) {
   const name = circuitikzComponentName(options);
+  const pot = circuitikzFirstMatchingOption(options, /^(?:pR|(?:(?:american|european) )?potentiometer)$/);
+  if (pot) {
+    const region = pot.key.includes(" ") ? pot.key.split(" ")[0] : null;
+    return { kind: "potentiometer", label: pot.label, name, region };
+  }
   const resistorLabel = circuitikzFirstLabel(options, ["R", "resistor", "american resistor", "european resistor"]);
   if (resistorLabel !== null) return { kind: "resistor", label: resistorLabel, name };
   // `vC` is case-sensitive at the Circuitikz level: it is a tunable capacitor,
@@ -4053,10 +4101,10 @@ function circuitikzInductorCoreDistance(options = {}, env = {}) {
   return parseDimension("2pt", env.variables || {}) * canvasLengthScale(env);
 }
 
-function appendCircuitikzSplitWire(commands, to, geometry, bodyLength, pathStyle = {}, styleHints = null, options = {}, env = {}) {
+function appendCircuitikzSplitWire(commands, to, geometry, bodyLength, pathStyle = {}, styleHints = null, options = {}, env = {}, ends) {
   const half = bodyLength / 2;
-  const start = pointAlong(geometry.mid, geometry.u, -half);
-  const end = pointAlong(geometry.mid, geometry.u, half);
+  const start = ends?.start ?? pointAlong(geometry.mid, geometry.u, -half);
+  const end = ends?.end ?? pointAlong(geometry.mid, geometry.u, half);
   const postLead = circuitikzPostLeadEndpoints(end, to, geometry, options, env);
   commands.push(lineToCommand(start));
   if (circuitikzPathHasMarkers(pathStyle)) {
@@ -5885,7 +5933,8 @@ function appendCircuitikzComponentLabel(nodes, spec, geometry, options = {}, env
   if (!label) return;
   const side = explicit?.side || 1;
   if (passiveBody && nodeCanvasScale(options, env) === 1 && !tikzBoolean(options["transform shape"])) {
-    const placement = measuredPassiveLabel(label, side, passiveBody.halfNormal, geometry, keys, env, pathStyle);
+    const halfNormal = side < 0 ? passiveBody.halfNormalBelow ?? passiveBody.halfNormal : passiveBody.halfNormal;
+    const placement = measuredPassiveLabel(label, side, halfNormal, geometry, keys, env, pathStyle);
     if (placement) {
       addCircuitikzTextNode(nodes, placement.point, label, placement.options);
       return;
@@ -17918,6 +17967,10 @@ function looksLikeExplicitCoordinate(text) {
 }
 
 function nodeAnchorCoordinate(node, anchorRaw, env) {
+  // PGF shape anchors are case-sensitive: a potentiometer's W is the wiper,
+  // but w is the west end. These saved points already include the node transform.
+  const saved = node.shapeData?.savedAnchors;
+  if (saved && Object.hasOwn(saved, anchorRaw)) return saved[anchorRaw];
   const rawAnchor = String(anchorRaw ?? "center").trim().toLowerCase();
   const visibleWidth = Number(node.width) || 0;
   const visibleHeight = Number(node.height) || 0;

@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [treeArg, stageArg, playwrightArg, revision] = process.argv.slice(2);
+const rerender = process.env.TIKZKIT_QA_RERENDER === "1";
 assert.ok(revision, "Usage: node capture.mjs <renderer-tree> <stage-output> <playwright/index.mjs> <revision-label>");
 const root = path.resolve(stageArg), tree = path.resolve(treeArg);
 const load = file => import(pathToFileURL(file).href);
@@ -147,6 +148,17 @@ try {
       document.querySelector("#render-status")?.textContent.includes("diagnostics") &&
       !document.querySelector("#render-button").disabled && !document.querySelector("#download-svg-button").disabled &&
       document.querySelector("#tikzkit-result:not(.is-stale) > svg"), { id, source });
+    if (rerender) {
+      const previous = await workbench.locator("#tikzkit-result > svg").elementHandle();
+      await workbench.locator("#render-button").click();
+      await workbench.waitForFunction(old => !old.isConnected &&
+        document.querySelector("#tikzkit-result:not(.is-stale) > svg") &&
+        !document.querySelector("#render-button").disabled &&
+        !document.querySelector("#download-svg-button").disabled &&
+        document.querySelector("#render-status").textContent.includes("diagnostics"), previous);
+      await previous.dispose();
+      assert.equal(await workbench.evaluate(() => document.querySelector(".CodeMirror").CodeMirror.getValue()), source);
+    }
     const diagnostics = await workbench.locator("#diagnostics .diagnostic").allTextContents();
     const live = workbench.locator("#tikzkit-result > svg");
     const liveSvg = await live.evaluate(el => new XMLSerializer().serializeToString(el));
@@ -172,7 +184,8 @@ try {
     }
     Object.assign(panels.live, { svgFile: rel(dst("live", id, "svg")), svgSha256: hash(liveSvg) });
     panels.pdf = { file: rel(pdfPng), sha256: await fileHash(pdfPng), pdfFile: rel(pdf), pdfSha256: await fileHash(pdf) };
-    rows.push({ id, source: fixture.source, sourceSha256: hash(source), renderFingerprint: entry.renderFingerprint,
+    rows.push({ id, ...(rerender && { editorRenderClicked: true, previousSvgDetached: true }),
+      source: fixture.source, sourceSha256: hash(source), renderFingerprint: entry.renderFingerprint,
       originalPdfInputMatchesSource: true, diagnostics, exportDiagnostics: entry.diagnostics,
       suggestedDownload: download.suggestedFilename(), panels });
     console.log("Captured workbench, actual download, CLI export, tikztosvg and original PDF: " + id);

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"manual-wipers","title":"Manual: three named potentiometer wipers","source":"../manual-wipers.tex"},
+    {"id":"manual-longpot","title":"Manual: longpot between ordinary resistors","source":"../manual-longpot.tex"},
+    {"id":"wired-probe","title":"Wired noncentral sliders: horizontal, mirror and invert","source":"../wired-probe.tex"},
+    {"id":"paint-probe","title":"Potentiometer paint: bare path, red and draw=red","source":"../paint-probe.tex"}
+  ]
+}

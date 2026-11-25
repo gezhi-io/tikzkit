@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american]
+    \fill[gray] (0,.8) circle (.3mm);
+    \fill[gray] (4,-4) circle (.3mm);
+    \path (0,0) to[pR] (4,0);
+    \draw[red] (0,-1.6) to[pR] (4,-1.6);
+    \draw[draw=red] (0,-3.2) to[pR] (4,-3.2);
+\end{circuitikz}
+\end{document}

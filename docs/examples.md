@@ -78,6 +78,22 @@ See the [full validation record](qa/2026-10-25-polar-timeline.md) for local
 source references, commands, thresholds and remaining differences. These
 examples describe the GitHub checkout; they may be ahead of the npm release.
 
+## CircuitikZ Potentiometers
+
+Name a potentiometer to connect another wire to its slider. `wiper pos` is
+a fraction of the resistor body, not the whole connection:
+
+```tex
+\begin{circuitikz}[american]
+  \draw (0,0) to[pR, name=P, wiper pos=.25] (4,0);
+  \draw (P.wiper) -- ++(0,1);
+\end{circuitikz}
+```
+
+See the [standalone source with three slider settings](../test/fixtures/native-circuitikz-potentiometers/manual-wipers.tex)
+and the [browser and native comparison](qa/2026-11-25-circuitikz-potentiometers.md).
+This example requires the GitHub version.
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}[american]
+    \ctikzset{resistors/width=1.5, resistors/zigs=9}
+    \draw (0,0) to[pR, name=A] ++(0,-4);
+    \draw (1.5,0) to[pR, wiper pos=0.3, name=B] ++(0,-4);
+    \ctikzset{european resistors}
+    \draw (3,0) to[pR, wiper pos=0.8, name=C] ++(0,-4);
+    \foreach \i in {A, B, C}
+        \node[right] at (\i.wiper) {\i};
+\end{circuitikz}
+\end{document}
