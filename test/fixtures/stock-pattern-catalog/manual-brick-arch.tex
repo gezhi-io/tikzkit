@@ -1,0 +1,11 @@
+\documentclass[border=3pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{patterns}
+\begin{document}
+\begin{tikzpicture}
+% PGF manual, pgfmanual-en-tikz-actions.tex:746-752.
+\def\mypath{(0,0) -- +(0,1) arc (180:0:1.5cm) -- +(0,-1)}
+\fill[red] \mypath;
+\pattern[pattern color=white,pattern=bricks] \mypath;
+\end{tikzpicture}
+\end{document}

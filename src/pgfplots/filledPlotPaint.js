@@ -14,7 +14,7 @@ export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } 
     if (key === "color" || (value === true && isPlotColorToken(key))) {
       stroke = fill = key === "color" ? value : key;
       pattern = undefined;
-    } else if (key === "pattern") {
+    } else if (key === "pattern" || key === "/tikz/pattern") {
       filled = value !== "none";
       if (filled && value !== true && value !== "") pattern = value;
     } else if (key === "draw" || key === "fill") {

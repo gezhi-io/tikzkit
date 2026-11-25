@@ -63,7 +63,7 @@ import {
   tickDistanceValues as axisTickDistanceValues
 } from "../pgfplots/ticks.js";
 
-const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "node", "coordinate", "foreach"]);
+const BUILTIN_MACROS = new Set(["draw", "path", "fill", "filldraw", "pattern", "node", "coordinate", "foreach"]);
 const DATAVISUALIZATION_VARY_HUE_SERIES = {
   start: [0.4, 0.9, 0.8],
   step: [0.213, 0, 0]

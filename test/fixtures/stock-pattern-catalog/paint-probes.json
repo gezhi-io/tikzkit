@@ -1,0 +1,57 @@
+{
+  "manual-stars": {
+    "red circle": {"box":[12,20,26,36]},
+    "overlap with aligned blue stars": {"box":[34,14,48,24]},
+    "blue rectangle only": {"box":[68,8,113,29]}
+  },
+  "manual-brick-arch": {
+    "bottom courses": {"box":[10,49,81,70]},
+    "top courses": {"box":[33,12,58,32]},
+    "clipped arch shoulder": {"box":[7,8,28,35]},
+    "outside arch": {"box":[4,5,12,12],"solid":[255,255,255]}
+  },
+  "stencil-geometry": {
+    "five-point stencil": {"box":[10,8,58,32]},
+    "six-point stencil under even-odd rule": {"box":[71,8,122,32]},
+    "mortar": {"box":[10,44,58,66]},
+    "translucent checker": {"box":[72,43,123,66]}
+  },
+  "fixed-inks": {
+    "fixed checker": {"box":[8,8,43,32]},
+    "gray relief": {"box":[53,8,88,32]},
+    "steel relief": {"box":[99,8,134,32]},
+    "translucent checker": {"box":[8,43,43,66]},
+    "translucent gray relief": {"box":[53,43,88,66]},
+    "translucent steel relief": {"box":[99,43,134,66]}
+  },
+  "command-forms": {
+    "inherited command ink": {"box":[6,6,27,27]},
+    "inherited bare option": {"box":[41,6,61,27]},
+    "overridden blue stars": {"box":[76,6,96,27]},
+    "inherited solid orange": {"box":[6,41,27,61],"solid":[255,128,0]},
+    "resumed mortar": {"box":[41,41,61,61]},
+    "disabled fill": {"box":[76,41,96,61],"solid":[255,255,255]}
+  },
+  "manual-catalog": {
+    "horizontal lines": {"box":[5,5,37,21]},
+    "vertical lines": {"box":[46.1,5,78.1,21]},
+    "north east lines": {"box":[87.2,5,119.2,21]},
+    "north west lines": {"box":[128.3,5,160.3,21]},
+    "grid": {"box":[169.4,5,201.4,21]},
+    "crosshatch": {"box":[5,30.5,37,46.5]},
+    "dots": {"box":[46.1,30.5,78.1,46.5]},
+    "crosshatch dots": {"box":[87.2,30.5,119.2,46.5]},
+    "fivepointed stars": {"box":[128.3,30.5,160.3,46.5]},
+    "sixpointed stars": {"box":[169.4,30.5,201.4,46.5]},
+    "bricks": {"box":[5,56,37,72]},
+    "checkerboard": {"box":[46.1,56,78.1,72]},
+    "checkerboard light gray": {"box":[87.2,56,119.2,72]},
+    "horizontal lines light gray": {"box":[128.3,56,160.3,72]},
+    "horizontal lines gray": {"box":[169.4,56,201.4,72]},
+    "horizontal lines dark gray": {"box":[5,81.5,37,97.5]},
+    "horizontal lines light blue": {"box":[46.1,81.5,78.1,97.5]},
+    "horizontal lines dark blue": {"box":[87.2,81.5,119.2,97.5]},
+    "crosshatch dots gray": {"box":[128.3,81.5,160.3,97.5]},
+    "crosshatch dots light steel blue": {"box":[169.4,81.5,201.4,97.5]}
+  }
+}

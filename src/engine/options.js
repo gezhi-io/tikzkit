@@ -117,6 +117,11 @@ export function stripTexComments(input = "") {
 }
 
 function setParsedOption(options, key, value) {
+  if (key === "pattern" || key === "/tikz/pattern") {
+    // PGF's empty/none forms only toggle filling. Keep that action distinct
+    // from selecting ink so a bare key cannot shadow a scoped tile name.
+    key = value === true || value === "" || value === "none" ? "/tikz/pattern" : "pattern";
+  }
   if (isRepeatableOption(key) && Object.hasOwn(options, key)) {
     options[key] = [...optionValues(options[key]), value];
     return;
@@ -254,6 +259,7 @@ export function normalizeOptions(command, rawOptions, env) {
   const defaultArrowTip = parseDefaultArrowTip(expanded);
   let currentColor = "black";
   let usesCurrentColorForFill = false;
+  let solidFillInk;
   let patternInk;
   let pendingDashPattern;
   let pendingDashKey;
@@ -277,6 +283,7 @@ export function normalizeOptions(command, rawOptions, env) {
       if (style.pattern) style.fill = color;
       delete style.pattern;
       patternInk = undefined;
+      solidFillInk = color;
       applyCurrentColor(style, color, command);
       currentColor = color;
       semantic["tikzkit current color"] = color;
@@ -306,6 +313,7 @@ export function normalizeOptions(command, rawOptions, env) {
         delete style.pattern;
         if (value !== "none") patternInk = undefined;
         style.fill = normalizeColor(String(value));
+        if (value !== "none") solidFillInk = style.fill;
       }
       continue;
     }
@@ -361,7 +369,7 @@ export function normalizeOptions(command, rawOptions, env) {
       style.textFill = normalizeColor(String(value));
       continue;
     }
-    if (key === "pattern") {
+    if (key === "pattern" || key === "/tikz/pattern") {
       // Selecting a tile sets the fill ink and starts filling. "none" stops
       // filling without replacing that ink; a later bare fill can reuse it.
       const name = String(value ?? "").trim();
@@ -372,7 +380,9 @@ export function normalizeOptions(command, rawOptions, env) {
       } else {
         if (value !== true && name) patternInk = name;
         if (patternInk) style.pattern = patternInk;
-        else style.fill = currentColor;
+        // A named pattern enables fill on an otherwise invisible path or
+        // node. The renderer uses the tile rather than this fallback ink.
+        if (style.fill === "none") style.fill = solidFillInk ?? currentColor;
       }
       continue;
     }

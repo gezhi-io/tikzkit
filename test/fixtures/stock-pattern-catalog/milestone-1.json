@@ -1,0 +1,11 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "manual-stars",
+    "manual-brick-arch",
+    "stencil-geometry",
+    "fixed-inks",
+    "manual-catalog",
+    "command-forms"
+  ]
+}

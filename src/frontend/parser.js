@@ -270,6 +270,9 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("{")) return parseBareScope(text, diagnostics);
 
   const command = text.match(/^\\([A-Za-z@]+)/)?.[1];
+  if (command === "pattern") {
+    return parsePathCommand("path", `[pattern] ${text.slice(command.length + 1)}`, diagnostics);
+  }
   if (["draw", "path", "fill", "filldraw", "shade"].includes(command)) {
     return parsePathCommand(command, text.slice(command.length + 1).trim(), diagnostics);
   }

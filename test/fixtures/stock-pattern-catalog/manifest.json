@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "id": "manual-stars",
+      "source": "manual-stars.tex",
+      "title": "PGF manual: overlapping red and blue star fields"
+    },
+    {
+      "id": "manual-brick-arch",
+      "source": "manual-brick-arch.tex",
+      "title": "PGF manual: white mortar on a red arch"
+    },
+    {
+      "id": "stencil-geometry",
+      "source": "stencil-geometry.tex",
+      "title": "Stars, bricks and transparent checker on a colored ground"
+    },
+    {
+      "id": "fixed-inks",
+      "source": "fixed-inks.tex",
+      "title": "Gray checkerboard and two embossed dot tiles, opaque and translucent"
+    },
+    {
+      "id": "manual-catalog",
+      "source": "manual-catalog.tex",
+      "title": "All 20 names in the installed PGF manual"
+    },
+    {
+      "id": "command-forms",
+      "source": "command-forms.tex",
+      "title": "Inherited fill ink, named overrides and the bare pattern action"
+    }
+  ]
+}

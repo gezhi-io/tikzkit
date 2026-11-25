@@ -2402,6 +2402,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         tangent: incomingTangentFromCommands(arc.commands, current, arc.endPoint)
       };
       current = arc.endPoint;
+      // TikZ's arcfinal saves the computed endpoint even after a temporary +.
+      relativeBase = current;
       currentLocal = null;
       currentBase = current;
       currentNodeRef = null;

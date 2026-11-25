@@ -17,7 +17,7 @@ import {
 import { foreachIterationVariables } from "../src/tikz/commands/foreach.js";
 import { drawCommand as compatDrawCommand } from "../src/commands/index.js";
 
-const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "fill", "path", "node", "chainin", "coordinate", "foreach", "axis", "addplot"];
+const OBSERVED_TIKZ_COMMANDS = ["tikzpicture", "draw", "fill", "path", "pattern", "node", "chainin", "coordinate", "foreach", "axis", "addplot"];
 
 test("keeps common TikZ commands in one module per command or environment", () => {
   assert.deepEqual(knownTikzCommands, OBSERVED_TIKZ_COMMANDS);

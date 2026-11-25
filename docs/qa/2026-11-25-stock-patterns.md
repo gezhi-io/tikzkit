@@ -36,8 +36,9 @@ contrast. The solid and hollow control interiors match exactly.
 This verifies paint placement, not whole-image equality. Rasterization of fine
 strokes, text and some axis endpoints still differ. The stock set covers
 horizontal, vertical and both diagonal lines, grid, crosshatch, dots, crosshatch
-dots, and five gray/blue horizontal bands. It does not implement arbitrary
-inherently colored declarations, `patterns.meta` transforms or every stock tile.
+dots, and five gray/blue horizontal bands. The [subsequent catalog audit](2026-11-25-stock-pattern-catalog.md)
+covers the remaining seven stock names. Arbitrary inherently colored
+declarations and `patterns.meta` transforms are outside both audits.
 
 ## MacTeX sources
 

@@ -3,6 +3,8 @@ export const tikzLibrary = {
   "status": "partial",
   "implementedBy": [
     "src/engine/options.js:normalizeOptions",
+    "src/tikz/commands/pattern.js + src/frontend/parser.js:parsePathCommand",
+    "src/engine/evaluate.js:buildPath (relative coordinates after an arc)",
     "src/frontend/parser.js:collectTikzsetStoredVariables + collectPgfFormOnlyPatternDeclarations",
     "src/engine/evaluate.js:pgfFormOnlyPatternDefinition",
     "src/renderers/svg/defs.js:collectFormOnlyPatternClipDefs",
@@ -14,6 +16,7 @@ export const tikzLibrary = {
   ],
   "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibrarypatterns.code.tex",
   "features": [
+    "all 20 stock tiles in the classic patterns library; bare fill actions preserve scoped ink",
     "tile enumeration inverse-translates the cropped page origin before intersecting shape bounds",
     "page-anchored stock hatches, dots and inherently colored horizontal bands shared by paths, plot areas, bars and their legends",
     "pattern fill metadata for supported renderers",
@@ -33,3 +36,5 @@ tikzLibrary.localSourceReviewed += "; pgfcorepatterns.code.tex:130-182 resets th
 tikzLibrary.localSourceReviewed += "; tikzlibrarypatterns.code.tex:13-30; pgflibrarypatterns.code.tex:13-95,159-224; pgfcorepatterns.code.tex:260-277 converts uncolored ink to RGB; pgfsys-pdftex.def:223-230 selects the pattern color space; pgfcoretransparency.code.tex:20-40";
 tikzLibrary.notes += " Reviewed 2026-10-23: form-only tile enumeration now subtracts the page-relative phase before computing visible tile indices. This restores missing top rows of dots after cropped-page origin shifts. Regression checks cover positive and negative origins and every visible lattice point. Both browser and PNG comparisons show the recovered rows; label font/baseline and raster differences remain, so the complete control figure is not certified. Evidence: docs/qa/2026-10-23-compact-math-anchors.md.";
 tikzLibrary.notes += " Stock patterns: 3pt hatches, grid, dots and crosshatch dots, plus the 4pt fixed gray/blue bands, use the source page origin. PGFPlots bars, closed-cycle function/coordinate areas and legend samples share the same ink. Stroked and filled pattern primitives inherit separate opacity channels. General patterns.meta transforms and arbitrary inherently colored declarations are not supported. Evidence: docs/qa/2026-11-25-stock-patterns.md.";
+tikzLibrary.localSourceReviewed += "; pgflibrarypatterns.code.tex:88-164,225-266; tikz.code.tex:1951,3732-3743; pgfmanual-en-library-patterns.tex:17-85; pgfmanual-en-tikz-actions.tex:739-752";
+tikzLibrary.notes += " All 20 stock names are implemented, including compound stars, staggered bricks, transparent and fixed gray checkers, and embossed gray/steel-blue dots. The pattern command and bare option enable fill using the scoped ink. Compared six figures in the browser, local tikztosvg and MacTeX. Evidence: docs/qa/2026-11-25-stock-pattern-catalog.md.";

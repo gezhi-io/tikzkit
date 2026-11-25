@@ -7,6 +7,7 @@ import { tikzCommand as fillCommand } from "./fill.js";
 import { tikzCommand as foreachCommand } from "./foreach.js";
 import { tikzCommand as nodeCommand } from "./node.js";
 import { tikzCommand as pathCommand } from "./path.js";
+import { tikzCommand as patternCommand } from "./pattern.js";
 import { tikzCommand as tikzpictureCommand } from "./tikzpicture.js";
 
 const tikzCommands = Object.freeze([
@@ -14,6 +15,7 @@ const tikzCommands = Object.freeze([
   drawCommand,
   fillCommand,
   pathCommand,
+  patternCommand,
   nodeCommand,
   chaininCommand,
   coordinateCommand,
@@ -37,6 +39,7 @@ export { tikzCommand as fillCommand } from "./fill.js";
 export { tikzCommand as foreachCommand } from "./foreach.js";
 export { tikzCommand as nodeCommand } from "./node.js";
 export { tikzCommand as pathCommand } from "./path.js";
+export { tikzCommand as patternCommand } from "./pattern.js";
 export { tikzCommand as tikzpictureCommand } from "./tikzpicture.js";
 
 function normalizeTikzCommand(command) {

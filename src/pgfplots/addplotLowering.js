@@ -189,7 +189,8 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const closedPoints = plot.fillAnchor
         ? [...points, geometry.mapPoint(plot.fillAnchor)]
         : parametricBaselineClosedPoints(visibleDataPoints, points, clipRanges, geometry);
-      const paint = plot.fillAnchor && plot.options.fill === undefined && plot.options.pattern === undefined
+      const paint = plot.fillAnchor && plot.options.fill === undefined &&
+        plot.options.pattern === undefined && plot.options["/tikz/pattern"] === undefined
         ? selectPlotFillStyle(plot.options, plotIndex) : filledPlotPaint(plot.options, axisOptions).fillStyle;
       const fillStyle = joinOptions(["axis closed cycle", paint, plotFillOpacityOption(plot.options), "draw=none"]);
       commands.push(`\\draw[${fillStyle}] ${closedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
