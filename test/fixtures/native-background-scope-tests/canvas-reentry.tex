@@ -1,0 +1,16 @@
+\begin{tikzpicture}[xshift=5pt]
+  \begin{scope}[on background layer={xshift=2pt,transform canvas={shift={(12pt,4pt)}}}]
+    \draw (1pt,1pt) -- (4pt,2pt);
+  \end{scope}
+  \begin{scope}[on background layer]
+    \draw (1pt,1pt) -- (4pt,2pt);
+    \begin{scope}[transform canvas={shift={(0pt,10pt)}}]
+      \draw (1pt,1pt) -- (4pt,2pt);
+    \end{scope}
+    \draw (2pt,1pt) -- (5pt,2pt);
+  \end{scope}
+  \begin{pgfonlayer}{background}
+    \draw (3pt,1pt) -- (6pt,2pt);
+  \end{pgfonlayer}
+  \draw (1pt,1pt) -- (4pt,2pt);
+\end{tikzpicture}

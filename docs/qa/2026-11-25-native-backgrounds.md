@@ -55,6 +55,6 @@ The [replay instructions](../../test/fixtures/native-backgrounds/README.md)
 cover browser rendering, download, MacTeX, and local
 `/Library/TeX/texbin/tikztosvg`. No TeX installation is required at runtime.
 
-Arbitrary named layers, deeply nested background scopes and unrestricted
-TeX hook code are outside this comparison. Shapes with other libraries'
+Explicit and nested background scopes have a [separate audit](2026-11-26-native-background-scopes.md).
+Arbitrary named layers and unrestricted TeX hook code are outside these comparisons. Shapes with other libraries'
 custom bounds are not certified by the seven manual drawings.

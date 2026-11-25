@@ -10,7 +10,7 @@ export function includePictureItemBounds(item, include, includeLayout) {
   const path = item.type === "path" || item.type === "bbox";
   const stroked = path ? (item.includeStrokeBounds ?? item.type === "path")
     : item.type === "nodeBox" && !item.strokeBoundsIncluded;
-  const pen = stroked ? strokePadding(item.style) : 0;
+  const pen = stroked ? strokePadding(item.style, undefined, item.boundsLineWidth) : 0;
   const record = pen ? (x, y) => {
     include(x - pen, y - pen);
     include(x + pen, y + pen);

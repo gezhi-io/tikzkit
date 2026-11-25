@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeOptions, parseOptions, styleDefinitionsFromOptions } from "../src/engine/options.js";
+import { normalizeColor, normalizeOptions, parseOptions, styleDefinitionsFromOptions } from "../src/engine/options.js";
 import { tikzToSvg } from "../src/index.js";
 import {
   backgroundFrameBounds, backgroundFrameKind, backgroundFramePath, backgroundStyles
@@ -92,4 +92,57 @@ test("background grid looks up help lines; extensions keep its draw action and a
     ["blue", "none", lineWidthFromPt(1)], ["none", "blue", lineWidthFromPt(.4)]
   ]);
   assert.ok(styles[2].dashArray.length > 0);
+});
+
+test("background scope payload overrides its hook; a style can switch layers without bringing the foreground pen", () => {
+  const { ir, diagnostics } = tikzToSvg(String.raw`\usetikzlibrary{backgrounds}
+    \tikzset{back/.style={on background layer={#1}},
+      every on background layer/.style={color=green,line width=1pt}}
+    \begin{tikzpicture}[line width=5pt]
+      \draw[blue] (0,0) -- (1,0);
+      \begin{scope}[back={color=yellow},line width=9pt]
+        \draw (0,0) -- (2,0);
+      \end{scope}
+      \begin{scope}[/tikz/on background layer]
+        \draw (0,0) -- (3,0);
+      \end{scope}
+    \end{tikzpicture}`);
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(ir.items.map(i => [i.commands.at(-1).x, i.style.stroke, i.style.lineWidth]), [
+    [2, normalizeColor("yellow"), lineWidthFromPt(1)], [3, normalizeColor("green"), lineWidthFromPt(1)],
+    [1, "blue", lineWidthFromPt(5)]
+  ]);
+});
+
+test("a subsequent automatic frame reuses the explicit layer's device pen, not the main pen", () => {
+  const { ir, diagnostics } = tikzToSvg(String.raw`\usetikzlibrary{backgrounds}
+    \begin{tikzpicture}[red,line width=6pt,framed,inner frame sep=1pt]
+      \begin{scope}[on background layer={draw=blue,fill=green,line width=3pt,dotted}]
+        \draw (0,0) -- (1,1);
+      \end{scope}
+      \draw (.5,0) -- (1.5,1);
+    \end{tikzpicture}`);
+  assert.deepEqual(diagnostics, []);
+  const [line, frame, foreground] = ir.items;
+  assert.deepEqual([line, frame, foreground].map(i => [i.style.stroke, i.style.lineWidth]), [
+    ["blue", lineWidthFromPt(3)], ["blue", lineWidthFromPt(3)], ["red", lineWidthFromPt(6)]
+  ]);
+  assert.deepEqual(frame.style.dashArray, line.style.dashArray);
+  assert.equal(frame.boundsLineWidth, lineWidthFromPt(.4));
+});
+
+test("background node text retains its TeX color independently of the layer's stroke and fill", () => {
+  const { ir, diagnostics } = tikzToSvg(String.raw`\usetikzlibrary{backgrounds}
+    \begin{tikzpicture}[color=red]
+      \begin{scope}[on background layer] \node at (0,0) {A}; \end{scope}
+      \begin{scope}[on background layer={draw=blue,fill=green}]
+        \node[draw,fill] at (1,0) {B};
+      \end{scope}
+      \begin{scope}[on background layer] \node[fill,draw] at (2,0) {C}; \end{scope}
+      \node at (3,0) {D};
+    \end{tikzpicture}`);
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(ir.items.filter(i => i.type === "nodeBox").map(i => [i.style.stroke, i.style.fill]),
+    Array(2).fill(["blue", normalizeColor("green")]));
+  assert.deepEqual(ir.items.filter(i => i.type === "textNode").map(i => i.style.fill), Array(4).fill("red"));
 });

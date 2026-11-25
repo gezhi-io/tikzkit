@@ -1,0 +1,12 @@
+\begin{tikzpicture}[line width=10pt,red]
+  \draw (0pt,0pt) -- (5pt,0pt);
+  \begin{scope}[on background layer={line width=8pt}]
+    \draw (20pt,1pt) -- (25pt,1pt);
+  \end{scope}
+  \begin{pgfonlayer}{background}
+    \draw (40pt,-10pt) -- (45pt,-10pt);
+  \end{pgfonlayer}
+  \draw (60pt,10pt) -- (68pt,10pt);
+  \draw[overlay,draw=green,line width=.5pt]
+    (current bounding box.south west) -- (current bounding box.north east);
+\end{tikzpicture}

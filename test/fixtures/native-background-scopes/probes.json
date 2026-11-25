@@ -1,0 +1,25 @@
+{
+  "scopes-manual-interleaved": {
+    "yellow corner": [1.5, 1.5, "fff200"],
+    "black corner": [3, 3, "000000"],
+    "exposed disc": [2, 10.7, "0000ff"],
+    "stripe over disc": [10.7, 10.7, "8080ff"]
+  },
+  "scopes-manual-crossed-pens": {
+    "red shaft": [5, 3.3, "ff0000"],
+    "black crossing": [11.45, 6.45, "000000"]
+  },
+  "latex-examples-cyclic-graph": {
+    "vertex over highlight": [19, 28.5, "d9d9d9"],
+    "exposed highlight": [29.5, 24.2, "ff8080"],
+    "black edge over highlight": [29.55, 23.59, "000000"]
+  },
+  "scopes-pen-reentry": {
+    "inner pen": [3, 4.9, "009900"],
+    "hook pen": [3, 9.9, "ff0000"],
+    "first background fill": [3, 15, "009900"],
+    "later fill over first": [6.2, 15, "ff0000"],
+    "first main crossing": [8.15, 4.9, "0000ff"],
+    "restored main pen": [22.15, 7.2, "0000ff"]
+  }
+}

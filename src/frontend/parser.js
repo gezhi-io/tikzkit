@@ -1,5 +1,5 @@
 import { createToken, Lexer } from "chevrotain";
-import { applyStyleDeclarations, codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseStyleDeclarations, parseTikzset, pictureHookKey, splitTopLevel } from "../engine/options.js";
+import { applyStyleDeclarations, codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseStyleDeclarations, parseTikzset, pictureHookKey, splitTopLevel, stripTexComments } from "../engine/options.js";
 import { preprocessTikzSource } from "./latex-shell.js";
 import { readForeachHeader } from "../tikz/commands/foreach.js";
 import { parsePgfPlotMarkDeclaration } from "../tikz/libraries/plotmarks.js";
@@ -276,6 +276,7 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("{")) return parseBareScope(text, diagnostics);
 
   const command = text.match(/^\\([A-Za-z@]+)/)?.[1];
+  if (command === "scoped") return parseScopedStatement(text, diagnostics);
   if (command === "clip") {
     return parsePathCommand("path", `[clip] ${text.slice(command.length + 1)}`, diagnostics);
   }
@@ -1395,6 +1396,29 @@ function isBracedScopeShorthand(text) {
   return source.startsWith("{") && source[skipWhitespace(source, 1)] === "[";
 }
 
+function readScopedHeader(text) {
+  const start = skipWhitespace(text, "\\scoped".length);
+  const options = extractOptionalOptionList(text, start);
+  if (text[start] === "[" && !options) return null;
+  return { optionsRaw: options?.content ?? "", bodyStart: skipWhitespace(text, options?.end ?? start) };
+}
+
+function parseScopedStatement(text, diagnostics) {
+  const header = readScopedHeader(text);
+  if (!header) return unsupported("scoped", text, "Malformed \\scoped options");
+  const { bodyStart, optionsRaw } = header;
+  const group = extractBalanced(text, bodyStart, "{", "}");
+  if (bodyStart === text.length || (text[bodyStart] === "{" && group?.end !== text.length)) {
+    return unsupported("scoped", text, "Malformed \\scoped body");
+  }
+  return {
+    type: "scope",
+    options: parseOptions(optionsRaw),
+    body: parseStatements(group ? group.content : text.slice(bodyStart), diagnostics),
+    raw: text
+  };
+}
+
 function parseBareScope(text, diagnostics) {
   const body = extractBalanced(text, 0, "{", "}");
   if (!body) return unsupported("scope", text, "Malformed scope body");
@@ -2245,7 +2269,9 @@ function parseCoordinateArgument(text, index) {
 }
 
 function splitStatements(body) {
-  body = String(body || "").replace(/^[ \t]*\\[ \t]*$/gm, "");
+  body = String(body || "");
+  if (body.includes("%")) body = stripTexComments(body);
+  body = body.replace(/^[ \t]*\\[ \t]*$/gm, "");
   const statements = [];
   let current = "";
   let paren = 0;
@@ -2254,7 +2280,7 @@ function splitStatements(body) {
   let ifnumDepth = 0;
   for (let i = 0; i < body.length; i += 1) {
     const char = body[i];
-    if (char === "\\" && /[{}\\]/.test(body[i + 1] || "")) {
+    if (char === "\\" && /[{}()[\];\\]/.test(body[i + 1] || "")) {
       current += body.slice(i, i + 2);
       i += 1;
       continue;
@@ -2310,8 +2336,7 @@ function splitStatements(body) {
       bracket === 0 &&
       brace === 0 &&
       ifnumDepth === 0 &&
-      isBraceTerminatedStatement(current) &&
-      (nextNonWhitespace(body, i + 1)?.startsWith("\\") || isBracedScopeShorthand(nextNonWhitespace(body, i + 1)))
+      isBraceTerminatedStatement(current, body, i + 1)
     ) {
       statements.push(current);
       current = "";
@@ -2332,10 +2357,19 @@ function splitStatements(body) {
   return statements;
 }
 
-function isBraceTerminatedStatement(statement) {
+function isBraceTerminatedStatement(statement, source, end) {
   const prefixed = parseLeadingFontSwitches(statement.trim());
   const text = prefixed ? prefixed.rest : statement.trim();
   if (!text) return false;
+  if (text.startsWith("{")) return true;
+  if (/^\\scoped(?![A-Za-z@])/.test(text)) {
+    // tikz@scoped@ closes the scope at the group's matching brace. A brace
+    // in an unbraced path (e.g. node text) must still wait for the semicolon.
+    const header = readScopedHeader(text);
+    return header != null && text[header.bodyStart] === "{";
+  }
+  const next = nextNonWhitespace(source, end);
+  if (!next.startsWith("\\") && !isBracedScopeShorthand(next)) return false;
   if (text.startsWith("\\foreach")) return hasCompleteBracedForeachBody(text);
   if (text.startsWith("\\ifthenelse")) {
     const parsed = parseIfThenElseArguments(text);
@@ -2360,8 +2394,7 @@ function isBraceTerminatedStatement(statement) {
     text.startsWith("\\ctikzset") ||
     text.startsWith("\\pgfplotstableread") ||
     text.startsWith("\\pgfplotstabletypeset") ||
-    text.startsWith("\\tikzset") ||
-    text.startsWith("{")
+    text.startsWith("\\tikzset")
   );
 }
 
@@ -3018,6 +3051,10 @@ function extractOptionalOptionList(text, start) {
   let optionPart = "";
   for (let i = start + 1; i < text.length; i += 1) {
     const char = text[i];
+    if (char === "\\" && i + 1 < text.length) {
+      optionPart += char + text[++i];
+      continue;
+    }
     if (brace === 0 && char === "(") paren += 1;
     if (brace === 0 && char === ")") paren = Math.max(0, paren - 1);
     if (char === "{") brace += 1;

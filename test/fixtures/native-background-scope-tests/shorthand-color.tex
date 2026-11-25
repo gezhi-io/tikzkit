@@ -1,0 +1,18 @@
+\begin{tikzpicture}[red]
+  \begin{scope}[on background layer={draw=red,line width=2pt}]
+    \draw (0pt,0pt) -- (3pt,2pt);
+    \fill (10pt,0pt) rectangle (13pt,2pt);
+  \end{scope}
+  \begin{scope}[on background layer={blue}]
+    \fill (20pt,0pt) rectangle (23pt,2pt);
+    \draw (30pt,0pt) -- (33pt,2pt);
+    \draw[draw=green] (40pt,0pt) -- (43pt,2pt);
+    \fill (50pt,0pt) rectangle (53pt,2pt);
+  \end{scope}
+  \begin{scope}[on background layer]
+    \fill (60pt,0pt) rectangle (63pt,2pt);
+    \draw (70pt,0pt) -- (73pt,2pt);
+    \draw[draw=.] (80pt,0pt) -- (83pt,2pt);
+  \end{scope}
+  \draw (90pt,0pt) -- (93pt,2pt);
+\end{tikzpicture}

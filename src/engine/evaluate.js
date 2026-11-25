@@ -21,6 +21,7 @@ import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libr
 import { automataPlacement, automataStyles, replayAutomataNodeParameters } from "../tikz/libraries/automata.js";
 import { petriStyles } from "../tikz/libraries/petri.js";
 import { backgroundStyles, backgroundFrameKind, backgroundFrameBounds, backgroundFramePath } from "../tikz/libraries/backgrounds.js";
+import { backgroundScopeRequest, backgroundTextInks, constructionKeys, recordBackgroundPaint } from "../tikz/libraries/backgroundScopes.js";
 import { includePictureItemBounds } from "./pictureBounds.js";
 import { petriChildLayout, petriChildNodeOptions, petriTokenGroups, petriTokenOffset } from "../tikz/libraries/petriTokens.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
@@ -355,6 +356,7 @@ export function interpretTikz(ast, options = {}) {
       arrowMetaLoaded: loadsModernArrowDefaults(ast.libraries, picture.packages || ast.packages),
       petriLoaded,
       backgroundsLoaded,
+      backgroundBox: {},
       // A body-level \tikzset can request a frame after an unpainted path.
       trackLocalBounds: backgroundsLoaded,
       pictureEndHooks: optionList(endPicture),
@@ -904,11 +906,8 @@ function runPictureEndHooks(hooks, libraryLoaded, ir, start, env, diagnostics, o
     // pen, color, clipping path and canvas transform belong to the old layer.
     const constructionOptions = Object.fromEntries(Object.entries(env.pictureOptions).filter(([key]) =>
       /^(?:\/tikz\/)?(?:step|[xy] ?step|rounded corners|sharp corners)$/.test(key)));
-    const layerEnv = {
-      ...env, onBackgroundLayer: true, pictureOptions: constructionOptions, scopeClips: undefined,
-      pictureBoundsDisabled: env.pictureBoundsDisabled || Boolean(env.scopeClips),
-      canvasTransform: identityTransform(), canvasScale: 1, canvasTrackingDisabled: false, canvasPlaneBasis: undefined
-    };
+    const layerEnv = enterBackgroundScope({ ...env, pictureOptions: constructionOptions,
+      canvasTrackingDisabled: false, canvasPlaneBasis: undefined }, { raw: true }, true);
     interpretStatement({ type: "path", command: "path", options: { [style]: true },
       path: { segments: [coord(from), { kind: "operator", value: operator }, coord(to)] } },
     layerEnv, layer, diagnostics, options);
@@ -982,7 +981,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
 }
 
 function interpretStatementBody(statement, env, ir, diagnostics, options) {
-  env.currentBoundingBox ||= () => computeCurrentBoundingBox(ir);
+  env.currentBoundingBox ||= () => computeCurrentBoundingBox(ir, env.backgroundBox?.used);
   if (statement.leadingFont) {
     applyFontSwitch(statement.leadingFont, env);
   }
@@ -1191,39 +1190,22 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
     const scopeStyles = { ...env.styles, ...styleDefinitionsFromOptions(statement.options || {}, env.styles) };
     const codeEnv = { ...env, variables: scopedVariables, styles: scopeStyles };
     const scopeOptions = stripStyleDefinitionOptions(
-      normalizeOptions("path", withImplicitStyleOption("every scope", statement.options || {}, scopeStyles), codeEnv).options
+      normalizeOptions("path", statement.options?.layer === "background" ? statement.options
+        : withImplicitStyleOption("every scope", statement.options || {}, scopeStyles), codeEnv).options
     );
     applyOptionCodeHandlers(scopeOptions, codeEnv);
-    const scopedTransform = composeTransform(env.transform, scopeOptions, codeEnv);
-    const scopedCanvasTransform = multiplyTransforms(
-      env.canvasTransform || identityTransform(),
-      transformCanvasTransform(scopeOptions, codeEnv)
-    );
-    const scopePlane = canvasPlaneEnvironment(env, scopeOptions, scopedTransform);
-    const scopedEnv = {
-      ...env,
-      variables: scopedVariables,
-      transform: scopePlane?.transform || scopedTransform,
-      circuitikz: withCircuitikzKeys(env.circuitikz, scopeOptions),
-      canvasTransform: scopedCanvasTransform,
-      canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(scopeOptions)),
-      canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
-      basis: scopePlane?.basis || composeBasis(env.basis, scopeOptions, codeEnv),
-      canvasPlaneBasis: scopePlane?.basis || env.canvasPlaneBasis,
-      trackLocalBounds: env.trackLocalBounds || Boolean(scopeOptions["local bounding box"]),
-      pictureOptions: mergeScopePictureOptions(env.pictureOptions || {}, scopeOptions),
-      styles: scopeStyles
-    };
+    let scopedEnv = scopeEnvironment(codeEnv, scopeOptions);
     applyChainControlOptions(scopeOptions, scopedEnv, diagnostics);
-    const background = isBackgroundScope(scopeOptions) && !env.onBackgroundLayer;
-    if (background) {
-      // PGF switches output boxes: the graphics clip stays behind, but the
-      // TeX flag suppressing picture-size updates remains in scope.
-      scopedEnv.onBackgroundLayer = true;
-      scopedEnv.pictureBoundsDisabled ||= Boolean(env.scopeClips);
-      scopedEnv.scopeClips = undefined;
-    }
+    const request = backgroundScopeRequest(scopeOptions);
+    const background = request && !env.onBackgroundLayer;
+    if (request) scopedEnv = enterBackgroundScope(scopedEnv, request, background);
     const scopeIr = background ? { ...ir, items: [], backgroundItems: [] } : ir;
+    if (background) {
+      env.backgroundBox.used = true;
+      scopedEnv.currentBoundingBox = () => computeCurrentBoundingBox({
+        items: ir.items.concat(scopeIr.items), backgroundItems: ir.backgroundItems.concat(scopeIr.backgroundItems)
+      }, true);
+    }
     const localBoxName = scopeOptions["local bounding box"];
     let localBounds = null;
     for (const child of statement.body) {
@@ -1248,7 +1230,16 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
         }
       }
     }
-    if (background) ir.backgroundItems.push(...scopeIr.backgroundItems, ...scopeIr.items);
+    if (background) {
+      env.backgroundBox.clips = scopedEnv.scopeClips;
+      ir.backgroundItems.push(...scopeIr.backgroundItems, ...scopeIr.items);
+    }
+    // A raw PGF layer does not surround the switch with a TikZ graphics scope.
+    if (request?.raw) {
+      env.pictureOptions = mergeOptionOrder({ ...env.pictureOptions }, { "line width": "0.4pt" });
+      env.boundsLineWidth = undefined;
+      if (env.writesBackgroundBox) env.backgroundBox.paint = mergeOptionOrder({ ...env.backgroundBox.paint }, { "line width": "0.4pt" });
+    }
     return;
   }
   if (statement.type === "path") {
@@ -1436,8 +1427,62 @@ function skipLocalWhitespace(source, index) {
   return index;
 }
 
-function isBackgroundScope(options = {}) {
-  return String(options.layer || "").trim() === "background" || options["on background layer"] === true;
+function scopeEnvironment(parent, keys) {
+  const transform = composeTransform(parent.transform, keys, parent);
+  const plane = canvasPlaneEnvironment(parent, keys, transform);
+  return {
+    ...parent, transform: plane?.transform || transform, writesBackgroundBox: false,
+    boundsLineWidth: Object.keys(keys).some(optionSetsLineWidth) ? undefined : parent.boundsLineWidth,
+    circuitikz: withCircuitikzKeys(parent.circuitikz, keys),
+    canvasTransform: multiplyTransforms(parent.canvasTransform || identityTransform(), transformCanvasTransform(keys, parent)),
+    canvasScale: parent.canvasScale * transformCanvasScale(keys, parent),
+    canvasTrackingDisabled: Boolean(parent.canvasTrackingDisabled || hasTransformCanvas(keys)),
+    basis: plane?.basis || composeBasis(parent.basis, keys, parent),
+    canvasPlaneBasis: plane?.basis || parent.canvasPlaneBasis,
+    trackLocalBounds: parent.trackLocalBounds || Boolean(keys["local bounding box"]),
+    pictureOptions: mergeScopePictureOptions(parent.pictureOptions, keys)
+  };
+}
+
+function enterBackgroundScope(before, request, switched) {
+  const box = before.backgroundBox;
+  const layer = { ...before, onBackgroundLayer: true, boundsLineWidth: lineWidthFromPt(.4) };
+  if (switched) {
+    const inks = backgroundTextInks(before.pictureOptions, before.texCurrentColor);
+    layer.texCurrentColor = normalizeColor(inks.current);
+    layer.pictureOptions = mergeOptionOrder(constructionKeys(before.pictureOptions), box.paint);
+    if (inks.text !== undefined) layer.pictureOptions.text = inks.text;
+    layer.scopeClips = box.clips;
+    layer.canvasTransform = box.canvasTransform || identityTransform();
+    layer.canvasScale = box.canvasScale ?? 1;
+    // A previous box's device matrix still moves the paint at shipout.
+    // PGF's size registers, however, only see this entry's TeX coordinates.
+    layer.deviceToPicture = box.canvasTransform && inverseAffineTransform(box.canvasTransform);
+  } else {
+    layer.pictureOptions = mergeOptionOrder({ ...before.pictureOptions }, { "line width": "0.4pt" });
+  }
+  if (request.raw) {
+    layer.writesBackgroundBox = switched;
+    return layer;
+  }
+  const arg = request.payload;
+  const raw = typeof arg === "string" && arg.trim() ? parseOptions(arg, layer.styles) : {};
+  layer.styles = { ...layer.styles, ...styleDefinitionsFromOptions(raw, layer.styles) };
+  const keys = stripStyleDefinitionOptions(normalizeOptions("path",
+    withImplicitStyleOption("every on background layer", raw, layer.styles), layer).options);
+  applyOptionCodeHandlers(keys, layer);
+  const inside = scopeEnvironment(layer, keys);
+  if (switched) {
+    // The TeX group closes at exit, but PGF appends subsequent entries to
+    // the same backend box. Path-local and ordinary nested scope paints do not leak.
+    box.paint = recordBackgroundPaint(box.paint, keys, layer.texCurrentColor);
+    if (hasTransformCanvas(keys)) {
+      box.canvasTransform = inside.canvasTransform;
+      box.canvasScale = inside.canvasScale;
+    }
+  }
+  inside.writesBackgroundBox = switched;
+  return inside;
 }
 
 function evaluateIfNum(statement, env) {
@@ -1569,7 +1614,7 @@ function isScopeTransformOption(key) {
     "y",
     "z",
     "layer",
-    "on background layer"
+    "on background layer", "/tikz/on background layer"
   ].includes(name);
 }
 
@@ -1658,6 +1703,12 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     basis: pathPlane?.basis || composeBasis(env.basis, options, optionEnv),
     canvasPlaneBasis: pathPlane?.basis || env.canvasPlaneBasis
   };
+  if (env.boundsLineWidth !== undefined) {
+    const penKeys = env.styles["every path"]
+      ? normalizeOptions("path", withImplicitStyleOption("every path", statement.options || {}, pathStyles), optionEnv).options
+      : statementTransformOptions;
+    if (Object.keys(penKeys).some(optionSetsLineWidth)) pathEnv.boundsLineWidth = undefined;
+  }
   const subtype = semanticSubtype(pathOptions);
   const clipRect = parseInternalClipRect(pathOptions["tikzkit clip rect"], pathEnv);
   const clipCircle = parseInternalClipCircle(pathOptions["tikzkit clip circle"], pathEnv);
@@ -1733,7 +1784,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       .flatMap(shape => shape.commands)],
     fillRule: pathStyle.fillRule
   } : null;
-  if (clip && !visible && !env.scopeClips && !tikzBoolean(pathOptions.overlay) && clip.commands.length) {
+  if (clip && !visible && !env.pictureBoundsDisabled && !tikzBoolean(pathOptions.overlay) && clip.commands.length) {
     const box = built.constructionCommands ? constructed.concat(clip.commands.slice(built.commands.length)) : clip.commands;
     ir.items.push(createBoundingBoxShape(box, {
       tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
@@ -1816,7 +1867,12 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   // pgfusepath paints the contour first; postactions and the node box are
   // shipped after the new clip is active. Never mutate a parent scope's stack.
   afterContour ??= ir.items.length;
-  if (clip) env.scopeClips = [...(env.scopeClips || []), clip];
+  if (clip) {
+    // PGF's TeX size flag follows the scope; the backend clip follows its
+    // layer box. A later visit can be physically clipped but still grow the box.
+    env.scopeClips = [...(env.scopeClips || []), clip];
+    env.pictureBoundsDisabled = true;
+  }
   addDecorationTextItems(built, pathOptions, style, ir, pathEnv, "postaction");
   for (const entry of built.foreground) {
     const shape = foregroundShapes.get(entry);
@@ -1835,15 +1891,23 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     }
     addNodeItems(entry, ir, pathEnv);
   }
-  if (clip) applyScopeClips(ir.items, afterContour, env.scopeClips, false);
+  if (clip) applyScopeClips(ir.items, afterContour, env.scopeClips);
   applyCanvasTransformBounds(ir, firstItemIndex, pathEnv.canvasTrackingDisabled);
+  if (!pathEnv.canvasTrackingDisabled && (pathEnv.deviceToPicture || pathEnv.boundsLineWidth !== undefined)) {
+    for (const item of ir.items.slice(firstItemIndex)) {
+      if (!item.commands || item.excludeFromBounds) continue;
+      if (pathEnv.deviceToPicture) item.constructionCommands = mapPathCoordinates(
+        item.constructionCommands ?? item.commands, p => applyTransform(p, pathEnv.deviceToPicture));
+      if (built.styleHints.lineWidth === undefined && pathEnv.boundsLineWidth !== undefined &&
+          item.style?.lineWidth !== pathEnv.boundsLineWidth) item.boundsLineWidth = pathEnv.boundsLineWidth;
+    }
+  }
 }
 
-function applyScopeClips(items, start, clips, suppressBounds = true) {
+function applyScopeClips(items, start, clips) {
   for (let i = start; i < (items?.length || 0); i++) {
     const item = items[i];
     if (item.type !== "bbox") item.scopeClips ??= clips;
-    if (suppressBounds) item.excludeFromBounds = true;
   }
 }
 
@@ -8923,7 +8987,7 @@ function createTqftPic(statement, env, ir, diagnostics, name, origin) {
     type: "path",
     subtype: "tqft-cobordism",
     style,
-    commands: tqftTransformCommands(tqftBodyPath(local, spec), transform)
+    commands: mapPathCoordinates(tqftBodyPath(local, spec), transform)
   });
 
   for (const boundary of [...local.incoming, ...local.outgoing]) {
@@ -8932,7 +8996,7 @@ function createTqftPic(statement, env, ir, diagnostics, name, origin) {
       subtype: `tqft-${boundary.kind}-boundary`,
       shape: "ellipse",
       style,
-      commands: tqftTransformCommands(tqftBoundaryPath(boundary, spec), transform)
+      commands: mapPathCoordinates(tqftBoundaryPath(boundary, spec), transform)
     });
   }
 
@@ -9169,17 +9233,18 @@ function tqftTransformPoint(point, origin, anchor, rotate) {
   return roundPoint({ x: origin.x + rotated.x, y: origin.y + rotated.y });
 }
 
-function tqftTransformCommands(commands, transform) {
+function mapPathCoordinates(commands, transform) {
   return commands.map((command) => {
     if (command.type === "closePath") return command;
     if (command.type === "moveTo" || command.type === "lineTo") {
       const point = transform(command);
       return { ...command, x: point.x, y: point.y };
     }
-    if (command.type === "curveTo") {
+    if (command.type === "curveTo" || command.type === "quadTo") {
       const p1 = transform({ x: command.x1, y: command.y1 });
-      const p2 = transform({ x: command.x2, y: command.y2 });
       const p = transform({ x: command.x, y: command.y });
+      if (command.type === "quadTo") return { ...command, x1: p1.x, y1: p1.y, x: p.x, y: p.y };
+      const p2 = transform({ x: command.x2, y: command.y2 });
       return { ...command, x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, x: p.x, y: p.y };
     }
     return command;
@@ -14150,7 +14215,7 @@ function nodeOptionScale(options = {}, env = { variables: {} }) {
 }
 
 function inheritedNodeOptions(env = {}) {
-  const options = { ...(env.pictureOptions || {}) };
+  const options = env.onBackgroundLayer ? inheritedPathInkOptions(env.pictureOptions) : { ...(env.pictureOptions || {}) };
   const nodesOptions = parseInheritedNodesOption(options.nodes);
   delete options.nodes;
   delete options.scale;
@@ -17365,7 +17430,7 @@ function parseTransformCoordinateShift(value, env) {
   if (!text.startsWith("(")) return parseShift(text, env);
 
   const canvasPoint = resolveCoordinate(text, env, []);
-  const transform = normalizeTransform(env.transform);
+  const transform = coordinateTransformForEnvironment(env);
   const det = transform.a * transform.d - transform.b * transform.c;
   if (Math.abs(det) < 1e-12) return { x: 0, y: 0 };
 
@@ -18807,8 +18872,9 @@ function resolveCurrentBoundingBoxCoordinate(text, env) {
   return roundPoint({ x, y });
 }
 
-function computeCurrentBoundingBox(ir) {
-  return computeItemsBoundingBox([...(ir.backgroundItems || []), ...(ir.items || [])]);
+function computeCurrentBoundingBox(ir, nativePen = false) {
+  return computeItemsBoundingBox([...(ir.backgroundItems || []), ...(ir.items || [])], undefined,
+    nativePen ? (item, include) => includePictureItemBounds(item, include, includeItemBounds) : includeItemBounds);
 }
 
 function computeItemsBoundingBox(items = [], fallback = { minX: 0, minY: 0, maxX: 0, maxY: 0 }, measure = includeItemBounds) {

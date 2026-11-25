@@ -1,0 +1,15 @@
+\begin{tikzpicture}
+  \begin{scope}[xshift=3pt]
+    \clip (-3pt,-2pt) rectangle (7pt,8pt);
+    \begin{scope}[on background layer]
+      \fill[blue] (-30pt,-40pt) rectangle (40pt,60pt);
+    \end{scope}
+  \end{scope}
+  \begin{scope}[on background layer]
+    \useasboundingbox (-9pt,-3pt) rectangle (7pt,10pt);
+    \fill[green] (-50pt,-40pt) rectangle (60pt,50pt);
+  \end{scope}
+  \fill[red] (8pt,-6pt) rectangle (12pt,3pt);
+  \draw[overlay,draw=black,line width=.5pt]
+    (current bounding box.south west) -- (current bounding box.north east);
+\end{tikzpicture}

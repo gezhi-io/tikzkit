@@ -252,7 +252,23 @@ after the opaque yellow background, so it stays visible behind the ellipse.
 Try the [original manual input](../test/fixtures/native-backgrounds/backgrounds-manual-framed-gridded.tex)
 or [four individually extended sides](../test/fixtures/native-backgrounds/backgrounds-manual-four-sides.tex).
 See the [browser and native comparison](qa/2026-11-25-native-backgrounds.md#visual-results).
-This feature is in the GitHub version.
+
+To put particular paths behind the drawing, use a background scope. Put
+the color *inside* the option's braces so it is applied after the switch:
+
+```tex
+\usetikzlibrary{backgrounds}
+\begin{tikzpicture}
+  \fill[blue] (0,0) circle (1);
+  \scoped[on background layer={color=yellow}]
+    \fill (-1,-1) rectangle (1,1);
+\end{tikzpicture}
+```
+
+Try the [four overlapping shapes](../test/fixtures/native-background-scopes/scopes-manual-interleaved.tex)
+or the [crossed pens](../test/fixtures/native-background-scopes/scopes-manual-crossed-pens.tex).
+The [visual comparison](qa/2026-11-26-native-background-scopes.md) shows both against native TeX.
+These background features are in the GitHub version.
 
 ## Local Comparison Gallery
 

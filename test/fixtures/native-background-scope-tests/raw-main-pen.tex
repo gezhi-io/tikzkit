@@ -1,0 +1,18 @@
+\begin{tikzpicture}[color=red,line width=7pt]
+  \draw (0pt,0pt) -- (3pt,2pt);
+  \begin{scope}[line width=5pt]
+    \begin{scope}[on background layer]
+      \draw (10pt,0pt) -- (13pt,2pt);
+    \end{scope}
+    \draw (20pt,0pt) -- (23pt,2pt);
+    \begin{pgfonlayer}{background}
+      \draw (30pt,0pt) -- (33pt,2pt);
+    \end{pgfonlayer}
+    \draw (40pt,0pt) -- (43pt,2pt);
+  \end{scope}
+  \draw (50pt,0pt) -- (53pt,2pt);
+  \begin{pgfonlayer}{background}
+    \draw (60pt,0pt) -- (63pt,2pt);
+  \end{pgfonlayer}
+  \draw (70pt,0pt) -- (73pt,2pt);
+\end{tikzpicture}

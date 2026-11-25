@@ -1,0 +1,28 @@
+\begin{tikzpicture}
+  \begin{scope}[shift={(5pt,7pt)},rotate=90,xscale=2]
+    \clip (-5pt,-6pt) rectangle (9pt,8pt);
+    \draw (1pt,2pt) -- (4pt,2pt);
+    \begin{scope}[xshift=3pt,on background layer={yshift=4pt}]
+      \draw (1pt,2pt) -- (4pt,2pt);
+    \end{scope}
+  \end{scope}
+  \begin{scope}[transform canvas={shift={(30pt,40pt)}}]
+    \draw (2pt,1pt) -- (6pt,4pt);
+    \begin{pgfonlayer}{background}
+      \draw (2pt,1pt) -- (6pt,4pt);
+    \end{pgfonlayer}
+  \end{scope}
+  \begin{scope}[on background layer]
+    \begin{scope}
+      \clip (12pt,1pt) rectangle (18pt,5pt);
+      \fill (10pt,0pt) rectangle (20pt,6pt);
+    \end{scope}
+    \fill (11pt,7pt) rectangle (21pt,10pt);
+    \clip (22pt,1pt) rectangle (28pt,5pt);
+    \fill[fill=red] (20pt,0pt) rectangle (30pt,6pt);
+  \end{scope}
+  \begin{scope}[on background layer]
+    \fill[fill=blue] (24pt,0pt) rectangle (31pt,6pt);
+  \end{scope}
+  \fill[fill=green] (19pt,-3pt) rectangle (32pt,0pt);
+\end{tikzpicture}

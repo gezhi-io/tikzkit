@@ -27,8 +27,9 @@ export function doublePenWidths(style) {
 
 // PGF adds half the physical outer pen to each side of a stroked path's
 // construction bounds. Double strokes do not add two independent margins.
-export function strokePadding(style = {}, unit = TIKZ_UNIT) {
+export function strokePadding(style = {}, unit = TIKZ_UNIT, boundsLineWidth = style.lineWidth) {
   if (style.stroke === "none") return 0;
-  const width = style.doubleColor === undefined ? Number(style.lineWidth) : doublePenWidths(style).outer;
+  const width = style.doubleColor === undefined ? Number(boundsLineWidth)
+    : doublePenWidths({ ...style, lineWidth: boundsLineWidth }).outer;
   return Number.isFinite(width) && width > 0 ? width / (2 * unit) : 0;
 }

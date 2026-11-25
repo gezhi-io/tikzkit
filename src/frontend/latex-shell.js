@@ -1,4 +1,5 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
+import { tokenizeTikzLikeSource } from "./lexer.js";
 import { expandPictureCommands } from "./picture-command.js";
 import { createForeachBudget, ForeachExpansionError, FOREACH_EXPANSION_LIMIT, readForeachHeader } from "../tikz/commands/foreach.js";
 import { createPgfRandom } from "../engine/pgfRandom.js";
@@ -3271,37 +3272,53 @@ function findMatchingEnvironmentEnd(source, start, begin, end) {
 }
 
 function expandTransparentEnvironment(source, name, diagnostics) {
+  if (!source.includes(name)) return source;
+  const beginCommand = "\\" + name;
+  const endCommand = "\\end" + name;
+  const stack = [];
   let output = "";
-  let index = 0;
-  const begin = `\\begin{${name}}`;
-  const end = `\\end{${name}}`;
-  while (index < source.length) {
-    const beginIndex = source.indexOf(begin, index);
-    if (beginIndex === -1) {
-      output += source.slice(index);
-      break;
+  let cursor = 0;
+  let depth = 0;
+  let stringified = false;
+  for (const token of tokenizeTikzLikeSource(source, { texTrivia: true })) {
+    if (token.start < cursor || token.type === "space" || token.type === "comment") continue;
+    if (stringified) { stringified = false; continue; }
+    if (token.value === "\\string") { stringified = true; continue; }
+    if (token.value === "{") { depth++; continue; }
+    if (token.value === "}") { depth--; continue; }
+    if (token.type !== "control") continue;
+
+    const environment = token.value === "\\begin" || token.value === "\\end";
+    let end = token.end;
+    if (environment) {
+      const env = extractBalanced(source, skipWhitespace(source, end), "{", "}");
+      if (env?.content !== name) continue;
+      end = env.end;
+    } else if (token.value !== beginCommand && token.value !== endCommand) continue;
+
+    if (token.value === "\\begin" || token.value === beginCommand) {
+      const layer = extractBalanced(source, skipWhitespace(source, end), "{", "}");
+      if (!environment && !layer) continue;
+      const background = layer?.content.trim() === "background";
+      output += source.slice(cursor, token.start);
+      stack.push({ environment, depth, background, start: token.start, checkpoint: output.length });
+      if (background) output += "{[layer=background]";
+      cursor = layer?.end ?? end;
+    } else {
+      const open = stack.at(-1);
+      if (!open || open.environment !== environment || open.depth !== depth) continue;
+      stack.pop();
+      output += source.slice(cursor, token.start) + (open.background ? "}" : "");
+      cursor = end;
     }
-    output += source.slice(index, beginIndex);
-    let cursor = beginIndex + begin.length;
-    let layer = "";
-    if (source[cursor] === "{") {
-      const layerName = extractBalanced(source, cursor, "{", "}");
-      if (layerName) {
-        layer = layerName.content.trim();
-        cursor = layerName.end;
-      }
-    }
-    const endIndex = source.indexOf(end, cursor);
-    if (endIndex === -1) {
-      diagnostics.push({ severity: "warning", message: `Unclosed ${name} environment` });
-      output += source.slice(beginIndex);
-      break;
-    }
-    const body = source.slice(cursor, endIndex);
-    output += layer === "background" ? `{[layer=background]${body}}` : body;
-    index = endIndex + end.length;
   }
-  return output;
+  if (stack.length) {
+    // Preserve the source from the first unclosed block, including its children.
+    const open = stack[0];
+    diagnostics.push({ severity: "warning", message: `Unclosed ${name} ${open.environment ? "environment" : "command"}` });
+    return output.slice(0, open.checkpoint) + source.slice(open.start);
+  }
+  return output + source.slice(cursor);
 }
 
 function expandBraidMacros(source, diagnostics) {

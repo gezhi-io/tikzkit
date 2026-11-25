@@ -1,0 +1,186 @@
+{
+  "engine": "This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025)",
+  "pgf": "3.1.11a",
+  "cases": {
+    "bounds-clips": {
+      "sha256": "0592c83aaa35d8189ccc4aaab3d14c91a8dd75690b11c3c62eaaa71416a4b9d9",
+      "boxPt": [-9.0, -6.0, 12.0, 10.0],
+      "paint": [
+        {"layer":"background","pathPt":[[-27.0,-40.001],[-27.0,60.001],[43.001,60.001],[43.001,-40.001],[-27.0,-40.001]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[-50.001,-40.001],[-50.001,50.001],[60.001,50.001],[60.001,-40.001],[-50.001,-40.001]],"fill":"#00ff00","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[8.0,-6.0],[8.0,3.0],[12.0,3.0],[12.0,-6.0],[8.0,-6.0]],"fill":"#ff0000","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[-9.0,-6.0],[12.0,10.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.5,"texPenPt":0.5,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "bounds-pens": {
+      "sha256": "db586461088e45954b276c2a978f441f6bd87b3743e54229b04bc7999ceb6ee6",
+      "boxPt": [-5.0, -10.2, 68.2, 10.2],
+      "pixelsPtRGB": [[42, -10, "#000000"], [42, -13, "#000000"], [42, -15, "#ffffff"]],
+      "paint": [
+        {"layer":"background","pathPt":[[20.0,1.0],[25.0,1.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":8.0,"texPenPt":8.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[40.001,-10.0],[45.001,-10.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":8.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[0,0],[5.0,0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":10.0,"texPenPt":10.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[60.001,10.0],[68.001,10.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[-5.0,-10.2],[68.201,10.2]],"stroke":"#00ff00","strokeAlpha":1.0,"penPt":0.5,"texPenPt":0.5,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "canvas-reentry": {
+      "sha256": "0344d41e29dec1bfc4b0a302c352edca995a80af395ad6f6bb93de21bf294fd2",
+      "boxPt": [5.8, 0.8, 11.2, 2.2],
+      "paint": [
+        {"layer":"background","pathPt":[[20.0,5.0],[23.0,6.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[18.0,5.0],[21.0,6.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[18.0,15.0],[21.0,16.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[19.0,5.0],[22.0,6.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[20.0,5.0],[23.0,6.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[6.0,1.0],[9.0,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "color-stack": {
+      "sha256": "ff0a681588524731c290b00a07b20d339c8c4426b647fcda14e6c65a35ddf06a",
+      "boxPt": [0, -3.5, 116.5, 5.5],
+      "pixelsPtRGB": [[11, 1, "#000000"], [41, 1, "#0000ff"], [81, 1, "#0000ff"], [101, 1, "#ff0000"]],
+      "paint": [
+        {"layer":"background","pathPt":[[10.0,0],[10.0,2.0],[13.0,2.0],[13.0,0],[10.0,0]],"fill":"#000000","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[20.0,0],[23.0,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[30.0,0],[33.0,2.0]],"stroke":"#0000ff","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[40.001,0],[40.001,2.0],[43.001,2.0],[43.001,0],[40.001,0]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[50.001,0],[50.001,2.0],[53.001,2.0],[53.001,0],[50.001,0]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[60.001,0],[63.001,2.0]],"stroke":"#0000ff","strokeAlpha":1.0,"penPt":2.0,"texPenPt":2.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[70.001,0],[70.001,2.0],[73.001,2.0],[73.001,0],[70.001,0]],"fill":"#0000ff","fillAlpha":1.0,"stroke":"#ff0000","strokeAlpha":1.0,"penPt":2.0,"texPenPt":2.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[80.001,0],[80.001,2.0],[83.001,2.0],[83.001,0],[80.001,0]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[90.001,0],[93.001,2.0]],"stroke":"#0000ff","strokeAlpha":1.0,"penPt":2.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[100.001,0],[100.001,2.0],[103.001,2.0],[103.001,0],[100.001,0]],"fill":"#ff0000","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[0,0],[0,2.0],[3.0,2.0],[3.0,0],[0,0]],"fill":"#ff0000","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[110.001,0],[113.001,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":7.0,"texPenPt":7.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "every-inline": {
+      "sha256": "37b038cb41544ec2ec3934bb4c71a91dd19f53601c69a36f1891f03f99a933c2",
+      "boxPt": [1.0, -4.0, 89.2, 11.5],
+      "paint": [
+        {"layer":"background","pathPt":[[18.0,6.0],[24.0,10.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":3.0,"texPenPt":3.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[30.0,2.0],[30.0,6.0],[36.0,6.0],[36.0,2.0],[30.0,2.0]],"fill":"#ffffff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[35.0,4.0],[41.001,8.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":3.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[47.001,0],[47.001,4.0],[53.001,4.0],[53.001,0],[47.001,0]],"fill":"#ffffff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[62.001,4.0],[68.001,8.0]],"stroke":"#0000ff","strokeAlpha":1.0,"penPt":2.0,"texPenPt":2.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[74.001,0],[74.001,4.0],[80.001,4.0],[80.001,0],[74.001,0]],"fill":"#00ff00","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[5.0,0],[11.0,4.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":8.0,"texPenPt":8.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[83.001,0],[89.001,4.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "every-path": {
+      "sha256": "a020bf0cd0cc083c4569bd114636271d852e1503217b8665b1f9727f87f1e7f9",
+      "boxPt": [-0.75, -1.5, 44.75, 4.5],
+      "paint": [
+        {"layer":"background","pathPt":[[10.0,0],[10.0,3.0],[14.0,3.0],[14.0,0],[10.0,0]],"fill":"#ffffff","fillAlpha":1.0,"stroke":"#ff0000","strokeAlpha":1.0,"penPt":1.5,"texPenPt":1.5,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[20.0,0],[24.0,3.0]],"stroke":"#0000ff","strokeAlpha":1.0,"penPt":3.0,"texPenPt":3.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[30.0,0],[30.0,3.0],[34.0,3.0],[34.0,0],[30.0,0]],"fill":"#ffffff","fillAlpha":1.0,"stroke":"#ff0000","strokeAlpha":1.0,"penPt":1.5,"texPenPt":1.5,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[0,0],[0,3.0],[4.0,3.0],[4.0,0],[0,0]],"fill":"#0000ff","fillAlpha":1.0,"stroke":"#ff0000","strokeAlpha":1.0,"penPt":1.5,"texPenPt":1.5,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[40.001,0],[40.001,3.0],[44.001,3.0],[44.001,0],[40.001,0]],"fill":"#0000ff","fillAlpha":1.0,"stroke":"#ff0000","strokeAlpha":1.0,"penPt":1.5,"texPenPt":1.5,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "nested": {
+      "sha256": "222b41d268b5050a6d9429e812c5454fe0fb46b39b0309db6160dd070f520dab",
+      "boxPt": [-3.0, -3.5, 83.2, 5.5],
+      "paint": [
+        {"layer":"background","pathPt":[[0,0],[3.0,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":6.0,"texPenPt":6.0,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[10.0,0],[13.0,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":0.4,"texPenPt":0.4,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[20.0,0],[23.0,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":6.0,"texPenPt":6.0,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[30.0,0],[33.0,2.0]],"stroke":"#00ff00","strokeAlpha":0.6,"penPt":3.0,"texPenPt":3.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[40.001,0],[43.001,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":6.0,"texPenPt":6.0,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[50.001,0],[53.001,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":0.4,"texPenPt":0.4,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[60.001,0],[63.001,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":0.4,"texPenPt":0.4,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[80.001,0],[83.001,2.0]],"stroke":"#0000ff","strokeAlpha":0.6,"penPt":0.4,"texPenPt":0.4,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[70.001,0],[73.001,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":7.0,"texPenPt":7.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "paint-order": {
+      "sha256": "4f49c237cf572509299b24a4394088189c920f0e842e056e8c5939e1b79880a6",
+      "boxPt": [0, 0, 12.0, 12.0],
+      "pixelsPtRGB": [[1.5, 1.5, "#ff0000"], [5, 5, "#ffffff"], [11.5, 11.5, "#000000"]],
+      "paint": [
+        {"layer":"background","pathPt":[[1.0,1.0],[1.0,9.0],[9.0,9.0],[9.0,1.0],[1.0,1.0]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[2.0,2.0],[2.0,10.0],[10.0,10.0],[10.0,2.0],[2.0,2.0]],"fill":"#00ff00","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[4.0,4.0],[4.0,12.0],[12.0,12.0],[12.0,4.0],[4.0,4.0]],"fill":"#000000","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[0,0],[0,8.0],[8.0,8.0],[8.0,0],[0,0]],"fill":"#ff0000","fillAlpha":1.0},
+        {"layer":"main","pathPt":[[3.0,3.0],[3.0,11.0],[11.0,11.0],[11.0,3.0],[3.0,3.0]],"fill":"#ffffff","fillAlpha":1.0}
+      ]
+    },
+    "raw-main-pen": {
+      "sha256": "18d230ed0139bb80fde469e552b642377c542145b8de70b0d0c93f7b36d25b43",
+      "boxPt": [-3.5, -3.5, 73.2, 5.5],
+      "paint": [
+        {"layer":"background","pathPt":[[10.0,0],[13.0,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[30.0,0],[33.0,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[60.001,0],[63.001,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[0,0],[3.0,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":7.0,"texPenPt":7.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[20.0,0],[23.0,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":5.0,"texPenPt":5.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[40.001,0],[43.001,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[50.001,0],[53.001,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":7.0,"texPenPt":7.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[70.001,0],[73.001,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "raw-primitive": {
+      "sha256": "00a85c1609addb442cf13260ddcaaca7856ac73e81ba458dc491fca0ab860788",
+      "boxPt": [-2.5, -2.5, 23.2, 4.5],
+      "paint": [
+        {"layer":"background","pathPt":[[10.0,0],[13.0,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[0,0],[3.0,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":5.0,"texPenPt":5.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[20.0,0],[23.0,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "reentry": {
+      "sha256": "a6abe7dccca120a4c60b41411cd47641185dedff0592f6f15420655b555b7412",
+      "boxPt": [-3.5, -3.5, 124.2, 6.5],
+      "paint": [
+        {"layer":"background","pathPt":[[10.0,0],[14.0,3.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[20.0,0],[20.0,3.0],[24.0,3.0],[24.0,0],[20.0,0]],"fill":"#000000","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[30.0,0],[30.0,3.0],[34.0,3.0],[34.0,0],[30.0,0]],"fill":"#ffffff","fillAlpha":1.0,"stroke":"#0000ff","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[40.001,0],[44.001,3.0]],"stroke":"#0000ff","strokeAlpha":0.35,"penPt":3.0,"texPenPt":3.0,"dashPt":[5.0,2.0],"phasePt":0,"cap":"round","join":"bevel"},
+        {"layer":"background","pathPt":[[50.001,0],[50.001,3.0],[54.001,3.0],[54.001,0],[50.001,0]],"fill":"#00ff00","fillAlpha":0.6},
+        {"layer":"background","pathPt":[[60.001,0],[60.001,3.0],[64.001,3.0],[64.001,0],[60.001,0]],"fill":"#00ff00","fillAlpha":0.6,"stroke":"#0000ff","strokeAlpha":0.35,"penPt":3.0,"texPenPt":3.0,"dashPt":[5.0,2.0],"phasePt":0,"cap":"round","join":"bevel"},
+        {"layer":"background","pathPt":[[70.001,0],[74.001,3.0]],"stroke":"#0000ff","strokeAlpha":0.35,"penPt":3.0,"texPenPt":0.4,"dashPt":[5.0,2.0],"phasePt":0,"cap":"round","join":"bevel"},
+        {"layer":"background","pathPt":[[80.001,0],[80.001,3.0],[84.001,3.0],[84.001,0],[80.001,0]],"fill":"#00ff00","fillAlpha":0.6},
+        {"layer":"background","pathPt":[[100.001,0],[104.001,3.0]],"stroke":"#0000ff","strokeAlpha":0.35,"penPt":3.0,"texPenPt":0.4,"dashPt":[5.0,2.0],"phasePt":0,"cap":"round","join":"bevel"},
+        {"layer":"background","pathPt":[[110.001,0],[110.001,3.0],[114.001,3.0],[114.001,0],[110.001,0]],"fill":"#00ff00","fillAlpha":0.6},
+        {"layer":"main","pathPt":[[0,0],[4.0,3.0]],"stroke":"#ff0000","strokeAlpha":0.8,"penPt":7.0,"texPenPt":7.0,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[90.001,0],[94.001,3.0]],"stroke":"#ff0000","strokeAlpha":0.8,"penPt":0.4,"texPenPt":0.4,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[120.002,0],[124.002,3.0]],"stroke":"#ff0000","strokeAlpha":0.8,"penPt":0.4,"texPenPt":0.4,"dashPt":[3.0,3.0],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "shorthand-color": {
+      "sha256": "f32be4f441e1764b99d6c6f3a576684621c868a716c2775023901d336c74563c",
+      "boxPt": [-1.0, -1.0, 93.2, 3.0],
+      "pixelsPtRGB": [[21, 1, "#0000ff"], [61, 1, "#000000"]],
+      "paint": [
+        {"layer":"background","pathPt":[[0,0],[3.0,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":2.0,"texPenPt":2.0,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[10.0,0],[10.0,2.0],[13.0,2.0],[13.0,0],[10.0,0]],"fill":"#000000","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[20.0,0],[20.0,2.0],[23.0,2.0],[23.0,0],[20.0,0]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[30.0,0],[33.0,2.0]],"stroke":"#0000ff","strokeAlpha":1.0,"penPt":2.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[40.001,0],[43.001,2.0]],"stroke":"#00ff00","strokeAlpha":1.0,"penPt":2.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[50.001,0],[50.001,2.0],[53.001,2.0],[53.001,0],[50.001,0]],"fill":"#0000ff","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[60.001,0],[60.001,2.0],[63.001,2.0],[63.001,0],[60.001,0]],"fill":"#000000","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[70.001,0],[73.001,2.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":2.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[80.001,0],[83.001,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":2.0,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[90.001,0],[93.001,2.0]],"stroke":"#ff0000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"}
+      ]
+    },
+    "transforms-clips": {
+      "sha256": "d0415f12c15865a30033b584d07d9da4cc17200ea37d88ddfe5043d99c426ee1",
+      "boxPt": [-3.0, -3.0, 32.0, 25.0],
+      "pixelsPtRGB": [[11, 4, "#ffffff"], [16, 3, "#000000"], [20, 8, "#000000"], [23, 3, "#ff0000"], [26, 3, "#0000ff"], [29, 3, "#ffffff"], [29, -1.5, "#00ff00"]],
+      "paint": [
+        {"layer":"background","pathPt":[[-1.0,15.0],[-1.0,21.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[2.0,1.0],[6.0,4.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"background","pathPt":[[10.0,0],[10.0,6.0],[20.0,6.0],[20.0,0],[10.0,0]],"fill":"#000000","fillAlpha":1.0,"clipsPt":[[[12.0,1.0],[12.0,5.0],[18.0,5.0],[18.0,1.0],[12.0,1.0]]]},
+        {"layer":"background","pathPt":[[11.0,7.0],[11.0,10.0],[21.0,10.0],[21.0,7.0],[11.0,7.0]],"fill":"#000000","fillAlpha":1.0},
+        {"layer":"background","pathPt":[[20.0,0],[20.0,6.0],[30.0,6.0],[30.0,0],[20.0,0]],"fill":"#ff0000","fillAlpha":1.0,"clipsPt":[[[22.0,1.0],[22.0,5.0],[28.0,5.0],[28.0,1.0],[22.0,1.0]]]},
+        {"layer":"background","pathPt":[[24.0,0],[24.0,6.0],[31.0,6.0],[31.0,0],[24.0,0]],"fill":"#0000ff","fillAlpha":1.0,"clipsPt":[[[22.0,1.0],[22.0,5.0],[28.0,5.0],[28.0,1.0],[22.0,1.0]]]},
+        {"layer":"main","pathPt":[[3.0,9.0],[3.0,15.0]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter","clipsPt":[[[-3.0,25.0],[11.0,25.0],[11.0,-3.0],[-3.0,-3.0],[-3.0,25.0]]]},
+        {"layer":"main","pathPt":[[32.0,41.001],[36.0,44.001]],"stroke":"#000000","strokeAlpha":1.0,"penPt":0.4,"texPenPt":0.4,"dashPt":[],"phasePt":0,"cap":"butt","join":"miter"},
+        {"layer":"main","pathPt":[[19.0,-3.0],[19.0,0],[32.0,0],[32.0,-3.0],[19.0,-3.0]],"fill":"#00ff00","fillAlpha":1.0}
+      ]
+    }
+  }
+}

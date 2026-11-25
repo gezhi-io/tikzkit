@@ -1,0 +1,21 @@
+\tikzset{
+  every picture/.style={color=red,line width=8pt,x=6pt,y=4pt,xshift=5pt},
+  every on background layer/.style={draw=blue,fill=green,line width=2pt,xshift=3pt},
+  layer ink/.style={draw=red,fill=white,line width=3pt,yshift=2pt}
+}
+\begin{tikzpicture}
+  \draw (0,0) -- (1,1);
+  \begin{scope}[xshift=4pt,on background layer={layer ink},line width=9pt,draw=green]
+    \draw (1,1) -- (2,2);
+    \fill (3,0) rectangle (4,1);
+  \end{scope}
+  \begin{pgfonlayer}{background}
+    \draw (5,1) -- (6,2);
+    \fill (7,0) rectangle (8,1);
+  \end{pgfonlayer}
+  \begin{scope}[on background layer]
+    \draw (9,1) -- (10,2);
+    \fill (11,0) rectangle (12,1);
+  \end{scope}
+  \draw (13,0) -- (14,1);
+\end{tikzpicture}

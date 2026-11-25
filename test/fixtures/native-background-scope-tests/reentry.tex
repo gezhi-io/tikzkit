@@ -1,0 +1,24 @@
+\begin{tikzpicture}[red,line width=7pt,dashed,draw opacity=.8,fill opacity=.7]
+  \draw (0pt,0pt) -- (4pt,3pt);
+  \begin{scope}[on background layer]
+    \draw (10pt,0pt) -- (14pt,3pt);
+    \fill (20pt,0pt) rectangle (24pt,3pt);
+    \path[draw=blue,fill=white] (30pt,0pt) rectangle (34pt,3pt);
+  \end{scope}
+  \begin{scope}[on background layer={draw=blue,fill=green,line width=3pt,
+    dash pattern=on 5pt off 2pt,line cap=round,line join=bevel,draw opacity=.35,fill opacity=.6}]
+    \draw (40pt,0pt) -- (44pt,3pt);
+    \fill (50pt,0pt) rectangle (54pt,3pt);
+    \path[draw,fill] (60pt,0pt) rectangle (64pt,3pt);
+  \end{scope}
+  \begin{pgfonlayer}{background}
+    \draw (70pt,0pt) -- (74pt,3pt);
+    \fill (80pt,0pt) rectangle (84pt,3pt);
+  \end{pgfonlayer}
+  \draw (90pt,0pt) -- (94pt,3pt);
+  \begin{scope}[on background layer]
+    \draw (100pt,0pt) -- (104pt,3pt);
+    \fill (110pt,0pt) rectangle (114pt,3pt);
+  \end{scope}
+  \draw (120pt,0pt) -- (124pt,3pt);
+\end{tikzpicture}

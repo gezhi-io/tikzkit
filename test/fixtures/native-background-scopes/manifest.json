@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "scopes-manual-interleaved",
+      "title": "Two background fills behind a blue disc",
+      "source": "scopes-manual-interleaved.tex",
+      "manual": "pgfmanual-en-library-backgrounds.tex",
+      "manualLines": [34, 48]
+    },
+    {
+      "id": "scopes-manual-crossed-pens",
+      "title": "One-ex pens on two layers",
+      "source": "scopes-manual-crossed-pens.tex",
+      "manual": "pgfmanual-en-library-backgrounds.tex",
+      "manualLines": [66, 75]
+    },
+    {
+      "id": "latex-examples-cyclic-graph",
+      "title": "Cycle highlighted behind eight vertices",
+      "source": "../examples/latex-examples/cyclic-graph.tex",
+      "corpus": "LaTeX-examples/tikz/cyclic-graph/cyclic-graph.tex"
+    },
+    {
+      "id": "scopes-pen-reentry",
+      "title": "Outer pen, inner override and re-entry",
+      "source": "scopes-pen-reentry.tex"
+    }
+  ]
+}

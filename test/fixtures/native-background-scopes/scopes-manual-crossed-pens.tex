@@ -1,0 +1,17 @@
+% PGF/TikZ manual, pgfmanual-en-library-backgrounds.tex:66-75.
+% Copyright 2019 by Till Tantau. LPPL and/or GNU Free Documentation License.
+\documentclass[tikz,border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{backgrounds}
+\begin{document}
+\tikzset{
+  every picture/.style={line width=1ex},
+  every on background layer/.style={every picture}
+}
+\begin{tikzpicture}
+  \draw [->] (0,0) -- (2,1);
+
+  \scoped[on background layer]
+    \draw[red] (0,1) -- (2,0);
+\end{tikzpicture}
+\end{document}

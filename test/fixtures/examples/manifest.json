@@ -8912,6 +8912,24 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:242-250",
       "semanticOwner": "src/engine/evaluate.js:runPictureEndHooks;src/tikz/libraries/backgrounds.js:backgroundFramePath",
       "features": ["four background sides", "outer frame sep", "line extensions without a rectangle"]
+    },
+    {
+      "id": "scopes-manual-interleaved",
+      "title": "Two background fills behind a blue disc",
+      "source": "../native-background-scopes/scopes-manual-interleaved.tex",
+      "sourceCorpus": "TeX Live PGF Background Library manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:34-48",
+      "semanticOwner": "src/engine/evaluate.js:enterBackgroundScope",
+      "features": ["on background layer", "keyed scope color", "interleaved main and background fills"]
+    },
+    {
+      "id": "scopes-manual-crossed-pens",
+      "title": "One-ex pens on two layers",
+      "source": "../native-background-scopes/scopes-manual-crossed-pens.tex",
+      "sourceCorpus": "TeX Live PGF Background Library manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:66-75",
+      "semanticOwner": "src/frontend/parser.js:parseScopedStatement;src/engine/evaluate.js:enterBackgroundScope",
+      "features": ["scoped", "every on background layer", "every picture", "one-ex pen", "arrow overlap"]
     }
   ]
 }

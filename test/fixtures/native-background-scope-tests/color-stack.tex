@@ -1,0 +1,20 @@
+\begin{tikzpicture}[color=red,line width=7pt]
+  \fill (0pt,0pt) rectangle (3pt,2pt);
+  \begin{scope}[on background layer,blue,line width=5pt]
+    \fill (10pt,0pt) rectangle (13pt,2pt);
+    \draw (20pt,0pt) -- (23pt,2pt);
+    \draw[draw=.] (30pt,0pt) -- (33pt,2pt);
+    \fill[fill=.] (40pt,0pt) rectangle (43pt,2pt);
+  \end{scope}
+  \begin{scope}[on background layer={color=blue,line width=2pt}]
+    \fill (50pt,0pt) rectangle (53pt,2pt);
+    \draw (60pt,0pt) -- (63pt,2pt);
+    \fill[draw=red] (70pt,0pt) rectangle (73pt,2pt);
+  \end{scope}
+  \begin{scope}[on background layer]
+    \fill (80pt,0pt) rectangle (83pt,2pt);
+    \draw (90pt,0pt) -- (93pt,2pt);
+    \fill[fill=.] (100pt,0pt) rectangle (103pt,2pt);
+  \end{scope}
+  \draw (110pt,0pt) -- (113pt,2pt);
+\end{tikzpicture}

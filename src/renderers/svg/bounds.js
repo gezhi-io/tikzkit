@@ -438,7 +438,7 @@ function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit
 
 function pathStrokePadding(item, unit) {
   if (item.type === "bbox" && !item.includeStrokeBounds) return 0;
-  return strokePadding(item.style, unit);
+  return strokePadding(item.style, unit, item.boundsLineWidth);
 }
 
 function hasPathCommands(item) {

@@ -1,0 +1,13 @@
+\begin{tikzpicture}[draw=green,fill=blue,line width=6pt,
+  every path/.style={line width=1.5pt,draw=red},
+  every on background layer/.style={line width=4pt,fill=green}]
+  \fill (0pt,0pt) rectangle (4pt,3pt);
+  \begin{scope}[on background layer={draw=blue,fill=white}]
+    \fill (10pt,0pt) rectangle (14pt,3pt);
+    \draw[line width=3pt,draw=blue] (20pt,0pt) -- (24pt,3pt);
+  \end{scope}
+  \begin{pgfonlayer}{background}
+    \fill (30pt,0pt) rectangle (34pt,3pt);
+  \end{pgfonlayer}
+  \fill (40pt,0pt) rectangle (44pt,3pt);
+\end{tikzpicture}

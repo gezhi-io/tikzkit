@@ -287,6 +287,10 @@ export function normalizeOptions(command, rawOptions, env) {
   const semantic = {};
   const defaultArrowTip = parseDefaultArrowTip(expanded);
   let currentColor = "black";
+  // The xcolor alias "." is a TeX register. After a layer switch it can
+  // still mean red while the receiving device actually draws in black.
+  let texColor = env.texCurrentColor || currentColor;
+  const inkValue = value => value === "." ? texColor : normalizeColor(String(value));
   let strokeInk = "black";
   let usesCurrentColorForFill = false;
   let solidFillInk;
@@ -309,14 +313,14 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if ((value === true && isColorToken(key)) || key === "color") {
-      const color = normalizeColor(key === "color" ? String(value) : key);
+      const color = inkValue(key === "color" ? value : key);
       if (style.pattern) style.fill = color;
       delete style.pattern;
       patternInk = undefined;
       solidFillInk = color;
       strokeInk = color;
       applyCurrentColor(style, color, command);
-      currentColor = color;
+      texColor = currentColor = color;
       semantic["tikzkit current color"] = color;
       if (usesCurrentColorForFill) style.fill = color;
       continue;
@@ -325,21 +329,21 @@ export function normalizeOptions(command, rawOptions, env) {
       const color = normalizeColor(key);
       strokeInk = solidFillInk = color;
       applyCurrentColor(style, color, command);
-      currentColor = color;
+      texColor = currentColor = color;
       semantic["tikzkit current color"] = color;
       if (usesCurrentColorForFill) style.fill = color;
       continue;
     }
     if (key === "draw" || key === "tikzkit stroke ink") {
-      if (value !== true && value !== "" && value !== "none") strokeInk = normalizeColor(String(value));
+      if (value !== true && value !== "" && value !== "none") strokeInk = inkValue(value);
       if (key === "draw") {
-        const ink = command === "node" && value === true ? style.textFill ?? strokeInk : strokeInk;
+        const ink = command === "node" && value === true && !env.onBackgroundLayer ? style.textFill ?? strokeInk : strokeInk;
         style.stroke = value === "none" ? "none" : ink;
       } else if (style.stroke !== "none") style.stroke = strokeInk;
       continue;
     }
     if (key === "tikzkit fill ink") {
-      solidFillInk = normalizeColor(String(value));
+      solidFillInk = inkValue(value);
       if (style.fill !== "none") style.fill = solidFillInk;
       continue;
     }
@@ -353,7 +357,7 @@ export function normalizeOptions(command, rawOptions, env) {
         usesCurrentColorForFill = false;
         delete style.pattern;
         if (value !== "none") patternInk = undefined;
-        style.fill = normalizeColor(String(value));
+        style.fill = inkValue(value);
         if (value !== "none") solidFillInk = style.fill;
       }
       continue;
@@ -407,7 +411,7 @@ export function normalizeOptions(command, rawOptions, env) {
       continue;
     }
     if (key === "text") {
-      style.textFill = normalizeColor(String(value));
+      style.textFill = inkValue(value);
       continue;
     }
     if (key === "pattern" || key === "/tikz/pattern") {
