@@ -1,0 +1,44 @@
+{
+  "cases": [
+    {
+      "id": "resistor-directions",
+      "source": "directions.tex",
+      "title": "Four directions including a short conductor"
+    },
+    {
+      "id": "resistor-settings",
+      "source": "settings.tex",
+      "title": "Scoped class sizes, stubs, mirrors and pens"
+    },
+    {
+      "id": "resistor-scale",
+      "source": "scale.tex",
+      "title": "Coordinate scale versus physical resistor size"
+    },
+    {
+      "id": "resistor-labels",
+      "source": "labels.tex",
+      "title": "Passive label anchors on cardinal conductors"
+    },
+    {
+      "id": "resistor-rectangle",
+      "source": "rectangle.tex",
+      "title": "European rectangle and open American zigzag paint"
+    },
+    {
+      "id": "resistor-selection",
+      "source": "selection.tex",
+      "title": "Package defaults, scoped selectors and explicit resistor symbols"
+    },
+    {
+      "id": "resistor-spacing",
+      "source": "spacing.tex",
+      "title": "Below labels and nondefault label distance and border margin"
+    },
+    {
+      "id": "resistor-amplifier",
+      "source": "../circuitikz-tubes/amplifier.tex",
+      "title": "Triode amplifier from the Circuitikz manual"
+    }
+  ]
+}

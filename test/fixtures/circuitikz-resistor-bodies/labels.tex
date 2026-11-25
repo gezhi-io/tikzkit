@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+\draw (0,0) to[R=$R_a$] (3,0);
+\draw (3,-1) to[R,l_=$R_b$] (0,-1);
+\draw (4,0) to[R=$R_g$] (4,-2.5);
+\draw (6,-2.5) to[R=$R_c$] (6,0);
+\draw (0,-2.5) to[C=$C_i$] (3,-2.5);
+\draw (7.5,-2.5) to[C,l_=$C_o$] (7.5,0);
+\end{circuitikz}
+\end{document}

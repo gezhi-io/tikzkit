@@ -5993,25 +5993,28 @@ test("matches Circuitikz American resistor zigzag defaults and configuration key
   assert.equal(defaults.resistorKind, "american");
   assert.equal(defaults.commands.length, 8, "three native zigs need six corners plus two endpoints");
   assert.equal(defaults.style.lineJoin, "bevel");
-  expectClose(defaults.commands[0].x, 0.94);
-  expectClose(defaults.commands.at(-1).x, 2.06);
+  // Native pgf@circ@zigzag adds half the 0.8pt body pen, not half the wire pen.
+  const overlap = parseDimension(".4pt", {});
+  expectClose(defaults.commands[0].x, 0.94 - overlap);
+  expectClose(defaults.commands.at(-1).x, 2.06 + overlap);
   expectClose(defaults.commands[1].x, 1.033333333333);
-  expectClose(defaults.commands[1].y, -0.21);
+  expectClose(defaults.commands[1].y, 0.21);
   expectClose(defaults.commands[2].x, 1.22);
-  expectClose(defaults.commands[2].y, 0.21);
+  expectClose(defaults.commands[2].y, -0.21);
 
   assert.equal(configured.commands.length, 10, "resistors/zigs=4 needs eight corners plus two endpoints");
-  expectClose(configured.commands[0].x, 0.8);
-  expectClose(configured.commands.at(-1).x, 2.2);
+  expectClose(configured.commands[0].x, 0.8 - overlap);
+  expectClose(configured.commands.at(-1).x, 2.2 + overlap);
   expectClose(configured.commands[1].x, 0.8875);
-  expectClose(configured.commands[1].y, -1.14);
-  expectClose(configured.commands[2].y, -0.86);
+  expectClose(configured.commands[1].y, -0.86);
+  expectClose(configured.commands[2].y, -1.14);
 
   assert.equal(european.resistorKind, "european");
-  assert.equal(european.commands.length, 6, "the European selection draws a closed generic resistor body");
+  assert.equal(european.commands.length, 5, "four corners and a close path make a generic resistor");
+  assert.equal(european.commands.at(-1).type, "closePath");
   expectClose(european.commands[0].x, 0.8);
-  expectClose(european.commands[1].x, 0.8);
-  expectClose(european.commands[1].y, -1.86);
+  expectClose(european.commands[1].x, 2.2);
+  expectClose(european.commands[1].y, -1.79); // generic height, not zigzag height
   expectClose(european.commands[2].x, 2.2);
 });
 

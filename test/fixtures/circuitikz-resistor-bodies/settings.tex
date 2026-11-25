@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+\ctikzset{bipoles/length=1.6cm,resistors/scale=.75,resistors/width=.9,bipoles/resistor/height=.4,resistors/zigs=4,bipoles/thickness=3}
+\draw[blue,line width=.65pt] (0,0) to[R] (3,0);
+\begin{scope}[circuitikz/resistors/scale=1.25,circuitikz/resistors/thickness=1.5]
+  \draw[red,line width=.65pt] (0,-.85) to[R,resistors/zigzag stub=.12,mirror] (3,-.85);
+  \draw[teal] (0,-1.8) to[american resistor,resistors/zigs=2,invert] (3,-1.8);
+\end{scope}
+\draw[blue,line width=.65pt] (0,-2.65) to[R] (3,-2.65);
+\end{circuitikz}
+\end{document}

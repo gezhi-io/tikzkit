@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage[europeanresistors]{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \draw[blue] (0,0) to[R] (3,0);
+  \begin{scope}[american resistors]
+    \draw (0,-.8) to[R] (3,-.8);
+    \draw[teal] (0,-1.6) to[european resistor] (3,-1.6);
+  \end{scope}
+  \draw[blue] (0,-2.4) to[R] (3,-2.4);
+\end{circuitikz}
+\end{document}

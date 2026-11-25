@@ -1,0 +1,11 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \ctikzset{label distance=4pt,bipoles/border margin=1.35}
+  \draw (0,0) to[R,l_=$R_y$] (3,0);
+  \draw (3,-1.5) to[C=$C_x$] (0,-1.5);
+  \draw (4,-2) to[R,l_=$R_p$] (4,.5);
+  \draw (6,.5) to[C,l_=$C_q$] (6,-2);
+\end{circuitikz}
+\end{document}

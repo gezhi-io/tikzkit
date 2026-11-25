@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+\begin{scope}[scale=1.6]
+  \draw[thick] (0,0) to[R] (2.5,0);
+  \begin{scope}[transform shape]
+    \draw[thick,blue] (0,-1) to[R] (2.5,-1);
+  \end{scope}
+\end{scope}
+\end{circuitikz}
+\end{document}

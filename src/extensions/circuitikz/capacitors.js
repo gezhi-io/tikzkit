@@ -1,22 +1,10 @@
-import { evaluateMath, parseDimension, roundNumber, roundPoint } from "../../engine/math.js";
-import { normalizeColor } from "../../engine/colors.js";
+import { roundNumber, roundPoint } from "../../engine/math.js";
+import { fixedBipoleClass } from "./settings.js";
 
-export function fixedCapacitorSettings(keys = {}, variables, shapeScale = 1) {
-  const number = (key, fallback) => {
-    const raw = keys[key];
-    if (raw == null || raw === true || raw === "none") return fallback;
-    const value = evaluateMath(String(raw), variables);
-    return Number.isFinite(value) && value >= 0 ? value : fallback;
-  };
-  const length = parseDimension(String(keys["bipoles/length"] ?? "1.4cm"), variables);
-  const rlen = (Number.isFinite(length) && length >= 0 ? length : 1.4) *
-    number("capacitors/scale", 1) * shapeScale;
-  return {
-    gap: rlen * number("bipoles/capacitor/width", .2),
-    height: rlen * number("bipoles/capacitor/height", .6),
-    thickness: number("capacitors/thickness", number("bipoles/thickness", 2)),
-    fill: normalizeColor(String(keys["capacitors/fill"] ?? "none"))
-  };
+export function fixedCapacitorSettings(keys, variables, shapeScale) {
+  const { rlen, number, thickness, fill } = fixedBipoleClass("capacitors", keys, variables, shapeScale);
+  return { gap: rlen * number("bipoles/capacitor/width", .2),
+    height: rlen * number("bipoles/capacitor/height", .6), thickness, fill };
 }
 
 export function fixedCapacitorItems({start, end}, normal, settings, style, fill) {

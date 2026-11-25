@@ -1,0 +1,13 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "resistor-directions",
+    "resistor-settings",
+    "resistor-scale",
+    "resistor-labels",
+    "resistor-rectangle",
+    "resistor-selection",
+    "resistor-spacing",
+    "resistor-amplifier"
+  ]
+}

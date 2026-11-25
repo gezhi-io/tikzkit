@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+\draw[blue] (0,0) to[R] (3,0);
+\draw[red] (0,-.6) to[R] (0,-2.8);
+\draw[teal] (3,-2.8) to[american resistor] (1,-.8);
+\draw (3.5,-1) to[R] ++(.44,0);
+\end{circuitikz}
+\end{document}

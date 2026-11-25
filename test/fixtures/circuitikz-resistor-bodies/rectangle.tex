@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \ctikzset{resistors/width=.95,bipoles/generic/height=.4,resistors/fill=yellow}
+  \draw[blue] (0,0) to[european resistor] (3,0);
+  \draw[red,thick] (0,-1) to[european resistor,fill=cyan,bipoles/generic/width=.5] (3,-1);
+  \draw (0,-2) to[R,fill=cyan] (3,-2);
+\end{circuitikz}
+\end{document}
