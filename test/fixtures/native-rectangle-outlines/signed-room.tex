@@ -1,0 +1,9 @@
+\documentclass[border=9pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[box/.style={rectangle,draw=blue,line width=.8pt,inner sep=0pt,
+                                 outer sep=0pt,minimum width=14mm,minimum height=4mm}]
+  \node[box,rounded corners=5mm] at (0,0) {A};
+  \node[box,rounded corners=-2mm] at (0,-1.6) {B};
+\end{tikzpicture}
+\end{document}

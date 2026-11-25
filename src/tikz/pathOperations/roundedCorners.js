@@ -1,4 +1,4 @@
-import { curveToCommand, lineToCommand } from "../../engine/pathBuilder.js";
+import { closePathCommand, curveToCommand, lineToCommand, moveToCommand } from "../../engine/pathBuilder.js";
 import { PGF_SP, pgfDimension, pgfFixedDivide, pgfFixedMultiply, pgfFixedReciprocal,
   pgfPrintDimension } from "../../engine/pgf-fixed-point.js";
 import { pgfCos } from "../../engine/safe-expression.js";
@@ -60,6 +60,15 @@ function firstPoint(command, start) {
     case "closePath": return start;
     default: return null;
   }
+}
+
+// pgf@specialrect walks from northeast to northwest before closing. The
+// inset is a signed length along each leg, not an SVG rx constrained by size.
+export function roundedRectangleOutline(west, south, east, north, inset) {
+  return roundPathCorners([
+    moveToCommand(east, north), lineToCommand(west, north), lineToCommand(west, south),
+    lineToCommand(east, south), closePathCommand()
+  ], () => inset);
 }
 
 // insetAt marks the endpoint of the incoming line/cubic/close, in scene cm.

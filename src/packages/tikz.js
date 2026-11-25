@@ -169,3 +169,8 @@ texPackage.features.push("Arrow tip eligibility by path paint action and termina
 texPackage.implementedBy += " + src/tikz/pathOperations/arrowActions.js:resolveArrowActions + src/renderers/svg/arrowTerminals.js:prepareArrowTerminals + src/renderers/svg/paths.js:renderArrowedPath";
 texPackage.localSourceReviewedLatest += "; pgfcorepathusage.code.tex:49-249,316-655 and pgfcorepathprocessing.code.tex:140-240 (path actions, final subpath, closed and degenerate paths)";
 texPackage.registryNoteSuffixLatest += " Core /pgf/tips uses the paint action and the final open subpath, and rejects closed contours. Point-only and returning cubic cases are checked against native PGF. See docs/qa/2026-11-25-native-arrow-actions.md for commands, visual evidence and limits.";
+
+texPackage.features.push("Ordinary rectangle node outlines separate the painted pen, named anchors and page bounds");
+texPackage.implementedBy += " + src/tikz/doubleStroke.js + src/renderers/svg/rectangleNode.js + src/renderers/svg/bounds.js:strokePadding";
+texPackage.localSourceReviewedLatest += "; pgfmoduleshapes.code.tex:881-1102 (rectangle anchors and background); pgfcorepathconstruct.code.tex:1039-1104 and pgfcorepathprocessing.code.tex:371-427 (signed corners); tikz.code.tex:192-233 and pgfcorepathusage.code.tex:107-167,254-265 (double pens and canvas bounds)";
+texPackage.registryNoteSuffixLatest += " Ordinary rectangles keep their background centerline separate from outer sep, rounded corner insets and the painted pen. Two-pass strokes use the configured gap or line-center distance. Browser and native evidence: docs/qa/2026-11-25-native-rectangle-outlines.md.";

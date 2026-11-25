@@ -12,6 +12,7 @@ import {
   straightBarbArrowGeometryFromLineWidth,
   teeBarbArrowGeometryFromLineWidth
 } from "../../tikz/metrics.js";
+import { doublePenWidths } from "../../tikz/doubleStroke.js";
 import { blurShadowFilterId } from "./defs.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
@@ -245,7 +246,7 @@ export function renderDoublePath(commands, style = {}, unit, options = {}) {
   const strokeOptions = { omitMarkers: true, lineCap: options.lineCap, lineJoin: options.lineJoin };
   const paths = [
     `<path class="tikz-double-outer" d="${data}"${styleAttributes(outerStyle, strokeOptions)} />`,
-    `<path class="tikz-double-inner" d="${data}"${styleAttributes(innerStyle, strokeOptions)} />`
+    innerStyle.lineWidth > 0 ? `<path class="tikz-double-inner" d="${data}"${styleAttributes(innerStyle, strokeOptions)} />` : ""
   ].join("");
   if (options.omitWrapper) return paths;
   return `<g class="tikz-double-path">${paths}</g>`;
@@ -276,23 +277,24 @@ export function usesCompactDashedDoubleStroke(style = {}) {
 }
 
 export function doubleStrokeStyles(style = {}) {
-  const lineWidth = Number(style.lineWidth) || 1;
-  const innerWidth = Number.isFinite(style.doubleDistance) ? style.doubleDistance : lineWidthFromPt(0.6);
+  const { outer, inner } = doublePenWidths(style);
   return {
     outerStyle: {
       ...style,
       fill: "none",
       markerStart: undefined,
       markerEnd: undefined,
-      lineWidth: lineWidth * 2 + innerWidth
+      lineWidth: outer
     },
     innerStyle: {
       ...style,
       stroke: style.doubleColor || "white",
       fill: "none",
+      shading: undefined,
+      pattern: undefined,
       markerStart: undefined,
       markerEnd: undefined,
-      lineWidth: innerWidth
+      lineWidth: inner
     }
   };
 }

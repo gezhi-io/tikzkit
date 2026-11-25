@@ -37,6 +37,7 @@ import { hasRenderableFormOnlyPattern, renderFormOnlyPatternFill } from "./formO
 import { nativePlainTextBox, renderPlainTextNode, renderPlainTextNodeWithTextEngine } from "./plainTextNode.js";
 import { isSvgTextEngine } from "./textEngine.js";
 import { isRectangleSplitNodeShape, renderRectangleSplitNodeBox } from "./rectangleSplitNodes.js";
+import { renderRectangleNodeBox } from "./rectangleNode.js";
 import { renderRichTextNode } from "./richTextNode.js";
 import {
   styleAttributes
@@ -273,40 +274,6 @@ function renderRasterImage(item, unit) {
   )}" href="${escapeAttribute(href)}" preserveAspectRatio="${escapeAttribute(preserveAspectRatio)}"${imageRendering}${opacity} />`;
 }
 
-function renderRectangleNodeBox(item, unit) {
-  const inset = nodeBoxStrokeInset(item);
-  const x = (item.x - item.width / 2) * unit + inset;
-  const y = -(item.y + item.height / 2) * unit + inset;
-  const width = Math.max(0, item.width * unit - inset * 2);
-  const height = Math.max(0, item.height * unit - inset * 2);
-  const radius = Math.min(Math.max(0, Number(item.rx) || 0) * unit, width / 2, height / 2);
-  if (radius <= 0) {
-    return `<rect x="${format(x)}" y="${format(y)}" width="${format(width)}" height="${format(height)}"${styleAttributes(item.style)} />`;
-  }
-  const right = x + width;
-  const bottom = y + height;
-  const control = radius * 0.5522847498307936;
-  const d = [
-    `M ${format(right - radius)} ${format(y)}`,
-    `L ${format(x + radius)} ${format(y)}`,
-    `C ${format(x + radius - control)} ${format(y)} ${format(x)} ${format(y + radius - control)} ${format(x)} ${format(y + radius)}`,
-    `L ${format(x)} ${format(bottom - radius)}`,
-    `C ${format(x)} ${format(bottom - radius + control)} ${format(x + radius - control)} ${format(bottom)} ${format(x + radius)} ${format(bottom)}`,
-    `L ${format(right - radius)} ${format(bottom)}`,
-    `C ${format(right - radius + control)} ${format(bottom)} ${format(right)} ${format(bottom - radius + control)} ${format(right)} ${format(bottom - radius)}`,
-    `L ${format(right)} ${format(y + radius)}`,
-    `C ${format(right)} ${format(y + radius - control)} ${format(right - radius + control)} ${format(y)} ${format(right - radius)} ${format(y)}`,
-    "Z"
-  ].join(" ");
-  return `<path class="tikz-node-box tikz-rounded-rectangle" d="${d}"${styleAttributes(item.style)} />`;
-}
-
-function nodeBoxStrokeInset(item) {
-  const style = item.style || {};
-  if (style.stroke === "none" || item.strokeBoundsIncluded === false) return 0;
-  const lineWidth = Number(style.lineWidth);
-  return Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth / 2 : 0;
-}
 
 function hasPathCommands(item) {
   return Array.isArray(item.commands) && item.commands.length > 0;

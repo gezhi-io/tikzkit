@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"outline-anchors","title":"8 pt outline and named anchors","source":"outline-anchors.tex"},
+    {"id":"stroke-page","title":"Stroke only: unmarked natural page","source":"stroke-page.tex"},
+    {"id":"fill-page","title":"Fill only: unmarked natural page","source":"fill-page.tex"},
+    {"id":"double-page","title":"Double stroke: outer band and red sleeve","source":"double-page.tex"},
+    {"id":"double-centers","title":"Double stroke: line-center distance","source":"double-centers.tex"},
+    {"id":"signed-insets","title":"Small rectangles: oversized and negative corner insets","source":"signed-insets.tex"},
+    {"id":"signed-room","title":"Identical signed corners with extra page border","source":"signed-room.tex"},
+    {"id":"rotated-page","title":"30 degree rectangle and natural page","source":"rotated-page.tex"},
+    {"id":"rotated-empty","title":"30 degree empty rectangle control","source":"rotated-empty.tex"},
+    {"id":"scaled-page","title":"Scaled shape with unscaled pen","source":"scaled-page.tex"}
+  ]
+}

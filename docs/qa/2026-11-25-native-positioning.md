@@ -65,6 +65,9 @@ glyph rasterization still differs.
 Arbitrary rotated asymmetric custom shapes and arbitrary PGF key code are
 outside this audit. The registry's 192 uses are not 192 visually audited cases.
 
+The [follow-up rectangle audit](2026-11-25-native-rectangle-outlines.md) revisits
+both gallery drivers and measures their borders separately from their anchors.
+
 ## Reproduce
 
 `PW` below is the absolute entry point of an installed Playwright module.

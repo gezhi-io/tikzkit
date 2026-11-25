@@ -120,7 +120,7 @@ export function stripTexComments(input = "") {
 function setParsedOption(options, key, value) {
   key = normalizePositioningKey(key);
   if (key === "/pgf/tips") key = "tips";
-  if (key === "draw" || key === "fill" || positioningRegisterName(key)) return setOrderedOption(options, key, value);
+  if (key === "draw" || key === "fill" || key === "double" || positioningRegisterName(key)) return setOrderedOption(options, key, value);
   if (key === "pattern" || key === "/tikz/pattern") {
     // PGF's empty/none forms only toggle filling. Keep that action distinct
     // from selecting ink so a bare key cannot shadow a scoped tile name.
@@ -1264,13 +1264,13 @@ function setOrderedOption(options, key, value) {
   if (key === "/tikz/rounded corners" || key === "/tikz/sharp corners") key = key.slice(6);
   if (key === "rounded corners") delete options["sharp corners"];
   if (key === "sharp corners") delete options["rounded corners"];
-  if ((key === "draw" || key === "fill") && Object.hasOwn(options, key) &&
+  if ((key === "draw" || key === "fill" || key === "double") && Object.hasOwn(options, key) &&
       (value === true || value === "" || value === "none")) {
     const prior = options[key];
     if (prior !== true && prior !== "" && prior !== "none") {
       // A later action-only key does not undo an earlier ink assignment.
       // Keep that assignment *in place*: draw=blue,red,draw=none leaves red.
-      const ink = key === "draw" ? "tikzkit stroke ink" : "tikzkit fill ink";
+      const ink = key === "draw" ? "tikzkit stroke ink" : `tikzkit ${key} ink`;
       renameOrderedKey(options, key, ink);
     }
   }

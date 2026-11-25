@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"diagonal-decision-flow","title":"Decision flow (unchanged original)","source":"../../examples/positioning/diagonal-decision-flow.tex"},
+    {"id":"on-grid-center-placement","title":"Center placement (unchanged original)","source":"../../examples/positioning/on-grid-center-placement.tex"}
+  ]
+}

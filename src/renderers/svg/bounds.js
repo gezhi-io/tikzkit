@@ -27,6 +27,7 @@ import { arrowBoxGeometry } from "../../tikz/libraries/shapes.arrows.js";
 import { magneticTapeGeometry, signalGeometry, starburstGeometry, tapeGeometry } from "../../tikz/libraries/shapes.symbols.js";
 import { curvedArrowPaint } from "./arrowBending.js";
 import { tubeGeometry } from "../../extensions/circuitikz/tubes.js";
+import { doublePenWidths } from "../../tikz/doubleStroke.js";
 
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
@@ -49,7 +50,11 @@ export function computeSvgBounds(items, options = {}) {
       itemBounds.maxY = Math.max(itemBounds.maxY, y);
     };
     if (item.type === "nodeBox") {
-      const strokePad = item.strokeBoundsIncluded ? 0 : nodeBoxStrokePadding(item, unit);
+      const pen = item.strokeBoundsIncluded ? 0 : strokePadding(item.style, unit);
+      // PGF inflates the transformed rectangle's canvas extents, not its
+      // unrotated corners. Inflating first overcounts a slanted border.
+      const canvasPad = item.shape === "rectangle" ? pen : 0;
+      const strokePad = pen - canvasPad;
       const foregroundOuterX = Math.max(0, Number(item.foregroundOuterSep?.x) || 0);
       const foregroundOuterY = Math.max(0, Number(item.foregroundOuterSep?.y) || 0);
       const geometricBounds = item.shapeData?.tubeKind
@@ -94,7 +99,10 @@ export function computeSvgBounds(items, options = {}) {
         item.rotation,
         item.x,
         item.y,
-        include
+        canvasPad ? (x, y) => {
+          include(x - canvasPad, y - canvasPad);
+          include(x + canvasPad, y + canvasPad);
+        } : include
       );
       for (const shadow of item.shadows || []) {
         const scale = Number(shadow.scale) > 0 ? Number(shadow.scale) : 1;
@@ -416,17 +424,12 @@ function includeResolvedArrowTipBounds(tip, style, origin, ux, uy, include, unit
 
 function pathStrokePadding(item, unit) {
   if (item.type === "bbox" && !item.includeStrokeBounds) return 0;
-  const style = item.style || {};
-  if (style.stroke === "none") return 0;
-  const lineWidth = Number(style.lineWidth);
-  if (!Number.isFinite(lineWidth) || lineWidth <= 0) return 0;
-  return lineWidth / unit / 2;
+  return strokePadding(item.style, unit);
 }
 
-function nodeBoxStrokePadding(item, unit) {
-  const style = item.style || {};
+function strokePadding(style = {}, unit) {
   if (style.stroke === "none") return 0;
-  const lineWidth = Number(style.lineWidth);
+  const lineWidth = style.doubleColor === undefined ? Number(style.lineWidth) : doublePenWidths(style).outer;
   if (!Number.isFinite(lineWidth) || lineWidth <= 0) return 0;
   return lineWidth / unit / 2;
 }

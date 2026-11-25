@@ -1,0 +1,41 @@
+\documentclass{article}
+\usepackage{tikz}
+\newsavebox{\sample}
+\newdimen\cornerX
+\newdimen\cornerY
+% Reading anchors does not draw a path or change the picture's bounds.
+\newcommand{\probe}[4][]{%
+  \sbox{\sample}{\begin{tikzpicture}[#1]
+    \node[minimum width=60pt,minimum height=30pt,inner sep=0pt,#3] (R) {#4};
+    % Measure the saved node in canvas coordinates, outside the picture CTM.
+    \pgftransformreset
+    \pgfextractx{\cornerX}{\pgfpointanchor{R}{north east}}
+    \pgfextracty{\cornerY}{\pgfpointanchor{R}{north east}}
+    \typeout{CORNER #2 \the\cornerX\space\the\cornerY}
+  \end{tikzpicture}}%
+  \typeout{PAGE #2 \the\wd\sample\space\the\dimexpr\ht\sample+\dp\sample\relax}}
+\begin{document}
+\probe{stroke}{draw,line width=4pt}{Box}
+\probe{tight}{draw,line width=4pt,outer sep=0pt}{Box}
+\probe{outside}{draw,line width=4pt,outer xsep=10pt,outer ysep=6pt}{Box}
+\probe{fill}{fill=red,line width=4pt,outer sep=10pt}{Box}
+\probe{round}{draw,rounded corners=3pt,line width=4pt}{Box}
+\probe{oversized}{draw,rounded corners=24pt,line width=4pt}{Box}
+\probe{negative}{draw,rounded corners=-3pt,line width=4pt}{Box}
+\probe{unitless}{draw,rounded corners=5,line width=4pt}{Box}
+\probe{rotate}{draw,line width=4pt,rotate=30}{Box}
+\probe{empty}{draw,line width=4pt,rotate=30}{}
+\probe{roundrot}{draw,rounded corners=3pt,line width=4pt,rotate=30}{Box}
+\probe[scale=1.5,transform shape]{scaled}{draw,line width=4pt}{Box}
+\probe[scale=1.5,transform shape]{scaledround}{draw,rounded corners=4pt,line width=4pt}{Box}
+\probe[scale=1.5,transform shape]{scaleddouble}{draw,double=blue,double distance=3pt,line width=2pt}{Box}
+\probe{double}{draw,double,line width=2pt}{Box}
+\probe{color}{draw=red,double=blue,double distance=3pt,line width=2pt}{Box}
+\probe{center}{draw,double distance between line centers=6pt,line width=2pt}{Box}
+\probe{single}{draw,double distance=6pt,double=none,line width=2pt}{Box}
+\probe{reenable}{draw,double=none,double distance=3pt,line width=2pt}{Box}
+\probe{zerogap}{draw=red,double distance=0pt,line width=2pt}{Box}
+\probe{overlap}{draw=red,double distance between line centers=1pt,line width=4pt}{Box}
+\probe{rememberink}{draw=red,double=blue,double,double=none,double distance=3pt,line width=2pt}{Box}
+\probe{noframedraw}{fill=red,double,line width=4pt}{Box}
+\end{document}

@@ -10,6 +10,7 @@ import { fixedResistorItem, fixedResistorSettings } from "../extensions/circuiti
 import { passiveLabelLayout } from "../extensions/circuitikz/passiveLabels.js";
 import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
 import { emptyRectangleSize, isPlainRectangle } from "../tikz/emptyRectangle.js";
+import { doubleStrokeOptions } from "../tikz/doubleStroke.js";
 import { currarrowHead, generatorSettings, generatorVoltage } from "../extensions/circuitikz/sourceVoltage.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
@@ -1657,7 +1658,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   // primitives bypass that hook; lowering preserves this distinction.
   // Inline nodes contribute separate boxes, not a replacement.
   const includeStrokeBounds = !tikzBoolean(pathOptions["tikzkit quick path"]);
-  const doubleStyle = doublePathStyle(semantic, env);
+  const doubleStyle = doublePathStyle(semantic, pathStyleEnv, built.styleHints?.lineWidth ?? style.lineWidth);
   const shadingStyle = pathShadingStyle(style, semantic, pathEnv);
   const requestedStyle = { ...style, ...shadingStyle, ...built.styleHints, ...doubleStyle };
   const pathStyle = resolveArrowActions(requestedStyle, built.commands, built.actionOptions, {
@@ -7073,7 +7074,7 @@ function createNodeWithOptions(statement, expandedOptions, env, ir, diagnostics)
     options: expandedOptions
   }, env);
   const chainUpdate = updateChainState(expandedOptions, env, displayPoint, positioningSize, { name, nodeRecord });
-  addNodeItems(node, ir, nodeEnv);
+  addNodeItems(node, ir, env);
   addChainJoinPath(chainUpdate, expandedOptions, env, ir, diagnostics);
   if (name && statement.path?.segments?.length) {
     addNodeAttachedPath(name, statement.path.segments, expandedOptions, env, ir, diagnostics);
@@ -10028,12 +10029,16 @@ function addNodeItemsWithFont(node, ir, env) {
   const { style: rawStyle, semantic, options: normalizedNodeOptions } = normalizeOptions("node", node.options || {}, nodeEnv);
   const renderedNodeText = applyNodeLineBreakSemantics(node.text, normalizedNodeOptions);
   const overlay = tikzBoolean(node.options?.overlay ?? semantic.overlay);
-  const scaledStyle = scaleCanvasStyle(rawStyle, nodeEnv);
+  const shape = nodeShape(node.options || {});
+  const plainRectangle = isPlainRectangle(node.options || {}, shape);
+  // transform shape scales a rectangle's background coordinates and text.
+  // Only a backend canvas transform scales its physical pen, gap and corner inset.
+  const paintEnv = plainRectangle ? env : nodeEnv;
+  const scaledStyle = scaleCanvasStyle(rawStyle, paintEnv);
   const patternDefinition = scaledStyle.pattern ? nodeEnv.patterns?.[scaledStyle.pattern] : null;
   const style = patternDefinition ? { ...scaledStyle, patternDefinition } : scaledStyle;
   const rotation = node.rotation ?? nodeRotation(node.options || {}, nodeEnv);
   const point = node.displayPoint || resolveNodeAnchorPoint(node.at, node.options, node.text, nodeEnv, node.size);
-  const shape = nodeShape(node.options || {});
   const size = node.size || scaleSize(estimateNodeLayoutSize(node.text, node.options, nodeEnv), nodeEnv.canvasScale);
   const shapeData = {
     ...nodeShapeData(node.options || {}, nodeEnv, node.text, size),
@@ -10192,19 +10197,18 @@ function addNodeItemsWithFont(node, ir, env) {
       y: point.y,
       width: size.width,
       height: size.height,
-      // Rectangle-like node renderers inset the geometry by half the stroke,
-      // but circular SVG paths paint their stroke outside the supplied radii.
-      // Keep that outer half-stroke in the scene bounds.
-      strokeBoundsIncluded: size.strokeBoundsIncluded ?? (shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "semicircle" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape)),
+      // Rectangle dimensions describe the PGF background path. Outer sep
+      // belongs to anchors; half the painted pen belongs to the picture.
+      strokeBoundsIncluded: size.strokeBoundsIncluded ?? (!plainRectangle && shape !== "circle" && shape !== "circleSolidus" && shape !== "ellipse" && shape !== "ellipseSplit" && shape !== "semicircle" && shape !== "magnifyingGlass" && !isSymbolForbiddenSignShape(shape)),
       foregroundOuterSep,
-      rx: nodeCornerRadius(shape, semantic, size, nodeEnv),
+      rx: nodeCornerRadius(shape, semantic, size, paintEnv),
       pathPicture: semantic["path picture"],
       appendAfterCommand: semantic["append after command"],
       bpmnIcon: semantic["bpmn icon"],
       bpmnMarker: semantic["bpmn marker"],
       tikzquadsKind: semantic["tikzquads kind"],
       tikzquadsOptions: tikzquadsNodeOptions(semantic),
-      doubleColor: semantic.double === undefined ? undefined : semantic.double || "white",
+      doubleColor: plainRectangle || semantic.double === undefined ? undefined : semantic.double || "white",
       shadows: nodeGeneralShadows({ ...node.options, ...semantic }, nodeEnv, style),
       parts: shape === "rectangleSplit" ? node.rectangleSplit?.count || rectangleSplitParts(semantic) : undefined,
       rectangleSplitHorizontal: shape === "rectangleSplit" ? node.rectangleSplit?.horizontal : undefined,
@@ -10229,7 +10233,11 @@ function addNodeItemsWithFont(node, ir, env) {
       style: {
         stroke: semantic.draw || style.stroke !== "none" ? style.stroke || "black" : "none",
         fill: shadedFill || style.fill,
-        lineWidth: style.lineWidth || 1,
+        lineWidth: style.lineWidth ?? 1,
+        ...(plainRectangle && style.stroke !== "none" ? doublePathStyle(semantic, paintEnv, style.lineWidth) : {}),
+        lineJoin: style.lineJoin,
+        lineCap: style.lineCap,
+        miterLimit: style.miterLimit,
         dashArray: style.dashArray,
         opacity: style.opacity,
         fillOpacity: style.fillOpacity,
@@ -13160,6 +13168,7 @@ function numberOption(value, fallback) {
 }
 
 function nodeCornerRadius(shape, semantic, size, env = {}) {
+  if (shape === "rectangle") return pathCornerInset(semantic, env);
   if (shape === "roundedRectangle") return roundNumber(Math.min(size.width, size.height) * 0.5);
   if (shape === "superellipse") return roundNumber(Math.min(size.width, size.height) * 0.28);
   if (Object.hasOwn(semantic, "rounded corners")) {
@@ -15157,12 +15166,7 @@ function estimateNodeSize(text, options = {}, env = { variables: {} }) {
     width = Math.max(width, parseFiniteDimension(options["base width"], env, 1.8));
     height = Math.max(height, parseFiniteDimension(options["base height"], env, 1.8));
   }
-  // Exact TeX hboxes plus inner separation describe PGF's path centerline.
-  // Keep their stroke outside it; legacy measured boxes include paint padding.
-  return scaleSize({ width: roundNumber(width), height: roundNumber(height),
-    ...(shape === "rectangle" && (textBox.measurementKind === "cm-tex-box" || textBox.nativeParagraph)
-      ? { strokeBoundsIncluded: false } : {})
-  }, shapeScale);
+  return scaleSize({ width: roundNumber(width), height: roundNumber(height) }, shapeScale);
 }
 
 function normalizedFormulaNeedsTexMetrics(normalized) {
@@ -19475,18 +19479,9 @@ function parseAxisShadingStops(raw) {
   return stops.length >= 2 ? stops : undefined;
 }
 
-function doublePathStyle(semantic = {}, env = { variables: {} }) {
-  if (semantic.double === undefined) return {};
-  const rawColor = semantic.double;
-  if (rawColor === false || String(rawColor).trim().toLowerCase() === "none") return {};
-  const style = {
-    doubleColor: rawColor === true || rawColor === "" ? "white" : normalizeColor(String(rawColor))
-  };
-  if (semantic["double distance"] !== undefined) {
-    const distance = parseDimension(semantic["double distance"], env.variables) * TIKZ_UNIT * canvasLengthScale(env);
-    if (Number.isFinite(distance) && distance >= 0) style.doubleDistance = distance;
-  }
-  return style;
+function doublePathStyle(semantic, env, nominalWidth) {
+  return doubleStrokeOptions(semantic, nominalWidth,
+    value => parseNodeLengthDimension(value, env) * TIKZ_UNIT * canvasLengthScale(env), normalizeColor);
 }
 
 function isVisiblePath(command, style, semantic, styleHints = {}) {
