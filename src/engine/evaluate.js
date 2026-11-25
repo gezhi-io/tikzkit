@@ -112,6 +112,7 @@ import {
 } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
 import { gridCartesianPair, gridLiteralPoint, gridSegments, gridStep } from "../tikz/pathOperations/grid.js";
+import { ellipseOptionLayers, ellipseRadiusKeys, hasOppositeEllipseWinding, markEllipseControlBounds, usesCompoundEllipses } from "../tikz/pathOperations/ellipse.js";
 import {
   addMatrixDelimiters as addMatrixLibraryDelimiters,
   isMatrixNodeOptions as isMatrixLibraryNodeOptions,
@@ -1767,9 +1768,9 @@ function isCoordinateNodePlacementPath(segments = []) {
 
 function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {}) {
   const commands = [];
-  const gridCorners = [];
+  const boundsMoves = [];
   const gridLiterals = segments.some(s => s.value === "grid") ? new WeakMap() : null;
-  const compoundQuickPath = segments.length > 2 && tikzBoolean(pathOptions["tikzkit quick path"]);
+  const compoundEllipses = usesCompoundEllipses(segments, pathOptions, pathStyle);
   const shapes = [];
   const nodes = [];
   const styleHints = {};
@@ -1897,7 +1898,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         }
         // pgfpathgrid ends with a move to the supplied corner, not to the
         // last lattice intersection. A following --, + or ++ starts there.
-        gridCorners.push(moveToCommand(current), moveToCommand(point));
+        boundsMoves.push(moveToCommand(current), moveToCommand(point));
         commands.push(moveToCommand(point));
         lastSegment = null;
         start = point;
@@ -2363,68 +2364,25 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
       pending = null;
       continue;
     }
-    if (segment.kind === "circle") {
-      const center = current || applyCoordinateTransform({ x: 0, y: 0 }, env);
-      const r = parseDimension(segment.radius, env.variables);
-      const radiusEnv = radiusGeometryEnvironment(segment.radius, env);
-      const outline = circleCommands(center, r, radiusEnv);
-      // PGF appends the closed outline, then moves back to its center. A
-      // compound mark must keep this subpath until the single quick paint.
-      if (compoundQuickPath) {
-        commands.push(...outline, moveToCommand(center));
-        continue;
+    if (segment.kind === "circle" || segment.kind === "ellipse") {
+      const anchor = current || applyCoordinateTransform({ x: 0, y: 0 }, env);
+      const shape = resolvePathEllipse(segment, anchor, effectivePathOptions, env, diagnostics);
+      if (!shape) continue;
+      const center = { x: shape.cx, y: shape.cy };
+      if (compoundEllipses) {
+        commands.push(...shape.commands, moveToCommand(center));
+      } else {
+        shapes.push(decoratedShape({ ...shape, subtype: semanticSubtype(pathOptions) }, effectivePathOptions, env));
+        if (current && (center.x !== current.x || center.y !== current.y)) boundsMoves.push(moveToCommand(current));
       }
-      shapes.push(
-        decoratedShape(
-          {
-            type: "path",
-            shape: "circle",
-            projected: usesProjectedLocalGeometry(radiusEnv),
-            subtype: semanticSubtype(pathOptions),
-            cx: center.x,
-            cy: center.y,
-            r,
-            commands: outline,
-            style: {}
-          },
-          effectivePathOptions,
-          env
-        )
-      );
-      continue;
-    }
-    if (segment.kind === "ellipse" && current) {
-      const [rxRaw, ryRaw] = segment.radius.split(/\s+and\s+/);
-      const xRadius = segment.options?.["x radius"] || rxRaw;
-      const yRadius = segment.options?.["y radius"] || ryRaw || rxRaw;
-      if (coordinateComponentHasDimension(xRadius, env.variables) !== coordinateComponentHasDimension(yRadius, env.variables)) {
-        diagnostics.push({ severity: "error", message: "Cannot mix dimensions and dimensionless values in an ellipse" });
-        continue;
-      }
-      const rx = parseDimension(xRadius, env.variables);
-      const ry = parseDimension(yRadius, env.variables);
-      const radiusEnv = radiusGeometryEnvironment(xRadius, env);
-      const outline = ellipseCommands(current, rx, ry, radiusEnv);
-      if (compoundQuickPath) {
-        commands.push(...outline, moveToCommand(current));
-        continue;
-      }
-      shapes.push(
-        decoratedShape(
-          {
-            type: "path",
-            shape: "ellipse",
-            projected: usesProjectedLocalGeometry(radiusEnv),
-            cx: current.x,
-            cy: current.y,
-            rx,
-            ry,
-            commands: outline
-          },
-          effectivePathOptions,
-          env
-        )
-      );
+      // pgfpathellipse moves the physical pen to its center. The TikZ
+      // coordinate used by +/++ is outside the operation-local "at" group.
+      current ||= anchor;
+      currentBase ||= anchor;
+      relativeBase ||= anchor;
+      start = center;
+      startNodeRef = null;
+      lastSegment = null;
       continue;
     }
     if (segment.kind === "arc" && current) {
@@ -2525,7 +2483,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
   return {
     commands: applyPathDecoration(roundedCommands, effectivePathOptions, env),
     decorationInputCommands: roundedCommands,
-    boundsCommands: gridCorners.length ? gridCorners.concat(originalBounds || []) : originalBounds,
+    boundsCommands: boundsMoves.length ? boundsMoves.concat(originalBounds || []) : originalBounds,
     shapes,
     nodes,
     styleHints,
@@ -6468,6 +6426,38 @@ function radiusGeometryEnvironment(radius, env) {
   // TikZ uses canvas vectors for a TeX length, but x/y basis vectors for a
   // number. A canvas plane and ordinary transformations still affect both.
   return coordinateComponentHasDimension(radius, env.variables) ? { ...env, basis: env.canvasPlaneBasis } : env;
+}
+
+function resolvePathEllipse(segment, current, pathOptions, env, diagnostics) {
+  const layers = ellipseOptionLayers(segment, env.styles, raw =>
+    normalizeOptions("path", resolveDynamicOptions(raw, env), env).options);
+  const { x, y, shared } = ellipseRadiusKeys(segment, pathOptions, layers);
+  if (coordinateComponentHasDimension(x, env.variables) !== coordinateComponentHasDimension(y, env.variables)) {
+    diagnostics.push({ severity: "error", message: "Cannot mix dimensions and dimensionless values in an ellipse" });
+    return null;
+  }
+  const rx = parseDimension(x, env.variables), ry = shared ? rx : parseDimension(y, env.variables);
+  let anchor = current, basis = env.basis, local = identityTransform();
+  for (const layer of layers) {
+    const localEnv = { ...env, basis };
+    if (layer.at != null) anchor = resolveCoordinate(String(layer.at), localEnv, diagnostics);
+    local = composeTransform(local, layer, localEnv);
+    basis = composeBasis(basis, layer, localEnv);
+  }
+  // PGF first shifts to the center, then applies only this operation's
+  // transforms. Basis vectors affect numeric radii but not physical lengths.
+  const offset = applyCoordinateTransformVector({ x: local.x, y: local.y }, env);
+  const center = roundPoint({ x: anchor.x + offset.x, y: anchor.y + offset.y });
+  const radiusEnv = radiusGeometryEnvironment(x, { ...env, basis, transform: multiplyTransforms(env.transform, local) });
+  const circle = segment.kind === "circle" && rx === ry;
+  const projected = usesProjectedLocalGeometry(radiusEnv);
+  const commands = ellipseCommands(center, rx, ry, radiusEnv);
+  if (projected) markEllipseControlBounds(commands, center, current);
+  return {
+    type: "path", shape: circle ? "circle" : "ellipse", cx: center.x, cy: center.y,
+    ...(circle ? { r: rx } : { rx, ry }),
+    projected, commands
+  };
 }
 
 function circleCommands(center, r, env) {
@@ -16977,7 +16967,8 @@ function hasDrawableCommands(commands, shapes) {
 
 function compoundFillRuleShape(shapes = [], pathOptions = {}, subtype, { allowShadows = false } = {}) {
   if (shapes.length < 2) return null;
-  if (!shapes[0]?.style?.fillRule && !allowShadows) return null;
+  const style = shapes[0]?.style;
+  if (!style?.fillRule && !allowShadows && !(style?.fill && style.fill !== "none" && hasOppositeEllipseWinding(shapes))) return null;
   if (!shapes.every((shape) => shape?.type === "path" && shape.commands?.length && isClosedPath(shape.commands))) return null;
   if (!shapes.every((shape) => compatibleCompoundShapeStyle(shapes[0].style || {}, shape.style || {}))) return null;
   return {

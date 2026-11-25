@@ -45,7 +45,14 @@ export const tikzCommand = {
       notes: "Covers bend left/right, out/in, relative, looseness, in/out looseness, exact distance, and shared or independent min/max distance constraints in source order. Explicit control points, arbitrary custom to path callbacks, and graphdrawing remain partial."
     },
     {
-      name: "circle / ellipse / rectangle / arc",
+      name: "circle / ellipse",
+      category: "shape path",
+      status: "partial",
+      implementedBy: "src/frontend/parser.js:parseEllipseSegment + src/tikz/pathOperations/ellipse.js + src/engine/evaluate.js:resolvePathEllipse",
+      notes: "Modern radius, x radius, y radius, every circle, at, local affine transforms and legacy scalar or paired radii. Closed contours share compound fills and translucent strokes; arbitrary TeX callbacks are outside this slice."
+    },
+    {
+      name: "rectangle / arc",
       category: "shape path",
       status: "partial",
       implementedBy: "src/frontend/parser.js:parsePathStatement + src/engine/evaluate.js:buildPath",

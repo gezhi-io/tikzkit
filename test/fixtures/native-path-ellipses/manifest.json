@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "id": "ellipse-manual-rotated",
+      "source": "manual-rotated.tex",
+      "title": "Manual: a tilted ellipse inside a circle"
+    },
+    {
+      "id": "ellipse-manual-chain",
+      "source": "manual-chain.tex",
+      "title": "Manual: three circles inheriting a radius"
+    },
+    {
+      "id": "ellipse-cutout",
+      "source": "cutout.tex",
+      "title": "Manual: an even-odd cutout in a rectangle"
+    },
+    {
+      "id": "ellipse-local-at",
+      "source": "local-at.tex",
+      "title": "Local center and transform, followed by a relative line"
+    },
+    {
+      "id": "ellipse-every-circle",
+      "source": "every-circle.tex",
+      "title": "Shared ellipse styles, local overrides, and legacy syntax"
+    },
+    {
+      "id": "ellipse-basis",
+      "source": "basis.tex",
+      "title": "Dimensional and unitless radii in a skew drawing basis"
+    },
+    {
+      "id": "ellipse-compound-stroke",
+      "source": "compound-stroke.tex",
+      "title": "Overlapping translucent ellipses painted in one stroke"
+    },
+    {
+      "id": "ellipse-shadow",
+      "source": "../examples/shadows/general-shadow-path.tex",
+      "title": "Gallery: compound general shadow"
+    },
+    {
+      "id": "ellipse-scoped-order",
+      "source": "scoped-order.tex",
+      "title": "Repeated transforms, explicit at, and enclosure isolation"
+    },
+    {
+      "id": "ellipse-winding",
+      "source": "winding.tex",
+      "title": "Nonzero fill cancels opposite ellipse windings"
+    }
+  ]
+}

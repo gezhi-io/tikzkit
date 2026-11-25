@@ -1,0 +1,15 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "ellipse-manual-rotated",
+    "ellipse-manual-chain",
+    "ellipse-cutout",
+    "ellipse-local-at",
+    "ellipse-every-circle",
+    "ellipse-basis",
+    "ellipse-compound-stroke",
+    "ellipse-shadow",
+    "ellipse-scoped-order",
+    "ellipse-winding"
+  ]
+}

@@ -33,7 +33,7 @@ export function includePathCommandBounds(commands = [], include, options = {}) {
       if (current && options.tightBezierBounds) {
         includeCubicBezierBounds(current, command, include);
       } else {
-        includeFinitePoint(include, command.x1, command.y1);
+        includeFinitePoint(include, command.x1, command.boundsControl1XOnly && current ? current.y : command.y1);
         includeFinitePoint(include, command.x2, command.y2);
         includeFinitePoint(include, command.x, command.y);
       }

@@ -1708,35 +1708,14 @@ export function parsePathSegments(pathText) {
       index += "cycle".length;
       continue;
     }
-    if (startsKeyword(pathText, index, "circle")) {
-      index += "circle".length;
-      index = skipWhitespace(pathText, index);
-      const circleOptions = parseOptionalOptions(pathText, index);
-      if (circleOptions.raw) {
-        segments.push({ kind: "circle", radius: circleOptions.options.radius || "1", options: circleOptions.options });
-        index = circleOptions.end;
-        continue;
-      }
-      const radius = extractBalanced(pathText, index, "(", ")");
-      if (radius) {
-        segments.push({ kind: "circle", radius: radius.content.trim(), options: {} });
-        index = radius.end;
-      }
-      continue;
-    }
-    if (startsKeyword(pathText, index, "ellipse")) {
-      index += "ellipse".length;
-      index = skipWhitespace(pathText, index);
-      const ellipseOptions = parseOptionalOptions(pathText, index);
-      if (ellipseOptions.raw) {
-        segments.push({ kind: "ellipse", radius: "", options: ellipseOptions.options });
-        index = ellipseOptions.end;
-        continue;
-      }
-      const radius = extractBalanced(pathText, index, "(", ")");
-      if (radius) {
-        segments.push({ kind: "ellipse", radius: radius.content.trim(), options: {} });
-        index = radius.end;
+    const ellipse = parseEllipseSegment(pathText, index);
+    if (ellipse) {
+      segments.push(ellipse.segment);
+      index = ellipse.end;
+      // TikZ scans the next operation even without a separating space (circlenode).
+      if (!isTokenBoundary(pathText[index - 1]) && !isTokenBoundary(pathText[index] || "")) {
+        pathText = pathText.slice(index);
+        index = 0;
       }
       continue;
     }
@@ -1807,6 +1786,54 @@ export function parsePathSegments(pathText) {
     index = next > index ? next : index + 1;
   }
   return segments.filter((segment) => segment.kind !== "unknown" || segment.raw);
+}
+
+function parseEllipseSegment(text, start) {
+  const kind = text.startsWith("circle", start) ? "circle" : text.startsWith("ellipse", start) ? "ellipse" : null;
+  if (!kind) return null;
+  const cursor = skipWhitespace(text, start + kind.length);
+  if (text[cursor] === "(") return parseLegacyEllipseSegment(text, cursor, kind);
+
+  const { raw, options, end } = parseOptionalOptions(text, cursor);
+  if (text[cursor] === "[" && end === cursor) return null;
+  // TikZ runs every circle before these keys. The lookup object alone loses repeated assignments.
+  return {
+    segment: {
+      kind, syntax: "modern", options, optionsRaw: raw,
+      radius: kind === "circle" ? options.radius ?? "" : ""
+    },
+    end
+  };
+}
+
+function parseLegacyEllipseSegment(text, start, kind) {
+  let separator = -1;
+  let depth = 1;
+  for (let i = start + 1; i < text.length; i += 1) {
+    const char = text[i];
+    if (char === "\\") {
+      i += 1;
+    } else if (char === "{") {
+      // Neither a closing parenthesis nor " and " inside a TeX group is a delimiter.
+      const group = extractBalanced(text, i, "{", "}");
+      if (!group) return null;
+      i = group.end - 1;
+    } else if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+      if (depth) continue;
+      const radius = text.slice(start + 1, i).trim();
+      const legacyRadii = separator < 0
+        ? [radius]
+        : [text.slice(start + 1, separator).trim(), text.slice(separator + 3, i).trim()];
+      return { segment: { kind, syntax: "legacy", radius, legacyRadii, options: {}, optionsRaw: "" }, end: i + 1 };
+    } else if (depth === 1 && separator < 0 && text.startsWith("and", i) &&
+               /\s/.test(text[i - 1]) && /\s/.test(text[i + 3] || "")) {
+      separator = i;
+    }
+  }
+  return null;
 }
 
 function parseDecoratePathSegment(pathText, start) {

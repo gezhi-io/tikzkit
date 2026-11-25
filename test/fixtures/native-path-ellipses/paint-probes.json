@@ -1,0 +1,36 @@
+{
+  "ellipse-manual-rotated": {
+    "sourceSha256": "4fb4acb0043e93d920632703fd23cd2ddc64cec35d45b77766e5a5b2b549a6d3",
+    "referenceSize": [358, 358],
+    "probes": {
+      "filled-center":          { "uv": [0.50, 0.50], "rgb": "#000000" },
+      "upper-right-major-axis": { "uv": [0.70, 0.33], "rgb": "#000000" },
+      "lower-left-major-axis":  { "uv": [0.30, 0.67], "rgb": "#000000" },
+      "upper-left-clear":       { "uv": [0.30, 0.33], "rgb": "#ffffff" },
+      "lower-right-clear":      { "uv": [0.70, 0.67], "rgb": "#ffffff" },
+      "beyond-upper-right-tip": { "uv": [0.80, 0.33], "rgb": "#ffffff" }
+    }
+  },
+  "ellipse-cutout": {
+    "sourceSha256": "a8af8e2bd460452e2756dd361ec36da51ea678348ec15e2420c4d67f414eaeb3",
+    "referenceSize": [131, 131],
+    "probes": {
+      "white-hole-center":      { "uv": [0.50, 0.50], "rgb": "#ffffff" },
+      "white-inside-left-rim":  { "uv": [0.22, 0.50], "rgb": "#ffffff" },
+      "yellow-beyond-left-rim": { "uv": [0.12, 0.50], "rgb": "#d2c92a" },
+      "yellow-square-corner":   { "uv": [0.85, 0.80], "rgb": "#d2c92a" }
+    }
+  },
+  "ellipse-compound-stroke": {
+    "sourceSha256": "0eb7c2b6d8e094fa0802e978b3a83f1299867eadc76f3424b00907f9e373f300",
+    "referenceSize": [406, 172],
+    "probes": {
+      "single-blue-stroke":  { "uv": [0.045, 0.50], "rgb": "#9999ff" },
+      "upper-blue-crossing": { "uv": [0.342, 0.26], "rgb": "#9999ff" },
+      "lower-blue-crossing": { "uv": [0.342, 0.74], "rgb": "#9999ff" },
+      "left-red-lobe":       { "uv": [0.65,  0.50], "rgb": "#ff0000" },
+      "white-red-overlap":   { "uv": [0.79,  0.50], "rgb": "#ffffff" },
+      "right-red-lobe":      { "uv": [0.93,  0.50], "rgb": "#ff0000" }
+    }
+  }
+}

@@ -152,3 +152,8 @@ texPackage.features.push("Path grids with scoped steps, independent directions a
 texPackage.implementedBy += " + src/tikz/pathOperations/grid.js:gridStep/gridSegments";
 texPackage.localSourceReviewedLatest += "; tikz.code.tex:469-478,2799-2801,3294-3330 (step vectors, cycle and local grid keys); pgfcorepoints.code.tex:800-809 and pgfcorepathconstruct.code.tex:1127-1240 (scaled-point basis and lattice traversal)";
 texPackage.registryNoteSuffixLatest += " Core path grids now resolve numeric, dimensional and coordinate steps, independent directions, scaled-point edge inclusion, transformed corners, grid cycle and compound strokes. See docs/qa/2026-11-25-native-path-grids.md for the native sources, visual controls and limits.";
+
+texPackage.features.push("Shared circle/ellipse operation keys and compound ellipse paint");
+texPackage.implementedBy += " + src/tikz/pathOperations/ellipse.js + src/engine/evaluate.js:resolvePathEllipse";
+texPackage.localSourceReviewedLatest += "; tikz.code.tex:286-297,3542-3623 (radius keys, local origin, legacy and modern branches); pgfcorepathconstruct.code.tex:907-1007 (ellipse cubics, close and center move); pgfmanual-en-tikz-paths.tex:438-536 and pgfmanual-en-tikz-actions.tex:804-824";
+texPackage.registryNoteSuffixLatest += " Modern circle and ellipse operations share ordered radius, every circle and local transform/center semantics; legacy literal radii bypass the style. Compound outlines preserve winding holes and single-stroke transparency. Native evidence and limits: docs/qa/2026-11-25-native-path-ellipses.md.";

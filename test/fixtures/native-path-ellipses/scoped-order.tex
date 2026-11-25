@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}[at={(6,4)},radius=5mm]
+  \draw[teal] (0,0) ellipse[rotate=20,rotate=25,y radius=2mm];
+  \draw[red] (.9,0) circle[x radius=9mm,radius=4mm,y radius=1.5mm];
+  \fill[blue] circle[at={(2,0)},radius=2mm,xshift=2mm];
+\end{tikzpicture}
+\end{document}

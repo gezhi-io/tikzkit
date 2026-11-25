@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \tikzset{every circle/.style={x radius=4mm,y radius=2mm,rotate=30},rx/.style={x radius=#1}}
+  \draw[blue] (0,0) ellipse;
+  \draw[red] (1,0) circle[rx=7mm,rotate=15];
+  \draw[teal] (2.3,0) ellipse (5mm and 1mm);
+\end{tikzpicture}
+\end{document}

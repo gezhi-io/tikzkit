@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \coordinate (target) at (1,.7);
+  \draw[thick,blue] (0,0) ellipse[at={(target)},x radius=5mm,y radius=2mm,rotate=35] -- ++(1.9,0);
+  \draw[red] (1.9,0) -- +(0,.15);
+\end{tikzpicture}
+\end{document}

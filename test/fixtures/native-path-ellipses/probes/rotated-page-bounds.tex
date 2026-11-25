@@ -1,0 +1,18 @@
+% Measured frame, without changing the painted path; this is not a gallery input.
+\documentclass{article}
+\usepackage{tikz}
+\makeatletter
+\newcommand{\reportbox}[1]{\typeout{BOUNDS #1: \the\pgf@picminy, \the\pgf@picmaxy}}
+\begin{document}
+\foreach \angle in {45,-45,20,-120}{%
+  \begin{tikzpicture}
+    \draw (0,0) ellipse[x radius=7mm,y radius=2mm,rotate=\angle];
+    \reportbox{native \angle}
+  \end{tikzpicture}%
+  \begin{tikzpicture}
+    \let\originalcurve\pgf@nlt@curveto
+    \def\pgf@nlt@curveto{\relax\originalcurve}
+    \draw (0,0) ellipse[x radius=7mm,y radius=2mm,rotate=\angle];
+    \reportbox{terminated assignment \angle}
+  \end{tikzpicture}\par}
+\end{document}
