@@ -1,5 +1,6 @@
 import { parseDimension } from "../engine/math.js";
 import { normalizeOptions, parseOptions } from "../engine/options.js";
+import { createPlotMarkSelector } from "../pgf/plotMarkSelection.js";
 import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { includePoint, includePathCommandBounds } from "../scene/bbox.js";
 import { basicPlotMarkGeometry, plotMarkGeometryCommands, plotMarkLocalOptions, transformPlotMarkCommands } from "../tikz/libraries/plotmarks.js";
@@ -7,8 +8,19 @@ import { pgfplotsUsesAreaLegend } from "./areaPlots.js";
 import { barPlotStyle, selectPlotStyle } from "./plotStyle.js";
 import { filledPlotPaint } from "./filledPlotPaint.js";
 import { axisMarkRadius, shouldRenderPlotMarks } from "./marks.js";
+import { pgfplotsMarkSelectionLayers } from "./markSelection.js";
 
 const PT = 2.54 / 72.27;
+export const LINE_LEGEND_WIDTH = 0.6;
+
+export function lineLegendMarkFractions(axis, plot, scopes, variables) {
+  if (!shouldRenderPlotMarks(plot, axis)) return [];
+  // pgfplots.code.tex:2007-2025. The plot style lives on the enclosing
+  // scope. The little draw path resets repeat and phase, but NOT indices.
+  const path = { "mark repeat": 2, "mark phase": 2 };
+  const next = createPlotMarkSelector(pgfplotsMarkSelectionLayers(axis, scopes, path), variables);
+  return [0, .5, 1].filter(next);
+}
 
 export function legendHalfPen(options, index, thick) {
   const style = selectPlotStyle(options, index) + (thick ? ",thick" : "");
@@ -35,7 +47,7 @@ export function includeLegendMark(bounds, options, center) {
 
 // Return geometry about the image-cell origin, not the center of its ink.
 // pgfplots.code.tex installs a miniature plot with its own widths and shifts.
-export function filledLegendImage(axis, plot, index = 0, font) {
+export function filledLegendImage(axis, plot, index = 0, font, scopes = plot, variables) {
   if (plot["line legend"]) return null;
   const kind = pgfplotsUsesAreaLegend(plot) ? "area" : barPlotStyle(plot) ??
     (axis["line legend"] ? undefined : pgfplotsUsesAreaLegend(axis) ? "area" : barPlotStyle(axis));
@@ -45,7 +57,7 @@ export function filledLegendImage(axis, plot, index = 0, font) {
   const ink = filledPlotPaint(plot, axis, { legendDraw: true });
   const halfPen = halfPenForStyle(ink.style);
   const rects = [];
-  const marks = [];
+  let marks = [];
   const rect = (x0, y0, x1, y1) => rects.push({
     minX: Math.min(x0, x1), maxX: Math.max(x0, x1),
     minY: Math.min(y0, y1), maxY: Math.max(y0, y1)
@@ -90,6 +102,12 @@ export function filledLegendImage(axis, plot, index = 0, font) {
     maxX: Math.max(...rects.map(r => r.maxX)) + halfPen,
     maxY: Math.max(...rects.map(r => r.maxY)) + halfPen
   } : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
-  for (const center of marks) includeLegendMark(bounds, plot, center);
+  if (marks.length) {
+    // Unlike line legend, a bar's miniature TikZ plot does not reset the
+    // repeat/phase registers. The rectangles never go through this handler.
+    const next = createPlotMarkSelector(pgfplotsMarkSelectionLayers(axis, scopes, {}), variables);
+    marks = marks.filter(next);
+    for (const center of marks) includeLegendMark(bounds, plot, center);
+  }
   return { rects, marks, bounds, ink };
 }

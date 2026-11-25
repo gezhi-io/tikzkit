@@ -1,7 +1,7 @@
 import { tokenizeTikzLikeSource } from "./lexer.js";
 
 const pictureEnvs = new Set(["tikzpicture", "circuitikz"]);
-const literalEnvs = new Set(["filecontents", "filecontents*", "verbatim", "verbatim*", "lstlisting", "minted"]);
+export const literalEnvs = new Set(["filecontents", "filecontents*", "verbatim", "verbatim*", "lstlisting", "minted"]);
 
 function nextToken(tokens, i) {
   while (tokens[i]?.type === "space" || tokens[i]?.type === "comment") i++;

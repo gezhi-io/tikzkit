@@ -8975,6 +8975,87 @@
       "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.reference.2dplots.tex:44-52 (dashed cyclic variant)",
       "semanticOwner": "src/pgf/smoothPlot.js:smoothPlotCommands",
       "features": ["smooth cycle", "tension", "dashed", "plot marks"]
+    },
+    {
+      "id": "clipped-comb-marks",
+      "title": "Four vertical stems, three visible marks",
+      "source": "pgfplots/clipped-comb-marks.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/markSelection.js:selectedPlotMarkIndices",
+      "features": ["ycomb", "sampled function", "clipping", "plot marks"]
+    },
+    {
+      "id": "manual-sine-repeat",
+      "title": "Seven crosses on the sine curve",
+      "source": "plot-mark-selection/manual-sine-repeat.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:426-483",
+      "resources": [
+        {
+          "name": "plots/pgfmanual-sine.table",
+          "source": "plot-mark-selection/plots/pgfmanual-sine.table"
+        }
+      ],
+      "semanticOwner": "src/pgf/plotMarkSelection.js:createPlotMarkSelector;src/tikz/pathOperations/plotFile.js:tikzPlotFileRuns",
+      "features": [
+        "plot file",
+        "smooth",
+        "plot marks",
+        "mark repeat"
+      ]
+    },
+    {
+      "id": "manual-sine-phase",
+      "title": "The first cross is the sixth observation",
+      "source": "plot-mark-selection/manual-sine-phase.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:426-483",
+      "resources": [
+        {
+          "name": "plots/pgfmanual-sine.table",
+          "source": "plot-mark-selection/plots/pgfmanual-sine.table"
+        }
+      ],
+      "semanticOwner": "src/pgf/plotMarkSelection.js:createPlotMarkSelector;src/tikz/pathOperations/plotFile.js:tikzPlotFileRuns",
+      "features": [
+        "plot file",
+        "smooth",
+        "plot marks",
+        "mark phase"
+      ]
+    },
+    {
+      "id": "manual-sine-indices",
+      "title": "Eleven explicitly selected crosses",
+      "source": "plot-mark-selection/manual-sine-indices.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:426-483",
+      "resources": [
+        {
+          "name": "plots/pgfmanual-sine.table",
+          "source": "plot-mark-selection/plots/pgfmanual-sine.table"
+        }
+      ],
+      "semanticOwner": "src/pgf/plotMarkSelection.js:createPlotMarkSelector;src/tikz/pathOperations/plotFile.js:tikzPlotFileRuns",
+      "features": [
+        "plot file",
+        "smooth",
+        "plot marks",
+        "mark indices"
+      ]
+    },
+    {
+      "id": "axis-marker-streams",
+      "title": "Periodic and listed markers in a clipped axis and its legend",
+      "source": "plot-mark-selection/axis-marker-streams.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/markSelection.js:selectedPlotMarkIndices",
+      "features": [
+        "mark repeat",
+        "mark indices",
+        "axis clipping",
+        "legend"
+      ]
     }
   ]
 }

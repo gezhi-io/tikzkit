@@ -8,7 +8,8 @@ import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./intervalPl
 import { plotColorValue, selectPlotColor } from "./plotStyle.js";
 
 export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}, plotIndex = 0, barLayout) {
-  if (!axisOptions["nodes near coords"] && !plot.options?.["nodes near coords"]) return [];
+  const render = createNodeNearCoordRenderer(plot, axisOptions, geometry, plotIndex, barLayout);
+  if (!render) return [];
   const histogram = Boolean(plot.options?.["pgfplots histogram"]);
   const orientation = isPgfplotsIntervalPlot(axisOptions, plot.options || {}, "y") ? "y" : "x";
   // Histogram labels belong to the marks phase, not to rectangle subpaths.
@@ -17,16 +18,23 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
     ? (plot.pgfplotsStacked ? (plot.points || []) : pgfplotsIntervalDataPoints(plot, axisOptions, orientation))
         .filter((point) => !point.stackIgnored)
     : (plot.points || []).filter((point) => !point.stackIgnored);
+  return points.map(render);
+}
+
+export function createNodeNearCoordRenderer(plot, axisOptions, geometry, plotIndex, barLayout, clip = "") {
+  if (!axisOptions["nodes near coords"] && !plot.options?.["nodes near coords"]) return null;
+  const histogram = Boolean(plot.options?.["pgfplots histogram"]);
   const stackedBarAxis = stackedBarOrientation(plot, axisOptions);
   const group = plot.barGroup;
   const style = joinOptions([
     group || histogram ? (axisOptions.font && `font=${axisOptions.font}`) : "font=\\scriptsize",
     nodeNearCoordTextColor(plot.options || {}, plotIndex),
     ...nodeNearCoordStyles(axisOptions),
-    ...nodeNearCoordStyles(plot.options || {})
+    ...nodeNearCoordStyles(plot.options || {}),
+    clip
   ]);
   const offset = stackedBarAxis || group || histogram ? 0 : nodeNearCoordOffset(axisOptions, plot.options || {});
-  return points.map((point, pointIndex) => {
+  return (point, pointIndex) => {
     const positionedPoint = stackedBarAxis
       ? stackedBarNodePoint(point, axisOptions, stackedBarAxis)
       : point;
@@ -39,7 +47,7 @@ export function renderNodesNearCoords(plot = {}, axisOptions = {}, geometry = {}
     const shift = group && barLayout ? barLayout(point).shift : 0;
     const at = offsetPoint(mapped, group?.direction === "y" ? shift : 0, group?.direction === "x" ? shift : offset);
     return `\\node[${joinOptions(["axis near coord", `anchor=${anchor}`, group && "tikzkit tex node anchors", style, ...template.styles])}] at ${formatAxisPoint(at)} {${template.label}};`;
-  });
+  };
 }
 
 function barPointMeta(point, index, plot, axis) {

@@ -5815,8 +5815,16 @@ test("renders PGFPlots ycomb function plots as vertical stems with marks", () =>
 
   assert.deepEqual(result.diagnostics, []);
   assert.equal(stems.length, 4);
-  assert.equal(marks.length, 4);
   assert.ok(stems.every((stem) => stem.commands.length === 2 && stem.commands[0].x === stem.commands[1].x));
+  // MacTeX visits all four stems, but the marker center (3,2) is outside
+  // ymax=1. The marker phase never receives a synthetic center at (3,1).
+  const stemXs = stems.map(stem => stem.commands[0].x);
+  assert.deepEqual(marks.map(mark => mark.cx), stemXs.slice(0, 3));
+  const unclipped = tikzToSvg(source.replace("domain=0:3", "domain=0:3,clip=false"));
+  assert.deepEqual(unclipped.diagnostics, []);
+  const allMarks = unclipped.ir.items.filter(item => item.subtype === "axis-mark");
+  assert.deepEqual(allMarks.map(mark => mark.cx), stemXs);
+  assert.ok(allMarks[3].cy > marks[2].cy, "clip=false must mark y=2, not the viewport edge");
 });
 
 test("respects PGFPlots addplot versus addplot+ cycle color semantics for sampling plots", () => {

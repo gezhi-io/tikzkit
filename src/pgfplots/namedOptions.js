@@ -1,4 +1,19 @@
-import { parseOptions } from "../engine/options.js";
+import { applyStyleDeclarations, parseOptions } from "../engine/options.js";
+
+// Some PGFPlots keys are shorthand for appending to a named style, e.g.
+// "legend image post style". Respect replacements interspersed with appends.
+export function resolvePgfplotsScopedStyle(layers, name, appendKey, inherited = {}) {
+  const declarations = [];
+  for (const layer of layers) {
+    for (const [raw, value] of Object.entries(layer || {})) {
+      const key = raw.replace(/^\/pgfplots\//, "");
+      const mode = key === appendKey ? "append style" : key.startsWith(name + "/.") && key.slice(name.length + 2);
+      if (!["style", "append style", "prefix style"].includes(mode)) continue;
+      for (const entry of optionValues(value)) declarations.push({ name, mode, options: parseOptions(entry) });
+    }
+  }
+  return applyStyleDeclarations(declarations, { [name]: inherited })[name] ?? inherited;
+}
 
 export function expandPgfplotsNamedOptions(rawOptions = {}, styles = {}, depth = 0) {
   if (!styles || depth > 8) return { ...rawOptions };

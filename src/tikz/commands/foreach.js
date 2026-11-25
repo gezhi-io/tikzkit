@@ -1,4 +1,5 @@
 import { evaluateMath, roundNumber } from "../../engine/math.js";
+import { pgfDimension, pgfPrintDimension } from "../../engine/pgf-fixed-point.js";
 import { parseOptions, splitTopLevel, stripOuterBraces } from "../../engine/options.js";
 
 export const FOREACH_EXPANSION_LIMIT = 10000;
@@ -141,12 +142,20 @@ export function foreachIterationVariables(statement, env = { variables: {} }) {
   return iterations;
 }
 
-export function expandForeachValues(values, env = { variables: {} }, { macroList = false, expandList = false } = {}) {
+export function expandForeachValues(values, env = { variables: {} }, { macroList = false, expandList = false, dimensionRanges = false } = {}) {
   // The parent initializes this once per conversion; shallow child environments
   // retain the same object, so nested and sibling loops consume one allowance.
   const budget = env.foreachBudget ||= createForeachBudget();
   const expanded = [];
   const append = value => appendForeachValue(expanded, value, budget);
+  // pgffor@handlevalue updates the two explicit operands; its dots loop
+  // executes bodies without replacing them with the generated values.
+  let lastOperand, beforeLastOperand;
+  const appendOperand = value => {
+    beforeLastOperand = lastOperand;
+    lastOperand = value;
+    append(value);
+  };
   for (let index = 0; index < values.length; index += 1) {
     const value = String(values[index] ?? "").trim();
     const grouped = /^\{\s*\\([A-Za-z@]+)\s*\}$/.exec(value);
@@ -156,14 +165,16 @@ export function expandForeachValues(values, env = { variables: {} }, { macroList
       if (variableValue.length > budget.remainingCharacters) {
         throw new ForeachExpansionError("foreach-expansion-limit", "Foreach list exceeds the shared output limit.", value);
       }
-      if (grouped || (macroList && !expandList)) append(variableValue);
-      else for (const part of splitTopLevel(variableValue, ",")) append(part);
+      if (grouped || (macroList && !expandList)) appendOperand(variableValue);
+      else for (const part of splitTopLevel(variableValue, ",")) appendOperand(part);
     } else if (value === "..." && expanded.length > 0 && index < values.length - 1) {
-      const previous = Number(expanded.at(-1));
-      const beforePrevious = Number(expanded.at(-2));
-      const end = evaluateMath(values[index + 1], env.variables || {}, { throwOnError: true });
+      const scan = dimensionRanges ? pgfDimension : Number;
+      const previous = scan(lastOperand);
+      const beforePrevious = scan(beforeLastOperand);
+      const end = dimensionRanges ? pgfDimension(values[index + 1])
+        : evaluateMath(values[index + 1], env.variables || {}, { throwOnError: true });
       const step = Number.isFinite(beforePrevious) ? previous - beforePrevious : end >= previous ? 1 : -1;
-      const range = `${expanded.at(-2) ?? ""},${expanded.at(-1)},...,${values[index + 1]}`;
+      const range = `${beforeLastOperand ?? ""},${lastOperand},...,${values[index + 1]}`;
       if (![previous, end, step].every(Number.isFinite)) {
         throw new ForeachExpansionError("foreach-nonfinite-range", "Foreach range requires finite numeric bounds and step.", range);
       }
@@ -181,12 +192,12 @@ export function expandForeachValues(values, env = { variables: {} }, { macroList
         if (!Number.isFinite(current) || current === last) {
           throw new ForeachExpansionError("foreach-nonprogressing-range", "Foreach range no longer makes finite numeric progress.", range);
         }
-        append(String(roundNumber(current)));
+        append(dimensionRanges ? pgfPrintDimension(current).replace(/\.0$/, "") : String(roundNumber(current)));
         last = current;
       }
       index += 1;
     } else {
-      append(value);
+      appendOperand(value);
     }
   }
   return expanded;

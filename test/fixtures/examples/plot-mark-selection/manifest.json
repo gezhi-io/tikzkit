@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "manual-sine-repeat",
+      "title": "Seven crosses on the sine curve",
+      "source": "manual-sine-repeat.tex",
+      "resources": [
+        {
+          "name": "plots/pgfmanual-sine.table",
+          "source": "plots/pgfmanual-sine.table"
+        }
+      ]
+    },
+    {
+      "id": "manual-sine-phase",
+      "title": "The first cross is the sixth observation",
+      "source": "manual-sine-phase.tex",
+      "resources": [
+        {
+          "name": "plots/pgfmanual-sine.table",
+          "source": "plots/pgfmanual-sine.table"
+        }
+      ]
+    },
+    {
+      "id": "manual-sine-indices",
+      "title": "Eleven explicitly selected crosses",
+      "source": "manual-sine-indices.tex",
+      "resources": [
+        {
+          "name": "plots/pgfmanual-sine.table",
+          "source": "plots/pgfmanual-sine.table"
+        }
+      ]
+    },
+    {
+      "id": "axis-marker-streams",
+      "title": "Periodic and listed markers in a clipped axis and its legend",
+      "source": "axis-marker-streams.tex"
+    }
+  ]
+}

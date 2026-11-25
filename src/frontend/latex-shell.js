@@ -1,12 +1,14 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
 import { tokenizeTikzLikeSource } from "./lexer.js";
-import { expandPictureCommands } from "./picture-command.js";
+import { expandPictureCommands, literalEnvs } from "./picture-command.js";
+import { documentDataFiles, resolveDataFile, texDataFilename } from "./data-files.js";
 import { createForeachBudget, ForeachExpansionError, FOREACH_EXPANSION_LIMIT, readForeachHeader } from "../tikz/commands/foreach.js";
 import { createPgfRandom } from "../engine/pgfRandom.js";
 import { applyPreprocessExtensions } from "../extensions/index.js";
 import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
 import { renderChronologyDocument } from "../extensions/chronologyLayout.js";
 import { cmykToCss, normalizeColor, parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../engine/options.js";
+import { protectPlotMarkLists } from "./plot-mark-lists.js";
 import { collectTikzLibraries, stripTikzLibraryDeclarations } from "../tikz/libraries/declarations.js";
 import { lowerTikzmarkMathOverlays } from "../tikz/libraries/tikzmark.js";
 import { expandTikzGraphs } from "../tikz/libraries/graphs.js";
@@ -103,7 +105,15 @@ function isDelegatedMacro(name) {
 
 export function preprocessTikzSource(source, options = {}) {
   const diagnostics = [];
-  let expanded = stripTexComments(String(source));
+  // Only the filename goes through TeX expansion. The body is literal input
+  // for the eventual reader, not document macros, packages or TikZ pictures.
+  const fileBodies = new Map();
+  const protectedSource = replaceFilecontentsTables(String(source), (_name, body, opening, closing) => {
+    const id = `tikzkit-filecontents:${fileBodies.size}`;
+    fileBodies.set(id, body);
+    return `${opening}\n${id}\n${closing}`;
+  });
+  let expanded = protectPlotMarkLists(stripTexComments(protectedSource), extractBalanced);
   // `\the\numexpr` is plain e-TeX integer arithmetic and must be resolved
   // before any PGF/TikZ option or coordinate is parsed.
   expanded = expandTheNumexpr(expanded, diagnostics);
@@ -160,14 +170,20 @@ export function preprocessTikzSource(source, options = {}) {
     macros: macroResult.macros,
     options
   });
-  const filecontentsResult = collectFilecontentsTables(expanded);
-  expanded = filecontentsResult.source;
+  const embedded = new Map();
+  expanded = replaceFilecontentsTables(expanded, (name, body) => {
+    embedded.set(texDataFilename(name), fileBodies.get(body) ?? body);
+    return "";
+  });
+  const dataFiles = documentDataFiles(options.dataFiles, embedded);
   const tableResult = collectPgfplotstableReads(expanded);
   expanded = lowerPgfplotstableTypeset(tableResult.source, tableResult.tables);
   expanded = replacePgfplotstableReferences(expanded, tableResult.tables);
   const plotMarkDeclarations = collectPgfPlotMarkDeclarations(expanded);
   const pgfplotsRuntimeOptions = {
-    ...withFilecontentsTableResolver(options, filecontentsResult.tables),
+    ...options,
+    ...(dataFiles && { pgfplotsTableResolver: file =>
+      resolveDataFile(texDataFilename(stripOuterBracesText(file)), dataFiles, options.pgfplotsTableResolver) }),
     ...createPgfplotsStyleContext(expanded, pgfplotsSet.options),
     mathExtension: mathExtensionForPackages(packages),
     pgfplotsCycleLists,
@@ -187,6 +203,7 @@ export function preprocessTikzSource(source, options = {}) {
   expanded = stripTexDocumentShell(expanded);
   return {
     source: expanded,
+    ...(dataFiles && { dataFiles }),
     diagnostics,
     libraries,
     packages,
@@ -4470,57 +4487,27 @@ function pgfplotstableNumericCell(value) {
   return /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i.test(String(value || "").trim());
 }
 
-function collectFilecontentsTables(source) {
-  const tables = new Map();
-  let output = "";
-  let index = 0;
-  const beginPattern = /\\begin\{(filecontents\*?)\}/g;
-  while (index < source.length) {
-    beginPattern.lastIndex = index;
-    const match = beginPattern.exec(source);
-    if (!match) {
-      output += source.slice(index);
-      break;
-    }
-    output += source.slice(index, match.index);
-    let cursor = match.index + match[0].length;
-    const options = parseOptionalOptions(source, cursor);
-    cursor = options.end;
-    cursor = skipWhitespace(source, cursor);
-    const fileName = extractBalanced(source, cursor, "{", "}");
-    if (!fileName) {
-      output += source.slice(match.index, cursor);
-      index = cursor;
-      continue;
-    }
-    cursor = fileName.end;
-    const end = `\\end{${match[1]}}`;
-    const endIndex = source.indexOf(end, cursor);
-    if (endIndex === -1) {
-      output += source.slice(match.index, cursor);
-      index = cursor;
-      continue;
-    }
-    tables.set(stripOuterBracesText(fileName.content.trim()), trimFilecontentsBody(source.slice(cursor, endIndex)));
-    index = endIndex + end.length;
+function replaceFilecontentsTables(source, replace) {
+  if (!source.includes("{filecontents")) return source;
+  const parts = [];
+  let copied = 0, skipUntil = 0;
+  for (const token of tokenizeTikzLikeSource(source, { texTrivia: true })) {
+    if (token.start < skipUntil || token.value !== "\\begin") continue;
+    const env = extractBalanced(source, skipWhitespace(source, token.end), "{", "}");
+    if (!env || !literalEnvs.has(env.content)) continue;
+    const closing = `\\end{${env.content}}`;
+    const end = source.indexOf(closing, env.end);
+    if (end < 0) break;
+    skipUntil = end + closing.length;
+    if (env.content !== "filecontents" && env.content !== "filecontents*") continue;
+    const options = parseOptionalOptions(source, env.end);
+    const name = extractBalanced(source, skipWhitespace(source, options.end), "{", "}");
+    if (!name || name.end > end) continue;
+    const body = source.slice(name.end, end).replace(/^[ \t]*(?:\r\n?|\n)/, "").replace(/(?:\r\n?|\n)[ \t]*$/, "");
+    parts.push(source.slice(copied, token.start), replace(stripOuterBracesText(name.content), body, source.slice(token.start, name.end), closing));
+    copied = skipUntil;
   }
-  return { source: output, tables };
-}
-
-function trimFilecontentsBody(body) {
-  return String(body || "").replace(/^\s*\r?\n/, "").replace(/\s*$/, "");
-}
-
-function withFilecontentsTableResolver(options, tables) {
-  if (!tables?.size) return options;
-  return {
-    ...options,
-    pgfplotsTableResolver(file) {
-      const key = stripOuterBracesText(String(file || "").trim());
-      if (tables.has(key)) return tables.get(key);
-      return options?.pgfplotsTableResolver?.(file);
-    }
-  };
+  return parts.join("") + source.slice(copied);
 }
 
 function replacePgfplotstableReferences(source, tables) {

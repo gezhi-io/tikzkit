@@ -287,6 +287,32 @@ or the [sampled parametric curve](../test/fixtures/native-smooth-plots/smooth-ma
 The [native comparison](qa/2026-11-26-native-smooth-plots.md) covers the browser and exported SVG.
 This update is in the GitHub version.
 
+## Selecting plot marks
+
+To keep a smooth curve through every observation but mark only the second
+and fifth points, use `mark phase=2,mark repeat=3`:
+
+```tex
+\begin{tikzpicture}
+  \draw[blue] plot[smooth,mark=*,mark phase=2,mark repeat=3]
+    coordinates {(0,0) (1,1) (2,.6) (3,-.4) (4,0) (5,1)};
+\end{tikzpicture}
+```
+
+For an irregular selection, replace both keys with `mark indices={1,4,6}`.
+The same keys work on PGFPlots series; a new series starts its own count.
+See the [browser, native TeX and tikztosvg comparison](qa/2026-11-26-plot-mark-selection.md).
+
+In the GitHub version, use `plot file` with an in-memory table when the
+observations come from your application. No network request is made:
+
+```js
+const { svg } = await tikzToSvgAsync(
+  String.raw`\tikz \draw plot[mark=x,mark repeat=2] file {observations.table};`,
+  { dataFiles: { "observations.table": "0 0\n1 2\n2 1" } }
+);
+```
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

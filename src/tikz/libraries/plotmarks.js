@@ -4,8 +4,9 @@ import { evaluateMath, parseDimension, roundNumber } from "../../engine/math.js"
 export const tikzLibrary = {
   "name": "plotmarks",
   "status": "partial",
-  "implementedBy": "src/tikz/libraries/plotmarks.js:parsePgfPlotMarkDeclaration/collectPgfPlotMarkDeclarations/customPlotMarkOperations/placePlotMarkCommands/plotMarkLocalOptions/transformPlotMarkCommands/textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/frontend/parser.js + src/frontend/latex-shell.js + src/pgfplots/axisTikzLowering.js + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark",
-  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-handlers.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-plots.tex",
+  "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-plots.tex",
+  "implementedBy": "src/tikz/libraries/plotmarks.js:parsePgfPlotMarkDeclaration/collectPgfPlotMarkDeclarations/customPlotMarkOperations/placePlotMarkCommands/plotMarkLocalOptions/transformPlotMarkCommands/textPlotMarkModel/textPlotMarkNodeOptions/basicPlotMarkGeometry/splitFillPlotMarkGeometry/placePlotMarkGeometry/plotMarkGeometryCommands + src/frontend/parser.js + src/frontend/latex-shell.js + src/pgfplots/axisTikzLowering.js + src/pgfplots/marks.js:renderPlotMark + src/engine/evaluate.js:addPlotMarkItems/buildPlotMark + src/pgf/plotMarkSelection.js:createPlotMarkSelector",
+  "localSourceReviewed": "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/libraries/pgflibraryplotmarks.code.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-library-plot-handlers.tex; /usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-plots.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgfplots/pgfplots.markers.code.tex; /usr/local/texlive/2025/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex",
   "features": [
     "mark=x",
     "mark=+",
@@ -21,6 +22,7 @@ export const tikzLibrary = {
     "mark=heart",
     "mark=text / text mark / text mark style / text mark as node",
     "mark color / mark options and every mark local paint",
+    "mark repeat / mark phase / mark indices",
     "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant",
     "custom \\pgfdeclareplotmark path declarations in TikZ and PGFPlots"
   ],
@@ -39,10 +41,11 @@ export const tikzLibrary = {
     "mark=heart",
     "mark=text / text mark / text mark style / text mark as node",
     "mark color / mark options and every mark local paint",
+    "mark repeat / mark phase / mark indices",
     "mark scale/xscale/yscale/rotate/xshift/yshift/xslant/yslant",
     "custom \\pgfdeclareplotmark path declarations in TikZ and PGFPlots"
   ],
-  "notes": "Reviewed locally on 2026-09-06 against pgflibraryplothandlers.code.tex, pgflibraryplotmarks.code.tex, pgfmanual-en-library-plot-handlers.tex, pgfmanual-en-tikz-plots.tex, tikz.code.tex, pgfcoretransformations.code.tex, pgfplots.markers.code.tex, and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, split marks, and heart paths. Text marks preserve arbitrary TeX content and current color. General marks resolve local paint and ordered transforms in direct TikZ and PGFPlots, including legends. Custom \\pgfdeclareplotmark names now register and execute a bounded PGF path vocabulary: move/line/cubic/circle/ellipse/rectangle/close, origin/cartesian/polar/add/diff/scale points, \\pgfplotmarksize scalar products, and stroke/fill/fillstroke actions. Arbitrary TeX programs, conditionals, register assignments, clipping, low-level transform/color/line-state commands, document-order declaration scoping, and non-uniform affine halfcircle arc conversion remain partial."
+  "notes": "Native marker selection: mark repeat and mark phase count points per stream; mark indices uses a numeric foreach list and the same offset counter without a periodic reset. Marks are separate from the connecting curve. Source and browser comparison: docs/qa/2026-11-26-plot-mark-selection.md. Reviewed locally on 2026-09-06 against pgflibraryplothandlers.code.tex, pgflibraryplotmarks.code.tex, pgfmanual-en-library-plot-handlers.tex, pgfmanual-en-tikz-plots.tex, tikz.code.tex, pgfcoretransformations.code.tex, pgfplots.markers.code.tex, and pgfmanual-en-library-plot-marks.tex. Shared geometry covers the source-defined asterisk, five-ray star, 10-pointed star, oplus/otimes, vertical/horizontal bar, square, triangle, 0.75-width diamond, pentagon, split marks, and heart paths. Text marks preserve arbitrary TeX content and current color. General marks resolve local paint and ordered transforms in direct TikZ and PGFPlots, including legends. Custom \\pgfdeclareplotmark names now register and execute a bounded PGF path vocabulary: move/line/cubic/circle/ellipse/rectangle/close, origin/cartesian/polar/add/diff/scale points, \\pgfplotmarksize scalar products, and stroke/fill/fillstroke actions. Arbitrary TeX programs, conditionals, register assignments, clipping, low-level transform/color/line-state commands, document-order declaration scoping, and non-uniform affine halfcircle arc conversion remain partial."
 };
 
 const CIRCLE_KAPPA = 0.5522847498307936;
@@ -106,7 +109,7 @@ export function customPlotMarkOperations(mark, declarations = {}, size = parseDi
     }
     if (kind.startsWith("pgfusepathq")) {
       const action = kind.slice("pgfusepathq".length);
-      flushCustomPlotMarkPath(operations, pending, action);
+      flushCustomPlotMarkPath(operations, pending, action, true);
       pending = [];
       continue;
     }
@@ -185,10 +188,11 @@ export function placePlotMarkCommands(commands = [], center = { x: 0, y: 0 }) {
   });
 }
 
-function flushCustomPlotMarkPath(operations, commands, action) {
+function flushCustomPlotMarkPath(operations, commands, action, quick = false) {
   if (!commands.length) return;
   operations.push({
     commands: commands.map((command) => ({ ...command })),
+    quick,
     stroke: action === "stroke" || action === "fillstroke",
     fill: action === "fill" || action === "fillstroke"
   });

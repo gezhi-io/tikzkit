@@ -1,0 +1,9 @@
+% Till Tantau, PGF/TikZ manual: pgfmanual-en-tikz-plots.tex, Placing Marks on the Plot.
+% Same plot command and supplied table; standalone picture wrapper for the gallery.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw plot[mark=x,mark repeat=3,mark phase=6,smooth] file {plots/pgfmanual-sine.table};
+\end{tikzpicture}
+\end{document}

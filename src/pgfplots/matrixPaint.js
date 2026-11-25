@@ -1,4 +1,5 @@
 import { normalizePgfRgbColor, resolveColorSpec, convertColorSpec } from "../engine/colors.js";
+import { createPlotMarkSelector } from "../pgf/plotMarkSelection.js";
 import { TIKZ_DASH_PATTERN_STYLES } from "../tikz/metrics.js";
 import { pgfplotsOptionEnabled } from "./axisOptions.js";
 import { axisViewportClipOption } from "./clipping.js";
@@ -7,6 +8,7 @@ import { axisNumber } from "./coordinates.js";
 import { filledPlotPaint } from "./filledPlotPaint.js";
 import { formatAxisPoint, formatAxisTickLabel, joinOptions } from "./format.js";
 import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
+import { pgfplotsMarkSelectionLayers } from "./markSelection.js";
 import { mergePgfplotsOptionMaps } from "./namedOptions.js";
 import { isPlotColorToken, plotLineWidthOption } from "./plotStyle.js";
 import { pgfplotsSurfaceColor } from "./surface.js";
@@ -115,9 +117,10 @@ function nearCoord(cell, at, settings, color, clip) {
   return "\\node[" + style + "] at " + formatAxisPoint(at) + " {" + label + "};";
 }
 
-export function renderMatrixPlot(plot, axisOptions, ranges, geometry, afterAxisMarks = null) {
+export function renderMatrixPlot(plot, axisOptions, ranges, geometry, afterAxisMarks = null, variables) {
   const survey = plot.matrixSurvey, commands = [];
   if (!survey?.cells?.length) return commands;
+  const axisScope = axisOptions;
   axisOptions = unqualified(axisOptions);
   const options = unqualified(plot.options);
   const settings = mergePgfplotsOptionMaps(axisOptions, options);
@@ -143,7 +146,7 @@ export function renderMatrixPlot(plot, axisOptions, ranges, geometry, afterAxisM
   if (!hasMarks && !settings["nodes near coords"]) return commands;
   const overlays = afterAxisMarks ?? commands;
   const markerClip = pgfplotsOptionEnabled(settings["clip marker paths"]) ? clip : "";
-  const marks = markerClip ? { ...settings, "tikzkit clip rect":markerClip.slice("tikzkit clip rect=".length) } : settings;
+  const next = createPlotMarkSelector(pgfplotsMarkSelectionLayers(axisScope, plot.markScopes?.series ?? plot.options), variables);
   const inks = filledPlotPaint({ ...paint, "mark fill":options["mark fill"] });
   // scatter/@post marker code appends the node immediately after each mark,
   // even for an original coordinate whose unbounded meta discarded its face.
@@ -151,8 +154,8 @@ export function renderMatrixPlot(plot, axisOptions, ranges, geometry, afterAxisM
     const { x, y } = cell.point;
     if (clip && (x < limits.xMin || x > limits.xMax || y < limits.yMin || y > limits.yMax)) continue;
     const at = geometry.mapPoint(cell.point);
-    if (![at.x, at.y].every(Number.isFinite)) continue;
-    if (hasMarks) overlays.push(renderPlotMark(at, marks, 0, inks.mark));
+    if (![at.x, at.y].every(Number.isFinite) || !next()) continue;
+    if (hasMarks) overlays.push(renderPlotMark(at, settings, 0, inks.mark, markerClip));
     const node = nearCoord(cell, at, settings, inks.currentColor, markerClip);
     if (node) overlays.push(node);
   }

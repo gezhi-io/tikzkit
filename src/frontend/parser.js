@@ -149,6 +149,7 @@ export function parseTikz(source, options = {}) {
       type: "document",
       source: preprocessed.source,
       originalSource: source,
+      ...(preprocessed.dataFiles && { dataFiles: preprocessed.dataFiles }),
       tokenCount: lexed.tokens.length,
       libraries,
       packages,
@@ -2160,6 +2161,14 @@ function parsePlotSegment(pathText, index) {
   const options = parseOptionalOptions(pathText, cursor);
   cursor = options.end;
   cursor = skipWhitespace(pathText, cursor);
+  if (startsKeyword(pathText, cursor, "file")) {
+    const start = skipWhitespace(pathText, cursor + "file".length);
+    const filename = extractBalanced(pathText, start, "{", "}");
+    return {
+      segment: { kind: "plotFile", filename: filename?.content.trim() ?? "", options: options.options },
+      end: filename?.end ?? start
+    };
+  }
   if (startsKeyword(pathText, cursor, "coordinates")) {
     cursor += "coordinates".length;
     cursor = skipWhitespace(pathText, cursor);

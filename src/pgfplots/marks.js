@@ -47,7 +47,7 @@ export function scatterClassOptionsForPoint(options = {}, point = {}) {
   return options;
 }
 
-export function renderPlotMark(point, options = {}, plotIndex = 0, inks) {
+export function renderPlotMark(point, options = {}, plotIndex = 0, inks, clipOption = plotMarkClipOption(options)) {
   const mark = String(options.mark || (options.scatter ? "*" : "*")).trim().toLowerCase();
   const localOptions = plotMarkLocalOptions(options);
   const effectiveOptions = { ...options, ...localOptions };
@@ -58,10 +58,9 @@ export function renderPlotMark(point, options = {}, plotIndex = 0, inks) {
   const fill = localMarkColor(localOptions, "fill", defaultFill);
   const localPaint = [...(inks?.alpha || []), ...plotMarkPaintOptions(localOptions)];
   const lineWidth = plotLineWidthOption(localOptions) || plotLineWidthOption(options);
-  const clipOption = plotMarkClipOption(options);
   const size = axisMarkRadius(effectiveOptions);
   if (mark === "text") {
-    return renderTextPlotMark(point, options, stroke);
+    return renderTextPlotMark(point, options, stroke, clipOption);
   }
   const customOperations = customPlotMarkOperations(
     mark,
@@ -104,14 +103,14 @@ export function renderPlotMark(point, options = {}, plotIndex = 0, inks) {
     ], point, localOptions))};`;
   }
   if (mark === "halfcircle") {
-    return renderHalfCircleMark(point, effectiveOptions, size, strokedStyle, fill, false);
+    return renderHalfCircleMark(point, effectiveOptions, size, strokedStyle, fill, false, clipOption);
   }
   if (mark === "halfcircle*") {
-    return renderHalfCircleMark(point, effectiveOptions, size, strokedStyle, fill, true);
+    return renderHalfCircleMark(point, effectiveOptions, size, strokedStyle, fill, true, clipOption);
   }
   const splitGeometry = splitFillPlotMarkGeometry(mark, size);
   if (splitGeometry) {
-    return renderSplitFillMark(point, effectiveOptions, splitGeometry, strokedStyle, fill, localOptions);
+    return renderSplitFillMark(point, effectiveOptions, splitGeometry, strokedStyle, fill, localOptions, clipOption);
   }
   if (datavisualizationIsMercedesMark(mark)) {
     return datavisualizationAxisMercedesMark(point, strokedStyle, mark, size, localOptions);
@@ -125,13 +124,13 @@ export function renderPlotMark(point, options = {}, plotIndex = 0, inks) {
   return `\\draw[${mark === "o" ? strokedStyle : filledStyle}] ${formatPlotMarkGeometry(circleGeometry, point, localOptions)};`;
 }
 
-function renderTextPlotMark(point, options, color) {
+function renderTextPlotMark(point, options, color, clip) {
   const model = textPlotMarkModel(options);
   const nodeOptions = textPlotMarkNodeOptions(model);
   if (!Object.hasOwn(nodeOptions, "text") && !Object.hasOwn(nodeOptions, "color")) {
     nodeOptions.text = color;
   }
-  const style = joinOptions(Object.entries(nodeOptions).map(formatTikzOption));
+  const style = joinOptions([...Object.entries(nodeOptions).map(formatTikzOption), clip]);
   return `\\node[${style}] at ${formatAxisPoint(point)} {${model.text}};`;
 }
 
@@ -159,7 +158,7 @@ export function axisMarkRadius(options = {}) {
   return Number.isFinite(value) && value > 0 ? value : parseDimension("2pt", {});
 }
 
-function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred) {
+function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred, clip) {
   const rotation = plotMarkRotation(options);
   const left = rotatePointAround(point, -size, 0, rotation);
   const right = rotatePointAround(point, size, 0, rotation);
@@ -169,7 +168,7 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
     "draw=none",
     `fill=${color}`,
     "fill opacity=1",
-    plotMarkClipOption(options)
+    clip
   ]);
   const radius = formatAxisCoordinate(size);
   const lower = `${formatAxisPoint(left)} arc (${formatAxisNumber(180 + rotation)}:${formatAxisNumber(360 + rotation)}:${radius}) -- cycle;`;
@@ -186,14 +185,14 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
   return items.join("");
 }
 
-function renderSplitFillMark(point, options, geometry, strokedStyle, fill, localOptions) {
+function renderSplitFillMark(point, options, geometry, strokedStyle, fill, localOptions, clip) {
   const secondaryFill = splitPlotMarkColor(options);
   const fillStyle = (color) => joinOptions([
     "axis mark",
     "draw=none",
     `fill=${color}`,
     "fill opacity=1",
-    plotMarkClipOption(options)
+    clip
   ]);
   const items = [
     `\\fill[${fillStyle(fill)}] ${formatPlotMarkGeometry(geometry.primary, point, localOptions)};`

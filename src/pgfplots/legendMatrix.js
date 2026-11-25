@@ -4,22 +4,20 @@ import { TIKZ_UNIT } from "../tikz/metrics.js";
 import { estimateFormulaBox, parseMathText } from "../tikz/textMetrics.js";
 import { createFontSpec, parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeMixedText, layoutNativeText } from "../tex/textBox.js";
-import { shouldRenderPlotMarks } from "./marks.js";
-import { includeLegendMark, legendHalfPen } from "./legendImages.js";
+import { includeLegendMark, legendHalfPen, LINE_LEGEND_WIDTH } from "./legendImages.js";
 import { emptyBoundingBox, includePoint } from "../scene/bbox.js";
 
 const PT_PER_CM = 72.27 / 2.54;
-const IMAGE_WIDTH = 0.6;
 
-function lineImageBounds(options, index, thick) {
+function lineImageBounds({ options, onlyMarks, fractions }, index, thick) {
   const pen = legendHalfPen(options, index, thick);
   const bounds = emptyBoundingBox();
-  if (!options["only marks"]) {
+  if (!onlyMarks) {
     includePoint(bounds, { x: -pen, y: -pen });
-    includePoint(bounds, { x: IMAGE_WIDTH + pen, y: pen });
+    includePoint(bounds, { x: LINE_LEGEND_WIDTH + pen, y: pen });
   }
-  if (shouldRenderPlotMarks(options)) {
-    if (!includeLegendMark(bounds, options, { x: IMAGE_WIDTH / 2, y: 0 })) return null;
+  for (const f of fractions) {
+    if (!includeLegendMark(bounds, options, { x: f * LINE_LEGEND_WIDTH, y: 0 })) return null;
   }
   if (!Number.isFinite(bounds.minX)) includePoint(bounds, { x: 0, y: 0 });
   return bounds;
@@ -33,8 +31,8 @@ export function legendDimensionFont(axisOptions, style = parseOptions(axisOption
 
 // pgfmodulematrix uses picture bounds, not node outer sep, for columns and
 // rows of alternating image and text cells. Dimensions here are physical cm.
-export function layoutLineLegend(entries, { font: fontCommand, fontScale, columns, axisOptions, plots, mathOptions,
-  filledImages = [], dimensionFont = legendDimensionFont(axisOptions) }) {
+export function layoutLineLegend(entries, { font: fontCommand, fontScale, columns, axisOptions, mathOptions,
+  images, dimensionFont = legendDimensionFont(axisOptions) }) {
   const font = createFontSpec({ ...parseTikzFontPatch(fontCommand), sizePt: 10 * fontScale,
     mathExtension: mathOptions.mathExtension });
   const style = parseOptions(axisOptions["legend style"] || "");
@@ -63,10 +61,10 @@ export function layoutLineLegend(entries, { font: fontCommand, fontScale, column
       preferNativeMath: true, minWidth: 0, widthPadding: 0, texTextMetrics: true });
   });
   if (text.some(box => !box)) return null;
-  const images = entries.map((_, i) => filledImages[i]?.bounds ?? lineImageBounds(plots[i]?.options || {}, i, axisOptions.thick));
-  if (images.some(image => !image)) return null;
+  const bounds = images.map((image, i) => image.filled?.bounds ?? lineImageBounds(image, i, axisOptions.thick));
+  if (bounds.some(b => !b)) return null;
   const imageColumns = Array.from({ length: columns }, (_, col) => {
-    const column = images.filter((_, i) => i % columns === col);
+    const column = bounds.filter((_, i) => i % columns === col);
     return { left: Math.min(...column.map(b => b.minX)), right: Math.max(...column.map(b => b.maxX)) };
   });
   const textWidths = Array.from({ length: columns }, (_, col) => Math.max(
@@ -76,8 +74,8 @@ export function layoutLineLegend(entries, { font: fontCommand, fontScale, column
     let above = 0, below = 0;
     for (let i = row * columns; i < Math.min(text.length, (row + 1) * columns); i++) {
       const half = (length(nodes["text height"], text[i].height) + fixedDepth) / 2 + cellY;
-      above = Math.max(above, half, images[i].maxY);
-      below = Math.max(below, half, -images[i].minY);
+      above = Math.max(above, half, bounds[i].maxY);
+      below = Math.max(below, half, -bounds[i].minY);
     }
     return { above, height: above + below };
   });
@@ -88,7 +86,7 @@ export function layoutLineLegend(entries, { font: fontCommand, fontScale, column
     const top = innerY + rows.slice(0, row).reduce((a, b) => a + b.height, 0) + row * rowSep;
     const x0 = left - imageColumns[col].left;
     const textLeft = x0 + imageColumns[col].right + columnSep + cellX;
-    return { x0, x1: x0 + IMAGE_WIDTH, textLeft, textRight: textLeft + textWidths[col],
+    return { x0, x1: x0 + LINE_LEGEND_WIDTH, textLeft, textRight: textLeft + textWidths[col],
       down: top + rows[row].above,
       // TikZ centers the node using its forced text depth; the glyphs retain
       // their real TeX depth. Fractions must not share the sample's paint center.

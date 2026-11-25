@@ -9,9 +9,11 @@ import {
 } from "../tikz/textMetrics.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
-import { renderPlotMark, shouldRenderPlotMarks } from "./marks.js";
+import { renderPlotMark } from "./marks.js";
 import { selectPlotStyle } from "./plotStyle.js";
-import { filledLegendImage } from "./legendImages.js";
+import { filledLegendImage, lineLegendMarkFractions, LINE_LEGEND_WIDTH } from "./legendImages.js";
+import { mergePgfplotsOptionMaps, resolvePgfplotsScopedStyle } from "./namedOptions.js";
+import { axisPlotHandler } from "./plotHandler.js";
 import { cmMathMetrics } from "../tex/cmMathMetrics.js";
 import { layoutLineLegend, legendDimensionFont } from "./legendMatrix.js";
 import { axisDescriptionPoint } from "./labels.js";
@@ -20,7 +22,6 @@ const TEX_PT_PER_CM = 28.45274;
 const PGFPLOTS_LEGEND_OUTER_XSEP = 3 / TEX_PT_PER_CM;
 const PGFPLOTS_LEGEND_OUTER_YSEP = 2 / TEX_PT_PER_CM;
 const PGFPLOTS_LEGEND_CELL_INNER_SEP = 2 / TEX_PT_PER_CM;
-const PGFPLOTS_LEGEND_IMAGE_WIDTH = 0.6;
 const PGFPLOTS_LEGEND_TEXT_GAP = 4 / TEX_PT_PER_CM;
 // PGFPlots builds `every axis legend` as a TikZ matrix. For inline amsmath
 // matrices, the observed line-sample-to-label gap is 2.57pt; the formula box
@@ -109,17 +110,28 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
   const compactMathLegend = mathLegend && entries.every(isCompactMathLegendEntry);
   const measurement = { compact: compactMathLegend, mathExtension: mathOptions.mathExtension };
   const dimensionFont = legendDimensionFont(axisOptions);
-  const filledImages = entries.map((_, i) => filledLegendImage(axisOptions, addplots[i]?.options || {}, i, dimensionFont));
+  const images = entries.map((_, i) => {
+    const plot = addplots[i]?.options || {};
+    const seriesScopes = addplots[i]?.markScopes?.legend ?? [plot];
+    const post = resolvePgfplotsScopedStyle([axisOptions, ...seriesScopes], "every legend image post", "legend image post style",
+      mathOptions.pgfplotsStyleDefinitions?.["every legend image post"]);
+    const options = mergePgfplotsOptionMaps(plot, post);
+    const scopes = [...seriesScopes, post];
+    const filled = filledLegendImage(axisOptions, options, i, dimensionFont, scopes, mathOptions.variables);
+    return { options, filled, onlyMarks: axisPlotHandler(options, axisOptions) === "only marks",
+      fractions: filled ? [] : lineLegendMarkFractions(axisOptions, options, scopes, mathOptions.variables) };
+  });
+  const filledImages = images.map(image => image.filled);
   const imageWidth = filledImages.every(Boolean)
     ? Math.max(...filledImages.map(({ bounds }) => bounds.maxX - bounds.minX))
     : mathLegend
-      ? PGFPLOTS_LEGEND_IMAGE_WIDTH
+      ? LINE_LEGEND_WIDTH
       : Math.max(0.28, 0.42 * fontScale / 0.7);
   const columnCount = legendColumnCount(axisOptions, entries.length);
   const measureCells = filledImages.some(Boolean) || columnCount > 1 || entries.some((entry, i) =>
-    parseMathText(entry) || entry.includes("$") || addplots[i]?.options?.["only marks"]);
+    parseMathText(entry) || entry.includes("$") || images[i].onlyMarks || images[i].fractions.some(f => f !== .5));
   const nativeMatrix = measureCells
-    ? layoutLineLegend(entries, { font, fontScale, columns: columnCount, axisOptions, plots: addplots, mathOptions, filledImages, dimensionFont })
+    ? layoutLineLegend(entries, { font, fontScale, columns: columnCount, axisOptions, mathOptions, images, dimensionFont })
     : null;
   // Text boxes carry sub-point metrics. Three-decimal axis-data rounding is
   // unnecessarily lossy for a legend baseline, especially at small font sizes.
@@ -171,11 +183,10 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
     const textX = cell ? box.left + cell.textLeft : x1 + (mathLegend ? PGFPLOTS_LEGEND_TEXT_GAP : PGFPLOTS_PLAIN_LEGEND_TEXT_GAP);
     const textRight = cell ? box.left + cell.textRight : cellRight - (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP + PGFPLOTS_LEGEND_CELL_INNER_SEP : PGFPLOTS_PLAIN_LEGEND_TEXT_RIGHT);
     const labelX = legendCellAnchorX(textX, textRight, cellAnchor);
-    const plot = addplots[index];
-    const image = filledImages[index];
+    const { options, filled: image, onlyMarks, fractions } = images[index];
     const imageStyle = joinOptions([
       "axis legend image",
-      image ? image.ink.style : selectPlotStyle(plot?.options || {}, index),
+      image ? image.ink.style : selectPlotStyle(options, index),
       !image && axisOptions.thick ? "thick" : ""
     ]);
     if (image) {
@@ -185,13 +196,13 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
         commands.push(`\\draw[${imageStyle}] ${corners.map(([x, dy]) => point({ x: origin + x, y: y + dy })).join(" -- ")} -- cycle;`);
       }
       for (const mark of image.marks) {
-        commands.push(renderPlotMark({ x: origin + mark.x, y: y + mark.y }, plot.options, index, image.ink.mark));
+        commands.push(renderPlotMark({ x: origin + mark.x, y: y + mark.y }, options, index, image.ink.mark));
       }
-    } else if (!plot?.options?.["only marks"]) {
+    } else if (!onlyMarks) {
       commands.push(`\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);
     }
-    if (!image && shouldRenderPlotMarks(plot?.options || {})) {
-      commands.push(renderPlotMark({ x: (x0 + x1) / 2, y }, plot.options, index));
+    for (const f of fractions) {
+      commands.push(renderPlotMark({ x: x0 + f * (x1 - x0), y }, options, index));
     }
     commands.push(`\\node[axis legend, anchor=${cellAnchor}, ${font}${nativeMatrix && parseMathText(entry) ? ", tikzkit native math" : ""}] at ${point({ x: labelX, y: y + (cell?.textOffset || 0) })} {${entry.trim()}};`);
   });

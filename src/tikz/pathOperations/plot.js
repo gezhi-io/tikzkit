@@ -13,6 +13,15 @@ export function tikzPlotHandler(options) {
   return handler;
 }
 
+export function tikzPlotMarkName(options) {
+  let mark = "";
+  for (const [key, value] of Object.entries(options)) {
+    if (key === "mark") mark = String(Array.isArray(value) ? value.at(-1) : value).trim();
+    else if (key === "no marks" || key === "no markers") mark = "";
+  }
+  return mark === "none" ? "" : mark;
+}
+
 function sampleValues(options, env, expressionPlot) {
   const keys = Object.keys(options);
   const explicit = keys.indexOf("samples at");

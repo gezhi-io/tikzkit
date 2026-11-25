@@ -6,14 +6,14 @@ import { filledPlotPaint } from "./filledPlotPaint.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { axisPointIsValidForScale } from "./logAxis.js";
 import { renderPlotMark } from "./marks.js";
+import { selectedPlotMarkIndices } from "./markSelection.js";
 
 // tikzlibrarypgfplots.statistics.code.tex: the prepared handler draws on
 // stream start and discards the stream itself. Only the separate marks phase
 // visits the surveyed outliers. Both raw and prepared plots use this handler.
 // Only the stock 2D draw hooks and ordinary part styles are lowered here;
-// replacement TeX draw programs, custom scatter phases and mark sampling
-// (mark indices/repeat) are outside this handler.
-export function renderBoxplot(plot, axis, ranges, geometry, index, afterAxisMarks, renderAxisPlotMarks) {
+// replacement TeX draw programs and custom scatter phases are outside it.
+export function renderBoxplot(plot, axis, ranges, geometry, index, afterAxisMarks, variables) {
   const box = plot.boxplot, parts = box.partStyles ?? {};
   const options = tikzKeys(plot.options);
   const seriesAxis = { ...axis, clip: options.clip ?? axis.clip };
@@ -68,8 +68,11 @@ export function renderBoxplot(plot, axis, ranges, geometry, index, afterAxisMark
   // Test centers in plot-local coordinates; clip the whole marker scope
   // (also multi-path glyphs) only if it paints inside the axis clip.
   const clipMarks = options["clip marker paths"] ?? axis["clip marker paths"];
-  const markerAxis = { ...seriesAxis, "clip marker paths": false };
-  const marks = renderAxisPlotMarks({ ...plot, options: markers }, points, markerAxis, ranges, geometry, index, paint.mark);
+  const limits = geometry.lineRanges ?? geometry.transformRanges ?? ranges;
+  const marks = [];
+  for (const i of selectedPlotMarkIndices(plot, points, axis, limits, variables)) {
+    marks.push(renderPlotMark(geometry.mapPoint(points[i]), markers, index, paint.mark));
+  }
   if (marks.length) (afterAxisMarks ?? commands).push(markScope("outlier", marks.join("\n"), paint,
     /^(?:true|1|on|yes)$/i.test(String(clipMarks)) ? clip : ""));
   return commands;

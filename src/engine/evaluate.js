@@ -123,7 +123,9 @@ import {
   TREE_PARENT_ALIAS
 } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
-import { tikzPlotCommands, tikzPlotHandler, tikzPlotPoints } from "../tikz/pathOperations/plot.js";
+import { createPlotMarkSelector } from "../pgf/plotMarkSelection.js";
+import { tikzPlotCommands, tikzPlotHandler, tikzPlotMarkName, tikzPlotPoints } from "../tikz/pathOperations/plot.js";
+import { tikzPlotFileRuns } from "../tikz/pathOperations/plotFile.js";
 import { pathCornerInset, pathCornerMarks } from "./pathCornerMarks.js";
 import { resolveArrowActions, withoutArrowActions } from "../tikz/pathOperations/arrowActions.js";
 import { gridCartesianPair, gridLiteralPoint, gridSegments, gridStep } from "../tikz/pathOperations/grid.js";
@@ -380,6 +382,8 @@ export function interpretTikz(ast, options = {}) {
       pgfRandom: documentRandom,
       patterns: { ...(picture.patterns || ast.patterns || {}) },
       plotMarkDeclarations: { ...(picture.plotMarkDeclarations || ast.plotMarkDeclarations || {}) },
+      dataFiles: ast.dataFiles ?? options.dataFiles,
+      pgfplotsTableResolver: options.pgfplotsTableResolver,
       shadings: { ...(picture.shadings || ast.shadings || {}) },
       textEngine: options.textEngine || null,
       textEngineUnit: Number(options.textEngineUnit) || TIKZ_UNIT,
@@ -1723,12 +1727,13 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
 
   const pathSegments = expandInlinePathForeachSegments(statement.path.segments, pathEnv);
   const built = buildPath(pathSegments, pathEnv, diagnostics, pathOptions, style, statement.command);
+  const queuedPaths = new Set(built.foreground.filter(entry => entry.type === "path"));
   const constructed = built.constructionCommands ?? built.commands;
   const namedPath = semantic["name path global"] ?? semantic["name path"];
   if (namedPath) {
     pathEnv.namedPaths[String(namedPath).trim()] = built.commands.length
       ? built.commands
-      : built.shapes.flatMap((shape) => shape.commands || []);
+      : built.shapes.filter(shape => !shape.mark).flatMap(shape => shape.commands || []);
   }
 
   const rasterImage = rasterImageFromPath(pathOptions, built, diagnostics);
@@ -1776,12 +1781,12 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const visible = isVisiblePath(requestedArrowAction ? "path" : statement.command, pathStyle, semantic);
   // PGF node bodies paint independently of the parent path's draw/fill modes.
   // An unpainted connection still contributes its constructed ends to the box.
-  const hasNodePaint = built.shapes.some(shape => shape.paintAfterPath);
+  const hasNodePaint = built.shapes.some(shape => shape.paintAfterPath || shape.mark);
   // PGF's first clip contributes its path to the picture box. Subsequent
   // paint is clipped but no longer grows the box until the graphics scope ends.
   const clip = tikzBoolean(built.actionOptions.clip) ? {
     commands: [...built.commands, ...built.shapes
-      .filter(shape => !shape.picLayer && shape.subtype !== "edge" && shape.commands)
+      .filter(shape => !shape.picLayer && !queuedPaths.has(shape) && shape.commands)
       .flatMap(shape => shape.commands)],
     fillRule: pathStyle.fillRule
   } : null;
@@ -1791,7 +1796,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
     }));
   } else if (!visible && !tikzBoolean(pathOptions.overlay) &&
-      (pathEnv.trackLocalBounds || requestedArrowAction || hasNodePaint)) {
+      (pathEnv.trackLocalBounds || requestedArrowAction || hasNodePaint || built.hasPlotGeometry)) {
     const geometry = constructed.concat(built.splitContours.flatMap(s => s.commands));
     if (geometry.length) ir.items.push(createBoundingBoxShape(geometry, requestedArrowAction ? { retainZeroExtent: true } : {}));
   }
@@ -1807,7 +1812,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     const styledShapes = built.shapes.map((shape) => ({
       ...shape,
       subtype: shape.subtype || subtype,
-      includeStrokeBounds,
+      includeStrokeBounds: includeStrokeBounds && shape.includeStrokeBounds !== false,
       overlay: tikzBoolean(pathOptions.overlay),
       clipRect: shape.clipRect || clipRect,
       clipCircle: shape.clipCircle || clipCircle,
@@ -1819,9 +1824,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     // foreground box. In particular, angle fills cannot cover crossing edges.
     const picBackgrounds = styledShapes.filter(shape => shape.picLayer === "background");
     for (const [index, shape] of styledShapes.entries()) {
-      if (shape.picLayer === "foreground" || shape.subtype === "edge") foregroundShapes.set(built.shapes[index], shape);
+      if (queuedPaths.has(built.shapes[index])) foregroundShapes.set(built.shapes[index], shape);
     }
-    const pathShapes = styledShapes.filter(shape => !shape.picLayer && shape.subtype !== "edge" &&
+    const pathShapes = styledShapes.filter((shape, i) => !shape.picLayer && !queuedPaths.has(built.shapes[i]) &&
       (!shape.decorationInputCommands || shape.commands.length));
     const compoundShape = compoundFillRuleShape(pathShapes, pathOptions, subtype, { allowShadows: Boolean(shadows?.length) });
     if (compoundShape && shadows) compoundShape.shadows = shadows;
@@ -1994,6 +1999,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
   const splitContours = [];
   // TikZ appends nodes, pic foregrounds and independent edges to one figbox.
   const foreground = [];
+  let hasPlotGeometry = false;
   let styleHints = {};
   let effectivePathOptions = { ...pathOptions };
   let actionOptions = pathOptions;
@@ -2050,6 +2056,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       shapes.push(...nested.shapes);
       splitContours.push(...nested.splitContours);
       foreground.push(...nested.foreground);
+      hasPlotGeometry ||= nested.hasPlotGeometry;
       Object.assign(styleHints, nested.styleHints);
       const endpoints = pathCommandEndpoints(nested.commands);
       if (endpoints.start && !start) start = endpoints.start;
@@ -2655,13 +2662,17 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       endNodeRef = null;
       continue;
     }
-    if (segment.kind === "plot" || segment.kind === "plotCoordinates" || segment.kind === "plotFunction") {
+    if (segment.kind === "plot" || segment.kind === "plotCoordinates" || segment.kind === "plotFunction" || segment.kind === "plotFile") {
       const plot = buildPathPlot(segment, actionOptions, env, diagnostics,
         Boolean(current && pending?.value === "--"), relativeBase || currentBase || current);
-      const mark = plot.options.mark;
-      if (mark && String(mark).trim() !== "none") {
+      // PGF constructs the contour even when marker replay selects no points.
+      hasPlotGeometry ||= plot.commands.length > 0;
+      const mark = tikzPlotMarkName(plot.options);
+      if (mark) {
+        const everyMark = plotMarkLocalOptions(plot.options, env.styles?.["every mark"]);
+        const select = createPlotMarkSelector([plot.options, everyMark], env.variables, env.foreachBudget);
         for (const point of plot.points) {
-          addPlotMarkItems(point, mark, pathStyle, plot.options, env, shapes, foreground);
+          if (select()) addPlotMarkItems(point, mark, pathStyle, plot.options, env, shapes, foreground);
         }
       }
       for (const command of plot.commands) {
@@ -2718,6 +2729,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
     decorationInputCommands: roundedCommands,
     decorationOptions: effectivePathOptions,
     boundsCommands: boundsMoves.length ? boundsMoves.concat(originalBounds || []) : originalBounds,
+    hasPlotGeometry,
     shapes,
     splitContours,
     actionOptions,
@@ -16477,23 +16489,32 @@ function buildPathPlot(segment, inherited, env, diagnostics, connect, saved) {
     return relative ? resolveRelativeCoordinate(relative[1], origin, scope, diagnostics)
       : resolveCoordinate(raw, scope, diagnostics);
   }
-  const samples = tikzPlotPoints(segment, options, plotEnv, {
-    coordinate: (raw, variables) => {
-      if (raw.startsWith("+") || shouldResolveAsLocalRectangleCorner(raw)) {
-        return coordinate(raw, { ...localEnv, variables }, base);
-      }
-      // A named node is already in canvas space; PGF constructs its curve
-      // supports in the plot's local space before it transforms the path.
-      const canvas = resolveCoordinate(raw, { ...plotEnv, variables }, diagnostics);
-      return inverse ? applyTransform(canvas, inverse) : resolveCoordinate(raw, { ...localEnv, variables }, diagnostics);
-    },
-    project: (x, y) => roundPoint(projectBasisPoint(x, y, 0, plotEnv.basis))
-  }).filter(isFinitePoint);
+  const project = (x, y) => roundPoint(projectBasisPoint(x, y, 0, plotEnv.basis));
+  const resolveSample = (raw, variables) => {
+    if (raw.startsWith("+") || shouldResolveAsLocalRectangleCorner(raw)) {
+      return coordinate(raw, { ...localEnv, variables }, base);
+    }
+    // A named node is already in canvas space; PGF constructs its curve
+    // supports in the plot's local space before it transforms the path.
+    const canvas = resolveCoordinate(raw, { ...plotEnv, variables }, diagnostics);
+    return inverse ? applyTransform(canvas, inverse) : resolveCoordinate(raw, { ...localEnv, variables }, diagnostics);
+  };
+  const fileRuns = segment.kind === "plotFile" ? tikzPlotFileRuns(segment, options, plotEnv, diagnostics) : null;
+  const runs = fileRuns ? fileRuns.map(run => run.map(p => project(p.x, p.y)))
+    : [tikzPlotPoints(segment, options, plotEnv, { coordinate: resolveSample, project }).filter(isFinitePoint)];
+  // A dataset break resets a sharp line to moveto. The smooth handler
+  // restarts with its original first action (including a preceding --).
+  // Neither kind of break resets TikZ's independent marker replay.
+  const samples = runs.length === 1 ? runs[0] : runs.flat();
   const toCanvas = p => applyTransform(p, matrix);
-  const commands = mapPathCoordinates(tikzPlotCommands(samples, handler, options, plotEnv, connect), toCanvas);
+  const commands = mapPathCoordinates(runs.flatMap((run, i) =>
+    tikzPlotCommands(run, handler, options, plotEnv, connect && (i === 0 || handler === "smooth"))), toCanvas);
   // A transform inside plot[...] is local to the stream, not to a later ++.
   const last = samples.at(-1);
-  let lastPoint = applyCoordinateTransform(last || { x: 0, y: 0 }, env);
+  const lastFileRow = fileRuns?.at(-1)?.at(-1);
+  // pgfplotxyfile saves a pgfpointxy call, not its already projected result.
+  const end = lastFileRow ? projectBasisPoint(lastFileRow.x, lastFileRow.y, 0, env.basis) : last;
+  let lastPoint = applyCoordinateTransform(end || { x: 0, y: 0 }, env);
   // Unlike a sampled expression (a frozen pgfqpoint), a literal coordinate
   // list replays its final coordinate with the enclosing x/y/z basis restored.
   if (last && segment.kind === "plotCoordinates" && ["x", "y", "z"].some(key => Object.hasOwn(local, key))) {
@@ -16526,7 +16547,12 @@ function sineCosineCurveCommand(from, to, op) {
   };
 }
 
-function addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, nodes) {
+function addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, foreground) {
+  // TikZ replays markers in the node box after the contour. Even \path
+  // without a draw action has a current pen color for this independent paint.
+  if (!pathStyle.stroke || pathStyle.stroke === "none") {
+    pathStyle = { ...pathStyle, stroke: env.pathInk?.stroke || "black" };
+  }
   const kind = stripOuterBraces(String(mark || "*")).trim().toLowerCase();
   if (kind === "text") {
     const model = textPlotMarkModel(markOptions);
@@ -16534,13 +16560,15 @@ function addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, node
       { options: textPlotMarkNodeOptions(model) },
       model.text,
       point,
-      nodes,
+      foreground,
       env,
       pathStyle
     );
     return;
   }
-  shapes.push(...plotMarkItems(point, mark, pathStyle, markOptions, env));
+  const items = plotMarkItems(point, mark, pathStyle, markOptions, env);
+  shapes.push(...items);
+  foreground.push(...items);
 }
 
 function plotMarkItems(point, mark, pathStyle = {}, markOptions = {}, env = {}) {
@@ -16567,6 +16595,8 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
     fill: pathStyle.fill && pathStyle.fill !== "none" ? pathStyle.fill : markColor
   };
   const finalize = (item) => ({
+    // The stock marks use pgfusepathq..., which bypasses pen-width bounds.
+    includeStrokeBounds: false,
     ...item,
     commands: transformPlotMarkCommands(item.commands, point, localOptions, env.variables || {}),
     style: applyPlotMarkLocalStyle(item.style, localStyleHints)
@@ -16584,6 +16614,7 @@ function buildPlotMark(point, mark, pathStyle = {}, markOptions = {}, env = {}) 
       type: "path",
       shape: "plot-mark",
       mark: kind,
+      includeStrokeBounds: !operation.quick,
       commands: placePlotMarkCommands(operation.commands, point),
       style: operation.fill
         ? operation.stroke

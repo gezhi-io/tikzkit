@@ -1,0 +1,2 @@
+# Preserve PGF's published data verbatim. Blank lines are dataset separators.
+plots/pgfmanual-sine.table whitespace=-blank-at-eof

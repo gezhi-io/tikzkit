@@ -4,7 +4,7 @@ import { parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../eng
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeText } from "../tex/textBox.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
-import { expandPgfplotsNamedOptions, mergePgfplotsOptionMaps } from "./namedOptions.js";
+import { expandPgfplotsNamedOptions, mergePgfplotsOptionMaps, resolvePgfplotsScopedStyle } from "./namedOptions.js";
 import {
   hasReversed2DFrame,
   renderAxisBounds,
@@ -156,6 +156,19 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
   );
   const commands = [renderAxisBounds(axisModel.geometry)];
   const axisBox = renderAxisBox(axisModel.options, axisModel.geometry);
+  const afterAxisMarks = [];
+  const dataBoxName = axisModel.options["tikzkit datavis data bounding box"];
+  const renderPlots = () => {
+    for (const { plot, plotIndex } of pgfplotsStackedRenderEntries(addplots, axisModel.options)) {
+      const plotOptions = { ...axisModel.options, ...plot.options };
+      // Globally unclipped markers replay after every path, also in 3D.
+      const deferMarks = !dataBoxName && !optionEnabled(plotOptions["clip marker paths"]) &&
+        String(plotOptions["clip mode"] ?? "global").trim() === "global" && !plotOptions["set layers"];
+      commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry,
+        options, plotIndex, deferMarks ? afterAxisMarks : null));
+      commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
+    }
+  };
   if (has3dPlot && !isPgfplotsTopView(axisModel.options)) {
     // Text nodes contribute their native TeX boxes. A synthetic label
     // gutter here would count that space twice and distort the SVG canvas.
@@ -164,10 +177,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     const axis3DBoxForeground = dependencies.renderAxis3DBoxForeground?.(axisModel.options, axisModel.ranges, axisModel.geometry) || [];
     const backgroundAxisCommands = renderAxis3DBackground(axisModel.options, axisModel.ranges, axisModel.geometry);
     if (!axisOnTop) commands.push(...backgroundAxisCommands);
-    pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
-      commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options, plotIndex));
-      commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
-    });
+    renderPlots();
     commands.push(...dependencies.renderAxisOverlayStatements(
       overlayBody,
       axisModel.ranges,
@@ -175,10 +185,11 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       axisModel.options
     ));
     if (axisOnTop) commands.push(...backgroundAxisCommands);
+    if (afterAxisMarks.length) commands.push(...axis3DBoxForeground, ...afterAxisMarks);
     commands.push(...dependencies.renderAxisLabels3D(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...dependencies.renderAxis3DColorbar(axisModel.options, axisModel.ranges, axisModel.geometry));
     commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));
-    commands.push(...axis3DBoxForeground);
+    if (!afterAxisMarks.length) commands.push(...axis3DBoxForeground);
     return `\n${commands.join("\n")}\n`;
   }
   if (shouldRenderAnyAxisGrid(axisModel.options)) {
@@ -196,21 +207,10 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     if (!topView3D && axisBox) commands.push(axisBox);
   }
   commands.push(...fillBetweenCommands);
-  const afterAxisMarks = [];
   // PGF datavisualization freezes `data bounding box` after visualizers,
   // before axes/ticks/labels. Inside legends must not use the axis range.
-  const dataBoxName = axisModel.options["tikzkit datavis data bounding box"];
   if (dataBoxName) commands.push(`{[local bounding box=${dataBoxName}]`);
-  pgfplotsStackedRenderEntries(addplots, axisModel.options).forEach(({ plot, plotIndex }) => {
-    const plotOptions = { ...axisModel.options, ...plot.options };
-    // PGFPlots postpones globally unclipped marks until every plot has painted.
-    // Individual clipping and explicit layers keep the series' own paint order.
-    const deferMarks = !has3dPlot && !dataBoxName && !optionEnabled(plotOptions["clip marker paths"]) &&
-      String(plotOptions["clip mode"] ?? "global").trim() === "global" && !plotOptions["set layers"];
-    commands.push(...dependencies.renderAddplot(plot, axisModel.options, axisModel.ranges, axisModel.geometry,
-      options, plotIndex, deferMarks ? afterAxisMarks : null));
-    commands.push(...(dependencies.renderCurrentPlotCoordinates?.(plot, axisModel.options, axisModel.ranges, axisModel.geometry, options) || []));
-  });
+  renderPlots();
   commands.push(...dependencies.renderAxisOverlayStatements(
     overlayBody,
     axisModel.ranges,
@@ -464,6 +464,8 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
   const inherited = options.pgfplotsStyleDefinitions || {};
   const styles = { ...inherited, ...styleDefinitionsFromOptions(axisOptions, inherited) };
   const everyAxisPlotStyle = expandPgfplotsNamedOptions(styles["every axis plot"], styles);
+  const exceptLegend = expandPgfplotsNamedOptions(resolvePgfplotsScopedStyle([axisOptions],
+    "every axis plot except legend", "axis plot except legend style", inherited["every axis plot except legend"]), styles);
   const postStyle = expandPgfplotsNamedOptions(styles["every axis plot post"], styles);
   const usesBarCycle = barPlotStyle(axisOptions) || pgfplotsUsesAreaCycle(axisOptions);
   return addplots.map((plot, index) => {
@@ -472,10 +474,12 @@ export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, option
     const cycleStyle = !usesCycle ? {} : cycleName ? cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
       : usesBarCycle ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6), plotOptions)
       : defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10));
-    return {
-      ...plot,
-      options: [cycleStyle, plotOptions, postStyle].reduce(mergePgfplotsOptionMaps, everyAxisPlotStyle)
-    };
+    const tail = [cycleStyle, plotOptions, postStyle];
+    const legend = [everyAxisPlotStyle, ...tail];
+    // Keep the stages for marker selection: flattening drops repeated style
+    // appends, and the legend's remembered plot spec omits its plot-only stage.
+    return { ...plot, options: tail.reduce(mergePgfplotsOptionMaps, everyAxisPlotStyle),
+      markScopes: { series: [everyAxisPlotStyle, exceptLegend, ...tail], legend } };
   });
 }
 
