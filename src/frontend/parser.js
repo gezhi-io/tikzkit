@@ -1,6 +1,7 @@
 import { createToken, Lexer } from "chevrotain";
 import { codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseTikzset, splitTopLevel } from "../engine/options.js";
 import { preprocessTikzSource } from "./latex-shell.js";
+import { readForeachHeader } from "../tikz/commands/foreach.js";
 import { parsePgfPlotMarkDeclaration } from "../tikz/libraries/plotmarks.js";
 
 const WhiteSpace = createToken({ name: "WhiteSpace", pattern: /\s+/, group: Lexer.SKIPPED });
@@ -313,26 +314,20 @@ function parseForeach(text, diagnostics) {
   }
   const parsed = parseForeachListAndBody(text, header.end);
   if (!parsed) return unsupported("foreach", text, "Malformed \\foreach value list");
-  if (!parsed.body) {
-    return {
-      type: "foreach",
-      variables: header.variables,
-      options: header.options,
-      values: splitTopLevel(parsed.listContent, ","),
-      body: parseStatements(text.slice(parsed.bodyStart), diagnostics),
-      bodySource: text.slice(parsed.bodyStart),
-      raw: text
-    };
-  }
+  const bodySource = parsed.body ? parsed.body.content : text.slice(parsed.bodyStart);
   return {
     type: "foreach",
     variables: header.variables,
     options: header.options,
-    values: splitTopLevel(parsed.listContent, ","),
-    body: parseStatements(parsed.body.content, diagnostics),
-    bodySource: parsed.body.content,
+    ...foreachListFields(parsed),
+    body: parseStatements(bodySource, diagnostics),
+    bodySource,
     raw: text
   };
+}
+
+function foreachListFields(parsed) {
+  return parsed.listMacro ? { listMacro: parsed.listMacro } : { values: splitTopLevel(parsed.listContent, ",") };
 }
 
 function parseForeachListAndBody(text, start) {
@@ -376,10 +371,10 @@ function parseForeachVariableList(text, index) {
   let cursor = index + 1;
   while (cursor < text.length && /[A-Za-z@]/.test(text[cursor])) cursor += 1;
   if (cursor === index + 1) return null;
-  const listContent = text.slice(index, cursor);
+  const listMacro = text.slice(index + 1, cursor);
   const bodyStart = skipWhitespace(text, cursor);
   const body = extractBalanced(text, bodyStart, "{", "}");
-  return { listContent, body, bodyStart };
+  return { listMacro, body, bodyStart };
 }
 
 function isForeachBodyCandidate(content) {
@@ -393,53 +388,7 @@ function isForeachBodyCandidate(content) {
 
 function parseForeachHeader(text) {
   if (!text.startsWith("\\foreach")) return null;
-  let index = skipWhitespace(text, "\\foreach".length);
-  const inIndex = findForeachInKeyword(text, index);
-  if (inIndex < 0) return null;
-  const header = parseForeachVariablesAndOptions(text.slice(index, inIndex).trim());
-  if (!header.variables.length) return null;
-  return {
-    ...header,
-    end: skipWhitespace(text, inIndex + "in".length)
-  };
-}
-
-function findForeachInKeyword(text, index) {
-  let paren = 0;
-  let bracket = 0;
-  let brace = 0;
-  for (let cursor = index; cursor < text.length; cursor += 1) {
-    const char = text[cursor];
-    if (char === "(") paren += 1;
-    if (char === ")") paren = Math.max(0, paren - 1);
-    if (char === "[") bracket += 1;
-    if (char === "]") bracket = Math.max(0, bracket - 1);
-    if (char === "{") brace += 1;
-    if (char === "}") brace = Math.max(0, brace - 1);
-    if (paren || bracket || brace) continue;
-    if (startsKeyword(text, cursor, "in")) return cursor;
-  }
-  return -1;
-}
-
-function parseForeachVariablesAndOptions(header) {
-  let variablesRaw = header;
-  let options = {};
-  for (let index = 0; index < header.length; index += 1) {
-    if (header[index] !== "[") continue;
-    const parsed = extractBalanced(header, index, "[", "]");
-    if (!parsed) break;
-    variablesRaw = `${header.slice(0, index)} ${header.slice(parsed.end)}`.trim();
-    options = parseOptions(parsed.content);
-    break;
-  }
-  return {
-    variables: variablesRaw
-      .split("/")
-      .map((part) => part.trim().replace(/^\\/, ""))
-      .filter(Boolean),
-    options
-  };
+  return readForeachHeader(text, "\\foreach".length, extractBalanced);
 }
 
 function parseIfNum(text, diagnostics) {
@@ -1322,13 +1271,9 @@ function parseNodeTreeForeach(text, start, diagnostics = []) {
   index = skipWhitespace(text, parsedOptions.end);
   if (!startsKeyword(text, index, "foreach")) return null;
 
-  index = skipWhitespace(text, index + "foreach".length);
-  const inIndex = findForeachInKeyword(text, index);
-  if (inIndex < 0) return null;
-  const header = parseForeachVariablesAndOptions(text.slice(index, inIndex).trim());
-  if (!header.variables.length) return null;
-
-  index = skipWhitespace(text, inIndex + "in".length);
+  const header = readForeachHeader(text, index + "foreach".length, extractBalanced);
+  if (!header) return null;
+  index = header.end;
   const values = extractBalanced(text, index, "{", "}");
   if (!values) return null;
   index = skipWhitespace(text, values.end);
@@ -1507,21 +1452,15 @@ function parsePathNodeTree(command, pathOptions, pathText, diagnostics = []) {
 }
 
 function parseForeachPathCommand(command, options, pathText) {
-  const match = pathText.match(/^\\foreach\s+(.+?)\s+in\s*/);
-  if (!match) return null;
-  let index = match[0].length;
-  const list = extractBalanced(pathText, index, "{", "}");
-  if (!list) return null;
-  index = skipWhitespace(pathText, list.end);
-  const body = extractBalanced(pathText, index, "{", "}");
+  const header = parseForeachHeader(pathText);
+  const parsed = header && parseForeachListAndBody(pathText, header.end);
+  const body = parsed?.body;
   if (!body) return null;
   return {
     type: "foreach",
-    variables: match[1]
-      .split("/")
-      .map((part) => part.trim().replace(/^\\/, ""))
-      .filter(Boolean),
-    values: splitTopLevel(list.content, ","),
+    variables: header.variables,
+    options: header.options,
+    ...foreachListFields(parsed),
     body: [
       {
         type: "path",
@@ -1949,7 +1888,7 @@ function parseInlinePathForeachSegment(pathText, index) {
       kind: "foreach",
       variables: header.variables,
       options: header.options,
-      values: splitTopLevel(parsed.listContent, ","),
+      ...foreachListFields(parsed),
       bodyRaw: parsed.body.content,
       body: parsePathSegments(parsed.body.content)
     },

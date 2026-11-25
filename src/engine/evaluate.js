@@ -7,6 +7,7 @@ import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
 import { fixedCapacitorItems, fixedCapacitorSettings } from "../extensions/circuitikz/capacitors.js";
 import { fixedResistorItem, fixedResistorSettings } from "../extensions/circuitikz/resistors.js";
+import { roundTerminalSettings } from "../extensions/circuitikz/roundTerminals.js";
 import { passiveLabelLayout } from "../extensions/circuitikz/passiveLabels.js";
 import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
 import { emptyRectangleSize, isPlainRectangle } from "../tikz/emptyRectangle.js";
@@ -2990,9 +2991,9 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, fromRef,
   }
 
   for (const terminal of circuitikzTerminals(options, from, to)) {
-    shapes.push(circuitikzTerminalItem(terminal, pathStyle, env));
+    shapes.push(circuitikzTerminalItem(terminal, pathStyle, env, keys, options));
   }
-  appendCircuitikzComponentLabel(nodes, spec, geometry, options, env, passiveBody, keys);
+  appendCircuitikzComponentLabel(nodes, spec, geometry, options, env, passiveBody, keys, pathStyle);
   appendCircuitikzAnnotationLabel(nodes, spec, geometry, options, env);
   appendCircuitikzCurrentLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env, passiveBody?.bodyLength);
   appendCircuitikzFlowLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env, passiveBody?.bodyLength);
@@ -3010,8 +3011,9 @@ function circuitikzPackageSettings(packages = []) {
     packageOptions: { ...options },
     "resistor/kind": optionKeys.findLast(key => /^(american|european)(resistors?)?$/.test(key))
       ?.replace(/resistors?$/, "") ?? "american",
-    "label/align": optionKeys.findLast(key => /^(straight|rotate|smart)labels$/.test(key))
-      ?.replace(/labels$/, "") ?? "straight",
+    // circuitikz.sty executes smartlabels first, then processes explicit
+    // package options in declaration order (unstarred \ProcessOptions).
+    "label/align": ["smart", "rotate", "straight"].find(mode => hasOption(mode + "labels")) ?? "smart",
     siunitx: hasOption("siunitx"),
     RPvoltages: hasOption("RPvoltages"),
     voltageMode: hasOption("RPvoltages") ? "RPvoltages" : null
@@ -5434,7 +5436,7 @@ function circuitikzMosfetItems(from, to, geometry, spec, pathStyle = {}, env = {
     }
   ];
   if (spec.mosfetKind === "pmos") {
-    items.push(circuitikzTerminalItem({ point: gateMid, kind: "filled" }, { ...pathStyle, stroke }, env));
+    items.push(circuitikzTerminalItem({ point: gateMid, kind: "gate" }, { ...pathStyle, stroke }, env));
   }
   addCircuitikzTextNode(items, pointNormal(geometry.mid, geometry.n, -0.38 * scale), spec.label);
   return items;
@@ -5758,7 +5760,7 @@ function circuitikzTerminalKind(raw) {
   return "filled";
 }
 
-function circuitikzTerminalItem(terminal, pathStyle = {}, env = {}) {
+function circuitikzTerminalItem(terminal, pathStyle = {}, env = {}, keys = env.circuitikz, options = {}) {
   const stroke = pathStyle.stroke || "black";
   const open = terminal.kind === "open";
   const point = terminal.point;
@@ -5788,22 +5790,25 @@ function circuitikzTerminalItem(terminal, pathStyle = {}, env = {}) {
       commands
     };
   }
-  const radius = (open ? 0.07 : 0.056) * circuitikzLengthScale(env);
+  // The PMOS gate dot belongs to the transistor drawing, not to drawpoles.
+  const pole = terminal.kind === "gate" ? null : roundTerminalSettings(terminal.kind, keys, pathStyle, env.variables);
+  const radius = pole?.radius ?? .056 * circuitikzLengthScale(env);
   return {
     type: "path",
     subtype: open ? "circuitikz-terminal-open" : "circuitikz-terminal-dot",
+    ...(pole && { paintAfterPath: true }),
     shape: "circle",
     cx: point.x,
     cy: point.y,
     r: radius,
     style: {
-      stroke,
-      fill: open ? "white" : stroke,
-      lineWidth: Number(pathStyle.lineWidth) || 1,
+      ...(pole?.style ?? { stroke, fill: stroke, lineWidth: Number(pathStyle.lineWidth) || 1 }),
       markerStart: undefined,
       markerEnd: undefined
     },
-    commands: circleToPath(point.x, point.y, radius)
+    commands: pole ? circleCommands(point, radius, {
+      canvasTransform: env.canvasTransform, transform: tikzBoolean(options["transform shape"]) ? env.transform : undefined
+    }) : circleToPath(point.x, point.y, radius)
   };
 }
 
@@ -5840,8 +5845,7 @@ function circuitikzGroundItem(point, style = {}, env = {}) {
   };
 }
 
-function measuredPassiveLabel(label, side, halfNormal, geometry, keys, env) {
-  if ((keys?.["label/align"] ?? "straight") !== "straight" || (geometry.u.x !== 0 && geometry.u.y !== 0)) return null;
+function measuredPassiveLabel(label, side, halfNormal, geometry, keys, env, pathStyle) {
   const normalized = normalizeTikzText(label, env);
   if (normalized.lines?.length !== 1) return null;
   const font = resolvedTextFontSpec(label, {}, env);
@@ -5851,11 +5855,22 @@ function measuredPassiveLabel(label, side, halfNormal, geometry, keys, env) {
     mathVersion: font.mathVersion, mathExtension: font.mathExtension, baselineSkipPt: font.baselineSkipPt
   }) : layoutNativeTextRun(normalized, font);
   if (!natural) return null;
-  // PGF measures the gap before entering the label and inserts its strut
-  // before the content. A size declaration inside the text must not move either.
+  // PGF measures spacing and the mid anchor before entering the label. A
+  // font declaration inside the text changes its box, not the placement units.
   const dimensionFont = nodeDimensionFontSpec({}, env);
+  // pgfmathanglebetweenpoints reads the saved endpoints in local coordinates;
+  // unlike a unit tangent, their full displacement preserves PGF's sp rounding.
+  const coordinateTransform = normalizeTransform(env.transform);
+  const inverse = inverseAffineTransform(coordinateTransform);
+  if (!inverse) return null;
+  const localDelta = applyTransformVector({
+    x: geometry.u.x * geometry.length, y: geometry.u.y * geometry.length
+  }, inverse);
   return passiveLabelLayout({
-    ...geometry, side, halfNormal, ex: parseDimension("1ex", env.variables, { font: dimensionFont }),
+    ...geometry, localDelta, coordinateTransform, side, halfNormal, align: keys?.["label/align"] ?? "smart",
+    lineWidth: Number.isFinite(pathStyle.lineWidth) ? pathStyle.lineWidth / TIKZ_UNIT : undefined,
+    ex: parseDimension("1ex", env.variables, { font: dimensionFont }),
+    em: parseDimension("1em", env.variables, { font: dimensionFont }),
     baselineSkip: resolvedTextFontSpec("", {}, env).baselineSkipPt / TEX_PT_PER_CM,
     borderMargin: evaluateMath(String(keys?.["bipoles/border margin"] ?? 1.1), env.variables),
     labelDistance: withDimensionFont(dimensionFont, () => parseNodeLengthDimension(keys?.["label distance"] ?? "0pt", env)),
@@ -5863,14 +5878,14 @@ function measuredPassiveLabel(label, side, halfNormal, geometry, keys, env) {
   });
 }
 
-function appendCircuitikzComponentLabel(nodes, spec, geometry, options = {}, env = {}, passiveBody, keys) {
+function appendCircuitikzComponentLabel(nodes, spec, geometry, options = {}, env = {}, passiveBody, keys, pathStyle = {}) {
   const explicit = circuitikzComponentLabelSpec(options, env);
   const activeSource = ["voltageSource", "controlledVoltageSource", "isource", "controlledCurrentSource"].includes(spec.kind);
   const label = explicit?.label || (!activeSource ? circuitikzTextLabel(spec.label, env) : "");
   if (!label) return;
   const side = explicit?.side || 1;
-  if (passiveBody && nodeCanvasScale(options, env) === 1) {
-    const placement = measuredPassiveLabel(label, side, passiveBody.halfNormal, geometry, keys, env);
+  if (passiveBody && nodeCanvasScale(options, env) === 1 && !tikzBoolean(options["transform shape"])) {
+    const placement = measuredPassiveLabel(label, side, passiveBody.halfNormal, geometry, keys, env, pathStyle);
     if (placement) {
       addCircuitikzTextNode(nodes, placement.point, label, placement.options);
       return;

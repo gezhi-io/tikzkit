@@ -1,5 +1,6 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
 import { expandPictureCommands } from "./picture-command.js";
+import { createForeachBudget, ForeachExpansionError, FOREACH_EXPANSION_LIMIT, readForeachHeader } from "../tikz/commands/foreach.js";
 import { createPgfRandom } from "../engine/pgfRandom.js";
 import { applyPreprocessExtensions } from "../extensions/index.js";
 import { preserveBchartFontStyleDeclarations } from "../extensions/bchart.js";
@@ -2327,11 +2328,106 @@ function terminatePgfTransformStatements(source) {
     );
 }
 
+// pgffor.code.tex:70,84-96. The unbraced operand is ONE token. With
+// expand list=false its replacement is split before its items are expanded.
+function expandForeachListText(text, macros, budget, maxDepth, operand, protectedNames = null) {
+  const out = [];
+  const active = new Set();
+  const append = part => {
+    if (part.length > budget.remainingCharacters) throw foreachListLimit(operand);
+    budget.remainingCharacters -= part.length;
+    if (part) out.push(part);
+  };
+  const visit = (body, depth) => {
+    chargeForeachScan(body, budget, operand);
+    let cursor = 0;
+    for (const match of body.matchAll(/\\(?:([A-Za-z@]+)|[\s\S])/g)) {
+      const name = match[1];
+      const macro = protectedNames?.has(name) ? null : macros.get(name);
+      if (!macro) continue;
+      append(body.slice(cursor, match.index));
+      if (macro.argCount || macro.delimited) throw foreachListArguments(name);
+      if (active.has(name) || depth >= maxDepth || --budget.remainingExpansions < 0) throw foreachListLimit(operand);
+      active.add(name);
+      visit(macro.body, depth + 1);
+      active.delete(name);
+      cursor = match.index + match[0].length;
+    }
+    append(body.slice(cursor));
+  };
+  visit(text, 0);
+  return out.join("");
+}
+
+function foreachListArguments(name) {
+  return new ForeachExpansionError("foreach-list-arguments", "Foreach list expansion requires a no-argument data macro.", `\\${name}`);
+}
+
+function foreachListLimit(operand) {
+  return new ForeachExpansionError("foreach-expansion-limit", "Foreach list macro expansion exceeds its limit.", operand);
+}
+
+function chargeForeachScan(text, budget, operand) {
+  if (text.length > budget.remainingListScan) throw foreachListLimit(operand);
+  budget.remainingListScan -= text.length;
+}
+
+function prepareScopedForeach(input, start, commandEnd, macros, budget, depth, diagnostics) {
+  const header = readForeachHeader(input, commandEnd, extractBalanced);
+  if (!header) return null;
+  const list = input[header.end] === "\\" && readCommandName(input, header.end + 1);
+  const macro = list && macros.get(list.value);
+  const shadowed = header.variables.filter(variable => macros.has(variable));
+  if (!macro && !shadowed.length) return null;
+  const group = !list && extractBalanced(input, header.end, "{", "}");
+  if (!list && !group) return null;
+  const end = list ? list.end : group.end;
+  const operand = input.slice(header.end, end);
+  const expand = (text, protectedNames) => expandForeachListText(text, macros, budget, depth, list ? operand : "\\foreach", protectedNames);
+  try {
+    let cursor = start;
+    const result = [];
+    const bound = new Set(header.variables);
+    for (const option of header.optionGroups) {
+      result.push(input.slice(cursor, option.start), expand(input.slice(option.start, option.end), bound));
+      cursor = option.end;
+    }
+    result.push(input.slice(cursor, header.end));
+    if (macro) {
+      if (macro.argCount || macro.delimited) throw foreachListArguments(list.value);
+      if (--budget.remainingExpansions < 0) throw foreachListLimit(operand);
+      chargeForeachScan(macro.body, budget, operand);
+      const expandList = [true, "true"].includes(header.options["expand list"]);
+      const fields = splitTopLevel(macro.body, ",").map(field => {
+        const item = expand(field);
+        // Protect literal names from the legacy braced-list variable shorthand,
+        // and keep commas introduced by an item macro inside that one item.
+        if (/^[A-Za-z@]+$/.test(item) || (!expandList && (/^\\[A-Za-z@]+$/.test(item)
+          || (item !== field && splitTopLevel(item, ",").length > 1)))) return `{${item}}`;
+        return item;
+      });
+      result.push(`{${fields.join(",")}}`);
+    } else {
+      result.push(group ? expand(operand) : operand);
+    }
+    return { text: result.join(""), end, shadowed };
+  } catch (error) {
+    if (!(error instanceof ForeachExpansionError)) throw error;
+    diagnostics.push(error.diagnostic);
+    return { text: input.slice(start, header.end) + "{}", end, shadowed };
+  }
+}
+
 function expandTexLiteMacros(source, diagnostics, options) {
   const scopes = [{ kind: "root", macros: new Map(), conditionals: new Map() }];
   const expansionFrames = [];
   const deferredMacros = new Map();
   const maxDepth = Math.max(1, Number(options.macroExpansionPasses) || 12);
+  const listBudget = {
+    remainingCharacters: createForeachBudget(options.foreachLimits).remainingCharacters,
+    remainingListScan: createForeachBudget().remainingListScan,
+    remainingExpansions: FOREACH_EXPANSION_LIMIT
+  };
   const output = [];
   let input = source;
   let index = 0;
@@ -2373,6 +2469,25 @@ function expandTexLiteMacros(source, diagnostics, options) {
       emit(input.slice(index, index + 2));
       index += 2;
       continue;
+    }
+    if (name.value === "foreach") {
+      const loop = prepareScopedForeach(input, index, name.end, current.macros, listBudget, Math.min(maxDepth, 64), diagnostics);
+      if (loop) {
+        emit(loop.text);
+        index = loop.end;
+        if (loop.shadowed.length) {
+          const body = skipWhitespace(input, index);
+          const semicolon = input[body] === "{" ? -1 : findStatementEnd(input, body);
+          if (input[body] === "{" || semicolon >= 0) {
+            enterScope("brace");
+            for (const variable of loop.shadowed) scopes.at(-1).macros.delete(variable);
+            emit(" {");
+            if (input[body] === "{") index = body + 1;
+            else replaceInput(semicolon + 1, input.slice(body, semicolon + 1) + "}");
+          }
+        }
+        continue;
+      }
     }
     if (["begingroup", "bgroup", "endgroup", "egroup"].includes(name.value)) {
       const opening = name.value === "begingroup" || name.value === "bgroup";

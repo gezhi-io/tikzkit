@@ -29,6 +29,9 @@ function directionDegrees(dx, dy) {
   return (dy < 0 ? -1 : 1) * (dx < 0 ? 180 - angle : angle);
 }
 
+// pgfmathatan2: signed TeX sp in, signed degrees out.
+export { directionDegrees as pgfDirectionDegreesSp };
+
 // pgfpointnormalised: signed TeX sp in, components of a 1pt vector in sp out.
 export function pgfNormalisedDirectionSp(dx, dy) {
   const angle = directionDegrees(dx, dy);

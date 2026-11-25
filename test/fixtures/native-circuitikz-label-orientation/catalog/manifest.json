@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"manual-straight","title":"CircuitikZ manual: eight resistors, straight","source":"../manual-straight.tex"},
+    {"id":"manual-rotate","title":"CircuitikZ manual: eight resistors, rotate","source":"../manual-rotate.tex"},
+    {"id":"manual-smart","title":"CircuitikZ manual: eight resistors, smart","source":"../manual-smart.tex"},
+    {"id":"literal-rotate","title":"Literal-list diagnostic: eight resistors, rotate","source":"../literal-rotate.tex"},
+    {"id":"mixed-passives","title":"Oblique R/C math labels: reverse sides and pens","source":"../mixed-passives.tex"}
+  ]
+}

@@ -91,12 +91,18 @@ test("4pt label distance adds to the font's .75ex; the strut is a minimum, not a
     [-28.75539, -2.15277, -32.36996, -10.2674, -15.3646, 11.96176], font);
 });
 
-test("non-cardinal paths and unavailable or invalid dimensions leave placement to the caller", () => {
+test("unit diagonals are valid; genuinely invalid placement inputs leave placement to the caller", () => {
   const input = { mid, u: east, side: 1, halfNormal: 0.42, ...normal, textBox: { width: 0.4, height: 0.3, depth: 0 } };
+  for (const u of [{ x: Math.SQRT1_2, y: Math.SQRT1_2 }, { x: 1, y: 1e-8 }]) {
+    assert.ok(passiveLabelLayout({ ...input, u }));
+  }
   for (const patch of [
-    { u: { x: Math.SQRT1_2, y: Math.SQRT1_2 } }, { u: { x: 1, y: 1e-8 } }, { u: { x: 0, y: 0 } }, { u: { x: 2, y: 0 } },
+    { u: { x: 0, y: 0 } }, { u: { x: 2, y: 0 } }, { u: { x: NaN, y: 0 } }, { align: "diagonal" },
+    { localDelta: { x: 0, y: 0 } }, { localDelta: { x: 1, y: NaN } }, { align: "rotate", em: 0 },
+    { coordinateTransform: { a: 1, b: 1, c: 1, d: 1 }, localDelta: east }, { lineWidth: -1 },
     { side: 0 }, { mid: { x: NaN, y: 0 } }, { halfNormal: -1 }, { ex: 0 }, { baselineSkip: Infinity },
-    { textBox: null }, { borderMargin: NaN }, { labelDistance: Infinity }, { labelDistance: -normal.ex }
+    { textBox: null }, { borderMargin: NaN }, { textBox: { width: 1e308, height: 1, depth: 0 } },
+    { labelDistance: Infinity }, { labelDistance: -normal.ex }
   ]) assert.equal(passiveLabelLayout({ ...input, ...patch }), null);
 });
 

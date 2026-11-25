@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+\fill[red] (0,0) circle[radius=.55mm];
+\ctikzset{label/align = rotate}
+\draw (0,3) to[R,l^=$R_1$] (3,4.5);
+\draw[line width=1.2pt] (6.5,4.5) to[C,l_=$C_2$] (5,2.5);
+\ctikzset{label/align = smart}
+\draw (3,1.5) to[R,l_=$R_3$] (0,.5);
+\draw[line width=.9pt] (5,.3) to[C,l^=$C_4$] (6.5,2.25);
+\draw (0,-.8) to[R,l_=$R_5$] (3,-.8);
+\end{circuitikz}
+\end{document}

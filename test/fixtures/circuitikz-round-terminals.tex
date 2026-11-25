@@ -1,0 +1,29 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \draw (0,0) to[R,*-o] (3,0);
+  \begin{scope}[scale=2]
+    \draw (0,-.5) to[short,*-o] (1.5,-.5);
+  \end{scope}
+  \begin{scope}[scale=2,transform shape]
+    \draw (0,-1) to[short,*-o] (1.5,-1);
+  \end{scope}
+  \begin{scope}[xscale=2,yscale=.5,transform shape]
+    \draw (0,-6) to[short,*-o] (1.5,-6);
+  \end{scope}
+  \begin{scope}
+    \ctikzset{bipoles/length=2cm,nodes width=.08,resistors/scale=.5,
+      open poles fill=green,poles/open fill opacity=.25,poles/full fill opacity=.5}
+    \draw[color=blue,line width=.8pt] (0,-4) to[R,*-o] (3,-4);
+    \draw[draw=red,fill=blue,line width=0pt] (0,-5) to[R,*-o] (3,-5);
+    \draw[color=red,draw opacity=.6,fill opacity=.3] (0,-6)
+      to[R,*-o,nodes width=.1,open poles fill=blue,open poles opacity=.8,full poles opacity=.9] (3,-6);
+  \end{scope}
+  \draw[draw=red,fill=blue] (0,-7) to[R,*-o,fill=green] (3,-7);
+  \draw[red,opacity=.4] (0,-8) to[R,*-o] (3,-8);
+  \draw[color=red,dashed] (0,-9) to[R,*-o,draw=blue] (3,-9);
+  \filldraw[color=blue] (0,-10) to[short,*-o] (3,-10);
+  \draw[fill=red] (0,-11) to[short,*-o,fill=none] (3,-11);
+\end{circuitikz}
+\end{document}

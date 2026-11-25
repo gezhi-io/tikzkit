@@ -1,0 +1,88 @@
+% pdflatex -halt-on-error -output-directory=<temp> circuitikz-passive-label-anchors.tex
+% Probe installed CircuitikZ as shipped: no replacements of its label macros.
+\documentclass{article}
+\usepackage{circuitikz}
+\makeatletter
+\def\proberadius{2}
+\def\ProbePoint#1#2#3{%
+  \pgf@process{\pgfpointdiff{\pgfpointanchor{B}{center}}{\pgfpointanchor{#2}{#3}}}%
+  \typeout{P|#1|#3|\number\pgf@x|\number\pgf@y}}
+% id, text, fixed bipole, alignment, side, direction, coordinate transform,
+% component options (mirror/invert), ambient pen
+\newcommand\Probe[9]{%
+  \begingroup\ctikzset{label/align=#4}%
+  \setbox0=\hbox{#2}%
+  \edef\probeex{\number\dimexpr1ex\relax}\edef\probeem{\number\dimexpr1em\relax}%
+  \typeout{I|#1|#3|#4|#5|#8}%
+  \typeout{T|#1|\number\wd0|\number\ht0|\number\dp0}%
+  \begin{tikzpicture}
+    \begin{scope}[#7,line width=#9]
+      \typeout{F|#1|\probeex|\probeem|\number\baselineskip|\number\pgflinewidth}%
+      \pgfgettransformentries{\ma}{\mb}{\mc}{\md}{\mx}{\my}%
+      \typeout{M|#1|\ma|\mb|\mc|\md|\number\dimexpr\mx\relax|\number\dimexpr\my\relax}%
+      \pgf@process{\pgfpointpolarxy{#6}{\proberadius}}%
+      \typeout{E|#1|\number\pgf@x|\number\pgf@y}%
+      \ifnum#5>0 \draw (0,0) to[#3,n=B,#8,l^={#2}] (#6:\proberadius);
+      \else      \draw (0,0) to[#3,n=B,#8,l_={#2}] (#6:\proberadius);\fi
+      \pgf@process{\pgfpointdiff{\pgfpointanchor{Bstart}{center}}{\pgfpointanchor{Bend}{center}}}%
+      \typeout{D|#1|\number\pgf@x|\number\pgf@y|\ctikzgetdirection{B}|\ctikzgetdirection{Blabel}|\ctikzgetanchor{B}{label}}%
+      \pgfmathsetlength\pgf@x{\ctikzvalof{label distance}}%
+      \typeout{L|#1|\number\pgf@x}%
+    \end{scope}
+    \pgf@process{\pgfpointanchor{B}{center}}\typeout{C|#1|\number\pgf@x|\number\pgf@y}%
+    \ProbePoint{#1}{Blabel}{text}\ProbePoint{#1}{Blabel}{mid}\ProbePoint{#1}{Blabel}{base}%
+    \ProbePoint{#1}{Blabel}{south west}\ProbePoint{#1}{Blabel}{north east}%
+  \end{tikzpicture}\par\endgroup}
+\makeatother
+\begin{document}
+\Probe{horiz}{0}{R}{straight}{1}{0}{}{}{.4pt}
+\Probe{diag}{45}{R}{straight}{1}{45}{}{}{.4pt}
+\Probe{narrow}{1}{C}{straight}{-1}{123}{}{}{.4pt}
+\Probe{wide}{$R_{123}$}{R}{straight}{1}{327}{}{}{.4pt}
+\Probe{near-up}{86}{C}{straight}{-1}{86}{}{}{.4pt}
+\Probe{near-left}{177}{R}{straight}{-1}{177}{}{}{.4pt}
+\Probe{near-right}{357}{C}{straight}{1}{357}{}{}{.4pt}
+\Probe{rot45}{45}{R}{rotate}{1}{45}{}{}{.4pt}
+\Probe{rot45pen}{45}{R}{rotate}{1}{45}{}{}{1.6pt}
+\Probe{rot90}{90}{C}{rotate}{-1}{90}{}{}{.4pt}
+\Probe{rot135}{135}{C}{rotate}{1}{135}{}{}{.4pt}
+\Probe{rot225}{225}{R}{rotate}{-1}{225}{}{}{.4pt}
+\Probe{rot270}{270}{C}{rotate}{1}{270}{}{}{.4pt}
+\Probe{rot315}{315}{R}{rotate}{-1}{315}{}{}{.4pt}
+\Probe{smart20x}{20}{R}{smart}{1}{20.8}{}{}{.4pt}
+\Probe{smart21x}{21}{C}{smart}{1}{21.2}{}{}{.4pt}
+\Probe{smart69x}{69}{C}{smart}{-1}{69.8}{}{}{.4pt}
+\Probe{smart70x}{70}{R}{smart}{-1}{70.2}{}{}{.4pt}
+\Probe{exact135}{135}{R}{smart}{1}{135}{}{}{.4pt}
+\Probe{flip90x}{90}{C}{rotate}{1}{90.6}{}{}{.4pt}
+\Probe{flip269x}{269}{R}{rotate}{-1}{269.4}{}{}{.4pt}
+\Probe{mirror}{45}{R}{straight}{1}{45}{}{mirror}{.4pt}
+\Probe{invert}{45}{R}{straight}{1}{45}{}{invert}{.4pt}
+\Probe{both}{45}{R}{straight}{1}{45}{}{mirror,invert}{.4pt}
+\Probe{zoom}{45}{C}{straight}{1}{45}{scale=2}{}{.4pt}
+\Probe{zoom-base}{0}{R}{straight}{1}{0}{scale=.5}{}{.4pt}
+\Probe{unequal}{32}{C}{rotate}{-1}{32.7}{xscale=2,yscale=.5}{}{1pt}
+{\ctikzset{label distance=3pt}\Probe{dist}{23}{R}{smart}{1}{123.8}{scale=1.5}{mirror,invert}{1pt}}
+\Probe{zoom-shift}{18}{C}{straight}{1}{178}{shift={(1,-.7)},scale=1.3}{}{.4pt}
+\Probe{zoom-xy}{53}{R}{smart}{-1}{53.4}{xscale=1.25,yscale=.8}{invert}{.8pt}
+\Probe{reflect}{-37}{C}{rotate}{1}{-37}{xscale=-1.5,yscale=.5}{mirror}{.4pt}
+\Probe{rotate-axes}{80}{C}{straight}{1}{80}{rotate=25}{}{.4pt}
+\Probe{shear-axes}{111}{R}{rotate}{-1}{111.6}{cm={1.2,.2,-.3,.9,(.5cm,.1cm)}}{}{.7pt}
+{\def\proberadius{2.5}% the manual DIR loop's actual polar radius
+\Probe{manual0}{0}{R}{rotate}{1}{0}{}{}{.4pt}
+\Probe{manual45}{45}{R}{rotate}{1}{45}{}{}{.4pt}
+\Probe{manual90}{90}{R}{rotate}{1}{90}{}{}{.4pt}
+\Probe{manual135}{135}{R}{rotate}{1}{135}{}{}{.4pt}
+\Probe{manual180}{180}{R}{rotate}{1}{180}{}{}{.4pt}
+\Probe{manual-m90}{-90}{R}{rotate}{1}{-90}{}{}{.4pt}
+\Probe{manual-m45}{-45}{R}{rotate}{1}{-45}{}{}{.4pt}
+\Probe{manual-m135}{-135}{R}{rotate}{1}{-135}{}{}{.4pt}}
+\ifdefined\FullAngleSweep
+  \def\proberadius{2.5}
+  \foreach \angle in {0,...,359}{%
+    \ifodd\angle\relax\def\sideA{-1}\def\sideB{1}\else\def\sideA{1}\def\sideB{-1}\fi
+    \Probe{s\angle}{45}{R}{straight}{\sideA}{\angle}{}{}{.4pt}
+    \Probe{r\angle}{-45}{C}{rotate}{\sideB}{\angle}{}{}{.7pt}
+    \Probe{a\angle}{123}{R}{smart}{\sideA}{\angle}{}{}{1pt}}
+\fi
+\end{document}

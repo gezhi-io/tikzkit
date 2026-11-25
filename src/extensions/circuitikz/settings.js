@@ -8,6 +8,7 @@ const keys = new Set(["bipoles/length", "bipoles/thickness", "bipoles/border mar
   "capacitors/fill", "bipoles/resistor/width", "bipoles/resistor/height", "bipoles/generic/width",
   "bipoles/generic/height", "resistors/zigs", "resistors/zigzag stub", "resistors/scale",
   "resistors/thickness", "resistors/fill", "label distance", "label/align",
+  "nodes width", "open poles fill", "poles/open fill opacity", "poles/full fill opacity", "color",
   "sources/scale", "current arrow scale", "voltage/shift", "voltage/bump a",
   "voltage/european label distance", "voltage/straight label distance", "voltage shift sources adjust"]);
 const sourceKey = /^bipoles\/(?:vsource|dcvsource|vsourcesin|vsourcesquare|vsourcetri)\/(?:width|height|voltage\/(?:bump a|additional shift|european label distance|straight label distance))$/;
@@ -15,6 +16,17 @@ const sourceKey = /^bipoles\/(?:vsource|dcvsource|vsourcesin|vsourcesquare|vsour
 export function withCircuitikzKeys(state, options) {
   let result = state;
   for (const [raw, value] of Object.entries(options || {})) {
+    // TikZ retains explicit draw/fill ink across action-only keys (including
+    // fill=none). Pole shapes read these registers, not the wire's final fill.
+    const ink = raw === "draw" || raw === "tikzkit stroke ink" ? "tikzDrawInk"
+      : raw === "fill" || raw === "tikzkit fill ink" ? "tikzFillInk" : null;
+    if (ink) {
+      if (typeof value === "string" && value && value !== "none" && result?.[ink] !== value) {
+        if (result === state) result = { ...state };
+        result[ink] = value;
+      }
+      continue;
+    }
     let key = raw.replace(/^(?:\/tikz\/)?circuitikz\//, "");
     let stored = value;
     if (key.endsWith("/.initial") && sourceKey.test(key.slice(0, -9))) key = key.slice(0, -9);
@@ -26,6 +38,8 @@ export function withCircuitikzKeys(state, options) {
       key = "bipoles/resistor/width";
     }
     if (key === "voltage shift") key = "voltage/shift";
+    if (key === "open poles opacity") key = "poles/open fill opacity";
+    if (key === "full poles opacity") key = "poles/full fill opacity";
     if (key === "american" || key === "american resistors" || key === "cute" ||
         key === "european" || key === "european resistors" ||
         (key === "resistor" && (value === "american" || value === "european"))) {
