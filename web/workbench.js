@@ -93,7 +93,8 @@ export async function renderWorkbenchSource(source, options = {}) {
     throw new TypeError("TikZKit public API does not expose a renderer");
   }
   const result = await renderer(String(source || ""), {
-    margin: 0,
+    // Document margins belong to the picture, including the phase of PGF
+    // pattern fills. Use the same defaults as the public renderer/export.
     // Keep the workbench on the browser-focused math path. The SVG-text
     // fallback remains available explicitly for raster comparison tooling.
     mathRenderer: "katex",

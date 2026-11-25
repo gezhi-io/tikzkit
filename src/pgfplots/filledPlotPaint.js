@@ -7,11 +7,16 @@ import { isPlotColorToken, plotLineWidthOption } from "./plotStyle.js";
 // a bare draw/fill enables that action without replacing its current ink.
 export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } = {}) {
   let stroke = options["pgfplots cycle color"] || "black", fill = stroke;
+  let pattern;
   let draw = true, filled = false, drawOpacity, fillOpacity;
   let width = plotLineWidthOption(axis), dash = "", cap = "", join = "";
   for (const [key, value] of Object.entries(options)) {
     if (key === "color" || (value === true && isPlotColorToken(key))) {
       stroke = fill = key === "color" ? value : key;
+      pattern = undefined;
+    } else if (key === "pattern") {
+      filled = value !== "none";
+      if (filled && value !== true && value !== "") pattern = value;
     } else if (key === "draw" || key === "fill") {
       const enabled = ![false, "none", "false", "off"].includes(value);
       if (key === "draw") {
@@ -19,7 +24,10 @@ export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } 
         if (enabled && value !== true) stroke = value;
       } else {
         filled = enabled;
-        if (enabled && value !== true) fill = value;
+        if (enabled && value !== true) {
+          fill = value;
+          pattern = undefined;
+        }
       }
     } else if (key === "opacity") {
       // PGF sets both channels. SVG element opacity would composite the
@@ -39,8 +47,11 @@ export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } 
   // A fresh legend draw is already unfilled. Preserve an explicit fill=none,
   // but don't introduce a fill option when the series never selected one.
   const fillOption = filled ? "fill=" + fill : legendDraw && !Object.hasOwn(options, "fill") ? "" : "fill=none";
+  const fillStyle = filled && pattern ? joinOptions(["pattern=" + pattern,
+    options["pattern color"] && "pattern color=" + options["pattern color"]]) : fillOption;
   return {
-    style: joinOptions([fillOption, "draw=" + (draw || legendDraw ? stroke : "none"), width, cap, join, dash, ...alpha]),
+    fillStyle,
+    style: joinOptions([fillStyle, "draw=" + (draw || legendDraw ? stroke : "none"), width, cap, join, dash, ...alpha]),
     mark: { stroke, fill: options["mark fill"] ?? fill, alpha }
   };
 }

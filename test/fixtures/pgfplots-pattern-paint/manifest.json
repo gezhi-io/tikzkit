@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "id": "manual-blue-bars",
+      "source": "manual-blue-bars.tex",
+      "title": "Manual: two blue striped bar series"
+    },
+    {
+      "id": "manual-area-legend",
+      "source": "manual-area-legend.tex",
+      "title": "Manual: dotted and hatched function areas with legend"
+    },
+    {
+      "id": "hatch-order",
+      "source": "hatch-order.tex",
+      "title": "Grouped bars: pattern color, opacity and option order"
+    },
+    {
+      "id": "stock-tiles",
+      "source": "stock-tiles.tex",
+      "title": "Stock tiles on offset TikZ paths"
+    },
+    {
+      "id": "pattern-alpha",
+      "source": "pattern-alpha.tex",
+      "title": "Independent stroke and fill alpha inside pattern cells"
+    }
+  ]
+}

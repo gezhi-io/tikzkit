@@ -1,0 +1,34 @@
+{
+  "manual-blue-bars": {
+    "Pale": {"box": [36,23,160,30]},
+    "Deep": {"box": [40,11,175,18.5]}
+  },
+  "hatch-order": {
+    "Magenta": {"box": [50,84,59,129]},
+    "Black": {"box": [64,101,73,129]},
+    "Green": {"box": [78,71,86,125], "solid": [0,255,0]},
+    "Hollow": {"box": [92,102,101,130], "solid": [255,255,255]}
+  },
+  "manual-area-legend": {
+    "LegendDots": {"box": [35,20.5,48,24]},
+    "LegendCross": {"box": [35,34.2,48,37.5]},
+    "Upper": {"box": [139,57,150,62]},
+    "Lower": {"box": [125,132,151,145]}
+  },
+  "stock-tiles": {
+    "Grid": {"box": [6,6,45,32]},
+    "Horizontal": {"box": [55,6,88,32]},
+    "Vertical": {"box": [105,6,140,32]},
+    "Dots": {"box": [6,43,44,70]},
+    "Double": {"box": [55,43,92,70]},
+    "Gray": {"box": [105,43,140,70]}
+  },
+  "pattern-alpha": {
+    "stroke-fill-only": {"box": [5,5,23,23]},
+    "stroke-draw-only": {"box": [31,5,48,23]},
+    "stroke-both": {"box": [59,5,75,23]},
+    "dot-fill-only": {"box": [5,29,23,46]},
+    "dot-draw-only": {"box": [31,29,48,46]},
+    "band-fill-only": {"box": [59,29,75,46]}
+  }
+}

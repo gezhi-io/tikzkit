@@ -92,7 +92,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
         "axis plot",
         "axis closed cycle",
         selectPlotStyle(plot.options, plotIndex),
-        selectPlotFillStyle(plot.options, plotIndex),
+        filledPlotPaint(plot.options, axisOptions).fillStyle,
         plotFillOpacityOption(plot.options),
         pgfplotsNamePathOption(plot.options),
         pgfplotsPlotClipOption(axisOptions, geometry)
@@ -149,7 +149,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     const commands = [];
     if (plot.closedCycle && visibleDataPoints.length) {
       const baselineY = clampAxisBaseline(0, clipRanges.yMin, clipRanges.yMax);
-      const fillStyle = joinOptions(["axis closed cycle", selectPlotFillStyle(plot.options, plotIndex), plotFillOpacityOption(plot.options), "draw=none"]);
+      const fillStyle = joinOptions(["axis closed cycle", filledPlotPaint(plot.options, axisOptions).fillStyle, plotFillOpacityOption(plot.options), "draw=none"]);
       for (const run of splitAxisPlotPointRuns(visibleDataPoints)) {
         const first = run[0];
         const last = run[run.length - 1];
@@ -189,7 +189,9 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const closedPoints = plot.fillAnchor
         ? [...points, geometry.mapPoint(plot.fillAnchor)]
         : parametricBaselineClosedPoints(visibleDataPoints, points, clipRanges, geometry);
-      const fillStyle = joinOptions(["axis closed cycle", selectPlotFillStyle(plot.options, plotIndex), plotFillOpacityOption(plot.options), "draw=none"]);
+      const paint = plot.fillAnchor && plot.options.fill === undefined && plot.options.pattern === undefined
+        ? selectPlotFillStyle(plot.options, plotIndex) : filledPlotPaint(plot.options, axisOptions).fillStyle;
+      const fillStyle = joinOptions(["axis closed cycle", paint, plotFillOpacityOption(plot.options), "draw=none"]);
       commands.push(`\\draw[${fillStyle}] ${closedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
     }
     const style = joinOptions([

@@ -1,4 +1,6 @@
 import { escapeAttribute } from "./escape.js";
+import { renderStockPattern } from "./stockPattern.js";
+import { stockPatternOpacity } from "../../tikz/patternTiles.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData } from "./pathData.js";
 import { createSvgIdPrefix, SVG_ID_PREFIX, svgDefinitionId } from "./definitionScope.js";
@@ -24,9 +26,9 @@ export function createSvgDefs(parts = []) {
   return body ? `<defs>${body}</defs>` : "";
 }
 
-export function scopeSvgDefinitions(items, unit, explicitPrefix) {
+export function scopeSvgDefinitions(items, unit, explicitPrefix, pageOrigin) {
   items = items.map(withAxisShadingAspect);
-  const definitions = collectSvgDefs(items, unit);
+  const definitions = collectSvgDefs(items, unit, pageOrigin);
   const prefix = createSvgIdPrefix(definitions, unit, explicitPrefix);
   if (!definitions.length && explicitPrefix === undefined) return { items, defs: definitions };
   const scopedItems = items.map((item) => ({
@@ -39,7 +41,7 @@ export function scopeSvgDefinitions(items, unit, explicitPrefix) {
       style: { ...shadow.style, [SVG_ID_PREFIX]: prefix }
     })) } : {})
   }));
-  return { items: scopedItems, defs: collectSvgDefs(scopedItems, unit) };
+  return { items: scopedItems, defs: collectSvgDefs(scopedItems, unit, pageOrigin) };
 }
 
 function withAxisShadingAspect(item) {
@@ -59,7 +61,7 @@ function withAxisShadingAspect(item) {
   return { ...item, style: { ...item.style, axisShadingAspect: width / height } };
 }
 
-export function collectSvgDefs(items, unit) {
+export function collectSvgDefs(items, unit, pageOrigin) {
   const clipRectDefs = collectClipRectDefs(items);
   const clipCircleDefs = collectClipCircleDefs(items);
   const clipPolygonDefs = collectClipPolygonDefs(items);
@@ -76,7 +78,7 @@ export function collectSvgDefs(items, unit) {
     ...clipCircleDefs.map((def) => renderClipCircleDef(def, unit)),
     ...clipPolygonDefs.map((def) => renderClipPolygonDef(def, unit)),
     ...formOnlyPatternClipDefs.map((def) => renderFormOnlyPatternClipDef(def, unit)),
-    ...patternDefs.map((def) => renderPatternDef(def, unit)),
+    ...patternDefs.map((def) => renderPatternDef(def, unit, pageOrigin)),
     ...ballGradientDefs.map(renderBallGradientDef),
     ...axisGradientDefs.map(renderAxisGradientDef),
     ...radialGradientDefs.map(renderRadialGradientDef),
@@ -215,17 +217,20 @@ export function collectPatternDefs(items) {
     defs.set(id, {
       id,
       kind: String(item.style.pattern).trim(),
-      color: item.style.patternColor || item.style.stroke || "black",
+      color: item.style.patternColor || "black",
+      opacity: stockPatternOpacity(item.style),
       definition: item.style.patternDefinition || null
     });
   }
   return [...defs.values()];
 }
 
-export function renderPatternDef(def, unit = 1) {
+export function renderPatternDef(def, unit = 1, pageOrigin) {
   const color = escapeAttribute(svgPaint(def.color || "black"));
   const custom = renderDeclaredPatternDef(def, color, unit);
   if (custom) return custom;
+  const stock = renderStockPattern(def, unit, pageOrigin);
+  if (stock) return stock;
   const path = patternPathData(def.kind);
   return `<pattern id="${escapeAttribute(def.id)}" patternUnits="userSpaceOnUse" width="8" height="8"><path d="${path}" stroke="${color}" stroke-width="0.7" fill="none" /></pattern>`;
 }

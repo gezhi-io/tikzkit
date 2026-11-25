@@ -42,7 +42,7 @@ test("workbench renders through TikZKit public async API", async () => {
   assert.equal(Number.isFinite(result.elapsedMs), true);
 });
 
-test("workbench uses the same zero-margin SVG bounds as fixture comparisons", async () => {
+test("workbench keeps the document's physical preview border, like the exported SVG", async () => {
   const source = String.raw`
 \documentclass{article}
 \usepackage[pdftex,active,tightpage]{preview}
@@ -53,11 +53,16 @@ test("workbench uses the same zero-margin SVG bounds as fixture comparisons", as
 \end{preview}
 \end{document}`;
   const workbench = await renderWorkbenchSource(source);
-  const comparison = publicApi.tikzToSvg(source, { margin: 0, mathRenderer: "katex" });
-  const svgSize = (svg) => svg.match(/\b(?:width|height)="[^"]+"/g)?.slice(0, 2);
+  const comparison = publicApi.tikzToSvg(source, { mathRenderer: "katex" });
+  const cropped = await renderWorkbenchSource(source, { margin: 0 });
+  const svgSize = svg => [...svg.matchAll(/\b(?:width|height)="([\d.]+)pt"/g)].slice(0,2).map(m => Number(m[1]));
 
   assert.deepEqual(workbench.diagnostics, []);
   assert.deepEqual(svgSize(workbench.svg), svgSize(comparison.svg));
+  for (const [i, length] of svgSize(workbench.svg).entries()) {
+    assert.ok(Math.abs(length - svgSize(cropped.svg)[i] - 4*72/25.4) < .001,
+      "two 2mm margins in PDF points");
+  }
 });
 
 test("workbench uses native CM boxes for supported bold formulas", async () => {

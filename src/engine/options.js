@@ -6,7 +6,7 @@ import {
 } from "../tikz/metrics.js";
 import { parseDimension, substituteTextVariables } from "./math.js";
 import { evaluateRestrictedExpression } from "./safe-expression.js";
-import { isColorToken, normalizeColor, normalizeShadingColor } from "./colors.js";
+import { isColorToken, normalizeColor, normalizePgfRgbColor, normalizeShadingColor } from "./colors.js";
 export { normalizeColor, colorToRgb, cmykToRgb, cmykToCss } from "./colors.js";
 
 const TIKZ_UNIT = 100;
@@ -254,6 +254,7 @@ export function normalizeOptions(command, rawOptions, env) {
   const defaultArrowTip = parseDefaultArrowTip(expanded);
   let currentColor = "black";
   let usesCurrentColorForFill = false;
+  let patternInk;
   let pendingDashPattern;
   let pendingDashKey;
 
@@ -271,8 +272,11 @@ export function normalizeOptions(command, rawOptions, env) {
     if (key === ">") {
       continue;
     }
-    if (value === true && isColorToken(key)) {
-      const color = normalizeColor(key);
+    if ((value === true && isColorToken(key)) || key === "color") {
+      const color = normalizeColor(key === "color" ? String(value) : key);
+      if (style.pattern) style.fill = color;
+      delete style.pattern;
+      patternInk = undefined;
       applyCurrentColor(style, color, command);
       currentColor = color;
       semantic["tikzkit current color"] = color;
@@ -296,8 +300,11 @@ export function normalizeOptions(command, rawOptions, env) {
         semantic["tikzkit bare fill"] = true;
         usesCurrentColorForFill = true;
         style.fill = currentColor;
+        if (patternInk) style.pattern = patternInk;
       } else {
         usesCurrentColorForFill = false;
+        delete style.pattern;
+        if (value !== "none") patternInk = undefined;
         style.fill = normalizeColor(String(value));
       }
       continue;
@@ -350,24 +357,27 @@ export function normalizeOptions(command, rawOptions, env) {
       semantic[key] = String(value);
       continue;
     }
-    if (key === "color") {
-      const color = normalizeColor(String(value));
-      applyCurrentColor(style, color, command);
-      currentColor = color;
-      semantic["tikzkit current color"] = color;
-      if (usesCurrentColorForFill) style.fill = color;
-      continue;
-    }
     if (key === "text") {
       style.textFill = normalizeColor(String(value));
       continue;
     }
     if (key === "pattern") {
-      style.pattern = String(value || "").trim();
+      // Selecting a tile sets the fill ink and starts filling. "none" stops
+      // filling without replacing that ink; a later bare fill can reuse it.
+      const name = String(value ?? "").trim();
+      if (name === "none") {
+        delete style.pattern;
+        style.fill = "none";
+        usesCurrentColorForFill = false;
+      } else {
+        if (value !== true && name) patternInk = name;
+        if (patternInk) style.pattern = patternInk;
+        else style.fill = currentColor;
+      }
       continue;
     }
     if (key === "pattern color") {
-      style.patternColor = normalizeColor(String(value));
+      style.patternColor = normalizePgfRgbColor(String(value));
       continue;
     }
     if (key === "line width") {

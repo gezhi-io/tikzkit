@@ -1,0 +1,18 @@
+% PGFPlots manual, pgfplots.reference.axisdescription.tex:1585 (area legend).
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\usetikzlibrary{patterns}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[area legend,axis x line=bottom,axis y line=left,
+  domain=0:1,legend pos=north west,axis on top,xmin=0]
+  \addplot[pattern=crosshatch dots,pattern color=blue,draw=blue,samples=500]
+    {sqrt(x)} \closedcycle;
+  \addplot[pattern=crosshatch,pattern color=blue!30!white,draw=blue!30!white]
+    {x^2} \closedcycle;
+  \addplot[red,line legend] coordinates {(0,0) (1,1)};
+  \legend{$\sqrt x$,$x^2$,$x$}
+\end{axis}
+\end{tikzpicture}
+\end{document}

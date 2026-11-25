@@ -56,12 +56,17 @@ export function renderSvg(ir, options = {}) {
   const sourceMargin = Number(ir.previewBorder);
   const sourceMargins = sourceSvgMargins(ir.previewMargins, unit);
   const margin = options.margin ?? sourceMargins ?? (Number.isFinite(sourceMargin) ? sourceMargin * unit : TIKZ_MARGIN);
-  const { items, defs } = scopeSvgDefinitions(scaleItemsForRenderUnit(ir.items || [], unit), unit, options.idPrefix);
-  const naturalBounds = computeSvgBounds(items, options);
+  const scaledItems = scaleItemsForRenderUnit(ir.items || [], unit);
+  const naturalBounds = computeSvgBounds(scaledItems, options);
   const graphicxResize = normalizeGraphicxResize(ir.graphicxResize, naturalBounds);
   const bounds = graphicxResize ? scaleBoundsForGraphicxResize(naturalBounds, graphicxResize) : naturalBounds;
   const view = createSvgView(bounds, unit, margin);
   const viewBox = svgViewBox(view);
+  // An explicit output crop changes the viewport, not the PDF page origin
+  // used by pattern matrices in the source document.
+  const paper = options.margin != null && sourceMargins ? createSvgView(bounds, unit, sourceMargins) : view;
+  const pageOrigin = { x: paper.x, y: paper.y + paper.height };
+  const { items, defs } = scopeSvgDefinitions(scaledItems, unit, options.idPrefix, pageOrigin);
 
   const body = [];
   // TikZ and tikztosvg emit a transparent canvas by default; a background is
@@ -71,10 +76,7 @@ export function renderSvg(ir, options = {}) {
   body.push(renderSvgBackground(view, background));
   const itemMarkup = [];
   for (let index = 0; index < items.length; index += 1) {
-    itemMarkup.push(renderItem(items[index], unit, options, index, {
-      x: view.x,
-      y: view.y + view.height
-    }));
+    itemMarkup.push(renderItem(items[index], unit, options, index, pageOrigin));
   }
   body.push(graphicxResize ? wrapGraphicxResize(itemMarkup.join(""), naturalBounds, graphicxResize, unit) : itemMarkup.join(""));
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {

@@ -661,7 +661,8 @@ test("renders TikZ north east line patterns as SVG pattern fills", () => {
   assert.equal(box.style.pattern, "north east lines");
   assert.equal(box.style.patternColor, "red");
   assert.match(result.svg, /<pattern[^>]+id="tikzkit-[\da-f]{16}-tikz-pattern-/);
-  assert.match(result.svg, /<path d="M -4 8 L 8 -4 M 0 12 L 12 0"/);
+  assert.match(result.svg, /viewBox="0 0 3 3" patternTransform="matrix\(/);
+  assert.match(result.svg, /M 0 0 L 3\.1 3\.1[^"]*" fill="none" stroke="red" stroke-width="0\.4"/);
   assert.match(result.svg, /fill="url\(#tikzkit-[\da-f]{16}-tikz-pattern-/);
 });
 

@@ -1,0 +1,10 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "manual-blue-bars",
+    "manual-area-legend",
+    "hatch-order",
+    "stock-tiles",
+    "pattern-alpha"
+  ]
+}

@@ -1,4 +1,5 @@
 import { colorToRgb, normalizeColor } from "../../engine/options.js";
+import { stockPatternOpacity } from "../../tikz/patternTiles.js";
 import { escapeAttribute } from "./escape.js";
 import { formatSvgNumber as format } from "./format.js";
 import { arrowMarkerId } from "./markers.js";
@@ -29,9 +30,11 @@ export function styleAttributes(style = {}, options = {}) {
     // PGF/PDF defaults to 10; SVG's default of 4 bevels acute TikZ joins.
     attrs.push(["stroke-miterlimit", style.miterLimit ?? 10]);
   }
-  if (Number.isFinite(style.opacity)) attrs.push(["opacity", style.opacity]);
-  if (Number.isFinite(style.fillOpacity)) attrs.push(["fill-opacity", style.fillOpacity]);
-  if (Number.isFinite(style.strokeOpacity)) attrs.push(["stroke-opacity", style.strokeOpacity]);
+  const cellPaint = style.pattern && stockPatternOpacity(style) !== undefined;
+  if (!cellPaint && Number.isFinite(style.opacity)) attrs.push(["opacity", style.opacity]);
+  if (!cellPaint && Number.isFinite(style.fillOpacity)) attrs.push(["fill-opacity", style.fillOpacity]);
+  const strokeAlpha = style.strokeOpacity ?? (cellPaint ? style.opacity : undefined);
+  if (Number.isFinite(strokeAlpha)) attrs.push(["stroke-opacity", strokeAlpha]);
   if (style.fillRule) attrs.push(["fill-rule", style.fillRule]);
   if (style.filter) attrs.push(["filter", style.filter]);
   if (pathFadingName(style.pathFading)) attrs.push(["mask", `url(#${pathFadingMaskId(style.pathFading, style)})`]);
@@ -166,8 +169,10 @@ export function patternPathData(kind) {
 
 export function patternId(style = {}) {
   const kind = String(style.pattern || "lines").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lines";
-  const color = String(style.patternColor || style.stroke || "black").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "black";
-  return svgDefinitionId(`tikz-pattern-${kind}-${color}`, style);
+  const color = String(style.patternColor || "black").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "black";
+  const alpha = stockPatternOpacity(style);
+  const variant = alpha !== undefined && alpha !== 1 ? `-alpha-${format(alpha)}` : "";
+  return svgDefinitionId(`tikz-pattern-${kind}-${color}${variant}`, style);
 }
 
 function paintToRgb(color) {

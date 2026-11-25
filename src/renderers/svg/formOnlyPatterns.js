@@ -44,7 +44,7 @@ export function renderFormOnlyPatternFill(item, unit, clipId, pageOrigin = { x: 
   if (!tileCount || tileCount > MAX_PATTERN_TILES) return "";
 
   const operations = declaredOperations(definition);
-  const color = svgPaint(item.style.patternColor || item.style.stroke || "black");
+  const color = svgPaint(item.style.patternColor || "black");
   const lineWidth = Math.max(0, Number(definition.lineWidth) || 0.7) * unit;
   const body = [];
   for (let tileY = startY; tileY <= endY; tileY += 1) {

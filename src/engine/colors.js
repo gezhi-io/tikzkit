@@ -130,13 +130,15 @@ export function resolveColorSpec(value, targetModel) {
   return targetModel ? convertColorSpec(current, targetModel) : current;
 }
 
-// pgfcoreshade converts to the shading's RGB model before the PDF driver.
-// Solid DeviceCMYK paint instead goes through Poppler's display conversion.
-export function normalizeShadingColor(value) {
+// PGF converts uncolored tiling ink and RGB shading stops before the PDF
+// driver sees them. Solid DeviceCMYK paint uses display conversion instead.
+export function normalizePgfRgbColor(value) {
   const spec = resolveColorSpec(value);
   if (spec?.model !== "cmyk") return normalizeColor(value);
   return rgbToCss(convertColorSpec(spec, "rgb").channels.map(channel => channel * 255));
 }
+
+export { normalizePgfRgbColor as normalizeShadingColor };
 
 function isPlainColor(value) {
   const text = String(value).trim();
