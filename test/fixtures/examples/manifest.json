@@ -8930,6 +8930,51 @@
       "externalSource": "doc/generic/pgf/pgfmanual-en-library-backgrounds.tex:66-75",
       "semanticOwner": "src/frontend/parser.js:parseScopedStatement;src/engine/evaluate.js:enterBackgroundScope",
       "features": ["scoped", "every on background layer", "every picture", "one-ex pen", "arrow overlap"]
+    },
+    {
+      "id": "smooth-manual-tensions",
+      "title": "Three smooth cycles, from diamond to circle",
+      "source": "../native-smooth-plots/smooth-manual-tensions.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:558-565",
+      "semanticOwner": "src/pgf/smoothPlot.js:smoothPlotCommands",
+      "features": ["smooth cycle", "tension", "inherited plot handler"]
+    },
+    {
+      "id": "smooth-manual-cycle-sharp",
+      "title": "A smooth cycle and a polygon through the same four points",
+      "source": "../native-smooth-plots/smooth-manual-cycle-sharp.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:575-577",
+      "semanticOwner": "src/pgf/smoothPlot.js:smoothPlotCommands",
+      "features": ["smooth cycle", "adjacent plot subpaths", "sharp plot"]
+    },
+    {
+      "id": "smooth-manual-parametric",
+      "title": "An open parametric curve in radians",
+      "source": "../native-smooth-plots/smooth-manual-parametric.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-tikz-plots.tex:241-242",
+      "semanticOwner": "src/pgf/smoothPlot.js:smoothPlotCommands",
+      "features": ["smooth", "parametric plot", "plot variable", "radians", "path scale"]
+    },
+    {
+      "id": "smooth-pgfplots-manual",
+      "title": "PGFPlots: a smooth line through three marked observations",
+      "source": "../native-smooth-plots/smooth-pgfplots-manual.tex",
+      "sourceCorpus": "TeX Live PGFPlots manual (Christian Feuersanger)",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.reference.2dplots.tex:44-52",
+      "semanticOwner": "src/pgf/smoothPlot.js:smoothPlotCommands",
+      "features": ["smooth", "addplot+", "plot marks"]
+    },
+    {
+      "id": "smooth-pgfplots-dashed-cycle",
+      "title": "PGFPlots: where the dashes start on a smooth cycle",
+      "source": "../native-smooth-plots/smooth-pgfplots-dashed-cycle.tex",
+      "sourceCorpus": "Adapted from the TeX Live PGFPlots manual (Christian Feuersanger)",
+      "externalSource": "pgfplots.doc.src.tar.bz2:pgfplots.reference.2dplots.tex:44-52 (dashed cyclic variant)",
+      "semanticOwner": "src/pgf/smoothPlot.js:smoothPlotCommands",
+      "features": ["smooth cycle", "tension", "dashed", "plot marks"]
     }
   ]
 }

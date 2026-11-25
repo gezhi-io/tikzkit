@@ -10,6 +10,7 @@ export function createAddplotModel(plot = {}, index = 0) {
     points: plot.points || [],
     expression: plot.expression || "",
     closedCycle: Boolean(plot.closedCycle),
+    ...(plot.pathCycle && { pathCycle: true }),
     nodes: plot.nodes || []
   };
 }

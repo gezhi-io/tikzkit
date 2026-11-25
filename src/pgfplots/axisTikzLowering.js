@@ -1,10 +1,10 @@
 import { createAxisModel } from "./axis.js";
 import { parseDimension } from "../engine/math.js";
-import { parseOptions, splitTopLevel } from "../engine/options.js";
+import { parseOptions, splitTopLevel, styleDefinitionsFromOptions } from "../engine/options.js";
 import { parseTikzFontPatch } from "../tex/fontSpec.js";
 import { layoutNativeText } from "../tex/textBox.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
-import { mergePgfplotsOptionMaps } from "./namedOptions.js";
+import { expandPgfplotsNamedOptions, mergePgfplotsOptionMaps } from "./namedOptions.js";
 import {
   hasReversed2DFrame,
   renderAxisBounds,
@@ -461,29 +461,22 @@ function optionEnabled(value) {
 export function applyPgfplotsCycleStyles(addplots = [], axisOptions = {}, options = {}) {
   const cycleName = String(axisOptions["cycle list name"] || "").trim();
   const cycleList = cycleName ? options.pgfplotsCycleLists?.[cycleName] : null;
-  const everyAxisPlotStyle = axisStyleOptions(axisOptions["every axis plot/.append style"]);
+  const inherited = options.pgfplotsStyleDefinitions || {};
+  const styles = { ...inherited, ...styleDefinitionsFromOptions(axisOptions, inherited) };
+  const everyAxisPlotStyle = expandPgfplotsNamedOptions(styles["every axis plot"], styles);
+  const postStyle = expandPgfplotsNamedOptions(styles["every axis plot post"], styles);
   const usesBarCycle = barPlotStyle(axisOptions) || pgfplotsUsesAreaCycle(axisOptions);
   return addplots.map((plot, index) => {
     const plotOptions = plot.options || {};
-    const usesDefaultCycle =
-      !cycleName &&
-      (plotOptions["pgfplots plus"] || !plotOptions["pgfplots explicit options"]);
-    const cycleStyle = cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
-      || (usesDefaultCycle && usesBarCycle
-        ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6), plotOptions)
-        : usesDefaultCycle
-          ? defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10))
-          : {});
+    const usesCycle = plotOptions["pgfplots plus"] || !plotOptions["pgfplots explicit options"];
+    const cycleStyle = !usesCycle ? {} : cycleName ? cycleList?.[cycleIndex(index, axisOptions, cycleList.length)]
+      : usesBarCycle ? defaultPgfplotsBarCycleStyle(cycleIndex(index, axisOptions, 6), plotOptions)
+      : defaultPgfplotsCycleMarkStyle(cycleIndex(index, axisOptions, 10));
     return {
       ...plot,
-      options: mergePgfplotsOptionMaps(mergePgfplotsOptionMaps(everyAxisPlotStyle, cycleStyle), plotOptions)
+      options: [cycleStyle, plotOptions, postStyle].reduce(mergePgfplotsOptionMaps, everyAxisPlotStyle)
     };
   });
-}
-
-function axisStyleOptions(raw) {
-  if (raw === undefined || raw === null || raw === true) return {};
-  return parseOptions(String(raw));
 }
 
 function applyPgfplotsConstantScatterColors(addplots = [], axisOptions = {}) {

@@ -123,6 +123,7 @@ import {
   TREE_PARENT_ALIAS
 } from "../tikz/libraries/trees.js";
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
+import { tikzPlotCommands, tikzPlotHandler, tikzPlotPoints } from "../tikz/pathOperations/plot.js";
 import { pathCornerInset, pathCornerMarks } from "./pathCornerMarks.js";
 import { resolveArrowActions, withoutArrowActions } from "../tikz/pathOperations/arrowActions.js";
 import { gridCartesianPair, gridLiteralPoint, gridSegments, gridStep } from "../tikz/pathOperations/grid.js";
@@ -2654,54 +2655,27 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       endNodeRef = null;
       continue;
     }
-    if (segment.kind === "plot") {
-      const plot = buildPlot(segment.coordinate, env, { ...pathOptions, ...(segment.options || {}) });
-      for (const command of plot) commands.push(command);
-      current = plot.at(-1) ? { x: plot.at(-1).x, y: plot.at(-1).y } : current;
-      currentLocal = null;
-      currentBase = current;
-      currentNodeRef = null;
-      continue;
-    }
-    if (segment.kind === "plotFunction") {
-      const plot = buildPlotFunction(segment.expression, env, { ...pathOptions, ...(segment.options || {}) });
-      for (const command of plot.commands) commands.push(command);
-      if (plot.points.length) {
-        current = plot.points.at(-1);
-        currentLocal = null;
-        currentBase = current;
-        currentNodeRef = null;
-        endNodeRef = null;
-        if (!start) {
-          start = plot.points[0];
-          startNodeRef = null;
-        }
-      }
-      continue;
-    }
-    if (segment.kind === "plotCoordinates") {
-      const plot = buildPlotCoordinates(segment.coordinates || [], env, diagnostics, { ...pathOptions, ...(segment.options || {}) });
-      const mark = segment.options?.mark ?? pathOptions.mark;
-      if (mark && String(mark).trim().toLowerCase() !== "none") {
-        const markOptions = { ...pathOptions, ...(segment.options || {}) };
+    if (segment.kind === "plot" || segment.kind === "plotCoordinates" || segment.kind === "plotFunction") {
+      const plot = buildPathPlot(segment, actionOptions, env, diagnostics,
+        Boolean(current && pending?.value === "--"), relativeBase || currentBase || current);
+      const mark = plot.options.mark;
+      if (mark && String(mark).trim() !== "none") {
         for (const point of plot.points) {
-          addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, foreground);
+          addPlotMarkItems(point, mark, pathStyle, plot.options, env, shapes, foreground);
         }
       }
-      if (!pathOptions["only marks"] && !segment.options?.["only marks"]) {
-        for (const command of plot.commands) commands.push(command);
-      }
-      if (plot.points.length) {
-        current = plot.points.at(-1);
-        currentLocal = null;
-        currentBase = current;
-        currentNodeRef = null;
-        endNodeRef = null;
-        if (!start) {
-          start = plot.points[0];
+      for (const command of plot.commands) {
+        commands.push(command);
+        if (command.type === "moveTo") {
+          start = { x: command.x, y: command.y };
           startNodeRef = null;
         }
       }
+      // TikZ restores its last input point after the plot group. This is
+      // distinct from the PDF pen after closing a cyclic path at sample two.
+      current = relativeBase = currentBase = plot.lastPoint;
+      currentLocal = currentNodeRef = endNodeRef = lastSegment = pending = null;
+      pendingBorderMove = null;
       continue;
     }
     if (segment.kind === "node") {
@@ -2721,7 +2695,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       commands.push(closePathCommand());
       pending = null;
       if (current) lastSegment = { from: current, to: start };
-      current = start;
+      current = currentBase = relativeBase = start;
+      currentLocal = null;
+      currentNodeRef = startNodeRef;
       endNodeRef = startNodeRef;
     }
   }
@@ -16476,194 +16452,54 @@ function visibleTextFill(...candidates) {
   return "black";
 }
 
-function appendSmoothCurveThroughPoints(commands, points) {
-  if (points.length < 2) return;
-  for (let index = 1; index < points.length; index += 1) {
-    const p0 = points[index - 2] || points[index - 1];
-    const p1 = points[index - 1];
-    const p2 = points[index];
-    const p3 = points[index + 1] || p2;
-    commands.push({
-      type: "curveTo",
-      x1: roundNumber(p1.x + (p2.x - p0.x) / 6),
-      y1: roundNumber(p1.y + (p2.y - p0.y) / 6),
-      x2: roundNumber(p2.x - (p3.x - p1.x) / 6),
-      y2: roundNumber(p2.y - (p3.y - p1.y) / 6),
-      x: p2.x,
-      y: p2.y
-    });
+function buildPathPlot(segment, inherited, env, diagnostics, connect, saved) {
+  const raw = withImplicitStyleOption("every plot", segment.options, env.styles);
+  const local = normalizeOptions("path", resolveDynamicOptions(raw, env), env).options;
+  const options = {};
+  // A fully-qualified /tikz key writes the same plot register as the short key.
+  for (const layer of [inherited, local]) for (const [key, value] of Object.entries(layer)) {
+    const name = key.replace(/^\/tikz\//, "");
+    delete options[name];
+    options[name] = value;
   }
-}
-
-function buildPlot(coordinate, env, pathOptions) {
-  const domain = String(pathOptions.domain || "-1:1").split(":");
-  const start = evaluateMath(domain[0], env.variables);
-  const end = evaluateMath(domain[1], env.variables);
-  const samples = Math.max(2, Math.min(200, Math.round(evaluateMath(pathOptions.samples || 25, env.variables))));
-  const variable = String(pathOptions.variable || "\\x").replace(/^\\/, "");
-  const commands = [];
-  for (let i = 0; i < samples; i += 1) {
-    const t = samples === 1 ? 0 : i / (samples - 1);
-    const value = start + (end - start) * t;
-    const point = resolveCoordinate(coordinate, { ...env, variables: { ...env.variables, [variable]: value }, transform: identityTransform() }, []);
-    commands.push({ type: i === 0 ? "moveTo" : "lineTo", x: point.x, y: point.y });
+  const plotEnv = { ...env, transform: composeTransform(env.transform, local, env),
+    basis: composeBasis(env.basis, local, env) };
+  const localEnv = localCoordinateEnvironment(plotEnv);
+  const handler = tikzPlotHandler(options);
+  const matrix = coordinateTransformForEnvironment(plotEnv);
+  const inverse = inverseAffineTransform(matrix);
+  const outerInverse = inverseAffineTransform(coordinateTransformForEnvironment(env));
+  const base = saved && outerInverse ? applyTransform(saved, outerInverse) : { x: 0, y: 0 };
+  // Recording a coordinates list does not move TikZ's saved pen. Both + and
+  // ++ samples are relative to the point before the plot, not the last sample.
+  function coordinate(raw, scope, origin) {
+    const relative = /^\+\+?\(([\s\S]*)\)$/.exec(raw);
+    return relative ? resolveRelativeCoordinate(relative[1], origin, scope, diagnostics)
+      : resolveCoordinate(raw, scope, diagnostics);
   }
-  return commands;
-}
-
-function buildPlotFunction(expression, env, pathOptions = {}) {
-  const domain = parsePlotFunctionDomain(pathOptions.domain, env);
-  const samples = Math.max(2, Math.min(500, Math.round(evaluateMath(pathOptions.samples || 25, env.variables))));
-  const variable = String(pathOptions.variable || "x").trim().replace(/^\\/, "") || "x";
-  const points = [];
-  for (let i = 0; i < samples; i += 1) {
-    const t = samples === 1 ? 0 : i / (samples - 1);
-    const value = domain.start + (domain.end - domain.start) * t;
-    const y = evaluatePlotFunctionExpression(expression, value, variable, env.variables);
-    if (!Number.isFinite(y)) continue;
-    const local = roundPoint(projectBasisPoint(value, y, 0, env.basis));
-    points.push({ ...applyCoordinateTransform(local, env), sourceX: value, sourceY: y });
+  const samples = tikzPlotPoints(segment, options, plotEnv, {
+    coordinate: (raw, variables) => {
+      if (raw.startsWith("+") || shouldResolveAsLocalRectangleCorner(raw)) {
+        return coordinate(raw, { ...localEnv, variables }, base);
+      }
+      // A named node is already in canvas space; PGF constructs its curve
+      // supports in the plot's local space before it transforms the path.
+      const canvas = resolveCoordinate(raw, { ...plotEnv, variables }, diagnostics);
+      return inverse ? applyTransform(canvas, inverse) : resolveCoordinate(raw, { ...localEnv, variables }, diagnostics);
+    },
+    project: (x, y) => roundPoint(projectBasisPoint(x, y, 0, plotEnv.basis))
+  }).filter(isFinitePoint);
+  const toCanvas = p => applyTransform(p, matrix);
+  const commands = mapPathCoordinates(tikzPlotCommands(samples, handler, options, plotEnv, connect), toCanvas);
+  // A transform inside plot[...] is local to the stream, not to a later ++.
+  const last = samples.at(-1);
+  let lastPoint = applyCoordinateTransform(last || { x: 0, y: 0 }, env);
+  // Unlike a sampled expression (a frozen pgfqpoint), a literal coordinate
+  // list replays its final coordinate with the enclosing x/y/z basis restored.
+  if (last && segment.kind === "plotCoordinates" && ["x", "y", "z"].some(key => Object.hasOwn(local, key))) {
+    lastPoint = coordinate(segment.coordinates.at(-1), env, saved);
   }
-  if (!points.length) return { commands: [], points };
-  if (tikzBoolean(pathOptions.ycomb) || tikzBoolean(pathOptions.xcomb)) {
-    const isXComb = tikzBoolean(pathOptions.xcomb);
-    const commands = [];
-    for (const point of points) {
-      const baselineLocal = isXComb
-        ? roundPoint(projectBasisPoint(0, point.sourceY, 0, env.basis))
-        : roundPoint(projectBasisPoint(point.sourceX, 0, 0, env.basis));
-      const baseline = applyCoordinateTransform(baselineLocal, env);
-      commands.push({ type: "moveTo", x: baseline.x, y: baseline.y });
-      commands.push({ type: "lineTo", x: point.x, y: point.y });
-    }
-    return { commands, points };
-  }
-  if (tikzBoolean(pathOptions.smooth) && points.length >= 3) {
-    return { commands: smoothPlotCoordinateCommands(points, pathOptions, env), points };
-  }
-  return {
-    commands: points.map((point, index) => ({
-      type: index === 0 ? "moveTo" : "lineTo",
-      x: point.x,
-      y: point.y
-    })),
-    points
-  };
-}
-
-function parsePlotFunctionDomain(raw, env) {
-  const text = stripOuterBraces(String(raw || "-1:1").trim());
-  const split = splitTopLevelDomain(text);
-  const start = evaluateMath(split.start, env.variables);
-  const end = evaluateMath(split.end, env.variables);
-  return {
-    start: Number.isFinite(start) ? start : -1,
-    end: Number.isFinite(end) ? end : 1
-  };
-}
-
-function splitTopLevelDomain(text) {
-  let brace = 0;
-  let bracket = 0;
-  let paren = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (char === "{") brace += 1;
-    else if (char === "}") brace = Math.max(0, brace - 1);
-    else if (char === "[") bracket += 1;
-    else if (char === "]") bracket = Math.max(0, bracket - 1);
-    else if (char === "(") paren += 1;
-    else if (char === ")") paren = Math.max(0, paren - 1);
-    else if (char === ":" && brace === 0 && bracket === 0 && paren === 0) {
-      return { start: text.slice(0, index).trim(), end: text.slice(index + 1).trim() };
-    }
-  }
-  return { start: "-1", end: "1" };
-}
-
-function evaluatePlotFunctionExpression(expression, xValue, variable, variables = {}) {
-  const substituted = substitutePlotFunctionVariable(expression, variable, xValue);
-  return evaluateMath(substituted, { ...variables, x: xValue, [variable]: xValue }, { dialect: "gnuplot" });
-}
-
-function substitutePlotFunctionVariable(expression, variable, value) {
-  const name = String(variable || "x").replace(/^\\/, "") || "x";
-  const escaped = escapeRegExp(name);
-  const replacement = `(${value})`;
-  return String(expression || "")
-    .replace(new RegExp(`\\\\${escaped}\\b`, "g"), replacement)
-    .replace(new RegExp(`\\b${escaped}\\b`, "g"), replacement);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function buildPlotCoordinates(coordinates, env, diagnostics, pathOptions = {}) {
-  const points = [];
-  for (const coordinate of coordinates) {
-    const point = resolveCoordinate(coordinate, env, diagnostics);
-    if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) points.push(point);
-  }
-  if (!points.length) return { commands: [], points };
-  if (tikzBoolean(pathOptions.smooth) && points.length >= 3) {
-    return { commands: smoothPlotCoordinateCommands(points, pathOptions, env), points };
-  }
-  return {
-    commands: points.map((point, index) => ({
-      type: index === 0 ? "moveTo" : "lineTo",
-      x: point.x,
-      y: point.y
-    })),
-    points
-  };
-}
-
-function smoothPlotCoordinateCommands(points, pathOptions, env) {
-  const rawTension = evaluateMath(pathOptions.tension ?? 0.5, env.variables);
-  const tension = Number.isFinite(rawTension) && rawTension > 0 ? Math.min(rawTension, 3) : 1;
-  const factor = tension * 0.2775;
-  const commands = [{ type: "moveTo", x: points[0].x, y: points[0].y }];
-
-  let first = points[0];
-  let second = points[1];
-  let firstSupport = { ...first };
-  for (let index = 2; index < points.length; index += 1) {
-    const current = points[index];
-    const support = {
-      x: (current.x - first.x) * factor,
-      y: (current.y - first.y) * factor
-    };
-    const secondSupport = {
-      x: second.x - support.x,
-      y: second.y - support.y
-    };
-    commands.push({
-      type: "curveTo",
-      x1: roundNumber(firstSupport.x),
-      y1: roundNumber(firstSupport.y),
-      x2: roundNumber(secondSupport.x),
-      y2: roundNumber(secondSupport.y),
-      x: roundNumber(second.x),
-      y: roundNumber(second.y)
-    });
-    firstSupport = {
-      x: second.x + support.x,
-      y: second.y + support.y
-    };
-    first = second;
-    second = current;
-  }
-  commands.push({
-    type: "curveTo",
-    x1: roundNumber(firstSupport.x),
-    y1: roundNumber(firstSupport.y),
-    x2: roundNumber(second.x),
-    y2: roundNumber(second.y),
-    x: roundNumber(second.x),
-    y: roundNumber(second.y)
-  });
-  return commands;
+  return { commands, options, points: samples.map(toCanvas), lastPoint };
 }
 
 function sineCosineCurveCommand(from, to, op) {

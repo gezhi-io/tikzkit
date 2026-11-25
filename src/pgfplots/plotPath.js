@@ -1,23 +1,28 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
-import { formatAxisPoint } from "./format.js";
+import { smoothPlotCommands } from "../pgf/smoothPlot.js";
+import { formatAxisPathCommands, formatAxisPoint } from "./format.js";
+import { axisPlotHandler } from "./plotHandler.js";
 
 export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, options = {}) {
   if (points.some((point) => point.breakBefore)) {
     return splitAxisPlotPointRuns(points)
-      .map((run) => axisPlotPointChain(run, axisOptions, plotOptions, options)).join(" ");
+      .map((run) => axisPlotPointChain(run, axisOptions, plotOptions, options)).filter(Boolean).join(" ");
   }
-  if (points.length < 2) return points.map(formatAxisPoint).join(" -- ");
-  const cycle = Boolean(plotOptions["axis plot cycle"]);
+  if (!points.length) return "";
+  const handler = axisPlotHandler(plotOptions, axisOptions);
+  // Datavisualization lowers its cyclic visualizer to an internal cycle key.
+  // Neither that key nor a closed-curve handler is a trailing TikZ "-- cycle".
+  const cycle = Boolean(plotOptions["axis plot cycle"] ?? axisOptions["axis plot cycle"]);
   if (plotOptions["axis plot gap"]) {
     return gappedAxisPlotPointChain(points, plotOptions, { cycle });
   }
-  const handler = lineHandler(plotOptions) ?? lineHandler(axisOptions);
-  if (handler === "smooth" && points.length >= 3) {
-    return cycle ? smoothAxisCyclePointChain(points, plotOptions) : smoothAxisPlotPointChain(points, plotOptions);
+  if (handler === "smooth" || handler === "smooth cycle") {
+    return smoothPointChain(points, handler === "smooth cycle" || cycle, plotOptions, axisOptions);
   }
-  if (!handler || handler === "sharp plot" || handler === "smooth") {
+  if (handler === "only marks") return "";
+  if (!handler.startsWith("const plot") && !handler.startsWith("jump mark")) {
     const chain = points.map(formatAxisPoint).join(" -- ");
-    return cycle ? `${chain} -- cycle` : chain;
+    return cycle || handler === "sharp cycle" ? `${chain} -- cycle` : chain;
   }
   // Stock PGF const/jump handlers differ only in where the step turns
   // and whether the change of height is a line or a move.
@@ -51,8 +56,8 @@ export function splitAxisPlotPointRuns(points) {
   return runs;
 }
 
-export function shouldRenderAxisPlotPath(options = {}) {
-  if (options["only marks"]) return false;
+export function shouldRenderAxisPlotPath(options = {}, axisOptions = {}) {
+  if (axisPlotHandler(options, axisOptions) === "only marks") return false;
   const draw = String(options.draw || "").trim().toLowerCase();
   if (draw !== "none" && draw !== "false" && draw !== "off") return true;
   return Boolean(options["name path"] || options["name path global"]);
@@ -76,24 +81,12 @@ export function clampAxisBaseline(value, min, max) {
 }
 
 export function isSmoothAxisPlot(plotOptions = {}, axisOptions = {}) {
-  return (lineHandler(plotOptions) ?? lineHandler(axisOptions)) === "smooth";
+  const handler = axisPlotHandler(plotOptions, axisOptions);
+  return handler === "smooth" || handler === "smooth cycle";
 }
 
 export function isConstPlot(axisOptions = {}, plotOptions = {}) {
-  return (lineHandler(plotOptions) ?? lineHandler(axisOptions) ?? "").startsWith("const plot");
-}
-
-function lineHandler(options) {
-  const selected = options["pgfplots histogram handler"];
-  if (selected) return selected;
-  let handler;
-  for (const [raw, value] of Object.entries(options)) {
-    const key = raw.replace(/^\/tikz\//, "");
-    if (/^(?:sharp plot|smooth|const plot(?: mark (?:left|right|mid))?|jump mark (?:left|right|mid))$/.test(key)) {
-      handler = value == null || /^(?:false|0)$/i.test(String(value).trim()) ? "sharp plot" : key;
-    }
-  }
-  return handler;
+  return axisPlotHandler(plotOptions, axisOptions).startsWith("const plot");
 }
 
 export function gappedAxisPlotPointChain(points, plotOptions = {}, options = {}) {
@@ -132,56 +125,19 @@ export function shortenedAxisSegment(from, to, gap) {
 }
 
 export function smoothAxisPlotPointChain(points, plotOptions = {}) {
-  const rawTension = evaluateMath(plotOptions.tension ?? 0.5, {});
-  const tension = Number.isFinite(rawTension) && rawTension > 0 ? Math.min(rawTension, 3) : 1;
-  const factor = tension * 0.2775;
-  const parts = [formatAxisPoint(points[0])];
-  let first = points[0];
-  let second = points[1];
-  let firstSupport = { ...first };
-  for (let index = 2; index < points.length; index += 1) {
-    const current = points[index];
-    const support = {
-      x: (current.x - first.x) * factor,
-      y: (current.y - first.y) * factor
-    };
-    const secondSupport = {
-      x: second.x - support.x,
-      y: second.y - support.y
-    };
-    parts.push(`.. controls ${formatAxisPoint(firstSupport)} and ${formatAxisPoint(secondSupport)} .. ${formatAxisPoint(second)}`);
-    firstSupport = {
-      x: second.x + support.x,
-      y: second.y + support.y
-    };
-    first = second;
-    second = current;
-  }
-  parts.push(`.. controls ${formatAxisPoint(firstSupport)} and ${formatAxisPoint(second)} .. ${formatAxisPoint(second)}`);
-  return parts.join(" ");
+  return smoothPointChain(points, false, plotOptions);
 }
 
 export function smoothAxisCyclePointChain(points, plotOptions = {}) {
-  if (points.length < 3) return `${points.map(formatAxisPoint).join(" -- ")} -- cycle`;
-  const rawTension = evaluateMath(plotOptions.tension ?? 0.5, {});
-  const tension = Number.isFinite(rawTension) && rawTension > 0 ? Math.min(rawTension, 3) : 1;
-  const factor = tension * 0.2775;
-  const parts = [formatAxisPoint(points[0])];
-  for (let index = 0; index < points.length; index += 1) {
-    const previous = points[(index - 1 + points.length) % points.length];
-    const current = points[index];
-    const next = points[(index + 1) % points.length];
-    const after = points[(index + 2) % points.length];
-    const firstSupport = {
-      x: current.x + (next.x - previous.x) * factor,
-      y: current.y + (next.y - previous.y) * factor
-    };
-    const secondSupport = {
-      x: next.x - (after.x - current.x) * factor,
-      y: next.y - (after.y - current.y) * factor
-    };
-    parts.push(`.. controls ${formatAxisPoint(firstSupport)} and ${formatAxisPoint(secondSupport)} .. ${formatAxisPoint(next)}`);
+  return smoothPointChain(points, true, plotOptions);
+}
+
+function smoothPointChain(points, closed, plotOptions, axisOptions = {}) {
+  let tension;
+  for (const layer of [axisOptions, plotOptions]) {
+    for (const [key, raw] of Object.entries(layer)) {
+      if (key === "tension" || key === "/tikz/tension") tension = evaluateMath(raw, {});
+    }
   }
-  parts.push("-- cycle");
-  return parts.join(" ");
+  return formatAxisPathCommands(smoothPlotCommands(points, { closed, tension }));
 }

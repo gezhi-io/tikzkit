@@ -1,5 +1,6 @@
 import { splitTopLevel, stripOuterBraces, stripTexComments, tikzBoolean } from "../engine/options.js";
 import { axisNumber, parsePgfplotsPointMeta } from "./coordinates.js";
+import { pgfplotsEmptyLineBreaks } from "./compat.js";
 
 export function parsePlotFilePoints(text, globalOptions, plotOptions, fileOptions) {
   const { skipFirst, pointMeta, breakOnEmpty, commentChars } = plotFileSettings(globalOptions, plotOptions, fileOptions);
@@ -65,6 +66,6 @@ function plotFileSettings(globalOptions, plotOptions, fileOptions) {
       else if (key === "table/comment chars") commentChars = splitTopLevel(String(value));
     }
   }
-  const breakOnEmpty = emptyLine === "auto" ? !["pre 1.3", "1.3"].includes(compat) : ["jump", "nan"].includes(emptyLine);
+  const breakOnEmpty = pgfplotsEmptyLineBreaks(emptyLine, compat);
   return { skipFirst, pointMeta, breakOnEmpty, commentChars };
 }

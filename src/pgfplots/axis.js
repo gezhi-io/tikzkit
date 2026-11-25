@@ -11,7 +11,7 @@ export function createAxisModel({ axisOptions = {}, addplots = [], ranges = {}, 
   const dataToCanvas = createDataToCanvasTransform({ ranges: normalizedRanges, geometry, axisOptions });
   const plots = addplots.map((plot, index) => ({
     ...createAddplotModel(plot, index),
-    mark: createPlotMarkModel(plot.options || {})
+    mark: createPlotMarkModel(plot.options || {}, axisOptions)
   }));
 
   return {

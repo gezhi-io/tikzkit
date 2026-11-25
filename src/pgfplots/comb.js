@@ -1,9 +1,10 @@
 import { formatAxisPoint, joinOptions } from "./format.js";
+import { axisPlotHandler } from "./plotHandler.js";
 import { selectPlotStyle } from "./plotStyle.js";
 
 export function isAxisCombPlot(axisOptions = {}, plotOptions = {}, axis = "y") {
   const key = axis === "x" ? "xcomb" : "ycomb";
-  return Boolean(axisOptions[key] || plotOptions[key]);
+  return axisPlotHandler(plotOptions, axisOptions) === key;
 }
 
 export function renderAxisComb(points, axisOptions = {}, ranges, geometry, plotOptions = {}, plotIndex = 0, orientation = "y") {

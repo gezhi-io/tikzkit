@@ -227,7 +227,7 @@ function extractBalanced(text, start, open, close) {
 function splitCycleListEntries(raw) {
   const text = String(raw || "").trim();
   const slashSeparated = splitCycleListByDoubleBackslash(text);
-  if (slashSeparated.length > 1) return slashSeparated;
+  if (slashSeparated.length > 1 || text.endsWith("\\\\")) return slashSeparated;
   return splitTopLevel(text, ",").map((entry) => entry.trim()).filter(Boolean);
 }
 

@@ -2508,9 +2508,13 @@ test("matches PGF smooth plot tension control points", () => {
 
   assert.deepEqual(diagnostics, []);
   assert.equal(curves.length, 3);
-  assert.deepEqual(curves[0], { type: "curveTo", x1: 0, y1: 0, x2: 0.445, y2: 1, x: 1, y: 1 });
-  assert.deepEqual(curves[1], { type: "curveTo", x1: 1.555, y1: 1, x2: 1.445, y2: 0, x: 2, y: 0 });
-  assert.deepEqual(curves[2], { type: "curveTo", x1: 2.555, y1: 0, x2: 3, y2: 1, x: 3, y: 1 });
+  // Integer sp from pdflatex (legacy-tension-one in the native plot trace).
+  const cm = 1864679;
+  assert.deepEqual(curves.map(c => [c.x1, c.y1, c.x2, c.y2, c.x, c.y].map(v => Math.round(v * cm))), [
+    [0, 0, 829796, cm, cm, cm],
+    [2899562, cm, 2694475, 0, 2 * cm, 0],
+    [4764241, 0, 3 * cm, cm, 3 * cm, cm]
+  ]);
 });
 
 test("interprets TikZ sine and cosine path operators as PGF cubic curves", () => {

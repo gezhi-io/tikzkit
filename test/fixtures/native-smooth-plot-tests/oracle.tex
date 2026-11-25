@@ -1,0 +1,42 @@
+\documentclass{article}
+\usepackage{tikz}
+\makeatletter
+\newwrite\tracefile
+\def\record#1{\immediate\write\tracefile{#1}}
+\def\ptvalue#1{\strip@pt\dimexpr#1\relax}
+\def\pair#1#2{\ptvalue{#1} \ptvalue{#2}}
+\def\sppair#1#2{\number\dimexpr#1\relax\space\number\dimexpr#2\relax}
+\def\tracepath{%
+  \begingroup
+  \pgfsyssoftpath@getcurrentpath\savedpath
+  \record{PATH}%
+  \def\pgfsyssoftpath@movetotoken##1##2{\record{M \sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@linetotoken##1##2{\record{L \sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@curvetosupportatoken##1##2{\edef\controla{\sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@curvetosupportbtoken##1##2{\edef\controlb{\sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@curvetotoken##1##2{\record{C \controla\space\controlb\space\sppair{##1}{##2}}}%
+  \def\pgfsyssoftpath@closepathtoken##1##2{\record{Z}}%
+  \savedpath
+  \endgroup
+}
+% Same observation point as TikZ's "save path", before stroking/driver optimizations.
+\tikzset{trace softpath/.code={\tikz@addmode{\tracepath}},
+  every path/.append style={trace softpath},
+  every picture/.append style={execute at end picture={%
+    \ifdim\pgf@picminx>\pgf@picmaxx
+      \record{BOX empty}%
+    \else
+      \record{BOX \pair{\pgf@picminx}{\pgf@picminy} \pair{\pgf@picmaxx}{\pgf@picmaxy}}%
+    \fi}}}
+\newcommand\Case[2]{%
+  \record{CASE #1}%
+  \setbox0=\hbox{\ignorespaces#2\unskip}%
+  \record{SIZE \pair{\wd0}{\ht0+\dp0}}%
+}
+\makeatother
+\begin{document}
+\immediate\openout\tracefile=\jobname.trace
+\record{SP-PER-PT-CM \sppair{1pt}{1cm}}
+\input{cases.tex}
+\immediate\closeout\tracefile
+\end{document}

@@ -174,3 +174,8 @@ texPackage.features.push("Ordinary rectangle node outlines separate the painted 
 texPackage.implementedBy += " + src/tikz/doubleStroke.js + src/renderers/svg/rectangleNode.js + src/renderers/svg/bounds.js:strokePadding";
 texPackage.localSourceReviewedLatest += "; pgfmoduleshapes.code.tex:881-1102 (rectangle anchors and background); pgfcorepathconstruct.code.tex:1039-1104 and pgfcorepathprocessing.code.tex:371-427 (signed corners); tikz.code.tex:192-233 and pgfcorepathusage.code.tex:107-167,254-265 (double pens and canvas bounds)";
 texPackage.registryNoteSuffixLatest += " Ordinary rectangles keep their background centerline separate from outer sep, rounded corner insets and the painted pen. Two-pass strokes use the configured gap or line-center distance. Browser and native evidence: docs/qa/2026-11-25-native-rectangle-outlines.md.";
+
+texPackage.features.push("Open and periodic smooth plots on coordinate lists and sampled functions");
+texPackage.implementedBy += " + src/tikz/pathOperations/plot.js + src/pgf/smoothPlot.js:smoothPlotCommands";
+texPackage.localSourceReviewedLatest += "; tikz.code.tex:1225-1316,3330-3440 (ordered plot keys, samples and saved pen); pgfmoduleplot.code.tex:66,185-267 (first action and polygon); pgflibraryplothandlers.code.tex:13-269 (open and periodic cubic supports)";
+texPackage.registryNoteSuffixLatest += " Coordinate and sampled plots share PGF's open and periodic cubic handlers, including signed tension, the cyclic start and the open connector. Evidence and limits: docs/qa/2026-11-26-native-smooth-plots.md.";

@@ -2193,6 +2193,14 @@ function parsePlotCoordinateList(text) {
   let cursor = 0;
   while (cursor < text.length) {
     cursor = skipWhitespace(text, cursor);
+    if (text[cursor] === "+") {
+      const relative = parseCurveCoordinate(text, cursor);
+      if (relative) {
+        coordinates.push(relative.raw);
+        cursor = relative.end;
+        continue;
+      }
+    }
     if (text[cursor] !== "(") {
       cursor += 1;
       continue;

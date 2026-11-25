@@ -20,6 +20,18 @@ export function formatAxisPoint(point) {
   return `(${formatAxisCoordinate(point.x)},${formatAxisCoordinate(point.y)})`;
 }
 
+export function formatAxisPathCommands(commands) {
+  return commands.map((command) => {
+    if (command.type === "moveTo") return formatAxisPoint(command);
+    if (command.type === "lineTo") return `-- ${formatAxisPoint(command)}`;
+    if (command.type === "curveTo") {
+      return `.. controls ${formatAxisPoint({ x: command.x1, y: command.y1 })} and ${formatAxisPoint({ x: command.x2, y: command.y2 })} .. ${formatAxisPoint(command)}`;
+    }
+    if (command.type === "closePath") return "-- cycle";
+    return "";
+  }).filter(Boolean).join(" ");
+}
+
 export function formatAxisCoordinate(value) {
   // Physical coordinates are not tick labels. Rounding them to .001cm
   // moves grid/plot strokes away from the unrounded clipping rectangle.

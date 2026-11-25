@@ -5,6 +5,7 @@ import { pgfplotsCompatAtLeast, pgfplotsCompatLevel } from "./compat.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { isPgfplotsIntervalPlot, pgfplotsIntervalDataPoints } from "./intervalPlots.js";
 import { filledPlotPaint } from "./filledPlotPaint.js";
+import { axisPlotHandler } from "./plotHandler.js";
 import { sampleFunctionDataPoints } from "./rangeResolver.js";
 import { pgfplotsStackAxis } from "./stackedPlots.js";
 
@@ -25,13 +26,8 @@ export function sampleFunctionBars(plots, axisOptions, options = {}) {
 
 export function isAxisBarPlot(axisOptions = {}, plotOptions = {}, axis = "y") {
   const key = axis === "x" ? "xbar" : "ybar";
-  const handler = plotOptions["pgfplots histogram handler"];
-  if (handler) return handler === key || handler === key + " interval";
-  if (plotOptions[key] || isPgfplotsIntervalPlot({}, plotOptions, axis)) return true;
-  const other = axis === "x" ? "y" : "x";
-  if (hasExplicitLinePlotHandler(plotOptions) || plotOptions["only marks"] || plotOptions[other + "bar"] ||
-    isPgfplotsIntervalPlot({}, plotOptions, other) || plotOptions.ycomb || plotOptions.xcomb) return false;
-  return Boolean(axisOptions[key] || isPgfplotsIntervalPlot(axisOptions, {}, axis));
+  const handler = axisPlotHandler(plotOptions, axisOptions);
+  return handler === key || handler === key + " interval";
 }
 
 // Count a handler's plots once, in source order, before the paint order can
@@ -211,21 +207,6 @@ function axisBarCanvasShift(raw, orientation, geometry, ranges) {
   // PGFPlots applies a dimensionless TikZ plot shift in one tenth of the
   // current category vector; explicit dimensions remain literal canvas units.
   return amount * unit / 10;
-}
-
-function hasExplicitLinePlotHandler(plotOptions = {}) {
-  return [
-    "smooth",
-    "smooth cycle",
-    "sharp plot",
-    "const plot",
-    "const plot mark left",
-    "const plot mark mid",
-    "const plot mark right",
-    "jump mark left",
-    "jump mark mid",
-    "jump mark right"
-  ].some((key) => optionIsEnabled(plotOptions[key]));
 }
 
 function optionIsEnabled(value) {

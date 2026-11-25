@@ -10,16 +10,11 @@ import { renderAxisErrorBars } from "./errorBarPaint.js";
 import {
   axisPlotPointChain,
   clampAxisBaseline,
-  parametricBaselineClosedPoints,
+  isSmoothAxisPlot,
   splitAxisPlotPointRuns,
   shouldRenderAxisPlotPath
 } from "./plotPath.js";
-import {
-  plotFillOpacityOption,
-  selectPlotColor,
-  selectPlotFillStyle,
-  selectPlotStyle
-} from "./plotStyle.js";
+import { selectPlotColor, selectPlotStyle } from "./plotStyle.js";
 import {
   isSurfacePlot,
   parseDomain,
@@ -42,12 +37,19 @@ import {
 import { axisPointIsValidForScale } from "./logAxis.js";
 import { stackedClosedCyclePointChain } from "./areaPlots.js";
 import { applyAxisClipOption, axisClipRectangle, axisViewportClipOption } from "./clipping.js";
+import { transformAxisStatementCoordinates } from "./axisOverlay.js";
+import { pgfplotsCompatLevel, pgfplotsEmptyLineBreaks } from "./compat.js";
+
+const plotTransformKey = /^(?:scale|[xy]scale|[xy]slant|rotate|(?:scale|rotate) around|[xy]?shift|cm)$/;
 
 export function renderAddplot(plot, axisOptions, ranges, geometry, options, plotIndex = 0, afterAxisMarks = null) {
   if (plot.matrixSurvey) return renderMatrixPlot(plot, axisOptions, ranges, geometry, afterAxisMarks);
   if (plot.boxplot) return renderBoxplot(plot, axisOptions, ranges, geometry, plotIndex, afterAxisMarks, renderAxisPlotMarks);
-  const commands = renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex, afterAxisMarks);
-  if (!isSurfacePlot(plot, axisOptions) && !axisOptions.patch && !plot.options?.patch) return commands;
+  const scope = linePlotTransformScope(plot, axisOptions, ranges, geometry);
+  const later = scope.length && afterAxisMarks ? [] : afterAxisMarks;
+  const commands = renderAddplotContent(plot, axisOptions, ranges, geometry, options, plotIndex, later);
+  if (later !== afterAxisMarks) afterAxisMarks.push(...inPlotScope(later, scope));
+  if (!isSurfacePlot(plot, axisOptions) && !axisOptions.patch && !plot.options?.patch) return inPlotScope(commands, scope);
   // Native PGFPlots clips both surface fill and mesh strokes to the projected
   // axis hull. Axis descriptions are lowered separately and remain unclipped.
   const clip = axisViewportClipOption(axisOptions, ranges, geometry);
@@ -71,12 +73,14 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisSurfaceCoordinatePlot(plot, axisOptions, ranges, geometry, plotIndex);
     }
-    const dataPoints = plot.points.filter((point) => !point.stackIgnored && axisPointIsValidForScale(point, axisOptions));
+    const rows = plot.coordinateRows ?? plot.points.rows;
+    const breakAtRows = rows?.length > 1 && pgfplotsEmptyLineBreaks(plot.options["empty line"] ?? axisOptions["empty line"],
+      plot.options["compat/empty line"] ?? axisOptions["compat/empty line"] ?? pgfplotsCompatLevel(axisOptions, plot.options));
+    const stream = breakAtRows ? rows.flatMap((row, i) =>
+      i && row.length ? [{ ...row[0], breakBefore: true }, ...row.slice(1)] : row) : plot.points;
+    const dataPoints = validPlotSamples(stream.filter(point => !point.stackIgnored), plot, axisOptions);
     const visiblePlot = { ...plot, points: dataPoints };
-    const mappedPoints = dataPoints.map((point) => {
-      const mapped = plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point);
-      return point.breakBefore ? { ...mapped, breakBefore: true } : mapped;
-    });
+    const mappedPoints = mapPlotPoints(dataPoints, plot, geometry);
     const commands = [];
     const histPaint = plot.options["pgfplots histogram"] ? filledPlotPaint(plot.options, axisOptions) : null;
     const barAxis = ["y", "x"].find(axis => isAxisBarPlot(axisOptions, plot.options, axis));
@@ -85,7 +89,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const clip = plot.barGroup || histPaint ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
       commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
       commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, barAxis, layout));
-      if (shouldRenderPlotMarks(plot.options)) {
+      if (shouldRenderPlotMarks(plot.options, axisOptions)) {
         // PGF marks the surveyed coordinate, not the shifted bar rectangle.
         (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry,
           plotIndex, (histPaint ?? filledPlotPaint(plot.options, axisOptions)).mark));
@@ -93,52 +97,17 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex, layout));
       return commands;
     }
-    if (plot.closedCycle && mappedPoints.length) {
-      const style = joinOptions([
-        "axis plot",
-        "axis closed cycle",
-        histPaint?.style ?? joinOptions([selectPlotStyle(plot.options, plotIndex),
-          filledPlotPaint(plot.options, axisOptions).fillStyle, plotFillOpacityOption(plot.options)]),
-        pgfplotsNamePathOption(plot.options),
-        pgfplotsPlotClipOption(axisOptions, geometry)
-      ]);
-      let pointChain = stackedClosedCyclePointChain(
-        plot,
-        dataPoints,
-        mappedPoints,
-        axisOptions,
-        geometry,
-        ranges
-      );
-      if (!pointChain && histPaint) {
-        const { yMin, yMax } = axisPlotClipRanges(ranges, geometry);
-        const baseline = clampAxisBaseline(0, yMin, yMax);
-        const base = p => formatAxisPoint(geometry.mapPoint({ x: p.x, y: baseline }));
-        pointChain = [axisPlotPointChain(mappedPoints, axisOptions, plot.options),
-          base(dataPoints.at(-1)), base(dataPoints[0]), "cycle"].join(" -- ");
-      }
-      pointChain ||= mappedPoints.map(formatAxisPoint).concat("cycle").join(" -- ");
-      commands.push(`\\draw[${style}] ${pointChain};`);
-    }
-    if (isAxisCombPlot(axisOptions, plot.options, "y")) {
-      commands.push(...renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
+    const combAxis = ["y", "x"].find(axis => isAxisCombPlot(axisOptions, plot.options, axis));
+    if (combAxis) {
+      commands.push(...renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, combAxis));
       commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
-      if (shouldRenderPlotMarks(plot.options)) (afterAxisMarks ?? commands).push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+      if (shouldRenderPlotMarks(plot.options, axisOptions)) (afterAxisMarks ?? commands).push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
       (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
     }
-    const fillOnly = histPaint && histPaint.fillStyle !== "fill=none" && !plot.options["only marks"];
-    if (!plot.closedCycle && (shouldRenderAxisPlotPath(plot.options) || fillOnly) && mappedPoints.length) {
-      const style = joinOptions([
-        "axis plot",
-        histPaint?.style ?? selectPlotStyle(plot.options, plotIndex),
-        pgfplotsNamePathOption(plot.options),
-        pgfplotsPlotClipOption(axisOptions, geometry)
-      ]);
-      commands.push(`\\draw[${style}] ${axisPlotPointChain(mappedPoints, axisOptions, plot.options)};`);
-    }
+    commands.push(...renderLinePlotPath(plot, dataPoints, mappedPoints, axisOptions, ranges, geometry, plotIndex, histPaint));
     commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
-    if (shouldRenderPlotMarks(plot.options)) {
+    if (shouldRenderPlotMarks(plot.options, axisOptions)) {
       (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, histPaint?.mark));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, mappedPoints, selectPlotColor(plot.options, plotIndex)));
@@ -155,38 +124,18 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     const sampled = functionPlotPoints(plot, axisOptions, ranges, geometry, options);
     if (!sampled) return [];
     const { clipRanges, dataPoints, visibleDataPoints, points } = sampled;
-    if (isAxisCombPlot(axisOptions, plot.options, "y")) {
-      const combDataPoints = clipAxisCombDataPoints(dataPoints, clipRanges);
+    const combAxis = ["y", "x"].find(axis => isAxisCombPlot(axisOptions, plot.options, axis));
+    if (combAxis) {
+      const combDataPoints = combAxis === "y" ? clipAxisCombDataPoints(dataPoints, clipRanges) : dataPoints;
       const points = combDataPoints.map((point) => geometry.mapPoint(point));
-      const commands = renderAxisComb(combDataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y");
+      const commands = renderAxisComb(combDataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, combAxis);
       commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
-      if (shouldRenderPlotMarks(plot.options)) (afterAxisMarks ?? commands).push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
+      if (shouldRenderPlotMarks(plot.options, axisOptions)) (afterAxisMarks ?? commands).push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
       return commands;
     }
-    const commands = [];
-    if (plot.closedCycle && visibleDataPoints.length) {
-      const baselineY = clampAxisBaseline(0, clipRanges.yMin, clipRanges.yMax);
-      const fillStyle = joinOptions(["axis closed cycle", filledPlotPaint(plot.options, axisOptions).fillStyle, plotFillOpacityOption(plot.options), "draw=none"]);
-      for (const run of splitAxisPlotPointRuns(visibleDataPoints)) {
-        const first = run[0];
-        const last = run[run.length - 1];
-        const closedPoints = [
-          geometry.mapPoint({ x: first.x, y: baselineY }),
-          ...run.map((point) => geometry.mapPoint(point)),
-          geometry.mapPoint({ x: last.x, y: baselineY })
-        ];
-        commands.push(`\\draw[${fillStyle}] ${closedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
-      }
-    }
-    const style = joinOptions([
-      "axis plot",
-      selectPlotStyle(plot.options, plotIndex),
-      pgfplotsNamePathOption(plot.options),
-      pgfplotsPlotClipOption(axisOptions, geometry)
-    ]);
-    if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
+    const commands = renderLinePlotPath(plot, visibleDataPoints, points, axisOptions, ranges, geometry, plotIndex);
     commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
-    if (shouldRenderPlotMarks(plot.options)) {
+    if (shouldRenderPlotMarks(plot.options, axisOptions)) {
       (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
@@ -196,32 +145,12 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     if (isSurfacePlot(plot, axisOptions)) {
       return renderAxisParametricSurfacePlot(plot, axisOptions, ranges, geometry, options, plotIndex);
     }
-    const clipRanges = axisPlotClipRanges(ranges, geometry);
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
-    const visibleDataPoints = plot.is3d
-      ? dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions) && axisPoint3dInRange(point, ranges))
-      : visibleAxisDataPoints(dataPoints, axisOptions, clipRanges);
-    const points = visibleDataPoints.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
-    const commands = [];
-    if (!plot.is3d && (plot.fillAnchor || plot.closedCycle || plot.options.fill) && points.length) {
-      const closedPoints = plot.fillAnchor
-        ? [...points, geometry.mapPoint(plot.fillAnchor)]
-        : parametricBaselineClosedPoints(visibleDataPoints, points, clipRanges, geometry);
-      const paint = plot.fillAnchor && plot.options.fill === undefined &&
-        plot.options.pattern === undefined && plot.options["/tikz/pattern"] === undefined
-        ? selectPlotFillStyle(plot.options, plotIndex) : filledPlotPaint(plot.options, axisOptions).fillStyle;
-      const fillStyle = joinOptions(["axis closed cycle", paint, plotFillOpacityOption(plot.options), "draw=none"]);
-      commands.push(`\\draw[${fillStyle}] ${closedPoints.map(formatAxisPoint).join(" -- ")} -- cycle;`);
-    }
-    const style = joinOptions([
-      "axis plot",
-      selectPlotStyle(plot.options, plotIndex),
-      pgfplotsNamePathOption(plot.options),
-      pgfplotsPlotClipOption(axisOptions, geometry)
-    ]);
-    if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
+    const visibleDataPoints = visiblePlotSamples(dataPoints, plot, axisOptions, axisPlotClipRanges(ranges, geometry));
+    const points = mapPlotPoints(visibleDataPoints, plot, geometry);
+    const commands = renderLinePlotPath(plot, visibleDataPoints, points, axisOptions, ranges, geometry, plotIndex);
     commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
-    if (shouldRenderPlotMarks(plot.options)) {
+    if (shouldRenderPlotMarks(plot.options, axisOptions)) {
       (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, points, selectPlotColor(plot.options, plotIndex)));
@@ -230,13 +159,70 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
   return [];
 }
 
+function renderLinePlotPath(plot, dataPoints, points, axisOptions, ranges, geometry, plotIndex, histPaint) {
+  if (!points.length) return [];
+  const opts = plot.options;
+  const painted = histPaint || (plot.closedCycle || opts.fill !== undefined || opts.pattern || opts["/tikz/pattern"]
+    ? filledPlotPaint(opts, axisOptions) : null);
+  const drawPath = shouldRenderAxisPlotPath(opts, axisOptions);
+  if (!drawPath && (!painted || painted.fillStyle === "fill=none")) return [];
+  const limits = axisPlotClipRanges(ranges, geometry);
+  let path = plot.closedCycle && stackedClosedCyclePointChain(plot, dataPoints, points, axisOptions, geometry, limits);
+  if (!path) {
+    path = axisPlotPointChain(points, axisOptions, opts);
+    if (!path) return [];
+    if (plot.fillAnchor) path += " -- " + formatAxisPoint(geometry.mapPoint(plot.fillAnchor));
+    if (plot.closedCycle) {
+      // PGFPlots appends |- (first data x, zero y) -- cycle *after* the
+      // entire plot stream. Even a cyclic handler uses the last data x here.
+      const zero = clampAxisBaseline(0, limits.yMin, limits.yMax);
+      const y = geometry.mapPoint({ x: dataPoints[0].x, y: zero }).y;
+      path += ` -- ${formatAxisPoint({ x: points.at(-1).x, y })} -- ${formatAxisPoint({ x: points[0].x, y })} -- cycle`;
+    }
+  }
+  if (plot.pathCycle) path += " -- cycle";
+  const areaRole = plot.fillAnchor || (plot.closedCycle && (plot.type === "coordinates" || !drawPath));
+  const style = joinOptions(["axis plot", areaRole && "axis closed cycle",
+    painted?.style ?? selectPlotStyle(opts, plotIndex), pgfplotsNamePathOption(opts), pgfplotsPlotClipOption(axisOptions, geometry)]);
+  return [`\\draw[${style}] ${path};`];
+}
+
+function mapPlotPoints(points, plot, geometry) {
+  return points.map(point => {
+    const mapped = plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point);
+    return point.breakBefore ? { ...mapped, breakBefore: true } : mapped;
+  });
+}
+
+function linePlotTransformScope(plot, axis, ranges, geometry) {
+  const keys = Object.entries(plot.options || {}).map(([key, value]) => [key.replace(/^\/tikz\//, ""), value])
+    .filter(([key]) => plotTransformKey.test(key));
+  if (!keys.length || plot.boxplot || plot.matrixSurvey || isSurfacePlot(plot, axis) || axis.patch || plot.options.patch ||
+      ["x", "y"].some(dir => isAxisBarPlot(axis, plot.options, dir) || isAxisCombPlot(axis, plot.options, dir))) return [];
+  // PGF transforms the plot in the axis' local frame. The lowered points
+  // already include axis placement and reversal; keep that origin fixed.
+  const r = geometry.transformRanges || ranges;
+  const min = { x: r.xMin, y: r.yMin, z: r.zMin };
+  const origin = plot.is3d ? geometry.mapPoint3d(min) : geometry.mapPoint(min);
+  const transform = keys.map(([key, value]) =>
+    `${key}={${transformAxisStatementCoordinates(value, r, geometry, origin)}}`).join(",");
+  if (!origin.x && !origin.y) return [transform];
+  return ["shift={" + formatAxisPoint(origin) + "}", transform,
+    "shift={" + formatAxisPoint({ x: -origin.x, y: -origin.y }) + "}"];
+}
+
+function inPlotScope(commands, scope) {
+  return scope.length && commands.length ? [...scope.map(options => "{[" + options + "]"), ...commands,
+    ...scope.map(() => "}")] : commands;
+}
+
 export function renderCurrentPlotCoordinates(plot, axisOptions, ranges, geometry, options = {}) {
   const points = currentPlotMappedPoints(plot, axisOptions, ranges, geometry, options);
   if (!points.length) return [];
-  return [
+  return inPlotScope([
     `\\coordinate (current plot begin) at ${formatAxisPoint(points[0])};`,
     `\\coordinate (current plot end) at ${formatAxisPoint(points[points.length - 1])};`
-  ];
+  ], linePlotTransformScope(plot, axisOptions, ranges, geometry));
 }
 
 export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, options = {}) {
@@ -253,10 +239,7 @@ export function currentPlotMappedPoints(plot, axisOptions, ranges, geometry, opt
   if (plot.type === "parametric" && !isSurfacePlot(plot, axisOptions)) {
     const clipRanges = axisPlotClipRanges(ranges, geometry);
     const dataPoints = sampleParametricDataPoints(plot, axisOptions, options);
-    const visible = plot.is3d
-      ? dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions) && axisPoint3dInRange(point, ranges))
-      : visibleAxisDataPoints(dataPoints, axisOptions, clipRanges);
-    return visible.map((point) => plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point));
+    return mapPlotPoints(visiblePlotSamples(dataPoints, plot, axisOptions, clipRanges), plot, geometry);
   }
   return [];
 }
@@ -269,20 +252,43 @@ function functionPlotPoints(plot, axisOptions, ranges, geometry, options) {
     pgfplotsSamples: options.pgfplotsSamples || 25,
     pgfplotsMaxSamples: 1200
   });
-  const validDataPoints = dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions));
-  const visibleDataPoints = pgfplotsClipEnabled(axisOptions)
-    ? clipAxisDataPointsToRanges(validDataPoints, clipRanges)
-    : validDataPoints;
+  const validDataPoints = validPlotSamples(dataPoints, plot, axisOptions);
+  const visibleDataPoints = clipPlotSamples(validDataPoints, plot, axisOptions, clipRanges);
   return {
     clipRanges,
     dataPoints: validDataPoints,
     visibleDataPoints,
-    points: visibleDataPoints.map((point) => ({ ...geometry.mapPoint(point), ...(point.breakBefore ? { breakBefore: true } : {}) }))
+    points: mapPlotPoints(visibleDataPoints, plot, geometry)
   };
 }
 
-function visibleAxisDataPoints(dataPoints, axisOptions, clipRanges) {
-  const valid = dataPoints.filter((point) => axisPointIsValidForScale(point, axisOptions));
+function validPlotSamples(dataPoints, plot, axisOptions) {
+  const jump = (plot.options["unbounded coords"] ?? axisOptions["unbounded coords"]) === "jump";
+  const valid = [];
+  let interrupted = false;
+  for (const point of dataPoints) {
+    if (!axisPointIsValidForScale(point, axisOptions)) {
+      interrupted = jump || interrupted || point.breakBefore;
+      continue;
+    }
+    valid.push(interrupted && valid.length ? { ...point, breakBefore: true } : point);
+    interrupted = false;
+  }
+  return valid;
+}
+
+function visiblePlotSamples(points, plot, axis, ranges) {
+  return clipPlotSamples(validPlotSamples(points, plot, axis), plot, axis, ranges);
+}
+
+function clipPlotSamples(valid, plot, axisOptions, clipRanges) {
+  // Clipping sampled chords invents spline tangents, cuts off area tails,
+  // and drops off-screen samples that a plot-local transform moves on-screen.
+  const opts = plot.options;
+  if (isSmoothAxisPlot(opts, axisOptions) || plot.closedCycle || plot.pathCycle || plot.fillAnchor ||
+      opts.fill || opts.pattern || opts["/tikz/pattern"] ||
+      Object.keys(opts).some(key => plotTransformKey.test(key.replace(/^\/tikz\//, "")))) return valid;
+  if (plot.is3d) return valid.filter(point => axisPoint3dInRange(point, clipRanges));
   return pgfplotsClipEnabled(axisOptions) ? clipAxisDataPointsToRanges(valid, clipRanges) : valid;
 }
 

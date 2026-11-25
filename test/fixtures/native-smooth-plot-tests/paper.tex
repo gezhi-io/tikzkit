@@ -1,0 +1,9 @@
+% Optional physical cross-check: one borderless PDF page per selected picture.
+\documentclass[tikz,border=0pt]{standalone}
+\newcommand\Case[2]{%
+  \ifnum\pdfstrcmp{#1}{tension-large-open}=0 #2\fi
+  \ifnum\pdfstrcmp{#1}{tension-large-closed}=0 #2\fi
+  \ifnum\pdfstrcmp{#1}{ordinary-plot}=0 #2\fi}
+\begin{document}
+\input{cases.tex}
+\end{document}

@@ -5500,11 +5500,16 @@ test("evaluates PGFPlots gauss helper used by GMHMM gallery nodes", () => {
 
   const result = tikzToSvg(source);
   const plot = result.ir.items.find((item) => item.subtype === "axis-plot");
-  const ys = plot.commands.map((command) => Math.round(command.y * 1000) / 1000);
-
   assert.deepEqual(result.diagnostics, []);
-  assert.ok(Math.max(...ys) > Math.min(...ys), `expected gauss(0,0.5) to produce a curve, got ${ys.join(",")}`);
-  assert.ok(ys[2] > ys[0], `expected gaussian peak near x=0, got ${ys.join(",")}`);
+  const samples = plot.commands.slice(0, 5);
+  const ys = samples.map(c => c.y);
+  assert.ok(ys.every(Number.isFinite) && ys[0] < ys[1] && ys[1] < ys[2]);
+  assert.equal(ys[0], ys[4]);
+  assert.equal(ys[1], ys[3]);
+  // PGFPlots closes to the zero level after the samples, not between them.
+  assert.deepEqual(plot.commands.slice(5), [
+    { type: "lineTo", x: samples[4].x, y: 0 }, { type: "lineTo", x: samples[0].x, y: 0 }, { type: "closePath" }
+  ]);
 });
 
 test("applies PGFPlots axis scale to generated geometry", () => {

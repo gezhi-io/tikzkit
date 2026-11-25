@@ -39,7 +39,7 @@ function lowerAxisOverlayStatement(statement, ranges, geometry) {
   return [transformAxisStatementCoordinates(statement, ranges, geometry)];
 }
 
-export function transformAxisStatementCoordinates(statement, ranges, geometry) {
+export function transformAxisStatementCoordinates(statement, ranges, geometry, origin) {
   const resolvedStatement = String(statement).replace(/\\pgfkeysvalueof\s*\{\s*\/pgfplots\/([xyz])\s*(min|max)\s*\}/gi, (_match, axis, bound) => {
     const key = `${axis.toLowerCase()}${bound.toLowerCase() === "min" ? "Min" : "Max"}`;
     return Number.isFinite(ranges[key]) ? String(ranges[key]) : "0";
@@ -72,7 +72,8 @@ export function transformAxisStatementCoordinates(statement, ranges, geometry) {
       ? mapRelativeAxisPoint({ x, y, z }, geometry, hasZ)
       : mapAxisPoint({ x, y, z }, geometry, hasZ);
     if (!point) return match;
-    return formatAxisPoint(point);
+    return formatAxisPoint(origin && normalizedCoordinateSystem !== "axis direction cs"
+      ? { x: point.x - origin.x, y: point.y - origin.y } : point);
   });
   return restoreOverlayMathText(transformed, protectedText.values);
 }

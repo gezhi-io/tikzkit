@@ -1,0 +1,15 @@
+% Christian Feuersanger, PGFPlots manual, pgfplots.reference.2dplots.tex:44-52.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}
+    \addplot+ [
+        smooth,
+    ] coordinates {
+        (0,0) (1,2) (2,3)
+    };
+\end{axis}
+\end{tikzpicture}
+\end{document}

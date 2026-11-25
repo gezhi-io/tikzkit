@@ -45,7 +45,6 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
     cursor = skipWhitespace(body, cursor);
     const statementEnd = findStatementEnd(body, cursor);
     const statement = body.slice(start, statementEnd === -1 ? body.length : statementEnd);
-    const closedCycle = /\\closedcycle\b/.test(statement);
     if (body.startsWith("coordinates", cursor)) {
       cursor += "coordinates".length;
       cursor = skipWhitespace(body, cursor);
@@ -60,8 +59,7 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
           points,
           coordinateRows: points.rows || [points],
           ...(points.rows?.invalid && { invalidCoordinateSource: true }),
-          nodes: parseAddplotInlineNodes(body.slice(coords.end, statementEnd === -1 ? body.length : statementEnd), options),
-          closedCycle
+          nodes: parseAddplotInlineNodes(body.slice(coords.end, statementEnd === -1 ? body.length : statementEnd), options)
         });
         cursor = coords.end;
       }
@@ -92,8 +90,7 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
           points,
           ...(points.invalidCoordinateSource && { invalidCoordinateSource: true }),
           ...(!is3d && points.rows?.length > 1 && { coordinateRows: points.rows }),
-          nodes: parseAddplotInlineNodes(body.slice(table.end, statementEnd === -1 ? body.length : statementEnd), options),
-          closedCycle
+          nodes: parseAddplotInlineNodes(body.slice(table.end, statementEnd === -1 ? body.length : statementEnd), options)
         });
         cursor = table.end;
       }
@@ -109,8 +106,7 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
           options: plotOptions,
           points: parsePlotFilePoints(text, { ...options.pgfplotsStyleOptions, ...options.pgfplotsAxisOptions },
             plotOptions, parseOptions(fileOptions.raw)),
-          nodes: parseAddplotInlineNodes(body.slice(file.end, statementEnd === -1 ? body.length : statementEnd), options),
-          closedCycle
+          nodes: parseAddplotInlineNodes(body.slice(file.end, statementEnd === -1 ? body.length : statementEnd), options)
         });
         cursor = file.end;
       }
@@ -128,8 +124,7 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
           options: plotOptions,
           gnuplotOptions: parseOptions(gnuplotOptions.raw),
           points: sampleRawGnuplotAddplot(gnuplot.content, diagnostics),
-          nodes: parseAddplotInlineNodes(body.slice(gnuplot.end, statementEnd === -1 ? body.length : statementEnd), options),
-          closedCycle
+          nodes: parseAddplotInlineNodes(body.slice(gnuplot.end, statementEnd === -1 ? body.length : statementEnd), options)
         });
         cursor = gnuplot.end;
       }
@@ -144,8 +139,7 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
           yExpression: parametric.yExpression,
           zExpression: parametric.zExpression,
           fillAnchor: parametric.fillAnchor,
-          nodes: parametric.nodes,
-          closedCycle
+          nodes: parametric.nodes
         });
         cursor = parametric.end;
       }
@@ -157,11 +151,15 @@ export function parseAddplots(body, options = {}, diagnostics = [], visitStateme
           is3d,
           options: plotOptions,
           expression: expression.content.trim(),
-          nodes: parseAddplotInlineNodes(body.slice(expression.end, statementEnd === -1 ? body.length : statementEnd), options),
-          closedCycle
+          nodes: parseAddplotInlineNodes(body.slice(expression.end, statementEnd === -1 ? body.length : statementEnd), options)
         });
         cursor = expression.end;
       }
+    }
+    if (plots[slot]) {
+      const tail = body.slice(cursor, statementEnd === -1 ? body.length : statementEnd);
+      plots[slot].closedCycle = /(?:^\s*\\closedcycle\b|\\closedcycle\s*$)/.test(tail);
+      if (/(?:^\s*--\s*cycle\b|--\s*cycle\s*$)/.test(tail)) plots[slot].pathCycle = true;
     }
     if (visitStatement) {
       const surveyed = visitStatement(body.slice(index, start), plots[slot], statement);

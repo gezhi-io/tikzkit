@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"smooth-manual-tensions","title":"Three closed curves: tension 0.2, 0.5, 1","source":"smooth-manual-tensions.tex","manual":"pgfmanual-en-tikz-plots.tex","lines":[558,565]},
+    {"id":"smooth-manual-cycle-sharp","title":"A smooth cycle followed by a sharp polygon","source":"smooth-manual-cycle-sharp.tex","manual":"pgfmanual-en-tikz-plots.tex","lines":[575,577],"expandTikz":true},
+    {"id":"smooth-manual-parametric","title":"An open parametric curve in radians","source":"smooth-manual-parametric.tex","manual":"pgfmanual-en-tikz-plots.tex","lines":[241,242],"expandTikz":true},
+    {"id":"smooth-pgfplots-manual","title":"PGFPlots: three observations and their marks","source":"smooth-pgfplots-manual.tex","manual":"pgfplots.reference.2dplots.tex","lines":[44,52]},
+    {"id":"smooth-open-extremes","title":"Open curves at tension zero (blue) and four (red)","source":"smooth-open-extremes.tex"},
+    {"id":"smooth-pgfplots-dashed-cycle","title":"PGFPlots: a dashed cycle on the same observations","source":"smooth-pgfplots-dashed-cycle.tex","variantOf":"smooth-pgfplots-manual"}
+  ]
+}

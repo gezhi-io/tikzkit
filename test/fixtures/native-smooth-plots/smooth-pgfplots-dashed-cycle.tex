@@ -1,0 +1,16 @@
+% Variant of Christian Feuersanger's PGFPlots smooth example, 2dplots:44-52.
+% Same data and axes; only the plot handler, tension and dash style change.
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}
+    \addplot+ [
+        smooth cycle, tension=1, dashed,
+    ] coordinates {
+        (0,0) (1,2) (2,3)
+    };
+\end{axis}
+\end{tikzpicture}
+\end{document}

@@ -270,6 +270,23 @@ or the [crossed pens](../test/fixtures/native-background-scopes/scopes-manual-cr
 The [visual comparison](qa/2026-11-26-native-background-scopes.md) shows both against native TeX.
 These background features are in the GitHub version.
 
+## Smooth curves
+
+Use `smooth` for a line through observations and `smooth cycle` for a
+continuous outline. A tension of one makes a four-point circle approximation:
+
+```tex
+\begin{tikzpicture}
+  \draw[blue, thick, dashed] plot[smooth cycle, tension=1]
+    coordinates {(1,0) (0,1) (-1,0) (0,-1)};
+\end{tikzpicture}
+```
+
+Try the [three tensions](../test/fixtures/native-smooth-plots/smooth-manual-tensions.tex)
+or the [sampled parametric curve](../test/fixtures/native-smooth-plots/smooth-manual-parametric.tex).
+The [native comparison](qa/2026-11-26-native-smooth-plots.md) covers the browser and exported SVG.
+This update is in the GitHub version.
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

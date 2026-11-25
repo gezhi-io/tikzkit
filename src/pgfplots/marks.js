@@ -1,6 +1,7 @@
 import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
-import { formatAxisCoordinate, formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
+import { formatAxisCoordinate, formatAxisNumber, formatAxisPathCommands, formatAxisPoint, joinOptions } from "./format.js";
+import { axisPlotHandler } from "./plotHandler.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
 import {
   basicPlotMarkGeometry,
@@ -15,21 +16,22 @@ import {
   transformPlotMarkCommands
 } from "../tikz/libraries/plotmarks.js";
 
-export function createPlotMarkModel(plotOptions = {}) {
-  const raw = plotOptions.mark ?? (plotOptions["only marks"] ? "*" : "none");
+export function createPlotMarkModel(plotOptions = {}, axisOptions = {}) {
+  const onlyMarks = axisPlotHandler(plotOptions, axisOptions) === "only marks";
+  const raw = plotOptions.mark ?? (onlyMarks ? "*" : "none");
   return {
     mark: raw === true ? "*" : String(raw || "none"),
-    onlyMarks: Boolean(plotOptions["only marks"]),
+    onlyMarks,
     size: plotOptions["mark size"] || "2pt"
   };
 }
 
-export function shouldRenderPlotMarks(options = {}) {
+export function shouldRenderPlotMarks(options = {}, axisOptions = {}) {
   if (options["no markers"] || String(options.mark || "").trim().toLowerCase() === "none") return false;
   // `\addplot+` only says that the active cycle-list style is appended to
   // this plot. It does not itself request a marker. A custom cycle list may
   // contain only color/dash entries, and `mark={}` explicitly disables one.
-  return Boolean(options["only marks"] || options.scatter || options.mark);
+  return Boolean(options.scatter || options.mark || axisPlotHandler(options, axisOptions) === "only marks");
 }
 
 export function scatterClassOptionsForPoint(options = {}, point = {}) {
@@ -85,18 +87,18 @@ export function renderPlotMark(point, options = {}, plotIndex = 0, inks) {
           ? filledStyle
           : fillOnlyStyle
         : strokedStyle;
-      return `${operation.fill && !operation.stroke ? "\\fill" : "\\draw"}[${style}] ${formatPlotMarkCommands(commands)};`;
+      return `${operation.fill && !operation.stroke ? "\\fill" : "\\draw"}[${style}] ${formatAxisPathCommands(commands)};`;
     }).join("");
   }
   if (mark === "x") {
     const diagonal = size / Math.SQRT2;
-    return `\\draw[${strokedStyle}] ${formatPlotMarkCommands(transformPlotMarkCommands([
+    return `\\draw[${strokedStyle}] ${formatAxisPathCommands(transformPlotMarkCommands([
       markMove(point, -diagonal, -diagonal), markLine(point, diagonal, diagonal),
       markMove(point, -diagonal, diagonal), markLine(point, diagonal, -diagonal)
     ], point, localOptions))};`;
   }
   if (mark === "+") {
-    return `\\draw[${strokedStyle}] ${formatPlotMarkCommands(transformPlotMarkCommands([
+    return `\\draw[${strokedStyle}] ${formatAxisPathCommands(transformPlotMarkCommands([
       markMove(point, -size, 0), markLine(point, size, 0),
       markMove(point, 0, -size), markLine(point, 0, size)
     ], point, localOptions))};`;
@@ -227,7 +229,7 @@ function formatPlotMarkGeometry(geometry, point, localOptions = {}) {
     return formatPlacedPlotMarkGeometry(placePlotMarkGeometry(geometry, point, plotMarkRotation(localOptions)));
   }
   const commands = plotMarkGeometryCommands(geometry, point);
-  return formatPlotMarkCommands(transformPlotMarkCommands(commands, point, localOptions));
+  return formatAxisPathCommands(transformPlotMarkCommands(commands, point, localOptions));
 }
 
 function formatPlacedPlotMarkGeometry(placed) {
@@ -252,18 +254,6 @@ function plotMarkHasAffineTransform(options = {}) {
     .some((key) => options[key] !== undefined);
 }
 
-function formatPlotMarkCommands(commands) {
-  return commands.map((command) => {
-    if (command.type === "moveTo") return formatAxisPoint(command);
-    if (command.type === "lineTo") return `-- ${formatAxisPoint(command)}`;
-    if (command.type === "curveTo") {
-      return `.. controls ${formatAxisPoint({ x: command.x1, y: command.y1 })} and ${formatAxisPoint({ x: command.x2, y: command.y2 })} .. ${formatAxisPoint(command)}`;
-    }
-    if (command.type === "closePath") return "-- cycle";
-    return "";
-  }).filter(Boolean).join(" ");
-}
-
 function stripOptionBraces(value) {
   const text = String(value || "").trim();
   return text.startsWith("{") && text.endsWith("}") ? text.slice(1, -1).trim() : text;
@@ -286,7 +276,7 @@ function datavisualizationAxisMercedesMark(point, style, mark, size, localOption
     { type: "moveTo", x: point.x, y: point.y },
     markLine(point, Math.cos((angle * Math.PI) / 180) * size, Math.sin((angle * Math.PI) / 180) * size)
   ]);
-  const spokes = formatPlotMarkCommands(transformPlotMarkCommands(commands, point, localOptions));
+  const spokes = formatAxisPathCommands(transformPlotMarkCommands(commands, point, localOptions));
   return `\\draw[${style}] ${spokes};`;
 }
 

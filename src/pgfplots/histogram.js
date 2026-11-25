@@ -11,7 +11,7 @@ export { isPgfplotsIntervalPlot, normalizePgfplotsHandlerOptions, pgfplotsInterv
 
 const handlers = new Set(["ybar interval", "xbar interval", "ybar", "xbar", "sharp plot", "const plot",
   "const plot mark left", "const plot mark right", "const plot mark mid", "jump mark left", "jump mark right",
-  "jump mark mid", "only marks", "smooth"]);
+  "jump mark mid", "only marks", "smooth", "smooth cycle", "sharp cycle"]);
 
 function optionMap(value) {
   if (value && typeof value === "object") return value;

@@ -1,13 +1,11 @@
-const barHandlers = new Set(["xbar", "xbar interval", "ybar", "ybar interval"]);
+import { axisPlotHandler } from "./plotHandler.js";
 
 export function normalizePgfplotsHandlerOptions(options = {}) {
-  const normalized = { ...options };
-  for (const [key, value] of Object.entries(options)) {
-    const tikzKey = key.match(/^\/tikz\/(.+)$/)?.[1];
-    if (!barHandlers.has(tikzKey)) continue;
-    if (tikzKey.endsWith(" interval")) continue;
-    if (normalized[tikzKey] === undefined) normalized[tikzKey] = value;
-    delete normalized[key];
+  const normalized = {};
+  for (const [raw, value] of Object.entries(options)) {
+    const key = raw.replace(/^\/tikz\/(?=[xy]bar$)/, "");
+    if (Object.hasOwn(normalized, key)) delete normalized[key];
+    normalized[key] = value;
   }
   return normalized;
 }
@@ -33,8 +31,7 @@ export function withPgfplotsIntervalAxisStyle(axisOptions = {}) {
 
 export function isPgfplotsIntervalPlot(axisOptions = {}, plotOptions = {}, orientation = "y") {
   const key = orientation === "x" ? "xbar interval" : "ybar interval";
-  if (plotOptions["pgfplots histogram handler"]) return plotOptions["pgfplots histogram handler"] === key;
-  return Boolean(axisOptions[key] || plotOptions[key] || axisOptions[`/tikz/${key}`] || plotOptions[`/tikz/${key}`]);
+  return axisPlotHandler(plotOptions, axisOptions) === key;
 }
 
 export function pgfplotsIntervalDataPoints(plot = {}, axisOptions = {}, orientation = "y") {

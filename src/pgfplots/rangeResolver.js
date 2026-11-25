@@ -393,20 +393,22 @@ export function parseSamplesAt(raw) {
 export function sampleParametricDataPoints(plot, axisOptions = {}, options = {}) {
   const plotDomain = parseDomain(plot.options.domain || axisOptions.domain || PGFPLOTS_DEFAULT_FUNCTION_DOMAIN);
   const samples = axisSamples(plot.options.samples || axisOptions.samples || options.pgfplotsSamples || 25, options.pgfplotsSamples || 1200);
-  const variable = sampleVariable(plot, axisOptions);
+  const values = sampleDomain(plotDomain, samples);
+  const context = { sampleVariable: sampleVariable(plot, axisOptions) };
+  const series = expr => evaluateAxisExpressionSamples(expr, values, axisOptions, context);
+  const xs = series(plot.xExpression), ys = series(plot.yExpression);
+  const zs = plot.is3d && plot.zExpression !== undefined ? series(plot.zExpression) : [];
   const dataPoints = [];
+  const jump = (plot.options["unbounded coords"] ?? axisOptions["unbounded coords"]) === "jump";
+  let interrupted = false;
   for (let index = 0; index < samples; index += 1) {
-    const t = samples === 1 ? 0 : index / (samples - 1);
-    const x = plotDomain.start + (plotDomain.end - plotDomain.start) * t;
-    const scope = variable ? { [variable]: x } : undefined;
-    const px = evaluateAxisExpression(plot.xExpression, x, axisOptions, scope);
-    const py = evaluateAxisExpression(plot.yExpression, x, axisOptions, scope);
-    const pz = plot.is3d && plot.zExpression !== undefined
-      ? evaluateAxisExpression(plot.zExpression, x, axisOptions, scope)
-      : undefined;
+    const px = xs[index], py = ys[index], pz = zs[index];
     if (options.scalarSurvey || (Number.isFinite(px) && Number.isFinite(py) && (!plot.is3d || Number.isFinite(pz)))) {
-      dataPoints.push(plot.is3d ? { x: px, y: py, z: pz } : { x: px, y: py });
-    }
+      const point = plot.is3d ? { x: px, y: py, z: pz } : { x: px, y: py };
+      if (interrupted && dataPoints.length) point.breakBefore = true;
+      dataPoints.push(point);
+      interrupted = false;
+    } else interrupted = jump;
   }
   return dataPoints;
 }

@@ -30,6 +30,10 @@ export function pgfplotsCompatLevel(axisOptions = {}, plotOptions = {}) {
     axisOptions.compat;
 }
 
+export function pgfplotsEmptyLineBreaks(emptyLine = "auto", compat = "default") {
+  return emptyLine === "auto" ? !["pre 1.3", "1.3"].includes(compat) : ["jump", "nan"].includes(emptyLine);
+}
+
 function versionParts(value) {
   const match = String(value).trim().match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
   if (!match) return null;
