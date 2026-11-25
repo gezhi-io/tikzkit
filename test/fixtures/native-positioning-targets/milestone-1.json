@@ -1,0 +1,4 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": ["targets", "diagonals", "option-order", "skew", "diagonal-decision-flow", "on-grid-center-placement"]
+}

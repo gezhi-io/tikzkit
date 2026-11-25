@@ -6,6 +6,7 @@ import {
 } from "../tikz/metrics.js";
 import { parseDimension, substituteTextVariables } from "./math.js";
 import { evaluateRestrictedExpression } from "./safe-expression.js";
+import { normalizePositioningKey, positioningRegisterName } from "../tikz/positioningKeys.js";
 import { isColorToken, normalizeColor, normalizePgfRgbColor, normalizeShadingColor } from "./colors.js";
 export { normalizeColor, colorToRgb, cmykToRgb, cmykToCss } from "./colors.js";
 
@@ -117,8 +118,9 @@ export function stripTexComments(input = "") {
 }
 
 function setParsedOption(options, key, value) {
+  key = normalizePositioningKey(key);
   if (key === "/pgf/tips") key = "tips";
-  if (key === "draw" || key === "fill") return setOrderedOption(options, key, value);
+  if (key === "draw" || key === "fill" || positioningRegisterName(key)) return setOrderedOption(options, key, value);
   if (key === "pattern" || key === "/tikz/pattern") {
     // PGF's empty/none forms only toggle filling. Keep that action distinct
     // from selecting ink so a bare key cannot shadow a scoped tile name.
@@ -1237,8 +1239,26 @@ export function mergeOptionOrder(target, source) {
   return target;
 }
 
+function renameOrderedKey(options, key, replacement) {
+  const entries = Object.entries(options);
+  for (const [name] of entries) delete options[name];
+  for (const [name, entry] of entries) if (name !== replacement) options[name === key ? replacement : name] = entry;
+}
+
 function setOrderedOption(options, key, value) {
+  key = normalizePositioningKey(key);
   if (key === "/pgf/tips") key = "tips";
+  const register = positioningRegisterName(key);
+  if (register) {
+    key = register;
+    if (Object.hasOwn(options, key)) {
+      // Directions read these registers immediately. Keep earlier writes
+      // in place through style expansion, alongside the public final value.
+      let index = Object.keys(options).length;
+      while (Object.hasOwn(options, `tikzkit prior ${key} ${index}`)) index++;
+      renameOrderedKey(options, key, `tikzkit prior ${key} ${index}`);
+    }
+  }
   // These are two assignments to the same PGF corner register, including
   // inside named styles. Keep only the one that executed last.
   if (key === "/tikz/rounded corners" || key === "/tikz/sharp corners") key = key.slice(6);
@@ -1251,9 +1271,7 @@ function setOrderedOption(options, key, value) {
       // A later action-only key does not undo an earlier ink assignment.
       // Keep that assignment *in place*: draw=blue,red,draw=none leaves red.
       const ink = key === "draw" ? "tikzkit stroke ink" : "tikzkit fill ink";
-      const entries = Object.entries(options);
-      for (const [name] of entries) delete options[name];
-      for (const [name, entry] of entries) if (name !== ink) options[name === key ? ink : name] = entry;
+      renameOrderedKey(options, key, ink);
     }
   }
   if (isRepeatableOption(key) && Object.hasOwn(options, key)) {

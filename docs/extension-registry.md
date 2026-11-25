@@ -317,6 +317,8 @@ The complete machine-readable table is [extension-registry.csv](./extension-regi
 
 ## Core TikZ Tracking
 
+Node positioning: [implicit borders, fixed targets and ordered distance vectors](qa/2026-11-25-native-positioning.md).
+
 Rounded and sharp corners: [physical insets, path scopes and compound strokes](qa/2026-11-25-native-rounded-corners.md).
 
 Arrow tips: [path actions, closing and the last subpath](qa/2026-11-25-native-arrow-actions.md).

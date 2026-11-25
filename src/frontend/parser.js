@@ -1,5 +1,5 @@
 import { createToken, Lexer } from "chevrotain";
-import { codeDefinitionsFromOptions, isBareDelimiterOptionBracket, parseOptions, parseTikzset, splitTopLevel } from "../engine/options.js";
+import { codeDefinitionsFromOptions, isBareDelimiterOptionBracket, mergeOptionOrder, parseOptions, parseTikzset, splitTopLevel } from "../engine/options.js";
 import { preprocessTikzSource } from "./latex-shell.js";
 import { parsePgfPlotMarkDeclaration } from "../tikz/libraries/plotmarks.js";
 
@@ -1132,7 +1132,7 @@ function parseNode(text, diagnostics = []) {
     name = parsedName?.content.trim() || null;
     index = parsedName?.end || index;
     const afterNameOptions = parseOptionalOptions(text, index);
-    options = { ...options, ...afterNameOptions.options };
+    mergeOptionOrder(options, afterNameOptions.options);
     index = afterNameOptions.end;
   }
 
@@ -1142,6 +1142,9 @@ function parseNode(text, diagnostics = []) {
     const coord = parseCoordinateArgument(text, index);
     if (!coord) return unsupported("node", text, "Malformed node coordinate");
     at = coord.content.trim();
+    // Lexical "at (...)" assigns the same target as [at={(...)}]. Its
+    // place among positioning keys matters even if the name comes between.
+    mergeOptionOrder(options, { at });
     index = skipWhitespace(text, coord.end);
   }
 
@@ -1150,7 +1153,7 @@ function parseNode(text, diagnostics = []) {
   while (true) {
     if (text[index] === "[") {
       const afterCoordinateOptions = parseOptionalOptions(text, index);
-      options = { ...options, ...afterCoordinateOptions.options };
+      mergeOptionOrder(options, afterCoordinateOptions.options);
       index = skipWhitespace(text, afterCoordinateOptions.end);
       continue;
     }

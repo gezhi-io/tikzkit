@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"standalone-precedence","title":"Directions without of and at precedence","source":"standalone-precedence.tex"}
+  ]
+}

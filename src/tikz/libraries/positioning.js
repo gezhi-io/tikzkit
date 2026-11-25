@@ -1,10 +1,12 @@
 import { parseDimension, roundPoint } from "../../engine/math.js";
-import { stripOuterBraces } from "../../engine/options.js";
+import { resolveImplicitTwoPartCoordinate } from "../../engine/coordinateComponents.js";
+import { parseOptions, stripOuterBraces, tikzBoolean } from "../../engine/options.js";
+import { POSITIONING_ANCHORS, positioningRegisterName } from "../positioningKeys.js";
 
 export const tikzLibrary = {
   name: "positioning",
   status: "builtin",
-  implementedBy: "src/tikz/libraries/positioning.js; src/engine/evaluate.js:nodeTextAnchorOffsets/nodeAnchorCoordinate/shapeCompassLocalAnchor",
+  implementedBy: "src/tikz/libraries/positioning.js; src/tikz/positioningKeys.js; src/engine/coordinateComponents.js; src/frontend/parser.js; src/engine/options.js; src/engine/evaluate.js",
   localSourceReviewed: "/usr/local/texlive/2025/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tikzlibrarypositioning.code.tex",
   localDoc: "/usr/local/texlive/2025/texmf-dist/doc/generic/pgf/pgfmanual-en-tikz-shapes.tex",
   features: ["right/left/above/below=... of", "shape compass anchors", "base/mid left/right=... of", "node distance", "on grid centre placement", "legacy right of syntax"],
@@ -13,111 +15,87 @@ export const tikzLibrary = {
 };
 
 tikzLibrary.notes += " Reviewed 2026-10-25: custom signal anchors use visible shape dimensions, preventing a second outer-separation expansion when applying the self anchor. Native signal anchor and 0.8cm gap probes are recorded in docs/qa/2026-10-25-scoped-fonts-failures.md.";
+tikzLibrary.notes += " Reviewed 2026-11-25 against tikzlibrarypositioning.code.tex and tikz.code.tex: explicit anchors and calculated coordinates are fixed targets even on grid. Placement follows source order, library defaults, mixed-unit basis vectors and sloped path frames. This supersedes the earlier explicit-anchor limitation; arbitrary asymmetric custom-shape borders are not certified. Browser, tikztosvg and native evidence: docs/qa/2026-11-25-native-positioning.md.";
 
 export function resolvePositioningPoint(options, env, selfSize = { width: 0, height: 0 }, helpers) {
-  const legacy = resolveLegacyPositioning(options, env, helpers);
-  if (legacy) return legacy;
-  const placement = resolvePositioningPlacement(options, env, helpers);
-  if (!placement) return null;
-  const geometry = positioningGeometry(placement, selfSize);
-  const delta = positioningPlacementDelta(
-    placement.direction,
-    placement.distance,
-    geometry.reference,
-    geometry.selfSize,
-    helpers
-  );
-  const dx = delta.x;
-  const dy = positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ?? delta.y;
-  return roundPoint({ x: placement.reference.point.x + dx, y: placement.reference.point.y + dy });
+  return resolveLegacyPositioning(options, env, helpers) || placeRelativeNode(options, env, selfSize, helpers, false);
 }
 
 export function resolveExplicitAtPositioningOffsetPoint(options, env, selfSize = { width: 0, height: 0 }, helpers) {
-  const legacy = resolveLegacyPositioningOffset(options, env, helpers);
-  if (legacy) return legacy;
-  const placement = resolvePositioningPlacement(options, env, helpers);
-  if (!placement) return null;
-  const origin = { point: { x: 0, y: 0 }, width: 0, height: 0 };
-  const geometry = positioningGeometry({ ...placement, reference: origin }, selfSize);
-  const delta = positioningPlacementDelta(
-    placement.direction,
-    placement.distance,
-    geometry.reference,
-    geometry.selfSize,
-    helpers
-  );
-  return {
-    x: delta.x,
-    y: positioningAnchorDelta(placement.direction, geometry.reference, geometry.selfSize) ?? delta.y
-  };
+  return resolveLegacyPositioningOffset(options, env, helpers) || placeRelativeNode(options, env, selfSize, helpers, true);
 }
 
-function resolvePositioningPlacement(options, env, helpers) {
-  const entries = Object.entries(options || {});
-  for (const [key, value] of entries) {
-    const direction = key.trim().toLowerCase().replace(/\s+/g, " ");
-    if (!["right", "left", "above", "below", "above right", "above left", "below right", "below left", "base left", "base right", "mid left", "mid right"].includes(direction)) {
+const ORIGIN = { x: 0, y: 0 };
+const OF = /^(.*?)\s*of\s+(.+)$/;
+
+function nodeDistanceSetting(env) {
+  // Core TikZ starts with a single 1cm; the positioning library overwrites
+  // that register with a pair. Keep the core default for permissive snippets.
+  return env.pictureOptions?.["node distance"] ?? (env.positioningLoaded ? "1cm and 1cm" : "1cm");
+}
+
+export function positioningSelfAnchor(direction) {
+  return POSITIONING_ANCHORS[direction]?.self;
+}
+
+export function positioningOfAnchor(options) {
+  let active = null;
+  for (const [key, value] of Object.entries(options)) {
+    if (Object.hasOwn(POSITIONING_ANCHORS, key)) active = OF.test(value) ? "placement" : null;
+    else if (key === "anchor" && active) active = "explicit";
+  }
+  return active;
+}
+
+export function positioningOverridesAt(options) {
+  let overrides = false;
+  for (const [key, value] of Object.entries(options)) {
+    if (key === "at") overrides = false;
+    if (Object.hasOwn(POSITIONING_ANCHORS, key) && OF.test(value)) overrides = true;
+  }
+  return overrides;
+}
+
+export function positioningShift(direction, value, env) {
+  const { x, y, isPair } = parsePositioningDistance(value, env);
+  const spec = POSITIONING_ANCHORS[direction], factor = isPair ? 1 : spec.factor;
+  return { x: spec.x * x * factor, y: spec.y * y * factor };
+}
+
+function placeRelativeNode(options, env, selfSize, helpers, explicitAt) {
+  let nodeDistance = nodeDistanceSetting(env);
+  let onGrid = tikzBoolean(env.pictureOptions?.["on grid"]);
+  let at, gap, selfAnchor;
+  for (const [key, value] of Object.entries(options || {})) {
+    const register = positioningRegisterName(key);
+    if (register === "on grid") onGrid = tikzBoolean(value);
+    if (register === "node distance") nodeDistance = value;
+    if (key === "anchor") selfAnchor = null; // The regular anchor pass applies this override.
+    if (!Object.hasOwn(POSITIONING_ANCHORS, key)) continue;
+    const of = OF.exec(String(value).trim());
+    if (!of) {
+      // A later direction without "of" keeps the assigned target but replaces
+      // the shift and self anchor. The regular direction pass supplies both.
+      gap = ORIGIN;
+      selfAnchor = null;
       continue;
     }
-    const text = String(value === true ? "" : value).trim();
-    const placement = parsePositioningOfExpression(text, env);
-    if (!placement) continue;
-    const distance = scalePositioningDistance(placement.distance, env, helpers);
-    const reference = resolvePositioningReference(placement.reference, env, helpers);
+    const reference = resolvePositioningReference(of[2], env, helpers);
     if (!reference) continue;
-    return { direction, distance, reference, onGrid: positioningUsesGrid(options, env) };
+    const spec = POSITIONING_ANCHORS[key];
+    // tikz@shapeborder is false for an explicit anchor or coordinate, even
+    // "A.center". Only an implicit shape border switches both anchors on grid.
+    const centered = reference.shapeBorder && onGrid;
+    const refOffset = !explicitAt && reference.shapeBorder && !centered
+      ? positioningNamedAnchorOffset(reference, spec.reference, helpers) : ORIGIN;
+    at = explicitAt ? ORIGIN : { x: reference.point.x + refOffset.x, y: reference.point.y + refOffset.y };
+    selfAnchor = centered ? null : spec.self;
+    gap = helpers.positioningTransform(positioningShift(key, of[1].trim() || nodeDistance, env), env, options);
   }
-  return null;
-}
-
-function positioningGeometry(placement, selfSize) {
-  if (!placement.onGrid) return { reference: placement.reference, selfSize };
-  const center = {
-    width: 0,
-    height: 0,
-    minX: 0,
-    minY: 0,
-    maxX: 0,
-    maxY: 0,
-    baseOffset: 0,
-    midOffset: 0,
-    shape: "coordinate",
-    shapeData: null,
-    rotation: 0
-  };
-  return {
-    // PGF's on-grid branch replaces both placement anchors with center.
-    reference: { ...placement.reference, ...center },
-    selfSize: center
-  };
-}
-
-const POSITIONING_ANCHORS = {
-  above: { self: "south", reference: "north", x: 0, y: 1, factor: 1 },
-  "above left": { self: "south east", reference: "north west", x: -1, y: 1, factor: Math.SQRT1_2 },
-  "above right": { self: "south west", reference: "north east", x: 1, y: 1, factor: Math.SQRT1_2 },
-  below: { self: "north", reference: "south", x: 0, y: -1, factor: 1 },
-  "below left": { self: "north east", reference: "south west", x: -1, y: -1, factor: Math.SQRT1_2 },
-  "below right": { self: "north west", reference: "south east", x: 1, y: -1, factor: Math.SQRT1_2 },
-  left: { self: "east", reference: "west", x: -1, y: 0, factor: 1 },
-  right: { self: "west", reference: "east", x: 1, y: 0, factor: 1 }
-};
-
-function positioningPlacementDelta(direction, distance, reference, selfSize, helpers = {}) {
-  const anchors = POSITIONING_ANCHORS[direction];
-  if (!anchors) {
-    return {
-      x: positioningDelta(direction, "x", distance, reference, selfSize),
-      y: positioningDelta(direction, "y", distance, reference, selfSize)
-    };
-  }
-  const referenceAnchor = positioningNamedAnchorOffset(reference, anchors.reference, helpers);
-  const selfAnchor = positioningNamedAnchorOffset(selfSize, anchors.self, helpers);
-  const factor = distance.isPair ? 1 : anchors.factor;
-  return {
-    x: referenceAnchor.x - selfAnchor.x + anchors.x * distance.x * factor,
-    y: referenceAnchor.y - selfAnchor.y + anchors.y * distance.y * factor
-  };
+  if (!at) return null;
+  const offset = selfAnchor && !options.coordinate && options.shape !== "coordinate"
+    ? positioningNamedAnchorOffset(selfSize, selfAnchor, helpers) : ORIGIN;
+  return roundPoint({ x: at.x + gap.x - offset.x, y: at.y + gap.y - offset.y });
 }
 
 function positioningNamedAnchorOffset(size, anchor, helpers = {}) {
@@ -125,52 +103,21 @@ function positioningNamedAnchorOffset(size, anchor, helpers = {}) {
   if (shapeAnchor && Number.isFinite(shapeAnchor.x) && Number.isFinite(shapeAnchor.y)) return shapeAnchor;
   const xBounds = positioningAxisBounds(size, "x");
   const yBounds = positioningAxisBounds(size, "y");
-  return {
-    x: anchor.includes("east") ? xBounds.max : anchor.includes("west") ? xBounds.min : 0,
-    y: anchor.includes("north") ? yBounds.max : anchor.includes("south") ? yBounds.min : 0
-  };
-}
-
-function positioningAnchorDelta(direction, reference = {}, selfSize = {}) {
-  const kind = direction.startsWith("base ") ? "baseOffset" : direction.startsWith("mid ") ? "midOffset" : null;
-  if (!kind) return null;
-  return (Number(reference[kind]) || 0) - (Number(selfSize[kind]) || 0);
-}
-
-function positioningUsesGrid(options = {}, env = {}) {
-  const value = Object.hasOwn(options, "on grid")
-    ? options["on grid"]
-    : env.pictureOptions?.["on grid"];
-  if (value === undefined || value === null || value === false || value === 0) return false;
-  const text = stripOuterBraces(String(value).trim()).toLowerCase();
-  return !["false", "no", "off", "0"].includes(text);
-}
-
-function parsePositioningOfExpression(text, env) {
-  const match = String(text || "").trim().match(/^(.*?)\s*of\s+(.+)$/);
-  if (!match) return null;
-  const distanceText = match[1].trim();
-  const distance = distanceText ? parsePositioningDistance(distanceText, env) : defaultPositioningDistance(env);
-  if (!Number.isFinite(distance.x) || !Number.isFinite(distance.y)) return null;
-  return { distance, reference: match[2].trim() };
+  const x = anchor.includes("east") ? xBounds.max : anchor.includes("west") ? xBounds.min : 0;
+  const y = anchor.includes("north") ? yBounds.max : anchor.includes("south") ? yBounds.min
+    : anchor.startsWith("base ") ? size.baseOffset || 0 : anchor.startsWith("mid ") ? size.midOffset || 0 : 0;
+  const angle = (size.rotation || 0) * Math.PI / 180;
+  return { x: x * Math.cos(angle) - y * Math.sin(angle), y: x * Math.sin(angle) + y * Math.cos(angle) };
 }
 
 export function defaultPositioningDistance(env) {
-  return parsePositioningDistance(env.pictureOptions?.["node distance"] || "1cm", env);
+  return parsePositioningDistance(nodeDistanceSetting(env), env);
 }
 
 export function parsePositioningDistance(value, env) {
-  const text = String(value || "").trim();
-  const pair = text.match(/^([\s\S]+?)\s+and\s+([\s\S]+)$/);
-  if (pair) {
-    return {
-      y: parseDimension(pair[1], env.variables),
-      x: parseDimension(pair[2], env.variables),
-      isPair: true
-    };
-  }
-  const distance = parseDimension(text, env.variables);
-  return { x: distance, y: distance, isPair: false };
+  const text = value === true || value == null || value === "" ? "0pt" : String(value).trim();
+  const pair = text.match(/^([\s\S]+?)and([\s\S]+)$/);
+  return { ...resolveImplicitTwoPartCoordinate(pair?.[2] ?? text, pair?.[1] ?? text, env), isPair: Boolean(pair) };
 }
 
 export function positioningDelta(direction, axis, distance, reference, selfSize) {
@@ -259,11 +206,21 @@ function resolveReferencePoint(raw, env, helpers) {
 }
 
 function resolvePositioningReference(raw, env, helpers) {
-  const text = helpers.resolveDynamicName(raw, env);
+  const text = stripOuterBraces(helpers.resolveDynamicName(raw, env));
+  // node cs without an anchor/angle has the same implicit border as (name).
+  const nodeSystem = /^node\s+cs\s*:\s*(.+)$/.exec(text);
+  if (nodeSystem) {
+    const cs = parseOptions(nodeSystem[1]);
+    if (cs.name && !cs.anchor && !cs.angle) return resolvePositioningReference(cs.name, env, helpers);
+  }
   if (Object.hasOwn(env.nodes, text)) {
     const node = env.nodes[text];
+    if (node.shape === "coordinate" || node.options?.coordinate || node.options?.shape === "coordinate") {
+      return { point: node.point, width: 0, height: 0 };
+    }
     return {
       point: node.point,
+      shapeBorder: true,
       width: node.layoutWidth || node.width || 0,
       height: node.layoutHeight || node.height || 0,
       visibleWidth: node.width || 0,
@@ -280,12 +237,7 @@ function resolvePositioningReference(raw, env, helpers) {
     };
   }
   if (Object.hasOwn(env.coordinates, text)) return { point: env.coordinates[text], width: 0, height: 0 };
-  const anchored = helpers.resolveAnchoredNodeCoordinate(text, env);
-  if (anchored) return { point: anchored, width: 0, height: 0 };
-  if (text.startsWith("$") || text.includes(",") || /^-?\d/.test(text)) {
-    return { point: helpers.resolveCoordinate(text, env, []), width: 0, height: 0 };
-  }
-  return null;
+  return { point: helpers.resolveCoordinate(text, env, helpers.diagnostics), width: 0, height: 0 };
 }
 
 export function parseShiftedPositioning(raw) {

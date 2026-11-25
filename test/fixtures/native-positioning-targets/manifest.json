@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"targets","title":"On grid: what the target denotes","source":"targets.tex"},
+    {"id":"diagonals","title":"Default, scalar and paired diagonal distance","source":"diagonals.tex"},
+    {"id":"option-order","title":"Scope and local option order","source":"option-order.tex"},
+    {"id":"skew","title":"Skew basis with physical and unitless lengths","source":"skew.tex"},
+    {"id":"diagonal-decision-flow","title":"Decision flow (original driver)","source":"../examples/positioning/diagonal-decision-flow.tex"},
+    {"id":"on-grid-center-placement","title":"Center placement (original driver)","source":"../examples/positioning/on-grid-center-placement.tex"},
+    {"id":"standalone-precedence","title":"Directions without of and at precedence","source":"supplement/standalone-precedence.tex"}
+  ]
+}

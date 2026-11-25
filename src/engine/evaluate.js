@@ -1,5 +1,6 @@
 import { applyPathDecoration, supportedPathDecoration, decoratedSnakeOmitsArrowPaintBounds } from "../tikz/decorations/path.js";
 import { parseFinitePgfLength } from "./units.js";
+import { coordinateComponentHasDimension, parseCoordinateCanvasDimension, parseCoordinateFactor, resolveImplicitTwoPartCoordinate } from "./coordinateComponents.js";
 import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../tex/textBox.js";
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
@@ -126,6 +127,10 @@ import {
 import {
   defaultPositioningDistance as positioningLibraryDefaultDistance,
   positioningDelta as positioningLibraryDelta,
+  positioningOfAnchor,
+  positioningOverridesAt,
+  positioningSelfAnchor,
+  positioningShift,
   resolveExplicitAtPositioningOffsetPoint,
   resolvePositioningPoint,
   scalePositioningDistance as scalePositioningLibraryDistance
@@ -355,6 +360,7 @@ export function interpretTikz(ast, options = {}) {
     const picturePlane = canvasPlaneEnvironment(pictureTransformEnv, pictureOptions, pictureTransform);
     const env = {
       arrowMetaLoaded: loadsModernArrowDefaults(ast.libraries, picture.packages || ast.packages),
+      positioningLoaded: ast.libraries?.some(lib => ["positioning", "chains"].includes(lib.name || lib)),
       foreachBudget,
       currentFont: pictureTransformEnv.currentFont,
       variables: { ...baseVariables },
@@ -1048,16 +1054,15 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
     return;
   }
   if (statement.type === "coordinate") {
-    if (coordinateRendersAsNode(statement.options || {}, env)) {
+    const coordinateOptions = coordinateNodeOptions(statement.options || {}, env);
+    if (nodeUsesBoxSizing(coordinateOptions, env)) {
       const node = createNode({ ...statement, text: "" }, env, ir, diagnostics);
       if (node && statement.children?.length) {
         createNodeTreeChildren(node, statement.children, env, ir, diagnostics, 1, statement.treeOptions || {});
       }
       return;
     }
-    const point = statement.at
-      ? resolveCoordinate(statement.at, env, diagnostics)
-      : resolvePositioning(statement.options || {}, env) || applyCoordinateTransform({ x: 0, y: 0 }, env);
+    const point = resolveCoordinatePlacement(statement, coordinateOptions, env, diagnostics);
     const name = statement.name ? resolveDynamicName(statement.name, env) : null;
     if (name) env.coordinates[name] = point;
     addCoordinateLabels(statement.options || {}, point, env, ir);
@@ -6654,7 +6659,8 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
     rotation: recordRotation
   });
   const basePoint = positioningPoint || point;
-  const anchoredPoint = expandedOptions.anchor
+  const slopedPlacement = nodeEnv.positioningLoaded && slopedRotation !== null && !positioningPoint;
+  const anchoredPoint = expandedOptions.anchor && !slopedPlacement
     ? resolveNodeAnchorPoint(basePoint, expandedOptions, text, nodeEnv, scaledSize)
     : null;
   const displayPoint =
@@ -6662,7 +6668,7 @@ function addInlinePathNodeWithOptions(segment, text, point, nodes, env, pathStyl
     positioningPoint ||
     (slopedRotation === null
       ? resolveAutoInlineNodePoint(basePoint, expandedOptions, scaledSize, nodeEnv, pathSegment)
-      : resolveSlopedInlineNodePoint(basePoint, expandedOptions, scaledSize, nodeEnv, slopedRotation));
+      : resolveSlopedInlineNodePoint(basePoint, expandedOptions, scaledSize, nodeEnv, slopedRotation, textAnchorOffsets, resolvedShapeData));
   const nodePoint = displayPoint || resolveNodeAnchorPoint(basePoint, expandedOptions, text, nodeEnv, scaledSize);
   let nodeName = null;
   const rawNodeName = segment.name || (expandedOptions.name && expandedOptions.name !== true ? String(expandedOptions.name) : "");
@@ -6787,12 +6793,26 @@ function keepTextAngleUpright(angle) {
   return normalized;
 }
 
-function resolveSlopedInlineNodePoint(point, options = {}, size, env, rotation) {
-  const directionEntries = nodeDirectionEntries(options);
+function resolveSlopedInlineNodePoint(point, options = {}, size, env, rotation, textAnchorOffsets, shapeData) {
+  const directionEntries = nodeDirectionEntries(options, env.positioningLoaded);
   const explicitShift = nodeExplicitShift(options, env);
   // TikZ applies shifts in the node's local coordinate frame. For a sloped
   // label that frame follows the path, so a yshift moves normal to the line.
   const rotatedExplicitShift = rotateVector(explicitShift.x, explicitShift.y, rotation);
+  if (env.positioningLoaded && (directionEntries.length || options.anchor)) {
+    // positioning installs a single deferred shift. Apply the final shift
+    // and opposite anchor in the path tangent frame, not in page axes.
+    const [direction, value] = directionEntries.at(-1) || [];
+    const gap = direction ? positioningShift(direction, value, env) : { x: 0, y: 0 };
+    const local = rotateVector(gap.x * canvasLengthScale(env), gap.y * canvasLengthScale(env), rotation);
+    const anchor = !direction || explicitAnchorOverridesDirection(options, direction)
+      ? options.anchor : positioningSelfAnchor(direction);
+    const shift = explicitNodeAnchorShift({ ...options, anchor }, size, env, rotation, textAnchorOffsets, shapeData);
+    return roundPoint({
+      x: point.x + local.x + shift.x + rotatedExplicitShift.x,
+      y: point.y + local.y + shift.y + rotatedExplicitShift.y
+    });
+  }
   if (!directionEntries.length) {
     const autoAnchorShift = isTruthyTikzOption(options.auto)
       ? explicitNodeAnchorShift(
@@ -6912,10 +6932,7 @@ function createNode(statement, env, ir, diagnostics) {
   const statementOptions = resolveDynamicOptions(statement.options || {}, env);
   const localOptions = normalizeOptions("node", statementOptions, env).options;
   applyChainControlOptions(localOptions, env, diagnostics);
-  const inheritedAndLocalOptions = {
-    ...inheritedNodeOptions(env),
-    ...statementOptions
-  };
+  const inheritedAndLocalOptions = mergeOptionOrder(inheritedNodeOptions(env), statementOptions);
   const preChainOptions = normalizeOptions("node", inheritedAndLocalOptions, env).options;
   if (chainSpecFromOptions(preChainOptions, env) && env.styles?.["every on chain"]) {
     inheritedAndLocalOptions["every on chain"] = true;
@@ -7206,13 +7223,29 @@ function resolvePicScopedName(name, env = {}) {
   return `${env.picNamePrefix}${name}`;
 }
 
+function coordinateNodeOptions(options, env) {
+  const ordered = mergeOptionOrder(inheritedNodeOptions(env), resolveDynamicOptions(options, env));
+  return applyConceptNodeOptions(normalizeOptions("node", ordered, env).options, env);
+}
+
 function coordinateRendersAsNode(options = {}, env = {}) {
-  let expandedOptions = normalizeOptions("node", {
-    ...inheritedNodeOptions(env),
-    ...resolveDynamicOptions(options || {}, env)
-  }, env).options;
-  expandedOptions = applyConceptNodeOptions(expandedOptions, env);
-  return nodeUsesBoxSizing(expandedOptions, env);
+  return nodeUsesBoxSizing(coordinateNodeOptions(options, env), env);
+}
+
+function resolveCoordinatePlacement(statement, options, env, diagnostics) {
+  if (!env.positioningLoaded || !Object.keys(options).some(positioningSelfAnchor)) {
+    return statement.at ? resolveCoordinate(statement.at, env, diagnostics)
+      : resolvePositioning(options, env, undefined, diagnostics) || applyCoordinateTransform({ x: 0, y: 0 }, env);
+  }
+  // A \coordinate is a node with neither a border nor a self-anchor offset.
+  // Its optional trailing "at" still replaces the target, not the gap.
+  const placement = { ...options, shape: "coordinate" };
+  if (statement.at) mergeOptionOrder(placement, { at: statement.at });
+  const point = resolveNodePoint({ ...statement, options: placement }, env, diagnostics, { width: 0, height: 0 });
+  const direction = !positioningOfAnchor(placement) && nodeDirectionEntries(placement, true).at(-1);
+  if (!direction) return point;
+  const gap = positioningTransform(positioningShift(...direction, env), env, placement);
+  return roundPoint({ x: point.x + gap.x, y: point.y + gap.y });
 }
 
 function applyConceptNodeOptions(options = {}, env = {}) {
@@ -11166,18 +11199,20 @@ function radialBoxExtent(size = {}, radians = 0) {
 
 function resolveNodePoint(statement, env, diagnostics, selfSize) {
   if (statement.absolutePoint) return roundPoint(statement.absolutePoint);
-  if (statement.at) {
-    const point = resolveCoordinate(statement.at, env, diagnostics);
-    const positioningOffset = resolveExplicitAtPositioningOffset(statement.options || {}, env, selfSize);
+  const options = statement.options || {};
+  const at = options.at ?? statement.at;
+  if (at && !(options.at && positioningOverridesAt(options))) {
+    const point = resolveCoordinate(at, env, diagnostics);
+    const positioningOffset = resolveExplicitAtPositioningOffset(options, env, selfSize, diagnostics);
     if (!positioningOffset) return point;
     return roundPoint({
       x: point.x + positioningOffset.x,
       y: point.y + positioningOffset.y
     });
   }
-  const chainPoint = resolveChainPosition(statement.options || {}, env, selfSize);
+  const chainPoint = resolveChainPosition(options, env, selfSize);
   if (chainPoint) return chainPoint;
-  const positioning = resolvePositioning(statement.options || {}, env, selfSize);
+  const positioning = resolvePositioning(options, env, selfSize, diagnostics);
   if (positioning) return positioning;
   return applyCoordinateTransform({ x: 0, y: 0 }, env);
 }
@@ -11510,19 +11545,27 @@ function parseChainJoinSpec(value) {
   return { style: stripOuterBraces(text) };
 }
 
-function resolvePositioning(options, env, selfSize = { width: 0, height: 0 }) {
-  return resolvePositioningPoint(options, env, selfSize, positioningLibraryHelpers());
+function resolvePositioning(options, env, selfSize = { width: 0, height: 0 }, diagnostics) {
+  return resolvePositioningPoint(options, env, selfSize, positioningLibraryHelpers(diagnostics));
 }
 
-function resolveExplicitAtPositioningOffset(options, env, selfSize = { width: 0, height: 0 }) {
-  return resolveExplicitAtPositioningOffsetPoint(options, env, selfSize, positioningLibraryHelpers());
+function resolveExplicitAtPositioningOffset(options, env, selfSize = { width: 0, height: 0 }, diagnostics) {
+  return resolveExplicitAtPositioningOffsetPoint(options, env, selfSize, positioningLibraryHelpers(diagnostics));
 }
 
-function positioningLibraryHelpers() {
+function positioningTransform(vector, env, options) {
+  // TikZ resets the nontranslation part before the positioning shift unless
+  // transform shape is active. A backend canvas transform still applies.
+  return tikzBoolean(options["transform shape"]) ? applyCoordinateTransformVector(vector, env)
+    : applyTransformVector(vector, env.canvasTransform);
+}
+
+function positioningLibraryHelpers(diagnostics) {
   return {
     canvasLengthScale,
+    positioningTransform,
+    diagnostics,
     resolveDynamicName,
-    resolveAnchoredNodeCoordinate,
     resolveCoordinate,
     resolveNodeAnchorOffset(node, anchor) {
       if (!node?.shape || node.shape === "rectangle" || node.shape === "roundedRectangle" || node.shape === "coordinate") {
@@ -11599,24 +11642,21 @@ function rotateVector(x, y, degrees) {
 }
 
 function nodeAnchorShift(options = {}, size, sep, env, rotation = 0, textAnchorOffsets = {}, shapeData = {}) {
-  const direction = nodeDirection(options);
+  const ofAnchor = positioningOfAnchor(options);
+  if (ofAnchor === "placement") return { x: 0, y: 0 };
+  if (ofAnchor === "explicit") return explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets, shapeData);
+  const direction = nodeDirectionEntries(options, env.positioningLoaded).at(-1)?.[0];
   if (direction) {
-    const distance =
-      nodeDirectionDistance(options[direction], sep, env) *
-      nodeDirectionSingleDistanceScale(direction, options[direction]) *
-      canvasLengthScale(env);
     // Positioning gaps stay in page coordinates while the anchor-to-center
     // vector follows the node rotation.
-    const gapX = direction.includes("right") ? distance : direction.includes("left") ? -distance : 0;
-    const gapY = direction.includes("above") ? distance : direction.includes("below") ? -distance : 0;
+    const { x: gapX, y: gapY } = env.positioningLoaded
+      ? positioningTransform(positioningShift(direction, options[direction], env), env, options)
+      : coreDirectionShift(direction, options[direction], sep, env);
     if (explicitAnchorOverridesDirection(options, direction)) {
       const explicit = explicitNodeAnchorShift(options, size, env, rotation, textAnchorOffsets, shapeData);
       return { x: gapX + explicit.x, y: gapY + explicit.y };
     }
-    const oppositeAnchor = [
-      direction.includes("below") ? "north" : direction.includes("above") ? "south" : "",
-      direction.includes("left") ? "east" : direction.includes("right") ? "west" : ""
-    ].filter(Boolean).join(" ");
+    const oppositeAnchor = positioningSelfAnchor(direction);
     // tikz.code.tex defines above/below/left/right by assigning the opposite
     // compass anchor. Both forms therefore include the same outer separation.
     const shift = explicitNodeAnchorShift({ ...options, anchor: oppositeAnchor },
@@ -11712,13 +11752,20 @@ function nodeDirection(options = {}) {
   return nodeDirectionEntries(options).at(-1)?.[0];
 }
 
-function nodeDirectionEntries(options = {}) {
-  const directions = new Set(["above right", "above left", "below right", "below left", "right", "left", "above", "below"]);
+function nodeDirectionEntries(options = {}, positioningLoaded = false) {
   return Object.entries(options).filter(([direction, value]) => (
-    directions.has(direction) && (value === true || !String(value).includes("of"))
+    positioningSelfAnchor(direction) && (positioningLoaded || !/^(base|mid) /.test(direction)) &&
+    (value === true || !String(value).includes("of"))
   ));
 }
 
+function coreDirectionShift(direction, value, sep, env) {
+  const distance = nodeDirectionDistance(value, sep, env) * nodeDirectionSingleDistanceScale(direction, value) * canvasLengthScale(env);
+  return {
+    x: direction.includes("right") ? distance : direction.includes("left") ? -distance : 0,
+    y: direction.includes("above") ? distance : direction.includes("below") ? -distance : 0
+  };
+}
 function nodeDirectionDistance(value, fallback, env) {
   if (value === true || value === undefined || value === null || value === "") return 0;
   const parsed = parseDimension(normalizeNodeDirectionDistance(value), env.variables);
@@ -17632,21 +17679,6 @@ function parseImplicitCanvasPolarRadius(value, variables = {}) {
   return parseCoordinateCanvasDimension(`${text}pt`, variables);
 }
 
-function resolveImplicitTwoPartCoordinate(xRaw, yRaw, env) {
-  const xIsDimension = coordinateComponentHasDimension(xRaw, env.variables);
-  const yIsDimension = coordinateComponentHasDimension(yRaw, env.variables);
-  const xPoint = xIsDimension
-    ? { x: parseCoordinateCanvasDimension(xRaw, env.variables), y: 0 }
-    : projectBasisPoint(parseCoordinateFactor(xRaw, env.variables), 0, 0, env.basis);
-  const yPoint = yIsDimension
-    ? { x: 0, y: parseCoordinateCanvasDimension(yRaw, env.variables) }
-    : projectBasisPoint(0, parseCoordinateFactor(yRaw, env.variables), 0, env.basis);
-  return roundPoint({
-    x: xPoint.x + yPoint.x,
-    y: xPoint.y + yPoint.y
-  });
-}
-
 function resolveExplicitCoordinateSystem(text, env, diagnostics) {
   const match = String(text || "").match(/^([A-Za-z][A-Za-z0-9 _-]*?)\s+cs\s*:\s*([\s\S]+)$/);
   if (!match) return null;
@@ -17760,43 +17792,6 @@ function resolveTangentCoordinateSystem(options = {}, env = {}, diagnostics = []
     x: center.x + Math.cos(angle) * radius,
     y: center.y + Math.sin(angle) * radius
   });
-}
-
-function coordinateComponentHasDimension(value, variables = {}) {
-  const raw = stripOuterBraces(String(value ?? "").trim());
-  if (/\\(?:textwidth|textheight|linewidth|paperwidth|paperheight)\b/.test(raw)) return true;
-  const text = substituteVariables(raw, variables).replace(/\{\}/g, "");
-  return /(?:^|[^\p{L}])(?:cm|mm|pt|em|ex|in)\b/u.test(text);
-}
-
-function parseCoordinateFactor(value, variables = {}) {
-  return evaluateMath(value, variables, { throwOnError: true });
-}
-
-function parseCoordinateCanvasDimension(value, variables = {}) {
-  const text = stripOuterBraces(substituteVariables(value, variables).replace(/\{\}/g, "").trim());
-  const additive = parseAdditiveCoordinateDimension(text);
-  if (Number.isFinite(additive)) return additive;
-  return parseDimension(text, variables, { throwOnError: true });
-}
-
-function parseAdditiveCoordinateDimension(text) {
-  const compact = String(text || "").replace(/\s+/g, "");
-  if (!compact) return NaN;
-  const tokenPattern = /[+-]?(?:\d+\.?\d*|\.\d+)(?:cm|mm|pt|em|ex|in)?/g;
-  let index = 0;
-  let total = 0;
-  let matched = false;
-  for (const match of compact.matchAll(tokenPattern)) {
-    if (match.index !== index) return NaN;
-    matched = true;
-    const token = match[0];
-    const parsed = token.match(/^([+-]?(?:\d+\.?\d*|\.\d+))(cm|mm|pt|em|ex|in)?$/);
-    if (!parsed) return NaN;
-    total += parseDimension(`${parsed[1]}${parsed[2] || "pt"}`, {});
-    index = match.index + token.length;
-  }
-  return matched && index === compact.length ? total : NaN;
 }
 
 function coordinateAngleDegrees(value, variables = {}) {
