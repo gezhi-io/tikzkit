@@ -179,3 +179,8 @@ texPackage.features.push("Open and periodic smooth plots on coordinate lists and
 texPackage.implementedBy += " + src/tikz/pathOperations/plot.js + src/pgf/smoothPlot.js:smoothPlotCommands";
 texPackage.localSourceReviewedLatest += "; tikz.code.tex:1225-1316,3330-3440 (ordered plot keys, samples and saved pen); pgfmoduleplot.code.tex:66,185-267 (first action and polygon); pgflibraryplothandlers.code.tex:13-269 (open and periodic cubic supports)";
 texPackage.registryNoteSuffixLatest += " Coordinate and sampled plots share PGF's open and periodic cubic handlers, including signed tension, the cyclic start and the open connector. Evidence and limits: docs/qa/2026-11-26-native-smooth-plots.md.";
+
+texPackage.features.push("Connected and jumping left, right and midpoint step plots");
+texPackage.implementedBy += " + src/pgf/stepPlot.js:stepPlotCommands";
+texPackage.localSourceReviewedLatest += "; tikz.code.tex:1247-1253 (handler keys); pgflibraryplothandlers.code.tex:610-808, pgfcorepathconstruct.code.tex:179-185 and pgfmoduleplot.code.tex:126-137 (held samples, transformed midpoint register and no-op stream jumps)";
+texPackage.registryNoteSuffixLatest += " Ordinary constant and jump plots now hold the selected observation instead of interpolating diagonally. File breaks, first actions and transforms are covered by native traces. Evidence: docs/qa/2026-11-26-step-plots.md.";

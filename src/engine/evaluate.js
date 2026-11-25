@@ -125,6 +125,7 @@ import {
 import { pgfParabolaCommands } from "../tikz/pathOperations/parabola.js";
 import { createPlotMarkSelector } from "../pgf/plotMarkSelection.js";
 import { tikzPlotCommands, tikzPlotHandler, tikzPlotMarkName, tikzPlotPoints } from "../tikz/pathOperations/plot.js";
+import { isStepPlotHandler } from "../pgf/stepPlot.js";
 import { tikzPlotFileRuns } from "../tikz/pathOperations/plotFile.js";
 import { pathCornerInset, pathCornerMarks } from "./pathCornerMarks.js";
 import { resolveArrowActions, withoutArrowActions } from "../tikz/pathOperations/arrowActions.js";
@@ -16507,8 +16508,11 @@ function buildPathPlot(segment, inherited, env, diagnostics, connect, saved) {
   // Neither kind of break resets TikZ's independent marker replay.
   const samples = runs.length === 1 ? runs[0] : runs.flat();
   const toCanvas = p => applyTransform(p, matrix);
-  const commands = mapPathCoordinates(runs.flatMap((run, i) =>
-    tikzPlotCommands(run, handler, options, plotEnv, connect && (i === 0 || handler === "smooth"))), toCanvas);
+  // PGF's const/jump handlers register no stream-jump action. Keep their
+  // previous observation across blank lines and omitted points in a plot file.
+  const pathRuns = fileRuns && isStepPlotHandler(handler) ? [samples] : runs;
+  const commands = mapPathCoordinates(pathRuns.flatMap((run, i) =>
+    tikzPlotCommands(run, handler, options, plotEnv, connect && (i === 0 || handler === "smooth"), toCanvas)), toCanvas);
   // A transform inside plot[...] is local to the stream, not to a later ++.
   const last = samples.at(-1);
   const lastFileRow = fileRuns?.at(-1)?.at(-1);

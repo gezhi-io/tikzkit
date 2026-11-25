@@ -9056,6 +9056,40 @@
         "axis clipping",
         "legend"
       ]
+    },
+    {
+      "id": "manual-const-handlers",
+      "title": "PGF manual: connected left, right and midpoint steps",
+      "source": "step-plots/manual-const-handlers.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-plot-handlers.tex:100-165",
+      "semanticOwner": "src/pgf/stepPlot.js:stepPlotCommands",
+      "features": ["const plot", "const plot mark right", "const plot mark mid"]
+    },
+    {
+      "id": "manual-jump-handlers",
+      "title": "PGF manual: left, right and midpoint plateaus without risers",
+      "source": "step-plots/manual-jump-handlers.tex",
+      "sourceCorpus": "TeX Live PGF/TikZ manual (Till Tantau)",
+      "externalSource": "doc/generic/pgf/pgfmanual-en-library-plot-handlers.tex:167-227",
+      "semanticOwner": "src/pgf/stepPlot.js:stepPlotCommands",
+      "features": ["jump mark left", "jump mark right", "jump mark mid"]
+    },
+    {
+      "id": "axis-clipped-plateaus",
+      "title": "PGFPlots: step and jump plateaus clipped to the axis box",
+      "source": "step-plots/axis-clipped-plateaus.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/plotPath.js:axisPlotPointChain",
+      "features": ["const plot mark left", "jump mark mid", "axis clipping"]
+    },
+    {
+      "id": "axis-sampled-step-corner",
+      "title": "PGFPlots: a visible corner between two off-screen samples",
+      "source": "step-plots/axis-sampled-step-corner.tex",
+      "sourceCorpus": "TikZKit regression checked against native PGFPlots",
+      "semanticOwner": "src/pgfplots/addplotLowering.js;src/pgf/stepPlot.js:stepPlotCommands",
+      "features": ["sampled function", "const plot", "jump mark mid", "axis clipping"]
     }
   ]
 }

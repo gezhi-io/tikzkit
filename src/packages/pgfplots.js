@@ -275,3 +275,8 @@ texPackage.features.push("Shared PGF cubic control points for open and periodic 
 texPackage.implementedBy += "; src/pgf/smoothPlot.js:smoothPlotCommands; src/pgfplots/plotPath.js";
 texPackage.localSourceReviewedLatest += "; pgfplotscoordprocessing.code.tex:7544-7590 (restore the selected PGF handler before replay); pgflibraryplothandlers.code.tex:13-269 (open and closed handlers)";
 texPackage.registryNoteSuffixLatest += " Open and periodic smooth line plots use the same PGF control-point geometry as TikZ. See docs/qa/2026-11-26-native-smooth-plots.md for verified cases and limits.";
+
+texPackage.features.push("Sampled constant and jump plots clipped after constructing their steps");
+texPackage.implementedBy += "; src/pgf/stepPlot.js:stepPlotCommands; src/pgfplots/addplotLowering.js";
+texPackage.localSourceReviewedLatest += "; pgflibraryplothandlers.code.tex:610-808 (constant and jump paths); pgfplotscoordprocessing.code.tex:7544-7590 (plot handler replay); pgfplotsplothandlers.code.tex:688-691 (end/start on jump); pgfplots.code.tex:9183-9188 (axis clipping)";
+texPackage.registryNoteSuffixLatest += " Sampled step plots retain their off-screen observations until the constructed path is clipped. A visible corner is not discarded when its data chord misses the frame. Scope and evidence: docs/qa/2026-11-26-step-plots.md.";

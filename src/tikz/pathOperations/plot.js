@@ -2,6 +2,7 @@ import { evaluateMath } from "../../engine/math.js";
 import { splitTopLevel, stripOuterBraces } from "../../engine/options.js";
 import { moveToCommand, lineToCommand, closePathCommand } from "../../engine/pathBuilder.js";
 import { smoothPlotCommands } from "../../pgf/smoothPlot.js";
+import { isStepPlotHandler, stepPlotCommands } from "../../pgf/stepPlot.js";
 import { expandForeachValues } from "../commands/foreach.js";
 
 const handlers = new Set(["smooth", "smooth cycle", "sharp plot", "sharp cycle", "only marks", "xcomb", "ycomb"]);
@@ -9,7 +10,7 @@ const handlers = new Set(["smooth", "smooth cycle", "sharp plot", "sharp cycle",
 export function tikzPlotHandler(options) {
   // These TikZ keys assign a handler, even when their optional value is false.
   let handler = "sharp plot";
-  for (const key of Object.keys(options)) if (handlers.has(key)) handler = key;
+  for (const key of Object.keys(options)) if (handlers.has(key) || isStepPlotHandler(key)) handler = key;
   return handler;
 }
 
@@ -49,15 +50,17 @@ export function tikzPlotPoints(segment, options, env, { coordinate, project }) {
   });
 }
 
-export function tikzPlotCommands(points, handler, options, env, connect) {
+export function tikzPlotCommands(points, handler, options, env, connect, toCanvas) {
   if (!points.length || handler === "only marks") return [];
   if (handler === "xcomb" || handler === "ycomb") {
     return points.flatMap(p => [moveToCommand(handler === "xcomb" ? { x: 0, y: p.y } : { x: p.x, y: 0 }), lineToCommand(p)]);
   }
   const smooth = handler === "smooth" || handler === "smooth cycle";
   const closed = handler === "smooth cycle" || handler === "sharp cycle";
-  const commands = smooth ? smoothPlotCommands(points, { closed, tension: evaluateMath(options.tension ?? .5, env.variables) })
-    : points.map((p, i) => i ? lineToCommand(p) : moveToCommand(p));
+  let commands;
+  if (smooth) commands = smoothPlotCommands(points, { closed, tension: evaluateMath(options.tension ?? .5, env.variables) });
+  else if (isStepPlotHandler(handler)) commands = stepPlotCommands(points, handler, { toCanvas });
+  else commands = points.map((p, i) => i ? lineToCommand(p) : moveToCommand(p));
   if (handler === "sharp cycle") commands.push(closePathCommand());
   if (connect && !closed) commands[0] = lineToCommand(points[0]);
   return commands;

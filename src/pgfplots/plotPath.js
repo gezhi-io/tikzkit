@@ -1,5 +1,6 @@
 import { evaluateMath, parseDimension } from "../engine/math.js";
 import { smoothPlotCommands } from "../pgf/smoothPlot.js";
+import { isStepPlotHandler, stepPlotCommands } from "../pgf/stepPlot.js";
 import { formatAxisPathCommands, formatAxisPoint } from "./format.js";
 import { axisPlotHandler } from "./plotHandler.js";
 
@@ -20,31 +21,12 @@ export function axisPlotPointChain(points, axisOptions = {}, plotOptions = {}, o
     return smoothPointChain(points, handler === "smooth cycle" || cycle, plotOptions, axisOptions);
   }
   if (handler === "only marks") return "";
-  if (!handler.startsWith("const plot") && !handler.startsWith("jump mark")) {
-    const chain = points.map(formatAxisPoint).join(" -- ");
-    return cycle || handler === "sharp cycle" ? `${chain} -- cycle` : chain;
-  }
-  // Stock PGF const/jump handlers differ only in where the step turns
-  // and whether the change of height is a line or a move.
-  const jump = handler.startsWith("jump");
-  const mid = handler.endsWith("mid");
-  const right = handler.endsWith("right") !== Boolean(options.mirrorConstPlot);
-  const stepped = [formatAxisPoint(points[0])];
-  const visit = (point, move = false) => stepped.push((move ? " " : " -- ") + formatAxisPoint(point));
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1];
-    const current = points[index];
-    if (mid) {
-      const x = (previous.x + current.x) / 2;
-      visit({ x, y: previous.y });
-      visit({ x, y: current.y }, jump);
-    } else {
-      visit(right ? { x: previous.x, y: current.y } : { x: current.x, y: previous.y }, jump && right);
-    }
-    visit(current, jump && !mid && !right);
-  }
-  const chain = stepped.join("");
-  return cycle ? `${chain} -- cycle` : chain;
+  // PGFPlots mirrors only connected const handlers on a reversed stacked baseline.
+  const mirror = Boolean(options.mirrorConstPlot) && handler.startsWith("const plot");
+  const chain = isStepPlotHandler(handler)
+    ? formatAxisPathCommands(stepPlotCommands(points, handler, { mirror }))
+    : points.map(formatAxisPoint).join(" -- ");
+  return cycle || handler === "sharp cycle" ? `${chain} -- cycle` : chain;
 }
 
 export function splitAxisPlotPointRuns(points) {

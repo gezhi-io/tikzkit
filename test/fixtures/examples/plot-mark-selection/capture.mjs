@@ -38,7 +38,9 @@ async function capture(page, selector, target) {
   const svg = page.locator(selector);
   const [width, height] = await svg.evaluate(el => [el.getAttribute("width"), el.getAttribute("height")]);
   assert.ok([width, height].every(n => /^[\d.]+(pt|px)?$/.test(n)));
-  const css = (selector === ":root" ? "" : "#tikzkit-result{position:fixed!important;inset:0!important;z-index:99999!important;overflow:visible!important;}") +
+  // Chrome rounds the screenshot outwards. The fractional strip beyond the
+  // SVG must show the white page, not a neighboring workbench border.
+  const css = (selector === ":root" ? "" : "#tikzkit-result{position:fixed!important;inset:0!important;z-index:99999!important;overflow:visible!important;border:0!important;background:white!important;}") +
     selector + "{position:fixed!important;top:0!important;left:0!important;display:block!important;margin:0!important;" +
     "min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;" +
     "width:" + width + "!important;height:" + height + "!important;background:white;}";

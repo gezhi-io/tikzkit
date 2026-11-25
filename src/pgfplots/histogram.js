@@ -1,4 +1,5 @@
 import { parseOptions } from "../engine/options.js";
+import { isStepPlotHandler } from "../pgf/stepPlot.js";
 import { pgfplotsOptionEnabled } from "./axisOptions.js";
 import { createHistogramBins } from "./histogramBins.js";
 import { withPgfplotsIntervalAxisStyle } from "./intervalPlots.js";
@@ -9,9 +10,8 @@ export { createHistogramBins } from "./histogramBins.js";
 export { isPgfplotsIntervalPlot, normalizePgfplotsHandlerOptions, pgfplotsIntervalDataPoints,
   pgfplotsPlotRangePoints } from "./intervalPlots.js";
 
-const handlers = new Set(["ybar interval", "xbar interval", "ybar", "xbar", "sharp plot", "const plot",
-  "const plot mark left", "const plot mark right", "const plot mark mid", "jump mark left", "jump mark right",
-  "jump mark mid", "only marks", "smooth", "smooth cycle", "sharp cycle"]);
+const handlers = new Set(["ybar interval", "xbar interval", "ybar", "xbar", "sharp plot",
+  "only marks", "smooth", "smooth cycle", "sharp cycle"]);
 
 function optionMap(value) {
   if (value && typeof value === "object") return value;
@@ -44,7 +44,7 @@ function histogramSettings(axis, plot, styles) {
   const paintOptions = {};
   for (const [key, value] of Object.entries(paint)) {
     const name = key.replace(/^\/(?:tikz|pgfplots)\//, "");
-    if (handlers.has(name)) handler = name;
+    if (handlers.has(name) || isStepPlotHandler(name)) handler = name;
     else paintOptions[name] = value;
   }
   return { settings, handler, paintOptions };

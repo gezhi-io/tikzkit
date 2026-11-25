@@ -1,3 +1,4 @@
+import { isStepPlotHandler } from "../pgf/stepPlot.js";
 import { formatAxisPoint, joinOptions } from "./format.js";
 import { createBarLayout, isAxisBarPlot, renderAxisBars } from "./bars.js";
 import { renderBoxplot } from "./boxplotPaint.js";
@@ -11,10 +12,10 @@ import { renderAxisErrorBars } from "./errorBarPaint.js";
 import {
   axisPlotPointChain,
   clampAxisBaseline,
-  isSmoothAxisPlot,
   splitAxisPlotPointRuns,
   shouldRenderAxisPlotPath
 } from "./plotPath.js";
+import { axisPlotHandler } from "./plotHandler.js";
 import { selectPlotColor, selectPlotStyle } from "./plotStyle.js";
 import {
   isSurfacePlot,
@@ -271,10 +272,12 @@ function visiblePlotSamples(points, plot, axis, ranges) {
 }
 
 function clipPlotSamples(valid, plot, axisOptions, clipRanges) {
-  // Clipping sampled chords invents spline tangents, cuts off area tails,
-  // and drops off-screen samples that a plot-local transform moves on-screen.
+  // PGF clips the painted path. Clipping the sample chords instead can
+  // erase visible step corners, change spline tangents or truncate fills.
   const opts = plot.options;
-  if (isSmoothAxisPlot(opts, axisOptions) || plot.closedCycle || plot.pathCycle || plot.fillAnchor ||
+  const handler = axisPlotHandler(opts, axisOptions);
+  if (isStepPlotHandler(handler) || handler === "smooth" || handler === "smooth cycle" ||
+      plot.closedCycle || plot.pathCycle || plot.fillAnchor ||
       opts.fill || opts.pattern || opts["/tikz/pattern"] ||
       Object.keys(opts).some(key => plotTransformKey.test(key.replace(/^\/tikz\//, "")))) return valid;
   if (plot.is3d) return valid.filter(point => axisPoint3dInRange(point, clipRanges));

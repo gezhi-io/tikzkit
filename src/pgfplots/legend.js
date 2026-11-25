@@ -1,4 +1,5 @@
 import { parseOptions, splitTopLevel, stripTexComments } from "../engine/options.js";
+import { isStepPlotHandler, stepPlotCommands } from "../pgf/stepPlot.js";
 import { fontScaleFromTikzFont } from "../tikz/text.js";
 import {
   estimateFormulaBox,
@@ -7,7 +8,7 @@ import {
   measurePlainTextTeXBoxPt,
   parseMathText
 } from "../tikz/textMetrics.js";
-import { formatAxisPoint, joinOptions } from "./format.js";
+import { formatAxisPathCommands, formatAxisPoint, joinOptions } from "./format.js";
 import { pgfplotsRoleFontCommand } from "./fonts.js";
 import { renderPlotMark } from "./marks.js";
 import { selectPlotStyle } from "./plotStyle.js";
@@ -118,7 +119,8 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
     const options = mergePgfplotsOptionMaps(plot, post);
     const scopes = [...seriesScopes, post];
     const filled = filledLegendImage(axisOptions, options, i, dimensionFont, scopes, mathOptions.variables);
-    return { options, filled, onlyMarks: axisPlotHandler(options, axisOptions) === "only marks",
+    const handler = axisPlotHandler(options, axisOptions);
+    return { options, filled, handler, onlyMarks: handler === "only marks",
       fractions: filled ? [] : lineLegendMarkFractions(axisOptions, options, scopes, mathOptions.variables) };
   });
   const filledImages = images.map(image => image.filled);
@@ -183,7 +185,7 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
     const textX = cell ? box.left + cell.textLeft : x1 + (mathLegend ? PGFPLOTS_LEGEND_TEXT_GAP : PGFPLOTS_PLAIN_LEGEND_TEXT_GAP);
     const textRight = cell ? box.left + cell.textRight : cellRight - (mathLegend ? PGFPLOTS_LEGEND_OUTER_XSEP + PGFPLOTS_LEGEND_CELL_INNER_SEP : PGFPLOTS_PLAIN_LEGEND_TEXT_RIGHT);
     const labelX = legendCellAnchorX(textX, textRight, cellAnchor);
-    const { options, filled: image, onlyMarks, fractions } = images[index];
+    const { options, filled: image, handler, onlyMarks, fractions } = images[index];
     const imageStyle = joinOptions([
       "axis legend image",
       image ? image.ink.style : selectPlotStyle(options, index),
@@ -199,7 +201,11 @@ export function renderLegendEntries(axisOptions, _ranges, geometry, bodyEntries 
         commands.push(renderPlotMark({ x: origin + mark.x, y: y + mark.y }, options, index, image.ink.mark));
       }
     } else if (!onlyMarks) {
-      commands.push(`\\draw[${imageStyle}] ${point({ x: x0, y })} -- ${point({ x: x1, y })};`);
+      // Native line legend is a three-observation plot; a jump restarts dashes even at the same height.
+      const line = isStepPlotHandler(handler)
+        ? formatAxisPathCommands(stepPlotCommands([{ x: x0, y }, { x: (x0 + x1) / 2, y }, { x: x1, y }], handler))
+        : `${point({ x: x0, y })} -- ${point({ x: x1, y })}`;
+      commands.push(`\\draw[${imageStyle}] ${line};`);
     }
     for (const f of fractions) {
       commands.push(renderPlotMark({ x: x0 + f * (x1 - x0), y }, options, index));

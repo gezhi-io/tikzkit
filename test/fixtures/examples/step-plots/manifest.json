@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "manual-const-handlers",
+      "title": "PGF manual: connected left, right and midpoint steps",
+      "source": "manual-const-handlers.tex"
+    },
+    {
+      "id": "manual-jump-handlers",
+      "title": "PGF manual: left, right and midpoint plateaus without risers",
+      "source": "manual-jump-handlers.tex"
+    },
+    {
+      "id": "axis-clipped-plateaus",
+      "title": "PGFPlots: step and jump plateaus clipped to the axis box",
+      "source": "axis-clipped-plateaus.tex"
+    },
+    {
+      "id": "axis-sampled-step-corner",
+      "title": "PGFPlots: a visible corner between two off-screen samples",
+      "source": "axis-sampled-step-corner.tex"
+    }
+  ]
+}

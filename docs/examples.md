@@ -313,6 +313,22 @@ const { svg } = await tikzToSvgAsync(
 );
 ```
 
+## Step Plots
+
+To hold each measurement until the next one arrives, use a constant plot.
+The jump version leaves the change of level unstroked:
+
+```tex
+\begin{tikzpicture}
+  \draw[blue] plot[const plot] coordinates {(0,1) (1,2) (3,1)};
+  \draw[red]  plot[jump mark left] coordinates {(0,0) (1,.5) (3,0)};
+\end{tikzpicture}
+```
+
+For a change halfway between observations, use `const plot mark mid` or
+`jump mark mid`. For a level determined by the next observation, use the
+`mark right` variants. See the [sources and visual comparison](qa/2026-11-26-step-plots.md).
+
 ## Local Comparison Gallery
 
 Generate the complete local gallery from the repository root:

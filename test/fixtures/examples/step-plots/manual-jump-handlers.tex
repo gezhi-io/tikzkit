@@ -1,0 +1,15 @@
+% PGF/TikZ manual (TeX Live 2025), pgfmanual-en-library-plot-handlers.tex,
+% "Constant Plot Handlers": \pgfplothandlerjumpmarkleft, \pgfplothandlerjumpmarkright
+% and \pgfplothandlerjumpmarkmid use (0cm,0cm), (1cm,1cm), (2cm,0.5cm).
+% The ordinary TikZ keys below are documented in pgfmanual-en-tikz-plots.tex.
+% Same literal panel offsets (0, 2.5, 5cm) as manual-const-handlers, but no risers:
+% blue y=0,1; teal y=1,.5; red y=0,1,.5 with breaks at local x=.5,1.5.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue,thick] plot[jump mark left] coordinates {(0,0) (1,1) (2,0.5)};
+  \draw[teal,thick] plot[jump mark right] coordinates {(2.5,0) (3.5,1) (4.5,0.5)};
+  \draw[red,thick] plot[jump mark mid] coordinates {(5,0) (6,1) (7,0.5)};
+\end{tikzpicture}
+\end{document}
