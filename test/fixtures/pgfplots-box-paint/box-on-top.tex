@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[width=8cm,height=5cm,xmin=0,xmax=1,ymin=0,ymax=4,
+    enlargelimits=false,grid=major,xtick={0,.5,1},ytick={0,1,2,3,4},
+    axis line style={line width=2pt,dashed},grid style={dashed,gray!50},axis on top]
+    \addplot[red,line width=8pt,domain=0:1,samples=2] {0};
+    \addplot[blue,line width=8pt,domain=0:1,samples=2] {4};
+    \addplot[green!50!black,line width=6pt] coordinates {(0,0) (1,4)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

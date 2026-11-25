@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \path[decorate,decoration={text effects along path,text={Ag},text effects/.cd,
+    characters={text along path,scale=1.5}}] (0,0) -- (2,1);
+\end{tikzpicture}
+\end{document}

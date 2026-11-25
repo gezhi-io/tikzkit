@@ -322,7 +322,7 @@ test("renders escaped dollar math labels in TeX order", () => {
   assert.equal(group.glyphs[0].y, group.glyphs[1].y);
 });
 
-test("renders DeclareMathOperator operator names in SVG text fallback labels", () => {
+test("renders DeclareMathOperator names and scripts with native math glyphs", () => {
   const result = tikzToSvg(String.raw`
 \documentclass{standalone}
 \usepackage{mathtools}
@@ -334,8 +334,13 @@ test("renders DeclareMathOperator operator names in SVG text fallback labels", (
 \end{document}`, { mathRenderer: "svg-text" });
 
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.svg, />Re\(/);
-  assert.match(result.svg, /baseline-shift="sub">0</);
+  const group = assertNativeText(result.svg, "Re(p0)");
+  assert.equal(group.text, "Re(p0)");
+  assert.ok(group.glyphs.slice(0, 2).every(g => g.family === "TikZKitCMR10" && g.style === "normal"));
+  const sub = group.glyphs.find(g => g.text === "0");
+  assert.equal(sub.family, "TikZKitCMR7");
+  assert.equal(sub.size, 7);
+  assert.ok(Math.abs(sub.y - 1.49998) < .001, "native TeX subscript baseline");
   assert.doesNotMatch(result.svg, /operatorname/);
 });
 

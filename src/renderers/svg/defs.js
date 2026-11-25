@@ -3,6 +3,7 @@ import { renderStockPattern } from "./stockPattern.js";
 import { stockPatternOpacity } from "../../tikz/patternTiles.js";
 import { formatSvgNumber as format } from "./format.js";
 import { svgPathData } from "./pathData.js";
+import { indexScopeClips, renderPathClipDef, renderScopeClipDefs } from "./scopeClips.js";
 import { createSvgIdPrefix, SVG_ID_PREFIX, svgDefinitionId } from "./definitionScope.js";
 import { normalizeShadingColor } from "../../engine/colors.js";
 import { emptyBoundingBox, includePathCommandBounds, includePoint } from "../../scene/bbox.js";
@@ -28,9 +29,10 @@ export function createSvgDefs(parts = []) {
 
 export function scopeSvgDefinitions(items, unit, explicitPrefix, pageOrigin) {
   items = items.map(withAxisShadingAspect);
-  const definitions = collectSvgDefs(items, unit, pageOrigin);
+  const scopeClips = indexScopeClips(items);
+  const definitions = collectSvgDefs(items, unit, scopeClips, pageOrigin);
   const prefix = createSvgIdPrefix(definitions, unit, explicitPrefix);
-  if (!definitions.length && explicitPrefix === undefined) return { items, defs: definitions };
+  if (!definitions.length && explicitPrefix === undefined) return { items, defs: definitions, scopeClips };
   const scopedItems = items.map((item) => ({
     ...item,
     [SVG_ID_PREFIX]: prefix,
@@ -41,7 +43,7 @@ export function scopeSvgDefinitions(items, unit, explicitPrefix, pageOrigin) {
       style: { ...shadow.style, [SVG_ID_PREFIX]: prefix }
     })) } : {})
   }));
-  return { items: scopedItems, defs: collectSvgDefs(scopedItems, unit, pageOrigin) };
+  return { items: scopedItems, defs: collectSvgDefs(scopedItems, unit, scopeClips, pageOrigin), scopeClips };
 }
 
 function withAxisShadingAspect(item) {
@@ -61,7 +63,7 @@ function withAxisShadingAspect(item) {
   return { ...item, style: { ...item.style, axisShadingAspect: width / height } };
 }
 
-export function collectSvgDefs(items, unit, pageOrigin) {
+export function collectSvgDefs(items, unit, scopeClips = indexScopeClips(items), pageOrigin) {
   const clipRectDefs = collectClipRectDefs(items);
   const clipCircleDefs = collectClipCircleDefs(items);
   const clipPolygonDefs = collectClipPolygonDefs(items);
@@ -74,10 +76,11 @@ export function collectSvgDefs(items, unit, pageOrigin) {
   const pathFadingDefs = collectPathFadingDefs(items);
   const blurShadowDefs = collectBlurShadowDefs(items, unit);
   return [
+    ...renderScopeClipDefs(scopeClips, items[0], unit),
     ...clipRectDefs.map((def) => renderClipRectDef(def, unit)),
     ...clipCircleDefs.map((def) => renderClipCircleDef(def, unit)),
     ...clipPolygonDefs.map((def) => renderClipPolygonDef(def, unit)),
-    ...formOnlyPatternClipDefs.map((def) => renderFormOnlyPatternClipDef(def, unit)),
+    ...formOnlyPatternClipDefs.map((def) => renderPathClipDef(def.id, def.commands, def.fillRule, unit)),
     ...patternDefs.map((def) => renderPatternDef(def, unit, pageOrigin)),
     ...ballGradientDefs.map(renderBallGradientDef),
     ...axisGradientDefs.map(renderAxisGradientDef),
@@ -125,11 +128,6 @@ function collectFormOnlyPatternClipDefs(items = []) {
     if (!item?.style?.patternDefinition || !Array.isArray(item.commands) || !item.commands.length) return [];
     return [{ id: formOnlyPatternClipId(index, item), commands: item.commands, fillRule: item.style.fillRule }];
   });
-}
-
-function renderFormOnlyPatternClipDef(def, unit) {
-  const fillRule = def.fillRule ? ` clip-rule="${escapeAttribute(String(def.fillRule))}"` : "";
-  return `<clipPath id="${escapeAttribute(def.id)}" clipPathUnits="userSpaceOnUse"><path d="${svgPathData(def.commands, unit)}"${fillRule} /></clipPath>`;
 }
 
 export function clipRectId(clipRect = {}, context = {}) {

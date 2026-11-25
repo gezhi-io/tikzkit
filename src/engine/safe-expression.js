@@ -1,16 +1,22 @@
 import { createToken, EmbeddedActionsParser, Lexer } from "chevrotain";
+import { pgfDimension, pgfFixedDivide, pgfFixedMultiply, pgfFixedReciprocal, pgfPrintDimension, pgfScientificLiteral } from "./pgf-fixed-point.js";
 
 export const MATH_EXPRESSION_LIMITS = Object.freeze({ characters: 65536, tokens: 4096, depth: 64, operations: 16384 });
 
 const Space = createToken({ name: "MathSpace", pattern: /\s+/, group: Lexer.SKIPPED });
 const NumberToken = createToken({ name: "MathNumber", pattern: /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/ });
 const Identifier = createToken({ name: "MathIdentifier", pattern: /\\?[A-Za-z_@][A-Za-z0-9_@]*(?:\{\})?/ });
-const Or = createToken({ name: "MathOr", pattern: /\|\|/ });
-const And = createToken({ name: "MathAnd", pattern: /&&/ });
+const Logical = createToken({ name: "MathLogical", pattern: Lexer.NA });
+const Or = createToken({ name: "MathOr", pattern: /\|\|/, categories: Logical });
+const And = createToken({ name: "MathAnd", pattern: /&&/, categories: Logical });
 const Equality = createToken({ name: "MathEquality", pattern: /===|!==|==|!=/ });
 const Relation = createToken({ name: "MathRelation", pattern: /<=|>=|<|>/ });
-const Power = createToken({ name: "MathPower", pattern: /\*\*|\^/ });
-const Add = createToken({ name: "MathAdd", pattern: /[+-]/ });
+const Power = createToken({ name: "MathPower", pattern: Lexer.NA });
+const Caret = createToken({ name: "MathCaret", pattern: /\^/, categories: Power });
+const StarPower = createToken({ name: "MathStarPower", pattern: /\*\*/, categories: Power });
+const Add = createToken({ name: "MathAdd", pattern: Lexer.NA });
+const Plus = createToken({ name: "MathPlus", pattern: /\+/, categories: Add });
+const Minus = createToken({ name: "MathMinus", pattern: /-/, categories: Add });
 const Multiply = createToken({ name: "MathMultiply", pattern: /[*/%]/ });
 const Not = createToken({ name: "MathNot", pattern: /!/ });
 const BitOr = createToken({ name: "MathBitOr", pattern: /\|/ });
@@ -22,15 +28,15 @@ const LParen = createToken({ name: "MathLParen", pattern: /\(/ });
 const RParen = createToken({ name: "MathRParen", pattern: /\)/ });
 const LBrace = createToken({ name: "MathLBrace", pattern: /\{/ });
 const RBrace = createToken({ name: "MathRBrace", pattern: /\}/ });
-const tokens = [Space, NumberToken, Identifier, Or, And, Equality, Relation, Power, Add, Multiply, Not, BitOr, BitAnd, Question, Colon, Comma, LParen, RParen, LBrace, RBrace];
+const tokens = [Space, NumberToken, Identifier, Or, And, Equality, Relation, Caret, StarPower, Plus, Minus, Multiply, Not, BitOr, BitAnd, Question, Colon, Comma, LParen, RParen, LBrace, RBrace, Logical, Power, Add];
 const lexer = new Lexer(tokens, { positionTracking: "onlyOffset" });
 
 class MathParser extends EmbeddedActionsParser {
-  constructor() {
+  constructor(plotDialect = false) {
     super(tokens, { recoveryEnabled: false, maxLookahead: 2 });
     const $ = this;
     $.RULE("expression", () => {
-      let node = $.SUBRULE($.logicalOr);
+      let node = $.SUBRULE($.logical);
       $.OPTION(() => {
         $.CONSUME(Question);
         const yes = $.SUBRULE($.expression);
@@ -42,10 +48,11 @@ class MathParser extends EmbeddedActionsParser {
     });
     // Each precedence level builds nodes; no source text is ever executed.
     for (const [name, lower, operator] of [
-      ["logicalOr", "logicalAnd", Or], ["logicalAnd", "bitOr", And],
+      ...(plotDialect ? [["logical", "logicalAnd", Or], ["logicalAnd", "bitOr", And]] : [["logical", "bitOr", Logical]]),
       ["bitOr", "bitAnd", BitOr], ["bitAnd", "equality", BitAnd],
       ["equality", "relation", Equality], ["relation", "sum", Relation],
-      ["sum", "product", Add], ["product", "unary", Multiply]
+      ["sum", "product", Add], ["product", plotDialect ? "plotUnary" : "pgfPower", Multiply],
+      ...(plotDialect ? [] : [["pgfPower", "pgfOperand", Caret]])
     ]) {
       $.RULE(name, () => {
         let node = $.SUBRULE($[lower]);
@@ -57,19 +64,39 @@ class MathParser extends EmbeddedActionsParser {
         return node;
       });
     }
-    $.RULE("unary", () => $.OR([
+    if (!plotDialect) {
+      // PGF discards prefix + and pushes neg at precedence 500. In particular,
+      // the minus in 2^-1^2 owns the following power; a signed atom would not.
+      $.RULE("pgfOperand", () => $.OR([
+        { ALT: () => {
+          $.CONSUME(Minus);
+          const value = $.SUBRULE($.product);
+          return $.ACTION(() => ({ type: "unary", operator: "-", value }));
+        } },
+        { ALT: () => { $.CONSUME(Plus); return $.SUBRULE($.pgfOperand); } },
+        { ALT: () => {
+          $.CONSUME(Not);
+          const value = $.SUBRULE2($.pgfOperand);
+          return $.ACTION(() => ({ type: "unary", operator: "!", value }));
+        } },
+        { ALT: () => $.SUBRULE($.plotPower) }
+      ]));
+    }
+    // The existing ** extension is not a native PGF caret. Keep its right
+    // associativity and its signed exponent even in the shared expression API.
+    $.RULE("plotUnary", () => $.OR([
       { ALT: () => {
         const op = $.OR2([{ ALT: () => $.CONSUME(Add) }, { ALT: () => $.CONSUME(Not) }]);
-        const value = $.SUBRULE($.unary);
+        const value = $.SUBRULE($.plotUnary);
         return $.ACTION(() => ({ type: "unary", operator: op.image, value }));
       } },
-      { ALT: () => $.SUBRULE($.power) }
+      { ALT: () => $.SUBRULE($.plotPower) }
     ]));
-    $.RULE("power", () => {
+    $.RULE("plotPower", () => {
       let node = $.SUBRULE($.primary);
       $.OPTION(() => {
-        $.CONSUME(Power);
-        const right = $.SUBRULE($.unary);
+        $.CONSUME(plotDialect ? Power : StarPower);
+        const right = $.SUBRULE($.plotUnary);
         node = $.ACTION(() => ({ type: "binary", operator: "^", left: node, right }));
       });
       return node;
@@ -77,7 +104,7 @@ class MathParser extends EmbeddedActionsParser {
     $.RULE("primary", () => $.OR([
       { ALT: () => {
         const token = $.CONSUME(NumberToken);
-        return $.ACTION(() => ({ type: "number", value: Number(token.image) }));
+        return $.ACTION(() => ({ type: "number", value: Number(token.image), raw: token.image }));
       } },
       { ALT: () => {
         const token = $.CONSUME(Identifier);
@@ -114,7 +141,8 @@ class MathParser extends EmbeddedActionsParser {
   }
 }
 
-const parser = new MathParser();
+const pgfParser = new MathParser();
+let plotParser;
 const astCache = new Map();
 let diagnosticContext;
 
@@ -155,9 +183,10 @@ function fail(code, message, offset) {
   throw new MathExpressionError(mathFailure("", code, message, offset).diagnostic);
 }
 
-function parseExpression(source) {
+function parseExpression(source, plotDialect) {
   if (source.length > MATH_EXPRESSION_LIMITS.characters) fail("math-expression-limit", "Math expression exceeds the source length limit.");
-  if (astCache.has(source)) return astCache.get(source);
+  const key = (plotDialect ? "plot:" : "pgf:") + source;
+  if (astCache.has(key)) return astCache.get(key);
   const lexed = lexer.tokenize(source);
   if (lexed.errors.length) fail("math-syntax", "Unsupported token in math expression.", lexed.errors[0].offset);
   if (lexed.tokens.length > MATH_EXPRESSION_LIMITS.tokens) fail("math-expression-limit", "Math expression exceeds the token limit.");
@@ -165,14 +194,15 @@ function parseExpression(source) {
   // chains and right-associative powers/conditionals, not only parentheses.
   let recursion = 0;
   for (const token of lexed.tokens) {
-    if ([LParen, LBrace, Power, Question, Add, Not].includes(token.tokenType)) recursion += 1;
+    if ([LParen, LBrace, Caret, StarPower, Question, Plus, Minus, Not].includes(token.tokenType)) recursion += 1;
     if (recursion > MATH_EXPRESSION_LIMITS.depth) fail("math-expression-limit", "Math expression exceeds the nesting limit.", token.startOffset);
   }
+  const parser = plotDialect ? (plotParser ??= new MathParser(true)) : pgfParser;
   parser.input = lexed.tokens;
   const ast = parser.expression();
   if (parser.errors.length) fail("math-syntax", "Invalid math expression.", parser.errors[0].token.startOffset);
   if (astCache.size >= 256) astCache.delete(astCache.keys().next().value);
-  astCache.set(source, ast);
+  astCache.set(key, ast);
   return ast;
 }
 
@@ -187,8 +217,12 @@ export function evaluateRestrictedExpression(expression, variables = {}, options
       }
       declarations.set(declaration.name, declaration);
     }
-    const state = { variables: variables || {}, runtime: createMathRuntime(options), budget: { operations: 0 }, resolving: new Set(), declarations, options };
-    const ast = parseExpression(source);
+    const plotDialect = options.dialect === "gnuplot";
+    // TikZ writes plot functions to gnuplot. Intermediate sample values never
+    // enter a TeX dimension register, even when their final coordinates do.
+    const arithmetic = plotDialect ? { ...options, fixedPointRounding: false, fixedPointDivision: false } : options;
+    const state = { variables: variables || {}, runtime: createMathRuntime(arithmetic), budget: { operations: 0 }, resolving: new Set(), declarations, options: arithmetic, plotDialect };
+    const ast = parseExpression(source, plotDialect);
     let value = interpret(ast, state, 0);
     // Retain only the existing PGFPlots isolated top-level 0/0 policy. Other
     // nonfinite expressions remain failures, including all coordinate maths.
@@ -206,18 +240,35 @@ export function evaluateRestrictedExpression(expression, variables = {}, options
   }
 }
 
-function interpret(node, state, depth) {
+function interpret(node, state, depth, asDimension = false) {
   if (++state.budget.operations > MATH_EXPRESSION_LIMITS.operations || depth > MATH_EXPRESSION_LIMITS.depth) {
     fail("math-expression-limit", "Math expression exceeds the evaluation limit.");
   }
-  const visit = (child) => interpret(child, state, depth + 1);
-  if (node.type === "number") return node.value;
+  const value = interpretNode(node, state, depth, asDimension);
+  return asDimension ? pgfDimension(value) : value;
+}
+
+// Both basic PGF and the FPU's and/or wrappers compare dimensions to 0pt.
+// Only basic PGF also evaluates the arithmetic *inside* that operand in sp.
+function pgfBooleanOperand(node, state, depth) {
+  const arithmetic = state.options.fixedPointRounding === false ? state : { ...state, fixedArithmetic: true };
+  const value = interpret(node, arithmetic, depth, true);
+  if (!Number.isFinite(value)) fail("math-nonfinite", "Boolean operand did not produce a finite PGF dimension.");
+  return Number(value !== 0);
+}
+
+function interpretNode(node, state, depth, asDimension) {
+  const visit = (child, dimension = false) => interpret(child, state, depth + 1, dimension);
+  if (node.type === "number") {
+    if (state.fixedArithmetic && /e/i.test(node.raw || "")) return pgfScientificLiteral(node.raw);
+    return asDimension ? pgfDimension(node.raw ?? node.value) : node.value;
+  }
   const declaration = state.declarations.get(node.name);
   if (declaration && ((node.type === "variable" && declaration.type === "constant") || (node.type === "call" && declaration.type === "function"))) {
     const params = declaration.params || [];
     const args = node.args || [];
     if (args.length !== params.length) fail("math-arity", `Invalid argument count for math function ${node.name}.`);
-    const values = args.map(visit);
+    const values = args.map(arg => visit(arg));
     const key = `declaration:${node.name}`;
     if (state.resolving.has(key)) fail("math-expression-limit", `Recursive math declaration: ${node.name}.`);
     state.resolving.add(key);
@@ -227,7 +278,7 @@ function interpret(node, state, depth) {
     });
     const declarations = new Map(state.declarations);
     params.forEach((param) => declarations.delete(param));
-    try { return interpret(parseExpression(String(declaration.body)), { ...state, variables, declarations }, depth + 1); }
+    try { return interpret(parseExpression(String(declaration.body), state.plotDialect), { ...state, variables, declarations }, depth + 1, asDimension); }
     finally { state.resolving.delete(key); }
   }
   if (node.type === "variable") {
@@ -242,24 +293,33 @@ function interpret(node, state, depth) {
     if (typeof descriptor.value === "number") return descriptor.value;
     if (state.resolving.has(node.name)) fail("math-expression-limit", `Cyclic math variable: ${node.name}.`);
     state.resolving.add(node.name);
-    try { return visit(parseExpression(descriptor.value)); } finally { state.resolving.delete(node.name); }
+    try { return visit(parseExpression(descriptor.value, state.plotDialect), asDimension); } finally { state.resolving.delete(node.name); }
   }
-  if (node.type === "conditional") return visit(node.condition) ? visit(node.yes) : visit(node.no);
+  if (node.type === "conditional") return visit(node.condition) ? visit(node.yes, asDimension) : visit(node.no, asDimension);
   if (node.type === "unary") {
-    const value = visit(node.value);
+    const value = visit(node.value, (state.fixedArithmetic || asDimension) && node.operator !== "!");
     if (node.operator === "!") return value ? 0 : 1;
+    if (node.operator === "-" && !state.plotDialect && value === 0) return 0;
     return node.operator === "-" ? -value : value;
   }
   if (node.type === "binary") {
-    const left = visit(node.left);
-    if (node.operator === "&&") return left ? visit(node.right) : left;
-    if (node.operator === "||") return left || visit(node.right);
-    const right = visit(node.right);
+    if (node.operator === "&&" || node.operator === "||") {
+      // Retain the restricted evaluator's lazy RHS, including diagnostics.
+      const truth = state.plotDialect ? visit : child => pgfBooleanOperand(child, state, depth + 1);
+      const left = truth(node.left);
+      return node.operator === "&&" ? left && truth(node.right) : left || truth(node.right);
+    }
+    const nativeDivision = node.operator === "/" && (state.options.fixedPointDivision ?? state.options.fixedPointRounding) !== false;
+    const fixed = nativeDivision || state.fixedArithmetic && ["+", "-", "*", "/"].includes(node.operator);
+    const operand = child => nativeDivision
+      ? interpret(child, { ...state, fixedArithmetic: true }, depth + 1, true) : visit(child, fixed);
+    const left = operand(node.left);
+    const right = operand(node.right);
     switch (node.operator) {
       case "+": return left + right;
       case "-": return left - right;
-      case "*": return left * right;
-      case "/": return left / right;
+      case "*": return fixed ? pgfFixedMultiply(left, right) : left * right;
+      case "/": return fixed ? Number(pgfPrintDimension(pgfFixedDivide(left, right))) : left / right;
       case "%": return left % right;
       case "^": return left ** right;
       case "<": return Number(left < right);
@@ -281,15 +341,31 @@ function interpret(node, state, depth) {
     if (!Object.hasOwn(state.runtime, node.name)) fail("math-unknown-function", `Unknown math function: ${node.name}.`);
     const { fn, min, max } = state.runtime[node.name];
     if (node.args.length < min || node.args.length > max) fail("math-arity", `Invalid argument count for math function ${node.name}.`);
+    if (!state.plotDialect && (node.name === "and" || node.name === "or")) {
+      return fn(...node.args.map(arg => pgfBooleanOperand(arg, state, depth + 1)));
+    }
+    // These native families request fixed-point arguments. The plot FPU and
+    // unrelated expressions retain their independent arithmetic policy.
+    if (state.options.fixedPointRounding !== false && ["round", "floor", "ceil"].includes(node.name)) {
+      return fn(interpret(node.args[0], { ...state, fixedArithmetic: true }, depth + 1, true));
+    }
+    if ((state.options.fixedPointDivision ?? state.options.fixedPointRounding) !== false && ["divide", "div", "reciprocal"].includes(node.name)) {
+      return fn(...node.args.map(arg => interpret(arg, { ...state, fixedArithmetic: true }, depth + 1, true)));
+    }
     if (["sin", "cos", "tan"].includes(node.name) && node.args[0].type === "suffix" && node.args[0].suffix === "r") {
-      return Math[node.name](visit(node.args[0].value));
+      // This existing exact-radian route uses JS trig, not PGF's degree table.
+      // Keep its argument in the same floating domain rather than combining
+      // a fixed quotient with a high-precision transcendental implementation.
+      return Math[node.name](interpret(node.args[0].value, {
+        ...state, fixedArithmetic: false, options: { ...state.options, fixedPointDivision: false }
+      }, depth + 1));
     }
     if (node.name === "gauss") {
-      const [mean, sigma] = node.args.map(visit);
+      const [mean, sigma] = node.args.map(arg => visit(arg));
       const x = visit({ type: "variable", name: "x" });
       return 1 / (sigma * Math.sqrt(2 * Math.PI)) * Math.exp(-((x - mean) ** 2) / (2 * sigma ** 2));
     }
-    return fn(...node.args.map(visit));
+    return fn(...node.args.map(arg => visit(arg)));
   }
   fail("math-syntax", "Invalid math expression node.");
 }
@@ -300,13 +376,18 @@ const deg = (value) => value * 180 / Math.PI;
 const div = (left, right) => Math.trunc(left / right);
 const mod = (left, right) => left - right * div(left, right);
 const positiveMod = (left, right) => { const value = mod(left, right); return value < 0 ? value + right : value; };
-const coordinateMod = (left, right) => ((left % right) + right) % right;
+// PGF rounds the magnitude and then restores the sign. Math.round instead
+// sends negative half-integers toward zero. Do not leak JavaScript's -0.
+const pgfRound = value => {
+  const rounded = value < 0 ? -Math.round(-value) : Math.round(value);
+  return rounded === 0 ? 0 : rounded;
+};
 const spec = (fn, min = fn.length, max = min) => Object.freeze({ fn, min, max });
 const commonFunctions = Object.freeze({
   pow: spec(Math.pow), sqrt: spec(Math.sqrt), abs: spec(Math.abs), exp: spec(Math.exp),
   ln: spec(Math.log), log: spec(Math.log), log10: spec(Math.log10),
   sinh: spec(Math.sinh), cosh: spec(Math.cosh), tanh: spec(Math.tanh),
-  floor: spec(Math.floor), ceil: spec(Math.ceil), round: spec(Math.round),
+  floor: spec(Math.floor), ceil: spec(Math.ceil), round: spec(pgfRound),
   sign: spec((value) => value > 0 ? 1 : value < 0 ? -1 : 0), int: spec(Math.trunc),
   rad: spec(rad), deg: spec(deg), asin: spec((value) => deg(Math.asin(value))),
   acos: spec((value) => deg(Math.acos(value))), atan: spec((value) => deg(Math.atan(value))),
@@ -319,10 +400,22 @@ const commonFunctions = Object.freeze({
   or: spec((left, right) => left || right ? 1 : 0), div: spec(div)
 });
 
-export function createMathRuntime({ pgfTrig = false, radianTrig = false, coordinateModulo = false } = {}) {
+export function createMathRuntime({ pgfTrig = false, radianTrig = false, fixedPointRounding = true, fixedPointDivision = fixedPointRounding } = {}) {
+  const rounding = fn => spec(value => {
+    const result = fn(fixedPointRounding ? pgfDimension(value) : value);
+    return result === 0 ? 0 : result;
+  });
   return Object.freeze({
     ...commonFunctions,
-    mod: spec(coordinateModulo ? coordinateMod : mod), Mod: spec(coordinateModulo ? coordinateMod : positiveMod),
+    round: rounding(pgfRound), floor: rounding(Math.floor), ceil: rounding(Math.ceil),
+    divide: spec((left, right) => fixedPointDivision ? Number(pgfPrintDimension(pgfFixedDivide(left, right))) : left / right),
+    div: spec((left, right) => {
+      const value = fixedPointDivision ? pgfFixedDivide(left, right) : left / right;
+      const integer = Math.trunc(value);
+      return integer === 0 ? 0 : integer;
+    }),
+    reciprocal: spec(value => fixedPointDivision ? Number(pgfPrintDimension(pgfFixedReciprocal(value))) : 1 / value),
+    mod: spec(mod), Mod: spec(positiveMod),
     sin: spec(radianTrig ? Math.sin : pgfTrig ? pgfSin : (value) => Math.sin(rad(value))),
     cos: spec(radianTrig ? Math.cos : pgfTrig ? pgfCos : (value) => Math.cos(rad(value))),
     tan: spec(radianTrig ? Math.tan : pgfTrig ? pgfTan : (value) => Math.tan(rad(value)))

@@ -1,0 +1,14 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{amsmath}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-.3,.8) rectangle (7.5,-4.4);
+  \node[anchor=base west,inner sep=0,font=\scriptsize] at (0,0) {$\displaystyle\operatorname*{rank}^2_k A$};
+  \node[anchor=base west,inner sep=0,font=\Large] at (3.5,0) {$\displaystyle\operatorname*{rank}^2_k A$};
+  \node[anchor=base west,inner sep=0,font=\boldmath] at (0,-1.5) {$\displaystyle\operatorname*{rank}^2_k A$};
+  \node[anchor=base west,inner sep=0] at (3.5,-1.5) {$\scriptstyle\operatorname*{rank}\limits^2_k A$};
+  \node[anchor=base west,inner sep=0] at (0,-3) {$\scriptscriptstyle\operatorname*{rank}\limits^2_k A$};
+  \node[anchor=base west,inner sep=0] at (3.5,-3) {$\frac{\operatorname*{rank}\limits^2_k A}{2}$};
+\end{tikzpicture}
+\end{document}

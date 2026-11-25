@@ -67,12 +67,12 @@ test("resolves multi-word node anchors before coordinate projections", () => {
   assert.equal(diagnostics.length, 0);
   expectClose(path.commands[0].x, 0 - outerSep);
   expectClose(path.commands[0].y, 2.5 + outerSep);
-  expectClose(path.commands[1].x, 2 + outerSep);
-  expectClose(path.commands[1].y, 2.5 + outerSep);
+  expectClose(path.commands[1].x, 0 - outerSep);
+  expectClose(path.commands[1].y, 1.5 - outerSep);
   expectClose(path.commands[2].x, 2 + outerSep);
   expectClose(path.commands[2].y, 1.5 - outerSep);
-  expectClose(path.commands[3].x, 0 - outerSep);
-  expectClose(path.commands[3].y, 1.5 - outerSep);
+  expectClose(path.commands[3].x, 2 + outerSep);
+  expectClose(path.commands[3].y, 2.5 + outerSep);
   assert.deepEqual(path.commands[4], { type: "closePath" });
 });
 
@@ -93,12 +93,12 @@ test("does not reapply scope transforms when constructing rectangles from named 
   assert.equal(diagnostics.length, 0);
   expectClose(path.commands[0].x, 1 - outerSep);
   expectClose(path.commands[0].y, 3.5 + outerSep);
-  expectClose(path.commands[1].x, 6 + outerSep);
-  expectClose(path.commands[1].y, 3.5 + outerSep);
+  expectClose(path.commands[1].x, 1 - outerSep);
+  expectClose(path.commands[1].y, 1.5 - outerSep);
   expectClose(path.commands[2].x, 6 + outerSep);
   expectClose(path.commands[2].y, 1.5 - outerSep);
-  expectClose(path.commands[3].x, 1 - outerSep);
-  expectClose(path.commands[3].y, 1.5 - outerSep);
+  expectClose(path.commands[3].x, 6 + outerSep);
+  expectClose(path.commands[3].y, 3.5 + outerSep);
   assert.deepEqual(path.commands[4], { type: "closePath" });
 });
 
@@ -413,9 +413,9 @@ test("applies pgftransformcm to rectangle corners before constructing the path",
   assert.equal(diagnostics.length, 0);
   assert.deepEqual(path.commands, [
     { type: "moveTo", x: -1, y: 0 },
-    { type: "lineTo", x: 9, y: 0 },
-    { type: "lineTo", x: 13, y: 2 },
     { type: "lineTo", x: 3, y: 2 },
+    { type: "lineTo", x: 13, y: 2 },
+    { type: "lineTo", x: 9, y: 0 },
     { type: "closePath" }
   ]);
 });

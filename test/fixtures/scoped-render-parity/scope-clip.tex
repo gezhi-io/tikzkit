@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray] (-1,-.65) rectangle (3,1.65);
+  \begin{scope}
+    \clip (0,0) rectangle (1,1);
+    \fill[red!65] (-.8,-.5) rectangle (2.8,1.5);
+  \end{scope}
+  \draw[black] (0,0) rectangle (1,1);
+\end{tikzpicture}
+\end{document}

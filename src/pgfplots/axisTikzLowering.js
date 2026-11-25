@@ -168,11 +168,14 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
       commands.push(...renderAxisGrid(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
     }
   }
-  commands.push(...fillBetweenCommands);
   if (!axisOnTop && !axisReplayModel) {
     commands.push(...renderAxisLineCommands(axisModel));
     if (!topView3D) commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
+    // PGFPlots BEGIN@init@and@draw@axis paints the box before the clipped
+    // plots. Only axis-on-top and the separate 3D foreground pass replay it.
+    if (!topView3D && axisBox) commands.push(axisBox);
   }
+  commands.push(...fillBetweenCommands);
   const afterAxisMarks = [];
   // PGF datavisualization freezes `data bounding box` after visualizers,
   // before axes/ticks/labels. Inside legends must not use the axis range.
@@ -209,7 +212,7 @@ export function renderPgfplotsAxisAsTikz(axisOptions, body, options = {}, diagno
     // must remain visible above a surface even without `axis on top`.
     commands.push(...renderAxisTicks(axisModel.options, addplots, axisModel.ranges, axisModel.geometry));
   }
-  if (axisBox) commands.push(axisBox);
+  if (axisBox && (axisOnTop || axisReplayModel || topView3D)) commands.push(axisBox);
   commands.push(...afterAxisMarks);
   commands.push(...renderAxisLabels(barAxisLabelOptions(axisModel), axisModel.ranges, axisModel.geometry));
   commands.push(...renderLegendEntries(axisModel.options, axisModel.ranges, axisModel.geometry, axisModel.legendEntries, addplots, options));

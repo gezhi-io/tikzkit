@@ -1,0 +1,25 @@
+% Log-only native hboxes; kept outside the rendered fixture directory.
+\documentclass{article}
+\usepackage{amsmath}
+\newcommand{\probe}[3]{\begingroup#2\setbox0=\hbox{$#3$}%
+  \typeout{OPBOX:#1;\the\wd0;\the\ht0;\the\dp0}\endgroup}
+\begin{document}
+\probe{round}{}{\operatorname{round}(-2.5)}
+\probe{mod}{}{\operatorname{mod}(-5,3)}
+\probe{op-glue}{}{a\operatorname{rank} A}
+\probe{op-parens}{}{\operatorname{Var}(X)}
+\probe{one-letter}{}{\operatorname{f}x}
+\probe{kern}{}{\operatorname{arg\,min} x}
+\probe{punctuation}{}{\operatorname{a-b*c:d/e.f}x}
+\probe{script}{}{\operatorname{rank}_k A}
+\probe{supsub}{}{\operatorname{rank}^2_k A}
+\probe{sin-square}{}{\sin^2 x}
+\probe{scriptstyle}{}{\scriptstyle\operatorname{round}(-2.5)}
+\probe{small}{\scriptsize}{\operatorname{round}(-2.5)}
+\probe{large}{\Large}{\operatorname{round}(-2.5)}
+\probe{bold}{\boldmath}{\operatorname{round}(-2.5)}
+\probe{nested}{}{\frac{\operatorname{Var}(X)}{\operatorname{rank} A}}
+\probe{ligature-diff}{}{\operatorname{diff}(x)}
+\probe{ligature-fi}{}{\operatorname{fi}x}
+\probe{declared-Re}{}{\operatorname{Re}(p_0)}
+\end{document}

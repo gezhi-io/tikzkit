@@ -154,7 +154,7 @@ function horizontalBlackAxisYDocumentPt(svg) {
 }
 
 function testNumber(value) {
-  return Number(Number(value).toFixed(3)).toString();
+  return Number(Number(value).toFixed(6)).toString();
 }
 
 function decodeAxisSurfaceRasterCommand(command) {
@@ -1015,6 +1015,7 @@ test("pgfplots axis direction vectors use enlarged transform ranges for overlays
   };
   const ranges = { xMin: -1.5, xMax: 1.5, yMin: 0, yMax: 2.475 };
   const geometry = createAxisGeometry(axisOptions, ranges);
+  const width = parseDimension("195pt"), height = parseDimension("162pt");
 
   assert.deepEqual(
     renderAxisOverlayStatements(
@@ -1026,7 +1027,7 @@ test("pgfplots axis direction vectors use enlarged transform ranges for overlays
       ranges,
       geometry
     ),
-    [String.raw`\draw[tikzkit clip rect={0,0,6.853,5.694},blue, thick] (3.427,2.583) ellipse (1.656 and 1.835);`]
+    [String.raw`\draw[tikzkit clip rect={0,0,${testNumber(width)},${testNumber(height)}},blue, thick] (${testNumber(width / 2)},${testNumber(height * 1.225 / 2.7)}) ellipse (${testNumber(width * .87 / 3.6)} and ${testNumber(height * .87 / 2.7)});`]
   );
 });
 
@@ -1247,7 +1248,7 @@ test("pgfplots x-square major grid follows native y tick density", () => {
     return "";
   });
 
-  assert.deepEqual(observed, [1.529, 2.583, 3.638, 4.692]);
+  assert.deepEqual(observed, [.5, 1, 1.5, 2].map(y => Number(testNumber(parseDimension("162pt") * (y + .225) / 2.7))));
 });
 
 test("datavisualization school-book axes preserve only the native y-origin label", () => {
@@ -1282,15 +1283,17 @@ test("pgfplots x-square skips out-of-range automatic terminal major ticks", () =
     const addplots = parseAddplots(body, options, []);
     const ranges = computeAxisRanges(axisOptions, addplots);
     const geometry = createAxisGeometry(axisOptions, ranges);
+    const originX = testNumber(parseDimension("195pt") / 2);
     observed = renderAxisTicks(axisOptions, addplots, ranges, geometry)
-      .filter((command) => command.includes("\\draw[axis tick") && command.includes("(3.427,"))
-      .map((command) => Number(command.match(/\(3\.427,([^)]+)\)/)?.[1]))
+      .filter((command) => command.includes("\\draw[axis tick") && command.includes(`(${originX},`))
+      .map((command) => Number(command.match(/\] \([^,]+,([^)]+)\)/)?.[1]))
       .filter(Number.isFinite);
     return "";
   });
 
-  assert.ok(observed.includes(4.692), `expected highest native y tick, got ${observed.join(", ")}`);
-  assert.ok(!observed.includes(5.746), `expected out-of-range terminal y tick to be skipped, got ${observed.join(", ")}`);
+  const tickY = y => Number(testNumber(parseDimension("162pt") * (y + .225) / 2.7));
+  assert.ok(observed.includes(tickY(2)), `expected highest native y tick, got ${observed.join(", ")}`);
+  assert.ok(!observed.includes(tickY(2.5)), `expected out-of-range terminal y tick to be skipped, got ${observed.join(", ")}`);
 });
 
 test("pgfplots automatic minor ticks are not emitted more than once", () => {
@@ -2489,9 +2492,10 @@ test("pgfplots 3d grid and ticks choose view-dependent projected hull edges", ()
   assert.ok(gridCommands.includes(String.raw`\draw[axis 3d grid, gray!30, line width=0.4pt] (0,0) -- (-100,-100);`));
 
   const tickCommands = renderAxis3DTicks({ xtick: "{0}", ytick: "{0}", ztick: "{0}" }, ranges, geometry);
-  assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (10,-10) -- (9.894,-9.894);`));
-  assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (-100,-100) -- (-99.894,-99.894);`));
-  assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (-100,-100) -- (-99.894,-100.106);`));
+  const diagonalTick = .15 / Math.SQRT2;
+  assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (10,-10) -- (${testNumber(10 - diagonalTick)},${testNumber(-10 + diagonalTick)});`));
+  assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (-100,-100) -- (${testNumber(-100 + diagonalTick)},${testNumber(-100 + diagonalTick)});`));
+  assert.ok(tickCommands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (-100,-100) -- (${testNumber(-100 + diagonalTick)},${testNumber(-100 - diagonalTick)});`));
 });
 
 test("pgfplots 3d annotations share view-aware projected edge normals", () => {
@@ -3071,7 +3075,7 @@ test("pgfplots axis line lowering emits bounds, box, middle lines, and clean axe
   );
   assert.equal(
     renderAxisBox({ "axis lines": "box", "axis frame color": "gray" }, geometry),
-    String.raw`\draw[axis frame, gray, line width=0.4pt] (0,0) -- (2,0) -- (2,2) -- (0,2) -- cycle;`
+    String.raw`\draw[axis frame, gray, line width=0.4pt] (0,0) -- (0,2) -- (2,2) -- (2,0) -- cycle;`
   );
   assert.deepEqual(renderAxisLines({ "axis lines": "middle" }, ranges, geometry), [
     String.raw`\draw[axis line, black, line width=0.4pt, -stealth] (0,1) -- (2,1);`,
@@ -3559,8 +3563,11 @@ test("pgfplots restricted zero-bound middle y axis uses the enlarged transform e
 
   // The 45pt description reserve changes the axis length, but arrow paint
   // must not add another 0.2pt to the data-space endpoint (PGFPlots 5146-5163).
-  const expectedY = Number((9 - parseDimension("45pt")).toFixed(3));
-  assert.ok(lines.some((line) => line.includes(`(1.186,0) -- (1.186,${expectedY})`)), lines.join("\n"));
+  const expectedY = testNumber(9 - parseDimension("45pt"));
+  // Enlarge the data interval [.01, 8] by 10% on either side, then locate zero.
+  const pad = (8 - .01) * .1;
+  const expectedX = testNumber((16 - 45 * 2.54 / 72.27) * (pad - .01) / (8 - .01 + 2 * pad));
+  assert.ok(lines.some((line) => line.includes(`(${expectedX},0) -- (${expectedX},${expectedY})`)), lines.join("\n"));
 });
 
 test("pgfplots light bulb fixture keeps its long y-label and legend inside the node-driven crop", () => {
@@ -4041,7 +4048,7 @@ test("pgfplots axis label style at uses axis description coordinates", () => {
 
   const [node] = parseStatements(commands.join("\n"));
   assert.equal(node.options.anchor, "north west");
-  assert.equal(node.at, "-1.242,6.418");
+  assert.equal(node.at, `${testNumber(-.1 * (14 - parseDimension("45pt")))},${testNumber(8 - parseDimension("45pt"))}`);
   assert.equal(node.text, "Amortization time in h");
 });
 
@@ -4397,7 +4404,7 @@ test("pgfplots title styles append native yshift and visual node options", () =>
   assert.match(command, /font=[^,]*\\bfseries/);
   assert.match(command, /align=center/);
   assert.match(command, /anchor=south/);
-  assert.match(command, /at \(2,3\.562\)/);
+  assert.ok(command.includes(`at (2,${testNumber(3 + parseDimension("16pt"))})`));
 });
 
 test("pgfplots titles use the final enlarged transform box instead of the surveyed data edge", () => {
@@ -4411,7 +4418,7 @@ test("pgfplots titles use the final enlarged transform box instead of the survey
   };
   const command = renderAxisLabels({ title: "Title" }, { xMin: 0, xMax: 1, yMin: 0, yMax: 1 }, geometry)[0];
 
-  assert.match(command, /at \(0\.5,1\.311\)/);
+  assert.ok(command.includes(`at (0.5,${testNumber(1.1 + parseDimension("6pt"))})`));
 });
 
 test("pgfplots standard box axes subtract the native 45pt reserve on both dimensions", () => {
@@ -4681,7 +4688,8 @@ test("pgfplots boxed auto ticks keep terminal max tick labels", () => {
   // Native default plot height is 162 TeX pt, not the old fitted 161.37pt.
   const top = parseDimension("162pt", {});
   assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (0,${testNumber(top)}) -- (0,${testNumber(top - 0.15)});`), "expected top ticks on box axis");
-  assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (6.853,0) -- (6.703,0);`), "expected right ticks on box axis");
+  const right = parseDimension("195pt");
+  assert.ok(commands.some((command) => command === String.raw`\draw[axis tick, gray, line width=0.2pt] (${testNumber(right)},0) -- (${testNumber(right - .15)},0);`), "expected right ticks on box axis");
   assert.ok(commands.some((command) => command.includes("anchor=north") && command.includes("at (0,0) {0};")), "native boxed x labels anchor on the axis without a fitted baseline shift");
   assert.ok(commands.some((command) => command.includes("anchor=east") && command.includes("at (0,0) {0};")), "boxed y labels should place their node boundary on the axis");
 });
@@ -4699,15 +4707,15 @@ test("pgfplots label lowering reserves complete default tick-label nodes", () =>
   // installs `xlabel absolute` (below, yshift=-15pt) and `ylabel absolute`
   // (xshift=-35pt, rotate=90, centered).
   assert.ok(
-    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,-0.527) {$x$};`),
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,${testNumber(-parseDimension("15pt"))}) {$x$};`),
     commands.join("\n")
   );
   assert.ok(
-    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=center, font=\small, rotate=90] at (-1.23,0.5) {$y$};`),
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=center, font=\small, rotate=90] at (${testNumber(-parseDimension("35pt"))},0.5) {$y$};`),
     commands.join("\n")
   );
   assert.ok(
-    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south] at (1,1.211) {Title};`),
+    commands.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south] at (1,${testNumber(1 + parseDimension("6pt"))}) {Title};`),
     commands.join("\n")
   );
 
@@ -4719,11 +4727,11 @@ test("pgfplots label lowering reserves complete default tick-label nodes", () =>
     geometry
   );
   assert.ok(
-    nearTicks.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,-0.461) {$x$};`),
+    nearTicks.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=north, font=\small] at (1,${testNumber(-parseDimension("13.1104pt"))}) {$x$};`),
     nearTicks.join("\n")
   );
   assert.ok(
-    nearTicks.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south, font=\small, rotate=90] at (-0.41,0.5) {$y$};`),
+    nearTicks.includes(String.raw`\node[axis label, tikzkit layout bbox, anchor=south, font=\small, rotate=90] at (${testNumber(-parseDimension("11.66666pt"))},0.5) {$y$};`),
     nearTicks.join("\n")
   );
 });
@@ -5001,16 +5009,17 @@ test("pgfplots plot style helper preserves cycle colors and explicit style optio
 });
 
 test("pgfplots marks lowering owns mark decisions and TikZ mark primitives", () => {
+  const r = parseDimension("2pt");
   assert.equal(shouldRenderPlotMarks({ mark: "none" }), false);
   assert.equal(shouldRenderPlotMarks({ "pgfplots plus": true, mark: "none" }), false);
   assert.equal(shouldRenderPlotMarks({ "only marks": true }), true);
   assert.equal(
     renderPlotMark({ x: 1, y: 2 }, { mark: "o", blue: true, "mark size": "2pt" }, 0),
-    String.raw`\draw[axis mark, tikzkit quick path, draw=blue] (1,2) circle(0.07);`
+    String.raw`\draw[axis mark, tikzkit quick path, draw=blue] (1,2) circle(${testNumber(r)});`
   );
   assert.equal(
     renderPlotMark({ x: 1, y: 2 }, { mark: "square*", red: true, "mark size": "2pt" }, 0),
-    String.raw`\draw[axis mark, tikzkit quick path, draw=red, fill=red, fill opacity=1] (0.93,1.93) -- (1.07,1.93) -- (1.07,2.07) -- (0.93,2.07) -- cycle;`
+    String.raw`\draw[axis mark, tikzkit quick path, draw=red, fill=red, fill opacity=1] (${testNumber(1 - r)},${testNumber(2 - r)}) -- (${testNumber(1 + r)},${testNumber(2 - r)}) -- (${testNumber(1 + r)},${testNumber(2 + r)}) -- (${testNumber(1 - r)},${testNumber(2 + r)}) -- cycle;`
   );
   assert.match(renderPlotMark({ x: 1, y: 2 }, { mark: "x", blue: true, "mark size": "1pt" }, 0), /axis mark, tikzkit quick path, draw=blue/);
 });
@@ -5021,7 +5030,9 @@ test("pgfplots plot path lowering owns straight, const, smooth, gap, and draw de
   assert.equal(axisPlotPointChain(points, {}, {}), "(0,0) -- (1,1) -- (2,0)");
   assert.equal(axisPlotPointChain(points, { "const plot": true }, {}), "(0,0) -- (1,0) -- (1,1) -- (2,1) -- (2,0)");
   assert.match(axisPlotPointChain(points, {}, { smooth: true }), /\.\. controls/);
-  assert.equal(axisPlotPointChain(points, {}, { "axis plot gap": "1pt" }), "(0.025,0.025) -- (0.975,0.975) (1.025,0.975) -- (1.975,0.025)");
+  const gap = parseDimension("1pt") / Math.SQRT2;
+  assert.equal(axisPlotPointChain(points, {}, { "axis plot gap": "1pt" }),
+    `(${testNumber(gap)},${testNumber(gap)}) -- (${testNumber(1 - gap)},${testNumber(1 - gap)}) (${testNumber(1 + gap)},${testNumber(1 - gap)}) -- (${testNumber(2 - gap)},${testNumber(gap)})`);
   assert.equal(shouldRenderAxisPlotPath({ "only marks": true }), false);
   assert.equal(shouldRenderAxisPlotPath({ draw: "none" }), false);
   assert.equal(shouldRenderAxisPlotPath({ draw: "none", "name path": "curve" }), true);
@@ -5137,8 +5148,8 @@ test("pgfplots plot node lowering owns nodes near coords and inline plot labels"
       "blue"
     ),
     [
-      String.raw`\draw[axis plot node connector, gray, thin] (1,0) -- (1.07,0);`,
-      String.raw`\node[axis plot node, anchor=west, text=blue, pin={north:{peak}}] at (1.07,0) {$f(x)$};`
+      String.raw`\draw[axis plot node connector, gray, thin] (1,0) -- (${testNumber(1 + parseDimension("2pt"))},0);`,
+      String.raw`\node[axis plot node, anchor=west, text=blue, pin={north:{peak}}] at (${testNumber(1 + parseDimension("2pt"))},0) {$f(x)$};`
     ]
   );
 });

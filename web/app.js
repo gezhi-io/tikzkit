@@ -17,10 +17,11 @@ const GRID_STORAGE_KEY = "tikzkit.workbench.grid.v1";
 const state = {
   fixtures: [],
   active: null,
+  loadingFixtureId: null,
+  renderingSource: null,
   originalSource: "",
-  lastRenderedSource: "",
+  lastRenderedSource: null,
   lastSvg: "",
-  previewIsStale: false,
   audit: null,
   auditSource: "",
   fixtureAudit: null,
@@ -29,42 +30,66 @@ const state = {
 };
 const requestGate = createRequestGate();
 
-async function loadFixture(id) {
-  const token = requestGate.next();
+async function loadFixture(id, { push = false, force = false } = {}) {
   const fixture = state.fixtures.find((entry) => entry.id === id) || state.fixtures[0];
   if (!fixture) return;
+  const hash = `#${encodeURIComponent(fixture.id)}`;
+  if (location.hash !== hash) history[push ? "pushState" : "replaceState"](null, "", hash);
+  if (!force && fixture.id === (state.loadingFixtureId ?? state.active?.id)) return;
 
-  const source = fixture.isScratch
-    ? createScratchSource()
-    : await fetch(fixture.sourceUrl).then(async (response) => {
+  const token = requestGate.next();
+  // Edits still belong to the visible fixture until its replacement is ready.
+  state.loadingFixtureId = fixture.id;
+  state.renderingSource = null;
+  refreshFixtureOptions();
+  updateDraftStatus();
+  setRenderStatus(`Loading ${fixture.id}`);
+
+  let source, resourceRows, audit;
+  try {
+    if (fixture.isScratch) {
+      source = createScratchSource();
+    } else {
+      const response = await fetch(fixture.sourceUrl);
       if (!response.ok) throw new Error(`Could not load ${fixture.id}`);
-      return response.text();
-    });
-  const [resourceRows, audit] = await Promise.all([
-    Promise.all((fixture.resources || []).map(loadFixtureResource)),
-    loadFixtureAudit(fixture)
-  ]);
+      source = await response.text();
+    }
+    if (!requestGate.isCurrent(token)) return;
+    [resourceRows, audit] = await Promise.all([
+      Promise.all((fixture.resources || []).map(loadFixtureResource)),
+      loadFixtureAudit(fixture)
+    ]);
+  } catch (error) {
+    if (!requestGate.isCurrent(token)) return;
+    state.loadingFixtureId = null;
+    if (state.active && location.hash === hash) {
+      history.replaceState(null, "", `#${encodeURIComponent(state.active.id)}`);
+    }
+    refreshFixtureOptions();
+    updateDraftStatus();
+    setRenderStatus(error.message);
+    return;
+  }
   if (!requestGate.isCurrent(token)) return;
 
+  state.loadingFixtureId = null;
   state.active = fixture;
   state.originalSource = source;
-  state.lastRenderedSource = readDraft(fixture.id) ?? source;
-  state.previewIsStale = false;
+  state.lastRenderedSource = null;
+  state.lastSvg = "";
   state.audit = audit;
   state.auditSource = source;
   state.fixtureAudit = audit;
   state.resources = new Map(resourceRows);
-  document.querySelector("#fixture-select").value = fixture.id;
-  state.editor.setValue(state.lastRenderedSource, { silent: true });
-  history.replaceState(null, "", `#${encodeURIComponent(fixture.id)}`);
+  state.editor.setValue(readDraft(fixture.id) ?? source, { silent: true });
 
   showFixtureDetails();
   showSemanticInventory();
   showReference();
+  showTikzkitSvg("");
   showDiagnostics([]);
-  updateDraftStatus();
 
-  await renderCurrentSource(token);
+  await renderCurrentSource();
 }
 
 async function loadFixtureAudit(fixture) {
@@ -88,10 +113,15 @@ async function auditWorkbenchSource(source) {
   return response.json();
 }
 
-async function renderCurrentSource(token = requestGate.current()) {
-  const button = document.querySelector("#render-button");
-  button.disabled = true;
+async function renderCurrentSource() {
+  if (!state.active || state.loadingFixtureId) return;
   const source = state.editor.getValue();
+  if (state.renderingSource === source) return;
+  const token = requestGate.next();
+  state.renderingSource = source;
+  setRenderStatus("Rendering preview");
+  updateDraftStatus();
+  const resources = state.resources;
   const activeFigureId = state.active?.activeFigureId || undefined;
   const fixtureAudit = fixtureAuditForSource({
     source,
@@ -104,11 +134,11 @@ async function renderCurrentSource(token = requestGate.current()) {
       renderWorkbenchSource(source, {
         activeFigureId,
         pgfplotsTableResolver: (file) => {
-          const resource = state.resources.get(normalizeResourceName(file));
+          const resource = resources.get(normalizeResourceName(file));
           return typeof resource === "string" ? resource : undefined;
         },
         imageResolver: (file) => {
-          const resource = state.resources.get(normalizeResourceName(file));
+          const resource = resources.get(normalizeResourceName(file));
           return resource && typeof resource === "object" ? resource : undefined;
         }
       }),
@@ -117,19 +147,26 @@ async function renderCurrentSource(token = requestGate.current()) {
         : auditWorkbenchSource(source).catch((error) => ({ error: error.message }))
     ]);
     if (!requestGate.isCurrent(token)) return;
+    if (source !== state.editor.getValue()) {
+      setRenderStatus("Editor changed during render; result discarded");
+      return;
+    }
 
     state.lastSvg = result.svg;
     state.lastRenderedSource = source;
-    state.previewIsStale = false;
     state.audit = audit;
     state.auditSource = source;
     showTikzkitSvg(result.svg);
     showDiagnostics(result.diagnostics);
     showSemanticInventory();
-    updateDraftStatus();
     setRenderStatus(`${result.elapsedMs}ms · ${result.diagnostics.length} diagnostics · source audit updated`);
+  } catch (error) {
+    if (requestGate.isCurrent(token)) setRenderStatus(error.message);
   } finally {
-    if (requestGate.isCurrent(token)) button.disabled = false;
+    if (requestGate.isCurrent(token)) {
+      state.renderingSource = null;
+      updateDraftStatus();
+    }
   }
 }
 
@@ -170,11 +207,9 @@ function showTikzkitSvg(svg) {
   const enabled = document.querySelector("#grid-toggle").checked;
   const surface = document.querySelector("#tikzkit-result");
   surface.innerHTML = withQaGrid(svg, { enabled });
-  surface.classList.toggle("is-stale", state.previewIsStale);
   document.querySelector("#tikzkit-heading").textContent = enabled
     ? "TikZKit browser SVG + 1cm grid"
     : "TikZKit browser SVG";
-  updateExportButtons();
 }
 
 function showReference() {
@@ -281,10 +316,10 @@ function semanticSummaryText(counts, gate, suffix = "") {
   return `${counts.commands} commands · ${counts.options} options · ${counts.numbers} values · ${gate.status}${suffix}`;
 }
 
-function updateSemanticDraftState(modified) {
+function updateSemanticDraftState(modified, source) {
   const details = document.querySelector("#semantic-details");
   const summary = document.querySelector("#semantic-summary");
-  const auditIsCurrent = state.auditSource === state.editor?.getValue();
+  const auditIsCurrent = state.auditSource === source;
   details.classList.toggle("is-stale", Boolean(state.audit && !state.audit.error && !auditIsCurrent));
   if (state.audit?.summary && state.audit?.gate) {
     summary.textContent = semanticSummaryText(
@@ -413,26 +448,35 @@ function renderExpression(entry) {
   ], entry.reviewStatus);
 }
 
+function previewIsCurrent(source = state.editor.getValue()) {
+  return !state.loadingFixtureId && Boolean(state.lastSvg) && source === state.lastRenderedSource;
+}
+
 function updateDraftStatus() {
-  const modified = isFixtureDraft(state.editor.getValue(), state.originalSource);
-  const stale = state.previewIsStale;
+  const source = state.editor.getValue();
+  const modified = isFixtureDraft(source, state.originalSource);
+  const stale = !previewIsCurrent(source);
   const status = document.querySelector("#draft-status");
-  const reset = document.querySelector("#reset-source-button");
-  reset.disabled = !modified;
-  status.textContent = stale ? "Draft changed · render to refresh" : modified ? "Local draft saved" : "Fixture source";
+  const loading = state.loadingFixtureId !== null;
+  document.querySelector("#render-button").disabled = !state.active || loading || state.renderingSource !== null;
+  document.querySelector("#reset-source-button").disabled = loading || !modified;
+  if (loading) {
+    status.textContent = "Loading case";
+  } else if (!state.lastSvg) {
+    status.textContent = state.renderingSource === source ? "Rendering preview" : "No preview · render to refresh";
+  } else {
+    status.textContent = stale ? "Draft changed · render to refresh" : modified ? "Local draft saved" : "Fixture source";
+  }
   status.classList.toggle("is-draft", modified);
   status.classList.toggle("is-stale", stale);
-  updateSemanticDraftState(modified);
+  document.querySelector("#tikzkit-result").classList.toggle("is-stale", stale);
+  document.querySelector("#copy-svg-button").disabled = stale;
+  document.querySelector("#download-svg-button").disabled = stale;
+  updateSemanticDraftState(modified, source);
 }
 
 function setRenderStatus(message) {
   document.querySelector("#render-status").textContent = message;
-}
-
-function updateExportButtons() {
-  const disabled = !state.lastSvg;
-  document.querySelector("#copy-svg-button").disabled = disabled;
-  document.querySelector("#download-svg-button").disabled = disabled;
 }
 
 function rememberDraft() {
@@ -443,19 +487,16 @@ function rememberDraft() {
   } else {
     removeDraft(state.active.id);
   }
-  state.previewIsStale = source !== state.lastRenderedSource;
-  document.querySelector("#tikzkit-result").classList.toggle("is-stale", state.previewIsStale);
   updateDraftStatus();
 }
 
 async function resetSource() {
-  if (!state.active) return;
+  if (!state.active || state.loadingFixtureId) return;
   if (isFixtureDraft(state.editor.getValue(), state.originalSource) && !window.confirm("Discard this locally saved draft and restore the fixture source?")) {
     return;
   }
   removeDraft(state.active.id);
   state.editor.setValue(state.originalSource, { silent: true });
-  state.previewIsStale = state.editor.getValue() !== state.lastRenderedSource;
   updateDraftStatus();
   await renderCurrentSource();
 }
@@ -463,18 +504,18 @@ async function resetSource() {
 async function startNewSource() {
   removeDraft(SCRATCH_FIXTURE_ID);
   document.querySelector("#fixture-filter").value = "";
-  refreshFixtureOptions();
-  await loadFixture(SCRATCH_FIXTURE_ID);
+  await loadFixture(SCRATCH_FIXTURE_ID, { push: true, force: true });
 }
 
 async function copySvg() {
-  if (!state.lastSvg) return;
+  if (!previewIsCurrent()) return;
+  const svg = state.lastSvg;
   try {
-    await navigator.clipboard.writeText(state.lastSvg);
-    setRenderStatus("SVG copied to clipboard");
+    await navigator.clipboard.writeText(svg);
   } catch {
+    if (!previewIsCurrent() || svg !== state.lastSvg) return;
     const fallback = document.createElement("textarea");
-    fallback.value = state.lastSvg;
+    fallback.value = svg;
     fallback.setAttribute("readonly", "");
     fallback.style.position = "fixed";
     fallback.style.opacity = "0";
@@ -482,12 +523,12 @@ async function copySvg() {
     fallback.select();
     document.execCommand("copy");
     fallback.remove();
-    setRenderStatus("SVG copied to clipboard");
   }
+  if (previewIsCurrent() && svg === state.lastSvg) setRenderStatus("SVG copied to clipboard");
 }
 
 function downloadSvg() {
-  if (!state.lastSvg) return;
+  if (!previewIsCurrent()) return;
   const blob = new Blob([state.lastSvg], { type: "image/svg+xml;charset=utf-8" });
   const href = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -542,7 +583,7 @@ function refreshFixtureOptions() {
   const select = document.querySelector("#fixture-select");
   const query = document.querySelector("#fixture-filter").value;
   const matches = filterFixtures(state.fixtures, query);
-  const activeId = state.active?.id;
+  const activeId = state.loadingFixtureId ?? state.active?.id;
   const active = state.fixtures.find((fixture) => fixture.id === activeId);
   const activeIsFilteredOut = Boolean(active && !matches.some((fixture) => fixture.id === active.id));
   const choices = activeIsFilteredOut ? [active, ...matches] : matches;
@@ -573,6 +614,16 @@ function handleEditorKeydown(event) {
   }
 }
 
+function loadFromLocation() {
+  let requested;
+  try {
+    requested = decodeURIComponent(location.hash.slice(1));
+  } catch {
+    requested = SCRATCH_FIXTURE_ID;
+  }
+  return loadFixture(requested || state.fixtures[1]?.id);
+}
+
 async function boot() {
   const fixtures = await fetch("/api/fixtures").then((response) => response.json());
   state.fixtures = [createScratchFixture(), ...fixtures];
@@ -581,10 +632,10 @@ async function boot() {
   state.editor.onKeydown(handleEditorKeydown);
   state.editor.onCursorActivity(showCursorPosition);
   applyGridPreference();
-  refreshFixtureOptions();
 
   const select = document.querySelector("#fixture-select");
-  select.addEventListener("change", () => loadFixture(select.value));
+  select.addEventListener("change", () => loadFixture(select.value, { push: true }));
+  window.addEventListener("hashchange", loadFromLocation);
   document.querySelector("#fixture-filter").addEventListener("input", refreshFixtureOptions);
   document.querySelector("#new-source-button").addEventListener("click", startNewSource);
   document.querySelector("#render-button").addEventListener("click", () => renderCurrentSource());
@@ -596,8 +647,7 @@ async function boot() {
     if (state.lastSvg) showTikzkitSvg(state.lastSvg);
     showReference();
   });
-  const requested = decodeURIComponent(location.hash.replace(/^#/, "")) || state.fixtures[1]?.id;
-  await loadFixture(requested);
+  await loadFromLocation();
 }
 
 boot().catch((error) => {

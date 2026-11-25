@@ -48,18 +48,20 @@ export function renderAxisBox(axisOptions = {}, geometry = {}) {
   const xMode = pgfplotsAxisHidden(axisOptions, "x") ? "none" : specificAxisLineMode(axisOptions, "x");
   const yMode = pgfplotsAxisHidden(axisOptions, "y") ? "none" : specificAxisLineMode(axisOptions, "y");
   if (!xMode && !yMode) {
+    // Native cycledpath travels southwest -> northwest -> northeast ->
+    // southeast. Reversing a closed outline changes its dash phase.
     return `\\draw[${frameStyle}] ${formatAxisPoint({
       x: min.x,
       y: min.y
     })} -- ${formatAxisPoint({
-      x: max.x,
-      y: min.y
-    })} -- ${formatAxisPoint({
-      x: max.x,
-      y: max.y
-    })} -- ${formatAxisPoint({
       x: min.x,
       y: max.y
+    })} -- ${formatAxisPoint({
+      x: max.x,
+      y: max.y
+    })} -- ${formatAxisPoint({
+      x: max.x,
+      y: min.y
     })} -- cycle;`;
   }
   const segments = [];

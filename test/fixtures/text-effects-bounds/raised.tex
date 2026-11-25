@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue,decoration={text effects along path,text={Ag},raise=-3mm,
+    text effects/.cd,characters={text along path}},postaction={decorate}] (0,0) -- (2,0);
+\end{tikzpicture}
+\end{document}

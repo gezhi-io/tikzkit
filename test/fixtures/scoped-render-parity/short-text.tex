@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!45] (0,-.25) rectangle (3,.5);
+  \draw[red] (1.12,-.05) -- (1.12,-.17);
+  \path[decorate,decoration={text along path,text={ABCDEFGHIJKLMN}}] (.12,0) -- (1.12,0);
+\end{tikzpicture}
+\end{document}

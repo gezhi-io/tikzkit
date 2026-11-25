@@ -20,6 +20,10 @@ import { axisAutoMajorTickCountForOptions, majorTickValues, renderAxisTicks } fr
 import { createSvgTextEngine } from "../src/renderers/svg/textEngine.js";
 import { nativeMathGroups } from "./helpers/native-math-svg.js";
 
+const pt = 2.54 / 72.27;
+const number = value => String(Math.round(value * 1e6) / 1e6);
+const point = (x, y) => `(${number(x)},${number(y)})`;
+
 test("plain addplot table entries receive the native default color-cycle marks", () => {
   const plots = applyPgfplotsCycleStyles([
     { type: "coordinates", source: "table", options: {} },
@@ -43,11 +47,12 @@ test("halfcircle plot marks use the PGF lower fill, diameter, and outline", () =
   const transparent = renderPlotMark({ x: 1, y: 2 }, { orange: true, mark: "halfcircle", "mark color": "none", "mark size": "2pt" });
 
   assert.match(command, /\\fill\[axis mark, draw=none, fill=white, fill opacity=1\]/);
-  assert.match(command, /\(0\.93,2\) -- \(1\.07,2\)/);
-  assert.match(command, /\(1,2\) circle\(0\.07\)/);
+  const diameter = `${point(1 - 2 * pt, 2)} -- ${point(1 + 2 * pt, 2)}`;
+  assert.ok(command.includes(diameter));
+  assert.ok(command.includes(`(1,2) circle(${number(2 * pt)})`));
   assert.doesNotMatch(command, /fill=orange/);
   assert.doesNotMatch(transparent, /\\fill\[/);
-  assert.match(transparent, /\(0\.93,2\) -- \(1\.07,2\)/);
+  assert.ok(transparent.includes(diameter));
 });
 
 test("starred halfcircle marks fill both halves without a divider and honor mark color rotation", () => {
@@ -58,8 +63,8 @@ test("starred halfcircle marks fill both halves without a divider and honor mark
 
   assert.match(command, /fill=blue/);
   assert.match(command, /fill=orange/);
-  assert.match(command, /\(1,1\.93\) arc \(270:450:0\.07\)/);
-  assert.doesNotMatch(command, /\(1,1\.93\) -- \(1,2\.07\).*circle/);
+  assert.ok(command.includes(`${point(1, 2 - 2 * pt)} arc (270:450:${number(2 * pt)})`));
+  assert.ok(!command.includes(`${point(1, 2 - 2 * pt)} -- ${point(1, 2 + 2 * pt)}`));
 });
 
 test("split diamond and square marks keep PGF's two fill colors and outline geometry", () => {
@@ -74,11 +79,13 @@ test("split diamond and square marks keep PGF's two fill colors and outline geom
 
   assert.match(diamond, /fill=blue!35/);
   assert.match(diamond, /fill=orange/);
-  assert.match(diamond, /\(0\.947,2\) -- \(1,1\.93\) -- \(1\.053,2\) -- cycle/);
-  assert.match(diamond, /\(1\.053,2\) -- \(1,2\.07\) -- \(0\.947,2\) -- \(1,1\.93\) -- cycle/);
+  const left = point(1 - 1.5 * pt, 2), rightTip = point(1 + 1.5 * pt, 2);
+  const bottom = point(1, 2 - 2 * pt), top = point(1, 2 + 2 * pt);
+  assert.ok(diamond.includes(`${left} -- ${bottom} -- ${rightTip} -- cycle`));
+  assert.ok(diamond.includes(`${rightTip} -- ${top} -- ${left} -- ${bottom} -- cycle`));
   assert.match(right, /fill=red!35/);
   assert.doesNotMatch(right, /fill=white|fill=none/);
-  assert.match(right, /\(1,1\.93\) -- \(1\.07,2\) -- \(1,2\.07\) -- cycle/);
+  assert.ok(right.includes(`${bottom} -- ${point(1 + 2 * pt, 2)} -- ${top} -- cycle`));
 });
 
 test("heart plot marks use PGF's eight-cubic fillstroke geometry", () => {
@@ -94,9 +101,9 @@ test("heart plot marks use PGF's eight-cubic fillstroke geometry", () => {
   assert.match(heart, /draw=blue/);
   assert.match(heart, /fill=red!30/);
   assert.equal((heart.match(/\.\. controls/g) || []).length, 8);
-  assert.match(heart, /\(1,1\.877\)/);
+  assert.ok(heart.includes(point(1, 2 - 1.75 * 2 * pt)));
   assert.doesNotMatch(heart, /circle/);
-  assert.match(rotated, /\(1\.123,2\)/);
+  assert.ok(rotated.includes(point(1 + 1.75 * 2 * pt, 2)));
 });
 
 test("text plot marks lower to pgftext-compatible and full node forms", () => {
@@ -132,7 +139,7 @@ test("triangle plot marks use PGF's polar triangle geometry", () => {
   const filled = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle*", "mark size": "2pt" });
   const outline = renderPlotMark({ x: 1, y: 2 }, { blue: true, mark: "triangle", "mark size": "2pt" });
 
-  assert.match(filled, /\(1,2\.07\) -- \(1\.061,1\.965\) -- \(0\.939,1\.965\) -- cycle/);
+  assert.ok(filled.includes(`${point(1, 2 + 2 * pt)} -- ${point(1 + Math.sqrt(3) * pt, 2 - pt)} -- ${point(1 - Math.sqrt(3) * pt, 2 - pt)} -- cycle`));
   assert.match(filled, /fill=blue/);
   assert.doesNotMatch(outline, /fill=blue/);
 });
@@ -181,7 +188,7 @@ test("default scaled ticks extract a shared power of ten for large values", () =
   assert.ok(commands.some((command) => command.endsWith("{1.5};")));
   const scaleLabel = commands.find((command) => command.includes(String.raw`\cdot 10^{7}`));
   assert.ok(scaleLabel?.includes("inner sep=0pt"));
-  assert.match(scaleLabel, /at \(0,3\.054\)/);
+  assert.ok(scaleLabel.includes(`at ${point(0, 3 + 1.55 * pt)}`));
 });
 
 test("middle-axis y scale labels sit above and outside the left tick labels", () => {
@@ -197,7 +204,7 @@ test("middle-axis y scale labels sit above and outside the left tick labels", ()
     .find((command) => command.includes(String.raw`\cdot 10^{7}`));
 
   assert.match(scaleLabel, /anchor=south east/);
-  assert.match(scaleLabel, /at \(-0\.18,3\.09\)/);
+  assert.ok(scaleLabel.includes(`at ${point(-.15 / 2 - 3 * pt, 3 * 1.03)}`));
   assert.doesNotMatch(scaleLabel, /at \(0,3/);
 });
 
@@ -372,10 +379,12 @@ test("numeric boxed-axis enlargement expands both transform bounds by the reques
   assert.ok(Math.abs(geometry.margin.bottom - (6.4444 + 0.8333 + 2 * 3.33333) / 28.45274) < 0.001);
   assert.ok(Math.abs(geometry.margin.right - 0.2 / 28.45274) < 0.001);
   assert.ok(Math.abs(geometry.margin.top - 0.2 / 28.45274) < 0.001);
-  assert.ok(ticks.some((command) => command.includes("(0.807,0) -- (0.807,0.15)")));
+  const x = (7.5 - 45 * pt) * 1.5 / 11;
+  const y = (15 - 45 * pt) / 22;
+  assert.ok(ticks.some((command) => command.includes(`${point(x, 0)} -- ${point(x, .15)}`)));
   // Native TeX node anchoring needs no fitted -0.8pt baseline offset.
-  assert.ok(ticks.some((command) => command.includes("at (0.807,0) {−4}")));
-  assert.ok(ticks.some((command) => command.includes("at (0,0.61) {−10}")));
+  assert.ok(ticks.some((command) => command.includes(`at ${point(x, 0)} {−4}`)));
+  assert.ok(ticks.some((command) => command.includes(`at ${point(0, y)} {−10}`)));
 });
 
 test("repeated legend styles merge and legend columns=-1 produces one native row", () => {
@@ -594,7 +603,7 @@ test("axis overlay lowering leaves coordinate-looking math label text unchanged"
     geometry
   );
 
-  assert.match(lowered, /\\filldraw \(6\.7,5\.833\)/);
+  assert.ok(lowered.startsWith(`\\filldraw ${point(13.4 / 2, 10 * 35 / 60)}`));
   assert.match(lowered, /above left:\$\(65, 35\)\$/);
 });
 

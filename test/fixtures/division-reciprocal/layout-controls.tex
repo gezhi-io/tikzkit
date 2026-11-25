@@ -1,0 +1,30 @@
+% Existing calc, timeline CS and pre-picture macro fixtures, composed into
+% one visual regression control. Their quotient tokens come from native PGF.
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\newcommand{\target}{4}
+\newcommand{\anno}{1}
+\pgfmathsetmacro{\myspacing}{2/(\target-\anno)}
+\tikzdeclarecoordinatesystem{timeline}{%
+  \pgfmathsetmacro\myx{(#1-1975)/3}
+  \pgfpointxy{\myx}{0}
+}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-.5,-1) rectangle (5.5,3.5);
+  \draw (timeline cs:1975) -- (timeline cs:1990);
+  \foreach \year in {1975,1980,1985,1990} {
+    \draw (timeline cs:\year) -- ++(0,.15) node[above] {\year};
+  }
+  \begin{scope}[yshift=1cm,x=\myspacing cm]
+    \foreach \tick in {0,1,2,3,4} {
+      \draw[green!50!black] (\tick,0) -- (\tick,1);
+    }
+  \end{scope}
+  \def\thetas{5}
+  \def\thetav{0.4}
+  \fill[red] ($(0,2.5)+1/(1+exp(\thetas*\thetav))*(0,1)$) circle (2pt);
+  \node[anchor=west] at (.3,2.6) {$1/(1+\exp(2))$};
+\end{tikzpicture}
+\end{document}

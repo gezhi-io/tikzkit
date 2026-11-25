@@ -1,0 +1,19 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-.5,-.8) rectangle (5.5,3.5);
+  \draw[red,very thick,decorate,
+    decoration={text along path,text={Straight text},text align=center}]
+    (0,2.7) -- (5,2.7);
+  \draw[red,very thick,decorate,
+    decoration={text along path,text={Text on a curve},text align=center}]
+    (0,1.5) .. controls (1,2.3) and (4,2.3) .. (5,1.5);
+  \filldraw[red,decorate,decoration={text along path,text={Closed path}}]
+    (0,0) rectangle (2,1);
+  \draw[red,decorate,decoration={text effects along path,text={ABC},
+    text effects/.cd,characters={text along path}}] (3,0) -- (5,0);
+  \draw[red,decorate,decoration={text along path,text={}}] (0,-.5) -- (5,-.5);
+\end{tikzpicture}
+\end{document}

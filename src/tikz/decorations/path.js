@@ -3,12 +3,16 @@ import { applyPathMorphingDecoration } from "../libraries/decorations.pathmorphi
 import { applyBraceDecoration, applyTicksDecoration, applyBorderDecoration, applyWavesDecoration } from "../libraries/decorations.pathreplacing.js";
 import { legacySnakeSpec, applyLegacySnakePath } from "../libraries/snakes.js";
 import { applyKochSnowflakeDecoration } from "../libraries/decorations.fractals.js";
+import { isTextAlongPathDecoration } from "../libraries/decorations.text.js";
 
 export function applyPathDecoration(commands, pathOptions, env) {
   const legacySnake = legacySnakeSpec(pathOptions, env);
   if (legacySnake) return applyLegacySnakePath(commands, legacySnake);
-  if (!pathOptions.decorate) return commands;
+  if (!tikzBoolean(pathOptions.decorate)) return commands;
   const decoration = parseOptions(String(pathOptions.decoration || ""));
+  // Both native text automata typeset boxes as side effects, leaving no
+  // stroke/fill path. The evaluator retains the input for text placement.
+  if (isTextAlongPathDecoration(decoration)) return [];
   if (decoration.brace) return applyBraceDecoration(commands, decoration, env);
   if (decoration.border) return applyBorderDecoration(commands, decoration, env);
   if (decoration.ticks) return applyTicksDecoration(commands, decoration, env);

@@ -3,7 +3,7 @@ export const tikzCommand = {
   kind: "command",
   status: "core",
   implementedBy: [
-    "src/frontend/parser.js:parsePathStatement",
+    "src/frontend/parser.js:parsePathCommand",
     "src/engine/evaluate.js:interpretPathStatement",
     "src/engine/evaluate.js:buildPath"
   ],
@@ -55,7 +55,7 @@ export const tikzCommand = {
       name: "rectangle / arc",
       category: "shape path",
       status: "partial",
-      implementedBy: "src/frontend/parser.js:parsePathStatement + src/engine/evaluate.js:buildPath",
+      implementedBy: "src/frontend/parser.js:parsePathCommand + src/engine/evaluate.js:buildPath",
       notes: "Core geometric path operations map to normalized path commands."
     },
     {
@@ -83,8 +83,8 @@ export const tikzCommand = {
       name: "fill / filldraw / clip",
       category: "operation",
       status: "partial",
-      implementedBy: "src/engine/options.js:defaultStyleForCommand + src/engine/evaluate.js",
-      notes: "Fill and stroke are core; clip is limited to practical gallery slices."
+      implementedBy: "src/engine/evaluate.js:interpretPathStatement/applyScopeClips + src/renderers/svg/scopeClips.js",
+      notes: "Ordinary clip paths intersect in source order until the end of the scope. Compound subpaths share one fill rule. Draw-and-clip paints the outline before restricting later paint."
     },
     {
       name: "transform canvas={...}",

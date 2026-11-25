@@ -6,17 +6,20 @@ scope, native implementation references, browser comparisons and open gaps.
 
 ## Current Work
 
-Latest explicit-test checkpoint: 3047 passed, 24 failed, 14 unchanged skips
-out of 3085 tests. The native colormap follow-up fixes numeric color stops and
-PGF fixed-point interpolation. Six color controls and seven 3D regression
-controls pass the existing browser geometry gates. The previously failing
-explicit-meta color gate passes unchanged. All 89 control facets now match
-native computed colors within one byte; two nonuniform-map channels retain a
-one-byte difference. The 24 existing unit-test failures are unchanged, so this
-is visual compatibility progress, not a claim that those failures were removed.
-Bare Node discovery also runs three manual browser probes without arguments;
-that separate issue remains open. Complete figure compatibility remains partial.
+At the 2026-11-07 checkpoint, 3441 tests passed with zero failures and
+14 unchanged skips out of 3455 tests. The current shared TikZ slice removes
+the extra decorated-text stroke in the epochs/overfitting plot, preserves
+postaction paths, isolates edge decorations and corrects ordinary text color.
+Seven actual Chrome comparisons were inspected; four focused stroke gates
+and four JS/tikztosvg PNG pairs pass. The real plot's legend/text differences,
+two manual controls, browser text rasterization and independent PDF acceptance
+remain open. These results supersede older test counts, not the documented
+limitations of each library. Complete figure compatibility remains partial.
 
+- [Text decoration replacement and the overfitting annotation](qa/2026-11-07-text-path-replacement.md)
+- [Scoped clips, PGF operator binding and browser editing](qa/2026-11-18-project-review-fixes.md)
+- [Native box paint, dashes and physical coordinates](qa/2026-10-29-pgfplots-box-paint.md)
+- [Native PGF division and reciprocal, with a floating plot control](qa/2026-10-29-native-division-reciprocal.md)
 - [Native numeric colormaps and fixed-point interpolation](qa/2026-10-25-native-colormap.md)
 - [Native primes, calligraphic math and explicit boxed 3D labels](qa/2026-10-25-math-alphabets.md)
 - [Datavisualization tick geometry and option replay](qa/2026-10-25-datavis-tick-geometry.md)

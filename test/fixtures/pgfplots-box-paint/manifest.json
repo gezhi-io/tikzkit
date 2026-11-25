@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "id": "division-pgfplots-fpu-control", "source": "../division-reciprocal/pgfplots-fpu-control.tex", "title": "Fractional levels and default boxed grid", "axisFrame": "box", "boxPaint": true },
+    { "id": "pgfplots-box-behind-plots", "source": "box-behind-plots.tex", "title": "Dashed box behind clipped plots", "axisFrame": "box", "boxPaint": true },
+    { "id": "pgfplots-box-on-top", "source": "box-on-top.tex", "title": "Explicit foreground dashed box", "axisFrame": "box", "boxPaint": true }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "id": "rounding-coordinate-boundaries", "source": "coordinate-boundaries.tex", "title": "PGF rounding boundaries move real coordinates", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 77 } },
+    { "id": "rounding-arithmetic-boundaries", "source": "arithmetic-boundaries.tex", "title": "PGF intermediate arithmetic and manual rounding examples", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 68 } },
+    { "id": "rounding-pgfplots-fpu-control", "source": "pgfplots-fpu-control.tex", "title": "PGFPlots floating-point rounding control" }
+  ]
+}

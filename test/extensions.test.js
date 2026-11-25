@@ -5451,7 +5451,7 @@ test("keeps PGFPlots unit vector ratio star axes square when spans match", () =>
   assert.ok(frame, "expected axis frame");
   const pgfplotsDefaultAspect = parseDimension("240pt", {}) / parseDimension("207pt", {});
   const expectedPlotSize = 9 / pgfplotsDefaultAspect - parseDimension("45pt", {});
-  assert.ok(Math.abs(frame.commands[1].x - expectedPlotSize) < 0.05, `expected PGFPlots boxed axis size near ${expectedPlotSize}, got ${frame.commands[1].x}`);
+  assert.ok(Math.abs(frame.commands[2].x - expectedPlotSize) < 0.05, `expected PGFPlots boxed axis size near ${expectedPlotSize}, got ${frame.commands[2].x}`);
   assert.ok(Math.abs(frame.commands[2].y - expectedPlotSize) < 0.05, `expected square axis frame, got ${JSON.stringify(frame.commands)}`);
   assert.ok(Math.abs(plot.commands.at(-1).x - expectedPlotSize) < 0.05);
   assert.ok(Math.abs(plot.commands.at(-1).y - expectedPlotSize) < 0.05);

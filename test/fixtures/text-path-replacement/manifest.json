@@ -1,0 +1,11 @@
+{
+  "cases": [
+    { "id": "text-path-overfitting", "source": "../examples/latex-examples/2d-epochs-overfitting.tex", "title": "Overfitting text must not duplicate the arrow shaft" },
+    { "id": "text-path-replacement", "source": "replacement.tex", "title": "Direct text decorations replace strokes and fills", "arrowGeometry": { "allStrokes": true } },
+    { "id": "text-path-postaction", "source": "postaction.tex", "title": "Text postactions retain the original stroke", "arrowGeometry": { "allStrokes": true } },
+    { "id": "text-path-edges", "source": "edges.tex", "title": "Edge-local replacement without sibling leakage", "arrowGeometry": { "allStrokes": true } },
+    { "id": "text-path-colors", "source": "colors.tex", "title": "Native text-box reset versus node color inheritance", "arrowGeometry": { "allStrokes": true } },
+    { "id": "text-path-format-control", "source": "../examples/decorations/text-formatting.tex", "title": "Existing manual formatting control" },
+    { "id": "text-path-repeat-control", "source": "../examples/decorations/text-repeat-manual-spiral.tex", "title": "Existing repeated text-effects postaction control" }
+  ]
+}

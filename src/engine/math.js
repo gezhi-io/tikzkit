@@ -142,10 +142,10 @@ export function substituteTextVariables(input, variables = {}) {
   });
 }
 
-export function evaluateMathResult(input, variables = {}) {
+export function evaluateMathResult(input, variables = {}, options = {}) {
   try {
     const substituted = substituteVariables(normalizeImplicitLengthProducts(input), variables, { maxLength: MATH_EXPRESSION_LIMITS.characters });
-    const result = evaluateRestrictedExpression(substituted, variables, { coordinateModulo: true });
+    const result = evaluateRestrictedExpression(substituted, variables, options);
     return result.ok ? result : { ...result, diagnostic: { ...result.diagnostic, expression: String(input) } };
   } catch (error) {
     if (!(error instanceof MathExpressionError)) throw error;
@@ -154,7 +154,7 @@ export function evaluateMathResult(input, variables = {}) {
 }
 
 export function evaluateMath(input, variables = {}, options = {}) {
-  return mathResultValue(evaluateMathResult(input, variables), options);
+  return mathResultValue(evaluateMathResult(input, variables, options), options);
 }
 
 export function parseDimensionResult(input, variables = {}, options = {}) {

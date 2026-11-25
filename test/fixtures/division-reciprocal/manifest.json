@@ -1,0 +1,8 @@
+{
+  "cases": [
+    { "id": "division-coordinate-boundaries", "source": "coordinate-boundaries.tex", "title": "PGF fractional division and carry boundaries", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 74 } },
+    { "id": "reciprocal-coordinate-boundaries", "source": "reciprocal-boundaries.tex", "title": "Native reciprocal function in macros and coordinates", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 87 } },
+    { "id": "division-pgfplots-fpu-control", "source": "pgfplots-fpu-control.tex", "title": "PGFPlots floating division control" },
+    { "id": "division-layout-controls", "source": "layout-controls.tex", "title": "Calc, timeline coordinate system and macro basis controls", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 28 } }
+  ]
+}

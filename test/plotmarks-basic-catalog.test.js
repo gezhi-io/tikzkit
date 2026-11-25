@@ -36,7 +36,8 @@ test("lowers the same basic plotmark geometry inside PGFPlots axes", () => {
   const pentagon = renderPlotMark({ x: 0, y: 0 }, { teal: true, mark: "pentagon*", "mark size": "7pt" });
 
   assert.equal((asterisk.match(/ -- /g) || []).length, 3);
-  assert.match(oplus, /circle\(0\.246\)/);
+  const radius = Number(oplus.match(/circle\(([^)]+)\)/)?.[1]);
+  assert.ok(Math.abs(radius - 7 * 2.54 / 72.27) < 5e-7, "7pt radius must retain physical precision");
   assert.match(oplus, /fill=red/);
   assert.equal((diamond.match(/ -- /g) || []).length, 4);
   assert.match(diamond, /cycle/);

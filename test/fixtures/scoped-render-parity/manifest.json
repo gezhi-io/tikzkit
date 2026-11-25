@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "id": "scope-clip",
+      "source": "scope-clip.tex",
+      "title": "Clip a large rectangle to a one-centimetre square"
+    },
+    {
+      "id": "arithmetic",
+      "source": "arithmetic.tex",
+      "title": "Lengths calculated by PGF: powers, OR and AND"
+    },
+    {
+      "id": "short-text",
+      "source": "short-text.tex",
+      "title": "Text on a one-centimetre path"
+    },
+    {
+      "id": "monospace",
+      "source": "monospace.tex",
+      "title": "Typewriter glyph advances versus Roman advances"
+    },
+    {
+      "id": "initial-math-box",
+      "source": "initial-math-box.tex",
+      "title": "Path text beginning with grouped math"
+    },
+    {
+      "id": "manual-circle-lens",
+      "source": "manual-circle-lens.tex",
+      "title": "PGF manual: two circles, one visible lens"
+    },
+    {
+      "id": "nested-clip",
+      "source": "nested-clip.tex",
+      "title": "Two nested clips, an even-odd hole and an unclipped sibling"
+    },
+    {
+      "id": "plot-rounding",
+      "source": "plot-rounding.tex",
+      "title": "Floating plot-function samples near and outside TeX dimension limits"
+    },
+    {
+      "id": "background-clip",
+      "source": "background-clip.tex",
+      "title": "A background layer starts its own clipping region"
+    },
+    {
+      "id": "foreground-order",
+      "source": "foreground-order.tex",
+      "title": "Postactions and overlapping angle pics and edges in both source orders"
+    }
+  ]
+}

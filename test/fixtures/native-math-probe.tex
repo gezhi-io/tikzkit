@@ -1,0 +1,17 @@
+% Log-only native probe; intentionally outside the rendered fixture directory.
+\documentclass{article}
+\usepackage{pgf}
+\usepgflibrary{fpu}
+\newcommand{\probe}[1]{\pgfmathparse{#1}\typeout{PROBE:#1=\pgfmathresult}}
+\begin{document}
+\probe{round(-2.5)}\probe{round(-1.5)}\probe{round(-.5)}
+\probe{round(.5)}\probe{round(2.5)}\probe{round(-.1)}
+\probe{mod(-5,3)}\probe{mod(5,-3)}\probe{mod(-5,-3)}
+\probe{Mod(-5,3)}\probe{Mod(5,-3)}\probe{Mod(-5,-3)}
+\probe{mod(-6,3)}\probe{Mod(-6,3)}
+% Fixed-point boundaries are recorded, not claimed as repaired by this slice.
+\probe{round(-2.49999)}\probe{round(-2.499999)}
+\pgfkeys{/pgf/fpu=true,/pgf/fpu/output format=fixed}
+\probe{round(-2.5)}\probe{round(-1.5)}\probe{round(-.5)}
+\probe{mod(-5,3)}\probe{mod(5,-3)}\probe{mod(-5,-3)}
+\end{document}

@@ -1,0 +1,19 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+% Supply native PGF's two-sample tables independently with LaTeX floating
+% arithmetic, so this fixture can be compiled without installing gnuplot.
+\newwrite\samplecache
+\newcommand{\samplevalues}[3]{%
+  \immediate\openout\samplecache=\jobname.#1.table\relax
+  \immediate\write\samplecache{0 \fpeval{#2}}%
+  \immediate\write\samplecache{1 \fpeval{#3}}%
+  \immediate\closeout\samplecache}
+\samplevalues{near}{floor(2.999999)}{floor(2.999999)}
+\samplevalues{large}{floor(20000.25)-20000}{floor(20000.25+1)-20000}
+\begin{tikzpicture}[domain=0:1,samples=2]
+  \draw[gray] (-.2,-.2) rectangle (1.2,3.2);
+  \draw[blue,very thick,id=near] plot function {floor(2.999999)};
+  \draw[red,very thick,id=large] plot function {floor(20000.25+x)-20000};
+\end{tikzpicture}
+\end{document}

@@ -5,6 +5,7 @@ import { renderDecorationTextPath } from "./decorationText.js";
 import { renderDefaultFontStyleDef } from "./defaultFontCss.js";
 import { fontFamiliesInMarkup } from "../../fonts/index.js";
 import { clipCircleId, clipPolygonId, clipRectId, formOnlyPatternClipId, scopeSvgDefinitions } from "./defs.js";
+import { renderWithScopeClips } from "./scopeClips.js";
 import { createSvgView, renderSvgBackground, renderSvgDocument, svgViewBox } from "./document.js";
 import { renderCircuitikzNodeBox } from "./circuitikzNodes.js";
 import { renderCircleSplitNodeBox } from "./circleSplitNodes.js";
@@ -66,7 +67,7 @@ export function renderSvg(ir, options = {}) {
   // used by pattern matrices in the source document.
   const paper = options.margin != null && sourceMargins ? createSvgView(bounds, unit, sourceMargins) : view;
   const pageOrigin = { x: paper.x, y: paper.y + paper.height };
-  const { items, defs } = scopeSvgDefinitions(scaledItems, unit, options.idPrefix, pageOrigin);
+  const { items, defs, scopeClips } = scopeSvgDefinitions(scaledItems, unit, options.idPrefix, pageOrigin);
 
   const body = [];
   // TikZ and tikztosvg emit a transparent canvas by default; a background is
@@ -74,11 +75,8 @@ export function renderSvg(ir, options = {}) {
   // opaque ground, which the item renderer adds through the scene graph).
   const background = options.background === undefined ? "none" : options.background;
   body.push(renderSvgBackground(view, background));
-  const itemMarkup = [];
-  for (let index = 0; index < items.length; index += 1) {
-    itemMarkup.push(renderItem(items[index], unit, options, index, pageOrigin));
-  }
-  body.push(graphicxResize ? wrapGraphicxResize(itemMarkup.join(""), naturalBounds, graphicxResize, unit) : itemMarkup.join(""));
+  const markup = renderWithScopeClips(items, scopeClips, (item, index) => renderItem(item, unit, options, index, pageOrigin));
+  body.push(graphicxResize ? wrapGraphicxResize(markup, naturalBounds, graphicxResize, unit) : markup);
   if (body.some((line) => line && line.includes("tikzkit-math-scope"))) {
     defs.unshift(renderScopedMathStyleDef());
   }

@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "id": "native-numeric-semantics", "source": "numeric-semantics.tex", "title": "PGF signed rounding and remainder coordinates" },
+    { "id": "angle-paint-actions", "source": "angle-paint-actions.tex", "title": "Angle fill, stroke and native label defaults", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 4 } },
+    { "id": "angles-parallel-paragraph", "source": "../visual-followups/angles-parallel-paragraph.tex", "title": "Parallel lines with colored explanatory paragraph", "arrowGeometry": { "allStrokes": true } }
+  ]
+}

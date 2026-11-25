@@ -1,0 +1,12 @@
+{
+  "cases": [
+    { "id": "text-bounds-spiral", "source": "../examples/decorations/text-repeat-manual-spiral.tex", "title": "Repeated scaled characters must not clip the spiral", "decorationBounds": {} },
+    { "id": "text-bounds-center", "source": "center.tex", "title": "Default character node padding", "decorationBounds": {} },
+    { "id": "text-bounds-raised", "source": "raised.tex", "title": "Raised baseline nodes outside the original path", "decorationBounds": {} },
+    { "id": "text-bounds-sloped", "source": "sloped.tex", "title": "Scaled node corners on a sloped path", "decorationBounds": {} },
+    { "id": "text-bounds-spaces", "source": "spaces.tex", "title": "Unpainted space nodes still contribute bounds", "decorationBounds": { "allowEmpty": true } },
+    { "id": "text-bounds-group", "source": "../examples/decorations/text-repeat-group-reverse.tex", "title": "Grouped repeated words and reversal control", "decorationBounds": {} },
+    { "id": "text-bounds-replacements", "source": "../examples/decorations/text-repeat-replacements.tex", "title": "Replacement circle control", "decorationBounds": {} },
+    { "id": "text-bounds-fit-scale", "source": "../examples/decorations/text-effects-fit-scale.tex", "title": "Fitted and scaled character control", "decorationBounds": {} }
+  ]
+}

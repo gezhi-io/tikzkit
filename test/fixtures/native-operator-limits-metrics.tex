@@ -1,0 +1,36 @@
+% Independent, log-only MacTeX boxes for named operator limits.
+\documentclass{article}
+\usepackage{amsmath}
+\DeclareMathOperator*{\Lim}{Lim}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\probe}[3]{\begingroup#2\setbox0=\hbox{$#3$}%
+  \typeout{LIMITBOX:#1;\the\wd0;\the\ht0;\the\dp0}\endgroup}
+\begin{document}
+\probe{inline}{}{\operatorname*{arg\,min}_{x\in A}f(x)}
+\probe{display}{}{\displaystyle\operatorname*{arg\,min}_{x\in A}f(x)}
+\probe{declared}{}{\displaystyle\argmin_{x\in A}f(x)}
+\probe{manual}{}{\displaystyle\Lim_{n\to\infty}x_n}
+\probe{both}{}{\displaystyle\operatorname*{rank}^2_k A}
+\probe{upper}{}{\displaystyle\operatorname*{rank}^{n+1} A}
+\probe{lower}{}{\displaystyle\operatorname*{rank}_{n=0} A}
+\probe{wide}{}{\displaystyle\operatorname*{f}^{i+j+k}_{a+b+c}x}
+\probe{force}{}{\operatorname*{rank}\limits^2_k A}
+\probe{side}{}{\displaystyle\operatorname*{rank}\nolimits^2_k A}
+\probe{ordinary}{}{\displaystyle\operatorname{rank}\limits^2_k A}
+\probe{lim-display}{}{\displaystyle\lim_{x\to0}f(x)}
+\probe{lim-inline}{}{\lim_{x\to0}f(x)}
+\probe{lim-forced}{}{\lim\limits_{x\to0}f(x)}
+\probe{lim-side}{}{\displaystyle\lim\nolimits_{x\to0}f(x)}
+\probe{max-display}{}{\displaystyle\max_{x\in A}f(x)}
+\probe{min-both}{}{\displaystyle\min^{n+1}_{n=0}x_n}
+\probe{small}{\scriptsize}{\displaystyle\operatorname*{rank}^2_k A}
+\probe{large}{\Large}{\displaystyle\operatorname*{rank}^2_k A}
+\probe{bold}{\boldmath}{\displaystyle\operatorname*{rank}^2_k A}
+\probe{script}{}{\scriptstyle\operatorname*{rank}\limits^2_k A}
+\probe{scriptscript}{}{\scriptscriptstyle\operatorname*{rank}\limits^2_k A}
+\probe{fraction}{}{\frac{\operatorname*{rank}\limits^2_k A}{2}}
+\probe{empty}{}{\displaystyle\operatorname*{rank}^{}_{} A}
+\probe{none}{}{\displaystyle\operatorname*{rank} A}
+\probe{modifier-last-side}{}{\displaystyle\operatorname*{rank}\limits\nolimits_k A}
+\probe{modifier-last-limit}{}{\operatorname*{rank}\nolimits\limits_k A}
+\end{document}

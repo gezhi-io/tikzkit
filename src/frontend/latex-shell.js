@@ -2908,7 +2908,8 @@ function parseNewCommandMacro(source, start) {
 
 function parseDeclareMathOperator(source, start) {
   let index = start + "\\DeclareMathOperator".length;
-  if (source[index] === "*") index += 1;
+  const starred = source[index] === "*";
+  if (starred) index += 1;
   index = skipWhitespace(source, index);
   const nameArg = extractBalanced(source, index, "{", "}");
   if (!nameArg) return null;
@@ -2919,7 +2920,7 @@ function parseDeclareMathOperator(source, start) {
   if (!body) return null;
   return {
     name,
-    macro: { name, argCount: 0, body: `\\operatorname{${body.content}}` },
+    macro: { name, argCount: 0, body: `\\operatorname${starred ? "*" : ""}{${body.content}}` },
     end: body.end
   };
 }

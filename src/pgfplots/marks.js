@@ -1,6 +1,6 @@
 import { parseDimension } from "../engine/math.js";
 import { parseOptions, splitTopLevel } from "../engine/options.js";
-import { formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
+import { formatAxisCoordinate, formatAxisNumber, formatAxisPoint, joinOptions } from "./format.js";
 import { plotColorValue, plotLineWidthOption, selectPlotColor, selectPlotMarkFillColor } from "./plotStyle.js";
 import {
   basicPlotMarkGeometry,
@@ -169,7 +169,7 @@ function renderHalfCircleMark(point, options, size, strokedStyle, fill, starred)
     "fill opacity=1",
     plotMarkClipOption(options)
   ]);
-  const radius = formatAxisNumber(size);
+  const radius = formatAxisCoordinate(size);
   const lower = `${formatAxisPoint(left)} arc (${formatAxisNumber(180 + rotation)}:${formatAxisNumber(360 + rotation)}:${radius}) -- cycle;`;
   const items = [];
 
@@ -233,7 +233,7 @@ function formatPlotMarkGeometry(geometry, point, localOptions = {}) {
 function formatPlacedPlotMarkGeometry(placed) {
   return placed.primitives.map((primitive) => {
     if (primitive.type === "circle") {
-      return `${formatAxisPoint(primitive.center)} circle(${formatAxisNumber(primitive.radius)})`;
+      return `${formatAxisPoint(primitive.center)} circle(${formatAxisCoordinate(primitive.radius)})`;
     }
     if (primitive.type === "cubicPath") {
       const curves = primitive.curves.map((curve) =>

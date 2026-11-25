@@ -1,0 +1,21 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{angles,quotes,decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \coordinate (O) at (0,0);
+  \coordinate (A) at (1,0);
+  \coordinate (B) at (0,1);
+  \draw[postaction={decorate,decoration={text along path,text align=center,text color=magenta,text={P}}}]
+    (1.4,1.4) -- (O) pic[draw=red,fill=yellow,line width=4pt,angle radius=1cm,"Q"] {angle=A--O--B}
+    (O) edge[draw=blue,line width=4pt] node[above left] {E} (1.4,1.4);
+  \begin{scope}[xshift=2.2cm]
+    \coordinate (O) at (0,0);
+    \coordinate (A) at (1,0);
+    \coordinate (B) at (0,1);
+    \draw[postaction={decorate,decoration={text along path,text align=center,text color=magenta,text={P}}}]
+      (1.4,1.4) -- (O) edge[draw=blue,line width=4pt] node[above left] {E} (1.4,1.4)
+      (O) pic[draw=red,fill=yellow,line width=4pt,angle radius=1cm,"Q"] {angle=A--O--B};
+  \end{scope}
+\end{tikzpicture}
+\end{document}

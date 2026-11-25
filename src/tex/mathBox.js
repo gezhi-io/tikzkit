@@ -38,7 +38,11 @@ export function layoutNativeMath(tex, options = {}) {
   if (cache.has(key)) return cache.get(key);
   let result = null;
   try {
-    const ast = katex.__parse(source, { strict: "ignore", maxExpand: 1000, ...relativeMathParseOptions });
+    const ast = katex.__parse(source, { strict: "ignore", maxExpand: 1000, ...relativeMathParseOptions,
+      // KaTeX's operatorname AST merges the default and explicit nolimits.
+      // A private mathop wrapper retains the parser's explicit-modifier flag.
+      macros: { ...relativeMathParseOptions.macros,
+        "\\operatornamewithlimits": "\\mathop{\\operatorname@{#1}}" } });
     result = list(ast, { base, style: options.displayMode ? 0 : 1, cramped: false,
       bold: options.mathVersion === "bold", baselineSkip: options.baselineSkipPt ?? nativeBaselineSkip(base),
       mathExtension: options.mathExtension });
@@ -97,7 +101,9 @@ function list(nodes, ctx) {
     if (previous?.glyph && entry.glyph && previous.font === entry.font) {
       const kern = entry.font.kern[previous.glyph]?.[entry.glyph];
       if (kern !== undefined) {
-        kernWidth = kern * fontSize(ctx);
+        // TeX's math lig/kern pass replaces the previous character's italic
+        // correction with the pair kern; it does not add both (notably Va).
+        kernWidth = kern * fontSize(ctx) - (ctx.textFace ? 0 : previous.italic || 0);
         box.width += kernWidth;
       }
     }
@@ -145,6 +151,13 @@ function unicode(text) {
 }
 
 function glyph(text, ctx, mathItalic, atom = "ord") {
+  // amsopn's newmcodes@: hyphen/star/slash are ordinary OT1 characters;
+  // colon is OT1 punctuation and dot is CMMI punctuation (math class 6).
+  if (ctx.operatorName && ["-", "*", "/", ":"].includes(text))
+    return glyph(text, { ...ctx, operatorName: false, textFace: ctx.bold ? "CMBX" : "CMR" }, false,
+      text === ":" ? "punct" : "ord");
+  if (ctx.operatorName && text === ".")
+    return glyph(text, { ...ctx, operatorName: false }, false, "punct");
   const codepoint = ctx.textFace ? text : unicode(text);
   // fontmath.ltx maps \cdot and \circ to CMSY slots 01 and 0E.
   // The original Type 1 outlines use periodcentered and openbullet, whose
@@ -208,7 +221,7 @@ function build(node, ctx) {
       // original font and glue, even when this atom changes math style.
       return { ...list(node.body, relative), atom: "ord", character: false };
     }
-    case "supsub": return scripts(node, ctx);
+    case "supsub": return ctx.operatorName ? unsupported() : scripts(node, ctx);
     case "accent": return accent(node, ctx);
     case "genfrac": return fraction(node, ctx);
     case "sqrt": return radical(node, ctx);
@@ -230,9 +243,32 @@ function build(node, ctx) {
       };
       return unsupported();
     case "op": {
+      if (!node.symbol && node.body?.length === 1 && node.body[0].type === "operatorname") {
+        const box = build(node.body[0], ctx);
+        return { ...box, sideScripts: !(node.alwaysHandleSupSub ? node.limits : ctx.style === 0) };
+      }
       if (node.symbol || !/^\\[a-z]+$/.test(node.name || "")) return unsupported();
+      // Compound names and forced limits on non-limit operators have distinct
+      // amsopn expansions. Keep their complete fallback until mapped as well.
+      if (node.limits && !/^\\(?:det|gcd|inf|lim|max|min|sup)$/.test(node.name)) return unsupported();
       const box = list([...node.name.slice(1)].map(text => ({ type: "textord", text })), { ...ctx, roman: true });
-      return { ...box, atom: "op", character: false };
+      return { ...box, atom: "op", character: false,
+        sideScripts: !(node.limits && (ctx.style === 0 || node.alwaysHandleSupSub)) };
+    }
+    case "operatorname": {
+      // qopname uses a zero kern plus the operators font in a mathop nucleus.
+      // Even a single-letter name stays a box, without character-axis shifting.
+      const font = nativeMathFont(ctx.bold ? "CMBX" : "CMR", fontSize(ctx));
+      const body = [];
+      for (const item of node.body) {
+        const previous = body.at(-1);
+        const ligature = ["mathord", "textord"].includes(item.type)
+          && ["mathord", "textord"].includes(previous?.type) && font.ligatures[previous.text]?.[item.text];
+        if (ligature) { previous.text = ligature; previous.type = "textord"; }
+        else body.push({ ...item });
+      }
+      const box = list(body, { ...ctx, roman: true, calligraphic: false, operatorName: true });
+      return { ...box, atom: "op", character: false, sideScripts: !node.limits && !node.alwaysHandleSupSub };
     }
     default: return unsupported();
   }
@@ -378,11 +414,12 @@ function scripts(node, ctx) {
     return accent(accentee, ctx, node);
   }
   const base = node.base ? build(node.base, ctx) : empty();
-  if (base.atom === "op") return unsupported();
+  if (base.atom === "op" && typeof base.sideScripts !== "boolean") return unsupported();
   const subCtx = scriptContext(ctx, true);
   const supCtx = scriptContext(ctx);
   const sub = node.sub ? build(node.sub, subCtx) : null;
   const sup = node.sup ? build(node.sup, supCtx) : null;
+  if (base.atom === "op" && !base.sideScripts) return namedOperatorLimits(base, sub, sup, ctx);
   let up = base.character ? 0 : base.height - parameter(supCtx, "SUPDROP");
   let down = base.character ? 0 : base.depth + parameter(subCtx, "SUBDROP");
   const xHeight = parameter(ctx, "XHEIGHT");
@@ -405,5 +442,28 @@ function scripts(node, ctx) {
   if (sub) append(box, sub, base.width - italic, down);
   box.width = base.width + Math.max(sup ? sup.width : -italic, sub ? sub.width - italic : 0) + 0.5;
   box.atom = base.atom;
+  return box;
+}
+
+function namedOperatorLimits(base, sub, sup, ctx) {
+  const size = ctx.mathExtension === "ams" ? fontSize(ctx) : 10;
+  const metrics = nativeMathFont("CMEX", size).parameters;
+  const gap = n => metrics[`BIGOPSPACING${n}`] * size;
+  const box = { ...empty(), atom: "op", character: false,
+    width: Math.max(base.width, sub?.width || 0, sup?.width || 0) };
+  // TeX's boxed operator nucleus has no italic skew. Extension-font spacing
+  // sets the clearance and the invisible outer kern, even for an empty limit.
+  // Paint in vlist order: upper limit, nucleus, lower limit.
+  if (sup) {
+    const y = -base.height - Math.max(gap(1), gap(3) - sup.depth) - sup.depth;
+    append(box, sup, (box.width - sup.width) / 2, y);
+    box.height = Math.max(box.height, sup.height - y + gap(5));
+  }
+  append(box, base, (box.width - base.width) / 2);
+  if (sub) {
+    const y = base.depth + Math.max(gap(2), gap(4) - sub.height) + sub.height;
+    append(box, sub, (box.width - sub.width) / 2, y);
+    box.depth = Math.max(box.depth, sub.depth + y + gap(5));
+  }
   return box;
 }

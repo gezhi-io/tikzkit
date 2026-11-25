@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 
 import { createAxisGeometry } from "../src/pgfplots/geometry.js";
 import { renderAxisLabels } from "../src/pgfplots/labels.js";
+import { parseStatements } from "../src/frontend/parser.js";
+
+function assertLabel(commands, text, anchor, point) {
+  const node = parseStatements(commands.join("\n")).find(n => n.text === text);
+  assert.equal(node?.options.anchor, anchor);
+  const actual = node.at.split(",").map(Number);
+  for (const [i, key] of ["x", "y"].entries()) assert.ok(Math.abs(actual[i] - point[key]) <= .0000005);
+}
 
 const ranges = { xMin: -5, xMax: 5, yMin: -5, yMax: 5 };
 
@@ -30,18 +38,8 @@ test("PGFPlots middle labels anchor exactly at ticklabel* cs:1", () => {
   const xTip = geometry.mapPoint({ x: geometry.lineRanges.xMax, y: 0 });
   const yTip = geometry.mapPoint({ x: 0, y: geometry.lineRanges.yMax });
 
-  assert.ok(
-    commands.includes(
-      String.raw`\node[axis label, tikzkit layout bbox, anchor=south east] at (${xTip.x.toFixed(3)},${xTip.y.toFixed(3)}) {$x$};`
-    ),
-    `xlabel south east anchor must coincide with the positive x-axis endpoint:\n${commands.join("\n")}`
-  );
-  assert.ok(
-    commands.includes(
-      String.raw`\node[axis label, tikzkit layout bbox, anchor=north west] at (${yTip.x.toFixed(3)},${yTip.y.toFixed(3)}) {$y$};`
-    ),
-    `ylabel north west anchor must coincide with the positive y-axis endpoint:\n${commands.join("\n")}`
-  );
+  assertLabel(commands, "$x$", "south east", xTip);
+  assertLabel(commands, "$y$", "north west", yTip);
 });
 
 test("PGFPlots legacy outside ticks do not move middle-axis terminal labels beyond current axis anchors", () => {
@@ -49,32 +47,18 @@ test("PGFPlots legacy outside ticks do not move middle-axis terminal labels beyo
   const xTip = geometry.mapPoint({ x: geometry.lineRanges.xMax, y: 0 });
   const yTip = geometry.mapPoint({ x: 0, y: geometry.lineRanges.yMax });
 
-  assert.ok(
-    commands.some((command) => command.includes(`anchor=south east] at (${xTip.x.toFixed(3)},${xTip.y.toFixed(3)}) {$x$}`)),
-    `outside ticks must retain the PGFPlots current-axis x terminal:\n${commands.join("\n")}`
-  );
-  assert.ok(
-    commands.some((command) => command.includes(`anchor=north west] at (${yTip.x.toFixed(3)},${yTip.y.toFixed(3)}) {$y$}`)),
-    `outside ticks must retain the PGFPlots current-axis y terminal:\n${commands.join("\n")}`
-  );
+  assertLabel(commands, "$x$", "south east", xTip);
+  assertLabel(commands, "$y$", "north west", yTip);
 });
 
 test("PGFPlots applies near-ticklabel placement to each middle axis independently", () => {
   const xOnly = renderLabels({ "axis y line": "left" });
   const xTip = xOnly.geometry.mapPoint({ x: xOnly.geometry.lineRanges.xMax, y: 0 });
-  assert.ok(
-    xOnly.commands.some(
-      (command) => command.includes("anchor=south east") && command.includes(`at (${xTip.x.toFixed(3)},${xTip.y.toFixed(3)}) {$x$}`)
-    )
-  );
+  assertLabel(xOnly.commands, "$x$", "south east", xTip);
 
   const yOnly = renderLabels({ "axis x line": "bottom" });
   const yTip = yOnly.geometry.mapPoint({ x: 0, y: yOnly.geometry.lineRanges.yMax });
-  assert.ok(
-    yOnly.commands.some(
-      (command) => command.includes("anchor=north west") && command.includes(`at (${yTip.x.toFixed(3)},${yTip.y.toFixed(3)}) {$y$}`)
-    )
-  );
+  assertLabel(yOnly.commands, "$y$", "north west", yTip);
 });
 
 test("explicit axis description coordinates override middle-axis defaults", () => {
@@ -84,9 +68,6 @@ test("explicit axis description coordinates override middle-axis defaults", () =
     "x label style": "at={(axis description cs:0.5,0)},anchor=north",
     "y label style": "at={(axis description cs:0,0.5)},anchor=south,rotate=90"
   });
-  const middleX = (geometry.origin.x + geometry.width * 0.5).toFixed(3).replace(/\.000$/, "");
-  const middleY = (geometry.origin.y + geometry.height * 0.5).toFixed(3).replace(/\.000$/, "");
-
-  assert.ok(commands.some((command) => command.includes("anchor=north") && command.includes(`at (${middleX},0) {$x$}`)));
-  assert.ok(commands.some((command) => command.includes("anchor=south") && command.includes(`at (0,${middleY}) {$f(x)$}`)));
+  assertLabel(commands, "$x$", "north", { x: geometry.origin.x + geometry.width * .5, y: 0 });
+  assertLabel(commands, "$f(x)$", "south", { x: 0, y: geometry.origin.y + geometry.height * .5 });
 });

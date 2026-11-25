@@ -17,7 +17,14 @@ export function formatAxisNumber(value) {
 }
 
 export function formatAxisPoint(point) {
-  return `(${formatAxisNumber(point.x)},${formatAxisNumber(point.y)})`;
+  return `(${formatAxisCoordinate(point.x)},${formatAxisCoordinate(point.y)})`;
+}
+
+export function formatAxisCoordinate(value) {
+  // Physical coordinates are not tick labels. Rounding them to .001cm
+  // moves grid/plot strokes away from the unrounded clipping rectangle.
+  const rounded = Math.round(Number(value) * 1e6) / 1e6;
+  return Object.is(rounded, -0) ? "0" : String(rounded);
 }
 
 export function formatAxisTickLabel(value, options = {}) {

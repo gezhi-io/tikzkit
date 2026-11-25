@@ -1,0 +1,15 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-.5,-.5) rectangle (5.5,3.5);
+  \draw[gray,thick,decoration={text along path,text={Visible line},text align=center,raise=2pt},
+    postaction={decorate}] (0,2.7) -- (5,2.7);
+  \draw[gray,thick,postaction={decorate,
+    decoration={text along path,text={Curved line},text align=center,raise=2pt}}]
+    (0,1.5) .. controls (1,2.3) and (4,2.3) .. (5,1.5);
+  \draw[gray,thick,decoration={text effects along path,text={ABC},
+    text effects/.cd,characters={text along path}},postaction={decorate}] (0,0) -- (5,0);
+\end{tikzpicture}
+\end{document}

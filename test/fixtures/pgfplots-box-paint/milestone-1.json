@@ -1,0 +1,8 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "division-pgfplots-fpu-control",
+    "pgfplots-box-behind-plots",
+    "pgfplots-box-on-top"
+  ]
+}

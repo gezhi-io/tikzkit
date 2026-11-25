@@ -41,11 +41,18 @@ test("histogram native tick spacing does not overwrite explicit description plac
     "ylabel={Number of Symbols}, ylabel style={at={(axis description cs:-0.2,0.5)}},");
   const result = tikzToSvg(variant);
   assert.deepEqual(result.diagnostics, []);
-  assert.match(result.ast.pictures[0].body, /axis label[^\n]+at \(-2\.109,1\.709\) \{Number of Symbols\}/);
+  const width = 300 / texPtPerCm, height = 5 - 45 / texPtPerCm;
+  // Check the requested anchor point, before the rotated node's center shift.
+  const ylabel = result.ast.pictures[0].body.match(/axis label[^\n]+at \(([^,]+),([^)]+)\) \{Number of Symbols\}/);
+  assert.ok(ylabel);
+  close(Number(ylabel[1]), -.2 * width, "explicit ylabel x (cm)", 5e-7);
+  close(Number(ylabel[2]), .5 * height, "explicit ylabel y (cm)", 5e-7);
   const xVariant = source.replace("xlabel={Collected Labeled Recordings},",
     "xlabel={Collected Labeled Recordings}, xlabel style={at={(axis description cs:0.2,-0.2)}},");
-  assert.match(tikzToSvg(xVariant).ast.pictures[0].body,
-    /axis label[^\n]+at \(2\.109,-0\.684\) \{Collected Labeled Recordings\}/);
+  const xlabel = tikzToSvg(xVariant).ast.pictures[0].body.match(/axis label[^\n]+at \(([^,]+),([^)]+)\) \{Collected Labeled Recordings\}/);
+  assert.ok(xlabel);
+  close(Number(xlabel[1]), .2 * width, "explicit xlabel x (cm)", 5e-7);
+  close(Number(xlabel[2]), -.2 * height, "explicit xlabel y (cm)", 5e-7);
 });
 
 test("native histogram outer anchor retains the entire measured label box", () => {

@@ -185,9 +185,9 @@ test("aggregation concatenate uses logical TeX box anchors without moving fixed 
   assert.ok(Math.abs(boxes.concatenate.height * svgPtPerCm - 12.88) < 0.25);
   assert.deepEqual(paths[0].commands, [
     { type: "moveTo", x: -4.2, y: -5.4 },
-    { type: "lineTo", x: 7.5, y: -5.4 },
-    { type: "lineTo", x: 7.5, y: 1.2 },
     { type: "lineTo", x: -4.2, y: 1.2 },
+    { type: "lineTo", x: 7.5, y: 1.2 },
+    { type: "lineTo", x: 7.5, y: -5.4 },
     { type: "closePath" }
   ]);
   const nodeOuterSep = boxes.concatenate.style.lineWidth / 200;

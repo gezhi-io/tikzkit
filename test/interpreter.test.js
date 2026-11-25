@@ -342,7 +342,9 @@ test("resolves calc scalar multiplication of vector coordinates", () => {
 
   assert.deepEqual(result.diagnostics, []);
   expectClose(paths[0].commands[0].x, -0.25);
-  expectClose(paths[0].commands[0].y, 1 / (1 + Math.exp(2)));
+  // MacTeX native-division-reciprocal.tex: basic PGF returns 0.1192,
+  // not the unrounded IEEE logistic value used by the plot FPU.
+  expectClose(paths[0].commands[0].y, 0.1192);
   expectClose(paths[0].commands[1].x, 0.9 - 2.8 * 0.4 ** 2);
   expectClose(paths[0].commands[1].y, 0);
   expectClose(paths[1].commands[0].x, 3);
@@ -465,8 +467,10 @@ test("resolves declared timeline coordinate systems before polar fallback", () =
     { type: "moveTo", x: 0, y: 0 },
     { type: "lineTo", x: 15, y: 0 }
   ]);
-  assert.ok(Math.abs(paths[1].commands[0].x - 5 / 3) < 1e-6, `expected 1980 tick at x=5/3, got ${paths[1].commands[0].x}`);
-  assert.ok(Math.abs(tickLabel.x - 5 / 3) < 1e-6, `expected 1980 label at x=5/3, got ${tickLabel.x}`);
+  // Native \pgfmathsetmacro truncates the integer-divisor quotient to sp,
+  // then prints 1.66666. Keep the existing geometric tolerance unchanged.
+  assert.ok(Math.abs(paths[1].commands[0].x - 1.66666) < 1e-6, `expected native 1980 tick at x=1.66666, got ${paths[1].commands[0].x}`);
+  assert.ok(Math.abs(tickLabel.x - 1.66666) < 1e-6, `expected native 1980 label at x=1.66666, got ${tickLabel.x}`);
 });
 
 test("renders path edges, intersection cs coordinates, and inline angle pics", () => {
@@ -506,8 +510,13 @@ test("renders path edges, intersection cs coordinates, and inline angle pics", (
     const [from, to] = edge.commands;
     return Math.hypot((to?.x ?? 0) - (from?.x ?? 0), (to?.y ?? 0) - (from?.y ?? 0)) > 1;
   }), "expected node edge operations to produce visible non-zero lines");
-  assert.equal(anglePics.length, 4);
-  assert.deepEqual(anglePics.map((pic) => pic.style.fill), ["rgb(255 242 0)", "rgb(179 255 179)", "rgb(255 242 0)", "rgb(179 255 179)"]);
+  assert.equal(anglePics.length, 8);
+  const sectors = anglePics.filter(pic => pic.picLayer === "background");
+  const arcs = anglePics.filter(pic => pic.picLayer === "foreground");
+  assert.deepEqual(sectors.map(pic => pic.style.fill), ["rgb(255 242 0)", "rgb(179 255 179)", "rgb(255 242 0)", "rgb(179 255 179)"]);
+  assert.ok(sectors.every(pic => pic.style.stroke === "none"));
+  assert.equal(arcs.length, 4);
+  assert.ok(arcs.every(pic => pic.style.fill === "none" && pic.style.stroke === "black"));
   assert.deepEqual(angleLabels.map((node) => node.text), ["$\\alpha$", "$\\beta$", "$\\gamma$", "$\\delta$"]);
 });
 
@@ -1753,13 +1762,15 @@ test("uses PGF counterclockwise sweeps for reflex angle pics and renders right a
   const right = pics.find((item) => item.style.stroke === "blue");
 
   assert.deepEqual(diagnostics, []);
-  assert.equal(pics.length, 2);
+  assert.equal(pics.length, 4);
   assert.ok(right?.commands.some((command) => command.type === "lineTo"), "expected right angle square sides");
   expectClose(right?.commands[1]?.x, 0.8, 1e-6);
-  assert.equal(right?.style.fill, "rgb(204 204 255)");
+  assert.equal(right?.style.fill, "none");
+  assert.equal(pics.find(item => item.picLayer === "background" && item.shape === "right-angle")?.style.fill, "rgb(204 204 255)");
   assert.ok(reflex?.commands.some((command) => command.type === "curveTo"), "expected PGF-style cubic arc segments");
   assert.ok(reflex?.commands.some((command) => command.x < -0.2), "expected 270-degree reflex sector to pass through the left half-plane");
-  assert.equal(reflex?.style.fill, "rgb(255 204 204)");
+  assert.equal(reflex?.style.fill, "none");
+  assert.equal(pics.find(item => item.picLayer === "background" && item.shape === "sector")?.style.fill, "rgb(255 204 204)");
   assert.equal(labels.length, 2);
 });
 
@@ -3155,7 +3166,7 @@ test("renders the PGF manual repeat-text spiral with restarted character scales"
   assert.doesNotMatch(result.svg, /class="tikz-decoration-glyph"[^>]*>\\<\/text>/);
 });
 
-test("distinguishes draw paint from current and explicit decorations.text colors", () => {
+test("resets ordinary decorations.text color independently of path draw and text colors", () => {
   const result = tikzToSvg(String.raw`
 \begin{tikzpicture}
   \draw[draw=gray,decorate,decoration={text along path,text={draw only}}] (0,2) -- (4,2);
@@ -3165,7 +3176,8 @@ test("distinguishes draw paint from current and explicit decorations.text colors
   const labels = result.ir.items.filter((item) => item.subtype === "decoration-text");
 
   assert.deepEqual(result.diagnostics, []);
-  assert.deepEqual(labels.map((label) => label.style.fill), ["black", "gray", "blue"]);
+  // pgf@lib@dec@text@dobox applies the decoration's default black first.
+  assert.deepEqual(labels.map((label) => label.style.fill), ["black", "black", "black"]);
 });
 
 test("retains ordered decorations.text word grouping effects and separators", () => {
@@ -4450,8 +4462,9 @@ test("keeps calc node corners axis aligned for rectangle path operations", () =>
 \end{tikzpicture}`);
   const rectangle = result.ir.items.find((item) => item.type === "path" && item.commands?.at(-1)?.type === "closePath");
   assert.ok(rectangle);
-  assert.equal(rectangle.commands[0].y, rectangle.commands[1].y);
-  assert.equal(rectangle.commands[1].x, rectangle.commands[2].x);
+  // tikz@rectB starts with the vertical side, not the horizontal side.
+  assert.equal(rectangle.commands[0].x, rectangle.commands[1].x);
+  assert.equal(rectangle.commands[1].y, rectangle.commands[2].y);
 });
 
 test("uses TeX-like formula width when positioning math output labels", () => {
@@ -6800,7 +6813,8 @@ test("applies pre-picture pgfmath macros to picture basis and foreach ranges", (
   const xs = ir.items.map((item) => item.commands[0].x);
 
   assert.deepEqual(diagnostics, []);
-  assert.deepEqual(xs, [0, 0.666666666667, 1.333333333333, 2, 2.666666666667]);
+  // MacTeX prints \myspacing as 0.66666 before TikZ reads the cm basis.
+  assert.deepEqual(xs, [0, 0.66666, 1.33332, 1.99998, 2.66664]);
 });
 
 test("expands def-defined nested foreach lists and node contents styles", () => {

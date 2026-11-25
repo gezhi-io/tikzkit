@@ -1,0 +1,11 @@
+{
+  "cases": [
+    { "id": "coordinate-epochs", "source": "../examples/latex-examples/2d-epochs-overfitting.tex", "title": "Annotation placement and function curves" },
+    { "id": "coordinate-reciprocals", "source": "../examples/latex-examples/2d-light-bulb.tex", "title": "Reciprocal functions and physical dashes" },
+    { "id": "coordinate-ellipse", "source": "../examples/latex-examples/2d-x-square-with-circle.tex", "title": "Ellipse center and axis-direction radii" },
+    { "id": "coordinate-surface", "source": "../examples/latex-examples/3d-function-2.tex", "title": "Three-dimensional mesh and foreground frame" },
+    { "id": "coordinate-histogram", "source": "../examples/latex-examples/histogram-large-1d-dataset.tex", "title": "Foreground grid and near-coordinate labels" },
+    { "id": "coordinate-halfcircle", "source": "../examples/plotmarks/halfcircle-variants.tex", "title": "Physical mark radii and split colors" },
+    { "id": "coordinate-heart", "source": "../examples/plotmarks/heart-math.tex", "title": "Cubic mark geometry" }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "scope-clip",
+    "arithmetic",
+    "short-text",
+    "monospace",
+    "initial-math-box",
+    "manual-circle-lens",
+    "nested-clip",
+    "plot-rounding",
+    "background-clip",
+    "foreground-order"
+  ]
+}

@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[width=8cm,height=5cm,xmin=0,xmax=1,ymin=0,ymax=4,
+    enlargelimits=false,grid=major,xtick={0,.5,1},ytick={0,1,2,3,4}]
+    \addplot[red,thick,domain=0:1,samples=2] {round(2.499999)};
+    \addplot[blue,thick,dashed,domain=0:1,samples=2] {ceil(2.000001)};
+  \end{axis}
+\end{tikzpicture}
+\end{document}

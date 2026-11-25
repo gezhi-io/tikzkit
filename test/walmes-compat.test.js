@@ -358,9 +358,9 @@ test("uses pgfgantt title and element geometry defaults with local overrides", (
   ));
   const group = ir.items.find((item) => item.type === "path" && item.style?.fill === "black" && item.commands?.length === 9);
   const task = rects.find((item) => item.commands?.[0]?.x === 1.1);
-  assert.deepEqual(title?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[0.25, -0.1], [3.75, -0.1], [3.75, -0.6], [0.25, -0.6]]);
+  assert.deepEqual(title?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[0.25, -0.1], [0.25, -0.6], [3.75, -0.6], [3.75, -0.1]]);
   assert.deepEqual(group?.commands?.slice(0, 8).map(({ x, y }) => [x, y]), [[-0.1, -1.4], [4.1, -1.4], [4.1, -1.6], [3.9, -1.7], [3.7, -1.6], [0.3, -1.6], [0.1, -1.7], [-0.1, -1.6]]);
-  assert.deepEqual(task?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[1.1, -2.2], [2.8, -2.2], [2.8, -2.5], [1.1, -2.5]]);
+  assert.deepEqual(task?.commands?.slice(0, 4).map(({ x, y }) => [x, y]), [[1.1, -2.2], [1.1, -2.5], [2.8, -2.5], [2.8, -2.2]]);
 
   const titleLabel = ir.items.find((item) => item.type === "textNode" && item.text === "Title");
   const groupLabel = ir.items.find((item) => item.type === "textNode" && item.text === "Group");

@@ -14,7 +14,7 @@ export const texPackage = {
   ],
   "requires": [],
   "localSource": "/usr/local/texlive/2025/texmf-dist/tex/latex/amsmath/amsmath.sty",
-  "localDoc": null,
+  "localDoc": "/usr/local/texlive/2025/texmf-dist/doc/latex/amsmath/amsldoc.tex",
   "caseCount": 38,
   "caseExamples": [
     "A3C execution / a3c_execution",
@@ -45,4 +45,9 @@ texPackage.notes += " Subsequent 2026-10-22 review: latex.ltx root-index and arr
 
 texPackage.implementedBy += " + src/tex/mathArrays.js + src/tex/mathFonts.js";
 texPackage.features.push("native aligned/cases boxes and standard LaTeX math sizes from tiny to Huge");
+texPackage.features.push("native operator-name nuclei, side scripts, OT1 ligatures and amsopn punctuation codes");
+texPackage.notes += " Reviewed 2026-10-28: local amsopn.sty qopname/newmcodes@ and fontmath.ltx operators families now drive ordinary operatorname boxes, DeclareMathOperator expansion, side scripts, original CMR/CMBX ligatures, optical sizes and math-list kerning. Eighteen independent MacTeX hboxes and 122 actual browser glyph origins pass unchanged tolerances in both default and SVG-text modes. Stacked limits, starred DeclareMathOperator semantics, operator-body scripts/apostrophes and arbitrary TeX remain partial. Evidence: docs/qa/2026-10-28-native-operators-edge-scope.md.";
 texPackage.notes += " Alignment/size follow-up on 2026-10-22 supersedes earlier size/alignment limits: local amsmath.sty aligned/cases, fontmath.ltx DeclareMathSizes, NFSS .fd mappings and CM TFM ligatures drive aligned equation pairs, display cells, openup-jot row spacing, t/b/c positioning, explicit row gaps, cases struts/quad separation and roman text conditions. Twelve base sizes from 5 to 24.88pt use original optical math fonts, including CMEX8/9. All 384 native hboxes and 360 browser glyph origins in the new fixtures pass. Native SVG text uses geometricPrecision to avoid browser stem darkening. Custom preambles, tags, alignedat, gathered, smallmatrix, accents, large-operator limits and general TeX remain partial. Evidence: docs/qa/2026-10-22-alignments-sizes.md; outputs/qa/2026-10-22-alignments-final-browser/.";
+
+texPackage.features.push("starred DeclareMathOperator and native named-operator limits with explicit limits/nolimits");
+texPackage.notes += " Reviewed 2026-10-29: amsopn.sty, amsldoc.tex and CMEX big_op_spacing1..5 now drive starred declarations and named-operator limits in shared browser/export layout. Inline side scripts, display upper/lower limits, explicit limits/nolimits, empty limits, optical sizes, bold math and fraction nesting are covered by 26 independent native hbox expectations and 152 browser glyph origins; a 95-glyph ordinary-operator control also passes. This supersedes the earlier starred-declaration/named-limit TODO only. Large-symbol operators, compound built-in names, explicit displaylimits, nonamelimits package options and general mathop bodies remain partial. Independent native-PDF pixel acceptance is still open. Evidence: docs/qa/2026-10-29-native-operator-limits.md.";

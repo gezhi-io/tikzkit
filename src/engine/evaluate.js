@@ -15,7 +15,7 @@ import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libr
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
 import { loadsModernArrowDefaults } from "../tikz/libraries/arrows.meta.js";
 import { markingItemsForPath } from "../tikz/libraries/decorations.markings.js";
-import { normalizeDecorationTextKeyValue, parseDefaultDecorationTextFormatRuns } from "../tikz/libraries/decorations.text.js";
+import { isTextAlongPathDecoration, normalizeDecorationTextKeyValue, parseDefaultDecorationTextFormatRuns } from "../tikz/libraries/decorations.text.js";
 import { canvasPlaneSpec } from "../tikz/libraries/3d.js";
 import { fitOrientedBounds } from "../tikz/libraries/fit.js";
 import {
@@ -451,8 +451,7 @@ function appendInlinePicture(documentIr, pictureIr, context) {
   }
   const dx = context.pictureIndex === 0 ? 0 : cursorX - bounds.minX;
   const dy = 0;
-  translateItems(pictureIr.backgroundItems || [], dx, dy);
-  translateItems(pictureIr.items || [], dx, dy);
+  translateItems(allPictureItems, dx, dy);
   mergeTranslatedCoordinates(documentIr.coordinates, pictureIr.coordinates || {}, context.pictureIndex, dx, dy);
   documentIr.backgroundItems.push(...(pictureIr.backgroundItems || []));
   documentIr.items.push(...(pictureIr.items || []));
@@ -583,8 +582,7 @@ function appendSingleTabularPictureLayout(documentIr, layout, rendered) {
         const centerX = tabularContentAnchorX(columns[column].align, contentLeft, contentWidth, width);
         const dx = centerX - (bounds.minX + width / 2);
         const dy = centerY - (bounds.minY + (bounds.maxY - bounds.minY) / 2);
-        translateItems(renderedPicture.pictureIr.backgroundItems || [], dx, dy);
-        translateItems(renderedPicture.pictureIr.items || [], dx, dy);
+        translateItems([...(renderedPicture.pictureIr.backgroundItems || []), ...renderedPicture.pictureIr.items], dx, dy);
         documentIr.backgroundItems.push(...(renderedPicture.pictureIr.backgroundItems || []));
         documentIr.items.push(...(renderedPicture.pictureIr.items || []));
       }
@@ -804,13 +802,24 @@ function translateBounds(bounds, dx, dy) {
 }
 
 function translateItems(items = [], dx = 0, dy = 0) {
-  for (const item of items) translateItem(item, dx, dy);
-}
-
-function translateItem(item, dx, dy) {
-  translatePointFields(item, dx, dy);
-  if (Array.isArray(item.commands)) {
-    for (const command of item.commands) translatePointFields(command, dx, dy);
+  if (!dx && !dy) return;
+  const translatedClips = new Map();
+  const translateCommands = commands => commands.map(command => {
+    const next = { ...command };
+    translatePointFields(next, dx, dy);
+    return next;
+  });
+  for (const item of items) {
+    translatePointFields(item, dx, dy);
+    for (const key of ["commands", "decorationInputCommands", "pathCommands"]) {
+      if (Array.isArray(item[key])) item[key] = translateCommands(item[key]);
+    }
+    if (item.scopeClips) item.scopeClips = item.scopeClips.map(clip => {
+      if (!translatedClips.has(clip)) {
+        translatedClips.set(clip, { ...clip, commands: translateCommands(clip.commands) });
+      }
+      return translatedClips.get(clip);
+    });
   }
 }
 
@@ -870,8 +879,9 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   const recordFailure = (diagnostic) => failures.set(`${diagnostic.code}:${diagnostic.expression}`, diagnostic);
   const itemCount = ir.items.length;
   const backgroundItemCount = ir.backgroundItems?.length || 0;
-  const leaf = !["scope", "foreach", "ifthenelse", "ifnum"].includes(statement.type);
+  const previousClips = env.scopeClips;
   const boundsWereDisabled = env.pictureBoundsDisabled;
+  const leaf = !["scope", "foreach", "ifthenelse", "ifnum"].includes(statement.type);
   const registries = leaf ? [env.coordinates, env.nodes, env.variables, env.namedPaths]
     .filter(Boolean).map((target) => [target, { ...target }]) : [];
   try {
@@ -886,6 +896,10 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
     recordFailure(error.diagnostic);
   }
   if (!failures.size) {
+    if (leaf && previousClips) {
+      applyScopeClips(ir.items, itemCount, previousClips);
+      applyScopeClips(ir.backgroundItems, backgroundItemCount, previousClips);
+    }
     if (leaf && boundsWereDisabled) {
       for (let i = itemCount; i < ir.items.length; i++) ir.items[i].excludeFromBounds = true;
       for (let i = backgroundItemCount; i < (ir.backgroundItems?.length || 0); i++) ir.backgroundItems[i].excludeFromBounds = true;
@@ -894,6 +908,7 @@ function interpretStatement(statement, env, ir, diagnostics, options) {
   }
   // Container failures retain completed children and their shared names together.
   if (leaf) {
+    env.scopeClips = previousClips;
     env.pictureBoundsDisabled = boundsWereDisabled;
     ir.items.length = itemCount;
     if (ir.backgroundItems) ir.backgroundItems.length = backgroundItemCount;
@@ -1138,7 +1153,14 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
       styles: scopeStyles
     };
     applyChainControlOptions(scopeOptions, scopedEnv, diagnostics);
-    const background = isBackgroundScope(scopeOptions);
+    const background = isBackgroundScope(scopeOptions) && !env.onBackgroundLayer;
+    if (background) {
+      // PGF switches output boxes: the graphics clip stays behind, but the
+      // TeX flag suppressing picture-size updates remains in scope.
+      scopedEnv.onBackgroundLayer = true;
+      scopedEnv.pictureBoundsDisabled ||= Boolean(env.scopeClips);
+      scopedEnv.scopeClips = undefined;
+    }
     const scopeIr = background ? { ...ir, items: [], backgroundItems: [] } : ir;
     const localBoxName = scopeOptions["local bounding box"];
     let localBounds = null;
@@ -1625,20 +1647,34 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   });
   if (!tikzBoolean(pathOptions.overlay) && built.boundsCommands?.length) {
     ir.items.push(createBoundingBoxShape(built.boundsCommands, {
-      includeStrokeBounds, style: withoutArrowActions(pathStyle)
+      includeStrokeBounds: includeStrokeBounds && built.commands.length > 0, style: withoutArrowActions(pathStyle)
     }));
   }
   const requestedArrowAction = requestedStyle.markerStart || requestedStyle.markerEnd ||
     requestedStyle.shortenStart !== undefined || requestedStyle.shortenEnd !== undefined;
   const visible = isVisiblePath(requestedArrowAction ? "path" : statement.command, pathStyle, semantic);
-  if (!visible && !tikzBoolean(pathOptions.overlay) &&
+  // PGF's first clip contributes its path to the picture box. Subsequent
+  // paint is clipped but no longer grows the box until the graphics scope ends.
+  const clip = tikzBoolean(built.actionOptions.clip) ? {
+    commands: [...built.commands, ...built.shapes
+      .filter(shape => !shape.picLayer && shape.subtype !== "edge" && shape.commands)
+      .flatMap(shape => shape.commands)],
+    fillRule: pathStyle.fillRule
+  } : null;
+  if (clip && !visible && !env.scopeClips && !tikzBoolean(pathOptions.overlay) && clip.commands.length) {
+    ir.items.push(createBoundingBoxShape(clip.commands, {
+      tightBezierBounds: tikzBoolean(pathOptions["bezier bounding box"])
+    }));
+  } else if (!visible && !tikzBoolean(pathOptions.overlay) &&
       (pathEnv.trackLocalBounds || requestedArrowAction)) {
     const geometry = built.commands.concat(built.splitContours.flatMap(s => s.commands));
     if (geometry.length) ir.items.push(createBoundingBoxShape(geometry, requestedArrowAction ? { retainZeroExtent: true } : {}));
   }
   const shadows = pathGeneralShadows(semantic, pathEnv, style);
-  addDecorationTextItems(built, pathOptions, style, ir, pathEnv);
+  addDecorationTextItems(built, pathOptions, style, ir, pathEnv, "main");
   addShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
+  let afterContour;
+  const foregroundShapes = new Map();
   if (visible || built.styleHints.visiblePic || built.shapes.some(shape => shape.subtype === "edge")) {
     const shapeBase = { ...withoutArrowActions(style), ...shadingStyle, ...doubleStyle };
     const splitContours = new Set(built.splitContours);
@@ -1654,11 +1690,19 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       shadows,
       style: { ...(splitContours.has(shape) ? contourStyle : shapeBase), ...(shape.style || {}) }
     }));
-    const compoundShape = compoundFillRuleShape(styledShapes, pathOptions, subtype, { allowShadows: Boolean(shadows?.length) });
+    // TikZ stores pic backgrounds separately from the enclosing path and its
+    // foreground box. In particular, angle fills cannot cover crossing edges.
+    const picBackgrounds = styledShapes.filter(shape => shape.picLayer === "background");
+    for (const [index, shape] of styledShapes.entries()) {
+      if (shape.picLayer === "foreground" || shape.subtype === "edge") foregroundShapes.set(built.shapes[index], shape);
+    }
+    const pathShapes = styledShapes.filter(shape => !shape.picLayer && shape.subtype !== "edge" &&
+      (!shape.decorationInputCommands || shape.commands.length));
+    const compoundShape = compoundFillRuleShape(pathShapes, pathOptions, subtype, { allowShadows: Boolean(shadows?.length) });
     if (compoundShape && shadows) compoundShape.shadows = shadows;
-    const shapesToRender = compoundShape ? [compoundShape] : styledShapes;
+    const shapesToRender = [...picBackgrounds, ...(compoundShape ? [compoundShape] : pathShapes)];
     for (const shape of shapesToRender) {
-      if (!shape.paintAfterPath && shape.subtype !== "edge") ir.items.push(shape);
+      if (!shape.paintAfterPath) ir.items.push(shape);
     }
     if (visible && hasDrawableCommands(built.commands, built.shapes, pathStyle)) {
       const item = createPathShape(
@@ -1680,28 +1724,53 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
         }
       );
       ir.items.push(item);
+      afterContour = ir.items.length;
       addDecorationMarkers(item, pathOptions, pathEnv, ir, diagnostics);
       for (const postactionDecoration of postactionDecorationPathItems(built, pathOptions, pathEnv)) {
         ir.items.push(postactionDecoration);
       }
       addPostactionShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
     }
+    afterContour ??= ir.items.length;
     for (const shape of shapesToRender) {
       // Circuit components drawn as PGF nodes cover the completed wire,
       // including any portion inside a filled body on very short connections.
-      if (shape.paintAfterPath || shape.subtype === "edge") ir.items.push(shape);
+      if (shape.paintAfterPath) ir.items.push(shape);
       addDecorationMarkers(shape, pathOptions, pathEnv, ir, diagnostics);
     }
   }
-  for (const node of built.nodes) {
+  // pgfusepath paints the contour first; postactions and the node box are
+  // shipped after the new clip is active. Never mutate a parent scope's stack.
+  afterContour ??= ir.items.length;
+  if (clip) env.scopeClips = [...(env.scopeClips || []), clip];
+  addDecorationTextItems(built, pathOptions, style, ir, pathEnv, "postaction");
+  for (const entry of built.foreground) {
+    const shape = foregroundShapes.get(entry);
+    if (shape) {
+      if (shape.subtype === "edge") addIndependentEdgeItems(shape, pathEnv, ir, diagnostics);
+      else {
+        ir.items.push(shape);
+        addDecorationMarkers(shape, pathOptions, pathEnv, ir, diagnostics);
+      }
+      continue;
+    }
     for (const key of ["tikzkit clip rect", "tikzkit clip circle", "tikzkit clip polygon"]) {
-      if (pathOptions[key] !== undefined && node.options?.[key] === undefined) {
-        node.options = { ...(node.options || {}), [key]: pathOptions[key] };
+      if (pathOptions[key] !== undefined && entry.options?.[key] === undefined) {
+        entry.options = { ...(entry.options || {}), [key]: pathOptions[key] };
       }
     }
-    addNodeItems(node, ir, pathEnv);
+    addNodeItems(entry, ir, pathEnv);
   }
+  if (clip) applyScopeClips(ir.items, afterContour, env.scopeClips, false);
   applyCanvasTransformBounds(ir, firstItemIndex, pathEnv.canvasTrackingDisabled);
+}
+
+function applyScopeClips(items, start, clips, suppressBounds = true) {
+  for (let i = start; i < (items?.length || 0); i++) {
+    const item = items[i];
+    if (item.type !== "bbox") item.scopeClips ??= clips;
+    if (suppressBounds) item.excludeFromBounds = true;
+  }
 }
 
 function parseInternalClipRect(raw, env = {}) {
@@ -1782,7 +1851,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
   const compoundEllipses = usesCompoundEllipses(segments, pathOptions, pathStyle);
   const shapes = [];
   const splitContours = [];
-  const nodes = [];
+  // TikZ appends nodes, pic foregrounds and independent edges to one figbox.
+  const foreground = [];
   const styleHints = {};
   const effectivePathOptions = { ...pathOptions };
   let actionOptions = pathOptions;
@@ -1812,7 +1882,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       commands.push(...nested.commands);
       shapes.push(...nested.shapes);
       splitContours.push(...nested.splitContours);
-      nodes.push(...nested.nodes);
+      foreground.push(...nested.foreground);
       Object.assign(styleHints, nested.styleHints);
       const endpoints = pathCommandEndpoints(nested.commands);
       if (endpoints.start && !start) start = endpoints.start;
@@ -1862,7 +1932,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         : resolveCoordinate(segment.raw, env, diagnostics));
       if (gridLiterals && !segment.relative && !subpathStart) gridLiterals.set(point, segment.raw);
       if (pendingPlotMark) {
-        addPlotMarkItems(point, pendingPlotMark, pathStyle, effectivePathOptions, env, shapes, nodes);
+        addPlotMarkItems(point, pendingPlotMark, pathStyle, effectivePathOptions, env, shapes, foreground);
         pendingPlotMark = null;
       }
       const localPoint = segment.relative || !shouldResolveAsLocalRectangleCorner(segment.raw)
@@ -1931,9 +2001,9 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
           currentLocal && localPoint
             ? transformedRectangleCorners(currentLocal, localPoint, coordinateTransformForEnvironment(env))
             : [
-                { x: point.x, y: current.y },
+                { x: current.x, y: point.y },
                 point,
-                { x: current.x, y: point.y }
+                { x: point.x, y: current.y }
               ];
         commands.push(lineToCommand(corners[0]));
         commands.push(lineToCommand(corners[1]));
@@ -1949,7 +2019,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         const clipped = clipNodeLineEndpoints(currentBase || current, currentNodeRef, point, nodeRef, env);
         if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         commands.push(lineToCommand(clipped.to));
-        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle, effectivePathOptions);
+        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, foreground, env, pathStyle, effectivePathOptions);
         lastSegment = { from: clipped.from, to: clipped.to };
         pendingInlineNodes = [];
         current = clipped.to;
@@ -1970,7 +2040,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
           pendingInlineNodes,
           first,
           second,
-          nodes,
+          foreground,
           env,
           pathStyle,
           effectivePathOptions
@@ -1986,7 +2056,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         styleHints.subtype = "tikz-ext-ortho";
         const polyline = tikzExtOrthoPolyline(pendingValue, currentBase || current, point, pendingOptions, env);
         const drawn = drawPolyline(commands, polyline, currentNodeRef, nodeRef, env);
-        flushInlinePathNodes(pendingInlineNodes, drawn.from, drawn.to, nodes, env, pathStyle, effectivePathOptions);
+        flushInlinePathNodes(pendingInlineNodes, drawn.from, drawn.to, foreground, env, pathStyle, effectivePathOptions);
         lastSegment = { from: drawn.from, to: drawn.to };
         pendingInlineNodes = [];
         current = drawn.to;
@@ -1995,7 +2065,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         currentNodeRef = nodeRef;
         endNodeRef = nodeRef;
       } else {
-        flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env, pathStyle, effectivePathOptions);
+        flushInlinePathNodes(pendingInlineNodes, current, current, foreground, env, pathStyle, effectivePathOptions);
         pendingInlineNodes = [];
         commands.push(moveToCommand(point));
         current = point;
@@ -2017,10 +2087,11 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       continue;
     }
     if (segment.kind === "pic") {
-      const anglePic = buildAnglePic(segment, pathOptions, env, diagnostics, pathStyle);
+      const anglePic = buildAnglePic(segment, pathOptions, env, diagnostics);
       if (anglePic) {
-        shapes.push(anglePic.shape);
-        if (anglePic.label) nodes.push(anglePic.label);
+        shapes.push(...anglePic.shapes);
+        foreground.push(...anglePic.shapes.filter(shape => shape.picLayer === "foreground"));
+        if (anglePic.label) foreground.push(anglePic.label);
         styleHints.visiblePic = true;
       }
       continue;
@@ -2054,7 +2125,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       const circuitikz = appendCircuitikzToSegment({
         commands,
         shapes,
-        nodes,
+        nodes: foreground,
         from: currentBase || current,
         to,
         fromRef: currentNodeRef,
@@ -2066,7 +2137,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         styleHints
       });
       if (circuitikz) {
-        flushInlinePathNodes(pendingInlineNodes, circuitikz.from, circuitikz.to, nodes, env, pathStyle, effectivePathOptions);
+        flushInlinePathNodes(pendingInlineNodes, circuitikz.from, circuitikz.to, foreground, env, pathStyle, effectivePathOptions);
         lastSegment = { from: circuitikz.from, to: circuitikz.to };
         pendingInlineNodes = [];
         if (segment.kind === "edge") {
@@ -2084,9 +2155,13 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       // An edge runs its own \path[every edge,...]; a to contributes to
       // this path instead. Edge-local paint must not enable the parent.
       const separateEdge = segment.kind === "edge";
-      const addEdge = (route, splitClosed = false) => shapes.push(independentEdgeShape(
-        route, effectivePathOptions, localToOptions, env, splitClosed
-      ));
+      const edgeSlot = foreground.length;
+      const addEdge = (route, splitClosed = false) => {
+        const edge = independentEdgeShape(route, effectivePathOptions, localToOptions, env, splitClosed);
+        shapes.push(edge);
+        // Route construction may already have appended the edge's own labels.
+        foreground.splice(edgeSlot, 0, edge);
+      };
       if (!separateEdge) {
         const hints = edgeStyleHintsFromOptions(combinedEdgeOptions, env);
         if (!pathOptionsRequestDraw(combinedEdgeOptions) && (styleHints.stroke ?? pathStyle.stroke) === "none") delete hints.stroke;
@@ -2109,13 +2184,13 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         const routePrimitives = pathPrimitivesFromCommands(customBuilt.commands);
         const routeEndpoints = pathCommandEndpoints(customBuilt.commands);
 
-        nodes.push(...customBuilt.nodes);
+        foreground.push(...customBuilt.foreground);
         shapes.push(...customBuilt.shapes);
         flushCustomToPathNodes(
           customLabels,
           routePrimitives,
           customToPath.targetOperation,
-          nodes,
+          foreground,
           env,
           pathStyle,
           effectivePathOptions
@@ -2147,7 +2222,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         if (arc.center) env.coordinates[`arc through center${arcThrough.suffix || ""}`] = arc.center;
         if (separateEdge) addEdge([moveToCommand(currentBase || current), ...arc.commands]);
         else commands.push(...arc.commands);
-        flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, nodes, env, pathStyle, effectivePathOptions);
+        flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, foreground, env, pathStyle, effectivePathOptions);
         lastSegment = { from: currentBase || current, to };
         pendingInlineNodes = [];
         if (segment.kind === "edge") {
@@ -2172,7 +2247,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
           if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, loop.start);
           commands.push(...loop.commands);
         }
-        flushInlinePathNodesAt(pendingInlineNodes, loop.labelPoint, nodes, env, pathStyle, null, effectivePathOptions);
+        flushInlinePathNodesAt(pendingInlineNodes, loop.labelPoint, foreground, env, pathStyle, null, effectivePathOptions);
         lastSegment = { from: loop.start, to: loop.end };
         pendingInlineNodes = [];
         if (segment.kind === "edge") {
@@ -2237,12 +2312,12 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
         else if (shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         targetCommands.push(curveToCommand(c1, c2, clipped.to));
         const labelGeometry = cubicLabelGeometry(clipped.from, c1, c2, clipped.to);
-        flushInlinePathNodesAt(pendingInlineNodes, labelGeometry.point, nodes, env, pathStyle, labelGeometry.segment, effectivePathOptions);
+        flushInlinePathNodesAt(pendingInlineNodes, labelGeometry.point, foreground, env, pathStyle, labelGeometry.segment, effectivePathOptions);
         lastSegment = { from: clipped.from, to: clipped.to };
       } else {
         if (segment.kind !== "edge" && shouldBreakAtNodeExit(currentNodeRef)) moveToNodeExit(commands, clipped.from);
         targetCommands.push(lineToCommand(clipped.to));
-        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, nodes, env, pathStyle, effectivePathOptions);
+        flushInlinePathNodes(pendingInlineNodes, clipped.from, clipped.to, foreground, env, pathStyle, effectivePathOptions);
         lastSegment = { from: clipped.from, to: clipped.to };
       }
       if (separateEdge) addEdge(targetCommands);
@@ -2272,7 +2347,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       const to = resolveCoordinate(segment.to, env, diagnostics);
       const arc = tikzExtArcToCommands(currentBase || current, to, { ...pathOptions, ...segment.options }, env);
       commands.push(...arc.commands);
-      flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, nodes, env, pathStyle, effectivePathOptions);
+      flushInlinePathNodes(pendingInlineNodes, currentBase || current, to, foreground, env, pathStyle, effectivePathOptions);
       lastSegment = { from: currentBase || current, to };
       pendingInlineNodes = [];
       current = to;
@@ -2436,7 +2511,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       if (mark && String(mark).trim().toLowerCase() !== "none") {
         const markOptions = { ...pathOptions, ...(segment.options || {}) };
         for (const point of plot.points) {
-          addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, nodes);
+          addPlotMarkItems(point, mark, pathStyle, markOptions, env, shapes, foreground);
         }
       }
       if (!pathOptions["only marks"] && !segment.options?.["only marks"]) {
@@ -2465,7 +2540,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
       const point = segment.at
         ? resolveCoordinate(segment.at, env, diagnostics)
         : inlineNodePathPoint(placementOptions, lastSegment) || current || applyCoordinateTransform({ x: 0, y: 0 }, env);
-      addInlinePathNode(segment, text, point, nodes, env, pathStyle, lastSegment, effectivePathOptions);
+      addInlinePathNode(segment, text, point, foreground, env, pathStyle, lastSegment, effectivePathOptions);
       continue;
     }
     if (segment.kind === "close" && start) {
@@ -2477,23 +2552,26 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {},
     }
   }
 
-  flushInlinePathNodes(pendingInlineNodes, current, current, nodes, env, pathStyle, effectivePathOptions);
+  flushInlinePathNodes(pendingInlineNodes, current, current, foreground, env, pathStyle, effectivePathOptions);
   // A bare shape reference waits for an outgoing segment to choose its
   // border. An edge interrupts the path and does not flush that move.
   if (pendingBorderMove && commands.at(-1) === pendingBorderMove &&
       (pathStyle.markerStart || pathStyle.markerEnd || styleHints.markerStart || styleHints.markerEnd)) commands.pop();
   const roundedCommands = applyRoundedCornersToPath(commands, effectivePathOptions, env);
+  const decoratedCommands = applyPathDecoration(roundedCommands, effectivePathOptions, env);
   // The requested corners contribute to the paper even when off the lattice.
-  const originalBounds = roundedCommands === commands ? null : commands;
+  const originalBounds = roundedCommands === commands && decoratedCommands.length ? null : commands;
   return {
-    commands: applyPathDecoration(roundedCommands, effectivePathOptions, env),
+    commands: decoratedCommands,
     decorationInputCommands: roundedCommands,
+    decorationOptions: effectivePathOptions,
     boundsCommands: boundsMoves.length ? boundsMoves.concat(originalBounds || []) : originalBounds,
     shapes,
     splitContours,
     actionOptions,
     strokeInk,
-    nodes,
+    foreground,
+    nodes: foreground.filter(item => item.type !== "path"),
     styleHints,
     endpointRefs: { start: startNodeRef, end: endNodeRef }
   };
@@ -6414,18 +6492,22 @@ function shouldResolveAsLocalRectangleCorner(raw) {
 }
 
 function transformedRectangleCorners(fromLocal, toLocal, transform) {
+  // tikz@rectB traverses the vertical side first, including after transforms.
+  // Direction matters for dash phase, nonzero fills and text decorations.
   return [
-    applyTransform({ x: toLocal.x, y: fromLocal.y }, transform),
+    applyTransform({ x: fromLocal.x, y: toLocal.y }, transform),
     applyTransform({ x: toLocal.x, y: toLocal.y }, transform),
-    applyTransform({ x: fromLocal.x, y: toLocal.y }, transform)
+    applyTransform({ x: toLocal.x, y: fromLocal.y }, transform)
   ];
 }
 
 function decoratedShape(shape, pathOptions, env) {
-  if (!pathOptions.decorate || !shape.commands?.length) return shape;
+  if (!tikzBoolean(pathOptions.decorate) || !shape.commands?.length) return shape;
   return {
     ...shape,
     shape: "decoratedPath",
+    decorationInputCommands: shape.commands,
+    decorationOptions: pathOptions,
     commands: applyPathDecoration(shape.commands, pathOptions, env)
   };
 }
@@ -7774,8 +7856,11 @@ function addNodeAttachedPath(name, segments, nodeOptions, env, ir, diagnostics) 
     const built = buildPath([{ kind: "coordinate", raw: name }, ...segment], env, diagnostics, pathOptions, style);
     const visible = isVisiblePath("path", style, semantic, built.styleHints);
     for (const shape of built.shapes) {
-      ir.items.push(shape);
-      addDecorationMarkers(shape, options, env, ir, diagnostics);
+      if (shape.subtype === "edge") addIndependentEdgeItems(shape, env, ir, diagnostics);
+      else {
+        ir.items.push(shape);
+        addDecorationMarkers(shape, options, env, ir, diagnostics);
+      }
     }
     if (visible && hasDrawableCommands(built.commands, built.shapes)) {
       const pathStyle = drawablePathStyle(style, built.styleHints);
@@ -8569,7 +8654,7 @@ function createPic(statement, env, ir, diagnostics = []) {
   const origin = picOrigin(statement, env, diagnostics);
   if (createCustomPic(statement, env, ir, diagnostics, name, origin)) return;
   if (createTqftPic(statement, env, ir, diagnostics, name, origin)) return;
-  if (createAnglePic(statement, env, ir)) return;
+  if (createAnglePic(statement, env, ir, diagnostics)) return;
   const cube = statement.body.match(/cube\s*=\s*\{([^}]*)\}/);
   if (!cube) return;
   const [widthRaw = "1", heightRaw = "1", depthRaw = "0.5", lineWidthRaw = ""] = cube[1].split("/").map((part) => part.trim());
@@ -9022,55 +9107,11 @@ function registerTqftCoordinate(name, point, transform, env) {
   env.nodes[name] = { point: global, width: 0, height: 0, shape: "coordinate" };
 }
 
-function createAnglePic(statement, env, ir) {
-  const body = String(statement.body || "").trim();
-  const parts = parseAnglePicParts(body);
-  if (!parts) return false;
-  const from = resolveCoordinate(parts.from, env, []);
-  const vertex = resolveCoordinate(parts.vertex, env, []);
-  const to = resolveCoordinate(parts.to, env, []);
-  const fromAngle = Math.atan2(from.y - vertex.y, from.x - vertex.x);
-  const toAngle = Math.atan2(to.y - vertex.y, to.x - vertex.x);
-  const { startAngle, delta } = anglePicSweep(fromAngle, toAngle);
-  const radius = parseDimension(statement.options?.["angle radius"] ?? env.pictureOptions?.["angle radius"] ?? "5mm", env.variables);
-  const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : 0.5;
-
-  const { style: rawStyle } = normalizeOptions("path", statement.options || {}, env);
-  const scaledStyle = scaleCanvasStyle(rawStyle, env);
-  const hasFill = scaledStyle.fill && scaledStyle.fill !== "none";
-  const style = { ...scaledStyle, fill: hasFill ? scaledStyle.fill : "none" };
-  ir.items.push({
-    type: "path",
-    subtype: "angle-pic",
-    shape: parts.kind === "right angle" ? "right-angle" : hasFill ? "sector" : "arc",
-    style,
-    commands: anglePicCommands(vertex, startAngle, delta, safeRadius, hasFill, parts.kind)
-  });
-
-  const quote = anglePicQuote(statement.options || {});
-  if (quote) {
-    const eccentricity = evaluateMath(statement.options?.["angle eccentricity"] ?? env.pictureOptions?.["angle eccentricity"] ?? "0.65", env.variables);
-    const labelRadius = anglePicLabelRadius(safeRadius, eccentricity, parts.kind);
-    const midAngle = startAngle + delta / 2;
-    const textColor = normalizeColor(statement.options?.text ?? env.pictureOptions?.text ?? "black");
-    ir.items.push({
-      type: "textNode",
-      text: quote,
-      x: roundNumber(vertex.x + Math.cos(midAngle) * labelRadius),
-      y: roundNumber(vertex.y + Math.sin(midAngle) * labelRadius),
-      font: resolvedTextFontSpec(quote, statement.options || {}, env, env.canvasScale),
-      style: {
-        stroke: "none",
-        fill: textColor,
-        lineWidth: style.lineWidth,
-        textFill: textColor,
-        fontScale: roundNumber(env.canvasScale * fontScaleFromTikzFont(statement.options?.font ?? env.pictureOptions?.font)),
-        fontSizeBaseScale: 1,
-        fontFamily: resolveInheritedFontFamily(statement.options?.font, env.pictureOptions?.font),
-        fontVariant: resolveInheritedFontVariant(statement.options?.font, env.pictureOptions?.font)
-      }
-    });
-  }
+function createAnglePic(statement, env, ir, diagnostics) {
+  const pic = buildAnglePic(statement, {}, env, diagnostics);
+  if (!pic) return false;
+  ir.items.push(...pic.shapes);
+  if (pic.label) addNodeItems(pic.label, ir, env);
   return true;
 }
 
@@ -9093,28 +9134,37 @@ function buildAnglePic(segment, pathOptions = {}, env = {}, diagnostics = []) {
   const toAngle = Math.atan2(to.y - vertex.y, to.x - vertex.x);
   const { startAngle, delta } = anglePicSweep(fromAngle, toAngle);
 
-  const radiusRaw = segment.options?.["angle radius"] ?? pathOptions["angle radius"] ?? env.pictureOptions?.["angle radius"] ?? "5mm";
-  const radius = parseDimension(radiusRaw, env.variables);
-  const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : parseDimension("5mm", env.variables);
-  const { style: rawStyle } = normalizeOptions("path", segment.options || {}, env);
+  const { style: rawStyle, options, strokeInk } = normalizeOptions("path", {
+    ...env.pictureOptions, ...pathOptions, ...segment.options
+  }, env);
+  const radius = parseDimension(options["angle radius"] ?? "5mm", env.variables);
+  const safeRadius = Number.isFinite(radius) && radius > 0 ? radius : parseDimension("12pt", env.variables);
   const style = scaleCanvasStyle(rawStyle, env);
   const hasFill = style.fill && style.fill !== "none";
-  const shapeStyle = {
-    ...style,
-    stroke: style.stroke && style.stroke !== "none" ? style.stroke : "black",
-    fill: hasFill ? style.fill : "none"
-  };
-  const commands = anglePicCommands(vertex, startAngle, delta, safeRadius, hasFill, parts.kind);
-  const quote = anglePicQuote(segment.options || {});
-  return {
-    shape: {
-      type: "path",
-      subtype: "angle-pic",
-      shape: parts.kind === "right angle" ? "right-angle" : hasFill ? "sector" : "arc",
-      style: shapeStyle,
-      commands
-    },
-    label: quote ? anglePicLabelNode(quote, vertex, startAngle, delta, safeRadius, segment.options || {}, env, parts.kind) : null
+  // tikzlibraryangles paints the closed sector behind the path, then strokes
+  // only the arc (or the two outer right-angle sides). Radial edges never ink.
+  const shapes = [];
+  if (hasFill) shapes.push({
+    type: "path",
+    subtype: "angle-pic",
+    picLayer: "background",
+    shape: parts.kind === "right angle" ? "right-angle" : "sector",
+    style: { ...withoutArrowActions(style), stroke: "none" },
+    commands: anglePicCommands(vertex, startAngle, delta, safeRadius, true, parts.kind)
+  });
+  const commands = anglePicCommands(vertex, startAngle, delta, safeRadius, false, parts.kind);
+  shapes.push({
+    type: "path",
+    subtype: "angle-pic",
+    picLayer: "foreground",
+    shape: parts.kind === "right angle" ? "right-angle" : "arc",
+    style: resolveArrowActions({ ...style, fill: "none", shading: undefined, pattern: undefined },
+      commands, options, { strokeInk }),
+    commands
+  });
+  const quote = anglePicQuote(options);
+  return { shapes,
+    label: quote ? anglePicLabelNode(quote, vertex, startAngle, delta, safeRadius, options, env, parts.kind, style.textFill) : null
   };
 }
 
@@ -9221,12 +9271,12 @@ function anglePoint(vertex, angle, radius) {
 }
 
 function anglePicLabelRadius(radius, eccentricity, kind = "angle") {
-  const factor = Number.isFinite(eccentricity) && eccentricity > 0 ? eccentricity : 0.65;
+  const factor = Number.isFinite(eccentricity) ? eccentricity : 0.6;
   return radius * factor * (kind === "right angle" ? Math.SQRT2 : 1);
 }
 
-function anglePicLabelNode(text, vertex, fromAngle, delta, radius, options, env, kind = "angle") {
-  const eccentricity = evaluateMath(options["angle eccentricity"] ?? env.pictureOptions?.["angle eccentricity"] ?? "0.65", env.variables);
+function anglePicLabelNode(text, vertex, fromAngle, delta, radius, options, env, kind = "angle", textFill) {
+  const eccentricity = evaluateMath(options["angle eccentricity"] ?? "0.6", env.variables);
   const labelRadius = anglePicLabelRadius(radius, eccentricity, kind);
   const point = anglePoint(vertex, fromAngle + delta / 2, labelRadius);
   return {
@@ -9236,7 +9286,8 @@ function anglePicLabelNode(text, vertex, fromAngle, delta, radius, options, env,
     options: {
       "inner sep": "1pt",
       anchor: "center",
-      ...(options.text ?? env.pictureOptions?.text ? { text: options.text ?? env.pictureOptions?.text } : {})
+      ...(options.font ? { font: options.font } : {}),
+      ...(textFill ? { text: textFill } : {})
     },
     canvasScale: env.canvasScale
   };
@@ -11467,7 +11518,8 @@ function addSingleChainJoinPath(chainUpdate, value, env, ir, diagnostics) {
   const visible = isVisiblePath("draw", style, semantic, built.styleHints);
   if (!visible) return;
   for (const shape of built.shapes || []) {
-    ir.items.push({ ...shape, style: { ...style, ...(shape.style || {}) } });
+    if (shape.subtype === "edge") addIndependentEdgeItems(shape, env, ir, diagnostics);
+    else ir.items.push({ ...shape, style: { ...style, ...(shape.style || {}) } });
   }
   if (hasDrawableCommands(built.commands, built.shapes)) {
     const pathStyle = drawablePathStyle(style, built.styleHints);
@@ -11923,6 +11975,8 @@ function inheritedPathInkOptions(options = {}) {
 function independentEdgeShape(route, parent, local, env, splitClosed) {
   const edgeKeys = env.styles["every edge"] ? { "every edge": true, ...local } : { draw: true, ...local };
   const inherited = inheritedPathInkOptions(parent);
+  // An edge starts a new TikZ path with an empty postaction list.
+  delete inherited.postaction;
   for (const key of Object.keys(edgeKeys)) delete inherited[key];
   const normalized = normalizeOptions("path", { ...inherited, ...edgeKeys }, env);
   const options = normalized.options;
@@ -11942,7 +11996,22 @@ function independentEdgeShape(route, parent, local, env, splitClosed) {
       }
     }
   }
-  return createPathShape(commands, style, { subtype: "edge", includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(options) });
+  return createPathShape(commands, style, {
+    subtype: "edge",
+    decorationInputCommands: route,
+    decorationOptions: { ...options, ...normalized.semantic },
+    includeArrowBounds: !decoratedSnakeOmitsArrowPaintBounds(options)
+  });
+}
+
+function addIndependentEdgeItems(edge, env, ir, diagnostics) {
+  const options = edge.decorationOptions;
+  addDecorationTextItems(edge, options, edge.style, ir, env, "main");
+  if (edge.commands.length) {
+    ir.items.push(edge);
+    addDecorationMarkers(edge, options, env, ir, diagnostics);
+  }
+  addDecorationTextItems(edge, options, edge.style, ir, env, "postaction");
 }
 
 function hasLegacyLatexFill(tip) {
@@ -15888,28 +15957,32 @@ function usesCustomArrowDimension(source = {}, raw = {}, key) {
   return Math.abs(source[key] - defaultTip[key]) > 1e-6;
 }
 
-function addDecorationTextItems(built, pathOptions, style, ir, env) {
-  const decorations = textAlongPathDecorationsFromOptions(pathOptions);
-  if (!decorations.length) return;
-  const targets = [];
-  if (hasDrawableCommands(built.commands || [], built.shapes || [])) {
-    targets.push({ commands: built.commands, style });
-  }
-  for (const shape of built.shapes || []) {
-    if (shape.commands?.length) targets.push({ commands: shape.commands, style: { ...style, ...(shape.style || {}) } });
-  }
-  for (const decoration of decorations) {
-    for (const target of targets) addDecorationTextItem(target, decoration, pathOptions, ir, env);
+function addDecorationTextItems(built, pathOptions, style, ir, env, phase) {
+  // Edges run their own decoration phases when their foreground box is painted.
+  const contours = (built.shapes || []).filter(shape => shape.subtype !== "edge" && !shape.picLayer);
+  const targets = [{ ...built, style }, ...contours.map(shape => ({
+    ...shape, style: { ...style, ...(shape.style || {}) }
+  }))];
+  for (const target of targets) {
+    const options = target.decorationOptions || pathOptions;
+    // A direct decoration consumes its input. A postaction reuses the path
+    // left after that transformation, not the already-consumed original.
+    const commands = phase === "main" ? target.decorationInputCommands || target.commands : target.commands;
+    if (!commands?.some(command => command.type !== "moveTo")) continue;
+    for (const decoration of textAlongPathDecorationsFromOptions(options, phase)) {
+      addDecorationTextItem({ ...target, commands }, decoration, options, ir, env);
+    }
   }
 }
 
-function textAlongPathDecorationsFromOptions(options = {}) {
+function textAlongPathDecorationsFromOptions(options = {}, phase) {
   const decorations = [];
-  if (tikzBoolean(options.decorate)) {
+  if (phase === "main" && tikzBoolean(options.decorate)) {
     const rawDecoration = String(options.decoration || "");
     const decoration = parseOptions(rawDecoration);
     if (isTextAlongPathDecoration(decoration)) decorations.push(decorationTextDecorationOptions(decoration, rawDecoration));
   }
+  if (phase !== "postaction") return decorations;
   for (const rawPostaction of optionList(options.postaction)) {
     const postaction = String(rawPostaction || "");
     if (!postaction.includes("decorate")) continue;
@@ -15923,10 +15996,6 @@ function textAlongPathDecorationsFromOptions(options = {}) {
     if (isTextAlongPathDecoration(decoration)) decorations.push(decorationTextDecorationOptions(decoration, rawDecoration));
   }
   return decorations;
-}
-
-function isTextAlongPathDecoration(decoration = {}) {
-  return tikzBoolean(decoration["text along path"]) || tikzBoolean(decoration["text effects along path"]);
 }
 
 function decorationTextDecorationOptions(decoration, rawDecoration) {
@@ -15966,6 +16035,7 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     type: "textNode",
     subtype: "decoration-text",
     text: payload.text,
+    overlay: tikzBoolean(pathOptions.overlay),
     pathCommands: item.commands.map((command) => ({ ...command })),
     pathRaise: roundNumber(raise),
     pathTextAlign: layout.align,
@@ -15981,7 +16051,9 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
     pathTextGroupLetters: textEffects.groupLetters,
     pathTextWordSeparator: textEffects.wordSeparator,
     pathTextCharactersAlongPath: charactersAlongPath,
+    pathTextUsesNodes: isTextEffectsDecoration,
     pathTextCharacterInnerXSepEm: charactersAlongPath ? 0 : 0.3333,
+    pathTextCharacterInnerYSepEm: isTextEffectsDecoration ? 0.3333 : 0,
     pathTextCharacterAnchor: charactersAlongPath ? "base" : "center",
     pathTextCharacterScaleExpression: textEffects.characterScaleExpression,
     pathTextCharacterCountVariable: textEffects.characterCountVariable,
@@ -15997,8 +16069,11 @@ function addDecorationTextItem(item, decoration, pathOptions, ir, env) {
       ...item.style,
       ...payload.style,
       fill: visibleTextFill(
-        explicitTextColor ? normalizeColor(explicitTextColor) : undefined,
         payload.style.fill,
+        // pgf@lib@dec@text@dobox resets ordinary character boxes to the
+        // decoration's own color. Text-effects uses inheriting TikZ nodes.
+        !isTextEffectsDecoration ? normalizeColor(explicitTextColor || "black") : undefined,
+        explicitTextColor ? normalizeColor(explicitTextColor) : undefined,
         item.style?.textFill,
         pathOptions["tikzkit current color"]
       ),
@@ -16364,7 +16439,7 @@ function splitTopLevelDomain(text) {
 
 function evaluatePlotFunctionExpression(expression, xValue, variable, variables = {}) {
   const substituted = substitutePlotFunctionVariable(expression, variable, xValue);
-  return evaluateMath(substituted, { ...variables, x: xValue, [variable]: xValue });
+  return evaluateMath(substituted, { ...variables, x: xValue, [variable]: xValue }, { dialect: "gnuplot" });
 }
 
 function substitutePlotFunctionVariable(expression, variable, value) {

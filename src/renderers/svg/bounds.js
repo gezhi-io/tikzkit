@@ -1,5 +1,6 @@
 import { includePathCommandBounds } from "../../scene/index.js";
 import { blurShadowBoundsPadding } from "./defs.js";
+import { includeDecorationTextNodeBounds } from "./decorationText.js";
 import { isEmptyNormalizedTikzText, mathFallbackText, normalizeTikzText } from "../../tikz/text.js";
 import { parseMathText } from "../../tikz/textMetrics.js";
 import { TIKZ_UNIT } from "../../tikz/metrics.js";
@@ -130,7 +131,8 @@ export function computeSvgBounds(items, options = {}) {
       include(x + width, y + height);
     } else if (item.type === "textNode") {
       if (item.subtype === "decoration-text" && hasPathCommands({ commands: item.pathCommands })) {
-        includePathBounds({ type: "path", commands: item.pathCommands, style: item.style || {} }, include, unit);
+        includePathBounds({ type: "bbox", commands: item.pathCommands }, include, unit);
+        includeDecorationTextNodeBounds(item, unit, include);
         includeClippedItemBounds(item, itemBounds, includeGlobal);
         continue;
       }

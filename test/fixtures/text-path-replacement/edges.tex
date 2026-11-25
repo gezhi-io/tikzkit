@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue] (-.5,-.5) rectangle (5.5,3.5);
+  \draw[decorate,decoration={text along path,text={Parent text},text align=center}]
+    (0,2.7) edge[decorate=false,red] (0,1.5) -- (5,2.7);
+  \draw (0,0) edge[decorate,decoration={text along path,text={Edge text}}] (3,1)
+    edge[green!50!black] (5,1) -- (5,0);
+\end{tikzpicture}
+\end{document}

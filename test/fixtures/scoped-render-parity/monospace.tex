@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!45] (0,-.2) rectangle (4,1.4);
+  \path[decorate,decoration={text along path,text={|\ttfamily|iiiiiiiiiiii||}}] (.1,.8) -- (3.9,.8);
+  \path[decorate,decoration={text along path,text={iiiiiiiiiiii}}] (.1,.1) -- (3.9,.1);
+\end{tikzpicture}
+\end{document}

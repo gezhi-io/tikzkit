@@ -1,0 +1,27 @@
+% Independent TeX picture bounds, excluding standalone/page margins.
+\documentclass{article}
+\usepackage{tikz}
+\usetikzlibrary{decorations.text}
+\makeatletter
+\newcommand{\Probe}[2]{%
+  \begin{tikzpicture}#2%
+    \typeout{BOUNDS:#1:minX=\the\pgf@picminx}%
+    \typeout{BOUNDS:#1:minY=\the\pgf@picminy}%
+    \typeout{BOUNDS:#1:maxX=\the\pgf@picmaxx}%
+    \typeout{BOUNDS:#1:maxY=\the\pgf@picmaxy}%
+  \end{tikzpicture}}
+\makeatother
+\begin{document}
+\Probe{base}{\path[decorate,decoration={text effects along path,text={Ag},text effects/.cd,characters={text along path}}] (0,0) -- (2,0);}
+\Probe{center}{\path[decorate,decoration={text effects along path,text={Ag}}] (0,0) -- (2,0);}
+\Probe{sloped}{\path[decorate,decoration={text effects along path,text={Ag},text effects/.cd,characters={text along path,scale=1.5}}] (0,0) -- (2,1);}
+\Probe{raised}{\path[decorate,decoration={text effects along path,text={Ag},raise=-3mm,text effects/.cd,characters={text along path}}] (0,0) -- (2,0);}
+\Probe{spaces}{\path[decorate,decoration={text effects along path,text={\ \ \ },text effects/.cd,characters={text along path,scale=2}}] (0,0) -- (2,0);}
+\Probe{reverse}{\path[decorate,decoration={text effects along path,text={Ag},reverse path,text effects/.cd,characters={text along path}}] (0,0) -- (2,0);}
+\Probe{group}{\path[decorate,decoration={text effects along path,text={Ag Ag},text effects/.cd,group letters,characters={text along path}}] (0,0) -- (2,0);}
+\Probe{quick}{\path[decorate,decoration={text along path,text={Ag},raise=5mm}] (0,0) -- (2,1);}
+\Probe{overlay}{\draw (0,0) rectangle (1,1);\path[overlay,decorate,decoration={text effects along path,text={Ag},text effects/.cd,characters={text along path}}] (0,4) -- (2,4);}
+\Probe{replacement-fill}{\path[decorate,decoration={text effects along path,text={0},raise=2pt,text effects/.cd,replace characters=0 with {\fill circle[radius=2pt];}}] (0,0) -- (3pt,0);}
+\Probe{replacement-stroke}{\path[decorate,decoration={text effects along path,text={0},text effects/.cd,replace characters=0 with {\draw[line width=1pt] circle[radius=2pt];}}] (0,0) -- (3pt,0);}
+\Probe{replacement-sloped}{\path[decorate,decoration={text effects along path,text={0},text effects/.cd,replace characters=0 with {\fill circle[radius=2pt];}}] (0,0) -- (3pt,3pt);}
+\end{document}

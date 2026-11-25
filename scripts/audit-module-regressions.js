@@ -12,6 +12,8 @@ import { captureDatavisPin, compareDatavisPin } from "./browser-datavis-pin-metr
 import { captureArrowPaint, compareArrowPaint } from "./browser-arrow-metrics.js";
 import { captureSurfacePaint, compareSurfacePaint } from "./browser-surface-paint-metrics.js";
 import { captureChronologyPaint, compareChronologyPaint } from "./browser-chronology-metrics.js";
+import { captureAxisBoxPaint, compareAxisBoxPaint } from "./browser-axis-box-paint-metrics.js";
+import { captureDecorationBounds, compareDecorationBounds } from "./browser-decoration-bounds-metrics.js";
 import { openWorkbenchAudit } from "./workbench-audit-driver.js";
 
 const arg = name => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined;
@@ -144,6 +146,8 @@ try {
         return { x: box.x, y: box.y, width: box.width, height: box.height, glyphs };
       }) : undefined;
       const axisGrid = gridMode ? await captureAxisGrid(page, { frame: entry.axisFrame || "middle" }) : undefined;
+      const boxPaint = entry.boxPaint ? await captureAxisBoxPaint(page) : undefined;
+      const decorationBounds = entry.decorationBounds ? await captureDecorationBounds(page) : undefined;
       const crossOuts = crossMode ? await captureCrossOuts(page) : undefined;
       const pin = entry.pinGlyphs ? await captureDatavisPin(page, entry.pinGlyphs) : undefined;
       const arrowPaint = entry.arrowGeometry ? await captureArrowPaint(page,
@@ -186,7 +190,7 @@ try {
       images.push(decodePng(png));
       const curves = clipMode ? await captureClippedCurves(page, path.join(outputRoot, `${stem}-curves.png`)) : null;
       if (curves) curvePaint.push(curvePaintPoints(decodePng(curves.png), curves.viewport));
-      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, crossOuts, pin, arrowPaint, paintColors, surfacePaint, chronologyPaint, quiverViewport,
+      panels.push({ title, image: `${stem}.png`, svg: `${stem}.svg`, origins, legend, legendBackground, ticks, axisGrid, boxPaint, decorationBounds, crossOuts, pin, arrowPaint, paintColors, surfacePaint, chronologyPaint, quiverViewport,
         ...(curves ? { viewport: curves.viewport, curvesImage: `${stem}-curves.png` } : {}) });
     }
     const comparisonIndex = workbench ? 0 : 2;
@@ -376,7 +380,17 @@ try {
       })
     } : undefined;
     if (chronologyGate) chronologyGate.accepted = chronologyGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
-    summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, crossGate, pinGate, arrowGate, paintColorGate, surfacePaintGate, quiverPaintGate, chronologyGate,
+    const boxPaintGate = entry.boxPaint ? { comparisons: panels.flatMap((p, i) => i === 1 ? [] :
+      [{ title: p.title, ...compareAxisBoxPaint(p.boxPaint, panels[1].boxPaint) }]) } : undefined;
+    if (boxPaintGate) boxPaintGate.accepted = boxPaintGate.comparisons.filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
+    const decorationBoundsGate = entry.decorationBounds ? {
+      scope: "Physical canvas dimensions and unclipped character boxes only; not whole-image parity",
+      comparisons: panels.flatMap((p, i) => i === 1 ? [] : [{ title: p.title,
+        ...compareDecorationBounds(p.decorationBounds, panels[1].decorationBounds, entry.decorationBounds) }])
+    } : undefined;
+    if (decorationBoundsGate) decorationBoundsGate.accepted = decorationBoundsGate.comparisons
+      .filter(c => !c.title.startsWith("Before")).every(c => c.accepted);
+    summaries.push({ id, panels, sheet, alignedSheet, diagnostics: result.diagnostics, nativeGlyphGate, legendGate, clipGate, axisTextGate, gridGate, boxPaintGate, decorationBoundsGate, crossGate, pinGate, arrowGate, paintColorGate, surfacePaintGate, quiverPaintGate, chronologyGate,
       comparison: `Browser at 3x CSS zoom; ${panels[comparisonIndex].title}/reference diff is supplemental, not visual acceptance`,
       meanAbsoluteRGBA: difference.meanAbsoluteRGBA });
   }
@@ -391,6 +405,8 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
     nativeGlyphGates: summaries.filter(c => c.nativeGlyphGate).map(c => c.nativeGlyphGate),
     legendGates: summaries.filter(c => c.legendGate).map(c => ({ id: c.id, ...c.legendGate })),
     gridGates: summaries.filter(c => c.gridGate).map(c => ({ id: c.id, ...c.gridGate })),
+    boxPaintGates: summaries.filter(c => c.boxPaintGate).map(c => ({ id: c.id, ...c.boxPaintGate })),
+    decorationBoundsGates: summaries.filter(c => c.decorationBoundsGate).map(c => ({ id: c.id, ...c.decorationBoundsGate })),
     crossGates: summaries.filter(c => c.crossGate).map(c => ({ id: c.id, ...c.crossGate })),
     pinGates: summaries.filter(c => c.pinGate).map(c => ({ id: c.id, ...c.pinGate })),
     arrowGates: summaries.filter(c => c.arrowGate).map(c => ({ id: c.id, ...c.arrowGate })),
@@ -406,6 +422,8 @@ ${summaries.map(c => `<section id="${escape(c.id)}"><h2>${escape(c.id)}</h2><div
   assert.ok(summaries.every(c => !c.clipGate || c.clipGate.accepted), "Clipped curve paint must match the browser reference");
   assert.ok(summaries.every(c => !c.axisTextGate || c.axisTextGate.accepted), "All axis glyph origins must match the browser reference");
   assert.ok(summaries.every(c => !c.gridGate || c.gridGate.accepted), "Browser ticks, grids and glyphs must match the native reference");
+  assert.ok(summaries.every(c => !c.boxPaintGate || c.boxPaintGate.accepted), "Browser box direction, dash phase and plot paint order must match native");
+  assert.ok(summaries.every(c => !c.decorationBoundsGate || c.decorationBoundsGate.accepted), "Text-effect canvas dimensions and unclipped boxes must match native");
   assert.ok(summaries.every(c => !c.crossGate || c.crossGate.accepted), "Browser endpoint crosses must match the native reference");
   assert.ok(summaries.every(c => !c.pinGate || c.pinGate.accepted), "Browser pin endpoints and glyphs must match the native reference");
   assert.ok(summaries.every(c => !c.arrowGate || c.arrowGate.accepted), "Browser arrow curves, shafts, paint and canvas must match the native reference");

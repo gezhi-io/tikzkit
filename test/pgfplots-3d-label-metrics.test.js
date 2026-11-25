@@ -224,7 +224,8 @@ test("3D ticks are drawn in both adjacent coordinate planes", () => {
   const commands = renderAxis3DTicks({ xtick: "{0.5}", ytick: "{}", ztick: "{}", "tick align": "inside" }, ranges, geometry);
   // pgfplots.code.tex draws x ticks twice: xy/z and xz/y. These are
   // normalized transverse vectors, not a screen-perpendicular approximation.
-  assert.ok(commands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (0.5,0) -- (0.606,0.106);`));
+  const diagonal = Math.round(.15 / Math.SQRT2 * 1e6) / 1e6;
+  assert.ok(commands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (0.5,0) -- (${.5 + diagonal},${diagonal});`));
   assert.ok(commands.includes(String.raw`\draw[axis tick, gray, line width=0.2pt] (0.5,0) -- (0.5,0.15);`));
 });
 

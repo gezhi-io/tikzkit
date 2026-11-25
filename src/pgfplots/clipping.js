@@ -1,4 +1,4 @@
-import { formatAxisNumber } from "./format.js";
+import { formatAxisCoordinate } from "./format.js";
 
 // pgfplots.code.tex: clippath@prepare@for@axistype projects the final axis
 // limits, after enlargement. geometry.origin/width/height can describe the
@@ -23,11 +23,11 @@ export function axisViewportClipOption(axisOptions = {}, ranges = {}, geometry =
     const hull = projectedAxisBoxHull(ranges, geometry);
     if (hull.length < 3) return "";
     return `tikzkit clip polygon={${hull.map(point =>
-      `${formatAxisNumber(point.x)},${formatAxisNumber(point.y)}`).join(";")}}`;
+      `${formatAxisCoordinate(point.x)},${formatAxisCoordinate(point.y)}`).join(";")}}`;
   }
   const rect = axisClipRectangle(geometry);
   if (!rect) return "";
-  return `tikzkit clip rect={${[rect.minX, rect.minY, rect.maxX, rect.maxY].map(formatAxisNumber).join(",")}}`;
+  return `tikzkit clip rect={${[rect.minX, rect.minY, rect.maxX, rect.maxY].map(formatAxisCoordinate).join(",")}}`;
 }
 
 export function applyAxisClipOption(command, clipOption) {

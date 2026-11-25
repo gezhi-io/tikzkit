@@ -1,5 +1,5 @@
 import { axisNumber } from "./coordinates.js";
-import { formatAxisNumber, formatAxisPoint } from "./format.js";
+import { formatAxisCoordinate, formatAxisPoint } from "./format.js";
 import { applyAxisClipOption, axisViewportClipOption } from "./clipping.js";
 
 export function renderAxisOverlayStatements(body, ranges, geometry, axisOptions = {}) {
@@ -185,7 +185,7 @@ function lowerPgfExtraPathellipse(statement, ranges, geometry) {
 
   const command = drawMatch[1];
   const options = drawMatch[2] || "";
-  return `\\${command}${options ? options : ""} ${formatAxisPoint(centerPoint)} ellipse (${formatAxisNumber(xRadius)} and ${formatAxisNumber(yRadius)});`;
+  return `\\${command}${options ? options : ""} ${formatAxisPoint(centerPoint)} ellipse (${formatAxisCoordinate(xRadius)} and ${formatAxisCoordinate(yRadius)});`;
 }
 
 function readCommandGroups(source, cursor, count) {

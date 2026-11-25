@@ -7,6 +7,9 @@ import { tikzToSvg } from "../src/index.js";
 const FIXTURE_ROOT = new URL("./fixtures/examples/latex-examples/", import.meta.url);
 // Native numerical ticks use the CMSY minus, not a text-font hyphen.
 const nativeTick = text => text.replace(/^-(?=\d)/, "\u2212");
+const pt = 2.54 / 72.27;
+const closeCoordinate = (actual, expected) => assert.ok(Math.abs(actual - expected) <= 5e-7,
+  `physical coordinate ${actual} differs from ${expected}`);
 
 function renderFixture(name) {
   const source = readFileSync(new URL(`${name}.tex`, FIXTURE_ROOT), "utf8");
@@ -128,7 +131,9 @@ test("case 004: epochs overfitting preserves plot joins, annotation, and axis co
   assert.equal(paths.filter((item) => item.subtype === "axis-minor-tick").length, 31);
 
   assert.ok(annotation);
-  assert.deepEqual([annotation.text, annotation.x, annotation.y, annotation.rotation], ["overfitting", 8.4185, 1.048, 0]);
+  assert.deepEqual([annotation.text, annotation.rotation], ["overfitting", 0]);
+  closeCoordinate(annotation.x, (14 - 45 * pt) * ((51 + 90) / 2) / 104);
+  closeCoordinate(annotation.y, (8 - 45 * pt) * .16 / .98);
   assert.ok(largeArrow);
   assert.equal(largeArrow.style.lineWidth, 4.217517642992186);
   assert.ok(largeArrow.style.markerEnd.length > 31 && largeArrow.style.markerEnd.width > 31);
@@ -151,10 +156,11 @@ test("case 005: light-bulb amortization preserves reciprocal curves and legend s
     plots.map((item) => item.style.dashArray || []),
     [[], [10.543794107480464, 10.543794107480464], [1.4058392143307286, 7.029196071653643]]
   );
-  assert.deepEqual(
-    plots.map((item) => [item.commands[0].y, item.commands.at(-1).y]),
-    [[1.834, 0.092], [3.668, 0.183], [6.113, 0.306]]
-  );
+  for (const [i, price] of [1.5, 3, 5].entries()) {
+    const height = 8 - 45 * pt;
+    closeCoordinate(plots[i].commands[0].y, height * (price / (.003 * 5)) / 350);
+    closeCoordinate(plots[i].commands.at(-1).y, height * (price / (.003 * 100)) / 350);
+  }
   // Local tikztosvg repaints some minors; its 52 distinct segments are
   // 17 major + 35 minor, including the two formerly hidden crossings.
   assert.equal(result.ir.items.filter((item) => item.subtype === "axis-tick").length, 17);
@@ -207,11 +213,17 @@ test("case 007: x-square circle preserves translated points and unshifted axis v
   assert.ok(plot);
   assert.deepEqual([plot.commands.length, plot.style.stroke, plot.style.lineWidth], [50, "red", 2.811678428661457]);
   assert.ok(ellipse);
-  assert.deepEqual(
-    [ellipse.cx, ellipse.cy, ellipse.rx, ellipse.ry, ellipse.commands.length],
-    [3.427, 2.583, 1.656, 1.835, 6]
-  );
-  assert.deepEqual(ellipse.clipRect, { minX: 0, minY: 0, maxX: 6.853, maxY: 5.694 });
+  // Native default axes reserve 45pt from 240pt x 207pt; enlarged
+  // transform ranges are [-1.8,1.8] and [-.225,2.475].
+  const width = 195 * pt, height = 162 * pt;
+  closeCoordinate(ellipse.cx, width / 2);
+  closeCoordinate(ellipse.cy, height * 1.225 / 2.7);
+  closeCoordinate(ellipse.rx, width * .87 / 3.6);
+  closeCoordinate(ellipse.ry, height * .87 / 2.7);
+  assert.equal(ellipse.commands.length, 6);
+  assert.deepEqual([ellipse.clipRect.minX, ellipse.clipRect.minY], [0, 0]);
+  closeCoordinate(ellipse.clipRect.maxX, width);
+  closeCoordinate(ellipse.clipRect.maxY, height);
   assert.deepEqual([ellipse.style.stroke, ellipse.style.fill, ellipse.style.lineWidth], ["blue", "none", 2.811678428661457]);
 });
 

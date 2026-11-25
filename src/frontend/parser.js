@@ -256,7 +256,6 @@ function parseStatement(statement, diagnostics) {
     text.startsWith("\\linespread") ||
     text.startsWith("\\definecolor") ||
     text.startsWith("\\ctikzset") ||
-    text.startsWith("\\clip") ||
     text.startsWith("\\pgfplotsset") ||
     text.startsWith("\\pgfplotstableread") ||
     text.startsWith("\\pgfplotstabletypeset") ||
@@ -270,6 +269,9 @@ function parseStatement(statement, diagnostics) {
   if (text.startsWith("{")) return parseBareScope(text, diagnostics);
 
   const command = text.match(/^\\([A-Za-z@]+)/)?.[1];
+  if (command === "clip") {
+    return parsePathCommand("path", `[clip] ${text.slice(command.length + 1)}`, diagnostics);
+  }
   if (command === "pattern") {
     return parsePathCommand("path", `[pattern] ${text.slice(command.length + 1)}`, diagnostics);
   }

@@ -1,5 +1,7 @@
-import { flattenPath, pathLength, pointAtLength } from "../../engine/geometry.js";
+import { flattenPath, pathLength, pointAtDistance } from "../../engine/geometry.js";
 import { evaluateMath } from "../../engine/math.js";
+import { unscaledTextFont } from "../../tex/fontSpec.js";
+import { layoutNativeText } from "../../tex/textBox.js";
 import { mathFallbackText, normalizeTikzText, splitInlineMathSegments } from "../../tikz/text.js";
 import { estimateFormulaBox, measurePlainTextTeXBoxPt } from "../../tikz/textMetrics.js";
 import { TIKZ_FONT_FAMILY, TIKZ_MATH_ITALIC_FONT_FAMILY } from "../../tikz/metrics.js";
@@ -12,25 +14,70 @@ import { svgPaint } from "./style.js";
 import { textFontScale } from "./textLayout.js";
 
 export function renderDecorationTextPath(item, unit) {
+  const layout = layoutDecorationText(item, unit);
+  if (!layout) return "";
+  const { placements, color, fontFamily } = layout;
+  return `<g class="tikz-decoration-text">${placements.map(placement =>
+    renderDecorationGlyph({ ...placement, unit, color, fontFamily })
+  ).join("")}</g>`;
+}
+
+export function includeDecorationTextNodeBounds(item, unit, include) {
+  // Ordinary text along path uses pgfqboxsynced, which does not change the
+  // picture bounds. Text-effects characters are TikZ nodes: their unpainted
+  // rectangle backgrounds do, including inner sep and empty space boxes.
+  if (!item.pathTextUsesNodes) return;
+  const layout = layoutDecorationText(item, unit);
+  if (!layout) return;
+  for (const { glyph, x, y, angle, advance, fontSize } of layout.placements) {
+    if (glyph.replacement?.type === "circle") {
+      // pgfpathellipse records its rotated cubic control hull, not the
+      // tighter analytic circle. pgf@lt@curveto includes both controls.
+      const radians = angle * Math.PI / 180;
+      const c = Math.abs(Math.cos(radians)), s = Math.abs(Math.sin(radians));
+      const controlScale = Math.max(c + .55228475 * s, s + .55228475 * c);
+      const radius = decorationReplacementRadius(glyph.replacement, unit)
+        + (controlScale - 1) * Math.max(0, finiteDistance(glyph.replacement.radius));
+      include(x / unit - radius, -y / unit - radius);
+      include(x / unit + radius, -y / unit + radius);
+      continue;
+    }
+    const metrics = decorationGlyphBox(glyph);
+    const em = fontSize * glyph.fontScale / unit;
+    const innerY = finiteDistance(item.pathTextCharacterInnerYSepEm) * em;
+    const bottom = -metrics.depth / 10 * em - innerY;
+    const top = metrics.height / 10 * em + innerY;
+    const radians = angle * Math.PI / 180;
+    // Use precisely the same baseline and rotation as the painted glyph.
+    for (const dx of [-advance / 2, advance / 2]) {
+      for (const dy of [bottom, top]) {
+        include(x / unit + dx * Math.cos(radians) - dy * Math.sin(radians),
+          -y / unit + dx * Math.sin(radians) + dy * Math.cos(radians));
+      }
+    }
+  }
+}
+
+function layoutDecorationText(item, unit) {
   const normalized = normalizeTikzText(item.text);
-  if (normalized.invisible) return "";
+  if (normalized.invisible) return null;
   // The display-normalized line intentionally drops ordinary TeX braces.
   // Decorations need the raw braces because PGF gives an explicit group one
   // positionable text box instead of scanning it character by character.
   // pgfkeys removes soft whitespace at the value boundary. An explicit TeX
   // control space (`\ `) survives and is scanned as one character node.
   const rawSourceLine = String(item.text ?? normalized.raw ?? normalized.text ?? "");
-  const formattedLine = formatTextLine(rawSourceLine);
   const fontSize = textFontSizeForUnit(unit) * (normalized.scale || 1) * textFontScale(item, normalized);
   const flat = flattenPath(item.pathCommands, 0.01);
   if (item.pathTextReversePath) flat.reverse();
   const totalLength = pathLength(flat);
-  if (flat.length < 2 || totalLength <= 1e-9) return "";
+  if (flat.length < 2 || totalLength <= 1e-9) return null;
   const color = escapeAttribute(normalized.color || item.style?.fill || "black");
-  const fontFamily = escapeAttribute(item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY);
-  let glyphs = Array.isArray(item.pathTextFormatRuns) && item.pathTextFormatRuns.length
-    ? formattedDecorationGlyphs(item.pathTextFormatRuns, unit, fontSize, item.pathTextCharacterReplacements)
-    : decorationGlyphs(rawSourceLine, formattedLine, unit, fontSize, item.pathTextCharacterReplacements);
+  const fontFamily = item.style?.fontFamily || normalized.fontFamily || TIKZ_FONT_FAMILY;
+  const runs = Array.isArray(item.pathTextFormatRuns) && item.pathTextFormatRuns.length
+    ? item.pathTextFormatRuns : [{ text: rawSourceLine }];
+  const baseFont = unscaledTextFont(item.font || { sizePt: 10 * fontSize / textFontSizeForUnit(unit) });
+  let glyphs = formattedDecorationGlyphs(runs, { ...baseFont, family: fontFamily }, unit, fontSize, item.pathTextCharacterReplacements);
   const textEffects = Array.isArray(item.pathTextEffects) && item.pathTextEffects.length
     ? item.pathTextEffects
     : [item.pathTextReverse ? "reverse" : null, item.pathTextGroupLetters ? "group" : null].filter(Boolean);
@@ -38,76 +85,63 @@ export function renderDecorationTextPath(item, unit) {
     if (effect === "reverse") glyphs.reverse();
     if (effect === "group") glyphs = groupDecorationTextGlyphs(glyphs, item.pathTextWordSeparator);
   }
-  glyphs = sizeDecorationTextReplacements(glyphs, fontSize / unit);
+  glyphs = sizeDecorationTextReplacements(glyphs, fontSize / unit, unit);
   glyphs = scaleDecorationTextCharacters(glyphs, item);
   glyphs = padDecorationTextNodeBoxes(glyphs, item.pathTextCharacterInnerXSepEm);
-  if (!glyphs.length) return "";
+  if (!glyphs.length) return null;
   const em = fontSize / unit;
   const unscaledTextLength = glyphs.reduce((sum, glyph) => sum + em * glyph.advance, 0);
   const effectScale = decorationTextEffectsScale(item, totalLength, unscaledTextLength);
   if (effectScale !== 1) glyphs = scaleDecorationTextGlyphs(glyphs, effectScale);
   const textLength = glyphs.reduce((sum, glyph) => sum + em * glyph.advance, 0);
-  let distance = decorationTextStartDistance(item, totalLength, textLength);
+  const { start, end, repeatGap } = decorationTextAlignment(item, totalLength, textLength);
   const fitShift = item.pathTextEffectsFitToPath && !item.pathTextEffectsScaleToPath
     ? decorationTextEffectsFitShift(glyphs, totalLength, textLength, em)
     : decorationTextFitShift(item, glyphs, totalLength, textLength);
   const raise = finiteDistance(item.pathRaise);
-  const rendered = [];
+  const placements = [];
   const repeatText = normalizedRepeatText(item.pathTextRepeat);
-  if (repeatText !== 0) {
-    return renderRepeatedDecorationText({
-      glyphs,
-      item,
-      unit,
-      flat,
-      totalLength,
-      distance,
-      raise,
-      color,
-      fontFamily,
-      fontSize,
-      repeatText,
-      charactersAlongPath: item.pathTextCharactersAlongPath !== false
-    });
+  if (!item.pathTextUsesNodes && repeatText === 0 && runs.at(-1).text === "") {
+    // In PGF's ordinary scanner a terminal format reaches the stop token
+    // with the previous box intact. getwidth unboxed it, but typeset only
+    // copied it: replay once, after computing alignment and fit spacing.
+    glyphs.push(glyphs.at(-1));
   }
-  for (let index = 0; index < glyphs.length; index += 1) {
+  const charactersAlongPath = item.pathTextCharactersAlongPath !== false;
+  let distance = start;
+  let completedCopies = 0;
+  for (let index = 0; index < glyphs.length;) {
     const glyph = glyphs[index];
     const advance = em * glyph.advance;
-    const center = Math.min(totalLength, distance + advance / 2);
-    if (glyph.text !== " " || glyph.replacement) {
-      const point = pointAtLength(flat, totalLength > 0 ? center / totalLength : 0);
-      const radians = (point.angle * Math.PI) / 180;
-      const normalOffset = raise + glyph.normalOffset;
-      const x = (point.x - Math.sin(radians) * normalOffset) * unit;
-      const charactersAlongPath = item.pathTextCharactersAlongPath !== false;
-      const baselineOffset = charactersAlongPath ? 0 : ordinaryDecorationTextBaselineOffset(glyph, fontSize);
-      const y = -(point.y + Math.cos(radians) * normalOffset) * unit + baselineOffset;
-      if (glyph.replacement?.type === "circle") {
-        rendered.push(renderDecorationReplacementCircle(glyph.replacement, x, y, unit));
-      } else {
-        const glyphFontSize = fontSize * glyph.fontScale;
-        const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
-        const fontStyle = glyph.fontStyle && glyph.fontStyle !== "normal" ? ` font-style="${glyph.fontStyle}"` : "";
-        const fontWeight = glyph.fontWeight && Number(glyph.fontWeight) !== 400 ? ` font-weight="${glyph.fontWeight}"` : "";
-        const glyphColor = escapeAttribute(glyph.color || color);
-        const className = glyph.kind === "math-box"
-          ? "tikz-decoration-math-box"
-          : glyph.kind === "word"
-            ? "tikz-decoration-word"
-            : "tikz-decoration-glyph";
-        const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
-        const transform = charactersAlongPath
-          ? ` transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})"`
-          : "";
-        rendered.push(`<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${glyphColor}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(
-          glyphFontSize
-        )}" font-family="${glyphFontFamily}"${fontStyle}${fontWeight}${transform}>${content}</text>`);
-      }
-    }
+    const center = distance + advance / 2;
+    // Both automata move by the prewidth, then paint in a zero-width state.
+    // At zero remaining distance even that state switches to final. Only
+    // the trailing half of a painted box may overhang the end.
+    if (center >= end - 1e-9) break;
+    const point = pointAtDistance(flat, center);
+    const radians = point.angle * Math.PI / 180;
+    const sin = Math.sin(radians), cos = Math.cos(radians);
+    // The sampler clamps at the first point. A negative ordinary indent
+    // continues backwards along the initial tangent instead.
+    const beforeStart = Math.min(0, center);
+    const normalOffset = raise + glyph.normalOffset;
+    // Replacement code executes in a PGF scope, not in the original
+    // character's TeX hbox. Its picture origin has no font baseline offset.
+    const baselineOffset = charactersAlongPath || glyph.replacement ? 0 : ordinaryDecorationTextBaselineOffset(glyph, fontSize);
+    placements.push({ glyph, advance, fontSize, charactersAlongPath,
+      angle: charactersAlongPath || glyph.replacement ? point.angle : 0,
+      x: (point.x + cos * beforeStart - sin * normalOffset) * unit,
+      y: -(point.y + sin * beforeStart + cos * normalOffset) * unit + baselineOffset });
     distance += advance;
-    if (index + 1 < glyphs.length) distance += fitShift(glyph, glyphs[index + 1]);
+    if (repeatText === 0 && index + 1 < glyphs.length) distance += fitShift(glyph, glyphs[index + 1]);
+    index += 1;
+    if (index < glyphs.length) continue;
+    if (repeatText === 0 || (repeatText >= 0 && completedCopies >= repeatText) || !(textLength > 1e-9)) break;
+    completedCopies += 1;
+    distance += repeatGap;
+    index = 0;
   }
-  return `<g class="tikz-decoration-text">${rendered.join("")}</g>`;
+  return { placements, color, fontFamily };
 }
 
 function normalizedRepeatText(value) {
@@ -115,41 +149,8 @@ function normalizedRepeatText(value) {
   return Number.isFinite(numeric) ? Math.trunc(numeric) : 0;
 }
 
-function renderRepeatedDecorationText({ glyphs, unit, flat, totalLength, distance, raise, color, fontFamily, fontSize, repeatText, charactersAlongPath }) {
-  const rendered = [];
-  let glyphIndex = 0;
-  let completedCopies = 0;
-
-  // PGF's text-effects decoration returns to character 1 whenever the source
-  // text is exhausted. A positive value counts extra copies; a negative value
-  // continues until the decoration cannot consume the next character box.
-  while (glyphIndex < glyphs.length && distance < totalLength) {
-    const glyph = glyphs[glyphIndex];
-    const advance = glyph.advance * (fontSize / unit);
-    // PGF runs pre-token, token, and post-token as separate decoration states.
-    // The token is painted once its prewidth fits, even if its postwidth will
-    // then exhaust the remaining path.
-    if (distance + advance / 2 > totalLength + 1e-9) break;
-    rendered.push(renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, raise, unit, color, fontFamily, fontSize, charactersAlongPath }));
-    distance += advance;
-    glyphIndex += 1;
-    if (glyphIndex < glyphs.length) continue;
-    if (repeatText >= 0 && completedCopies >= repeatText) break;
-    completedCopies += 1;
-    glyphIndex = 0;
-  }
-  return `<g class="tikz-decoration-text">${rendered.join("")}</g>`;
-}
-
-function renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, raise, unit, color, fontFamily, fontSize, charactersAlongPath }) {
+function renderDecorationGlyph({ glyph, x, y, angle, unit, color, fontFamily, fontSize, charactersAlongPath }) {
   if (glyph.text === " " && !glyph.replacement) return "";
-  const center = distance + advance / 2;
-  const point = pointAtLength(flat, totalLength > 0 ? center / totalLength : 0);
-  const radians = (point.angle * Math.PI) / 180;
-  const normalOffset = raise + glyph.normalOffset;
-  const x = (point.x - Math.sin(radians) * normalOffset) * unit;
-  const baselineOffset = charactersAlongPath ? 0 : ordinaryDecorationTextBaselineOffset(glyph, fontSize);
-  const y = -(point.y + Math.cos(radians) * normalOffset) * unit + baselineOffset;
   if (glyph.replacement?.type === "circle") return renderDecorationReplacementCircle(glyph.replacement, x, y, unit);
   const glyphFontSize = fontSize * glyph.fontScale;
   const glyphFontFamily = escapeAttribute(glyph.fontFamily || fontFamily);
@@ -163,7 +164,7 @@ function renderDecorationGlyph({ glyph, flat, totalLength, distance, advance, ra
       : "tikz-decoration-glyph";
   const content = glyph.kind === "math-box" ? renderDecorationMathBoxContent(glyph.tex, glyphFontSize) : escapeText(glyph.text);
   const transform = charactersAlongPath
-    ? ` transform="rotate(${format(-point.angle)} ${format(x)} ${format(y)})"`
+    ? ` transform="rotate(${format(-angle)} ${format(x)} ${format(y)})"`
     : "";
   return `<text class="${className}" x="${format(x)}" y="${format(y)}" fill="${glyphColor}" text-anchor="middle" dominant-baseline="alphabetic" xml:space="preserve" font-size="${format(glyphFontSize)}" font-family="${glyphFontFamily}"${fontStyle}${fontWeight}${transform}>${content}</text>`;
 }
@@ -179,14 +180,24 @@ function renderDecorationReplacementCircle(replacement, x, y, unit) {
   )}" stroke="${escapeAttribute(svgPaint(replacement.stroke || "none"))}" stroke-width="${format(lineWidth)}"${opacity}${fillOpacity}${strokeOpacity} />`;
 }
 
-function decorationTextStartDistance(item, totalLength, textLength) {
-  const leftIndent = finiteDistance(item.pathLeftIndent);
-  const rightIndent = finiteDistance(item.pathRightIndent);
+function decorationTextAlignment(item, totalLength, textLength) {
   const align = String(item.pathTextAlign || "left").trim().toLowerCase();
-
-  if (align === "right") return totalLength - rightIndent - textLength;
-  if (align === "center") return leftIndent + (totalLength - leftIndent - rightIndent - textLength) / 2;
-  return leftIndent;
+  if (item.pathTextUsesNodes) {
+    // TikZ adds spare distance to the first prewidth (right) or splits it
+    // between first prewidth and last postwidth (center), on every copy.
+    const aligned = !item.pathTextEffectsFitToPath && !item.pathTextEffectsScaleToPath
+      && (align === "center" || align === "right");
+    const padding = aligned ? Math.max(0, totalLength - textLength) : 0;
+    return { start: align === "center" ? padding / 2 : padding, end: totalLength, repeatGap: padding };
+  }
+  // Ordinary PGF text reserves the right indent before running any state.
+  const end = totalLength - finiteDistance(item.pathRightIndent);
+  let start = finiteDistance(item.pathLeftIndent);
+  if (!item.pathTextFitToPath) {
+    if (align === "right") start = end - textLength;
+    if (align === "center") start += (end - start - textLength) / 2;
+  }
+  return { start, end: Math.min(totalLength, end), repeatGap: 0 };
 }
 
 function decorationTextFitShift(item, glyphs, totalLength, textLength) {
@@ -235,13 +246,19 @@ function padDecorationTextNodeBoxes(glyphs, innerXSepEm) {
   }));
 }
 
-function sizeDecorationTextReplacements(glyphs, em) {
+function decorationReplacementRadius(replacement, unit) {
+  const strokePad = replacement.stroke && replacement.stroke !== "none"
+    ? Math.max(0, finiteDistance(replacement.lineWidth)) * renderUnitScale(unit) / (2 * unit) : 0;
+  return Math.max(0, finiteDistance(replacement.radius)) + strokePad;
+}
+
+function sizeDecorationTextReplacements(glyphs, em, unit) {
   if (!(em > 1e-9)) return glyphs;
   return glyphs.map((glyph) => {
     if (glyph.replacement?.type !== "circle") return glyph;
     return {
       ...glyph,
-      advance: (2 * Math.max(0, finiteDistance(glyph.replacement.radius))) / em
+      advance: 2 * decorationReplacementRadius(glyph.replacement, unit) / em
     };
   });
 }
@@ -268,13 +285,14 @@ function scaleDecorationTextCharacters(glyphs, item) {
 
 function ordinaryDecorationTextBaselineOffset(glyph, fontSize) {
   if (glyph.kind === "math-box") return 0.25 * fontSize * (Number(glyph.fontScale) || 1);
-  const metrics = measurePlainTextTeXBoxPt(glyph.text, { fontSizePt: 10, fontFamily: glyph.fontFamily });
-  const height = Number(metrics?.height);
-  const depth = Number(metrics?.depth);
-  const offsetEm = Number.isFinite(height) && Number.isFinite(depth)
-    ? (height - depth) / 20
-    : 0.25;
+  const metrics = decorationGlyphBox(glyph);
+  const offsetEm = (metrics.height - metrics.depth) / 20;
   return offsetEm * fontSize * (Number(glyph.fontScale) || 1);
+}
+
+function decorationGlyphBox(glyph) {
+  return measurePlainTextTeXBoxPt(glyph.text, { fontSizePt: 10, fontFamily: glyph.fontFamily })
+    || { height: 7.5, depth: 2.5 };
 }
 
 function decorationTextEffectsFitShift(glyphs, totalLength, textLength, em) {
@@ -319,23 +337,24 @@ function decorationGlyphs(source, formattedLine, unit, fontSize, replacements = 
       continue;
     }
 
-    const trailingBrace = glyphs.pop();
-    if (trailingBrace?.text !== "{") glyphs.push(trailingBrace);
+    // plainDecorationGlyphs already discarded the opening group delimiter.
     glyphs.push(mathDecorationBox(segment.tex, unit, fontSize));
     segments[index + 1] = { ...following, text: following.text.slice(1) };
   }
   return glyphs;
 }
 
-function formattedDecorationGlyphs(runs, unit, fontSize, replacements = {}) {
+function formattedDecorationGlyphs(runs, baseFont, unit, fontSize, replacements = {}) {
   const glyphs = [];
   for (const run of runs) {
     const scale = Number(run.fontScale) || 1;
+    const font = { ...baseFont, sizePt: baseFont.sizePt * scale, family: run.fontFamily || baseFont.family,
+      style: run.fontStyle || baseFont.style, weight: run.fontWeight || baseFont.weight };
     const runGlyphs = decorationGlyphs(run.text, formatTextLine(run.text), unit, fontSize * scale, replacements);
     for (const glyph of runGlyphs) {
       glyphs.push({
         ...glyph,
-        advance: glyph.advance * scale,
+        advance: (glyph.kind === "math-box" ? glyph.advance : decorationGlyphAdvance(glyph.text, font)) * scale,
         fontScale: glyph.fontScale * scale,
         color: run.color || "",
         fontFamily: glyph.kind === "math-box" ? glyph.fontFamily : run.fontFamily || glyph.fontFamily,
@@ -450,7 +469,6 @@ function renderDecorationMathBoxContent(tex, fontSize) {
 function baseDecorationGlyph(text, replacements = {}) {
   return {
     text,
-    advance: decorationGlyphAdvance(text),
     fontScale: 1,
     normalOffset: 0,
     fontFamily: "",
@@ -461,9 +479,13 @@ function baseDecorationGlyph(text, replacements = {}) {
   };
 }
 
-function decorationGlyphAdvance(glyph) {
-  const texMetric = measurePlainTextTeXBoxPt(glyph, { fontSizePt: 10 });
-  if (texMetric) return texMetric.width / 10;
+function decorationGlyphAdvance(glyph, font) {
+  // PGF applies the format inside each character hbox: select the NFSS
+  // design size before any geometric scaling, with no inter-box kerning.
+  const texMetric = layoutNativeText(glyph, font) || measurePlainTextTeXBoxPt(glyph, {
+    fontSizePt: font.sizePt, fontFamily: font.family, fontVariant: font.variant
+  });
+  if (texMetric) return texMetric.width / font.sizePt;
   if (glyph === " ") return 0.3;
   if (/^[ilI|]$/.test(glyph)) return 0.22;
   if (/^[fjrt]$/.test(glyph)) return 0.32;

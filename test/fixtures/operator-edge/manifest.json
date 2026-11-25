@@ -1,0 +1,9 @@
+{
+  "cases": [
+    { "id": "native-numeric-semantics", "source": "../native-math-angles/numeric-semantics.tex", "title": "Native signed math with operator-name labels" },
+    { "id": "operator-names", "source": "operator-names.tex", "title": "Native operator names, scripts and optical fonts", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 95 } },
+    { "id": "operator-punctuation", "source": "operator-punctuation.tex", "title": "Operator-name ligatures and punctuation", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 27 } },
+    { "id": "edge-style-scope", "source": "edge-style-scope.tex", "title": "Edge-local paint without parent-path leakage", "arrowGeometry": { "allStrokes": true } },
+    { "id": "angles-parallel-paragraph", "source": "../visual-followups/angles-parallel-paragraph.tex", "title": "Existing angle-layer and paragraph control", "arrowGeometry": { "allStrokes": true } }
+  ]
+}

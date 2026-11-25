@@ -1,0 +1,7 @@
+{
+  "cases": [
+    { "id": "operator-limits-modes", "source": "operator-limits-modes.tex", "title": "Named operators: inline, display and explicit limits", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 109 } },
+    { "id": "operator-limits-sizes", "source": "operator-limits-sizes.tex", "title": "Named operator limits: optical sizes, bold and nested fractions", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 43 } },
+    { "id": "operator-names-control", "source": "../operator-edge/operator-names.tex", "title": "Existing ordinary-operator control", "nativeGlyphFrame": { "color": "rgb(0, 0, 255)", "count": 95 } }
+  ]
+}

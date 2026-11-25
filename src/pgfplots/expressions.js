@@ -20,6 +20,7 @@ export function evaluateAxisExpressionResult(expression, x, axisOptions = {}, va
   });
   return evaluateRestrictedExpression(expression, scope, {
     pgfTrig: true, radianTrig, recoverZeroDivision: true,
+    fixedPointRounding: String(axisOptions["use fpu"] ?? "true").trim() === "false",
     declarations: axisOptions["pgfplots declared functions"] || []
   });
 }
@@ -103,7 +104,7 @@ export function normalizeAxisExpression(input, radianTrig) {
 
 // Compatibility export: a closed function table, never executable source text.
 export function pgfMathRuntimePrelude() {
-  return createMathRuntime({ pgfTrig: true });
+  return createMathRuntime({ pgfTrig: true, fixedPointRounding: false });
 }
 
 function parsePgfplotsDeclaredFunction(raw) {
