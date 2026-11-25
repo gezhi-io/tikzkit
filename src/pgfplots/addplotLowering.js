@@ -4,6 +4,7 @@ import { filledPlotPaint } from "./filledPlotPaint.js";
 import { isAxisCombPlot, renderAxisComb } from "./comb.js";
 import { renderPlotMark, scatterClassOptionsForPoint, shouldRenderPlotMarks } from "./marks.js";
 import { renderAxisPlotInlineNodes, renderNodesNearCoords } from "./plotNodes.js";
+import { renderAxisErrorBars } from "./errorBarPaint.js";
 import {
   axisPlotPointChain,
   clampAxisBaseline,
@@ -72,13 +73,13 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const mapped = plot.is3d ? geometry.mapPoint3d(point) : geometry.mapPoint(point);
       return point.breakBefore ? { ...mapped, breakBefore: true } : mapped;
     });
-    const mark = String(plot.options.mark || "").trim().toLowerCase();
     const commands = [];
     const barAxis = ["y", "x"].find(axis => isAxisBarPlot(axisOptions, plot.options, axis));
     if (barAxis) {
       const layout = createBarLayout(axisOptions, plot.options, geometry, barAxis, ranges, plot.barGroup);
       const clip = plot.barGroup ? axisViewportClipOption(axisOptions, ranges, geometry) : "";
       commands.push(...renderAxisBars(dataPoints, axisOptions, geometry, plot.options, plotIndex, barAxis, ranges, layout, clip));
+      commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex, barAxis, layout));
       if (shouldRenderPlotMarks(plot.options)) {
         // PGF marks the surveyed coordinate, not the shifted bar rectangle.
         (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry,
@@ -109,6 +110,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
     }
     if (isAxisCombPlot(axisOptions, plot.options, "y")) {
       commands.push(...renderAxisComb(dataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y"));
+      commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
       if (shouldRenderPlotMarks(plot.options)) (afterAxisMarks ?? commands).push(...mappedPoints.map((point) => renderPlotMark(point, plot.options, plotIndex)));
       (afterAxisMarks ?? commands).push(...renderNodesNearCoords(visiblePlot, axisOptions, geometry, plotIndex));
       return commands;
@@ -122,7 +124,8 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       ]);
       commands.push(`\\draw[${style}] ${axisPlotPointChain(mappedPoints, axisOptions, plot.options)};`);
     }
-    if (plot.options["only marks"] || plot.options.scatter || (mark && mark !== "none")) {
+    commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
+    if (shouldRenderPlotMarks(plot.options)) {
       (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
     commands.push(...renderAxisPlotInlineNodes(plot.nodes, mappedPoints, selectPlotColor(plot.options, plotIndex)));
@@ -143,6 +146,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       const combDataPoints = clipAxisCombDataPoints(dataPoints, clipRanges);
       const points = combDataPoints.map((point) => geometry.mapPoint(point));
       const commands = renderAxisComb(combDataPoints, axisOptions, ranges, geometry, plot.options, plotIndex, "y");
+      commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
       if (shouldRenderPlotMarks(plot.options)) (afterAxisMarks ?? commands).push(...points.map((point) => renderPlotMark(point, plot.options, plotIndex)));
       return commands;
     }
@@ -168,6 +172,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       pgfplotsPlotClipOption(axisOptions, geometry)
     ]);
     if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
+    commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     if (shouldRenderPlotMarks(plot.options)) {
       (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }
@@ -202,6 +207,7 @@ function renderAddplotContent(plot, axisOptions, ranges, geometry, options, plot
       pgfplotsPlotClipOption(axisOptions, geometry)
     ]);
     if (shouldRenderAxisPlotPath(plot.options) && points.length) commands.push(`\\draw[${style}] ${axisPlotPointChain(points, axisOptions, plot.options)};`);
+    commands.push(...renderAxisErrorBars(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     if (shouldRenderPlotMarks(plot.options)) {
       (afterAxisMarks ?? commands).push(...renderAxisPlotMarks(plot, dataPoints, axisOptions, ranges, geometry, plotIndex));
     }

@@ -1,5 +1,5 @@
 import { parseOptions, splitTopLevel } from "../engine/options.js";
-import { axisNumber, parseCoordinateList } from "./coordinates.js";
+import { axisNumber, parseCoordinateList, parsePgfplotsPointMeta, setExplicitPointError } from "./coordinates.js";
 import { parsePgfplotsDateCoordinate } from "./dateCoordinates.js";
 import { sampleRawGnuplotAddplot } from "./gnuplot.js";
 import { expandPgfplotsNamedOptions } from "./namedOptions.js";
@@ -46,7 +46,7 @@ export function parseAddplots(body, options = {}, diagnostics = []) {
       cursor = skipWhitespace(body, cursor);
       const coords = extractBalanced(body, cursor, "{", "}");
       if (coords) {
-        const points = parseCoordinateList(coords.content);
+        const points = parseCoordinateList(coords.content, plotOptions, diagnostics);
         plots.push({
           type: "coordinates",
           is3d,
@@ -229,13 +229,13 @@ export function parsePgfplotsTablePoints(content, tableOptions = {}, diagnostics
   const noHeader = String(tableOptions.header) === "false" || rows[0].every((cell) =>
     /^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$|^[-+]?(?:inf|nan)$/i.test(cell.trim()));
   const headers = rows[0].map((cell, i) => noHeader ? String(i) : cell.trim());
-  const selectColumn = (key, fallback) => {
-    const name = tableOptions[key];
-    const requested = tableOptions[key + " index"] ?? fallback;
+  const selectColumn = (key, fallback, selectors = tableOptions) => {
+    const name = selectors[key];
+    const requested = selectors[key + " index"] ?? fallback;
     const index = name ? pgfplotsHeaderIndex(headers, name, -1)
       : /^\d+$/.test(String(requested).trim()) ? Number(requested) : -1;
     if (index >= 0 && index < headers.length) return index;
-    if (name || tableOptions[key + " index"] !== undefined || key === "x" || key === "y") {
+    if (name || selectors[key + " index"] !== undefined || key === "x" || key === "y") {
       diagnostics.push({ severity: "warning", message: `Could not resolve pgfplots table ${key} column '${name || requested}'` });
     }
     return -1;
@@ -247,6 +247,7 @@ export function parsePgfplotsTablePoints(content, tableOptions = {}, diagnostics
   const metaColumn = pgfplotsPointMetaColumn(plotOptions, tableOptions);
   const metaIndex = tableOptions.meta || tableOptions["meta index"] !== undefined
     ? selectColumn("meta", -1) : pgfplotsHeaderIndex(headers, metaColumn, -1);
+  const errorColumns = explicitErrorColumns(tableOptions, plotOptions, selectColumn);
   const points = [];
   for (const row of noHeader ? rows : rows.slice(1)) {
     if (!row.length || row.every((cell) => !String(cell).trim())) continue;
@@ -272,12 +273,38 @@ export function parsePgfplotsTablePoints(content, tableOptions = {}, diagnostics
     }
     if (metaIndex >= 0) {
       const rawMeta = String(row[metaIndex] ?? "").trim();
-      const numericMeta = axisNumber(rawMeta, NaN);
-      point.meta = Number.isFinite(numericMeta) && !pgfplotsUsesSymbolicPointMeta(plotOptions) ? numericMeta : rawMeta;
+      point.meta = parsePgfplotsPointMeta(rawMeta, plotOptions);
     }
+    for (const { axis, side, index } of errorColumns) setExplicitPointError(point, axis, side, row[index]);
     points.push(point);
   }
   return points;
+}
+
+function explicitErrorColumns(tableOptions, plotOptions, selectColumn) {
+  const selectors = {};
+  for (const [key, value] of Object.entries(plotOptions)) {
+    const match = key.match(/^(?:\/pgfplots\/)?table\/([xy] error (?:plus|minus)(?: index)?)$/);
+    if (match) selectors[match[1]] = value;
+  }
+  // A symmetric PGF key writes both individual keys at its position in the
+  // table key list. Names and indices are independent; a nonempty name wins.
+  for (const [key, value] of Object.entries(tableOptions)) {
+    const match = key.match(/^(?:\/pgfplots\/table\/)?([xy]) error(?: (plus|minus))?( index)?$/);
+    if (!match) continue;
+    const [, axis, side, index = ""] = match;
+    for (const s of side ? [side] : ["plus", "minus"]) selectors[`${axis} error ${s}${index}`] = value;
+  }
+  const columns = [];
+  for (const axis of ["x", "y"]) {
+    for (const side of ["plus", "minus"]) {
+      const key = `${axis} error ${side}`;
+      if (!selectors[key] && String(selectors[key + " index"] ?? "").trim() === "") continue;
+      const index = selectColumn(key, -1, selectors);
+      if (index >= 0) columns.push({ axis, side, index });
+    }
+  }
+  return columns;
 }
 
 function parseParametricAddplot(body, cursor, _statement, statementEnd, options = {}) {
@@ -365,10 +392,6 @@ function pgfplotsPointMetaColumn(plotOptions = {}, tableOptions = {}) {
   if (thisRow) return thisRow[1].trim();
   const directColumn = text.match(/^\s*([A-Za-z_][A-Za-z0-9_. -]*)\s*$/);
   return directColumn ? directColumn[1].trim() : "";
-}
-
-function pgfplotsUsesSymbolicPointMeta(plotOptions = {}) {
-  return /\bsymbolic\b/i.test(String(plotOptions["point meta"] || ""));
 }
 
 function normalizePgfplotsTableRows(content, tableOptions = {}) {

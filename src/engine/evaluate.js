@@ -16953,6 +16953,8 @@ function incomingTangentFromCommands(commands = [], from, to) {
 function semanticSubtype(options = {}) {
   if (options["tikzquads parallel path"]) return "tikzquads-parallel-connect";
   if (options["tikzquads kind"]) return `tikzquads-${String(options["tikzquads kind"]).trim().replace(/\s+/g, "-")}`;
+  if (options["axis error bar"]) return "axis-error-bar";
+  if (options["axis error cap"]) return "axis-error-cap";
   if (options["axis mark"]) return "axis-mark";
   if (options["axis bar"]) return "axis-bar";
   if (options["axis rectangle"]) return "axis-rectangle";

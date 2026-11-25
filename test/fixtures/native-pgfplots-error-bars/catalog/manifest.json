@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "cases": [
+    {"id":"manual-symmetric","title":"Manual: symmetric input, upward errors","source":"../manual-symmetric.tex"},
+    {"id":"manual-asymmetric","title":"Manual: independent upper and lower errors","source":"../manual-asymmetric.tex"},
+    {"id":"fixed-scatter","title":"Fixed scale: directions, cap width and uncapped stem","source":"../fixed-scatter.tex"},
+    {"id":"auto-extents","title":"Autoscale: errors set the axis limits","source":"../auto-extents.tex"},
+    {"id":"grouped-table","title":"Grouped ybar: asymmetric table errors on two series","source":"../grouped-table.tex"}
+  ]
+}

@@ -357,6 +357,7 @@ export function transformPlotMarkCommands(commands = [], center = { x: 0, y: 0 }
 
 function parsePlotMarkStyle(value) {
   if (value === undefined || value === null || value === true) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return { ...value };
   return parseOptions(stripOuterBraces(String(value)));
 }
 

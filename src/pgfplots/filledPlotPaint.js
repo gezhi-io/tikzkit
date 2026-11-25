@@ -7,12 +7,13 @@ import { isPlotColorToken, plotLineWidthOption } from "./plotStyle.js";
 // a bare draw/fill enables that action without replacing its current ink.
 export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } = {}) {
   let stroke = options["pgfplots cycle color"] || "black", fill = stroke;
+  let currentColor = stroke;
   let pattern;
   let draw = true, filled = false, drawOpacity, fillOpacity;
   let width = plotLineWidthOption(axis), dash = "", cap = "", join = "";
   for (const [key, value] of Object.entries(options)) {
     if (key === "color" || (value === true && isPlotColorToken(key))) {
-      stroke = fill = key === "color" ? value : key;
+      currentColor = stroke = fill = key === "color" ? value : key;
       pattern = undefined;
     } else if (key === "pattern" || key === "/tikz/pattern") {
       filled = value !== "none";
@@ -50,6 +51,7 @@ export function filledPlotPaint(options = {}, axis = {}, { legendDraw = false } 
   const fillStyle = filled && pattern ? joinOptions(["pattern=" + pattern,
     options["pattern color"] && "pattern color=" + options["pattern color"]]) : fillOption;
   return {
+    currentColor,
     fillStyle,
     style: joinOptions([fillStyle, "draw=" + (draw || legendDraw ? stroke : "none"), width, cap, join, dash, ...alpha]),
     mark: { stroke, fill: options["mark fill"] ?? fill, alpha }

@@ -7,6 +7,7 @@ import { isAxisQuiverPlot, parseQuiverOptions, quiverScale, quiverUpdatesLimits 
 import { isLogAxis } from "./ranges.js";
 import { axisLogBase, axisPointIsValidForScale, axisValueIsValidForScale } from "./logAxis.js";
 import { samplePgfplotsSurfaceDomain } from "./sampling.js";
+import { errorBarEndpoints, resolvePlotErrorBars } from "./errorBars.js";
 
 export const PGFPLOTS_DEFAULT_ENLARGE_LIMITS = 0.1;
 export const PGFPLOTS_DEFAULT_FUNCTION_DOMAIN = "-5:5";
@@ -29,8 +30,30 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
   let yMax = hasExplicitYMax ? axisNumber(axisOptions.ymax) : -Infinity;
   let zMin = hasExplicitZMin ? axisNumber(axisOptions.zmin) : Infinity;
   let zMax = hasExplicitZMax ? axisNumber(axisOptions.zmax) : -Infinity;
+  let errorX = false, errorY = false;
+  // pgfplots.errorbars.code.tex surveys only the changed component. The
+  // perpendicular cap is a physical mark, never an additional data limit.
+  function surveyErrors(points, config) {
+    if (!config) return;
+    for (const point of points) {
+      if (point.stackIgnored || !axisPointIsValidForScale(point, axisOptions)) continue;
+      for (const tip of errorBarEndpoints(point, config)) {
+        if (tip.axis === "x") {
+          errorX = true;
+          if (!hasExplicitXMin) xMin = Math.min(xMin, tip.x);
+          if (!hasExplicitXMax) xMax = Math.max(xMax, tip.x);
+        } else {
+          errorY = true;
+          if (!hasExplicitYMin) yMin = Math.min(yMin, tip.y);
+          if (!hasExplicitYMax) yMax = Math.max(yMax, tip.y);
+        }
+      }
+    }
+  }
   for (const plot of addplots) {
+    const errorBars = resolvePlotErrorBars(axisOptions, plot);
     if (plot.type === "coordinates") {
+      surveyErrors(plot.points, errorBars);
       for (const point of pgfplotsPlotRangePoints(plot, axisOptions, "x")) {
         if (!axisValueIsValidForScale(point.x, axisOptions, "x")) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
@@ -97,8 +120,11 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
         }
         continue;
       }
-      const points = sampleFunctionDataPoints(plot, axisOptions, { pgfplotsSamples: 80 })
+      const points = sampleFunctionDataPoints(plot, axisOptions, errorBars
+        ? { pgfplotsSamples: options.pgfplotsSamples || 25, pgfplotsMaxSamples: 1200 }
+        : { pgfplotsSamples: 80 })
         .filter((point) => axisPointIsValidForScale(point, axisOptions));
+      surveyErrors(points, errorBars);
       if (!hasExplicitXMin) xMin = Math.min(xMin, ...points.map((point) => point.x));
       if (!hasExplicitXMax) xMax = Math.max(xMax, ...points.map((point) => point.x));
       if (!hasExplicitYMin) yMin = Math.min(yMin, ...points.map((point) => point.y));
@@ -112,7 +138,8 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
     if (plot.type === "parametric") {
       const parametricPoints = isSurfacePlot(plot, axisOptions)
         ? sampleParametricSurfaceGrid(plot, axisOptions, options).grid.flat().filter(Boolean)
-        : sampleParametricDataPoints(plot, axisOptions, { pgfplotsSamples: 80 });
+        : sampleParametricDataPoints(plot, axisOptions, errorBars ? options : { pgfplotsSamples: 80 });
+      surveyErrors(parametricPoints, errorBars);
       for (const point of parametricPoints) {
         if (!axisPointIsValidForScale(point, axisOptions)) continue;
         if (!hasExplicitXMin) xMin = Math.min(xMin, point.x);
@@ -222,10 +249,10 @@ export function computeAxisRanges(axisOptions, addplots, { enlargeZ = true, ...o
   return {
     // Surface geometry and the surveyed frame must use the same sample
     // endpoints; rounding a limit to 0.001 can put facets outside the box.
-    xMin: roundResolvedAxisValue(xMin, xLog || hasSurfacePlot, "x"),
-    xMax: roundResolvedAxisValue(xMax, xLog || hasSurfacePlot, "x"),
-    yMin: roundResolvedAxisValue(yMin, yLog || hasSurfacePlot, "y"),
-    yMax: roundResolvedAxisValue(yMax, yLog || hasSurfacePlot, "y"),
+    xMin: roundResolvedAxisValue(xMin, xLog || hasSurfacePlot || errorX, "x"),
+    xMax: roundResolvedAxisValue(xMax, xLog || hasSurfacePlot || errorX, "x"),
+    yMin: roundResolvedAxisValue(yMin, yLog || hasSurfacePlot || errorY, "y"),
+    yMax: roundResolvedAxisValue(yMax, yLog || hasSurfacePlot || errorY, "y"),
     zMin: roundResolvedAxisValue(zMin, zLog, "z"),
     zMax: roundResolvedAxisValue(zMax, zLog, "z")
   };

@@ -1,0 +1,19 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{pgfplots}
+\pgfplotsset{width=7cm,compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}
+    \addplot+ [
+        error bars/.cd,
+            x dir=both, x explicit,
+            y dir=both, y explicit,
+    ] coordinates {
+        (1.1,0.9) += (0.4,0.2) -= (0.1,0.1)
+        (2.7,2)   -= (1,0)
+        (3,3)
+        (3.8,4.2) +- (0.3,0.2)
+    };
+\end{axis}
+\end{tikzpicture}
+\end{document}

@@ -29,6 +29,28 @@ pixel difference from left to right.
 These examples exercise `stack plots=y`, `area style`, `\closedcycle`, legends,
 grids, and sharp, smooth, or constant plot handlers.
 
+## PGFPlots Measurement Errors
+
+The three measurements below have a symmetric uncertainty, different upper and
+lower uncertainties, and no reported uncertainty, respectively. Only the three
+measurements are joined; the endpoints affect the automatic range but do not
+become extra data points.
+
+```tex
+\begin{tikzpicture}
+  \begin{axis}[xlabel=Time,ylabel=Reading]
+    \addplot+[error bars/.cd,y dir=both,y explicit] coordinates {
+      (1,2) +- (0,.5)
+      (2,3) += (0,.7) -= (0,.2)
+      (3,2.5)
+    };
+  \end{axis}
+\end{tikzpicture}
+```
+
+Requires `\usepackage{pgfplots}`. [Standalone source with x and y errors](../test/fixtures/native-pgfplots-error-bars/fixed-scatter.tex)
+and [native/browser comparison](qa/2026-11-25-pgfplots-error-bars.md).
+
 ## Polar Functions
 
 | TikZKit in Chromium | Local tikztosvg in Chromium |
