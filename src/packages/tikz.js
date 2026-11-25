@@ -142,3 +142,8 @@ texPackage.features.push("Standalone unbraced and braced TikZ picture commands w
 texPackage.implementedBy += " + src/frontend/picture-command.js:expandPictureCommands";
 texPackage.localSourceReviewedLatest += "; tikz.code.tex:1722-1813 (picture command dispatch, path terminator and braced auto-end), 1869-1872 (scoped replay)";
 texPackage.registryNoteSuffixLatest += " Top-level short pictures share normal picture options, library interpretation and source order with tikzpicture. Nested inline document layout and arbitrary TeX execution are not covered. Browser, export and independent references: docs/qa/2026-11-25-picture-command.md.";
+
+texPackage.features.push("Unpainted rectangular nodes retain their paper bounds separately from named border anchors");
+texPackage.implementedBy += " + src/tikz/emptyRectangle.js:emptyRectangleSize + src/renderers/svg/bounds.js:computeSvgBounds";
+texPackage.localSourceReviewedLatest += "; pgfmoduleshapes.code.tex:84-104,847-897,936-1011,1098-1102 (background, coordinate, dimensions and rectangular anchors); pgfcorepathconstruct.code.tex:125-141 and pgfcorepathusage.code.tex:112-130 (geometry vs pen bounds); tikz.code.tex:2691-2709,2816-2838 (named border vs explicit anchor)";
+texPackage.registryNoteSuffixLatest += " An ordinary empty rectangle contributes its unpainted background to the picture bounds, excluding outer sep; coordinates and overlays do not add a rectangle. Five controls check physical bounds and connections in the live browser and SVG export. Arbitrary shapes and transforms are not certified. Evidence: docs/qa/2026-11-25-empty-node-boundaries.md.";

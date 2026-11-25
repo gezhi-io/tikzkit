@@ -1,0 +1,11 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "empty-node-amplifier",
+    "empty-node-terminals",
+    "empty-node-rotation",
+    "empty-node-minima",
+    "empty-node-overlay",
+    "empty-node-leads"
+  ]
+}

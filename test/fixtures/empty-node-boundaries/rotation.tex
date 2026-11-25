@@ -1,0 +1,9 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \node[inner xsep=12pt,inner ysep=4pt,outer sep=9pt,rotate=30] (slot) at (1,1) {};
+  \draw[blue,line width=.6pt] (.4,.65) -- (1.4,.65);
+  \fill[red] (slot.center) circle[radius=1pt];
+\end{tikzpicture}
+\end{document}

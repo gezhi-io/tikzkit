@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "id": "empty-node-amplifier",
+      "source": "../circuitikz-tubes/amplifier.tex",
+      "title": "Unpainted terminal nodes in the manual triode amplifier"
+    },
+    {
+      "id": "empty-node-terminals",
+      "source": "terminals.tex",
+      "title": "Empty rectangle nodes on the ends of a conductor"
+    },
+    {
+      "id": "empty-node-rotation",
+      "source": "rotation.tex",
+      "title": "Rotated, padded empty rectangle with a nonzero outer separation"
+    },
+    {
+      "id": "empty-node-minima",
+      "source": "minima.tex",
+      "title": "Independent minimum dimensions and logical anchors"
+    },
+    {
+      "id": "empty-node-overlay",
+      "source": "overlay.tex",
+      "title": "Zero inner separation, overlay nodes and coordinate controls"
+    },
+    {
+      "id": "empty-node-leads",
+      "source": "leads.tex",
+      "title": "Circuitikz leads to implicit borders and explicit centers"
+    }
+  ]
+}

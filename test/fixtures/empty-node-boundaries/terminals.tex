@@ -1,0 +1,8 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[blue,line width=.8pt] (0,0) node (bottom) {} -- (0,2) node (top) {};
+  \draw[red,line width=.4pt] (bottom.north) -- (top.south);
+\end{tikzpicture}
+\end{document}

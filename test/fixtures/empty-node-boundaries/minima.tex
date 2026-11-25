@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \node[inner sep=0pt,minimum width=1.4cm,minimum height=.6cm] (a) at (0,0) {};
+  \node[inner sep=0pt,minimum size=8pt] (b) at (2,1) {};
+  \draw[blue,line width=.8pt] (a.east) -- (b.west);
+  \fill[red] (a.center) circle[radius=1pt];
+\end{tikzpicture}
+\end{document}

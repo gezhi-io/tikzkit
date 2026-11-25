@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \node[minimum width=1.4cm,minimum height=.5cm,outer sep=2pt,inner sep=0pt] (A) at (0,0) {};
+  \node[minimum width=.8cm,minimum height=1cm,outer sep=1pt,inner sep=0pt] (B) at (4,0) {};
+  \draw[blue] (A) to[C] (B);
+  \draw[orange] (B) to[short] ++(0,1.5) to[short] (0,1.5) to[short] (A);
+  \draw[red] (A.center) to[short] ++(-.6,-.6);
+  \fill (A.center) circle[radius=.7pt] (B.center) circle[radius=.7pt];
+\end{circuitikz}
+\end{document}

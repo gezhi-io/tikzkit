@@ -1,0 +1,10 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+  \node[inner sep=0pt] at (0,0) {};
+  \coordinate (guide) at (6,5);
+  \node[overlay,minimum size=3cm] at (-8,-5) {};
+  \draw[blue,line width=1pt] (.4,.1) -- (1.5,.7);
+\end{tikzpicture}
+\end{document}

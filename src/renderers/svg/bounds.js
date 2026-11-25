@@ -30,6 +30,7 @@ import { tubeGeometry } from "../../extensions/circuitikz/tubes.js";
 export function computeSvgBounds(items, options = {}) {
   const unit = options.unit || TIKZ_UNIT;
   const bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  let hasMeasuredEmptyBox = false;
   const includeGlobal = (x, y) => {
     bounds.minX = Math.min(bounds.minX, x);
     bounds.minY = Math.min(bounds.minY, y);
@@ -135,7 +136,13 @@ export function computeSvgBounds(items, options = {}) {
       }
       const normalized = normalizeTikzText(item.text, { ...options, mathMode: item.style?.mathMode });
       if (normalized.invisible) continue;
-      if (isEmptyNormalizedTikzText(normalized)) continue;
+      if (isEmptyNormalizedTikzText(normalized)) {
+        if (item.retainEmptyLayout) {
+          includeTextNodeLayoutBounds(item, include);
+          if (includeClippedItemBounds(item, itemBounds, includeGlobal)) hasMeasuredEmptyBox = true;
+        }
+        continue;
+      }
       if (normalized.kind === "image") {
         const scale = imagePlaceholderScale(item, normalized);
         include(item.x - (normalized.width * scale) / 2, item.y - (normalized.height * scale) / 2);
@@ -184,19 +191,22 @@ export function computeSvgBounds(items, options = {}) {
   }
 
   if (!Number.isFinite(bounds.minX)) return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
-  if (bounds.minX === bounds.maxX) bounds.maxX += 1;
-  if (bounds.minY === bounds.maxY) bounds.maxY += 1;
+  // A PGF rectangle can have an explicitly zero minimum. In that case the
+  // page border alone determines the viewport, not the empty-scene fallback.
+  if (!hasMeasuredEmptyBox && bounds.minX === bounds.maxX) bounds.maxX += 1;
+  if (!hasMeasuredEmptyBox && bounds.minY === bounds.maxY) bounds.maxY += 1;
   return bounds;
 }
 
 function includeClippedItemBounds(item, bounds, include) {
-  if (!Number.isFinite(bounds.minX)) return;
+  if (!Number.isFinite(bounds.minX)) return false;
   let clipped = intersectPathClipBounds(bounds, item.clipRect);
   clipped = intersectPathClipCircleBounds(clipped, item.clipCircle);
   clipped = intersectPathClipPolygonBounds(clipped, item.clipPolygon);
-  if (!clipped) return;
+  if (!clipped) return false;
   include(clipped.minX, clipped.minY);
   include(clipped.maxX, clipped.maxY);
+  return true;
 }
 
 function includeStandaloneMarkerBounds(item, include, unit) {
@@ -230,7 +240,7 @@ function includeStandaloneMarkerBounds(item, include, unit) {
 function includeTextNodeLayoutBounds(item, include) {
   const width = Number(item.nodeLayoutWidth);
   const height = Number(item.nodeLayoutHeight);
-  if (!(width > 0) || !(height > 0)) return;
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0) return;
   includeRotatedRectangleBounds(
     item.x - width / 2,
     item.y - height / 2,

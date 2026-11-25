@@ -1,0 +1,19 @@
+% Emits TeX box measurements to the log; this is not a gallery picture.
+\documentclass{article}
+\usepackage{tikz}
+\newsavebox{\sample}
+\newcommand{\probe}[2]{%
+  \sbox{\sample}{\begin{tikzpicture}#2\end{tikzpicture}}%
+  \typeout{NODE #1: width=\the\wd\sample; height=\the\ht\sample; depth=\the\dp\sample}%
+}
+\begin{document}
+\probe{alone}{\node (a) at (3,2) {};}
+\probe{terminal}{\draw (0,0) node (a) {} -- (0,2) node (b) {};}
+\probe{rotated}{\node[rotate=30,inner xsep=12pt,inner ysep=4pt,outer sep=9pt] {};}
+\probe{minimum}{\node[inner sep=0pt] {};}
+\probe{override}{\node[inner sep=0pt,minimum size=14pt,minimum width=3pt] {};}
+\probe{reverse}{\node[inner sep=0pt,minimum width=3pt,minimum size=14pt] {};}
+\probe{zero}{\node[inner sep=0pt,minimum size=0pt] {};}
+\probe{overlay}{\draw (0,0) -- (1,1); \node[overlay] at (-9,8) {}; \coordinate (far) at (5,9);}
+\probe{coordinate shape}{\draw (0,0) -- (1,1); \node[shape=coordinate] at (5,9) {};}
+\end{document}

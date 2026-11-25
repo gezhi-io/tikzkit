@@ -2,6 +2,7 @@ import { parseDimension } from "../engine/math.js";
 
 export const TIKZ_UNIT = 100;
 export const TIKZ_MARGIN = 10;
+export const TIKZ_DEFAULT_INNER_SEP = ".3333em";
 
 export const TIKZ_FONT_FAMILY = "TikZKitCMUSerif, 'CMU Serif', serif";
 export const TIKZ_SMALL_CAPS_FONT_FAMILY = "TikZKitCMSC10, TikZKitCMUSerif, serif";

@@ -6,6 +6,7 @@ import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
 import { fixedCapacitorItems, fixedCapacitorSettings } from "../extensions/circuitikz/capacitors.js";
 import { withCircuitikzKeys } from "../extensions/circuitikz/settings.js";
+import { emptyRectangleSize, isPlainRectangle } from "../tikz/emptyRectangle.js";
 import { currarrowHead, generatorSettings, generatorVoltage } from "../extensions/circuitikz/sourceVoltage.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
@@ -179,6 +180,7 @@ import {
 import { createFontSpec, mergeFontSpec, parseTikzFontPatch, resolveFontSpec, mathExtensionForPackages } from "../tex/fontSpec.js";
 import { pgfNormalisedVectorLength } from "../pgf/points.js";
 import {
+  TIKZ_DEFAULT_INNER_SEP,
   TIKZ_FONT_FAMILY,
   TIKZ_HELVETICA_FONT_FAMILY,
   TIKZ_MONOSPACE_FONT_FAMILY,
@@ -193,7 +195,6 @@ import {
   stealthArrowShortenFromLength
 } from "../tikz/metrics.js";
 
-const TIKZ_DEFAULT_INNER_SEP = ".3333em";
 const TEX_PT_PER_CM = 28.4527559;
 const EXPLICIT_NODE_FONT = Symbol("tikzkit.explicitNodeFont");
 const EXPLICIT_PATH_NODE_FONT = Symbol("tikzkit.explicitPathNodeFont");
@@ -2010,6 +2011,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         nodes,
         from: currentBase || current,
         to,
+        fromRef: currentNodeRef,
+        toRef: toNodeRef,
         options: combinedEdgeOptions,
         localToOptions,
         env,
@@ -2893,7 +2896,7 @@ function drawPolyline(commands, points, startNodeRef, endNodeRef, env) {
   return { from: firstFrom, to: lastTo };
 }
 
-function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options = {}, localToOptions, env, pathStyle = {}, styleHints = null }) {
+function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, fromRef, toRef, options = {}, localToOptions, env, pathStyle = {}, styleHints = null }) {
   const spec = circuitikzBipoleSpec(options, env);
   if (!spec || !from || !to) return null;
   const generator = spec.kind === "voltageSource" && !circuitikzUsesAmericanVoltageSource(env)
@@ -2901,22 +2904,17 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
   const geometry = circuitikzSegmentGeometry(from, to);
   if (!geometry) return null;
 
+  // Circuitikz positions the bipole from the original centers. Only the
+  // painted leads use TikZ's implicit shape borders; explicit anchors are literal.
+  const wire = spec.kind === "mosfet" ? { from, to } : clipNodeLineEndpoints(from, fromRef, to, toRef, env);
+  if (spec.kind !== "mosfet" && shouldBreakAtNodeExit(fromRef)) moveToNodeExit(commands, wire.from);
+  const splitWire = length => appendCircuitikzSplitWire(commands, wire.to, geometry, length, pathStyle, styleHints, options, env);
   if (spec.kind === "short") {
-    commands.push(lineToCommand(to));
+    commands.push(lineToCommand(wire.to));
   } else if (spec.kind === "resistor") {
     const settings = circuitikzResistorSettings(options, env);
     const bodyLength = circuitikzBodyLength("resistor", geometry.length, env, settings);
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      bodyLength,
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(bodyLength);
     shapes.push(circuitikzResistorItem(geometry, bodyLength, settings, pathStyle));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "capacitor") {
@@ -2925,17 +2923,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     const bodyLength = spec.variable
       ? Math.min(settings.bodyLength, geometry.length * 0.78)
       : settings.gap;
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      bodyLength,
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(bodyLength);
     if (spec.variable) {
       shapes.push(...circuitikzVariableCapacitorItems(geometry, settings, pathStyle));
       registerCircuitikzVariableCapacitorNode(spec, geometry, settings, bodyLength, env);
@@ -2945,47 +2933,17 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "diode") {
     const settings = circuitikzDiodeSettings(spec, options, env);
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      circuitikzBodyLength("diode", geometry.length, env, settings),
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(circuitikzBodyLength("diode", geometry.length, env, settings));
     shapes.push(...circuitikzDiodeItems(geometry, spec, settings, pathStyle, options, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "battery") {
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      circuitikzBodyLength("battery", geometry.length, env),
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(circuitikzBodyLength("battery", geometry.length, env));
     shapes.push(...circuitikzBatteryItems(geometry, spec, pathStyle, env));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "inductor" || spec.kind === "choke") {
     const settings = circuitikzInductorSettings(spec, options, env);
     const bodyLength = circuitikzBodyLength("inductor", geometry.length, env, settings);
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      bodyLength,
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(bodyLength);
     shapes.push(...circuitikzInductorItems(from, to, geometry, spec, settings, pathStyle));
     if (split.postLead) shapes.push(split.postLead);
     registerCircuitikzInductorNode(spec, geometry, settings, bodyLength, options, env);
@@ -2994,17 +2952,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
       ? { ...generator, fill: spec.componentFill ?? circuitikzSourceClassFill(options, env) }
       : spec.kind === "voltageSource" && ["sinusoidal", "square", "triangular"].includes(spec.sourceKind)
         ? circuitikzWaveformSourceSettings("voltage", spec.sourceKind, options, env, spec.componentFill) : spec;
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      generator?.bodyLength ?? circuitikzBodyLength(spec.kind === "controlledVoltageSource" ? "controlledSource" : "voltageSource", geometry.length, env, waveformSettings),
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(generator?.bodyLength ?? circuitikzBodyLength(spec.kind === "controlledVoltageSource" ? "controlledSource" : "voltageSource", geometry.length, env, waveformSettings));
     shapes.push(...circuitikzVoltageSourceItems(from, to, geometry, spec, pathStyle, env, waveformSettings));
     appendCircuitikzVoltageSourceSymbolNodes(nodes, spec, geometry, env);
     if (split.postLead) shapes.push(split.postLead);
@@ -3012,17 +2960,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     const waveformSettings = spec.kind === "isource" && spec.sourceKind === "sinusoidal"
       ? circuitikzWaveformSourceSettings("current", spec.sourceKind, options, env, spec.componentFill)
       : spec;
-    const split = appendCircuitikzSplitWire(
-      commands,
-      from,
-      to,
-      geometry,
-      circuitikzBodyLength(spec.kind === "controlledCurrentSource" ? "controlledSource" : "isource", geometry.length, env, waveformSettings),
-      pathStyle,
-      styleHints,
-      options,
-      env
-    );
+    const split = splitWire(circuitikzBodyLength(spec.kind === "controlledCurrentSource" ? "controlledSource" : "isource", geometry.length, env, waveformSettings));
     shapes.push(...circuitikzCurrentSourceItems(from, to, geometry, spec, pathStyle, options, env, waveformSettings));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "mosfet") {
@@ -3040,7 +2978,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
   appendCircuitikzFlowLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env);
   appendCircuitikzVoltageLabel(nodes, shapes, spec, from, to, geometry, options, pathStyle, env, generator);
 
-  return { from: roundPoint(from), to: roundPoint(to), drawnTo: roundPoint(to) };
+  return { from: wire.from, to: wire.to, drawnTo: wire.to };
 }
 
 function circuitikzPackageSettings(packages = []) {
@@ -4092,7 +4030,7 @@ function circuitikzInductorCoreDistance(options = {}, env = {}) {
   return parseDimension("2pt", env.variables || {}) * canvasLengthScale(env);
 }
 
-function appendCircuitikzSplitWire(commands, from, to, geometry, bodyLength, pathStyle = {}, styleHints = null, options = {}, env = {}) {
+function appendCircuitikzSplitWire(commands, to, geometry, bodyLength, pathStyle = {}, styleHints = null, options = {}, env = {}) {
   const half = bodyLength / 2;
   const start = pointAlong(geometry.mid, geometry.u, -half);
   const end = pointAlong(geometry.mid, geometry.u, half);
@@ -10333,6 +10271,10 @@ function addNodeItemsWithFont(node, ir, env) {
       x: textPoint.x,
       y: textPoint.y,
       text: renderedNodeText,
+      // Preserve the public node and its logical geometry, without adding a
+      // second scene item for the unpainted PGF rectangular background path.
+      ...(!renderedNodeText.trim() && ir.items.length === firstItemIndex && !skipsImplicitLayoutBounds &&
+        isPlainRectangle(node.options || {}, shape) ? { retainEmptyLayout: true } : {}),
       font: textFont,
       style: textStyle,
       rotation: rotation || undefined,
@@ -14255,6 +14197,9 @@ function estimateNodeLayoutSize(text, options = {}, env = { variables: {} }) {
   if (circuitikzTubeKind(options)) return circuitikzTubeSize(env, options);
   if (circuitikzQuadpoleKind(options)) return circuitikzQuadpoleSize(env, options);
   if (options["tikzkit tkz axis tick label"]) return estimateTkzAxisTickLabelSize(text, options, env);
+  if (!text.trim() && isPlainRectangle(options, nodeShape(options))) {
+    return scaleSize(emptyRectangleSize(options, value => parseNodeLengthDimension(value, env)), nodeOptionScale(options, env));
+  }
   if (nodeUsesBoxSizing(options, env)) return estimateNodeSize(text, options, env);
   return estimateCompactTextSize(text, options, env);
 }
