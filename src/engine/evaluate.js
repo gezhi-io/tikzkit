@@ -4,6 +4,7 @@ import { layoutNativeMath } from "../tex/mathBox.js";
 import { layoutNativeText, layoutNativeTextRun, nativeTypewriterFont } from "../tex/textBox.js";
 import { expandTheNumexpr } from "../tex/etexArithmetic.js";
 import { TUBE_DEFAULTS, tubeGeometry } from "../extensions/circuitikz/tubes.js";
+import { fixedCapacitorItems, fixedCapacitorSettings, withCapacitorKeys } from "../extensions/circuitikz/capacitors.js";
 import { circleToPath, cubicPointAt, cubicTangentAt, ellipseToPath, flattenPath, pathIntersectionDetails, pathLength, pointAtLength } from "./geometry.js";
 import { resolveCalcExpression, resolveCalcOffsetExpression } from "../tikz/libraries/calc.js";
 import { legacyPrimeArrowMetrics } from "../tikz/libraries/arrows.js";
@@ -353,10 +354,10 @@ export function interpretTikz(ast, options = {}) {
       styles,
       codeHandlers: { ...(picture.codeHandlers || {}) },
       pics: { ...(picture.pics || {}) },
-      circuitikz: {
+      circuitikz: withCapacitorKeys({
         ...circuitikzPackageSettings(picture.packages || ast.packages || []),
         ...normalizeCtikzSetOptions(picture.circuitikzOptions || {})
-      },
+      }, pictureOptions),
       randomLists: { ...(picture.randomLists || {}) },
       randomListCounters: {},
       pgfRandom: documentRandom,
@@ -1117,6 +1118,7 @@ function interpretStatementBody(statement, env, ir, diagnostics, options) {
       ...env,
       variables: scopedVariables,
       transform: scopePlane?.transform || scopedTransform,
+      circuitikz: withCapacitorKeys(env.circuitikz, scopeOptions),
       canvasTransform: scopedCanvasTransform,
       canvasTrackingDisabled: Boolean(env.canvasTrackingDisabled || hasTransformCanvas(scopeOptions)),
       canvasScale: env.canvasScale * transformCanvasScale(scopeOptions, codeEnv),
@@ -1552,6 +1554,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
   const pathPlane = canvasPlaneEnvironment(env, options, pathTransform);
   const pathEnv = {
     ...optionEnv,
+    circuitikz: withCapacitorKeys(env.circuitikz, statementTransformOptions),
     pathLet: { points: {}, numbers: {} },
     variables: { ...(env.variables || {}) },
     transform: pathPlane?.transform || pathTransform,
@@ -1638,7 +1641,7 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
     if (compoundShape && shadows) compoundShape.shadows = shadows;
     const shapesToRender = compoundShape ? [compoundShape] : styledShapes;
     for (const shape of shapesToRender) {
-      ir.items.push(shape);
+      if (!shape.paintAfterPath) ir.items.push(shape);
     }
     if (hasDrawableCommands(built.commands, built.shapes)) {
       const pathStyle = drawablePathStyle(style, { ...shadingStyle, ...built.styleHints, ...doubleStyle });
@@ -1668,6 +1671,9 @@ function interpretPathStatement(statement, env, ir, diagnostics) {
       addPostactionShowPathConstructionItems(built, pathOptions, pathEnv, ir, diagnostics);
     }
     for (const shape of shapesToRender) {
+      // Circuit components drawn as PGF nodes cover the completed wire,
+      // including any portion inside a filled body on very short connections.
+      if (shape.paintAfterPath) ir.items.push(shape);
       addDecorationMarkers(shape, pathOptions, pathEnv, ir, diagnostics);
     }
   }
@@ -1808,6 +1814,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
     }
     if (segment.kind === "options") {
       const segmentOptions = resolveDynamicOptions(segment.options || {}, env);
+      env.circuitikz = withCapacitorKeys(env.circuitikz, segmentOptions);
       Object.assign(effectivePathOptions, segmentOptions);
       Object.assign(styleHints, pathOptionStyleHints(effectivePathOptions, pathStyle, env));
       continue;
@@ -1989,10 +1996,8 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
           });
         }
       }
-      const combinedEdgeOptions = {
-        ...effectivePathOptions,
-        ...resolveDynamicOptions(segment.options || {}, env)
-      };
+      const localToOptions = resolveDynamicOptions(segment.options || {}, env);
+      const combinedEdgeOptions = { ...effectivePathOptions, ...localToOptions };
       const customToPath = parseCustomToPathTemplate(combinedEdgeOptions["to path"], parsePathSegments);
       if (!customToPath) {
         pendingInlineNodes.push(...toPathInlineNodes(combinedEdgeOptions["to path"]));
@@ -2004,6 +2009,7 @@ function buildPath(segments, env, diagnostics, pathOptions = {}, pathStyle = {})
         from: currentBase || current,
         to,
         options: combinedEdgeOptions,
+        localToOptions,
         env,
         pathStyle,
         styleHints
@@ -2885,7 +2891,7 @@ function drawPolyline(commands, points, startNodeRef, endNodeRef, env) {
   return { from: firstFrom, to: lastTo };
 }
 
-function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options = {}, env, pathStyle = {}, styleHints = null }) {
+function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options = {}, localToOptions, env, pathStyle = {}, styleHints = null }) {
   const spec = circuitikzBipoleSpec(options, env);
   if (!spec || !from || !to) return null;
   const geometry = circuitikzSegmentGeometry(from, to);
@@ -2910,10 +2916,11 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
     shapes.push(circuitikzResistorItem(geometry, bodyLength, settings, pathStyle));
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "capacitor") {
-    const settings = spec.variable ? circuitikzVariableCapacitorSettings(options, env) : null;
+    const settings = spec.variable ? circuitikzVariableCapacitorSettings(options, env) :
+      fixedCapacitorSettings(withCapacitorKeys(env.circuitikz, localToOptions), env.variables, nodeCanvasScale(options, env));
     const bodyLength = spec.variable
       ? Math.min(settings.bodyLength, geometry.length * 0.78)
-      : circuitikzBodyLength("capacitor", geometry.length, env);
+      : settings.gap;
     const split = appendCircuitikzSplitWire(
       commands,
       from,
@@ -2929,7 +2936,7 @@ function appendCircuitikzToSegment({ commands, shapes, nodes, from, to, options 
       shapes.push(...circuitikzVariableCapacitorItems(geometry, settings, pathStyle));
       registerCircuitikzVariableCapacitorNode(spec, geometry, settings, bodyLength, env);
     } else {
-      shapes.push(circuitikzCapacitorItem(from, to, geometry, pathStyle, env));
+      shapes.push(...fixedCapacitorItems(split, geometry.n, settings, pathStyle, circuitikzComponentFill(options)));
     }
     if (split.postLead) shapes.push(split.postLead);
   } else if (spec.kind === "diode") {
@@ -3714,7 +3721,7 @@ function circuitikzBodyLength(kind, segmentLength, env = {}, settings = null) {
   }
   const desired = kind === "inductor"
     ? (settings?.bodyLength || 0.84 * scale)
-    : (kind === "capacitor" ? 0.28 : kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : (kind === "voltageSource" || kind === "isource") ? 0.84 * sourceScale : 0.84) * scale;
+    : (kind === "controlledSource" ? 0.98 * controlledScale : kind === "battery" ? 0.42 * batteryScale : (kind === "voltageSource" || kind === "isource") ? 0.84 * sourceScale : 0.84) * scale;
   return Math.min(desired, Math.max(0, segmentLength * 0.78));
 }
 
@@ -4246,31 +4253,6 @@ function circuitikzResistorItem(geometry, bodyLength, settings = {}, pathStyle =
     zigs: settings.zigs,
     style: circuitikzComponentStyle(pathStyle),
     commands
-  };
-}
-
-function circuitikzCapacitorItem(from, to, geometry, pathStyle = {}, env = {}) {
-  const scale = circuitikzLengthScale(env);
-  const plateHalf = 0.3 * scale;
-  const gap = circuitikzBodyLength("capacitor", geometry.length, env) / 2;
-  const leftCenter = pointAlong(geometry.mid, geometry.u, -gap / 2);
-  const rightCenter = pointAlong(geometry.mid, geometry.u, gap / 2);
-  const plate = (center) => [
-    pointNormal(center, geometry.n, plateHalf),
-    pointNormal(center, geometry.n, -plateHalf)
-  ];
-  const [l1, l2] = plate(leftCenter);
-  const [r1, r2] = plate(rightCenter);
-  return {
-    type: "path",
-    subtype: "circuitikz-capacitor",
-    style: circuitikzComponentStyle(pathStyle),
-    commands: [
-      { type: "moveTo", x: l1.x, y: l1.y },
-      { type: "lineTo", x: l2.x, y: l2.y },
-      { type: "moveTo", x: r1.x, y: r1.y },
-      { type: "lineTo", x: r2.x, y: r2.y }
-    ]
   };
 }
 
@@ -9973,7 +9955,7 @@ function normalizeCtikzSetOptions(rawOptions = {}) {
     }
     normalized[normalizedKey] = normalizedValue;
   }
-  return normalized;
+  return withCapacitorKeys(normalized, normalized);
 }
 
 function picDefinitionsFromOptions(rawOptions = {}) {

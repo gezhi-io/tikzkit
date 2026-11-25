@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "id": "capacitor-amplifier",
+      "source": "../circuitikz-tubes/amplifier.tex",
+      "title": "Input, output and cathode capacitors of the triode amplifier"
+    },
+    {
+      "id": "capacitor-directions",
+      "source": "directions.tex",
+      "title": "Horizontal, vertical, diagonal and very short capacitor connections"
+    },
+    {
+      "id": "capacitor-settings",
+      "source": "settings.tex",
+      "title": "Capacitor key precedence, body fill, pen width and wire continuity"
+    },
+    {
+      "id": "capacitor-coordinate-scale",
+      "source": "coordinate-scale.tex",
+      "title": "Coordinate scaling with and without transform shape"
+    },
+    {
+      "id": "capacitor-scope",
+      "source": "scope.tex",
+      "title": "Scope restoration and filled plates on a shorter wire"
+    }
+  ]
+}

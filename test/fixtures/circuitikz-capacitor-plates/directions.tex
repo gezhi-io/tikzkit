@@ -1,0 +1,12 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (-.4,-.8) rectangle (6.8,2.8);
+  \draw[blue] (0,0) to[C] (2.4,0);
+  \draw[red] (3.3,2.4) to[capacitor] (3.3,-.2);
+  \draw (4,0) to[C] (6,2);
+  % A short connection does not shrink the physical component.
+  \draw (1.12,1.7) to[C] (1.28,1.7);
+\end{tikzpicture}
+\end{document}

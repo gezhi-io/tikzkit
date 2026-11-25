@@ -1,0 +1,13 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{tikzpicture}
+  \draw[gray!35] (-.3,-.9) rectangle (4.4,2.4);
+  \begin{scope}[scale=1.8]
+    \draw[blue] (0,0) to[C] (2,0);
+  \end{scope}
+  \begin{scope}[yshift=1.4cm,scale=1.8,transform shape]
+    \draw[red] (0,0) to[C] (2,0);
+  \end{scope}
+\end{tikzpicture}
+\end{document}

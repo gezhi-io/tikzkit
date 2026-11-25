@@ -1,0 +1,17 @@
+\documentclass[border=2pt]{standalone}
+\usepackage{circuitikz}
+\begin{document}
+\begin{circuitikz}
+  \draw[gray!35] (-.3,-.9) rectangle (5.1,2.4);
+  % The manual's capacitors/width and capacitors/height are setter keys.
+  \ctikzset{bipoles/length=1cm, capacitors/scale=1.5,
+            capacitors/width=.4, capacitors/height=.7,
+            capacitors/fill=yellow, capacitors/thickness=3}
+  \draw[blue,line width=.8pt] (0,0) to[C] (2,0);
+  \draw[blue,line width=.8pt] (2.8,0) to[C,fill=cyan,
+    bipoles/capacitor/width=.25] (4.8,0);
+  \ctikzset{bipoles/capacitor/height=.5,capacitors/thickness=none,bipoles/thickness=1.25}
+  \draw[red,line width=1pt] (0,1.6) to[C] (2,1.6);
+  \draw[red,line width=1pt] (2.8,1.6) to[C,capacitors/fill=none] (4.8,1.6);
+\end{circuitikz}
+\end{document}

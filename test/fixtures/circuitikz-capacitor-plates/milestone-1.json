@@ -1,0 +1,10 @@
+{
+  "sourceManifest": "manifest.json",
+  "caseIds": [
+    "capacitor-amplifier",
+    "capacitor-directions",
+    "capacitor-settings",
+    "capacitor-coordinate-scale",
+    "capacitor-scope"
+  ]
+}
